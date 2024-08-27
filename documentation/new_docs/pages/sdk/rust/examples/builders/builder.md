@@ -1,5 +1,7 @@
 # Mixnet Client Builder
 
+You can spin up an ephemeral client like so. This client will not have a persistent identity and its keys will be dropped on restart. Since there is currently no way of reconnecting a client that has been disconnected after use, then treat disconnecting a client the same as dropping its keys entirely.
+
 > You can find this code [here](https://github.com/nymtech/nym/blob/master/sdk/rust/nym-sdk/examples/builder.rs).
 
 ```rust

@@ -21,7 +21,7 @@ nym-sphinx-types = { path = "../types" }
 nym-topology = { path = "../../topology" }
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-bindgen]
-version = "0.2.83"
+version = "0.2.93"
 
 [dev-dependencies]
 rand_chacha = { workspace = true }

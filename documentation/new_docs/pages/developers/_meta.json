@@ -1,5 +1,9 @@
 {
   "concepts": "Core Concepts",
   "integrations": "Integrations",
-  "tools": "Tools"
+  "tools": "Tools",
+  "---": {
+    "type": "separator"
+  },
+  "licensing": "Licensing"
 }

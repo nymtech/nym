@@ -1,4 +1,8 @@
 {
   "rust": "Rust SDK",
-  "typescript": "Typescript SDK"
+  "typescript": "Typescript SDK",
+  "---": {
+    "type": "separator"
+  },
+  "licensing": "Licensing"
 }

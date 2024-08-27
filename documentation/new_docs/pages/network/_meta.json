@@ -5,5 +5,8 @@
   "traffic": "Traffic Flow",
   "cryptography": "Crypto",
   "rewards": "Rewards",
+  "---": {
+    "type": "separator"
+  },
   "licensing": "Licencing"
 }

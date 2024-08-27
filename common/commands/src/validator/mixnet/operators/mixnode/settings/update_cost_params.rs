@@ -24,7 +24,7 @@ pub struct Args {
     pub interval_operating_cost: Option<u128>,
 }
 
-pub async fn update_cost_params(args: Args, client: SigningClient, mix_id: MixId) {
+pub async fn update_cost_params(args: Args, client: SigningClient) {
     let denom = client.current_chain_details().mix_denom.base.as_str();
 
     fn convert_to_percent(value: u64) -> Percent {
@@ -33,16 +33,34 @@ pub async fn update_cost_params(args: Args, client: SigningClient, mix_id: MixId
 
     let default_profit_margin: Percent = convert_to_percent(20);
 
-    let profit_margin_percent = match client.get_mixnode_rewarding_details(mix_id).await {
-        Ok(details) => details
-            .rewarding_details
-            .map(|rd| rd.cost_params.profit_margin_percent)
-            .unwrap_or(default_profit_margin),
+    let mixownership_response = match client.get_owned_mixnode(&client.address()).await {
+        Ok(response) => response,
         Err(_) => {
-            eprintln!("Failed to obtain profit margin from node, using default value of 20%");
-            default_profit_margin
+            eprintln!("Failed to obtain mixnode details");
+            return;
         }
     };
+
+    let mix_id = match mixownership_response.mixnode_details {
+        Some(details) => details.bond_information.mix_id,
+        None => {
+            eprintln!("No mixnode details found");
+            return;
+        }
+    };
+
+    let rewarding_response = match client.get_mixnode_rewarding_details(mix_id).await {
+        Ok(details) => details,
+        Err(_) => {
+            eprintln!("Failed to obtain rewarding details");
+            return;
+        }
+    };
+
+    let profit_margin_percent = rewarding_response
+        .rewarding_details
+        .map(|rd| rd.cost_params.profit_margin_percent)
+        .unwrap_or(default_profit_margin);
 
     let profit_margin_value = args
         .profit_margin_percent

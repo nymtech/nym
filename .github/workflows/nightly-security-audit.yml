@@ -20,7 +20,7 @@ jobs:
           find . -name Cargo.toml -exec cargo deny --manifest-path {} check \
             advisories -A advisory-not-detected  --hide-inclusion-graph \; &> \
             >(uniq  &> .github/workflows/support-files/notifications/deny.message )
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: report
           path: .github/workflows/support-files/notifications/deny.message

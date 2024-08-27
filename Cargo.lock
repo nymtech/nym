@@ -5234,7 +5234,7 @@ dependencies = [
  "rand 0.8.5",
  "serde",
  "serde_json",
- "sysinfo 0.27.8",
+ "sysinfo",
  "thiserror",
  "time",
  "tokio",
@@ -5415,7 +5415,7 @@ dependencies = [
  "semver 1.0.23",
  "serde",
  "serde_json",
- "sysinfo 0.30.12",
+ "sysinfo",
  "thiserror",
  "tokio",
  "toml 0.8.14",
@@ -8635,21 +8635,6 @@ name = "sync_wrapper"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7065abeca94b6a8a577f9bd45aa0867a2238b74e8eb67cf10d492bc39351394"
-
-[[package]]
-name = "sysinfo"
-version = "0.27.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a902e9050fca0a5d6877550b769abd2bd1ce8c04634b941dbe2809735e1a1e33"
-dependencies = [
- "cfg-if",
- "core-foundation-sys",
- "libc",
- "ntapi",
- "once_cell",
- "rayon",
- "winapi",
-]
 
 [[package]]
 name = "sysinfo"

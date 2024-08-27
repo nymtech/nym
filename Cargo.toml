@@ -365,13 +365,13 @@ gloo-net = "0.5.0"
 # this is blocked until the upstream removes outdates `wasm_bindgen` feature usage
 # indexed_db_futures = "0.4.1"
 indexed_db_futures = { git = "https://github.com/TiemenSch/rust-indexed-db", branch = "update-uuid" }
-js-sys = "0.3.69"
+js-sys = "0.3.70"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"
 wasm-bindgen = "0.2.93"
-wasm-bindgen-futures = "0.4.39"
+wasm-bindgen-futures = "0.4.43"
 wasmtimer = "0.2.0"
-web-sys = "0.3.69"
+web-sys = "0.3.70"
 
 
 # Profile settings for individual crates

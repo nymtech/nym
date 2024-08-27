@@ -3345,15 +3345,6 @@ checksum = "8f518f335dce6725a761382244631d86cf0ccb2863413590b31338feb467f9c3"
 
 [[package]]
 name = "ipnetwork"
-version = "0.16.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8eca9f51da27bc908ef3dd85c21e1bbba794edaf94d7841e37356275b82d31e"
-dependencies = [
- "serde",
-]
-
-[[package]]
-name = "ipnetwork"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4088d739b183546b239688ddbc79891831df421773df95e236daf7867866d355"
@@ -4216,7 +4207,7 @@ dependencies = [
  "defguard_wireguard_rs",
  "fastrand 2.1.1",
  "futures",
- "ipnetwork 0.16.0",
+ "ipnetwork 0.20.0",
  "log",
  "nym-authenticator-requests",
  "nym-bin-common",
@@ -4891,7 +4882,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "humantime-serde",
- "ipnetwork 0.16.0",
+ "ipnetwork 0.20.0",
  "nym-api-requests",
  "nym-authenticator",
  "nym-bin-common",
@@ -5393,7 +5384,7 @@ dependencies = [
  "colored",
  "cupid",
  "humantime-serde",
- "ipnetwork 0.16.0",
+ "ipnetwork 0.20.0",
  "nym-authenticator",
  "nym-bin-common",
  "nym-client-core-config-types",
@@ -5437,7 +5428,7 @@ dependencies = [
  "headers",
  "hmac",
  "hyper 1.4.1",
- "ipnetwork 0.16.0",
+ "ipnetwork 0.20.0",
  "nym-crypto",
  "nym-http-api-common",
  "nym-metrics",

@@ -25,7 +25,7 @@ jobs:
         continue-on-error: true
 
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1

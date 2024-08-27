@@ -33,7 +33,7 @@ jobs:
           del /s /q /A:H nym
           rmdir /s /q nym
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Import signing certificate
         env:

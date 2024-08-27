@@ -22,7 +22,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install Java
         uses: actions/setup-java@v3
@@ -97,7 +97,7 @@ jobs:
     runs-on: custom-linux
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Download binary artifact
         uses: actions/download-artifact@v3
         with:

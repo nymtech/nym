@@ -3209,8 +3209,8 @@ checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
 
 [[package]]
 name = "indexed_db_futures"
-version = "0.4.2"
-source = "git+https://github.com/TiemenSch/rust-indexed-db?branch=update-uuid#9745d015707008b0c410115d787014a6d1af2efb"
+version = "0.4.1"
+source = "git+https://github.com/TiemenSch/rust-indexed-db?branch=update-uuid#65ba1be4fec562e0cff55116e004ae081b460144"
 dependencies = [
  "accessory",
  "cfg-if",

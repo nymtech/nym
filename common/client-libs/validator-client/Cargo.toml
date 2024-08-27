@@ -9,7 +9,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.13"
+base64 = "0.22"
 colored = { workspace = true }
 
 nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }

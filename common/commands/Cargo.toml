@@ -7,7 +7,7 @@ license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-base64 = "0.13.0"
+base64 = "0.22.1"
 bip39 = { workspace = true }
 bs58 = { workspace = true }
 comfy-table = { workspace = true }

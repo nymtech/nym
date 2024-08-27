@@ -4316,7 +4316,7 @@ name = "nym-cli"
 version = "1.1.40"
 dependencies = [
  "anyhow",
- "base64 0.13.1",
+ "base64 0.22.1",
  "bip39",
  "bs58 0.5.1",
  "clap 4.5.16",
@@ -4341,7 +4341,7 @@ name = "nym-cli-commands"
 version = "1.0.0"
 dependencies = [
  "anyhow",
- "base64 0.13.1",
+ "base64 0.22.1",
  "bip39",
  "bs58 0.5.1",
  "cfg-if",
@@ -4432,7 +4432,7 @@ name = "nym-client-core"
 version = "1.1.15"
 dependencies = [
  "async-trait",
- "base64 0.21.7",
+ "base64 0.22.1",
  "bs58 0.5.1",
  "cfg-if",
  "clap 4.5.16",
@@ -5430,7 +5430,7 @@ version = "0.1.0"
 dependencies = [
  "axum 0.7.5",
  "axum-extra",
- "base64 0.21.7",
+ "base64 0.22.1",
  "colored",
  "dashmap",
  "fastrand 2.1.1",
@@ -5463,7 +5463,7 @@ name = "nym-node-requests"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "base64 0.21.7",
+ "base64 0.22.1",
  "celes",
  "humantime 2.1.0",
  "humantime-serde",
@@ -5633,7 +5633,7 @@ dependencies = [
 name = "nym-serde-helpers"
 version = "0.1.0"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "bs58 0.5.1",
  "serde",
 ]
@@ -5999,7 +5999,7 @@ dependencies = [
 name = "nym-types"
 version = "1.0.0"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "cosmrs 0.17.0-pre",
  "cosmwasm-std",
  "eyre",
@@ -6029,7 +6029,7 @@ name = "nym-validator-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "base64 0.13.1",
+ "base64 0.22.1",
  "bip32",
  "bip39",
  "colored",
@@ -6147,7 +6147,7 @@ dependencies = [
 name = "nym-wireguard"
 version = "0.1.0"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "bincode",
  "chrono",
  "dashmap",
@@ -6169,7 +6169,7 @@ dependencies = [
 name = "nym-wireguard-types"
 version = "0.1.0"
 dependencies = [
- "base64 0.21.7",
+ "base64 0.22.1",
  "hmac",
  "log",
  "nym-config",

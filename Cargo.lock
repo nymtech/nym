@@ -5652,6 +5652,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-node-status-api"
+version = "0.1.0"
+dependencies = [
+ "axum 0.7.5",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "nym-node-tester-utils"
 version = "0.1.0"
 dependencies = [

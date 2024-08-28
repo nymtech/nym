@@ -33,7 +33,10 @@
 
 # zkNyms (prev. Coconut)
 - [What are zkNyms?](ecash/what-are-zknyms.md)
-- [zkNym Generation and Useage: High Level Overview](ecash/zknym-overview.md)
+- [zkNym Generation & Useage: Overview](ecash/zknym-overview.md)
+  - [Feature: Unlinkability](ecash/unlinkability.md)
+  - [Feature: Double Spend Protection](ecash/double-spend-prot.md)
+  - [Feature: Rerandomisation & Incremental Spend](ecash/rerandomise.md)
 - [Archive](ecash/archive.md)
   - [Coconut](ecash/coconut.md)
   - [Bandwidth Credentials](ecash/bandwidth-credentials.md)

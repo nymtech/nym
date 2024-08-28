@@ -96,6 +96,7 @@ members = [
     "common/wasm/utils",
     "common/wireguard",
     "common/wireguard-types",
+    "documentation/autodoc",
     "explorer-api",
     "explorer-api/explorer-api-requests",
     "explorer-api/explorer-client",

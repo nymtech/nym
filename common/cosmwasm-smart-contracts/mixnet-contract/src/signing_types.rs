@@ -4,13 +4,18 @@
 use crate::families::FamilyHead;
 use crate::{Gateway, IdentityKey, MixNode, MixNodeCostParams};
 use contracts_common::signing::{
-    ContractMessageContent, MessageType, Nonce, SignableMessage, SigningPurpose,
+    ContractMessageContent, LegacyContractMessageContent, MessageType, Nonce, SignableMessage,
+    SigningPurpose,
 };
 use cosmwasm_std::{Addr, Coin};
 use serde::Serialize;
 
 pub type SignableMixNodeBondingMsg = SignableMessage<ContractMessageContent<MixnodeBondingPayload>>;
 pub type SignableGatewayBondingMsg = SignableMessage<ContractMessageContent<GatewayBondingPayload>>;
+pub type SignableLegacyMixNodeBondingMsg =
+    SignableMessage<LegacyContractMessageContent<MixnodeBondingPayload>>;
+pub type SignableLegacyGatewayBondingMsg =
+    SignableMessage<LegacyContractMessageContent<GatewayBondingPayload>>;
 pub type SignableFamilyJoinPermitMsg = SignableMessage<FamilyJoinPermit>;
 
 #[derive(Serialize)]
@@ -47,6 +52,20 @@ pub fn construct_mixnode_bonding_sign_payload(
     SignableMessage::new(nonce, content)
 }
 
+pub fn construct_legacy_mixnode_bonding_sign_payload(
+    nonce: Nonce,
+    sender: Addr,
+    pledge: Coin,
+    mix_node: MixNode,
+    cost_params: MixNodeCostParams,
+) -> SignableLegacyMixNodeBondingMsg {
+    let payload = MixnodeBondingPayload::new(mix_node, cost_params);
+    let content: LegacyContractMessageContent<_> =
+        ContractMessageContent::new(sender, vec![pledge], payload).into();
+
+    SignableMessage::new(nonce, content)
+}
+
 #[derive(Serialize)]
 pub struct GatewayBondingPayload {
     gateway: Gateway,
@@ -72,6 +91,19 @@ pub fn construct_gateway_bonding_sign_payload(
 ) -> SignableGatewayBondingMsg {
     let payload = GatewayBondingPayload::new(gateway);
     let content = ContractMessageContent::new(sender, vec![pledge], payload);
+
+    SignableMessage::new(nonce, content)
+}
+
+pub fn construct_legacy_gateway_bonding_sign_payload(
+    nonce: Nonce,
+    sender: Addr,
+    pledge: Coin,
+    gateway: Gateway,
+) -> SignableLegacyGatewayBondingMsg {
+    let payload = GatewayBondingPayload::new(gateway);
+    let content: LegacyContractMessageContent<_> =
+        ContractMessageContent::new(sender, vec![pledge], payload).into();
 
     SignableMessage::new(nonce, content)
 }

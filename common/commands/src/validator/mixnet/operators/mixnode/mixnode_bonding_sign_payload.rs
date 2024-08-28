@@ -7,7 +7,9 @@ use clap::Parser;
 use cosmwasm_std::{Coin, Uint128};
 use nym_bin_common::output_format::OutputFormat;
 use nym_contracts_common::Percent;
-use nym_mixnet_contract_common::{construct_mixnode_bonding_sign_payload, MixNodeCostParams};
+use nym_mixnet_contract_common::{
+    construct_legacy_mixnode_bonding_sign_payload, MixNodeCostParams,
+};
 use nym_network_defaults::{
     DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT,
 };
@@ -98,7 +100,7 @@ pub async fn create_payload(args: Args, client: SigningClient) {
     let address = account_id_to_cw_addr(&client.address());
 
     let payload =
-        construct_mixnode_bonding_sign_payload(nonce, address, coin, mixnode, cost_params);
+        construct_legacy_mixnode_bonding_sign_payload(nonce, address, coin, mixnode, cost_params);
     let wrapper = DataWrapper::new(payload.to_base58_string().unwrap());
     println!("{}", args.output.format(&wrapper))
 }

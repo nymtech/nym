@@ -172,7 +172,6 @@ where
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,
         available_gateways,
-        wg_tun_address: None,
     };
 
     let init_details =

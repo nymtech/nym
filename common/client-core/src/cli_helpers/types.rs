@@ -15,7 +15,6 @@ pub struct GatewayInfo {
 
     pub typ: String,
     pub endpoint: Option<Url>,
-    pub wg_tun_address: Option<Url>,
 }
 
 impl Display for GatewayInfo {
@@ -30,10 +29,6 @@ impl Display for GatewayInfo {
         )?;
         if let Some(endpoint) = &self.endpoint {
             write!(f, " endpoint: {endpoint}")?;
-        }
-
-        if let Some(wg_tun_address) = &self.wg_tun_address {
-            write!(f, " wg tun address: {wg_tun_address}")?;
         }
         Ok(())
     }

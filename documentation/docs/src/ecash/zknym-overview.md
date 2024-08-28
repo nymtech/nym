@@ -50,8 +50,3 @@ This is used to identify themselves when interacting with the OrderAPI via signe
 ## Access Network
 - The zkNym Generator is entirely offline and holds the credential created from the aggregated threshold PSCs returned from individual members of the Quorum. Each time an application requests an access credential, the Generator will provide an unlinkable and unique zkNym to the requesting ingress Gateway.
 - This zkNym is later presented to the Quorum by the Gateway that collected it, which is used to calculate reward percentages given to Nym Network infrastructure operators by the Quorum, with payouts triggered by their multisig wallet.
-
-### Double-Spend Protection
-TODO
-- gw are optimistic: quorum members do ver
-- bloomfilters from part2 of the doc + the whole other doc just on double spend

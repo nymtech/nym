@@ -6,7 +6,6 @@ use crate::client::key_manager::ClientKeys;
 use crate::config::Config;
 use crate::error::ClientCoreError;
 use crate::init::{setup_gateway, use_loaded_gateway_details};
-use log::info;
 use nym_client_core_gateways_storage::{
     GatewayRegistration, GatewaysDetailsStore, RemoteGatewayDetails,
 };
@@ -19,7 +18,6 @@ use nym_validator_client::client::IdentityKey;
 use nym_validator_client::nyxd::AccountId;
 use serde::Serialize;
 use std::fmt::Display;
-use std::net::IpAddr;
 use std::str::FromStr;
 use std::sync::Arc;
 use time::OffsetDateTime;
@@ -32,8 +30,6 @@ pub enum SelectedGateway {
         gateway_owner_address: Option<AccountId>,
 
         gateway_listener: Url,
-
-        wg_tun_address: Option<Url>,
     },
     Custom {
         gateway_id: identity::PublicKey,
@@ -41,36 +37,9 @@ pub enum SelectedGateway {
     },
 }
 
-fn wg_tun_address(
-    tun_ip: Option<IpAddr>,
-    gateway: &gateway::Node,
-) -> Result<Option<Url>, ClientCoreError> {
-    let Some(tun_ip) = tun_ip else {
-        return Ok(None);
-    };
-
-    // log this so we'd remember about it if we ever decided to actually use that port
-    if gateway.clients_wss_port.is_some() {
-        info!(
-            "gateway {} exposes wss but for wireguard we're going to use ws",
-            gateway.identity_key
-        );
-    }
-
-    let raw_url = format!("ws://{tun_ip}:{}", gateway.clients_ws_port);
-    Ok(Some(raw_url.as_str().parse().map_err(|source| {
-        ClientCoreError::MalformedListener {
-            gateway_id: gateway.identity_key.to_base58_string(),
-            raw_listener: raw_url,
-            source,
-        }
-    })?))
-}
-
 impl SelectedGateway {
     pub fn from_topology_node(
         node: gateway::Node,
-        wg_tun_ip_address: Option<IpAddr>,
         must_use_tls: bool,
     ) -> Result<Self, ClientCoreError> {
         let gateway_listener = if must_use_tls {
@@ -81,8 +50,6 @@ impl SelectedGateway {
         } else {
             node.clients_address()
         };
-
-        let wg_tun_address = wg_tun_address(wg_tun_ip_address, &node)?;
 
         let gateway_owner_address = node
             .owner
@@ -109,7 +76,6 @@ impl SelectedGateway {
             gateway_id: node.identity_key,
             gateway_owner_address,
             gateway_listener,
-            wg_tun_address,
         })
     }
 
@@ -250,12 +216,6 @@ pub enum GatewaySetup {
 
         // TODO: seems to be a bit inefficient to pass them by value
         available_gateways: Vec<gateway::Node>,
-
-        /// Implicitly specify whether the chosen gateway must use wireguard mode by setting the tun address.
-        ///
-        /// Currently this is imperfect solution as I'd imagine this address could vary from gateway to gateway
-        /// so perhaps it should be part of gateway::Node struct
-        wg_tun_address: Option<IpAddr>,
     },
 
     ReuseConnection {
@@ -290,7 +250,6 @@ impl GatewaySetup {
                 additional_data: None,
             },
             available_gateways: vec![],
-            wg_tun_address: None,
         }
     }
 

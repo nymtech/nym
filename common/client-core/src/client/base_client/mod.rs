@@ -35,7 +35,7 @@ use crate::init::{
 };
 use crate::{config, spawn_future};
 use futures::channel::mpsc;
-use log::{debug, error, info, warn};
+use log::*;
 use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
@@ -44,7 +44,6 @@ use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
-use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, WG_TUN_DEVICE_ADDRESS};
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
@@ -181,7 +180,6 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     dkg_query_client: Option<C>,
 
     wait_for_gateway: bool,
-    wireguard_connection: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<TaskClient>,
@@ -205,7 +203,6 @@ where
             client_store,
             dkg_query_client,
             wait_for_gateway: false,
-            wireguard_connection: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
             shutdown: None,
@@ -223,12 +220,6 @@ where
     #[must_use]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
-        self
-    }
-
-    #[must_use]
-    pub fn with_wireguard_connection(mut self, wireguard_connection: bool) -> Self {
-        self.wireguard_connection = wireguard_connection;
         self
     }
 
@@ -361,7 +352,6 @@ where
 
     async fn start_gateway_client(
         config: &Config,
-        wireguard_connection: bool,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         packet_router: PacketRouter,
@@ -377,46 +367,32 @@ where
             return Err(ClientCoreError::UnexpectedPersistedCustomGatewayDetails);
         };
 
-        let mut gateway_client = if let Some(existing_client) =
-            initialisation_result.authenticated_ephemeral_client
-        {
-            existing_client.upgrade(packet_router, bandwidth_controller, shutdown)
-        } else {
-            let gateway_listener = if wireguard_connection {
-                if let Some(tun_address) = details.wg_tun_address {
-                    tun_address.to_string()
-                } else {
-                    let default =
-                        format!("ws://{WG_TUN_DEVICE_ADDRESS}:{DEFAULT_CLIENT_LISTENING_PORT}");
-                    warn!("gateway {} does not have tun device address set. defaulting to '{default}'", details.gateway_id);
-                    default
-                }
+        let mut gateway_client =
+            if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
+                existing_client.upgrade(packet_router, bandwidth_controller, shutdown)
             } else {
-                details.gateway_listener.to_string()
+                let cfg = GatewayConfig::new(
+                    details.gateway_id,
+                    details
+                        .gateway_owner_address
+                        .as_ref()
+                        .map(|o| o.to_string()),
+                    details.gateway_listener.to_string(),
+                );
+                GatewayClient::new(
+                    GatewayClientConfig::new_default()
+                        .with_disabled_credentials_mode(config.client.disabled_credentials_mode)
+                        .with_response_timeout(
+                            config.debug.gateway_connection.gateway_response_timeout,
+                        ),
+                    cfg,
+                    managed_keys.identity_keypair(),
+                    Some(details.derived_aes128_ctr_blake3_hmac_keys),
+                    packet_router,
+                    bandwidth_controller,
+                    shutdown,
+                )
             };
-
-            let cfg = GatewayConfig::new(
-                details.gateway_id,
-                details
-                    .gateway_owner_address
-                    .as_ref()
-                    .map(|o| o.to_string()),
-                gateway_listener,
-            );
-            GatewayClient::new(
-                GatewayClientConfig::new_default()
-                    .with_disabled_credentials_mode(config.client.disabled_credentials_mode)
-                    .with_response_timeout(
-                        config.debug.gateway_connection.gateway_response_timeout,
-                    ),
-                cfg,
-                managed_keys.identity_keypair(),
-                Some(details.derived_aes128_ctr_blake3_hmac_keys),
-                packet_router,
-                bandwidth_controller,
-                shutdown,
-            )
-        };
 
         gateway_client
             .authenticate_and_start()
@@ -435,7 +411,6 @@ where
     async fn setup_gateway_transceiver(
         custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
         config: &Config,
-        wireguard_connection: bool,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         packet_router: PacketRouter,
@@ -464,7 +439,6 @@ where
         // otherwise, setup normal gateway client, etc
         let gateway_client = Self::start_gateway_client(
             config,
-            wireguard_connection,
             initialisation_result,
             bandwidth_controller,
             packet_router,
@@ -729,7 +703,6 @@ where
         let gateway_transceiver = Self::setup_gateway_transceiver(
             self.custom_gateway_transceiver,
             self.config,
-            self.wireguard_connection,
             init_res,
             bandwidth_controller,
             gateway_packet_router,

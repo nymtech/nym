@@ -761,7 +761,6 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::{mock_coin, IgnoreValue};
-    use nym_mixnet_contract_common::ExecuteMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -770,7 +769,7 @@ mod tests {
         msg: MixnetExecuteMsg,
     ) {
         match msg {
-            ExecuteMsg::UpdateAdmin { admin } => client.update_admin(admin, None).ignore(),
+            MixnetExecuteMsg::UpdateAdmin { admin } => client.update_admin(admin, None).ignore(),
             MixnetExecuteMsg::AssignNodeLayer { mix_id, layer } => {
                 client.assign_node_layer(mix_id, layer, None).ignore()
             }

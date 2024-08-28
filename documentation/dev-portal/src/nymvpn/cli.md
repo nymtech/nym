@@ -1,7 +1,7 @@
 # NymVPN CLI Guide
 
-```admonish tip title="web3summit testing"
-**If you testing NymVPN CLI on Web3 Summit Berlin, visit our event page with all info tailored for the event: [nym-vpn-cli.sandbox.nymtech.net](https://nym-vpn-cli.sandbox.nymtech.net/).**
+```admonish tip title="NymVPN CLI Testnet"
+If you testing NymVPN CLI and want to try our Sandbox testnet environment, you can visit an explicit guide at [nym-vpn-cli.sandbox.nymtech.net](https://nym-vpn-cli.sandbox.nymtech.net/). This page alco contains an auto generating access token button.
 ```
 
 ```admonish info
@@ -225,7 +225,7 @@ Options:
 
 ## Testnet environment
 
-If you want to run NymVPN CLI in Nym Sandbox environment, there are a few adjustments to be done:
+If you want to run NymVPN CLI in Nym Sandbox environment, there are a few adjustments to be done. You can follow the steps below or follow more explicit guide on [nym-vpn-cli.sandbox.nymtech.net](https://nym-vpn-cli.sandbox.nymtech.net), including the access token auto generation button.
 
 1. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries:
 ```sh

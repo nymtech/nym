@@ -21,7 +21,6 @@ const CONTRACT_NAME: &str = "crate:nym-mixnet-contract";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn default_initial_state(
-    owner: Addr,
     rewarding_validator_address: Addr,
     rewarding_denom: String,
     vesting_contract_address: Addr,
@@ -29,7 +28,6 @@ fn default_initial_state(
     interval_operating_cost: OperatingCostRange,
 ) -> ContractState {
     ContractState {
-        owner,
         rewarding_validator_address,
         vesting_contract_address,
         rewarding_denom: rewarding_denom.clone(),
@@ -56,7 +54,7 @@ fn default_initial_state(
 /// `msg` is the contract initialization message, sort of like a constructor call.
 #[entry_point]
 pub fn instantiate(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
@@ -72,7 +70,6 @@ pub fn instantiate(
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
     let state = default_initial_state(
-        info.sender,
         rewarding_validator_address.clone(),
         msg.rewarding_denom,
         vesting_contract_address,
@@ -90,7 +87,7 @@ pub fn instantiate(
         starting_interval,
         rewarding_validator_address,
     )?;
-    mixnet_params_storage::initialise_storage(deps.storage, state)?;
+    mixnet_params_storage::initialise_storage(deps.branch(), state, info.sender)?;
     mixnode_storage::initialise_storage(deps.storage)?;
     rewards_storage::initialise_storage(deps.storage, reward_params)?;
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -108,6 +105,11 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, MixnetContractError> {
     match msg {
+        ExecuteMsg::UpdateAdmin { admin } => {
+            crate::mixnet_contract_settings::transactions::try_update_contract_admin(
+                deps, info, admin,
+            )
+        }
         ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
             crate::mixnodes::transactions::assign_mixnode_layer(deps, info, mix_id, layer)
         }
@@ -335,6 +337,9 @@ pub fn query(
         QueryMsg::GetState {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_state(deps)?)
         }
+        QueryMsg::Admin {} => to_binary(&crate::mixnet_contract_settings::queries::query_admin(
+            deps,
+        )?),
         QueryMsg::GetRewardingParams {} => {
             to_binary(&crate::rewards::queries::query_rewarding_params(deps)?)
         }
@@ -536,6 +541,7 @@ pub fn migrate(
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
     crate::queued_migrations::vesting_purge(deps.branch())?;
+    crate::queued_migrations::explicit_contract_admin(deps.branch())?;
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh
@@ -595,7 +601,6 @@ mod tests {
         assert!(res.is_ok());
 
         let expected_state = ContractState {
-            owner: Addr::unchecked("sender"),
             rewarding_validator_address: Addr::unchecked("foomp123"),
             vesting_contract_address: Addr::unchecked("bar456"),
             rewarding_denom: "uatom".into(),

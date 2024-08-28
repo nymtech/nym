@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::mixnet_contract_settings::storage::ADMIN;
 use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
@@ -11,6 +12,16 @@ use mixnet_contract_common::events::{
 };
 use mixnet_contract_common::ContractStateParams;
 
+pub fn try_update_contract_admin(
+    deps: DepsMut<'_>,
+    info: MessageInfo,
+    new_admin: String,
+) -> Result<Response, MixnetContractError> {
+    let new_admin = deps.api.addr_validate(&new_admin)?;
+
+    Ok(ADMIN.execute_update_admin(deps, info, Some(new_admin))?)
+}
+
 pub fn try_update_rewarding_validator_address(
     deps: DepsMut<'_>,
     info: MessageInfo,
@@ -18,9 +29,7 @@ pub fn try_update_rewarding_validator_address(
 ) -> Result<Response, MixnetContractError> {
     let mut state = storage::CONTRACT_STATE.load(deps.storage)?;
 
-    if info.sender != state.owner {
-        return Err(MixnetContractError::Unauthorized);
-    }
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
     let new_address = deps.api.addr_validate(&address)?;
     let old_address = state.rewarding_validator_address;
@@ -43,10 +52,7 @@ pub(crate) fn try_update_contract_settings(
 ) -> Result<Response, MixnetContractError> {
     let mut state = storage::CONTRACT_STATE.load(deps.storage)?;
 
-    // check if this is executed by the owner, if not reject the transaction
-    if info.sender != state.owner {
-        return Err(MixnetContractError::Unauthorized);
-    }
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
     let response = Response::new().add_event(new_settings_update_event(&state.params, &params));
 
@@ -65,6 +71,7 @@ pub mod tests {
     use crate::support::tests::test_helpers;
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::{Addr, Coin, Uint128};
+    use cw_controllers::AdminError::NotAdmin;
 
     #[test]
     fn update_contract_rewarding_validtor_address() {
@@ -76,7 +83,7 @@ pub mod tests {
             info,
             "not-the-creator".to_string(),
         );
-        assert_eq!(res, Err(MixnetContractError::Unauthorized));
+        assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
         let info = mock_info("creator", &[]);
         let res = try_update_rewarding_validator_address(
@@ -136,7 +143,7 @@ pub mod tests {
         // cannot be updated from non-owner account
         let info = mock_info("not-the-creator", &[]);
         let res = try_update_contract_settings(deps.as_mut(), info, new_params.clone());
-        assert_eq!(res, Err(MixnetContractError::Unauthorized));
+        assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
         // but works fine from the creator account
         let info = mock_info("creator", &[]);

@@ -57,6 +57,7 @@ pub const PENDING_INTERVAL_EVENTS_NAMESPACE: &str = "pie";
 pub const LAST_EPOCH_EVENT_ID_KEY: &str = "lee";
 pub const LAST_INTERVAL_EVENT_ID_KEY: &str = "lie";
 
+pub const ADMIN_STORAGE_KEY: &str = "admin";
 pub const CONTRACT_STATE_KEY: &str = "state";
 
 pub const LAYER_DISTRIBUTION_KEY: &str = "layers";

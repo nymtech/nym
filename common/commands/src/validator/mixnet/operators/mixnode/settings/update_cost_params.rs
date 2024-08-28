@@ -36,7 +36,7 @@ pub async fn update_cost_params(args: Args, client: SigningClient) {
     let mixownership_response = match client.get_owned_mixnode(&client.address()).await {
         Ok(response) => response,
         Err(_) => {
-            eprintln!("Failed to obtain mixnode details");
+            eprintln!("Failed to obtain owned mixnode");
             return;
         }
     };
@@ -44,7 +44,7 @@ pub async fn update_cost_params(args: Args, client: SigningClient) {
     let mix_id = match mixownership_response.mixnode_details {
         Some(details) => details.bond_information.mix_id,
         None => {
-            eprintln!("No mixnode details found");
+            eprintln!("Failed to obtain mixnode details");
             return;
         }
     };

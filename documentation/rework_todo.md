@@ -31,6 +31,7 @@ Initial overhaul
       - [ ] general
     - [ ] remove numbering from sidebar
   - [ ] check all links work and fix
+- [ ] replace `mdbook-cmdrun`
 - [ ] all images to root images dir with subdirs
 - [ ] change mdbook admonishes to nextra admonish
 - [ ] autodocs branch - merge in

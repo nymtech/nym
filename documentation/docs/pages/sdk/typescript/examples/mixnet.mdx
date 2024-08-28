@@ -1,0 +1,153 @@
+import { Callout } from 'nextra/components'
+
+# Mixnet Client
+
+As you know by now, in order to send or receive messages over the mixnet, you'll need to use the [`SDK Client`](https://www.npmjs.com/package/@nymproject/sdk), which will allow you to create apps that can use the Nym mixnet and Coconut credentials.
+
+This client is message based - it can only send a one-way message to another client's address.
+
+Replying can be achieved in two ways:
+- reveal the sender's address to the recipient (as part of the payload)
+- use a SURB (single use reply block) that allows the recipient to reply to the sender without compromising the identity of either party
+
+##### Environment Setup
+Begin by creating a directory and configuring your application environment:
+
+```bash
+npm create vite@latest
+```
+
+During the environment setup, choose React and subsequently opt for Typescript if you want your application to function smoothly following this tutorial. Next, navigate to your application directory and run the following commands:
+```bash
+cd < YOUR_APP >
+npm i 
+npm run dev
+```
+
+##### Installation
+Install the required package:
+```bash
+npm install @nymproject/sdk-full-fat 
+```
+
+##### Imports
+In the `src` folder, open the `App.tsx` file and delete all the code.
+
+Import the SDK's Mixnet Client in your app:
+````js
+import { createNymMixnetClient, NymMixnetClient, Payload } from "@nymproject/sdk-full-fat";
+````
+
+##### Example: using the SDK's Mixnet Client to send and receive messages over the Nym mixnet
+By pasting the below code example, you should be able to send and receive messages through the mixnet through an unstyled mixnet app template!
+<Callout type="warning" emoji="ℹ️">
+    For this example, we will be using the `full-fat` version of the ESM SDK. If you'd like to use the unbundled version of the ESM one, make sure your [bundler configuration](../../bundling/bundling) copies the WebAssembly (WASM) and web worker files to the output bundle.
+</Callout>
+
+```ts
+import "./App.css";
+import { useEffect, useState } from "react";
+import {
+  createNymMixnetClient,
+  NymMixnetClient,
+  Payload,
+} from "@nymproject/sdk-full-fat";
+ 
+const nymApiUrl = "https://validator.nymtech.net/api";
+ 
+export function MixnetClient() {
+  const [nym, setNym] = useState<NymMixnetClient>();
+  const [selfAddress, setSelfAddress] = useState<string>();
+  const [recipient, setRecipient] = useState<string>();
+  const [payload, setPayload] = useState<Payload>();
+  const [receivedMessage, setReceivedMessage] = useState<string>();
+ 
+  const init = async () => {
+    const client = await createNymMixnetClient();
+    setNym(client);
+ 
+    // Start the client and connect to a gateway
+    await client?.client.start({
+      clientId: crypto.randomUUID(),
+      nymApiUrl,
+      forceTls: true, // force WSS
+    });
+ 
+    // Check when is connected and set the self address
+    client?.events.subscribeToConnected((e) => {
+      const { address } = e.args;
+      setSelfAddress(address);
+    });
+ 
+    // Show whether the client is ready or not
+    client?.events.subscribeToLoaded((e) => {
+      console.log("Client ready: ", e.args);
+    });
+
+    // Show message payload content when received
+    client?.events.subscribeToTextMessageReceivedEvent((e) => {
+      console.log(e.args.payload);
+      setReceivedMessage(e.args.payload);
+    });
+  };
+
+
+  const stop = async () => {
+    await nym?.client.stop();
+  };
+
+ const send = () => {
+    if (!nym || !payload || !recipient) return
+    nym.client.send({ payload, recipient });
+  }
+ 
+  useEffect(() => {
+    init();
+    return () => {
+      stop();
+    };
+  }, []);
+ 
+  if (!nym) return <div>Waiting for the mixnet client...</div>;
+ 
+  if (!selfAddress) return <div>Connecting...</div>;
+
+ 
+  return (
+    <div>
+      <h1>Send messages through the Nym mixnet</h1>
+      <p style={{ border: "1px solid black" }}>
+        My self address is: {selfAddress ? selfAddress : "loading"}
+      </p>
+      <div style={{ border: "1px solid black" }}>
+        <label>Recipient Address: </label>
+        <input
+          type="text"
+          onChange={(e) => setRecipient(e.target.value)}
+        ></input>
+        <input
+          type="text"
+          onChange={(e) =>
+            setPayload({ message: e.target.value, mimeType: "text/plain" })
+          }
+        ></input>
+        <button onClick={() => send()}>Send</button>
+      </div>
+      <p>Received message: {receivedMessage}</p>
+    </div>
+  );
+};
+ 
+export default function App () {
+  return (
+    <>
+    <MixnetClient/>
+    </>
+  )
+}
+```
+
+<Callout type="info" emoji="⚠️">
+  If you encounter a Gateway client error that persists even after a hard refresh, you may need to take the following steps: Open your browser's console => Navigate to the "Application" tab => Delete the databases listed under "IndexedDB".
+  Additionally, please be aware that the mixnet client is currently limited to functioning in local development environments due to SSL-related issues.
+</Callout>

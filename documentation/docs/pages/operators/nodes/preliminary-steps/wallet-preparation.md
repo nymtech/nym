@@ -1,0 +1,17 @@
+# Nym Wallet Preparation
+
+## Mainnet
+
+Head to our [website](https://nymtech.net/download/) and download the Nym wallet for your operating system. If pre-compiled binaries for your operating system aren't available, you can build the wallet yourself with instructions [here](https://nymtech.net/docs/wallet/desktop-wallet.html).
+
+If you don't already have one, please create a Nym address using the wallet, and fund it with NYM tokens. The minimum amount required to bond a node is 100 `NYM`, but make sure you have a bit more to account for gas costs.
+
+`NYM` can be purchased via Bity from the wallet itself with BTC or fiat, and is currently present on several [exchanges](https://www.coingecko.com/en/coins/nym#markets).
+
+> Remember that you can **only** use Cosmos `NYM` tokens to bond your node. You **cannot** use ERC20 representations of `NYM` to run a node.
+
+
+## Sandbox testnet
+
+Make sure to download a wallet and create an account as outlined above. Then head to our [Operators Element channel](https://matrix.to/#/#operators:nymtech.chat) and request testnet tokens.
+

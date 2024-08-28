@@ -1,0 +1,54 @@
+# Troubleshooting bundling
+
+You might need some help bundling packages from the Nym Typescript SDK into your package.
+
+Here are some things that could go wrong:
+
+## WebAssembly (WASM) and web worker not included in output bundle
+
+### Webpack
+
+You might need to use the CopyPlugin by adding this to your Webpack config:
+
+```js
+const CopyPlugin = require('copy-webpack-plugin');
+
+...
+
+module.exports = {
+    ...
+    plugins: [
+        ...
+        new CopyPlugin({
+            patterns: [
+              {
+                from: path.resolve(path.dirname(require.resolve('@nymproject/mix-fetch/package.json')), '*.wasm'),
+                to: '[name][ext]',
+              },
+              {
+                from: path.resolve(path.dirname(require.resolve('@nymproject/mix-fetch/package.json')), '*worker*.js'),
+                to: '[name][ext]',
+              },
+          ],
+        }),
+    ],
+}
+```
+
+How does this work? The statement `require.resolve('@nymproject/mix-fetch/package.json')` finds the disk location of
+the Nym SDK package, and resolve the directory name is `path.dirname`, the add the `*.wasm` glob to the search pattern
+list. Use `[name][ext]` to preserve the output filename, because the package expects the filename to stay the same.
+
+## ESM not supported
+
+If your bundler does not support ECMAScript Modules (ESM), CommonJS packages are supported for most parts of the SDK.
+
+For those that don't have ESM versions, you will need to use a tool like [Babel](https://babeljs.io/) to convert
+ESM to CommonJS.
+
+## CSP prevents loading
+
+If you are using a `*-full-fat` package, or if you inline WASM or web workers, you may not be able to load them if the
+[CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP) prevents WASM from being instantiated from a string.
+
+You'll have to experiment with either adjusting the CSP or use another variant that is unbundled.

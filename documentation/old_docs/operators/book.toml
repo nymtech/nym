@@ -1,0 +1,112 @@
+[book]
+title = "Nym Operators Guide"
+authors = ["Max Hampshire, Serinko, Alexia Lorenza Martinel"]
+description = "Everything needed to run Nym Mixnet components"
+language = "en"
+multilingual = false                                           # for the moment - ideally work on chinese, brazillian portugese, spanish next
+src = "src"
+
+[rust]
+edition = "2018"
+
+#################
+# PREPROCESSORS #
+#################
+
+[preprocessor.theme]
+pagetoc = true
+sidebar-width = "280px"
+content-max-width = "80%"
+root-font-size = "70%"
+# if you need to change anything in the index.hbs file you need to turn this to `false`, rebuild the book, 
+# probably remove the additional `comment` that gets appended to the header, and then change this back to `true`. 
+# this is because of a bug in the `mdbook-theme` plugin
+turn-off = true
+
+[preprocessor.admonish]
+command = "mdbook-admonish"
+assets_version = "3.0.2"    # do not edit: managed by `mdbook-admonish install`
+
+# https://gitlab.com/tglman/mdbook-variables/
+[preprocessor.variables.variables]
+minimum_rust_version = "1.66"
+wallet_release_version = "1.2.8"
+performance_testing_webpage = "https://nymtech.net/events/fast-and-furious"
+performance_validator = "http://validator.performance.nymte.ch/"
+performance_testing_release = "v2024.2-fast-and-furious-v2"
+# dependencies
+prometheus_latest_version = "v2.50.1"
+toc_page = "https://nymtech.net/terms-and-conditions/operators/v1.0.0"
+
+[preprocessor.last-changed]
+command = "mdbook-last-changed"
+renderer = ["html"]
+
+# used for grabbing output of binary commands for automation https://github.com/FauconFan/mdbook-cmdrun
+[preprocessor.cmdrun]
+
+# more pre-processor plugins to look into from https://github.com/rust-lang/mdBook/wiki/Third-party-plugins & https://lib.rs/keywords/mdbook-preprocessor
+# mdbook-i18n
+
+# [preprocessor.api-call]
+# command = "$(tokens=$(curl -L https://api.nymtech.net/cosmos/staking/v1beta1/pool | jq 'values[\"pool\"][\"bonded_tokens\"]') && echo ${tokens:0:2},${tokens:2:2})"
+
+#########
+# BUILD #
+#########
+
+[build]
+build-dir = "book"               # the directory where the output is placed
+create-missing = true            # whether or not to create missing pages
+use-default-preprocessors = true # use the default preprocessors
+extra-watch-dirs = []            # directories to watch for triggering builds
+
+##########
+# OUTPUT #
+##########
+
+[output.html]
+theme = "themes"
+default-theme = "coal"
+preferred-dark-theme = "coal"
+#curly-quotes = true
+smart-punctuation = true
+copy-fonts = true
+no-section-label = false
+additional-css = [
+  "./themes/custom.css",
+  "./themes/mdbook-admonish.css",
+  "./themes/pagetoc.css",
+]
+additional-js = ["./themes/pagetoc.js"]
+git-repository-url = "https://github.com/nymtech/nym"
+git-repository-icon = "fa-github"
+input-404 = "not-found.md"
+
+[output.html.fold]
+enable = true # whether or not to enable section folding
+level = 0     # the depth to start folding
+
+# controlling rust sample code blocks
+[output.html.playground]
+editable = false    # allows editing the source code
+copyable = true     # include the copy button for copying code snippets
+copy-js = true      # includes the JavaScript for the code editor
+line-numbers = true # displays line numbers for editable code
+runnable = true     # displays a run button for rust code
+
+# options for the built in text search
+[output.html.search]
+enable = true           # enables the search feature
+limit-results = 30      # maximum number of search results
+teaser-word-count = 30  # number of words used for a search result teaser
+use-boolean-and = true  # multiple search terms must all match
+boost-title = 2         # ranking boost factor for matches in headers
+boost-hierarchy = 1     # ranking boost factor for matches in page names
+boost-paragraph = 1     # ranking boost factor for matches in text
+expand = true           # partial words will match longer terms
+heading-split-level = 3 # link results to heading levels
+copy-js = true          # include Javascript code for search
+
+[output.linkcheck]
+warning-policy = "warn"

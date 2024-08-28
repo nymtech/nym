@@ -5,7 +5,7 @@ use crate::context::SigningClient;
 use clap::Parser;
 use cosmwasm_std::Uint128;
 use log::info;
-use nym_mixnet_contract_common::{MixId, MixNodeCostParams, Percent};
+use nym_mixnet_contract_common::{MixNodeCostParams, Percent};
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 use nym_validator_client::nyxd::CosmWasmCoin;
 

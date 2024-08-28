@@ -31,6 +31,9 @@ Initial overhaul
       - [ ] general
     - [ ] remove numbering from sidebar
   - [ ] check all links work and fix
+     
+- [ ] pull in all docs updates after 37d9f919227cec148e0355404b4029c0949e4dea from develop !!
+
 - [ ] replace `mdbook-cmdrun`
 - [ ] all images to root images dir with subdirs
 - [ ] change mdbook admonishes to nextra admonish

@@ -1,10 +1,10 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::unix_epoch;
 use crate::nym_nodes::NodeRole;
 use crate::pagination::PaginatedResponse;
-use cosmwasm_std::{Addr, Coin, Decimal};
+use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use nym_mixnet_contract_common::families::FamilyHead;
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
@@ -22,6 +22,7 @@ use std::net::IpAddr;
 use std::ops::{Deref, DerefMut};
 use std::{fmt, time::Duration};
 use time::OffsetDateTime;
+use utoipa::{IntoParams, ToResponse, ToSchema};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct RequestError {
@@ -37,6 +38,12 @@ impl RequestError {
 
     pub fn message(&self) -> &str {
         &self.message
+    }
+
+    pub fn empty() -> Self {
+        Self {
+            message: String::new(),
+        }
     }
 }
 
@@ -77,7 +84,7 @@ impl MixnodeStatus {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -88,7 +95,7 @@ pub struct MixnodeCoreStatusResponse {
     pub count: i32,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -99,7 +106,7 @@ pub struct GatewayCoreStatusResponse {
     pub count: i32,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -109,19 +116,39 @@ pub struct MixnodeStatusResponse {
     pub status: MixnodeStatus,
 }
 
-#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct NodePerformance {
+    #[schema(value_type = String)]
     pub most_recent: Performance,
+    #[schema(value_type = String)]
     pub last_hour: Performance,
+    #[schema(value_type = String)]
     pub last_24h: Performance,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(ToSchema)]
+#[schema(title = "MixNodeDetails")]
+pub struct MixNodeDetailsSchema {
+    /// Basic bond information of this mixnode, such as owner address, original pledge, etc.
+    pub bond_information: String,
+
+    /// Details used for computation of rewarding related data.
+    pub rewarding_details: String,
+
+    /// Adjustments to the mixnode that are ought to happen during future epoch transitions.
+    pub pending_changes: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct MixNodeBondAnnotated {
+    #[schema(value_type = MixNodeDetailsSchema)]
     pub mixnode_details: MixNodeDetails,
+    #[schema(value_type = String)]
     pub stake_saturation: StakeSaturation,
+    #[schema(value_type = String)]
     pub uncapped_stake_saturation: StakeSaturation,
     // NOTE: the performance field is deprecated in favour of node_performance
+    #[schema(value_type = String)]
     pub performance: Performance,
     pub node_performance: NodePerformance,
     pub estimated_operator_apy: Decimal,
@@ -152,7 +179,7 @@ impl MixNodeBondAnnotated {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct GatewayBondAnnotated {
     pub gateway_bond: GatewayBond,
 
@@ -183,13 +210,16 @@ pub struct GatewayDescription {
     // for now only expose what we need. this struct will evolve in the future (or be incorporated into nym-node properly)
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema, IntoParams)]
 pub struct ComputeRewardEstParam {
+    #[schema(value_type = String)]
     pub performance: Option<Performance>,
     pub active_in_rewarded_set: Option<bool>,
     pub pledge_amount: Option<u64>,
     pub total_delegation: Option<u64>,
+    #[schema(value_type = CoinSchema)]
     pub interval_operating_cost: Option<Coin>,
+    #[schema(value_type = String)]
     pub profit_margin_percent: Option<Percent>,
 }
 
@@ -198,7 +228,7 @@ pub struct ComputeRewardEstParam {
     feature = "generate-ts",
     ts(export_to = "ts-packages/types/src/types/rust/RewardEstimationResponse.ts")
 )]
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct RewardEstimationResponse {
     pub estimation: RewardEstimate,
     pub reward_params: RewardingParams,
@@ -207,15 +237,16 @@ pub struct RewardEstimationResponse {
     pub as_at: i64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct UptimeResponse {
+    #[schema(value_type = u32)]
     pub mix_id: MixId,
     // The same as node_performance.last_24h. Legacy
     pub avg_uptime: u8,
     pub node_performance: NodePerformance,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct GatewayUptimeResponse {
     pub identity: String,
     // The same as node_performance.last_24h. Legacy
@@ -223,7 +254,7 @@ pub struct GatewayUptimeResponse {
     pub node_performance: NodePerformance,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -231,16 +262,18 @@ pub struct GatewayUptimeResponse {
 )]
 pub struct StakeSaturationResponse {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[schema(value_type = String)]
     pub saturation: StakeSaturation,
 
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[schema(value_type = String)]
     pub uncapped_saturation: StakeSaturation,
     pub as_at: i64,
 }
 
 pub type StakeSaturation = Decimal;
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -282,7 +315,7 @@ impl fmt::Display for SelectionChance {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -303,7 +336,7 @@ impl fmt::Display for InclusionProbabilityResponse {
     }
 }
 
-#[derive(Clone, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Serialize, schemars::JsonSchema, ToSchema)]
 pub struct AllInclusionProbabilitiesResponse {
     pub inclusion_probabilities: Vec<InclusionProbability>,
     pub samples: u64,
@@ -313,8 +346,9 @@ pub struct AllInclusionProbabilitiesResponse {
     pub as_at: i64,
 }
 
-#[derive(Clone, Serialize, schemars::JsonSchema)]
+#[derive(Clone, Serialize, schemars::JsonSchema, ToSchema)]
 pub struct InclusionProbability {
+    #[schema(value_type = u32)]
     pub mix_id: MixId,
     pub in_active: f64,
     pub in_reserve: f64,
@@ -322,7 +356,7 @@ pub struct InclusionProbability {
 
 type Uptime = u8;
 
-#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct MixnodeStatusReportResponse {
     pub mix_id: MixId,
     pub identity: IdentityKey,
@@ -332,22 +366,26 @@ pub struct MixnodeStatusReportResponse {
     pub last_day: Uptime,
 }
 
-#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct GatewayStatusReportResponse {
     pub identity: String,
     pub owner: String,
+    #[schema(value_type = u8)]
     pub most_recent: Uptime,
+    #[schema(value_type = u8)]
     pub last_hour: Uptime,
+    #[schema(value_type = u8)]
     pub last_day: Uptime,
 }
 
-#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct HistoricalUptimeResponse {
     pub date: String,
+    #[schema(value_type = u8)]
     pub uptime: Uptime,
 }
 
-#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct MixnodeUptimeHistoryResponse {
     pub mix_id: MixId,
     pub identity: String,
@@ -355,22 +393,34 @@ pub struct MixnodeUptimeHistoryResponse {
     pub history: Vec<HistoricalUptimeResponse>,
 }
 
-#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct GatewayUptimeHistoryResponse {
     pub identity: String,
     pub owner: String,
     pub history: Vec<HistoricalUptimeResponse>,
 }
 
-#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(ToSchema)]
+#[schema(title = "Coin")]
+pub struct CoinSchema {
+    pub denom: String,
+    #[schema(value_type = String)]
+    pub amount: Uint128,
+}
+
+#[derive(Clone, Serialize, Deserialize, schemars::JsonSchema, ToSchema, ToResponse)]
 pub struct CirculatingSupplyResponse {
+    #[schema(value_type = CoinSchema)]
     pub total_supply: Coin,
+    #[schema(value_type = CoinSchema)]
     pub mixmining_reserve: Coin,
+    #[schema(value_type = CoinSchema)]
     pub vesting_tokens: Coin,
+    #[schema(value_type = CoinSchema)]
     pub circulating_supply: Coin,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct HostInformation {
     pub ip_address: Vec<IpAddr>,
     pub hostname: Option<String>,
@@ -387,7 +437,7 @@ impl From<nym_node_requests::api::v1::node::models::HostInformation> for HostInf
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct HostKeys {
     pub ed25519: String,
     pub x25519: String,
@@ -402,7 +452,7 @@ impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct WebSockets {
     pub ws_port: u16,
 
@@ -426,7 +476,7 @@ where
 }
 
 // for all intents and purposes it's just OffsetDateTime, but we need JsonSchema...
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, ToSchema)]
 pub struct OffsetDateTimeJsonSchemaWrapper(
     #[serde(
         default = "unix_epoch",
@@ -494,7 +544,7 @@ impl JsonSchema for OffsetDateTimeJsonSchemaWrapper {
 }
 
 // this struct is getting quite bloated...
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NymNodeDescription {
     #[serde(default)]
     pub last_polled: OffsetDateTimeJsonSchemaWrapper,
@@ -531,7 +581,7 @@ fn default_node_role() -> NodeRole {
     NodeRole::Inactive
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct DescribedGateway {
     pub bond: GatewayBond,
     pub self_described: Option<NymNodeDescription>,
@@ -546,7 +596,7 @@ impl From<GatewayBond> for DescribedGateway {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct DescribedMixNode {
     pub bond: MixNodeBond,
     pub self_described: Option<NymNodeDescription>,
@@ -561,7 +611,7 @@ impl From<MixNodeBond> for DescribedMixNode {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NetworkRequesterDetails {
     /// address of the embedded network requester
     pub address: String,
@@ -570,31 +620,31 @@ pub struct NetworkRequesterDetails {
     pub uses_exit_policy: bool,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct IpPacketRouterDetails {
     /// address of the embedded ip packet router
     pub address: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct AuthenticatorDetails {
     /// address of the embedded authenticator
     pub address: String,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct WireguardDetails {
     pub port: u16,
     pub public_key: String,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct ApiHealthResponse {
     pub status: ApiStatus,
     pub uptime: u64,
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 #[serde(rename_all = "lowercase")]
 pub enum ApiStatus {
     Up,
@@ -615,7 +665,7 @@ impl ApiStatus {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct SignerInformationResponse {
     pub cosmos_address: String,
 
@@ -640,7 +690,7 @@ pub struct TestRoute {
     pub layer3: TestNode,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct PartialTestResult {
     pub monitor_run_id: i64,
     pub timestamp: i64,

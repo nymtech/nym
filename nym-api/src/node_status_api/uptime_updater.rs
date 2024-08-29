@@ -118,8 +118,8 @@ impl HistoricalUptimeUpdater {
         }
     }
 
-    pub(crate) fn start(storage: &NymApiStorage, shutdown: &TaskManager) {
-        let uptime_updater = HistoricalUptimeUpdater::new(storage.to_owned());
+    pub(crate) fn start(storage: NymApiStorage, shutdown: &TaskManager) {
+        let uptime_updater = HistoricalUptimeUpdater::new(storage);
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { uptime_updater.run(shutdown_listener).await });
     }

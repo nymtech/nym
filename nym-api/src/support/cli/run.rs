@@ -3,7 +3,7 @@
 
 use crate::start_nym_api_tasks;
 use crate::support::config::helpers::try_load_current_config;
-use anyhow::bail;
+use cfg_if::cfg_if;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -43,7 +43,7 @@ pub(crate) struct Args {
     pub(crate) enable_zk_nym: Option<bool>,
 
     /// Announced address that is going to be put in the DKG contract where zk-nym clients will connect
-    /// to obtain their credentials    
+    /// to obtain their credentials
     /// default: None - config value will be used instead
     #[clap(long)]
     pub(crate) announce_address: Option<url::Url>,
@@ -62,18 +62,40 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
 
     config.validate()?;
 
-    let mut shutdown_handlers = start_nym_api_tasks(config).await?;
+    #[cfg(feature = "axum")]
+    let mut axum_shutdown = crate::v2::start_nym_api_tasks_v2(&config).await?;
+    let mut rocket_shutdown = start_nym_api_tasks(config).await?;
 
-    let res = shutdown_handlers
-        .task_manager_handle
-        .catch_interrupt()
-        .await;
+    // it doesn't matter which server catches the interrupt: it needs only be caught once
+    if let Err(err) = rocket_shutdown.task_manager_handle.catch_interrupt().await {
+        error!("Error stopping Rocket tasks: {err}");
+    }
+
     log::info!("Stopping nym API");
-    shutdown_handlers.rocket_handle.notify();
+    rocket_shutdown.rocket_handle.notify();
 
-    if let Err(err) = res {
-        // that's a nasty workaround, but anyhow errors are generally nicer, especially on exit
-        bail!("{err}")
+    // because Rocket caught the interrupt, it had already signalled its
+    // background tasks to retire. Now do that for axum
+    cfg_if! {
+        if #[cfg(feature = "axum")] {
+            axum_shutdown.task_manager_mut().signal_shutdown().ok();
+            axum_shutdown.task_manager_mut().wait_for_shutdown().await;
+
+            let running_server = axum_shutdown.shutdown_axum();
+
+            match running_server.await {
+                Ok(Ok(_)) => {
+                    info!("Axum HTTP server shut down without errors");
+                },
+                Ok(Err(err)) => {
+                    error!("Axum HTTP server terminated with: {err}");
+                    anyhow::bail!(err)
+                },
+                Err(err) => {
+                    error!("Server task panicked: {err}");
+                }
+            };
+        }
     }
 
     Ok(())

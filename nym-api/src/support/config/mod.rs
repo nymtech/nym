@@ -16,6 +16,7 @@ use nym_config::{
 };
 use serde::{Deserialize, Serialize};
 use std::io;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use url::Url;
@@ -225,6 +226,17 @@ impl Config {
     }
 }
 
+// TODO rocket: when axum becomes the main server, change its bind addr default here
+fn default_http_socket_addr() -> SocketAddr {
+    cfg_if::cfg_if! {
+        if #[cfg(debug_assertions)] {
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8081)
+        } else {
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 8081)
+        }
+    }
+}
+
 // we only really care about the mnemonic being zeroized
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Zeroize, ZeroizeOnDrop)]
 pub struct Base {
@@ -233,6 +245,11 @@ pub struct Base {
 
     #[zeroize(skip)]
     pub local_validator: Url,
+
+    /// Socket address Axum will use for binding its HTTP API.
+    #[zeroize(skip)]
+    #[serde(default = "default_http_socket_addr")]
+    pub bind_address: SocketAddr,
 
     /// Mnemonic used for rewarding and/or multisig operations
     // TODO: similarly to the note in gateway, this should get moved to a separate file
@@ -256,6 +273,7 @@ impl Base {
             storage_paths: NymApiPaths::new_default(&id),
             id,
             local_validator: default_validator,
+            bind_address: default_http_socket_addr(),
             mnemonic: None,
         }
     }

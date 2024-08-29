@@ -20,6 +20,7 @@ use std::collections::BTreeMap;
 use std::ops::Deref;
 use thiserror::Error;
 use time::Date;
+use utoipa::ToSchema;
 
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 pub struct VerifyEcashTicketBody {
@@ -60,7 +61,7 @@ impl VerifyEcashCredentialBody {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct EcashTicketVerificationResponse {
     pub verified: Result<(), EcashTicketVerificationRejection>,
 }
@@ -73,7 +74,7 @@ impl EcashTicketVerificationResponse {
     }
 }
 
-#[derive(Debug, Error, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Error, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub enum EcashTicketVerificationRejection {
     #[error("invalid ticket spent date. expected either today's ({today}) or yesterday's* ({yesterday}) date but got {received} instead\n*assuming it's before 1AM UTC")]
     InvalidSpentDate {
@@ -155,7 +156,7 @@ impl BlindSignRequestBody {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct BlindedSignatureResponse {
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub blinded_signature: BlindedSignature,
@@ -198,7 +199,7 @@ impl MasterVerificationKeyResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct VerificationKeyResponse {
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub key: VerificationKeyAuth,
@@ -222,25 +223,26 @@ impl CosmosAddressResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct PartialExpirationDateSignatureResponse {
     pub epoch_id: u64,
 
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String)]
     pub expiration_date: Date,
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub signatures: Vec<AnnotatedExpirationDateSignature>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct PartialCoinIndicesSignatureResponse {
     pub epoch_id: u64,
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub signatures: Vec<AnnotatedCoinIndexSignature>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct AggregatedExpirationDateSignatureResponse {
     pub epoch_id: u64,
 
@@ -252,7 +254,7 @@ pub struct AggregatedExpirationDateSignatureResponse {
     pub signatures: Vec<AnnotatedExpirationDateSignature>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct AggregatedCoinIndicesSignatureResponse {
     pub epoch_id: u64,
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
@@ -350,16 +352,17 @@ impl BatchRedeemTicketsBody {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct EcashBatchTicketRedemptionResponse {
     pub proposal_accepted: bool,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SpentCredentialsResponse {
     #[serde(with = "nym_serde_helpers::base64")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub bitmap: Vec<u8>,
 }
 
@@ -369,7 +372,7 @@ impl SpentCredentialsResponse {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct EpochCredentialsResponse {
     pub epoch_id: u64,
@@ -377,20 +380,20 @@ pub struct EpochCredentialsResponse {
     pub total_issued: u32,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialsResponse {
     // note: BTreeMap returns ordered results so it's fine to use it with pagination
     pub credentials: BTreeMap<i64, IssuedTicketbookBody>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialResponse {
     pub credential: Option<IssuedTicketbookBody>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbookBody {
     pub credential: IssuedTicketbook,

@@ -6,6 +6,8 @@ use rocket::Route;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
 
+#[cfg(feature = "axum")]
+pub(crate) mod handlers;
 pub(crate) mod models;
 mod routes;
 

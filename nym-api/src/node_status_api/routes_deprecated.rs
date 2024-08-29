@@ -15,9 +15,9 @@ use rocket::serde::json::Json;
 use rocket::State;
 use rocket_okapi::openapi;
 
-use super::helpers::_get_gateways_detailed;
+use super::helpers_deprecated::_get_gateways_detailed;
 use super::NodeStatusCache;
-use crate::node_status_api::helpers::{
+use crate::node_status_api::helpers_deprecated::{
     _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
     _gateway_uptime_history, _get_active_set_detailed, _get_gateway_avg_uptime,
     _get_gateways_detailed_unfiltered, _get_mixnode_avg_uptime,
@@ -26,7 +26,7 @@ use crate::node_status_api::helpers::{
     _get_mixnodes_detailed, _get_mixnodes_detailed_unfiltered, _get_rewarded_set_detailed,
     _mixnode_core_status_count, _mixnode_report, _mixnode_uptime_history,
 };
-use crate::node_status_api::models::ErrorResponse;
+use crate::node_status_api::models::RocketErrorResponse;
 use crate::storage::NymApiStorage;
 use crate::NymContractCache;
 
@@ -35,23 +35,23 @@ use crate::NymContractCache;
 pub(crate) async fn submit_gateway_monitoring_results(
     message: Json<MonitorMessage>,
     storage: &State<NymApiStorage>,
-) -> Result<(), ErrorResponse> {
+) -> Result<(), RocketErrorResponse> {
     if !message.from_allowed() {
-        return Err(ErrorResponse::new(
+        return Err(RocketErrorResponse::new(
             "Monitor not registered to submit results".to_string(),
             rocket::http::Status::Forbidden,
         ));
     }
 
     if !message.timely() {
-        return Err(ErrorResponse::new(
+        return Err(RocketErrorResponse::new(
             "Message is too old".to_string(),
             rocket::http::Status::BadRequest,
         ));
     }
 
     if !message.verify() {
-        return Err(ErrorResponse::new(
+        return Err(RocketErrorResponse::new(
             "Invalid signature".to_string(),
             rocket::http::Status::BadRequest,
         ));
@@ -65,7 +65,7 @@ pub(crate) async fn submit_gateway_monitoring_results(
         Ok(_) => Ok(()),
         Err(err) => {
             error!("failed to submit gateway monitoring results: {}", err);
-            Err(ErrorResponse::new(
+            Err(RocketErrorResponse::new(
                 "failed to submit gateway monitoring results".to_string(),
                 rocket::http::Status::InternalServerError,
             ))
@@ -78,23 +78,23 @@ pub(crate) async fn submit_gateway_monitoring_results(
 pub(crate) async fn submit_node_monitoring_results(
     message: Json<MonitorMessage>,
     storage: &State<NymApiStorage>,
-) -> Result<(), ErrorResponse> {
+) -> Result<(), RocketErrorResponse> {
     if !message.from_allowed() {
-        return Err(ErrorResponse::new(
+        return Err(RocketErrorResponse::new(
             "Monitor not registered to submit results".to_string(),
             rocket::http::Status::Forbidden,
         ));
     }
 
     if !message.timely() {
-        return Err(ErrorResponse::new(
+        return Err(RocketErrorResponse::new(
             "Message is too old".to_string(),
             rocket::http::Status::BadRequest,
         ));
     }
 
     if !message.verify() {
-        return Err(ErrorResponse::new(
+        return Err(RocketErrorResponse::new(
             "Invalid signature".to_string(),
             rocket::http::Status::BadRequest,
         ));
@@ -108,7 +108,7 @@ pub(crate) async fn submit_node_monitoring_results(
         Ok(_) => Ok(()),
         Err(err) => {
             error!("failed to submit node monitoring results: {}", err);
-            Err(ErrorResponse::new(
+            Err(RocketErrorResponse::new(
                 "failed to submit node monitoring results".to_string(),
                 rocket::http::Status::InternalServerError,
             ))
@@ -121,7 +121,7 @@ pub(crate) async fn submit_node_monitoring_results(
 pub(crate) async fn gateway_report(
     cache: &State<NodeStatusCache>,
     identity: &str,
-) -> Result<Json<GatewayStatusReportResponse>, ErrorResponse> {
+) -> Result<Json<GatewayStatusReportResponse>, RocketErrorResponse> {
     Ok(Json(_gateway_report(cache, identity).await?))
 }
 
@@ -130,7 +130,7 @@ pub(crate) async fn gateway_report(
 pub(crate) async fn gateway_uptime_history(
     storage: &State<NymApiStorage>,
     identity: &str,
-) -> Result<Json<GatewayUptimeHistoryResponse>, ErrorResponse> {
+) -> Result<Json<GatewayUptimeHistoryResponse>, RocketErrorResponse> {
     Ok(Json(_gateway_uptime_history(storage, identity).await?))
 }
 
@@ -140,7 +140,7 @@ pub(crate) async fn gateway_core_status_count(
     storage: &State<NymApiStorage>,
     identity: &str,
     since: Option<i64>,
-) -> Result<Json<GatewayCoreStatusResponse>, ErrorResponse> {
+) -> Result<Json<GatewayCoreStatusResponse>, RocketErrorResponse> {
     Ok(Json(
         _gateway_core_status_count(storage, identity, since).await?,
     ))
@@ -151,7 +151,7 @@ pub(crate) async fn gateway_core_status_count(
 pub(crate) async fn mixnode_report(
     cache: &State<NodeStatusCache>,
     mix_id: MixId,
-) -> Result<Json<MixnodeStatusReportResponse>, ErrorResponse> {
+) -> Result<Json<MixnodeStatusReportResponse>, RocketErrorResponse> {
     Ok(Json(_mixnode_report(cache, mix_id).await?))
 }
 
@@ -160,7 +160,7 @@ pub(crate) async fn mixnode_report(
 pub(crate) async fn mixnode_uptime_history(
     storage: &State<NymApiStorage>,
     mix_id: MixId,
-) -> Result<Json<MixnodeUptimeHistoryResponse>, ErrorResponse> {
+) -> Result<Json<MixnodeUptimeHistoryResponse>, RocketErrorResponse> {
     Ok(Json(_mixnode_uptime_history(storage, mix_id).await?))
 }
 
@@ -170,7 +170,7 @@ pub(crate) async fn mixnode_core_status_count(
     storage: &State<NymApiStorage>,
     mix_id: MixId,
     since: Option<i64>,
-) -> Result<Json<MixnodeCoreStatusResponse>, ErrorResponse> {
+) -> Result<Json<MixnodeCoreStatusResponse>, RocketErrorResponse> {
     Ok(Json(
         _mixnode_core_status_count(storage, mix_id, since).await?,
     ))
@@ -191,7 +191,7 @@ pub(crate) async fn get_mixnode_reward_estimation(
     cache: &State<NodeStatusCache>,
     validator_cache: &State<NymContractCache>,
     mix_id: MixId,
-) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
+) -> Result<Json<RewardEstimationResponse>, RocketErrorResponse> {
     Ok(Json(
         _get_mixnode_reward_estimation(cache, validator_cache, mix_id).await?,
     ))
@@ -207,7 +207,7 @@ pub(crate) async fn compute_mixnode_reward_estimation(
     cache: &State<NodeStatusCache>,
     validator_cache: &State<NymContractCache>,
     mix_id: MixId,
-) -> Result<Json<RewardEstimationResponse>, ErrorResponse> {
+) -> Result<Json<RewardEstimationResponse>, RocketErrorResponse> {
     Ok(Json(
         _compute_mixnode_reward_estimation(
             user_reward_param.into_inner(),
@@ -225,7 +225,7 @@ pub(crate) async fn get_mixnode_stake_saturation(
     cache: &State<NodeStatusCache>,
     validator_cache: &State<NymContractCache>,
     mix_id: MixId,
-) -> Result<Json<StakeSaturationResponse>, ErrorResponse> {
+) -> Result<Json<StakeSaturationResponse>, RocketErrorResponse> {
     Ok(Json(
         _get_mixnode_stake_saturation(cache, validator_cache, mix_id).await?,
     ))
@@ -236,7 +236,7 @@ pub(crate) async fn get_mixnode_stake_saturation(
 pub(crate) async fn get_mixnode_inclusion_probability(
     cache: &State<NodeStatusCache>,
     mix_id: MixId,
-) -> Result<Json<InclusionProbabilityResponse>, ErrorResponse> {
+) -> Result<Json<InclusionProbabilityResponse>, RocketErrorResponse> {
     Ok(Json(
         _get_mixnode_inclusion_probability(cache, mix_id).await?,
     ))
@@ -247,7 +247,7 @@ pub(crate) async fn get_mixnode_inclusion_probability(
 pub(crate) async fn get_mixnode_avg_uptime(
     cache: &State<NodeStatusCache>,
     mix_id: MixId,
-) -> Result<Json<UptimeResponse>, ErrorResponse> {
+) -> Result<Json<UptimeResponse>, RocketErrorResponse> {
     Ok(Json(_get_mixnode_avg_uptime(cache, mix_id).await?))
 }
 
@@ -256,7 +256,7 @@ pub(crate) async fn get_mixnode_avg_uptime(
 pub(crate) async fn get_gateway_avg_uptime(
     cache: &State<NodeStatusCache>,
     identity: &str,
-) -> Result<Json<GatewayUptimeResponse>, ErrorResponse> {
+) -> Result<Json<GatewayUptimeResponse>, RocketErrorResponse> {
     Ok(Json(_get_gateway_avg_uptime(cache, identity).await?))
 }
 
@@ -264,7 +264,7 @@ pub(crate) async fn get_gateway_avg_uptime(
 #[get("/mixnodes/inclusion_probability")]
 pub(crate) async fn get_mixnode_inclusion_probabilities(
     cache: &State<NodeStatusCache>,
-) -> Result<Json<AllInclusionProbabilitiesResponse>, ErrorResponse> {
+) -> Result<Json<AllInclusionProbabilitiesResponse>, RocketErrorResponse> {
     Ok(Json(_get_mixnode_inclusion_probabilities(cache).await?))
 }
 
@@ -317,7 +317,7 @@ pub async fn get_gateways_detailed_unfiltered(
 }
 
 pub mod unstable {
-    use crate::node_status_api::models::ErrorResponse;
+    use crate::node_status_api::models::RocketErrorResponse;
     use crate::support::http::helpers::PaginationRequest;
     use crate::support::storage::NymApiStorage;
     use nym_api_requests::models::{
@@ -486,7 +486,7 @@ pub mod unstable {
         pagination: PaginationRequest,
         info_cache: &State<NodeInfoCache>,
         storage: &State<NymApiStorage>,
-    ) -> Result<Json<MixnodeTestResultResponse>, ErrorResponse> {
+    ) -> Result<Json<MixnodeTestResultResponse>, RocketErrorResponse> {
         let page = pagination.page.unwrap_or_default();
         let per_page = min(
             pagination
@@ -497,7 +497,7 @@ pub mod unstable {
 
         match _mixnode_test_results(mix_id, page, per_page, info_cache, storage).await {
             Ok(res) => Ok(Json(res)),
-            Err(err) => Err(ErrorResponse::new(
+            Err(err) => Err(RocketErrorResponse::new(
                 format!("failed to retrieve mixnode test results for node {mix_id}: {err}"),
                 Status::InternalServerError,
             )),
@@ -570,7 +570,7 @@ pub mod unstable {
         pagination: PaginationRequest,
         info_cache: &State<NodeInfoCache>,
         storage: &State<NymApiStorage>,
-    ) -> Result<Json<GatewayTestResultResponse>, ErrorResponse> {
+    ) -> Result<Json<GatewayTestResultResponse>, RocketErrorResponse> {
         let page = pagination.page.unwrap_or_default();
         let per_page = min(
             pagination
@@ -581,7 +581,7 @@ pub mod unstable {
 
         match _gateway_test_results(gateway_identity, page, per_page, info_cache, storage).await {
             Ok(res) => Ok(Json(res)),
-            Err(err) => Err(ErrorResponse::new(
+            Err(err) => Err(RocketErrorResponse::new(
                 format!(
                     "failed to retrieve mixnode test results for gateway {gateway_identity}: {err}"
                 ),

@@ -6,11 +6,16 @@ use rocket::Route;
 use rocket_okapi::openapi_get_routes_spec;
 use rocket_okapi::settings::OpenApiSettings;
 
+#[cfg(feature = "axum")]
+pub(crate) mod handlers;
+#[cfg(feature = "axum")]
+pub(crate) mod handlers_unstable;
+
 pub(crate) mod routes;
 mod unstable_routes;
 
 /// Merges the routes with http information and returns it to Rocket for serving
-pub(crate) fn nym_node_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
+pub(crate) fn nym_node_routes_deprecated(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
     openapi_get_routes_spec![
         settings: routes::get_gateways_described, routes::get_mixnodes_described
     ]

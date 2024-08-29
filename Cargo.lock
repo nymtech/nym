@@ -348,15 +348,6 @@ dependencies = [
 
 [[package]]
 name = "autocfg"
-version = "0.1.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0dde43e75fd43e8a1bf86103336bc699aa8d17ad1be60c76c0bdfd4828e19b78"
-dependencies = [
- "autocfg 1.3.0",
-]
-
-[[package]]
-name = "autocfg"
 version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0c4b4d0bd25bd0b74681c0ad21497610ce1b7c91b1022cd21c80c6fbdd9476b0"
@@ -567,7 +558,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "93f2635620bf0b9d4576eb7bb9a38a55df78bd1205d26fa994b25911a69f212f"
 dependencies = [
  "bitcoin_hashes",
- "rand 0.8.5",
+ "rand",
  "rand_core 0.6.4",
  "serde",
  "unicode-normalization",
@@ -1010,15 +1001,6 @@ name = "clap_lex"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b82cf0babdbd58558212896d1a4272303a57bdb245c2bf1147185fb45640e70"
-
-[[package]]
-name = "cloudabi"
-version = "0.0.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ddfc5b9aa5d4507acaf872de71051dfd0e309860e88966e1051e462a077aac4f"
-dependencies = [
- "bitflags 1.3.2",
-]
 
 [[package]]
 name = "colorchoice"
@@ -2287,8 +2269,8 @@ dependencies = [
  "nym-validator-client",
  "okapi",
  "pretty_env_logger",
- "rand 0.8.5",
- "rand_pcg 0.3.1",
+ "rand",
+ "rand_pcg",
  "rand_seeder",
  "reqwest 0.12.4",
  "rocket",
@@ -2492,12 +2474,6 @@ checksum = "76ee7a02da4d231650c7cea31349b889be2f45ddb3ef3032d2ec8185f6313fd2"
 dependencies = [
  "libc",
 ]
-
-[[package]]
-name = "fuchsia-cprng"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a06f77d526c1a601b7c4cdd98f54b5eaabffc14d5f2f0296febdc7f357c6d3ba"
 
 [[package]]
 name = "funty"
@@ -3259,7 +3235,7 @@ version = "1.9.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd070e393353796e801d209ad339e89596eb4c8d430d18ede6a1cced8fafbd99"
 dependencies = [
- "autocfg 1.3.0",
+ "autocfg",
  "hashbrown 0.12.3",
  "serde",
 ]
@@ -3659,7 +3635,7 @@ version = "0.4.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "07af8b9cdd281b7915f413fa73f29ebd5d55d0d3f0155584dade1ff18cea1b17"
 dependencies = [
- "autocfg 1.3.0",
+ "autocfg",
  "scopeguard",
 ]
 
@@ -3786,7 +3762,7 @@ version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "488016bfae457b036d996092f6cb448677611ce4449e970ceaf42695203f218a"
 dependencies = [
- "autocfg 1.3.0",
+ "autocfg",
 ]
 
 [[package]]
@@ -3865,7 +3841,7 @@ dependencies = [
  "nym-ordered-buffer",
  "nym-service-providers-common",
  "nym-socks5-requests",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "thiserror",
@@ -4081,7 +4057,7 @@ version = "0.2.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071dfc062690e90b734c0b2273ce72ad0ffa95f0c74596bc250dcfd960262841"
 dependencies = [
- "autocfg 1.3.0",
+ "autocfg",
  "libm",
 ]
 
@@ -4190,8 +4166,8 @@ dependencies = [
  "nym-vesting-contract-common",
  "okapi",
  "pin-project",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
+ "rand",
+ "rand_chacha",
  "reqwest 0.12.4",
  "rocket",
  "rocket_cors",
@@ -4285,7 +4261,7 @@ dependencies = [
  "nym-types",
  "nym-wireguard",
  "nym-wireguard-types",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde_json",
  "thiserror",
@@ -4302,7 +4278,7 @@ dependencies = [
  "bincode",
  "nym-sphinx",
  "nym-wireguard-types",
- "rand 0.8.5",
+ "rand",
  "serde",
 ]
 
@@ -4320,7 +4296,7 @@ dependencies = [
  "nym-ecash-time",
  "nym-network-defaults",
  "nym-validator-client",
- "rand 0.8.5",
+ "rand",
  "thiserror",
  "url",
  "zeroize",
@@ -4431,7 +4407,7 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "nym-vesting-contract-common",
- "rand 0.6.5",
+ "rand",
  "serde",
  "serde_json",
  "tap",
@@ -4468,7 +4444,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde_json",
  "tap",
@@ -4519,8 +4495,8 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
+ "rand",
+ "rand_chacha",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -4600,7 +4576,7 @@ dependencies = [
  "nym-bin-common",
  "nym-node-tester-utils",
  "nym-node-tester-wasm",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
@@ -4637,8 +4613,8 @@ dependencies = [
  "itertools 0.13.0",
  "nym-dkg",
  "nym-pemstore",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
+ "rand",
+ "rand_chacha",
  "serde",
  "serde_derive",
  "sha2 0.9.9",
@@ -4684,7 +4660,7 @@ dependencies = [
  "itertools 0.12.1",
  "nym-network-defaults",
  "nym-pemstore",
- "rand 0.8.5",
+ "rand",
  "rayon",
  "serde",
  "sha2 0.9.9",
@@ -4778,7 +4754,7 @@ dependencies = [
  "nym-ecash-time",
  "nym-network-defaults",
  "nym-validator-client",
- "rand 0.8.5",
+ "rand",
  "serde",
  "thiserror",
  "time",
@@ -4793,7 +4769,7 @@ dependencies = [
  "nym-compact-ecash",
  "nym-ecash-time",
  "nym-network-defaults",
- "rand 0.8.5",
+ "rand",
  "serde",
  "strum 0.25.0",
  "thiserror",
@@ -4816,8 +4792,8 @@ dependencies = [
  "hmac",
  "nym-pemstore",
  "nym-sphinx-types",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
+ "rand",
+ "rand_chacha",
  "serde",
  "serde_bytes",
  "subtle-encoding",
@@ -4839,8 +4815,8 @@ dependencies = [
  "lazy_static",
  "nym-contracts-common",
  "nym-pemstore",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
+ "rand",
+ "rand_chacha",
  "rand_core 0.6.4",
  "serde",
  "serde_derive",
@@ -4970,7 +4946,7 @@ dependencies = [
  "nym-wireguard",
  "nym-wireguard-types",
  "once_cell",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde_json",
  "si-scale",
@@ -5005,7 +4981,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "nym-validator-client",
- "rand 0.8.5",
+ "rand",
  "serde",
  "si-scale",
  "thiserror",
@@ -5034,7 +5010,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde_json",
  "thiserror",
@@ -5136,7 +5112,7 @@ name = "nym-inclusion-probability"
 version = "0.1.0"
 dependencies = [
  "log",
- "rand 0.8.5",
+ "rand",
  "thiserror",
 ]
 
@@ -5149,7 +5125,7 @@ dependencies = [
  "nym-bin-common",
  "nym-crypto",
  "nym-sphinx",
- "rand 0.8.5",
+ "rand",
  "serde",
  "thiserror",
  "time",
@@ -5186,7 +5162,7 @@ dependencies = [
  "nym-types",
  "nym-wireguard",
  "nym-wireguard-types",
- "rand 0.8.5",
+ "rand",
  "reqwest 0.12.4",
  "serde",
  "serde_json",
@@ -5243,7 +5219,7 @@ dependencies = [
  "humantime-serde",
  "log",
  "nym-contracts-common",
- "rand_chacha 0.3.1",
+ "rand_chacha",
  "schemars",
  "serde",
  "serde-json-wasm",
@@ -5287,7 +5263,7 @@ dependencies = [
  "nym-topology",
  "nym-types",
  "nym-validator-client",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde_json",
  "sysinfo",
@@ -5320,7 +5296,7 @@ dependencies = [
  "nym-sphinx-types",
  "nym-task",
  "nym-validator-client",
- "rand 0.8.5",
+ "rand",
  "serde",
  "thiserror",
  "time",
@@ -5375,8 +5351,8 @@ dependencies = [
  "nym-types",
  "nym-validator-client",
  "petgraph",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
+ "rand",
+ "rand_chacha",
  "reqwest 0.12.4",
  "serde",
  "serde_json",
@@ -5421,7 +5397,7 @@ dependencies = [
  "nym-types",
  "pretty_env_logger",
  "publicsuffix",
- "rand 0.8.5",
+ "rand",
  "regex",
  "reqwest 0.12.4",
  "serde",
@@ -5468,7 +5444,7 @@ dependencies = [
  "nym-types",
  "nym-wireguard",
  "nym-wireguard-types",
- "rand 0.8.5",
+ "rand",
  "semver 1.0.23",
  "serde",
  "serde_json",
@@ -5502,7 +5478,7 @@ dependencies = [
  "nym-task",
  "nym-wireguard",
  "nym-wireguard-types",
- "rand 0.8.5",
+ "rand",
  "serde_json",
  "thiserror",
  "time",
@@ -5529,7 +5505,7 @@ dependencies = [
  "nym-exit-policy",
  "nym-http-api-client",
  "nym-wireguard-types",
- "rand_chacha 0.3.1",
+ "rand_chacha",
  "schemars",
  "serde",
  "serde_json",
@@ -5550,8 +5526,8 @@ dependencies = [
  "nym-sphinx-params",
  "nym-task",
  "nym-topology",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
+ "rand",
+ "rand_chacha",
  "serde",
  "serde_json",
  "thiserror",
@@ -5566,7 +5542,7 @@ dependencies = [
  "futures",
  "js-sys",
  "nym-node-tester-utils",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "thiserror",
@@ -5625,7 +5601,7 @@ dependencies = [
  "fastrand 2.1.1",
  "getrandom",
  "log",
- "rand 0.8.5",
+ "rand",
  "rayon",
  "sphinx-packet",
  "thiserror",
@@ -5674,7 +5650,7 @@ dependencies = [
  "nym-validator-client",
  "parking_lot 0.12.3",
  "pretty_env_logger",
- "rand 0.8.5",
+ "rand",
  "reqwest 0.12.4",
  "tap",
  "thiserror",
@@ -5734,7 +5710,7 @@ dependencies = [
  "nym-sphinx",
  "nym-topology",
  "nym-validator-client",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde_json",
  "tap",
@@ -5767,7 +5743,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "pin-project",
- "rand 0.8.5",
+ "rand",
  "reqwest 0.12.4",
  "schemars",
  "serde",
@@ -5793,7 +5769,7 @@ dependencies = [
  "nym-credential-storage",
  "nym-crypto",
  "nym-socks5-client-core",
- "rand 0.8.5",
+ "rand",
  "safer-ffi",
  "serde",
  "tokio",
@@ -5848,8 +5824,8 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
+ "rand",
+ "rand_chacha",
  "rand_distr",
  "thiserror",
  "tokio",
@@ -5867,7 +5843,7 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.8.5",
+ "rand",
  "serde",
  "thiserror",
  "zeroize",
@@ -5879,7 +5855,7 @@ version = "0.1.0"
 dependencies = [
  "nym-crypto",
  "nym-sphinx-types",
- "rand 0.8.5",
+ "rand",
  "serde",
  "thiserror",
 ]
@@ -5895,8 +5871,8 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.8.5",
- "rand_chacha 0.3.1",
+ "rand",
+ "rand_chacha",
  "serde",
  "thiserror",
  "wasm-bindgen",
@@ -5913,7 +5889,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
- "rand 0.8.5",
+ "rand",
  "serde",
  "thiserror",
  "utoipa",
@@ -5932,7 +5908,7 @@ dependencies = [
  "nym-sphinx-routing",
  "nym-sphinx-types",
  "nym-topology",
- "rand 0.8.5",
+ "rand",
  "thiserror",
 ]
 
@@ -5994,7 +5970,7 @@ dependencies = [
  "argon2",
  "generic-array 0.14.7",
  "getrandom",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde_json",
  "thiserror",
@@ -6029,7 +6005,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-routing",
  "nym-sphinx-types",
- "rand 0.8.5",
+ "rand",
  "reqwest 0.12.4",
  "semver 0.11.0",
  "serde",
@@ -6154,7 +6130,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "nyxd-scraper",
- "rand_chacha 0.3.1",
+ "rand_chacha",
  "serde",
  "serde_with",
  "sha2 0.10.8",
@@ -6232,7 +6208,7 @@ dependencies = [
  "nym-config",
  "nym-crypto",
  "nym-network-defaults",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde_json",
  "sha2 0.10.8",
@@ -6442,7 +6418,7 @@ dependencies = [
  "once_cell",
  "opentelemetry_api",
  "percent-encoding",
- "rand 0.8.5",
+ "rand",
  "thiserror",
  "tokio",
  "tokio-stream",
@@ -6759,7 +6735,7 @@ version = "2.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b2d323e8ca7996b3e23126511a523f7e62924d93ecd5ae73b333815b0eb3dce"
 dependencies = [
- "autocfg 1.3.0",
+ "autocfg",
  "bitflags 1.3.2",
  "cfg-if",
  "concurrent-queue",
@@ -7024,42 +7000,13 @@ checksum = "dc33ff2d4973d518d823d61aa239014831e521c75da58e3df4840d3f47749d09"
 
 [[package]]
 name = "rand"
-version = "0.6.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d71dacdc3c88c1fde3885a3be3fbab9f35724e6ce99467f7d9c5026132184ca"
-dependencies = [
- "autocfg 0.1.8",
- "libc",
- "rand_chacha 0.1.1",
- "rand_core 0.4.2",
- "rand_hc",
- "rand_isaac",
- "rand_jitter",
- "rand_os",
- "rand_pcg 0.1.2",
- "rand_xorshift",
- "winapi",
-]
-
-[[package]]
-name = "rand"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "34af8d1a0e25924bc5b7c43c079c942339d8f0a8b57c39049bef581b46327404"
 dependencies = [
  "libc",
- "rand_chacha 0.3.1",
+ "rand_chacha",
  "rand_core 0.6.4",
-]
-
-[[package]]
-name = "rand_chacha"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "556d3a1ca6600bfcbab7c7c91ccb085ac7fbbcd70e008a98742e7847f4f7bcef"
-dependencies = [
- "autocfg 0.1.8",
- "rand_core 0.3.1",
 ]
 
 [[package]]
@@ -7071,21 +7018,6 @@ dependencies = [
  "ppv-lite86",
  "rand_core 0.6.4",
 ]
-
-[[package]]
-name = "rand_core"
-version = "0.3.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7a6fdeb83b075e8266dcc8762c22776f6877a63111121f5f8c7411e5be7eed4b"
-dependencies = [
- "rand_core 0.4.2",
-]
-
-[[package]]
-name = "rand_core"
-version = "0.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9c33a3c44ca05fa6f1807d8e6743f3824e8509beca625669633be0acbdf509dc"
 
 [[package]]
 name = "rand_core"
@@ -7109,60 +7041,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "32cb0b9bc82b0a0876c2dd994a7e7a2683d3e7390ca40e6886785ef0c7e3ee31"
 dependencies = [
  "num-traits",
- "rand 0.8.5",
-]
-
-[[package]]
-name = "rand_hc"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b40677c7be09ae76218dc623efbf7b18e34bced3f38883af07bb75630a21bc4"
-dependencies = [
- "rand_core 0.3.1",
-]
-
-[[package]]
-name = "rand_isaac"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ded997c9d5f13925be2a6fd7e66bf1872597f759fd9dd93513dd7e92e5a5ee08"
-dependencies = [
- "rand_core 0.3.1",
-]
-
-[[package]]
-name = "rand_jitter"
-version = "0.1.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1166d5c91dc97b88d1decc3285bb0a99ed84b05cfd0bc2341bdf2d43fc41e39b"
-dependencies = [
- "libc",
- "rand_core 0.4.2",
- "winapi",
-]
-
-[[package]]
-name = "rand_os"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b75f676a1e053fc562eafbb47838d67c84801e38fc1ba459e8f180deabd5071"
-dependencies = [
- "cloudabi",
- "fuchsia-cprng",
- "libc",
- "rand_core 0.4.2",
- "rdrand",
- "winapi",
-]
-
-[[package]]
-name = "rand_pcg"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "abf9b09b01790cfe0364f52bf32995ea3c39f4d2dd011eac241d2914146d0b44"
-dependencies = [
- "autocfg 0.1.8",
- "rand_core 0.4.2",
+ "rand",
 ]
 
 [[package]]
@@ -7184,15 +7063,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "rand_xorshift"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cbf7e9e623549b0e21f6e97cf8ecf247c1a8fd2e8a992ae265314300b2455d5c"
-dependencies = [
- "rand_core 0.3.1",
-]
-
-[[package]]
 name = "rayon"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7210,15 +7080,6 @@ checksum = "1465873a3dfdaa8ae7cb14b4383657caab0b3e8a0aa9ae8e04b044854c8dfce2"
 dependencies = [
  "crossbeam-deque",
  "crossbeam-utils",
-]
-
-[[package]]
-name = "rdrand"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "678054eb77286b51581ba43620cc911abf02758c91f93f479767aed0f90458b2"
-dependencies = [
- "rand_core 0.3.1",
 ]
 
 [[package]]
@@ -7479,7 +7340,7 @@ dependencies = [
  "num_cpus",
  "parking_lot 0.12.3",
  "pin-project-lite",
- "rand 0.8.5",
+ "rand",
  "ref-cast",
  "rocket_codegen",
  "rocket_http",
@@ -8266,7 +8127,7 @@ version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f92a496fb766b417c996b9c5e57daf2f7ad3b0bebe1ccfca4856390e3d3bb67"
 dependencies = [
- "autocfg 1.3.0",
+ "autocfg",
 ]
 
 [[package]]
@@ -8337,7 +8198,7 @@ dependencies = [
  "hmac",
  "lioness",
  "log",
- "rand 0.8.5",
+ "rand",
  "rand_distr",
  "sha2 0.10.8",
  "subtle 2.6.1",
@@ -8506,7 +8367,7 @@ dependencies = [
  "proc-macro-crate",
  "proc-macro2",
  "quote",
- "rand 0.8.5",
+ "rand",
  "syn 1.0.109",
 ]
 
@@ -8883,7 +8744,7 @@ dependencies = [
  "getrandom",
  "peg",
  "pin-project",
- "rand 0.8.5",
+ "rand",
  "reqwest 0.11.27",
  "semver 1.0.23",
  "serde",
@@ -8937,7 +8798,7 @@ dependencies = [
  "nym-pemstore",
  "nym-validator-client",
  "nym-vesting-contract-common",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde_json",
  "sqlx",
@@ -9338,7 +9199,7 @@ dependencies = [
  "indexmap 1.9.3",
  "pin-project",
  "pin-project-lite",
- "rand 0.8.5",
+ "rand",
  "slab",
  "tokio",
  "tokio-util",
@@ -9604,7 +9465,7 @@ dependencies = [
  "http 0.2.12",
  "httparse",
  "log",
- "rand 0.8.5",
+ "rand",
  "rustls 0.21.12",
  "sha1",
  "thiserror",
@@ -9625,7 +9486,7 @@ dependencies = [
  "http 1.1.0",
  "httparse",
  "log",
- "rand 0.8.5",
+ "rand",
  "rustls 0.22.4",
  "rustls-pki-types",
  "sha1",
@@ -10068,7 +9929,7 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "rand 0.8.5",
+ "rand",
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "thiserror",
@@ -10628,7 +10489,7 @@ dependencies = [
  "nym-credentials",
  "nym-crypto",
  "nym-http-api-client",
- "rand 0.8.5",
+ "rand",
  "reqwest 0.12.4",
  "serde",
  "thiserror",

@@ -21,7 +21,7 @@ humantime-serde = { workspace = true }
 inquire = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "sha256"] }
 log = { workspace = true }
-rand = {version = "0.6", features = ["std"] }
+rand = {version = "0.8", features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

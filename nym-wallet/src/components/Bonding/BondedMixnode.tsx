@@ -11,6 +11,7 @@ import { getIntervalAsDate } from 'src/utils';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedMixnodeActions, TBondedMixnodeActions } from './BondedMixnodeActions';
+import { BondUpdateCard } from 'src/components/Bonding/BondUpdateCard';
 import { NodeStats } from './NodeStats';
 
 const textWhenNotName = 'This node has not yet set a name';
@@ -61,10 +62,12 @@ export const BondedMixnode = ({
   mixnode,
   network,
   onActionSelect,
+  setSuccesfullUpdate,
 }: {
   mixnode: TBondedMixnode;
   network?: Network;
   onActionSelect: (action: TBondedMixnodeActions) => void;
+  setSuccesfullUpdate: (status: boolean) => void;
 }) => {
   const [nextEpoch, setNextEpoch] = useState<string | Error>();
   const navigate = useNavigate();
@@ -141,6 +144,7 @@ export const BondedMixnode = ({
 
   return (
     <Stack gap={2}>
+      <BondUpdateCard mixnode={mixnode} network={network} setSuccesfullUpdate={setSuccesfullUpdate}/>
       <NymCard
         borderless
         title={

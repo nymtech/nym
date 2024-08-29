@@ -1,7 +1,5 @@
 # Coconut
 
-> Coconut is in active development - stay tuned for code and integration examples
-
 Coconut is a cryptographic signature scheme that produces privacy-enhanced credentials. It lets application programmers who are concerned with resource access control to think and code in a new way.
 
 Most of the time, when we build system security, we think of _who_ questions:

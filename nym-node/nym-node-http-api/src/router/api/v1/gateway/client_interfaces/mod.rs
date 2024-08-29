@@ -6,7 +6,7 @@ use axum::extract::Query;
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::Router;
-use nym_node_requests::api::v1::gateway::models::{ClientInterfaces, WebSockets};
+use nym_node_requests::api::v1::gateway::models::{ClientInterfaces, WebSockets, Wireguard};
 use nym_node_requests::routes::api::v1::gateway::client_interfaces;
 
 pub(crate) fn routes<S: Send + Sync + 'static + Clone>(
@@ -25,6 +25,13 @@ pub(crate) fn routes<S: Send + Sync + 'static + Clone>(
             get({
                 let websockets = interfaces.as_ref().and_then(|i| i.mixnet_websockets);
                 move |query| mixnet_websockets(websockets, query)
+            }),
+        )
+        .route(
+            client_interfaces::WIREGUARD,
+            get({
+                let wireguard = interfaces.as_ref().and_then(|i| i.wireguard.clone());
+                move |query| wireguard_details(wireguard, query)
             }),
         )
 }
@@ -80,3 +87,29 @@ pub(crate) async fn mixnet_websockets(
 }
 
 pub type MixnetWebSocketsResponse = FormattedResponse<WebSockets>;
+
+/// Returns wireguard information on this gateway.
+#[utoipa::path(
+    get,
+    path = "/wireguard",
+    context_path = "/api/v1/gateway/client-interfaces",
+    tag = "Gateway",
+    responses(
+        (status = 501, description = "the endpoint hasn't been implemented yet"),
+        (status = 200, content(
+            ("application/json" = Wireguard),
+            ("application/yaml" = Wireguard)
+        ))
+    ),
+    params(OutputParams)
+)]
+pub(crate) async fn wireguard_details(
+    wireguard: Option<Wireguard>,
+    Query(output): Query<OutputParams>,
+) -> Result<WireguardResponse, StatusCode> {
+    let wireguard = wireguard.ok_or(StatusCode::NOT_IMPLEMENTED)?;
+    let output = output.output.unwrap_or_default();
+    Ok(output.to_response(wireguard))
+}
+
+pub type WireguardResponse = FormattedResponse<Wireguard>;

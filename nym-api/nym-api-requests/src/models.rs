@@ -516,6 +516,9 @@ pub struct NymNodeDescription {
     #[serde(default)]
     pub authenticator: Option<AuthenticatorDetails>,
 
+    #[serde(default)]
+    pub wireguard: Option<WireguardDetails>,
+
     // for now we only care about their ws/wss situation, nothing more
     pub mixnet_websockets: WebSockets,
 
@@ -577,6 +580,12 @@ pub struct IpPacketRouterDetails {
 pub struct AuthenticatorDetails {
     /// address of the embedded authenticator
     pub address: String,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+pub struct WireguardDetails {
+    pub port: u16,
+    pub public_key: String,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema)]

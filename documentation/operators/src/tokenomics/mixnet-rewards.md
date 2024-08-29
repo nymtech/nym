@@ -1,7 +1,7 @@
 # Nym Operators Rewards
 
-```admonish info title="\*Info"
-**The data on this page were last time updated on <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py time_now-->.**
+```admonish info title="\* Important Info"
+**The data on this page were last time updated on <!--cmdrun cd ../../../scripts/cmdrun && ./api_targets.py time_now-->. Every information labeled with `*` sign is corresponding to that time stamp.**
 ```
 
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)

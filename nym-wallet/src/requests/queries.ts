@@ -17,6 +17,8 @@ export const getAllPendingDelegations = async () =>
   invokeWrapper<WrappedDelegationEvent[]>('get_pending_delegation_events');
 
 export const getMixnodeBondDetails = async () => invokeWrapper<MixNodeDetails | null>('mixnode_bond_details');
+// TODO wallet-smoosh: update when we have the actual endpoint
+export const getNymnodeBondDetails = async () => invokeWrapper<NymNodeDetails | null>('mixnode_bond_details');
 export const getGatewayBondDetails = async () => invokeWrapper<GatewayBond | null>('gateway_bond_details');
 export const getNymNodeBondDetails = async () => invokeWrapper<NymNodeDetails | null>('nym_node_bond_details');
 export const getMixnodeAvgUptime = async () => invokeWrapper<number | null>('get_mixnode_avg_uptime');

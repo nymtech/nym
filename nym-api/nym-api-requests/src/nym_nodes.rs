@@ -8,6 +8,7 @@ use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::MixId;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
+use utoipa::ToSchema;
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct CachedNodesResponse<T> {
@@ -15,7 +16,7 @@ pub struct CachedNodesResponse<T> {
     pub nodes: Vec<T>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
 #[serde(rename_all = "kebab-case")]
 #[cfg_attr(feature = "rocket-traits", derive(rocket::form::FromFormField))]
 pub enum NodeRoleQueryParam {
@@ -28,7 +29,7 @@ pub enum NodeRoleQueryParam {
     ExitGateway,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub enum NodeRole {
     // a properly active mixnode
     Mixnode {
@@ -47,7 +48,7 @@ pub enum NodeRole {
     Inactive,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct BasicEntryInformation {
     pub hostname: Option<String>,
 
@@ -58,13 +59,15 @@ pub struct BasicEntryInformation {
 type NodeId = MixId;
 
 // the bare minimum information needed to construct sphinx packets
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct SkimmedNode {
     // in directory v3 all nodes (mixnodes AND gateways) will have a unique id
     // but to keep structure consistent, introduce this field now
+    #[schema(value_type = u32)]
     pub node_id: NodeId,
 
     pub ed25519_identity_pubkey: String,
+    #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 
     // TODO: to be deprecated in favour of well-known hardcoded port for everyone
@@ -74,6 +77,7 @@ pub struct SkimmedNode {
     pub entry: Option<BasicEntryInformation>,
 
     /// Average node performance in last 24h period
+    #[schema(value_type = String)]
     pub performance: Performance,
 }
 
@@ -143,14 +147,14 @@ impl<'a> From<&'a GatewayBondAnnotated> for SkimmedNode {
 
 // an intermediate variant that exposes additional data such as noise keys but without
 // the full fat of the self-described data
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct SemiSkimmedNode {
     pub basic: SkimmedNode,
     pub x25519_noise_pubkey: String,
     // pub location:
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct FullFatNode {
     pub expanded: SemiSkimmedNode,
 

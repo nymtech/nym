@@ -50,7 +50,7 @@ pub(crate) struct CirculatingSupplyCache {
 }
 
 impl CirculatingSupplyCache {
-    fn new(mix_denom: String) -> CirculatingSupplyCache {
+    pub(crate) fn new(mix_denom: String) -> CirculatingSupplyCache {
         CirculatingSupplyCache {
             initialised: Arc::new(AtomicBool::new(false)),
             data: Arc::new(RwLock::new(CirculatingSupplyCacheData::new(mix_denom))),
@@ -67,6 +67,7 @@ impl CirculatingSupplyCache {
         }
     }
 
+    #[deprecated(note = "TODO rocket: obsolete because it's used for Rocket")]
     pub(crate) fn stage(mix_denom: String) -> AdHoc {
         AdHoc::on_ignite("Circulating Supply Cache Stage", |rocket| async {
             rocket.manage(Self::new(mix_denom))

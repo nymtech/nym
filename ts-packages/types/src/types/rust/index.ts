@@ -33,6 +33,7 @@ export * from './MixNodeDetails';
 export * from './MixNodeRewarding';
 export * from './MixnodeStatus';
 export * from './MixnodeStatusResponse';
+export * from './NymNodeDetails';
 export * from './OriginalVestingResponse';
 export * from './PendingEpochEvent';
 export * from './PendingEpochEventData';

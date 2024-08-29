@@ -11,6 +11,7 @@ import { BondMixnodeModal } from 'src/components/Bonding/modals/BondMixnodeModal
 import { UpdateBondAmountModal } from 'src/components/Bonding/modals/UpdateBondAmountModal';
 import { BondOversaturatedModal } from 'src/components/Bonding/modals/BondOversaturatedModal';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
+import { NymNodeSuccessModal } from 'src/components/Bonding/modals/NymNodeSuccessModal';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { AppContext, urls } from 'src/context/main';
@@ -22,11 +23,13 @@ import { BondingContextProvider, useBondingContext } from '../../context';
 
 export const Bonding = () => {
   const [showModal, setShowModal] = useState<
-    'bond-mixnode' | 'bond-gateway' | 'update-bond' | 'update-bond-oversaturated' | 'unbond' | 'redeem'
+    'bond-mixnode' | 'bond-nymnode' | 'bond-gateway' | 'update-bond' | 'update-bond-oversaturated' | 'unbond' | 'redeem'
   >();
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
   const [uncappedSaturation, setUncappedSaturation] = useState<number | undefined>();
   const [showMigrationModal, setShowMigrationModal] = useState(false);
+  const [succesfullUpdate, setSuccesfullUpdate] = useState(false);
+
   const {
     network,
     clientDetails,
@@ -194,6 +197,7 @@ export const Bonding = () => {
           mixnode={bondedNode}
           network={network}
           onActionSelect={(action) => handleBondedMixnodeAction(action)}
+          setSuccesfullUpdate={setSuccesfullUpdate}
         />
       )}
 
@@ -266,6 +270,8 @@ export const Bonding = () => {
       {confirmationDetails && confirmationDetails.status === 'error' && (
         <ErrorModal open message={confirmationDetails.subtitle} onClose={() => setConfirmationDetails(undefined)} />
       )}
+
+      {succesfullUpdate && <NymNodeSuccessModal status="success" onClose={() => setSuccesfullUpdate(false)} />}
 
       {isLoading && <LoadingModal />}
     </Box>

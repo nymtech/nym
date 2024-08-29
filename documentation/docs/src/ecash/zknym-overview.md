@@ -11,7 +11,7 @@ _More on this soon_.
 ```
 
 Generation of zkNyms involves the following actors / pieces of infrastructure:
-- Nym Network: [NymAPI](https://nymtech.net/operators/nodes/nym-api.html) instances working together on Distributed Key Generation, referred to as the **NymAPI Quorum**. Members of the Quorum are a subset of the Nyx chain Validator set, and are part of a multisig used for triggering reward payouts to the Network Infrastructure Node Operators.
+- [NymAPI](https://nymtech.net/operators/nodes/nym-api.html) instances working together on Distributed Key Generation, referred to as the **NymAPI Quorum**. Members of the Quorum are a subset of the Nyx chain Validator set, and are part of a multisig used for triggering reward payouts to the Network Infrastructure Node Operators.
 - **zkNym Requester** represented by a Bech32 address on the Nyx blockchain. This Requester might be a single user using the NymVPN app, or represent a company purchasing zkNyms to distribute to their application users, in the instance of an app integrating a Mixnet client via one of the SDKs.
 - **OrderAPI**: an API creating crypto/fiat <> NYM swaps and then depositing NYM in a smart contract managed by the NymAPI Quroum for payment verification. Implementation details of the API will be released in the future.
 
@@ -32,14 +32,14 @@ This is used to identify themselves when interacting with the OrderAPI via signe
   - Create a swap for <PAYMENT_AMOUNT> <> NYM tokens.
   - Deposit these tokens with the NymAPI Quorum via a CosmWasm smart contract deployed on the Nyx blockchain.
 - The Requester generates an ed25519 keypair: this is used to identify and authenticate them in the case of using zkNyms across several devices as an individual user. However, this is never used in the clear: these keys are used as private attribute values within generated credentials which are verified via zero-knowledge.
-- The Requester sends a request to each member of the Quorum requesting a credential. This request is signed with their private key and includes the transaction hash of the NYM deposit into the deposit contract, performed either by themselves or the OrderAPI. (( TODO TO CHECK - THE ED255519 KEYPAIR OR THE BECH32 PAIR? ))
+- The Requester sends a request to each member of the Quorum requesting a credential. This request is signed with their private key and includes the transaction hash of the NYM deposit into the deposit contract, performed either by themselves or the OrderAPI. _(( TODO double check which keypair and make clear ))_
 
 ## Deposit NYM & Issue zkNym
 - Once NYM tokens have been deposited into the contract controlled by the Quorum's multisig and a credential is requested, each member of the Quroum performs several checks to verify the request is valid:
-  - They verify the signature sent as part of the request is valid and that the request was made in the last 48 hours. (( SEE ABOVE ANSWER TO WHAT ID IS THEN SHOWN TO QUORUM ))
+  - They verify the signature sent as part of the request is valid and that the request was made in the last 48 hours.
   - They verify that the amount requested matches the amount deposited in the transcation, the hash of which was signed and sent as part of the request.
 - Each member then creates a partial blinded signature - a 'partial signed credential' ('PSC') - from their fragment of the master key generated and split amongst them at the beginning of the Quroum in the initial DKG ceremony.
-  - The member also creates a `key:value` entry in their local cache with the transaction hash as the key, and the PSC + encrypted signature as the value. This is used later for zkNym validation and is cleaned after a predefined timeout. (( TODO DO WE KNOW THE TIMEOUT YET ?? ))
+  - The member also creates a `key:value` entry in their local cache with the transaction hash as the key, and the PSC + encrypted signature as the value. This is used later for zkNym validation and is cleaned after a predefined timeout.
 - These PSCs are given back to the Requester after setting up a secure channel via DH key ex., with each replying Quorum member also sending their public key for verification that the returned PSC was signed by them.
 
 > In other words, each member of the Quorum who responds to the Requester's request for a zkNym (since this is a threshold cryptsystem, not all members of the Quroum must respond to create a credential, only enough to pass the threshold) returns a PSC signed with part of the master key.
@@ -49,4 +49,5 @@ This is used to identify themselves when interacting with the OrderAPI via signe
 
 ## Access Network
 - The zkNym Generator is entirely offline and holds the credential created from the aggregated threshold PSCs returned from individual members of the Quorum. Each time an application requests an access credential, the Generator will provide an unlinkable and unique zkNym to the requesting ingress Gateway.
+- _((TODO add a point on what spend is in other terms))_
 - This zkNym is later presented to the Quorum by the Gateway that collected it, which is used to calculate reward percentages given to Nym Network infrastructure operators by the Quorum, with payouts triggered by their multisig wallet.

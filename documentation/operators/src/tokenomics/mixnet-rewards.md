@@ -21,7 +21,7 @@ $Purple\ collapsible\ for\ examples.$
 
 ## Overview
 
-This is a quick summarry, to understand the full picture, please see detailed [*Rewards Logic & Calculation*](#rewards-logic--calculation) chapter below.
+This is a quick summary, to understand the full picture, please see detailed [*Rewards Logic & Calculation*](#rewards-logic--calculation) chapter below.
 
 * The operators of `nym-node` get rewarded from Mixmining pool, which emits around 6000 NYM per hour.
 * An active set of `nym-nodes` selected for Nym network routing and mixing is 240 nodes in total and it's selected for each new epoch (60 min).
@@ -42,12 +42,12 @@ This is a quick summarry, to understand the full picture, please see detailed [*
 	- 2-hop: (In future) 33%-67%
 	- Currently Gateways earn rewards only from 5-hop mode. The operators can sign up to a grant program as a substitution for 2-hop routing.
 * Each node is rewarded according to the layer in which it's positioned in the given epoch, divided uniformly between all nodes in that layer.
-* Nodes are selected to the active set based on their performance and stake saturation (slef bond + delegation)
+* Nodes are selected to the active set based on their performance and stake saturation (self bond + delegation)
 * In future a ticket system will be implemented where nodes will be rewarded according to the work they perform, with a revenue for both 2-hop and 5-hop work. The uniform naive distribution is an intermediate step. See [*Roadmap*](#roadmap) chapter for more details.
 
 ## Rewards Logic & Calculation
 
-**Note that in the current intermediate model we use one active set for both 2-hop and 5-hop routing Gateways. In reality it means that all nodes are rewarded only within 5-hop reward scheme only. In the meantime, given that the 120 Gateways within the active set route traffic for 2-hop wireguard mode as well, without any extra rewards, the operators can get substitution in the form of grants.**
+**Note that in the current intermediate model we use one active set for both 2-hop and 5-hop routing Gateways. In reality it means that all nodes are rewarded within 5-hop reward scheme only. In the meantime, given that the 120 Gateways within the active set route traffic for 2-hop wireguard mode as well, without any extra rewards, the operators can get substitution in the form of grants.**
 
 ~~~admonish tip title="Nym network active set distribution"
 ```ascii
@@ -89,7 +89,7 @@ This is a quick summarry, to understand the full picture, please see detailed [*
 
 For a node to be rewarded, the node must be part of an active set in the first place. The active set is selected in the beginning of each epoch (every 60min) where total of 240 nodes - represented by 120 mixnodes and 120 gateways, are randomly allocated across the layers. Mixnodes only work within the given layer, while any Exit Gateway can be chosen by a client as an Entry Gateway, not vice versa.
 
-The algorithm choosing nodes into the active set takes into account node's performance and stake saturation, both values being between 0 and 1.
+The algorithm choosing nodes into the active set takes into account node's performance and [stake saturation](fair-mixnet.md#stake-saturation), both values being between 0 and 1.
 
 ```admonish tip title=""
 $$
@@ -130,7 +130,7 @@ In real numbers: If hourly revenue to all 240 nodes is 6000 NYM, the layer compa
 
 ```admonish example collapsible=true
 5-hop mixnet mode: <br>
-$0.16 * 6000; 0.16 * 6000; 0.16 * 6000; 0.16 * 6000; 0.36 * 6000 = 960; 960; 960; 960; 2160$ <br>
+$0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.36 * 6000 2160$ <br>
 <!-- COMMENTING OUT AS WE DO NOT HAVE A CLEAR NUMBERS HERE
 <br>
 2-hop wireguard mode:<br>
@@ -142,6 +142,8 @@ $33\% - 67\%$
 
 
 ### Operation Cost, Profit Margin & Delegation
+
+### APR Calculation
 
 
 ## Roadmap

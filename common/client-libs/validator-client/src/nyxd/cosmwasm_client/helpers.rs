@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::nyxd::error::NyxdError;
+use base64::Engine;
 use cosmrs::abci::TxMsgData;
 use cosmrs::cosmwasm::MsgExecuteContractResponse;
 use cosmrs::proto::cosmos::base::query::v1beta1::{PageRequest, PageResponse};
@@ -16,7 +17,7 @@ pub fn parse_msg_responses(data: Bytes) -> Vec<MsgResponse> {
     // it seems that currently, on wasmd 0.43 + tendermint-rs 0.37 + cosmrs 0.17.0-pre
     // the data is left in undecoded base64 form, but I'd imagine this might change so if the decoding fails,
     // use the bytes directly instead
-    let data = if let Ok(decoded) = base64::decode(&data) {
+    let data = if let Ok(decoded) = base64::prelude::BASE64_STANDARD.decode(&data) {
         decoded
     } else {
         error!("failed to base64-decode the 'data' field of the TxResponse - has the chain been upgraded and introduced some breaking changes?");

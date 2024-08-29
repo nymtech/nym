@@ -171,7 +171,7 @@ argon2 = "0.5.0"
 async-trait = "0.1.81"
 axum = "0.7.5"
 axum-extra = "0.9.3"
-base64 = "0.21.4"
+base64 = "0.22.1"
 bincode = "1.3.3"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
 

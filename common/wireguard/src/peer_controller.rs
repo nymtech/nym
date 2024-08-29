@@ -137,7 +137,7 @@ impl<St: Storage> PeerController<St> {
 
         if reset {
             for (_, peer) in self.suspended_peers.drain() {
-                self.wg_api.inner.configure_peer(&peer)?;
+                // self.wg_api.inner.configure_peer(&peer)?;
             }
         }
         let host = self.wg_api.inner.read_interface_data()?;

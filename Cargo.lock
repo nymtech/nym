@@ -541,7 +541,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "aa13fae8b6255872fd86f7faf4b41168661d7d78609f7bfe6771b85c6739a15b"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "hmac",
  "k256",
  "rand_core 0.6.4",
@@ -695,12 +695,6 @@ name = "bnum"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab9008b6bb9fc80b5277f2fe481c09e828743d9151203e804583eb4c9e15b31d"
-
-[[package]]
-name = "bs58"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
 
 [[package]]
 name = "bs58"
@@ -4118,7 +4112,7 @@ dependencies = [
  "bincode",
  "bip39",
  "bloomfilter",
- "bs58 0.5.1",
+ "bs58",
  "cfg-if",
  "clap 4.5.16",
  "console-subscriber",
@@ -4199,7 +4193,7 @@ dependencies = [
 name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "cosmrs 0.17.0-pre",
  "cosmwasm-std",
  "ecdsa",
@@ -4239,7 +4233,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
- "bs58 0.5.1",
+ "bs58",
  "bytes",
  "clap 4.5.16",
  "defguard_wireguard_rs",
@@ -4347,7 +4341,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bip39",
- "bs58 0.5.1",
+ "bs58",
  "clap 4.5.16",
  "clap_complete",
  "clap_complete_fig",
@@ -4372,7 +4366,7 @@ dependencies = [
  "anyhow",
  "base64 0.22.1",
  "bip39",
- "bs58 0.5.1",
+ "bs58",
  "cfg-if",
  "clap 4.5.16",
  "comfy-table 6.2.0",
@@ -4423,7 +4417,7 @@ dependencies = [
 name = "nym-client"
 version = "1.1.39"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "clap 4.5.16",
  "dirs 4.0.0",
  "futures",
@@ -4462,7 +4456,7 @@ version = "1.1.15"
 dependencies = [
  "async-trait",
  "base64 0.22.1",
- "bs58 0.5.1",
+ "bs58",
  "cfg-if",
  "clap 4.5.16",
  "comfy-table 7.1.1",
@@ -4603,7 +4597,7 @@ name = "nym-coconut"
 version = "0.5.0"
 dependencies = [
  "bls12_381",
- "bs58 0.5.1",
+ "bs58",
  "criterion 0.4.0",
  "digest 0.9.0",
  "doc-comment",
@@ -4651,7 +4645,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "bls12_381",
- "bs58 0.5.1",
+ "bs58",
  "cfg-if",
  "criterion 0.5.1",
  "digest 0.9.0",
@@ -4685,7 +4679,7 @@ dependencies = [
 name = "nym-contracts-common"
 version = "0.5.0"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-storage-plus",
@@ -4782,7 +4776,7 @@ version = "0.4.0"
 dependencies = [
  "aes",
  "blake3",
- "bs58 0.5.1",
+ "bs58",
  "cipher",
  "ctr",
  "digest 0.10.7",
@@ -4808,7 +4802,7 @@ version = "0.1.0"
 dependencies = [
  "bitvec",
  "bls12_381",
- "bs58 0.5.1",
+ "bs58",
  "criterion 0.4.0",
  "ff",
  "group",
@@ -4829,7 +4823,7 @@ dependencies = [
 name = "nym-ecash-contract-common"
 version = "0.1.0"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
@@ -4909,7 +4903,7 @@ dependencies = [
  "async-trait",
  "bip39",
  "bloomfilter",
- "bs58 0.5.1",
+ "bs58",
  "clap 4.5.16",
  "colored",
  "cosmwasm-std",
@@ -5001,7 +4995,7 @@ dependencies = [
 name = "nym-gateway-requests"
 version = "0.1.0"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "futures",
  "generic-array 0.14.7",
  "nym-compact-ecash",
@@ -5098,7 +5092,7 @@ name = "nym-id-cli"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bs58 0.5.1",
+ "bs58",
  "clap 4.5.16",
  "nym-bin-common",
  "nym-credential-storage",
@@ -5139,7 +5133,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bincode",
- "bs58 0.5.1",
+ "bs58",
  "bytes",
  "clap 4.5.16",
  "etherparse",
@@ -5212,7 +5206,7 @@ dependencies = [
 name = "nym-mixnet-contract-common"
 version = "0.6.0"
 dependencies = [
- "bs58 0.4.0",
+ "bs58",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw2",
@@ -5236,7 +5230,7 @@ version = "1.1.37"
 dependencies = [
  "anyhow",
  "axum 0.7.5",
- "bs58 0.5.1",
+ "bs58",
  "clap 4.5.16",
  "colored",
  "cupid",
@@ -5369,7 +5363,7 @@ dependencies = [
  "addr",
  "anyhow",
  "async-trait",
- "bs58 0.5.1",
+ "bs58",
  "clap 4.5.16",
  "dirs 4.0.0",
  "futures",
@@ -5419,7 +5413,7 @@ version = "1.1.6"
 dependencies = [
  "anyhow",
  "bip39",
- "bs58 0.5.1",
+ "bs58",
  "cargo_metadata",
  "celes",
  "clap 4.5.16",
@@ -5667,7 +5661,7 @@ name = "nym-serde-helpers"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "bs58 0.5.1",
+ "bs58",
  "serde",
 ]
 
@@ -5692,7 +5686,7 @@ dependencies = [
 name = "nym-socks5-client"
 version = "1.1.39"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "clap 4.5.16",
  "log",
  "nym-bin-common",
@@ -5864,7 +5858,7 @@ dependencies = [
 name = "nym-sphinx-anonymous-replies"
 version = "0.1.0"
 dependencies = [
- "bs58 0.5.1",
+ "bs58",
  "nym-crypto",
  "nym-sphinx-addressing",
  "nym-sphinx-params",
@@ -5995,7 +5989,7 @@ name = "nym-topology"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "bs58 0.5.1",
+ "bs58",
  "log",
  "nym-api-requests",
  "nym-bin-common",
@@ -8188,7 +8182,7 @@ dependencies = [
  "aes",
  "arrayref",
  "blake2 0.8.1",
- "bs58 0.5.1",
+ "bs58",
  "byteorder",
  "chacha",
  "ctr",
@@ -8779,7 +8773,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bip39",
- "bs58 0.5.1",
+ "bs58",
  "clap 4.5.16",
  "console",
  "cw-utils",
@@ -10480,7 +10474,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-trait",
- "bs58 0.5.1",
+ "bs58",
  "getrandom",
  "js-sys",
  "nym-bin-common",

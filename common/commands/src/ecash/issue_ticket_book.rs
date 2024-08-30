@@ -123,7 +123,7 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
             .await?
             .ok_or(anyhow!("missing expiration date signatures!"))?;
 
-        exported.with_expiration_date_signatures(&AggregatedExpirationDateSignatures {
+        exported = exported.with_expiration_date_signatures(&AggregatedExpirationDateSignatures {
             epoch_id,
             expiration_date,
             signatures,
@@ -135,7 +135,7 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
             .get_coin_index_signatures(epoch_id)
             .await?
             .ok_or(anyhow!("missing coin index signatures!"))?;
-        exported.with_coin_index_signatures(&AggregatedCoinIndicesSignatures {
+        exported = exported.with_coin_index_signatures(&AggregatedCoinIndicesSignatures {
             epoch_id,
             signatures,
         });
@@ -147,7 +147,7 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
             .await?
             .ok_or(anyhow!("missing master verification key!"))?;
 
-        exported.with_master_verification_key(&EpochVerificationKey { epoch_id, key });
+        exported = exported.with_master_verification_key(&EpochVerificationKey { epoch_id, key });
     }
 
     let data = exported.pack().data;

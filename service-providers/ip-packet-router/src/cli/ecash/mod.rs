@@ -10,7 +10,6 @@ use std::error::Error;
 
 pub(crate) mod import_coin_index_signatures;
 pub(crate) mod import_credential;
-pub mod import_credential;
 pub(crate) mod import_expiration_date_signatures;
 pub(crate) mod import_master_verification_key;
 pub(crate) mod show_ticketbooks;

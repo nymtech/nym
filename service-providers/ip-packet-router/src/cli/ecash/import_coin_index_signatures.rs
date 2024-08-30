@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::CliIpPacketRouterClient;
-use crate::error::ClientError;
 use nym_client_core::cli_helpers::client_import_coin_index_signatures::{
     import_coin_index_signatures, CommonClientImportCoinIndexSignaturesArgs,
 };

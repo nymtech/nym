@@ -53,28 +53,58 @@ impl From<IssuedTicketBook> for ImportableTicketBook {
 
 impl ImportableTicketBook {
     pub fn with_expiration_date_signatures(
-        &mut self,
+        mut self,
         signatures: &AggregatedExpirationDateSignatures,
-    ) -> &mut Self {
+    ) -> Self {
         self.serialised_expiration_date_signatures = Some(signatures.pack());
         self
     }
 
     pub fn with_coin_index_signatures(
-        &mut self,
+        mut self,
         signatures: &AggregatedCoinIndicesSignatures,
-    ) -> &mut Self {
+    ) -> Self {
         self.serialised_coin_index_signatures = Some(signatures.pack());
         self
     }
 
-    pub fn with_master_verification_key(&mut self, key: &EpochVerificationKey) -> &mut Self {
+    pub fn with_master_verification_key(mut self, key: &EpochVerificationKey) -> Self {
         self.serialised_master_verification_key = Some(key.pack());
         self
     }
 
-    pub fn finalize_export(self) -> Vec<u8> {
-        self.pack().data
+    pub fn with_maybe_expiration_date_signatures(
+        self,
+        signatures: &Option<AggregatedExpirationDateSignatures>,
+    ) -> Self {
+        if let Some(sigs) = signatures {
+            self.with_expiration_date_signatures(sigs)
+        } else {
+            self
+        }
+    }
+
+    pub fn with_maybe_coin_index_signatures(
+        self,
+        signatures: &Option<AggregatedCoinIndicesSignatures>,
+    ) -> Self {
+        if let Some(sigs) = signatures {
+            self.with_coin_index_signatures(sigs)
+        } else {
+            self
+        }
+    }
+
+    pub fn with_maybe_master_verification_key(self, key: &Option<EpochVerificationKey>) -> Self {
+        if let Some(sigs) = key {
+            self.with_master_verification_key(sigs)
+        } else {
+            self
+        }
+    }
+
+    pub fn finalize_export(self) -> VersionSerialised<Self> {
+        self.pack()
     }
 
     pub fn try_unpack_full(&self) -> Result<DecodedImportableTicketBook, Error> {

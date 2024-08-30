@@ -1,4 +1,4 @@
-use crate::commands::ecash::Ecash;
+use crate::cli::ecash::Ecash;
 use clap::{CommandFactory, Parser, Subcommand};
 use log::error;
 use nym_bin_common::completions::{fig_generate, ArgShell};
@@ -76,9 +76,6 @@ pub(crate) enum Commands {
 
     /// Change the currently active gateway. Note that you must have already registered with the new gateway!
     SwitchGateway(switch_gateway::Args),
-
-    /// Display information associated with the imported ticketbooks,
-    ShowTicketbooks(show_ticketbooks::Args),
 
     /// Sign to prove ownership of this network requester
     Sign(sign::Sign),

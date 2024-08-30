@@ -133,8 +133,8 @@ impl<St: Storage> PeerController<St> {
     }
 
     async fn check_peers(&mut self) -> Result<(), Error> {
-        // let reset = Utc::now().minute() % 10 == 5;
-        let reset = Utc::now().num_seconds_from_midnight() % 3600 == 0;
+        let reset = Utc::now().num_seconds_from_midnight() as u64
+            <= DEFAULT_PEER_TIMEOUT_CHECK.as_secs() + 10;
 
         if reset {
             for (_, peer) in self.suspended_peers.drain() {

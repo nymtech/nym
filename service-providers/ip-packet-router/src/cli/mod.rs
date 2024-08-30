@@ -3,7 +3,6 @@ use clap::{CommandFactory, Parser, Subcommand};
 use log::error;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::{bin_info, version_checker};
-use nym_client_core::cli_helpers::client_import_credential::CommonClientImportTicketBookArgs;
 use nym_client_core::cli_helpers::CliClient;
 use nym_ip_packet_router::config::helpers::try_upgrade_config;
 use nym_ip_packet_router::config::{BaseClientConfig, Config};

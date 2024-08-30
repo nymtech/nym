@@ -7,13 +7,13 @@ use nym_client_core::cli_helpers::client_import_credential::CommonClientImportTi
 use nym_client_core::cli_helpers::client_import_expiration_date_signatures::CommonClientImportExpirationDateSignaturesArgs;
 use nym_client_core::cli_helpers::client_import_master_verification_key::CommonClientImportMasterVerificationKeyArgs;
 use std::error::Error;
+use nym_ip_packet_router::error::IpPacketRouterError;
 
 pub(crate) mod import_coin_index_signatures;
 pub(crate) mod import_credential;
 pub(crate) mod import_expiration_date_signatures;
 pub(crate) mod import_master_verification_key;
 pub(crate) mod show_ticketbooks;
-pub mod show_ticketbooks;
 
 #[derive(Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -23,7 +23,7 @@ pub struct Ecash {
 }
 
 impl Ecash {
-    pub async fn execute(self) -> Result<(), Box<dyn Error + Send + Sync>> {
+    pub async fn execute(self) -> Result<(), IpPacketRouterError> {
         match self.command {
             EcashCommands::ShowTicketBooks(args) => show_ticketbooks::execute(args).await?,
             EcashCommands::ImportTicketBook(args) => import_credential::execute(args).await?,

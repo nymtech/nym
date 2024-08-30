@@ -524,7 +524,22 @@ pub struct KeyPairUser {
     public_key: PublicKeyUser,
 }
 
+impl From<KeyPairUser> for SecretKeyUser {
+    fn from(value: KeyPairUser) -> Self {
+        value.secret_key
+    }
+}
+
 impl KeyPairUser {
+    #[allow(clippy::new_without_default)]
+    pub fn new() -> Self {
+        generate_keypair_user()
+    }
+
+    pub fn new_seeded<M: AsRef<[u8]>>(seed: M) -> Self {
+        generate_keypair_user_from_seed(seed)
+    }
+
     pub fn secret_key(&self) -> &SecretKeyUser {
         &self.secret_key
     }

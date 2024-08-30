@@ -4,12 +4,10 @@
 use crate::cli::CliNetworkRequesterClient;
 use crate::error::NetworkRequesterError;
 use nym_client_core::cli_helpers::client_import_credential::{
-    import_credential, CommonClientImportCredentialArgs,
+    import_credential, CommonClientImportTicketBookArgs,
 };
 
-pub(crate) async fn execute(
-    args: CommonClientImportCredentialArgs,
-) -> Result<(), NetworkRequesterError> {
+pub async fn execute(args: CommonClientImportTicketBookArgs) -> Result<(), NetworkRequesterError> {
     import_credential::<CliNetworkRequesterClient, _>(args).await?;
     println!("successfully imported credential!");
     Ok(())

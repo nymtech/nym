@@ -151,7 +151,7 @@ pub async fn obtain_aggregate_wallet(
         );
 
         match voucher
-            .obtain_partial_bandwidth_voucher_credential(
+            .obtain_partial_ticketbook_credential(
                 &ecash_api_client.api_client,
                 ecash_api_client.node_id,
                 &ecash_api_client.verification_key,

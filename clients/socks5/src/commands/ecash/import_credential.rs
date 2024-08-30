@@ -4,12 +4,10 @@
 use crate::commands::CliSocks5Client;
 use crate::error::Socks5ClientError;
 use nym_client_core::cli_helpers::client_import_credential::{
-    import_credential, CommonClientImportCredentialArgs,
+    import_credential, CommonClientImportTicketBookArgs,
 };
 
-pub(crate) async fn execute(
-    args: CommonClientImportCredentialArgs,
-) -> Result<(), Socks5ClientError> {
+pub async fn execute(args: CommonClientImportTicketBookArgs) -> Result<(), Socks5ClientError> {
     import_credential::<CliSocks5Client, _>(args).await?;
     println!("successfully imported credential!");
     Ok(())

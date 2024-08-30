@@ -42,7 +42,7 @@ impl CachedEpoch {
         self.valid_until > OffsetDateTime::now_utc()
     }
 
-    async fn update(&mut self, epoch: Epoch) -> Result<()> {
+    fn update(&mut self, epoch: Epoch) -> Result<()> {
         let now = OffsetDateTime::now_utc();
 
         let validity_duration = if let Some(epoch_finish) = epoch.deadline {
@@ -85,7 +85,7 @@ impl QueryCommunicationChannel {
 
         let epoch = ecash::client::Client::get_current_epoch(&self.nyxd_client).await?;
 
-        guard.update(epoch).await?;
+        guard.update(epoch)?;
         Ok(guard)
     }
 }

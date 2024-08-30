@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::ArgGroup;
-use nym_id::import_credential;
+use nym_id::import_standalone_ticketbook;
 use std::fs;
 use std::path::PathBuf;
 
@@ -43,6 +43,6 @@ pub(crate) async fn execute(args: Args) -> anyhow::Result<()> {
         }
     };
 
-    import_credential(credentials_store, raw_credential, args.version).await?;
+    import_standalone_ticketbook(credentials_store, raw_credential, args.version).await?;
     Ok(())
 }

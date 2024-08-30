@@ -16,6 +16,7 @@ use bls12_381::{multi_miller_loop, G1Projective, G2Prepared, G2Projective, Scala
 use group::{Curve, Group, GroupEncoding};
 use serde::{Deserialize, Serialize};
 use std::ops::Neg;
+use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Represents a withdrawal request generate by the client who wants to obtain a zk-nym credential.
 ///
@@ -51,7 +52,7 @@ impl WithdrawalRequest {
 ///
 /// This structure holds the commitment hash, commitment opening, private attributes openings,
 /// the wallet secret (scalar), and the expiration date related to a withdrawal request.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct RequestInfo {
     joined_commitment_hash: G1Projective,
     joined_commitment_opening: Scalar,

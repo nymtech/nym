@@ -1,15 +1,15 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::commands::CliSocks5Client;
-use crate::error::Socks5ClientError;
+use crate::cli::CliIpPacketRouterClient;
 use nym_bin_common::output_format::OutputFormat;
 use nym_client_core::cli_helpers::client_show_ticketbooks::{
     show_ticketbooks, CommonShowTicketbooksArgs,
 };
+use nym_ip_packet_router::error::IpPacketRouterError;
 
 #[derive(clap::Args)]
-pub(crate) struct Args {
+pub struct Args {
     #[command(flatten)]
     common_args: CommonShowTicketbooksArgs,
 
@@ -23,9 +23,9 @@ impl AsRef<CommonShowTicketbooksArgs> for Args {
     }
 }
 
-pub(crate) async fn execute(args: Args) -> Result<(), Socks5ClientError> {
+pub async fn execute(args: Args) -> Result<(), IpPacketRouterError> {
     let output = args.output;
-    let res = show_ticketbooks::<CliSocks5Client, _>(args).await?;
+    let res = show_ticketbooks::<CliIpPacketRouterClient, _>(args).await?;
 
     println!("{}", output.format(&res));
     Ok(())

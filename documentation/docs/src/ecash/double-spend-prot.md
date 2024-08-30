@@ -22,9 +22,9 @@ An exploitable scenario arises from these limitations:
 We can, however, mitigate this problem.
 
 ## Solution to Offline Double Spending
-To efficiently prevent the fraudulent use of tickets within the Nym network, we propose a two-tiered solution that combines (1) the immediate detection of double-spending attempts at the entry node level and (2) subsequent identification and blacklisting at the nym-API level.
+To efficiently prevent the fraudulent use of tickets within the Nym network, a two-tiered solution is in place that combines (1) the immediate detection of double-spending attempts at the entry node level and (2) subsequent identification and blacklisting at the nym-API level.
 
-TODO check against https://www.figma.com/board/geUGlj4Dffddx3E08vMZxz/Ecash-Flow?node-id=0-1&node-type=CANVAS&t=yuSZkEQRna8RqzwD-0 to check you havent gone off piste yet
+TODO check against https://www.figma.com/board/geUGlj4Dffddx3E08vMZxz/Ecash-Flow?node-id=0-1&node-type=CANVAS&t=yuSZkEQRna8RqzwD-0 to check you havent gone off piste
 
 ### Entry Node Implementation: Real-Time Ticket Unspending Validation
 Each zkNym contains as an attribute a unique serial number, which is revealed in plaintext to the respective ingress Gateway. Each Gateway has a copy of a [Bloom Filter](https://www.geeksforgeeks.org/bloom-filters-introduction-and-python-implementation/) - on receiving a zkNym, it will check against its copy in a local database to check whether this serial number has already been seen. If so, it rejects the zkNym as being double-spent and the client's connection request is rejected. If not, it will add the serial number to its local DB cache.
@@ -39,5 +39,3 @@ Each Gateway will periodically share their serial numbers with the Quorum and re
 All Gateways periodically forward the collected zkNyms to the Quorum, enabling them to pinpoint and blacklist any clients who double spend. Upon receiving the tickets, the Quorum appends all the incoming serial numbers to the global list of spend zkNym serial numbers and proceed with the identification process for any malicious users engaging in double-spending.
 
 This identification phase involves looking for instances of double spending, identifying the id of the double-spending client, and blacklisting this client by its id. Subsequently, when this client requests a new credential, their plaintext public identifier is included in the request. The Quorum then checks if this identifier is blacklisted. If it is, a new credential is not issued. Furthermore, since the PSCs are only attainable after depositing NYM as payment, the Quorum has the authority to withhold the deposited NYMs as a punitive measure for any detected instances of double-spending.
-
-Through this two-tiered strategy, we not only enable the swift rejection of double-spending attempts at the entry node level but also establish a framework to blacklist and penalize the original culprits, ensuring the integrity and security of the Nym network.

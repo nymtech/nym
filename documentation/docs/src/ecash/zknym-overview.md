@@ -34,7 +34,7 @@ TODO ADD A BIG DIAGRAM FOR EACH STAGE
 - The Requester sends a request to each member of the Quorum requesting a zk-nym credential. This request is signed with their private key and includes the transaction hash of the NYM deposit into the deposit contract, performed either by themselves or the OrderAPI. _(( TODO double check which keypair and make clear. JAYA suggestion: lets do a diagram that shows clearly how on the one hand, the Bech32 address is used to identify user towards the OrderAPI for payments, and on the other hand shows how the ed25519 keypair is for identification and authentication for using zk-nym creds))_
 
 
-## Deposit NYM & Issue zk-nym
+## 2 Deposit NYM & Issue zk-nym
 At this point, NYM tokens have been deposited into the smart contract controlled by the Quorum's multisig and a zk-nym credential has been requested. Next, each member of the Quorum who responds to the Requester's request for a zk-nym checks the validity and returns a PSC signed with part of the master key (since this is a threshold cryptsystem, not all members of the Quroum must respond to create a zk-nym, only enough to pass the threshold). The process looks like this:
 
 - Members of the Quroum performs several checks to verify the request is valid:
@@ -48,7 +48,7 @@ Once the Requester has received > threshold number of PSCs they can assemble the
 
 This credential is fed into the Requester's local 'zk-nym Generator'.
 
-## Access Network
+## 3 Spend zk-nym to Access Mixnet
 - The zk-nym Generator is entirely offline and holds the credential created from the aggregated threshold PSCs returned from individual members of the Quorum. Each time an application requests an access credential, the Generator will provide an unlinkable and unique zk-nym to the requesting ingress Gateway.
 - _((TODO add a point on what spend is in other terms))_
 - This zk-nym is later presented to the Quorum by the Gateway that collected it, which is used to calculate reward percentages given to Nym Network infrastructure operators by the Quorum, with payouts triggered by their multisig wallet.

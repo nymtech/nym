@@ -1,7 +1,8 @@
 # Generating and using zk-nym anonymous credentials
 
 ```admonish info
-The first use-case of zk-nyms is for anonymously proving the right to use the Nym mixnet for privacy. The Nym mixnet is - at the time of publication - free for everyone. However, soon™ it will be required for each connecting client to present a valid credential - a zk-nym - to their ingress Gateway to access the Mixnet.
+The first use-case of zk-nyms is for anonymously proving the right to use the Nym mixnet for privacy.
+The Nym mixnet is - at the time of publication - free for everyone. However, soon™ it will be required for each connecting client to present a valid credential - a zk-nym - to their ingress Gateway to access the Mixnet.
 
 Accessing zk-nym credentials will vary depending on use:
 - Individual developers building on the mixnet will be able to get zk-nym credentials via  something like a faucet.

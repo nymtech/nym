@@ -8,7 +8,6 @@ use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::ServerResponse;
 use nym_gateway_storage::Storage;
 use nym_sphinx::DestinationAddressBytes;
-use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
 use std::time::Duration;
 use time::OffsetDateTime;
@@ -23,6 +22,8 @@ pub(crate) use self::fresh::FreshHandler;
 pub(crate) mod authenticated;
 pub(crate) mod ecash;
 mod fresh;
+
+const WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_millis(1_500);
 
 // TODO: note for my future self to consider the following idea:
 // split the socket connection into sink and stream
@@ -87,53 +88,47 @@ impl InitialAuthResult {
 
 // imo there's no point in including the peer address in anything higher than debug
 #[instrument(level = "debug", skip_all, fields(peer = %handle.peer_address))]
-pub(crate) async fn handle_connection<R, S, St>(
-    mut handle: FreshHandler<R, S, St>,
-    mut shutdown: TaskClient,
-) where
+pub(crate) async fn handle_connection<R, S, St>(mut handle: FreshHandler<R, S, St>)
+where
     R: Rng + CryptoRng,
     S: AsyncRead + AsyncWrite + Unpin + Send,
     St: Storage + Clone + 'static,
 {
     // If the connection handler abruptly stops, we shouldn't signal global shutdown
-    shutdown.mark_as_success();
+    handle.shutdown.mark_as_success();
 
-    match shutdown
-        .run_future(handle.perform_websocket_handshake())
-        .await
+    match tokio::time::timeout(
+        WEBSOCKET_HANDSHAKE_TIMEOUT,
+        handle.perform_websocket_handshake(),
+    )
+    .await
     {
-        None => {
-            trace!("received shutdown signal while performing websocket handshake");
+        Err(timeout_err) => {
+            warn!("websocket handshake timedout: {timeout_err}");
             return;
         }
-        Some(Err(err)) => {
+        Ok(Err(err)) => {
             warn!("Failed to complete WebSocket handshake: {err}. Stopping the handler");
             return;
         }
-        _ => (),
+        _ => {}
     }
 
     trace!("Managed to perform websocket handshake!");
 
-    match shutdown
-        .run_future(handle.perform_initial_authentication())
-        .await
-    {
-        None => {
-            trace!("received shutdown signal while performing initial authentication");
-            return;
-        }
+    let shutdown = handle.shutdown.clone();
+    match handle.perform_initial_authentication().await {
         // For storage error, we want to print the extended storage error, but without
         // including it in the error that's returned to the clients
-        Some(Err(InitialAuthenticationError::StorageError(err))) => {
+        Err(InitialAuthenticationError::StorageError(err)) => {
             warn!("authentication has failed: {err}");
             return;
         }
-        Some(Err(err)) => {
+        Err(err) => {
             warn!("authentication has failed: {err}");
             return;
         }
-        Some(Ok(auth_handle)) => auth_handle.listen_for_requests(shutdown).await,
+        Ok(auth_handle) => auth_handle.listen_for_requests(shutdown).await,
     }
 
     trace!("The handler is done!");

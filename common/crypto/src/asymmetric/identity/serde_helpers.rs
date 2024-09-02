@@ -5,7 +5,7 @@ use super::PublicKey;
 
 pub mod bs58_pubkey {
     use super::*;
-    use serde_crate::{Deserialize, Deserializer, Serializer};
+    use serde::{Deserialize, Deserializer, Serializer};
 
     pub fn serialize<S: Serializer>(key: &PublicKey, serializer: S) -> Result<S::Ok, S::Error> {
         serializer.serialize_str(&key.to_base58_string())

@@ -13,7 +13,7 @@ fn parse_encoded_signatures_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {
 #[cfg_attr(feature = "cli", derive(clap::Args))]
 #[cfg_attr(feature = "cli",
     clap(
-        group(clap::ArgGroup::new("signatures_data").required(true)),
+        group(clap::ArgGroup::new("sig_data").required(true)),
     ))
 ]
 pub struct CommonClientImportCoinIndexSignaturesArgs {
@@ -26,11 +26,11 @@ pub struct CommonClientImportCoinIndexSignaturesArgs {
     pub(crate) client_config: PathBuf,
 
     /// Explicitly provide the encoded signatures data (as base58)
-    #[cfg_attr(feature = "cli", clap(long, group = "signatures_data", value_parser = parse_encoded_signatures_data))]
+    #[cfg_attr(feature = "cli", clap(long, group = "sig_data", value_parser = parse_encoded_signatures_data))]
     pub(crate) signatures_data: Option<Vec<u8>>,
 
     /// Specifies the path to file containing binary signatures data
-    #[cfg_attr(feature = "cli", clap(long, group = "signatures_data"))]
+    #[cfg_attr(feature = "cli", clap(long, group = "sig_data"))]
     pub(crate) signatures_path: Option<PathBuf>,
 
     // currently hidden as there exists only a single serialization standard

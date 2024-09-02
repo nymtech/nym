@@ -16,7 +16,7 @@ fn parse_encoded_signatures_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {
 
 #[derive(Debug, Parser)]
 #[clap(
-    group(ArgGroup::new("signatures_data").required(true)),
+    group(ArgGroup::new("sig_data").required(true)),
 )]
 pub struct Args {
     /// Config file of the client that is supposed to use the signatures.
@@ -24,11 +24,11 @@ pub struct Args {
     pub(crate) client_config: PathBuf,
 
     /// Explicitly provide the encoded signatures data (as base58)
-    #[clap(long, group = "signatures_data", value_parser = parse_encoded_signatures_data)]
+    #[clap(long, group = "sig_data", value_parser = parse_encoded_signatures_data)]
     pub(crate) signatures_data: Option<Vec<u8>>,
 
     /// Specifies the path to file containing binary signatures data
-    #[clap(long, group = "signatures_data")]
+    #[clap(long, group = "sig_data")]
     pub(crate) signatures_path: Option<PathBuf>,
 
     // currently hidden as there exists only a single serialization standard

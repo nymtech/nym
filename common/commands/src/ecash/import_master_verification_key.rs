@@ -16,7 +16,7 @@ fn parse_encoded_key_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {
 
 #[derive(Debug, Parser)]
 #[clap(
-    group(ArgGroup::new("key_data").required(true)),
+    group(ArgGroup::new("key_data_group").required(true)),
 )]
 pub struct Args {
     /// Config file of the client that is supposed to use the key.
@@ -24,11 +24,11 @@ pub struct Args {
     pub(crate) client_config: PathBuf,
 
     /// Explicitly provide the encoded key data (as base58)
-    #[clap(long, group = "key_data", value_parser = parse_encoded_key_data)]
+    #[clap(long, group = "key_data_group", value_parser = parse_encoded_key_data)]
     pub(crate) key_data: Option<Vec<u8>>,
 
     /// Specifies the path to file containing binary key data
-    #[clap(long, group = "key_data")]
+    #[clap(long, group = "key_data_group")]
     pub(crate) key_path: Option<PathBuf>,
 
     // currently hidden as there exists only a single serialization standard

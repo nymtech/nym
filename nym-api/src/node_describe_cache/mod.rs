@@ -9,6 +9,7 @@ use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
 use futures::{stream, StreamExt};
 use nym_api_requests::models::{
     AuthenticatorDetails, IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
+    WireguardDetails,
 };
 use nym_api_requests::nym_nodes::NodeRole;
 use nym_config::defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT};
@@ -197,6 +198,15 @@ async fn try_get_description(
         None
     };
 
+    let wireguard = if let Ok(wg) = client.get_wireguard().await {
+        Some(WireguardDetails {
+            port: wg.port,
+            public_key: wg.public_key,
+        })
+    } else {
+        None
+    };
+
     let description = NymNodeDescription {
         host_information: host_info.data.into(),
         last_polled: OffsetDateTime::now_utc().into(),
@@ -204,6 +214,7 @@ async fn try_get_description(
         network_requester,
         ip_packet_router,
         authenticator,
+        wireguard,
         mixnet_websockets: websockets.into(),
         auxiliary_details,
         role: data.role(),

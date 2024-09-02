@@ -9,7 +9,7 @@ repository = { workspace = true }
 
 [dependencies]
 rand = { workspace = true }
-serde_crate = { version = "1.0", optional = true, default-features = false, features = ["derive"], package = "serde" }
+serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 generic-array = { workspace = true, optional = true, features = ["serde"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true }
@@ -23,4 +23,4 @@ nym-sphinx-types = { path = "../types", features = ["sphinx"] }
 nym-topology = { path = "../../topology" }
 
 [features]
-serde = ["serde_crate", "generic-array"]
+serde = ["dep:serde", "generic-array"]

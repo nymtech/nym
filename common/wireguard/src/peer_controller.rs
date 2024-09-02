@@ -133,7 +133,11 @@ impl<St: Storage> PeerController<St> {
     }
 
     async fn check_peers(&mut self) -> Result<(), Error> {
-        let reset = Utc::now().num_seconds_from_midnight() % 600 == 0;
+        let reset_every: u32 = std::env::var("RESET_EVERY")
+            .expect("RESET_EVERY should be set")
+            .parse()
+            .expect("RESET_EVERY should be a number");
+        let reset = Utc::now().minute() % reset_every == 0;
 
         if reset {
             for (_, peer) in self.suspended_peers.drain() {

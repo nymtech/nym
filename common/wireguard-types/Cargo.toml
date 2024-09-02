@@ -33,7 +33,7 @@ serde_json = { workspace = true, optional = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"] }
 
 [dev-dependencies]
-rand = "0.8.5"
+rand = { workspace = true }
 nym-crypto = { path = "../crypto", features = ["rand"] }
 
 

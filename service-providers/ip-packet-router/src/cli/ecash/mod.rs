@@ -7,7 +7,6 @@ use nym_client_core::cli_helpers::client_import_credential::CommonClientImportTi
 use nym_client_core::cli_helpers::client_import_expiration_date_signatures::CommonClientImportExpirationDateSignaturesArgs;
 use nym_client_core::cli_helpers::client_import_master_verification_key::CommonClientImportMasterVerificationKeyArgs;
 use nym_ip_packet_router::error::IpPacketRouterError;
-use std::error::Error;
 
 pub(crate) mod import_coin_index_signatures;
 pub(crate) mod import_credential;

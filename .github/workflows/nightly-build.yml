@@ -102,7 +102,7 @@ jobs:
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: install npm
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         if: env.WORKFLOW_CONCLUSION == 'failure'
         with:
           node-version: 18

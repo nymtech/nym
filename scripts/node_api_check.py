@@ -81,19 +81,6 @@ class MainFunctions:
         else:
             routing_history = " "
 
-
-#        if verloc_metrics:
-#            print(f"\n\nNODE VERLOC MEASUREMENT\n")
-#            if args.markdown:
-#                verloc_metrics_df = self._json_to_dataframe(verloc_metrics)
-#                print(verloc_metrics_df.to_markdown(index = False))
-#            else:
-#                self.print_neat_dict(verloc_metrics)
-#                verloc_metrics = self._json_neat_format(verloc_metrics)
-#        else:
-#            verloc_metrics = " "
-
-
         if args.output or args.output == "":
             node_dict = self._json_neat_format(node_dict)
             api_data = self._json_neat_format(api_data)

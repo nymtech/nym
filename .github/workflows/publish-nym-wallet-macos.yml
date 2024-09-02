@@ -95,7 +95,7 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
       - id: create-release
         name: Upload to release based on tag name
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: github.event_name == 'release'
         with:
           files: |

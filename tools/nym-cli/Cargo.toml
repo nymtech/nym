@@ -6,7 +6,7 @@ edition = "2021"
 license.workspace = true
 
 [dependencies]
-base64 = "0.22.1"
+base64 = { workspace = true }
 bs58 = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 clap_complete = { workspace = true }

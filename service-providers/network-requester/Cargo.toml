@@ -24,7 +24,7 @@ clap = { workspace = true, features = ["cargo", "derive"]}
 dirs = { workspace = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
-ipnetwork = "0.20.0"
+ipnetwork = { workspace = true }
 log = { workspace = true }
 pretty_env_logger = { workspace = true }
 publicsuffix = { workspace = true }

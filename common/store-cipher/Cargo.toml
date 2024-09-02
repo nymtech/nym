@@ -10,7 +10,7 @@ license.workspace = true
 aes-gcm = { workspace = true }
 argon2 = { workspace = true }
 generic-array = { workspace = true, features = ["zeroize"] }
-rand = "0.8.5"
+rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 thiserror = { workspace = true }

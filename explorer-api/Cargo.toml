@@ -17,7 +17,7 @@ log = { workspace = true }
 maxminddb = { workspace = true }
 okapi = { workspace = true, features = ["impl_json_schema"] }
 pretty_env_logger = { workspace = true }
-rand = "0.8.5"
+rand = { workspace = true }
 rand_pcg = { workspace = true }
 rand_seeder = { workspace = true }
 reqwest = { workspace = true }

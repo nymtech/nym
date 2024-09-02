@@ -26,14 +26,14 @@ jobs:
         run: make contracts
 
       - name: Upload Mixnet Contract Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mixnet_contract.wasm
           path: contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm
           retention-days: 5
 
       - name: Upload Vesting Contract Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vesting_contract.wasm
           path: contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm

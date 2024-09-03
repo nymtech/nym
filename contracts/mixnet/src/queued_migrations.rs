@@ -1,14 +1,11 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::constants::CONTRACT_STATE_KEY;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-use cosmwasm_std::{Addr, DepsMut, Order, Storage};
-use cw_storage_plus::Item;
+use cosmwasm_std::{DepsMut, Order, Storage};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{ContractState, ContractStateParams, PendingEpochEventKind};
-use serde::{Deserialize, Serialize};
+use mixnet_contract_common::PendingEpochEventKind;
 
 fn ensure_no_pending_proxy_events(storage: &dyn Storage) -> Result<(), MixnetContractError> {
     let last_executed = interval_storage::LAST_PROCESSED_EPOCH_EVENT.load(storage)?;
@@ -55,27 +52,11 @@ pub(crate) fn vesting_purge(deps: DepsMut) -> Result<(), MixnetContractError> {
 }
 
 pub(crate) fn explicit_contract_admin(deps: DepsMut) -> Result<(), MixnetContractError> {
-    #[derive(Deserialize, Serialize)]
-    pub struct OldContractState {
-        pub owner: Addr,
-        pub rewarding_validator_address: Addr,
-        pub vesting_contract_address: Addr,
-        pub rewarding_denom: String,
-        pub params: ContractStateParams,
-    }
-
-    let old_state_storage = Item::<OldContractState>::new(CONTRACT_STATE_KEY);
-    let old_state = old_state_storage.load(deps.storage)?;
-
-    mixnet_params_storage::initialise_storage(
-        deps,
-        ContractState {
-            rewarding_validator_address: old_state.rewarding_validator_address,
-            vesting_contract_address: old_state.vesting_contract_address,
-            rewarding_denom: old_state.rewarding_denom,
-            params: old_state.params,
-        },
-        old_state.owner,
-    )?;
+    // we need to read the deprecated field to migrate it over
+    #[allow(deprecated)]
+    let existing_admin = mixnet_params_storage::CONTRACT_STATE
+        .load(deps.storage)?
+        .owner;
+    mixnet_params_storage::ADMIN.set(deps, Some(existing_admin))?;
     Ok(())
 }

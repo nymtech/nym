@@ -21,13 +21,17 @@ const CONTRACT_NAME: &str = "crate:nym-mixnet-contract";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn default_initial_state(
+    owner: Addr,
     rewarding_validator_address: Addr,
     rewarding_denom: String,
     vesting_contract_address: Addr,
     profit_margin: ProfitMarginRange,
     interval_operating_cost: OperatingCostRange,
 ) -> ContractState {
+    // we have to temporarily preserve this functionalities until it can be removed
+    #[allow(deprecated)]
     ContractState {
+        owner,
         rewarding_validator_address,
         vesting_contract_address,
         rewarding_denom: rewarding_denom.clone(),
@@ -70,6 +74,7 @@ pub fn instantiate(
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
     let state = default_initial_state(
+        info.sender.clone(),
         rewarding_validator_address.clone(),
         msg.rewarding_denom,
         vesting_contract_address,
@@ -600,7 +605,9 @@ mod tests {
         let res = instantiate(deps.as_mut(), env, sender, init_msg);
         assert!(res.is_ok());
 
+        #[allow(deprecated)]
         let expected_state = ContractState {
+            owner: Addr::unchecked("sender"),
             rewarding_validator_address: Addr::unchecked("foomp123"),
             vesting_contract_address: Addr::unchecked("bar456"),
             rewarding_denom: "uatom".into(),

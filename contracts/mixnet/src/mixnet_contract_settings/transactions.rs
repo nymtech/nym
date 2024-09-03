@@ -3,9 +3,9 @@
 
 use super::storage;
 use crate::mixnet_contract_settings::storage::ADMIN;
-use cosmwasm_std::DepsMut;
 use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
+use cosmwasm_std::{DepsMut, StdResult};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_rewarding_validator_address_update_event, new_settings_update_event,
@@ -13,13 +13,23 @@ use mixnet_contract_common::events::{
 use mixnet_contract_common::ContractStateParams;
 
 pub fn try_update_contract_admin(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     info: MessageInfo,
     new_admin: String,
 ) -> Result<Response, MixnetContractError> {
     let new_admin = deps.api.addr_validate(&new_admin)?;
 
-    Ok(ADMIN.execute_update_admin(deps, info, Some(new_admin))?)
+    let res = ADMIN.execute_update_admin(deps.branch(), info, Some(new_admin.clone()))?;
+
+    // SAFETY: we don't need to perform any authentication checks on the sender as it was performed
+    // during 'execute_update_admin' call
+    #[allow(deprecated)]
+    storage::CONTRACT_STATE.update(deps.storage, |mut state| -> StdResult<_> {
+        state.owner = new_admin;
+        Ok(state)
+    })?;
+
+    Ok(res)
 }
 
 pub fn try_update_rewarding_validator_address(

@@ -186,6 +186,12 @@ impl Index<Layer> for LayerDistribution {
 /// The current state of the mixnet contract.
 #[cw_serde]
 pub struct ContractState {
+    /// Address of the contract owner.
+    #[deprecated(
+        note = "use explicit ADMIN instead. this field will be removed in future release"
+    )]
+    pub owner: Addr,
+
     /// Address of "rewarding validator" (nym-api) that's allowed to send any rewarding-related transactions.
     pub rewarding_validator_address: Addr,
 

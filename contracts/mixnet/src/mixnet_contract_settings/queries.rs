@@ -42,7 +42,9 @@ pub(crate) mod tests {
     fn query_for_contract_settings_works() {
         let mut deps = test_helpers::init_contract();
 
+        #[allow(deprecated)]
         let dummy_state = ContractState {
+            owner: Addr::unchecked("foomp"),
             rewarding_validator_address: Addr::unchecked("monitor"),
             vesting_contract_address: Addr::unchecked("foomp"),
             rewarding_denom: "unym".to_string(),

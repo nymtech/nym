@@ -93,10 +93,10 @@ nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 
-nym-wireguard = { path = "../common/wireguard", optional = true }
+nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
 
-defguard_wireguard_rs = { workspace = true, optional = true }
+defguard_wireguard_rs = { workspace = true }
 
 
 [build-dependencies]
@@ -109,11 +109,6 @@ sqlx = { workspace = true, features = [
 ] }
 
 [features]
-wireguard = [
-    "nym-wireguard",
-    "defguard_wireguard_rs",
-    "nym-gateway-storage/wireguard",
-]
 bin-deps = ["clap", 'nym-bin-common/output_format']
 
 [package.metadata.deb]

@@ -199,13 +199,11 @@ pub enum GatewayError {
     #[error("the current multisig contract is not using 'AbsolutePercentage' threshold!")]
     InvalidMultisigThreshold,
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
     #[error("failed to remove wireguard interface: {0}")]
     WireguardInterfaceError(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
-    #[error("wireguard not set")]
-    WireguardNotSet,
+    #[error("internal wireguard error {0}")]
+    InternalWireguardError(String),
 
     #[error("failed to start authenticator: {source}")]
     AuthenticatorStartError {

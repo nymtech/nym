@@ -1,5 +1,5 @@
 Package: nym-vpn
-Version: 1.0
+Version: 0.1
 Section: metapackages
 Priority: optional
 Architecture: all

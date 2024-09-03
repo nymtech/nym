@@ -13,6 +13,7 @@
   "properties": {
     "owner": {
       "description": "Address of the contract owner.",
+      "deprecated": true,
       "allOf": [
         {
           "$ref": "#/definitions/Addr"

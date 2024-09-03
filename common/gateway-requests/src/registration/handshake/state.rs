@@ -13,6 +13,7 @@ use nym_crypto::{
     symmetric::stream_cipher,
 };
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
+#[cfg(not(target_arch = "wasm32"))]
 use nym_task::TaskClient;
 use rand::{CryptoRng, RngCore};
 use tracing::log::*;

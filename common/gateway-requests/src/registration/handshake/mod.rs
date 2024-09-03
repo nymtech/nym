@@ -8,6 +8,7 @@ use self::gateway::GatewayHandshake;
 pub use self::shared_key::{SharedKeySize, SharedKeys};
 use futures::{Sink, Stream};
 use nym_crypto::asymmetric::identity;
+#[cfg(not(target_arch = "wasm32"))]
 use nym_task::TaskClient;
 use rand::{CryptoRng, RngCore};
 use tungstenite::{Error as WsError, Message as WsMessage};

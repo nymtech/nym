@@ -10,7 +10,6 @@ use futures::{Future, Sink, Stream};
 use nym_crypto::asymmetric::encryption::PUBLIC_KEY_SIZE;
 use nym_crypto::asymmetric::identity::SIGNATURE_LENGTH;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_task::TaskClient;
 use rand::{CryptoRng, RngCore};
 use std::pin::Pin;
 use tungstenite::Message as WsMessage;
@@ -26,7 +25,7 @@ impl<'a> ClientHandshake<'a> {
         identity: &'a nym_crypto::asymmetric::identity::KeyPair,
         gateway_pubkey: identity::PublicKey,
         expects_credential_usage: bool,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: nym_task::TaskClient,
     ) -> Self
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,

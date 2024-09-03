@@ -15,12 +15,15 @@ function init_db() {
 
     cargo sqlx database create
     cargo sqlx migrate run
+    cargo sqlx prepare
 
     echo "Fresh database ready!"
 }
 
 export RUST_LOG=trace
-export DATABASE_URL=sqlite://data/nym-node-status-api.sqlite
+
+# export DATABASE_URL from .env file
+set -a && source .env && set +a
 
 clear_db=false
 
@@ -39,6 +42,4 @@ if [ "$clear_db" = true ]; then
     init_db
 fi
 
-
-cd ..
-cargo run --package nym-node-status-api -- --config-env-file envs/canary.env
+cargo run --package nym-node-status-api -- --config-env-file ../envs/canary.env

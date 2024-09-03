@@ -6,12 +6,14 @@ pub(crate) type NodeStatusApiResult<T> = Result<T, Error>;
 
 #[derive(Error, Debug)]
 pub(crate) enum Error {
-    #[error("Failed to initialize service")]
-    InitFailed,
     #[error("Failed to start client: {0}")]
     ClientStartupError(String),
     #[error("Client connection error: {0}")]
     ClientConnectionError(String),
+    #[error("DB error: {0}")]
+    DatabaseError(String),
+    #[error("Internal: {0}")]
+    Internal(String),
 }
 
 impl From<ExplorerApiError> for Error {
@@ -29,5 +31,17 @@ impl From<ValidatorClientError> for Error {
 impl From<NymAPIError> for Error {
     fn from(value: NymAPIError) -> Self {
         Self::ClientConnectionError(value.to_string())
+    }
+}
+
+impl From<sqlx::error::Error> for Error {
+    fn from(value: sqlx::error::Error) -> Self {
+        Self::DatabaseError(value.to_string())
+    }
+}
+
+impl From<anyhow::Error> for Error {
+    fn from(value: anyhow::Error) -> Self {
+        Self::Internal(value.to_string())
     }
 }

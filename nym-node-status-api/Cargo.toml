@@ -15,15 +15,15 @@ rust-version.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 axum = { workspace = true }
-# TODO dz load from same workspace
+chrono = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
+# TODO dz: could inherit from workspace?
+cosmwasm-std = "=1.4.3"
 nym-bin-common = { path = "../common/bin-common" }
 nym-explorer-client = { path = "../explorer-api/explorer-client" }
 nym-network-defaults = { path = "../common/network-defaults" }
-# TODO this is from unmerged branch feature/validator-client-described-mixnodes
-# should probably be merged
-nym-validator-client = { git = "https://github.com/nymtech/nym", rev = "96b2a9890", features = ["http-client"] }
-# nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-validator-client = { path = "../common/client-libs/validator-client", features = ["http-client"] }
+serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

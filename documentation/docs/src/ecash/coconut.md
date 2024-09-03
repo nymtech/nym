@@ -1,5 +1,11 @@
 # Coconut
 
+```admonish caution
+This page is now archived: the current anonymous credential scheme - zk-nyms - is partially based on Coconut, but this page is really just retained for posterity.
+
+For up-to-date information on anonymous mixnet access, navigate to the [zk-nym overview](./what-are-zknyms.md).
+```
+
 Coconut is a cryptographic signature scheme that produces privacy-enhanced credentials. It lets application programmers who are concerned with resource access control to think and code in a new way.
 
 Most of the time, when we build system security, we think of _who_ questions:

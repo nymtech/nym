@@ -1,30 +1,4 @@
 #!/bin/bash
 
-set -e
-
-# Path to the keyring
-KEYRING_PATH="/usr/share/keyrings/nymtech.gpg"
-
-# The old path keyring path used by previous installation instructions
-OLD_KEYRING_PATH="/etc/apt/trusted.gpg.d/nymtech.gpg"
-
-REPO_LIST_FILE="/etc/apt/sources.list.d/nymtech.list"
-
-# Add the repository if it doesn't already exist
-if ! grep -q "^deb.*nymtech" "${REPO_LIST_FILE}"; then
-    echo "Adding nymtech repository: ${REPO_LIST_FILE}"
-    echo "deb [signed-by=${KEYRING_PATH}] https://apt.nymtech.net/ jammy main" | tee "${REPO_LIST_FILE}"
-fi
-
-# Check if the old keyring path exists in the nymtech.list file
-if grep -q "$OLD_KEYRING_PATH" "$REPO_LIST_FILE"; then
-    echo "Old keyring path found. Updating to use the new keyring path."
-    # Replace the old keyring path with the new keyring path
-    sed -i "s|$OLD_KEYRING_PATH|$KEYRING_PATH|g" "$REPO_LIST_FILE"
-    echo "Repository list file updated successfully."
-else
-    echo "Old keyring path not found. No changes made."
-fi
-
 # Updating package list
 apt-get update

@@ -651,13 +651,15 @@ impl<St> Gateway<St> {
             info!("embedded ip packet router is disabled");
         };
 
-        let _wg_api = {
+        let _wg_api = if self.wireguard_data.is_some() {
             let embedded_auth = self
                 .start_authenticator(mix_forwarding_channel, shutdown.fork("authenticator"))
                 .await
                 .map_err(|source| GatewayError::AuthenticatorStartError { source })?;
             active_clients_store.insert_embedded(embedded_auth.handle);
             Some(embedded_auth.wg_api)
+        } else {
+            None
         };
 
         if self.run_http_server {

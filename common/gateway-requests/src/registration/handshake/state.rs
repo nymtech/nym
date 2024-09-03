@@ -51,6 +51,7 @@ pub(crate) struct State<'a, S> {
     expects_credential_usage: bool,
 
     // channel to receive shutdown signal
+    #[cfg(not(target_arch = "wasm32"))]
     shutdown: TaskClient,
 }
 
@@ -61,7 +62,7 @@ impl<'a, S> State<'a, S> {
         identity: &'a identity::KeyPair,
         remote_pubkey: Option<identity::PublicKey>,
         expects_credential_usage: bool,
-        shutdown: TaskClient,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
     ) -> Self {
         let ephemeral_keypair = encryption::KeyPair::new(rng);
         State {
@@ -71,6 +72,7 @@ impl<'a, S> State<'a, S> {
             remote_pubkey,
             derived_shared_keys: None,
             expects_credential_usage,
+            #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
     }
@@ -205,6 +207,44 @@ impl<'a, S> State<'a, S> {
         self.remote_pubkey = Some(remote_pubkey)
     }
 
+    fn on_wg_msg(msg: Option<WsItem>) -> Result<Option<Vec<u8>>, HandshakeError> {
+        let Some(msg) = msg else {
+            return Err(HandshakeError::ClosedStream);
+        };
+
+        let Ok(msg) = msg else {
+            return Err(HandshakeError::NetworkError);
+        };
+        match msg {
+            WsMessage::Text(ref ws_msg) => {
+                match types::RegistrationHandshake::from_str(ws_msg) {
+                    Ok(reg_handshake_msg) => {
+                        match reg_handshake_msg {
+                            // hehe, that's a bit disgusting that the type system requires we explicitly ignore the
+                            // protocol_version field that we actually never attach at this point
+                            // yet another reason for the overdue refactor
+                            types::RegistrationHandshake::HandshakePayload { data, .. } => {
+                                Ok(Some(data))
+                            }
+                            types::RegistrationHandshake::HandshakeError { message } => {
+                                Err(HandshakeError::RemoteError(message))
+                            }
+                        }
+                    }
+                    Err(_) => {
+                        error!("Received a non-handshake message during the registration handshake! It's getting dropped. The received content was: '{msg}'");
+                        Ok(None)
+                    }
+                }
+            }
+            _ => {
+                error!("Received non-text message during registration handshake");
+                Ok(None)
+            }
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
     async fn _receive_handshake_message(&mut self) -> Result<Vec<u8>, HandshakeError>
     where
         S: Stream<Item = WsItem> + Unpin,
@@ -214,40 +254,26 @@ impl<'a, S> State<'a, S> {
                 biased;
                 _ = self.shutdown.recv() => return Err(HandshakeError::ReceivedShutdown),
                 msg = self.ws_stream.next() => {
-                    let Some(msg) = msg else {
-                        return Err(HandshakeError::ClosedStream);
+                    let Some(ret) = Self::on_wg_msg(msg)? else {
+                        continue;
                     };
-
-                    let Ok(msg) = msg else {
-                        return Err(HandshakeError::NetworkError);
-                    };
-
-                    match msg {
-                        WsMessage::Text(ref ws_msg) => {
-                            match types::RegistrationHandshake::from_str(ws_msg) {
-                                Ok(reg_handshake_msg) => {
-                                    return match reg_handshake_msg {
-                                        // hehe, that's a bit disgusting that the type system requires we explicitly ignore the
-                                        // protocol_version field that we actually never attach at this point
-                                        // yet another reason for the overdue refactor
-                                        types::RegistrationHandshake::HandshakePayload { data, .. } => {
-                                            Ok(data)
-                                        }
-                                        types::RegistrationHandshake::HandshakeError { message } => {
-                                            Err(HandshakeError::RemoteError(message))
-                                        }
-                                    };
-                                }
-                                Err(_) => {
-                                    error!("Received a non-handshake message during the registration handshake! It's getting dropped. The received content was: '{msg}'");
-                                    continue;
-                                }
-                            }
-                        }
-                        _ => error!("Received non-text message during registration handshake"),
-                    }
+                    return Ok(ret);
                 }
             }
+        }
+    }
+
+    #[cfg(target_arch = "wasm32")]
+    async fn _receive_handshake_message(&mut self) -> Result<Vec<u8>, HandshakeError>
+    where
+        S: Stream<Item = WsItem> + Unpin,
+    {
+        loop {
+            let msg = self.ws_stream.next().await;
+            let Some(ret) = Self::on_wg_msg(msg)? else {
+                continue;
+            };
+            return Ok(ret);
         }
     }
 

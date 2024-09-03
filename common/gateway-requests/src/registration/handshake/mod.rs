@@ -32,7 +32,7 @@ pub async fn client_handshake<'a, S>(
     identity: &'a identity::KeyPair,
     gateway_pubkey: identity::PublicKey,
     expects_credential_usage: bool,
-    shutdown: TaskClient,
+    #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
 ) -> Result<SharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
@@ -43,6 +43,7 @@ where
         identity,
         gateway_pubkey,
         expects_credential_usage,
+        #[cfg(not(target_arch = "wasm32"))]
         shutdown,
     )
     .await

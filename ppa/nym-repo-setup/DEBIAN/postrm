@@ -1,0 +1,20 @@
+#!/bin/bash
+
+# Path to the repository list file
+REPO_LIST_FILE="/etc/apt/sources.list.d/nymtech.list"
+
+case "$1" in
+    remove|purge)
+        echo "Removing nymtech repository list file."
+        if [ -f "$REPO_LIST_FILE" ]; then
+            rm -f "$REPO_LIST_FILE"
+            echo "nymtech repository list file removed successfully."
+        fi
+        ;;
+    *)
+        # Other actions (like upgrade) don't require removal of the list file
+        ;;
+esac
+
+# Optionally: Update package list to reflect the removal
+apt-get update

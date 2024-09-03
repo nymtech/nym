@@ -1,0 +1,9 @@
+name: build-deb-meta
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    steps:
+      run: "echo hello"

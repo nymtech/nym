@@ -32,14 +32,14 @@
 - [Ledger Live Support](nyx/ledger-live.md)
 
 # zkNyms (prev. Coconut)
-- [What are zk-nyms?](ecash/what-are-zknyms.md)
-- [zk-nym Generation & Useage: Overview](ecash/zknym-overview.md)
-  - [Feature: Unlinkability](ecash/unlinkability.md)
-  - [Feature: Double Spend Protection](ecash/double-spend-prot.md)
-  - [Feature: Rerandomisation & Incremental Spend](ecash/rerandomise.md)
-- [Archive](ecash/archive.md)
-  - [Coconut](ecash/coconut.md)
-  - [Bandwidth Credentials](ecash/bandwidth-credentials.md)
+- [What are zk-nyms?](zknym/what-are-zknyms.md)
+- [zk-nym Generation & Useage: Overview](zknym/zknym-overview.md)
+  - [Feature: Unlinkability](zknym/unlinkability.md)
+  - [Feature: Double Spend Protection](zknym/double-spend-prot.md)
+  - [Feature: Rerandomisation & Incremental Spend](zknym/rerandomise.md)
+- [Archive](zknym/archive.md)
+  - [Coconut](zknym/coconut.md)
+  - [Bandwidth Credentials](zknym/bandwidth-credentials.md)
 
 # Tools
 - [NymCLI](tools/nym-cli.md)

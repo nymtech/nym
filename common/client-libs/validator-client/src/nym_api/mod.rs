@@ -9,17 +9,9 @@ use nym_api_requests::ecash::models::{
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
     VerifyEcashTicketBody,
 };
-use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
-use nym_http_api_client::{ApiClient, NO_PARAMS};
-use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
-use time::format_description::BorrowedFormatItem;
-use time::Date;
-
-pub mod error;
-pub mod routes;
-
 use nym_api_requests::ecash::VerificationKeyResponse;
+use nym_api_requests::models::DescribedMixNode;
+use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
 pub use nym_api_requests::{
     ecash::{
         models::{
@@ -39,7 +31,16 @@ pub use nym_api_requests::{
     },
 };
 pub use nym_coconut_dkg_common::types::EpochId;
+use nym_contracts_common::IdentityKey;
 pub use nym_http_api_client::Client;
+use nym_http_api_client::{ApiClient, NO_PARAMS};
+use nym_mixnet_contract_common::mixnode::MixNodeDetails;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use time::format_description::BorrowedFormatItem;
+use time::Date;
+
+pub mod error;
+pub mod routes;
 
 pub fn rfc_3339_date() -> Vec<BorrowedFormatItem<'static>> {
     time::format_description::parse("[year]-[month]-[day]").unwrap()
@@ -102,6 +103,14 @@ pub trait NymApiClientExt: ApiClient {
     async fn get_gateways_described(&self) -> Result<Vec<DescribedGateway>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::GATEWAYS, routes::DESCRIBED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_mixnodes_described(&self) -> Result<Vec<DescribedMixNode>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::MIXNODES, routes::DESCRIBED],
             NO_PARAMS,
         )
         .await
@@ -426,6 +435,22 @@ pub trait NymApiClientExt: ApiClient {
                 &mix_id.to_string(),
                 routes::AVG_UPTIME,
             ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_mixnodes_blacklisted(&self) -> Result<Vec<MixId>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::MIXNODES, routes::BLACKLISTED],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    async fn get_gateways_blacklisted(&self) -> Result<Vec<IdentityKey>, NymAPIError> {
+        self.get_json(
+            &[routes::API_VERSION, routes::GATEWAYS, routes::BLACKLISTED],
             NO_PARAMS,
         )
         .await

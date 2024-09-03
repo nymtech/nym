@@ -5069,6 +5069,7 @@ dependencies = [
  "nym-crypto",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-task",
  "rand",
  "serde",
  "serde_json",

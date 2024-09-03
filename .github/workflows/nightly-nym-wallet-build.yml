@@ -61,7 +61,7 @@ jobs:
     runs-on: custom-linux
     steps:
       - name: Collect jobs status
-        uses: technote-space/workflow-conclusion-action@v2
+        uses: technote-space/workflow-conclusion-action@v3
       - name: Check out repository code
         uses: actions/checkout@v4
       - name: install npm

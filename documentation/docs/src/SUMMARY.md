@@ -32,8 +32,8 @@
 - [Ledger Live Support](nyx/ledger-live.md)
 
 # zkNyms (prev. Coconut)
-- [What are zkNyms?](ecash/what-are-zknyms.md)
-- [zkNym Generation & Useage: Overview](ecash/zknym-overview.md)
+- [What are zk-nyms?](ecash/what-are-zknyms.md)
+- [zk-nym Generation & Useage: Overview](ecash/zknym-overview.md)
   - [Feature: Unlinkability](ecash/unlinkability.md)
   - [Feature: Double Spend Protection](ecash/double-spend-prot.md)
   - [Feature: Rerandomisation & Incremental Spend](ecash/rerandomise.md)

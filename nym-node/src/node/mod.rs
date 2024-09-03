@@ -580,7 +580,6 @@ impl NymNode {
         );
         entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
-        #[cfg(all(feature = "wireguard", target_os = "linux"))]
         entry_gateway.set_wireguard_data(self.wireguard.into());
 
         tokio::spawn(async move {
@@ -608,7 +607,6 @@ impl NymNode {
         );
         exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);
-        #[cfg(all(feature = "wireguard", target_os = "linux"))]
         exit_gateway.set_wireguard_data(self.wireguard.into());
 
         tokio::spawn(async move {

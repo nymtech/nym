@@ -72,7 +72,6 @@ impl TryFrom<UnverifiedTicketData> for ClientTicket {
     }
 }
 
-#[cfg(feature = "wireguard")]
 #[derive(Debug, Clone, FromRow)]
 pub struct WireguardPeer {
     pub public_key: String,
@@ -87,7 +86,6 @@ pub struct WireguardPeer {
     pub suspended: bool,
 }
 
-#[cfg(feature = "wireguard")]
 impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
     fn from(value: defguard_wireguard_rs::host::Peer) -> Self {
         WireguardPeer {
@@ -120,7 +118,6 @@ impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
     }
 }
 
-#[cfg(feature = "wireguard")]
 impl TryFrom<WireguardPeer> for defguard_wireguard_rs::host::Peer {
     type Error = crate::error::StorageError;
 

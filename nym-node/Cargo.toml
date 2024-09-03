@@ -17,7 +17,7 @@ license = "GPL-3.0"
 anyhow.workspace = true
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
-celes = { workspace = true } # country codes
+celes = { workspace = true }                                  # country codes
 colored = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
 humantime-serde = { workspace = true }
@@ -39,7 +39,10 @@ semver = { workspace = true }
 cupid = { workspace = true }
 sysinfo = { workspace = true }
 
-nym-bin-common = { path = "../common/bin-common", features = ["basic_tracing", "output_format"] }
+nym-bin-common = { path = "../common/bin-common", features = [
+    "basic_tracing",
+    "output_format",
+] }
 nym-client-core-config-types = { path = "../common/client-core/config-types" }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
@@ -62,6 +65,3 @@ nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
 [build-dependencies]
 # temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)
 cargo_metadata = { workspace = true }
-
-[features]
-wireguard = ["nym-gateway/wireguard"]

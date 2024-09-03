@@ -1,0 +1,32 @@
+name: build-and-publish-meta-debs
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: arc-ubuntu-22.04
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Build Environment
+        run: sudo apt-get update && sudo apt-get install -y make dpkg-dev
+
+      - name: Build Debian Packages
+        working-directory: ppa/packages
+        run: make
+
+      - name: Upload nym-repo-setup
+        uses: actions/upload-artifact@v4
+        with:
+          path: ppa/packages/nym-repo-setup*.deb
+          retention-days: 10
+
+      - name: Upload nym-vpn
+        uses: actions/upload-artifact@v4
+        with:
+          path: ppa/packages/nym-vpn*.deb
+          retention-days: 10
+

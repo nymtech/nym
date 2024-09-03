@@ -79,7 +79,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace
+          args: --workspace --examples
 
       - name: Run all tests
         if: matrix.os == 'custom-linux'

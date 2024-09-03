@@ -34,6 +34,6 @@ jobs:
       - name: Upload nym-vpn
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.file1 }}
+          name: ${{ env.file2 }}
           path: ppa/packages/nym-vpn*.deb
           retention-days: 10

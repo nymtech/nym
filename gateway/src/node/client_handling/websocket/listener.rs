@@ -67,7 +67,7 @@ where
                                 remote_addr,
                                 shutdown,
                             );
-                            tokio::spawn(async move { handle.start_handling().await });
+                            tokio::spawn(handle.start_handling());
                         }
                         Err(err) => warn!("failed to get client: {err}"),
                     }

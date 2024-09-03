@@ -6,7 +6,7 @@ use crate::utils::{account_id_to_cw_addr, DataWrapper};
 use clap::Parser;
 use cosmwasm_std::Coin;
 use nym_bin_common::output_format::OutputFormat;
-use nym_mixnet_contract_common::construct_gateway_bonding_sign_payload;
+use nym_mixnet_contract_common::construct_legacy_gateway_bonding_sign_payload;
 use nym_network_defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 
@@ -71,7 +71,7 @@ pub async fn create_payload(args: Args, client: SigningClient) {
 
     let address = account_id_to_cw_addr(&client.address());
 
-    let payload = construct_gateway_bonding_sign_payload(nonce, address, coin, gateway);
+    let payload = construct_legacy_gateway_bonding_sign_payload(nonce, address, coin, gateway);
     let wrapper = DataWrapper::new(payload.to_base58_string().unwrap());
     println!("{}", args.output.format(&wrapper))
 }

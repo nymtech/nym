@@ -1,0 +1,9 @@
+Package: nym-vpn
+Version: 1.0
+Section: metapackages
+Priority: optional
+Architecture: all
+Depends: nym-vpnd, nymvpn-x
+Maintainer: Nym Technologies SA <contact@nymtech.net>
+Description: Nym Metapackage
+ This is a metapackage that depends on nym-vpnd and nymvpn-x. Installing this package will also install both nym-vpnd and nymvpn-x.

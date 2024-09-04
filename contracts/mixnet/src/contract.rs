@@ -31,7 +31,7 @@ fn default_initial_state(
     // we have to temporarily preserve this functionalities until it can be removed
     #[allow(deprecated)]
     ContractState {
-        owner,
+        owner: Some(owner),
         rewarding_validator_address,
         vesting_contract_address,
         rewarding_denom: rewarding_denom.clone(),
@@ -607,7 +607,7 @@ mod tests {
 
         #[allow(deprecated)]
         let expected_state = ContractState {
-            owner: Addr::unchecked("sender"),
+            owner: Some(Addr::unchecked("sender")),
             rewarding_validator_address: Addr::unchecked("foomp123"),
             vesting_contract_address: Addr::unchecked("bar456"),
             rewarding_denom: "uatom".into(),

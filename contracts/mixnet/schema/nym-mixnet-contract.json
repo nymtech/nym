@@ -8190,7 +8190,6 @@
       "description": "The current state of the mixnet contract.",
       "type": "object",
       "required": [
-        "owner",
         "params",
         "rewarding_denom",
         "rewarding_validator_address",
@@ -8199,10 +8198,14 @@
       "properties": {
         "owner": {
           "description": "Address of the contract owner.",
+          "default": null,
           "deprecated": true,
-          "allOf": [
+          "anyOf": [
             {
               "$ref": "#/definitions/Addr"
+            },
+            {
+              "type": "null"
             }
           ]
         },

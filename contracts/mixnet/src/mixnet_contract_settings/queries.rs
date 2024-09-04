@@ -44,7 +44,7 @@ pub(crate) mod tests {
 
         #[allow(deprecated)]
         let dummy_state = ContractState {
-            owner: Addr::unchecked("foomp"),
+            owner: Some(Addr::unchecked("foomp")),
             rewarding_validator_address: Addr::unchecked("monitor"),
             vesting_contract_address: Addr::unchecked("foomp"),
             rewarding_denom: "unym".to_string(),

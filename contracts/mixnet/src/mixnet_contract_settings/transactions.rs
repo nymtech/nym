@@ -25,7 +25,7 @@ pub fn try_update_contract_admin(
     // during 'execute_update_admin' call
     #[allow(deprecated)]
     storage::CONTRACT_STATE.update(deps.storage, |mut state| -> StdResult<_> {
-        state.owner = new_admin;
+        state.owner = Some(new_admin);
         Ok(state)
     })?;
 

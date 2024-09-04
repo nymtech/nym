@@ -28,6 +28,9 @@ pub enum EcashTicketError {
     #[error("provided payinfo's timestamp is invalid")]
     InvalidPayInfoTimestamp,
 
+    #[error("{0}")]
+    InvalidTicketType(#[from] nym_credentials_interface::UnknownTicketType),
+
     #[error("received payinfo is a duplicate")]
     DuplicatePayInfo,
 

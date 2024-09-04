@@ -18,6 +18,7 @@ use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
 use schemars::JsonSchema;
 use serde_repr::{Deserialize_repr, Serialize_repr};
+use utoipa::ToSchema;
 
 /// Full details associated with given mixnode.
 #[cw_serde]
@@ -601,6 +602,7 @@ impl NodeCostParams {
     Serialize_repr,
     Deserialize_repr,
     JsonSchema,
+    ToSchema,
 )]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[repr(u8)]

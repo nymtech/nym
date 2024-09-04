@@ -22,8 +22,6 @@ An exploitable scenario arises from these limitations:
 ## Solution to Offline Double Spending
 To efficiently prevent the fraudulent use of tickets within the Nym network, a two-tiered solution is in place that combines (1) the immediate detection of double-spending attempts at the level of individuals ingress Gateways and (2) subsequent identification and blacklisting of offending clients at the Quorum level.
 
-<!-- TODO check against https://www.figma.com/board/geUGlj4Dffddx3E08vMZxz/Ecash-Flow?node-id=0-1&node-type=CANVAS&t=yuSZkEQRna8RqzwD-0 to check you havent gone off piste -->
-
 ### Entry Node Implementation: Real-Time Ticket Unspending Validation
 Each spent zk-nym credit contains as an attribute a unique serial number, which is revealed in plaintext to the respective ingress Gateway. Each Gateway has a copy of a [Bloom Filter](https://www.geeksforgeeks.org/bloom-filters-introduction-and-python-implementation/) - on receiving a credit, it will check against its copy of a local database to check whether this serial number has already been seen. If so, it rejects the credit as being double-spent and the client's connection request is rejected. If not, it will add the serial number to its local DB.
 

@@ -331,6 +331,7 @@ mod tests {
     use super::*;
     use nym_compact_ecash::ttp_keygen;
     use nym_credentials::IssuanceTicketBook;
+    use nym_credentials_interface::TicketType;
     use nym_crypto::asymmetric::{ed25519, identity};
     use rand_chacha::rand_core::{RngCore, SeedableRng};
 
@@ -349,7 +350,8 @@ mod tests {
             identity::PrivateKey::from_bytes(&identity_keypair.private_key().to_bytes()).unwrap();
         let identifier = [44u8; 32];
 
-        let issuance = IssuanceTicketBook::new(deposit_id, identifier, id_priv, Default::default());
+        let issuance =
+            IssuanceTicketBook::new(deposit_id, identifier, id_priv, TicketType::V1MixnetEntry);
         let signing_data = issuance.prepare_for_signing();
         let request = issuance.create_blind_sign_request_body(&signing_data);
 

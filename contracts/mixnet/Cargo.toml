@@ -34,6 +34,7 @@ cosmwasm-schema = { workspace = true, optional = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-storage = { workspace = true }
 cosmwasm-derive = { workspace = true }
+cw-controllers = { workspace = true }
 cw2 = { workspace = true }
 cw-storage-plus = { workspace = true }
 

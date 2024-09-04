@@ -5273,6 +5273,7 @@ dependencies = [
  "bs58 0.4.0",
  "cosmwasm-schema",
  "cosmwasm-std",
+ "cw-controllers",
  "cw2",
  "humantime-serde",
  "log",

@@ -3,6 +3,19 @@
   "title": "QueryMsg",
   "oneOf": [
     {
+      "type": "object",
+      "required": [
+        "admin"
+      ],
+      "properties": {
+        "admin": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "description": "Gets the list of families registered in this contract.",
       "type": "object",
       "required": [

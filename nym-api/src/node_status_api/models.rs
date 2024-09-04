@@ -375,23 +375,47 @@ impl AxumErrorResponse {
         }
     }
 
-    pub(crate) fn internal_server_error() -> Self {
-        RocketErrorResponse {
-            error_message: RequestError::new(
-                "experienced an internal server error and could not complete this request",
-            ),
-            status: Status::InternalServerError,
+    pub(crate) fn internal() -> Self {
+        Self {
+            message: RequestError::new("Internal server error"),
+            status: StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    pub(crate) fn not_implemented() -> Self {
+        Self {
+            message: RequestError::empty(),
+            status: StatusCode::NOT_IMPLEMENTED,
+        }
+    }
+
+    pub(crate) fn not_found(msg: impl Display) -> Self {
+        Self {
+            message: RequestError::new(msg.to_string()),
+            status: StatusCode::NOT_FOUND,
+        }
+    }
+
+    pub(crate) fn service_unavailable() -> Self {
+        Self {
+            message: RequestError::empty(),
+            status: StatusCode::SERVICE_UNAVAILABLE,
+        }
+    }
+
+    pub(crate) fn unprocessable_entity(msg: impl Display) -> Self {
+        Self {
+            message: RequestError::new(msg.to_string()),
+            status: StatusCode::UNPROCESSABLE_ENTITY,
         }
     }
 }
 
-impl From<UninitialisedCache> for RocketErrorResponse {
+impl From<UninitialisedCache> for AxumErrorResponse {
     fn from(_: UninitialisedCache) -> Self {
-        RocketErrorResponse {
-            error_message: RequestError::new(
-                "one of the internal caches hasn't yet been initialised",
-            ),
-            status: Status::ServiceUnavailable,
+        AxumErrorResponse {
+            message: RequestError::new("relevant cache hasn't been initialised yet"),
+            status: StatusCode::SERVICE_UNAVAILABLE,
         }
     }
 }

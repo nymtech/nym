@@ -1,8 +1,8 @@
 Package: nym-repo-setup
-Version: 1.0
+Version: 1.0.0
 Section: base
 Priority: optional
-Architecture: all
+Architecture: amd64
 Depends: apt (>= 1.0.0)
 Maintainer: Nym Technologies SA <contact@nymtech.net>
 Description: Setup script to add the Nym repository

@@ -1,8 +1,8 @@
 Package: nym-vpn
-Version: 0.1
+Version: 0.1.0
 Section: metapackages
 Priority: optional
-Architecture: all
+Architecture: amd64
 Depends: nym-vpnd, nymvpn-x
 Maintainer: Nym Technologies SA <contact@nymtech.net>
 Description: Nym Metapackage

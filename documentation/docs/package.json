@@ -34,6 +34,7 @@
     "@nymproject/sdk-full-fat": ">=1.2.4-rc.2 || ^1",
     "chain-registry": "^1.19.0",
     "cosmjs-types": "^0.9.0",
+    "lucide-react": "^0.438.0",
     "next": "^13.4.19",
     "nextra": "latest",
     "nextra-theme-docs": "latest",

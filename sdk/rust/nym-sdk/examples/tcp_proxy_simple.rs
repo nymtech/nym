@@ -17,7 +17,7 @@ async fn main() {
     //
     // Run with RUST_LOG="debug" to see the Message Decay related logging if you want
     // a better idea of the internals of the proxy message ordering.
-    nym_bin_common::logging::setup_logging();
+    // nym_bin_common::logging::setup_logging();
 
     let cancel_token = CancellationToken::new();
 
@@ -48,13 +48,13 @@ async fn main() {
             let mut framed_read = codec::FramedRead::new(read, codec);
             while let Some(Ok(bytes)) = framed_read.next().await {
                 // TODO make logging / parsing nicer
-                println!("<< server received: {bytes:?}");
-                let reply = format!("reply to {:?}", bytes);
+                println!("<< server received: {}", bytes.len());
+                let reply = format!("reply to {}", bytes.len());
                 write
                     .write_all(reply.as_bytes())
                     .await
                     .expect("couldnt send reply");
-                println!(">> server sent {reply:?}");
+                println!(">> server sent {reply}");
             }
         }
     });
@@ -75,13 +75,13 @@ async fn main() {
 
     // Lets just send a bunch of small messages to the server with variable delays between them
     task::spawn(async move {
-        for i in 0..15 {
-            let msg = format!("{}", i);
+        for _ in 0..15 {
+            let random_bytes = gen_bytes();
             write
-                .write_all(msg.as_bytes())
+                .write_all(&random_bytes) //(msg.as_bytes())
                 .await
                 .expect("couldn't write to stream");
-            println!(">> client sent message {i} to server");
+            println!(">> client sent {} bytes to server", random_bytes.len());
             let mut rng = rand::thread_rng();
             let delay: f64 = rng.gen_range(0.1..4.0);
             // Using std::sleep here as we do want to block the thread to somewhat emulate
@@ -93,8 +93,14 @@ async fn main() {
     let codec = codec::BytesCodec::new();
     let mut framed_read = codec::FramedRead::new(read, codec);
     while let Some(Ok(bytes)) = framed_read.next().await {
-        println!("<< client received: {bytes:#?}");
+        println!("<< client received: {} bytes", bytes.len());
     }
 
     cancel_token.cancel();
+}
+
+fn gen_bytes() -> Vec<u8> {
+    let mut rng = rand::thread_rng();
+    let len = rng.gen_range(10..=1000);
+    (0..len).map(|_| rng.gen::<u8>()).collect()
 }

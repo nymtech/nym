@@ -8,6 +8,10 @@ use nym_mixnet_contract_common::{NodeId, NymNode, PendingNodeChanges};
 use nym_mixnet_contract_common::{
     NymNodeBond as MixnetContractNymNodeBond, NymNodeDetails as MixnetContractNymNodeDetails,
 };
+use nym_mixnet_contract_common::{
+    NodeCostParams as MixnetContractNodeCostParams, NodeRewarding as MixnetContractNodeRewarding,
+    NymNodeBond as MixnetContractNymNodeBond, NymNodeDetails as MixnetContractNymNodeDetails,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

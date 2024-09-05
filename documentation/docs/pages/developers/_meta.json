@@ -1,7 +1,9 @@
 {
   "concepts": "Core Concepts",
   "integrations": "Integrations",
+  "clients": "Clients",
   "tools": "Tools",
+  "tutorials": "Tutorials (Coming Soon)",
   "---": {
     "type": "separator"
   },

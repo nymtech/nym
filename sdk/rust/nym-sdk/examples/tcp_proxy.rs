@@ -4,11 +4,12 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task;
 use tokio_stream::StreamExt;
+use tokio_util::sync::CancellationToken;
 use tokio_util::codec;
 
 // This is a basic example which opens a single TCP connection and streams between a client and
-// server, so only uses a single session under the hood. See <MORE ELABORATE EXAMPLE> for use of
-// multiple sessions/streams.
+// server, so only uses a single session under the hood and doesn't really show off the message ordering capabilities.
+// See <MORE ELABORATE EXAMPLE> for use of multiple sessions/streams.
 #[tokio::main]
 async fn main() {
     // Comment this out to just see println! statements from this example.
@@ -17,6 +18,8 @@ async fn main() {
     // Run with RUST_LOG="debug" to see the Message Decay related logging if you want
     // a better idea of the internals of the proxy message ordering.
     nym_bin_common::logging::setup_logging();
+
+    let cancel_token = CancellationToken::new();
 
     let upstream_tcp_addr = "127.0.0.1:9067";
     let mut proxy_server = tcp_proxy::NymProxyServer::new(upstream_tcp_addr, "~/tmp/server_client")
@@ -45,7 +48,7 @@ async fn main() {
             let mut framed_read = codec::FramedRead::new(read, codec);
             while let Some(Ok(bytes)) = framed_read.next().await {
                 // TODO make logging / parsing nicer
-                println!("<< server received: {bytes:#?}");
+                println!("<< server received: {bytes:?}");
                 let reply = format!("reply to {:?}", bytes);
                 write
                     .write_all(reply.as_bytes())
@@ -70,9 +73,10 @@ async fn main() {
     let stream = TcpStream::connect("127.0.0.1:8080").await.unwrap();
     let (read, mut write) = stream.into_split();
 
+    // Lets just send a bunch of small messages to the server with variable delays between them
     task::spawn(async move {
-        for i in 0..50 {
-            let msg = format!("message {}", i);
+        for i in 0..15 {
+            let msg = format!("{}", i);
             write
                 .write_all(msg.as_bytes())
                 .await
@@ -92,5 +96,5 @@ async fn main() {
         println!("<< client received: {bytes:#?}");
     }
 
-    tokio::signal::ctrl_c().await.unwrap();
+    cancel_token.cancel();
 }

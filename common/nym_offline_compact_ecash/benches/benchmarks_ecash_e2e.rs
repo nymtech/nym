@@ -32,7 +32,7 @@ fn bench_compact_ecash(c: &mut Criterion) {
 
     let spend_date = 1701907200; // Dec 07 2023 00:00:00
     let expiration_date = 1702166400; // Dec 10 2023 00:00:00
-    let encoded_ticket_type = TicketTypeRepr::default() as u8;
+    let encoded_ticket_type = TicketTypeRepr::V1MixnetEntry as u8;
 
     let case = BenchCase {
         num_authorities: 100,

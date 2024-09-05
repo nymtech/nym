@@ -18,7 +18,7 @@ use futures::{
     FutureExt, StreamExt,
 };
 use nym_credentials::ecash::utils::{ecash_today, EcashTime};
-use nym_credentials_interface::{ClientTicket, CredentialSpendingData};
+use nym_credentials_interface::{ClientTicket, CredentialSpendingData, TicketType};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
@@ -104,6 +104,9 @@ pub enum RequestHandlingError {
         "the received payment contained more than a single ticket. that's currently not supported"
     )]
     MultipleTickets,
+
+    #[error("{0}")]
+    UnknownTicketType(#[from] nym_credentials_interface::UnknownTicketType),
 }
 
 impl RequestHandlingError {
@@ -414,6 +417,7 @@ where
 
         // check if the credential hasn't been spent before
         let serial_number = credential.data.encoded_serial_number();
+        let credential_type = TicketType::try_from_encoded(credential.data.payment.t_type)?;
 
         if credential.data.payment.spend_value != 1 {
             return Err(RequestHandlingError::MultipleTickets);
@@ -433,7 +437,7 @@ where
         // TODO: double storing?
         // self.store_spent_credential(serial_number_bs58).await?;
 
-        let bandwidth = Bandwidth::ticket_amount(Default::default());
+        let bandwidth = Bandwidth::ticket_amount(credential_type.into());
 
         self.increase_bandwidth(bandwidth, spend_date).await?;
 

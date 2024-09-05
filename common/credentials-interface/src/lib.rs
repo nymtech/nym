@@ -221,20 +221,11 @@ impl From<PayInfo> for NymPayInfo {
 }
 
 #[derive(
-    Default,
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    strum::Display,
-    strum::EnumString,
+    Copy, Clone, Debug, PartialEq, Serialize, Deserialize, strum::Display, strum::EnumString,
 )]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum TicketType {
-    #[default]
     V1MixnetEntry,
     V1MixnetExit,
     V1WireguardEntry,

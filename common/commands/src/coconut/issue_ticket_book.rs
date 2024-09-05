@@ -14,7 +14,7 @@ use std::path::PathBuf;
 #[derive(Debug, Parser)]
 pub struct Args {
     /// Specify which type of ticketbook should be issued
-    #[clap(long, default_value_t = TicketType::default())]
+    #[clap(long, default_value_t = TicketType::V1MixnetEntry)]
     pub(crate) ticketbook_type: TicketType,
 
     /// Config file of the client that is supposed to use the credential.

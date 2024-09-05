@@ -12,7 +12,7 @@ use futures::channel::mpsc::UnboundedReceiver;
 use futures::{Stream, StreamExt};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{BatchRedeemTicketsBody, VerifyEcashTicketBody};
-use nym_credentials_interface::ClientTicket;
+use nym_credentials_interface::{ClientTicket, TicketType};
 use nym_gateway_storage::Storage;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{
@@ -362,10 +362,14 @@ where
     }
 
     #[instrument(skip(self))]
-    async fn revoke_ticket_bandwidth(&self, ticket_id: i64) -> Result<(), EcashTicketError> {
+    async fn revoke_ticket_bandwidth(
+        &self,
+        ticket_id: i64,
+        ticket_type: TicketType,
+    ) -> Result<(), EcashTicketError> {
         warn!("revoking bandwidth associated with ticket {ticket_id} since it failed verification");
 
-        let bytes_to_revoke = Bandwidth::ticket_amount(Default::default()).value() as f32
+        let bytes_to_revoke = Bandwidth::ticket_amount(ticket_type.into()).value() as f32
             * self.config.revocation_bandwidth_penalty;
         let to_revoke_bi2 = bibytes2(bytes_to_revoke as f64);
 
@@ -385,6 +389,8 @@ where
         api_clients: Option<RwLockReadGuard<'_, Vec<EcashApiClient>>>,
     ) -> Result<bool, EcashTicketError> {
         let ticket_id = pending.ticket.ticket_id;
+        let ticket_type =
+            TicketType::try_from_encoded(pending.ticket.spending_data.payment.t_type)?;
         let api_clients = match api_clients {
             Some(clients) => clients,
             None => {
@@ -444,7 +450,7 @@ where
                 .storage
                 .update_rejected_ticket(pending.ticket.ticket_id)
                 .await?;
-            self.revoke_ticket_bandwidth(pending.ticket.ticket_id)
+            self.revoke_ticket_bandwidth(pending.ticket.ticket_id, ticket_type)
                 .await?;
         }
 

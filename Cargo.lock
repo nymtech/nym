@@ -5741,6 +5741,7 @@ dependencies = [
  "pretty_env_logger",
  "rand 0.8.5",
  "reqwest 0.12.4",
+ "serde",
  "tap",
  "thiserror",
  "tokio",

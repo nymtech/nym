@@ -4,9 +4,9 @@ Each time a credential is requested by an ingress Gateway to prove that a client
 ```admonish info
 The functionality included in the following code block examples were added to the [nym-cli tool](../tools/nym-cli.md) for illustrative purposes only: this is not necessarily how credentials will be accessed in the future.
 
-**Furthermore, the `nym-cli` uses the words 'tickets' in place of 'credits' and 'ticketbook' in place of 'credential': this was WIP internal wording that we are moving away from now.**
+**Furthermore, the `nym-cli` uses the words 'tickets' in place of 'credits' and 'ticketbook' in place of 'aggregated credential': this is wording that we are moving away from now in place of the simpler credential/credit.** This will be updated in the `nym-cli` tool in a future release.
 
-TODO ONCE THESE DOCS ARE GOOD TO GO, CHANGE NYM-CLI ARGS IN SAME PR
+The numbers used in this high level overview are for illustration purposes only. The figures used in production will potentially vary. Note that individual zkNym sizes will be uniform across the Network.
 ```
 
 ```

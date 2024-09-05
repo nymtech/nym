@@ -35,3 +35,5 @@ Each Gateway will periodically share their serial numbers with the Quorum and re
 All Gateways periodically forward the collected credits to the Quorum, enabling them to pinpoint and blacklist any clients who double spend. Upon receiving the credits, the Quorum appends all the incoming serial numbers to the global list of spend zk-nym serial numbers and proceed with the identification process for any malicious users engaging in double-spending.
 
 This identification phase involves looking for instances of double spending, identifying the id of the double-spending client, and blacklisting this client by its id. Subsequently, when this client requests a new credential, their plaintext public identifier is included in the request. The Quorum then checks if this identifier is blacklisted. If it is, a new credential is not issued. Furthermore, since the PSCs are only attainable after depositing NYM as payment, the Quorum has the authority to withhold the deposited NYMs as a punitive measure for any detected instances of double-spending.
+
+<!-- extract parts of large diagram & upload as PNG to server + link -->

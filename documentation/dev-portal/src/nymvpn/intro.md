@@ -1,6 +1,6 @@
 # NymVPN beta
 
-**NymVPN** is a client that uses [Nym Mixnet](https://nymtech.net) to anonymise all of a user's internet traffic through either a 5-hop mixnet for a *full network privacy* or the *faster* 2-hop decentralised VPN (with some extra features).
+[**NymVPN**](https://nymvpn.com/en) is a client that uses [Nym Mixnet](https://nymtech.net) to anonymise all of a user's internet traffic through either a 5-hop mixnet for a *full network privacy* or the *faster* 2-hop decentralised VPN (with some extra features).
 
 
 **You are invited to take part in the beta testing** of this new application. Register for private testing round at [nymvpn.com](https://nymvpn.com/en), that will grant you access to the [download page](https://nymvpn.com/download). Visit [NymVPN Support & FAQ](https://nymvpn.com/en/support) or join the [NymVPN matrix channel](https://matrix.to/#/#NymVPN:nymtech.chat) if you have any questions, comments or blockers.

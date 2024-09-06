@@ -10,7 +10,6 @@ mod unstable_routes;
 pub(crate) use router::RouterBuilder;
 
 pub(crate) use router::RouterBuilder;
-pub(crate) use state::AppState;
 
 // pub(crate) async fn setup_rocket(
 //     config: &Config,

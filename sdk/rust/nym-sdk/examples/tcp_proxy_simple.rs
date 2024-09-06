@@ -47,7 +47,7 @@ async fn main() {
         let _ = proxy_client.run().await;
     });
 
-    // 'Server side' thread: send back a bunch of random bytes.
+    // 'Server side' thread: send back a bunch of random bytes as a response, retain the message id
     task::spawn(async move {
         let listener = TcpListener::bind(upstream_tcp_addr).await.unwrap();
         loop {
@@ -104,12 +104,12 @@ async fn main() {
             };
             let serialised = bincode::serialize(&msg).unwrap();
             write
-                .write_all(&serialised) //&random_bytes
+                .write_all(&serialised)
                 .await
                 .expect("couldn't write to stream");
             println!(">> client sent msg {}: {} bytes", &i, msg.message_bytes.len());
             let mut rng = rand::thread_rng();
-            let delay: f64 = rng.gen_range(0.1..4.0);
+            let delay: f64 = rng.gen_range(1.0..4.0);
             // Using std::sleep here as we do want to block the thread to somewhat emulate
             // IRL delays.
             std::thread::sleep(tokio::time::Duration::from_secs_f64(delay));
@@ -130,9 +130,8 @@ async fn main() {
     }
 
     println!("TODO add cancellation token + call here");
-    tokio::time::sleep(tokio::time::Duration::from_secs(60)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(180)).await;
     fs::remove_dir_all(conf_path).unwrap();
-
 }
 
 fn gen_bytes() -> Vec<u8> {

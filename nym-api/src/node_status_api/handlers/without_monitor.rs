@@ -70,7 +70,7 @@ pub(super) fn mandatory_routes() -> Router<AppState> {
     ),
 )]
 pub(crate) async fn submit_gateway_monitoring_results(
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
     Json(message): Json<MonitorMessage>,
 ) -> AxumResult<()> {
     if !message.is_in_allowed() {
@@ -115,7 +115,7 @@ pub(crate) async fn submit_gateway_monitoring_results(
     ),
 )]
 pub(crate) async fn submit_node_monitoring_results(
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
     Json(message): Json<MonitorMessage>,
 ) -> AxumResult<()> {
     if !message.is_in_allowed() {

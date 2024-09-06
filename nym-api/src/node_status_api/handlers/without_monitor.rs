@@ -58,94 +58,95 @@ pub(super) fn mandatory_routes() -> Router<AppState> {
         )
 }
 
-// #[openapi(tag = "status", deprecated = true)]
-// #[post("/submit-gateway-monitoring-results", data = "<message>")]
-// pub(crate) async fn submit_gateway_monitoring_results(
-//     message: Json<MonitorMessage>,
-//     storage: &State<NymApiStorage>,
-// ) -> Result<(), RocketErrorResponse> {
-//     todo!("rebasing");
-//     // if !message.from_allowed() {
-//     //     return Err(RocketErrorResponse::new(
-//     //         "Monitor not registered to submit results".to_string(),
-//     //         rocket::http::Status::Forbidden,
-//     //     ));
-//     // }
-//     //
-//     // if !message.timely() {
-//     //     return Err(RocketErrorResponse::new(
-//     //         "Message is too old".to_string(),
-//     //         rocket::http::Status::BadRequest,
-//     //     ));
-//     // }
-//     //
-//     // if !message.verify() {
-//     //     return Err(RocketErrorResponse::new(
-//     //         "Invalid signature".to_string(),
-//     //         rocket::http::Status::BadRequest,
-//     //     ));
-//     // }
-//     //
-//     // match storage
-//     //     .manager
-//     //     .submit_gateway_statuses_v2(message.results())
-//     //     .await
-//     // {
-//     //     Ok(_) => Ok(()),
-//     //     Err(err) => {
-//     //         error!("failed to submit gateway monitoring results: {}", err);
-//     //         Err(RocketErrorResponse::new(
-//     //             "failed to submit gateway monitoring results".to_string(),
-//     //             rocket::http::Status::InternalServerError,
-//     //         ))
-//     //     }
-//     // }
-// }
-//
-// #[openapi(tag = "status")]
-// #[post("/submit-node-monitoring-results", data = "<message>")]
-// pub(crate) async fn submit_node_monitoring_results(
-//     message: Json<MonitorMessage>,
-//     storage: &State<NymApiStorage>,
-// ) -> Result<(), RocketErrorResponse> {
-//     todo!("rebasing");
-//
-//     // if !message.from_allowed() {
-//     //     return Err(RocketErrorResponse::new(
-//     //         "Monitor not registered to submit results".to_string(),
-//     //         rocket::http::Status::Forbidden,
-//     //     ));
-//     // }
-//     //
-//     // if !message.timely() {
-//     //     return Err(RocketErrorResponse::new(
-//     //         "Message is too old".to_string(),
-//     //         rocket::http::Status::BadRequest,
-//     //     ));
-//     // }
-//     //
-//     // if !message.verify() {
-//     //     return Err(RocketErrorResponse::new(
-//     //         "Invalid signature".to_string(),
-//     //         rocket::http::Status::BadRequest,
-//     //     ));
-//     // }
-//     //
-//     // match storage
-//     //     .manager
-//     //     .submit_mixnode_statuses_v2(message.results())
-//     //     .await
-//     // {
-//     //     Ok(_) => Ok(()),
-//     //     Err(err) => {
-//     //         error!("failed to submit node monitoring results: {}", err);
-//     //         Err(RocketErrorResponse::new(
-//     //             "failed to submit node monitoring results".to_string(),
-//     //             rocket::http::Status::InternalServerError,
-//     //         ))
-//     //     }
-//     // }
-// }
+#[utoipa::path(
+    tag = "status",
+    post,
+    path = "/v1/status/submit-gateway-monitoring-results",
+    responses(
+        (status = 200),
+        (status = 400, body = ErrorResponse, description = "TBD"),
+        (status = 403, body = ErrorResponse, description = "TBD"),
+        (status = 500, body = ErrorResponse, description = "TBD"),
+    ),
+)]
+pub(crate) async fn submit_gateway_monitoring_results(
+    State(state): State<AxumAppState>,
+    Json(message): Json<MonitorMessage>,
+) -> AxumResult<()> {
+    if !message.is_in_allowed() {
+        return Err(AxumErrorResponse::forbidden(
+            "Monitor not registered to submit results",
+        ));
+    }
+
+    if !message.timely() {
+        return Err(AxumErrorResponse::bad_request("Message is too old"));
+    }
+
+    if !message.verify() {
+        return Err(AxumErrorResponse::bad_request("invalid signature"));
+    }
+
+    match state
+        .storage
+        .manager
+        .submit_gateway_statuses_v2(message.results())
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            error!("failed to submit gateway monitoring results: {err}");
+            Err(AxumErrorResponse::internal_msg(
+                "failed to submit gateway monitoring results",
+            ))
+        }
+    }
+}
+
+#[utoipa::path(
+    tag = "status",
+    post,
+    path = "/v1/status/submit-node-monitoring-results",
+    responses(
+        (status = 200),
+        (status = 400, body = ErrorResponse, description = "TBD"),
+        (status = 403, body = ErrorResponse, description = "TBD"),
+        (status = 500, body = ErrorResponse, description = "TBD"),
+    ),
+)]
+pub(crate) async fn submit_node_monitoring_results(
+    State(state): State<AxumAppState>,
+    Json(message): Json<MonitorMessage>,
+) -> AxumResult<()> {
+    if !message.is_in_allowed() {
+        return Err(AxumErrorResponse::forbidden(
+            "Monitor not registered to submit results",
+        ));
+    }
+
+    if !message.timely() {
+        return Err(AxumErrorResponse::bad_request("Message is too old"));
+    }
+
+    if !message.verify() {
+        return Err(AxumErrorResponse::bad_request("invalid signature"));
+    }
+
+    match state
+        .storage
+        .manager
+        .submit_gateway_statuses_v2(message.results())
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            error!("failed to submit node monitoring results: {err}");
+            Err(AxumErrorResponse::internal_msg(
+                "failed to submit node monitoring results",
+            ))
+        }
+    }
+}
 
 #[utoipa::path(
     tag = "status",

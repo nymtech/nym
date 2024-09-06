@@ -443,7 +443,6 @@ pub trait MixnetSigningClient {
         )
         .await
     }
-
     async fn bond_nymnode(
         &self,
         node: NymNode,
@@ -463,7 +462,6 @@ pub trait MixnetSigningClient {
         )
         .await
     }
-
     async fn unbond_nymnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(fee, MixnetExecuteMsg::UnbondNymNode {}, vec![])
             .await

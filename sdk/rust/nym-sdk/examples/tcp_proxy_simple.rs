@@ -24,9 +24,8 @@ async fn main() {
     // Comment this out to just see println! statements from this example.
     // Nym client logging is very informative but quite verbose.
     //
-    // If instead you want to increase the verbosity, run with RUST_LOG="debug" to see the Message Decay
-    // related logging if you want a better idea of the internals of the proxy message ordering.
-    nym_bin_common::logging::setup_logging();
+    // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering.
+    // nym_bin_common::logging::setup_logging();
 
     let upstream_tcp_addr = "127.0.0.1:9067";
     // This dir gets cleaned up at the end
@@ -35,7 +34,7 @@ async fn main() {
         .await
         .unwrap();
     let proxy_nym_addr = proxy_server.nym_address();
-    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 60)
+    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 180)
         .await
         .unwrap();
 
@@ -58,7 +57,7 @@ async fn main() {
             while let Some(Ok(bytes)) = framed_read.next().await {
                 match bincode::deserialize::<ExampleMessage>(&bytes) {
                     Ok(msg) => {
-                        println!("<< server received msg {}: {} bytes", msg.message_id, msg.message_bytes.len());
+                        println!("<< server received {}: {} bytes", msg.message_id, msg.message_bytes.len());
                         let random_bytes = gen_bytes();
                         let msg = ExampleMessage {
                             message_id: msg.message_id,
@@ -69,7 +68,7 @@ async fn main() {
                             .write_all(&serialised)
                             .await
                             .expect("couldnt send reply");
-                        println!(">> server sent reply {}: {} bytes", msg.message_id, msg.message_bytes.len());
+                        println!(">> server sent {}: {} bytes", msg.message_id, msg.message_bytes.len());
                     }
                     Err(e) => {
                         println!("<< server received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);
@@ -107,9 +106,9 @@ async fn main() {
                 .write_all(&serialised)
                 .await
                 .expect("couldn't write to stream");
-            println!(">> client sent msg {}: {} bytes", &i, msg.message_bytes.len());
+            println!(">> client sent {}: {} bytes", &i, msg.message_bytes.len());
             let mut rng = rand::thread_rng();
-            let delay: f64 = rng.gen_range(1.0..4.0);
+            let delay: f64 = rng.gen_range(0.5..4.0);
             // Using std::sleep here as we do want to block the thread to somewhat emulate
             // IRL delays.
             std::thread::sleep(tokio::time::Duration::from_secs_f64(delay));
@@ -121,7 +120,7 @@ async fn main() {
     while let Some(Ok(bytes)) = framed_read.next().await {
         match bincode::deserialize::<ExampleMessage>(&bytes) {
             Ok(msg) => {
-                println!("<< client received reply {}: {} bytes", msg.message_id, msg.message_bytes.len());
+                println!("<< client received {}: {} bytes", msg.message_id, msg.message_bytes.len());
             }
             Err(e) => {
               println!("<< client received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);

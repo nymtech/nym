@@ -10,7 +10,7 @@ use nym_mixnet_contract_common::{
     PendingEpochEvent as MixnetContractPendingEpochEvent,
     PendingEpochEventKind as MixnetContractPendingEpochEventKind,
     PendingIntervalEvent as MixnetContractPendingIntervalEvent,
-    PendingIntervalEventKind as MixnetContractPendingIntervalEventKind, PendingIntervalEventKind,
+    PendingIntervalEventKind as MixnetContractPendingIntervalEventKind,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};

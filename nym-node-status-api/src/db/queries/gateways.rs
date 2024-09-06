@@ -11,15 +11,6 @@ pub(crate) async fn insert_gateways(
 ) -> anyhow::Result<()> {
     let mut db = pool.acquire().await?;
     for record in gateways {
-        let (
-            gateway_identity_key,
-            bonded,
-            blacklisted,
-            self_described,
-            explorer_pretty_bond,
-            last_updated_utc,
-            performance,
-        ) = record;
         sqlx::query!(
             "INSERT INTO gateways
                 (gateway_identity_key, bonded, blacklisted,
@@ -33,13 +24,13 @@ pub(crate) async fn insert_gateways(
                 explorer_pretty_bond=excluded.explorer_pretty_bond,
                 last_updated_utc=excluded.last_updated_utc,
                 performance = excluded.performance;",
-            gateway_identity_key,
-            bonded,
-            blacklisted,
-            self_described,
-            explorer_pretty_bond,
-            last_updated_utc,
-            performance
+            record.identity_key,
+            record.bonded,
+            record.blacklisted,
+            record.self_described,
+            record.explorer_pretty_bond,
+            record.last_updated_utc,
+            record.performance
         )
         .execute(&mut *db)
         .await?;

@@ -13,19 +13,6 @@ pub(crate) async fn insert_mixnodes(
     let mut conn = pool.acquire().await?;
 
     for record in mixnodes.iter() {
-        let (
-            mix_id,
-            identity_key,
-            bonded,
-            total_stake,
-            host,
-            http_port,
-            blacklisted,
-            full_details,
-            self_described,
-            last_updated_utc,
-            is_dp_delegatee,
-        ) = record;
         // https://www.sqlite.org/lang_upsert.html
         sqlx::query!(
             "INSERT INTO mixnodes
@@ -40,17 +27,17 @@ pub(crate) async fn insert_mixnodes(
                 full_details=excluded.full_details,self_described=excluded.self_described,
                 last_updated_utc=excluded.last_updated_utc,
                 is_dp_delegatee = excluded.is_dp_delegatee;",
-            mix_id,
-            identity_key,
-            bonded,
-            total_stake,
-            host,
-            http_port,
-            blacklisted,
-            full_details,
-            self_described,
-            last_updated_utc,
-            is_dp_delegatee
+            record.mix_id,
+            record.identity_key,
+            record.bonded,
+            record.total_stake,
+            record.host,
+            record.http_port,
+            record.blacklisted,
+            record.full_details,
+            record.self_described,
+            record.last_updated_utc,
+            record.is_dp_delegatee
         )
         .execute(&mut *conn)
         .await?;

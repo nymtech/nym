@@ -1,40 +1,28 @@
 use serde::{Deserialize, Serialize};
 
-// TODO dz: consider structs with named fields, instead of tuple type aliases
-pub(crate) struct GatewayRecord2 {
-    pub(crate) gateway_identity_key: String,
+pub(crate) struct GatewayRecord {
+    pub(crate) identity_key: String,
     pub(crate) bonded: bool,
     pub(crate) blacklisted: bool,
     pub(crate) self_described: Option<String>,
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_updated_utc: i64,
-    pub(crate) gateway_performance: u8,
+    pub(crate) performance: u8,
 }
 
-pub(crate) type GatewayRecord = (
-    String, // gateway_identity_key
-    bool,   // bonded
-    bool,   // blacklisted
-    // TODO originally this was String, but could be empty
-    Option<String>, // self_described
-    Option<String>, // explorer_pretty_bond
-    i64,            // last_updated_utc
-    u8,             // gateway_performance
-);
-
-pub(crate) type MixnodeRecord = (
-    u32,            // mix_id
-    String,         // identity_key
-    bool,           // bonded
-    i64,            // total_stake
-    String,         // host
-    u16,            // http_port
-    bool,           // blacklisted
-    String,         // full_details
-    Option<String>, // self_described
-    i64,            // last_updated_utc
-    bool,           // is_dp_delegatee
-);
+pub(crate) struct MixnodeRecord {
+    pub(crate) mix_id: u32,
+    pub(crate) identity_key: String,
+    pub(crate) bonded: bool,
+    pub(crate) total_stake: i64,
+    pub(crate) host: String,
+    pub(crate) http_port: u16,
+    pub(crate) blacklisted: bool,
+    pub(crate) full_details: String,
+    pub(crate) self_described: Option<String>,
+    pub(crate) last_updated_utc: i64,
+    pub(crate) is_dp_delegatee: bool,
+}
 
 #[allow(unused)]
 #[derive(Debug, Clone)]
@@ -44,6 +32,7 @@ pub(crate) struct BondedStatusDto {
     pub(crate) bonded: bool,
 }
 
+#[allow(unused)]
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SummaryDto {
     pub key: String,

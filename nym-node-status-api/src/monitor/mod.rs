@@ -104,7 +104,7 @@ async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> NodeStatusAp
     let count_explorer_gateways = explorer_gateways.len();
     let count_bonded_mixnodes_active = mixnodes_active.len();
 
-    let gateway_records = prepare_gateways(
+    let gateway_records = prepare_gateway_data(
         &gateways,
         &gateways_blacklisted,
         explorer_gateways,
@@ -137,7 +137,7 @@ async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> NodeStatusAp
     }
 
     let mixnode_records =
-        prepare_mixnodes(&mixnodes, mixnodes_described, delegation_program_members)?;
+        prepare_mixnode_data(&mixnodes, mixnodes_described, delegation_program_members)?;
     queries::insert_mixnodes(pool, mixnode_records)
         .await
         .map(|_| {
@@ -219,7 +219,7 @@ async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> NodeStatusAp
     Ok(())
 }
 
-fn prepare_gateways(
+fn prepare_gateway_data(
     gateways: &[DescribedGateway],
     gateways_blacklisted: &HashSet<String>,
     explorer_gateways: Vec<PrettyDetailedGatewayBond>,
@@ -228,10 +228,10 @@ fn prepare_gateways(
     let mut gateway_records = Vec::new();
 
     for gateway in gateways {
-        let gateway_identity_key = gateway.bond.identity();
+        let identity_key = gateway.bond.identity();
         let bonded = true;
         let last_updated_utc = chrono::offset::Utc::now().timestamp();
-        let blacklisted = gateways_blacklisted.contains(gateway_identity_key);
+        let blacklisted = gateways_blacklisted.contains(identity_key);
 
         let self_described = gateway
             .self_described
@@ -240,31 +240,31 @@ fn prepare_gateways(
 
         let explorer_pretty_bond = explorer_gateways
             .iter()
-            .find(|g| g.gateway.identity_key.eq(gateway_identity_key));
+            .find(|g| g.gateway.identity_key.eq(identity_key));
         let explorer_pretty_bond = explorer_pretty_bond.and_then(|g| serde_json::to_string(g).ok());
 
-        let gateway_performance = skimmed_gateways
+        let performance = skimmed_gateways
             .iter()
-            .find(|g| g.ed25519_identity_pubkey.eq(gateway_identity_key))
+            .find(|g| g.ed25519_identity_pubkey.eq(identity_key))
             .map(|g| g.performance)
             .unwrap_or_default()
             .round_to_integer();
 
-        gateway_records.push((
-            gateway_identity_key.clone(),
+        gateway_records.push(GatewayRecord {
+            identity_key: identity_key.to_owned(),
             bonded,
             blacklisted,
             self_described,
             explorer_pretty_bond,
             last_updated_utc,
-            gateway_performance,
-        ));
+            performance,
+        });
     }
 
     Ok(gateway_records)
 }
 
-fn prepare_mixnodes(
+fn prepare_mixnode_data(
     mixnodes: &[MixNodeBondAnnotated],
     mixnodes_described: Vec<DescribedMixNode>,
     delegation_program_members: Vec<u32>,
@@ -289,9 +289,9 @@ fn prepare_mixnodes(
 
         let last_updated_utc = chrono::offset::Utc::now().timestamp();
 
-        mixnode_records.push((
+        mixnode_records.push(MixnodeRecord {
             mix_id,
-            identity_key.to_string(),
+            identity_key: identity_key.to_owned(),
             bonded,
             total_stake,
             host,
@@ -301,7 +301,7 @@ fn prepare_mixnodes(
             self_described,
             last_updated_utc,
             is_dp_delegatee,
-        ));
+        });
     }
 
     Ok(mixnode_records)

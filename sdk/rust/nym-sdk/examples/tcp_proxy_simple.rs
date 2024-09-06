@@ -25,7 +25,7 @@ async fn main() {
     // Nym client logging is very informative but quite verbose.
     //
     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering.
-    // nym_bin_common::logging::setup_logging();
+    nym_bin_common::logging::setup_logging();
 
     let upstream_tcp_addr = "127.0.0.1:9067";
     // This dir gets cleaned up at the end
@@ -34,7 +34,7 @@ async fn main() {
         .await
         .unwrap();
     let proxy_nym_addr = proxy_server.nym_address();
-    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 180)
+    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 120) // run with a long timeout since we're sending everything down the same tcpconn so should be using a single session
         .await
         .unwrap();
 
@@ -58,7 +58,8 @@ async fn main() {
                 match bincode::deserialize::<ExampleMessage>(&bytes) {
                     Ok(msg) => {
                         println!("<< server received {}: {} bytes", msg.message_id, msg.message_bytes.len());
-                        let random_bytes = gen_bytes();
+                        // let random_bytes = gen_bytes_range();
+                        let random_bytes = gen_bytes_fixed(msg.message_id as usize);
                         let msg = ExampleMessage {
                             message_id: msg.message_id,
                             message_bytes: random_bytes
@@ -81,7 +82,7 @@ async fn main() {
     // Just wait for Nym clients to connect, TCP clients to bind, etc.
     println!("waiting for everything to be set up..");
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-    println!("done. sending random bytes with random(ish) delay");
+    println!("done. sending bytes");
 
     // Now the client and server proxies are running we can create and pipe traffic to/from
     // a socket on the same port as our ProxyClient instance as if we were just communicating
@@ -96,7 +97,8 @@ async fn main() {
     // Lets just send a bunch of messages to the server with variable delays between them, with an id to keep track of ordering on the server side, and random amounts of bytes
     task::spawn(async move {
         for i in 0..10 {
-            let random_bytes = gen_bytes();
+            // let random_bytes = gen_bytes_range();
+            let random_bytes = gen_bytes_fixed(i as usize);
             let msg = ExampleMessage {
                message_id: i,
                message_bytes: random_bytes
@@ -133,8 +135,16 @@ async fn main() {
     fs::remove_dir_all(conf_path).unwrap();
 }
 
-fn gen_bytes() -> Vec<u8> {
+fn gen_bytes_range() -> Vec<u8> {
     let mut rng = rand::thread_rng();
     let len = rng.gen_range(10..=2000);
+    (0..len).map(|_| rng.gen::<u8>()).collect()
+}
+
+fn gen_bytes_fixed(i: usize) -> Vec<u8> {
+    // let amounts = vec![10, 100, 500, 1000, 1500, 2000, 3500, 5000, 7500, 10000];
+    let amounts = vec![1, 10, 50, 100, 150, 200, 500, 500, 750, 1000];
+    let len = amounts[i];
+    let mut rng = rand::thread_rng();
     (0..len).map(|_| rng.gen::<u8>()).collect()
 }

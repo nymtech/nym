@@ -25,7 +25,7 @@ async fn main() {
     // Nym client logging is very informative but quite verbose.
     //
     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering.
-    nym_bin_common::logging::setup_logging();
+    // nym_bin_common::logging::setup_logging();
 
     let upstream_tcp_addr = "127.0.0.1:9067";
     // This dir gets cleaned up at the end
@@ -111,8 +111,7 @@ async fn main() {
             println!(">> client sent {}: {} bytes", &i, msg.message_bytes.len());
             let mut rng = rand::thread_rng();
             let delay: f64 = rng.gen_range(0.5..4.0);
-            // Using std::sleep here as we do want to block the thread to somewhat emulate
-            // IRL delays.
+            // Using std::sleep here as we do want to block the thread to somewhat emulate IRL delays.
             std::thread::sleep(tokio::time::Duration::from_secs_f64(delay));
         }
     });
@@ -131,7 +130,7 @@ async fn main() {
     }
 
     println!("TODO add cancellation token + call here");
-    tokio::time::sleep(tokio::time::Duration::from_secs(180)).await;
+    // tokio::time::sleep(tokio::time::Duration::from_secs(180)).await; // reintroduce this later when you dont want to kill everything hard, for now its fine
     fs::remove_dir_all(conf_path).unwrap();
 }
 
@@ -142,8 +141,9 @@ fn gen_bytes_range() -> Vec<u8> {
 }
 
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
-    // let amounts = vec![10, 100, 500, 1000, 1500, 2000, 3500, 5000, 7500, 10000];
-    let amounts = vec![1, 10, 50, 100, 150, 200, 500, 500, 750, 1000];
+    // let amounts = vec![10, 100, 500, 1000, 1500, 2000, 3500, 5000, 7500, 10000]; // getting a lot of io errors above ~2000, malformed chunks of random byte amounts coming in to server leading to 'unexpected EoF' errs
+    let amounts = vec![1, 10, 50, 100, 150, 200, 500, 500, 750, 1000]; // no io errs
+    // let amounts = vec![100, 150, 200, 500, 1000, 1750, 1790, 1800, 1900, 1950]; // io errors cropping up at the top end of this set
     let len = amounts[i];
     let mut rng = rand::thread_rng();
     (0..len).map(|_| rng.gen::<u8>()).collect()

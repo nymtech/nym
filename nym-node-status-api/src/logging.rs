@@ -25,10 +25,13 @@ pub(crate) fn setup_tracing_logger() {
         .add_directive(directive_checked("nym_bin_common=warn"))
         .add_directive(directive_checked("nym_explorer_client=warn"))
         .add_directive(directive_checked("nym_network_defaults=warn"))
+        .add_directive(directive_checked("nym_validator_client=warn"))
         .add_directive(directive_checked("reqwest=error"))
         .add_directive(directive_checked("rustls=error"))
         .add_directive(directive_checked("hyper=error"))
-        .add_directive(directive_checked("sqlx=error"));
+        .add_directive(directive_checked("sqlx=error"))
+        .add_directive(directive_checked("h2=error"))
+        .add_directive(directive_checked("tendermint_rpc=error"));
 
     log_builder.with_env_filter(filter).init();
 }

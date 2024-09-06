@@ -1,9 +1,11 @@
-use std::str::FromStr;
-
-use crate::db::models::{GatewayRecord, MixnodeRecord};
+use crate::db::models::{
+    GatewayRecord, MixnodeRecord, GATEWAYS_BLACKLISTED_COUNT, GATEWAYS_BONDED_COUNT,
+    GATEWAYS_EXPLORER_COUNT, GATEWAYS_HISTORICAL_COUNT, MIXNODES_BLACKLISTED_COUNT,
+    MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT, MIXNODES_BONDED_INACTIVE,
+    MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
+};
 use crate::db::{queries, DbPool, Storage};
 use crate::error::NodeStatusApiResult;
-use crate::read_env_var;
 use anyhow::anyhow;
 use cosmwasm_std::Decimal;
 use nym_explorer_client::{ExplorerClient, PrettyDetailedGatewayBond};
@@ -14,14 +16,17 @@ use nym_validator_client::nym_nodes::SkimmedNode;
 use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::{AccountId, NyxdClient};
 use nym_validator_client::NymApiClient;
+use std::collections::HashSet;
+use std::str::FromStr;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;
 
 const REFRESH_DELAY: Duration = Duration::from_secs(60 * 5);
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
-// TODO dz is this info public?
-// static DELEGATION_PROGRAM_WALLET: &str = "";
+static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
 
+// TODO dz: query many NYM APIs:
+// multiple instances running directory cache, ask sachin
 pub(crate) fn spawn_in_background(storage: Storage) -> JoinHandle<()> {
     tokio::spawn(async move {
         let db_pool = storage.pool().await;
@@ -37,13 +42,17 @@ pub(crate) fn spawn_in_background(storage: Storage) -> JoinHandle<()> {
                 );
                 tokio::time::sleep(FAILURE_RETRY_DELAY).await;
             } else {
+                tracing::info!(
+                    "Info successfully collected, sleeping for {}s...",
+                    REFRESH_DELAY.as_secs()
+                );
                 tokio::time::sleep(REFRESH_DELAY).await;
             }
         }
     })
 }
 
-async fn run(db_pool: &DbPool, network_details: &NymNetworkDetails) -> NodeStatusApiResult<()> {
+async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> NodeStatusApiResult<()> {
     let default_api_url = network_details
         .endpoints
         .first()
@@ -62,26 +71,22 @@ async fn run(db_pool: &DbPool, network_details: &NymNetworkDetails) -> NodeStatu
         default_explorer_url.expect("explorer url missing in network config");
     let explorer_client = ExplorerClient::new(default_explorer_url)?;
     let explorer_gateways = explorer_client.get_gateways().await?;
-    tracing::debug!("explorer_gateways:\n{}", explorer_gateways.len());
 
     let api_client = NymApiClient::new(default_api_url);
     let gateways = api_client.get_cached_described_gateways().await?;
-    tracing::debug!("Gateways:\n{}", gateways.len());
-    tracing::debug!("example gateway:\n{:#?}", gateways.first());
+    tracing::debug!("Fetched {} gateways", gateways.len());
     let skimmed_gateways = api_client.get_basic_gateways(None).await?;
 
     let mixnodes = api_client.get_cached_mixnodes().await?;
-    tracing::debug!("Mixnodes:\n{}", mixnodes.len());
-    // tracing::debug!("example mixnode:\n{:#?}", mixnodes.first());
+    tracing::debug!("Fetched {} mixnodes", mixnodes.len());
 
-    let mixnodes_described = api_client.nym_api.get_mixnodes_described().await?;
-    tracing::debug!("Mixnodes described:\n{}", mixnodes_described.len());
-    // tracing::debug!("Mixnodes described example:\n{:#?}", mixnodes_described.first());
-    let gateways_blacklisted = api_client.nym_api.get_gateways_blacklisted().await?;
-    tracing::debug!("gateways_blacklisted:\n{}", gateways_blacklisted.len());
-    let mixnodes_blacklisted = api_client.nym_api.get_mixnodes_blacklisted().await?;
-    tracing::debug!("mixnodes_blacklisted:\n{}", mixnodes_blacklisted.len());
-    // TODO left over here
+    // TODO dz can we calculate blacklisted GWs from their performance?
+    // where do we get their performance?
+    let gateways_blacklisted = api_client
+        .nym_api
+        .get_gateways_blacklisted()
+        .await
+        .map(|vec| vec.into_iter().collect::<HashSet<_>>())?;
 
     // Cached mixnodes don't include blacklisted nodes
     // We need that to calculate the total locked tokens later
@@ -89,77 +94,148 @@ async fn run(db_pool: &DbPool, network_details: &NymNetworkDetails) -> NodeStatu
         .nym_api
         .get_mixnodes_detailed_unfiltered()
         .await?;
-    let _mixnodes_described = api_client.nym_api.get_mixnodes_described().await?;
+    let mixnodes_described = api_client.nym_api.get_mixnodes_described().await?;
     let mixnodes_active = api_client.nym_api.get_active_mixnodes().await?;
     let delegation_program_members = get_delegation_program_details(network_details).await?;
 
     // keep stats for later
-    let _count_bonded_mixnodes = mixnodes.len();
-    let _count_bonded_gateways = gateways.len();
-    let _count_explorer_gateways = explorer_gateways.len();
-    let _count_bonded_mixnodes_active = mixnodes_active.len();
-
-    let _conn = db_pool.acquire().await?;
+    let count_bonded_mixnodes = mixnodes.len();
+    let count_bonded_gateways = gateways.len();
+    let count_explorer_gateways = explorer_gateways.len();
+    let count_bonded_mixnodes_active = mixnodes_active.len();
 
     let gateway_records = prepare_gateways(
-        gateways,
+        &gateways,
         &gateways_blacklisted,
         explorer_gateways,
         skimmed_gateways,
     )?;
-    queries::insert_gateways(db_pool, gateway_records)
+    queries::insert_gateways(pool, gateway_records)
         .await
         .map(|_| {
             tracing::debug!("Gateway info written to DB!");
         })?;
 
-    // TODO dz: isn't this the same as `count_gateways_blacklisted` ?
-    let blacklisted_count = gateways_blacklisted.len();
-    if blacklisted_count > 0 {
-        queries::write_blacklisted_gateways_to_db(db_pool, gateways_blacklisted)
+    // instead of counting blacklisted GWs returned from API cache, count from the active set
+    let count_gateways_blacklisted = gateways
+        .iter()
+        .filter(|gw| {
+            let gw_identity = gw.bond.identity();
+            gateways_blacklisted.contains(gw_identity)
+        })
+        .count();
+
+    if count_gateways_blacklisted > 0 {
+        queries::write_blacklisted_gateways_to_db(pool, gateways_blacklisted.iter())
             .await
             .map(|_| {
                 tracing::debug!(
                     "Gateway blacklist info written to DB! {} blacklisted by Nym API",
-                    blacklisted_count
+                    count_gateways_blacklisted
                 )
             })?;
     }
 
     let mixnode_records =
-        prepare_mixnodes(mixnodes, mixnodes_described, delegation_program_members).await?;
-    queries::insert_mixnodes(db_pool, mixnode_records)
+        prepare_mixnodes(&mixnodes, mixnodes_described, delegation_program_members)?;
+    queries::insert_mixnodes(pool, mixnode_records)
         .await
         .map(|_| {
             tracing::debug!("Mixnode info written to DB!");
         })?;
 
+    let count_mixnodes_blacklisted = mixnodes.iter().filter(|elem| elem.blacklisted).count();
+
+    let recently_unbonded_gateways = queries::ensure_gateways_still_bonded(pool, &gateways).await?;
+    let recently_unbonded_mixnodes = queries::ensure_mixnodes_still_bonded(pool, &mixnodes).await?;
+
+    let count_bonded_mixnodes_reserve = 0; // TODO: NymAPI doesn't report the reserve set size
+    let count_bonded_mixnodes_inactive = count_bonded_mixnodes - count_bonded_mixnodes_active;
+
+    let (all_historical_gateways, all_historical_mixnodes) = calculate_stats(pool).await?;
+
+    //
+    // write summary keys and values to table
+    //
+
+    let pairs = vec![
+        (MIXNODES_BONDED_COUNT, count_bonded_mixnodes),
+        (MIXNODES_BONDED_ACTIVE, count_bonded_mixnodes_active),
+        (MIXNODES_BONDED_INACTIVE, count_bonded_mixnodes_inactive),
+        (MIXNODES_BONDED_RESERVE, count_bonded_mixnodes_reserve),
+        (MIXNODES_BLACKLISTED_COUNT, count_mixnodes_blacklisted),
+        (GATEWAYS_BONDED_COUNT, count_bonded_gateways),
+        (GATEWAYS_EXPLORER_COUNT, count_explorer_gateways),
+        (MIXNODES_HISTORICAL_COUNT, all_historical_mixnodes),
+        (GATEWAYS_HISTORICAL_COUNT, all_historical_gateways),
+        (GATEWAYS_BLACKLISTED_COUNT, count_gateways_blacklisted),
+    ];
+
+    queries::insert_summary(pool, &pairs).await?;
+
+    let mut log_lines: Vec<String> = vec![];
+    for pair in pairs.iter() {
+        log_lines.push(format!("{} = {}", pair.0, pair.1));
+    }
+    log_lines.push(format!(
+        "recently_unbonded_mixnodes = {}",
+        recently_unbonded_mixnodes
+    ));
+    log_lines.push(format!(
+        "recently_unbonded_gateways = {}",
+        recently_unbonded_gateways
+    ));
+
+    tracing::info!("Directory summary: \n{}", log_lines.join("\n"));
+
+    queries::insert_summary_history(&pairs).await?;
+
+    // let summary = get_summary_for_sqlite(&mut db).await?;
+
+    // let value_json = serde_json::to_string(summary)
+    //     .map_err(|e| anyhow!("Failed to serialize {} to string: {}", summary, e))?;
+    // let (timestamp, rfc_date) = {
+    //     let now = chrono::offset::Utc::now();
+    //     let timestamp = now.timestamp();
+    //     let rfc_date = now.to_rfc3339();
+    //     (timestamp, rfc_date)
+    // };
+    // let date = &rfc_date[..10];
+
+    // sqlx::query!(
+    //     "INSERT INTO summary_history
+    //             (date, timestamp_utc, value_json)
+    //             VALUES (?, ?, ?)
+    //             ON CONFLICT(date) DO UPDATE SET
+    //             timestamp_utc=excluded.timestamp_utc,
+    //             value_json=excluded.value_json;",
+    //     date,
+    //     timestamp,
+    //     value_json
+    // )
+    // .execute(&mut *db)
+    // .await?;
+
     Ok(())
 }
 
 fn prepare_gateways(
-    gateways: Vec<DescribedGateway>,
-    gateways_blacklisted: &Vec<String>,
+    gateways: &[DescribedGateway],
+    gateways_blacklisted: &HashSet<String>,
     explorer_gateways: Vec<PrettyDetailedGatewayBond>,
     skimmed_gateways: Vec<SkimmedNode>,
 ) -> anyhow::Result<Vec<GatewayRecord>> {
     let mut gateway_records = Vec::new();
 
-    for gateway in gateways.clone() {
+    for gateway in gateways {
         let gateway_identity_key = gateway.bond.identity();
         let bonded = true;
         let last_updated_utc = chrono::offset::Utc::now().timestamp();
-        let blacklisted = gateways_blacklisted
-            .iter()
-            .any(|g| g == gateway_identity_key);
-
-        // TODO dz removed, because it's calculated outside this fn call from Vec
-        // if blacklisted {
-        //     count_gateways_blacklisted += 1;
-        // }
+        let blacklisted = gateways_blacklisted.contains(gateway_identity_key);
 
         let self_described = gateway
             .self_described
+            .as_ref()
             .and_then(|v| serde_json::to_string(&v).ok());
 
         let explorer_pretty_bond = explorer_gateways
@@ -188,14 +264,14 @@ fn prepare_gateways(
     Ok(gateway_records)
 }
 
-async fn prepare_mixnodes(
-    mixnodes: Vec<MixNodeBondAnnotated>,
+fn prepare_mixnodes(
+    mixnodes: &[MixNodeBondAnnotated],
     mixnodes_described: Vec<DescribedMixNode>,
     delegation_program_members: Vec<u32>,
 ) -> anyhow::Result<Vec<MixnodeRecord>> {
     let mut mixnode_records = Vec::new();
 
-    for mixnode in mixnodes.clone() {
+    for mixnode in mixnodes {
         let mix_id = mixnode.mix_id();
         let identity_key = mixnode.identity_key();
         let bonded = true;
@@ -210,11 +286,6 @@ async fn prepare_mixnodes(
         let mixnode_described = mixnodes_described.iter().find(|m| m.bond.mix_id == mix_id);
         let self_described = mixnode_described.and_then(|v| serde_json::to_string(v).ok());
         let is_dp_delegatee = delegation_program_members.contains(&mix_id);
-
-        // TODO dz removed, because it's calculated outside this fn call from Vec
-        // if blacklisted {
-        //     count_mixnodes_blacklisted += 1;
-        // }
 
         let last_updated_utc = chrono::offset::Utc::now().timestamp();
 
@@ -236,6 +307,20 @@ async fn prepare_mixnodes(
     Ok(mixnode_records)
 }
 
+async fn calculate_stats(pool: &DbPool) -> anyhow::Result<(usize, usize)> {
+    let mut conn = pool.acquire().await?;
+
+    let all_historical_gateways = sqlx::query_scalar!(r#"SELECT count(id) FROM gateways"#)
+        .fetch_one(&mut *conn)
+        .await? as usize;
+
+    let all_historical_mixnodes = sqlx::query_scalar!(r#"SELECT count(id) FROM mixnodes"#)
+        .fetch_one(&mut *conn)
+        .await? as usize;
+
+    Ok((all_historical_gateways, all_historical_mixnodes))
+}
+
 async fn get_delegation_program_details(
     network_details: &NymNetworkDetails,
 ) -> anyhow::Result<Vec<u32>> {
@@ -245,8 +330,7 @@ async fn get_delegation_program_details(
     let client = NyxdClient::connect(config, "https://rpc.nymtech.net")
         .map_err(|err| anyhow::anyhow!("Couldn't connect: {}", err))?;
 
-    let delegation_program_wallet = read_env_var("DELEGATION_PROGRAM_WALLET")?;
-    let account_id = AccountId::from_str(&delegation_program_wallet)
+    let account_id = AccountId::from_str(DELEGATION_PROGRAM_WALLET)
         .map_err(|e| anyhow!("Invalid bech32 address: {}", e))?;
 
     let delegations = client.get_all_delegator_delegations(&account_id).await?;

@@ -38,3 +38,22 @@ CREATE TABLE mixnodes (
   , is_dp_delegatee INTEGER CHECK (is_dp_delegatee IN (0, 1)) NOT NULL DEFAULT 0);
 CREATE INDEX idx_mixnodes_mix_id ON mixnodes (mix_id);
 CREATE INDEX idx_mixnodes_identity_key ON mixnodes (identity_key);
+
+
+CREATE TABLE summary
+(
+  key              VARCHAR PRIMARY KEY,
+  value_json       VARCHAR,
+  last_updated_utc INTEGER NOT NULL
+);
+
+
+CREATE TABLE summary_history
+(
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  date          VARCHAR UNIQUE NOT NULL,
+  timestamp_utc INTEGER NOT NULL,
+  value_json    VARCHAR
+);
+CREATE INDEX idx_summary_history_timestamp_utc ON summary_history (timestamp_utc);
+CREATE INDEX idx_summary_history_date ON summary_history (date);

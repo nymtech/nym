@@ -11,6 +11,7 @@ function usage() {
 
 function init_db() {
     rm -rf data/*
+    # https://github.com/launchbadge/sqlx/blob/main/sqlx-cli/README.md
     cargo sqlx database drop -y
 
     cargo sqlx database create
@@ -20,10 +21,19 @@ function init_db() {
     echo "Fresh database ready!"
 }
 
+# export DATABASE_URL as absolute path due to this
+# https://github.com/launchbadge/sqlx/issues/3099
+db_filename="nym-node-status-api.sqlite"
+script_abs_path=$(realpath "$0")
+package_dir=$(dirname "$script_abs_path")
+db_abs_path="$package_dir/data/$db_filename"
+dotenv_file="$package_dir/.env"
+echo "DATABASE_URL=sqlite://$db_abs_path" >"$dotenv_file"
+
 export RUST_LOG=trace
 
 # export DATABASE_URL from .env file
-set -a && source .env && set +a
+set -a && source "$dotenv_file" && set +a
 
 clear_db=false
 
@@ -42,4 +52,4 @@ if [ "$clear_db" = true ]; then
     init_db
 fi
 
-cargo run --package nym-node-status-api -- --config-env-file ../envs/canary.env
+cargo run --package nym-node-status-api -- --config-env-file ../envs/mainnet.env

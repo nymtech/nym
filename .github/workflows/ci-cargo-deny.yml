@@ -2,6 +2,9 @@ name: ci-cargo-deny
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
 
 jobs:
   cargo-deny:

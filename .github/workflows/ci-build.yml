@@ -18,6 +18,7 @@ on:
       - 'tools/nym-nr-query/**'
       - 'tools/ts-rs-cli/**'
       - 'Cargo.toml'
+      - '.github/workflows/ci-build.yml'
   pull_request:
     paths:
       - 'clients/**'
@@ -35,6 +36,7 @@ on:
       - 'tools/nym-nr-query/**'
       - 'tools/ts-rs-cli/**'
       - 'Cargo.toml'
+      - '.github/workflows/ci-build.yml'
   workflow_dispatch:
 
 jobs:

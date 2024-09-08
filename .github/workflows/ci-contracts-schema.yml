@@ -6,6 +6,7 @@ on:
     paths:
       - 'contracts/**'
       - 'common/**'
+      - '.github/workflows/ci-contracts-schema.yml'
 
 jobs:
   check-schema:

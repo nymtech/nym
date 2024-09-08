@@ -6,6 +6,7 @@ on:
     paths:
       - 'common/**'
       - 'contracts/**'
+      - '.github/workflows/ci-contracts-upload-binaries.yml'
 
 env:
   NETWORK: mainnet
@@ -15,7 +16,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ ubuntu-20.04 ]
+        platform: arc-ubuntu-20.04
 
     runs-on: ${{ matrix.platform }}
     env:

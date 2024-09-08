@@ -13,7 +13,7 @@ defaults:
 
 jobs:
   build:
-    runs-on: custom-linux
+    runs-on: arc-ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
     - name: Install rsync

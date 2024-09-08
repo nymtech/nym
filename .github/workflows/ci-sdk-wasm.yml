@@ -6,10 +6,11 @@ on:
       - 'wasm/**'
       - 'clients/client-core/**'
       - 'common/**'
+      - '.github/workflows/ci-sdk-wasm.yml'
 
 jobs:
   wasm:
-    runs-on: [custom-linux]
+    runs-on: arc-ubuntu-20.04
     env:
       CARGO_TERM_COLOR: always
     steps:

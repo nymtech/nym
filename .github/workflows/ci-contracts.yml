@@ -9,10 +9,11 @@ on:
     paths:
       - 'contracts/**'
       - 'common/**'
+      - '.github/workflows/ci-contracts.yml'
 
 jobs:
   matrix_prep:
-    runs-on: ubuntu-20.04
+    runs-on: arc-ubuntu-20.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:

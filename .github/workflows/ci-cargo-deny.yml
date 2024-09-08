@@ -5,6 +5,7 @@ on:
     paths:
       - 'Cargo.toml'
       - 'Cargo.lock'
+      - '.github/workflows/ci-cargo-deny.yml'
 
 jobs:
   cargo-deny:

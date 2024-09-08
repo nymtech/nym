@@ -6,6 +6,7 @@ on:
     branches-ignore: master
     paths:
       - 'documentation/docs/**'
+      - '.github/workflows/ci-docs.yml'
 
 jobs:
   build:

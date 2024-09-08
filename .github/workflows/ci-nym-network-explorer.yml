@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'explorer/**'
+      - '.github/workflows/ci-nym-network-explorer.yml'
 
 defaults:
   run:

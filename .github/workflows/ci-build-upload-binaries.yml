@@ -31,13 +31,14 @@ on:
       - "service-providers/**"
       - "tools/**"
       - "nymvisor/**"
+      - ".github/workflows/ci-build-upload-binaries.yml"
 
 jobs:
   publish-nym:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ ubuntu-20.04 ]
+        platform: [ arc-ubuntu-20.04 ]
 
     runs-on: ${{ matrix.platform }}
     env:

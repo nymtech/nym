@@ -133,14 +133,16 @@ members = [
 default-members = [
     "clients/native",
     "clients/socks5",
+    "explorer-api",
     "gateway",
-    "service-providers/network-requester",
     "mixnode",
     "nym-api",
-    "tools/nymvisor",
-    "explorer-api",
-    "nym-validator-rewarder",
     "nym-node",
+    "nym-validator-rewarder",
+    "service-providers/authenticator",
+    "service-providers/ip-packet-router",
+    "service-providers/network-requester",
+    "tools/nymvisor",
 ]
 
 exclude = [
@@ -260,9 +262,7 @@ pretty_env_logger = "0.4.0"
 publicsuffix = "2.2.3"
 quote = "1"
 rand = "0.8.5"
-rand-07 = "0.7.3"
 rand_chacha = "0.3"
-rand_chacha_02 = "0.2"
 rand_core = "0.6.3"
 rand_distr = "0.4"
 rand_pcg = "0.3.1"

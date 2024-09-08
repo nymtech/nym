@@ -34,7 +34,6 @@ jobs:
           go-version: '1.20'
 
       - name: Override GOROOT and GOTOOLDIR
-        if: contains(matrix.os, 'ubuntu')
         run: |
           echo "Setting correct GOROOT and GOTOOLDIR"
           unset GOROOT

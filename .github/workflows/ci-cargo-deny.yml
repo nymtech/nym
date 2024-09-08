@@ -5,7 +5,7 @@ on:
 
 jobs:
   cargo-deny:
-    runs-on: ubuntu-22.04
+    runs-on: arc-ubuntu-22.04-dnid
     strategy:
       matrix:
         checks:

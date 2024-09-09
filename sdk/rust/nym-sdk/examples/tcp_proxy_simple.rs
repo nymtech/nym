@@ -1,19 +1,19 @@
-use nym_sdk::tcp_proxy;
-use std::fs;
 use bincode;
+use nym_sdk::tcp_proxy;
 use rand::Rng;
+use std::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::task;
 use tokio_stream::StreamExt;
 // use tokio_util::sync::CancellationToken; // TODO introduce this again
+use serde::{Deserialize, Serialize};
 use tokio_util::codec;
-use serde::{Serialize, Deserialize};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ExampleMessage {
     message_id: i8,
-    message_bytes: Vec<u8>
+    message_bytes: Vec<u8>,
 }
 
 // This is a basic example which opens a single TCP connection and writes a bunch of messages between a client and
@@ -34,7 +34,8 @@ async fn main() {
         .await
         .unwrap();
     let proxy_nym_addr = proxy_server.nym_address();
-    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 120) // run with a long timeout since we're sending everything down the same tcpconn so should be using a single session
+    // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.
+    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 180)
         .await
         .unwrap();
 
@@ -46,7 +47,7 @@ async fn main() {
         let _ = proxy_client.run().await;
     });
 
-    // 'Server side' thread: send back a bunch of random bytes as a response, retain the message id
+    // 'Server side' thread: send back a bunch of random bytes as a response to the messages sense in the 'client side' thread below, retain the message id
     task::spawn(async move {
         let listener = TcpListener::bind(upstream_tcp_addr).await.unwrap();
         loop {
@@ -57,19 +58,26 @@ async fn main() {
             while let Some(Ok(bytes)) = framed_read.next().await {
                 match bincode::deserialize::<ExampleMessage>(&bytes) {
                     Ok(msg) => {
-                        println!("<< server received {}: {} bytes", msg.message_id, msg.message_bytes.len());
-                        // let random_bytes = gen_bytes_range();
+                        println!(
+                            "<< server received {}: {} bytes",
+                            msg.message_id,
+                            msg.message_bytes.len()
+                        );
                         let random_bytes = gen_bytes_fixed(msg.message_id as usize);
                         let msg = ExampleMessage {
                             message_id: msg.message_id,
-                            message_bytes: random_bytes
+                            message_bytes: random_bytes,
                         };
                         let serialised = bincode::serialize(&msg).unwrap();
                         write
                             .write_all(&serialised)
                             .await
                             .expect("couldnt send reply");
-                        println!(">> server sent {}: {} bytes", msg.message_id, msg.message_bytes.len());
+                        println!(
+                            ">> server sent {}: {} bytes",
+                            msg.message_id,
+                            msg.message_bytes.len()
+                        );
                     }
                     Err(e) => {
                         println!("<< server received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);
@@ -94,14 +102,13 @@ async fn main() {
     let stream = TcpStream::connect("127.0.0.1:8080").await.unwrap();
     let (read, mut write) = stream.into_split();
 
-    // Lets just send a bunch of messages to the server with variable delays between them, with an id to keep track of ordering on the server side, and random amounts of bytes
+    // 'Client side' thread; lets just send a bunch of messages to the server with variable delays between them, with an id to keep track of ordering on the server side, and random amounts of bytes
     task::spawn(async move {
         for i in 0..10 {
-            // let random_bytes = gen_bytes_range();
             let random_bytes = gen_bytes_fixed(i as usize);
             let msg = ExampleMessage {
-               message_id: i,
-               message_bytes: random_bytes
+                message_id: i,
+                message_bytes: random_bytes,
             };
             let serialised = bincode::serialize(&msg).unwrap();
             write
@@ -121,10 +128,14 @@ async fn main() {
     while let Some(Ok(bytes)) = framed_read.next().await {
         match bincode::deserialize::<ExampleMessage>(&bytes) {
             Ok(msg) => {
-                println!("<< client received {}: {} bytes", msg.message_id, msg.message_bytes.len());
+                println!(
+                    "<< client received {}: {} bytes",
+                    msg.message_id,
+                    msg.message_bytes.len()
+                );
             }
             Err(e) => {
-              println!("<< client received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);
+                println!("<< client received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);
             }
         }
     }
@@ -134,16 +145,8 @@ async fn main() {
     fs::remove_dir_all(conf_path).unwrap();
 }
 
-fn gen_bytes_range() -> Vec<u8> {
-    let mut rng = rand::thread_rng();
-    let len = rng.gen_range(10..=2000);
-    (0..len).map(|_| rng.gen::<u8>()).collect()
-}
-
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
-    // let amounts = vec![10, 100, 500, 1000, 1500, 2000, 3500, 5000, 7500, 10000]; // getting a lot of io errors above ~2000, malformed chunks of random byte amounts coming in to server leading to 'unexpected EoF' errs
-    let amounts = vec![1, 10, 50, 100, 150, 200, 500, 500, 750, 1000]; // no io errs
-    // let amounts = vec![100, 150, 200, 500, 1000, 1750, 1790, 1800, 1900, 1950]; // io errors cropping up at the top end of this set
+    let amounts = vec![1, 10, 50, 100, 150, 200, 500, 500, 750, 1000];
     let len = amounts[i];
     let mut rng = rand::thread_rng();
     (0..len).map(|_| rng.gen::<u8>()).collect()

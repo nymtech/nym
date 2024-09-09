@@ -415,6 +415,8 @@ pub struct HealthRequest {
 
 #[cfg(test)]
 mod tests {
+    use time::macros::datetime;
+
     use super::*;
     use std::net::{Ipv4Addr, Ipv6Addr};
     use std::str::FromStr;
@@ -432,13 +434,13 @@ mod tests {
                         reply_to_hops: None,
                         reply_to_avg_mix_delays: None,
                         buffer_timeout: None,
-                        timestamp: OffsetDateTime::now_utc(),
+                        timestamp: datetime!(2024-01-01 12:59:59.5 UTC),
                     },
                     signature: None,
                 }
             ),
         };
-        assert_eq!(connect.to_bytes().unwrap().len(), 141);
+        assert_eq!(connect.to_bytes().unwrap().len(), 139);
     }
 
     #[test]

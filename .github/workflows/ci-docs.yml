@@ -6,10 +6,11 @@ on:
     branches-ignore: master
     paths:
       - 'documentation/docs/**'
+      - '.github/workflows/ci-docs.yml'
 
 jobs:
   build:
-    runs-on: ubuntu-20.04-16-core
+    runs-on: arc-ubuntu-20.04
     steps:
       - uses: actions/checkout@v4
       - name: Install Dependencies (Linux)

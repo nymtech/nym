@@ -4,6 +4,7 @@ on:
   pull_request:
     paths:
       - 'nym-wallet/**'
+      - '.github/workflows/ci-nym-wallet-storybook.yml'
 
 jobs:
   build:

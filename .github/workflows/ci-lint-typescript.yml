@@ -10,6 +10,7 @@ on:
       - "nym-wallet/src/**"
       - "nym-wallet/package.json"
       - "explorer/**"
+      - ".github/workflows/ci-lint-typescript.yml"
 
 jobs:
   build:

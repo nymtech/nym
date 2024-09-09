@@ -5,6 +5,7 @@ on:
     paths:
       - "sdk/typescript/**"
       - "wasm/**"
+      - '.github/workflows/ci-sdk-docs-typescript.yml'
 
 jobs:
   build:

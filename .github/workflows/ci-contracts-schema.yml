@@ -6,11 +6,12 @@ on:
     paths:
       - 'contracts/**'
       - 'common/**'
+      - '.github/workflows/ci-contracts-schema.yml'
 
 jobs:
   check-schema:
     name: Generate and check schema
-    runs-on: custom-linux
+    runs-on: arc-ubuntu-20.04
     env:
       CARGO_TERM_COLOR: always
     steps:

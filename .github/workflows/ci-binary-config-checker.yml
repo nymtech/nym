@@ -13,6 +13,7 @@ on:
       - 'mixnode/**'
       - 'sdk/rust/nym-sdk/**'
       - 'service-providers/**'
+      - '.github/workflows/ci-binary-config-checker.yml'
   pull_request:
     paths:
       - 'clients/**'
@@ -22,6 +23,7 @@ on:
       - 'mixnode/**'
       - 'sdk/rust/nym-sdk/**'
       - 'service-providers/**'
+      - '.github/workflows/ci-binary-config-checker.yml'
 
 env:
   NETWORK: mainnet
@@ -31,7 +33,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [custom-linux]
+        platform: [arc-ubuntu-20.04]
 
     runs-on: ${{ matrix.platform }}
     steps:

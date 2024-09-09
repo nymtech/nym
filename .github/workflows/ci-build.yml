@@ -18,6 +18,7 @@ on:
       - 'tools/nym-nr-query/**'
       - 'tools/ts-rs-cli/**'
       - 'Cargo.toml'
+      - '.github/workflows/ci-build.yml'
   pull_request:
     paths:
       - 'clients/**'
@@ -35,6 +36,7 @@ on:
       - 'tools/nym-nr-query/**'
       - 'tools/ts-rs-cli/**'
       - 'Cargo.toml'
+      - '.github/workflows/ci-build.yml'
   workflow_dispatch:
 
 jobs:
@@ -42,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [custom-linux, custom-runner-mac-m1]
+        os: [arc-ubuntu-20.04, custom-runner-mac-m1]
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TERM_COLOR: always

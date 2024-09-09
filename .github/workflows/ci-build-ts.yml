@@ -5,6 +5,7 @@ on:
     paths:
       - "ts-packages/**"
       - "sdk/typescript/**"
+      - ".github/workflows/ci-build-ts.yml"
 
 jobs:
   build:

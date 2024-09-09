@@ -40,9 +40,17 @@ impl SharedKeysManager {
         client_address_bs58: String,
         derived_aes128_ctr_blake3_hmac_keys_bs58: String,
     ) -> Result<i64, sqlx::Error> {
-        sqlx::query!("INSERT OR REPLACE INTO shared_keys(client_address_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58) VALUES (?, ?)",
+        // https://stackoverflow.com/a/20310838
+        // we don't want to be using `INSERT OR REPLACE INTO` due to the foreign key on `available_bandwidth` if the entry already exists
+        sqlx::query!(
+            r#"
+                INSERT OR IGNORE INTO shared_keys(client_address_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58) VALUES (?, ?);
+                UPDATE shared_keys SET derived_aes128_ctr_blake3_hmac_keys_bs58 = ? WHERE client_address_bs58 = ?
+            "#,
             client_address_bs58,
             derived_aes128_ctr_blake3_hmac_keys_bs58,
+            derived_aes128_ctr_blake3_hmac_keys_bs58,
+            client_address_bs58,
         ).execute(&self.connection_pool).await?;
 
         self.client_id(&client_address_bs58).await

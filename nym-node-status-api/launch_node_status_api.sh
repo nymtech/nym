@@ -1,11 +1,12 @@
 #!/bin/bash
 
 set -e
-clear
 
 function usage() {
-    echo "Usage: $0 [-c]"
-    echo "  -c if present, recreate DB"
+    echo "Usage: $0 [-ci]"
+    echo "  -c Clear DB and re-initialize it before launching the binary."
+    echo "  -i Only initialize and prepare database, env vars then exit without"
+    echo "     launching"
     exit 0
 }
 
@@ -28,7 +29,7 @@ script_abs_path=$(realpath "$0")
 package_dir=$(dirname "$script_abs_path")
 db_abs_path="$package_dir/data/$db_filename"
 dotenv_file="$package_dir/.env"
-echo "DATABASE_URL=sqlite://$db_abs_path" >"$dotenv_file"
+echo "DATABASE_URL=sqlite://$db_abs_path" > "$dotenv_file"
 
 export RUST_LOG=trace
 
@@ -36,11 +37,15 @@ export RUST_LOG=trace
 set -a && source "$dotenv_file" && set +a
 
 clear_db=false
+init_only=false
 
-while getopts "c" opt; do
+while getopts "ci" opt; do
     case ${opt} in
     c)
         clear_db=true
+        ;;
+    i)
+        init_only=true
         ;;
     \?)
         usage
@@ -48,8 +53,12 @@ while getopts "c" opt; do
     esac
 done
 
-if [ "$clear_db" = true ]; then
+if [ "$clear_db" = true ] || [ "$init_only" = true ]; then
     init_db
+fi
+
+if [ "$init_only" = true ]; then
+    exit 0
 fi
 
 cargo run --package nym-node-status-api -- --config-env-file ../envs/mainnet.env

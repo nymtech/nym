@@ -158,4 +158,4 @@ tempfile = { workspace = true }
 cw3 = { workspace = true }
 cw-utils = { workspace = true }
 rand_chacha = { workspace = true }
-sha2 = "0.9"
+sha2 = "0.10"

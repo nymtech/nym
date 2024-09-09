@@ -16,7 +16,7 @@ thiserror = { workspace = true }
 serde = { workspace = true }
 serde_derive = { workspace = true }
 bs58 = { workspace = true }
-sha2 = "0.9"
+sha2 = "0.10"
 zeroize = { workspace = true, optional = true }
 
 nym-dkg = { path = "../dkg" }

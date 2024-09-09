@@ -18,7 +18,7 @@ itertools = "0.12.1"
 digest = "0.9"
 rand = { workspace = true }
 thiserror = { workspace = true }
-sha2 = "0.9"
+sha2 = "0.10"
 bs58 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 rayon = { workspace = true, optional = true }

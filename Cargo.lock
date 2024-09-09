@@ -4742,6 +4742,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-credential-verification"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "cosmwasm-std",
+ "cw-utils",
+ "futures",
+ "nym-api-requests",
+ "nym-credentials",
+ "nym-credentials-interface",
+ "nym-ecash-contract-common",
+ "nym-ecash-double-spending",
+ "nym-gateway-requests",
+ "nym-gateway-storage",
+ "nym-task",
+ "nym-validator-client",
+ "rand",
+ "si-scale",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "nym-credentials"
 version = "0.1.0"
 dependencies = [
@@ -4911,12 +4936,9 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bip39",
- "bloomfilter",
  "bs58",
  "clap 4.5.16",
  "colored",
- "cosmwasm-std",
- "cw-utils",
  "dashmap",
  "defguard_wireguard_rs",
  "dirs 4.0.0",
@@ -4928,11 +4950,10 @@ dependencies = [
  "nym-authenticator",
  "nym-bin-common",
  "nym-config",
+ "nym-credential-verification",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
- "nym-ecash-contract-common",
- "nym-ecash-double-spending",
  "nym-gateway-requests",
  "nym-gateway-storage",
  "nym-ip-packet-router",
@@ -4956,7 +4977,6 @@ dependencies = [
  "sqlx",
  "subtle-encoding",
  "thiserror",
- "time",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",

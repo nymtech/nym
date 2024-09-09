@@ -127,7 +127,7 @@ members = [
     "wasm/node-tester",
     "wasm/zknym-lib",
     "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/internal/testnet-manager/dkg-bypass-contract", "common/credential-verification",
 ]
 
 default-members = [

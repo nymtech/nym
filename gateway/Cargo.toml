@@ -30,8 +30,6 @@ bip39 = { workspace = true }
 bs58 = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"], optional = true }
 colored = { workspace = true }
-cosmwasm-std = { workspace = true }
-cw-utils = { workspace = true }
 dashmap = { workspace = true }
 dirs = { workspace = true }
 dotenvy = { workspace = true }
@@ -64,9 +62,7 @@ tokio-tungstenite = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 tracing = { workspace = true }
 url = { workspace = true, features = ["serde"] }
-time = { workspace = true }
 zeroize = { workspace = true }
-bloomfilter = { workspace = true }
 
 # internal
 
@@ -76,9 +72,8 @@ nym-bin-common = { path = "../common/bin-common" }
 nym-config = { path = "../common/config" }
 nym-credentials = { path = "../common/credentials" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
+nym-credential-verification = { path = "../common/credential-verification" }
 nym-crypto = { path = "../common/crypto" }
-nym-ecash-contract-common = { path = "../common/cosmwasm-smart-contracts/ecash-contract" }
-nym-ecash-double-spending = { path = "../common/ecash-double-spending" }
 nym-gateway-storage = { path = "../common/gateway-storage" }
 nym-gateway-requests = { path = "../common/gateway-requests" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }

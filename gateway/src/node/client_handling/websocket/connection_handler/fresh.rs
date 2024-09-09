@@ -529,6 +529,11 @@ where
     /// * `client_address`: address of the client wishing to authenticate.
     /// * `encrypted_address`: ciphertext of the address of the client wishing to authenticate.
     /// * `iv`: fresh IV received with the request.
+    #[instrument(skip_all
+        fields(
+            address = %address,
+        )
+    )]
     async fn handle_authenticate(
         &mut self,
         client_protocol_version: Option<u8>,
@@ -539,6 +544,8 @@ where
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        debug!("handling client registration");
+
         let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
         // populate the negotiated protocol for future uses
         self.negotiated_protocol = Some(negotiated_protocol);
@@ -662,12 +669,16 @@ where
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
 
+        debug!(remote_client = %remote_identity);
+
         if self.active_clients_store.is_active(remote_address) {
             return Err(InitialAuthenticationError::DuplicateConnection);
         }
 
         let shared_keys = self.perform_registration_handshake(init_data).await?;
         let client_id = self.register_client(remote_address, &shared_keys).await?;
+
+        debug!(client_id = %client_id, "managed to finalize client registration");
 
         let client_details = ClientDetails::new(client_id, remote_address, shared_keys);
 

@@ -1,0 +1,33 @@
+[package]
+name = "nym-credential-verification"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+bs58 = { workspace = true }
+cosmwasm-std = { workspace = true }
+cw-utils = { workspace = true }
+futures = { workspace = true }
+rand = { workspace = true }
+si-scale = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+time = { workspace = true }
+tracing = { workspace = true }
+
+nym-api-requests = { path = "../../nym-api/nym-api-requests" }
+nym-credentials = { path = "../credentials" }
+nym-credentials-interface = { path = "../credentials-interface" }
+nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
+nym-ecash-double-spending = { path = "../ecash-double-spending" }
+nym-gateway-requests = { path = "../gateway-requests" }
+nym-gateway-storage = { path = "../gateway-storage" }
+nym-task = { path = "../task" }
+nym-validator-client = { path = "../client-libs/validator-client" }

@@ -12,10 +12,12 @@ use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::client_handling::websocket::connection_handler::ecash::EcashManager;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use futures::channel::{mpsc, oneshot};
+use nym_credential_verification::ecash::{
+    credential_sender::CredentialHandlerConfig, EcashManager,
+};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
@@ -35,7 +37,6 @@ pub(crate) mod client_handling;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
 
-use crate::node::client_handling::websocket::connection_handler::ecash::credential_sender::CredentialHandlerConfig;
 pub use nym_gateway_storage::{PersistentStorage, Storage};
 
 // TODO: should this struct live here?
@@ -620,16 +621,14 @@ impl<St> Gateway<St> {
                 .maximum_time_between_redemption,
         };
 
-        let ecash_manager = {
-            EcashManager::new(
-                handler_config,
-                nyxd_client,
-                self.identity_keypair.public_key().to_bytes(),
-                shutdown.fork("EcashVerifier"),
-                self.storage.clone(),
-            )
-            .await
-        }?;
+        let ecash_manager = EcashManager::new(
+            handler_config,
+            nyxd_client,
+            self.identity_keypair.public_key().to_bytes(),
+            shutdown.fork("EcashVerifier"),
+            self.storage.clone(),
+        )
+        .await?;
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.fork("PacketForwarder"));
 

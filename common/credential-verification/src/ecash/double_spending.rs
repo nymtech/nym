@@ -1,10 +1,10 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
-use crate::node::client_handling::websocket::connection_handler::ecash::state::SharedState;
-use crate::node::Storage;
+use crate::ecash::error::EcashTicketError;
+use crate::ecash::state::SharedState;
 use nym_ecash_double_spending::DoubleSpendingFilter;
+use nym_gateway_storage::Storage;
 use nym_task::TaskClient;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::EcashApiClient;

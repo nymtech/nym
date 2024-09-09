@@ -1,26 +1,25 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::client_handling::websocket::connection_handler::ecash::state::SharedState;
-use crate::GatewayError;
+use crate::Error;
 use credential_sender::CredentialHandler;
+use credential_sender::CredentialHandlerConfig;
 use double_spending::DoubleSpendingDetector;
+use error::EcashTicketError;
 use futures::channel::mpsc::{self, UnboundedSender};
 use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::{ClientTicket, CompactEcashError, NymPayInfo, VerificationKeyAuth};
 use nym_gateway_storage::Storage;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
+use state::SharedState;
 use time::OffsetDateTime;
 use tokio::sync::{Mutex, RwLockReadGuard};
 use tracing::error;
 
-use crate::node::client_handling::websocket::connection_handler::ecash::credential_sender::CredentialHandlerConfig;
-use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
-
-pub(crate) mod credential_sender;
+pub mod credential_sender;
 pub(crate) mod double_spending;
-pub(crate) mod error;
+pub mod error;
 mod helpers;
 mod state;
 
@@ -45,7 +44,7 @@ where
         pk_bytes: [u8; 32],
         shutdown: nym_task::TaskClient,
         storage: S,
-    ) -> Result<Self, GatewayError> {
+    ) -> Result<Self, Error> {
         let shared_state = SharedState::new(nyxd_client, storage).await?;
 
         let double_spend_detector = DoubleSpendingDetector::new(shared_state.clone());

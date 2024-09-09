@@ -45,6 +45,7 @@ members = [
     "common/credentials",
     "common/credential-utils",
     "common/credentials-interface",
+    "common/credential-verification",
     "common/crypto",
     "common/dkg",
     "common/ecash-double-spending",

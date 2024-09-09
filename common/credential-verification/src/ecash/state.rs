@@ -1,12 +1,12 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
-use crate::node::Storage;
-use crate::GatewayError;
+use crate::ecash::error::EcashTicketError;
+use crate::Error;
 use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
 use nym_credentials_interface::VerificationKeyAuth;
 use nym_ecash_contract_common::msg::ExecuteMsg;
+use nym_gateway_storage::Storage;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{
@@ -37,7 +37,7 @@ where
     pub(crate) async fn new(
         nyxd_client: DirectSigningHttpRpcNyxdClient,
         storage: S,
-    ) -> Result<Self, GatewayError> {
+    ) -> Result<Self, Error> {
         let address = nyxd_client.address();
 
         if nyxd_client.dkg_contract_address().is_none() {

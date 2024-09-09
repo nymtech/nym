@@ -566,7 +566,7 @@ where
             .unwrap_or_default();
 
         let bandwidth_remaining = if available_bandwidth.expired() {
-            self.expire_bandwidth(client_id).await?;
+            self.shared_state.storage.reset_bandwidth(client_id).await?;
             0
         } else {
             available_bandwidth.bytes
@@ -580,10 +580,6 @@ where
                 bandwidth_remaining,
             },
         ))
-    }
-
-    pub(crate) async fn expire_bandwidth(&self, client_id: i64) -> Result<(), StorageError> {
-        self.shared_state.storage.reset_bandwidth(client_id).await
     }
 
     /// Attempts to finalize registration of the client by storing the derived shared keys in the

@@ -14,7 +14,6 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
-use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
 
 #[derive(Debug, Error)]
 pub enum GatewayError {
@@ -170,12 +169,6 @@ pub enum GatewayError {
         source: RequestHandlingError,
     },
 
-    #[error("ecash related failure: {source}")]
-    EcashFailure {
-        #[from]
-        source: EcashTicketError,
-    },
-
     #[error("failed to catch an interrupt: {source}")]
     ShutdownFailure {
         source: Box<dyn std::error::Error + Send + Sync>,
@@ -196,9 +189,6 @@ pub enum GatewayError {
         source: ipnetwork::IpNetworkError,
     },
 
-    #[error("the current multisig contract is not using 'AbsolutePercentage' threshold!")]
-    InvalidMultisigThreshold,
-
     #[cfg(all(feature = "wireguard", target_os = "linux"))]
     #[error("failed to remove wireguard interface: {0}")]
     WireguardInterfaceError(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
@@ -211,6 +201,9 @@ pub enum GatewayError {
     AuthenticatorStartError {
         source: Box<dyn std::error::Error + Send + Sync>,
     },
+
+    #[error("{0}")]
+    CredentialVefiricationError(#[from] nym_credential_verification::Error),
 }
 
 impl From<ClientCoreError> for GatewayError {

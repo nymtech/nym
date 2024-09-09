@@ -319,3 +319,24 @@ impl Default for AvailableBandwidth {
         }
     }
 }
+
+#[derive(Debug, Copy, Clone)]
+pub struct Bandwidth {
+    value: u64,
+}
+
+impl Bandwidth {
+    pub const fn new_unchecked(value: u64) -> Bandwidth {
+        Bandwidth { value }
+    }
+
+    pub fn ticket_amount(typ: TicketTypeRepr) -> Self {
+        Bandwidth {
+            value: typ.bandwidth_value(),
+        }
+    }
+
+    pub fn value(&self) -> u64 {
+        self.value
+    }
+}

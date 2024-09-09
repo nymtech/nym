@@ -2,24 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::client_handling::{
-    bandwidth::{Bandwidth, BandwidthError},
+    bandwidth::BandwidthError,
     websocket::{
-        connection_handler::{
-            ecash::error::EcashTicketError, ClientBandwidth, ClientDetails, FreshHandler,
-        },
+        connection_handler::{ClientDetails, FreshHandler},
         message_receiver::{
             IsActive, IsActiveRequestReceiver, IsActiveResultSender, MixMessageReceiver,
         },
     },
-    FREE_TESTNET_BANDWIDTH_VALUE,
 };
 use futures::{
     future::{FusedFuture, OptionFuture},
     FutureExt, StreamExt,
 };
-use nym_credentials::ecash::utils::{ecash_today, EcashTime};
-use nym_credentials_interface::{ClientTicket, CredentialSpendingData, TicketType};
-use nym_gateway_requests::models::CredentialSpendingRequest;
+use nym_credential_verification::CredentialVerifier;
+use nym_credential_verification::{
+    bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
+};
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
     ClientControlRequest, GatewayRequestsError, SimpleGatewayRequestsError,
@@ -29,10 +27,8 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::EcashApiError;
 use rand::{CryptoRng, Rng};
-use si_scale::helpers::bibytes2;
 use std::{process, time::Duration};
 use thiserror::Error;
-use time::{Date, OffsetDateTime};
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
 use tracing::*;
@@ -59,20 +55,6 @@ pub enum RequestHandlingError {
     #[error("credential has been rejected by the validators")]
     RejectedProposal,
 
-    #[error(
-        "the provided credential has an invalid spending date. got {got} but expected {expected}"
-    )]
-    InvalidCredentialSpendingDate { got: Date, expected: Date },
-
-    #[error("the provided bandwidth credential has already been spent before at this gateway")]
-    BandwidthCredentialAlreadySpent,
-
-    #[error("This gateway is only accepting coconut credentials for bandwidth")]
-    OnlyCoconutCredentials,
-
-    #[error("Nyxd Error - {0}")]
-    NyxdError(#[from] nym_validator_client::nyxd::error::NyxdError),
-
     #[error("Validator API error - {0}")]
     APIError(#[from] nym_validator_client::ValidatorClientError),
 
@@ -94,28 +76,19 @@ pub enum RequestHandlingError {
     #[error("failed to recover bandwidth value: {0}")]
     BandwidthRecoveryFailure(#[from] BandwidthError),
 
-    #[error("insufficient bandwidth available to process the request. required: {required}B, available: {available}B")]
-    OutOfBandwidth { required: i64, available: i64 },
-
-    #[error(transparent)]
-    EcashFailure(EcashTicketError),
-
-    #[error(
-        "the received payment contained more than a single ticket. that's currently not supported"
-    )]
-    MultipleTickets,
-
     #[error("{0}")]
-    UnknownTicketType(#[from] nym_credentials_interface::UnknownTicketType),
+    CredentialVerification(#[from] nym_credential_verification::Error),
 }
 
 impl RequestHandlingError {
     fn into_error_message(self) -> Message {
         let server_response = match self {
-            RequestHandlingError::OutOfBandwidth {
-                required,
-                available,
-            } => ServerResponse::TypedError {
+            RequestHandlingError::CredentialVerification(
+                nym_credential_verification::Error::OutOfBandwidth {
+                    required,
+                    available,
+                },
+            ) => ServerResponse::TypedError {
                 error: SimpleGatewayRequestsError::OutOfBandwidth {
                     required,
                     available,
@@ -124,17 +97,6 @@ impl RequestHandlingError {
             other => ServerResponse::new_error(other.to_string()),
         };
         server_response.into()
-    }
-}
-
-impl From<EcashTicketError> for RequestHandlingError {
-    fn from(err: EcashTicketError) -> Self {
-        // don't expose storage issue details to the user
-        if let EcashTicketError::InternalStorageFailure { source } = err {
-            RequestHandlingError::StorageError(source)
-        } else {
-            RequestHandlingError::EcashFailure(err)
-        }
     }
 }
 
@@ -155,8 +117,8 @@ impl IntoWSMessage for Result<ServerResponse, RequestHandlingError> {
 
 pub(crate) struct AuthenticatedHandler<R, S, St> {
     inner: FreshHandler<R, S, St>,
+    bandwidth_storage_manager: BandwidthStorageManager<St>,
     client: ClientDetails,
-    client_bandwidth: ClientBandwidth,
     mix_receiver: MixMessageReceiver,
     // Occasionally the handler is requested to ping the connected client for confirm that it's
     // active, such as when a duplicate connection is detected. This hashmap stores the oneshot
@@ -209,9 +171,15 @@ where
             })?;
 
         Ok(AuthenticatedHandler {
+            bandwidth_storage_manager: BandwidthStorageManager::new(
+                fresh.shared_state.storage.clone(),
+                ClientBandwidth::new(bandwidth.into()),
+                client.id,
+                fresh.shared_state.bandwidth_cfg,
+                fresh.shared_state.only_coconut_credentials,
+            ),
             inner: fresh,
             client,
-            client_bandwidth: ClientBandwidth::new(bandwidth.into()),
             mix_receiver,
             is_active_request_receiver,
             is_active_ping_pending_reply: None,
@@ -223,55 +191,6 @@ where
         self.inner
             .active_clients_store
             .disconnect(self.client.address)
-    }
-
-    async fn expire_bandwidth(&mut self) -> Result<(), RequestHandlingError> {
-        self.inner.expire_bandwidth(self.client.id).await?;
-        self.client_bandwidth.bandwidth = Default::default();
-        self.client_bandwidth.update_sync_data();
-        Ok(())
-    }
-
-    /// Increases the amount of available bandwidth of the connected client by the specified value.
-    ///
-    /// # Arguments
-    ///
-    /// * `amount`: amount to increase the available bandwidth by.
-    /// * `expiration` : the expiration date of that bandwidth
-    async fn increase_bandwidth(
-        &mut self,
-        bandwidth: Bandwidth,
-        expiration: OffsetDateTime,
-    ) -> Result<(), RequestHandlingError> {
-        self.client_bandwidth.bandwidth.bytes += bandwidth.value() as i64;
-        self.client_bandwidth.bytes_delta_since_sync += bandwidth.value() as i64;
-        self.client_bandwidth.bandwidth.expiration = expiration;
-
-        // any increases to bandwidth should get flushed immediately
-        // (we don't want to accidentally miss somebody claiming a gigabyte voucher)
-        self.sync_expiration().await?;
-        self.sync_bandwidth().await
-    }
-
-    /// Decreases the amount of available bandwidth of the connected client by the specified value.
-    ///
-    /// # Arguments
-    ///
-    /// * `amount`: amount to decrease the available bandwidth by.
-    async fn consume_bandwidth(&mut self, amount: i64) -> Result<(), RequestHandlingError> {
-        self.client_bandwidth.bandwidth.bytes -= amount;
-        self.client_bandwidth.bytes_delta_since_sync -= amount;
-
-        // since we're going to be operating on a fair use policy anyway, even if we crash and let extra few packets
-        // through, that's completely fine
-        if self
-            .client_bandwidth
-            .should_sync(self.inner.shared_state.bandwidth_cfg)
-        {
-            self.sync_bandwidth().await?;
-        }
-
-        Ok(())
     }
 
     /// Forwards the received mix packet from the client into the mix network.
@@ -286,109 +205,6 @@ where
         }
     }
 
-    async fn check_local_db_for_double_spending(
-        &self,
-        serial_number: &[u8],
-    ) -> Result<(), RequestHandlingError> {
-        trace!("checking local db for double spending...");
-
-        let spent = self
-            .inner
-            .shared_state
-            .storage
-            .contains_ticket(serial_number)
-            .await?;
-        if spent {
-            trace!("the credential has already been spent before at this gateway");
-            return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
-        }
-        Ok(())
-    }
-
-    async fn check_bloomfilter(&self, serial_number: &Vec<u8>) -> Result<(), RequestHandlingError> {
-        trace!("checking the bloomfilter...");
-
-        let spent = self
-            .inner
-            .shared_state
-            .ecash_verifier
-            .check_double_spend(serial_number)
-            .await;
-
-        if spent {
-            trace!("the credential has already been spent before at some gateway before (bloomfilter failure)");
-            return Err(RequestHandlingError::BandwidthCredentialAlreadySpent);
-        }
-        Ok(())
-    }
-
-    fn check_credential_spending_date(
-        &self,
-        proposed: Date,
-        today: Date,
-    ) -> Result<(), RequestHandlingError> {
-        trace!("checking ticket spending date...");
-
-        if today != proposed {
-            trace!("invalid credential spending date. received {proposed}");
-            return Err(RequestHandlingError::InvalidCredentialSpendingDate {
-                got: proposed,
-                expected: today,
-            });
-        }
-        Ok(())
-    }
-
-    async fn cryptographically_verify_ticket(
-        &self,
-        credential: &CredentialSpendingRequest,
-    ) -> Result<(), RequestHandlingError> {
-        trace!("attempting to perform ticket verification...");
-
-        let aggregated_verification_key = self
-            .inner
-            .shared_state
-            .ecash_verifier
-            .verification_key(credential.data.epoch_id)
-            .await?;
-
-        self.inner
-            .shared_state
-            .ecash_verifier
-            .check_payment(&credential.data, &aggregated_verification_key)
-            .await?;
-        Ok(())
-    }
-
-    fn async_verify_ticket(&self, ticket: CredentialSpendingData, ticket_id: i64) {
-        let client_ticket = ClientTicket::new(ticket, ticket_id);
-
-        self.inner
-            .shared_state
-            .ecash_verifier
-            .async_verify(client_ticket);
-    }
-
-    async fn store_received_ticket(
-        &self,
-        ticket_data: &CredentialSpendingRequest,
-        received_at: OffsetDateTime,
-    ) -> Result<i64, RequestHandlingError> {
-        trace!("storing received ticket");
-        let ticket_id = self
-            .inner
-            .shared_state
-            .storage
-            .insert_received_ticket(
-                self.client.id,
-                received_at,
-                ticket_data.encoded_serial_number(),
-                ticket_data.to_bytes(),
-            )
-            .await?;
-        Ok(ticket_id)
-    }
-
     /// Tries to handle the received bandwidth request by checking correctness of the received data
     /// and if successful, increases client's bandwidth by an appropriate amount.
     ///
@@ -401,7 +217,6 @@ where
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        let received_at = OffsetDateTime::now_utc();
         // TODO: change it into a span field instead once we move to tracing
         debug!(
             "handling e-cash bandwidth request from {}",
@@ -413,105 +228,15 @@ where
             &self.client.shared_keys,
             iv,
         )?;
-        let spend_date = ecash_today();
+        let mut verifier = CredentialVerifier::new(
+            credential,
+            self.inner.shared_state.ecash_verifier.clone(),
+            self.bandwidth_storage_manager.clone(),
+        );
 
-        // check if the credential hasn't been spent before
-        let serial_number = credential.data.encoded_serial_number();
-        let credential_type = TicketType::try_from_encoded(credential.data.payment.t_type)?;
-
-        if credential.data.payment.spend_value != 1 {
-            return Err(RequestHandlingError::MultipleTickets);
-        }
-
-        self.check_credential_spending_date(credential.data.spend_date, spend_date.ecash_date())?;
-        self.check_bloomfilter(&serial_number).await?;
-        self.check_local_db_for_double_spending(&serial_number)
-            .await?;
-
-        // TODO: do we HAVE TO do it?
-        self.cryptographically_verify_ticket(&credential).await?;
-
-        let ticket_id = self.store_received_ticket(&credential, received_at).await?;
-        self.async_verify_ticket(credential.data, ticket_id);
-
-        // TODO: double storing?
-        // self.store_spent_credential(serial_number_bs58).await?;
-
-        let bandwidth = Bandwidth::ticket_amount(credential_type.into());
-
-        self.increase_bandwidth(bandwidth, spend_date).await?;
-
-        let available_total = self.client_bandwidth.bandwidth.bytes;
+        let available_total = verifier.verify().await?;
 
         Ok(ServerResponse::Bandwidth { available_total })
-    }
-
-    async fn handle_claim_testnet_bandwidth(
-        &mut self,
-    ) -> Result<ServerResponse, RequestHandlingError> {
-        debug!("handling testnet bandwidth request");
-
-        if self.inner.shared_state.only_coconut_credentials {
-            return Err(RequestHandlingError::OnlyCoconutCredentials);
-        }
-
-        self.increase_bandwidth(FREE_TESTNET_BANDWIDTH_VALUE, ecash_today())
-            .await?;
-        let available_total = self.client_bandwidth.bandwidth.bytes;
-
-        Ok(ServerResponse::Bandwidth { available_total })
-    }
-
-    async fn sync_expiration(&mut self) -> Result<(), RequestHandlingError> {
-        self.inner
-            .shared_state
-            .storage
-            .set_expiration(self.client.id, self.client_bandwidth.bandwidth.expiration)
-            .await?;
-        Ok(())
-    }
-
-    #[instrument(level = "trace", skip_all)]
-    async fn sync_bandwidth(&mut self) -> Result<(), RequestHandlingError> {
-        trace!("syncing client bandwidth with the underlying storage");
-        let updated = self
-            .inner
-            .shared_state
-            .storage
-            .increase_bandwidth(self.client.id, self.client_bandwidth.bytes_delta_since_sync)
-            .await?;
-
-        trace!(updated);
-
-        self.client_bandwidth.bandwidth.bytes = updated;
-
-        self.client_bandwidth.update_sync_data();
-        Ok(())
-    }
-
-    #[instrument(skip_all)]
-    async fn try_use_bandwidth(
-        &mut self,
-        required_bandwidth: i64,
-    ) -> Result<i64, RequestHandlingError> {
-        if self.client_bandwidth.bandwidth.expired() {
-            self.expire_bandwidth().await?;
-        }
-        let available_bandwidth = self.client_bandwidth.bandwidth.bytes;
-
-        if available_bandwidth < required_bandwidth {
-            return Err(RequestHandlingError::OutOfBandwidth {
-                required: required_bandwidth,
-                available: available_bandwidth,
-            });
-        }
-
-        let available_bi2 = bibytes2(available_bandwidth as f64);
-        let required_bi2 = bibytes2(required_bandwidth as f64);
-        debug!(available = available_bi2, required = required_bi2);
-
-        self.consume_bandwidth(required_bandwidth).await?;
-        Ok(available_bandwidth)
     }
 
     /// Tries to handle request to forward sphinx packet into the network. The request can only succeed
@@ -529,7 +254,10 @@ where
     ) -> Result<ServerResponse, RequestHandlingError> {
         let required_bandwidth = mix_packet.packet().len() as i64;
 
-        let remaining_bandwidth = self.try_use_bandwidth(required_bandwidth).await?;
+        let remaining_bandwidth = self
+            .bandwidth_storage_manager
+            .try_use_bandwidth(required_bandwidth)
+            .await?;
         self.forward_packet(mix_packet);
 
         Ok(ServerResponse::Send {
@@ -589,8 +317,10 @@ where
                     .into_error_message()
                 }
                 ClientControlRequest::ClaimFreeTestnetBandwidth => self
+                    .bandwidth_storage_manager
                     .handle_claim_testnet_bandwidth()
                     .await
+                    .map_err(|e| e.into())
                     .into_ws_message(),
                 other => RequestHandlingError::IllegalRequest {
                     additional_context: format!(

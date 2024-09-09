@@ -1,17 +1,17 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::client_handling::bandwidth::Bandwidth;
-use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
-use crate::node::client_handling::websocket::connection_handler::ecash::helpers::for_each_api_concurrent;
-use crate::node::client_handling::websocket::connection_handler::ecash::state::SharedState;
-use crate::GatewayError;
+use crate::ecash::error::EcashTicketError;
+use crate::ecash::helpers::for_each_api_concurrent;
+use crate::ecash::state::SharedState;
+use crate::Error;
 use cosmwasm_std::Fraction;
 use cw_utils::ThresholdResponse;
 use futures::channel::mpsc::UnboundedReceiver;
 use futures::{Stream, StreamExt};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{BatchRedeemTicketsBody, VerifyEcashTicketBody};
+use nym_credentials_interface::Bandwidth;
 use nym_credentials_interface::{ClientTicket, TicketType};
 use nym_gateway_storage::Storage;
 use nym_validator_client::nym_api::EpochId;
@@ -105,25 +105,25 @@ impl PendingRedemptionVote {
     }
 }
 
-pub(crate) struct CredentialHandlerConfig {
+pub struct CredentialHandlerConfig {
     /// Specifies the multiplier for revoking a malformed/double-spent ticket
     /// (if it has to go all the way to the nym-api for verification)
     /// e.g. if one ticket grants 100Mb and `revocation_bandwidth_penalty` is set to 1.5,
     /// the client will lose 150Mb
-    pub(crate) revocation_bandwidth_penalty: f32,
+    pub revocation_bandwidth_penalty: f32,
 
     /// Specifies the interval for attempting to resolve any failed, pending operations,
     /// such as ticket verification or redemption.
-    pub(crate) pending_poller: Duration,
+    pub pending_poller: Duration,
 
-    pub(crate) minimum_api_quorum: f32,
+    pub minimum_api_quorum: f32,
 
     /// Specifies the minimum number of tickets this gateway will attempt to redeem.
-    pub(crate) minimum_redemption_tickets: usize,
+    pub minimum_redemption_tickets: usize,
 
     /// Specifies the maximum time between two subsequent tickets redemptions.
     /// That's required as nym-apis will purge all ticket information for tickets older than 30 days.
-    pub(crate) maximum_time_between_redemption: Duration,
+    pub maximum_time_between_redemption: Duration,
 }
 
 pub(crate) struct CredentialHandler<St: Storage> {
@@ -260,7 +260,7 @@ where
         config: CredentialHandlerConfig,
         ticket_receiver: UnboundedReceiver<ClientTicket>,
         shared_state: SharedState<St>,
-    ) -> Result<Self, GatewayError> {
+    ) -> Result<Self, Error> {
         let multisig_threshold = shared_state
             .nyxd_client
             .read()
@@ -269,7 +269,7 @@ where
             .await?;
 
         let ThresholdResponse::AbsolutePercentage { percentage, .. } = multisig_threshold else {
-            return Err(GatewayError::InvalidMultisigThreshold);
+            return Err(Error::InvalidMultisigThreshold);
         };
 
         // that's a nasty conversion, but it works : )

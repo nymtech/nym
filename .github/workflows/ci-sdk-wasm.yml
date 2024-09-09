@@ -33,16 +33,6 @@ jobs:
         with:
           go-version: '1.20'
 
-      - name: Override GOROOT and GOTOOLDIR
-        run: |
-          echo "Setting correct GOROOT and GOTOOLDIR"
-          unset GOROOT
-          unset GOTOOLDIR
-          export GOROOT=$(go env GOROOT)
-          export GOTOOLDIR=$(go env GOTOOLDIR)
-          echo "GOROOT=$GOROOT" >> $GITHUB_ENV
-          echo "GOTOOLDIR=$GOTOOLDIR" >> $GITHUB_ENV
-
       - name: Install wasm-pack
         run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
 

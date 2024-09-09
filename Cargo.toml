@@ -297,7 +297,7 @@ tar = "0.4.40"
 tempfile = "3.5.0"
 thiserror = "1.0.63"
 time = "0.3.30"
-tokio = "1.39"
+tokio = "1.40"
 tokio-stream = "0.1.15"
 tokio-test = "0.4.4"
 tokio-tungstenite = { version = "0.20.1" }

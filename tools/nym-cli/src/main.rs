@@ -63,7 +63,7 @@ pub(crate) enum Commands {
     /// Sign and verify messages
     Signature(nym_cli_commands::validator::signature::Signature),
     /// Ecash related stuff
-    Ecash(nym_cli_commands::coconut::Ecash),
+    Ecash(nym_cli_commands::ecash::Ecash),
     /// Query chain blocks
     Block(nym_cli_commands::validator::block::Block),
     /// Manage and execute WASM smart contracts

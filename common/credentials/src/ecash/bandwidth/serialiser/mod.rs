@@ -5,15 +5,31 @@ use crate::ecash::bandwidth::issued::CURRENT_SERIALIZATION_REVISION;
 use crate::Error;
 use bincode::Options;
 use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
+use zeroize::Zeroize;
 
+pub mod keys;
+pub mod signatures;
+
+#[derive(Zeroize, Serialize, Deserialize)]
 pub struct VersionSerialised<T: ?Sized> {
     pub data: Vec<u8>,
     pub revision: u8,
 
     // still wondering if there's any point in having the phantom in here
+    #[zeroize(skip)]
+    #[serde(skip)]
     _phantom: PhantomData<T>,
+}
+
+impl<T> VersionSerialised<T> {
+    pub fn try_unpack(&self) -> Result<T, Error>
+    where
+        T: VersionedSerialise + DeserializeOwned,
+    {
+        T::try_unpack(&self.data, self.revision)
+    }
 }
 
 pub trait VersionedSerialise {

@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ecash::bandwidth::importable::ImportableTicketBook;
 use crate::ecash::bandwidth::serialiser::VersionedSerialise;
 use crate::ecash::bandwidth::CredentialSpendingData;
 use crate::ecash::utils::ecash_today;
@@ -152,6 +153,10 @@ impl IssuedTicketBook {
             spend_date: spend_date.ecash_date(),
             epoch_id: self.epoch_id,
         })
+    }
+
+    pub fn begin_export(self) -> ImportableTicketBook {
+        self.into()
     }
 }
 

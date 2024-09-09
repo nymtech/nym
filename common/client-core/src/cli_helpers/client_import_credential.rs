@@ -11,9 +11,14 @@ fn parse_encoded_credential_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {
 }
 
 #[cfg_attr(feature = "cli", derive(clap::Args))]
-#[cfg_attr(feature = "cli", clap(group(clap::ArgGroup::new("cred_data").required(true))))]
+#[cfg_attr(feature = "cli",
+    clap(
+        group(clap::ArgGroup::new("cred_data").required(true)),
+        group(clap::ArgGroup::new("type").required(true)),
+    ))
+]
 #[derive(Debug, Clone)]
-pub struct CommonClientImportCredentialArgs {
+pub struct CommonClientImportTicketBookArgs {
     /// Id of client that is going to import the credential
     #[cfg_attr(feature = "cli", clap(long))]
     pub id: String,
@@ -26,6 +31,15 @@ pub struct CommonClientImportCredentialArgs {
     #[cfg_attr(feature = "cli", clap(long, group = "cred_data"))]
     pub(crate) credential_path: Option<PathBuf>,
 
+    /// Specifies whether we're attempting to import a standalone ticketbook (i.e. serialised `IssuedTicketBook`)
+    #[cfg_attr(feature = "cli", clap(long, group = "type"))]
+    pub(crate) standalone: bool,
+
+    /// Specifies whether we're attempting to import full ticketboot
+    /// (i.e. one that **might** contain required global signatures; that is serialised `ImportableTicketBook`)
+    #[cfg_attr(feature = "cli", clap(long, group = "type"))]
+    pub(crate) full: bool,
+
     // currently hidden as there exists only a single serialization standard
     #[cfg_attr(feature = "cli", clap(long, hide = true))]
     pub(crate) version: Option<u8>,
@@ -33,7 +47,7 @@ pub struct CommonClientImportCredentialArgs {
 
 pub async fn import_credential<C, A>(args: A) -> Result<(), C::Error>
 where
-    A: Into<CommonClientImportCredentialArgs>,
+    A: Into<CommonClientImportTicketBookArgs>,
     C: CliClient,
     C::Error: From<std::io::Error> + From<nym_id::NymIdError>,
 {
@@ -54,6 +68,19 @@ where
         }
     };
 
-    nym_id::import_credential(credentials_store, raw_credential, common_args.version).await?;
+    if common_args.standalone {
+        nym_id::import_standalone_ticketbook(
+            credentials_store,
+            raw_credential,
+            common_args.version,
+        )
+        .await?;
+    } else {
+        // sanity check; clap should have ensured it
+        assert!(common_args.full);
+        nym_id::import_full_ticketbook(credentials_store, raw_credential, common_args.version)
+            .await?;
+    }
+
     Ok(())
 }

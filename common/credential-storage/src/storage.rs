@@ -6,6 +6,10 @@ use async_trait::async_trait;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::VerificationKeyAuth;
+use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
+use nym_credentials::ecash::bandwidth::serialiser::signatures::{
+    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
+};
 use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
 use nym_ecash_time::Date;
 use std::error::Error;
@@ -64,8 +68,7 @@ pub trait Storage: Send + Sync {
 
     async fn insert_master_verification_key(
         &self,
-        epoch_id: u64,
-        key: &VerificationKeyAuth,
+        key: &EpochVerificationKey,
     ) -> Result<(), Self::StorageError>;
 
     async fn get_coin_index_signatures(
@@ -75,8 +78,7 @@ pub trait Storage: Send + Sync {
 
     async fn insert_coin_index_signatures(
         &self,
-        epoch_id: u64,
-        data: &[AnnotatedCoinIndexSignature],
+        signatures: &AggregatedCoinIndicesSignatures,
     ) -> Result<(), Self::StorageError>;
 
     async fn get_expiration_date_signatures(
@@ -86,8 +88,6 @@ pub trait Storage: Send + Sync {
 
     async fn insert_expiration_date_signatures(
         &self,
-        epoch_id: u64,
-        expiration_date: Date,
-        data: &[AnnotatedExpirationDateSignature],
+        signatures: &AggregatedExpirationDateSignatures,
     ) -> Result<(), Self::StorageError>;
 }

@@ -5,6 +5,10 @@ use crate::models::{BasicTicketbookInformation, RetrievedPendingTicketbook, Retr
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::VerificationKeyAuth;
+use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
+use nym_credentials::ecash::bandwidth::serialiser::signatures::{
+    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
+};
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
 use nym_ecash_time::Date;
@@ -192,14 +196,10 @@ impl MemoryEcachTicketbookManager {
         guard.master_vk.get(&epoch_id).cloned()
     }
 
-    pub(crate) async fn insert_master_verification_key(
-        &self,
-        epoch_id: u64,
-        key: &VerificationKeyAuth,
-    ) {
+    pub(crate) async fn insert_master_verification_key(&self, key: &EpochVerificationKey) {
         let mut guard = self.inner.write().await;
 
-        guard.master_vk.insert(epoch_id, key.clone());
+        guard.master_vk.insert(key.epoch_id, key.key.clone());
     }
 
     pub(crate) async fn get_coin_index_signatures(
@@ -213,12 +213,13 @@ impl MemoryEcachTicketbookManager {
 
     pub(crate) async fn insert_coin_index_signatures(
         &self,
-        epoch_id: u64,
-        sigs: &[AnnotatedCoinIndexSignature],
+        sigs: &AggregatedCoinIndicesSignatures,
     ) {
         let mut guard = self.inner.write().await;
 
-        guard.coin_indices_sigs.insert(epoch_id, sigs.to_vec());
+        guard
+            .coin_indices_sigs
+            .insert(sigs.epoch_id, sigs.signatures.clone());
     }
 
     pub(crate) async fn get_expiration_date_signatures(
@@ -232,14 +233,12 @@ impl MemoryEcachTicketbookManager {
 
     pub(crate) async fn insert_expiration_date_signatures(
         &self,
-        _epoch_id: u64,
-        expiration_date: Date,
-        sigs: &[AnnotatedExpirationDateSignature],
+        sigs: &AggregatedExpirationDateSignatures,
     ) {
         let mut guard = self.inner.write().await;
 
         guard
             .expiration_date_sigs
-            .insert(expiration_date, sigs.to_vec());
+            .insert(sigs.expiration_date, sigs.signatures.clone());
     }
 }

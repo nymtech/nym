@@ -4,6 +4,10 @@
 use crate::error::BandwidthControllerError;
 use log::warn;
 use nym_credential_storage::storage::Storage;
+use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
+use nym_credentials::ecash::bandwidth::serialiser::signatures::{
+    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
+};
 use nym_credentials_interface::{
     AnnotatedCoinIndexSignature, AnnotatedExpirationDateSignature, VerificationKeyAuth,
 };
@@ -94,13 +98,18 @@ where
     .await?
     .key;
 
+    let full = EpochVerificationKey {
+        epoch_id,
+        key: master_vk,
+    };
+
     // store the retrieved key
     storage
-        .insert_master_verification_key(epoch_id, &master_vk)
+        .insert_master_verification_key(&full)
         .await
         .map_err(BandwidthControllerError::credential_storage_error)?;
 
-    Ok(master_vk)
+    Ok(full.key)
 }
 
 pub(crate) async fn get_coin_index_signatures<St>(
@@ -132,13 +141,18 @@ where
     .await?
     .signatures;
 
+    let aggregated = AggregatedCoinIndicesSignatures {
+        epoch_id,
+        signatures: index_sigs,
+    };
+
     // store the retrieved key
     storage
-        .insert_coin_index_signatures(epoch_id, &index_sigs)
+        .insert_coin_index_signatures(&aggregated)
         .await
         .map_err(BandwidthControllerError::credential_storage_error)?;
 
-    Ok(index_sigs)
+    Ok(aggregated.signatures)
 }
 
 pub(crate) async fn get_expiration_date_signatures<St>(
@@ -171,11 +185,17 @@ where
     .await?
     .signatures;
 
+    let aggregated = AggregatedExpirationDateSignatures {
+        epoch_id,
+        expiration_date,
+        signatures: expiration_sigs,
+    };
+
     // store the retrieved key
     storage
-        .insert_expiration_date_signatures(epoch_id, expiration_date, &expiration_sigs)
+        .insert_expiration_date_signatures(&aggregated)
         .await
         .map_err(BandwidthControllerError::credential_storage_error)?;
 
-    Ok(expiration_sigs)
+    Ok(aggregated.signatures)
 }

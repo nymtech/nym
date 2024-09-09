@@ -5,6 +5,7 @@ pub use issuance::IssuanceTicketBook;
 pub use issued::IssuedTicketBook;
 pub use nym_credentials_interface::{CredentialSigningData, CredentialSpendingData};
 
+pub mod importable;
 pub mod issuance;
 pub mod issued;
 pub mod serialiser;

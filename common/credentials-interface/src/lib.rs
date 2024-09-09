@@ -28,7 +28,7 @@ pub use nym_compact_ecash::{
     withdrawal_request, Base58, BlindedSignature, Bytable, EncodedDate, EncodedTicketType,
     PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
-use nym_ecash_time::{ecash_today, EcashTime};
+pub use nym_ecash_time::{ecash_today, EcashTime};
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {

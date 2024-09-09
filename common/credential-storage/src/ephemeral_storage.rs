@@ -9,6 +9,10 @@ use async_trait::async_trait;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::VerificationKeyAuth;
+use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
+use nym_credentials::ecash::bandwidth::serialiser::signatures::{
+    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
+};
 use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
 use nym_ecash_time::Date;
 use std::fmt::{self, Debug, Formatter};
@@ -119,11 +123,10 @@ impl Storage for EphemeralStorage {
 
     async fn insert_master_verification_key(
         &self,
-        epoch_id: u64,
-        key: &VerificationKeyAuth,
+        key: &EpochVerificationKey,
     ) -> Result<(), Self::StorageError> {
         self.storage_manager
-            .insert_master_verification_key(epoch_id, key)
+            .insert_master_verification_key(key)
             .await;
         Ok(())
     }
@@ -140,11 +143,10 @@ impl Storage for EphemeralStorage {
 
     async fn insert_coin_index_signatures(
         &self,
-        epoch_id: u64,
-        data: &[AnnotatedCoinIndexSignature],
+        signatures: &AggregatedCoinIndicesSignatures,
     ) -> Result<(), Self::StorageError> {
         self.storage_manager
-            .insert_coin_index_signatures(epoch_id, data)
+            .insert_coin_index_signatures(signatures)
             .await;
         Ok(())
     }
@@ -161,12 +163,10 @@ impl Storage for EphemeralStorage {
 
     async fn insert_expiration_date_signatures(
         &self,
-        epoch_id: u64,
-        expiration_date: Date,
-        data: &[AnnotatedExpirationDateSignature],
+        signatures: &AggregatedExpirationDateSignatures,
     ) -> Result<(), Self::StorageError> {
         self.storage_manager
-            .insert_expiration_date_signatures(epoch_id, expiration_date, data)
+            .insert_expiration_date_signatures(signatures)
             .await;
         Ok(())
     }

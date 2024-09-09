@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::cli::ecash::Ecash;
 use clap::{CommandFactory, Parser, Subcommand};
 use log::error;
 use nym_authenticator::{
@@ -9,13 +10,12 @@ use nym_authenticator::{
 };
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::{bin_info, version_checker};
-use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
 use nym_client_core::cli_helpers::CliClient;
 use std::sync::OnceLock;
 
 mod add_gateway;
 mod build_info;
-mod import_credential;
+pub mod ecash;
 mod init;
 mod list_gateways;
 mod peer_handler;
@@ -69,8 +69,8 @@ pub(crate) enum Commands {
     /// parameters.
     Run(run::Run),
 
-    /// Import a pre-generated credential
-    ImportCredential(CommonClientImportCredentialArgs),
+    /// Ecash-related functionalities
+    Ecash(Ecash),
 
     /// List all registered with gateways
     ListGateways(list_gateways::Args),
@@ -127,7 +127,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), AuthenticatorError> {
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(&m).await?,
-        Commands::ImportCredential(m) => import_credential::execute(m).await?,
+        Commands::Ecash(ecash) => ecash.execute().await?,
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
         Commands::AddGateway(args) => add_gateway::execute(args).await?,
         Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,

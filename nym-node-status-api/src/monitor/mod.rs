@@ -1,8 +1,8 @@
 use crate::db::models::{
-    GatewayRecord, MixnodeRecord, GATEWAYS_BLACKLISTED_COUNT, GATEWAYS_BONDED_COUNT,
-    GATEWAYS_EXPLORER_COUNT, GATEWAYS_HISTORICAL_COUNT, MIXNODES_BLACKLISTED_COUNT,
-    MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT, MIXNODES_BONDED_INACTIVE,
-    MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
+    gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_BLACKLISTED_COUNT,
+    GATEWAYS_BONDED_COUNT, GATEWAYS_EXPLORER_COUNT, GATEWAYS_HISTORICAL_COUNT,
+    MIXNODES_BLACKLISTED_COUNT, MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT,
+    MIXNODES_BONDED_INACTIVE, MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
 };
 use crate::db::{queries, DbPool, Storage};
 use crate::error::NodeStatusApiResult;
@@ -158,24 +158,65 @@ async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> NodeStatusAp
     // write summary keys and values to table
     //
 
-    let pairs = vec![
-        (MIXNODES_BONDED_COUNT, count_bonded_mixnodes),
-        (MIXNODES_BONDED_ACTIVE, count_bonded_mixnodes_active),
-        (MIXNODES_BONDED_INACTIVE, count_bonded_mixnodes_inactive),
-        (MIXNODES_BONDED_RESERVE, count_bonded_mixnodes_reserve),
-        (MIXNODES_BLACKLISTED_COUNT, count_mixnodes_blacklisted),
-        (GATEWAYS_BONDED_COUNT, count_bonded_gateways),
-        (GATEWAYS_EXPLORER_COUNT, count_explorer_gateways),
-        (MIXNODES_HISTORICAL_COUNT, all_historical_mixnodes),
-        (GATEWAYS_HISTORICAL_COUNT, all_historical_gateways),
-        (GATEWAYS_BLACKLISTED_COUNT, count_gateways_blacklisted),
+    let nodes_summary = vec![
+        (MIXNODES_BONDED_COUNT, &count_bonded_mixnodes),
+        (MIXNODES_BONDED_ACTIVE, &count_bonded_mixnodes_active),
+        (MIXNODES_BONDED_INACTIVE, &count_bonded_mixnodes_inactive),
+        (MIXNODES_BONDED_RESERVE, &count_bonded_mixnodes_reserve),
+        (MIXNODES_BLACKLISTED_COUNT, &count_mixnodes_blacklisted),
+        (GATEWAYS_BONDED_COUNT, &count_bonded_gateways),
+        (GATEWAYS_EXPLORER_COUNT, &count_explorer_gateways),
+        (MIXNODES_HISTORICAL_COUNT, &all_historical_mixnodes),
+        (GATEWAYS_HISTORICAL_COUNT, &all_historical_gateways),
+        (GATEWAYS_BLACKLISTED_COUNT, &count_gateways_blacklisted),
     ];
 
-    queries::insert_summary(pool, &pairs).await?;
+    // TODO dz do we need signed int in type definition? maybe because of API?
+    let last_updated = chrono::offset::Utc::now();
+    let last_updated_utc = last_updated.timestamp().to_string();
+    let network_summary = NetworkSummary {
+        mixnodes: mixnode::MixnodeSummary {
+            bonded: mixnode::MixnodeSummaryBonded {
+                count: count_bonded_mixnodes as i32,
+                active: count_bonded_mixnodes_active as i32,
+                inactive: count_bonded_mixnodes_inactive as i32,
+                reserve: count_bonded_mixnodes_reserve as i32,
+                last_updated_utc: last_updated_utc.to_owned(),
+            },
+            blacklisted: mixnode::MixnodeSummaryBlacklisted {
+                count: count_mixnodes_blacklisted as i32,
+                last_updated_utc: last_updated_utc.to_owned(),
+            },
+            historical: mixnode::MixnodeSummaryHistorical {
+                count: all_historical_mixnodes as i32,
+                last_updated_utc: last_updated_utc.to_owned(),
+            },
+        },
+        gateways: gateway::GatewaySummary {
+            bonded: gateway::GatewaySummaryBonded {
+                count: count_bonded_gateways as i32,
+                last_updated_utc: last_updated_utc.to_owned(),
+            },
+            blacklisted: gateway::GatewaySummaryBlacklisted {
+                count: count_gateways_blacklisted as i32,
+                last_updated_utc: last_updated_utc.to_owned(),
+            },
+            historical: gateway::GatewaySummaryHistorical {
+                count: all_historical_gateways as i32,
+                last_updated_utc: last_updated_utc.to_owned(),
+            },
+            explorer: gateway::GatewaySummaryExplorer {
+                count: count_explorer_gateways as i32,
+                last_updated_utc: last_updated_utc.to_owned(),
+            },
+        },
+    };
+
+    queries::insert_summaries(pool, &nodes_summary, &network_summary, last_updated).await?;
 
     let mut log_lines: Vec<String> = vec![];
-    for pair in pairs.iter() {
-        log_lines.push(format!("{} = {}", pair.0, pair.1));
+    for (key, value) in nodes_summary.iter() {
+        log_lines.push(format!("{} = {}", key, value));
     }
     log_lines.push(format!(
         "recently_unbonded_mixnodes = {}",
@@ -187,34 +228,6 @@ async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> NodeStatusAp
     ));
 
     tracing::info!("Directory summary: \n{}", log_lines.join("\n"));
-
-    queries::insert_summary_history(&pairs).await?;
-
-    // let summary = get_summary_for_sqlite(&mut db).await?;
-
-    // let value_json = serde_json::to_string(summary)
-    //     .map_err(|e| anyhow!("Failed to serialize {} to string: {}", summary, e))?;
-    // let (timestamp, rfc_date) = {
-    //     let now = chrono::offset::Utc::now();
-    //     let timestamp = now.timestamp();
-    //     let rfc_date = now.to_rfc3339();
-    //     (timestamp, rfc_date)
-    // };
-    // let date = &rfc_date[..10];
-
-    // sqlx::query!(
-    //     "INSERT INTO summary_history
-    //             (date, timestamp_utc, value_json)
-    //             VALUES (?, ?, ?)
-    //             ON CONFLICT(date) DO UPDATE SET
-    //             timestamp_utc=excluded.timestamp_utc,
-    //             value_json=excluded.value_json;",
-    //     date,
-    //     timestamp,
-    //     value_json
-    // )
-    // .execute(&mut *db)
-    // .await?;
 
     Ok(())
 }

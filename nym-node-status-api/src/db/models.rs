@@ -35,23 +35,23 @@ pub(crate) struct BondedStatusDto {
 #[allow(unused)]
 #[derive(Debug, Clone, Default)]
 pub(crate) struct SummaryDto {
-    pub key: String,
-    pub value_json: String,
-    pub last_updated_utc: i64,
+    pub(crate) key: String,
+    pub(crate) value_json: String,
+    pub(crate) last_updated_utc: i64,
 }
 
-pub const MIXNODES_BONDED_COUNT: &str = "mixnodes.bonded.count";
-pub const MIXNODES_BONDED_ACTIVE: &str = "mixnodes.bonded.active";
-pub const MIXNODES_BONDED_INACTIVE: &str = "mixnodes.bonded.inactive";
-pub const MIXNODES_BONDED_RESERVE: &str = "mixnodes.bonded.reserve";
-pub const MIXNODES_BLACKLISTED_COUNT: &str = "mixnodes.blacklisted.count";
+pub(crate) const MIXNODES_BONDED_COUNT: &str = "mixnodes.bonded.count";
+pub(crate) const MIXNODES_BONDED_ACTIVE: &str = "mixnodes.bonded.active";
+pub(crate) const MIXNODES_BONDED_INACTIVE: &str = "mixnodes.bonded.inactive";
+pub(crate) const MIXNODES_BONDED_RESERVE: &str = "mixnodes.bonded.reserve";
+pub(crate) const MIXNODES_BLACKLISTED_COUNT: &str = "mixnodes.blacklisted.count";
 
-pub const GATEWAYS_BONDED_COUNT: &str = "gateways.bonded.count";
-pub const GATEWAYS_EXPLORER_COUNT: &str = "gateways.explorer.count";
-pub const GATEWAYS_BLACKLISTED_COUNT: &str = "gateways.blacklisted.count";
+pub(crate) const GATEWAYS_BONDED_COUNT: &str = "gateways.bonded.count";
+pub(crate) const GATEWAYS_EXPLORER_COUNT: &str = "gateways.explorer.count";
+pub(crate) const GATEWAYS_BLACKLISTED_COUNT: &str = "gateways.blacklisted.count";
 
-pub const MIXNODES_HISTORICAL_COUNT: &str = "mixnodes.historical.count";
-pub const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
+pub(crate) const MIXNODES_HISTORICAL_COUNT: &str = "mixnodes.historical.count";
+pub(crate) const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub(crate) struct NetworkSummary {
@@ -59,70 +59,70 @@ pub(crate) struct NetworkSummary {
     pub(crate) gateways: gateway::GatewaySummary,
 }
 
-mod mixnode {
+pub(crate) mod mixnode {
     use super::*;
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct MixnodeSummary {
-        pub bonded: MixnodeSummaryBonded,
-        pub blacklisted: MixnodeSummaryBlacklisted,
-        pub historical: MixnodeSummaryHistorical,
+    pub(crate) struct MixnodeSummary {
+        pub(crate) bonded: MixnodeSummaryBonded,
+        pub(crate) blacklisted: MixnodeSummaryBlacklisted,
+        pub(crate) historical: MixnodeSummaryHistorical,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct MixnodeSummaryBonded {
-        pub count: i32,
-        pub active: i32,
-        pub inactive: i32,
-        pub reserve: i32,
-        pub last_updated_utc: String,
+    pub(crate) struct MixnodeSummaryBonded {
+        pub(crate) count: i32,
+        pub(crate) active: i32,
+        pub(crate) inactive: i32,
+        pub(crate) reserve: i32,
+        pub(crate) last_updated_utc: String,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct MixnodeSummaryBlacklisted {
-        pub count: i32,
-        pub last_updated_utc: String,
+    pub(crate) struct MixnodeSummaryBlacklisted {
+        pub(crate) count: i32,
+        pub(crate) last_updated_utc: String,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct MixnodeSummaryHistorical {
-        pub count: i32,
-        pub last_updated_utc: String,
+    pub(crate) struct MixnodeSummaryHistorical {
+        pub(crate) count: i32,
+        pub(crate) last_updated_utc: String,
     }
 }
 
-mod gateway {
+pub(crate) mod gateway {
     use super::*;
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct GatewaySummary {
-        pub bonded: GatewaySummaryBonded,
-        pub blacklisted: GatewaySummaryBlacklisted,
-        pub historical: GatewaySummaryHistorical,
-        pub explorer: GatewaySummaryExplorer,
+    pub(crate) struct GatewaySummary {
+        pub(crate) bonded: GatewaySummaryBonded,
+        pub(crate) blacklisted: GatewaySummaryBlacklisted,
+        pub(crate) historical: GatewaySummaryHistorical,
+        pub(crate) explorer: GatewaySummaryExplorer,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct GatewaySummaryExplorer {
-        pub count: i32,
-        pub last_updated_utc: String,
+    pub(crate) struct GatewaySummaryExplorer {
+        pub(crate) count: i32,
+        pub(crate) last_updated_utc: String,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct GatewaySummaryBonded {
-        pub count: i32,
-        pub last_updated_utc: String,
+    pub(crate) struct GatewaySummaryBonded {
+        pub(crate) count: i32,
+        pub(crate) last_updated_utc: String,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct GatewaySummaryHistorical {
-        pub count: i32,
-        pub last_updated_utc: String,
+    pub(crate) struct GatewaySummaryHistorical {
+        pub(crate) count: i32,
+        pub(crate) last_updated_utc: String,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize)]
-    pub struct GatewaySummaryBlacklisted {
-        pub count: i32,
-        pub last_updated_utc: String,
+    pub(crate) struct GatewaySummaryBlacklisted {
+        pub(crate) count: i32,
+        pub(crate) last_updated_utc: String,
     }
 }

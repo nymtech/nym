@@ -1,13 +1,13 @@
 use bincode;
 use nym_sdk::tcp_proxy;
 use rand::Rng;
+use serde::{Deserialize, Serialize};
 use std::fs;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
+use tokio::signal;
 use tokio::task;
 use tokio_stream::StreamExt;
-// use tokio_util::sync::CancellationToken; // TODO introduce this again
-use serde::{Deserialize, Serialize};
 use tokio_util::codec;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -25,7 +25,8 @@ async fn main() {
     // Nym client logging is very informative but quite verbose.
     //
     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering.
-    // nym_bin_common::logging::setup_logging();
+    // Run with RUST_LOG="debug" to see this.
+    nym_bin_common::logging::setup_logging();
 
     let upstream_tcp_addr = "127.0.0.1:9067";
     // This dir gets cleaned up at the end
@@ -34,8 +35,10 @@ async fn main() {
         .await
         .unwrap();
     let proxy_nym_addr = proxy_server.nym_address();
+
     // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.
-    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 180)
+    // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
+    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 45)
         .await
         .unwrap();
 
@@ -97,12 +100,12 @@ async fn main() {
     // between a client and host via a normal TcpStream - albeit with a decent amount of additional latency.
     //
     // The assumption regarding integration is that you know what you're sending, and will do proper
-    // framing before and after, know what data types you're expecting, etc. Here we just pipe bytes
-    // and use tokio's `Bytecodec` under the hood.
+    // framing before and after, know what data types you're expecting; the proxies are just piping bytes
+    // back and forth using tokio's `Bytecodec` under the hood.
     let stream = TcpStream::connect("127.0.0.1:8080").await.unwrap();
     let (read, mut write) = stream.into_split();
 
-    // 'Client side' thread; lets just send a bunch of messages to the server with variable delays between them, with an id to keep track of ordering on the server side, and random amounts of bytes
+    // 'Client side' thread; lets just send a bunch of messages to the server with variable delays between them, with an id to keep track of ordering on the server side
     task::spawn(async move {
         for i in 0..10 {
             let random_bytes = gen_bytes_fixed(i as usize);
@@ -140,13 +143,14 @@ async fn main() {
         }
     }
 
-    println!("TODO add cancellation token + call here");
-    // tokio::time::sleep(tokio::time::Duration::from_secs(180)).await; // reintroduce this later when you dont want to kill everything hard, for now its fine
+    // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
+    signal::ctrl_c().await.unwrap();
+    println!("CTRL+C received, shutting down + cleanup up proxy server config files");
     fs::remove_dir_all(conf_path).unwrap();
 }
 
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
-    let amounts = vec![1, 10, 50, 100, 150, 200, 500, 500, 750, 1000];
+    let amounts = vec![1, 10, 50, 100, 150, 200, 350, 500, 750, 1000];
     let len = amounts[i];
     let mut rng = rand::thread_rng();
     (0..len).map(|_| rng.gen::<u8>()).collect()

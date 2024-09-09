@@ -81,6 +81,15 @@ impl KeyPair {
     }
 }
 
+impl From<PrivateKey> for KeyPair {
+    fn from(private_key: PrivateKey) -> Self {
+        KeyPair {
+            public_key: (&private_key).into(),
+            private_key,
+        }
+    }
+}
+
 impl PemStorableKeyPair for KeyPair {
     type PrivatePemKey = PrivateKey;
     type PublicPemKey = PublicKey;

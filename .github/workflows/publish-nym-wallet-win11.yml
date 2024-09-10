@@ -1,4 +1,4 @@
-name: publish-nym-wallet-win10
+name: publish-nym-wallet-win11
 on:
   workflow_dispatch:
   release:
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows10]
+        platform: [custom-windows-11]
     runs-on: ${{ matrix.platform }}
 
     outputs:
@@ -61,6 +61,9 @@ jobs:
         with:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
+
+      - name: Install Yarn
+        run: npm install -g yarn
 
       - name: Install project dependencies
         shell: bash

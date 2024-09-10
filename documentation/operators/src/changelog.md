@@ -66,7 +66,7 @@ This page displays a full list of all the changes during our release cycle from 
 
 - [Add 1GB/day/user bandwidth cap](https://github.com/nymtech/nym/pull/4717)
 
-~~~admonish example collapsible=true title='Testing steps performed`
+~~~admonish example collapsible=true title='Testing steps performed'
 **Scenario 1: Bandwidth Decreasing Continuously**
 
 1. Started the client and noted the initial bandwidth (e.g., 1GB).
@@ -126,9 +126,7 @@ Example:
  
 ~/nym-vpn-core-v0.1.11-dev_macos_universal ❯ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
 ```
-~~~ 
-
-
+~~~
 
 - [Backport `#4844` and `#4845`](https://github.com/nymtech/nym/pull/4857)
 
@@ -150,14 +148,6 @@ Example:
 
 - [Better storage error logging](https://github.com/nymtech/nym/pull/4772)
 
-- [bugfix: make sure DKG parses data out of events if logs are empty](https://github.com/nymtech/nym/pull/4764): This will be the case on post `0.50` chains
-
-- [Fix clippy on rustc beta toolchain](https://github.com/nymtech/nym/pull/4746): Fix clippy warnings for rust beta toolchain
- 
-- [Fix clippy for beta toolchain](https://github.com/nymtech/nym/pull/4742): Fix beta toolchain clippy by removing unused module
-    - Add `nym-` prefix to `serde-common` crate
-    - Remove ignored `default-features = false` attribute for workspace dependency
-
 - [Disable testnet-manager on non-unix](https://github.com/nymtech/nym/pull/4741)
 
 - [Don't set NYM_VPN_API to default](https://github.com/nymtech/nym/pull/4740)
@@ -178,7 +168,7 @@ Example:
     - both contracts have to be migrated **at the same time**. ideally within the same transaction
     - mixnet contract migration is not allowed (and will fail) if there are any pending actions involving vesting tokens, like delegating, increasing pledge, etc
 
-- [Bump braces from 3.0.2 to 3.0.3 in /nym-wallet/webdriver](https://github.com/nymtech/nym/pull/4709): Bumps [braces](https://github.com/micromatch/braces) from 3.0.2 to 3.0.3. <details> <summary>Commits</summary> <ul> <li><a href="https://github.com/micromatch/braces/commit/74b2db2938fad48a2ea54a9c8bf27a37a62c350d"><code>74b2db2</code></a> 3.0.3</li> <li><a href="https://github.com/micromatch/braces/commit/88f1429a0f47e1dd3813de35211fc97ffda27f9e"><code>88f1429</code></a> update eslint. lint, fix unit tests.</li> <li><a href="https://github.com/micromatch/braces/commit/415d660c3002d1ab7e63dbf490c9851da80596ff"><code>415d660</code></a> Snyk js braces 6838727 (<a href="https://redirect.github.com/micromatch/braces/issues/40">#40</a>)</li> <li><a href="https://github.com/micromatch/braces/commit/190510f79db1adf21d92798b0bb6fccc1f72c9d6"><code>190510f</code></a> fix tests, skip 1 test in test/braces.expand</li> <li><a href="https://github.com/micromatch/braces/commit/716eb9f12d820b145a831ad678618731927e8856"><code>716eb9f</code></a> readme bump</li> <li><a href="https://github.com/micromatch/braces/commit/a5851e57f45c3431a94d83fc565754bc10f5bbc3"><code>a5851e5</code></a> Merge pull request <a href="https://redirect.github.com/micromatch/braces/issues/37">#37</a> from coderaiser/fix/vulnerability</li> <li><a href="https://github.com/micromatch/braces/commit/2092bd1fb108d2c59bd62e243b70ad98db961538"><code>2092bd1</code></a> feature: braces: add maxSymbols (<a href="https://github.com/micromatch/braces/issues/">https://github.com/micromatch/braces/issues/</a>...</li> <li><a href="https://github.com/micromatch/braces/commit/9f5b4cf47329351bcb64287223ffb6ecc9a5e6d3"><code>9f5b4cf</code></a> fix: vulnerability (<a href="https://security.snyk.io/vuln/SNYK-JS-BRACES-6838727">https://security.snyk.io/vuln/SNYK-JS-BRACES-6838727</a>)</li> <li><a href="https://github.com/micromatch/braces/commit/98414f9f1fabe021736e26836d8306d5de747e0d"><code>98414f9</code></a> remove funding file</li> <li><a href="https://github.com/micromatch/braces/commit/665ab5d561c017a38ba7aafd92cc6655b91d8c14"><code>665ab5d</code></a> update keepEscaping doc (<a href="https://redirect.github.com/micromatch/braces/issues/27">#27</a>)</li> <li>Additional commits viewable in <a href="https://github.com/micromatch/braces/compare/3.0.2...3.0.3">compare view</a></li> </ul> </details> <br />   [![Dependabot compatibility score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=braces&package-manager=npm_and_yarn&previous-version=3.0.2&new-version=3.0.3)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)  Dependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting `@dependabot rebase`.  [//]: # (dependabot-automerge-start) [//]: # (dependabot-automerge-end)  ---  <details> <summary>Dependabot commands and options</summary> <br />  You can trigger Dependabot actions by commenting on this PR: - `@dependabot rebase` will rebase this PR - `@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it - `@dependabot merge` will merge this PR after your CI passes on it - `@dependabot squash and merge` will squash and merge this PR after your CI passes on it - `@dependabot cancel merge` will cancel a previously requested merge and block automerging - `@dependabot reopen` will reopen this PR if it is closed - `@dependabot close` will close this PR and stop Dependabot recreating it. You can achieve the same result by closing it manually - `@dependabot show <dependency name> ignore conditions` will show all of the ignore conditions of the specified dependency - `@dependabot ignore this major version` will close this PR and stop Dependabot creating any more for this major version (unless you reopen the PR or upgrade to it yourself) - `@dependabot ignore this minor version` will close this PR and stop Dependabot creating any more for this minor version (unless you reopen the PR or upgrade to it yourself) - `@dependabot ignore this dependency` will close this PR and stop Dependabot creating any more for this dependency (unless you reopen the PR or upgrade to it yourself) You can disable automated security fix PRs for this repo from the [Security Alerts page](https://github.com/nymtech/nym/network/alerts).  </details>
+- [Bump braces from `3.0.2` to `3.0.3` in `/nym-wallet/webdriver`](https://github.com/nymtech/nym/pull/4709): Bumps [braces](https://github.com/micromatch/braces) from `3.0.2` to `3.0.3`. 
 
 ### Bugfix
 
@@ -187,23 +177,23 @@ Example:
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Building all binaries is ok
 - Running `cargo fmt` returns no issues 
-~~~ 
+~~~
 
 - [Fix version 1 not having template correspondent initially](https://github.com/nymtech/nym/pull/4733)
 
 ~~~admonish example collapsible=true title='Testing steps performed'
 Tested updating an old `nym-node` version and ensuring it did not throw any errors. 
-~~~ 
+~~~
 
 - [Bugfix/client registration vol2](https://github.com/nymtech/nym/pull/4856)
 
 - [Fix tokio error in `1.39`](https://github.com/nymtech/nym/pull/4730):
-    - Bump tokio to 1.39.2, skipping the issue with 1.39.1
+    - Bump tokio to `1.39.2`, skipping the issue with `1.39.1`
     
 
 - [Fix (some) feature unification build failures](https://github.com/nymtech/nym/pull/4681): Running a script in the root workspace that builds each crate independently
 
-~~~admonish example collapsible=true title='the script'
+~~~admonish example collapsible=true title='The script'
  ```sh
  #!/bin/bash
  
@@ -220,7 +210,15 @@ Tested updating an old `nym-node` version and ensuring it did not throw any erro
      fi
  done
  ```
- ~~~
+~~~
+ 
+- [bugfix: make sure DKG parses data out of events if logs are empty](https://github.com/nymtech/nym/pull/4764): This will be the case on post `0.50` chains
+
+- [Fix clippy on rustc beta toolchain](https://github.com/nymtech/nym/pull/4746): Fix clippy warnings for rust beta toolchain
+ 
+- [Fix clippy for beta toolchain](https://github.com/nymtech/nym/pull/4742): Fix beta toolchain clippy by removing unused module
+    - Add `nym-` prefix to `serde-common` crate
+    - Remove ignored `default-features = false` attribute for workspace dependency
 
 ### Crypto 
 
@@ -228,7 +226,132 @@ Tested updating an old `nym-node` version and ensuring it did not throw any erro
 
 ### Operators Guide, Tooling & Updates
 
+- More explicit [setup for `nym-node`](nodes/setup.md#initialise--run) with a new [option explanation](nodes/setup.md#essential-parameters--variables), including syntax examples
 
+- New [VPS networking configuration steps for Wireguard](nodes/configuration.md#routing-configuration)
+
+- Wireguard [builds from source](binaries/building-nym.md) together with `nym-node`, no need to specify with a feature flag anymore
+
+- Wireguard peers stay connected for longer time, re-connections are also faster
+
+- Profit margin and operating cost values will be set to the agreed values, the values can be changed in the future through [Nym Operators governance process](https://forum.nymtech.net/t/poll-proposal-for-on-chain-minimum-profit-margin-for-all-nym-nodes/253)
+```admonish success title=""
+minimum profit margin = 20%
+maximum profit margin = 50%
+minimum operating cost = 0 NYM
+maximum operating cost = 1000 NYM
+```
+
+- [Nym Harbourmater](https://harbourmaster.nymtech.net) has several new functionalities:
+    - Version counting graph for Gateways and Mixnodes
+    - Several new columns with larger nodes performance and settings overview.
+    - Top routing score now includes:
+        - Wireguard registration and complete handshake test, to configure see [tasklist below](#operators-tasks)
+        - DNS resolution check, to configure see [tasklist below](#operators-tasks)
+        - Wireguard perfomance > 0.75, to configure see [tasklist below](#operators-tasks)
+    
+- New wallet coming out soon!
+    - Vesting contract functionalities have been purged, users can only remove tokens from vesting
+
+- [Nym API Check CLI](testing/node-api-check.md) is upgraded according to the latest API endpoints, output is cleaner and more concise.
+
+
+#### Operators Tasks
+
+```admonish warning title=""
+**The steps below are highly recommended for all operators and mandatory for everyone who is a part of Nym Delegation or Grant program. Deadline is Friday, September 20th, 2024.**
+```
+
+Every `nym-node` should be upgraded to the latest version! Operators can test using [Sandbox env](sandbox.md) during the pre-release period, then upgrade on mainnet. During the upgrade, please follow the points below before you restart the node:
+
+**`nym-node`**
+
+- Make sure to fill in basic description info, into the file located at `.nym/nym-nodes/<ID>/data/description.toml` (all nodes)
+- Configure wireguard routing with new [`network_tunnel_manager.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) following [these steps](nodes/configuration.md#routing-configuration) (Gateways only for the time being)
+- Enable Wireguard with `--wireguard-enabled true` flag included in your run command (Gateways only for the time being)
+    - Note: On some VPS this setup may not be enough to get the correct results as some ISPs  have their own security groups setup below the individual VPS. In that case a ticket to ISP will have to be issued to open the needed settings. We are working on a template for such ticket.
+- Setup [reverse proxy and WSS](nodes/proxy-configuration.md) on `nym-node` (Gateways only for the time being)
+- Don't forget to restart your node - or (preferably using [systemd automation](nodes/configuration.md#systemd)) reload daemon and restart the service
+- Migrating from `mixnet` or `gateway` smart contracts to a new `nym-node` smart contract will be available soon with an upcoming version of Nym desktop wallet. After this migration all `nym-nodes` will be able to receive delegation
+- Optional: Use [`nym-gateway-probe`](testing/gateway-probe.html) and [NymVPN CLI](https://nymtech.net/developers/nymvpn/cli.html) to test your own Gateway
+- Optional: Run the script below to measure ping speed of your Gateway and share your results in [Nym Operators channel](https://matrix.to/#/#operators:nymtech.chat)
+
+~~~admonish example collapsible=true title='The script to measure Gateway ping results'
+We made a script for pinging nymtech.net from your GWs. Can you please install it and then share the result together with your Gateway ID:
+
+1. Get the script onto your machine (soon on github for curl or wget):
+
+```sh
+# paste all this block as one command
+cat <<'EOL' > ping_with_curl_average_for_wg_check.sh
+#!/bin/bash
+
+ping_with_curl_average_for_wg_check() {
+    total_connect_time=0
+    total_total_time=0
+    iterations=5
+    timeout=2
+
+    for ((i=1; i<=iterations; i++)); do
+        echo "ping attempt $i..."
+
+        echo "curling nymtech.net to check ping response times"
+        times=$(curl -I https://nymtech.net --max-time $timeout \
+        -w "time_connect=%{time_connect}\ntime_total=%{time_total}" -o /dev/null -s)
+
+        time_connect=$(echo "$times" | grep "time_connect" | cut -d"=" -f2)
+        time_total=$(echo "$times" | grep "time_total" | cut -d"=" -f2)
+
+        total_connect_time=$(echo "$total_connect_time + $time_connect" | bc)
+        total_total_time=$(echo "$total_total_time + $time_total" | bc)
+
+        echo "time to connect: $time_connect s"
+        echo "total time: $time_total s"
+    done
+
+    average_connect_time=$(echo "scale=3; $total_connect_time / $iterations" | bc)
+    average_total_time=$(echo "scale=3; $total_total_time / $iterations" | bc)
+
+    echo "-----------------------------------"
+    echo "average time to connect: $average_connect_time s"
+    echo "average total time: $average_total_time s"
+}
+
+ping_with_curl_average_for_wg_check
+EOL
+```
+
+2. Make executable:
+
+```sh
+chmod +x ping_with_curl_average_for_wg_check.sh
+```
+
+3. In case you don't have `bc`, install it:
+
+```sh
+sudo apt install bc
+```
+
+4. Run:
+
+```sh
+./ping_with_curl_average_for_wg_check.sh
+```
+
+5. Share results and ID key in [Nym Operators channel](https://matrix.to/#/#operators:nymtech.chat)
+
+THANK YOU!
+~~~
+
+**validators**
+
+- Validators need to update and prepare for ecash implementation.
+
+### Known Bugs & Undone features
+
+- New `nym-nodes` without a performance 24h history above 50% don't show routing properly on `nym-gateway-probe`, on Nym Harbourmaster the page may appear blank - we are working on a fix.
+- Wireguard works on IPv4 only for the time being, we are working on IPv6 implementation.
 ---
 
 ## `v2024.9-topdeck`

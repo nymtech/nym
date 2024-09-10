@@ -86,24 +86,6 @@ To list all available flags for each command, run `./nym-node <COMMAND> --help` 
 The Wireguard flags currently have limited functionality. From version `1.1.6` ([`v2024.9-topdeck`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)) wireguard is available and recommended to be switched on for nodes running as Gateways. Keep in mind that this option needs a bit of a special [configuration](configuration.md#wireguard-setup).
 ```
 
-#### Flags Summary
-
-Some of the most useful flags and their explanation:
-
-~~~admonish example collapsible=true title="Flags explanation:"
-- `--id <YOUR_ID>`: Local identifier of your node. This `<ID>` determines your config path located at `~/.nym/nym-nodes/<ID>/config/config.toml`, default value is `default-nym-node`
-- `--accept-operator-terms-and-conditions`:  Explicitly specify whether you agree with the terms and conditions of a nym node operator as defined at [nymtech.net/terms-and-conditions/operators/v1.0.0]({{toc_page}})
-- `--config-file <PATH>`: Used for the migrate command to indicate the location of the existing node config file. Default path is `~/.nym/nym-nodes/default-nym-node/config/config.toml`
-- `--deny-init`: Use this flag to prevent a new node from being initialized. It's recommended to use this after the first run to avoid accidental spinning up of a second node.
-- `--init-only`: Use this flag if you want to set up a node without starting it.
-- `--mode`: Determines the mode of the node and is always required.
-- `--write-changes`: Used to change values within the `config.toml` file after the node has been run.
-- `--mnemonic`: This is for when gateways are coconut-credentials-enforced, and this mnemonic is used as the `double_spend` prevention. This account needs credit in order for it to work.
-- `--expose-system-info <true/false>`: Sets your system info visibility on the network.
-- `--expose-system-hardware <true/false>`: Sets your system hardware info visibility on the network.
-- `--expose-crypto-hardware <true/false>`: Sets your crypto hardware info visibility on the network.
-~~~
-
 ### Terms & Conditions
 
 ```admonish info
@@ -181,6 +163,8 @@ Substitute any variables in `<>` brackets your own value, without `<>` brackets.
 | `--location`                             | `<LOCATION>`                                                                                               | Loacation of your node. Formats like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided. | `--location JAM`                                |
 | `--wireguard-private-ip`                 | `<WIREGUARD_PRIVATE_IP>`                                                                                   | Private IP address of the wireguard gateway. This mandatory field is set to a correct default: `10.1.0.1`, operators upgrading from older versions must overwrite it.      | `--wireguard-private-ip 10.1.0.1`               |
 | `--wireguard-enabled`                    | `<WIREGUARD_ENABLED>`                                                                                      | Specifies whether the wireguard service is enabled, possible values: `true` or `false` - `true` is recommended                                                             | `--wireguard-enabled true`                      |
+| `--expose-system-info`                   | `<EXPOSE_SYSTEM_INFO>`                                                                                     | Specify whether basic system information should be exposed. default: `true`, possible values: `true` or `false`                                                            | `--expose-system-info false`                    |
+| `--expose-system-hardware`               | `<EXPOSE_SYSTEM_HARDWARE>`                                                                                 | Specify whether basic system hardware information should be exposed. default: `true`, possible values: `true` or `false`                                                   | `--expose-system-hardware false`                |
 | *not a flag*                             | `<PATH_TO>`                                                                                                | Specify a full path to the given file, directory or binary behind this variable                                                                                            | `/root/src/nym/target/release/`                 |
 
 ```admonish note
@@ -199,7 +183,7 @@ To initialise and test run your node, use this command:
 ```
 If you prefer to have a generic local identifier set to `default-nym-node`, skip `--id` option.
 
-We highly recommend to setup [reverse proxy and WSS](../proxy-configuration.md) for `nym-node`. If you haven't configured any of that, skip `--hostname` flag.
+We highly recommend to setup [reverse proxy and WSS](proxy-configuration.md) for `nym-node`. If you haven't configured any of that, skip `--hostname` flag.
 
 In any case `--public-ips` is a necessity for your node to bond to API and communicate with the internet.
 
@@ -235,7 +219,7 @@ To initialise and test run with yur node with all needed options, use this comma
 ```
 If you prefer to have a generic local identifier set to `default-nym-node`, skip `--id` option.
 
-We highly recommend to setup [reverse proxy and WSS](../proxy-configuration.md) for `nym-node`. If you haven't configured any of that, skip `--hostname` flag.
+We highly recommend to setup [reverse proxy and WSS](proxy-configuration.md) for `nym-node`. If you haven't configured any of that, skip `--hostname` flag.
 
 In any case `--public-ips` is a necessity for your node to bond to API and communicate with the internet.
 

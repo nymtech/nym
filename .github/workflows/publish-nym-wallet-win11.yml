@@ -62,6 +62,9 @@ jobs:
           fileName: '.env'
           encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
 
+      - name: Install Yarn
+        run: npm install -g yarn
+
       - name: Install project dependencies
         shell: bash
         run: cd .. && yarn --network-timeout 100000

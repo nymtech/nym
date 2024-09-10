@@ -82,7 +82,7 @@ jobs:
         run: yarn build
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@@v4
         with:
           name: nym-wallet_1.0.0_x64_en-US.msi
           path: nym-wallet/target/release/bundle/msi/nym-wallet_1.*.msi

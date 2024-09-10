@@ -83,7 +83,7 @@ jobs:
         run: yarn && yarn build
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@@v4
         with:
           name: nym-wallet.app.tar.gz
           path: nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz

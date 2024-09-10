@@ -2,6 +2,235 @@
 
 This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
+## `v2024.10-caramello`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.10-caramello)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.10-caramello/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.md) version `1.1.7`
+
+~~~admonish example collapsible=true title='CHANGELOG.md'
+- Backport 4844 and 4845 ([#4857])
+- Bugfix/client registration vol2 ([#4856])
+- Remove wireguard feature flag and pass runtime enabled flag ([#4839])
+- Eliminate cancel unsafe sig awaiting ([#4834])
+- added explicit updateable admin to the mixnet contract ([#4822])
+- using legacy signing payload in CLI and verifying both variants in contract ([#4821])
+- adding ecash contract address ([#4819])
+- Check profit margin of node before defaulting to hardcoded value  ([#4802])
+- Sync last_seen_bandwidth immediately ([#4774])
+- Feature/additional ecash nym cli utils ([#4773])
+- Better storage error logging ([#4772])
+- bugfix: make sure DKG parses data out of events if logs are empty ([#4764])
+- Fix clippy on rustc beta toolchain ([#4746])
+- Fix clippy for beta toolchain ([#4742])
+- Disable testnet-manager on non-unix ([#4741])
+- Don't set NYM_VPN_API to default ([#4740])
+- Update publish-nym-binaries.yml ([#4739])
+- Update ci-build-upload-binaries.yml ([#4738])
+- Add NYM_VPN_API to network config ([#4736])
+- Re-export RecipientFormattingError in nym sdk ([#4735])
+- Persist wireguard peers ([#4732])
+- Fix tokio error in 1.39 ([#4730])
+- Feature/vesting purge plus ranged cost params ([#4716])
+- Fix (some) feature unification build failures ([#4681])
+- Feature Compact Ecash : The One PR ([#4623])
+
+[#4857]: https://github.com/nymtech/nym/pull/4857
+[#4856]: https://github.com/nymtech/nym/pull/4856
+[#4839]: https://github.com/nymtech/nym/pull/4839
+[#4834]: https://github.com/nymtech/nym/pull/4834
+[#4822]: https://github.com/nymtech/nym/pull/4822
+[#4821]: https://github.com/nymtech/nym/pull/4821
+[#4819]: https://github.com/nymtech/nym/pull/4819
+[#4802]: https://github.com/nymtech/nym/pull/4802
+[#4774]: https://github.com/nymtech/nym/pull/4774
+[#4773]: https://github.com/nymtech/nym/pull/4773
+[#4772]: https://github.com/nymtech/nym/pull/4772
+[#4764]: https://github.com/nymtech/nym/pull/4764
+[#4746]: https://github.com/nymtech/nym/pull/4746
+[#4742]: https://github.com/nymtech/nym/pull/4742
+[#4741]: https://github.com/nymtech/nym/pull/4741
+[#4740]: https://github.com/nymtech/nym/pull/4740
+[#4739]: https://github.com/nymtech/nym/pull/4739
+[#4738]: https://github.com/nymtech/nym/pull/4738
+[#4736]: https://github.com/nymtech/nym/pull/4736
+[#4735]: https://github.com/nymtech/nym/pull/4735
+[#4732]: https://github.com/nymtech/nym/pull/4732
+[#4730]: https://github.com/nymtech/nym/pull/4730
+[#4716]: https://github.com/nymtech/nym/pull/4716
+[#4681]: https://github.com/nymtech/nym/pull/4681
+[#4623]: https://github.com/nymtech/nym/pull/4623
+~~~
+
+### Features
+
+- [Add 1GB/day/user bandwidth cap](https://github.com/nymtech/nym/pull/4717)
+
+~~~admonish example collapsible=true title='Testing steps performed`
+**Scenario 1: Bandwidth Decreasing Continuously**
+
+1. Started the client and noted the initial bandwidth (e.g., 1GB).
+2. Used the client and tracked bandwidth usage over time (e.g., decrease by 100MB every hour).
+3. Restarted the client after some usage.
+4. Verified the bandwidth continued from the last recorded value, not reset.
+
+The bandwidth continued decreasing without resetting upon restart. Logs and reports correctly reflected the decreasing bandwidth.
+
+**Scenario 2: Bandwidth Reset Next Day**
+
+1. Used the client normally until the end of the day.
+2. Suspended some clients and kept others active.
+3. Checked bandwidth at midnight.
+4. Verified that bandwidth reset to 1GB for both suspended and active clients.
+
+Bandwidth reset to 1GB for all clients at midnight. Logs and reports correctly showed the reset.
+
+**Scenario 3: Bandwidth Reset at a Different Time (e.g., Midday)**
+
+1. Configured the system to reset bandwidth at midday.
+2. Used the client and monitored bandwidth until midday.
+3. Kept the client connected during the reset time.
+4. Verified that bandwidth reset to 1GB live at midday.
+
+Bandwidth reset to 1GB at midday while the client was connected. Logs and reports correctly reflected the reset.
+
+**Scenario 4: Stale Check for 3 Days**
+
+1. Kept a client inactive for 3 days.
+2. Verified removal from the peer list after 3 days.
+3. Reconnected the client after 3 days and checked for a new private IP.
+4. Restarted a client within 3 days and verified it retained the same private IP.
+
+The client was removed from the peer list after 3 days of inactivity. Upon re-connection after 3 days, the client received a new private IP. The client retained the same private IP when restarted within 3 days.
+~~~
+
+- [Feature/merge back](https://github.com/nymtech/nym/pull/4710): Merge back from the release branch the changes that fix the `nym-node` upgrades
+
+- [Removed mixnode/gateway config migration code and disabled cli without explicit flag](https://github.com/nymtech/nym/pull/4706): `nym-gateway` and `nym-mixnode` commands now won't do anything without explicit `--force-run` to bypass the deprecation. The next step, in say a month or so, is to completely remove all `cli` related things.
+
+~~~admonish example collapsible=true title='Testing steps performed'
+- Verify that the `nym-gateway` binary and `nym-mixnode` binary commands return the _error message_ stating to update to nym-node
+- Check that when adding the `--force-run` flag, it still allows the command to be run (aside from `init` which has been removed) and the message stating to update to nym-node is a _warning_ now
+- Check `nym-node` is not affected
+- Reviewed the changes in the PR
+~~~
+
+- [Handle clients with different versions in IPR](https://github.com/nymtech/nym/pull/4723): Allow the IPR to handle clients connecting both using `v6` and `v7`, independently. The motivation is that we want to be able to roll out a API version change gradually for VPN clients without breaking backwards compatibility. The main feature on the new `v7` format that is not yet used, is that it adds signatures for connect/disconnect.
+
+~~~admonish example collapsible=true title='Testing steps performed'
+Run the same command (using same gateways deployed from this PR) on different versions of the `nym-vpn-cli`. 
+
+Example: 
+```sh
+~/nym-vpn-core-v0.1.10_macos_universal ❯ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
+ 
+~/nym-vpn-core-v0.1.11-dev_macos_universal ❯ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
+```
+~~~ 
+
+
+
+- [Backport `#4844` and `#4845`](https://github.com/nymtech/nym/pull/4857)
+
+- [Remove wireguard feature flag and pass runtime enabled flag](https://github.com/nymtech/nym/pull/4839)
+
+- [Eliminate cancel unsafe sig awaiting](https://github.com/nymtech/nym/pull/4834)
+
+- [Added explicit updateable admin to the mixnet contract](https://github.com/nymtech/nym/pull/4822)
+
+- [Using legacy signing payload in CLI and verifying both variants in contract](https://github.com/nymtech/nym/pull/4821)
+
+- [Adding ecash contract address](https://github.com/nymtech/nym/pull/4819)
+
+- [Check profit margin of node before defaulting to hardcoded value ](https://github.com/nymtech/nym/pull/4802)
+
+- [Sync `last_seen_bandwidth` immediately](https://github.com/nymtech/nym/pull/4774)
+
+- [Feature/additional ecash `nym-cli` utils](https://github.com/nymtech/nym/pull/4773)
+
+- [Better storage error logging](https://github.com/nymtech/nym/pull/4772)
+
+- [bugfix: make sure DKG parses data out of events if logs are empty](https://github.com/nymtech/nym/pull/4764): This will be the case on post `0.50` chains
+
+- [Fix clippy on rustc beta toolchain](https://github.com/nymtech/nym/pull/4746): Fix clippy warnings for rust beta toolchain
+ 
+- [Fix clippy for beta toolchain](https://github.com/nymtech/nym/pull/4742): Fix beta toolchain clippy by removing unused module
+    - Add `nym-` prefix to `serde-common` crate
+    - Remove ignored `default-features = false` attribute for workspace dependency
+
+- [Disable testnet-manager on non-unix](https://github.com/nymtech/nym/pull/4741)
+
+- [Don't set NYM_VPN_API to default](https://github.com/nymtech/nym/pull/4740)
+
+- [Update publish-nym-binaries.yml](https://github.com/nymtech/nym/pull/4739): Adds wireguard to builds
+
+- [Update ci-build-upload-binaries.yml](https://github.com/nymtech/nym/pull/4738): Adds wireguard for ci-builds
+
+- [Add NYM_VPN_API to network config](https://github.com/nymtech/nym/pull/4736)
+
+- [Re-export RecipientFormattingError in nym sdk](https://github.com/nymtech/nym/pull/4735)
+
+- [Persist wireguard peers](https://github.com/nymtech/nym/pull/4732)
+
+- [Feature/vesting purge plus ranged cost params](https://github.com/nymtech/nym/pull/4716): Combines [\#4715](https://github.com/nymtech/nym/pull/4715) and [\#4711](https://github.com/nymtech/nym/pull/4711) into one.
+    - Disables all non-essential operations on the vesting contract => you can no longer bond mixnodes/make delegations/etc. (you can still, however, withdraw your vested tokens and so on)
+    - Introduces admin-controlled minimum (and maximum) profit margin and interval operating costs.  
+    - both contracts have to be migrated **at the same time**. ideally within the same transaction
+    - mixnet contract migration is not allowed (and will fail) if there are any pending actions involving vesting tokens, like delegating, increasing pledge, etc
+
+- [Bump braces from 3.0.2 to 3.0.3 in /nym-wallet/webdriver](https://github.com/nymtech/nym/pull/4709): Bumps [braces](https://github.com/micromatch/braces) from 3.0.2 to 3.0.3. <details> <summary>Commits</summary> <ul> <li><a href="https://github.com/micromatch/braces/commit/74b2db2938fad48a2ea54a9c8bf27a37a62c350d"><code>74b2db2</code></a> 3.0.3</li> <li><a href="https://github.com/micromatch/braces/commit/88f1429a0f47e1dd3813de35211fc97ffda27f9e"><code>88f1429</code></a> update eslint. lint, fix unit tests.</li> <li><a href="https://github.com/micromatch/braces/commit/415d660c3002d1ab7e63dbf490c9851da80596ff"><code>415d660</code></a> Snyk js braces 6838727 (<a href="https://redirect.github.com/micromatch/braces/issues/40">#40</a>)</li> <li><a href="https://github.com/micromatch/braces/commit/190510f79db1adf21d92798b0bb6fccc1f72c9d6"><code>190510f</code></a> fix tests, skip 1 test in test/braces.expand</li> <li><a href="https://github.com/micromatch/braces/commit/716eb9f12d820b145a831ad678618731927e8856"><code>716eb9f</code></a> readme bump</li> <li><a href="https://github.com/micromatch/braces/commit/a5851e57f45c3431a94d83fc565754bc10f5bbc3"><code>a5851e5</code></a> Merge pull request <a href="https://redirect.github.com/micromatch/braces/issues/37">#37</a> from coderaiser/fix/vulnerability</li> <li><a href="https://github.com/micromatch/braces/commit/2092bd1fb108d2c59bd62e243b70ad98db961538"><code>2092bd1</code></a> feature: braces: add maxSymbols (<a href="https://github.com/micromatch/braces/issues/">https://github.com/micromatch/braces/issues/</a>...</li> <li><a href="https://github.com/micromatch/braces/commit/9f5b4cf47329351bcb64287223ffb6ecc9a5e6d3"><code>9f5b4cf</code></a> fix: vulnerability (<a href="https://security.snyk.io/vuln/SNYK-JS-BRACES-6838727">https://security.snyk.io/vuln/SNYK-JS-BRACES-6838727</a>)</li> <li><a href="https://github.com/micromatch/braces/commit/98414f9f1fabe021736e26836d8306d5de747e0d"><code>98414f9</code></a> remove funding file</li> <li><a href="https://github.com/micromatch/braces/commit/665ab5d561c017a38ba7aafd92cc6655b91d8c14"><code>665ab5d</code></a> update keepEscaping doc (<a href="https://redirect.github.com/micromatch/braces/issues/27">#27</a>)</li> <li>Additional commits viewable in <a href="https://github.com/micromatch/braces/compare/3.0.2...3.0.3">compare view</a></li> </ul> </details> <br />   [![Dependabot compatibility score](https://dependabot-badges.githubapp.com/badges/compatibility_score?dependency-name=braces&package-manager=npm_and_yarn&previous-version=3.0.2&new-version=3.0.3)](https://docs.github.com/en/github/managing-security-vulnerabilities/about-dependabot-security-updates#about-compatibility-scores)  Dependabot will resolve any conflicts with this PR as long as you don't alter it yourself. You can also trigger a rebase manually by commenting `@dependabot rebase`.  [//]: # (dependabot-automerge-start) [//]: # (dependabot-automerge-end)  ---  <details> <summary>Dependabot commands and options</summary> <br />  You can trigger Dependabot actions by commenting on this PR: - `@dependabot rebase` will rebase this PR - `@dependabot recreate` will recreate this PR, overwriting any edits that have been made to it - `@dependabot merge` will merge this PR after your CI passes on it - `@dependabot squash and merge` will squash and merge this PR after your CI passes on it - `@dependabot cancel merge` will cancel a previously requested merge and block automerging - `@dependabot reopen` will reopen this PR if it is closed - `@dependabot close` will close this PR and stop Dependabot recreating it. You can achieve the same result by closing it manually - `@dependabot show <dependency name> ignore conditions` will show all of the ignore conditions of the specified dependency - `@dependabot ignore this major version` will close this PR and stop Dependabot creating any more for this major version (unless you reopen the PR or upgrade to it yourself) - `@dependabot ignore this minor version` will close this PR and stop Dependabot creating any more for this minor version (unless you reopen the PR or upgrade to it yourself) - `@dependabot ignore this dependency` will close this PR and stop Dependabot creating any more for this dependency (unless you reopen the PR or upgrade to it yourself) You can disable automated security fix PRs for this repo from the [Security Alerts page](https://github.com/nymtech/nym/network/alerts).  </details>
+
+### Bugfix
+
+- [chore: fix 1.80 lint issues](https://github.com/nymtech/nym/pull/4731)
+
+~~~admonish example collapsible=true title='Testing steps performed'
+- Building all binaries is ok
+- Running `cargo fmt` returns no issues 
+~~~ 
+
+- [Fix version 1 not having template correspondent initially](https://github.com/nymtech/nym/pull/4733)
+
+~~~admonish example collapsible=true title='Testing steps performed'
+Tested updating an old `nym-node` version and ensuring it did not throw any errors. 
+~~~ 
+
+- [Bugfix/client registration vol2](https://github.com/nymtech/nym/pull/4856)
+
+- [Fix tokio error in `1.39`](https://github.com/nymtech/nym/pull/4730):
+    - Bump tokio to 1.39.2, skipping the issue with 1.39.1
+    
+
+- [Fix (some) feature unification build failures](https://github.com/nymtech/nym/pull/4681): Running a script in the root workspace that builds each crate independently
+
+~~~admonish example collapsible=true title='the script'
+ ```sh
+ #!/bin/bash
+ 
+ packages=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[].name')
+ 
+ # Loop through each package and build
+ for package in $packages; do
+     echo "Building $package"
+     cargo clean
+     cargo check -p "$package"
+     if [ $? -ne 0 ]; then
+         echo "Build failed for $package. Stopping."
+         exit 1
+     fi
+ done
+ ```
+ ~~~
+
+### Crypto 
+
+- [Feature Compact Ecash : The One PR](https://github.com/nymtech/nym/pull/4623)
+
+### Operators Guide, Tooling & Updates
+
+
+---
+
 ## `v2024.9-topdeck`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)

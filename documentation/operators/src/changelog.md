@@ -236,10 +236,10 @@ Tested updating an old `nym-node` version and ensuring it did not throw any erro
 
 - Profit margin and operating cost values will be set to the agreed values, the values can be changed in the future through [Nym Operators governance process](https://forum.nymtech.net/t/poll-proposal-for-on-chain-minimum-profit-margin-for-all-nym-nodes/253)
 ```admonish success title=""
-minimum profit margin = 20%
-maximum profit margin = 50%
-minimum operating cost = 0 NYM
-maximum operating cost = 1000 NYM
+- Minimum profit margin = 20%
+- Maximum profit margin = 50%
+- Minimum operating cost = 0 NYM
+- Maximum operating cost = 1000 NYM
 ```
 
 - [Nym Harbourmater](https://harbourmaster.nymtech.net) has several new functionalities:
@@ -272,7 +272,7 @@ Every `nym-node` should be upgraded to the latest version! Operators can test us
     - Note: On some VPS this setup may not be enough to get the correct results as some ISPs  have their own security groups setup below the individual VPS. In that case a ticket to ISP will have to be issued to open the needed settings. We are working on a template for such ticket.
 - Setup [reverse proxy and WSS](nodes/proxy-configuration.md) on `nym-node` (Gateways only for the time being)
 - Don't forget to restart your node - or (preferably using [systemd automation](nodes/configuration.md#systemd)) reload daemon and restart the service
-- Migrating from `mixnet` or `gateway` smart contracts to a new `nym-node` smart contract will be available soon with an upcoming version of Nym desktop wallet. After this migration all `nym-nodes` will be able to receive delegation
+- Migrating from `mixnet` or `gateway` smart contracts to a new `nym-node` smart contract will be available soon with an upcoming version of Nym desktop wallet. After this migration all `nym-nodes` will be able to receive delegation. The operators will have to confirm the migration once it's deployed.
 - Optional: Use [`nym-gateway-probe`](testing/gateway-probe.html) and [NymVPN CLI](https://nymtech.net/developers/nymvpn/cli.html) to test your own Gateway
 - Optional: Run the script below to measure ping speed of your Gateway and share your results in [Nym Operators channel](https://matrix.to/#/#operators:nymtech.chat)
 

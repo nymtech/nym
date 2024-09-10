@@ -4,8 +4,19 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-## [2024.10-caramello] (2024-08-19)
+## [2024.10-caramello] (2024-09-10)
 
+- Backport 4844 and 4845 ([#4857])
+- Bugfix/client registration vol2 ([#4856])
+- Remove wireguard feature flag and pass runtime enabled flag ([#4839])
+- Eliminate cancel unsafe sig awaiting ([#4834])
+- added explicit updateable admin to the mixnet contract ([#4822])
+- using legacy signing payload in CLI and verifying both variants in contract ([#4821])
+- adding ecash contract address ([#4819])
+- Check profit margin of node before defaulting to hardcoded value  ([#4802])
+- Sync last_seen_bandwidth immediately ([#4774])
+- Feature/additional ecash nym cli utils ([#4773])
+- Better storage error logging ([#4772])
 - bugfix: make sure DKG parses data out of events if logs are empty ([#4764])
 - Fix clippy on rustc beta toolchain ([#4746])
 - Fix clippy for beta toolchain ([#4742])
@@ -21,6 +32,17 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - Fix (some) feature unification build failures ([#4681])
 - Feature Compact Ecash : The One PR ([#4623])
 
+[#4857]: https://github.com/nymtech/nym/pull/4857
+[#4856]: https://github.com/nymtech/nym/pull/4856
+[#4839]: https://github.com/nymtech/nym/pull/4839
+[#4834]: https://github.com/nymtech/nym/pull/4834
+[#4822]: https://github.com/nymtech/nym/pull/4822
+[#4821]: https://github.com/nymtech/nym/pull/4821
+[#4819]: https://github.com/nymtech/nym/pull/4819
+[#4802]: https://github.com/nymtech/nym/pull/4802
+[#4774]: https://github.com/nymtech/nym/pull/4774
+[#4773]: https://github.com/nymtech/nym/pull/4773
+[#4772]: https://github.com/nymtech/nym/pull/4772
 [#4764]: https://github.com/nymtech/nym/pull/4764
 [#4746]: https://github.com/nymtech/nym/pull/4746
 [#4742]: https://github.com/nymtech/nym/pull/4742

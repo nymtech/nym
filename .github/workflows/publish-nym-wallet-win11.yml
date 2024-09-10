@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        platform: [windows11]
+        platform: [custom-windows-11]
     runs-on: ${{ matrix.platform }}
 
     outputs:

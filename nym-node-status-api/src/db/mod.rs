@@ -2,12 +2,13 @@ use std::str::FromStr;
 
 use crate::read_env_var;
 use anyhow::{anyhow, Result};
-use sqlx::{migrate::Migrator, sqlite::SqliteConnectOptions, ConnectOptions, SqlitePool};
-pub(crate) const DATABASE_URL_ENV_VAR: &str = "DATABASE_URL";
-static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
+use sqlx::{migrate::Migrator, SqlitePool};
 
 pub(crate) mod models;
 pub(crate) mod queries;
+
+pub(crate) const DATABASE_URL_ENV_VAR: &str = "DATABASE_URL";
+static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
 pub(crate) type DbPool = SqlitePool;
 

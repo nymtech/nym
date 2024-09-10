@@ -4,6 +4,7 @@ use nym_network_defaults::setup_env;
 
 mod cli;
 mod db;
+mod http;
 mod logging;
 mod monitor;
 

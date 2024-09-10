@@ -14,7 +14,7 @@ rust-version.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-axum = { workspace = true }
+axum = { workspace = true, features = ["tokio"] }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 cosmwasm-std = { workspace = true }
@@ -30,6 +30,13 @@ thiserror = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+utoipa = { workspace = true, features = ["axum_extras", "time"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+# TODO dz `cargo update async-trait`
+# for automatic schema detection, which was merged, but not released yet
+# https://github.com/ProbablyClem/utoipauto/pull/38
+# utoipauto = { git = "https://github.com/ProbablyClem/utoipauto", rev = "eb04cba" }
+utoipauto = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }

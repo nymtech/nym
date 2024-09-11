@@ -20,10 +20,10 @@ jobs:
         with:
           node-version: 18
 
-      # - run: |
-      #     cargo install --list
-      #     rustup show
-      #     which cargo
+      - run: |
+          cargo install --list
+          rustup show
+          which cargo
 
       - uses: actions-rs/toolchain@v1
         with:

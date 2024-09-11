@@ -56,7 +56,7 @@ pub(crate) async fn prepare_partial_bloomfilter_builder(
             .try_load_partial_bloomfilter_bitmap(date, params_id)
             .await?
         else {
-            log::warn!("missing double spending bloomfilter bitmap for {date} (if this API hasn't been running for at least 30 days since 'ecash'-based zk-nyms were introduced this is expected)");
+            log::warn!("missing double spending bloomfilter bitmap for {date} (if this API hasn't been running for at least {days} day(s) since 'ecash'-based zk-nyms were introduced this is expected)");
             continue;
         };
         if !filter_builder.add_bytes(&bitmap) {

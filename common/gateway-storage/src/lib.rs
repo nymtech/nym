@@ -25,7 +25,6 @@ mod inboxes;
 pub mod models;
 mod shared_keys;
 mod tickets;
-#[cfg(feature = "wireguard")]
 mod wireguard_peers;
 
 #[async_trait]
@@ -217,7 +216,6 @@ pub trait Storage: Send + Sync {
     ///
     /// * `peer`: wireguard peer data to be stored
     /// * `suspended`: if peer exists, but it's currently suspended
-    #[cfg(feature = "wireguard")]
     async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
@@ -229,14 +227,12 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `peer_public_key`: wireguard public key of the peer to be retrieved.
-    #[cfg(feature = "wireguard")]
     async fn get_wireguard_peer(
         &self,
         peer_public_key: &str,
     ) -> Result<Option<WireguardPeer>, StorageError>;
 
     /// Retrieves all wireguard peers.
-    #[cfg(feature = "wireguard")]
     async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, StorageError>;
 
     /// Remove a wireguard peer from the storage.
@@ -244,7 +240,6 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `peer_public_key`: wireguard public key of the peer to be removed.
-    #[cfg(feature = "wireguard")]
     async fn remove_wireguard_peer(&self, peer_public_key: &str) -> Result<(), StorageError>;
 }
 
@@ -255,7 +250,6 @@ pub struct PersistentStorage {
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
     ticket_manager: TicketStorageManager,
-    #[cfg(feature = "wireguard")]
     wireguard_peer_manager: wireguard_peers::WgPeerManager,
 }
 
@@ -300,7 +294,6 @@ impl PersistentStorage {
 
         // the cloning here are cheap as connection pool is stored behind an Arc
         Ok(PersistentStorage {
-            #[cfg(feature = "wireguard")]
             wireguard_peer_manager: wireguard_peers::WgPeerManager::new(connection_pool.clone()),
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
@@ -620,7 +613,6 @@ impl Storage for PersistentStorage {
         Ok(self.ticket_manager.get_epoch_signers(epoch_id).await?)
     }
 
-    #[cfg(feature = "wireguard")]
     async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
@@ -632,7 +624,6 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    #[cfg(feature = "wireguard")]
     async fn get_wireguard_peer(
         &self,
         peer_public_key: &str,
@@ -644,13 +635,11 @@ impl Storage for PersistentStorage {
         Ok(peer)
     }
 
-    #[cfg(feature = "wireguard")]
     async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, StorageError> {
         let ret = self.wireguard_peer_manager.retrieve_all_peers().await?;
         Ok(ret)
     }
 
-    #[cfg(feature = "wireguard")]
     async fn remove_wireguard_peer(&self, peer_public_key: &str) -> Result<(), StorageError> {
         self.wireguard_peer_manager
             .remove_peer(peer_public_key)

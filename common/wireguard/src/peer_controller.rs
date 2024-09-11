@@ -61,13 +61,18 @@ impl<St: Storage> PeerController<St> {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
-        let active_peers = peers
+        let active_peers: HashMap<Key, Peer> = peers
             .into_iter()
             .map(|peer| (peer.public_key.clone(), peer))
             .collect();
-        let suspended_peers = suspended_peers
+        let suspended_peers: HashMap<Key, Peer> = suspended_peers
             .into_iter()
             .map(|peer| (peer.public_key.clone(), peer))
+            .collect();
+        let last_seen_bandwidth = active_peers
+            .iter()
+            .map(|(k, p)| (k.clone(), p.rx_bytes + p.tx_bytes))
+            .chain(suspended_peers.keys().map(|k| (k.clone(), 0)))
             .collect();
 
         PeerController {
@@ -78,7 +83,7 @@ impl<St: Storage> PeerController<St> {
             timeout_check_interval,
             active_peers,
             suspended_peers,
-            last_seen_bandwidth: HashMap::new(),
+            last_seen_bandwidth,
             timeout_count: 0,
         }
     }
@@ -199,6 +204,7 @@ impl<St: Storage> PeerController<St> {
                                 log::error!("Could not configure peer: {:?}", e);
                                 false
                             } else {
+                                self.last_seen_bandwidth.insert(peer.public_key.clone(), peer.rx_bytes + peer.tx_bytes);
                                 self.active_peers.insert(peer.public_key.clone(), peer);
                                 true
                             };

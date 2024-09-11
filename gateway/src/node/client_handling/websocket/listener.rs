@@ -54,6 +54,7 @@ where
                 connection = tcp_listener.accept() => {
                     match connection {
                         Ok((socket, remote_addr)) => {
+                            let shutdown = shutdown.clone().named(format!("ClientConnectionHandler_{remote_addr}"));
                             trace!("received a socket connection from {remote_addr}");
                             // TODO: I think we *REALLY* need a mechanism for having a maximum number of connected
                             // clients or spawned tokio tasks -> perhaps a worker system?
@@ -64,9 +65,9 @@ where
                                 active_clients_store.clone(),
                                 self.shared_state.clone(),
                                 remote_addr,
+                                shutdown,
                             );
-                            let shutdown = shutdown.clone().named(format!("ClientConnectionHandler_{remote_addr}"));
-                            tokio::spawn(async move { handle.start_handling(shutdown).await });
+                            tokio::spawn(handle.start_handling());
                         }
                         Err(err) => warn!("failed to get client: {err}"),
                     }

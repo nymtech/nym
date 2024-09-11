@@ -21,7 +21,8 @@ pub struct Log {
 
 /// Searches in logs for the first event of the given event type and in that event
 /// for the first attribute with the given attribute key.
-pub fn find_attribute<'a>(
+#[deprecated]
+pub fn find_attribute_in_logs<'a>(
     logs: &'a [Log],
     event_type: &str,
     attribute_key: &str,
@@ -35,6 +36,7 @@ pub fn find_attribute<'a>(
 }
 
 /// Search for the proposal id in the given log. It'll be in the LAST wasm event, with attribute key "proposal_id"
+#[deprecated]
 pub fn find_proposal_id(logs: &[Log]) -> Result<u64, NyxdError> {
     let maybe_attributes = logs
         .iter()

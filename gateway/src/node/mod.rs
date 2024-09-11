@@ -51,7 +51,6 @@ struct StartedNetworkRequester {
 // TODO: should this struct live here?
 #[allow(unused)]
 struct StartedAuthenticator {
-    #[cfg(feature = "wireguard")]
     wg_api: Arc<nym_wireguard::WgApiWrapper>,
 
     /// Handle to interact with the local authenticator
@@ -146,7 +145,6 @@ pub struct Gateway<St = PersistentStorage> {
 
     storage: St,
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
     wireguard_data: Option<nym_wireguard::WireguardData>,
 
     run_http_server: bool,
@@ -169,7 +167,6 @@ impl<St> Gateway<St> {
             network_requester_opts,
             ip_packet_router_opts,
             authenticator_opts: None,
-            #[cfg(all(feature = "wireguard", target_os = "linux"))]
             wireguard_data: None,
             run_http_server: true,
             task_client: None,
@@ -193,7 +190,6 @@ impl<St> Gateway<St> {
             identity_keypair,
             sphinx_keypair,
             storage,
-            #[cfg(all(feature = "wireguard", target_os = "linux"))]
             wireguard_data: None,
             run_http_server: true,
             task_client: None,
@@ -208,7 +204,6 @@ impl<St> Gateway<St> {
         self.task_client = Some(task_client)
     }
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
     pub fn set_wireguard_data(&mut self, wireguard_data: nym_wireguard::WireguardData) {
         self.wireguard_data = Some(wireguard_data)
     }
@@ -246,7 +241,7 @@ impl<St> Gateway<St> {
         mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[cfg(target_os = "linux")]
     async fn start_authenticator(
         &mut self,
         forwarding_channel: MixForwardingSender,
@@ -342,7 +337,7 @@ impl<St> Gateway<St> {
         }
     }
 
-    #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
+    #[cfg(not(target_os = "linux"))]
     async fn start_authenticator(
         &self,
         _forwarding_channel: MixForwardingSender,
@@ -673,14 +668,15 @@ impl<St> Gateway<St> {
             info!("embedded ip packet router is disabled");
         };
 
-        #[cfg(feature = "wireguard")]
-        let _wg_api = {
+        let _wg_api = if self.wireguard_data.is_some() {
             let embedded_auth = self
                 .start_authenticator(mix_forwarding_channel, shutdown.fork("authenticator"))
                 .await
                 .map_err(|source| GatewayError::AuthenticatorStartError { source })?;
             active_clients_store.insert_embedded(embedded_auth.handle);
             Some(embedded_auth.wg_api)
+        } else {
+            None
         };
 
         if self.run_http_server {

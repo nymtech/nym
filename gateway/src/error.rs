@@ -189,11 +189,12 @@ pub enum GatewayError {
         source: ipnetwork::IpNetworkError,
     },
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[error("the current multisig contract is not using 'AbsolutePercentage' threshold!")]
+    InvalidMultisigThreshold,
+
     #[error("failed to remove wireguard interface: {0}")]
     WireguardInterfaceError(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
     #[error("internal wireguard error {0}")]
     InternalWireguardError(String),
 

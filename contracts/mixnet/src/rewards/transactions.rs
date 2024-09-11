@@ -6,13 +6,13 @@ use crate::delegations::storage as delegations_storage;
 use crate::interval::storage as interval_storage;
 use crate::interval::storage::{push_new_epoch_event, push_new_interval_event};
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnet_contract_settings::storage::ADMIN;
 use crate::mixnodes::helpers::get_mixnode_details_by_owner;
 use crate::mixnodes::storage as mixnodes_storage;
 use crate::rewards::helpers;
 use crate::rewards::helpers::update_and_save_last_rewarded;
 use crate::support::helpers::{
-    ensure_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_owner,
-    AttachSendTokens,
+    ensure_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state, AttachSendTokens,
 };
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
@@ -227,7 +227,7 @@ pub(crate) fn try_update_active_set_size(
     active_set_size: u32,
     force_immediately: bool,
 ) -> Result<Response, MixnetContractError> {
-    ensure_is_owner(info.sender, deps.storage)?;
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
     let mut rewarding_params = storage::REWARDING_PARAMS.load(deps.storage)?;
     if active_set_size == 0 {
@@ -273,7 +273,7 @@ pub(crate) fn try_update_rewarding_params(
     updated_params: IntervalRewardingParamsUpdate,
     force_immediately: bool,
 ) -> Result<Response, MixnetContractError> {
-    ensure_is_owner(info.sender, deps.storage)?;
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
     if !updated_params.contains_updates() {
         return Err(MixnetContractError::EmptyParamsChangeMsg);
@@ -1796,6 +1796,7 @@ pub mod tests {
 
     #[cfg(test)]
     mod updating_active_set {
+        use cw_controllers::AdminError::NotAdmin;
         use mixnet_contract_common::EpochStatus;
 
         use crate::support::tests::test_helpers::TestSetup;
@@ -1858,10 +1859,10 @@ pub mod tests {
                 42,
                 false,
             );
-            assert_eq!(res, Err(MixnetContractError::Unauthorized));
+            assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
             let res = try_update_active_set_size(test.deps_mut(), env.clone(), random, 42, false);
-            assert_eq!(res, Err(MixnetContractError::Unauthorized));
+            assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
             let res = try_update_active_set_size(test.deps_mut(), env, owner, 42, false);
             assert!(res.is_ok())
@@ -2002,6 +2003,7 @@ pub mod tests {
     #[cfg(test)]
     mod updating_rewarding_params {
         use cosmwasm_std::Decimal;
+        use cw_controllers::AdminError::NotAdmin;
 
         use mixnet_contract_common::EpochStatus;
 
@@ -2085,11 +2087,11 @@ pub mod tests {
                 update,
                 false,
             );
-            assert_eq!(res, Err(MixnetContractError::Unauthorized));
+            assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
             let res =
                 try_update_rewarding_params(test.deps_mut(), env.clone(), random, update, false);
-            assert_eq!(res, Err(MixnetContractError::Unauthorized));
+            assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
             let res = try_update_rewarding_params(test.deps_mut(), env, owner, update, false);
             assert!(res.is_ok())

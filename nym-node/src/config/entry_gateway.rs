@@ -5,7 +5,7 @@ use crate::config::helpers::ephemeral_gateway_config;
 use crate::config::persistence::EntryGatewayPaths;
 use crate::config::Config;
 use crate::error::EntryGatewayError;
-use nym_config::defaults::DEFAULT_CLIENT_LISTENING_PORT;
+use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, TICKETBOOK_VALIDITY_DAYS};
 use nym_config::helpers::inaddr_any;
 use nym_config::serde_helpers::de_maybe_port;
 use nym_gateway::node::LocalAuthenticatorOpts;
@@ -90,7 +90,7 @@ pub struct ZkNymTicketHandlerDebug {
     pub minimum_redemption_tickets: usize,
 
     /// Specifies the maximum time between two subsequent tickets redemptions.
-    /// That's required as nym-apis will purge all ticket information for tickets older than 30 days.
+    /// That's required as nym-apis will purge all ticket information for tickets older than maximum validity.
     #[serde(with = "humantime_serde")]
     pub maximum_time_between_redemption: Duration,
 }
@@ -100,7 +100,28 @@ impl ZkNymTicketHandlerDebug {
     pub const DEFAULT_PENDING_POLLER: Duration = Duration::from_secs(300);
     pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.8;
     pub const DEFAULT_MINIMUM_REDEMPTION_TICKETS: usize = 100;
-    pub const DEFAULT_MAXIMUM_TIME_BETWEEN_REDEMPTION: Duration = Duration::from_secs(86400 * 25);
+
+    // use min(4/5 of max validity, validity - 1), but making sure it's no greater than 1 day
+    // ASSUMPTION: our validity period is AT LEAST 2 days
+    //
+    // this could have been a constant, but it's more readable as a function
+    pub const fn default_maximum_time_between_redemption() -> Duration {
+        let desired_secs = TICKETBOOK_VALIDITY_DAYS * (86400 * 4) / 5;
+        let desired_secs_alt = (TICKETBOOK_VALIDITY_DAYS - 1) * 86400;
+
+        // can't use `min` in const context
+        let target_secs = if desired_secs < desired_secs_alt {
+            desired_secs
+        } else {
+            desired_secs_alt
+        };
+
+        assert!(
+            target_secs > 86400,
+            "the maximum time between redemption can't be lower than 1 day!"
+        );
+        Duration::from_secs(target_secs as u64)
+    }
 }
 
 impl Default for ZkNymTicketHandlerDebug {
@@ -110,7 +131,7 @@ impl Default for ZkNymTicketHandlerDebug {
             pending_poller: Self::DEFAULT_PENDING_POLLER,
             minimum_api_quorum: Self::DEFAULT_MINIMUM_API_QUORUM,
             minimum_redemption_tickets: Self::DEFAULT_MINIMUM_REDEMPTION_TICKETS,
-            maximum_time_between_redemption: Self::DEFAULT_MAXIMUM_TIME_BETWEEN_REDEMPTION,
+            maximum_time_between_redemption: Self::default_maximum_time_between_redemption(),
         }
     }
 }

@@ -417,6 +417,8 @@ impl<C, St> GatewayClient<C, St> {
                 self.local_identity.as_ref(),
                 self.gateway_identity,
                 self.cfg.bandwidth.require_tickets,
+                #[cfg(not(target_arch = "wasm32"))]
+                self.task_client.clone(),
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),

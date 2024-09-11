@@ -10,9 +10,17 @@ use nym_id::import_credential::import_full_ticketbook;
 use nym_id::import_standalone_ticketbook;
 use std::fs;
 use std::path::PathBuf;
+use std::str::FromStr;
 
-fn parse_encoded_credential_data(raw: &str) -> bs58::decode::Result<Vec<u8>> {
-    bs58::decode(raw).into_vec()
+#[derive(Debug, Clone)]
+pub struct CredentialDataWrapper(Vec<u8>);
+
+impl FromStr for CredentialDataWrapper {
+    type Err = bs58::decode::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        bs58::decode(s).into_vec().map(CredentialDataWrapper)
+    }
 }
 
 #[derive(Debug, Parser)]
@@ -26,8 +34,8 @@ pub struct Args {
     pub(crate) client_config: PathBuf,
 
     /// Explicitly provide the encoded credential data (as base58)
-    #[clap(long, group = "cred_data", value_parser = parse_encoded_credential_data)]
-    pub(crate) credential_data: Option<Vec<u8>>,
+    #[clap(long, group = "cred_data")]
+    pub(crate) credential_data: Option<CredentialDataWrapper>,
 
     /// Specifies the path to file containing binary credential data
     #[clap(long, group = "cred_data")]
@@ -50,7 +58,7 @@ pub struct Args {
 impl Args {
     fn credential_data(self) -> anyhow::Result<Vec<u8>> {
         let data = match self.credential_data {
-            Some(data) => data,
+            Some(data) => data.0,
             None => {
                 // SAFETY: one of those arguments must have been set
                 #[allow(clippy::unwrap_used)]

@@ -3,6 +3,7 @@
 
 use clap::{Args, Subcommand};
 
+pub mod generate_ticket;
 pub mod import_coin_index_signatures;
 pub mod import_expiration_date_signatures;
 pub mod import_master_verification_key;
@@ -22,6 +23,7 @@ pub enum EcashCommands {
     IssueTicketBook(issue_ticket_book::Args),
     RecoverTicketBook(recover_ticket_book::Args),
     ImportTicketBook(import_ticket_book::Args),
+    GenerateTicket(generate_ticket::Args),
     ImportCoinIndexSignatures(import_coin_index_signatures::Args),
     ImportExpirationDateSignatures(import_expiration_date_signatures::Args),
     ImportMasterVerificationKey(import_master_verification_key::Args),

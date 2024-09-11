@@ -194,20 +194,6 @@ pub(crate) fn ensure_can_advance_epoch(
     Ok(epoch_status)
 }
 
-pub(crate) fn ensure_is_owner(
-    sender: Addr,
-    storage: &dyn Storage,
-) -> Result<(), MixnetContractError> {
-    if sender
-        != crate::mixnet_contract_settings::storage::CONTRACT_STATE
-            .load(storage)?
-            .owner
-    {
-        return Err(MixnetContractError::Unauthorized);
-    }
-    Ok(())
-}
-
 pub(crate) fn ensure_bonded(bond: &MixNodeBond) -> Result<(), MixnetContractError> {
     if bond.is_unbonding {
         return Err(MixnetContractError::MixnodeIsUnbonding {

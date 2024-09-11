@@ -1,13 +1,6 @@
 name: ci-nym-wallet-rust
 
 on:
-  push:
-    paths:
-      - 'nym-wallet/**'
-      - 'common/**'
-      - 'contracts/vesting/**'
-      - 'nym-api/nym-api-requests/**'
-      - '.github/workflows/ci-nym-wallet-rust.yml'
   pull_request:
     paths:
       - 'nym-wallet/**'

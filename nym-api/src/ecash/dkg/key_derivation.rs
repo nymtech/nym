@@ -18,8 +18,9 @@ use nym_dkg::{
     bte::{self, decrypt_share},
     combine_shares, try_recover_verification_keys, Dealing,
 };
-use nym_validator_client::nyxd::cosmwasm_client::logs::{find_attribute, Log};
-use nym_validator_client::nyxd::Hash;
+use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
+use nym_validator_client::nyxd::helpers::find_attribute_value_in_logs_or_events;
+use nym_validator_client::nyxd::{Event, Hash};
 use rand::{CryptoRng, RngCore};
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
@@ -453,25 +454,25 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         key: &VerificationKeyAuth,
         resharing: bool,
     ) -> Result<u64, KeyDerivationError> {
-        fn extract_proposal_id_from_logs(
+        fn extract_proposal_id(
             logs: &[Log],
+            events: &[Event],
             tx_hash: Hash,
         ) -> Result<u64, KeyDerivationError> {
             let event_type = "wasm";
             let attribute_key = DKG_PROPOSAL_ID;
-            let proposal_attribute = find_attribute(logs, event_type, attribute_key).ok_or(
-                KeyDerivationError::MissingProposalIdAttribute {
-                    tx_hash,
-                    event_type: event_type.to_string(),
-                    attribute_key: attribute_key.to_string(),
-                },
-            )?;
+            let proposal_value =
+                find_attribute_value_in_logs_or_events(logs, events, event_type, attribute_key)
+                    .ok_or(KeyDerivationError::MissingProposalIdAttribute {
+                        tx_hash,
+                        event_type: event_type.to_string(),
+                        attribute_key: attribute_key.to_string(),
+                    })?;
 
-            proposal_attribute
-                .value
+            proposal_value
                 .parse()
                 .map_err(|_| KeyDerivationError::UnparsableProposalId {
-                    raw: proposal_attribute.value.clone(),
+                    raw: proposal_value.clone(),
                 })
         }
 
@@ -481,7 +482,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             .submit_verification_key_share(key.to_bs58(), resharing)
             .await?;
         let hash = res.transaction_hash;
-        let proposal_id = extract_proposal_id_from_logs(&res.logs, hash)?;
+        let proposal_id = extract_proposal_id(&res.logs, &res.events, hash)?;
         debug!("Submitted own verification key share, proposal id {proposal_id} is attached to it. tx hash: {hash}");
 
         Ok(proposal_id)

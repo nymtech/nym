@@ -25,6 +25,7 @@ impl<'a> ClientHandshake<'a> {
         identity: &'a nym_crypto::asymmetric::identity::KeyPair,
         gateway_pubkey: identity::PublicKey,
         expects_credential_usage: bool,
+        #[cfg(not(target_arch = "wasm32"))] shutdown: nym_task::TaskClient,
     ) -> Self
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
@@ -35,6 +36,8 @@ impl<'a> ClientHandshake<'a> {
             identity,
             Some(gateway_pubkey),
             expects_credential_usage,
+            #[cfg(not(target_arch = "wasm32"))]
+            shutdown,
         );
 
         ClientHandshake {

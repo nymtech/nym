@@ -122,7 +122,7 @@ pub struct CredentialHandlerConfig {
     pub minimum_redemption_tickets: usize,
 
     /// Specifies the maximum time between two subsequent tickets redemptions.
-    /// That's required as nym-apis will purge all ticket information for tickets older than 30 days.
+    /// That's required as nym-apis will purge all ticket information for tickets older than maximum validity.
     pub maximum_time_between_redemption: Duration,
 }
 

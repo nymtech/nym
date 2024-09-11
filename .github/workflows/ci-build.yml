@@ -75,8 +75,6 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          # Enable wireguard by default on linux only
-          args: --workspace --features wireguard
 
       # while disabled by default, this build ensures nothing is broken within
       # `axum` feature
@@ -91,21 +89,21 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --workspace --examples --features wireguard
+          args: --workspace --examples
 
       - name: Run all tests
         if: contains(matrix.os, 'ubuntu')
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --features wireguard
+          args: --workspace
 
       - name: Run expensive tests
         if: (github.ref == 'refs/heads/develop' || github.event.pull_request.base.ref == 'develop' || github.event.pull_request.base.ref == 'master') && contains(matrix.os, 'ubuntu')
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --workspace --features wireguard -- --ignored
+          args: --workspace -- --ignored
 
       - name: Annotate with clippy checks
         if: contains(matrix.os, 'ubuntu')
@@ -113,10 +111,10 @@ jobs:
         continue-on-error: true
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          args: --workspace --features wireguard
+          args: --workspace
 
       - name: Clippy
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --all-targets --features wireguard,axum -- -D warnings
+          args: --workspace --all-targets --features axum -- -D warnings

@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 use crate::nyxd::error::NyxdError;
 use base64::Engine;
 use cosmrs::abci::TxMsgData;
@@ -10,7 +11,6 @@ use log::error;
 use prost::bytes::Bytes;
 use tendermint_rpc::endpoint::broadcast;
 
-use crate::nyxd::cosmwasm_client::types::ExecuteResult;
 pub use cosmrs::abci::MsgResponse;
 
 pub fn parse_msg_responses(data: Bytes) -> Vec<MsgResponse> {

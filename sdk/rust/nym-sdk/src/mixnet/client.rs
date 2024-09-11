@@ -38,6 +38,7 @@ use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
+use zeroize::Zeroizing;
 
 // The number of surbs to include in a message by default
 const DEFAULT_NUMBER_OF_SURBS: u32 = 10;
@@ -532,17 +533,20 @@ where
         if !self.config.enabled_credentials_mode {
             return Err(Error::DisabledCredentialsMode);
         }
-        let client_id = self
-            .storage
-            .key_store()
-            .load_keys()
-            .await
-            .map_err(|e| Error::KeyStorageError {
-                source: Box::new(e),
-            })?
-            .identity_keypair()
-            .private_key()
-            .to_base58_string();
+        let client_id_array = Zeroizing::new(
+            self.storage
+                .key_store()
+                .load_keys()
+                .await
+                .map_err(|e| Error::KeyStorageError {
+                    source: Box::new(e),
+                })?
+                .identity_keypair()
+                .private_key()
+                .to_bytes(),
+        );
+        let client_id = client_id_array.to_vec();
+
         BandwidthAcquireClient::new(
             self.config.network_details.clone(),
             mnemonic,

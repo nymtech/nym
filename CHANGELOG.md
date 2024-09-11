@@ -4,6 +4,60 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.10-caramello] (2024-09-10)
+
+- Backport 4844 and 4845 ([#4857])
+- Bugfix/client registration vol2 ([#4856])
+- Remove wireguard feature flag and pass runtime enabled flag ([#4839])
+- Eliminate cancel unsafe sig awaiting ([#4834])
+- added explicit updateable admin to the mixnet contract ([#4822])
+- using legacy signing payload in CLI and verifying both variants in contract ([#4821])
+- adding ecash contract address ([#4819])
+- Check profit margin of node before defaulting to hardcoded value  ([#4802])
+- Sync last_seen_bandwidth immediately ([#4774])
+- Feature/additional ecash nym cli utils ([#4773])
+- Better storage error logging ([#4772])
+- bugfix: make sure DKG parses data out of events if logs are empty ([#4764])
+- Fix clippy on rustc beta toolchain ([#4746])
+- Fix clippy for beta toolchain ([#4742])
+- Disable testnet-manager on non-unix ([#4741])
+- Don't set NYM_VPN_API to default ([#4740])
+- Update publish-nym-binaries.yml ([#4739])
+- Update ci-build-upload-binaries.yml ([#4738])
+- Add NYM_VPN_API to network config ([#4736])
+- Re-export RecipientFormattingError in nym sdk ([#4735])
+- Persist wireguard peers ([#4732])
+- Fix tokio error in 1.39 ([#4730])
+- Feature/vesting purge plus ranged cost params ([#4716])
+- Fix (some) feature unification build failures ([#4681])
+- Feature Compact Ecash : The One PR ([#4623])
+
+[#4857]: https://github.com/nymtech/nym/pull/4857
+[#4856]: https://github.com/nymtech/nym/pull/4856
+[#4839]: https://github.com/nymtech/nym/pull/4839
+[#4834]: https://github.com/nymtech/nym/pull/4834
+[#4822]: https://github.com/nymtech/nym/pull/4822
+[#4821]: https://github.com/nymtech/nym/pull/4821
+[#4819]: https://github.com/nymtech/nym/pull/4819
+[#4802]: https://github.com/nymtech/nym/pull/4802
+[#4774]: https://github.com/nymtech/nym/pull/4774
+[#4773]: https://github.com/nymtech/nym/pull/4773
+[#4772]: https://github.com/nymtech/nym/pull/4772
+[#4764]: https://github.com/nymtech/nym/pull/4764
+[#4746]: https://github.com/nymtech/nym/pull/4746
+[#4742]: https://github.com/nymtech/nym/pull/4742
+[#4741]: https://github.com/nymtech/nym/pull/4741
+[#4740]: https://github.com/nymtech/nym/pull/4740
+[#4739]: https://github.com/nymtech/nym/pull/4739
+[#4738]: https://github.com/nymtech/nym/pull/4738
+[#4736]: https://github.com/nymtech/nym/pull/4736
+[#4735]: https://github.com/nymtech/nym/pull/4735
+[#4732]: https://github.com/nymtech/nym/pull/4732
+[#4730]: https://github.com/nymtech/nym/pull/4730
+[#4716]: https://github.com/nymtech/nym/pull/4716
+[#4681]: https://github.com/nymtech/nym/pull/4681
+[#4623]: https://github.com/nymtech/nym/pull/4623
+
 ## [2024.9-topdeck] (2024-07-26)
 
 - chore: fix 1.80 lint issues ([#4731])

@@ -105,10 +105,11 @@ pub mod test_helpers {
             let deps = init_contract();
             let rewarding_validator_address =
                 rewarding_validator_address(deps.as_ref().storage).unwrap();
-            let owner = mixnet_params_storage::CONTRACT_STATE
-                .load(deps.as_ref().storage)
+            let owner = mixnet_params_storage::ADMIN
+                .query_admin(deps.as_ref())
                 .unwrap()
-                .owner;
+                .admin
+                .unwrap();
 
             TestSetup {
                 deps,

@@ -4,10 +4,10 @@ use nym_network_defaults::NymNetworkDetails;
 
 pub(crate) async fn execute(
     global_args: ClientArgs,
-    coconut: nym_cli_commands::ecash::Ecash,
+    ecash: nym_cli_commands::ecash::Ecash,
     network_details: &NymNetworkDetails,
 ) -> anyhow::Result<()> {
-    match coconut.command {
+    match ecash.command {
         EcashCommands::IssueTicketBook(args) => {
             nym_cli_commands::ecash::issue_ticket_book::execute(
                 args,
@@ -24,6 +24,9 @@ pub(crate) async fn execute(
         }
         EcashCommands::ImportTicketBook(args) => {
             nym_cli_commands::ecash::import_ticket_book::execute(args).await?
+        }
+        EcashCommands::GenerateTicket(args) => {
+            nym_cli_commands::ecash::generate_ticket::execute(args).await?
         }
         EcashCommands::ImportCoinIndexSignatures(args) => {
             nym_cli_commands::ecash::import_coin_index_signatures::execute(args).await?

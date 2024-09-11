@@ -7,6 +7,7 @@ use nym_credential_utils::utils::issue_credential;
 use nym_credentials_interface::TicketType;
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use std::ops::Deref;
 use zeroize::Zeroizing;
 
 /// Represents a client that can be used to acquire bandwidth. You typically create one when you
@@ -17,7 +18,7 @@ use zeroize::Zeroizing;
 pub struct BandwidthAcquireClient<'a, St: Storage> {
     client: DirectSigningHttpRpcNyxdClient,
     storage: &'a St,
-    client_id: Zeroizing<String>,
+    client_id: Zeroizing<Vec<u8>>,
     ticketbook_type: TicketType,
 }
 
@@ -30,7 +31,7 @@ where
         network_details: NymNetworkDetails,
         mnemonic: String,
         storage: &'a St,
-        client_id: String,
+        client_id: Vec<u8>,
         ticketbook_type: TicketType,
     ) -> Result<Self> {
         let nyxd_url = network_details.endpoints[0].nyxd_url.as_str();
@@ -53,7 +54,7 @@ where
         issue_credential(
             &self.client,
             self.storage,
-            self.client_id.as_bytes(),
+            self.client_id.deref(),
             self.ticketbook_type,
         )
         .await?;

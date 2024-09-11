@@ -15,14 +15,14 @@ pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
     "n1xr3rq8yvd7qplsw5yx90ftsr2zdhg4e9z60h5duusgxpv72hud3sjkxkav";
 pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
     "n1unyuj8qnmygvzuex3dwmg9yzt9alhvyeat0uu0jedg2wj33efl5qackslz";
-pub(crate) const COCONUT_BANDWIDTH_CONTRACT_ADDRESS: &str =
-    "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l";
+pub(crate) const ECASH_CONTRACT_ADDRESS: &str =
+    "n1v3vydvs2ued84yv3khqwtgldmgwn0elljsdh08dr5s2j9x4rc5fs9jlwz9";
 pub(crate) const GROUP_CONTRACT_ADDRESS: &str =
-    "n1pd7kfgvr5tpcv0xnlv46c4jsq9jg2r799xxrcwqdm4l2jhq2pjwqrmz5ju";
+    "n1ewmwz97xm0h8rdk8sw7h9mwn866qkx9hl9zlmagqfkhuzvwk5hhq844ue9";
 pub(crate) const MULTISIG_CONTRACT_ADDRESS: &str =
-    "n14ph4e660eyqz0j36zlkaey4zgzexm5twkmjlqaequxr2cjm9eprqsmad6k";
+    "n1tz0setr8vkh9udp8xyxgpqc89ns27k4d0jx2h942hr0ax63yjhmqz6xct8";
 pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
-    "n1ahg0erc2fs6xx3j5m8sfx3ryuzdjh6kf6qm9plsf865fltekyrfsesac6a";
+    "n1v3n2ly2dp3a9ng3ff6rh26yfkn0pc5hed7w2shc5u9ca5c865utqj5elvh";
 
 // -- Constructor functions --
 
@@ -48,7 +48,7 @@ pub(crate) fn network_details() -> nym_network_defaults::NymNetworkDetails {
         contracts: NymContracts {
             mixnet_contract_address: parse_optional_str(MIXNET_CONTRACT_ADDRESS),
             vesting_contract_address: parse_optional_str(VESTING_CONTRACT_ADDRESS),
-            ecash_contract_address: parse_optional_str(COCONUT_BANDWIDTH_CONTRACT_ADDRESS),
+            ecash_contract_address: parse_optional_str(ECASH_CONTRACT_ADDRESS),
             group_contract_address: parse_optional_str(GROUP_CONTRACT_ADDRESS),
             multisig_contract_address: parse_optional_str(MULTISIG_CONTRACT_ADDRESS),
             coconut_dkg_contract_address: parse_optional_str(COCONUT_DKG_CONTRACT_ADDRESS),

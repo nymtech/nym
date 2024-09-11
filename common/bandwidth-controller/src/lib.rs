@@ -16,7 +16,7 @@ use nym_credential_storage::models::RetrievedTicketbook;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::CredentialSpendingData;
 use nym_credentials_interface::{
-    AnnotatedCoinIndexSignature, AnnotatedExpirationDateSignature, NymPayInfo, VerificationKeyAuth,
+    AnnotatedCoinIndexSignature, AnnotatedExpirationDateSignature, VerificationKeyAuth,
 };
 use nym_ecash_time::Date;
 use nym_validator_client::nym_api::EpochId;
@@ -165,7 +165,9 @@ impl<C, St: Storage> BandwidthController<C, St> {
             .get_coin_index_signatures(epoch_id, &mut api_clients)
             .await?;
 
-        let pay_info = NymPayInfo::generate(provider_pk);
+        let pay_info = retrieved_ticketbook
+            .ticketbook
+            .generate_pay_info(provider_pk);
 
         let spend_request = retrieved_ticketbook.ticketbook.prepare_for_spending(
             &verification_key,

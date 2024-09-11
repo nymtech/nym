@@ -570,7 +570,11 @@ where
             return Ok(InitialAuthResult::new_failed(Some(negotiated_protocol)));
         };
 
-        let client_id = self.shared_state.storage.get_client_id(address).await?;
+        let client_id = self
+            .shared_state
+            .storage
+            .get_mixnet_client_id(address)
+            .await?;
 
         let available_bandwidth: AvailableBandwidth = self
             .shared_state

@@ -10,9 +10,9 @@ license.workspace = true
 async-trait = { workspace = true }
 bip39 = { workspace = true }
 nym-client-core = { path = "../../../common/client-core", features = [
-  "fs-credentials-storage",
-  "fs-surb-storage",
-  "fs-gateways-storage",
+    "fs-credentials-storage",
+    "fs-surb-storage",
+    "fs-gateways-storage",
 ] }
 nym-crypto = { path = "../../../common/crypto" }
 nym-gateway-requests = { path = "../../../common/gateway-requests" }
@@ -27,7 +27,7 @@ nym-task = { path = "../../../common/task" }
 nym-topology = { path = "../../../common/topology" }
 nym-socks5-client-core = { path = "../../../common/socks5-client-core" }
 nym-validator-client = { path = "../../../common/client-libs/validator-client", features = [
-  "http-client",
+    "http-client",
 ] }
 nym-socks5-requests = { path = "../../../common/socks5/requests" }
 nym-ordered-buffer = { path = "../../../common/socks5/ordered-buffer" }
@@ -40,13 +40,13 @@ zeroize = { workspace = true }
 
 futures = { workspace = true }
 log = { workspace = true }
-rand = { workspace = true }
+rand = { workspace = true, features = ["small_rng"] }
 tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 toml = "0.5.10"
 
-# tcpproxy dependencies 
+# tcpproxy dependencies
 anyhow.workspace = true
 dashmap.workspace = true
 tokio.workspace = true
@@ -55,6 +55,9 @@ tokio-util.workspace = true
 uuid = { version = "1", features = ["v4", "serde"] }
 bincode = "1.0"
 serde = { version = "1", features = ["derive"] }
+tracing.workspace = true
+tracing-subscriber = "0.3"
+
 
 [dev-dependencies]
 anyhow = { workspace = true }

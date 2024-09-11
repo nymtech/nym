@@ -4,7 +4,7 @@ use crate::mixnet::{
 };
 use anyhow::Result;
 use dashmap::DashSet;
-use log::{debug, error, info};
+// use log::{debug, error, info};
 use nym_sphinx::addressing::Recipient;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -12,6 +12,7 @@ use tokio::net::TcpStream;
 use tokio::sync::watch::Receiver;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
+use tracing::{debug, error, info};
 #[path = "utils.rs"]
 mod utils;
 use utils::{MessageBuffer, Payload, ProxiedMessage};
@@ -124,6 +125,7 @@ impl NymProxyServer {
             // - Send serialised reply => Mixnet via SURB.
             // - If tick() returns true, close session.
             while let Some(Ok(bytes)) = framed_read.next().await {
+                info!("server received {} bytes", bytes.len());
                 let reply =
                     ProxiedMessage::new(Payload::Data(bytes.to_vec()), session_id, message_id);
                 message_id += 1;

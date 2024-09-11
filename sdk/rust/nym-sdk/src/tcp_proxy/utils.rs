@@ -1,14 +1,15 @@
 use std::{collections::HashSet, fmt, ops::Deref, time::Instant};
 
 use anyhow::Result;
-use log::{debug, info};
 use serde::{Deserialize, Serialize};
 use tokio::{io::AsyncWriteExt as _, net::tcp::OwnedWriteHalf};
+use tracing::{debug, info};
 use uuid::Uuid;
 
 // Keeps track of
 // - incoming and unsorted messages wrapped in DecayWrapper for keeping track of when they were received
 // - the expected next message ID (reset on .tick())
+#[derive(Debug)]
 pub struct MessageBuffer {
     buffer: Vec<DecayWrapper<ProxiedMessage>>,
     next_msg_id: u16,
@@ -48,18 +49,18 @@ impl MessageBuffer {
 
     // Used by the client to create and manipulate a buffer of messages to write => OwnedWriteHalf.
     // Used by the server for this + to conditionally decide whether to kill a session on returning true.
+    // #[instrument]
     pub async fn tick(&mut self, write: &mut OwnedWriteHalf) -> Result<bool> {
         if self.is_empty() {
             return Ok(false);
         }
 
-        debug!("Messages in buffer:");
+        info!("Messages in buffer:");
         for msg in self.iter() {
-            debug!("{}", msg.inner());
+            info!("{}", msg.inner());
         }
 
-        // Iterate over self, filtering messages where msg.decayed() = true (aka message is older than 2 seconds), or where msg.message_id is
-        // less than next_msg_id. Then collect and order according to message_id.
+        // Iterate over self, filtering messages where msg.decayed() = true (aka message is older than 2 seconds), or where msg.message_id is less than next_msg_id. Then collect and order according to message_id.
         let mut send_buffer = self
             .iter()
             .filter(|msg| msg.decayed() || msg.message_id() <= self.next_msg_id)
@@ -68,6 +69,7 @@ impl MessageBuffer {
         send_buffer.sort_by(|a, b| a.message_id.cmp(&b.message_id()));
 
         if send_buffer.is_empty() {
+            info!("send buf is empty");
             return Ok(false);
         }
 
@@ -96,12 +98,14 @@ impl MessageBuffer {
             + 1;
         // Retain as next_msg_id in MessageBuffer instance for parsing potential further incoming msgs.
         self.retain(|msg| !sent_messages.contains(&msg.inner().message_id()));
+        info!("next_msg_id is: {}", self.next_msg_id.clone());
         Ok(false)
     }
 }
 
 // Wrapper used for tracking the 'age' of a message from when it was received.
 // Used in the ordering logic in MessageBuffer.tick().
+#[derive(Debug)]
 pub struct DecayWrapper<T> {
     value: T,
     start: Instant,

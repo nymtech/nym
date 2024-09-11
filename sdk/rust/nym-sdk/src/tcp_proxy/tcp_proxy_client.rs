@@ -4,7 +4,6 @@ use std::sync::Arc;
 mod utils;
 use anyhow::Result;
 use dashmap::DashSet;
-use log::{info, warn};
 use nym_sphinx::addressing::Recipient;
 use tokio::{
     net::{TcpListener, TcpStream},
@@ -12,6 +11,7 @@ use tokio::{
 };
 use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
+use tracing::{info, instrument, warn};
 use utils::{MessageBuffer, Payload, ProxiedMessage};
 
 const DEFAULT_CLOSE_TIMEOUT: u64 = 60;
@@ -78,6 +78,7 @@ impl NymProxyClient {
     // Then we spawn 2 tasks:
     // - 'Outgoing' thread => frames incoming bytes from OwnedReadHalf and pipe through the mixnet & trigger session close.
     // - 'Incoming' thread => orders incoming messages from the Mixnet via placing them in a MessageBuffer and using tick(), as well as manage session closing.
+    #[instrument]
     async fn handle_incoming(
         stream: TcpStream,
         server_address: Recipient,
@@ -123,6 +124,7 @@ impl NymProxyClient {
         let sent_messages_account = Arc::clone(&messages_account);
 
         // 'Outgoing' thread
+
         tokio::spawn(async move {
             let mut message_id = 0;
             // While able to read from OwnedReadHalf of TcpStream:

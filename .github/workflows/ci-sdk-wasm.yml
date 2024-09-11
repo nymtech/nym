@@ -20,6 +20,11 @@ jobs:
         with:
           node-version: 18
 
+      - run: |
+          cargo install --list
+          rustup show
+          which cargo
+
       - uses: actions-rs/toolchain@v1
         with:
           profile: minimal
@@ -46,6 +51,8 @@ jobs:
 
       - run: |
           cargo install --list
+          rustup show
+          which cargo
 
       # - name: "Build"
       #   run: make sdk-wasm-build

@@ -528,14 +528,12 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    mut deps: DepsMut<'_>,
+    deps: DepsMut<'_>,
     _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
-
-    crate::queued_migrations::vesting_purge(deps.branch())?;
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh

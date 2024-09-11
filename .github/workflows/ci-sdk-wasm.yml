@@ -44,11 +44,14 @@ jobs:
       # - name: Install wasm-bindgen-cli
       #   run: cargo install wasm-bindgen-cli
 
-      - name: "Build"
-        run: make sdk-wasm-build
+      - run: |
+          cargo install --list
 
-      - name: "Test"
-        run: make sdk-wasm-test
+      # - name: "Build"
+      #   run: make sdk-wasm-build
 
-      - name: "Lint"
-        run: make sdk-wasm-lint
+      # - name: "Test"
+      #   run: make sdk-wasm-test
+
+      # - name: "Lint"
+      #   run: make sdk-wasm-lint

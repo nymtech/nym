@@ -1,5 +1,7 @@
 use axum::Router;
 
-pub(crate) fn routes() -> Router {
+use crate::http::state::AppState;
+
+pub(crate) fn routes() -> Router<AppState> {
     unimplemented!()
 }

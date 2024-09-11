@@ -23,13 +23,22 @@ nym-bin-common = { path = "../common/bin-common" }
 nym-explorer-client = { path = "../explorer-api/explorer-client" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-task = { path = "../common/task" }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
+# TODO dz recosider features before merge
+tokio = { workspace = true, features = [
+    "rt-multi-thread",
+    "macros",
+    "signal",
+    "time",
+] }
+tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tower-http = { workspace = true, features = ["cors", "trace"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 # TODO dz `cargo update async-trait`

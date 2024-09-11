@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use crate::read_env_var;
 use anyhow::{anyhow, Result};
-use sqlx::{migrate::Migrator, SqlitePool};
+use sqlx::{migrate::Migrator, sqlite::SqliteConnectOptions, ConnectOptions, SqlitePool};
 
 pub(crate) mod models;
 pub(crate) mod queries;
@@ -35,7 +35,8 @@ impl Storage {
         Ok(Storage { pool })
     }
 
-    pub async fn pool(&self) -> &DbPool {
-        &self.pool
+    /// Cloning pool is cheap, it's the same underlying set of connections
+    pub async fn pool_owned(&self) -> DbPool {
+        self.pool.clone()
     }
 }

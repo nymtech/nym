@@ -4,7 +4,7 @@ use crate::db::models::{
     MIXNODES_BLACKLISTED_COUNT, MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT,
     MIXNODES_BONDED_INACTIVE, MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
 };
-use crate::db::{queries, DbPool, Storage};
+use crate::db::{queries, DbPool};
 use anyhow::anyhow;
 use cosmwasm_std::Decimal;
 use nym_explorer_client::{ExplorerClient, PrettyDetailedGatewayBond};
@@ -26,15 +26,14 @@ static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5
 
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
-pub(crate) fn spawn_in_background(storage: Storage) -> JoinHandle<()> {
+pub(crate) fn spawn_in_background(db_pool: DbPool) -> JoinHandle<()> {
     tokio::spawn(async move {
-        let db_pool = storage.pool().await;
         let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
         loop {
             tracing::info!("Refreshing node info...");
 
-            if let Err(e) = run(db_pool, &network_defaults).await {
+            if let Err(e) = run(&db_pool, &network_defaults).await {
                 tracing::error!(
                     "Monitor run failed: {e}, retrying in {}s...",
                     FAILURE_RETRY_DELAY.as_secs()

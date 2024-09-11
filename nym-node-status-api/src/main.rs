@@ -1,6 +1,7 @@
 use anyhow::anyhow;
 use clap::Parser;
 use nym_network_defaults::setup_env;
+use nym_task::signal::wait_for_signal;
 
 mod cli;
 mod db;
@@ -21,15 +22,28 @@ async fn main() -> anyhow::Result<()> {
     tracing::debug!("{:?}", std::env::var("NYM_API"));
 
     let storage = db::Storage::init().await?;
-    monitor::spawn_in_background(storage)
+    monitor::spawn_in_background(storage.pool_owned().await)
         .await
         .expect("Monitor task failed");
-    tracing::info!("Started server");
+    tracing::info!("Started monitor task");
+
+    let shutdown_handles = http::server::start_http_api(storage.pool_owned().await)
+        .await
+        .expect("Failed to start server");
+    // TODO dz load bind address from config
+    // TODO dz log bind address
+    tracing::info!("Started HTTP server");
+
+    wait_for_signal().await;
+
+    if let Err(err) = shutdown_handles.shutdown().await {
+        tracing::error!("{err}");
+    };
 
     Ok(())
 }
 
-pub(crate) fn read_env_var(env_var: &str) -> anyhow::Result<String> {
+fn read_env_var(env_var: &str) -> anyhow::Result<String> {
     std::env::var(env_var)
         .map(|value| {
             tracing::trace!("{}={}", env_var, value);

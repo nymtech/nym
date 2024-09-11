@@ -1,25 +1,6 @@
 name: ci-build
 
 on:
-  #push:
-  #  paths:
-  #    - 'clients/**'
-  #    - 'common/**'
-  #    - 'explorer-api/**'
-  #    - 'gateway/**'
-  #    - 'integrations/**'
-  #    - 'mixnode/**'
-  #    - 'sdk/lib/socks5-listener/**'
-  #    - 'sdk/rust/nym-sdk/**'
-  #    - 'service-providers/**'
-  #    - 'nym-api/**'
-  #    - 'nym-node/**'
-  #    - 'nym-outfox/**'
-  #    - 'nym-validator-rewarder/**'
-  #    - 'tools/**'
-  #    - 'Cargo.toml'
-  #    - 'Cargo.lock'
-  #    - '.github/workflows/ci-build.yml'
   pull_request:
     paths:
       - 'clients/**'
@@ -28,9 +9,10 @@ on:
       - 'gateway/**'
       - 'integrations/**'
       - 'mixnode/**'
-      - 'sdk/lib/socks5-listener/**'
-      - 'sdk/rust/nym-sdk/**'
+      - 'sdk/rust/**'
+      - 'sdk/lib/**'
       - 'service-providers/**'
+      - 'nym-network-monitor/**'
       - 'nym-api/**'
       - 'nym-node/**'
       - 'nym-outfox/**'

@@ -117,6 +117,8 @@ members = [
     "nym-validator-rewarder",
     "tools/internal/ssl-inject",
     # "tools/internal/sdk-version-bump",
+    "tools/internal/testnet-manager",
+    "tools/internal/testnet-manager/dkg-bypass-contract",
     "tools/nym-cli",
     "tools/nym-id-cli",
     "tools/nym-nr-query",
@@ -127,8 +129,6 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
-    "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
 ]
 
 default-members = [

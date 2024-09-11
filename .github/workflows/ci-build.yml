@@ -1,24 +1,6 @@
 name: ci-build
 
 on:
-  push:
-    paths:
-      - 'clients/**'
-      - 'common/**'
-      - 'explorer-api/**'
-      - 'gateway/**'
-      - 'integrations/**'
-      - 'mixnode/**'
-      - 'sdk/lib/socks5-listener/**'
-      - 'sdk/rust/nym-sdk/**'
-      - 'service-providers/**'
-      - 'nym-api/**'
-      - 'nym-outfox/**'
-      - 'tools/nym-cli/**'
-      - 'tools/nym-nr-query/**'
-      - 'tools/ts-rs-cli/**'
-      - 'Cargo.toml'
-      - '.github/workflows/ci-build.yml'
   pull_request:
     paths:
       - 'clients/**'
@@ -27,15 +9,18 @@ on:
       - 'gateway/**'
       - 'integrations/**'
       - 'mixnode/**'
-      - 'sdk/lib/socks5-listener/**'
-      - 'sdk/rust/nym-sdk/**'
+      - 'sdk/rust/**'
+      - 'sdk/lib/**'
       - 'service-providers/**'
+      - 'nym-network-monitor/**'
       - 'nym-api/**'
+      - 'nym-node/**'
       - 'nym-outfox/**'
-      - 'tools/nym-cli/**'
-      - 'tools/nym-nr-query/**'
-      - 'tools/ts-rs-cli/**'
+      - 'nym-validator-rewarder/**'
+      - 'tools/**'
+      - 'wasm/**'
       - 'Cargo.toml'
+      - 'Cargo.lock'
       - '.github/workflows/ci-build.yml'
   workflow_dispatch:
 

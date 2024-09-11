@@ -5,11 +5,11 @@ use crate::node::client_handling::websocket::message_receiver::{
     MixMessageReceiver, MixMessageSender,
 };
 use futures::StreamExt;
-use log::{debug, error};
 use nym_network_requester::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
+use tracing::{debug, error, trace};
 
 #[derive(Debug)]
 pub(crate) struct LocalEmbeddedClientHandle {
@@ -71,12 +71,12 @@ impl MessageRouter {
                 messages = self.mix_receiver.next() => match messages {
                     Some(messages) => self.handle_received_messages(messages),
                     None => {
-                        log::trace!("embedded_clients::MessageRouter: Stopping since channel closed");
+                        trace!("embedded_clients::MessageRouter: Stopping since channel closed");
                         break;
                     }
                 },
                 _ = shutdown.recv_with_delay() => {
-                    log::trace!("embedded_clients::MessageRouter: Received shutdown");
+                    trace!("embedded_clients::MessageRouter: Received shutdown");
                     debug_assert!(shutdown.is_shutdown());
                     break
                 }

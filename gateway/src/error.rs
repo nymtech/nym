@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::storage::error::StorageError;
 use nym_authenticator::error::AuthenticatorError;
+use nym_gateway_storage::error::StorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
@@ -14,6 +14,7 @@ use std::path::PathBuf;
 use thiserror::Error;
 
 pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
+use crate::node::client_handling::websocket::connection_handler::ecash::error::EcashTicketError;
 
 #[derive(Debug, Error)]
 pub enum GatewayError {
@@ -169,6 +170,12 @@ pub enum GatewayError {
         source: RequestHandlingError,
     },
 
+    #[error("ecash related failure: {source}")]
+    EcashFailure {
+        #[from]
+        source: EcashTicketError,
+    },
+
     #[error("failed to catch an interrupt: {source}")]
     ShutdownFailure {
         source: Box<dyn std::error::Error + Send + Sync>,
@@ -189,13 +196,14 @@ pub enum GatewayError {
         source: ipnetwork::IpNetworkError,
     },
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[error("the current multisig contract is not using 'AbsolutePercentage' threshold!")]
+    InvalidMultisigThreshold,
+
     #[error("failed to remove wireguard interface: {0}")]
     WireguardInterfaceError(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
-    #[error("wireguard not set")]
-    WireguardNotSet,
+    #[error("internal wireguard error {0}")]
+    InternalWireguardError(String),
 
     #[error("failed to start authenticator: {source}")]
     AuthenticatorStartError {

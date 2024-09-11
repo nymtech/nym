@@ -7,9 +7,10 @@ license.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
-base64 = "0.13.0"
+base64 = { workspace = true }
 bip39 = { workspace = true }
 bs58 = { workspace = true }
+colored = { workspace = true }
 comfy-table = { workspace = true }
 cfg-if = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
@@ -21,13 +22,13 @@ humantime-serde = { workspace = true }
 inquire = { workspace = true }
 k256 = { workspace = true, features = ["ecdsa", "sha256"] }
 log = { workspace = true }
-rand = {version = "0.6", features = ["std"] }
+rand = { workspace = true, features = ["std"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true, features = ["parsing", "formatting"] }
-tokio = { workspace = true, features = ["sync"]}
-toml = "0.5.6"
+tokio = { workspace = true, features = ["sync"] }
+toml = { workspace = true }
 url = { workspace = true }
 tap = { workspace = true }
 zeroize = { workspace = true }
@@ -43,9 +44,9 @@ nym-contracts-common = { path = "../cosmwasm-smart-contracts/contracts-common" }
 nym-bandwidth-controller = { path = "../../common/bandwidth-controller" }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
 nym-vesting-contract-common = { path = "../cosmwasm-smart-contracts/vesting-contract" }
-nym-coconut-bandwidth-contract-common = { path = "../cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nym-coconut-dkg-common = { path = "../cosmwasm-smart-contracts/coconut-dkg" }
 nym-multisig-contract-common = { path = "../cosmwasm-smart-contracts/multisig-contract" }
+nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 nym-client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }

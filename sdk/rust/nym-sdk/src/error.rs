@@ -55,15 +55,6 @@ pub enum Error {
     #[error("socks5 channel could not be started")]
     Socks5NotStarted,
 
-    #[error(
-        "deposited funds were not converted to a deposit - {reason}; the voucher blob can be used for \
-    later retry"
-    )]
-    UnconvertedDeposit {
-        reason: nym_bandwidth_controller::error::BandwidthControllerError,
-        voucher_blob: crate::bandwidth::VoucherBlob,
-    },
-
     #[error("bandwidth controller error: {0}")]
     BandwidthControllerError(#[from] nym_bandwidth_controller::error::BandwidthControllerError),
 
@@ -86,6 +77,12 @@ pub enum Error {
     #[error("failed to use credential storage backend: {source}")]
     CredentialStorageError {
         source: Box<dyn std::error::Error + Send + Sync>,
+    },
+
+    #[error(transparent)]
+    CredentialIssuanceError {
+        #[from]
+        source: nym_credential_utils::Error,
     },
 
     #[error("loaded shared gateway key without providing information about what gateway it corresponds to")]

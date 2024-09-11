@@ -1,12 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_coconut::CoconutError;
 use nym_credential_storage::error::StorageError;
 use nym_credentials::error::Error as CredentialsError;
+use nym_credentials_interface::CompactEcashError;
 use nym_crypto::asymmetric::encryption::KeyRecoveryError;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
-use nym_validator_client::coconut::CoconutApiError;
+use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::error::ValidatorClientError;
 use thiserror::Error;
 
@@ -16,7 +16,7 @@ pub enum BandwidthControllerError {
     Nyxd(#[from] nym_validator_client::nyxd::error::NyxdError),
 
     #[error("coconut api query failure: {0}")]
-    CoconutApiError(#[from] CoconutApiError),
+    CoconutApiError(#[from] EcashApiError),
 
     #[error("There was a credential storage error - {0}")]
     CredentialStorageError(Box<dyn std::error::Error + Send + Sync>),
@@ -28,8 +28,8 @@ pub enum BandwidthControllerError {
     #[error(transparent)]
     StorageError(#[from] StorageError),
 
-    #[error("Coconut error - {0}")]
-    CoconutError(#[from] CoconutError),
+    #[error("Ecash error - {0}")]
+    EcashError(#[from] CompactEcashError),
 
     #[error("Validator client error - {0}")]
     ValidatorError(#[from] ValidatorClientError),
@@ -51,4 +51,15 @@ pub enum BandwidthControllerError {
 
     #[error("can't handle recovering storage with revision {stored}. {expected} was expected")]
     UnsupportedCredentialStorageRevision { stored: u8, expected: u8 },
+
+    #[error("did not receive a valid response for aggregated data ({typ}) from ANY nym-api")]
+    ExhaustedApiQueries { typ: String },
+}
+
+impl BandwidthControllerError {
+    pub fn credential_storage_error(
+        source: impl std::error::Error + Send + Sync + 'static,
+    ) -> Self {
+        BandwidthControllerError::CredentialStorageError(Box::new(source))
+    }
 }

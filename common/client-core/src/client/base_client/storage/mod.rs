@@ -23,7 +23,7 @@ use crate::{
     config::{self, disk_persistence::CommonClientPaths},
     error::ClientCoreError,
 };
-#[cfg(all(not(target_arch = "wasm32"), feature = "fs-surb-storage"))]
+#[cfg(all(not(target_arch = "wasm32"), feature = "fs-credentials-storage"))]
 use nym_credential_storage::persistent_storage::PersistentStorage as PersistentCredentialStorage;
 
 pub use nym_client_core_gateways_storage as gateways_storage;

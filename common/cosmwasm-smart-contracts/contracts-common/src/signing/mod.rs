@@ -218,7 +218,6 @@ where
 #[derive(Serialize)]
 pub struct ContractMessageContent<T> {
     pub sender: Addr,
-    pub proxy: Option<Addr>,
     pub funds: Vec<Coin>,
     pub data: T,
 }
@@ -233,27 +232,47 @@ where
 }
 
 impl<T> ContractMessageContent<T> {
-    pub fn new(sender: Addr, proxy: Option<Addr>, funds: Vec<Coin>, data: T) -> Self {
+    pub fn new(sender: Addr, funds: Vec<Coin>, data: T) -> Self {
         ContractMessageContent {
             sender,
-            proxy,
             funds,
             data,
         }
     }
 
     pub fn new_with_info(info: MessageInfo, signer: Addr, data: T) -> Self {
-        let proxy = if info.sender == signer {
-            None
-        } else {
-            Some(info.sender)
-        };
-
         ContractMessageContent {
             sender: signer,
-            proxy,
             funds: info.funds,
             data,
         }
+    }
+}
+
+impl<T> From<ContractMessageContent<T>> for LegacyContractMessageContent<T> {
+    fn from(value: ContractMessageContent<T>) -> Self {
+        LegacyContractMessageContent {
+            sender: value.sender,
+            proxy: None,
+            funds: value.funds,
+            data: value.data,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct LegacyContractMessageContent<T> {
+    pub sender: Addr,
+    pub proxy: Option<Addr>,
+    pub funds: Vec<Coin>,
+    pub data: T,
+}
+
+impl<T> SigningPurpose for LegacyContractMessageContent<T>
+where
+    T: SigningPurpose,
+{
+    fn message_type() -> MessageType {
+        T::message_type()
     }
 }

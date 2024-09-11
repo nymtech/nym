@@ -4,13 +4,18 @@
 use crate::families::FamilyHead;
 use crate::{Gateway, IdentityKey, MixNode, MixNodeCostParams};
 use contracts_common::signing::{
-    ContractMessageContent, MessageType, Nonce, SignableMessage, SigningPurpose,
+    ContractMessageContent, LegacyContractMessageContent, MessageType, Nonce, SignableMessage,
+    SigningPurpose,
 };
 use cosmwasm_std::{Addr, Coin};
 use serde::Serialize;
 
 pub type SignableMixNodeBondingMsg = SignableMessage<ContractMessageContent<MixnodeBondingPayload>>;
 pub type SignableGatewayBondingMsg = SignableMessage<ContractMessageContent<GatewayBondingPayload>>;
+pub type SignableLegacyMixNodeBondingMsg =
+    SignableMessage<LegacyContractMessageContent<MixnodeBondingPayload>>;
+pub type SignableLegacyGatewayBondingMsg =
+    SignableMessage<LegacyContractMessageContent<GatewayBondingPayload>>;
 pub type SignableFamilyJoinPermitMsg = SignableMessage<FamilyJoinPermit>;
 
 #[derive(Serialize)]
@@ -37,13 +42,26 @@ impl SigningPurpose for MixnodeBondingPayload {
 pub fn construct_mixnode_bonding_sign_payload(
     nonce: Nonce,
     sender: Addr,
-    proxy: Option<Addr>,
     pledge: Coin,
     mix_node: MixNode,
     cost_params: MixNodeCostParams,
 ) -> SignableMixNodeBondingMsg {
     let payload = MixnodeBondingPayload::new(mix_node, cost_params);
-    let content = ContractMessageContent::new(sender, proxy, vec![pledge], payload);
+    let content = ContractMessageContent::new(sender, vec![pledge], payload);
+
+    SignableMessage::new(nonce, content)
+}
+
+pub fn construct_legacy_mixnode_bonding_sign_payload(
+    nonce: Nonce,
+    sender: Addr,
+    pledge: Coin,
+    mix_node: MixNode,
+    cost_params: MixNodeCostParams,
+) -> SignableLegacyMixNodeBondingMsg {
+    let payload = MixnodeBondingPayload::new(mix_node, cost_params);
+    let content: LegacyContractMessageContent<_> =
+        ContractMessageContent::new(sender, vec![pledge], payload).into();
 
     SignableMessage::new(nonce, content)
 }
@@ -68,12 +86,24 @@ impl SigningPurpose for GatewayBondingPayload {
 pub fn construct_gateway_bonding_sign_payload(
     nonce: Nonce,
     sender: Addr,
-    proxy: Option<Addr>,
     pledge: Coin,
     gateway: Gateway,
 ) -> SignableGatewayBondingMsg {
     let payload = GatewayBondingPayload::new(gateway);
-    let content = ContractMessageContent::new(sender, proxy, vec![pledge], payload);
+    let content = ContractMessageContent::new(sender, vec![pledge], payload);
+
+    SignableMessage::new(nonce, content)
+}
+
+pub fn construct_legacy_gateway_bonding_sign_payload(
+    nonce: Nonce,
+    sender: Addr,
+    pledge: Coin,
+    gateway: Gateway,
+) -> SignableLegacyGatewayBondingMsg {
+    let payload = GatewayBondingPayload::new(gateway);
+    let content: LegacyContractMessageContent<_> =
+        ContractMessageContent::new(sender, vec![pledge], payload).into();
 
     SignableMessage::new(nonce, content)
 }
@@ -82,17 +112,14 @@ pub fn construct_gateway_bonding_sign_payload(
 pub struct FamilyJoinPermit {
     // the granter of this permit
     family_head: FamilyHead,
-    // whether the **member** will want to join via the proxy (i.e. vesting contract)
-    proxy: Option<Addr>,
     // the actual member we want to permit to join
     member_node: IdentityKey,
 }
 
 impl FamilyJoinPermit {
-    pub fn new(family_head: FamilyHead, proxy: Option<Addr>, member_node: IdentityKey) -> Self {
+    pub fn new(family_head: FamilyHead, member_node: IdentityKey) -> Self {
         Self {
             family_head,
-            proxy,
             member_node,
         }
     }
@@ -107,10 +134,9 @@ impl SigningPurpose for FamilyJoinPermit {
 pub fn construct_family_join_permit(
     nonce: Nonce,
     family_head: FamilyHead,
-    proxy: Option<Addr>,
     member_node: IdentityKey,
 ) -> SignableFamilyJoinPermitMsg {
-    let payload = FamilyJoinPermit::new(family_head, proxy, member_node);
+    let payload = FamilyJoinPermit::new(family_head, member_node);
 
     // note: we're NOT wrapping it in `ContractMessageContent` because the family head is not going to be the one
     // sending the message to the contract

@@ -18,8 +18,9 @@ use mixnet_contract_common::{
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
     new_staking_address_update_event, new_track_gateway_unbond_event,
-    new_track_mixnode_pledge_decrease_event, new_track_mixnode_unbond_event,
-    new_track_reward_event, new_track_undelegation_event, new_vested_coins_withdraw_event,
+    new_track_migrate_mixnode_event, new_track_mixnode_pledge_decrease_event,
+    new_track_mixnode_unbond_event, new_track_reward_event, new_track_undelegation_event,
+    new_vested_coins_withdraw_event,
 };
 use vesting_contract_common::{Account, PledgeCap, VestingContractError, VestingSpecification};
 
@@ -253,6 +254,35 @@ pub fn try_track_unbond_gateway(
     let account = account_from_address(owner, deps.storage, deps.api)?;
     account.try_track_unbond_gateway(amount, deps.storage)?;
     Ok(Response::new().add_event(new_track_gateway_unbond_event()))
+}
+
+/// Track vesting mixnode being converted into the usage of liquid tokens. invoked by the mixnet contract after successful migration.
+pub fn try_track_migrate_mixnode(
+    owner: &str,
+    info: MessageInfo,
+    deps: DepsMut<'_>,
+) -> Result<Response, VestingContractError> {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
+        return Err(VestingContractError::NotMixnetContract(info.sender));
+    }
+    let account = account_from_address(owner, deps.storage, deps.api)?;
+    account.try_track_migrated_mixnode(deps.storage)?;
+    Ok(Response::new().add_event(new_track_migrate_mixnode_event()))
+}
+
+/// Track vesting delegation being converted into the usage of liquid tokens. invoked by the mixnet contract after successful migration.
+pub fn try_track_migrate_delegation(
+    owner: &str,
+    mix_id: MixId,
+    info: MessageInfo,
+    deps: DepsMut<'_>,
+) -> Result<Response, VestingContractError> {
+    if info.sender != MIXNET_CONTRACT_ADDRESS.load(deps.storage)? {
+        return Err(VestingContractError::NotMixnetContract(info.sender));
+    }
+    let account = account_from_address(owner, deps.storage, deps.api)?;
+    account.track_migrated_delegation(mix_id, deps.storage)?;
+    Ok(Response::new().add_event(new_track_migrate_mixnode_event()))
 }
 
 /// Bond a mixnode, sends [mixnet_contract_common::ExecuteMsg::BondMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].

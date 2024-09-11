@@ -245,8 +245,8 @@ impl<C, S> NyxdClient<C, S> {
         self.config.contracts.vesting_contract_address = Some(address);
     }
 
-    pub fn set_coconut_bandwidth_contract_address(&mut self, address: AccountId) {
-        self.config.contracts.coconut_bandwidth_contract_address = Some(address);
+    pub fn set_ecash_contract_address(&mut self, address: AccountId) {
+        self.config.contracts.ecash_contract_address = Some(address);
     }
 
     pub fn set_multisig_contract_address(&mut self, address: AccountId) {
@@ -267,11 +267,8 @@ impl<C, S> NymContractsProvider for NyxdClient<C, S> {
         self.config.contracts.vesting_contract_address.as_ref()
     }
 
-    fn coconut_bandwidth_contract_address(&self) -> Option<&AccountId> {
-        self.config
-            .contracts
-            .coconut_bandwidth_contract_address
-            .as_ref()
+    fn ecash_contract_address(&self) -> Option<&AccountId> {
+        self.config.contracts.ecash_contract_address.as_ref()
     }
 
     fn dkg_contract_address(&self) -> Option<&AccountId> {
@@ -382,6 +379,14 @@ where
                 panic!("key derivation failure")
             }
         }
+    }
+
+    pub fn mix_coin(&self, amount: u128) -> Coin {
+        Coin::new(amount, &self.config.chain_details.mix_denom.base)
+    }
+
+    pub fn mix_coins(&self, amount: u128) -> Vec<Coin> {
+        vec![self.mix_coin(amount)]
     }
 
     pub fn cw_address(&self) -> Addr {

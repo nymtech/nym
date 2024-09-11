@@ -9,10 +9,10 @@ use nym_contracts_common::signing::{
 };
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::{
-    construct_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
-    MixNodeCostParams, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
+    construct_legacy_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
+    MixNodeCostParams, SignableGatewayBondingMsg, SignableLegacyMixNodeBondingMsg,
 };
-use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, NymContractsProvider};
+use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::Coin;
 use nym_validator_client::DirectSigningHttpRpcValidatorClient;
@@ -21,7 +21,6 @@ use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 #[async_trait]
 pub(crate) trait AddressAndNonceProvider {
     async fn get_signing_nonce(&self) -> Result<Nonce, NyxdError>;
-    fn vesting_contract_address(&self) -> Addr;
     fn cw_address(&self) -> Addr;
 }
 
@@ -31,27 +30,8 @@ impl AddressAndNonceProvider for DirectSigningHttpRpcValidatorClient {
         self.nyxd.get_signing_nonce(&self.nyxd.address()).await
     }
 
-    fn vesting_contract_address(&self) -> Addr {
-        // the call to unchecked is fine here as we're converting directly from `AccountId`
-        // which must have been a valid bech32 address
-        Addr::unchecked(
-            self.nyxd
-                .vesting_contract_address()
-                .expect("unknown vesting contract address")
-                .as_ref(),
-        )
-    }
-
     fn cw_address(&self) -> Addr {
         self.nyxd.cw_address()
-    }
-}
-
-fn proxy<P: AddressAndNonceProvider>(client: &P, vesting: bool) -> Option<Addr> {
-    if vesting {
-        Some(client.vesting_contract_address())
-    } else {
-        None
     }
 }
 
@@ -62,15 +42,16 @@ pub(crate) async fn create_mixnode_bonding_sign_payload<P: AddressAndNonceProvid
     cost_params: MixNodeCostParams,
     pledge: Coin,
     vesting: bool,
-) -> Result<SignableMixNodeBondingMsg, BackendError> {
+) -> Result<SignableLegacyMixNodeBondingMsg, BackendError> {
+    if vesting {
+        return Err(BackendError::UnsupportedVestingOperation);
+    }
     let sender = client.cw_address();
-    let proxy = proxy(client, vesting);
     let nonce = client.get_signing_nonce().await?;
 
-    Ok(construct_mixnode_bonding_sign_payload(
+    Ok(construct_legacy_mixnode_bonding_sign_payload(
         nonce,
         sender,
-        proxy,
         pledge.into(),
         mix_node,
         cost_params,
@@ -85,6 +66,9 @@ pub(crate) async fn verify_mixnode_bonding_sign_payload<P: AddressAndNonceProvid
     vesting: bool,
     msg_signature: &MessageSignature,
 ) -> Result<(), BackendError> {
+    if vesting {
+        return Err(BackendError::UnsupportedVestingOperation);
+    }
     let identity_key = identity::PublicKey::from_base58_string(&mix_node.identity_key)?;
     let signature = identity::Signature::from_bytes(msg_signature.as_ref())?;
 
@@ -118,10 +102,12 @@ pub(crate) async fn create_gateway_bonding_sign_payload<P: AddressAndNonceProvid
     pledge: Coin,
     vesting: bool,
 ) -> Result<SignableGatewayBondingMsg, BackendError> {
+    if vesting {
+        return Err(BackendError::UnsupportedVestingOperation);
+    }
     let payload = GatewayBondingPayload::new(gateway);
     let sender = client.cw_address();
-    let proxy = proxy(client, vesting);
-    let content = ContractMessageContent::new(sender, proxy, vec![pledge.into()], payload);
+    let content = ContractMessageContent::new(sender, vec![pledge.into()], payload);
     let nonce = client.get_signing_nonce().await?;
 
     Ok(SignableMessage::new(nonce, content))
@@ -134,6 +120,9 @@ pub(crate) async fn verify_gateway_bonding_sign_payload<P: AddressAndNonceProvid
     vesting: bool,
     msg_signature: &MessageSignature,
 ) -> Result<(), BackendError> {
+    if vesting {
+        return Err(BackendError::UnsupportedVestingOperation);
+    }
     let identity_key = identity::PublicKey::from_base58_string(&gateway.identity_key)?;
     let signature = identity::Signature::from_bytes(msg_signature.as_ref())?;
 
@@ -170,7 +159,6 @@ mod tests {
 
     struct MockClient {
         address: Addr,
-        vesting_contract: Addr,
         signing_nonce: Nonce,
     }
 
@@ -178,10 +166,6 @@ mod tests {
     impl AddressAndNonceProvider for MockClient {
         async fn get_signing_nonce(&self) -> Result<Nonce, NyxdError> {
             Ok(self.signing_nonce)
-        }
-
-        fn vesting_contract_address(&self) -> Addr {
-            self.vesting_contract.clone()
         }
 
         fn cw_address(&self) -> Addr {
@@ -211,7 +195,6 @@ mod tests {
         let dummy_account = Addr::unchecked("n16t2umcd83zjpl5puyuuq6lgmy4p3qedjd8ynn6");
         let dummy_client = MockClient {
             address: dummy_account,
-            vesting_contract: Addr::unchecked("n17tj0a0w6v7r2dc54rnkzfza6s8hxs87rj273a5"),
             signing_nonce: 42,
         };
 
@@ -240,16 +223,8 @@ mod tests {
             dummy_pledge.clone(),
             true,
         )
-        .await
-        .unwrap();
-
-        let plaintext_vesting = signing_msg_vesting.to_plaintext().unwrap();
-        let sig_vesting: MessageSignature = identity_keypair
-            .private_key()
-            .sign(&plaintext_vesting)
-            .to_bytes()
-            .as_ref()
-            .into();
+        .await;
+        assert!(signing_msg_vesting.is_err());
 
         let res = verify_mixnode_bonding_sign_payload(
             &dummy_client,
@@ -261,28 +236,6 @@ mod tests {
         )
         .await;
         assert!(res.is_ok());
-
-        let res = verify_mixnode_bonding_sign_payload(
-            &dummy_client,
-            &dummy_mixnode,
-            &dummy_cost_params,
-            &dummy_pledge,
-            true,
-            &sig_vesting,
-        )
-        .await;
-        assert!(res.is_ok());
-
-        let res = verify_mixnode_bonding_sign_payload(
-            &dummy_client,
-            &dummy_mixnode,
-            &dummy_cost_params,
-            &dummy_pledge,
-            false,
-            &sig_vesting,
-        )
-        .await;
-        assert!(res.is_err());
 
         let res = verify_mixnode_bonding_sign_payload(
             &dummy_client,
@@ -315,7 +268,6 @@ mod tests {
         let dummy_account = Addr::unchecked("n16t2umcd83zjpl5puyuuq6lgmy4p3qedjd8ynn6");
         let dummy_client = MockClient {
             address: dummy_account,
-            vesting_contract: Addr::unchecked("n17tj0a0w6v7r2dc54rnkzfza6s8hxs87rj273a5"),
             signing_nonce: 42,
         };
 
@@ -342,16 +294,8 @@ mod tests {
             dummy_pledge.clone(),
             true,
         )
-        .await
-        .unwrap();
-
-        let plaintext_vesting = signing_msg_vesting.to_plaintext().unwrap();
-        let sig_vesting: MessageSignature = identity_keypair
-            .private_key()
-            .sign(&plaintext_vesting)
-            .to_bytes()
-            .as_ref()
-            .into();
+        .await;
+        assert!(signing_msg_vesting.is_err());
 
         let res = verify_gateway_bonding_sign_payload(
             &dummy_client,
@@ -362,26 +306,6 @@ mod tests {
         )
         .await;
         assert!(res.is_ok());
-
-        let res = verify_gateway_bonding_sign_payload(
-            &dummy_client,
-            &dummy_gateway,
-            &dummy_pledge,
-            true,
-            &sig_vesting,
-        )
-        .await;
-        assert!(res.is_ok());
-
-        let res = verify_gateway_bonding_sign_payload(
-            &dummy_client,
-            &dummy_gateway,
-            &dummy_pledge,
-            false,
-            &sig_vesting,
-        )
-        .await;
-        assert!(res.is_err());
 
         let res = verify_gateway_bonding_sign_payload(
             &dummy_client,

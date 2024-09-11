@@ -144,7 +144,7 @@ pub struct MixnodePaths {}
 #[serde(deny_unknown_fields)]
 pub struct EntryGatewayPaths {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
-    /// derived shared keys and available client bandwidths.
+    /// derived shared keys, available client bandwidths and wireguard peers.
     pub clients_storage: PathBuf,
 
     /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
@@ -203,6 +203,10 @@ impl EntryGatewayPaths {
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct ExitGatewayPaths {
+    /// Path to sqlite database containing all persistent data: messages for offline clients,
+    /// derived shared keys, available client bandwidths and wireguard peers.
+    pub clients_storage: PathBuf,
+
     pub network_requester: NetworkRequesterPaths,
 
     pub ip_packet_router: IpPacketRouterPaths,
@@ -454,6 +458,7 @@ impl ExitGatewayPaths {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
         let data_dir = data_dir.as_ref();
         ExitGatewayPaths {
+            clients_storage: data_dir.join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             network_requester: NetworkRequesterPaths::new(data_dir),
             ip_packet_router: IpPacketRouterPaths::new(data_dir),
             authenticator: AuthenticatorPaths::new(data_dir),

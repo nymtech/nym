@@ -127,6 +127,7 @@ export const BondedMixnode = ({
         <BondedMixnodeActions
           onActionSelect={onActionSelect}
           disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
+          disabledUpdateBond={Boolean(mixnode.proxy)}
         />
       ),
       id: 'actions-cell',

@@ -7,8 +7,8 @@ use nym_bin_common::logging::setup_logging;
 use nym_cli_commands::context::{get_network_details, ClientArgs};
 use nym_validator_client::nyxd::AccountId;
 
-mod coconut;
 mod completion;
+mod ecash;
 mod validator;
 
 #[derive(Debug, Parser)]
@@ -62,8 +62,8 @@ pub(crate) enum Commands {
     Account(nym_cli_commands::validator::account::Account),
     /// Sign and verify messages
     Signature(nym_cli_commands::validator::signature::Signature),
-    /// Coconut related stuff
-    Coconut(nym_cli_commands::coconut::Coconut),
+    /// Ecash related stuff
+    Ecash(nym_cli_commands::ecash::Ecash),
     /// Query chain blocks
     Block(nym_cli_commands::validator::block::Block),
     /// Manage and execute WASM smart contracts
@@ -104,7 +104,7 @@ async fn execute(cli: Cli) -> anyhow::Result<()> {
         Commands::Signature(signature) => {
             validator::signature::execute(signature, &network_details, mnemonic).await?
         }
-        Commands::Coconut(coconut) => coconut::execute(args, coconut, &network_details).await?,
+        Commands::Ecash(coconut) => ecash::execute(args, coconut, &network_details).await?,
         Commands::Block(block) => validator::block::execute(block, &network_details).await?,
         Commands::Cosmwasm(cosmwasm) => {
             validator::cosmwasm::execute(args, cosmwasm, &network_details).await?

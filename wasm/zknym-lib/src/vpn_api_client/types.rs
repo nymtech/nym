@@ -86,13 +86,6 @@ pub struct AttributesResponse {
 #[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
-pub struct FreepassCredentialResponse {
-    pub bs58_encoded_value: String,
-}
-
-#[derive(Tsify, Serialize, Deserialize, Clone, Default, Debug, PartialEq, Eq)]
-#[tsify(into_wasm_abi, from_wasm_abi)]
-#[serde(rename_all = "camelCase")]
 pub struct ErrorResponse {
     pub uuid: Option<Uuid>,
     pub message: String,

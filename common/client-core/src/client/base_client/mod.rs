@@ -40,6 +40,7 @@ use nym_bandwidth_controller::BandwidthController;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::{
     AcknowledgementReceiver, GatewayClient, GatewayConfig, MixnetMessageReceiver, PacketRouter,
 };
@@ -403,6 +404,11 @@ where
                 gateway_listener,
             );
             GatewayClient::new(
+                GatewayClientConfig::new_default()
+                    .with_disabled_credentials_mode(config.client.disabled_credentials_mode)
+                    .with_response_timeout(
+                        config.debug.gateway_connection.gateway_response_timeout,
+                    ),
                 cfg,
                 managed_keys.identity_keypair(),
                 Some(details.derived_aes128_ctr_blake3_hmac_keys),
@@ -410,8 +416,6 @@ where
                 bandwidth_controller,
                 shutdown,
             )
-            .with_disabled_credentials_mode(config.client.disabled_credentials_mode)
-            .with_response_timeout(config.debug.gateway_connection.gateway_response_timeout)
         };
 
         gateway_client

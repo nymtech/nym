@@ -65,14 +65,14 @@ pub use nym_client_core::{
 };
 pub use nym_credential_storage::{
     ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage,
-    models::StoredIssuedCredential, storage::Storage as CredentialStorage,
+    models::StoredIssuedTicketbook, storage::Storage as CredentialStorage,
 };
 pub use nym_crypto::asymmetric::ed25519;
 pub use nym_network_defaults::NymNetworkDetails;
 pub use nym_socks5_client_core::config::Socks5;
 pub use nym_sphinx::{
     addressing::{
-        clients::{ClientIdentity, Recipient},
+        clients::{ClientIdentity, Recipient, RecipientFormattingError},
         nodes::NodeIdentity,
     },
     anonymous_replies::requests::AnonymousSenderTag,

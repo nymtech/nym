@@ -1,23 +1,34 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{CredentialUsage, StoredIssuedCredential};
+use crate::models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook};
+use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
+use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
+use nym_compact_ecash::VerificationKeyAuth;
+use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
+use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
+use nym_ecash_time::Date;
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use zeroize::Zeroizing;
 
 #[derive(Clone)]
-pub struct CoconutCredentialManager {
-    inner: Arc<RwLock<CoconutCredentialManagerInner>>,
+pub struct MemoryEcachTicketbookManager {
+    inner: Arc<RwLock<EcashCredentialManagerInner>>,
 }
 
 #[derive(Default)]
-struct CoconutCredentialManagerInner {
-    credentials: Vec<StoredIssuedCredential>,
-    credential_usage: Vec<CredentialUsage>,
+struct EcashCredentialManagerInner {
+    ticketbooks: HashMap<i64, RetrievedTicketbook>,
+    pending: HashMap<i64, RetrievedPendingTicketbook>,
+    master_vk: HashMap<u64, VerificationKeyAuth>,
+    coin_indices_sigs: HashMap<u64, Vec<AnnotatedCoinIndexSignature>>,
+    expiration_date_sigs: HashMap<Date, Vec<AnnotatedExpirationDateSignature>>,
     _next_id: i64,
 }
 
-impl CoconutCredentialManagerInner {
+impl EcashCredentialManagerInner {
     fn next_id(&mut self) -> i64 {
         let next = self._next_id;
         self._next_id += 1;
@@ -25,108 +36,210 @@ impl CoconutCredentialManagerInner {
     }
 }
 
-impl CoconutCredentialManager {
+// hehe, that's hacky AF, but it works as a **TEMPORARY** workaround
+fn hack_clone_ticketbook(book: &IssuedTicketBook) -> IssuedTicketBook {
+    let ser = book.pack();
+    let data = Zeroizing::new(ser.data);
+    IssuedTicketBook::try_unpack(&data, None).unwrap()
+}
+
+impl MemoryEcachTicketbookManager {
     /// Creates new empty instance of the `CoconutCredentialManager`.
     pub fn new() -> Self {
-        CoconutCredentialManager {
+        MemoryEcachTicketbookManager {
             inner: Default::default(),
         }
     }
 
-    pub async fn insert_issued_credential(
-        &self,
-        credential_type: String,
-        serialization_revision: u8,
-        credential_data: &[u8],
-        epoch_id: u32,
-    ) {
-        let mut inner = self.inner.write().await;
-        let id = inner.next_id();
-        inner.credentials.push(StoredIssuedCredential {
-            id,
-            serialization_revision,
-            credential_data: credential_data.to_vec(),
-            credential_type,
-            epoch_id,
-            expired: false,
-        })
-    }
-
-    async fn bandwidth_voucher_spent(&self, id: i64) -> bool {
-        self.inner
-            .read()
-            .await
-            .credential_usage
-            .iter()
-            .any(|c| c.credential_id == id)
-    }
-
-    async fn freepass_spent(&self, id: i64, gateway_id: &str) -> bool {
-        self.inner
-            .read()
-            .await
-            .credential_usage
-            .iter()
-            .any(|c| c.credential_id == id && c.gateway_id_bs58 == gateway_id)
-    }
-
-    /// Tries to retrieve one of the stored, unused credentials.
-    pub async fn get_next_unspect_bandwidth_voucher(&self) -> Option<StoredIssuedCredential> {
-        let guard = self.inner.read().await;
-        for credential in guard
-            .credentials
-            .iter()
-            .filter(|c| c.credential_type == "BandwidthVoucher")
-        {
-            if !self.bandwidth_voucher_spent(credential.id).await {
-                return Some(credential.clone());
-            }
-        }
-        None
-    }
-
-    pub async fn get_next_unspect_freepass(
-        &self,
-        gateway_id: &str,
-    ) -> Option<StoredIssuedCredential> {
-        let guard = self.inner.read().await;
-        for credential in guard
-            .credentials
-            .iter()
-            .filter(|c| c.credential_type == "FreeBandwidthPass")
-        {
-            if credential.expired {
-                continue;
-            }
-            if !self.freepass_spent(credential.id, gateway_id).await {
-                return Some(credential.clone());
-            }
-        }
-        None
-    }
-
-    /// Consumes in the database the specified credential.
-    ///
-    /// # Arguments
-    ///
-    /// * `id`: Database id.
-    pub async fn consume_coconut_credential(&self, id: i64, gateway_id: &str) {
+    pub(crate) async fn cleanup_expired(&self) {
         let mut guard = self.inner.write().await;
-        guard.credential_usage.push(CredentialUsage {
-            credential_id: id,
-            gateway_id_bs58: gateway_id.to_string(),
-        });
+
+        let mut to_remove = Vec::new();
+
+        for t in guard.ticketbooks.values() {
+            if t.ticketbook.expired() {
+                to_remove.push(t.ticketbook_id);
+            }
+        }
+
+        for id in to_remove {
+            guard.ticketbooks.remove(&id);
+        }
     }
 
-    /// Marks the specified credential as expired
-    ///
-    /// # Arguments
-    ///
-    /// * `id`: Id of the credential to mark as expired.
-    pub async fn mark_expired(&self, id: i64) {
-        let mut creds = self.inner.write().await;
-        if let Some(cred) = creds.credentials.get_mut(id as usize) {
-            cred.expired = true;
+    pub async fn get_next_unspent_ticketbook_and_update(
+        &self,
+        tickets: u32,
+    ) -> Option<RetrievedTicketbook> {
+        let mut guard = self.inner.write().await;
+
+        for t in guard.ticketbooks.values_mut() {
+            if !t.ticketbook.expired()
+                && t.ticketbook.spent_tickets() + tickets as u64
+                    <= t.ticketbook.params_total_tickets()
+            {
+                t.ticketbook
+                    .update_spent_tickets(t.ticketbook.spent_tickets() + tickets as u64);
+                return Some(RetrievedTicketbook {
+                    ticketbook_id: t.ticketbook_id,
+                    ticketbook: hack_clone_ticketbook(&t.ticketbook),
+                });
+            }
         }
+
+        None
+    }
+
+    pub(crate) async fn revert_ticketbook_withdrawal(
+        &self,
+        ticketbook_id: i64,
+        withdrawn: u32,
+        expected_current_total_spent: u32,
+    ) -> bool {
+        let mut guard = self.inner.write().await;
+
+        let Some(book) = guard.ticketbooks.get_mut(&ticketbook_id) else {
+            return false;
+        };
+
+        if book.ticketbook.spent_tickets() == expected_current_total_spent as u64 {
+            book.ticketbook
+                .update_spent_tickets(book.ticketbook.spent_tickets() - withdrawn as u64);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub(crate) async fn insert_pending_ticketbook(&self, ticketbook: &IssuanceTicketBook) {
+        let mut guard = self.inner.write().await;
+
+        let ser = ticketbook.pack();
+        let data = Zeroizing::new(ser.data);
+        let id = ticketbook.deposit_id() as i64;
+        guard.pending.insert(
+            id,
+            RetrievedPendingTicketbook {
+                pending_id: ticketbook.deposit_id() as i64,
+                pending_ticketbook: IssuanceTicketBook::try_unpack(&data, None).unwrap(),
+            },
+        );
+    }
+
+    pub(crate) async fn get_pending_ticketbooks(&self) -> Vec<RetrievedPendingTicketbook> {
+        let guard = self.inner.read().await;
+
+        let mut pending = Vec::new();
+
+        for p in guard.pending.values() {
+            // 🫠
+            let ser = p.pending_ticketbook.pack();
+            let data = Zeroizing::new(ser.data);
+            pending.push(RetrievedPendingTicketbook {
+                pending_id: p.pending_id,
+                pending_ticketbook: IssuanceTicketBook::try_unpack(&data, None).unwrap(),
+            })
+        }
+
+        pending
+    }
+
+    pub(crate) async fn remove_pending_ticketbook(&self, pending_id: i64) {
+        let mut guard = self.inner.write().await;
+
+        guard.pending.remove(&pending_id);
+    }
+
+    pub(crate) async fn insert_new_ticketbook(&self, ticketbook: &IssuedTicketBook) {
+        let mut guard = self.inner.write().await;
+        let id = guard.next_id();
+
+        // hehe, that's hacky AF, but it works as a **TEMPORARY** workaround
+        let ser = ticketbook.pack();
+        let data = Zeroizing::new(ser.data);
+        guard.ticketbooks.insert(
+            id,
+            RetrievedTicketbook {
+                ticketbook_id: id,
+                ticketbook: IssuedTicketBook::try_unpack(&data, None).unwrap(),
+            },
+        );
+    }
+
+    pub(crate) async fn get_ticketbooks_info(&self) -> Vec<BasicTicketbookInformation> {
+        let guard = self.inner.read().await;
+
+        guard
+            .ticketbooks
+            .values()
+            .map(|t| BasicTicketbookInformation {
+                id: t.ticketbook_id,
+                expiration_date: t.ticketbook.expiration_date(),
+                ticketbook_type: t.ticketbook.ticketbook_type().to_string(),
+                epoch_id: t.ticketbook.epoch_id() as u32,
+                total_tickets: t.ticketbook.spent_tickets() as u32,
+                used_tickets: t.ticketbook.params_total_tickets() as u32,
+            })
+            .collect()
+    }
+
+    pub(crate) async fn get_master_verification_key(
+        &self,
+        epoch_id: u64,
+    ) -> Option<VerificationKeyAuth> {
+        let guard = self.inner.read().await;
+
+        guard.master_vk.get(&epoch_id).cloned()
+    }
+
+    pub(crate) async fn insert_master_verification_key(
+        &self,
+        epoch_id: u64,
+        key: &VerificationKeyAuth,
+    ) {
+        let mut guard = self.inner.write().await;
+
+        guard.master_vk.insert(epoch_id, key.clone());
+    }
+
+    pub(crate) async fn get_coin_index_signatures(
+        &self,
+        epoch_id: u64,
+    ) -> Option<Vec<AnnotatedCoinIndexSignature>> {
+        let guard = self.inner.read().await;
+
+        guard.coin_indices_sigs.get(&epoch_id).cloned()
+    }
+
+    pub(crate) async fn insert_coin_index_signatures(
+        &self,
+        epoch_id: u64,
+        sigs: &[AnnotatedCoinIndexSignature],
+    ) {
+        let mut guard = self.inner.write().await;
+
+        guard.coin_indices_sigs.insert(epoch_id, sigs.to_vec());
+    }
+
+    pub(crate) async fn get_expiration_date_signatures(
+        &self,
+        expiration_date: Date,
+    ) -> Option<Vec<AnnotatedExpirationDateSignature>> {
+        let guard = self.inner.read().await;
+
+        guard.expiration_date_sigs.get(&expiration_date).cloned()
+    }
+
+    pub(crate) async fn insert_expiration_date_signatures(
+        &self,
+        _epoch_id: u64,
+        expiration_date: Date,
+        sigs: &[AnnotatedExpirationDateSignature],
+    ) {
+        let mut guard = self.inner.write().await;
+
+        guard
+            .expiration_date_sigs
+            .insert(expiration_date, sigs.to_vec());
     }
 }

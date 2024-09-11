@@ -97,7 +97,6 @@ pub(crate) fn save_new_mixnode(
     mixnode: MixNode,
     cost_params: MixNodeCostParams,
     owner: Addr,
-    proxy: Option<Addr>,
     pledge: Coin,
 ) -> Result<(MixId, Layer), MixnetContractError> {
     let layer = assign_layer(storage)?;
@@ -105,15 +104,7 @@ pub(crate) fn save_new_mixnode(
     let current_epoch = interval_storage::current_interval(storage)?.current_epoch_absolute_id();
 
     let mixnode_rewarding = MixNodeRewarding::initialise_new(cost_params, &pledge, current_epoch)?;
-    let mixnode_bond = MixNodeBond::new(
-        mix_id,
-        owner,
-        pledge,
-        layer,
-        mixnode,
-        proxy,
-        env.block.height,
-    );
+    let mixnode_bond = MixNodeBond::new(mix_id, owner, pledge, layer, mixnode, env.block.height);
 
     // save mixnode bond data
     // note that this implicitly checks for uniqueness on identity key, sphinx key and owner
@@ -411,7 +402,6 @@ pub(crate) mod tests {
             mixnode,
             cost_params.clone(),
             owner.clone(),
-            None,
             pledge.clone(),
         )
         .unwrap();
@@ -444,7 +434,6 @@ pub(crate) mod tests {
             mixnode,
             cost_params.clone(),
             Addr::unchecked("different-owner"),
-            None,
             pledge.clone(),
         );
         assert!(res.is_err());
@@ -457,7 +446,6 @@ pub(crate) mod tests {
             mixnode,
             cost_params.clone(),
             owner,
-            None,
             pledge.clone(),
         );
         assert!(res.is_err());
@@ -471,7 +459,6 @@ pub(crate) mod tests {
             mixnode,
             cost_params,
             Addr::unchecked("different-owner"),
-            None,
             pledge,
         );
         assert!(res.is_err());

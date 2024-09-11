@@ -2,25 +2,28 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
-use crate::node::storage::Storage;
-use log::{trace, warn};
+use fresh::InitialAuthenticationError;
+use nym_credentials_interface::AvailableBandwidth;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::ServerResponse;
+use nym_gateway_storage::Storage;
 use nym_sphinx::DestinationAddressBytes;
-use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
+use tracing::{instrument, trace, warn};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
 pub(crate) use self::fresh::FreshHandler;
 
 pub(crate) mod authenticated;
-pub(crate) mod coconut;
+pub(crate) mod ecash;
 mod fresh;
+
+const WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_millis(1_500);
 
 // TODO: note for my future self to consider the following idea:
 // split the socket connection into sink and stream
@@ -44,13 +47,15 @@ impl<S> SocketStream<S> {
 pub(crate) struct ClientDetails {
     #[zeroize(skip)]
     pub(crate) address: DestinationAddressBytes,
+    pub(crate) id: i64,
     pub(crate) shared_keys: SharedKeys,
 }
 
 impl ClientDetails {
-    pub(crate) fn new(address: DestinationAddressBytes, shared_keys: SharedKeys) -> Self {
+    pub(crate) fn new(id: i64, address: DestinationAddressBytes, shared_keys: SharedKeys) -> Self {
         ClientDetails {
             address,
+            id,
             shared_keys,
         }
     }
@@ -68,49 +73,62 @@ impl InitialAuthResult {
             server_response,
         }
     }
+
+    fn new_failed(protocol_version: Option<u8>) -> Self {
+        InitialAuthResult {
+            client_details: None,
+            server_response: ServerResponse::Authenticate {
+                protocol_version,
+                status: false,
+                bandwidth_remaining: 0,
+            },
+        }
+    }
 }
 
-pub(crate) async fn handle_connection<R, S, St>(
-    mut handle: FreshHandler<R, S, St>,
-    mut shutdown: TaskClient,
-) where
+// imo there's no point in including the peer address in anything higher than debug
+#[instrument(level = "debug", skip_all, fields(peer = %handle.peer_address))]
+pub(crate) async fn handle_connection<R, S, St>(mut handle: FreshHandler<R, S, St>)
+where
     R: Rng + CryptoRng,
     S: AsyncRead + AsyncWrite + Unpin + Send,
-    St: Storage,
+    St: Storage + Clone + 'static,
 {
     // If the connection handler abruptly stops, we shouldn't signal global shutdown
-    shutdown.mark_as_success();
+    handle.shutdown.mark_as_success();
 
-    match shutdown
-        .run_future(handle.perform_websocket_handshake())
-        .await
+    match tokio::time::timeout(
+        WEBSOCKET_HANDSHAKE_TIMEOUT,
+        handle.perform_websocket_handshake(),
+    )
+    .await
     {
-        None => {
-            trace!("received shutdown signal while performing websocket handshake");
+        Err(timeout_err) => {
+            warn!("websocket handshake timedout: {timeout_err}");
             return;
         }
-        Some(Err(err)) => {
+        Ok(Err(err)) => {
             warn!("Failed to complete WebSocket handshake: {err}. Stopping the handler");
             return;
         }
-        _ => (),
+        _ => {}
     }
 
     trace!("Managed to perform websocket handshake!");
 
-    match shutdown
-        .run_future(handle.perform_initial_authentication())
-        .await
-    {
-        None => {
-            trace!("received shutdown signal while performing initial authentication");
-            return;
-        }
-        Some(Err(err)) => {
+    let shutdown = handle.shutdown.clone();
+    match handle.perform_initial_authentication().await {
+        // For storage error, we want to print the extended storage error, but without
+        // including it in the error that's returned to the clients
+        Err(InitialAuthenticationError::StorageError(err)) => {
             warn!("authentication has failed: {err}");
             return;
         }
-        Some(Ok(auth_handle)) => auth_handle.listen_for_requests(shutdown).await,
+        Err(err) => {
+            warn!("authentication has failed: {err}");
+            return;
+        }
+        Ok(auth_handle) => auth_handle.listen_for_requests(shutdown).await,
     }
 
     trace!("The handler is done!");
@@ -136,27 +154,15 @@ impl<'a> From<&'a Config> for BandwidthFlushingBehaviourConfig {
     }
 }
 
-#[derive(Debug, Clone, Copy, Default)]
-pub(crate) struct AvailableBandwidth {
-    pub(crate) bytes: i64,
-    pub(crate) freepass_expiration: Option<OffsetDateTime>,
-}
-
-impl AvailableBandwidth {
-    pub(crate) fn freepass_expired(&self) -> bool {
-        if let Some(expiration) = self.freepass_expiration {
-            if expiration < OffsetDateTime::now_utc() {
-                return true;
-            }
-        }
-        false
-    }
-}
-
 pub(crate) struct ClientBandwidth {
     pub(crate) bandwidth: AvailableBandwidth,
     pub(crate) last_flushed: OffsetDateTime,
-    pub(crate) bytes_at_last_flush: i64,
+
+    /// the number of bytes the client had during the last sync.
+    /// it is used to determine whether the current value should be synced with the storage
+    /// by checking the delta with the known amount
+    pub(crate) bytes_at_last_sync: i64,
+    pub(crate) bytes_delta_since_sync: i64,
 }
 
 impl ClientBandwidth {
@@ -164,14 +170,13 @@ impl ClientBandwidth {
         ClientBandwidth {
             bandwidth,
             last_flushed: OffsetDateTime::now_utc(),
-            bytes_at_last_flush: bandwidth.bytes,
+            bytes_at_last_sync: bandwidth.bytes,
+            bytes_delta_since_sync: 0,
         }
     }
 
-    pub(crate) fn should_flush(&self, cfg: BandwidthFlushingBehaviourConfig) -> bool {
-        if (self.bytes_at_last_flush - self.bandwidth.bytes).abs()
-            >= cfg.client_bandwidth_max_delta_flushing_amount
-        {
+    pub(crate) fn should_sync(&self, cfg: BandwidthFlushingBehaviourConfig) -> bool {
+        if self.bytes_delta_since_sync.abs() >= cfg.client_bandwidth_max_delta_flushing_amount {
             return true;
         }
 
@@ -182,8 +187,9 @@ impl ClientBandwidth {
         false
     }
 
-    pub(crate) fn update_flush_data(&mut self) {
+    pub(crate) fn update_sync_data(&mut self) {
         self.last_flushed = OffsetDateTime::now_utc();
-        self.bytes_at_last_flush = self.bandwidth.bytes;
+        self.bytes_at_last_sync = self.bandwidth.bytes;
+        self.bytes_delta_since_sync = 0;
     }
 }

@@ -222,11 +222,10 @@ mod tests {
         let env = test.env();
 
         for _ in 0..500 {
-            let dummy_action = PendingEpochEventKind::Undelegate {
-                owner: Addr::unchecked("foomp"),
-                mix_id: test.rng.next_u32(),
-                proxy: None,
-            };
+            let dummy_action = PendingEpochEventKind::new_undelegate(
+                Addr::unchecked("foomp"),
+                test.rng.next_u32(),
+            );
             let id = push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
             let expected = EPOCH_EVENT_ID_COUNTER.load(test.deps().storage).unwrap();
             assert_eq!(expected, id);
@@ -235,11 +234,10 @@ mod tests {
         test.execute_all_pending_events();
 
         for _ in 0..10 {
-            let dummy_action = PendingEpochEventKind::Undelegate {
-                owner: Addr::unchecked("foomp"),
-                mix_id: test.rng.next_u32(),
-                proxy: None,
-            };
+            let dummy_action = PendingEpochEventKind::new_undelegate(
+                Addr::unchecked("foomp"),
+                test.rng.next_u32(),
+            );
             let id = push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
             let expected = EPOCH_EVENT_ID_COUNTER.load(test.deps().storage).unwrap();
             assert_eq!(expected, id);

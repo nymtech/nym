@@ -1,0 +1,121 @@
+name: publish-nym-wallet-win11
+on:
+  workflow_dispatch:
+  release:
+    types: [created]
+
+defaults:
+  run:
+    working-directory: nym-wallet
+
+jobs:
+  publish-tauri:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [custom-windows-11]
+    runs-on: ${{ matrix.platform }}
+
+    outputs:
+      release_id: ${{ steps.create-release.outputs.id }}
+      release_date: ${{ fromJSON(steps.create-release.outputs.assets)[0].created_at }}
+      version: ${{ steps.release-info.outputs.version }}
+      filename: ${{ steps.release-info.outputs.filename }}
+      file_hash: ${{ steps.release-info.outputs.file_hash }}
+
+    steps:
+      - name: Clean up first
+        continue-on-error: true
+        working-directory: .
+        run: |
+          cd ..
+          del /s /q /A:H nym
+          rmdir /s /q nym
+
+      - uses: actions/checkout@v3
+
+      - name: Import signing certificate
+        env:
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+        run: |
+          New-Item -ItemType directory -Path certificate
+          Set-Content -Path certificate/tempCert.txt -Value $env:WINDOWS_CERTIFICATE
+          certutil -decode certificate/tempCert.txt certificate/certificate.pfx
+          Remove-Item -path certificate -include tempCert.txt
+          Import-PfxCertificate -FilePath certificate/certificate.pfx -CertStoreLocation Cert:\CurrentUser\My -Password (ConvertTo-SecureString -String $env:WINDOWS_CERTIFICATE_PASSWORD -Force -AsPlainText)
+
+      - name: Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install Rust stable
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+
+      - name: Create env file
+        uses: timheuer/base64-to-file@v1.2
+        with:
+          fileName: '.env'
+          encodedString: ${{ secrets.WALLET_ADMIN_ADDRESS }}
+
+      - name: Install Yarn
+        run: npm install -g yarn
+
+      - name: Install project dependencies
+        shell: bash
+        run: cd .. && yarn --network-timeout 100000
+
+      - name: Install app dependencies
+        shell: bash
+        run: yarn --network-timeout 100000
+
+      - name: Build and sign it
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ENABLE_CODE_SIGNING: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE: ${{ secrets.WINDOWS_CERTIFICATE }}
+          WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+          TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
+          TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
+        run: yarn build
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: nym-wallet_1.0.0_x64_en-US.msi
+          path: nym-wallet/target/release/bundle/msi/nym-wallet_1.*.msi
+          retention-days: 30
+
+      - id: create-release
+        name: Upload to release based on tag name
+        uses: softprops/action-gh-release@v1
+        if: github.event_name == 'release'
+        with:
+          files: |
+            nym-wallet/target/release/bundle/msi/*.msi
+            nym-wallet/target/release/bundle/msi/*.msi.zip*
+
+      - name: Deploy artifacts to CI www
+        continue-on-error: true
+        uses: easingthemes/ssh-deploy@main
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.CI_WWW_SSH_PRIVATE_KEY }}
+          ARGS: "-avzr"
+          SOURCE: "nym-wallet/target/release/bundle/msi/nym-wallet_1.*.msi"
+          REMOTE_HOST: ${{ secrets.CI_WWW_REMOTE_HOST }}
+          REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
+          TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/builds/${{ github.ref_name }}/nym-wallet
+          EXCLUDE: "/dist/, /node_modules/"            
+
+  push-release-data:
+    if: ${{ (startsWith(github.ref, 'refs/tags/nym-wallet-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
+    uses: ./.github/workflows/release-calculate-hash.yml
+    needs: publish-tauri
+    with:
+      release_tag: ${{ github.ref_name }}
+    secrets: inherit

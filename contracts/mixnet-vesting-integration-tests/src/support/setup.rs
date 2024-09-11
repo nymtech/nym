@@ -26,6 +26,7 @@ pub const VESTING_OWNER: &str = "vesting-owner";
 pub const REWARDING_VALIDATOR: &str = "rewarding-validator";
 pub const MIX_DENOM: &str = "unym";
 
+#[allow(unused)]
 pub struct ContractInstantiationResult {
     mixnet_contract_address: Addr,
     vesting_contract_address: Addr,
@@ -69,14 +70,15 @@ impl TestSetupBuilder {
     }
 }
 
+#[allow(unused)]
 pub struct TestSetup {
     pub app: App,
     pub rng: ChaCha20Rng,
 
     pub mixnet_contract: Addr,
-    pub vesting_contract: Addr,
 }
 
+#[allow(unused)]
 impl TestSetup {
     pub fn new_simple() -> Self {
         TestSetup::new(Default::default(), fixtures::default_mixnet_init_msg())
@@ -91,16 +93,11 @@ impl TestSetup {
             app,
             rng: test_rng(),
             mixnet_contract: contracts.mixnet_contract_address,
-            vesting_contract: contracts.vesting_contract_address,
         }
     }
 
     pub fn mixnet_contract(&self) -> Addr {
         self.mixnet_contract.clone()
-    }
-
-    pub fn vesting_contract(&self) -> Addr {
-        self.vesting_contract.clone()
     }
 
     pub fn skip_to_current_epoch_end(&mut self) {
@@ -209,7 +206,6 @@ impl TestSetup {
     pub fn valid_mixnode_with_sig(
         &mut self,
         owner: &str,
-        proxy: Option<Addr>,
         cost_params: MixNodeCostParams,
         stake: Coin,
     ) -> (MixNode, MessageSignature) {
@@ -239,8 +235,7 @@ impl TestSetup {
         };
 
         let payload = MixnodeBondingPayload::new(mixnode.clone(), cost_params);
-        let content =
-            ContractMessageContent::new(Addr::unchecked(owner), proxy, vec![stake], payload);
+        let content = ContractMessageContent::new(Addr::unchecked(owner), vec![stake], payload);
         let sign_payload = SignableMixNodeBondingMsg::new(signing_nonce, content);
         let plaintext = sign_payload.to_plaintext().unwrap();
         let signature = keypair.private_key().sign(plaintext);

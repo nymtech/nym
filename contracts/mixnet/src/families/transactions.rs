@@ -1,4 +1,4 @@
-// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage::{
@@ -7,41 +7,20 @@ use super::storage::{
 };
 use crate::families::queries::get_family_by_label;
 use crate::families::signature_helpers::verify_family_join_permit;
-use crate::support::helpers::{ensure_bonded, ensure_sent_by_vesting_contract};
-use cosmwasm_std::{Addr, DepsMut, MessageInfo, Response};
+use crate::support::helpers::ensure_bonded;
+use cosmwasm_std::{DepsMut, MessageInfo, Response};
 use mixnet_contract_common::families::{Family, FamilyHead};
 use mixnet_contract_common::{error::MixnetContractError, IdentityKey};
 use nym_contracts_common::signing::MessageSignature;
 
 /// Creates a new MixNode family with senders node as head
-pub fn try_create_family(
+pub(crate) fn try_create_family(
     deps: DepsMut,
     info: MessageInfo,
     label: String,
-) -> Result<Response, MixnetContractError> {
-    _try_create_family(deps, &info.sender, label, None)
-}
-
-pub fn try_create_family_on_behalf(
-    deps: DepsMut,
-    info: MessageInfo,
-    owner_address: String,
-    label: String,
-) -> Result<Response, MixnetContractError> {
-    ensure_sent_by_vesting_contract(&info, deps.storage)?;
-
-    let owner_address = deps.api.addr_validate(&owner_address)?;
-    _try_create_family(deps, &owner_address, label, Some(info.sender))
-}
-
-fn _try_create_family(
-    deps: DepsMut,
-    owner: &Addr,
-    label: String,
-    proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond =
-        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, owner)?;
+        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &info.sender)?;
 
     ensure_bonded(&existing_bond)?;
 
@@ -60,43 +39,19 @@ fn _try_create_family(
         return Err(MixnetContractError::FamilyWithLabelExists(label));
     }
 
-    let family = Family::new(family_head, proxy, label);
+    let family = Family::new(family_head, label);
     save_family(&family, deps.storage)?;
     Ok(Response::default())
 }
 
-pub fn try_join_family(
+pub(crate) fn try_join_family(
     deps: DepsMut,
     info: MessageInfo,
     join_permit: MessageSignature,
     family_head: FamilyHead,
-) -> Result<Response, MixnetContractError> {
-    _try_join_family(deps, &info.sender, join_permit, family_head, None)
-}
-
-pub fn try_join_family_on_behalf(
-    deps: DepsMut,
-    info: MessageInfo,
-    member_address: String,
-    join_permit: MessageSignature,
-    family_head: FamilyHead,
-) -> Result<Response, MixnetContractError> {
-    ensure_sent_by_vesting_contract(&info, deps.storage)?;
-
-    let member_address = deps.api.addr_validate(&member_address)?;
-    let proxy = Some(info.sender);
-    _try_join_family(deps, &member_address, join_permit, family_head, proxy)
-}
-
-fn _try_join_family(
-    deps: DepsMut,
-    owner: &Addr,
-    join_permit: MessageSignature,
-    family_head: FamilyHead,
-    proxy: Option<Addr>,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond =
-        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, owner)?;
+        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &info.sender)?;
 
     ensure_bonded(&existing_bond)?;
 
@@ -116,7 +71,6 @@ fn _try_join_family(
     verify_family_join_permit(
         deps.as_ref(),
         family_head.clone(),
-        proxy,
         existing_bond.identity(),
         join_permit,
     )?;
@@ -128,33 +82,13 @@ fn _try_join_family(
     Ok(Response::default())
 }
 
-pub fn try_leave_family(
+pub(crate) fn try_leave_family(
     deps: DepsMut,
     info: MessageInfo,
-    family_head: FamilyHead,
-) -> Result<Response, MixnetContractError> {
-    _try_leave_family(deps, &info.sender, family_head)
-}
-
-pub fn try_leave_family_on_behalf(
-    deps: DepsMut,
-    info: MessageInfo,
-    member_address: String,
-    family_head: FamilyHead,
-) -> Result<Response, MixnetContractError> {
-    ensure_sent_by_vesting_contract(&info, deps.storage)?;
-
-    let member_address = deps.api.addr_validate(&member_address)?;
-    _try_leave_family(deps, &member_address, family_head)
-}
-
-fn _try_leave_family(
-    deps: DepsMut,
-    owner: &Addr,
     family_head: FamilyHead,
 ) -> Result<Response, MixnetContractError> {
     let existing_bond =
-        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, owner)?;
+        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &info.sender)?;
 
     ensure_bonded(&existing_bond)?;
 
@@ -178,32 +112,13 @@ fn _try_leave_family(
     Ok(Response::default())
 }
 
-pub fn try_head_kick_member(
+pub(crate) fn try_head_kick_member(
     deps: DepsMut,
     info: MessageInfo,
     member: IdentityKey,
 ) -> Result<Response, MixnetContractError> {
-    _try_head_kick_member(deps, &info.sender, member)
-}
-
-pub fn try_head_kick_member_on_behalf(
-    deps: DepsMut,
-    info: MessageInfo,
-    head_address: String,
-    member: IdentityKey,
-) -> Result<Response, MixnetContractError> {
-    ensure_sent_by_vesting_contract(&info, deps.storage)?;
-
-    let head_address = deps.api.addr_validate(&head_address)?;
-    _try_head_kick_member(deps, &head_address, member)
-}
-
-fn _try_head_kick_member(
-    deps: DepsMut,
-    owner: &Addr,
-    member: IdentityKey,
-) -> Result<Response, MixnetContractError> {
-    let head_bond = crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, owner)?;
+    let head_bond =
+        crate::mixnodes::helpers::must_get_mixnode_bond_by_owner(deps.storage, &info.sender)?;
 
     // make sure we're still in the mixnet
     ensure_bonded(&head_bond)?;
@@ -321,7 +236,7 @@ mod test {
         assert_eq!(family.head_identity(), family_head.identity());
 
         let join_permit =
-            test.generate_family_join_permit(&head_keypair, &member_mixnode.identity_key, false);
+            test.generate_family_join_permit(&head_keypair, &member_mixnode.identity_key);
 
         try_join_family(
             test.deps_mut(),
@@ -345,7 +260,7 @@ mod test {
         );
 
         let new_join_permit =
-            test.generate_family_join_permit(&head_keypair, &member_mixnode.identity_key, false);
+            test.generate_family_join_permit(&head_keypair, &member_mixnode.identity_key);
 
         try_join_family(
             test.deps_mut(),
@@ -372,190 +287,5 @@ mod test {
         assert!(
             !is_family_member(test.deps().storage, &family, &member_mixnode.identity_key).unwrap()
         );
-    }
-
-    #[cfg(test)]
-    mod creating_family {
-        use super::*;
-
-        #[test]
-        fn fails_for_illegal_proxy() {
-            let mut test = TestSetup::new();
-
-            let illegal_proxy = Addr::unchecked("not-vesting-contract");
-            let vesting_contract = test.vesting_contract();
-
-            let head = "alice";
-
-            test.add_dummy_mixnode(head, None);
-
-            let res = try_create_family_on_behalf(
-                test.deps_mut(),
-                mock_info(illegal_proxy.as_ref(), &[]),
-                head.to_string(),
-                "label".to_string(),
-            )
-            .unwrap_err();
-
-            assert_eq!(
-                res,
-                MixnetContractError::SenderIsNotVestingContract {
-                    received: illegal_proxy,
-                    vesting_contract
-                }
-            )
-        }
-    }
-
-    #[cfg(test)]
-    mod joining_family {
-        use super::*;
-
-        #[test]
-        fn fails_for_illegal_proxy() {
-            let mut test = TestSetup::new();
-
-            let illegal_proxy = Addr::unchecked("not-vesting-contract");
-            let vesting_contract = test.vesting_contract();
-
-            let head = "alice";
-            let label = "family";
-            let new_member = "vin-diesel";
-
-            let (_, head_keys) = test.create_dummy_mixnode_with_new_family(head, label);
-            let (_, member_keys) = test.add_dummy_mixnode_with_keypair(new_member, None);
-
-            let join_permit = test.generate_family_join_permit(
-                &head_keys,
-                &member_keys.public_key().to_base58_string(),
-                false,
-            );
-
-            let head_identity = head_keys.public_key().to_base58_string();
-            let family_head = FamilyHead::new(head_identity);
-            let res = try_join_family_on_behalf(
-                test.deps_mut(),
-                mock_info(illegal_proxy.as_ref(), &[]),
-                new_member.to_string(),
-                join_permit,
-                family_head,
-            )
-            .unwrap_err();
-
-            assert_eq!(
-                res,
-                MixnetContractError::SenderIsNotVestingContract {
-                    received: illegal_proxy,
-                    vesting_contract
-                }
-            )
-        }
-    }
-
-    #[cfg(test)]
-    mod leaving_family {
-        use super::*;
-
-        #[test]
-        fn fails_for_illegal_proxy() {
-            let mut test = TestSetup::new();
-
-            let illegal_proxy = Addr::unchecked("not-vesting-contract");
-            let vesting_contract = test.vesting_contract();
-
-            let head = "alice";
-            let label = "family";
-            let new_member = "vin-diesel";
-
-            let (_, head_keys) = test.create_dummy_mixnode_with_new_family(head, label);
-            let (_, member_keys) = test.add_dummy_mixnode_with_keypair(new_member, None);
-
-            let join_permit = test.generate_family_join_permit(
-                &head_keys,
-                &member_keys.public_key().to_base58_string(),
-                true,
-            );
-
-            let head_identity = head_keys.public_key().to_base58_string();
-            let family_head = FamilyHead::new(head_identity);
-            try_join_family_on_behalf(
-                test.deps_mut(),
-                mock_info(vesting_contract.as_ref(), &[]),
-                new_member.to_string(),
-                join_permit,
-                family_head.clone(),
-            )
-            .unwrap();
-
-            let res = try_leave_family_on_behalf(
-                test.deps_mut(),
-                mock_info(illegal_proxy.as_ref(), &[]),
-                new_member.to_string(),
-                family_head,
-            )
-            .unwrap_err();
-
-            assert_eq!(
-                res,
-                MixnetContractError::SenderIsNotVestingContract {
-                    received: illegal_proxy,
-                    vesting_contract
-                }
-            )
-        }
-    }
-
-    #[cfg(test)]
-    mod kicking_family_member {
-        use super::*;
-
-        #[test]
-        fn fails_for_illegal_proxy() {
-            let mut test = TestSetup::new();
-
-            let illegal_proxy = Addr::unchecked("not-vesting-contract");
-            let vesting_contract = test.vesting_contract();
-
-            let head = "alice";
-            let label = "family";
-            let new_member = "vin-diesel";
-
-            let (_, head_keys) = test.create_dummy_mixnode_with_new_family(head, label);
-            let (_, member_keys) = test.add_dummy_mixnode_with_keypair(new_member, None);
-
-            let join_permit = test.generate_family_join_permit(
-                &head_keys,
-                &member_keys.public_key().to_base58_string(),
-                true,
-            );
-
-            let head_identity = head_keys.public_key().to_base58_string();
-            let family_head = FamilyHead::new(head_identity);
-
-            try_join_family_on_behalf(
-                test.deps_mut(),
-                mock_info(vesting_contract.as_ref(), &[]),
-                new_member.to_string(),
-                join_permit,
-                family_head,
-            )
-            .unwrap();
-
-            let res = try_head_kick_member_on_behalf(
-                test.deps_mut(),
-                mock_info(illegal_proxy.as_ref(), &[]),
-                head.to_string(),
-                member_keys.public_key().to_base58_string(),
-            )
-            .unwrap_err();
-
-            assert_eq!(
-                res,
-                MixnetContractError::SenderIsNotVestingContract {
-                    received: illegal_proxy,
-                    vesting_contract
-                }
-            )
-        }
     }
 }

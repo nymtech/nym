@@ -31,6 +31,15 @@ pub trait MixnetSigningClient {
 
     // state/sys-params-related
 
+    async fn update_admin(
+        &self,
+        admin: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::UpdateAdmin { admin }, vec![])
+            .await
+    }
+
     async fn update_rewarding_validator_address(
         &self,
         address: AccountId,
@@ -683,6 +692,24 @@ pub trait MixnetSigningClient {
         .await
     }
 
+    async fn migrate_vested_mixnode(&self, fee: Option<Fee>) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::MigrateVestedMixNode {}, vec![])
+            .await
+    }
+
+    async fn migrate_vested_delegation(
+        &self,
+        mix_id: MixId,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::MigrateVestedDelegation { mix_id },
+            vec![],
+        )
+        .await
+    }
+
     #[cfg(feature = "contract-testing")]
     async fn testing_resolve_all_pending_events(
         &self,
@@ -742,6 +769,7 @@ mod tests {
         msg: MixnetExecuteMsg,
     ) {
         match msg {
+            MixnetExecuteMsg::UpdateAdmin { admin } => client.update_admin(admin, None).ignore(),
             MixnetExecuteMsg::AssignNodeLayer { mix_id, layer } => {
                 client.assign_node_layer(mix_id, layer, None).ignore()
             }
@@ -928,6 +956,12 @@ mod tests {
             MixnetExecuteMsg::WithdrawDelegatorRewardOnBehalf { mix_id, owner } => client
                 .withdraw_delegator_reward_on_behalf(owner.parse().unwrap(), mix_id, None)
                 .ignore(),
+            MixnetExecuteMsg::MigrateVestedMixNode { .. } => {
+                client.migrate_vested_mixnode(None).ignore()
+            }
+            MixnetExecuteMsg::MigrateVestedDelegation { mix_id } => {
+                client.migrate_vested_delegation(mix_id, None).ignore()
+            }
 
             #[cfg(feature = "contract-testing")]
             MixnetExecuteMsg::TestingResolveAllPendingEvents { .. } => {

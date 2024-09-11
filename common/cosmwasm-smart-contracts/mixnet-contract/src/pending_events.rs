@@ -38,6 +38,7 @@ pub enum PendingEpochEventKind {
     /// Request to create a delegation towards particular mixnode.
     /// Note that if such delegation already exists, it will get updated with the provided token amount.
     #[serde(alias = "Delegate")]
+    #[non_exhaustive]
     Delegate {
         /// The address of the owner of the delegation.
         owner: Addr,
@@ -55,6 +56,7 @@ pub enum PendingEpochEventKind {
 
     /// Request to remove delegation from particular mixnode.
     #[serde(alias = "Undelegate")]
+    #[non_exhaustive]
     Undelegate {
         /// The address of the owner of the delegation.
         owner: Addr,
@@ -107,6 +109,23 @@ impl PendingEpochEventKind {
         PendingEpochEventData {
             created_at,
             kind: self,
+        }
+    }
+
+    pub fn new_delegate(owner: Addr, mix_id: MixId, amount: Coin) -> Self {
+        PendingEpochEventKind::Delegate {
+            owner,
+            mix_id,
+            amount,
+            proxy: None,
+        }
+    }
+
+    pub fn new_undelegate(owner: Addr, mix_id: MixId) -> Self {
+        PendingEpochEventKind::Undelegate {
+            owner,
+            mix_id,
+            proxy: None,
         }
     }
 }

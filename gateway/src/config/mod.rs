@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::template::CONFIG_TEMPLATE;
-use log::{debug, warn};
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT};
 use nym_config::helpers::inaddr_any;
@@ -11,12 +10,13 @@ use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-use nym_network_defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT};
+use nym_network_defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT, TICKETBOOK_VALIDITY_DAYS};
 use serde::{Deserialize, Serialize};
 use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use tracing::{debug, warn};
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -67,7 +67,7 @@ pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
         .join(DEFAULT_DATA_DIR)
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct Config {
     // additional metadata holding on-disk location of this config file
@@ -220,7 +220,6 @@ impl Config {
         self.gateway.only_coconut_credentials = only_coconut_credentials;
         self
     }
-
     pub fn with_custom_nym_apis(mut self, nym_api_urls: Vec<Url>) -> Self {
         self.gateway.nym_api_urls = nym_api_urls;
         self
@@ -415,7 +414,7 @@ impl Default for IpPacketRouter {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, Deserialize, Serialize)]
 #[serde(default)]
 pub struct Debug {
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
@@ -459,6 +458,9 @@ pub struct Debug {
     // existing nodes whilst everyone else is upgrading and getting the code for handling the new field.
     // It shall be disabled in the subsequent releases.
     pub use_legacy_framed_packet_version: bool,
+
+    #[serde(default)]
+    pub zk_nym_tickets: ZkNymTicketHandlerDebug,
 }
 
 impl Default for Debug {
@@ -475,6 +477,72 @@ impl Default for Debug {
             client_bandwidth_max_delta_flushing_amount:
                 DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT,
             use_legacy_framed_packet_version: false,
+            zk_nym_tickets: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ZkNymTicketHandlerDebug {
+    /// Specifies the multiplier for revoking a malformed/double-spent ticket
+    /// (if it has to go all the way to the nym-api for verification)
+    /// e.g. if one ticket grants 100Mb and `revocation_bandwidth_penalty` is set to 1.5,
+    /// the client will lose 150Mb
+    pub revocation_bandwidth_penalty: f32,
+
+    /// Specifies the interval for attempting to resolve any failed, pending operations,
+    /// such as ticket verification or redemption.
+    #[serde(with = "humantime_serde")]
+    pub pending_poller: Duration,
+
+    pub minimum_api_quorum: f32,
+
+    /// Specifies the minimum number of tickets this gateway will attempt to redeem.
+    pub minimum_redemption_tickets: usize,
+
+    /// Specifies the maximum time between two subsequent tickets redemptions.
+    /// That's required as nym-apis will purge all ticket information for tickets older than maximum validity.
+    #[serde(with = "humantime_serde")]
+    pub maximum_time_between_redemption: Duration,
+}
+
+impl ZkNymTicketHandlerDebug {
+    pub const DEFAULT_REVOCATION_BANDWIDTH_PENALTY: f32 = 10.0;
+    pub const DEFAULT_PENDING_POLLER: Duration = Duration::from_secs(300);
+    pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.8;
+    pub const DEFAULT_MINIMUM_REDEMPTION_TICKETS: usize = 100;
+
+    // use min(4/5 of max validity, validity - 1), but making sure it's no greater than 1 day
+    // ASSUMPTION: our validity period is AT LEAST 2 days
+    //
+    // this could have been a constant, but it's more readable as a function
+    pub const fn default_maximum_time_between_redemption() -> Duration {
+        let desired_secs = TICKETBOOK_VALIDITY_DAYS * (86400 * 4) / 5;
+        let desired_secs_alt = (TICKETBOOK_VALIDITY_DAYS - 1) * 86400;
+
+        // can't use `min` in const context
+        let target_secs = if desired_secs < desired_secs_alt {
+            desired_secs
+        } else {
+            desired_secs_alt
+        };
+
+        assert!(
+            target_secs > 86400,
+            "the maximum time between redemption can't be lower than 1 day!"
+        );
+        Duration::from_secs(target_secs as u64)
+    }
+}
+
+impl Default for ZkNymTicketHandlerDebug {
+    fn default() -> Self {
+        ZkNymTicketHandlerDebug {
+            revocation_bandwidth_penalty: Self::DEFAULT_REVOCATION_BANDWIDTH_PENALTY,
+            pending_poller: Self::DEFAULT_PENDING_POLLER,
+            minimum_api_quorum: Self::DEFAULT_MINIMUM_API_QUORUM,
+            minimum_redemption_tickets: Self::DEFAULT_MINIMUM_REDEMPTION_TICKETS,
+            maximum_time_between_redemption: Self::default_maximum_time_between_redemption(),
         }
     }
 }

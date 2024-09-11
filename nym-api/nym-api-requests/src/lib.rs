@@ -4,7 +4,9 @@
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
-pub mod coconut;
+pub mod constants;
+pub mod ecash;
+mod helpers;
 pub mod models;
 pub mod nym_nodes;
 pub mod pagination;

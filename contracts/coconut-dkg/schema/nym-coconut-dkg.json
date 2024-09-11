@@ -377,6 +377,29 @@
       {
         "type": "object",
         "required": [
+          "get_epoch_threshold"
+        ],
+        "properties": {
+          "get_epoch_threshold": {
+            "type": "object",
+            "required": [
+              "epoch_id"
+            ],
+            "properties": {
+              "epoch_id": {
+                "type": "integer",
+                "format": "uint64",
+                "minimum": 0.0
+              }
+            },
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
           "can_advance_state"
         ],
         "properties": {
@@ -1842,6 +1865,13 @@
           "additionalProperties": false
         }
       }
+    },
+    "get_epoch_threshold": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "uint64",
+      "type": "integer",
+      "format": "uint64",
+      "minimum": 0.0
     },
     "get_registered_dealer": {
       "$schema": "http://json-schema.org/draft-07/schema#",

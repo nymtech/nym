@@ -1,6 +1,6 @@
 [package]
 name = "nym_wallet"
-version = "1.2.13"
+version = "1.2.14"
 description = "Nym Native Wallet"
 authors = ["Nym Technologies SA"]
 license = ""
@@ -8,7 +8,7 @@ repository = ""
 default-run = "nym_wallet"
 edition = "2021"
 build = "src/build.rs"
-rust-version = "1.58"
+rust-version = "1.76"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -50,7 +50,7 @@ base64 = "0.13"
 zeroize = { version = "1.5", features = ["zeroize_derive", "serde"] }
 
 cosmwasm-std = "1.3.0"
-cosmrs = { git = "https://github.com/jstuczyn/cosmos-rust", branch = "nym-temp/all-validator-features" }
+cosmrs = { git = "https://github.com/cosmos/cosmos-rust", rev = "4b1332e6d8258ac845cef71589c8d362a669675a" }
 
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }

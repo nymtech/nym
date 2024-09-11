@@ -1,15 +1,20 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{EpochEventId, EpochState, IdentityKey, MixId};
+use crate::{EpochEventId, EpochState, IdentityKey, MixId, OperatingCostRange, ProfitMarginRange};
 use contracts_common::signing::verifier::ApiVerifierError;
+use contracts_common::Percent;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
+use cw_controllers::AdminError;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum MixnetContractError {
     #[error("could not perform contract migration: {comment}")]
     FailedMigration { comment: String },
+
+    #[error(transparent)]
+    Admin(#[from] AdminError),
 
     #[error("{source}")]
     StdErr {
@@ -76,18 +81,8 @@ pub enum MixnetContractError {
     #[error("Received multiple coin types during staking")]
     MultipleDenoms,
 
-    #[error("Proxy address mismatch, expected {existing}, got {incoming}")]
-    ProxyMismatch { existing: String, incoming: String },
-
     #[error("Proxy address ({received}) is not set to the vesting contract ({vesting_contract})")]
     ProxyIsNotVestingContract {
-        received: Addr,
-        vesting_contract: Addr,
-    },
-    #[error(
-        "Sender of this message ({received}) is not the vesting contract ({vesting_contract})"
-    )]
-    SenderIsNotVestingContract {
         received: Addr,
         vesting_contract: Addr,
     },
@@ -238,6 +233,30 @@ pub enum MixnetContractError {
     SignatureVerificationFailure {
         #[from]
         source: ApiVerifierError,
+    },
+
+    #[error("this operation is no longer allowed to be performed with vesting tokens. please move them to your liquid balance and try again")]
+    DisabledVestingOperation,
+
+    #[error(
+        "this mixnode has not been bonded with the vesting tokens or has already been migrated"
+    )]
+    NotAVestingMixnode,
+
+    #[error("this delegation has not been performed with the vesting tokens or has already been migrated")]
+    NotAVestingDelegation,
+
+    #[error("the provided profit margin ({provided}) is outside the allowed range: {range}")]
+    ProfitMarginOutsideRange {
+        provided: Percent,
+        range: ProfitMarginRange,
+    },
+
+    #[error("the provided interval operating cost ({provided}{denom}) is outside the allowed range: {range}")]
+    OperatingCostOutsideRange {
+        denom: String,
+        provided: Uint128,
+        range: OperatingCostRange,
     },
 }
 

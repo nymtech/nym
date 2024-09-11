@@ -3,10 +3,11 @@
 
 use crate::nyxd::error::NyxdError;
 use itertools::Itertools;
+use nym_ecash_contract_common::events::PROPOSAL_ID_ATTRIBUTE_NAME;
 use serde::{Deserialize, Serialize};
 
-pub use nym_coconut_bandwidth_contract_common::event_attributes::*;
 pub use nym_coconut_dkg_common::event_attributes::*;
+pub use nym_ecash_contract_common::event_attributes::*;
 
 // it seems that currently validators just emit stringified events (which are also returned as part of deliverTx response)
 // as their logs
@@ -20,7 +21,8 @@ pub struct Log {
 
 /// Searches in logs for the first event of the given event type and in that event
 /// for the first attribute with the given attribute key.
-pub fn find_attribute<'a>(
+#[deprecated]
+pub fn find_attribute_in_logs<'a>(
     logs: &'a [Log],
     event_type: &str,
     attribute_key: &str,
@@ -31,6 +33,26 @@ pub fn find_attribute<'a>(
         .attributes
         .iter()
         .find(|attr| attr.key == attribute_key)
+}
+
+/// Search for the proposal id in the given log. It'll be in the LAST wasm event, with attribute key "proposal_id"
+#[deprecated]
+pub fn find_proposal_id(logs: &[Log]) -> Result<u64, NyxdError> {
+    let maybe_attributes = logs
+        .iter()
+        .rev()
+        .flat_map(|log| log.events.iter())
+        .find(|event| event.ty == "wasm")
+        .ok_or(NyxdError::ComswasmEventNotFound)?
+        .attributes
+        .iter()
+        .find(|attr| attr.key == PROPOSAL_ID_ATTRIBUTE_NAME);
+    let attribute = maybe_attributes.ok_or(NyxdError::ComswasmAttributeNotFound)?;
+
+    attribute
+        .value
+        .parse::<u64>()
+        .map_err(|_| NyxdError::DeserializationError("proposal_id".into()))
 }
 
 // these two functions were separated so that the internal logic could actually be tested
@@ -49,7 +71,7 @@ fn parse_raw_str_logs(raw: &str) -> Result<Vec<Log>, NyxdError> {
     Ok(logs)
 }
 
-pub fn parse_raw_logs(raw: String) -> Result<Vec<Log>, NyxdError> {
+pub fn parse_raw_logs<S: AsRef<str>>(raw: S) -> Result<Vec<Log>, NyxdError> {
     parse_raw_str_logs(raw.as_ref())
 }
 

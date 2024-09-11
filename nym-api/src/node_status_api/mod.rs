@@ -16,7 +16,6 @@ use std::time::Duration;
 
 pub(crate) mod cache;
 pub(crate) mod helpers;
-pub(crate) mod local_guard;
 pub(crate) mod models;
 pub(crate) mod reward_estimate;
 pub(crate) mod routes;

@@ -32,7 +32,4 @@ pub enum Error {
         #[source]
         source: hmac::digest::MacError,
     },
-
-    #[error("peers can't be modified anymore")]
-    PeerModifyStopped,
 }

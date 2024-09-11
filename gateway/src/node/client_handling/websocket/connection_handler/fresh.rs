@@ -6,7 +6,7 @@ use futures::{
     channel::{mpsc, oneshot},
     SinkExt, StreamExt,
 };
-use log::*;
+use nym_credentials_interface::AvailableBandwidth;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
@@ -20,26 +20,26 @@ use nym_gateway_requests::{
 };
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::DestinationAddressBytes;
+use nym_task::TaskClient;
 use rand::{CryptoRng, Rng};
+use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::tungstenite::{protocol::Message, Error as WsError};
+use tracing::*;
 
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
-use crate::node::client_handling::websocket::connection_handler::AvailableBandwidth;
-use crate::node::{
-    client_handling::{
-        active_clients::ActiveClientsStore,
-        websocket::{
-            connection_handler::{
-                AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
-            },
-            message_receiver::{IsActive, IsActiveRequestSender},
+use crate::node::client_handling::{
+    active_clients::ActiveClientsStore,
+    websocket::{
+        connection_handler::{
+            AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
         },
+        message_receiver::{IsActive, IsActiveRequestSender},
     },
-    storage::{error::StorageError, Storage},
 };
+use nym_gateway_storage::{error::StorageError, Storage};
 
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
@@ -112,6 +112,9 @@ pub(crate) enum InitialAuthenticationError {
 
     #[error("failed to upgrade the client handler: {source}")]
     HandlerUpgradeFailure { source: RequestHandlingError },
+
+    #[error("received shutdown")]
+    ReceivedShutdown,
 }
 
 impl InitialAuthenticationError {
@@ -123,11 +126,12 @@ impl InitialAuthenticationError {
 
 pub(crate) struct FreshHandler<R, S, St> {
     rng: R,
-    pub(crate) shared_state: CommonHandlerState,
+    pub(crate) shared_state: CommonHandlerState<St>,
     pub(crate) active_clients_store: ActiveClientsStore,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) socket_connection: SocketStream<S>,
-    pub(crate) storage: St,
+    pub(crate) peer_address: SocketAddr,
+    pub(crate) shutdown: TaskClient,
 
     // currently unused (but populated)
     pub(crate) negotiated_protocol: Option<u8>,
@@ -136,7 +140,7 @@ pub(crate) struct FreshHandler<R, S, St> {
 impl<R, S, St> FreshHandler<R, S, St>
 where
     R: Rng + CryptoRng,
-    St: Storage,
+    St: Storage + Clone + 'static,
 {
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
@@ -147,18 +151,20 @@ where
         rng: R,
         conn: S,
         outbound_mix_sender: MixForwardingSender,
-        storage: St,
         active_clients_store: ActiveClientsStore,
-        shared_state: CommonHandlerState,
+        shared_state: CommonHandlerState<St>,
+        peer_address: SocketAddr,
+        shutdown: TaskClient,
     ) -> Self {
         FreshHandler {
             rng,
             active_clients_store,
             outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
-            storage,
+            peer_address,
             negotiated_protocol: None,
             shared_state,
+            shutdown,
         }
     }
 
@@ -202,6 +208,7 @@ where
                     ws_stream,
                     self.shared_state.local_identity.as_ref(),
                     init_msg,
+                    self.shutdown.clone(),
                 )
                 .await
             }
@@ -311,6 +318,7 @@ where
         loop {
             // retrieve some messages
             let (messages, new_start_next_after) = self
+                .shared_state
                 .storage
                 .retrieve_messages(client_address, start_next_after)
                 .await?;
@@ -326,7 +334,7 @@ where
                 return Err(InitialAuthenticationError::ConnectionError(err));
             } else {
                 // if it was successful - remove them from the store
-                self.storage.remove_messages(ids).await?;
+                self.shared_state.storage.remove_messages(ids).await?;
             }
 
             // no more messages to grab
@@ -356,7 +364,11 @@ where
         encrypted_address: EncryptedAddressBytes,
         iv: IV,
     ) -> Result<Option<SharedKeys>, InitialAuthenticationError> {
-        let shared_keys = self.storage.get_shared_keys(client_address).await?;
+        let shared_keys = self
+            .shared_state
+            .storage
+            .get_shared_keys(client_address)
+            .await?;
 
         if let Some(shared_keys) = shared_keys {
             // this should never fail as we only ever construct persisted shared keys ourselves when inserting
@@ -517,6 +529,11 @@ where
     /// * `client_address`: address of the client wishing to authenticate.
     /// * `encrypted_address`: ciphertext of the address of the client wishing to authenticate.
     /// * `iv`: fresh IV received with the request.
+    #[instrument(skip_all
+        fields(
+            address = %address,
+        )
+    )]
     async fn handle_authenticate(
         &mut self,
         client_protocol_version: Option<u8>,
@@ -527,6 +544,8 @@ where
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
+        debug!("handling client registration");
+
         let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
         // populate the negotiated protocol for future uses
         self.negotiated_protocol = Some(negotiated_protocol);
@@ -543,39 +562,43 @@ where
                 .await?;
         }
 
-        let shared_keys = self
+        let Some(shared_keys) = self
             .authenticate_client(address, encrypted_address, iv)
-            .await?;
-        let status = shared_keys.is_some();
+            .await?
+        else {
+            // it feels weird to be returning an 'Ok' here, but I didn't want to change the existing behaviour
+            return Ok(InitialAuthResult::new_failed(Some(negotiated_protocol)));
+        };
 
-        let available_bandwidth: AvailableBandwidth =
-            self.storage.get_available_bandwidth(address).await?.into();
+        let client_id = self.shared_state.storage.get_client_id(address).await?;
 
-        let bandwidth_remaining = if available_bandwidth.freepass_expired() {
-            self.expire_freepass(address).await?;
+        let available_bandwidth: AvailableBandwidth = self
+            .shared_state
+            .storage
+            .get_available_bandwidth(client_id)
+            .await?
+            .map(From::from)
+            .unwrap_or_default();
+
+        let bandwidth_remaining = if available_bandwidth.expired() {
+            self.expire_bandwidth(client_id).await?;
             0
         } else {
             available_bandwidth.bytes
         };
 
-        let client_details =
-            shared_keys.map(|shared_keys| ClientDetails::new(address, shared_keys));
-
         Ok(InitialAuthResult::new(
-            client_details,
+            Some(ClientDetails::new(client_id, address, shared_keys)),
             ServerResponse::Authenticate {
                 protocol_version: Some(negotiated_protocol),
-                status,
+                status: true,
                 bandwidth_remaining,
             },
         ))
     }
 
-    pub(crate) async fn expire_freepass(
-        &self,
-        client: DestinationAddressBytes,
-    ) -> Result<(), StorageError> {
-        self.storage.reset_freepass_bandwidth(client).await
+    pub(crate) async fn expire_bandwidth(&self, client_id: i64) -> Result<(), StorageError> {
+        self.shared_state.storage.reset_bandwidth(client_id).await
     }
 
     /// Attempts to finalize registration of the client by storing the derived shared keys in the
@@ -588,34 +611,41 @@ where
     /// * `client`: details (i.e. address and shared keys) of the registered client
     async fn register_client(
         &mut self,
-        client: &ClientDetails,
-    ) -> Result<bool, InitialAuthenticationError>
+        client_address: DestinationAddressBytes,
+        client_shared_keys: &SharedKeys,
+    ) -> Result<i64, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
         debug!(
             "Processing register client request for: {}",
-            client.address.as_base58_string()
+            client_address.as_base58_string()
         );
 
-        self.storage
-            .insert_shared_keys(client.address, &client.shared_keys)
+        let client_id = self
+            .shared_state
+            .storage
+            .insert_shared_keys(client_address, client_shared_keys)
             .await?;
 
         // see if we have bandwidth entry for the client already, if not, create one with zero value
         if self
+            .shared_state
             .storage
-            .get_available_bandwidth(client.address)
+            .get_available_bandwidth(client_id)
             .await?
             .is_none()
         {
-            self.storage.create_bandwidth_entry(client.address).await?;
+            self.shared_state
+                .storage
+                .create_bandwidth_entry(client_id)
+                .await?;
         }
 
-        self.push_stored_messages_to_client(client.address, &client.shared_keys)
+        self.push_stored_messages_to_client(client_address, client_shared_keys)
             .await?;
 
-        Ok(true)
+        Ok(client_id)
     }
 
     /// Tries to handle the received register request by checking attempting to complete registration
@@ -639,20 +669,24 @@ where
         let remote_identity = Self::extract_remote_identity_from_register_init(&init_data)?;
         let remote_address = remote_identity.derive_destination_address();
 
+        debug!(remote_client = %remote_identity);
+
         if self.active_clients_store.is_active(remote_address) {
             return Err(InitialAuthenticationError::DuplicateConnection);
         }
 
         let shared_keys = self.perform_registration_handshake(init_data).await?;
-        let client_details = ClientDetails::new(remote_address, shared_keys);
+        let client_id = self.register_client(remote_address, &shared_keys).await?;
 
-        let status = self.register_client(&client_details).await?;
+        debug!(client_id = %client_id, "managed to finalize client registration");
+
+        let client_details = ClientDetails::new(client_id, remote_address, shared_keys);
 
         Ok(InitialAuthResult::new(
             Some(client_details),
             ServerResponse::Register {
                 protocol_version: Some(negotiated_protocol),
-                status,
+                status: true,
             },
         ))
     }
@@ -705,111 +739,125 @@ where
     {
         trace!("Started waiting for authenticate/register request...");
 
-        while let Some(msg) = self.read_websocket_message().await {
-            let msg = match msg {
-                Ok(msg) => msg,
-                Err(source) => {
-                    debug!("failed to obtain message from websocket stream! stopping connection handler: {source}");
-                    return Err(InitialAuthenticationError::FailedToReadMessage { source });
-                }
-            };
+        let mut shutdown = self.shutdown.clone();
+        loop {
+            tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    trace!("received shutdown signal while performing initial authentication");
+                    return Err(InitialAuthenticationError::ReceivedShutdown);
+                },
+                msg = self.read_websocket_message() => {
+                    let Some(msg) = msg else {
+                        break;
+                    };
 
-            if msg.is_close() {
-                return Err(InitialAuthenticationError::CloseMessage);
-            }
+                    let msg = match msg {
+                        Ok(msg) => msg,
+                        Err(source) => {
+                            debug!("failed to obtain message from websocket stream! stopping connection handler: {source}");
+                            return Err(InitialAuthenticationError::FailedToReadMessage { source });
+                        }
+                    };
 
-            // ONLY handle 'Authenticate' or 'Register' requests, ignore everything else
-            match msg {
-                // we have explicitly checked for close message
-                Message::Close(_) => unreachable!(),
-                Message::Text(text_msg) => {
-                    let (mix_sender, mix_receiver) = mpsc::unbounded();
-                    return match self.handle_initial_authentication_request(text_msg).await {
-                        Err(err) => {
-                            debug!("authentication failure: {err}");
+                    if msg.is_close() {
+                        return Err(InitialAuthenticationError::CloseMessage);
+                    }
 
-                            // try to send error to the client
-                            if let Err(source) =
-                                self.send_websocket_message(err.to_error_message()).await
+                    // ONLY handle 'Authenticate' or 'Register' requests, ignore everything else
+                    match msg {
+                        // we have explicitly checked for close message
+                        Message::Close(_) => unreachable!(),
+                        Message::Text(text_msg) => {
+                            let (mix_sender, mix_receiver) = mpsc::unbounded();
+                            return match self.handle_initial_authentication_request(text_msg).await {
+                                Err(err) => {
+                                    debug!("authentication failure: {err}");
+
+                                    // try to send error to the client
+                                    if let Err(source) =
+                                        self.send_websocket_message(err.to_error_message()).await
+                                    {
+                                        debug!("Failed to send authentication error response: {source}");
+                                        return Err(InitialAuthenticationError::ErrorResponseSendFailure {
+                                            source,
+                                        });
+                                    }
+                                    // return the underlying error
+                                    Err(err)
+                                }
+                                Ok(auth_result) => {
+                                    // try to send auth response back to the client
+                                    if let Err(source) = self
+                                        .send_websocket_message(auth_result.server_response.into())
+                                        .await
+                                    {
+                                        debug!("Failed to send authentication response: {source}");
+                                        return Err(InitialAuthenticationError::ResponseSendFailure {
+                                            source,
+                                        });
+                                    }
+
+                                    if let Some(client_details) = auth_result.client_details {
+                                        // Channel for handlers to ask other handlers if they are still active.
+                                        let (is_active_request_sender, is_active_request_receiver) =
+                                            mpsc::unbounded();
+                                        self.active_clients_store.insert_remote(
+                                            client_details.address,
+                                            mix_sender,
+                                            is_active_request_sender,
+                                        );
+                                        AuthenticatedHandler::upgrade(
+                                            self,
+                                            client_details,
+                                            mix_receiver,
+                                            is_active_request_receiver,
+                                        )
+                                        .await
+                                        .map_err(|source| {
+                                            InitialAuthenticationError::HandlerUpgradeFailure { source }
+                                        })
+                                    } else {
+                                        // honestly, it's been so long I don't remember under what conditions its possible (if at all)
+                                        // to have empty client details
+                                        Err(InitialAuthenticationError::EmptyClientDetails)
+                                    }
+                                }
+                            };
+                        }
+                        Message::Binary(_) => {
+                            // perhaps logging level should be reduced here, let's leave it for now and see what happens
+                            // if client is working correctly, this should have never happened
+                            debug!("possibly received a sphinx packet without prior authentication. Request is going to be ignored");
+                            if let Err(source) = self
+                                .send_websocket_message(
+                                    ServerResponse::new_error(
+                                        "binary request without prior authentication",
+                                    )
+                                    .into(),
+                                )
+                                .await
                             {
-                                debug!("Failed to send authentication error response: {source}");
                                 return Err(InitialAuthenticationError::ErrorResponseSendFailure {
                                     source,
                                 });
                             }
-                            // return the underlying error
-                            Err(err)
+                            return Err(InitialAuthenticationError::BinaryRequestWithoutAuthentication);
                         }
-                        Ok(auth_result) => {
-                            // try to send auth response back to the client
-                            if let Err(source) = self
-                                .send_websocket_message(auth_result.server_response.into())
-                                .await
-                            {
-                                debug!("Failed to send authentication response: {source}");
-                                return Err(InitialAuthenticationError::ResponseSendFailure {
-                                    source,
-                                });
-                            }
 
-                            if let Some(client_details) = auth_result.client_details {
-                                // Channel for handlers to ask other handlers if they are still active.
-                                let (is_active_request_sender, is_active_request_receiver) =
-                                    mpsc::unbounded();
-                                self.active_clients_store.insert_remote(
-                                    client_details.address,
-                                    mix_sender,
-                                    is_active_request_sender,
-                                );
-                                AuthenticatedHandler::upgrade(
-                                    self,
-                                    client_details,
-                                    mix_receiver,
-                                    is_active_request_receiver,
-                                )
-                                .await
-                                .map_err(|source| {
-                                    InitialAuthenticationError::HandlerUpgradeFailure { source }
-                                })
-                            } else {
-                                // honestly, it's been so long I don't remember under what conditions its possible (if at all)
-                                // to have empty client details
-                                Err(InitialAuthenticationError::EmptyClientDetails)
-                            }
-                        }
+                        _ => continue,
                     };
                 }
-                Message::Binary(_) => {
-                    // perhaps logging level should be reduced here, let's leave it for now and see what happens
-                    // if client is working correctly, this should have never happened
-                    debug!("possibly received a sphinx packet without prior authentication. Request is going to be ignored");
-                    if let Err(source) = self
-                        .send_websocket_message(
-                            ServerResponse::new_error(
-                                "binary request without prior authentication",
-                            )
-                            .into(),
-                        )
-                        .await
-                    {
-                        return Err(InitialAuthenticationError::ErrorResponseSendFailure {
-                            source,
-                        });
-                    }
-                    return Err(InitialAuthenticationError::BinaryRequestWithoutAuthentication);
-                }
-
-                _ => continue,
-            };
+            }
         }
 
         Err(InitialAuthenticationError::ClosedConnection)
     }
 
-    pub(crate) async fn start_handling(self, shutdown: nym_task::TaskClient)
+    pub(crate) async fn start_handling(self)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
-        super::handle_connection(self, shutdown).await
+        super::handle_connection(self).await
     }
 }

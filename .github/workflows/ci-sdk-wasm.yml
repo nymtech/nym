@@ -41,8 +41,8 @@ jobs:
         with:
           version: '116'
 
-      - name: Install wasm-bindgen-cli
-        run: cargo install wasm-bindgen-cli
+      # - name: Install wasm-bindgen-cli
+      #   run: cargo install wasm-bindgen-cli
 
       - name: "Build"
         run: make sdk-wasm-build

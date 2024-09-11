@@ -46,4 +46,4 @@ tokio-util = { workspace = true, features = ["codec"] }
 url.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
-tokio-tun = "0.11.2"
+tokio-tun = "0.11.5"

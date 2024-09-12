@@ -12,7 +12,7 @@ pub(crate) const STAKE_DENOM: DenomDetails = DenomDetails::new("unyx", "nyx", 6)
 // -- Contract addresses --
 
 pub(crate) const MIXNET_CONTRACT_ADDRESS: &str =
-    "n1hm4y6fzgxgu688jgf7ek66px6xkrtmn3gyk8fax3eawhp68c2d5qujz296";
+    "n1khq8f8vhah0gtljahrnsr3utl5lrhlf0xafs6pkvetnyumv7vt4qxh2ckx";
 pub(crate) const VESTING_CONTRACT_ADDRESS: &str =
     "n1jlzdxnyces4hrhqz68dqk28mrw5jgwtcfq0c2funcwrmw0dx9l9s8nnnvj";
 pub(crate) const ECASH_CONTRACT_ADDRESS: &str =
@@ -28,7 +28,7 @@ pub(crate) const COCONUT_DKG_CONTRACT_ADDRESS: &str =
 
 pub(crate) fn validators() -> Vec<ValidatorDetails> {
     vec![ValidatorDetails::new(
-        "https://qa-validator.qa.nymte.ch/",
+        "https://benny-validator.qa.nymte.ch/",
         Some("https://qa-nym-api.qa.nymte.ch/api"),
         Some("wss://qa-validator.qa.nymte.ch/websocket"),
     )]

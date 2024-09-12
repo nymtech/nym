@@ -9,6 +9,7 @@ use crate::models::Client;
 #[sqlx(type_name = "TEXT")] // SQLite TEXT type
 pub enum ClientType {
     EntryMixnet,
+    ExitMixnet,
     EntryWireguard,
     ExitWireguard,
 }
@@ -18,9 +19,10 @@ impl FromStr for ClientType {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "entry mixnet" => Ok(ClientType::EntryMixnet),
-            "entry wireguard" => Ok(ClientType::EntryWireguard),
-            "exit wireguard" => Ok(ClientType::ExitWireguard),
+            "entry_mixnet" => Ok(ClientType::EntryMixnet),
+            "exit_mixnet" => Ok(ClientType::ExitMixnet),
+            "entry_wireguard" => Ok(ClientType::EntryWireguard),
+            "exit_wireguard" => Ok(ClientType::ExitWireguard),
             _ => Err("Invalid client type"),
         }
     }
@@ -29,9 +31,10 @@ impl FromStr for ClientType {
 impl std::fmt::Display for ClientType {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            ClientType::EntryMixnet => "entry mixnet",
-            ClientType::EntryWireguard => "entry wireguard",
-            ClientType::ExitWireguard => "exit wireguard",
+            ClientType::EntryMixnet => "entry_mixnet",
+            ClientType::ExitMixnet => "exit_mixnet",
+            ClientType::EntryWireguard => "entry_wireguard",
+            ClientType::ExitWireguard => "exit_wireguard",
         };
         write!(f, "{}", s)
     }

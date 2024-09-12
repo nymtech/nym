@@ -5,11 +5,11 @@
 
 CREATE TABLE clients (
    id              INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-   client_type     TEXT NOT NULL CHECK(client_type IN ('entry mixnet', 'entry wireguard', 'exit wireguard'))
+   client_type     TEXT NOT NULL CHECK(client_type IN ('entry_mixnet', 'exit_mixnet', 'entry_wireguard', 'exit_wireguard'))
 );
 
 INSERT INTO clients (id, client_type)
-SELECT id, 'entry mixnet'
+SELECT id, 'entry_mixnet'
 FROM shared_keys;
 
 CREATE TABLE shared_keys_tmp (

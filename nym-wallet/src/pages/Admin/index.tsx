@@ -26,29 +26,15 @@ const AdminForm: FCWithChildren<{
         <Grid container spacing={3}>
           <Grid item xs={12}>
             <TextField
-              {...register('minimum_mixnode_pledge')}
+              {...register('minimum_pledge')}
               required
               variant="outlined"
               id="minimum_mixnode_bond"
               name="minimum_mixnode_bond"
               label="Minumum mixnode bond"
               fullWidth
-              error={!!errors.minimum_mixnode_pledge}
-              helperText={`${errors?.minimum_mixnode_pledge?.amount?.message} ${errors?.minimum_mixnode_pledge?.denom?.message}`}
-              InputLabelProps={{ shrink: true }}
-            />
-          </Grid>
-          <Grid item xs={12}>
-            <TextField
-              {...register('minimum_gateway_pledge')}
-              required
-              variant="outlined"
-              id="minimum_gateway_bond"
-              name="minimum_gateway_bond"
-              label="Minumum gateway bond"
-              fullWidth
-              error={!!errors.minimum_gateway_pledge}
-              helperText={`${errors?.minimum_gateway_pledge?.amount?.message} ${errors?.minimum_gateway_pledge?.denom?.message}`}
+              error={!!errors.minimum_pledge}
+              helperText={`${errors?.minimum_pledge?.amount?.message} ${errors?.minimum_pledge?.denom?.message}`}
               InputLabelProps={{ shrink: true }}
             />
           </Grid>

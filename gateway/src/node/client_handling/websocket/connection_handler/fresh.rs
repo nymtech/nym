@@ -1,7 +1,6 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::RequestHandlingError;
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::INITIAL_MESSAGE_TIMEOUT;
 use crate::node::client_handling::{

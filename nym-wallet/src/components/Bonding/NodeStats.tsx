@@ -53,7 +53,7 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
   const navigate = useNavigate();
 
   // clamp routing score to [0-100]
-  const score = Math.min(Math.max(routingScore, 0), 100);
+  const score = Math.min(Math.max(routingScore || 0, 0), 100);
 
   const data = [
     { key: 'routingScore', value: score },

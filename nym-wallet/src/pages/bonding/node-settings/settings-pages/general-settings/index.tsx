@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Box, Button, Divider, Grid } from '@mui/material';
 import { isGateway, isMixnode } from 'src/types';
-import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
+import { TBondedMixnode, TBondedGateway, TBondedNode } from 'src/context/bonding';
 import { GeneralMixnodeSettings } from './GeneralMixnodeSettings';
 import { ParametersSettings } from './ParametersSettings';
 import { GeneralGatewaySettings } from './GeneralGatewaySettings';
 
-const makeGeneralNav = (bondedNode: TBondedMixnode | TBondedGateway) => {
+const makeGeneralNav = (bondedNode: TBondedNode) => {
   const navItems = ['Info'];
   if (isMixnode(bondedNode)) {
     navItems.push('Parameters');
@@ -15,7 +15,7 @@ const makeGeneralNav = (bondedNode: TBondedMixnode | TBondedGateway) => {
   return navItems;
 };
 
-export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
+export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedNode }) => {
   const [navSelection, setNavSelection] = useState<number>(0);
 
   const getSettings = () => {

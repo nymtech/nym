@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { Box, Button, Typography, Grid, TextField, Stack } from '@mui/material';
-import { TBondedMixnode, TBondedGateway } from 'src/context/bonding';
+import { TBondedMixnode, TBondedGateway, TBondedNode } from 'src/context/bonding';
 import { Error } from 'src/components/Error';
 import { UnbondModal } from 'src/components/Bonding/modals/UnbondModal';
-import { isMixnode } from 'src/types';
+import { isMixnode, isNymNode } from 'src/types';
 
 interface Props {
-  bondedNode: TBondedMixnode | TBondedGateway;
+  bondedNode: TBondedNode;
 
   onConfirm: () => Promise<void>;
   onError: (e: string) => void;
@@ -68,7 +68,7 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
           </Stack>
         </Grid>
       </Grid>
-      {isConfirmed && (
+      {isConfirmed && !isNymNode(bondedNode) && (
         <UnbondModal
           node={bondedNode}
           onConfirm={async () => {

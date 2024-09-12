@@ -251,3 +251,13 @@ export const getIntervalAsDate = async () => {
 
   return { nextEpoch, nextInterval };
 };
+
+export const calculateStake = (pledge: string, delegations: string) => {
+  let stake;
+  try {
+    stake = unymToNym(Big(pledge).plus(delegations));
+  } catch (e: any) {
+    Console.warn(`not a valid decimal number: ${e}`);
+  }
+  return stake;
+};

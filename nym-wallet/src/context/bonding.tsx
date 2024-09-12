@@ -79,13 +79,13 @@ export type TBondedMixnode = {
   operatorRewards?: DecCoin;
   delegators: number;
   status: MixnodeStatus;
-  proxy?: string;
+  proxy?: string | null;
   operatorCost: DecCoin;
   host: string;
   estimatedRewards?: DecCoin;
   activeSetProbability?: SelectionChance;
   standbySetProbability?: SelectionChance;
-  routingScore: number;
+  routingScore?: number;
   httpApiPort: number;
   mixPort: number;
   verlocPort: number;

@@ -4,6 +4,7 @@
 use crate::error::Error;
 use crate::PeerPublicKey;
 use base64::{engine::general_purpose, Engine};
+use nym_credentials_interface::CredentialSpendingData;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -30,7 +31,6 @@ pub const BANDWIDTH_CAP_PER_DAY: u64 = 1024 * 1024 * 1024; // 1 GB
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(tag = "type", rename_all = "camelCase")]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub enum ClientMessage {
     Initial(InitMessage),
     Final(GatewayClient),
@@ -38,20 +38,20 @@ pub enum ClientMessage {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct InitMessage {
     /// Base64 encoded x25519 public key
-    #[cfg_attr(feature = "openapi", schema(value_type = String, format = Byte))]
     pub pub_key: PeerPublicKey,
+
+    /// Ecash credential
+    pub credential: CredentialSpendingData,
 }
 
 impl InitMessage {
-    pub fn pub_key(&self) -> PeerPublicKey {
-        self.pub_key
-    }
-
-    pub fn new(pub_key: PeerPublicKey) -> Self {
-        InitMessage { pub_key }
+    pub fn new(pub_key: PeerPublicKey, credential: CredentialSpendingData) -> Self {
+        InitMessage {
+            pub_key,
+            credential,
+        }
     }
 }
 
@@ -78,17 +78,14 @@ pub struct RemainingBandwidthData {
 /// Client that wants to register sends its PublicKey bytes mac digest encrypted with a DH shared secret.
 /// Gateway/Nym node can then verify pub_key payload using the same process
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct GatewayClient {
     /// Base64 encoded x25519 public key
-    #[cfg_attr(feature = "openapi", schema(value_type = String, format = Byte))]
     pub pub_key: PeerPublicKey,
 
     /// Assigned private IP
     pub private_ip: IpAddr,
 
     /// Sha256 hmac on the data (alongside the prior nonce)
-    #[cfg_attr(feature = "openapi", schema(value_type = String, format = Byte))]
     pub mac: ClientMac,
 }
 

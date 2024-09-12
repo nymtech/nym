@@ -78,7 +78,7 @@ impl WgPeerManager {
         .await
     }
 
-    /// Retrieve the wireguard peer with the provided public key from the storage.
+    /// Remove the wireguard peer with the provided public key from the storage.
     ///
     /// # Arguments
     ///

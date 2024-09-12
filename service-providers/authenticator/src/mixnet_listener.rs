@@ -13,7 +13,13 @@ use nym_authenticator_requests::v1::{
     request::{AuthenticatorRequest, AuthenticatorRequestData},
     response::AuthenticatorResponse,
 };
+use nym_credential_verification::{
+    bandwidth_storage_manager::BandwidthStorageManager, ecash::EcashManager,
+    BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
+};
 use nym_crypto::asymmetric::x25519::KeyPair;
+use nym_gateway_requests::models::CredentialSpendingRequest;
+use nym_gateway_storage::Storage;
 use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, TransmissionLane};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
@@ -45,9 +51,11 @@ impl RegistredAndFree {
     }
 }
 
-pub(crate) struct MixnetListener {
+pub(crate) struct MixnetListener<S> {
     // The configuration for the mixnet listener
     pub(crate) config: Config,
+
+    pub(crate) storage: Option<S>,
 
     // The mixnet client that we use to send and receive packets from the mixnet
     pub(crate) mixnet_client: nym_sdk::mixnet::MixnetClient,
@@ -60,26 +68,32 @@ pub(crate) struct MixnetListener {
 
     pub(crate) peer_manager: PeerManager,
 
+    pub(crate) ecash_verifier: Option<Arc<EcashManager<S>>>,
+
     pub(crate) timeout_check_interval: IntervalStream,
 }
 
-impl MixnetListener {
+impl<S: Storage + Clone + 'static> MixnetListener<S> {
     pub fn new(
         config: Config,
+        storage: Option<S>,
         free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
         response_rx: UnboundedReceiver<PeerControlResponse>,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         task_handle: TaskHandle,
+        ecash_verifier: Option<Arc<EcashManager<S>>>,
     ) -> Self {
         let timeout_check_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_REGISTRATION_TIMEOUT_CHECK));
         MixnetListener {
             config,
+            storage,
             mixnet_client,
             task_handle,
             registred_and_free: RwLock::new(RegistredAndFree::new(free_private_network_ips)),
             peer_manager: PeerManager::new(wireguard_gateway_data, response_rx),
+            ecash_verifier,
             timeout_check_interval,
         }
     }
@@ -132,7 +146,7 @@ impl MixnetListener {
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
-        let remote_public = init_message.pub_key();
+        let remote_public = init_message.pub_key;
         let nonce: u64 = fastrand::u64(..);
         if let Some(registration_data) = self
             .registred_and_free
@@ -165,6 +179,35 @@ impl MixnetListener {
                 request_id,
             ));
         }
+
+        if let (Some(storage), Some(ecash_verifier)) =
+            (self.storage.clone(), self.ecash_verifier.clone())
+        {
+            let client_id = storage.create_entry_wireguard_client().await?;
+            storage.create_bandwidth_entry(client_id).await?;
+            let bandwidth = storage.get_available_bandwidth(client_id).await?.ok_or(
+                AuthenticatorError::MissingClientBandwidthEntry {
+                    client_key: init_message.pub_key.to_string(),
+                },
+            )?;
+            let client_bandwidth = ClientBandwidth::new(bandwidth.into());
+            let mut verifier = CredentialVerifier::new(
+                CredentialSpendingRequest::new(init_message.credential),
+                ecash_verifier,
+                BandwidthStorageManager::new(
+                    storage,
+                    client_bandwidth,
+                    client_id,
+                    BandwidthFlushingBehaviourConfig {
+                        client_bandwidth_max_flushing_rate: Default::default(),
+                        client_bandwidth_max_delta_flushing_amount: Default::default(),
+                    },
+                    true,
+                ),
+            );
+            let bytes = verifier.verify().await?;
+        }
+
         let mut registred_and_free = self.registred_and_free.write().await;
         let private_ip_ref = registred_and_free
             .free_private_network_ips

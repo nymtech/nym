@@ -14,6 +14,9 @@ pub enum AuthenticatorError {
     #[error("failed to validate the loaded config")]
     ConfigValidationFailure,
 
+    #[error("{0}")]
+    CredentialVerificationError(#[from] nym_credential_verification::Error),
+
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
 
@@ -41,6 +44,9 @@ pub enum AuthenticatorError {
     #[error("failed to setup mixnet client: {source}")]
     FailedToSetupMixnetClient { source: nym_sdk::Error },
 
+    #[error("{0}")]
+    GatewayStorageError(#[from] nym_gateway_storage::error::StorageError),
+
     #[error("internal error: {0}")]
     InternalError(String),
 
@@ -55,6 +61,9 @@ pub enum AuthenticatorError {
 
     #[error("mac does not verify")]
     MacVerificationFailure,
+
+    #[error("the database entry for bandwidth of the registered client {client_key} is missing!")]
+    MissingClientBandwidthEntry { client_key: String },
 
     #[error("no more space in the network")]
     NoFreeIp,

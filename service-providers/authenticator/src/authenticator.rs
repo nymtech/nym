@@ -1,11 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::{net::IpAddr, path::Path, time::SystemTime};
+use std::{net::IpAddr, path::Path, sync::Arc, time::SystemTime};
 
 use futures::channel::oneshot;
 use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
+use nym_credential_verification::ecash::EcashManager;
+use nym_gateway_storage::Storage;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::{TaskClient, TaskHandle};
 use nym_wireguard::{peer_controller::PeerControlResponse, WireguardGatewayData};
@@ -24,20 +26,22 @@ impl OnStartData {
     }
 }
 
-pub struct Authenticator {
+pub struct Authenticator<S> {
     #[allow(unused)]
     config: Config,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
+    storage: Option<S>,
+    ecash_verifier: Option<Arc<EcashManager<S>>>,
     used_private_network_ips: Vec<IpAddr>,
     response_rx: UnboundedReceiver<PeerControlResponse>,
     shutdown: Option<TaskClient>,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
-impl Authenticator {
+impl<S: Storage + Clone + 'static> Authenticator<S> {
     pub fn new(
         config: Config,
         wireguard_gateway_data: WireguardGatewayData,
@@ -49,12 +53,28 @@ impl Authenticator {
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
+            storage: None,
+            ecash_verifier: None,
             wireguard_gateway_data,
             used_private_network_ips,
             response_rx,
             shutdown: None,
             on_start: None,
         }
+    }
+
+    #[must_use]
+    #[allow(unused)]
+    pub fn with_ecash_verifier(mut self, ecash_verifier: Arc<EcashManager<S>>) -> Self {
+        self.ecash_verifier = Some(ecash_verifier);
+        self
+    }
+
+    #[must_use]
+    #[allow(unused)]
+    pub fn with_storage(mut self, storage: S) -> Self {
+        self.storage = Some(storage);
+        self
     }
 
     #[must_use]
@@ -150,11 +170,13 @@ impl Authenticator {
             .collect();
         let mixnet_listener = crate::mixnet_listener::MixnetListener::new(
             self.config,
+            self.storage,
             free_private_network_ips,
             self.wireguard_gateway_data,
             self.response_rx,
             mixnet_client,
             task_handle,
+            self.ecash_verifier,
         );
 
         log::info!("The address of this client is: {self_address}");

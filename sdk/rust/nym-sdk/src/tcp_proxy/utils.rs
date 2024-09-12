@@ -69,7 +69,7 @@ impl MessageBuffer {
         send_buffer.sort_by(|a, b| a.message_id.cmp(&b.message_id()));
 
         if send_buffer.is_empty() {
-            info!("send buf is empty");
+            debug!("send buf is empty");
             return Ok(false);
         }
 

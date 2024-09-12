@@ -210,7 +210,8 @@ ctr = "0.9.1"
 cupid = "0.6.1"
 curve25519-dalek = "4.1"
 dashmap = "5.5.3"
-defguard_wireguard_rs = "0.4.2"
+# We want https://github.com/DefGuard/wireguard-rs/pull/64 , but there's no crates.io release being pushed out anymore
+defguard_wireguard_rs = { git = "https://github.com/DefGuard/wireguard-rs.git", rev = "v0.4.7" }
 digest = "0.10.7"
 dirs = "5.0"
 doc-comment = "0.3"

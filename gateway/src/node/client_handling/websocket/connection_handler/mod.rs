@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
-use fresh::InitialAuthenticationError;
 use nym_credential_verification::BandwidthFlushingBehaviourConfig;
 use nym_gateway_requests::registration::handshake::SharedKeys;
 use nym_gateway_requests::ServerResponse;
@@ -22,6 +21,7 @@ pub(crate) mod authenticated;
 mod fresh;
 
 const WEBSOCKET_HANDSHAKE_TIMEOUT: Duration = Duration::from_millis(1_500);
+const INITIAL_MESSAGE_TIMEOUT: Duration = Duration::from_millis(10_000);
 
 // TODO: note for my future self to consider the following idea:
 // split the socket connection into sink and stream
@@ -115,18 +115,18 @@ where
     trace!("Managed to perform websocket handshake!");
 
     let shutdown = handle.shutdown.clone();
-    match handle.perform_initial_authentication().await {
-        // For storage error, we want to print the extended storage error, but without
-        // including it in the error that's returned to the clients
-        Err(InitialAuthenticationError::StorageError(err)) => {
-            warn!("authentication has failed: {err}");
-            return;
-        }
+
+    // we can handle stateless client requests without prior authentication
+    let initial_request = match handle.wait_for_initial_message().await {
+        Ok(req) => req,
         Err(err) => {
-            warn!("authentication has failed: {err}");
+            handle.send_and_forget_error_response(err).await;
             return;
         }
-        Ok(auth_handle) => auth_handle.listen_for_requests(shutdown).await,
+    };
+
+    if let Some(auth_handle) = handle.handle_initial_client_request(initial_request).await {
+        auth_handle.listen_for_requests(shutdown).await
     }
 
     trace!("The handler is done!");

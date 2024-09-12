@@ -56,19 +56,6 @@ jobs:
           command: fmt
           args: --all -- --check
 
-      # due to sqlx dependency, prepare environment before building this package
-      - name: Pre-build steps for `node-status-api`
-        run: |
-          cargo install sqlx-cli
-          cd nym-node-status-api
-          ./launch_node_status_api.sh -i
-
-      - name: Build `node-status-api`
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --package nym-node-status-api
-
       - name: Build all binaries
         uses: actions-rs/cargo@v1
         with:

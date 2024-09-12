@@ -1,3 +1,4 @@
+#![allow(clippy::enum_variant_names)]
 use nym_explorer_client::ExplorerApiError;
 use nym_validator_client::{nym_api::error::NymAPIError, ValidatorClientError};
 use thiserror::Error;

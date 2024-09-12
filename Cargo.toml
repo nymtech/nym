@@ -210,6 +210,7 @@ ctr = "0.9.1"
 cupid = "0.6.1"
 curve25519-dalek = "4.1"
 dashmap = "5.5.3"
+# We want https://github.com/DefGuard/wireguard-rs/pull/64 , but there's no crates.io release being pushed out anymore
 defguard_wireguard_rs = { git = "https://github.com/DefGuard/wireguard-rs.git", rev = "v0.4.7" }
 digest = "0.10.7"
 dirs = "5.0"
@@ -270,7 +271,6 @@ rand_pcg = "0.3.1"
 rand_seeder = "0.2.3"
 rayon = "1.5.1"
 regex = "1.10.6"
-# We want https://github.com/DefGuard/wireguard-rs/pull/64 , but there's no crates.io release being pushed out anymore
 reqwest = { version = "0.12.4", default-features = false }
 rocket = "0.5.0"
 rocket_cors = "0.6.0"

@@ -55,9 +55,9 @@ impl MessageBuffer {
             return Ok(false);
         }
 
-        info!("Messages in buffer:");
+        debug!("Messages in buffer:");
         for msg in self.iter() {
-            info!("{}", msg.inner());
+            debug!("{}", msg.inner());
         }
 
         // Iterate over self, filtering messages where msg.decayed() = true (aka message is older than 2 seconds), or where msg.message_id is less than next_msg_id. Then collect and order according to message_id.

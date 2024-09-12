@@ -84,7 +84,7 @@ pub mod tests {
     use cw_controllers::AdminError::NotAdmin;
 
     #[test]
-    fn update_contract_rewarding_validtor_address() {
+    fn update_contract_rewarding_validator_address() {
         let mut deps = test_helpers::init_contract();
 
         let info = mock_info("not-the-creator", &[]);

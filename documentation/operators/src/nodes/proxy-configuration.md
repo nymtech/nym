@@ -18,7 +18,7 @@ This guide contains several variables. Substitute them with your own value, with
 | `<WSS_PORT>`          | Port listening to WSS, default is `9001`                                                    | 9001                                                      |
 | `<YOUR_WELCOME_TEXT>` | Any text you want to show on the landing page                                               | Welcome to Nym Node, operator contact is example@email.me |
 | `<LANDING_PAGE_PATH>` | A sub-directory located at `/var/www/<HOSTNAME>` containing html configuration files        | `/var/www/exit-gateway1.squad.nsl`                        |
-| `<NODE_ID>`           | A local only `nym-node` identifier, specified by flag `--id`, default is `default-nym-node` | alice_super_node                                          |
+| `<ID>`           | A local only `nym-node` identifier, specified by flag `--id`, default is `default-nym-node` | alice_super_node                                          |
 | `<PATH_TO>`           | Specify a full path to the given file, directory or binary behind this variable             | `/root/src/nym/target/release/`                                |
 
 ```admonish warning title=""
@@ -309,7 +309,7 @@ Now your html page is configured.
 
 ### `nym-node` Configuration
 
-When done with the customization, you'll need to make sure your `nym-node` uploads the file and reference to it. This is done by opening your node configuration file located at `~/.nym/nym-nodes/<NODE_ID>/config/config.toml` and changing the value of the line `landing_page_assets_path` on the `[http]` section:
+When done with the customization, you'll need to make sure your `nym-node` uploads the file and reference to it. This is done by opening your node configuration file located at `~/.nym/nym-nodes/<ID>/config/config.toml` and changing the value of the line `landing_page_assets_path` on the `[http]` section:
 ```
 landing_page_assets_path = '<LANDING_PAGE_PATH>'
 ```
@@ -364,7 +364,7 @@ server {
     listen 443 ssl http2;
     listen [::]:443 ssl http2;
 
-    server_name nym-exit.<HOSTNAME>;
+    server_name <HOSTNAME>;
 
     ssl_certificate /etc/letsencrypt/live/<HOSTNAME>/fullchain.pem;
     ssl_certificate_key /etc/letsencrypt/live/<HOSTNAME>/privkey.pem;
@@ -486,7 +486,7 @@ sudo chown -R $USER:$USER /var/www/<HOSTNAME>
 echo "<h1><YOUR_WELCOME_TEXT></h1>" | sudo tee /var/www/<HOSTNAME>/index.html
 ```
 
-4. When done with the customization, you'll need to make sure your `nym-node` uploads the file and reference to it. This is done by opening your node configuration file located at `~/.nym/nym-nodes/<NODE_ID>/config/config.toml` and changing the value of the line `landing_page_assets_path` on the `[http]` section:
+4. When done with the customization, you'll need to make sure your `nym-node` uploads the file and reference to it. This is done by opening your node configuration file located at `~/.nym/nym-nodes/<ID>/config/config.toml` and changing the value of the line `landing_page_assets_path` on the `[http]` section:
 ```sh
 landing_page_assets_path = '<LANDING_PAGE_PATH>'
 
@@ -800,19 +800,19 @@ ln -s /etc/nginx/sites-available/<HOSTNAME> /etc/nginx/sites-enabled
 nginx -t
 ```
 
-6. Restart `nginx`:
-```sh
-systemctl daemon-reload && systemctl restart nginx
-```
-
 #### SSL Setup using certbot
 
-7. Get an `SSL` certificate using certbot:
+6. Get an `SSL` certificate using certbot:
 
 ```sh
 apt install certbot python3-certbot-nginx
 certbot renew --dry-run
 certbot --nginx -d <HOSTNAME>
+```
+
+7. Restart `nginx`:
+```sh
+systemctl daemon-reload && systemctl restart nginx
 ```
 
 8. Restart your `nym-node` or if you're running your `nym-node` as a [`systemd` service](configuration.md#systemd), restart your service:

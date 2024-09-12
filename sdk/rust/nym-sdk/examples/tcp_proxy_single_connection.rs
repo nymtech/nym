@@ -4,9 +4,11 @@ use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::fs;
+use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
+use tokio::sync::Mutex;
 use tokio::task;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
@@ -18,22 +20,19 @@ struct ExampleMessage {
     message_bytes: Vec<u8>,
 }
 
-// This is a basic example which opens a single TCP connection and writes a bunch of messages between a client and
+// This is a basic example which opens a single TCP connection and writes a bunch of messages between a client and an echo
 // server, so only uses a single session under the hood and doesn't really show off the message ordering capabilities.
-// See tcp_proxy_multistream for use of multiple sessions/streams.
 #[tokio::main]
 async fn main() {
+    // Keep track of sent/received messages
+    let counter = Arc::new(Mutex::new(0));
+
     // Comment this out to just see println! statements from this example.
     // Nym client logging is very informative but quite verbose.
-    //
     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering.
-    // Run with RUST_LOG="debug" to see this.
-    // nym_bin_common::logging::setup_logging();
-
-    // tracing logs
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
-        .init();
+    // tracing_subscriber::fmt()
+    // .with_max_level(tracing::Level::INFO)
+    // .init();
 
     let upstream_tcp_addr = "127.0.0.1:9067";
     // This dir gets cleaned up at the end
@@ -143,6 +142,10 @@ async fn main() {
                     msg.message_id,
                     msg.message_bytes.len()
                 );
+                let counter = Arc::clone(&counter);
+                let mut newcount = counter.lock().await;
+                *newcount += 1;
+                println!(":: messages received back: {:?}/10", newcount);
             }
             Err(e) => {
                 println!("<< client received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);
@@ -152,9 +155,8 @@ async fn main() {
 
     // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
     signal::ctrl_c().await.unwrap();
-    println!("CTRL+C received, shutting down + cleanup up proxy server config files");
+    println!(":: CTRL+C received, shutting down + cleanup up proxy server config files");
     fs::remove_dir_all(conf_path).unwrap();
-    println!("removed");
 }
 
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {

@@ -144,10 +144,11 @@ impl NymProxyClient {
                 sender
                     .send_message(server_addr, &coded_message, IncludedSurbs::Amount(100))
                     .await?;
-
                 info!(
-                    "Sent message with id {} for session {}",
-                    message_id, session_id
+                    "Sent message with id {} for session {} of {} bytes",
+                    message_id,
+                    session_id,
+                    bytes.len()
                 );
             }
             message_id += 1;

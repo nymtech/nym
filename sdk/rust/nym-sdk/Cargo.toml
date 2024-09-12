@@ -58,7 +58,6 @@ serde = { version = "1", features = ["derive"] }
 tracing.workspace = true
 tracing-subscriber = "0.3"
 
-
 [dev-dependencies]
 anyhow = { workspace = true }
 dotenvy = { workspace = true }

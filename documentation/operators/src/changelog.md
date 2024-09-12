@@ -106,7 +106,7 @@ The client was removed from the peer list after 3 days of inactivity. Upon re-co
 
 - [Feature/merge back](https://github.com/nymtech/nym/pull/4710): Merge back from the release branch the changes that fix the `nym-node` upgrades
 
-- [Removed mixnode/gateway config migration code and disabled cli without explicit flag](https://github.com/nymtech/nym/pull/4706): `nym-gateway` and `nym-mixnode` commands now won't do anything without explicit `--force-run` to bypass the deprecation. The next step, in say a month or so, is to completely remove all `cli` related things.
+- [Removed mixnode/gateway config migration code and disabled cli without explicit flag](https://github.com/nymtech/nym/pull/4706): Commands for archived / legacy binaries `nym-gateway` and `nym-mixnode` won't do anything without explicit `--force-run` to bypass the deprecation. The next step, in say a month or so, is to completely remove all `cli` related things.
 
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Verify that the `nym-gateway` binary and `nym-mixnode` binary commands return the _error message_ stating to update to nym-node
@@ -234,7 +234,7 @@ Tested updating an old `nym-node` version and ensuring it did not throw any erro
 
 - Wireguard peers stay connected for longer time, re-connections are also faster
 
-- Profit margin and operating cost values will be set to the agreed values, the values can be changed in the future through [Nym Operators governance process](https://forum.nymtech.net/t/poll-proposal-for-on-chain-minimum-profit-margin-for-all-nym-nodes/253)
+- Profit margin and operating cost values are set to the values agreed by operators off-chain vote, the values can be changed in the future through [Nym Operators governance process](https://forum.nymtech.net/t/poll-proposal-for-on-chain-minimum-profit-margin-for-all-nym-nodes/253)
 ```admonish success title=""
 - Minimum profit margin = 20%
 - Maximum profit margin = 50%
@@ -250,8 +250,9 @@ Tested updating an old `nym-node` version and ensuring it did not throw any erro
         - DNS resolution check, to configure see [tasklist below](#operators-tasks)
         - Wireguard perfomance > 0.75, to configure see [tasklist below](#operators-tasks)
     
-- New wallet coming out soon!
+- New [Nym Wallet](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.14) is out!
     - Vesting contract functionalities have been purged, users can only remove tokens from vesting
+    - Migrating from `mixnode` or `gateway` smart contracts to a new unifying `nym-node` smart contract will be available soon using Nym desktop wallet, just like you are used to for bonding and node settings. After this migration all `nym-nodes` will be able to receive delegation and rewards. We will share a step by step guide once this migration will be deployed. No action needed now.
 
 - [Nym API Check CLI](testing/node-api-check.md) is upgraded according to the latest API endpoints, output is cleaner and more concise.
 
@@ -272,7 +273,6 @@ Every `nym-node` should be upgraded to the latest version! Operators can test us
     - Note: On some VPS this setup may not be enough to get the correct results as some ISPs  have their own security groups setup below the individual VPS. In that case a ticket to ISP will have to be issued to open the needed settings. We are working on a template for such ticket.
 - Setup [reverse proxy and WSS](nodes/proxy-configuration.md) on `nym-node` (Gateways only for the time being)
 - Don't forget to restart your node - or (preferably using [systemd automation](nodes/configuration.md#systemd)) reload daemon and restart the service
-- Migrating from `mixnet` or `gateway` smart contracts to a new `nym-node` smart contract will be available soon with an upcoming version of Nym desktop wallet. After this migration all `nym-nodes` will be able to receive delegation. The operators will have to confirm the migration once it's deployed.
 - Optional: Use [`nym-gateway-probe`](testing/gateway-probe.html) and [NymVPN CLI](https://nymtech.net/developers/nymvpn/cli.html) to test your own Gateway
 - Optional: Run the script below to measure ping speed of your Gateway and share your results in [Nym Operators channel](https://matrix.to/#/#operators:nymtech.chat)
 
@@ -352,6 +352,20 @@ THANK YOU!
 
 - New `nym-nodes` without a performance 24h history above 50% don't show routing properly on `nym-gateway-probe`, on Nym Harbourmaster the page may appear blank - we are working on a fix.
 - Wireguard works on IPv4 only for the time being, we are working on IPv6 implementation.
+- Harbourmaster *Role* column shows `nym-node --mode exit-gateway` as `EntryGateway`, we are working to fix it.
+- In rare occassions Harbourmaster shows only *"panda"* without the *"smiley"* badge even for nodes, which have T&C's accepted. We are working to fix it. 
+- Sometimes `nym-node` running with `--wireguard-enabled true` gives this error on restart: `Serialized netlink packet .. larger than maximum size ..`
+```sh
+/home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/defguard_wireguard_rs-0.4.2/src/netlink.rs:155: Serialized netlink packet (23240 bytes) larger than maximum size 12288: NetlinkMessage.
+```
+
+From what we found out it seems that one of our [dependencies - `DefGuard` - is failing](https://github.com/DefGuard/defguard/issues/619). Based on the reading on their fix, it seems that when node operators try to re-create a wireguard interface with too many previous peers (like on Gateway restart, with restoring from storage), there's an overflow. So their fix is to just add them one by one. To be sure that bumping the dependency version fixes the problem there's still two things we'd need to check - and your feedback would help us a lot:
+
+1. Did operators only encounter this error after a `nym-node` (Gateway) restart?
+2. Reprouce this error ourselves and see if it actually fixes our problem.
+
+**Please share your experience with us to help faster fix of this issue.**
+
 ---
 
 ## `v2024.9-topdeck`

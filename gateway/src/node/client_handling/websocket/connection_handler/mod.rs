@@ -11,7 +11,7 @@ use rand::{CryptoRng, Rng};
 use std::time::Duration;
 use tokio::io::{AsyncRead, AsyncWrite};
 use tokio_tungstenite::WebSocketStream;
-use tracing::{instrument, trace, warn};
+use tracing::{debug, instrument, trace, warn};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub(crate) use self::authenticated::AuthenticatedHandler;
@@ -92,6 +92,12 @@ where
     S: AsyncRead + AsyncWrite + Unpin + Send,
     St: Storage + Clone + 'static,
 {
+    // don't accept any new requests if we have already received shutdown
+    if handle.shutdown.is_shutdown() {
+        debug!("stopping the handle as we have received a shutdown");
+        return;
+    }
+
     // If the connection handler abruptly stops, we shouldn't signal global shutdown
     handle.shutdown.disarm();
 
@@ -101,35 +107,29 @@ where
     )
     .await
     {
-        Err(timeout_err) => {
-            warn!("websocket handshake timedout: {timeout_err}");
+        Err(_elapsed) => {
+            warn!("websocket handshake timeout");
             return;
         }
         Ok(Err(err)) => {
-            warn!("Failed to complete WebSocket handshake: {err}. Stopping the handler");
+            debug!("failed to complete WebSocket handshake: {err}. Stopping the handler");
             return;
         }
         _ => {}
     }
 
-    trace!("Managed to perform websocket handshake!");
+    trace!("managed to perform websocket handshake!");
 
-    let shutdown = handle.shutdown.clone();
+    let mut shutdown = handle.shutdown.clone();
 
-    // we can handle stateless client requests without prior authentication
-    let initial_request = match handle.wait_for_initial_message().await {
-        Ok(req) => req,
-        Err(err) => {
-            handle.send_and_forget_error_response(err).await;
-            return;
-        }
-    };
-
-    if let Some(auth_handle) = handle.handle_initial_client_request(initial_request).await {
+    if let Some(auth_handle) = handle
+        .handle_until_authenticated_or_failure(&mut shutdown)
+        .await
+    {
         auth_handle.listen_for_requests(shutdown).await
     }
 
-    trace!("The handler is done!");
+    trace!("the handler is done!");
 }
 
 impl<'a> From<&'a Config> for BandwidthFlushingBehaviourConfig {

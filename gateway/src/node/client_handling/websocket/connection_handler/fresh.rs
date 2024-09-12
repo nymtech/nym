@@ -1,6 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::error::RequestHandlingError;
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::INITIAL_MESSAGE_TIMEOUT;
 use crate::node::client_handling::{
@@ -80,6 +81,12 @@ pub(crate) enum InitialAuthenticationError {
     #[error("Attempted to negotiate connection with client using incompatible protocol version. Ours is {current} and the client reports {client:?}")]
     IncompatibleProtocol { client: Option<u8>, current: u8 },
 
+    #[error("failed to send authentication response: {source}")]
+    ResponseSendFailure {
+        #[source]
+        source: WsError,
+    },
+
     #[error("possibly received a sphinx packet without prior authentication. Request is going to be ignored")]
     BinaryRequestWithoutAuthentication,
 
@@ -94,6 +101,9 @@ pub(crate) enum InitialAuthenticationError {
 
     #[error("timed out while waiting for initial data")]
     Timeout,
+
+    #[error("could not establish client details")]
+    EmptyClientDetails,
 }
 
 pub(crate) struct FreshHandler<R, S, St> {
@@ -702,9 +712,9 @@ where
     }
 
     pub(crate) async fn handle_initial_client_request(
-        mut self,
+        &mut self,
         request: ClientControlRequest,
-    ) -> Option<AuthenticatedHandler<R, S, St>>
+    ) -> Result<Option<ClientDetails>, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
@@ -725,11 +735,11 @@ where
             } => self.handle_register(protocol_version, data).await,
             ClientControlRequest::SupportedProtocol { .. } => {
                 self.handle_reply_supported_protocol_request().await;
-                return None;
+                return Ok(None);
             }
             _ => {
                 debug!("received an invalid client request");
-                return None;
+                return Err(InitialAuthenticationError::InvalidRequest);
             }
         };
 
@@ -743,8 +753,8 @@ where
                     other => debug!("authentication failure: {other}"),
                 }
 
-                self.send_and_forget_error_response(err).await;
-                return None;
+                self.send_and_forget_error_response(&err).await;
+                return Err(err);
             }
         };
 
@@ -754,35 +764,75 @@ where
             .await
         {
             debug!("failed to send authentication response: {source}");
-            return None;
+            return Err(InitialAuthenticationError::ResponseSendFailure { source });
         }
 
         let Some(client_details) = auth_result.client_details else {
             // honestly, it's been so long I don't remember under what conditions its possible (if at all)
             // to have empty client details
             warn!("could not establish client details");
-            return None;
+            return Err(InitialAuthenticationError::EmptyClientDetails);
         };
+        Ok(Some(client_details))
+    }
 
-        let (mix_sender, mix_receiver) = mpsc::unbounded();
+    pub(crate) async fn handle_until_authenticated_or_failure(
+        mut self,
+        shutdown: &mut TaskClient,
+    ) -> Option<AuthenticatedHandler<R, S, St>>
+    where
+        S: AsyncRead + AsyncWrite + Unpin + Send,
+    {
+        while !shutdown.is_shutdown() {
+            let req = tokio::select! {
+                biased;
+                _ = shutdown.recv() => {
+                    return None
+                },
+                req = self.wait_for_initial_message() => req,
+            };
 
-        // Channel for handlers to ask other handlers if they are still active.
-        let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();
-        self.active_clients_store.insert_remote(
-            client_details.address,
-            mix_sender,
-            is_active_request_sender,
-        );
+            let initial_request = match req {
+                Ok(req) => req,
+                Err(err) => {
+                    self.send_and_forget_error_response(err).await;
+                    return None;
+                }
+            };
 
-        AuthenticatedHandler::upgrade(
-            self,
-            client_details,
-            mix_receiver,
-            is_active_request_receiver,
-        )
-        .await
-        .inspect_err(|err| error!("failed to upgrade client handler: {err}"))
-        .ok()
+            // see if we managed to register the client through this request
+            let maybe_auth_res = match self.handle_initial_client_request(initial_request).await {
+                Ok(maybe_auth_res) => maybe_auth_res,
+                Err(err) => {
+                    debug!("initial client request handling error: {err}");
+                    self.send_and_forget_error_response(err).await;
+                    return None;
+                }
+            };
+
+            if let Some(registration_details) = maybe_auth_res {
+                let (mix_sender, mix_receiver) = mpsc::unbounded();
+                // Channel for handlers to ask other handlers if they are still active.
+                let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();
+                self.active_clients_store.insert_remote(
+                    registration_details.address,
+                    mix_sender,
+                    is_active_request_sender,
+                );
+
+                return AuthenticatedHandler::upgrade(
+                    self,
+                    registration_details,
+                    mix_receiver,
+                    is_active_request_receiver,
+                )
+                .await
+                .inspect_err(|err| error!("failed to upgrade client handler: {err}"))
+                .ok();
+            }
+        }
+
+        None
     }
 
     pub(crate) async fn wait_for_initial_message(

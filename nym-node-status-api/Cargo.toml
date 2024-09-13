@@ -1,0 +1,37 @@
+# Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "nym-node-status-api"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true, features = ["cargo", "derive"] }
+cosmwasm-std = { workspace = true }
+futures-util = { workspace = true }
+nym-bin-common = { path = "../common/bin-common" }
+nym-explorer-client = { path = "../explorer-api/explorer-client" }
+nym-network-defaults = { path = "../common/network-defaults" }
+nym-validator-client = { path = "../common/client-libs/validator-client" }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+
+[build-dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["macros" ] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }

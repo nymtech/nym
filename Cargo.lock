@@ -5815,6 +5815,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-node-status-api"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum 0.7.5",
+ "chrono",
+ "clap 4.5.17",
+ "cosmwasm-std",
+ "futures-util",
+ "nym-bin-common",
+ "nym-explorer-client",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "nym-node-tester-utils"
 version = "0.1.0"
 dependencies = [

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bytes::Bytes;
 use nym_sdk::tcp_proxy;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
@@ -51,7 +52,6 @@ async fn main() -> Result<()> {
     task::spawn(async move {
         let _ = proxy_server.run_with_shutdown().await;
     });
-    info!("Nym TCP Proxy Address listening on {}", proxy_nym_addr);
 
     let (shutdown_sender, _) = broadcast::channel(1);
     let metrics = Arc::new(Metrics::new());
@@ -110,39 +110,43 @@ async fn handle_incoming(
     metrics: Arc<Metrics>,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) {
-    // CHANGE THIS TO A BYTECODEC
-    let mut buffer = [0; 1024];
+    let (read, mut write) = socket.into_split();
     let codec = tokio_util::codec::BytesCodec::new();
     let mut framed_read = tokio_util::codec::FramedRead::new(read, codec);
-   while let Some(Ok(bytes)) = framed_read.next().await {}
 
     loop {
         tokio::select! {
-            result = socket.read(&mut buffer) => {
+            Some(result) = framed_read.next() => {
                 match result {
-                    Ok(0) => {
-                        debug!("Connection closed: {}", socket.peer_addr().unwrap());
-                        break;
-                    }
-                    Ok(n) => {
-                        metrics.bytes_recv.fetch_add(n as u64, Ordering::Relaxed);
-                        if let Err(e) = socket.write_all(&buffer[0..n]).await {
-                            error!("Failed to write to socket: {}", e);
+                    Ok(bytes) => {
+                        let len = bytes.len();
+                        metrics.bytes_recv.fetch_add(len as u64, std::sync::atomic::Ordering::Relaxed);
+                        if let Err(e) = write.write_all(&bytes).await {
+                            error!("Failed to write to stream with err: {}", e);
                             break;
                         }
-                        metrics.bytes_sent.fetch_add(n as u64, Ordering::Relaxed);
+                        metrics.bytes_sent.fetch_add(len as u64, std::sync::atomic::Ordering::Relaxed);
                     }
                     Err(e) => {
-                        error!("Failed to read from socket: {}", e);
+                        error!("Failed to read from stream with err: {}", e);
                         break;
                     }
                 }
             }
             _ = shutdown_rx.recv() => {
-                warn!("Shutdown signal received, closing connection: {}", socket.peer_addr().unwrap());
+                warn!("Shutdown signal received, closing connection");
+                break;
+            }
+            // TODO need to work out a way that if this timesout and breaks but you dont hang up the conn on the client end you can reconnect..maybe. If we just use this as a ping echo server I dont think this is a problem
+            _ = tokio::time::sleep(tokio::time::Duration::from_secs(10)) => {
+                info!("Timeout reached, assuming we wont get more messages on this conn, closing");
+                let close_message = "Closing conn, reconnect if you want to ping again";
+                let bytes: Bytes = close_message.into();
+                write.write_all(&bytes).await;
                 break;
             }
         }
     }
-    metrics.active_conn.fetch_sub(1, Ordering::Relaxed);
+    metrics.active_conn.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    info!("Connection closed");
 }

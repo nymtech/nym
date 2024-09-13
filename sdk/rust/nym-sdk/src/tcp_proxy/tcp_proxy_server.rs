@@ -124,10 +124,7 @@ impl NymProxyServer {
             // - Send serialised reply => Mixnet via SURB.
             // - If tick() returns true, close session.
             while let Some(Ok(bytes)) = framed_read.next().await {
-<<<<<<< .merge_file_QV9Jbk
                 info!("server received {} bytes", bytes.len());
-=======
->>>>>>> .merge_file_wb95Nd
                 let reply =
                     ProxiedMessage::new(Payload::Data(bytes.to_vec()), session_id, message_id);
                 message_id += 1;

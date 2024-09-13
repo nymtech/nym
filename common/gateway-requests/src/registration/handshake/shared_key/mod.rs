@@ -1,16 +1,108 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::GatewayRequestsError;
+use crate::registration::handshake::LegacySharedKeys;
 use nym_crypto::generic_array::{typenum::Unsigned, GenericArray};
-use nym_crypto::symmetric::aead::{self, AeadKey, KeySizeUser, Nonce};
+use nym_crypto::symmetric::aead::{self, nonce_size, AeadError, AeadKey, KeySizeUser, Nonce};
+use nym_crypto::symmetric::stream_cipher::{iv_size, IV};
 use nym_pemstore::traits::PemStorableKey;
-use nym_sphinx::params::GatewayEncryptionAlgorithm;
+use nym_sphinx::params::{GatewayEncryptionAlgorithm, LegacyGatewayEncryptionAlgorithm};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 pub mod legacy;
+
+pub type SharedKeySize = <GatewayEncryptionAlgorithm as KeySizeUser>::KeySize;
+
+#[derive(Debug, PartialEq)]
+pub enum SharedGatewayKey {
+    Current(SharedSymmetricKey),
+    Legacy(LegacySharedKeys),
+}
+
+#[derive(Debug, Error)]
+pub enum SharedKeyUsageError {
+    #[error("the request is too short")]
+    TooShortRequest,
+
+    #[error("provided MAC is invalid")]
+    InvalidMac,
+
+    #[error("the provided nonce (or legacy IV) did not have the expected length")]
+    MalformedNonce,
+
+    #[error("did not provide a valid nonce for aead encryption")]
+    MissingAeadNonce,
+
+    #[error("failed to either encrypt or decrypt provided message")]
+    AeadFailure(#[from] AeadError),
+}
+
+impl SharedGatewayKey {
+    fn aead_nonce(
+        raw: Option<&[u8]>,
+    ) -> Result<Nonce<GatewayEncryptionAlgorithm>, SharedKeyUsageError> {
+        let Some(raw) = raw else {
+            return Err(SharedKeyUsageError::MissingAeadNonce);
+        };
+        if raw.len() != nonce_size::<GatewayEncryptionAlgorithm>() {
+            return Err(SharedKeyUsageError::MalformedNonce);
+        }
+        Ok(Nonce::<GatewayEncryptionAlgorithm>::clone_from_slice(raw))
+    }
+
+    fn cipher_iv(
+        raw: Option<&[u8]>,
+    ) -> Result<Option<&IV<LegacyGatewayEncryptionAlgorithm>>, SharedKeyUsageError> {
+        let Some(raw) = raw else { return Ok(None) };
+        let iv = if raw.is_empty() {
+            None
+        } else {
+            if raw.len() != iv_size::<LegacyGatewayEncryptionAlgorithm>() {
+                return Err(SharedKeyUsageError::MalformedNonce);
+            }
+            Some(IV::<LegacyGatewayEncryptionAlgorithm>::from_slice(raw))
+        };
+        Ok(iv)
+    }
+
+    pub fn encrypt(
+        &self,
+        plaintext: &[u8],
+        // the best common denominator for converting into 'IV' and 'Nonce' types
+        raw_nonce: Option<&[u8]>,
+    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+        match self {
+            SharedGatewayKey::Current(aes_gcm_siv) => {
+                let nonce = Self::aead_nonce(raw_nonce)?;
+                aes_gcm_siv.encrypt(plaintext, &nonce)
+            }
+            SharedGatewayKey::Legacy(aes_ctr) => {
+                let iv = Self::cipher_iv(raw_nonce)?;
+                Ok(aes_ctr.encrypt_and_tag(plaintext, iv))
+            }
+        }
+    }
+
+    pub fn decrypt(
+        &self,
+        ciphertext: &[u8],
+        // the best common denominator for converting into 'IV' and 'Nonce' types
+        raw_nonce: Option<&[u8]>,
+    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+        match self {
+            SharedGatewayKey::Current(aes_gcm_siv) => {
+                let nonce = Self::aead_nonce(raw_nonce)?;
+                aes_gcm_siv.decrypt(ciphertext, &nonce)
+            }
+            SharedGatewayKey::Legacy(aes_ctr) => {
+                let iv = Self::cipher_iv(raw_nonce)?;
+                aes_ctr.decrypt_tagged(ciphertext, iv)
+            }
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]
 pub struct SharedSymmetricKey(AeadKey<GatewayEncryptionAlgorithm>);
@@ -60,16 +152,16 @@ impl SharedSymmetricKey {
         &self,
         plaintext: &[u8],
         nonce: &Nonce<GatewayEncryptionAlgorithm>,
-    ) -> Result<Vec<u8>, GatewayRequestsError> {
-        aead::encrypt::<GatewayEncryptionAlgorithm>(&self.0, &nonce, plaintext).map_err(Into::into)
+    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+        aead::encrypt::<GatewayEncryptionAlgorithm>(&self.0, nonce, plaintext).map_err(Into::into)
     }
 
     pub fn decrypt(
         &self,
         ciphertext: &[u8],
         nonce: &Nonce<GatewayEncryptionAlgorithm>,
-    ) -> Result<Vec<u8>, GatewayRequestsError> {
-        aead::decrypt::<GatewayEncryptionAlgorithm>(&self.0, &nonce, ciphertext).map_err(Into::into)
+    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+        aead::decrypt::<GatewayEncryptionAlgorithm>(&self.0, nonce, ciphertext).map_err(Into::into)
     }
 }
 

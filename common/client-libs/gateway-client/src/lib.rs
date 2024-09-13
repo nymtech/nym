@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::GatewayClientError;
-use log::warn;
 use nym_gateway_requests::BinaryResponse;
+use tracing::warn;
 use tungstenite::{protocol::Message, Error as WsError};
 
 pub use client::{config::GatewayClientConfig, GatewayClient, GatewayConfig};

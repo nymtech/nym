@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use aead::{Aead, AeadCore, AeadInPlace, Buffer, KeyInit, Payload};
+use generic_array::typenum::Unsigned;
 
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
@@ -26,6 +27,13 @@ where
     R: RngCore + CryptoRng,
 {
     <A as AeadCore>::generate_nonce(rng)
+}
+
+pub fn nonce_size<A>() -> usize
+where
+    A: AeadCore,
+{
+    <<A as AeadCore>::NonceSize>::to_usize()
 }
 
 #[inline]

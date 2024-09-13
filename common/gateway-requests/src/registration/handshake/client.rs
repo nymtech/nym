@@ -1,129 +1,56 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::registration::handshake::messages::{Finalization, GatewayMaterialExchange};
 use crate::registration::handshake::state::State;
-use crate::registration::handshake::LegacySharedKeys;
+use crate::registration::handshake::SharedGatewayKey;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
-use futures::future::BoxFuture;
-use futures::task::{Context, Poll};
-use futures::{Future, Sink, Stream};
-use nym_crypto::asymmetric::encryption::PUBLIC_KEY_SIZE;
-use nym_crypto::asymmetric::identity::SIGNATURE_LENGTH;
-use nym_crypto::asymmetric::{encryption, identity};
-use rand::{CryptoRng, RngCore};
-use std::pin::Pin;
+use futures::{Sink, Stream};
 use tungstenite::Message as WsMessage;
 
-pub(crate) struct ClientHandshake<'a> {
-    handshake_future: BoxFuture<'a, Result<LegacySharedKeys, HandshakeError>>,
-}
-
-impl<'a> ClientHandshake<'a> {
-    pub(crate) fn new<S>(
-        rng: &mut (impl RngCore + CryptoRng),
-        ws_stream: &'a mut S,
-        identity: &'a nym_crypto::asymmetric::identity::KeyPair,
-        gateway_pubkey: identity::PublicKey,
-        expects_credential_usage: bool,
-        #[cfg(not(target_arch = "wasm32"))] shutdown: nym_task::TaskClient,
-    ) -> Self
+impl<'a, S> State<'a, S> {
+    async fn client_handshake_inner(&mut self) -> Result<(), HandshakeError>
     where
-        S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
+        S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
     {
-        let mut state = State::new(
-            rng,
-            ws_stream,
-            identity,
-            Some(gateway_pubkey),
-            expects_credential_usage,
-            #[cfg(not(target_arch = "wasm32"))]
-            shutdown,
-        );
+        // 1. send ed25519 pubkey alongside ephemeral x25519 pubkey and a flag to indicate non-legacy client
+        // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_NON_LEGACY
+        let init_message = self.init_message();
+        self.send_handshake_data(init_message).await?;
 
-        ClientHandshake {
-            handshake_future: Box::pin(async move {
-                // If any step along the way failed (that are non-network related),
-                // try to send 'error' message to the remote
-                // party to indicate handshake should be terminated
-                pub(crate) async fn check_processing_error<T, S>(
-                    result: Result<T, HandshakeError>,
-                    state: &mut State<'_, S>,
-                ) -> Result<T, HandshakeError>
-                where
-                    S: Sink<WsMessage> + Unpin,
-                {
-                    match result {
-                        Ok(ok) => Ok(ok),
-                        Err(err) => {
-                            state.send_handshake_error(err.to_string()).await?;
-                            Err(err)
-                        }
-                    }
-                }
+        // 2. wait for response with remote x25519 pubkey as well as encrypted signature
+        // <- g^y || AES(k, sig(gate_priv, (g^y || g^x)) || MAYBE_NONCE
+        let mid_res = self
+            .receive_handshake_message::<GatewayMaterialExchange>()
+            .await?;
 
-                let init_message = state.init_message();
-                state.send_handshake_data(init_message).await?;
+        // 3. derive shared keys locally
+        // hkdf::<blake3>::(g^xy)
+        self.derive_shared_key(&mid_res.ephemeral_dh);
 
-                // <- g^y || AES(k, sig(gate_priv, (g^y || g^x))
-                let mid_res = state.receive_handshake_message().await?;
-                let (remote_ephemeral_key, remote_key_material) =
-                    check_processing_error(Self::parse_mid_response(mid_res), &mut state).await?;
+        // 4. verify the received signature using the locally derived keys
+        self.verify_remote_key_material(&mid_res.materials, &mid_res.ephemeral_dh)?;
 
-                // hkdf::<blake3>::(g^xy)
-                state.derive_shared_key(&remote_ephemeral_key);
-                let verification_res =
-                    state.verify_remote_key_material(&remote_key_material, &remote_ephemeral_key);
-                check_processing_error(verification_res, &mut state).await?;
+        // 5. produce our own materials to get verified by the remote
+        // -> AES(k, sig(client_priv, g^x || g^y)) || MAYBE_NONCE
+        let materials = self.prepare_key_material_sig(&mid_res.ephemeral_dh)?;
+        self.send_handshake_data(materials).await?;
 
-                // AES(k, sig(client_priv, (g^y || g^x))
-                let material = state.prepare_key_material_sig(&remote_ephemeral_key);
-
-                // -> AES(k, sig(client_priv, g^x || g^y))
-                state.send_handshake_data(material).await?;
-
-                // <- Ok
-                let finalization = state.receive_handshake_message().await?;
-                check_processing_error(Self::parse_finalization_response(finalization), &mut state)
-                    .await?;
-                Ok(state.finalize_handshake())
-            }),
-        }
+        // 6. wait for remote confirmation of finalizing the handshake
+        let finalization = self.receive_handshake_message::<Finalization>().await?;
+        finalization.ensure_success()?;
+        Ok(())
     }
 
-    // client should have received
-    // G^y || AES(k, SIG(PRIV_GATE, G^y || G^x))
-    fn parse_mid_response(
-        mut resp: Vec<u8>,
-    ) -> Result<(encryption::PublicKey, Vec<u8>), HandshakeError> {
-        if resp.len() != PUBLIC_KEY_SIZE + SIGNATURE_LENGTH {
-            return Err(HandshakeError::MalformedResponse);
-        }
-
-        let remote_key_material = resp.split_off(PUBLIC_KEY_SIZE);
-        // this can only fail if the provided bytes have len different from PUBLIC_KEY_SIZE
-        // which is impossible
-        let remote_ephemeral_key = encryption::PublicKey::from_bytes(&resp).unwrap();
-        Ok((remote_ephemeral_key, remote_key_material))
-    }
-
-    fn parse_finalization_response(resp: Vec<u8>) -> Result<(), HandshakeError> {
-        if resp.len() != 1 {
-            return Err(HandshakeError::MalformedResponse);
-        }
-        if resp[0] == 1 {
-            Ok(())
-        } else if resp[0] == 0 {
-            Err(HandshakeError::HandshakeFailure)
-        } else {
-            Err(HandshakeError::MalformedResponse)
-        }
-    }
-}
-
-impl<'a> Future for ClientHandshake<'a> {
-    type Output = Result<LegacySharedKeys, HandshakeError>;
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        Pin::new(&mut self.handshake_future).poll(cx)
+    pub(crate) async fn perform_client_handshake(
+        mut self,
+    ) -> Result<SharedGatewayKey, HandshakeError>
+    where
+        S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin,
+    {
+        let handshake_res = self.client_handshake_inner().await;
+        self.check_for_handshake_processing_error(handshake_res)
+            .await?;
+        Ok(self.finalize_handshake())
     }
 }

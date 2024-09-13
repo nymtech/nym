@@ -9,15 +9,15 @@ use crate::{cleanup_socket_messages, try_decrypt_binary_message};
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use log::*;
 use nym_gateway_requests::registration::handshake::LegacySharedKeys;
 use nym_gateway_requests::{ServerResponse, SimpleGatewayRequestsError};
 use nym_task::TaskClient;
+use si_scale::helpers::bibytes2;
 use std::os::raw::c_int as RawFd;
 use std::sync::Arc;
+use tracing::*;
 use tungstenite::{protocol::Message, Error as WsError};
 
-use si_scale::helpers::bibytes2;
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 #[cfg(not(target_arch = "wasm32"))]

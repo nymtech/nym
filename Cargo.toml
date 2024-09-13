@@ -120,6 +120,7 @@ members = [
     "nym-node",
     "nym-node/nym-node-http-api",
     "nym-node/nym-node-requests",
+    "nym-node-status-api",
     "nym-outfox",
     "nym-validator-rewarder",
     "tools/echo-server",
@@ -238,6 +239,7 @@ eyre = "0.6.9"
 fastrand = "2.1.1"
 flate2 = "1.0.34"
 futures = "0.3.28"
+futures-util = "0.3"
 generic-array = "0.14.7"
 getrandom = "0.2.10"
 getset = "0.1.3"

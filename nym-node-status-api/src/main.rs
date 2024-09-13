@@ -4,7 +4,6 @@ use nym_network_defaults::setup_env;
 
 mod cli;
 mod db;
-mod error;
 mod logging;
 mod monitor;
 
@@ -16,9 +15,9 @@ async fn main() -> anyhow::Result<()> {
     // if dotenv file is present, load its values
     // otherwise, default to mainnet
     setup_env(args.config_env_file.as_ref());
-    tracing::trace!("{:?}", std::env::var("NETWORK_NAME"));
-    tracing::trace!("{:?}", std::env::var("EXPLORER_API"));
-    tracing::trace!("{:?}", std::env::var("NYM_API"));
+    tracing::debug!("{:?}", std::env::var("NETWORK_NAME"));
+    tracing::debug!("{:?}", std::env::var("EXPLORER_API"));
+    tracing::debug!("{:?}", std::env::var("NYM_API"));
 
     let storage = db::Storage::init().await?;
     monitor::spawn_in_background(storage)

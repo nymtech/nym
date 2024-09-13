@@ -5,7 +5,6 @@ use crate::db::models::{
     MIXNODES_BONDED_INACTIVE, MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
 };
 use crate::db::{queries, DbPool, Storage};
-use crate::error::NodeStatusApiResult;
 use anyhow::anyhow;
 use cosmwasm_std::Decimal;
 use nym_explorer_client::{ExplorerClient, PrettyDetailedGatewayBond};
@@ -52,16 +51,14 @@ pub(crate) fn spawn_in_background(storage: Storage) -> JoinHandle<()> {
     })
 }
 
-async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> NodeStatusApiResult<()> {
+async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> anyhow::Result<()> {
     let default_api_url = network_details
         .endpoints
         .first()
         .expect("rust sdk mainnet default incorrectly configured")
-        .api_url
+        .api_url()
         .clone()
-        .expect("rust sdk mainnet default missing api_url")
-        .parse()
-        .expect("rust sdk mainnet default api_url not parseable");
+        .expect("rust sdk mainnet default missing api_url");
     let default_explorer_url = network_details.explorer_api.clone().map(|url| {
         url.parse()
             .expect("rust sdk mainnet default explorer url not parseable")

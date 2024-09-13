@@ -31,7 +31,7 @@ db_abs_path="$package_dir/data/$db_filename"
 dotenv_file="$package_dir/.env"
 echo "DATABASE_URL=sqlite://$db_abs_path" > "$dotenv_file"
 
-export RUST_LOG=trace
+export RUST_LOG=${RUST_LOG:-debug}
 
 # export DATABASE_URL from .env file
 set -a && source "$dotenv_file" && set +a
@@ -61,4 +61,4 @@ if [ "$init_only" = true ]; then
     exit 0
 fi
 
-cargo run --package nym-node-status-api -- --config-env-file ../envs/mainnet.env
+cargo run --package nym-node-status-api

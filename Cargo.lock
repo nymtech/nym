@@ -2097,6 +2097,7 @@ dependencies = [
  "anyhow",
  "bincode",
  "bytecodec",
+ "bytes",
  "dashmap",
  "nym-sdk",
  "serde",

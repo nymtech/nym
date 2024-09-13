@@ -17,7 +17,7 @@ export interface DelegationWithEverything {
   stake_saturation: string | null;
   uses_vesting_contract_tokens: boolean;
   unclaimed_rewards: DecCoin | null;
+  errors: string | null;
   pending_events: Array<DelegationEvent>;
   mixnode_is_unbonding: boolean | null;
-  errors: string | null;
 }

@@ -22,3 +22,4 @@ tracing.workspace = true
 tracing-subscriber = "0.3"
 bytecodec = { workspace = true }
 nym-sdk = { path = "../../sdk/rust/nym-sdk/" }
+bytes.workspace = true

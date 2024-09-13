@@ -11,7 +11,7 @@ use models::{
     VerifiedTicket, WireguardPeer,
 };
 use nym_credentials_interface::ClientTicket;
-use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::registration::handshake::LegacySharedKeys;
 use nym_sphinx::DestinationAddressBytes;
 use shared_keys::SharedKeysManager;
 use sqlx::ConnectOptions;
@@ -46,7 +46,7 @@ pub trait Storage: Send + Sync {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedKeys,
+        shared_keys: &LegacySharedKeys,
     ) -> Result<i64, StorageError>;
 
     /// Tries to retrieve shared keys stored for the particular client.
@@ -330,7 +330,7 @@ impl Storage for PersistentStorage {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedKeys,
+        shared_keys: &LegacySharedKeys,
     ) -> Result<i64, StorageError> {
         let client_id = self
             .client_manager

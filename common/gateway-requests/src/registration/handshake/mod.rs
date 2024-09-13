@@ -3,15 +3,16 @@
 
 use self::client::ClientHandshake;
 use self::error::HandshakeError;
-#[cfg(not(target_arch = "wasm32"))]
-use self::gateway::GatewayHandshake;
-pub use self::shared_key::{SharedKeySize, SharedKeys};
 use futures::{Sink, Stream};
 use nym_crypto::asymmetric::identity;
-#[cfg(not(target_arch = "wasm32"))]
-use nym_task::TaskClient;
 use rand::{CryptoRng, RngCore};
 use tungstenite::{Error as WsError, Message as WsMessage};
+
+#[cfg(not(target_arch = "wasm32"))]
+use self::gateway::GatewayHandshake;
+
+#[cfg(not(target_arch = "wasm32"))]
+use nym_task::TaskClient;
 
 pub(crate) type WsItem = Result<WsMessage, WsError>;
 
@@ -19,8 +20,11 @@ mod client;
 pub mod error;
 #[cfg(not(target_arch = "wasm32"))]
 mod gateway;
-pub mod shared_key;
+mod shared_key;
 mod state;
+
+pub use self::shared_key::legacy::{LegacySharedKeySize, LegacySharedKeys};
+pub use self::shared_key::{SharedKeyConversionError, SharedSymmetricKey};
 
 // Note: the handshake is built on top of WebSocket, but in principle it shouldn't be too difficult
 // to remove that restriction, by just changing Sink<WsMessage> and Stream<Item = WsMessage> into
@@ -34,7 +38,7 @@ pub async fn client_handshake<'a, S>(
     gateway_pubkey: identity::PublicKey,
     expects_credential_usage: bool,
     #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
-) -> Result<SharedKeys, HandshakeError>
+) -> Result<LegacySharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {
@@ -57,7 +61,7 @@ pub async fn gateway_handshake<'a, S>(
     identity: &'a identity::KeyPair,
     received_init_payload: Vec<u8>,
     shutdown: TaskClient,
-) -> Result<SharedKeys, HandshakeError>
+) -> Result<LegacySharedKeys, HandshakeError>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
 {

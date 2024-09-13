@@ -3,7 +3,7 @@
 
 use crate::client::key_manager::persistence::KeyStore;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::registration::handshake::LegacySharedKeys;
 use nym_sphinx::acknowledgements::AckKey;
 use rand::{CryptoRng, RngCore};
 use std::sync::Arc;
@@ -84,5 +84,5 @@ fn _assert_keys_zeroize_on_drop() {
     _assert_zeroize_on_drop::<identity::KeyPair>();
     _assert_zeroize_on_drop::<encryption::KeyPair>();
     _assert_zeroize_on_drop::<AckKey>();
-    _assert_zeroize_on_drop::<SharedKeys>();
+    _assert_zeroize_on_drop::<LegacySharedKeys>();
 }

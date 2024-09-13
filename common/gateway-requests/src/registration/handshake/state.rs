@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::registration::handshake::error::HandshakeError;
-use crate::registration::handshake::shared_key::{SharedKeySize, SharedKeys};
 use crate::registration::handshake::WsItem;
+use crate::registration::handshake::{LegacySharedKeySize, LegacySharedKeys};
 use crate::types;
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::{
@@ -12,7 +12,7 @@ use nym_crypto::{
     hkdf,
     symmetric::stream_cipher,
 };
-use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
+use nym_sphinx::params::{GatewaySharedKeyHkdfAlgorithm, LegacyGatewayEncryptionAlgorithm};
 #[cfg(not(target_arch = "wasm32"))]
 use nym_task::TaskClient;
 use rand::{CryptoRng, RngCore};
@@ -41,7 +41,7 @@ pub(crate) struct State<'a, S> {
     ephemeral_keypair: encryption::KeyPair,
 
     /// The derived shared key using the ephemeral keys of both parties.
-    derived_shared_keys: Option<SharedKeys>,
+    derived_shared_keys: Option<LegacySharedKeys>,
 
     /// The known or received public identity key of the remote.
     /// Ideally it would always be known before the handshake was initiated.
@@ -128,12 +128,12 @@ impl<'a, S> State<'a, S> {
             None,
             &dh_result,
             None,
-            SharedKeySize::to_usize(),
+            LegacySharedKeySize::to_usize(),
         )
         .expect("somehow too long okm was provided");
 
         let derived_shared_key =
-            SharedKeys::try_from_bytes(&okm).expect("okm was expanded to incorrect length!");
+            LegacySharedKeys::try_from_bytes(&okm).expect("okm was expanded to incorrect length!");
 
         self.derived_shared_keys = Some(derived_shared_key)
     }
@@ -153,8 +153,8 @@ impl<'a, S> State<'a, S> {
             .collect();
 
         let signature = self.identity.private_key().sign(message);
-        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
-        stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
+        let zero_iv = stream_cipher::zero_iv::<LegacyGatewayEncryptionAlgorithm>();
+        stream_cipher::encrypt::<LegacyGatewayEncryptionAlgorithm>(
             self.derived_shared_keys.as_ref().unwrap().encryption_key(),
             &zero_iv,
             &signature.to_bytes(),
@@ -178,8 +178,8 @@ impl<'a, S> State<'a, S> {
             .expect("shared key was not derived!");
 
         // first decrypt received data
-        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
-        let decrypted_signature = stream_cipher::decrypt::<GatewayEncryptionAlgorithm>(
+        let zero_iv = stream_cipher::zero_iv::<LegacyGatewayEncryptionAlgorithm>();
+        let decrypted_signature = stream_cipher::decrypt::<LegacyGatewayEncryptionAlgorithm>(
             derived_shared_key.encryption_key(),
             &zero_iv,
             remote_material,
@@ -320,7 +320,7 @@ impl<'a, S> State<'a, S> {
 
     /// Finish the handshake, yielding the derived shared key and implicitly dropping all borrowed
     /// values.
-    pub(crate) fn finalize_handshake(self) -> SharedKeys {
+    pub(crate) fn finalize_handshake(self) -> LegacySharedKeys {
         self.derived_shared_keys.unwrap()
     }
 }

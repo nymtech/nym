@@ -3,15 +3,15 @@
 
 use nym_crypto::generic_array::{typenum::Unsigned, GenericArray};
 use nym_crypto::symmetric::stream_cipher::{random_iv, IvSizeUser, IV as CryptoIV};
-use nym_sphinx::params::GatewayEncryptionAlgorithm;
+use nym_sphinx::params::LegacyGatewayEncryptionAlgorithm;
 use rand::{CryptoRng, RngCore};
 use thiserror::Error;
 
-type NonceSize = <GatewayEncryptionAlgorithm as IvSizeUser>::IvSize;
+type NonceSize = <LegacyGatewayEncryptionAlgorithm as IvSizeUser>::IvSize;
 
 // I think 'IV' looks better than 'Iv', feel free to change that.
 #[allow(clippy::upper_case_acronyms)]
-pub struct IV(CryptoIV<GatewayEncryptionAlgorithm>);
+pub struct IV(CryptoIV<LegacyGatewayEncryptionAlgorithm>);
 
 #[derive(Error, Debug)]
 // I think 'IV' looks better than 'Iv', feel free to change that.
@@ -29,7 +29,7 @@ pub enum IVConversionError {
 
 impl IV {
     pub fn new_random<R: RngCore + CryptoRng>(rng: &mut R) -> Self {
-        IV(random_iv::<GatewayEncryptionAlgorithm, _>(rng))
+        IV(random_iv::<LegacyGatewayEncryptionAlgorithm, _>(rng))
     }
 
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, IVConversionError> {
@@ -48,7 +48,7 @@ impl IV {
         self.0.as_ref()
     }
 
-    pub fn inner(&self) -> &CryptoIV<GatewayEncryptionAlgorithm> {
+    pub fn inner(&self) -> &CryptoIV<LegacyGatewayEncryptionAlgorithm> {
         &self.0
     }
 

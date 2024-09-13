@@ -1,8 +1,8 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::registration::handshake::shared_key::SharedKeys;
 use crate::registration::handshake::state::State;
+use crate::registration::handshake::LegacySharedKeys;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
 use futures::future::BoxFuture;
 use futures::task::{Context, Poll};
@@ -15,7 +15,7 @@ use std::pin::Pin;
 use tungstenite::Message as WsMessage;
 
 pub(crate) struct ClientHandshake<'a> {
-    handshake_future: BoxFuture<'a, Result<SharedKeys, HandshakeError>>,
+    handshake_future: BoxFuture<'a, Result<LegacySharedKeys, HandshakeError>>,
 }
 
 impl<'a> ClientHandshake<'a> {
@@ -121,7 +121,7 @@ impl<'a> ClientHandshake<'a> {
 }
 
 impl<'a> Future for ClientHandshake<'a> {
-    type Output = Result<SharedKeys, HandshakeError>;
+    type Output = Result<LegacySharedKeys, HandshakeError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         Pin::new(&mut self.handshake_future).poll(cx)

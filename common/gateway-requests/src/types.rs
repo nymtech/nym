@@ -4,7 +4,7 @@
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::{IVConversionError, IV};
 use crate::models::CredentialSpendingRequest;
-use crate::registration::handshake::SharedKeys;
+use crate::registration::handshake::LegacySharedKeys;
 use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION};
 use nym_credentials::ecash::bandwidth::CredentialSpendingData;
 use nym_credentials_interface::CompactEcashError;
@@ -14,11 +14,12 @@ use nym_crypto::symmetric::stream_cipher;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddressError;
 use nym_sphinx::forwarding::packet::{MixPacket, MixPacketFormattingError};
 use nym_sphinx::params::packet_sizes::PacketSize;
-use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewayIntegrityHmacAlgorithm};
+use nym_sphinx::params::{GatewayIntegrityHmacAlgorithm, LegacyGatewayEncryptionAlgorithm};
 use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
 use tracing::log::error;
 
+use nym_crypto::symmetric::aead::AeadError;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
 use thiserror::Error;
@@ -154,6 +155,9 @@ pub enum GatewayRequestsError {
     #[error("the provided [v1] credential has invalid number of parameters - {0}")]
     InvalidNumberOfEmbededParameters(u32),
 
+    #[error("failed to either encrypt or decrypt provided message")]
+    AeadFailure(#[from] AeadError),
+
     // variant to catch legacy errors
     #[error("{0}")]
     Other(String),
@@ -236,7 +240,7 @@ impl ClientControlRequest {
 
     pub fn new_enc_ecash_credential(
         credential: CredentialSpendingData,
-        shared_key: &SharedKeys,
+        shared_key: &LegacySharedKeys,
         iv: IV,
     ) -> Self {
         let cred = CredentialSpendingRequest::new(credential);
@@ -251,7 +255,7 @@ impl ClientControlRequest {
 
     pub fn try_from_enc_ecash_credential(
         enc_credential: Vec<u8>,
-        shared_key: &SharedKeys,
+        shared_key: &LegacySharedKeys,
         iv: Vec<u8>,
     ) -> Result<CredentialSpendingRequest, GatewayRequestsError> {
         let iv = IV::try_from_bytes(&iv)?;
@@ -388,7 +392,7 @@ pub enum BinaryRequest {
 impl BinaryRequest {
     pub fn try_from_encrypted_tagged_bytes(
         raw_req: Vec<u8>,
-        shared_keys: &SharedKeys,
+        shared_keys: &LegacySharedKeys,
     ) -> Result<Self, GatewayRequestsError> {
         let message_bytes = &shared_keys.decrypt_tagged(&raw_req, None)?;
 
@@ -398,7 +402,7 @@ impl BinaryRequest {
         Ok(BinaryRequest::ForwardSphinx(mix_packet))
     }
 
-    pub fn into_encrypted_tagged_bytes(self, shared_key: &SharedKeys) -> Vec<u8> {
+    pub fn into_encrypted_tagged_bytes(self, shared_key: &LegacySharedKeys) -> Vec<u8> {
         match self {
             BinaryRequest::ForwardSphinx(mix_packet) => {
                 let forwarding_data = match mix_packet.into_bytes() {
@@ -421,7 +425,7 @@ impl BinaryRequest {
         BinaryRequest::ForwardSphinx(mix_packet)
     }
 
-    pub fn into_ws_message(self, shared_key: &SharedKeys) -> Message {
+    pub fn into_ws_message(self, shared_key: &LegacySharedKeys) -> Message {
         Message::Binary(self.into_encrypted_tagged_bytes(shared_key))
     }
 }
@@ -434,7 +438,7 @@ pub enum BinaryResponse {
 impl BinaryResponse {
     pub fn try_from_encrypted_tagged_bytes(
         raw_req: Vec<u8>,
-        shared_keys: &SharedKeys,
+        shared_keys: &LegacySharedKeys,
     ) -> Result<Self, GatewayRequestsError> {
         let mac_size = GatewayMacSize::to_usize();
         if raw_req.len() < mac_size {
@@ -452,8 +456,8 @@ impl BinaryResponse {
             return Err(GatewayRequestsError::InvalidMac);
         }
 
-        let zero_iv = stream_cipher::zero_iv::<GatewayEncryptionAlgorithm>();
-        let plaintext = stream_cipher::decrypt::<GatewayEncryptionAlgorithm>(
+        let zero_iv = stream_cipher::zero_iv::<LegacyGatewayEncryptionAlgorithm>();
+        let plaintext = stream_cipher::decrypt::<LegacyGatewayEncryptionAlgorithm>(
             shared_keys.encryption_key(),
             &zero_iv,
             message_bytes,
@@ -462,7 +466,7 @@ impl BinaryResponse {
         Ok(BinaryResponse::PushedMixMessage(plaintext))
     }
 
-    pub fn into_encrypted_tagged_bytes(self, shared_key: &SharedKeys) -> Vec<u8> {
+    pub fn into_encrypted_tagged_bytes(self, shared_key: &LegacySharedKeys) -> Vec<u8> {
         match self {
             // TODO: it could be theoretically slightly more efficient if the data wasn't taken
             // by reference because then it makes a copy for encryption rather than do it in place
@@ -474,7 +478,7 @@ impl BinaryResponse {
         BinaryResponse::PushedMixMessage(msg)
     }
 
-    pub fn into_ws_message(self, shared_key: &SharedKeys) -> Message {
+    pub fn into_ws_message(self, shared_key: &LegacySharedKeys) -> Message {
         Message::Binary(self.into_encrypted_tagged_bytes(shared_key))
     }
 }

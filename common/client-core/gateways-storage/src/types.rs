@@ -4,7 +4,7 @@
 use crate::BadGateway;
 use cosmrs::AccountId;
 use nym_crypto::asymmetric::identity;
-use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::registration::handshake::LegacySharedKeys;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::str::FromStr;
@@ -64,7 +64,7 @@ impl From<GatewayDetails> for GatewayRegistration {
 impl GatewayDetails {
     pub fn new_remote(
         gateway_id: identity::PublicKey,
-        derived_aes128_ctr_blake3_hmac_keys: Arc<SharedKeys>,
+        derived_aes128_ctr_blake3_hmac_keys: Arc<LegacySharedKeys>,
         gateway_owner_address: Option<AccountId>,
         gateway_listener: Url,
     ) -> Self {
@@ -87,7 +87,7 @@ impl GatewayDetails {
         }
     }
 
-    pub fn shared_key(&self) -> Option<&SharedKeys> {
+    pub fn shared_key(&self) -> Option<&LegacySharedKeys> {
         match self {
             GatewayDetails::Remote(details) => Some(&details.derived_aes128_ctr_blake3_hmac_keys),
             GatewayDetails::Custom(_) => None,
@@ -185,11 +185,13 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
             })?;
 
         let derived_aes128_ctr_blake3_hmac_keys = Arc::new(
-            SharedKeys::try_from_base58_string(&value.derived_aes128_ctr_blake3_hmac_keys_bs58)
-                .map_err(|source| BadGateway::MalformedSharedKeys {
-                    gateway_id: value.gateway_id_bs58.clone(),
-                    source,
-                })?,
+            LegacySharedKeys::try_from_base58_string(
+                &value.derived_aes128_ctr_blake3_hmac_keys_bs58,
+            )
+            .map_err(|source| BadGateway::MalformedSharedKeys {
+                gateway_id: value.gateway_id_bs58.clone(),
+                source,
+            })?,
         );
 
         let gateway_owner_address = value
@@ -242,7 +244,7 @@ pub struct RemoteGatewayDetails {
 
     // note: `SharedKeys` implement ZeroizeOnDrop, meaning when `RemoteGatewayDetails` is dropped,
     // the keys will be zeroized
-    pub derived_aes128_ctr_blake3_hmac_keys: Arc<SharedKeys>,
+    pub derived_aes128_ctr_blake3_hmac_keys: Arc<LegacySharedKeys>,
 
     pub gateway_owner_address: Option<AccountId>,
 

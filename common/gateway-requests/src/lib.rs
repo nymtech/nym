@@ -13,15 +13,17 @@ pub mod models;
 pub mod registration;
 pub mod types;
 
-pub const CURRENT_PROTOCOL_VERSION: u8 = CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION;
+pub const CURRENT_PROTOCOL_VERSION: u8 = AES_GCM_SIV_PROTOCOL_VERSION;
 
 /// Defines the current version of the communication protocol between gateway and clients.
 /// It has to be incremented for any breaking change.
 // history:
 // 1 - initial release
 // 2 - changes to client credentials structure
+// 3 - change to AES-GCM-SIV and non-zero IVs
 pub const INITIAL_PROTOCOL_VERSION: u8 = 1;
 pub const CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION: u8 = 2;
+pub const AES_GCM_SIV_PROTOCOL_VERSION: u8 = 3;
 
 pub type GatewayMac = HmacOutput<GatewayIntegrityHmacAlgorithm>;
 

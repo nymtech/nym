@@ -139,7 +139,7 @@ async fn handle_incoming(
             }
             // TODO need to work out a way that if this timesout and breaks but you dont hang up the conn on the client end you can reconnect..maybe. If we just use this as a ping echo server I dont think this is a problem
             // EDIT I'm not actually sure we want this functionality? Measuring active connections might be useful though
-            _ = tokio::time::sleep(tokio::time::Duration::from_secs(60)) => {
+            _ = tokio::time::sleep(tokio::time::Duration::from_secs(120)) => {
                 info!("Timeout reached, assuming we wont get more messages on this conn, closing");
                 let close_message = "Closing conn, reconnect if you want to ping again";
                 let bytes: Bytes = close_message.into();

@@ -29,10 +29,11 @@ async fn main() {
 
     // Comment this out to just see println! statements from this example.
     // Nym client logging is very informative but quite verbose.
-    // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering.
-    // tracing_subscriber::fmt()
-    // .with_max_level(tracing::Level::INFO)
-    // .init();
+    // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering: you need to switch
+    // to DEBUG to see the contents of the msg buffer.
+    tracing_subscriber::fmt()
+    .with_max_level(tracing::Level::INFO)
+    .init();
 
     let upstream_tcp_addr = "127.0.0.1:9067";
     // This dir gets cleaned up at the end
@@ -44,7 +45,7 @@ async fn main() {
 
     // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
-    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 120)
+    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 60)
         .await
         .unwrap();
 

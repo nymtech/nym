@@ -9,7 +9,10 @@ use uuid::Uuid;
 // Keeps track of
 // - incoming and unsorted messages wrapped in DecayWrapper for keeping track of when they were received
 // - the expected next message ID (reset on .tick())
+<<<<<<< .merge_file_LkYTgA
 #[derive(Debug)]
+=======
+>>>>>>> .merge_file_ksgEKS
 pub struct MessageBuffer {
     buffer: Vec<DecayWrapper<ProxiedMessage>>,
     next_msg_id: u16,
@@ -49,7 +52,10 @@ impl MessageBuffer {
 
     // Used by the client to create and manipulate a buffer of messages to write => OwnedWriteHalf.
     // Used by the server for this + to conditionally decide whether to kill a session on returning true.
+<<<<<<< .merge_file_LkYTgA
     // #[instrument]
+=======
+>>>>>>> .merge_file_ksgEKS
     pub async fn tick(&mut self, write: &mut OwnedWriteHalf) -> Result<bool> {
         if self.is_empty() {
             return Ok(false);
@@ -60,7 +66,12 @@ impl MessageBuffer {
             debug!("{}", msg.inner());
         }
 
+<<<<<<< .merge_file_LkYTgA
         // Iterate over self, filtering messages where msg.decayed() = true (aka message is older than 2 seconds), or where msg.message_id is less than next_msg_id. Then collect and order according to message_id.
+=======
+        // Iterate over self, filtering messages where msg.decayed() = true (aka message is older than 2 seconds), or where msg.message_id is
+        // less than next_msg_id. Then collect and order according to message_id.
+>>>>>>> .merge_file_ksgEKS
         let mut send_buffer = self
             .iter()
             .filter(|msg| msg.decayed() || msg.message_id() <= self.next_msg_id)
@@ -69,7 +80,10 @@ impl MessageBuffer {
         send_buffer.sort_by(|a, b| a.message_id.cmp(&b.message_id()));
 
         if send_buffer.is_empty() {
+<<<<<<< .merge_file_LkYTgA
             debug!("send buf is empty");
+=======
+>>>>>>> .merge_file_ksgEKS
             return Ok(false);
         }
 
@@ -98,14 +112,20 @@ impl MessageBuffer {
             + 1;
         // Retain as next_msg_id in MessageBuffer instance for parsing potential further incoming msgs.
         self.retain(|msg| !sent_messages.contains(&msg.inner().message_id()));
+<<<<<<< .merge_file_LkYTgA
         info!("next_msg_id is: {}", self.next_msg_id.clone());
+=======
+>>>>>>> .merge_file_ksgEKS
         Ok(false)
     }
 }
 
 // Wrapper used for tracking the 'age' of a message from when it was received.
 // Used in the ordering logic in MessageBuffer.tick().
+<<<<<<< .merge_file_LkYTgA
 #[derive(Debug)]
+=======
+>>>>>>> .merge_file_ksgEKS
 pub struct DecayWrapper<T> {
     value: T,
     start: Instant,

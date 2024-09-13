@@ -1,0 +1,14 @@
+# mdbook files
+book/
+
+# Compiled assets
+.sass-cache
+_site
+
+# Developing
+todo.md
+.idea
+
+# OSX
+.DS_Store
+

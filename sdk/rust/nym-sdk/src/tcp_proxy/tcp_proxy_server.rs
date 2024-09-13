@@ -4,7 +4,6 @@ use crate::mixnet::{
 };
 use anyhow::Result;
 use dashmap::DashSet;
-// use log::{debug, error, info};
 use nym_sphinx::addressing::Recipient;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -125,7 +124,10 @@ impl NymProxyServer {
             // - Send serialised reply => Mixnet via SURB.
             // - If tick() returns true, close session.
             while let Some(Ok(bytes)) = framed_read.next().await {
+<<<<<<< .merge_file_QV9Jbk
                 info!("server received {} bytes", bytes.len());
+=======
+>>>>>>> .merge_file_wb95Nd
                 let reply =
                     ProxiedMessage::new(Payload::Data(bytes.to_vec()), session_id, message_id);
                 message_id += 1;

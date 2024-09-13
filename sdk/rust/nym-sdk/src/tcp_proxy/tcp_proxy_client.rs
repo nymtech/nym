@@ -78,7 +78,10 @@ impl NymProxyClient {
     // Then we spawn 2 tasks:
     // - 'Outgoing' thread => frames incoming bytes from OwnedReadHalf and pipe through the mixnet & trigger session close.
     // - 'Incoming' thread => orders incoming messages from the Mixnet via placing them in a MessageBuffer and using tick(), as well as manage session closing.
+<<<<<<< .merge_file_N7FpNp
     #[instrument]
+=======
+>>>>>>> .merge_file_h91Ikl
     async fn handle_incoming(
         stream: TcpStream,
         server_address: Recipient,
@@ -124,7 +127,10 @@ impl NymProxyClient {
         let sent_messages_account = Arc::clone(&messages_account);
 
         // 'Outgoing' thread
+<<<<<<< .merge_file_N7FpNp
 
+=======
+>>>>>>> .merge_file_h91Ikl
         tokio::spawn(async move {
             let mut message_id = 0;
             // While able to read from OwnedReadHalf of TcpStream:
@@ -144,11 +150,18 @@ impl NymProxyClient {
                 sender
                     .send_message(server_addr, &coded_message, IncludedSurbs::Amount(100))
                     .await?;
+<<<<<<< .merge_file_N7FpNp
                 info!(
                     "Sent message with id {} for session {} of {} bytes",
                     message_id,
                     session_id,
                     bytes.len()
+=======
+
+                info!(
+                    "Sent message with id {} for session {}",
+                    message_id, session_id
+>>>>>>> .merge_file_h91Ikl
                 );
             }
             message_id += 1;

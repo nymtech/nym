@@ -11,6 +11,7 @@ import { DelegationContext, TDelegationTransaction } from '../delegations';
 
 import { mockSleep } from './utils';
 import { TPoolOption } from '../../components';
+import { ms } from 'date-fns/locale';
 
 const SLEEP_MS = 1000;
 
@@ -108,7 +109,7 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
 
     return {
       logs_json: '',
-      data_json: '',
+      msg_responses_json: '',
       gas_info: {
         gas_wanted: { gas_units: BigInt(1) },
         gas_used: { gas_units: BigInt(1) },
@@ -183,7 +184,7 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
 
     return {
       logs_json: '',
-      data_json: '',
+      msg_responses_json: '',
       transaction_hash: '',
       gas_info: {
         gas_wanted: { gas_units: BigInt(1) },
@@ -195,8 +196,9 @@ export const MockDelegationContextProvider: FCWithChildren = ({ children }) => {
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const undelegateVesting = async (mix_id: number, _fee?: FeeDetails) => ({
-    logs_json: '',
+    msg_responses_json: '',
     data_json: '',
+    logs_json: '',
     transaction_hash: '',
     gas_info: {
       gas_wanted: { gas_units: BigInt(1) },

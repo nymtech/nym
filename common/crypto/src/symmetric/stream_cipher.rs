@@ -2,12 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cipher::{Iv, StreamCipher};
-pub use cipher::{IvSizeUser, KeyIvInit, KeySizeUser};
+
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 
 // re-export this for ease of use
 pub use cipher::Key as CipherKey;
+pub use cipher::{IvSizeUser, KeyIvInit, KeySizeUser};
 
 // SECURITY:
 // TODO: note that this is not the most secure approach here

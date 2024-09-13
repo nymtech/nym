@@ -21,10 +21,11 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
-use nym_gateway_requests::registration::handshake::shared_key::SharedKeyConversionError;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
-    registration::handshake::{error::HandshakeError, gateway_handshake, SharedKeys},
+    registration::handshake::{
+        error::HandshakeError, gateway_handshake, LegacySharedKeys, SharedKeyConversionError,
+    },
     types::{ClientControlRequest, ServerResponse},
     BinaryResponse, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
 };
@@ -177,7 +178,7 @@ where
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
-    ) -> Result<SharedKeys, HandshakeError>
+    ) -> Result<LegacySharedKeys, HandshakeError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {
@@ -258,7 +259,7 @@ where
     /// * `packets`: unwrapped packets that are to be pushed back to the client.
     pub(crate) async fn push_packets_to_client(
         &mut self,
-        shared_keys: &SharedKeys,
+        shared_keys: &LegacySharedKeys,
         packets: Vec<Vec<u8>>,
     ) -> Result<(), WsError>
     where
@@ -313,7 +314,7 @@ where
     async fn push_stored_messages_to_client(
         &mut self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedKeys,
+        shared_keys: &LegacySharedKeys,
     ) -> Result<(), InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -367,7 +368,7 @@ where
         client_address: DestinationAddressBytes,
         encrypted_address: EncryptedAddressBytes,
         iv: IV,
-    ) -> Result<Option<SharedKeys>, InitialAuthenticationError> {
+    ) -> Result<Option<LegacySharedKeys>, InitialAuthenticationError> {
         let shared_keys = self
             .shared_state
             .storage
@@ -378,7 +379,7 @@ where
             // this should never fail as we only ever construct persisted shared keys ourselves when inserting
             // data to the storage. The only way it could fail is if we somehow changed implementation without
             // performing proper migration
-            let keys = SharedKeys::try_from_base58_string(
+            let keys = LegacySharedKeys::try_from_base58_string(
                 shared_keys.derived_aes128_ctr_blake3_hmac_keys_bs58,
             )
             .map_err(|source| {
@@ -451,7 +452,7 @@ where
         client_address: DestinationAddressBytes,
         encrypted_address: EncryptedAddressBytes,
         iv: IV,
-    ) -> Result<Option<SharedKeys>, InitialAuthenticationError>
+    ) -> Result<Option<LegacySharedKeys>, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
@@ -616,7 +617,7 @@ where
     async fn register_client(
         &mut self,
         client_address: DestinationAddressBytes,
-        client_shared_keys: &SharedKeys,
+        client_shared_keys: &LegacySharedKeys,
     ) -> Result<i64, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,

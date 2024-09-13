@@ -19,7 +19,7 @@ use nym_credentials::CredentialSpendingData;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use nym_gateway_requests::iv::IV;
-use nym_gateway_requests::registration::handshake::{client_handshake, SharedKeys};
+use nym_gateway_requests::registration::handshake::{client_handshake, LegacySharedKeys};
 use nym_gateway_requests::{
     BinaryRequest, ClientControlRequest, ServerResponse, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
     CURRENT_PROTOCOL_VERSION,
@@ -80,7 +80,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
-    shared_key: Option<Arc<SharedKeys>>,
+    shared_key: Option<Arc<LegacySharedKeys>>,
     connection: SocketState,
     packet_router: PacketRouter,
     bandwidth_controller: Option<BandwidthController<C, St>>,
@@ -98,7 +98,7 @@ impl<C, St> GatewayClient<C, St> {
         gateway_config: GatewayConfig,
         local_identity: Arc<identity::KeyPair>,
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
-        shared_key: Option<Arc<SharedKeys>>,
+        shared_key: Option<Arc<LegacySharedKeys>>,
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         task_client: TaskClient,
@@ -450,7 +450,7 @@ impl<C, St> GatewayClient<C, St> {
 
     async fn authenticate(
         &mut self,
-        shared_key: Option<SharedKeys>,
+        shared_key: Option<LegacySharedKeys>,
     ) -> Result<(), GatewayClientError> {
         if shared_key.is_none() && self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
@@ -508,7 +508,13 @@ impl<C, St> GatewayClient<C, St> {
     /// Helper method to either call register or authenticate based on self.shared_key value
     pub async fn perform_initial_authentication(
         &mut self,
-    ) -> Result<Arc<SharedKeys>, GatewayClientError> {
+    ) -> Result<Arc<LegacySharedKeys>, GatewayClientError> {
+        // 1. check gateway's protocol version
+        // 2. if error or new handshake unsupported => fallback to the old registration/authentication
+        // 3. otherwise continue with the updated key derivation
+
+        // ?. if new protocol is supported and we have an old key, upgrade it to aes-gcm-siv
+
         if self.authenticated {
             debug!("Already authenticated");
             return if let Some(shared_key) = &self.shared_key {
@@ -833,7 +839,9 @@ impl<C, St> GatewayClient<C, St> {
         Ok(())
     }
 
-    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError>
+    pub async fn authenticate_and_start(
+        &mut self,
+    ) -> Result<Arc<LegacySharedKeys>, GatewayClientError>
     where
         C: DkgQueryClient + Send + Sync,
         St: CredentialStorage,

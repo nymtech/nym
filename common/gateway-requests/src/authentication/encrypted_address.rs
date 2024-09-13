@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::iv::IV;
-use crate::registration::handshake::shared_key::SharedKeys;
+use crate::registration::handshake::LegacySharedKeys;
 use nym_crypto::symmetric::stream_cipher;
-use nym_sphinx::params::GatewayEncryptionAlgorithm;
+use nym_sphinx::params::LegacyGatewayEncryptionAlgorithm;
 use nym_sphinx::{DestinationAddressBytes, DESTINATION_ADDRESS_LENGTH};
 use thiserror::Error;
 
@@ -28,8 +28,8 @@ pub enum EncryptedAddressConversionError {
 }
 
 impl EncryptedAddressBytes {
-    pub fn new(address: &DestinationAddressBytes, key: &SharedKeys, iv: &IV) -> Self {
-        let ciphertext = stream_cipher::encrypt::<GatewayEncryptionAlgorithm>(
+    pub fn new(address: &DestinationAddressBytes, key: &LegacySharedKeys, iv: &IV) -> Self {
+        let ciphertext = stream_cipher::encrypt::<LegacyGatewayEncryptionAlgorithm>(
             key.encryption_key(),
             iv.inner(),
             address.as_bytes_ref(),
@@ -40,7 +40,12 @@ impl EncryptedAddressBytes {
         EncryptedAddressBytes(enc_address)
     }
 
-    pub fn verify(&self, address: &DestinationAddressBytes, key: &SharedKeys, iv: &IV) -> bool {
+    pub fn verify(
+        &self,
+        address: &DestinationAddressBytes,
+        key: &LegacySharedKeys,
+        iv: &IV,
+    ) -> bool {
         self == &Self::new(address, key, iv)
     }
 

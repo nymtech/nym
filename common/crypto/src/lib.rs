@@ -10,21 +10,22 @@ pub mod crypto_hash;
 pub mod hkdf;
 #[cfg(feature = "hashing")]
 pub mod hmac;
-#[cfg(all(feature = "asymmetric", feature = "hashing", feature = "symmetric"))]
+#[cfg(all(feature = "asymmetric", feature = "hashing", feature = "stream_cipher"))]
 pub mod shared_key;
-#[cfg(feature = "symmetric")]
 pub mod symmetric;
 
 #[cfg(feature = "hashing")]
 pub use digest::{Digest, OutputSizeUser};
-#[cfg(any(feature = "hashing", feature = "symmetric"))]
+#[cfg(any(feature = "hashing", feature = "stream_cipher", feature = "aead"))]
 pub use generic_array;
 
 // with the below my idea was to try to introduce having a single place of importing all hashing, encryption,
 // etc. algorithms and import them elsewhere as needed via common/crypto
-#[cfg(feature = "symmetric")]
+#[cfg(feature = "stream_cipher")]
 pub use aes;
+#[cfg(feature = "aead")]
+pub use aes_gcm_siv::{Aes128GcmSiv, Aes256GcmSiv};
 #[cfg(feature = "hashing")]
 pub use blake3;
-#[cfg(feature = "symmetric")]
+#[cfg(feature = "stream_cipher")]
 pub use ctr;

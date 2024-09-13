@@ -1,8 +1,8 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::registration::handshake::shared_key::SharedKeyConversionError;
-use crate::{GatewayMacSize, GatewayRequestsError};
+use crate::registration::handshake::shared_key::{SharedKeyConversionError, SharedKeyUsageError};
+use crate::GatewayMacSize;
 use nym_crypto::generic_array::{
     typenum::{Sum, Unsigned, U16},
     GenericArray,
@@ -84,10 +84,10 @@ impl LegacySharedKeys {
         &self,
         enc_data: &[u8],
         iv: Option<&IV<LegacyGatewayEncryptionAlgorithm>>,
-    ) -> Result<Vec<u8>, GatewayRequestsError> {
+    ) -> Result<Vec<u8>, SharedKeyUsageError> {
         let mac_size = GatewayMacSize::to_usize();
         if enc_data.len() < mac_size {
-            return Err(GatewayRequestsError::TooShortRequest);
+            return Err(SharedKeyUsageError::TooShortRequest);
         }
 
         let mac_tag = &enc_data[..mac_size];
@@ -98,7 +98,7 @@ impl LegacySharedKeys {
             message_bytes,
             mac_tag,
         ) {
-            return Err(GatewayRequestsError::InvalidMac);
+            return Err(SharedKeyUsageError::InvalidMac);
         }
 
         // couldn't have made the first borrow mutable as you can't have an immutable borrow

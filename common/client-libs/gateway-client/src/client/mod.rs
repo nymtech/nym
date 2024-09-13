@@ -1,5 +1,6 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::bandwidth::ClientBandwidth;
 use crate::client::config::GatewayClientConfig;
 use crate::error::GatewayClientError;
@@ -11,7 +12,6 @@ use crate::socket_state::{ws_fd, PartiallyDelegatedHandle, SocketState};
 use crate::traits::GatewayPacketRouter;
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
-use log::*;
 use nym_bandwidth_controller::{BandwidthController, BandwidthStatusMessage};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
@@ -19,16 +19,19 @@ use nym_credentials::CredentialSpendingData;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use nym_gateway_requests::iv::IV;
-use nym_gateway_requests::registration::handshake::{client_handshake, LegacySharedKeys};
+use nym_gateway_requests::registration::handshake::{
+    client_handshake, LegacySharedKeys, SharedGatewayKey,
+};
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ServerResponse, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
-    CURRENT_PROTOCOL_VERSION,
+    BinaryRequest, ClientControlRequest, ServerResponse, AES_GCM_SIV_PROTOCOL_VERSION,
+    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::sync::Arc;
+use tracing::*;
 use tungstenite::protocol::Message;
 use url::Url;
 
@@ -41,6 +44,8 @@ use tokio_tungstenite::connect_async;
 
 #[cfg(not(unix))]
 use std::os::raw::c_int as RawFd;
+use std::time::Duration;
+use tracing::instrument;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
@@ -398,13 +403,13 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    async fn register(&mut self) -> Result<(), GatewayClientError> {
+    async fn register(&mut self, legacy: bool) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
 
         debug_assert!(self.connection.is_available());
-        log::debug!("Registering gateway");
+        log::debug!("registering with gateway. using legacy key derivation: {legacy}");
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
@@ -422,8 +427,11 @@ impl<C, St> GatewayClient<C, St> {
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),
-            _ => unreachable!(),
-        }?;
+            _ => return Err(GatewayClientError::ConnectionInInvalidState),
+        };
+
+        println!("registration result: {shared_key:?}");
+
         let (authentication_status, gateway_protocol) = match self.read_control_response().await? {
             ServerResponse::Register {
                 protocol_version,
@@ -438,19 +446,21 @@ impl<C, St> GatewayClient<C, St> {
         self.check_gateway_protocol(gateway_protocol)?;
         self.authenticated = authentication_status;
 
-        if self.authenticated {
-            self.shared_key = Some(Arc::new(shared_key));
-        }
-
-        // populate the negotiated protocol for future uses
-        self.negotiated_protocol = gateway_protocol;
-
-        Ok(())
+        todo!()
+        // if self.authenticated {
+        //     self.shared_key = Some(Arc::new(shared_key));
+        // }
+        //
+        // // populate the negotiated protocol for future uses
+        // self.negotiated_protocol = gateway_protocol;
+        //
+        // Ok(())
     }
 
     async fn authenticate(
         &mut self,
         shared_key: Option<LegacySharedKeys>,
+        supports_aes_gcm_siv: bool,
     ) -> Result<(), GatewayClientError> {
         if shared_key.is_none() && self.shared_key.is_none() {
             return Err(GatewayClientError::NoSharedKeyAvailable);
@@ -459,6 +469,8 @@ impl<C, St> GatewayClient<C, St> {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
         log::debug!("Authenticating with gateway");
+
+        todo!("if using legacy key, check if we can upgrade");
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
@@ -506,10 +518,30 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     /// Helper method to either call register or authenticate based on self.shared_key value
+    #[instrument(skip_all,
+        fields(
+            gateway = %self.gateway_identity,
+            gateway_address = %self.gateway_address
+        )
+    )]
     pub async fn perform_initial_authentication(
         &mut self,
     ) -> Result<Arc<LegacySharedKeys>, GatewayClientError> {
         // 1. check gateway's protocol version
+        let supports_aes_gcm_siv = match self.get_gateway_protocol().await {
+            Ok(protocol) => protocol >= AES_GCM_SIV_PROTOCOL_VERSION,
+            Err(_) => {
+                // if we failed to send the request, it means the gateway is running the old binary,
+                // so it has reset our connection - we have to reconnect
+                self.establish_connection().await?;
+                false
+            }
+        };
+
+        if !supports_aes_gcm_siv {
+            warn!("this gateway is on an old version that doesn't support AES256-GCM-SIV");
+        }
+
         // 2. if error or new handshake unsupported => fallback to the old registration/authentication
         // 3. otherwise continue with the updated key derivation
 
@@ -525,9 +557,9 @@ impl<C, St> GatewayClient<C, St> {
         }
 
         if self.shared_key.is_some() {
-            self.authenticate(None).await?;
+            self.authenticate(None, supports_aes_gcm_siv).await?;
         } else {
-            self.register().await?;
+            self.register(!supports_aes_gcm_siv).await?;
         }
         if self.authenticated {
             // if we are authenticated it means we MUST have an associated shared_key

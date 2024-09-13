@@ -1,16 +1,20 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_crypto::asymmetric::identity;
+use crate::registration::handshake::shared_key::SharedKeyUsageError;
 use thiserror::Error;
 
-#[derive(Debug, Clone, Error)]
+#[derive(Debug, Error)]
 pub enum HandshakeError {
-    #[error(
-        "received key material of invalid length - {0}. Expected: {}",
-        identity::SIGNATURE_LENGTH
-    )]
-    KeyMaterialOfInvalidSize(usize),
+    #[error("received key material of invalid length: {received}. Expected: {expected}")]
+    KeyMaterialOfInvalidSize { received: usize, expected: usize },
+
+    #[error("no nonce has been provided for aes256-gcm-siv key derivation")]
+    MissingNonceForCurrentKey,
+
+    #[error(transparent)]
+    KeyUsageFailure(#[from] SharedKeyUsageError),
+
     #[error("received invalid signature")]
     InvalidSignature,
     #[error("encountered network error")]

@@ -21,6 +21,7 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
+use nym_gateway_requests::registration::handshake::SharedGatewayKey;
 use nym_gateway_requests::{
     iv::{IVConversionError, IV},
     registration::handshake::{
@@ -178,7 +179,7 @@ where
     async fn perform_registration_handshake(
         &mut self,
         init_msg: Vec<u8>,
-    ) -> Result<LegacySharedKeys, HandshakeError>
+    ) -> Result<SharedGatewayKey, HandshakeError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
     {

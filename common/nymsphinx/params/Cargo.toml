@@ -11,7 +11,7 @@ repository = { workspace = true }
 thiserror = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 
-nym-crypto = { path = "../../crypto", features = ["hashing", "stream_cipher", "aes-gcm-siv"] }
+nym-crypto = { path = "../../crypto", features = ["hashing", "stream_cipher", "aead"] }
 nym-sphinx-types = { path = "../types" }
 
 [features]

@@ -4,7 +4,7 @@
 use crate::authentication::encrypted_address::EncryptedAddressBytes;
 use crate::iv::{IVConversionError, IV};
 use crate::models::CredentialSpendingRequest;
-use crate::registration::handshake::LegacySharedKeys;
+use crate::registration::handshake::{LegacySharedKeys, SharedKeyUsageError};
 use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION};
 use nym_credentials::ecash::bandwidth::CredentialSpendingData;
 use nym_credentials_interface::CompactEcashError;
@@ -17,12 +17,10 @@ use nym_sphinx::params::packet_sizes::PacketSize;
 use nym_sphinx::params::{GatewayIntegrityHmacAlgorithm, LegacyGatewayEncryptionAlgorithm};
 use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
-use tracing::log::error;
-
-use nym_crypto::symmetric::aead::AeadError;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
 use thiserror::Error;
+use tracing::log::error;
 use tungstenite::protocol::Message;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -39,17 +37,9 @@ pub enum RegistrationHandshake {
 }
 
 impl RegistrationHandshake {
-    pub fn new_payload(data: Vec<u8>, will_use_credentials: bool) -> Self {
-        // if we're not going to be using credentials, advertise lower protocol version to allow connection
-        // to wider range of gateways
-        let protocol_version = if will_use_credentials {
-            Some(CURRENT_PROTOCOL_VERSION)
-        } else {
-            Some(INITIAL_PROTOCOL_VERSION)
-        };
-
+    pub fn new_payload(data: Vec<u8>) -> Self {
         RegistrationHandshake::HandshakePayload {
-            protocol_version,
+            protocol_version: Some(CURRENT_PROTOCOL_VERSION),
             data,
         }
     }
@@ -104,6 +94,9 @@ impl SimpleGatewayRequestsError {
 
 #[derive(Debug, Error)]
 pub enum GatewayRequestsError {
+    #[error(transparent)]
+    KeyUsageFailure(#[from] SharedKeyUsageError),
+
     #[error("the request is too short")]
     TooShortRequest,
 
@@ -154,9 +147,6 @@ pub enum GatewayRequestsError {
 
     #[error("the provided [v1] credential has invalid number of parameters - {0}")]
     InvalidNumberOfEmbededParameters(u32),
-
-    #[error("failed to either encrypt or decrypt provided message")]
-    AeadFailure(#[from] AeadError),
 
     // variant to catch legacy errors
     #[error("{0}")]

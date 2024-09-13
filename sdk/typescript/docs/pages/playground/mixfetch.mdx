@@ -1,0 +1,24 @@
+# mixFetch
+
+import { MixFetch } from '../../components/mix-fetch'
+import Box from '@mui/material/Box';
+import FormattedMixFetchExampleCode from '../../code-examples/mixfetch-example-code.mdx';
+import { Callout } from 'nextra/components'
+
+<Callout type="info" emoji="ℹ️">
+  Right now Gateways are not required to run a Secure Websocket (WSS) listener, so only a subset of nodes running in Gateway mode have configured their nodes to do so.
+
+  For the moment you have to select a Gateway that has WSS enabled from [this list](https://harbourmaster.nymtech.net/v1/services?wss=true).
+
+  You can also find WSS-enabled nodes by querying the `gateways/described` endpoint on the Nym API and filtering for `wss_port`, either via the [Swagger webpage](https://validator.nymtech.net/api/swagger/index.html) or with `curl`:
+
+  ```
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/gateways/described' \
+  -H 'accept: application/json'
+  ```
+</Callout>
+
+
+<MixFetch />
+<FormattedMixFetchExampleCode />

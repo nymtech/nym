@@ -1,0 +1,6 @@
+.next
+node_modules
+out
+
+# the lock file will break Vercel because it may get committed from a machine with a different build architecture
+package-lock.json

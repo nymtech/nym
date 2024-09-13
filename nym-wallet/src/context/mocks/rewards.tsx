@@ -65,8 +65,8 @@ export const MockRewardsContextProvider: FCWithChildren = ({ children }) => {
           amount: '1',
           denom: 'nym',
         },
-        data_json: '[]',
         logs_json: '[]',
+        msg_responses_json: '[]',
         gas_info: {
           gas_wanted: { gas_units: BigInt(1) },
           gas_used: { gas_units: BigInt(1) },
@@ -78,7 +78,7 @@ export const MockRewardsContextProvider: FCWithChildren = ({ children }) => {
           amount: '1',
           denom: 'nym',
         },
-        data_json: '[]',
+        msg_responses_json: '[]',
         logs_json: '[]',
         gas_info: {
           gas_wanted: { gas_units: BigInt(1) },

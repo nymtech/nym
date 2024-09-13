@@ -8,10 +8,10 @@ import { NymCard } from 'src/components';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { NodeStatus } from 'src/components/NodeStatus';
 import { getIntervalAsDate } from 'src/utils';
+import { BondUpdateCard } from 'src/components/Bonding/BondUpdateCard';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedMixnodeActions, TBondedMixnodeActions } from './BondedMixnodeActions';
-import { BondUpdateCard } from 'src/components/Bonding/BondUpdateCard';
 import { NodeStats } from './NodeStats';
 
 const textWhenNotName = 'This node has not yet set a name';
@@ -144,7 +144,7 @@ export const BondedMixnode = ({
 
   return (
     <Stack gap={2}>
-      <BondUpdateCard mixnode={mixnode} network={network} setSuccesfullUpdate={setSuccesfullUpdate}/>
+      <BondUpdateCard mixnode={mixnode} network={network} setSuccesfullUpdate={setSuccesfullUpdate} />
       <NymCard
         borderless
         title={

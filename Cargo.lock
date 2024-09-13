@@ -2091,6 +2091,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "echo-server"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "bytecodec",
+ "dashmap",
+ "nym-sdk",
+ "serde",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "ed25519"
 version = "2.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"

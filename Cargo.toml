@@ -114,6 +114,7 @@ members = [
     "nym-node/nym-node-requests",
     "nym-outfox",
     "nym-validator-rewarder",
+    "tools/echo-server",
     "tools/internal/ssl-inject",
     # "tools/internal/sdk-version-bump",
     "tools/nym-cli",
@@ -128,6 +129,7 @@ members = [
     "wasm/zknym-lib",
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/echo-server",
 ]
 
 default-members = [

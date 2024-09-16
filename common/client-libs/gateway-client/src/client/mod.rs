@@ -464,7 +464,10 @@ impl<C, St> GatewayClient<C, St> {
         assert!(shared_key.is_legacy());
         let legacy_key = shared_key.unwrap_legacy();
 
-        unimplemented!()
+        let _ = legacy_key;
+        warn!("unimplemented: migration into aes256gcm-siv key!");
+
+        Ok(())
     }
 
     async fn authenticate(&mut self) -> Result<(), GatewayClientError> {

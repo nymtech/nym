@@ -48,7 +48,7 @@ impl SharedKeysManager {
         // we don't want to be using `INSERT OR REPLACE INTO` due to the foreign key on `available_bandwidth` if the entry already exists
         sqlx::query!(
             r#"
-                INSERT OR IGNORE INTO shared_keys(client_id, client_address_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key) VALUES (?, ?, ?);
+                INSERT OR IGNORE INTO shared_keys(client_id, client_address_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key) VALUES (?, ?, ?, ?);
 
                 UPDATE shared_keys
                 SET

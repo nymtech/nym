@@ -1,24 +1,22 @@
 // Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::authentication::encrypted_address::EncryptedAddressBytes;
-use crate::iv::{IVConversionError, IV};
 use crate::models::CredentialSpendingRequest;
-use crate::registration::handshake::{LegacySharedKeys, SharedKeyUsageError};
-use crate::{GatewayMacSize, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION};
+use crate::registration::handshake::{SharedGatewayKey, SharedKeyUsageError};
+use crate::{
+    AES_GCM_SIV_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
+};
 use nym_credentials::ecash::bandwidth::CredentialSpendingData;
 use nym_credentials_interface::CompactEcashError;
-use nym_crypto::generic_array::typenum::Unsigned;
-use nym_crypto::hmac::recompute_keyed_hmac_and_verify_tag;
-use nym_crypto::symmetric::stream_cipher;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddressError;
 use nym_sphinx::forwarding::packet::{MixPacket, MixPacketFormattingError};
 use nym_sphinx::params::packet_sizes::PacketSize;
-use nym_sphinx::params::{GatewayIntegrityHmacAlgorithm, LegacyGatewayEncryptionAlgorithm};
 use nym_sphinx::DestinationAddressBytes;
 use serde::{Deserialize, Serialize};
+use std::iter::once;
 use std::str::FromStr;
 use std::string::FromUtf8Error;
+use strum::FromRepr;
 use thiserror::Error;
 use tracing::log::error;
 use tungstenite::protocol::Message;
@@ -97,14 +95,20 @@ pub enum GatewayRequestsError {
     #[error(transparent)]
     KeyUsageFailure(#[from] SharedKeyUsageError),
 
+    #[error("received request with an unknown kind: {kind}")]
+    UnknownRequestKind { kind: u8 },
+
+    #[error("received response with an unknown kind: {kind}")]
+    UnknownResponseKind { kind: u8 },
+
+    #[error("the encryption flag had an unexpected value")]
+    InvalidEncryptionFlag,
+
     #[error("the request is too short")]
     TooShortRequest,
 
     #[error("provided MAC is invalid")]
     InvalidMac,
-
-    #[error("Provided bandwidth IV is malformed: {0}")]
-    MalformedIV(#[from] IVConversionError),
 
     #[error("address field was incorrectly encoded: {source}")]
     IncorrectlyEncodedAddress {
@@ -124,17 +128,14 @@ pub enum GatewayRequestsError {
     #[error("received sphinx packet was malformed")]
     MalformedSphinxPacket,
 
+    #[error("failed to serialise created sphinx packet: {0}")]
+    SphinxSerialisationFailure(#[from] MixPacketFormattingError),
+
     #[error("the received encrypted data was malformed")]
     MalformedEncryption,
 
     #[error("provided packet mode is invalid")]
     InvalidPacketMode,
-
-    #[error("provided mix packet was malformed: {source}")]
-    InvalidMixPacket {
-        #[from]
-        source: MixPacketFormattingError,
-    },
 
     #[error("failed to deserialize provided credential: {0}")]
     EcashCredentialDeserializationFailure(#[from] CompactEcashError),
@@ -190,24 +191,29 @@ pub enum ClientControlRequest {
 impl ClientControlRequest {
     pub fn new_authenticate(
         address: DestinationAddressBytes,
-        enc_address: EncryptedAddressBytes,
-        iv: IV,
+        shared_key: &SharedGatewayKey,
         uses_credentials: bool,
-    ) -> Self {
-        // if we're not going to be using credentials, advertise lower protocol version to allow connection
-        // to wider range of gateways
-        let protocol_version = if uses_credentials {
-            Some(CURRENT_PROTOCOL_VERSION)
+    ) -> Result<Self, GatewayRequestsError> {
+        // if we're encrypting with non-legacy key, the remote must support AES256-GCM-SIV
+        let protocol_version = if !shared_key.is_legacy() {
+            Some(AES_GCM_SIV_PROTOCOL_VERSION)
+        } else if uses_credentials {
+            Some(CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION)
         } else {
+            // if we're not going to be using credentials, advertise lower protocol version to allow connection
+            // to wider range of gateways
             Some(INITIAL_PROTOCOL_VERSION)
         };
 
-        ClientControlRequest::Authenticate {
+        let nonce = shared_key.random_nonce_or_iv();
+        let ciphertext = shared_key.encrypt_naive(address.as_bytes_ref(), Some(&nonce))?;
+
+        Ok(ClientControlRequest::Authenticate {
             protocol_version,
             address: address.as_base58_string(),
-            enc_address: enc_address.to_base58_string(),
-            iv: iv.to_base58_string(),
-        }
+            enc_address: bs58::encode(&ciphertext).into_string(),
+            iv: bs58::encode(&nonce).into_string(),
+        })
     }
 
     pub fn name(&self) -> String {
@@ -230,26 +236,26 @@ impl ClientControlRequest {
 
     pub fn new_enc_ecash_credential(
         credential: CredentialSpendingData,
-        shared_key: &LegacySharedKeys,
-        iv: IV,
-    ) -> Self {
+        shared_key: &SharedGatewayKey,
+    ) -> Result<Self, GatewayRequestsError> {
         let cred = CredentialSpendingRequest::new(credential);
         let serialized_credential = cred.to_bytes();
-        let enc_credential = shared_key.encrypt_and_tag(&serialized_credential, Some(iv.inner()));
 
-        ClientControlRequest::EcashCredential {
+        let nonce = shared_key.random_nonce_or_iv();
+        let enc_credential = shared_key.encrypt(&serialized_credential, Some(&nonce))?;
+
+        Ok(ClientControlRequest::EcashCredential {
             enc_credential,
-            iv: iv.to_bytes(),
-        }
+            iv: nonce,
+        })
     }
 
     pub fn try_from_enc_ecash_credential(
         enc_credential: Vec<u8>,
-        shared_key: &LegacySharedKeys,
+        shared_key: &SharedGatewayKey,
         iv: Vec<u8>,
     ) -> Result<CredentialSpendingRequest, GatewayRequestsError> {
-        let iv = IV::try_from_bytes(&iv)?;
-        let credential_bytes = shared_key.decrypt_tagged(&enc_credential, Some(iv.inner()))?;
+        let credential_bytes = shared_key.decrypt(&enc_credential, Some(&iv))?;
         CredentialSpendingRequest::try_from_bytes(credential_bytes.as_slice())
             .map_err(|_| GatewayRequestsError::MalformedEncryption)
     }
@@ -370,8 +376,141 @@ impl TryFrom<String> for ServerResponse {
     }
 }
 
+// each binary message consists of the following structure (for non-legacy messages)
+// KIND || ENC_FLAG || MAYBE_NONCE || CIPHERTEXT/PLAINTEXT
+// first byte is the kind of data to influence further serialisation/deseralisation
+// second byte is a flag indicating whether the content is encrypted
+// then it's followed by a pseudorandom nonce, assuming encryption is used
+// finally, the rest of the message is the associated ciphertext or just plaintext (if message wasn't encrypted)
+pub struct BinaryData<'a> {
+    kind: u8,
+    encrypted: bool,
+    maybe_nonce: Option<&'a [u8]>,
+    data: &'a [u8],
+}
+
+impl<'a> BinaryData<'a> {
+    // serialises possibly encrypted data into bytes to be put on the wire
+    pub fn into_raw(self, legacy: bool) -> Vec<u8> {
+        if legacy {
+            return self.data.to_vec();
+        }
+
+        let i = once(self.kind).chain(once(if self.encrypted { 1 } else { 0 }));
+        if let Some(nonce) = self.maybe_nonce {
+            i.chain(nonce.iter().copied())
+                .chain(self.data.iter().copied())
+                .collect()
+        } else {
+            i.chain(self.data.iter().copied()).collect()
+        }
+    }
+
+    // attempts to perform basic parsing on bytes received from the wire
+    pub fn from_raw(
+        raw: &'a [u8],
+        available_key: &SharedGatewayKey,
+    ) -> Result<Self, GatewayRequestsError> {
+        // if we're using legacy key, it's quite simple:
+        // it's always encrypted with no nonce and the request/response kind is always 1
+        if available_key.is_legacy() {
+            return Ok(BinaryData {
+                kind: 1,
+                encrypted: true,
+                maybe_nonce: None,
+                data: raw,
+            });
+        }
+
+        if raw.len() < 2 {
+            return Err(GatewayRequestsError::TooShortRequest);
+        }
+
+        let kind = raw[0];
+        let encrypted = if raw[1] == 1 {
+            true
+        } else if raw[1] == 0 {
+            false
+        } else {
+            return Err(GatewayRequestsError::InvalidEncryptionFlag);
+        };
+
+        // if data is encrypted, there MUST be a nonce present for non-legacy keys
+        if encrypted && raw.len() < available_key.nonce_size() + 2 {
+            return Err(GatewayRequestsError::TooShortRequest);
+        }
+
+        Ok(BinaryData {
+            kind,
+            encrypted,
+            maybe_nonce: Some(&raw[2..2 + available_key.nonce_size()]),
+            data: &raw[2 + available_key.nonce_size()..],
+        })
+    }
+
+    // attempt to encrypt plaintext of provided response/request and serialise it into wire format
+    pub fn make_encrypted_blob(
+        kind: u8,
+        plaintext: &[u8],
+        key: &SharedGatewayKey,
+    ) -> Result<Vec<u8>, GatewayRequestsError> {
+        let maybe_nonce = key.random_nonce_or_zero_iv();
+
+        let ciphertext = key.encrypt(plaintext, maybe_nonce.as_deref())?;
+        Ok(BinaryData {
+            kind,
+            encrypted: true,
+            maybe_nonce: maybe_nonce.as_deref(),
+            data: &ciphertext,
+        }
+        .into_raw(key.is_legacy()))
+    }
+
+    // attempts to parse previously recovered bytes into a [`BinaryRequest`]
+    pub fn into_request(
+        self,
+        key: &SharedGatewayKey,
+    ) -> Result<BinaryRequest, GatewayRequestsError> {
+        let kind = BinaryRequestKind::from_repr(self.kind)
+            .ok_or(GatewayRequestsError::UnknownRequestKind { kind: self.kind })?;
+
+        let plaintext = if self.encrypted {
+            &*key.decrypt(self.data, self.maybe_nonce)?
+        } else {
+            self.data
+        };
+
+        BinaryRequest::from_plaintext(kind, plaintext)
+    }
+
+    // attempts to parse previously recovered bytes into a [`BinaryResponse`]
+    pub fn into_response(
+        self,
+        key: &SharedGatewayKey,
+    ) -> Result<BinaryResponse, GatewayRequestsError> {
+        let kind = BinaryResponseKind::from_repr(self.kind)
+            .ok_or(GatewayRequestsError::UnknownResponseKind { kind: self.kind })?;
+
+        let plaintext = if self.encrypted {
+            &*key.decrypt(self.data, self.maybe_nonce)?
+        } else {
+            self.data
+        };
+
+        BinaryResponse::from_plaintext(kind, plaintext)
+    }
+}
+
+// in legacy mode requests use zero IV without
 pub enum BinaryRequest {
-    ForwardSphinx(MixPacket),
+    ForwardSphinx { packet: MixPacket },
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, FromRepr, PartialEq)]
+#[non_exhaustive]
+pub enum BinaryRequestKind {
+    ForwardSphinx = 1,
 }
 
 // Right now the only valid `BinaryRequest` is a request to forward a sphinx packet.
@@ -380,96 +519,118 @@ pub enum BinaryRequest {
 // HOWEVER, NOTE: If we introduced another 'BinaryRequest', we must carefully examine if a 0s IV
 // would work there.
 impl BinaryRequest {
-    pub fn try_from_encrypted_tagged_bytes(
-        raw_req: Vec<u8>,
-        shared_keys: &LegacySharedKeys,
-    ) -> Result<Self, GatewayRequestsError> {
-        let message_bytes = &shared_keys.decrypt_tagged(&raw_req, None)?;
-
-        // right now there's only a single option possible which significantly simplifies the logic
-        // if we decided to allow for more 'binary' messages, the API wouldn't need to change.
-        let mix_packet = MixPacket::try_from_bytes(message_bytes)?;
-        Ok(BinaryRequest::ForwardSphinx(mix_packet))
+    pub fn kind(&self) -> BinaryRequestKind {
+        match self {
+            BinaryRequest::ForwardSphinx { .. } => BinaryRequestKind::ForwardSphinx,
+        }
     }
 
-    pub fn into_encrypted_tagged_bytes(self, shared_key: &LegacySharedKeys) -> Vec<u8> {
-        match self {
-            BinaryRequest::ForwardSphinx(mix_packet) => {
-                let forwarding_data = match mix_packet.into_bytes() {
-                    Ok(mix_packet) => mix_packet,
-                    Err(e) => {
-                        error!("Could not convert packet to bytes: {e}");
-                        return vec![];
-                    }
-                };
-
-                // TODO: it could be theoretically slightly more efficient if the data wasn't taken
-                // by reference because then it makes a copy for encryption rather than do it in place
-                shared_key.encrypt_and_tag(&forwarding_data, None)
+    pub fn from_plaintext(
+        kind: BinaryRequestKind,
+        plaintext: &[u8],
+    ) -> Result<Self, GatewayRequestsError> {
+        match kind {
+            BinaryRequestKind::ForwardSphinx => {
+                let packet = MixPacket::try_from_bytes(plaintext)?;
+                Ok(BinaryRequest::ForwardSphinx { packet })
             }
         }
     }
 
-    // TODO: this will be encrypted, etc.
-    pub fn new_forward_request(mix_packet: MixPacket) -> BinaryRequest {
-        BinaryRequest::ForwardSphinx(mix_packet)
+    pub fn try_from_encrypted_tagged_bytes(
+        bytes: Vec<u8>,
+        shared_key: &SharedGatewayKey,
+    ) -> Result<Self, GatewayRequestsError> {
+        BinaryData::from_raw(&bytes, shared_key)?.into_request(shared_key)
     }
 
-    pub fn into_ws_message(self, shared_key: &LegacySharedKeys) -> Message {
-        Message::Binary(self.into_encrypted_tagged_bytes(shared_key))
+    pub fn into_encrypted_tagged_bytes(
+        self,
+        shared_key: &SharedGatewayKey,
+    ) -> Result<Vec<u8>, GatewayRequestsError> {
+        let kind = self.kind();
+
+        let plaintext = match self {
+            BinaryRequest::ForwardSphinx { packet } => packet.into_bytes()?,
+        };
+
+        BinaryData::make_encrypted_blob(kind as u8, &plaintext, shared_key)
+    }
+
+    pub fn into_ws_message(
+        self,
+        shared_key: &SharedGatewayKey,
+    ) -> Result<Message, GatewayRequestsError> {
+        // all variants are currently encrypted
+        let blob = match self {
+            BinaryRequest::ForwardSphinx { .. } => self.into_encrypted_tagged_bytes(shared_key)?,
+        };
+
+        Ok(Message::Binary(blob))
     }
 }
 
-// Introduced for consistency sake
 pub enum BinaryResponse {
-    PushedMixMessage(Vec<u8>),
+    PushedMixMessage { message: Vec<u8> },
+}
+
+#[repr(u8)]
+#[derive(Debug, Clone, Copy, FromRepr, PartialEq)]
+#[non_exhaustive]
+pub enum BinaryResponseKind {
+    PushedMixMessage = 1,
 }
 
 impl BinaryResponse {
-    pub fn try_from_encrypted_tagged_bytes(
-        raw_req: Vec<u8>,
-        shared_keys: &LegacySharedKeys,
-    ) -> Result<Self, GatewayRequestsError> {
-        let mac_size = GatewayMacSize::to_usize();
-        if raw_req.len() < mac_size {
-            return Err(GatewayRequestsError::TooShortRequest);
-        }
-
-        let mac_tag = &raw_req[..mac_size];
-        let message_bytes = &raw_req[mac_size..];
-
-        if !recompute_keyed_hmac_and_verify_tag::<GatewayIntegrityHmacAlgorithm>(
-            shared_keys.mac_key().as_slice(),
-            message_bytes,
-            mac_tag,
-        ) {
-            return Err(GatewayRequestsError::InvalidMac);
-        }
-
-        let zero_iv = stream_cipher::zero_iv::<LegacyGatewayEncryptionAlgorithm>();
-        let plaintext = stream_cipher::decrypt::<LegacyGatewayEncryptionAlgorithm>(
-            shared_keys.encryption_key(),
-            &zero_iv,
-            message_bytes,
-        );
-
-        Ok(BinaryResponse::PushedMixMessage(plaintext))
-    }
-
-    pub fn into_encrypted_tagged_bytes(self, shared_key: &LegacySharedKeys) -> Vec<u8> {
+    pub fn kind(&self) -> BinaryResponseKind {
         match self {
-            // TODO: it could be theoretically slightly more efficient if the data wasn't taken
-            // by reference because then it makes a copy for encryption rather than do it in place
-            BinaryResponse::PushedMixMessage(message) => shared_key.encrypt_and_tag(&message, None),
+            BinaryResponse::PushedMixMessage { .. } => BinaryResponseKind::PushedMixMessage,
         }
     }
 
-    pub fn new_pushed_mix_message(msg: Vec<u8>) -> Self {
-        BinaryResponse::PushedMixMessage(msg)
+    pub fn from_plaintext(
+        kind: BinaryResponseKind,
+        plaintext: &[u8],
+    ) -> Result<Self, GatewayRequestsError> {
+        match kind {
+            BinaryResponseKind::PushedMixMessage => Ok(BinaryResponse::PushedMixMessage {
+                message: plaintext.to_vec(),
+            }),
+        }
     }
 
-    pub fn into_ws_message(self, shared_key: &LegacySharedKeys) -> Message {
-        Message::Binary(self.into_encrypted_tagged_bytes(shared_key))
+    pub fn try_from_encrypted_tagged_bytes(
+        bytes: Vec<u8>,
+        shared_key: &SharedGatewayKey,
+    ) -> Result<Self, GatewayRequestsError> {
+        BinaryData::from_raw(&bytes, shared_key)?.into_response(shared_key)
+    }
+
+    pub fn into_encrypted_tagged_bytes(
+        self,
+        shared_key: &SharedGatewayKey,
+    ) -> Result<Vec<u8>, GatewayRequestsError> {
+        let kind = self.kind();
+
+        let plaintext = match self {
+            BinaryResponse::PushedMixMessage { message } => message,
+        };
+
+        BinaryData::make_encrypted_blob(kind as u8, &plaintext, shared_key)
+    }
+
+    pub fn into_ws_message(
+        self,
+        shared_key: &SharedGatewayKey,
+    ) -> Result<Message, GatewayRequestsError> {
+        // all variants are currently encrypted
+        let blob = match self {
+            BinaryResponse::PushedMixMessage { .. } => {
+                self.into_encrypted_tagged_bytes(shared_key)?
+            }
+        };
+
+        Ok(Message::Binary(blob))
     }
 }
 

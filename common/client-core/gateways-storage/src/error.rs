@@ -36,6 +36,9 @@ pub enum BadGateway {
         source: SharedKeyConversionError,
     },
 
+    #[error("could not find any valid shared keys for gateway {gateway_id}")]
+    MissingSharedKey { gateway_id: String },
+
     #[error(
         "the listening address of gateway {gateway_id} ({raw_listener}) is malformed: {source}"
     )]

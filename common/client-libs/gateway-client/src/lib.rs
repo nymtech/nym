@@ -8,6 +8,7 @@ use tungstenite::{protocol::Message, Error as WsError};
 
 pub use client::{config::GatewayClientConfig, GatewayClient, GatewayConfig};
 pub use nym_gateway_requests::registration::handshake::LegacySharedKeys;
+use nym_gateway_requests::registration::handshake::SharedGatewayKey;
 pub use packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
     PacketRouter,
@@ -45,11 +46,11 @@ pub(crate) fn cleanup_socket_messages(
 
 pub(crate) fn try_decrypt_binary_message(
     bin_msg: Vec<u8>,
-    shared_keys: &LegacySharedKeys,
+    shared_keys: &SharedGatewayKey,
 ) -> Option<Vec<u8>> {
     match BinaryResponse::try_from_encrypted_tagged_bytes(bin_msg, shared_keys) {
         Ok(bin_response) => match bin_response {
-            BinaryResponse::PushedMixMessage(plaintext) => Some(plaintext),
+            BinaryResponse::PushedMixMessage { message } => Some(message),
         },
         Err(err) => {
             warn!("message received from the gateway was malformed! - {err}",);

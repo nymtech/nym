@@ -17,6 +17,7 @@ generic-array = { workspace = true, features = ["serde"] }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+strum = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 zeroize = { workspace = true }

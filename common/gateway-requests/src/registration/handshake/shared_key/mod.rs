@@ -3,10 +3,13 @@
 
 use crate::registration::handshake::LegacySharedKeys;
 use nym_crypto::generic_array::{typenum::Unsigned, GenericArray};
-use nym_crypto::symmetric::aead::{self, nonce_size, AeadError, AeadKey, KeySizeUser, Nonce};
-use nym_crypto::symmetric::stream_cipher::{iv_size, IV};
+use nym_crypto::symmetric::aead::{
+    self, nonce_size, random_nonce, AeadError, AeadKey, KeySizeUser, Nonce,
+};
+use nym_crypto::symmetric::stream_cipher::{iv_size, random_iv, IV};
 use nym_pemstore::traits::PemStorableKey;
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, LegacyGatewayEncryptionAlgorithm};
+use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
@@ -15,10 +18,75 @@ pub mod legacy;
 
 pub type SharedKeySize = <GatewayEncryptionAlgorithm as KeySizeUser>::KeySize;
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Zeroize)]
 pub enum SharedGatewayKey {
     Current(SharedSymmetricKey),
     Legacy(LegacySharedKeys),
+}
+
+impl SharedGatewayKey {
+    pub fn is_legacy(&self) -> bool {
+        matches!(self, SharedGatewayKey::Legacy(..))
+    }
+
+    pub fn aes128_ctr_hmac_bs58(&self) -> Option<Zeroizing<String>> {
+        match self {
+            SharedGatewayKey::Current(_) => None,
+            SharedGatewayKey::Legacy(key) => Some(Zeroizing::new(key.to_base58_string())),
+        }
+    }
+
+    pub fn aes256_gcm_siv(&self) -> Option<Zeroizing<Vec<u8>>> {
+        match self {
+            SharedGatewayKey::Current(key) => Some(Zeroizing::new(key.to_bytes())),
+            SharedGatewayKey::Legacy(_) => None,
+        }
+    }
+
+    pub fn unwrap_legacy(&self) -> &LegacySharedKeys {
+        match self {
+            SharedGatewayKey::Current(_) => panic!("expected legacy key"),
+            SharedGatewayKey::Legacy(key) => key,
+        }
+    }
+
+    pub fn random_nonce_or_iv(&self) -> Vec<u8> {
+        let mut rng = thread_rng();
+
+        if self.is_legacy() {
+            random_iv::<LegacyGatewayEncryptionAlgorithm, _>(&mut rng).to_vec()
+        } else {
+            random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng).to_vec()
+        }
+    }
+
+    pub fn random_nonce_or_zero_iv(&self) -> Option<Vec<u8>> {
+        if self.is_legacy() {
+            None
+        } else {
+            let mut rng = thread_rng();
+            Some(random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng).to_vec())
+        }
+    }
+
+    pub fn nonce_size(&self) -> usize {
+        match self {
+            SharedGatewayKey::Current(_) => nonce_size::<GatewayEncryptionAlgorithm>(),
+            SharedGatewayKey::Legacy(_) => iv_size::<LegacyGatewayEncryptionAlgorithm>(),
+        }
+    }
+}
+
+impl From<LegacySharedKeys> for SharedGatewayKey {
+    fn from(keys: LegacySharedKeys) -> Self {
+        SharedGatewayKey::Legacy(keys)
+    }
+}
+
+impl From<SharedSymmetricKey> for SharedGatewayKey {
+    fn from(keys: SharedSymmetricKey) -> Self {
+        SharedGatewayKey::Current(keys)
+    }
 }
 
 #[derive(Debug, Error)]

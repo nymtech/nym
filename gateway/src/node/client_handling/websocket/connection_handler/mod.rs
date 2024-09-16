@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use nym_credential_verification::BandwidthFlushingBehaviourConfig;
-use nym_gateway_requests::registration::handshake::LegacySharedKeys;
+use nym_gateway_requests::registration::handshake::SharedGatewayKey;
 use nym_gateway_requests::ServerResponse;
 use nym_gateway_storage::Storage;
 use nym_sphinx::DestinationAddressBytes;
@@ -46,14 +46,14 @@ pub(crate) struct ClientDetails {
     #[zeroize(skip)]
     pub(crate) address: DestinationAddressBytes,
     pub(crate) id: i64,
-    pub(crate) shared_keys: LegacySharedKeys,
+    pub(crate) shared_keys: SharedGatewayKey,
 }
 
 impl ClientDetails {
     pub(crate) fn new(
         id: i64,
         address: DestinationAddressBytes,
-        shared_keys: LegacySharedKeys,
+        shared_keys: SharedGatewayKey,
     ) -> Self {
         ClientDetails {
             address,

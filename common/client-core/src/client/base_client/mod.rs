@@ -387,7 +387,7 @@ where
                         ),
                     cfg,
                     managed_keys.identity_keypair(),
-                    Some(details.derived_aes128_ctr_blake3_hmac_keys),
+                    Some(details.shared_key),
                     packet_router,
                     bandwidth_controller,
                     shutdown,

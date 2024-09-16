@@ -170,16 +170,12 @@ impl<'a, S> State<'a, S> {
             .collect();
         let signature = self.identity.private_key().sign(plaintext);
 
-        println!("signature len: {}", signature.to_bytes().len());
-
         let nonce = if self.derive_aes256_gcm_siv_key {
             let mut rng = thread_rng();
             Some(random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng).to_vec())
         } else {
             None
         };
-
-        println!("key types: {:?}", self.derived_shared_keys);
 
         // SAFETY: this function is only called after the local key has already been derived
         let signature_ciphertext = self

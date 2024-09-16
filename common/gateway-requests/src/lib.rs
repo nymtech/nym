@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub use nym_crypto::generic_array;
-use nym_crypto::hmac::HmacOutput;
 use nym_crypto::OutputSizeUser;
 use nym_sphinx::params::GatewayIntegrityHmacAlgorithm;
+
 pub use types::*;
 
 pub mod authentication;
-pub mod iv;
 pub mod models;
 pub mod registration;
 pub mod types;
@@ -25,8 +24,6 @@ pub const INITIAL_PROTOCOL_VERSION: u8 = 1;
 pub const CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION: u8 = 2;
 pub const AES_GCM_SIV_PROTOCOL_VERSION: u8 = 3;
 
-pub type GatewayMac = HmacOutput<GatewayIntegrityHmacAlgorithm>;
-
 // TODO: could using `Mac` trait here for OutputSize backfire?
 // Should hmac itself be exposed, imported and used instead?
-pub type GatewayMacSize = <GatewayIntegrityHmacAlgorithm as OutputSizeUser>::OutputSize;
+pub type LegacyGatewayMacSize = <GatewayIntegrityHmacAlgorithm as OutputSizeUser>::OutputSize;

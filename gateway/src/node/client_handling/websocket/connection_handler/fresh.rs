@@ -21,12 +21,8 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
-use nym_gateway_requests::registration::handshake::SharedGatewayKey;
 use nym_gateway_requests::{
-    iv::{IVConversionError, IV},
-    registration::handshake::{
-        error::HandshakeError, gateway_handshake, LegacySharedKeys, SharedKeyConversionError,
-    },
+    registration::handshake::{error::HandshakeError, gateway_handshake, SharedGatewayKey},
     types::{ClientControlRequest, ServerResponse},
     BinaryResponse, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
 };
@@ -54,7 +50,7 @@ pub(crate) enum InitialAuthenticationError {
     MalformedStoredSharedKey {
         client_id: String,
         #[source]
-        source: SharedKeyConversionError,
+        source: StorageError,
     },
 
     #[error("Failed to perform registration handshake: {0}")]
@@ -70,8 +66,8 @@ pub(crate) enum InitialAuthenticationError {
     #[error("There is already an open connection to this client")]
     DuplicateConnection,
 
-    #[error("Provided authentication IV is malformed: {0}")]
-    MalformedIV(#[from] IVConversionError),
+    #[error("provided authentication IV is malformed: {0}")]
+    MalformedIV(bs58::decode::Error),
 
     #[error("Only 'Register' or 'Authenticate' requests are allowed")]
     InvalidRequest,
@@ -260,7 +256,7 @@ where
     /// * `packets`: unwrapped packets that are to be pushed back to the client.
     pub(crate) async fn push_packets_to_client(
         &mut self,
-        shared_keys: &LegacySharedKeys,
+        shared_keys: &SharedGatewayKey,
         packets: Vec<Vec<u8>>,
     ) -> Result<(), WsError>
     where
@@ -270,10 +266,13 @@ where
         // be more explicit in the naming?
         let messages: Vec<Result<Message, WsError>> = packets
             .into_iter()
-            .map(|received_message| {
-                Ok(BinaryResponse::new_pushed_mix_message(received_message)
-                    .into_ws_message(shared_keys))
+            .filter_map(|message| {
+                BinaryResponse::PushedMixMessage { message }
+                    .into_ws_message(shared_keys)
+                    .inspect_err(|err| error!("failed to encrypt client message: {err}"))
+                    .ok()
             })
+            .map(|msg| Ok(msg))
             .collect();
         let mut send_stream = futures::stream::iter(messages);
         match self.socket_connection {
@@ -315,7 +314,7 @@ where
     async fn push_stored_messages_to_client(
         &mut self,
         client_address: DestinationAddressBytes,
-        shared_keys: &LegacySharedKeys,
+        shared_keys: &SharedGatewayKey,
     ) -> Result<(), InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -363,44 +362,33 @@ where
     ///
     /// * `client_address`: address of the client.
     /// * `encrypted_address`: encrypted address of the client, presumably encrypted using the shared keys.
-    /// * `iv`: iv created for this particular encryption.
+    /// * `iv`: nonce/iv created for this particular encryption.
     async fn verify_stored_shared_key(
         &self,
         client_address: DestinationAddressBytes,
         encrypted_address: EncryptedAddressBytes,
-        iv: IV,
-    ) -> Result<Option<LegacySharedKeys>, InitialAuthenticationError> {
+        nonce: &[u8],
+    ) -> Result<Option<SharedGatewayKey>, InitialAuthenticationError> {
         let shared_keys = self
             .shared_state
             .storage
             .get_shared_keys(client_address)
             .await?;
 
-        if let Some(shared_keys) = shared_keys {
-            // this should never fail as we only ever construct persisted shared keys ourselves when inserting
-            // data to the storage. The only way it could fail is if we somehow changed implementation without
-            // performing proper migration
-            let keys = LegacySharedKeys::try_from_base58_string(
-                shared_keys.derived_aes128_ctr_blake3_hmac_keys_bs58,
-            )
-            .map_err(|source| {
-                InitialAuthenticationError::MalformedStoredSharedKey {
-                    client_id: client_address.as_base58_string(),
-                    source,
-                }
-            })?;
+        let Some(stored_shared_keys) = shared_keys else {
+            return Ok(None);
+        };
 
-            // TODO: SECURITY:
-            // this is actually what we have been doing in the past, however,
-            // after looking deeper into implementation it seems that only checks the encryption
-            // key part of the shared keys. the MAC key might still be wrong
-            // (though I don't see how could this happen unless client messed with himself
-            // and I don't think it could lead to any attacks, but somebody smarter should take a look)
-            if encrypted_address.verify(&client_address, &keys, &iv) {
-                Ok(Some(keys))
-            } else {
-                Ok(None)
+        let keys = SharedGatewayKey::try_from(stored_shared_keys).map_err(|source| {
+            InitialAuthenticationError::MalformedStoredSharedKey {
+                client_id: client_address.as_base58_string(),
+                source,
             }
+        })?;
+
+        // LEGACY ISSUE: we're not verifying HMAC key
+        if encrypted_address.verify(&client_address, &keys, nonce) {
+            Ok(Some(keys))
         } else {
             Ok(None)
         }
@@ -452,13 +440,13 @@ where
     ///
     /// * `client_address`: address of the client wishing to authenticate.
     /// * `encrypted_address`: ciphertext of the address of the client wishing to authenticate.
-    /// * `iv`: fresh IV received with the request.
+    /// * `iv`: fresh nonce/IV received with the request.
     async fn authenticate_client(
         &mut self,
         client_address: DestinationAddressBytes,
         encrypted_address: EncryptedAddressBytes,
-        iv: IV,
-    ) -> Result<Option<LegacySharedKeys>, InitialAuthenticationError>
+        nonce: &[u8],
+    ) -> Result<Option<SharedGatewayKey>, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
@@ -468,7 +456,7 @@ where
         );
 
         let shared_keys = self
-            .verify_stored_shared_key(client_address, encrypted_address, iv)
+            .verify_stored_shared_key(client_address, encrypted_address, nonce)
             .await?;
 
         if let Some(shared_keys) = shared_keys {
@@ -550,7 +538,7 @@ where
         client_protocol_version: Option<u8>,
         address: String,
         enc_address: String,
-        iv: String,
+        raw_nonce: String,
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,
@@ -564,7 +552,9 @@ where
         let address = DestinationAddressBytes::try_from_base58_string(address)
             .map_err(|err| InitialAuthenticationError::MalformedClientAddress(err.to_string()))?;
         let encrypted_address = EncryptedAddressBytes::try_from_base58_string(enc_address)?;
-        let iv = IV::try_from_base58_string(iv)?;
+        let nonce = bs58::decode(&raw_nonce)
+            .into_vec()
+            .map_err(InitialAuthenticationError::MalformedIV)?;
 
         // Check for duplicate clients
         if let Some(client_tx) = self.active_clients_store.get_remote_client(address) {
@@ -574,7 +564,7 @@ where
         }
 
         let Some(shared_keys) = self
-            .authenticate_client(address, encrypted_address, iv)
+            .authenticate_client(address, encrypted_address, &nonce)
             .await?
         else {
             // it feels weird to be returning an 'Ok' here, but I didn't want to change the existing behaviour
@@ -623,7 +613,7 @@ where
     async fn register_client(
         &mut self,
         client_address: DestinationAddressBytes,
-        client_shared_keys: &LegacySharedKeys,
+        client_shared_keys: &SharedGatewayKey,
     ) -> Result<i64, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin,

@@ -177,9 +177,11 @@ impl HandshakeMessage for GatewayMaterialExchange {
     {
         // we expect to receive either:
         // LEGACY: x25519 pubkey + ed25519 signature ciphertext (96 bytes)
-        // CURRENT: x25519 pubkey + ed25519 signature ciphertext + AES256-GCM-SIV nonce (112 bytes)
+        // CURRENT: x25519 pubkey + ed25519 signature ciphertext (+ tag)+ AES256-GCM-SIV nonce (124 bytes)
         let legacy_len = x25519::PUBLIC_KEY_SIZE + ed25519::SIGNATURE_LENGTH;
-        let current_len = legacy_len + nonce_size::<GatewayEncryptionAlgorithm>();
+        let current_len = legacy_len
+            + nonce_size::<GatewayEncryptionAlgorithm>()
+            + tag_size::<GatewayEncryptionAlgorithm>();
 
         if bytes.len() != legacy_len && bytes.len() != current_len {
             return Err(HandshakeError::MalformedResponse);

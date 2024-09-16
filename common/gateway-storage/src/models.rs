@@ -33,7 +33,7 @@ impl TryFrom<PersistedSharedKeys> for SharedGatewayKey {
             &value.derived_aes256_gcm_siv_key,
             &value.derived_aes128_ctr_blake3_hmac_keys_bs58,
         ) {
-            (None, None) => Err(StorageError::MissingSharedKey { id: value.id }),
+            (None, None) => Err(StorageError::MissingSharedKey { id: value.client_id }),
             (Some(aes256gcm_siv), _) => {
                 let current_key = SharedSymmetricKey::try_from_bytes(aes256gcm_siv)
                     .map_err(|source| StorageError::DataCorruption(source.to_string()))?;

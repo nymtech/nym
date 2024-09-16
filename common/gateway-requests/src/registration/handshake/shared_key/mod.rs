@@ -18,7 +18,7 @@ pub mod legacy;
 
 pub type SharedKeySize = <GatewayEncryptionAlgorithm as KeySizeUser>::KeySize;
 
-#[derive(Debug, PartialEq, Zeroize)]
+#[derive(Debug, PartialEq, Zeroize, ZeroizeOnDrop)]
 pub enum SharedGatewayKey {
     Current(SharedSymmetricKey),
     Legacy(LegacySharedKeys),

@@ -430,7 +430,7 @@ where
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
                 // and make sure to invalidate the task client so we wouldn't cause premature shutdown
-                //shutdown.disarm();
+                shutdown.disarm();
                 custom_gateway_transceiver.set_packet_router(packet_router)?;
                 Ok(custom_gateway_transceiver)
             };
@@ -536,7 +536,7 @@ where
         if topology_config.disable_refreshing {
             // if we're not spawning the refresher, don't cause shutdown immediately
             info!("The topology refesher is not going to be started");
-            //shutdown.disarm();
+            shutdown.disarm();
         } else {
             // don't spawn the refresher if we don't want to be refreshing the topology.
             // only use the initial values obtained

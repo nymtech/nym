@@ -20,6 +20,7 @@ use tungstenite::{protocol::Message, Error as WsError};
 use si_scale::helpers::bibytes2;
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
+use std::time::Duration;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
 #[cfg(not(target_arch = "wasm32"))]
@@ -285,7 +286,20 @@ impl PartiallyDelegatedHandle {
         &mut self,
         msg: Message,
     ) -> Result<(), GatewayClientError> {
-        Ok(self.sink_half.send(msg).await?)
+
+        log::info!("JON: PartiallyDelegated::send_without_response - sending a message");
+        // let r = self.sink_half.send(msg).await;
+        // Ok(r?)
+        let r = tokio::time::timeout(Duration::from_secs(3), self.sink_half.send(msg)).await;
+        let rr = match r {
+            Ok(rr) => Ok(rr?),
+            Err(_) => {
+                log::error!("JON: PartiallyDelegated::send_without_response - timeout sending a message");
+                Err(GatewayClientError::Timeout)
+            }
+        };
+        log::info!("JON: PartiallyDelegated::send_without_response - sent a message: {rr:?}");
+        rr
     }
 
     pub(crate) async fn batch_send_without_response(

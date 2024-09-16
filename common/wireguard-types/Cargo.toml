@@ -17,23 +17,10 @@ serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
 nym-config = { path = "../config" }
-nym-credentials-interface = { path = "../credentials-interface" }
-nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-network-defaults = { path = "../network-defaults" }
 
-# feature-specific dependencies:
-
-## verify:
-hmac = { workspace = true, optional = true }
-sha2 = { workspace = true, optional = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"] }
 
 [dev-dependencies]
 rand = { workspace = true }
 nym-crypto = { path = "../crypto", features = ["rand"] }
-
-
-[features]
-default = ["verify"]
-# this is moved to a separate feature as we really need clients to import it (especially, *cough*, wasm)
-verify = ["hmac", "sha2"]

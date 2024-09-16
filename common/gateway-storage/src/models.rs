@@ -89,6 +89,7 @@ pub struct WireguardPeer {
     pub persistent_keepalive_interval: Option<i64>,
     pub allowed_ips: Vec<u8>,
     pub suspended: bool,
+    pub client_id: Option<i64>,
 }
 
 impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
@@ -119,6 +120,7 @@ impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
             )
             .unwrap_or_default(),
             suspended: false,
+            client_id: None,
         }
     }
 }

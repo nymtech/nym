@@ -30,9 +30,9 @@ impl DummyHandler {
                 msg = self.peer_rx.recv() => {
                     if let Some(msg) = msg {
                         match msg {
-                            PeerControlRequest::AddPeer(peer) => {
-                                log::info!("[DUMMY] Adding peer {:?}", peer);
-                                self.response_tx.send(PeerControlResponse::AddPeer { success: true }).ok();
+                            PeerControlRequest::AddPeer((peer, ticket_validation)) => {
+                                log::info!("[DUMMY] Adding peer {:?} with ticket validation {}", peer, ticket_validation);
+                                self.response_tx.send(PeerControlResponse::AddPeer { success: true, client_id: None }).ok();
                             }
                             PeerControlRequest::RemovePeer(key) => {
                                 log::info!("[DUMMY] Removing peer {:?}", key);

@@ -1,10 +1,10 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::Error;
-use crate::PeerPublicKey;
 use base64::{engine::general_purpose, Engine};
 use nym_credentials_interface::CredentialSpendingData;
+use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -41,18 +41,21 @@ pub enum ClientMessage {
 pub struct InitMessage {
     /// Base64 encoded x25519 public key
     pub pub_key: PeerPublicKey,
-
-    /// Ecash credential
-    pub credential: CredentialSpendingData,
 }
 
 impl InitMessage {
-    pub fn new(pub_key: PeerPublicKey, credential: CredentialSpendingData) -> Self {
-        InitMessage {
-            pub_key,
-            credential,
-        }
+    pub fn new(pub_key: PeerPublicKey) -> Self {
+        InitMessage { pub_key }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FinalMessage {
+    /// Gateway client data
+    pub gateway_client: GatewayClient,
+
+    /// Ecash credential
+    pub credential: Option<CredentialSpendingData>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

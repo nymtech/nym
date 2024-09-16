@@ -3,11 +3,12 @@
 
 use crate::error::*;
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
+use nym_authenticator_requests::v2::registration::{GatewayClient, RemainingBandwidthData};
 use nym_wireguard::{
     peer_controller::{PeerControlRequest, PeerControlResponse},
     WireguardGatewayData,
 };
-use nym_wireguard_types::{registration::RemainingBandwidthData, GatewayClient, PeerPublicKey};
+use nym_wireguard_types::PeerPublicKey;
 use tokio::sync::mpsc::UnboundedReceiver;
 
 pub struct PeerManager {
@@ -26,23 +27,27 @@ impl PeerManager {
             response_rx,
         }
     }
-    pub async fn add_peer(&mut self, client: &GatewayClient) -> Result<()> {
+    pub async fn add_peer(
+        &mut self,
+        client: &GatewayClient,
+        ticket_validation: bool,
+    ) -> Result<Option<i64>> {
         let mut peer = Peer::new(Key::new(client.pub_key.to_bytes()));
         peer.allowed_ips
             .push(IpAddrMask::new(client.private_ip, 32));
-        let msg = PeerControlRequest::AddPeer(peer);
+        let msg = PeerControlRequest::AddPeer((peer, ticket_validation));
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let PeerControlResponse::AddPeer { success } =
-            self.response_rx
-                .recv()
-                .await
-                .ok_or(AuthenticatorError::InternalError(
-                    "no response for add peer".to_string(),
-                ))?
+        let PeerControlResponse::AddPeer { success, client_id } = self
+            .response_rx
+            .recv()
+            .await
+            .ok_or(AuthenticatorError::InternalError(
+                "no response for add peer".to_string(),
+            ))?
         else {
             return Err(AuthenticatorError::InternalError(
                 "unexpected response type".to_string(),
@@ -53,10 +58,10 @@ impl PeerManager {
                 "adding peer could not be performed".to_string(),
             ));
         }
-        Ok(())
+        Ok(client_id)
     }
 
-    pub async fn _remove_peer(&mut self, client: &GatewayClient) -> Result<()> {
+    pub async fn remove_peer(&mut self, client: &GatewayClient) -> Result<()> {
         let key = Key::new(client.pub_key().to_bytes());
         let msg = PeerControlRequest::RemovePeer(key);
         self.wireguard_gateway_data
@@ -78,7 +83,7 @@ impl PeerManager {
         };
         if !success {
             return Err(AuthenticatorError::InternalError(
-                "adding peer could not be performed".to_string(),
+                "removing peer could not be performed".to_string(),
             ));
         }
         Ok(())

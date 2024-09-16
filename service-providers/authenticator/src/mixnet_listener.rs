@@ -8,15 +8,23 @@ use std::{
 
 use crate::{error::AuthenticatorError, peer_manager::PeerManager};
 use futures::StreamExt;
-use nym_authenticator_requests::v1::{
-    self,
-    request::{AuthenticatorRequest, AuthenticatorRequestData},
-    response::AuthenticatorResponse,
+use log::warn;
+use nym_authenticator_requests::v2::registration::{
+    FinalMessage, GatewayClient, InitMessage, PendingRegistrations, PrivateIPs, RegistrationData,
+    RegistredData,
+};
+use nym_authenticator_requests::{
+    v1,
+    v2::{
+        request::{AuthenticatorRequest, AuthenticatorRequestData},
+        response::AuthenticatorResponse,
+    },
 };
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::EcashManager,
     BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
 };
+use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::Storage;
@@ -24,11 +32,9 @@ use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, Transmission
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 use nym_wireguard::{peer_controller::PeerControlResponse, WireguardGatewayData};
-use nym_wireguard_types::{
-    registration::{PendingRegistrations, PrivateIPs, RegistrationData, RegistredData},
-    GatewayClient, InitMessage, PeerPublicKey,
-};
+use nym_wireguard_types::PeerPublicKey;
 use rand::{prelude::IteratorRandom, thread_rng};
+use tap::tap::TapFallible;
 use tokio::sync::{mpsc::UnboundedReceiver, RwLock};
 use tokio_stream::wrappers::IntervalStream;
 
@@ -180,34 +186,6 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             ));
         }
 
-        if let (Some(storage), Some(ecash_verifier)) =
-            (self.storage.clone(), self.ecash_verifier.clone())
-        {
-            let client_id = storage.create_entry_wireguard_client().await?;
-            storage.create_bandwidth_entry(client_id).await?;
-            let bandwidth = storage.get_available_bandwidth(client_id).await?.ok_or(
-                AuthenticatorError::MissingClientBandwidthEntry {
-                    client_key: init_message.pub_key.to_string(),
-                },
-            )?;
-            let client_bandwidth = ClientBandwidth::new(bandwidth.into());
-            let mut verifier = CredentialVerifier::new(
-                CredentialSpendingRequest::new(init_message.credential),
-                ecash_verifier,
-                BandwidthStorageManager::new(
-                    storage,
-                    client_bandwidth,
-                    client_id,
-                    BandwidthFlushingBehaviourConfig {
-                        client_bandwidth_max_flushing_rate: Default::default(),
-                        client_bandwidth_max_delta_flushing_amount: Default::default(),
-                    },
-                    true,
-                ),
-            );
-            let bytes = verifier.verify().await?;
-        }
-
         let mut registred_and_free = self.registred_and_free.write().await;
         let private_ip_ref = registred_and_free
             .free_private_network_ips
@@ -241,38 +219,97 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
     async fn on_final_request(
         &mut self,
-        gateway_client: GatewayClient,
+        final_message: FinalMessage,
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
         let mut registred_and_free = self.registred_and_free.write().await;
         let registration_data = registred_and_free
             .registration_in_progres
-            .get(&gateway_client.pub_key())
+            .get(&final_message.gateway_client.pub_key())
             .ok_or(AuthenticatorError::RegistrationNotInProgress)?
             .clone();
 
-        if gateway_client
+        if final_message
+            .gateway_client
             .verify(self.keypair().private_key(), registration_data.nonce)
-            .is_ok()
+            .is_err()
         {
-            self.peer_manager.add_peer(&gateway_client).await?;
-            registred_and_free
-                .registration_in_progres
-                .remove(&gateway_client.pub_key());
-
-            Ok(AuthenticatorResponse::new_registered(
-                RegistredData {
-                    pub_key: registration_data.gateway_data.pub_key,
-                    private_ip: registration_data.gateway_data.private_ip,
-                    wg_port: registration_data.wg_port,
-                },
-                reply_to,
-                request_id,
-            ))
-        } else {
-            Err(AuthenticatorError::MacVerificationFailure)
+            return Err(AuthenticatorError::MacVerificationFailure);
         }
+
+        let client_id = self
+            .peer_manager
+            .add_peer(
+                &final_message.gateway_client,
+                final_message.credential.is_some(),
+            )
+            .await?;
+        registred_and_free
+            .registration_in_progres
+            .remove(&final_message.gateway_client.pub_key());
+
+        if let (Some(storage), Some(ecash_verifier), Some(credential), Some(client_id)) = (
+            self.storage.clone(),
+            self.ecash_verifier.clone(),
+            final_message.credential.clone(),
+            client_id,
+        ) {
+            if let Err(e) =
+                Self::credential_verification(storage, ecash_verifier, credential, client_id).await
+            {
+                self.peer_manager
+                    .remove_peer(&final_message.gateway_client)
+                    .await
+                    .tap_err(|err| {
+                        warn!(
+                            "Could not revert adding peer {} on credential verification {err}",
+                            final_message.gateway_client.pub_key()
+                        )
+                    })?;
+                return Err(e);
+            }
+        }
+
+        Ok(AuthenticatorResponse::new_registered(
+            RegistredData {
+                pub_key: registration_data.gateway_data.pub_key,
+                private_ip: registration_data.gateway_data.private_ip,
+                wg_port: registration_data.wg_port,
+            },
+            reply_to,
+            request_id,
+        ))
+    }
+
+    async fn credential_verification(
+        storage: S,
+        ecash_verifier: Arc<EcashManager<S>>,
+        credential: CredentialSpendingData,
+        client_id: i64,
+    ) -> Result<i64> {
+        storage.create_bandwidth_entry(client_id).await?;
+        let bandwidth = storage.get_available_bandwidth(client_id).await?.ok_or(
+            AuthenticatorError::InternalError(
+                "bandwidth entry should have just been created".to_string(),
+            ),
+        )?;
+        let client_bandwidth = ClientBandwidth::new(bandwidth.into());
+        let mut verifier = CredentialVerifier::new(
+            CredentialSpendingRequest::new(credential),
+            ecash_verifier,
+            BandwidthStorageManager::new(
+                storage,
+                client_bandwidth,
+                client_id,
+                BandwidthFlushingBehaviourConfig {
+                    client_bandwidth_max_flushing_rate: Default::default(),
+                    client_bandwidth_max_delta_flushing_amount: Default::default(),
+                },
+                true,
+            ),
+        );
+        Ok(verifier.verify().await?)
     }
 
     async fn on_query_bandwidth_request(
@@ -310,8 +347,8 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 self.on_initial_request(init_msg, request.request_id, request.reply_to)
                     .await
             }
-            AuthenticatorRequestData::Final(client) => {
-                self.on_final_request(client, request.request_id, request.reply_to)
+            AuthenticatorRequestData::Final(final_msg) => {
+                self.on_final_request(final_msg, request.request_id, request.reply_to)
                     .await
             }
             AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
@@ -399,7 +436,8 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
     // Check version of the request and convert to the latest version if necessary
     match request_version {
         1 => v1::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
-            .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err }),
+            .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
+            .map(Into::into),
         _ => {
             log::info!("Received packet with invalid version: v{request_version}");
             Err(AuthenticatorError::InvalidPacketVersion(request_version))

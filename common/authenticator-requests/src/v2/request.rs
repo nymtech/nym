@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::registration::{GatewayClient, InitMessage};
+use super::registration::{FinalMessage, InitMessage};
 use nym_sphinx::addressing::Recipient;
 use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
@@ -45,12 +45,12 @@ impl AuthenticatorRequest {
         )
     }
 
-    pub fn new_final_request(gateway_client: GatewayClient, reply_to: Recipient) -> (Self, u64) {
+    pub fn new_final_request(final_message: FinalMessage, reply_to: Recipient) -> (Self, u64) {
         let request_id = generate_random();
         (
             Self {
                 version: VERSION,
-                data: AuthenticatorRequestData::Final(gateway_client),
+                data: AuthenticatorRequestData::Final(final_message),
                 reply_to,
                 request_id,
             },
@@ -80,6 +80,6 @@ impl AuthenticatorRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AuthenticatorRequestData {
     Initial(InitMessage),
-    Final(GatewayClient),
+    Final(FinalMessage),
     QueryBandwidth(PeerPublicKey),
 }

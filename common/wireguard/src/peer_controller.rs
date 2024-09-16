@@ -3,8 +3,8 @@
 
 use chrono::{Timelike, Utc};
 use defguard_wireguard_rs::{host::Peer, key::Key, WireguardInterfaceApi};
+use nym_authenticator_requests::v2::registration::{RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY};
 use nym_gateway_storage::Storage;
-use nym_wireguard_types::registration::{RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY};
 use nym_wireguard_types::{DEFAULT_PEER_TIMEOUT, DEFAULT_PEER_TIMEOUT_CHECK};
 use std::time::SystemTime;
 use std::{collections::HashMap, sync::Arc};
@@ -15,7 +15,7 @@ use crate::error::Error;
 use crate::WgApiWrapper;
 
 pub enum PeerControlRequest {
-    AddPeer(Peer),
+    AddPeer((Peer, bool)),
     RemovePeer(Key),
     QueryPeer(Key),
     QueryBandwidth(Key),
@@ -24,6 +24,7 @@ pub enum PeerControlRequest {
 pub enum PeerControlResponse {
     AddPeer {
         success: bool,
+        client_id: Option<i64>,
     },
     RemovePeer {
         success: bool,
@@ -116,7 +117,9 @@ impl<St: Storage> PeerController<St> {
         let data_usage =
             (peer.rx_bytes + peer.tx_bytes).saturating_sub(prev_peer.rx_bytes + prev_peer.tx_bytes);
         if data_usage > BANDWIDTH_CAP_PER_DAY {
-            self.storage.insert_wireguard_peer(peer, true).await?;
+            self.storage
+                .insert_wireguard_peer(peer, true, false)
+                .await?;
             self.wg_api.inner.remove_peer(&peer.public_key)?;
             self.active_peers
                 .remove_entry(&peer.public_key)
@@ -125,7 +128,9 @@ impl<St: Storage> PeerController<St> {
                 .insert(peer.public_key.clone(), peer.clone());
         } else {
             // Update peer stored data
-            self.storage.insert_wireguard_peer(peer, false).await?;
+            self.storage
+                .insert_wireguard_peer(peer, false, false)
+                .await?;
         }
         Ok(())
     }
@@ -159,7 +164,9 @@ impl<St: Storage> PeerController<St> {
         if reset {
             self.active_peers = host.peers;
             for peer in self.active_peers.values() {
-                self.storage.insert_wireguard_peer(peer, false).await?;
+                self.storage
+                    .insert_wireguard_peer(peer, false, false)
+                    .await?;
             }
         } else {
             let peers = self
@@ -194,12 +201,15 @@ impl<St: Storage> PeerController<St> {
                 }
                 msg = self.request_rx.recv() => {
                     match msg {
-                        Some(PeerControlRequest::AddPeer(peer)) => {
-                            if let Err(e) = self.storage.insert_wireguard_peer(&peer, false).await {
-                                log::error!("Could not insert peer into storage: {:?}", e);
-                                self.response_tx.send(PeerControlResponse::AddPeer { success: false }).ok();
-                                continue;
-                            }
+                        Some(PeerControlRequest::AddPeer((peer, ticket_validation))) => {
+                            let client_id = match self.storage.insert_wireguard_peer(&peer, false, ticket_validation).await {
+                                Err(e) => {
+                                    log::error!("Could not insert peer into storage: {:?}", e);
+                                    self.response_tx.send(PeerControlResponse::AddPeer { success: false, client_id: None }).ok();
+                                    continue;
+                                },
+                                Ok(client_id) => client_id,
+                            };
                             let success = if let Err(e) = self.wg_api.inner.configure_peer(&peer) {
                                 log::error!("Could not configure peer: {:?}", e);
                                 false
@@ -208,7 +218,7 @@ impl<St: Storage> PeerController<St> {
                                 self.active_peers.insert(peer.public_key.clone(), peer);
                                 true
                             };
-                            self.response_tx.send(PeerControlResponse::AddPeer { success }).ok();
+                            self.response_tx.send(PeerControlResponse::AddPeer { success, client_id }).ok();
                         }
                         Some(PeerControlRequest::RemovePeer(peer_pubkey)) => {
                             if let Err(e) = self.storage.remove_wireguard_peer(&peer_pubkey.to_string()).await {

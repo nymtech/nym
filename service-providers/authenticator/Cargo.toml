@@ -22,6 +22,7 @@ log = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
+tap = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net"] }
 tokio-stream = { workspace = true }
@@ -35,6 +36,7 @@ nym-bin-common = { path = "../../common/bin-common", features = [
 ] }
 nym-client-core = { path = "../../common/client-core", features = ["cli"] }
 nym-config = { path = "../../common/config" }
+nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-credential-verification = { path = "../../common/credential-verification" }
 nym-crypto = { path = "../../common/crypto" }
 nym-gateway-requests = { path = "../../common/gateway-requests" }

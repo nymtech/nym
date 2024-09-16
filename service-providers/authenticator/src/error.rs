@@ -62,9 +62,6 @@ pub enum AuthenticatorError {
     #[error("mac does not verify")]
     MacVerificationFailure,
 
-    #[error("the database entry for bandwidth of the registered client {client_key} is missing!")]
-    MissingClientBandwidthEntry { client_key: String },
-
     #[error("no more space in the network")]
     NoFreeIp,
 

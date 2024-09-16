@@ -272,7 +272,7 @@ where
                     .inspect_err(|err| error!("failed to encrypt client message: {err}"))
                     .ok()
             })
-            .map(|msg| Ok(msg))
+            .map(Ok)
             .collect();
         let mut send_stream = futures::stream::iter(messages);
         match self.socket_connection {

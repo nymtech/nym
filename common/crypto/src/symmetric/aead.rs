@@ -36,6 +36,13 @@ where
     <<A as AeadCore>::NonceSize>::to_usize()
 }
 
+pub fn tag_size<A>() -> usize
+where
+    A: AeadCore,
+{
+    <<A as AeadCore>::TagSize>::to_usize()
+}
+
 #[inline]
 pub fn encrypt<'msg, 'aad, A>(
     key: &AeadKey<A>,

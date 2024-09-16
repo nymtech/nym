@@ -6,6 +6,7 @@ use crate::registration::handshake::state::State;
 use crate::registration::handshake::SharedGatewayKey;
 use crate::registration::handshake::{error::HandshakeError, WsItem};
 use futures::{Sink, Stream};
+use tracing::info;
 use tungstenite::Message as WsMessage;
 
 impl<'a, S> State<'a, S> {

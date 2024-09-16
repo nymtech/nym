@@ -422,6 +422,11 @@ where
             return Ok(1);
         }
 
+        // a v3 gateway will understand v2 requests (legacy keys)
+        if client_protocol_version == 2 {
+            return Ok(2);
+        }
+
         // we can't handle clients with higher protocol than ours
         // (perhaps we could try to negotiate downgrade on our end? sounds like a nice future improvement)
         if client_protocol_version <= CURRENT_PROTOCOL_VERSION {

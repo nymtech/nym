@@ -37,9 +37,9 @@ pub enum RegistrationHandshake {
 }
 
 impl RegistrationHandshake {
-    pub fn new_payload(data: Vec<u8>) -> Self {
+    pub fn new_payload(data: Vec<u8>, protocol_version: u8) -> Self {
         RegistrationHandshake::HandshakePayload {
-            protocol_version: Some(CURRENT_PROTOCOL_VERSION),
+            protocol_version: Some(protocol_version),
             data,
         }
     }

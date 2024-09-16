@@ -3,7 +3,7 @@
 
 use crate::registration::handshake::error::HandshakeError;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_crypto::symmetric::aead::nonce_size;
+use nym_crypto::symmetric::aead::{nonce_size, tag_size};
 use nym_sphinx::params::GatewayEncryptionAlgorithm;
 use std::iter::once;
 
@@ -17,14 +17,16 @@ pub trait HandshakeMessage {
         Self: Sized;
 }
 
+#[derive(Debug)]
 pub struct Initialisation {
     pub identity: ed25519::PublicKey,
     pub ephemeral_dh: x25519::PublicKey,
     pub derive_aes256_gcm_siv_key: bool,
 }
 
+#[derive(Debug)]
 pub struct MaterialExchange {
-    pub signature_ciphertext: [u8; ed25519::SIGNATURE_LENGTH],
+    pub signature_ciphertext: Vec<u8>,
     pub nonce: Option<Vec<u8>>,
 }
 
@@ -37,11 +39,13 @@ impl MaterialExchange {
     }
 }
 
+#[derive(Debug)]
 pub struct GatewayMaterialExchange {
     pub ephemeral_dh: x25519::PublicKey,
     pub materials: MaterialExchange,
 }
 
+#[derive(Debug)]
 pub struct Finalization {
     pub success: bool,
 }
@@ -119,7 +123,7 @@ impl HandshakeMessage for MaterialExchange {
                 .chain(nonce)
                 .collect()
         } else {
-            self.signature_ciphertext.iter().cloned().collect()
+            self.signature_ciphertext.to_vec()
         }
     }
 
@@ -129,21 +133,25 @@ impl HandshakeMessage for MaterialExchange {
     {
         // we expect to receive either:
         // LEGACY: ed25519 signature ciphertext (64 bytes)
-        // CURRENT: ed25519 signature ciphertext + AES256-GCM-SIV nonce (76 bytes)
+        // CURRENT: ed25519 signature ciphertext (+ tag) + AES256-GCM-SIV nonce (76 bytes)
         let legacy_len = ed25519::SIGNATURE_LENGTH;
-        let current_len = legacy_len + nonce_size::<GatewayEncryptionAlgorithm>();
+        let current_len = legacy_len
+            + tag_size::<GatewayEncryptionAlgorithm>()
+            + nonce_size::<GatewayEncryptionAlgorithm>();
 
         if bytes.len() != legacy_len && bytes.len() != current_len {
             return Err(HandshakeError::MalformedResponse);
         }
 
-        let mut signature_ciphertext = [0u8; ed25519::SIGNATURE_LENGTH];
-        signature_ciphertext.copy_from_slice(&bytes[..legacy_len]);
-
-        let nonce = if bytes.len() == current_len {
-            Some(bytes[legacy_len..].to_vec())
+        let (signature_ciphertext, nonce) = if bytes.len() == current_len {
+            let ciphertext_len =
+                ed25519::SIGNATURE_LENGTH + tag_size::<GatewayEncryptionAlgorithm>();
+            (
+                bytes[..ciphertext_len].to_vec(),
+                Some(bytes[ciphertext_len..].to_vec()),
+            )
         } else {
-            None
+            (bytes.to_vec(), None)
         };
 
         Ok(MaterialExchange {
@@ -159,7 +167,7 @@ impl HandshakeMessage for GatewayMaterialExchange {
         self.ephemeral_dh
             .to_bytes()
             .into_iter()
-            .chain(self.materials.into_bytes().into_iter())
+            .chain(self.materials.into_bytes())
             .collect()
     }
 
@@ -207,7 +215,7 @@ impl HandshakeMessage for Finalization {
             return Err(HandshakeError::MalformedResponse);
         }
 
-        let success = if bytes[0] == 1 { true } else { false };
+        let success = bytes[0] == 1;
         Ok(Finalization { success })
     }
 }

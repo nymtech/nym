@@ -52,6 +52,7 @@ pub fn client_handshake<'a, S>(
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     gateway_pubkey: identity::PublicKey,
+    expects_credential_usage: bool,
     derive_aes256_gcm_siv_key: bool,
     #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
 ) -> GatewayHandshake<'a>
@@ -66,6 +67,7 @@ where
         #[cfg(not(target_arch = "wasm32"))]
         shutdown,
     )
+    .with_credential_usage(expects_credential_usage)
     .with_aes256_gcm_siv_key(derive_aes256_gcm_siv_key);
 
     GatewayHandshake {

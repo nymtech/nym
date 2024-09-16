@@ -102,6 +102,44 @@ impl SharedGatewayKey {
             }
         }
     }
+
+    // for the legacy keys do not use integrity MAC
+    pub fn encrypt_naive(
+        &self,
+        plaintext: &[u8],
+        // the best common denominator for converting into 'IV' and 'Nonce' types
+        raw_nonce: Option<&[u8]>,
+    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+        match self {
+            SharedGatewayKey::Current(aes_gcm_siv) => {
+                let nonce = Self::aead_nonce(raw_nonce)?;
+                aes_gcm_siv.encrypt(plaintext, &nonce)
+            }
+            SharedGatewayKey::Legacy(aes_ctr) => {
+                let iv = Self::cipher_iv(raw_nonce)?;
+                Ok(aes_ctr.encrypt_without_tagging(plaintext, iv))
+            }
+        }
+    }
+
+    // for the legacy keys do not use integrity MAC
+    pub fn decrypt_naive(
+        &self,
+        ciphertext: &[u8],
+        // the best common denominator for converting into 'IV' and 'Nonce' types
+        raw_nonce: Option<&[u8]>,
+    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+        match self {
+            SharedGatewayKey::Current(aes_gcm_siv) => {
+                let nonce = Self::aead_nonce(raw_nonce)?;
+                aes_gcm_siv.decrypt(ciphertext, &nonce)
+            }
+            SharedGatewayKey::Legacy(aes_ctr) => {
+                let iv = Self::cipher_iv(raw_nonce)?;
+                aes_ctr.decrypt_without_tag(ciphertext, iv)
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Serialize, Deserialize, Zeroize, ZeroizeOnDrop)]

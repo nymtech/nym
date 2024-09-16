@@ -50,14 +50,14 @@ impl LegacySharedKeys {
     }
 
     /// Encrypts the provided data using the optionally provided initialisation vector,
-    /// or a 0 value if nothing was given. Then it computes an integrity mac and concatenates it
-    /// with the previously produced ciphertext.
-    pub fn encrypt_and_tag(
+    /// or a 0 value if nothing was given.
+    /// It does **NOT** attach any integrity macs on the produced ciphertext
+    pub fn encrypt_without_tagging(
         &self,
         data: &[u8],
         iv: Option<&IV<LegacyGatewayEncryptionAlgorithm>>,
     ) -> Vec<u8> {
-        let encrypted_data = match iv {
+        match iv {
             Some(iv) => stream_cipher::encrypt::<LegacyGatewayEncryptionAlgorithm>(
                 self.encryption_key(),
                 iv,
@@ -71,13 +71,38 @@ impl LegacySharedKeys {
                     data,
                 )
             }
-        };
+        }
+    }
+
+    /// Encrypts the provided data using the optionally provided initialisation vector,
+    /// or a 0 value if nothing was given. Then it computes an integrity mac and concatenates it
+    /// with the previously produced ciphertext.
+    pub fn encrypt_and_tag(
+        &self,
+        data: &[u8],
+        iv: Option<&IV<LegacyGatewayEncryptionAlgorithm>>,
+    ) -> Vec<u8> {
+        let ciphertext = self.encrypt_without_tagging(data, iv);
         let mac = compute_keyed_hmac::<GatewayIntegrityHmacAlgorithm>(
             self.mac_key().as_slice(),
-            &encrypted_data,
+            &ciphertext,
         );
 
-        mac.into_bytes().into_iter().chain(encrypted_data).collect()
+        mac.into_bytes().into_iter().chain(ciphertext).collect()
+    }
+
+    pub fn decrypt_without_tag(
+        &self,
+        ciphertext: &[u8],
+        iv: Option<&IV<LegacyGatewayEncryptionAlgorithm>>,
+    ) -> Result<Vec<u8>, SharedKeyUsageError> {
+        let zero_iv = stream_cipher::zero_iv::<LegacyGatewayEncryptionAlgorithm>();
+        let iv = iv.unwrap_or(&zero_iv);
+        Ok(stream_cipher::decrypt::<LegacyGatewayEncryptionAlgorithm>(
+            self.encryption_key(),
+            iv,
+            ciphertext,
+        ))
     }
 
     pub fn decrypt_tagged(

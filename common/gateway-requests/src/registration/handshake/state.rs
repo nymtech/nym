@@ -8,7 +8,10 @@ use crate::registration::handshake::messages::{
 use crate::registration::handshake::shared_key::SharedKeySize;
 use crate::registration::handshake::{LegacySharedKeySize, LegacySharedKeys, SharedSymmetricKey};
 use crate::registration::handshake::{SharedGatewayKey, WsItem};
-use crate::types;
+use crate::{
+    types, AES_GCM_SIV_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
+    INITIAL_PROTOCOL_VERSION,
+};
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::symmetric::aead::random_nonce;
@@ -19,6 +22,7 @@ use nym_crypto::{
 };
 use nym_sphinx::params::{GatewayEncryptionAlgorithm, GatewaySharedKeyHkdfAlgorithm};
 use rand::{thread_rng, CryptoRng, RngCore};
+use std::any::{type_name, Any};
 use std::str::FromStr;
 use std::time::Duration;
 use tracing::log::*;
@@ -52,6 +56,10 @@ pub(crate) struct State<'a, S> {
     /// Ideally it would always be known before the handshake was initiated.
     remote_pubkey: Option<ed25519::PublicKey>,
 
+    // this field is really out of place here, however, we need to propagate this information somehow
+    // in order to establish correct protocol for backwards compatibility reasons
+    expects_credential_usage: bool,
+
     /// Specifies whether the end product should be an AES128Ctr + blake3 HMAC keys (legacy) or AES256-GCM-SIV (current)
     derive_aes256_gcm_siv_key: bool,
 
@@ -76,10 +84,16 @@ impl<'a, S> State<'a, S> {
             remote_pubkey,
             derived_shared_keys: None,
             // later on this should become the default
+            expects_credential_usage: false,
             derive_aes256_gcm_siv_key: false,
             #[cfg(not(target_arch = "wasm32"))]
             shutdown,
         }
+    }
+
+    pub(crate) fn with_credential_usage(mut self, expects_credential_usage: bool) -> Self {
+        self.expects_credential_usage = expects_credential_usage;
+        self
     }
 
     pub(crate) fn with_aes256_gcm_siv_key(mut self, derive_aes256_gcm_siv_key: bool) -> Self {
@@ -156,6 +170,8 @@ impl<'a, S> State<'a, S> {
             .collect();
         let signature = self.identity.private_key().sign(plaintext);
 
+        println!("signature len: {}", signature.to_bytes().len());
+
         let nonce = if self.derive_aes256_gcm_siv_key {
             let mut rng = thread_rng();
             Some(random_nonce::<GatewayEncryptionAlgorithm, _>(&mut rng).to_vec())
@@ -163,14 +179,14 @@ impl<'a, S> State<'a, S> {
             None
         };
 
+        println!("key types: {:?}", self.derived_shared_keys);
+
         // SAFETY: this function is only called after the local key has already been derived
-        let ciphertext = self
+        let signature_ciphertext = self
             .derived_shared_keys
             .as_ref()
             .expect("shared key was not derived!")
-            .encrypt(&signature.to_bytes(), nonce.as_deref())?;
-        let mut signature_ciphertext = [0u8; ed25519::SIGNATURE_LENGTH];
-        signature_ciphertext.copy_from_slice(&ciphertext);
+            .encrypt_naive(&signature.to_bytes(), nonce.as_deref())?;
 
         Ok(MaterialExchange {
             signature_ciphertext,
@@ -195,7 +211,7 @@ impl<'a, S> State<'a, S> {
         }
 
         // first decrypt received data
-        let decrypted_signature = derived_shared_key.decrypt(
+        let decrypted_signature = derived_shared_key.decrypt_naive(
             &remote_response.signature_ciphertext,
             remote_response.nonce.as_deref(),
         )?;
@@ -324,15 +340,30 @@ impl<'a, S> State<'a, S> {
             .map_err(|_| HandshakeError::ClosedStream)
     }
 
-    pub(crate) async fn send_handshake_data(
+    fn request_protocol_version(&self) -> u8 {
+        if self.derive_aes256_gcm_siv_key {
+            AES_GCM_SIV_PROTOCOL_VERSION
+        } else if self.expects_credential_usage {
+            CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION
+        } else {
+            INITIAL_PROTOCOL_VERSION
+        }
+    }
+
+    pub(crate) async fn send_handshake_data<M>(
         &mut self,
-        inner_message: impl HandshakeMessage,
+        inner_message: M,
     ) -> Result<(), HandshakeError>
     where
         S: Sink<WsMessage> + Unpin,
+        M: HandshakeMessage + Any,
     {
-        let handshake_message =
-            types::RegistrationHandshake::new_payload(inner_message.into_bytes());
+        trace!("sending handshake message: {}", type_name::<M>());
+
+        let handshake_message = types::RegistrationHandshake::new_payload(
+            inner_message.into_bytes(),
+            self.request_protocol_version(),
+        );
         self.ws_stream
             .send(WsMessage::Text(handshake_message.try_into().unwrap()))
             .await

@@ -19,9 +19,7 @@ use nym_credentials::CredentialSpendingData;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
 use nym_gateway_requests::iv::IV;
-use nym_gateway_requests::registration::handshake::{
-    client_handshake, LegacySharedKeys, SharedGatewayKey,
-};
+use nym_gateway_requests::registration::handshake::{client_handshake, LegacySharedKeys};
 use nym_gateway_requests::{
     BinaryRequest, ClientControlRequest, ServerResponse, AES_GCM_SIV_PROTOCOL_VERSION,
     CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
@@ -31,6 +29,7 @@ use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::sync::Arc;
+use tracing::instrument;
 use tracing::*;
 use tungstenite::protocol::Message;
 use url::Url;
@@ -44,8 +43,6 @@ use tokio_tungstenite::connect_async;
 
 #[cfg(not(unix))]
 use std::os::raw::c_int as RawFd;
-use std::time::Duration;
-use tracing::instrument;
 #[cfg(target_arch = "wasm32")]
 use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
@@ -403,13 +400,19 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    async fn register(&mut self, legacy: bool) -> Result<(), GatewayClientError> {
+    async fn register(
+        &mut self,
+        derive_aes256_gcm_siv_key: bool,
+    ) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
 
         debug_assert!(self.connection.is_available());
-        log::debug!("registering with gateway. using legacy key derivation: {legacy}");
+        log::debug!(
+            "registering with gateway. using legacy key derivation: {}",
+            !derive_aes256_gcm_siv_key
+        );
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
@@ -422,6 +425,7 @@ impl<C, St> GatewayClient<C, St> {
                 self.local_identity.as_ref(),
                 self.gateway_identity,
                 self.cfg.bandwidth.require_tickets,
+                derive_aes256_gcm_siv_key,
                 #[cfg(not(target_arch = "wasm32"))]
                 self.task_client.clone(),
             )
@@ -559,7 +563,7 @@ impl<C, St> GatewayClient<C, St> {
         if self.shared_key.is_some() {
             self.authenticate(None, supports_aes_gcm_siv).await?;
         } else {
-            self.register(!supports_aes_gcm_siv).await?;
+            self.register(supports_aes_gcm_siv).await?;
         }
         if self.authenticated {
             // if we are authenticated it means we MUST have an associated shared_key

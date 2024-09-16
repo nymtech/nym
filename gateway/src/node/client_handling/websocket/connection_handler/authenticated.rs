@@ -115,6 +115,12 @@ impl IntoWSMessage for Result<ServerResponse, RequestHandlingError> {
     }
 }
 
+impl IntoWSMessage for ServerResponse {
+    fn into_ws_message(self) -> Message {
+        self.into()
+    }
+}
+
 pub(crate) struct AuthenticatedHandler<R, S, St> {
     inner: FreshHandler<R, S, St>,
     bandwidth_storage_manager: BandwidthStorageManager<St>,
@@ -322,13 +328,28 @@ where
                     .await
                     .map_err(|e| e.into())
                     .into_ws_message(),
-                other => RequestHandlingError::IllegalRequest {
-                    additional_context: format!(
-                        "received illegal message of type {} in an authenticated client",
-                        other.name()
-                    ),
+                ClientControlRequest::SupportedProtocol { .. } => self
+                    .inner
+                    .handle_supported_protocol_request()
+                    .into_ws_message(),
+                other @ ClientControlRequest::Authenticate { .. } => {
+                    RequestHandlingError::IllegalRequest {
+                        additional_context: format!(
+                            "received illegal message of type {} in an authenticated client",
+                            other.name()
+                        ),
+                    }
+                    .into_error_message()
                 }
-                .into_error_message(),
+                other @ ClientControlRequest::RegisterHandshakeInitRequest { .. } => {
+                    RequestHandlingError::IllegalRequest {
+                        additional_context: format!(
+                            "received illegal message of type {} in an authenticated client",
+                            other.name()
+                        ),
+                    }
+                    .into_error_message()
+                }
             },
         }
     }

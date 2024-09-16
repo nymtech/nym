@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::registration::handshake::shared_key::{SharedKeyConversionError, SharedKeyUsageError};
-use crate::GatewayMacSize;
+use crate::LegacyGatewayMacSize;
 use nym_crypto::generic_array::{
     typenum::{Sum, Unsigned, U16},
     GenericArray,
@@ -110,7 +110,7 @@ impl LegacySharedKeys {
         enc_data: &[u8],
         iv: Option<&IV<LegacyGatewayEncryptionAlgorithm>>,
     ) -> Result<Vec<u8>, SharedKeyUsageError> {
-        let mac_size = GatewayMacSize::to_usize();
+        let mac_size = LegacyGatewayMacSize::to_usize();
         if enc_data.len() < mac_size {
             return Err(SharedKeyUsageError::TooShortRequest);
         }
@@ -128,16 +128,16 @@ impl LegacySharedKeys {
 
         // couldn't have made the first borrow mutable as you can't have an immutable borrow
         // together with a mutable one
-        let message_bytes_mut = &mut enc_data.to_vec()[mac_size..];
+        let mut message_bytes_mut = message_bytes.to_vec();
 
         let zero_iv = stream_cipher::zero_iv::<LegacyGatewayEncryptionAlgorithm>();
         let iv = iv.unwrap_or(&zero_iv);
         stream_cipher::decrypt_in_place::<LegacyGatewayEncryptionAlgorithm>(
             self.encryption_key(),
             iv,
-            message_bytes_mut,
+            &mut message_bytes_mut,
         );
-        Ok(message_bytes_mut.to_vec())
+        Ok(message_bytes_mut)
     }
 
     pub fn encryption_key(&self) -> &CipherKey<LegacyGatewayEncryptionAlgorithm> {

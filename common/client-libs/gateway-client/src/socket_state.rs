@@ -9,7 +9,7 @@ use crate::{cleanup_socket_messages, try_decrypt_binary_message};
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use nym_gateway_requests::registration::handshake::LegacySharedKeys;
+use nym_gateway_requests::registration::handshake::SharedGatewayKey;
 use nym_gateway_requests::{ServerResponse, SimpleGatewayRequestsError};
 use nym_task::TaskClient;
 use si_scale::helpers::bibytes2;
@@ -62,7 +62,7 @@ pub(crate) struct PartiallyDelegatedHandle {
 
 struct PartiallyDelegatedRouter {
     packet_router: PacketRouter,
-    shared_key: Arc<LegacySharedKeys>,
+    shared_key: Arc<SharedGatewayKey>,
     client_bandwidth: ClientBandwidth,
 
     stream_return: SplitStreamSender,
@@ -72,7 +72,7 @@ struct PartiallyDelegatedRouter {
 impl PartiallyDelegatedRouter {
     fn new(
         packet_router: PacketRouter,
-        shared_key: Arc<LegacySharedKeys>,
+        shared_key: Arc<SharedGatewayKey>,
         client_bandwidth: ClientBandwidth,
         stream_return: SplitStreamSender,
         stream_return_requester: oneshot::Receiver<()>,
@@ -247,7 +247,7 @@ impl PartiallyDelegatedHandle {
     pub(crate) fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
         packet_router: PacketRouter,
-        shared_key: Arc<LegacySharedKeys>,
+        shared_key: Arc<SharedGatewayKey>,
         client_bandwidth: ClientBandwidth,
         shutdown: TaskClient,
     ) -> Self {

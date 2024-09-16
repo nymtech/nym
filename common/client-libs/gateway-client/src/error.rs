@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_gateway_requests::registration::handshake::error::HandshakeError;
-use nym_gateway_requests::SimpleGatewayRequestsError;
+use nym_gateway_requests::{GatewayRequestsError, SimpleGatewayRequestsError};
 use std::io;
 use thiserror::Error;
 use tungstenite::Error as WsError;
@@ -20,6 +20,9 @@ pub enum GatewayClientError {
 
     #[error("gateway returned an error response: {0}")]
     TypedGatewayError(SimpleGatewayRequestsError),
+
+    #[error("request error: {0}")]
+    RequestError(#[from] GatewayRequestsError),
 
     #[error("There was a network error: {0}")]
     NetworkError(#[from] WsError),

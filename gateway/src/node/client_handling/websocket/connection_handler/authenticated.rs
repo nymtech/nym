@@ -286,10 +286,9 @@ where
             }
             Ok(request) => match request {
                 // currently only a single type exists
-                BinaryRequest::ForwardSphinx(mix_packet) => self
-                    .handle_forward_sphinx(mix_packet)
-                    .await
-                    .into_ws_message(),
+                BinaryRequest::ForwardSphinx { packet } => {
+                    self.handle_forward_sphinx(packet).await.into_ws_message()
+                }
             },
         }
     }

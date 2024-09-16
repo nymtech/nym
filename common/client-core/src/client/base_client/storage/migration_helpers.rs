@@ -91,7 +91,7 @@ pub mod v1_1_33 {
                 .map_err(|err| ClientCoreError::UpgradeFailure {
                     message: format!("the stored gateway id was malformed: {err}"),
                 })?,
-            derived_aes128_ctr_blake3_hmac_keys: Arc::new(gateway_shared_key),
+            shared_key: Arc::new(gateway_shared_key.into()),
             gateway_owner_address: Some(gateway_owner.parse().map_err(|err| {
                 ClientCoreError::UpgradeFailure {
                     message: format!("the stored gateway owner address was malformed: {err}"),

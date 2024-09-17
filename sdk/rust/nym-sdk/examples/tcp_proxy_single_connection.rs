@@ -36,9 +36,9 @@ async fn main() {
         .init();
 
     let upstream_tcp_addr = "127.0.0.1:9067";
-    // This dir gets cleaned up at the end
+    // This dir gets cleaned up at the end: NOTE if you switch env between tests without letting the file do the automatic cleanup, make sure to manually remove this directory up before running again, otherwise your client will attempt to use these keys for the new env
     let conf_path = "./tmp/nym-proxy-server-config";
-    // Configure our clients to use the Canary test network for best service
+    // Configure our clients to use the Canary test network: you can switch this to use any of the files in `../../../envs/`
     let env_path = "../../../envs/canary.env".to_string();
 
     let mut proxy_server =
@@ -166,7 +166,8 @@ async fn main() {
 }
 
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
-    let amounts = vec![1, 10, 50, 100, 150, 200, 350, 500, 750, 1000];
+    // let amounts = vec![1, 10, 50, 100, 150, 200, 350, 500, 750, 1000];
+    let amounts = vec![158, 1088, 505, 1001, 150, 200, 3500, 500, 750, 100];
     let len = amounts[i];
     let mut rng = rand::thread_rng();
     (0..len).map(|_| rng.gen::<u8>()).collect()

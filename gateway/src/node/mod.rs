@@ -344,6 +344,7 @@ impl<St> Gateway<St> {
         &self,
         _forwarding_channel: MixForwardingSender,
         _shutdown: TaskClient,
+        _ecash_verifier: Arc<EcashManager<St>>,
     ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
         todo!("Authenticator is currently only supported on Linux");
     }

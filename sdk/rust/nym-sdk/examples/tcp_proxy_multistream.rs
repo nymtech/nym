@@ -1,14 +1,17 @@
 use bincode;
+use nym_sdk::mixnet::Recipient;
 use nym_sdk::tcp_proxy;
+use rand::rngs::SmallRng;
 use rand::Rng;
+use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use tokio::io::AsyncWriteExt;
-use tokio::net::{TcpListener, TcpStream};
+use tokio::net::TcpStream;
 use tokio::signal;
 use tokio::task;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
+use tracing_subscriber;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ExampleMessage {
@@ -17,75 +20,35 @@ struct ExampleMessage {
     tcp_conn: i8,
 }
 
-// This example emulates something like a streaming client opening a bunch of different TcpStreams to a remote server.
+// This example just starts off a bunch of Tcp connections on a loop to a remote endpoint: in this case the TcpListener behind the NymProxyServer instance on the echo server found in `nym/tools/echo-server/`. It pipes a few messages to it, logs the replies, and keeps track of the number of replies received per connection.
+//
+// To run:
+// - run the echo server with `cargo run`
+// - run this example with `cargo run --example tcp_proxy_multistream
 #[tokio::main]
 async fn main() {
-    // Nym client logging is very informative but quite verbose.
-    // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering.
-    // Run with RUST_LOG="debug" to see this.
-    // nym_bin_common::logging::setup_logging();
+    // Fill this in with the address of the echo server running in the other terminal window
+    let server: Recipient = Recipient::try_from_base58_string("DMHyxo8n6sKWHHTVvjRVDxDSMX8gYXRU1AQ6UpwsrWiB.6STYCWGWyRxqn2juWdgjMkAMsT9EaAzPpLWq5zkS68MB@CJG5zTcmoLijmDrtAiLV9PZHxNz8LQu6hmgA89V2RxxL").unwrap();
 
-    let upstream_tcp_addr = "127.0.0.1:9067";
-    // This dir gets cleaned up at the end
-    let conf_path = "./tmp/nym-proxy-server-config-multi";
-    let mut proxy_server = tcp_proxy::NymProxyServer::new(upstream_tcp_addr, conf_path)
-        .await
-        .unwrap();
-    let proxy_nym_addr = proxy_server.nym_address();
+    // Comment this out to just see println! statements from this example.
+    // Nym client logging is very informative but quite verbose.
+    // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering: you need to switch
+    // to DEBUG to see the contents of the msg buffer, sphinx packet chunking, etc.
+    // tracing_subscriber::fmt()
+    //     .with_max_level(tracing::Level::INFO)
+    //     .init();
+
+    // Configure our clients to use the Canary test network: you can switch this to use any of the files in `../../../envs/`
+    let env_path = "../../../envs/canary.env".to_string();
 
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
-    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 180)
-        .await
-        .unwrap();
-
-    task::spawn(async move {
-        let _ = proxy_server.run_with_shutdown().await;
-    });
+    let proxy_client =
+        tcp_proxy::NymProxyClient::new(server, "127.0.0.1", "8080", 60, Some(env_path))
+            .await
+            .unwrap();
 
     task::spawn(async move {
         let _ = proxy_client.run().await;
-    });
-
-    // 'Server side' thread: echo back the messages sent in the 'client side' thread below, retain the message and conn ids for illustrative purposes
-    task::spawn(async move {
-        let listener = TcpListener::bind(upstream_tcp_addr).await.unwrap();
-        loop {
-            let (socket, _) = listener.accept().await.unwrap();
-            let (read, mut write) = socket.into_split();
-            let codec = codec::BytesCodec::new();
-            let mut framed_read = codec::FramedRead::new(read, codec);
-            while let Some(Ok(bytes)) = framed_read.next().await {
-                match bincode::deserialize::<ExampleMessage>(&bytes) {
-                    Ok(msg) => {
-                        println!(
-                            "<< server received {}: {} bytes on tcp conn {}",
-                            msg.message_id,
-                            msg.message_bytes.len(),
-                            msg.tcp_conn
-                        );
-                        let reply = ExampleMessage {
-                            message_id: msg.message_id,
-                            message_bytes: msg.message_bytes.clone(),
-                            tcp_conn: msg.tcp_conn,
-                        };
-                        let serialised = bincode::serialize(&reply).unwrap();
-                        write
-                            .write_all(&serialised)
-                            .await
-                            .expect("couldnt send reply");
-                        println!(
-                            ">> server sent {}: {} bytes on conn {}",
-                            msg.message_id,
-                            msg.message_bytes.len(),
-                            msg.tcp_conn
-                        );
-                    }
-                    Err(e) => {
-                        println!("<< server received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);
-                    }
-                }
-            }
-        }
     });
 
     // Just wait for Nym clients to connect, TCP clients to bind, etc.
@@ -93,7 +56,7 @@ async fn main() {
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     println!("done. sending bytes");
 
-    // In the logging you will see the different session IDs being set up, one for each TcpStream.
+    // In the info traces you will see the different session IDs being set up, one for each TcpStream.
     for i in 0..4 {
         let conn_id = i;
         println!("Starting TCP connection {}", conn_id);
@@ -108,9 +71,12 @@ async fn main() {
             let stream = TcpStream::connect("127.0.0.1:8080").await.unwrap();
             let (read, mut write) = stream.into_split();
 
-            // 'Client side' thread; lets just send a bunch of messages to the server with variable delays between them, with a message and tcp connection ids to keep track of ordering on the server side (for illustrative purposes **only**; keeping track of replying is handled by the proxy under the hood with SURBs)
+            // Lets just send a bunch of messages to the server with variable delays between them, with a message and tcp connection ids to keep track of ordering on the server side (for illustrative purposes **only**; keeping track of anonymous replies is handled by the proxy under the hood with Single Use Reply Blocks (SURBs); for this illustration we want some kind of app-level message id, but irl most of the time you'll probably be parsing on e.g. the incoming response type instead)
             task::spawn(async move {
                 for i in 0..4 {
+                    let mut rng = SmallRng::from_entropy();
+                    let delay: f64 = rng.gen_range(2.5..5.0);
+                    tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
                     let random_bytes = gen_bytes_fixed(i as usize);
                     let msg = ExampleMessage {
                         message_id: i,
@@ -128,14 +94,11 @@ async fn main() {
                         msg.message_bytes.len(),
                         &conn_id
                     );
-                    let mut rng = rand::thread_rng();
-                    let delay: f64 = rng.gen_range(0.5..4.0);
-                    // Using std::sleep here as we do want to block the thread to somewhat emulate IRL delays.
-                    std::thread::sleep(tokio::time::Duration::from_secs_f64(delay));
                 }
             });
 
             task::spawn(async move {
+                let mut reply_counter = 0;
                 let codec = codec::BytesCodec::new();
                 let mut framed_read = codec::FramedRead::new(read, codec);
                 while let Some(Ok(bytes)) = framed_read.next().await {
@@ -147,6 +110,11 @@ async fn main() {
                                 msg.message_bytes.len(),
                                 msg.tcp_conn
                             );
+                            reply_counter += 1;
+                            println!(
+                                "tcp connection {} replies received {}/4",
+                                msg.tcp_conn, reply_counter
+                            );
                         }
                         Err(e) => {
                             println!("<< client received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);
@@ -155,13 +123,14 @@ async fn main() {
                 }
             });
         });
-        tokio::time::sleep(tokio::time::Duration::from_secs(6)).await;
+        let mut rng = SmallRng::from_entropy();
+        let delay: f64 = rng.gen_range(2.5..5.0);
+        tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
     }
 
     // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
     signal::ctrl_c().await.unwrap();
-    println!("CTRL+C received, shutting down + cleanup up proxy server config files");
-    fs::remove_dir_all(conf_path).unwrap();
+    println!("CTRL+C received, shutting down");
 }
 
 // emulate a series of small messages followed by a closing larger one

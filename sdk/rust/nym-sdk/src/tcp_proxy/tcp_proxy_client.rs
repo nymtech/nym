@@ -1,5 +1,5 @@
 use crate::mixnet::{
-    IncludedSurbs, MixnetClient, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails,
+    IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails,
 };
 use std::sync::Arc;
 #[path = "utils.rs"]
@@ -7,9 +7,7 @@ mod utils;
 use anyhow::Result;
 use dashmap::DashSet;
 use nym_network_defaults::setup_env;
-use nym_network_defaults::var_names::NYM_API;
 use nym_sphinx::addressing::Recipient;
-use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::oneshot,
@@ -70,7 +68,7 @@ impl NymProxyClient {
             let (stream, _) = listener.accept().await?;
             tokio::spawn(NymProxyClient::handle_incoming(
                 stream,
-                self.server_address.clone(),
+                self.server_address,
                 self.close_timeout,
             ));
         }
@@ -135,7 +133,7 @@ impl NymProxyClient {
         // Much like the tcpstream, split our Nym client into a sender and receiver for concurrent read/write
         let sender = client.split_sender();
         // The server / service provider address our client is sending messages to will remain static
-        let server_addr = server_address.clone();
+        let server_addr = server_address;
         // Store outgoing messages in instance of Dashset abstraction
         let messages_account = Arc::new(DashSet::new());
         // Wrap in an Arc for memsafe concurrent access

@@ -5,14 +5,11 @@ use crate::mixnet::{
 use anyhow::Result;
 use dashmap::DashSet;
 use nym_network_defaults::setup_env;
-use nym_network_defaults::var_names::NYM_API;
 use nym_sphinx::addressing::Recipient;
-use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::path::PathBuf;
-use std::sync::{Arc, LazyLock};
+use std::sync::Arc;
 use tokio::net::TcpStream;
 use tokio::sync::watch::Receiver;
-use tokio::sync::OnceCell;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 use tracing::{debug, error, info};
@@ -20,11 +17,6 @@ use tracing::{debug, error, info};
 mod utils;
 use utils::{MessageBuffer, Payload, ProxiedMessage};
 use uuid::Uuid;
-
-static TOPOLOGY: OnceCell<NymTopology> = OnceCell::const_new();
-static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
-    std::env::var(NYM_API).unwrap_or_else(|_| panic!("{} env var not set", NYM_API))
-});
 
 pub struct NymProxyServer {
     upstream_address: String,
@@ -43,27 +35,16 @@ impl NymProxyServer {
     ) -> Result<Self> {
         info!(":: creating client...");
 
-        // TOPOLOGY
-        //     .set(if let Some(topology_file) = topology {
-        //         NymTopology::new_from_file(topology_file)?
-        //     } else {
-        //         NymTopology::new_from_env().await?
-        //     })
-        //     .ok();
-        // let set_topology = TOPOLOGY.get().expect("Topology not set yet!").clone();
-
         // We're wanting to build a client with a constant address, vs the ephemeral in-memory data storage of the NymProxyClient clients.
         // Following a builder pattern, having to manually connect to the mixnet below.
         let config_dir = PathBuf::from(config_dir);
         debug!("loading env file: {:?}", env);
         setup_env(env); // Defaults to mainnet if empty
         let net = NymNetworkDetails::new_from_env();
-        // let topology_provider = Box::new(HardcodedTopologyProvider::new(set_topology));
         let storage_paths = StoragePaths::new_from_dir(&config_dir)?;
         let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
             .await?
             .network_details(net)
-            // .custom_topology_provider(topology_provider)
             .build()?;
 
         let client = client.connect_to_mixnet().await?;

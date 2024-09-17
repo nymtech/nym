@@ -1,4 +1,7 @@
+use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
+
+use crate::http;
 
 pub(crate) struct GatewayRecord {
     pub(crate) identity_key: String,
@@ -8,6 +11,81 @@ pub(crate) struct GatewayRecord {
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_updated_utc: i64,
     pub(crate) performance: u8,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct GatewayDto {
+    pub(crate) gateway_identity_key: String,
+    pub(crate) bonded: bool,
+    pub(crate) blacklisted: bool,
+    pub(crate) performance: i64,
+    pub(crate) self_described: Option<String>,
+    pub(crate) explorer_pretty_bond: Option<String>,
+    pub(crate) last_probe_result: Option<String>,
+    pub(crate) last_probe_log: Option<String>,
+    pub(crate) last_testrun_utc: Option<i64>,
+    pub(crate) last_updated_utc: i64,
+    pub(crate) moniker: String,
+    pub(crate) security_contact: String,
+    pub(crate) details: String,
+    pub(crate) website: String,
+}
+
+impl GatewayDto {
+    pub fn to_gateway(&self) -> http::models::Gateway {
+        // Instead of using routing_score_successes / routing_score_samples, we use the
+        // number of successful testruns in the last 24h.
+        let routing_score = 0f32;
+        let config_score = 0u32;
+        let last_updated_utc = timestamp_as_utc(self.last_updated_utc as u64).to_rfc3339();
+        let last_testrun_utc = self
+            .last_testrun_utc
+            .map(|t| timestamp_as_utc(t as u64).to_rfc3339());
+
+        let self_described = self.self_described.clone().unwrap_or("null".to_string());
+        let explorer_pretty_bond = self
+            .explorer_pretty_bond
+            .clone()
+            .unwrap_or("null".to_string());
+        let last_probe_result = self.last_probe_result.clone().unwrap_or("null".to_string());
+        let last_probe_log = self.last_probe_log.clone();
+
+        let self_described = serde_json::from_str(&self_described).unwrap_or(None);
+        let explorer_pretty_bond = serde_json::from_str(&explorer_pretty_bond).unwrap_or(None);
+        let last_probe_result = serde_json::from_str(&last_probe_result).unwrap_or(None);
+
+        let bonded = self.bonded;
+        let blacklisted = self.blacklisted;
+        let performance = self.performance as u8;
+
+        let description = NodeDescription {
+            moniker: self.moniker.clone(),
+            website: self.website.clone(),
+            security_contact: self.security_contact.clone(),
+            details: self.details.clone(),
+        };
+
+        http::models::Gateway {
+            gateway_identity_key: self.gateway_identity_key.clone(),
+            bonded,
+            blacklisted,
+            performance,
+            self_described,
+            explorer_pretty_bond,
+            description,
+            last_probe_result,
+            last_probe_log,
+            routing_score,
+            config_score,
+            last_testrun_utc,
+            last_updated_utc,
+        }
+    }
+}
+
+fn timestamp_as_utc(unix_timestamp: u64) -> chrono::DateTime<chrono::Utc> {
+    let d = std::time::UNIX_EPOCH + std::time::Duration::from_secs(unix_timestamp);
+    d.into()
 }
 
 pub(crate) struct MixnodeRecord {

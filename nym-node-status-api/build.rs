@@ -3,6 +3,8 @@ use sqlx::{Connection, SqliteConnection};
 
 const SQLITE_DB_FILENAME: &str = "nym-node-status-api.sqlite";
 
+/// If you need to re-run migrations or reset the db, just run
+/// cargo clean -p nym-node-status-api
 #[tokio::main]
 async fn main() -> Result<()> {
     let out_dir = read_env_var("OUT_DIR")?;

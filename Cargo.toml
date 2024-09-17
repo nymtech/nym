@@ -265,6 +265,7 @@ ledger-transport-hid = "0.10.0"
 log = "0.4"
 maxminddb = "0.23.0"
 mime = "0.3.17"
+moka = { version = "0.12", features = ["future"] }
 nix = "0.27.1"
 notify = "5.1.0"
 okapi = "0.7.0"

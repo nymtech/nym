@@ -1,9 +1,11 @@
-use anyhow::anyhow;
 use clap::Parser;
 use nym_network_defaults::setup_env;
 use nym_task::signal::wait_for_signal;
 
+use crate::config::read_env_var;
+
 mod cli;
+mod config;
 mod db;
 mod http;
 mod logging;
@@ -17,27 +19,30 @@ async fn main() -> anyhow::Result<()> {
     // if dotenv file is present, load its values
     // otherwise, default to mainnet
     setup_env(args.config_env_file.as_ref());
-    tracing::debug!("{:?}", std::env::var("NETWORK_NAME"));
-    tracing::debug!("{:?}", std::env::var("EXPLORER_API"));
-    tracing::debug!("{:?}", std::env::var("NYM_API"));
+    tracing::debug!("{:?}", read_env_var("NETWORK_NAME"));
+    tracing::debug!("{:?}", read_env_var("EXPLORER_API"));
+    tracing::debug!("{:?}", read_env_var("NYM_API"));
+
+    let conf = config::Config::from_env();
+    tracing::debug!("Using config:\n{:?}", conf);
 
     let storage = db::Storage::init().await?;
     let db_pool = storage.pool_owned().await;
-    // tokio::spawn(async move {
-    //     monitor::spawn_in_background(db_pool).await;
-    // });
-    let _ = monitor::spawn_in_background(db_pool);
+    tokio::spawn(async move {
+        monitor::spawn_in_background(db_pool).await;
+    });
     tracing::info!("Started monitor task");
 
-    let port = std::env::var("HTTP_PORT")
-        .map_err(|_| anyhow!("HTTP_PORT not set"))
-        .and_then(|port| port.parse().map_err(anyhow::Error::msg))?;
-    let shutdown_handles = http::server::start_http_api(storage.pool_owned().await, port)
-        .await
-        .expect("Failed to start server");
+    let shutdown_handles = http::server::start_http_api(
+        storage.pool_owned().await,
+        conf.http_port(),
+        conf.nym_http_cache_ttl(),
+    )
+    .await
+    .expect("Failed to start server");
     // TODO dz load bind address from config
     // TODO dz log bind address
-    tracing::info!("Started HTTP server on port {}", port);
+    tracing::info!("Started HTTP server on port {}", conf.http_port());
 
     wait_for_signal().await;
 
@@ -46,13 +51,4 @@ async fn main() -> anyhow::Result<()> {
     };
 
     Ok(())
-}
-
-fn read_env_var(env_var: &str) -> anyhow::Result<String> {
-    std::env::var(env_var)
-        .map(|value| {
-            tracing::trace!("{}={}", env_var, value);
-            value
-        })
-        .map_err(|_| anyhow!("You need to set {}", env_var))
 }

@@ -57,3 +57,15 @@ CREATE TABLE summary_history
 );
 CREATE INDEX idx_summary_history_timestamp_utc ON summary_history (timestamp_utc);
 CREATE INDEX idx_summary_history_date ON summary_history (date);
+
+
+CREATE TABLE gateway_description (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    gateway_identity_key VARCHAR UNIQUE NOT NULL,
+    moniker VARCHAR,
+    website VARCHAR,
+    security_contact VARCHAR,
+    details VARCHAR,
+    last_updated_utc INTEGER NOT NULL,
+    FOREIGN KEY (gateway_identity_key) REFERENCES gateways (gateway_identity_key)
+  );

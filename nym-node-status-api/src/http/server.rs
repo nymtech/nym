@@ -13,17 +13,17 @@ use crate::{
 pub(crate) async fn start_http_api(
     db_pool: DbPool,
     http_port: u16,
+    nym_http_cache_ttl: u64,
 ) -> anyhow::Result<ShutdownHandles> {
     let router_builder = RouterBuilder::with_default_routes();
 
     // TODO dz init routes
 
-    let state = AppState::new(db_pool);
+    let state = AppState::new(db_pool, nym_http_cache_ttl);
     let router = router_builder.with_state(state);
 
     let bind_addr = format!("0.0.0.0:{}", http_port);
     let server = router.build_server(bind_addr).await?;
-
 
     Ok(start_server(server))
 }

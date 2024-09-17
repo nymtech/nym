@@ -27,27 +27,25 @@ static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
 pub(crate) async fn spawn_in_background(db_pool: DbPool) -> JoinHandle<()> {
-    tokio::spawn(async move {
-        let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
+    let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
-        loop {
-            tracing::info!("Refreshing node info...");
+    loop {
+        tracing::info!("Refreshing node info...");
 
-            if let Err(e) = run(&db_pool, &network_defaults).await {
-                tracing::error!(
-                    "Monitor run failed: {e}, retrying in {}s...",
-                    FAILURE_RETRY_DELAY.as_secs()
-                );
-                tokio::time::sleep(FAILURE_RETRY_DELAY).await;
-            } else {
-                tracing::info!(
-                    "Info successfully collected, sleeping for {}s...",
-                    REFRESH_DELAY.as_secs()
-                );
-                tokio::time::sleep(REFRESH_DELAY).await;
-            }
+        if let Err(e) = run(&db_pool, &network_defaults).await {
+            tracing::error!(
+                "Monitor run failed: {e}, retrying in {}s...",
+                FAILURE_RETRY_DELAY.as_secs()
+            );
+            tokio::time::sleep(FAILURE_RETRY_DELAY).await;
+        } else {
+            tracing::info!(
+                "Info successfully collected, sleeping for {}s...",
+                REFRESH_DELAY.as_secs()
+            );
+            tokio::time::sleep(REFRESH_DELAY).await;
         }
-    })
+    }
 }
 
 async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> anyhow::Result<()> {

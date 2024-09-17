@@ -19,6 +19,7 @@ chrono = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive"] }
 cosmwasm-std = { workspace = true }
 futures-util = { workspace = true }
+moka = { workspace = true, features = ["future"] }
 nym-bin-common = { path = "../common/bin-common" }
 nym-explorer-client = { path = "../explorer-api/explorer-client" }
 nym-network-defaults = { path = "../common/network-defaults" }

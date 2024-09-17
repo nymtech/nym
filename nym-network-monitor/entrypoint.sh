@@ -4,12 +4,12 @@
 
 set -ex
 
-private_key=${1}
-network=${2:-mainnet}
-timeout=${3:-600}
-users=${4:-10}
+_private_key=${PRIVATE_KEY}
+network=${NYM_NETWORK:-mainnet}
+timeout=${LOCUST_TIMEOUT:-600}
+users=${LOCUST_USERS:-10}
 
-RUST_LOG=info nym-network-monitor --env envs/"${network}".env --host 127.0.0.1 --port 8080 --private-key "${private_key}" &
+RUST_LOG=info nym-network-monitor --env envs/"${network}".env --private-key "${_private_key}" &
 nnm_pid=$!
 
 sleep 10

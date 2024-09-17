@@ -4,7 +4,9 @@
 use nym_client_core::client::base_client::storage::gateways_storage::{
     BadGateway, GatewayDetails, GatewayRegistration, RawRemoteGatewayDetails, RemoteGatewayDetails,
 };
+use nym_gateway_client::SharedGatewayKey;
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 use time::OffsetDateTime;
 
 // a more nested struct since we only have a single gateway type in wasm (no 'custom')
@@ -14,7 +16,10 @@ pub struct WasmRawRegisteredGateway {
 
     pub registration_timestamp: OffsetDateTime,
 
-    pub derived_aes128_ctr_blake3_hmac_keys_bs58: String,
+    pub derived_aes128_ctr_blake3_hmac_keys_bs58: Option<String>,
+
+    #[serde(default)]
+    pub derived_aes256_gcm_siv_key: Option<Vec<u8>>,
 
     pub gateway_owner_address: Option<String>,
 
@@ -30,6 +35,7 @@ impl TryFrom<WasmRawRegisteredGateway> for GatewayRegistration {
             gateway_id_bs58: value.gateway_id_bs58,
             derived_aes128_ctr_blake3_hmac_keys_bs58: value
                 .derived_aes128_ctr_blake3_hmac_keys_bs58,
+            derived_aes256_gcm_siv_key: value.derived_aes256_gcm_siv_key,
             gateway_owner_address: value.gateway_owner_address,
             gateway_listener: value.gateway_listener,
         };
@@ -48,17 +54,22 @@ impl<'a> From<&'a GatewayRegistration> for WasmRawRegisteredGateway {
             panic!("somehow obtained custom gateway registration in wasm!")
         };
 
+        let (derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key) =
+            match remote_details.shared_key.deref() {
+                SharedGatewayKey::Current(key) => (None, Some(key.to_bytes())),
+                SharedGatewayKey::Legacy(key) => (Some(key.to_base58_string()), None),
+            };
+
         WasmRawRegisteredGateway {
             gateway_id_bs58: remote_details.gateway_id.to_string(),
             registration_timestamp: value.registration_timestamp,
-            derived_aes128_ctr_blake3_hmac_keys_bs58: remote_details
-                .derived_aes128_ctr_blake3_hmac_keys
-                .to_base58_string(),
+            derived_aes128_ctr_blake3_hmac_keys_bs58,
+            derived_aes256_gcm_siv_key,
+            gateway_listener: remote_details.gateway_listener.to_string(),
             gateway_owner_address: remote_details
                 .gateway_owner_address
                 .as_ref()
                 .map(|a| a.to_string()),
-            gateway_listener: remote_details.gateway_listener.to_string(),
         }
     }
 }

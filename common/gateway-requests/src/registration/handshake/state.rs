@@ -3,7 +3,7 @@
 
 use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::messages::{
-    Finalization, HandshakeMessage, Initialisation, MaterialExchange,
+    HandshakeMessage, Initialisation, MaterialExchange,
 };
 use crate::registration::handshake::shared_key::SharedKeySize;
 use crate::registration::handshake::{LegacySharedKeySize, LegacySharedKeys, SharedSymmetricKey};
@@ -101,6 +101,7 @@ impl<'a, S> State<'a, S> {
         self
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
     pub(crate) fn set_aes256_gcm_siv_key_derivation(&mut self, derive_aes256_gcm_siv_key: bool) {
         self.derive_aes256_gcm_siv_key = derive_aes256_gcm_siv_key;
     }
@@ -121,8 +122,11 @@ impl<'a, S> State<'a, S> {
         }
     }
 
-    pub(crate) fn finalization_message(&self) -> Finalization {
-        Finalization { success: true }
+    #[cfg(not(target_arch = "wasm32"))]
+    pub(crate) fn finalization_message(
+        &self,
+    ) -> crate::registration::handshake::messages::Finalization {
+        crate::registration::handshake::messages::Finalization { success: true }
     }
 
     pub(crate) fn derive_shared_key(&mut self, remote_ephemeral_key: &encryption::PublicKey) {
@@ -292,7 +296,7 @@ impl<'a, S> State<'a, S> {
     }
 
     #[cfg(target_arch = "wasm32")]
-    async fn _receive_handshake_message(&mut self) -> Result<Vec<u8>, HandshakeError>
+    async fn _receive_handshake_message_bytes(&mut self) -> Result<Vec<u8>, HandshakeError>
     where
         S: Stream<Item = WsItem> + Unpin,
     {

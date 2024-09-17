@@ -31,6 +31,7 @@ pub struct MaterialExchange {
 }
 
 impl MaterialExchange {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn attach_ephemeral_dh(self, ephemeral_dh: x25519::PublicKey) -> GatewayMaterialExchange {
         GatewayMaterialExchange {
             ephemeral_dh,

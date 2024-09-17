@@ -205,7 +205,7 @@ impl NymNodeTesterBuilder {
                     GatewayClientConfig::new_default().with_disabled_credentials_mode(true),
                     cfg,
                     managed_keys.identity_keypair(),
-                    Some(gateway_info.derived_aes128_ctr_blake3_hmac_keys),
+                    Some(gateway_info.shared_key),
                     packet_router,
                     self.bandwidth_controller.take(),
                     gateway_task,

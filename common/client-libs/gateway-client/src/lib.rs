@@ -8,7 +8,7 @@ use tungstenite::{protocol::Message, Error as WsError};
 
 pub use client::{config::GatewayClientConfig, GatewayClient, GatewayConfig};
 pub use nym_gateway_requests::registration::handshake::LegacySharedKeys;
-use nym_gateway_requests::registration::handshake::SharedGatewayKey;
+pub use nym_gateway_requests::registration::handshake::SharedGatewayKey;
 pub use packet_router::{
     AcknowledgementReceiver, AcknowledgementSender, MixnetMessageReceiver, MixnetMessageSender,
     PacketRouter,

@@ -251,11 +251,6 @@ impl TryFrom<RawRemoteGatewayDetails> for RemoteGatewayDetails {
 
 impl<'a> From<&'a RemoteGatewayDetails> for RawRemoteGatewayDetails {
     fn from(value: &'a RemoteGatewayDetails) -> Self {
-        /*
-                pub derived_aes128_ctr_blake3_hmac_keys_bs58: Option<String>,
-        pub derived_aes256_gcm_siv_key: Option<Vec<u8>>,
-             */
-
         let (derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key) =
             match value.shared_key.deref() {
                 SharedGatewayKey::Current(key) => (None, Some(key.to_bytes())),

@@ -14,6 +14,8 @@ pub const fn max_unlinked_set_payload_length(max_plaintext_size: usize) -> usize
     u8::MAX as usize * unlinked_fragment_payload_max_len(max_plaintext_size)
 }
 
+/// Maximum payload length for a set that is being linked to another one, but is not the last one.
+///
 /// If the set is being linked to another one, by either being the very first set, or the very last,
 /// one of its `Fragment`s must be changed from "unlinked" into "linked" to compensate for a tiny
 /// bit extra data overhead: id of the other set.
@@ -25,6 +27,8 @@ pub const fn max_one_way_linked_set_payload_length(max_plaintext_size: usize) ->
         - (LINKED_FRAGMENTED_HEADER_LEN - UNLINKED_FRAGMENTED_HEADER_LEN)
 }
 
+/// Set payload length for a set that is being linked to another one, but is not the last one.
+///
 /// If the set is being linked two others sets by being stuck in the middle of divided message,
 /// two of its `Fragment`s (first and final one) must be changed from
 /// "unlinked" into "linked" to compensate for data overhead.

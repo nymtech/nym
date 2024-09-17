@@ -18,7 +18,7 @@ rustc Channel:      stable
 cargo Profile:      release
 ```
 
-This patch fixes [`v202410-caramello`](#v202410-caramello) relase [bug](#known-bugs--undone-features) where one of the used dependencies - [`DefGuard`](https://github.com/DefGuard/defguard/issues/619), was failing.
+This patch fixes [`v202410-caramello`](#v202410-caramello) release [bug](#known-bugs--undone-features) where one of the used dependencies - [`DefGuard`](https://github.com/DefGuard/defguard/issues/619), was failing.
 
 Updating to this patched version and running `nym-node --mode exit-gateway` with `--wireguard-enabled true` should result in a smooth node start without the `defguard_wireguard` error, occuring to some operators before:
 ```sh

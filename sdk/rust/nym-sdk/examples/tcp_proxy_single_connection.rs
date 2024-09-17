@@ -21,16 +21,19 @@ struct ExampleMessage {
 }
 
 // This is a basic example which opens a single TCP connection and writes a bunch of messages between a client and an echo
-// server, so only uses a single session under the hood and doesn't really show off the message ordering capabilities.
+// server, so only uses a single session under the hood and doesn't really show off the message ordering capabilities; this is mainly
+// just a quick introductory illustration on how:
+// - the mixnet does message ordering
+// - the NymProxyClient and NymProxyServer can be hooked into and used to communicate between two otherwise pretty vanilla TcpStreams
+//
+// For a more irl example checkout tcp_proxy_multistream.rs
 #[tokio::main]
 async fn main() {
     // Keep track of sent/received messages
     let counter = Arc::new(Mutex::new(0));
 
-    // Comment this out to just see println! statements from this example.
-    // Nym client logging is very informative but quite verbose.
-    // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering: you need to switch
-    // to DEBUG to see the contents of the msg buffer, sphinx packet chunking, etc.
+    // Comment this out to just see println! statements from this example, as Nym client logging is very informative but quite verbose.
+    // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering. To see the contents of the msg buffer, sphinx packet chunking, etc change the tracing::Level to DEBUG.
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::INFO)
         .init();

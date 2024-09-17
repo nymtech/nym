@@ -1,17 +1,22 @@
-use crate::mixnet::{IncludedSurbs, MixnetClient, MixnetMessageSender};
+use crate::mixnet::{
+    IncludedSurbs, MixnetClient, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails,
+};
 use std::sync::Arc;
 #[path = "utils.rs"]
 mod utils;
 use anyhow::Result;
 use dashmap::DashSet;
+use nym_network_defaults::setup_env;
+use nym_network_defaults::var_names::NYM_API;
 use nym_sphinx::addressing::Recipient;
+use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use tokio::{
     net::{TcpListener, TcpStream},
     sync::oneshot,
 };
 use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
-use tracing::{info, instrument, warn};
+use tracing::{debug, info, instrument, warn};
 use utils::{MessageBuffer, Payload, ProxiedMessage};
 
 const DEFAULT_CLOSE_TIMEOUT: u64 = 60;
@@ -31,7 +36,10 @@ impl NymProxyClient {
         listen_address: &str,
         listen_port: &str,
         close_timeout: u64,
+        env: Option<String>,
     ) -> Result<Self> {
+        debug!("loading env file: {:?}", env);
+        setup_env(env);
         Ok(NymProxyClient {
             server_address,
             listen_address: listen_address.to_string(),
@@ -41,7 +49,9 @@ impl NymProxyClient {
     }
 
     // server_address is the Nym address of the NymProxyServer to communicate with.
-    pub async fn new_with_defaults(server_address: Recipient) -> Result<Self> {
+    pub async fn new_with_defaults(server_address: Recipient, env: Option<String>) -> Result<Self> {
+        debug!("loading env file: {:?}", env);
+        setup_env(env);
         Ok(NymProxyClient {
             server_address,
             listen_address: DEFAULT_LISTEN_HOST.to_string(),
@@ -95,7 +105,15 @@ impl NymProxyClient {
         info!(":: Starting session: {}", session_id);
         info!(":: creating client...");
         let mut client = loop {
-            match MixnetClient::connect_new().await {
+            let net = NymNetworkDetails::new_from_env();
+            // TODO change to builder but ephemeral
+            // match MixnetClient::connect_new().await {
+            match MixnetClientBuilder::new_ephemeral()
+                .network_details(net)
+                .build()?
+                .connect_to_mixnet()
+                .await
+            {
                 Ok(client) => break client,
                 Err(err) => {
                     warn!(":: Error creating client: {:?}, will retry in 100ms", err);

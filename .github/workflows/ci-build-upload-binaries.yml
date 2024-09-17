@@ -56,7 +56,7 @@ jobs:
           echo $OUTPUT_DIR
 
       - name: Install Dependencies (Linux)
-        run: sudo apt update && sudo apt install libudev-dev
+        run: sudo apt-get update && sudo apt-get -y install libudev-dev
 
       - name: Sets env vars for tokio if set in manual dispatch inputs
         run: |

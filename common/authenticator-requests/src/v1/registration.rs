@@ -41,17 +41,11 @@ pub enum ClientMessage {
 pub struct InitMessage {
     /// Base64 encoded x25519 public key
     pub pub_key: PeerPublicKey,
-
-    /// Ecash credential
-    pub credential: CredentialSpendingData,
 }
 
 impl InitMessage {
-    pub fn new(pub_key: PeerPublicKey, credential: CredentialSpendingData) -> Self {
-        InitMessage {
-            pub_key,
-            credential,
-        }
+    pub fn new(pub_key: PeerPublicKey) -> Self {
+        InitMessage { pub_key }
     }
 }
 

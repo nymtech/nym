@@ -30,24 +30,29 @@ async fn main() {
     // Comment this out to just see println! statements from this example.
     // Nym client logging is very informative but quite verbose.
     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering: you need to switch
-    // to DEBUG to see the contents of the msg buffer.
+    // to DEBUG to see the contents of the msg buffer, sphinx packet chunking, etc.
     tracing_subscriber::fmt()
-    .with_max_level(tracing::Level::INFO)
-    .init();
+        .with_max_level(tracing::Level::INFO)
+        .init();
 
     let upstream_tcp_addr = "127.0.0.1:9067";
     // This dir gets cleaned up at the end
     let conf_path = "./tmp/nym-proxy-server-config";
-    let mut proxy_server = tcp_proxy::NymProxyServer::new(upstream_tcp_addr, conf_path)
-        .await
-        .unwrap();
+    // Configure our clients to use the Canary test network for best service
+    let env_path = "../../../envs/canary.env".to_string();
+
+    let mut proxy_server =
+        tcp_proxy::NymProxyServer::new(upstream_tcp_addr, conf_path, Some(env_path.clone()))
+            .await
+            .unwrap();
     let proxy_nym_addr = proxy_server.nym_address();
 
     // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
-    let proxy_client = tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 60)
-        .await
-        .unwrap();
+    let proxy_client =
+        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", "8080", 30, Some(env_path))
+            .await
+            .unwrap();
 
     task::spawn(async move {
         let _ = proxy_server.run_with_shutdown().await;

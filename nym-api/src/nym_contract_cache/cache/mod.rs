@@ -31,13 +31,14 @@ pub struct NymContractCache {
 }
 
 impl NymContractCache {
-    fn new() -> Self {
+    pub(crate) fn new() -> Self {
         NymContractCache {
             initialised: Arc::new(AtomicBool::new(false)),
             inner: Arc::new(RwLock::new(ValidatorCacheData::new())),
         }
     }
 
+    #[deprecated(note = "TODO rocket: obsolete because it's used for Rocket")]
     pub fn stage() -> AdHoc {
         AdHoc::on_ignite("Validator Cache Stage", |rocket| async {
             rocket.manage(Self::new())

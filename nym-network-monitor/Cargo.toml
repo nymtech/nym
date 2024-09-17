@@ -17,7 +17,7 @@ clap = { workspace = true, features = ["derive"] }
 dashmap = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
-petgraph = "0.6.5"
+petgraph = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }

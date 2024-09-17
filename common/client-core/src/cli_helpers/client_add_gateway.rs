@@ -133,7 +133,6 @@ where
     let gateway_setup = GatewaySetup::New {
         specification: selection_spec,
         available_gateways,
-        wg_tun_address: None,
     };
 
     let init_details =
@@ -162,6 +161,5 @@ where
         active: common_args.set_active,
         typ: gateway_registration.details.typ().to_string(),
         endpoint: Some(gateway_details.gateway_listener.clone()),
-        wg_tun_address: gateway_details.wg_tun_address.clone(),
     })
 }

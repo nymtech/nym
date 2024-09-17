@@ -1,12 +1,13 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::ecash::bandwidth::importable::ImportableTicketBook;
 use crate::ecash::bandwidth::serialiser::VersionedSerialise;
 use crate::ecash::bandwidth::CredentialSpendingData;
 use crate::ecash::utils::ecash_today;
 use crate::error::Error;
 use nym_credentials_interface::{
-    CoinIndexSignature, ExpirationDateSignature, PayInfo, SecretKeyUser, TicketType,
+    CoinIndexSignature, ExpirationDateSignature, NymPayInfo, PayInfo, SecretKeyUser, TicketType,
     VerificationKeyAuth, Wallet, WalletSignatures,
 };
 use nym_ecash_time::EcashTime;
@@ -114,6 +115,10 @@ impl IssuedTicketBook {
         &self.signatures_wallet
     }
 
+    pub fn generate_pay_info(&self, provider_pk: [u8; 32]) -> NymPayInfo {
+        NymPayInfo::generate(provider_pk)
+    }
+
     pub fn prepare_for_spending<BI, BE>(
         &mut self,
         verification_key: &VerificationKeyAuth,
@@ -152,6 +157,10 @@ impl IssuedTicketBook {
             spend_date: spend_date.ecash_date(),
             epoch_id: self.epoch_id,
         })
+    }
+
+    pub fn begin_export(self) -> ImportableTicketBook {
+        self.into()
     }
 }
 

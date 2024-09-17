@@ -31,6 +31,15 @@ pub trait MixnetSigningClient {
 
     // state/sys-params-related
 
+    async fn update_admin(
+        &self,
+        admin: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(fee, MixnetExecuteMsg::UpdateAdmin { admin }, vec![])
+            .await
+    }
+
     async fn update_rewarding_validator_address(
         &self,
         address: AccountId,
@@ -760,6 +769,7 @@ mod tests {
         msg: MixnetExecuteMsg,
     ) {
         match msg {
+            MixnetExecuteMsg::UpdateAdmin { admin } => client.update_admin(admin, None).ignore(),
             MixnetExecuteMsg::AssignNodeLayer { mix_id, layer } => {
                 client.assign_node_layer(mix_id, layer, None).ignore()
             }

@@ -1,4 +1,5 @@
 use futures::StreamExt;
+use nym_credentials_interface::TicketType;
 use nym_network_defaults::setup_env;
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
@@ -19,7 +20,7 @@ async fn main() -> anyhow::Result<()> {
         .build()?;
 
     let bandwidth_client = mixnet_client
-        .create_bandwidth_client(mnemonic, Default::default())
+        .create_bandwidth_client(mnemonic, TicketType::V1MixnetEntry)
         .await?;
 
     // Get a bandwidth credential for the mixnet_client

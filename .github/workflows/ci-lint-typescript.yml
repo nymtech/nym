@@ -10,15 +10,16 @@ on:
       - "nym-wallet/src/**"
       - "nym-wallet/package.json"
       - "explorer/**"
+      - ".github/workflows/ci-lint-typescript.yml"
 
 jobs:
   build:
     runs-on: ubuntu-20.04-16-core
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - uses: rlespinasse/github-slug-action@v3.x
 
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
       - name: Setup yarn
@@ -38,7 +39,7 @@ jobs:
           version: '116'
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20'
 

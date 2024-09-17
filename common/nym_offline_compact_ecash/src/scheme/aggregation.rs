@@ -14,6 +14,7 @@ use core::iter::Sum;
 use core::ops::Mul;
 use group::Curve;
 use itertools::Itertools;
+use zeroize::Zeroizing;
 
 pub(crate) trait Aggregatable: Sized {
     fn aggregate(aggregatable: &[Self], indices: Option<&[SignerIndex]>) -> Result<Self>;
@@ -138,12 +139,12 @@ pub fn aggregate_wallets(
         .map(|wallet| SignatureShare::new(*wallet.signature(), wallet.index()))
         .collect();
 
-    let attributes = vec![
+    let attributes = Zeroizing::new(vec![
         sk_user.sk,
         *req_info.get_v(),
         *req_info.get_expiration_date(),
         *req_info.get_t_type(),
-    ];
+    ]);
     let aggregated_signature =
         aggregate_signature_shares(verification_key, &attributes, &signature_shares)?;
 

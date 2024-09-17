@@ -44,7 +44,6 @@ pub enum KeyRecoveryError {
 
 #[derive(Zeroize, ZeroizeOnDrop)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
 
@@ -78,6 +77,15 @@ impl KeyPair {
             private_key: PrivateKey::from_bytes(priv_bytes)?,
             public_key: PublicKey::from_bytes(pub_bytes)?,
         })
+    }
+}
+
+impl From<PrivateKey> for KeyPair {
+    fn from(private_key: PrivateKey) -> Self {
+        KeyPair {
+            public_key: (&private_key).into(),
+            private_key,
+        }
     }
 }
 

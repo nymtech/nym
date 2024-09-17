@@ -22,7 +22,10 @@ pub enum Error {
         revision: u8,
     },
 
-    #[error("unknown credential serializatio revision {revision}. the current (and max supported) version is {CURRENT_SERIALIZATION_REVISION}")]
+    #[error("unsupported data serialization revision {revision}. the current (and max supported) version is {CURRENT_SERIALIZATION_REVISION}")]
+    UnsupportedSerializationRevision { revision: u8 },
+
+    #[error("unknown data serialization revision {revision}. the current (and max supported) version is {CURRENT_SERIALIZATION_REVISION}")]
     UnknownSerializationRevision { revision: u8 },
 
     #[error("Could not contact any validator")]

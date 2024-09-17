@@ -110,6 +110,11 @@ impl InitialRewardingParams {
 
 #[cw_serde]
 pub enum ExecuteMsg {
+    /// Change the admin
+    UpdateAdmin {
+        admin: String,
+    },
+
     AssignNodeLayer {
         mix_id: MixId,
         layer: Layer,
@@ -292,6 +297,7 @@ pub enum ExecuteMsg {
 impl ExecuteMsg {
     pub fn default_memo(&self) -> String {
         match self {
+            ExecuteMsg::UpdateAdmin { admin } => format!("updating contract admin to {admin}"),
             ExecuteMsg::AssignNodeLayer { mix_id, layer } => {
                 format!("assigning mix {mix_id} for layer {layer:?}")
             }
@@ -408,6 +414,9 @@ impl ExecuteMsg {
 #[cw_serde]
 #[cfg_attr(feature = "schema", derive(QueryResponses))]
 pub enum QueryMsg {
+    #[cfg_attr(feature = "schema", returns(cw_controllers::AdminResponse))]
+    Admin {},
+
     // families
     /// Gets the list of families registered in this contract.
     #[cfg_attr(feature = "schema", returns(PagedFamiliesResponse))]

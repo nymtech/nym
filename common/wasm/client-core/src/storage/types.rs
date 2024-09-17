@@ -32,7 +32,6 @@ impl TryFrom<WasmRawRegisteredGateway> for GatewayRegistration {
                 .derived_aes128_ctr_blake3_hmac_keys_bs58,
             gateway_owner_address: value.gateway_owner_address,
             gateway_listener: value.gateway_listener,
-            wg_tun_address: None,
         };
         let remote: RemoteGatewayDetails = raw_remote.try_into()?;
 

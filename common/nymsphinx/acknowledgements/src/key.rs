@@ -9,10 +9,9 @@ use std::fmt::{self, Display, Formatter};
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[cfg(feature = "serde")]
-use serde_crate::{Deserialize, Serialize};
+use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 #[derive(Zeroize, ZeroizeOnDrop)]
 pub struct AckKey(CipherKey<AckEncryptionAlgorithm>);
 

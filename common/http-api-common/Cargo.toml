@@ -13,8 +13,13 @@ license.workspace = true
 [dependencies]
 axum.workspace = true
 bytes = { workspace = true }
+colored.workspace = true
 mime = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_yaml = { workspace = true }
-utoipa = { workspace = true }
+tracing.workspace = true
+utoipa = { workspace = true, optional = true }
+
+[features]
+utoipa = ["dep:utoipa"]

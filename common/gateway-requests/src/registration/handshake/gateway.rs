@@ -8,6 +8,7 @@ use futures::future::BoxFuture;
 use futures::task::{Context, Poll};
 use futures::{Future, Sink, Stream};
 use nym_crypto::asymmetric::encryption;
+use nym_task::TaskClient;
 use rand::{CryptoRng, RngCore};
 use std::pin::Pin;
 use tungstenite::Message as WsMessage;
@@ -22,11 +23,12 @@ impl<'a> GatewayHandshake<'a> {
         ws_stream: &'a mut S,
         identity: &'a nym_crypto::asymmetric::identity::KeyPair,
         received_init_payload: Vec<u8>,
+        shutdown: TaskClient,
     ) -> Self
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
     {
-        let mut state = State::new(rng, ws_stream, identity, None, true);
+        let mut state = State::new(rng, ws_stream, identity, None, true, shutdown);
         GatewayHandshake {
             handshake_future: Box::pin(async move {
                 // If any step along the way failed (that are non-network related),

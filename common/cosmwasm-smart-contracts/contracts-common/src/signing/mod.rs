@@ -248,3 +248,31 @@ impl<T> ContractMessageContent<T> {
         }
     }
 }
+
+impl<T> From<ContractMessageContent<T>> for LegacyContractMessageContent<T> {
+    fn from(value: ContractMessageContent<T>) -> Self {
+        LegacyContractMessageContent {
+            sender: value.sender,
+            proxy: None,
+            funds: value.funds,
+            data: value.data,
+        }
+    }
+}
+
+#[derive(Serialize)]
+pub struct LegacyContractMessageContent<T> {
+    pub sender: Addr,
+    pub proxy: Option<Addr>,
+    pub funds: Vec<Coin>,
+    pub data: T,
+}
+
+impl<T> SigningPurpose for LegacyContractMessageContent<T>
+where
+    T: SigningPurpose,
+{
+    fn message_type() -> MessageType {
+        T::message_type()
+    }
+}

@@ -187,7 +187,11 @@ impl Index<Layer> for LayerDistribution {
 #[cw_serde]
 pub struct ContractState {
     /// Address of the contract owner.
-    pub owner: Addr,
+    #[deprecated(
+        note = "use explicit ADMIN instead. this field will be removed in future release"
+    )]
+    #[serde(default)]
+    pub owner: Option<Addr>,
 
     /// Address of "rewarding validator" (nym-api) that's allowed to send any rewarding-related transactions.
     pub rewarding_validator_address: Addr,

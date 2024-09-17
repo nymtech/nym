@@ -2,27 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use schemars::JsonSchema;
-use time::format_description::{modifier, BorrowedFormatItem, Component};
 use time::OffsetDateTime;
 
 // just to have something, even if not accurate to generate the swagger docs
 #[derive(JsonSchema)]
 pub struct PlaceholderJsonSchemaImpl {}
 
-const DATE_FORMAT: &[BorrowedFormatItem<'_>] = &[
-    BorrowedFormatItem::Component(Component::Year(modifier::Year::default())),
-    BorrowedFormatItem::Literal(b"-"),
-    BorrowedFormatItem::Component(Component::Month(modifier::Month::default())),
-    BorrowedFormatItem::Literal(b"-"),
-    BorrowedFormatItem::Component(Component::Day(modifier::Day::default())),
-];
-
 pub(crate) const fn unix_epoch() -> OffsetDateTime {
     OffsetDateTime::UNIX_EPOCH
 }
 
 pub(crate) mod overengineered_offset_date_time_serde {
-    use crate::helpers::{unix_epoch, DATE_FORMAT};
+    use crate::helpers::unix_epoch;
+    use nym_serde_helpers::date::DATE_FORMAT;
     use serde::de::Visitor;
     use serde::ser::Error;
     use serde::{Deserializer, Serialize, Serializer};
@@ -112,30 +104,5 @@ pub(crate) mod overengineered_offset_date_time_serde {
     }
 }
 
-pub(crate) mod date_serde {
-    use crate::helpers::DATE_FORMAT;
-    use serde::ser::Error;
-    use serde::{de, Deserialize, Deserializer, Serialize, Serializer};
-    use time::Date;
-
-    pub(crate) fn deserialize<'de, D>(deserializer: D) -> Result<Date, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        let s = String::deserialize(deserializer)?;
-
-        Date::parse(&s, DATE_FORMAT).map_err(de::Error::custom)
-    }
-
-    pub(crate) fn serialize<S>(datetime: &Date, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        // serialize it with human-readable format for compatibility with eclipse and nutella clients
-        // in the future change it back to rfc3339
-        datetime
-            .format(&DATE_FORMAT)
-            .map_err(S::Error::custom)?
-            .serialize(serializer)
-    }
-}
+// reimport the module to not break existing imports
+pub(crate) use nym_serde_helpers::date as date_serde;

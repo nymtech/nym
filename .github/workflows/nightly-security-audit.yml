@@ -8,7 +8,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1
         with:
@@ -20,7 +20,7 @@ jobs:
           find . -name Cargo.toml -exec cargo deny --manifest-path {} check \
             advisories -A advisory-not-detected  --hide-inclusion-graph \; &> \
             >(uniq  &> .github/workflows/support-files/notifications/deny.message )
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: report
           path: .github/workflows/support-files/notifications/deny.message
@@ -29,14 +29,14 @@ jobs:
     runs-on: custom-linux
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
       - name: Download report from previous job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: report
           path: .github/workflows/support-files/notifications
       - name: install npm
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
       - name: Matrix - Node Install

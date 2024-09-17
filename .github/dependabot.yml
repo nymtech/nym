@@ -14,3 +14,20 @@ updates:
         prefix: build
         prefix-development: chore
         include: scope
+  # Update the root workspace (only). For now we don't include
+  # the contracts workspcae.
+  - package-ecosystem: cargo
+    directory: /
+    schedule:
+      interval: weekly
+      time: "09:00"
+    ignore:
+      - dependency-name: "cosmwasm-*"
+      - dependency-name: "cw*"
+    groups:
+      patch-updates:
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+    open-pull-requests-limit: 10

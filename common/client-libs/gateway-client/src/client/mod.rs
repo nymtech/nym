@@ -293,7 +293,7 @@ impl<C, St> GatewayClient<C, St> {
     // as we need to be able to write the request and read the subsequent response
     async fn send_websocket_message(
         &mut self,
-        msg: Message,
+        msg: impl Into<Message>,
     ) -> Result<ServerResponse, GatewayClientError> {
         let should_restart_mixnet_listener = if self.connection.is_partially_delegated() {
             self.recover_socket_connection().await?;
@@ -307,7 +307,7 @@ impl<C, St> GatewayClient<C, St> {
             SocketState::NotConnected => return Err(GatewayClientError::ConnectionNotEstablished),
             _ => return Err(GatewayClientError::ConnectionInInvalidState),
         };
-        conn.send(msg).await?;
+        conn.send(msg.into()).await?;
         let response = self.read_control_response().await;
 
         if should_restart_mixnet_listener {
@@ -417,6 +417,8 @@ impl<C, St> GatewayClient<C, St> {
                 self.local_identity.as_ref(),
                 self.gateway_identity,
                 self.cfg.bandwidth.require_tickets,
+                #[cfg(not(target_arch = "wasm32"))]
+                self.task_client.clone(),
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),
@@ -479,8 +481,7 @@ impl<C, St> GatewayClient<C, St> {
             encrypted_address,
             iv,
             self.cfg.bandwidth.require_tickets,
-        )
-        .into();
+        );
 
         match self.send_websocket_message(msg).await? {
             ServerResponse::Authenticate {
@@ -530,6 +531,21 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
+    pub async fn get_gateway_protocol(&mut self) -> Result<u8, GatewayClientError> {
+        if !self.connection.is_established() {
+            return Err(GatewayClientError::ConnectionNotEstablished);
+        }
+
+        match self
+            .send_websocket_message(ClientControlRequest::SupportedProtocol {})
+            .await?
+        {
+            ServerResponse::SupportedProtocol { version } => Ok(version),
+            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            _ => Err(GatewayClientError::UnexpectedResponse),
+        }
+    }
+
     async fn claim_ecash_bandwidth(
         &mut self,
         credential: CredentialSpendingData,
@@ -541,8 +557,7 @@ impl<C, St> GatewayClient<C, St> {
             credential,
             self.shared_key.as_ref().unwrap(),
             iv,
-        )
-        .into();
+        );
         let bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
@@ -560,7 +575,7 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
-        let msg = ClientControlRequest::ClaimFreeTestnetBandwidth.into();
+        let msg = ClientControlRequest::ClaimFreeTestnetBandwidth;
         let bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),

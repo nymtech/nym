@@ -5,7 +5,6 @@
 		"/status/mixnode/{mix_id}/core-status-count",
 		"/status/mixnode/{mix_id}/status",
 		"/status/mixnode/{mix_id}/reward-estimation",
-		"/status/mixnode/{mix_id}/compute-reward-estimation",
 		"/status/mixnode/{mix_id}/stake-saturation",
 		"/status/mixnode/{mix_id}/inclusion-probability",
 		"/status/mixnode/{mix_id}/avg_uptime"
@@ -23,6 +22,7 @@
 
 	"swagger":[
 		"/roles",
+		"/auxiliary-details",
 		"/build-information",
 		"/description",
 		"/host-information",

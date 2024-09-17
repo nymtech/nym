@@ -177,7 +177,7 @@ impl IssuanceTicketBook {
     }
 
     // ideally this would have been generic over credential type, but we really don't need secp256k1 keys for bandwidth vouchers
-    pub async fn obtain_partial_bandwidth_voucher_credential(
+    pub async fn obtain_partial_ticketbook_credential(
         &self,
         client: &nym_validator_client::client::NymApiClient,
         signer_index: u64,
@@ -190,13 +190,6 @@ impl IssuanceTicketBook {
         let blinded_signature = self.obtain_blinded_credential(client, &request).await?;
         self.unblind_signature(validator_vk, &signing_data, blinded_signature, signer_index)
     }
-
-    // pub fn unchecked_aggregate_signature_shares(
-    //     &self,
-    //     shares: &[SignatureShare],
-    // ) -> Result<Signature, Error> {
-    //     aggregate_signature_shares(shares).map_err(Error::SignatureAggregationError)
-    // }
 
     pub fn aggregate_signature_shares(
         &self,

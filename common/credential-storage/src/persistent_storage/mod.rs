@@ -1,14 +1,16 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+mod legacy_helpers;
+
 use crate::backends::sqlite::{
     get_next_unspent_ticketbook, increase_used_ticketbook_tickets, SqliteEcashTicketbookManager,
 };
 use crate::error::StorageError;
 use crate::models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook};
-use crate::persistent_storage::helpers::{
-    deserialise_coin_index_signatures, deserialise_expiration_date_signatures,
-    serialise_coin_index_signatures, serialise_expiration_date_signatures,
+use crate::persistent_storage::legacy_helpers::{
+    deserialise_v1_coin_index_signatures, deserialise_v1_expiration_date_signatures,
+    deserialise_v1_master_verification_key,
 };
 use crate::storage::Storage;
 use async_trait::async_trait;
@@ -16,14 +18,16 @@ use log::{debug, error};
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::VerificationKeyAuth;
+use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
+use nym_credentials::ecash::bandwidth::serialiser::signatures::{
+    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
+};
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
 use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
 use nym_ecash_time::{ecash_today, Date, EcashTime};
 use sqlx::ConnectOptions;
 use std::path::Path;
 use zeroize::Zeroizing;
-
-mod helpers;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
@@ -229,21 +233,24 @@ impl Storage for PersistentStorage {
             return Ok(None);
         };
 
-        let master_vk = VerificationKeyAuth::from_bytes(&raw).map_err(|_| {
-            StorageError::database_inconsistency("malformed stored master verification key")
-        })?;
-
-        Ok(Some(master_vk))
+        match raw.serialization_revision {
+            1 => deserialise_v1_master_verification_key(&raw.serialised_key).map(Some),
+            other => {
+                let deserialised = EpochVerificationKey::try_unpack(&raw.serialised_key, other)
+                    .map_err(|err| StorageError::database_inconsistency(err.to_string()))?;
+                Ok(Some(deserialised.key))
+            }
+        }
     }
 
     async fn insert_master_verification_key(
         &self,
-        epoch_id: u64,
-        key: &VerificationKeyAuth,
+        key: &EpochVerificationKey,
     ) -> Result<(), Self::StorageError> {
+        let packed = key.pack();
         Ok(self
             .storage_manager
-            .insert_master_verification_key(epoch_id as i64, &key.to_bytes())
+            .insert_master_verification_key(packed.revision, key.epoch_id as i64, &packed.data)
             .await?)
     }
 
@@ -259,16 +266,24 @@ impl Storage for PersistentStorage {
             return Ok(None);
         };
 
-        Ok(Some(deserialise_coin_index_signatures(&raw)?))
+        match raw.serialization_revision {
+            1 => deserialise_v1_coin_index_signatures(&raw.serialised_signatures).map(Some),
+            other => {
+                let deserialised =
+                    AggregatedCoinIndicesSignatures::try_unpack(&raw.serialised_signatures, other)
+                        .map_err(|err| StorageError::database_inconsistency(err.to_string()))?;
+                Ok(Some(deserialised.signatures))
+            }
+        }
     }
 
     async fn insert_coin_index_signatures(
         &self,
-        epoch_id: u64,
-        sigs: &[AnnotatedCoinIndexSignature],
+        signatures: &AggregatedCoinIndicesSignatures,
     ) -> Result<(), Self::StorageError> {
+        let packed = signatures.pack();
         self.storage_manager
-            .insert_coin_index_signatures(epoch_id as i64, &serialise_coin_index_signatures(sigs))
+            .insert_coin_index_signatures(packed.revision, signatures.epoch_id as i64, &packed.data)
             .await?;
         Ok(())
     }
@@ -285,22 +300,30 @@ impl Storage for PersistentStorage {
             return Ok(None);
         };
 
-        Ok(Some(deserialise_expiration_date_signatures(
-            &raw.serialised_signatures,
-        )?))
+        match raw.serialization_revision {
+            1 => deserialise_v1_expiration_date_signatures(&raw.serialised_signatures).map(Some),
+            other => {
+                let deserialised = AggregatedExpirationDateSignatures::try_unpack(
+                    &raw.serialised_signatures,
+                    other,
+                )
+                .map_err(|err| StorageError::database_inconsistency(err.to_string()))?;
+                Ok(Some(deserialised.signatures))
+            }
+        }
     }
 
     async fn insert_expiration_date_signatures(
         &self,
-        epoch_id: u64,
-        expiration_date: Date,
-        sigs: &[AnnotatedExpirationDateSignature],
+        signatures: &AggregatedExpirationDateSignatures,
     ) -> Result<(), Self::StorageError> {
+        let packed = signatures.pack();
         self.storage_manager
             .insert_expiration_date_signatures(
-                epoch_id as i64,
-                expiration_date,
-                &serialise_expiration_date_signatures(sigs),
+                packed.revision,
+                signatures.epoch_id as i64,
+                signatures.expiration_date,
+                &packed.data,
             )
             .await?;
         Ok(())

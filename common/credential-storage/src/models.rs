@@ -62,4 +62,19 @@ pub struct StoredPendingTicketbook {
 pub struct RawExpirationDateSignatures {
     pub epoch_id: u32,
     pub serialised_signatures: Vec<u8>,
+    pub serialization_revision: u8,
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+pub struct RawCoinIndexSignatures {
+    pub epoch_id: u32,
+    pub serialised_signatures: Vec<u8>,
+    pub serialization_revision: u8,
+}
+
+#[cfg_attr(not(target_arch = "wasm32"), derive(sqlx::FromRow))]
+pub struct RawVerificationKey {
+    pub epoch_id: u32,
+    pub serialised_key: Vec<u8>,
+    pub serialization_revision: u8,
 }

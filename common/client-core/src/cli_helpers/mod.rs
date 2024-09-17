@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod client_add_gateway;
+pub mod client_import_coin_index_signatures;
 pub mod client_import_credential;
+pub mod client_import_expiration_date_signatures;
+pub mod client_import_master_verification_key;
 pub mod client_init;
 pub mod client_list_gateways;
 pub mod client_run;

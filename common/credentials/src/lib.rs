@@ -5,6 +5,11 @@ pub mod ecash;
 pub mod error;
 
 pub use ecash::bandwidth::{
+    importable::{DecodedImportableTicketBook, ImportableTicketBook},
+    serialiser::{
+        keys::EpochVerificationKey,
+        signatures::{AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures},
+    },
     CredentialSigningData, CredentialSpendingData, IssuanceTicketBook, IssuedTicketBook,
 };
 pub use ecash::utils::{aggregate_verification_keys, obtain_aggregate_wallet};

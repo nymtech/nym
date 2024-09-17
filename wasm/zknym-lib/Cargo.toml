@@ -16,13 +16,13 @@ crate-type = ["cdylib", "rlib"]
 [dependencies]
 async-trait.workspace = true
 bs58.workspace = true
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { workspace = true, features = ["js"] }
 js-sys.workspace = true
 wasm-bindgen.workspace = true
 serde = { workspace = true, features = ["derive"] }
 thiserror.workspace = true
 tsify = { workspace = true, features = ["js"] }
-uuid = { version = "*", features = ["serde"] }
+uuid = { workspace = true, features = ["serde"] }
 reqwest = { workspace = true }
 wasmtimer = { workspace = true }
 zeroize.workspace = true

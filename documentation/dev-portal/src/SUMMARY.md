@@ -52,7 +52,7 @@
 - [Integrations](faq/integrations-faq.md)
 
 # User Manuals
-- [NymVPN alpha](nymvpn/intro.md)
+- [NymVPN beta](nymvpn/intro.md)
     - [CLI](nymvpn/cli.md)
 ---
 

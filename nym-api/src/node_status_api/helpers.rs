@@ -1,7 +1,8 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node_status_api::models::ErrorResponse;
+use super::reward_estimate::compute_reward_estimate;
+use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::storage::NymApiStorage;
 use crate::support::caching::Cache;
 use crate::{NodeStatusCache, NymContractCache};
@@ -15,41 +16,31 @@ use nym_api_requests::models::{
     UptimeResponse,
 };
 use nym_mixnet_contract_common::{MixId, RewardedSetNodeStatus};
-use rocket::http::Status;
-use rocket::State;
-
-use super::reward_estimate::compute_reward_estimate;
 
 async fn get_gateway_bond_annotated(
     cache: &NodeStatusCache,
     identity: &str,
-) -> Result<GatewayBondAnnotated, ErrorResponse> {
+) -> AxumResult<GatewayBondAnnotated> {
     cache
         .gateway_annotated(identity)
         .await
-        .ok_or(ErrorResponse::new(
-            "gateway bond not found",
-            Status::NotFound,
-        ))
+        .ok_or(AxumErrorResponse::not_found("gateway bond not found"))
 }
 
 async fn get_mixnode_bond_annotated(
     cache: &NodeStatusCache,
     mix_id: MixId,
-) -> Result<MixNodeBondAnnotated, ErrorResponse> {
+) -> AxumResult<MixNodeBondAnnotated> {
     cache
         .mixnode_annotated(mix_id)
         .await
-        .ok_or(ErrorResponse::new(
-            "mixnode bond not found",
-            Status::NotFound,
-        ))
+        .ok_or(AxumErrorResponse::not_found("mixnode bond not found"))
 }
 
 pub(crate) async fn _gateway_report(
     cache: &NodeStatusCache,
     identity: &str,
-) -> Result<GatewayStatusReportResponse, ErrorResponse> {
+) -> AxumResult<GatewayStatusReportResponse> {
     let gateway = get_gateway_bond_annotated(cache, identity).await?;
 
     Ok(GatewayStatusReportResponse {
@@ -64,23 +55,23 @@ pub(crate) async fn _gateway_report(
 pub(crate) async fn _gateway_uptime_history(
     storage: &NymApiStorage,
     identity: &str,
-) -> Result<GatewayUptimeHistoryResponse, ErrorResponse> {
+) -> AxumResult<GatewayUptimeHistoryResponse> {
     storage
         .get_gateway_uptime_history(identity)
         .await
         .map(GatewayUptimeHistoryResponse::from)
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+        .map_err(AxumErrorResponse::not_found)
 }
 
 pub(crate) async fn _gateway_core_status_count(
-    storage: &State<NymApiStorage>,
+    storage: &NymApiStorage,
     identity: &str,
     since: Option<i64>,
-) -> Result<GatewayCoreStatusResponse, ErrorResponse> {
+) -> AxumResult<GatewayCoreStatusResponse> {
     let count = storage
         .get_core_gateway_status_count(identity, since)
         .await
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?;
+        .map_err(AxumErrorResponse::not_found)?;
 
     Ok(GatewayCoreStatusResponse {
         identity: identity.to_string(),
@@ -91,7 +82,7 @@ pub(crate) async fn _gateway_core_status_count(
 pub(crate) async fn _mixnode_report(
     cache: &NodeStatusCache,
     mix_id: MixId,
-) -> Result<MixnodeStatusReportResponse, ErrorResponse> {
+) -> AxumResult<MixnodeStatusReportResponse> {
     let mixnode = get_mixnode_bond_annotated(cache, mix_id).await?;
 
     Ok(MixnodeStatusReportResponse {
@@ -107,23 +98,23 @@ pub(crate) async fn _mixnode_report(
 pub(crate) async fn _mixnode_uptime_history(
     storage: &NymApiStorage,
     mix_id: MixId,
-) -> Result<MixnodeUptimeHistoryResponse, ErrorResponse> {
+) -> AxumResult<MixnodeUptimeHistoryResponse> {
     storage
         .get_mixnode_uptime_history(mix_id)
         .await
         .map(MixnodeUptimeHistoryResponse::from)
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))
+        .map_err(AxumErrorResponse::not_found)
 }
 
 pub(crate) async fn _mixnode_core_status_count(
-    storage: &State<NymApiStorage>,
+    storage: &NymApiStorage,
     mix_id: MixId,
     since: Option<i64>,
-) -> Result<MixnodeCoreStatusResponse, ErrorResponse> {
+) -> AxumResult<MixnodeCoreStatusResponse> {
     let count = storage
         .get_core_mixnode_status_count(mix_id, since)
         .await
-        .map_err(|err| ErrorResponse::new(err.to_string(), Status::NotFound))?;
+        .map_err(AxumErrorResponse::not_found)?;
 
     Ok(MixnodeCoreStatusResponse { mix_id, count })
 }
@@ -138,22 +129,22 @@ pub(crate) async fn _get_mixnode_status(
 }
 
 pub(crate) async fn _get_mixnode_reward_estimation(
-    cache: &State<NodeStatusCache>,
-    validator_cache: &State<NymContractCache>,
+    cache: &NodeStatusCache,
+    validator_cache: &NymContractCache,
     mix_id: MixId,
-) -> Result<RewardEstimationResponse, ErrorResponse> {
+) -> AxumResult<RewardEstimationResponse> {
     let (mixnode, status) = cache.mixnode_details(mix_id).await;
     if let Some(mixnode) = mixnode {
         let reward_params = validator_cache.interval_reward_params().await;
         let as_at = reward_params.timestamp();
         let reward_params = reward_params
             .into_inner()
-            .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
+            .ok_or_else(AxumErrorResponse::internal)?;
         let current_interval = validator_cache
             .current_interval()
             .await
             .into_inner()
-            .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
+            .ok_or_else(AxumErrorResponse::internal)?;
 
         let reward_estimation = compute_reward_estimate(
             &mixnode.mixnode_details,
@@ -170,31 +161,28 @@ pub(crate) async fn _get_mixnode_reward_estimation(
             as_at: as_at.unix_timestamp(),
         })
     } else {
-        Err(ErrorResponse::new(
-            "mixnode bond not found",
-            Status::NotFound,
-        ))
+        Err(AxumErrorResponse::not_found("mixnode bond not found"))
     }
 }
 
 pub(crate) async fn _compute_mixnode_reward_estimation(
-    user_reward_param: ComputeRewardEstParam,
+    user_reward_param: &ComputeRewardEstParam,
     cache: &NodeStatusCache,
     validator_cache: &NymContractCache,
     mix_id: MixId,
-) -> Result<RewardEstimationResponse, ErrorResponse> {
+) -> AxumResult<RewardEstimationResponse> {
     let (mixnode, actual_status) = cache.mixnode_details(mix_id).await;
     if let Some(mut mixnode) = mixnode {
         let reward_params = validator_cache.interval_reward_params().await;
         let as_at = reward_params.timestamp();
         let reward_params = reward_params
             .into_inner()
-            .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
+            .ok_or_else(AxumErrorResponse::internal)?;
         let current_interval = validator_cache
             .current_interval()
             .await
             .into_inner()
-            .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
+            .ok_or_else(AxumErrorResponse::internal)?;
 
         // For these parameters we either use the provided ones, or fall back to the system ones
         let performance = user_reward_param.performance.unwrap_or(mixnode.performance);
@@ -222,21 +210,20 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
                 .profit_margin_percent = profit_margin_percent;
         }
 
-        if let Some(interval_operating_cost) = user_reward_param.interval_operating_cost {
+        if let Some(interval_operating_cost) = &user_reward_param.interval_operating_cost {
             mixnode
                 .mixnode_details
                 .rewarding_details
                 .cost_params
-                .interval_operating_cost = interval_operating_cost;
+                .interval_operating_cost = interval_operating_cost.clone();
         }
 
         if mixnode.mixnode_details.rewarding_details.operator
             + mixnode.mixnode_details.rewarding_details.delegates
             > reward_params.interval.staking_supply
         {
-            return Err(ErrorResponse::new(
+            return Err(AxumErrorResponse::unprocessable_entity(
                 "Pledge plus delegation too large",
-                Status::UnprocessableEntity,
             ));
         }
 
@@ -255,10 +242,7 @@ pub(crate) async fn _compute_mixnode_reward_estimation(
             as_at: as_at.unix_timestamp(),
         })
     } else {
-        Err(ErrorResponse::new(
-            "mixnode bond not found",
-            Status::NotFound,
-        ))
+        Err(AxumErrorResponse::not_found("mixnode bond not found"))
     }
 }
 
@@ -266,7 +250,7 @@ pub(crate) async fn _get_mixnode_stake_saturation(
     cache: &NodeStatusCache,
     validator_cache: &NymContractCache,
     mix_id: MixId,
-) -> Result<StakeSaturationResponse, ErrorResponse> {
+) -> AxumResult<StakeSaturationResponse> {
     let (mixnode, _) = cache.mixnode_details(mix_id).await;
     if let Some(mixnode) = mixnode {
         // Recompute the stake saturation just so that we can confidently state that the `as_at`
@@ -275,7 +259,7 @@ pub(crate) async fn _get_mixnode_stake_saturation(
         let as_at = reward_params.timestamp();
         let rewarding_params = reward_params
             .into_inner()
-            .ok_or_else(|| ErrorResponse::new("server error", Status::InternalServerError))?;
+            .ok_or_else(AxumErrorResponse::internal)?;
 
         Ok(StakeSaturationResponse {
             saturation: mixnode
@@ -289,17 +273,14 @@ pub(crate) async fn _get_mixnode_stake_saturation(
             as_at: as_at.unix_timestamp(),
         })
     } else {
-        Err(ErrorResponse::new(
-            "mixnode bond not found",
-            Status::NotFound,
-        ))
+        Err(AxumErrorResponse::not_found("mixnode bond not found"))
     }
 }
 
 pub(crate) async fn _get_mixnode_inclusion_probability(
     cache: &NodeStatusCache,
     mix_id: MixId,
-) -> Result<InclusionProbabilityResponse, ErrorResponse> {
+) -> AxumResult<InclusionProbabilityResponse> {
     cache
         .inclusion_probabilities()
         .await
@@ -309,13 +290,13 @@ pub(crate) async fn _get_mixnode_inclusion_probability(
             in_active: p.in_active.into(),
             in_reserve: p.in_reserve.into(),
         })
-        .ok_or_else(|| ErrorResponse::new("mixnode bond not found", Status::NotFound))
+        .ok_or_else(|| AxumErrorResponse::not_found("mixnode bond not found"))
 }
 
 pub(crate) async fn _get_mixnode_avg_uptime(
     cache: &NodeStatusCache,
     mix_id: MixId,
-) -> Result<UptimeResponse, ErrorResponse> {
+) -> AxumResult<UptimeResponse> {
     let mixnode = get_mixnode_bond_annotated(cache, mix_id).await?;
 
     Ok(UptimeResponse {
@@ -328,7 +309,7 @@ pub(crate) async fn _get_mixnode_avg_uptime(
 pub(crate) async fn _get_gateway_avg_uptime(
     cache: &NodeStatusCache,
     identity: &str,
-) -> Result<GatewayUptimeResponse, ErrorResponse> {
+) -> AxumResult<GatewayUptimeResponse> {
     let gateway = get_gateway_bond_annotated(cache, identity).await?;
 
     Ok(GatewayUptimeResponse {
@@ -340,7 +321,7 @@ pub(crate) async fn _get_gateway_avg_uptime(
 
 pub(crate) async fn _get_mixnode_inclusion_probabilities(
     cache: &NodeStatusCache,
-) -> Result<AllInclusionProbabilitiesResponse, ErrorResponse> {
+) -> AxumResult<AllInclusionProbabilitiesResponse> {
     if let Some(prob) = cache.inclusion_probabilities().await {
         let as_at = prob.timestamp();
         let prob = prob.into_inner();
@@ -353,10 +334,7 @@ pub(crate) async fn _get_mixnode_inclusion_probabilities(
             as_at: as_at.unix_timestamp(),
         })
     } else {
-        Err(ErrorResponse::new(
-            "No data available",
-            Status::ServiceUnavailable,
-        ))
+        Err(AxumErrorResponse::service_unavailable())
     }
 }
 

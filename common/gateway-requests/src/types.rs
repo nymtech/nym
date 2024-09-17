@@ -190,6 +190,7 @@ pub enum ClientControlRequest {
         iv: Vec<u8>,
     },
     ClaimFreeTestnetBandwidth,
+    SupportedProtocol {},
 }
 
 impl ClientControlRequest {
@@ -229,6 +230,7 @@ impl ClientControlRequest {
             ClientControlRequest::ClaimFreeTestnetBandwidth => {
                 "ClaimFreeTestnetBandwidth".to_string()
             }
+            ClientControlRequest::SupportedProtocol { .. } => "SupportedProtocol".to_string(),
         }
     }
 
@@ -272,7 +274,15 @@ impl TryFrom<String> for ClientControlRequest {
     type Error = serde_json::Error;
 
     fn try_from(msg: String) -> Result<Self, Self::Error> {
-        serde_json::from_str(&msg)
+        msg.parse()
+    }
+}
+
+impl FromStr for ClientControlRequest {
+    type Err = serde_json::Error;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        serde_json::from_str(s)
     }
 }
 
@@ -304,6 +314,9 @@ pub enum ServerResponse {
     Send {
         remaining_bandwidth: i64,
     },
+    SupportedProtocol {
+        version: u8,
+    },
     // Generic error
     Error {
         message: String,
@@ -324,6 +337,7 @@ impl ServerResponse {
             ServerResponse::Send { .. } => "Send".to_string(),
             ServerResponse::Error { .. } => "Error".to_string(),
             ServerResponse::TypedError { .. } => "TypedError".to_string(),
+            ServerResponse::SupportedProtocol { .. } => "SupportedProtocol".to_string(),
         }
     }
     pub fn new_error<S: Into<String>>(msg: S) -> Self {

@@ -6,6 +6,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
 pub struct NetworkDetails {
     pub(crate) connected_nyxd: String,
     pub(crate) network: NymNetworkDetails,
@@ -20,6 +21,7 @@ impl NetworkDetails {
     }
 }
 
+#[cfg_attr(feature = "axum", derive(utoipa::ToSchema))]
 #[derive(Serialize, Deserialize, Clone, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct ContractInformation<T> {

@@ -131,8 +131,5 @@ pub async fn verify(
     let message_as_bytes = message.into_bytes();
     Ok(verifying_key
         .verify(&message_as_bytes, &signature)
-        .map_err(|e| {
-            log::error!(">>> Verification failed, wrong signature");
-            e
-        })?)
+        .inspect_err(|_| log::error!(">>> Verification failed, wrong signature"))?)
 }

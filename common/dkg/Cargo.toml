@@ -18,7 +18,7 @@ bs58 = { workspace = true }
 
 
 lazy_static = { workspace = true }
-rand = { version = "0.8.5", default-features = false}
+rand = { workspace = true }
 rand_chacha = { workspace = true }
 rand_core = { workspace = true }
 sha2 = "0.9"

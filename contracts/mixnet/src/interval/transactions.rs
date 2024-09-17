@@ -5,11 +5,12 @@ use super::storage;
 use crate::interval::helpers::change_interval_config;
 use crate::interval::pending_events::ContractExecutableEvent;
 use crate::interval::storage::push_new_interval_event;
+use crate::mixnet_contract_settings::storage::ADMIN;
 use crate::mixnodes::transactions::update_mixnode_layer;
 use crate::rewards;
 use crate::rewards::storage as rewards_storage;
 use crate::support::helpers::{
-    ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_authorized, ensure_is_owner,
+    ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_authorized,
 };
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
@@ -325,7 +326,7 @@ pub(crate) fn try_update_interval_config(
     epoch_duration_secs: u64,
     force_immediately: bool,
 ) -> Result<Response, MixnetContractError> {
-    ensure_is_owner(info.sender, deps.storage)?;
+    ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
     if epochs_in_interval == 0 {
         return Err(MixnetContractError::EpochsInIntervalZero);
@@ -1766,6 +1767,7 @@ mod tests {
         use super::*;
         use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::Decimal;
+        use cw_controllers::AdminError::NotAdmin;
         use std::time::Duration;
 
         #[test]
@@ -1831,11 +1833,11 @@ mod tests {
                 1000,
                 false,
             );
-            assert_eq!(res, Err(MixnetContractError::Unauthorized));
+            assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
             let res =
                 try_update_interval_config(test.deps_mut(), env.clone(), random, 100, 1000, false);
-            assert_eq!(res, Err(MixnetContractError::Unauthorized));
+            assert_eq!(res, Err(MixnetContractError::Admin(NotAdmin {})));
 
             let res = try_update_interval_config(test.deps_mut(), env, owner, 100, 1000, false);
             assert!(res.is_ok())

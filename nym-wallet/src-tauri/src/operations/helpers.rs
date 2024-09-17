@@ -9,8 +9,8 @@ use nym_contracts_common::signing::{
 };
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::{
-    construct_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
-    MixNodeCostParams, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
+    construct_legacy_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
+    MixNodeCostParams, SignableGatewayBondingMsg, SignableLegacyMixNodeBondingMsg,
 };
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -42,14 +42,14 @@ pub(crate) async fn create_mixnode_bonding_sign_payload<P: AddressAndNonceProvid
     cost_params: MixNodeCostParams,
     pledge: Coin,
     vesting: bool,
-) -> Result<SignableMixNodeBondingMsg, BackendError> {
+) -> Result<SignableLegacyMixNodeBondingMsg, BackendError> {
     if vesting {
         return Err(BackendError::UnsupportedVestingOperation);
     }
     let sender = client.cw_address();
     let nonce = client.get_signing_nonce().await?;
 
-    Ok(construct_mixnode_bonding_sign_payload(
+    Ok(construct_legacy_mixnode_bonding_sign_payload(
         nonce,
         sender,
         pledge.into(),

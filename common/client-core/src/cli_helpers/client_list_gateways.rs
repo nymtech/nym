@@ -57,7 +57,6 @@ where
                 active: active_gateway == Some(remote_details.gateway_id),
                 typ: GatewayType::Remote.to_string(),
                 endpoint: Some(remote_details.gateway_listener),
-                wg_tun_address: remote_details.wg_tun_address,
             }),
             GatewayDetails::Custom(_) => info.push(GatewayInfo {
                 registration: gateway.registration_timestamp,
@@ -65,7 +64,6 @@ where
                 active: active_gateway == Some(gateway.details.gateway_id()),
                 typ: gateway.details.typ().to_string(),
                 endpoint: None,
-                wg_tun_address: None,
             }),
         };
     }

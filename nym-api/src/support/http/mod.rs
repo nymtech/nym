@@ -8,19 +8,18 @@ use crate::ecash::{self, comm::QueryCommunicationChannel};
 use crate::network::models::NetworkDetails;
 use crate::network::network_routes;
 use crate::node_describe_cache::DescribedNodes;
-use crate::node_status_api::routes::unstable;
+use crate::node_status_api::routes_deprecated::unstable;
 use crate::node_status_api::{self, NodeStatusCache};
 use crate::nym_contract_cache::cache::NymContractCache;
-use crate::nym_nodes::nym_node_routes_next;
+use crate::nym_nodes::{nym_node_routes_deprecated, nym_node_routes_next};
 use crate::status::{api_status_routes, ApiStatusState, SignerState};
 use crate::support::caching::cache::SharedCache;
 use crate::support::config::Config;
 use crate::support::{nyxd, storage};
-use crate::{circulating_supply_api, nym_contract_cache, nym_nodes::nym_node_routes};
+use crate::{circulating_supply_api, nym_contract_cache};
 use anyhow::{bail, Context, Result};
 use nym_crypto::asymmetric::identity;
 use nym_validator_client::nyxd::Coin;
-use rocket::http::Method;
 use rocket::{Ignite, Rocket};
 use rocket_cors::{AllowedHeaders, AllowedOrigins, Cors};
 use rocket_okapi::mount_endpoints_and_merged_docs;
@@ -52,32 +51,25 @@ pub(crate) async fn setup_rocket(
         "/network" => network_routes(&openapi_settings),
         "/api-status" => api_status_routes(&openapi_settings),
         "/ecash" => ecash::routes_open_api(&openapi_settings, config.coconut_signer.enabled),
-        "" => nym_node_routes(&openapi_settings),
+        "" => nym_node_routes_deprecated(&openapi_settings),
 
         // => when we move those routes, we'll need to add a redirection for backwards compatibility
         "/unstable/nym-nodes" => nym_node_routes_next(&openapi_settings)
     }
 
+    let storage =
+        storage::NymApiStorage::init(&config.node_status_api.storage_paths.database_path).await?;
+
     let rocket = rocket
         .manage(network_details)
         .manage(SharedCache::<DescribedNodes>::new())
         .mount("/swagger", make_swagger_ui(&openapi::get_docs()))
-        .attach(setup_cors()?)
+        .attach(setup_rocket_cors()?)
         .attach(NymContractCache::stage())
         .attach(NodeStatusCache::stage())
         .attach(CirculatingSupplyCache::stage(mix_denom.clone()))
+        .attach(storage::NymApiStorage::stage(storage.clone()))
         .manage(unstable::NodeInfoCache::default());
-
-    // This is not a very nice approach. A lazy value would be more suitable, but that's still
-    // a nightly feature: https://github.com/rust-lang/rust/issues/74465
-    let storage = if config.coconut_signer.enabled || config.network_monitor.enabled {
-        Some(
-            storage::NymApiStorage::init(&config.node_status_api.storage_paths.database_path)
-                .await?,
-        )
-    } else {
-        None
-    };
 
     let mut status_state = ApiStatusState::new();
 
@@ -117,7 +109,7 @@ pub(crate) async fn setup_rocket(
             identity_keypair,
             coconut_keypair,
             comm_channel,
-            storage.clone().unwrap(),
+            storage.clone(),
         )
         .await?;
 
@@ -126,23 +118,16 @@ pub(crate) async fn setup_rocket(
         rocket
     };
 
-    // see if we should start up network monitor
-    let rocket = if config.network_monitor.enabled {
-        rocket.attach(storage::NymApiStorage::stage(storage.unwrap()))
-    } else {
-        rocket
-    };
-
     Ok(rocket.manage(status_state).ignite().await?)
 }
 
-fn setup_cors() -> Result<Cors> {
+fn setup_rocket_cors() -> Result<Cors> {
     let allowed_origins = AllowedOrigins::all();
 
     // You can also deserialize this
     let cors = rocket_cors::CorsOptions {
         allowed_origins,
-        allowed_methods: vec![Method::Post, Method::Get]
+        allowed_methods: vec![rocket::http::Method::Post, rocket::http::Method::Get]
             .into_iter()
             .map(From::from)
             .collect(),

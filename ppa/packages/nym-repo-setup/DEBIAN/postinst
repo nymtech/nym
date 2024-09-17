@@ -1,0 +1,4 @@
+#!/bin/bash
+
+# Updating package list
+apt-get update

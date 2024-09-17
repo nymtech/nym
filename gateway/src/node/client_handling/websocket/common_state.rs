@@ -1,8 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::client_handling::websocket::connection_handler::ecash::EcashManager;
-use crate::node::client_handling::websocket::connection_handler::BandwidthFlushingBehaviourConfig;
+use nym_credential_verification::{ecash::EcashManager, BandwidthFlushingBehaviourConfig};
 use nym_crypto::asymmetric::identity;
 use std::sync::Arc;
 

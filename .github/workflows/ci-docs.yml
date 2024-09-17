@@ -6,12 +6,13 @@ on:
     branches-ignore: master
     paths:
       - 'documentation/docs/**'
+      - '.github/workflows/ci-docs.yml'
 
 jobs:
   build:
     runs-on: ubuntu-20.04-16-core
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler git python3 && sudo apt-get update --fix-missing
       - name: Install pip3
@@ -21,7 +22,7 @@ jobs:
       - name: Install rsync
         run: sudo apt-get install rsync
       - uses: rlespinasse/github-slug-action@v3.x
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 18
       - name: Install Rust stable

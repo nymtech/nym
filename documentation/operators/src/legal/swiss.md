@@ -33,7 +33,7 @@ I therefore consider the risk for an exit node operator to become involved in a 
 
 Nevertheless, in such a situation, exit node operators providers would have to provide the authorities with the information already available to them (Art. 22 Para. 3 SPTA), and they would have to tolerate monitoring by the authorities or by the persons commissioned by the service of the data which the monitored person transmits or stores using derived communications services (Art. 27 Para. 1 SPTA; see above, 5.1.1.2). There is no duty of data retention for providers of derived communication services, though.
 
-The the risk for exit node operators of being upgraded according to Art. 22 Para. 4 SPTA is low to non existent for the reasons mentioned above.
+The risk for exit node operators of being upgraded according to Art. 22 Para. 4 SPTA is low to non existent for the reasons mentioned above.
 
 #### Intelligence Service Law
 

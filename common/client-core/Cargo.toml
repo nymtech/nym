@@ -71,7 +71,7 @@ features = ["tokio"]
 ###
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
-version = "0.1.11"
+version = "0.1.16"
 features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
@@ -102,7 +102,7 @@ workspace = true
 features = ["tokio"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.gloo-timers]
-version = "0.2.4"
+version = "0.3.0"
 features = ["futures"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasm-utils]

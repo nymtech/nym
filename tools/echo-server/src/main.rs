@@ -42,12 +42,18 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
+    // Configure our client to use the Canary test network: you can switch this to use any of the files in `../../../envs/`
+    let env_path = "../../envs/canary.env".to_string();
     let conf_path = "./tmp/nym-proxy-server-config";
-    let mut proxy_server =
-        tcp_proxy::NymProxyServer::new(&(format!("{}:{}", HOST, PORT)), conf_path)
-            .await
-            .unwrap();
+    let mut proxy_server = tcp_proxy::NymProxyServer::new(
+        &(format!("{}:{}", HOST, PORT)),
+        conf_path,
+        Some(env_path.clone()),
+    )
+    .await
+    .unwrap();
     let proxy_nym_addr = proxy_server.nym_address().clone();
+    info!("ProxyServer listening out on {}", proxy_nym_addr);
 
     task::spawn(async move {
         let _ = proxy_server.run_with_shutdown().await;
@@ -148,6 +154,8 @@ async fn handle_incoming(
             }
         }
     }
-    metrics.active_conn.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+    metrics
+        .active_conn
+        .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
     info!("Connection closed");
 }

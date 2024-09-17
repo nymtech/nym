@@ -234,17 +234,6 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             return Err(AuthenticatorError::MacVerificationFailure);
         }
 
-        let client_id = self
-            .peer_manager
-            .add_peer(
-                &final_message.gateway_client,
-                final_message.credential.is_some(),
-            )
-            .await?;
-        registred_and_free
-            .registration_in_progres
-            .remove(&final_message.gateway_client.pub_key());
-
         // If gateway does ecash verification and client sends a credential, we do the additional
         // credential verification. Later this will become mandatory.
         if let (Some(ecash_verifier), Some(credential)) = (

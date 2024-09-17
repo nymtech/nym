@@ -10,14 +10,20 @@ use crate::{
 
 /// Return handles that allow for graceful shutdown of server + awaiting its
 /// background tokio task
-pub(crate) async fn start_http_api(db_pool: DbPool) -> anyhow::Result<ShutdownHandles> {
+pub(crate) async fn start_http_api(
+    db_pool: DbPool,
+    http_port: u16,
+) -> anyhow::Result<ShutdownHandles> {
     let router_builder = RouterBuilder::with_default_routes();
 
     // TODO dz init routes
 
     let state = AppState::new(db_pool);
     let router = router_builder.with_state(state);
-    let server = router.build_server("0.0.0.0:8001").await?;
+
+    let bind_addr = format!("0.0.0.0:{}", http_port);
+    let server = router.build_server(bind_addr).await?;
+
 
     Ok(start_server(server))
 }

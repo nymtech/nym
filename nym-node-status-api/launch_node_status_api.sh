@@ -29,7 +29,7 @@ script_abs_path=$(realpath "$0")
 package_dir=$(dirname "$script_abs_path")
 db_abs_path="$package_dir/data/$db_filename"
 dotenv_file="$package_dir/.env"
-echo "DATABASE_URL=sqlite://$db_abs_path" > "$dotenv_file"
+# echo "DATABASE_URL=sqlite://$db_abs_path" > "$dotenv_file"
 
 export RUST_LOG=${RUST_LOG:-debug}
 

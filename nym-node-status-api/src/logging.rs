@@ -32,6 +32,8 @@ pub(crate) fn setup_tracing_logger() {
         "sqlx",
         "h2",
         "tendermint_rpc",
+        "tower_http",
+        "axum",
     ];
     for crate_name in filter_crates {
         filter = filter.add_directive(directive_checked(format!("{}=warn", crate_name)));

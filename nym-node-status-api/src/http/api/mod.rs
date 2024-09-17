@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use axum::Router;
+use axum::{response::Redirect, Router};
 use tokio::net::ToSocketAddrs;
 use tower_http::{cors::CorsLayer, trace::TraceLayer};
 use utoipa::OpenApi;
@@ -8,15 +8,15 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::http::{server::HttpServer, state::AppState};
 
 // TODO dz src/http/gateways.rs
-mod gateways;
+pub(crate) mod gateways;
 // TODO dz src/http/mixnodes.rs
-mod mixnodes;
+pub(crate) mod mixnodes;
 // TODO dz src/http/services.rs
-mod services;
+pub(crate) mod services;
 // TODO dz src/http/summary.rs
-mod summary;
+pub(crate) mod summary;
 // TODO dz src/http/testruns.rs
-mod testruns;
+pub(crate) mod testruns;
 
 pub(crate) struct RouterBuilder {
     unfinished_router: Router<AppState>,
@@ -26,17 +26,21 @@ impl RouterBuilder {
     pub(crate) fn with_default_routes() -> Self {
         let router = Router::new()
             .merge(
-                SwaggerUi::new("/")
+                SwaggerUi::new("/swagger")
                     .url("/api-docs/openapi.json", super::api_docs::ApiDoc::openapi()),
+            )
+            .route(
+                "/",
+                axum::routing::get(|| async { Redirect::permanent("/swagger") }),
             )
             .nest(
                 "/v2",
                 Router::new()
-                    .merge(gateways::routes())
-                    .merge(mixnodes::routes())
-                    .merge(services::routes())
-                    .merge(summary::routes())
-                    .merge(testruns::routes()),
+                    .nest("/gateways", gateways::routes())
+                    // .nest("/mixnodes", mixnodes::routes())
+                    // .merge(services::routes())
+                    // .merge(summary::routes())
+                    // .merge(testruns::routes()),
             );
 
         Self {
@@ -82,5 +86,5 @@ fn setup_cors() -> CorsLayer {
         .allow_origin(tower_http::cors::Any)
         .allow_methods([Method::POST, Method::GET, Method::PATCH, Method::OPTIONS])
         .allow_headers(tower_http::cors::Any)
-        .allow_credentials(true)
+        .allow_credentials(false)
 }

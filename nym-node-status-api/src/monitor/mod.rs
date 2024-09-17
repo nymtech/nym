@@ -26,7 +26,7 @@ static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5
 
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
-pub(crate) fn spawn_in_background(db_pool: DbPool) -> JoinHandle<()> {
+pub(crate) async fn spawn_in_background(db_pool: DbPool) -> JoinHandle<()> {
     tokio::spawn(async move {
         let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 

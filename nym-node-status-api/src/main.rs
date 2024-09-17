@@ -22,17 +22,22 @@ async fn main() -> anyhow::Result<()> {
     tracing::debug!("{:?}", std::env::var("NYM_API"));
 
     let storage = db::Storage::init().await?;
-    monitor::spawn_in_background(storage.pool_owned().await)
-        .await
-        .expect("Monitor task failed");
+    let db_pool = storage.pool_owned().await;
+    // tokio::spawn(async move {
+    //     monitor::spawn_in_background(db_pool).await;
+    // });
+    let _ = monitor::spawn_in_background(db_pool);
     tracing::info!("Started monitor task");
 
-    let shutdown_handles = http::server::start_http_api(storage.pool_owned().await)
+    let port = std::env::var("HTTP_PORT")
+        .map_err(|_| anyhow!("HTTP_PORT not set"))
+        .and_then(|port| port.parse().map_err(anyhow::Error::msg))?;
+    let shutdown_handles = http::server::start_http_api(storage.pool_owned().await, port)
         .await
         .expect("Failed to start server");
     // TODO dz load bind address from config
     // TODO dz log bind address
-    tracing::info!("Started HTTP server");
+    tracing::info!("Started HTTP server on port {}", port);
 
     wait_for_signal().await;
 

@@ -245,11 +245,20 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             .registration_in_progres
             .remove(&final_message.gateway_client.pub_key());
 
-        if let (Some(ecash_verifier), Some(credential), Some(client_id)) = (
+        // If gateway does ecash verification and client sends a credential, we do the additional
+        // credential verification. Later this will become mandatory.
+        if let (Some(ecash_verifier), Some(credential)) = (
             self.ecash_verifier.clone(),
             final_message.credential.clone(),
-            client_id,
         ) {
+            let client_id = self
+                .peer_manager
+                .add_peer(&final_message.gateway_client, true)
+                .await?
+                .ok_or(AuthenticatorError::InternalError(
+                    "peer with ticket shouldn't have been used before without a ticket".to_string(),
+                ))?;
+
             if let Err(e) =
                 Self::credential_verification(ecash_verifier, credential, client_id).await
             {
@@ -264,7 +273,14 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                     })?;
                 return Err(e);
             }
+        } else {
+            self.peer_manager
+                .add_peer(&final_message.gateway_client, false)
+                .await?;
         }
+        registred_and_free
+            .registration_in_progres
+            .remove(&final_message.gateway_client.pub_key());
 
         Ok(AuthenticatorResponse::new_registered(
             RegistredData {

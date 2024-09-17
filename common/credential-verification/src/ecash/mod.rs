@@ -73,6 +73,10 @@ where
         self.shared_state.verification_key(epoch_id).await
     }
 
+    pub fn storage(&self) -> &S {
+        &self.shared_state.storage
+    }
+
     //Check for duplicate pay_info, then check the payment, then insert pay_info if everything succeeded
     pub async fn check_payment(
         &self,

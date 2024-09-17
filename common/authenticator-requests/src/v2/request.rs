@@ -50,7 +50,7 @@ impl AuthenticatorRequest {
         (
             Self {
                 version: VERSION,
-                data: AuthenticatorRequestData::Final(final_message),
+                data: AuthenticatorRequestData::Final(Box::new(final_message)),
                 reply_to,
                 request_id,
             },
@@ -80,6 +80,6 @@ impl AuthenticatorRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AuthenticatorRequestData {
     Initial(InitMessage),
-    Final(FinalMessage),
+    Final(Box<FinalMessage>),
     QueryBandwidth(PeerPublicKey),
 }

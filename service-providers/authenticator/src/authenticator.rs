@@ -33,7 +33,6 @@ pub struct Authenticator<S> {
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
-    storage: Option<S>,
     ecash_verifier: Option<Arc<EcashManager<S>>>,
     used_private_network_ips: Vec<IpAddr>,
     response_rx: UnboundedReceiver<PeerControlResponse>,
@@ -53,7 +52,6 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            storage: None,
             ecash_verifier: None,
             wireguard_gateway_data,
             used_private_network_ips,
@@ -67,13 +65,6 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
     #[allow(unused)]
     pub fn with_ecash_verifier(mut self, ecash_verifier: Arc<EcashManager<S>>) -> Self {
         self.ecash_verifier = Some(ecash_verifier);
-        self
-    }
-
-    #[must_use]
-    #[allow(unused)]
-    pub fn with_storage(mut self, storage: S) -> Self {
-        self.storage = Some(storage);
         self
     }
 
@@ -170,7 +161,6 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
             .collect();
         let mixnet_listener = crate::mixnet_listener::MixnetListener::new(
             self.config,
-            self.storage,
             free_private_network_ips,
             self.wireguard_gateway_data,
             self.response_rx,

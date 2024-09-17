@@ -38,12 +38,12 @@ impl From<v1::registration::InitMessage> for v2::registration::InitMessage {
     }
 }
 
-impl From<v1::registration::GatewayClient> for v2::registration::FinalMessage {
+impl From<v1::registration::GatewayClient> for Box<v2::registration::FinalMessage> {
     fn from(gw_client: v1::registration::GatewayClient) -> Self {
-        Self {
+        Box::new(v2::registration::FinalMessage {
             gateway_client: gw_client.into(),
             credential: None,
-        }
+        })
     }
 }
 

@@ -3,7 +3,6 @@
 
 use crate::error::Error;
 use base64::{engine::general_purpose, Engine};
-use nym_credentials_interface::CredentialSpendingData;
 use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

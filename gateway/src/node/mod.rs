@@ -289,7 +289,6 @@ impl<St> Gateway<St> {
                 used_private_network_ips,
                 peer_response_rx,
             )
-            .with_storage(self.storage.clone())
             .with_ecash_verifier(ecash_verifier)
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_shutdown(shutdown.fork("authenticator"))

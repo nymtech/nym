@@ -1,6 +1,4 @@
-use crate::mixnet::{
-    IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails,
-};
+use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
 use std::sync::Arc;
 #[path = "utils.rs"]
 mod utils;
@@ -49,7 +47,7 @@ impl NymProxyClient {
     // server_address is the Nym address of the NymProxyServer to communicate with.
     pub async fn new_with_defaults(server_address: Recipient, env: Option<String>) -> Result<Self> {
         debug!("loading env file: {:?}", env);
-        setup_env(env);
+        setup_env(env); // Defaults to mainnet if empty
         Ok(NymProxyClient {
             server_address,
             listen_address: DEFAULT_LISTEN_HOST.to_string(),

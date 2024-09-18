@@ -1,7 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::LegacySharedKeys;
 use nym_crypto::blake3;
 use nym_crypto::crypto_hash::compute_digest;
 use nym_crypto::generic_array::{typenum::Unsigned, GenericArray};
@@ -15,6 +14,8 @@ use rand::thread_rng;
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
+
+pub use legacy::LegacySharedKeys;
 
 pub mod helpers;
 pub mod legacy;
@@ -238,6 +239,10 @@ impl SharedSymmetricKey {
         }
 
         Ok(SharedSymmetricKey(GenericArray::clone_from_slice(bytes)))
+    }
+
+    pub fn zeroizing_clone(&self) -> Zeroizing<Self> {
+        Zeroizing::new(SharedSymmetricKey(self.0))
     }
 
     pub fn digest(&self) -> Vec<u8> {

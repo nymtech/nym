@@ -14,6 +14,7 @@ use tungstenite::Message;
 
 // wrapper for all encrypted requests for ease of use
 #[derive(Serialize, Deserialize, Debug)]
+#[non_exhaustive]
 pub enum ClientRequest {
     UpgradeKey {
         hkdf_salt: Vec<u8>,
@@ -52,6 +53,7 @@ impl ClientRequest {
 // if you're adding new variants here, consider putting them inside `ClientRequest` instead
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
+#[non_exhaustive]
 pub enum ClientControlRequest {
     // TODO: should this also contain a MAC considering that at this point we already
     // have the shared key derived?

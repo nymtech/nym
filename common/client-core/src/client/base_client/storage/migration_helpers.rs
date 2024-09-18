@@ -13,7 +13,7 @@ pub mod v1_1_33 {
     use nym_client_core_gateways_storage::{
         CustomGatewayDetails, GatewayDetails, GatewayRegistration, RemoteGatewayDetails,
     };
-    use nym_gateway_requests::registration::handshake::LegacySharedKeys;
+    use nym_gateway_requests::shared_key::LegacySharedKeys;
     use serde::{Deserialize, Serialize};
     use sha2::{digest::Digest, Sha256};
     use std::ops::Deref;

@@ -3,9 +3,7 @@
 
 use crate::client::key_manager::persistence::KeyStore;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_gateway_requests::registration::handshake::{
-    LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey,
-};
+use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
 use nym_sphinx::acknowledgements::AckKey;
 use rand::{CryptoRng, RngCore};
 use std::sync::Arc;

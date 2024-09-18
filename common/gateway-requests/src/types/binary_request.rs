@@ -8,6 +8,7 @@ use strum::FromRepr;
 use tungstenite::Message;
 
 // in legacy mode requests use zero IV without
+#[non_exhaustive]
 pub enum BinaryRequest {
     ForwardSphinx { packet: MixPacket },
 }

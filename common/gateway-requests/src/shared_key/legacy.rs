@@ -56,6 +56,29 @@ impl LegacySharedKeys {
         (key, salt)
     }
 
+    pub fn upgrade_verify(
+        &self,
+        salt: &[u8],
+        expected_digest: &[u8],
+    ) -> Option<SharedSymmetricKey> {
+        let legacy_bytes = Zeroizing::new(self.to_bytes());
+        let okm = hkdf::extract_then_expand::<GatewaySharedKeyHkdfAlgorithm>(
+            Some(salt),
+            &legacy_bytes,
+            None,
+            SharedKeySize::to_usize(),
+        )
+        .expect("somehow too long okm was provided");
+        let key = SharedSymmetricKey::try_from_bytes(&okm)
+            .expect("okm was expanded to incorrect length!");
+        if key.digest() != expected_digest {
+            // no need to zeroize  that key since it's malformed and we won't be using it anyway
+            None
+        } else {
+            Some(key)
+        }
+    }
+
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, SharedKeyConversionError> {
         if bytes.len() != LegacySharedKeySize::to_usize() {
             return Err(SharedKeyConversionError::InvalidSharedKeysSize {

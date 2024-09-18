@@ -18,6 +18,7 @@ rand = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 si-scale = { workspace = true }
 time.workspace = true
+zeroize.workspace = true
 
 # internal
 nym-bandwidth-controller = { path = "../../bandwidth-controller" }

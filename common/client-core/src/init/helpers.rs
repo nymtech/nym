@@ -320,7 +320,7 @@ pub(super) async fn register_with_gateway(
             source: err,
         }
     })?;
-    let shared_keys = gateway_client
+    let auth_response = gateway_client
         .perform_initial_authentication()
         .await
         .map_err(|err| {
@@ -330,8 +330,13 @@ pub(super) async fn register_with_gateway(
                 source: err,
             }
         })?;
+
+    // we can ignore the authentication result because we have **REGISTERED** a fresh client
+    // (we didn't have a prior key to upgrade/authenticate with)
+    assert!(!auth_response.requires_key_upgrade);
+
     Ok(RegistrationResult {
-        shared_keys,
+        shared_keys: auth_response.current_shared_key,
         authenticated_ephemeral_client: gateway_client,
     })
 }

@@ -8,6 +8,7 @@ use tungstenite::Message;
 // naming things is difficult...
 // the name implies that the content is encrypted before being sent on the wire
 #[derive(Serialize, Deserialize, Debug)]
+#[non_exhaustive]
 pub enum SensitiveServerResponse {
     KeyUpgradeAck {},
 }
@@ -42,6 +43,7 @@ impl SensitiveServerResponse {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(tag = "type", rename_all = "camelCase")]
+#[non_exhaustive]
 pub enum ServerResponse {
     Authenticate {
         #[serde(default)]

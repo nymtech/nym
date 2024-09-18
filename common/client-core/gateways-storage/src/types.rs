@@ -4,9 +4,7 @@
 use crate::BadGateway;
 use cosmrs::AccountId;
 use nym_crypto::asymmetric::identity;
-use nym_gateway_requests::registration::handshake::{
-    LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey,
-};
+use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;

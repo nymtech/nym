@@ -11,7 +11,7 @@ use nym_client_core_gateways_storage::{
 };
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::client::InitGatewayClient;
-use nym_gateway_requests::registration::handshake::SharedGatewayKey;
+use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::gateway;
 use nym_validator_client::client::IdentityKey;

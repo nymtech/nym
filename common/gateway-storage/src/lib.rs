@@ -11,7 +11,7 @@ use models::{
     VerifiedTicket, WireguardPeer,
 };
 use nym_credentials_interface::ClientTicket;
-use nym_gateway_requests::registration::handshake::SharedGatewayKey;
+use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::DestinationAddressBytes;
 use shared_keys::SharedKeysManager;
 use sqlx::ConnectOptions;

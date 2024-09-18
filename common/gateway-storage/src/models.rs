@@ -3,9 +3,7 @@
 
 use crate::error::StorageError;
 use nym_credentials_interface::{AvailableBandwidth, ClientTicket, CredentialSpendingData};
-use nym_gateway_requests::registration::handshake::{
-    LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey,
-};
+use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
 use sqlx::FromRow;
 use time::OffsetDateTime;
 

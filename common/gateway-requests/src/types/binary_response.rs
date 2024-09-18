@@ -6,6 +6,7 @@ use crate::{GatewayRequestsError, SharedGatewayKey};
 use strum::FromRepr;
 use tungstenite::Message;
 
+#[non_exhaustive]
 pub enum BinaryResponse {
     PushedMixMessage { message: Vec<u8> },
 }

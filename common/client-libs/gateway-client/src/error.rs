@@ -27,6 +27,15 @@ pub enum GatewayClientError {
     #[error("There was a network error: {0}")]
     NetworkError(#[from] WsError),
 
+    #[error("failed to upgrade our shared key - the gateway sent malformed response")]
+    FatalKeyUpgradeFailure,
+
+    #[error("the current key is already up to date! there's no need to upgrade it")]
+    KeyAlreadyUpgraded,
+
+    #[error("can't perform key upgrade as the key is already being used elsewhere")]
+    KeyAlreadyInUse,
+
     #[cfg(target_arch = "wasm32")]
     #[error("There was a network error: {0}")]
     NetworkErrorWasm(#[from] JsError),
@@ -76,8 +85,8 @@ pub enum GatewayClientError {
         cutoff_bi2: String,
     },
 
-    #[error("Received an unexpected response")]
-    UnexpectedResponse,
+    #[error("received an unexpected response of type {name}")]
+    UnexpectedResponse { name: String },
 
     #[error("Connection is in an invalid state - please send a bug report")]
     ConnectionInInvalidState,

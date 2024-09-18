@@ -9,7 +9,7 @@ use crate::{cleanup_socket_messages, try_decrypt_binary_message};
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use nym_gateway_requests::registration::handshake::SharedGatewayKey;
+use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_gateway_requests::{ServerResponse, SimpleGatewayRequestsError};
 use nym_task::TaskClient;
 use si_scale::helpers::bibytes2;

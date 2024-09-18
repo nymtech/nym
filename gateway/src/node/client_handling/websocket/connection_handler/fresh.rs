@@ -17,14 +17,15 @@ use futures::{
     SinkExt, StreamExt,
 };
 use nym_credentials_interface::AvailableBandwidth;
+use nym_crypto::aes::cipher::crypto_common::rand_core::RngCore;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::authentication::encrypted_address::{
     EncryptedAddressBytes, EncryptedAddressConversionError,
 };
 use nym_gateway_requests::{
-    registration::handshake::{error::HandshakeError, gateway_handshake, SharedGatewayKey},
+    registration::handshake::{error::HandshakeError, gateway_handshake},
     types::{ClientControlRequest, ServerResponse},
-    BinaryResponse, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
+    BinaryResponse, SharedGatewayKey, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
 };
 use nym_gateway_storage::{error::StorageError, Storage};
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -178,6 +179,7 @@ where
     ) -> Result<SharedGatewayKey, HandshakeError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
+        R: CryptoRng + RngCore + Send,
     {
         debug_assert!(self.socket_connection.is_websocket());
         match &mut self.socket_connection {
@@ -662,6 +664,7 @@ where
     ) -> Result<InitialAuthResult, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
+        R: CryptoRng + RngCore + Send,
     {
         let negotiated_protocol = self.negotiate_client_protocol(client_protocol_version)?;
         // populate the negotiated protocol for future uses
@@ -717,6 +720,7 @@ where
     ) -> Result<Option<ClientDetails>, InitialAuthenticationError>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
+        R: CryptoRng + RngCore + Send,
     {
         // we can handle stateless client requests without prior authentication, like `ClientControlRequest::SupportedProtocol`
         let auth_result = match request {
@@ -782,6 +786,7 @@ where
     ) -> Option<AuthenticatedHandler<R, S, St>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
+        R: CryptoRng + RngCore + Send,
     {
         while !shutdown.is_shutdown() {
             let req = tokio::select! {
@@ -868,6 +873,7 @@ where
     pub(crate) async fn start_handling(self)
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
+        R: CryptoRng + RngCore + Send,
     {
         super::handle_connection(self).await
     }

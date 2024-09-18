@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
-use nym_gateway_requests::registration::handshake::SharedKeyConversionError;
+use nym_gateway_requests::shared_key::SharedKeyConversionError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

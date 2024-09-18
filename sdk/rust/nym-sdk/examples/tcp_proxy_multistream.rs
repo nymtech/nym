@@ -9,7 +9,6 @@ use std::env;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::signal;
-use tokio::task;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
 use tracing_subscriber;

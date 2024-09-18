@@ -9,7 +9,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 
 use std::fmt::{Display, Formatter};
-use strum::{Display, EnumString, EnumVariantNames};
+use strum::{Display, EnumString, VariantNames};
 
 #[cfg(feature = "generate-ts")]
 use ts_rs::{Dependency, TS};
@@ -28,7 +28,7 @@ use ts_rs::{Dependency, TS};
     Clone,
     Debug,
     EnumString,
-    EnumVariantNames,
+    VariantNames,
     PartialEq,
     Eq,
     JsonSchema,

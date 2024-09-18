@@ -330,21 +330,22 @@ impl From<HistoricalUptime> for HistoricalUptimeResponse {
     }
 }
 
-pub(crate) struct ErrorResponse {
+#[deprecated(note = "TODO rocket remove once Rocket is phased out")]
+pub(crate) struct RocketErrorResponse {
     error_message: RequestError,
     status: Status,
 }
 
-impl ErrorResponse {
+impl RocketErrorResponse {
     pub(crate) fn new(error_message: impl Into<String>, status: Status) -> Self {
-        ErrorResponse {
+        RocketErrorResponse {
             error_message: RequestError::new(error_message),
             status,
         }
     }
 }
 
-impl<'r, 'o: 'r> Responder<'r, 'o> for ErrorResponse {
+impl<'r, 'o: 'r> Responder<'r, 'o> for RocketErrorResponse {
     fn respond_to(self, req: &'r Request<'_>) -> response::Result<'o> {
         // piggyback on the existing implementation
         // also prefer json over plain for ease of use in frontend
@@ -355,7 +356,7 @@ impl<'r, 'o: 'r> Responder<'r, 'o> for ErrorResponse {
     }
 }
 
-impl JsonSchema for ErrorResponse {
+impl JsonSchema for RocketErrorResponse {
     fn schema_name() -> String {
         "ErrorResponse".to_owned()
     }
@@ -384,11 +385,108 @@ impl JsonSchema for ErrorResponse {
     }
 }
 
-impl OpenApiResponderInner for ErrorResponse {
+impl OpenApiResponderInner for RocketErrorResponse {
     fn responses(_gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
         let mut responses = Responses::default();
         ensure_status_code_exists(&mut responses, 404);
         Ok(responses)
+    }
+}
+
+#[cfg(feature = "axum")]
+pub(crate) use axum_error::{AxumErrorResponse, AxumResult};
+
+#[cfg(feature = "axum")]
+/// TODO rocket: extract types from this module when axum becomes the only server in Nym API
+mod axum_error {
+    pub use super::*;
+    use crate::ecash::error::{EcashError, RedemptionError};
+    use std::fmt::Display;
+
+    // TODO rocket remove smurf name after eliminating `rocket`
+    pub(crate) type AxumResult<T> = Result<T, AxumErrorResponse>;
+    pub(crate) struct AxumErrorResponse {
+        message: RequestError,
+        status: axum::http::StatusCode,
+    }
+
+    impl AxumErrorResponse {
+        pub(crate) fn internal_msg(msg: impl Display) -> Self {
+            Self {
+                message: RequestError::new(msg.to_string()),
+                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            }
+        }
+
+        pub(crate) fn internal() -> Self {
+            Self {
+                message: RequestError::new("Internal server error"),
+                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            }
+        }
+
+        pub(crate) fn not_implemented() -> Self {
+            Self {
+                message: RequestError::empty(),
+                status: axum::http::StatusCode::NOT_IMPLEMENTED,
+            }
+        }
+
+        pub(crate) fn not_found(msg: impl Display) -> Self {
+            Self {
+                message: RequestError::new(msg.to_string()),
+                status: axum::http::StatusCode::NOT_FOUND,
+            }
+        }
+
+        pub(crate) fn service_unavailable() -> Self {
+            Self {
+                message: RequestError::empty(),
+                status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+            }
+        }
+
+        pub(crate) fn unprocessable_entity(msg: impl Display) -> Self {
+            Self {
+                message: RequestError::new(msg.to_string()),
+                status: axum::http::StatusCode::UNPROCESSABLE_ENTITY,
+            }
+        }
+    }
+
+    impl axum::response::IntoResponse for AxumErrorResponse {
+        fn into_response(self) -> axum::response::Response {
+            (self.status, self.message.message().to_string()).into_response()
+        }
+    }
+
+    impl From<NymApiStorageError> for AxumErrorResponse {
+        fn from(value: NymApiStorageError) -> Self {
+            error!("{value}");
+            Self {
+                message: RequestError::empty(),
+                status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+            }
+        }
+    }
+
+    impl From<EcashError> for AxumErrorResponse {
+        fn from(value: EcashError) -> Self {
+            Self {
+                message: RequestError::new(value.to_string()),
+                status: axum::http::StatusCode::BAD_REQUEST,
+            }
+        }
+    }
+
+    #[cfg(feature = "axum")]
+    impl From<RedemptionError> for AxumErrorResponse {
+        fn from(value: RedemptionError) -> Self {
+            Self {
+                message: RequestError::new(value.to_string()),
+                status: axum::http::StatusCode::BAD_REQUEST,
+            }
+        }
     }
 }
 

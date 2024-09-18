@@ -2,10 +2,14 @@ name: ci-cargo-deny
 on:
   workflow_dispatch:
   pull_request:
+    paths:
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - '.github/workflows/ci-cargo-deny.yml'
 
 jobs:
   cargo-deny:
-    runs-on: ubuntu-22.04
+    runs-on: arc-ubuntu-22.04-dind
     strategy:
       matrix:
         checks:
@@ -13,7 +17,7 @@ jobs:
           - licenses bans sources
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: EmbarkStudios/cargo-deny-action@v1
       with:
         log-level: warn

@@ -155,14 +155,13 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58, gateway_owner_address, gateway_listener, wg_tun_address) 
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58, gateway_owner_address, gateway_listener) 
+                VALUES (?, ?, ?, ?)
             "#,
             remote.gateway_id_bs58,
             remote.derived_aes128_ctr_blake3_hmac_keys_bs58,
             remote.gateway_owner_address,
             remote.gateway_listener,
-            remote.wg_tun_address,
         )
             .execute(&self.connection_pool)
             .await?;

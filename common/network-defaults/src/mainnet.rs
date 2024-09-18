@@ -17,8 +17,8 @@ pub const MIXNET_CONTRACT_ADDRESS: &str =
     "n17srjznxl9dvzdkpwpw24gg668wc73val88a6m5ajg6ankwvz9wtst0cznr";
 pub const VESTING_CONTRACT_ADDRESS: &str =
     "n1nc5tatafv6eyq7llkr2gv50ff9e22mnf70qgjlv737ktmt4eswrq73f2nw";
-
-pub const ECASH_CONTRACT_ADDRESS: &str = "";
+pub const ECASH_CONTRACT_ADDRESS: &str =
+    "n1r7s6aksyc6pqardx88k3rkgfagwvj4z4zum9mmz2sfk3zm2mha0sd4dnun";
 pub const GROUP_CONTRACT_ADDRESS: &str =
     "n1e2zq4886zzewpvpucmlw8v9p7zv692f6yck4zjzxh699dkcmlrfqk2knsr";
 pub const MULTISIG_CONTRACT_ADDRESS: &str =

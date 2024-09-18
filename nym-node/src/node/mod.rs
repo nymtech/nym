@@ -580,8 +580,9 @@ impl NymNode {
         );
         entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
-        #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        entry_gateway.set_wireguard_data(self.wireguard.into());
+        if self.config.wireguard.enabled {
+            entry_gateway.set_wireguard_data(self.wireguard.into());
+        }
 
         tokio::spawn(async move {
             if let Err(err) = entry_gateway.run().await {
@@ -608,8 +609,9 @@ impl NymNode {
         );
         exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);
-        #[cfg(all(feature = "wireguard", target_os = "linux"))]
-        exit_gateway.set_wireguard_data(self.wireguard.into());
+        if self.config.wireguard.enabled {
+            exit_gateway.set_wireguard_data(self.wireguard.into());
+        }
 
         tokio::spawn(async move {
             if let Err(err) = exit_gateway.run().await {
@@ -639,7 +641,7 @@ impl NymNode {
         let wireguard = if self.config.wireguard.enabled {
             Some(api_requests::v1::gateway::models::Wireguard {
                 port: self.config.wireguard.announced_port,
-                public_key: "placeholder key value".to_string(),
+                public_key: self.wireguard.inner.keypair().public_key().to_string(),
             })
         } else {
             None

@@ -103,7 +103,7 @@ To automate with `systemd` use this init service file by saving it as `/etc/syst
 nano /etc/systemd/system/nym-node.service
 ```
 
-2. Paste this config file
+2. Paste this config file, substitute `<USER>` and `<PATH>` with your correct values and add all flags to run your `nym-node` to `ExecStart` line:
 ```ini
 [Unit]
 Description=Nym Node
@@ -199,7 +199,7 @@ In this (unusual) case your `mixnode` will not be able to route the packets. The
 ```admonish info
 We recommend operators to configure their `nym-node` with the full routing configuration.
 
-However, most of the time the packets sent through the Mixnet are IPv4 based. The IPv6 packets are still pretty rare and therefore it's not mandatory from operational point of view to have this configuration implemented if you running only `mixnode` mode. 
+However, most of the time the packets sent through the Mixnet are IPv4 based. The IPv6 packets are still pretty rare and therefore it's not mandatory from operational point of view to have this configuration implemented if you running only `mixnode` mode.
 
 If you preparing to run a `nym-node` with all modes enabled in the future, this setup is required.
 ```
@@ -212,7 +212,7 @@ For everyone participating in Delegation Program or Service Grant program, this 
 
 You can always check IPv6 address and connectivity by using some of these methods:
 
-~~~admonish example collapsible=true
+~~~admonish example collapsible=true title="Test IPv6 methods"
 ```sh
 # locally listed IPv6 addresses
 ip -6 addr
@@ -241,19 +241,21 @@ Make sure to keep your IPv4 address enabled while setting up IPv6, as the majori
 
 While we're working on Rust implementation to have these settings as a part of the binary build, to solve these connectivity requirements in the meantime we wrote a script [`network_tunnel_manager.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) to support the operators to configure their servers and address all the connectivity requirements.
 
-Networking configuration across different ISPs and various operation systems does not have a generic solution. If the provided configuration setup doesn't solve your problem check out [IPv6 troubleshooting](../troubleshooting/vps-isp.md#ipv6-troubleshooting) page. Be aware that you may have to do more research and customised adjustments.
+Networking configuration across different ISPs and various operation systems does not have a generic solution. If the provided configuration setup doesn't solve your problem check out [IPv6 troubleshooting](../troubleshooting/vps-isp.md#ipv6-troubleshooting) page. Be aware that you may have to do more research, customised adjustments or contact your ISP to change settings for your VPS.
 
 
 The `nymtun0` interface is dynamically managed by the `exit-gateway` service. When the service is stopped, `nymtun0` disappears, and when started, `nymtun0` is recreated.
 
-The script should be used in a context where `nym-node`is running to fully utilise its capabilities, particularly for fetching IPv6 addresses or applying network rules that depend on the `nymtun0` interface and to establish a WireGuard tunnel.
+The `nymwg` interface is used for creating a secure wireguard tunnel as part of the Nym Network configuration. Similar to `nymtun0`, the script manages iptables rules specific to `nymwg` to ensure proper routing and forwarding through the wireguard tunnel. The `nymwg` interface needs to be correctly configured and active for the related commands to function properly. This includes applying or removing iptables rules and running connectivity tests through the `nymwg` tunnel.
 
-Before starting with the following, make sure you have the [latest `nym-node` binary](https://github.com/nymtech/nym/releases/) installed and your [VPS setup](vps-setup.md) finished properly!
+The script should be used in a context where `nym-node` is running to fully utilise its capabilities, particularly for fetching IPv6 addresses or applying network rules that depend on the `nymtun0` and `nymwg` interfaces and to establish a WireGuard tunnel.
+
+**Before starting with the following configuration, make sure you have the [latest `nym-node` binary](https://github.com/nymtech/nym/releases/) installed and your [VPS setup](vps-setup.md) finished properly!**
 
 1. Download `network_tunnel_manager.sh`, make executable and run:
 
 ```sh
-curl -L -o network_tunnel_manager.sh https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/3c0a38c1416f8fdf22906c013299dd08d1497183/network_tunnel_manager.sh && \
+curl -L https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/74241cc06492b955e582052939090f57a285a65e/network_tunnel_manager.sh -o network_tunnel_manager.sh && \
 chmod +x network_tunnel_manager.sh && \
 ./network_tunnel_manager.sh
 ```
@@ -333,7 +335,10 @@ operation check_nymtun_iptables completed successfully.
 ./network_tunnel_manager.sh apply_iptables_rules_wg
 ```
 
-7. At this point your node needs to be [bonded](bonding.md) to the API for `nymtun0` to interact with the network. After bonding please follow up with the remaining steps below to ensure that your node is routing properly.
+7. Apply rules to configure DNS routing and allow ICMP piung test for node probing (network testing):
+```sh
+./network_tunnel_manager.sh configure_dns_and_icmp_wg
+```
 
 8. Check `nymtun0` interface:
 ```sh
@@ -368,7 +373,7 @@ ip addr show nymtun0
 
 11. Now you can run your node with the `--wireguard-enabled true` flag or add it to your [systemd service config](#systemd). Restart your `nym-node` or [systemd](#following-steps-for-nym-nodes-running-as-systemd-service) service (recommended):
 ```sh
-systemctl daemon-reload && systemctl restart nym-node.service	
+systemctl daemon-reload && systemctl restart nym-node.service
 ```
 - Optionally, you can check if the node is running correctly by monitoring the service logs:
 ```sh

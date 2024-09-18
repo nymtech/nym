@@ -1,22 +1,17 @@
 name: ci-nym-wallet-rust
 
 on:
-  push:
-    paths:
-      - 'nym-wallet/**'
-      - 'common/**'
-      - 'contracts/vesting/**'
-      - 'nym-api/nym-api-requests/**'
   pull_request:
     paths:
       - 'nym-wallet/**'
       - 'common/**'
       - 'contracts/vesting/**'
       - 'nym-api/nym-api-requests/**'
+      - '.github/workflows/ci-nym-wallet-rust.yml'
 
 jobs:
   build:
-    runs-on: [ self-hosted, custom-linux ]
+    runs-on: arc-ubuntu-20.04
     env:
       CARGO_TERM_COLOR: always
     steps:
@@ -25,7 +20,7 @@ jobs:
         continue-on-error: true
 
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install rust toolchain
         uses: actions-rs/toolchain@v1

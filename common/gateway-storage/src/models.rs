@@ -6,9 +6,14 @@ use nym_credentials_interface::{AvailableBandwidth, ClientTicket, CredentialSpen
 use sqlx::FromRow;
 use time::OffsetDateTime;
 
+pub struct Client {
+    pub id: i64,
+    pub client_type: crate::clients::ClientType,
+}
+
 pub struct PersistedSharedKeys {
     #[allow(dead_code)]
-    pub id: i64,
+    pub client_id: i64,
 
     #[allow(dead_code)]
     pub client_address_bs58: String,
@@ -72,7 +77,6 @@ impl TryFrom<UnverifiedTicketData> for ClientTicket {
     }
 }
 
-#[cfg(feature = "wireguard")]
 #[derive(Debug, Clone, FromRow)]
 pub struct WireguardPeer {
     pub public_key: String,
@@ -87,7 +91,6 @@ pub struct WireguardPeer {
     pub suspended: bool,
 }
 
-#[cfg(feature = "wireguard")]
 impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
     fn from(value: defguard_wireguard_rs::host::Peer) -> Self {
         WireguardPeer {
@@ -120,7 +123,6 @@ impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
     }
 }
 
-#[cfg(feature = "wireguard")]
 impl TryFrom<WireguardPeer> for defguard_wireguard_rs::host::Peer {
     type Error = crate::error::StorageError;
 

@@ -24,6 +24,7 @@ zeroize = { workspace = true }
 nym-crypto = { path = "../crypto" }
 nym-pemstore = { path = "../pemstore" }
 nym-sphinx = { path = "../nymsphinx" }
+nym-task = { path = "../task" }
 
 nym-credentials = { path = "../credentials" }
 nym-credentials-interface = { path = "../credentials-interface" }

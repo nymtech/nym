@@ -42,6 +42,10 @@ pub trait MixnetQueryClient {
 
     // state/sys-params-related
 
+    async fn admin(&self) -> Result<cw_controllers::AdminResponse, NyxdError> {
+        self.query_mixnet_contract(MixnetQueryMsg::Admin {}).await
+    }
+
     async fn get_mixnet_contract_version(&self) -> Result<ContractBuildInformation, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetContractVersion {})
             .await
@@ -580,6 +584,7 @@ mod tests {
         msg: MixnetQueryMsg,
     ) -> u32 {
         match msg {
+            MixnetQueryMsg::Admin {} => client.admin().ignore(),
             MixnetQueryMsg::GetAllFamiliesPaged { limit, start_after } => client
                 .get_all_family_members_paged(start_after, limit)
                 .ignore(),

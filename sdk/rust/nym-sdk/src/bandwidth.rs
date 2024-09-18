@@ -7,6 +7,7 @@
 //!
 //! ```no_run
 //! use nym_sdk::mixnet::{self, MixnetMessageSender};
+//! use nym_credentials_interface::TicketType;
 //!
 //! #[tokio::main]
 //! async fn main() {
@@ -15,7 +16,7 @@
 //!         .build()
 //!         .unwrap();
 //!
-//!     let bandwidth_client = mixnet_client.create_bandwidth_client(String::from("my super secret mnemonic"), Default::default()).await.unwrap();
+//!     let bandwidth_client = mixnet_client.create_bandwidth_client(String::from("my super secret mnemonic"), TicketType::V1MixnetEntry).await.unwrap();
 //!
 //!     // Get a bandwidth credential for the mixnet_client
 //!     bandwidth_client.acquire().await.unwrap();

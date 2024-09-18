@@ -5,6 +5,7 @@ on:
   push:
     paths:
       - 'explorer/**'
+      - '.github/workflows/ci-nym-network-explorer.yml'
 
 defaults:
   run:
@@ -14,12 +15,12 @@ jobs:
   build:
     runs-on: custom-linux
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install rsync
       run: sudo apt-get install rsync
       continue-on-error: true
     - uses: rlespinasse/github-slug-action@v3.x
-    - uses: actions/setup-node@v3
+    - uses: actions/setup-node@v4
       with:
         node-version: 18
     - name: Setup yarn

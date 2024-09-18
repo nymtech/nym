@@ -2,9 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
+use crate::mixnet_contract_settings::storage::ADMIN;
 use cosmwasm_std::{Deps, StdResult};
+use cw_controllers::AdminResponse;
 use mixnet_contract_common::{ContractBuildInformation, ContractState, ContractStateParams};
 use nym_contracts_common::get_build_information;
+
+pub(crate) fn query_admin(deps: Deps<'_>) -> StdResult<AdminResponse> {
+    ADMIN.query_admin(deps)
+}
 
 pub(crate) fn query_contract_state(deps: Deps<'_>) -> StdResult<ContractState> {
     storage::CONTRACT_STATE.load(deps.storage)
@@ -36,8 +42,9 @@ pub(crate) mod tests {
     fn query_for_contract_settings_works() {
         let mut deps = test_helpers::init_contract();
 
+        #[allow(deprecated)]
         let dummy_state = ContractState {
-            owner: Addr::unchecked("someowner"),
+            owner: Some(Addr::unchecked("foomp")),
             rewarding_validator_address: Addr::unchecked("monitor"),
             vesting_contract_address: Addr::unchecked("foomp"),
             rewarding_denom: "unym".to_string(),

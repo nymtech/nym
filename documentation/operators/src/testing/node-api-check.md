@@ -111,15 +111,20 @@ The most common usage may be `./node_api_check.py query_stats <ID_KEY>` where `<
 
 **Optional arguments**
 
-| Flag                   | Shortcut | Description                                                 |
-| :---                   |     :---      | :---                                                        |
-| `--markdown`           |     `-m`      | returns output in markdown format                           |
-| `--no_routing_history` |     `-n`      | returns output without routing history which can be lengthy |
-| `--output`             |     `-o`      | exports output to a file, possible to add a target path     |
+| Flag                   | Shortcut | Description                                                    |
+| :---                   |   :---   | :---                                                           |
+| `--markdown`           |   `-m`   | returns output in markdown format                              |
+| `--no_routing_history` |   None   | returns output without routing history which can be lengthy    |
+| `--no_verloc_metrics`  |   None   | returns output without verloc measurement which can be lengthy |
+| `--output`             |   `-o`   | exports output to a file, possible to add a target path        |
 
 #### `version_count`
 
 Another command is `version_count` where at least one `nym-node` version is required. In case of multiple version count, separate the versions with space. We recommend to run this command with `--markdown` flag for a nicer output. This is an example where we want to look up how many registered nodes are on versions `1.1.0`, `1.1.1`, `1.1.2` and `1.1.3`:
 ```sh
 ./node_api_check version_count 1.1.0 1.1.1 1.1.2 1.1.3 --markdown
+```
+
+```admonish tip
+To see a quick overview of `nym-node` version distribution in numbers and graph, visit [Nym Harbourmaster](https://harbourmaster.nymtech.net).
 ```

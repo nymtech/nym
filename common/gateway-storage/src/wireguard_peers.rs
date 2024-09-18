@@ -26,8 +26,17 @@ impl WgPeerManager {
     /// * `peer`: peer information needed by wireguard interface.
     pub(crate) async fn insert_peer(&self, peer: &WireguardPeer) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT OR REPLACE INTO wireguard_peer(public_key, preshared_key, protocol_version, endpoint, last_handshake, tx_bytes, rx_bytes, persistent_keepalive_interval, allowed_ips, suspended) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            peer.public_key, peer.preshared_key, peer.protocol_version, peer.endpoint, peer.last_handshake, peer.tx_bytes, peer.rx_bytes, peer.persistent_keepalive_interval, peer.allowed_ips, peer.suspended
+            r#"
+                INSERT OR IGNORE INTO wireguard_peer(public_key, preshared_key, protocol_version, endpoint, last_handshake, tx_bytes, rx_bytes, persistent_keepalive_interval, allowed_ips, suspended)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+
+                UPDATE wireguard_peer 
+                SET preshared_key = ?, protocol_version = ?, endpoint = ?, last_handshake = ?, tx_bytes = ?, rx_bytes = ?, persistent_keepalive_interval = ?, allowed_ips = ?, suspended = ?
+                WHERE public_key = ?
+            "#,
+            peer.public_key, peer.preshared_key, peer.protocol_version, peer.endpoint, peer.last_handshake, peer.tx_bytes, peer.rx_bytes, peer.persistent_keepalive_interval, peer.allowed_ips, peer.suspended,
+
+            peer.preshared_key, peer.protocol_version, peer.endpoint, peer.last_handshake, peer.tx_bytes, peer.rx_bytes, peer.persistent_keepalive_interval, peer.allowed_ips, peer.suspended,peer.public_key,
         )
         .execute(&self.connection_pool)
         .await?;

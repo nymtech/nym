@@ -12,10 +12,12 @@ use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::client_handling::websocket::connection_handler::ecash::EcashManager;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use futures::channel::{mpsc, oneshot};
+use nym_credential_verification::ecash::{
+    credential_sender::CredentialHandlerConfig, EcashManager,
+};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
@@ -35,7 +37,6 @@ pub(crate) mod client_handling;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
 
-use crate::node::client_handling::websocket::connection_handler::ecash::credential_sender::CredentialHandlerConfig;
 pub use nym_gateway_storage::{PersistentStorage, Storage};
 
 // TODO: should this struct live here?
@@ -50,7 +51,6 @@ struct StartedNetworkRequester {
 // TODO: should this struct live here?
 #[allow(unused)]
 struct StartedAuthenticator {
-    #[cfg(feature = "wireguard")]
     wg_api: Arc<nym_wireguard::WgApiWrapper>,
 
     /// Handle to interact with the local authenticator
@@ -145,7 +145,6 @@ pub struct Gateway<St = PersistentStorage> {
 
     storage: St,
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
     wireguard_data: Option<nym_wireguard::WireguardData>,
 
     run_http_server: bool,
@@ -168,7 +167,6 @@ impl<St> Gateway<St> {
             network_requester_opts,
             ip_packet_router_opts,
             authenticator_opts: None,
-            #[cfg(all(feature = "wireguard", target_os = "linux"))]
             wireguard_data: None,
             run_http_server: true,
             task_client: None,
@@ -192,7 +190,6 @@ impl<St> Gateway<St> {
             identity_keypair,
             sphinx_keypair,
             storage,
-            #[cfg(all(feature = "wireguard", target_os = "linux"))]
             wireguard_data: None,
             run_http_server: true,
             task_client: None,
@@ -207,7 +204,6 @@ impl<St> Gateway<St> {
         self.task_client = Some(task_client)
     }
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
     pub fn set_wireguard_data(&mut self, wireguard_data: nym_wireguard::WireguardData) {
         self.wireguard_data = Some(wireguard_data)
     }
@@ -245,7 +241,7 @@ impl<St> Gateway<St> {
         mixnet_handling::Listener::new(listening_address, shutdown).start(connection_handler);
     }
 
-    #[cfg(all(feature = "wireguard", target_os = "linux"))]
+    #[cfg(target_os = "linux")]
     async fn start_authenticator(
         &mut self,
         forwarding_channel: MixForwardingSender,
@@ -341,7 +337,7 @@ impl<St> Gateway<St> {
         }
     }
 
-    #[cfg(all(feature = "wireguard", not(target_os = "linux")))]
+    #[cfg(not(target_os = "linux"))]
     async fn start_authenticator(
         &self,
         _forwarding_channel: MixForwardingSender,
@@ -620,16 +616,14 @@ impl<St> Gateway<St> {
                 .maximum_time_between_redemption,
         };
 
-        let ecash_manager = {
-            EcashManager::new(
-                handler_config,
-                nyxd_client,
-                self.identity_keypair.public_key().to_bytes(),
-                shutdown.fork("EcashVerifier"),
-                self.storage.clone(),
-            )
-            .await
-        }?;
+        let ecash_manager = EcashManager::new(
+            handler_config,
+            nyxd_client,
+            self.identity_keypair.public_key().to_bytes(),
+            shutdown.fork("EcashVerifier"),
+            self.storage.clone(),
+        )
+        .await?;
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.fork("PacketForwarder"));
 
@@ -674,14 +668,15 @@ impl<St> Gateway<St> {
             info!("embedded ip packet router is disabled");
         };
 
-        #[cfg(feature = "wireguard")]
-        let _wg_api = {
+        let _wg_api = if self.wireguard_data.is_some() {
             let embedded_auth = self
                 .start_authenticator(mix_forwarding_channel, shutdown.fork("authenticator"))
                 .await
                 .map_err(|source| GatewayError::AuthenticatorStartError { source })?;
             active_clients_store.insert_embedded(embedded_auth.handle);
             Some(embedded_auth.wg_api)
+        } else {
+            None
         };
 
         if self.run_http_server {

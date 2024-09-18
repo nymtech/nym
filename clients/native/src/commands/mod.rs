@@ -6,13 +6,13 @@ use crate::client::config::old_config_v1_1_20::ConfigV1_1_20;
 use crate::client::config::old_config_v1_1_20_2::ConfigV1_1_20_2;
 use crate::client::config::old_config_v1_1_33::ConfigV1_1_33;
 use crate::client::config::{BaseClientConfig, Config};
+use crate::commands::ecash::Ecash;
 use crate::error::ClientError;
 use clap::CommandFactory;
 use clap::{Parser, Subcommand};
 use log::{error, info};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
-use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
 use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_config::OptionalSet;
@@ -22,11 +22,10 @@ use std::sync::OnceLock;
 
 mod add_gateway;
 pub(crate) mod build_info;
-pub(crate) mod import_credential;
+pub(crate) mod ecash;
 pub(crate) mod init;
 mod list_gateways;
 pub(crate) mod run;
-mod show_ticketbooks;
 mod switch_gateway;
 
 pub(crate) struct CliNativeClient;
@@ -73,8 +72,8 @@ pub(crate) enum Commands {
     /// Run the Nym client with provided configuration client optionally overriding set parameters
     Run(run::Run),
 
-    /// Import a pre-generated credential
-    ImportCredential(CommonClientImportCredentialArgs),
+    /// Ecash-related functionalities
+    Ecash(Ecash),
 
     /// List all registered with gateways
     ListGateways(list_gateways::Args),
@@ -84,9 +83,6 @@ pub(crate) enum Commands {
 
     /// Change the currently active gateway. Note that you must have already registered with the new gateway!
     SwitchGateway(switch_gateway::Args),
-
-    /// Display information associated with the imported ticketbooks,
-    ShowTicketbooks(show_ticketbooks::Args),
 
     /// Show build information of this binary
     BuildInfo(build_info::BuildInfo),
@@ -116,11 +112,10 @@ pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(m).await?,
-        Commands::ImportCredential(m) => import_credential::execute(m).await?,
+        Commands::Ecash(ecash) => ecash.execute().await?,
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
         Commands::AddGateway(args) => add_gateway::execute(args).await?,
         Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,
-        Commands::ShowTicketbooks(args) => show_ticketbooks::execute(args).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),

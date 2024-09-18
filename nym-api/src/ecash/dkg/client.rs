@@ -16,8 +16,9 @@ use nym_coconut_dkg_common::types::{
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_contracts_common::IdentityKey;
 use nym_dkg::Threshold;
-use nym_validator_client::nyxd::cosmwasm_client::logs::{find_attribute, NODE_INDEX};
+use nym_validator_client::nyxd::cosmwasm_client::logs::NODE_INDEX;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
+use nym_validator_client::nyxd::helpers::find_attribute_value_in_logs_or_events;
 use nym_validator_client::nyxd::AccountId;
 
 pub(crate) struct DkgClient {
@@ -168,15 +169,15 @@ impl DkgClient {
             .inner
             .register_dealer(bte_key, identity_key, announce_address, resharing)
             .await?;
-        let node_index = find_attribute(&res.logs, "wasm", NODE_INDEX)
-            .ok_or(EcashError::NodeIndexRecoveryError {
-                reason: String::from("node index not found"),
-            })?
-            .value
-            .parse::<NodeIndex>()
-            .map_err(|_| EcashError::NodeIndexRecoveryError {
-                reason: String::from("node index could not be parsed"),
-            })?;
+        let node_index =
+            find_attribute_value_in_logs_or_events(&res.logs, &res.events, "wasm", NODE_INDEX)
+                .ok_or(EcashError::NodeIndexRecoveryError {
+                    reason: String::from("node index not found"),
+                })?
+                .parse::<NodeIndex>()
+                .map_err(|_| EcashError::NodeIndexRecoveryError {
+                    reason: String::from("node index could not be parsed"),
+                })?;
 
         Ok(node_index)
     }

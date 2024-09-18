@@ -9,15 +9,16 @@ on:
     paths:
       - 'contracts/**'
       - 'common/**'
+      - '.github/workflows/ci-contracts.yml'
 
 jobs:
   matrix_prep:
-    runs-on: ubuntu-20.04
+    runs-on: arc-ubuntu-20.04
     outputs:
       matrix: ${{ steps.set-matrix.outputs.matrix }}
     steps:
       # creates the matrix strategy from ci-contracts-matrix-includes.json
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - id: set-matrix
         uses: JoshuaTheMiller/conditional-build-matrix@main
         with:
@@ -34,7 +35,7 @@ jobs:
       fail-fast: false
       matrix: ${{fromJson(needs.matrix_prep.outputs.matrix)}}
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Setup rust
         uses: actions-rs/toolchain@v1

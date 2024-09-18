@@ -16,6 +16,8 @@ use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use crate::api::v1::network_requester::models::NetworkRequester;
 pub use nym_http_api_client::Client;
 
+use super::v1::gateway::models::Wireguard;
+
 pub type NymNodeApiClientError = HttpClientError<ErrorResponse>;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
@@ -67,6 +69,11 @@ pub trait NymNodeApiClientExt: ApiClient {
 
     async fn get_authenticator(&self) -> Result<Authenticator, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::authenticator_absolute())
+            .await
+    }
+
+    async fn get_wireguard(&self) -> Result<Wireguard, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::gateway::client_interfaces::wireguard_absolute())
             .await
     }
 }

@@ -4,15 +4,13 @@ version = "0.1.0"
 edition = "2021"
 license.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
+cosmwasm-schema = { workspace = true }
+cosmwasm-std = { workspace = true }
+cw-storage-plus = { workspace = true }
 cw-utils = { workspace = true }
 cw3 = { workspace = true }
 cw4 = { workspace = true }
-cw-storage-plus = { workspace = true }
-cosmwasm-schema = { workspace = true }
-cosmwasm-std = { workspace = true }
 schemars = { workspace = true }
-serde = { version = "1.0.103", default-features = false, features = ["derive"] }
+serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }

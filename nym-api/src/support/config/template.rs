@@ -15,6 +15,10 @@ id = '{{ base.id }}'
 # Validator server to which the API will be getting information about the network.
 local_validator = '{{ base.local_validator }}'
 
+# Socket address this api will use for binding its http API.
+# Note: only used if `axum` feature is enabled.
+bind_address = '{{ base.bind_address }}'
+
 # Mnemonic used for rewarding and validator interaction
 mnemonic = '{{ base.mnemonic }}'
 
@@ -58,7 +62,7 @@ route_test_packets = {{ network_monitor.debug.route_test_packets }}
 
 # Number of test packets sent to each node during regular monitor test run.
 per_node_test_packets = {{ network_monitor.debug.per_node_test_packets }}
-    
+
 
 ##### node status api config options #####
 

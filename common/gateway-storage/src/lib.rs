@@ -3,11 +3,12 @@
 
 use async_trait::async_trait;
 use bandwidth::BandwidthManager;
+use clients::{ClientManager, ClientType};
 use error::StorageError;
 use inboxes::InboxManager;
 use models::{
-    PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage, VerifiedTicket,
-    WireguardPeer,
+    Client, PersistedBandwidth, PersistedSharedKeys, RedemptionProposal, StoredMessage,
+    VerifiedTicket, WireguardPeer,
 };
 use nym_credentials_interface::ClientTicket;
 use nym_gateway_requests::registration::handshake::SharedKeys;
@@ -20,17 +21,17 @@ use time::OffsetDateTime;
 use tracing::{debug, error};
 
 pub mod bandwidth;
+mod clients;
 pub mod error;
 mod inboxes;
 pub mod models;
 mod shared_keys;
 mod tickets;
-#[cfg(feature = "wireguard")]
 mod wireguard_peers;
 
 #[async_trait]
 pub trait Storage: Send + Sync {
-    async fn get_client_id(
+    async fn get_mixnet_client_id(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<i64, StorageError>;
@@ -40,7 +41,7 @@ pub trait Storage: Send + Sync {
     ///
     /// # Arguments
     ///
-    /// * `client_address`: address of the client
+    /// * `client_address`: base58-encoded address of the client
     /// * `shared_keys`: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
     async fn insert_shared_keys(
         &self,
@@ -70,6 +71,14 @@ pub trait Storage: Send + Sync {
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StorageError>;
+
+    /// Tries to retrieve a particular client.
+    ///
+    /// # Arguments
+    ///
+    /// * `client_id`: id of the client
+    #[allow(dead_code)]
+    async fn get_client(&self, client_id: i64) -> Result<Option<Client>, StorageError>;
 
     /// Inserts new message to the storage for an offline client for future retrieval.
     ///
@@ -217,7 +226,6 @@ pub trait Storage: Send + Sync {
     ///
     /// * `peer`: wireguard peer data to be stored
     /// * `suspended`: if peer exists, but it's currently suspended
-    #[cfg(feature = "wireguard")]
     async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
@@ -229,14 +237,12 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `peer_public_key`: wireguard public key of the peer to be retrieved.
-    #[cfg(feature = "wireguard")]
     async fn get_wireguard_peer(
         &self,
         peer_public_key: &str,
     ) -> Result<Option<WireguardPeer>, StorageError>;
 
     /// Retrieves all wireguard peers.
-    #[cfg(feature = "wireguard")]
     async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, StorageError>;
 
     /// Remove a wireguard peer from the storage.
@@ -244,18 +250,17 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `peer_public_key`: wireguard public key of the peer to be removed.
-    #[cfg(feature = "wireguard")]
     async fn remove_wireguard_peer(&self, peer_public_key: &str) -> Result<(), StorageError>;
 }
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
 pub struct PersistentStorage {
+    client_manager: ClientManager,
     shared_key_manager: SharedKeysManager,
     inbox_manager: InboxManager,
     bandwidth_manager: BandwidthManager,
     ticket_manager: TicketStorageManager,
-    #[cfg(feature = "wireguard")]
     wireguard_peer_manager: wireguard_peers::WgPeerManager,
 }
 
@@ -300,7 +305,7 @@ impl PersistentStorage {
 
         // the cloning here are cheap as connection pool is stored behind an Arc
         Ok(PersistentStorage {
-            #[cfg(feature = "wireguard")]
+            client_manager: clients::ClientManager::new(connection_pool.clone()),
             wireguard_peer_manager: wireguard_peers::WgPeerManager::new(connection_pool.clone()),
             shared_key_manager: SharedKeysManager::new(connection_pool.clone()),
             inbox_manager: InboxManager::new(connection_pool.clone(), message_retrieval_limit),
@@ -312,7 +317,7 @@ impl PersistentStorage {
 
 #[async_trait]
 impl Storage for PersistentStorage {
-    async fn get_client_id(
+    async fn get_mixnet_client_id(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<i64, StorageError> {
@@ -328,8 +333,12 @@ impl Storage for PersistentStorage {
         shared_keys: &SharedKeys,
     ) -> Result<i64, StorageError> {
         let client_id = self
-            .shared_key_manager
+            .client_manager
+            .insert_client(ClientType::EntryMixnet)
+            .await?;
+        self.shared_key_manager
             .insert_shared_keys(
+                client_id,
                 client_address.as_base58_string(),
                 shared_keys.to_base58_string(),
             )
@@ -357,6 +366,11 @@ impl Storage for PersistentStorage {
             .remove_shared_keys(&client_address.as_base58_string())
             .await?;
         Ok(())
+    }
+
+    async fn get_client(&self, client_id: i64) -> Result<Option<Client>, StorageError> {
+        let client = self.client_manager.get_client(client_id).await?;
+        Ok(client)
     }
 
     async fn store_message(
@@ -620,7 +634,6 @@ impl Storage for PersistentStorage {
         Ok(self.ticket_manager.get_epoch_signers(epoch_id).await?)
     }
 
-    #[cfg(feature = "wireguard")]
     async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
@@ -632,7 +645,6 @@ impl Storage for PersistentStorage {
         Ok(())
     }
 
-    #[cfg(feature = "wireguard")]
     async fn get_wireguard_peer(
         &self,
         peer_public_key: &str,
@@ -644,13 +656,11 @@ impl Storage for PersistentStorage {
         Ok(peer)
     }
 
-    #[cfg(feature = "wireguard")]
     async fn get_all_wireguard_peers(&self) -> Result<Vec<WireguardPeer>, StorageError> {
         let ret = self.wireguard_peer_manager.retrieve_all_peers().await?;
         Ok(ret)
     }
 
-    #[cfg(feature = "wireguard")]
     async fn remove_wireguard_peer(&self, peer_public_key: &str) -> Result<(), StorageError> {
         self.wireguard_peer_manager
             .remove_peer(peer_public_key)

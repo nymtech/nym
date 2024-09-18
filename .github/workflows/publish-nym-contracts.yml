@@ -9,7 +9,7 @@ jobs:
     if: ${{ (startsWith(github.ref, 'refs/tags/nym-contracts-') && github.event_name == 'release') || github.event_name == 'workflow_dispatch' }}
     runs-on: [self-hosted, custom-ubuntu-20.04]
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
@@ -26,21 +26,21 @@ jobs:
         run: make contracts
 
       - name: Upload Mixnet Contract Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mixnet_contract.wasm
           path: contracts/target/wasm32-unknown-unknown/release/mixnet_contract.wasm
           retention-days: 5
 
       - name: Upload Vesting Contract Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: vesting_contract.wasm
           path: contracts/target/wasm32-unknown-unknown/release/vesting_contract.wasm
           retention-days: 5
 
       - name: Upload to release based on tag name
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: github.event_name == 'release'
         with:
           files: |

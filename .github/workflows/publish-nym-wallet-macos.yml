@@ -25,10 +25,10 @@ jobs:
       file_hash: ${{ steps.release-info.outputs.file_hash }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Node
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: 18
       - name: Install Rust stable
@@ -83,7 +83,7 @@ jobs:
         run: yarn && yarn build
 
       - name: Upload Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: nym-wallet.app.tar.gz
           path: nym-wallet/target/release/bundle/macos/nym-wallet.app.tar.gz
@@ -95,7 +95,7 @@ jobs:
           security delete-keychain $RUNNER_TEMP/app-signing.keychain-db
       - id: create-release
         name: Upload to release based on tag name
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         if: github.event_name == 'release'
         with:
           files: |

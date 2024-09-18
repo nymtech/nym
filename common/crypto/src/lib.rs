@@ -28,6 +28,3 @@ pub use aes;
 pub use blake3;
 #[cfg(feature = "symmetric")]
 pub use ctr;
-
-#[cfg(feature = "serde")]
-extern crate serde_crate as serde;

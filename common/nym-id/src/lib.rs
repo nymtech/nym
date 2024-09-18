@@ -8,4 +8,7 @@ pub mod error;
 pub mod import_credential;
 
 pub use error::NymIdError;
-pub use import_credential::import_credential;
+pub use import_credential::{
+    import_coin_index_signatures, import_expiration_date_signatures, import_full_ticketbook,
+    import_master_verification_key, import_standalone_ticketbook,
+};

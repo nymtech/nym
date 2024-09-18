@@ -3,7 +3,6 @@
 
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
 use log::{log, Level};
-use std::future::Future;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{error::Error, time::Duration};
 use tokio::sync::{
@@ -366,17 +365,6 @@ impl TaskClient {
             format!("unknown-{suffix}")
         };
         self.named(name)
-    }
-
-    pub async fn run_future<Fut, T>(&mut self, fut: Fut) -> Option<T>
-    where
-        Fut: Future<Output = T>,
-    {
-        tokio::select! {
-            biased;
-            _ = self.recv() => None,
-            res = fut => Some(res)
-        }
     }
 
     // Create a dummy that will never report that we should shutdown.

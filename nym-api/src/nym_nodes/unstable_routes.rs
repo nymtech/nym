@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_describe_cache::DescribedNodes;
-use crate::node_status_api::models::ErrorResponse;
+use crate::node_status_api::models::RocketErrorResponse;
 use crate::node_status_api::NodeStatusCache;
 use crate::support::caching::cache::SharedCache;
 use nym_api_requests::nym_nodes::{
@@ -39,7 +39,7 @@ pub async fn nodes_basic(
     describe_cache: &State<SharedCache<DescribedNodes>>,
     role: Option<NodeRoleQueryParam>,
     semver_compatibility: Option<String>,
-) -> Result<Json<CachedNodesResponse<SkimmedNode>>, ErrorResponse> {
+) -> Result<Json<CachedNodesResponse<SkimmedNode>>, RocketErrorResponse> {
     if let Some(role) = role {
         match role {
             NodeRoleQueryParam::ActiveMixnode => {
@@ -52,7 +52,10 @@ pub async fn nodes_basic(
         }
     }
 
-    Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
+    Err(RocketErrorResponse::new(
+        "unimplemented",
+        Status::NotImplemented,
+    ))
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
@@ -61,7 +64,7 @@ pub async fn nodes_expanded(
     cache: &State<NodeStatusCache>,
     role: Option<NodeRoleQueryParam>,
     semver_compatibility: Option<String>,
-) -> Result<Json<CachedNodesResponse<SemiSkimmedNode>>, ErrorResponse> {
+) -> Result<Json<CachedNodesResponse<SemiSkimmedNode>>, RocketErrorResponse> {
     if let Some(role) = role {
         match role {
             NodeRoleQueryParam::ActiveMixnode => {
@@ -74,7 +77,10 @@ pub async fn nodes_expanded(
         }
     }
 
-    Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
+    Err(RocketErrorResponse::new(
+        "unimplemented",
+        Status::NotImplemented,
+    ))
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
@@ -83,7 +89,7 @@ pub async fn nodes_detailed(
     cache: &State<NodeStatusCache>,
     role: Option<NodeRoleQueryParam>,
     semver_compatibility: Option<String>,
-) -> Result<Json<CachedNodesResponse<FullFatNode>>, ErrorResponse> {
+) -> Result<Json<CachedNodesResponse<FullFatNode>>, RocketErrorResponse> {
     if let Some(role) = role {
         match role {
             NodeRoleQueryParam::ActiveMixnode => {
@@ -96,7 +102,10 @@ pub async fn nodes_detailed(
         }
     }
 
-    Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
+    Err(RocketErrorResponse::new(
+        "unimplemented",
+        Status::NotImplemented,
+    ))
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
@@ -105,11 +114,11 @@ pub async fn gateways_basic(
     status_cache: &State<NodeStatusCache>,
     describe_cache: &State<SharedCache<DescribedNodes>>,
     semver_compatibility: Option<String>,
-) -> Result<Json<CachedNodesResponse<SkimmedNode>>, ErrorResponse> {
+) -> Result<Json<CachedNodesResponse<SkimmedNode>>, RocketErrorResponse> {
     let gateways_cache = status_cache
         .gateways_cache()
         .await
-        .ok_or(ErrorResponse::new(
+        .ok_or(RocketErrorResponse::new(
             "could not obtain gateways cache",
             Status::InternalServerError,
         ))?;
@@ -162,10 +171,13 @@ pub async fn gateways_basic(
 pub async fn gateways_expanded(
     cache: &State<NodeStatusCache>,
     semver_compatibility: Option<String>,
-) -> Result<Json<CachedNodesResponse<SemiSkimmedNode>>, ErrorResponse> {
+) -> Result<Json<CachedNodesResponse<SemiSkimmedNode>>, RocketErrorResponse> {
     let _ = cache;
     let _ = semver_compatibility;
-    Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
+    Err(RocketErrorResponse::new(
+        "unimplemented",
+        Status::NotImplemented,
+    ))
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
@@ -173,10 +185,13 @@ pub async fn gateways_expanded(
 pub async fn gateways_detailed(
     cache: &State<NodeStatusCache>,
     semver_compatibility: Option<String>,
-) -> Result<Json<CachedNodesResponse<FullFatNode>>, ErrorResponse> {
+) -> Result<Json<CachedNodesResponse<FullFatNode>>, RocketErrorResponse> {
     let _ = cache;
     let _ = semver_compatibility;
-    Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
+    Err(RocketErrorResponse::new(
+        "unimplemented",
+        Status::NotImplemented,
+    ))
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
@@ -184,11 +199,11 @@ pub async fn gateways_detailed(
 pub async fn mixnodes_basic(
     cache: &State<NodeStatusCache>,
     semver_compatibility: Option<String>,
-) -> Result<Json<CachedNodesResponse<SkimmedNode>>, ErrorResponse> {
+) -> Result<Json<CachedNodesResponse<SkimmedNode>>, RocketErrorResponse> {
     let mixnodes_cache = cache
         .active_mixnodes_cache()
         .await
-        .ok_or(ErrorResponse::new(
+        .ok_or(RocketErrorResponse::new(
             "could not obtain mixnodes cache",
             Status::InternalServerError,
         ))?;
@@ -220,10 +235,13 @@ pub async fn mixnodes_basic(
 pub async fn mixnodes_expanded(
     cache: &State<NodeStatusCache>,
     semver_compatibility: Option<String>,
-) -> Result<Json<CachedNodesResponse<SemiSkimmedNode>>, ErrorResponse> {
+) -> Result<Json<CachedNodesResponse<SemiSkimmedNode>>, RocketErrorResponse> {
     let _ = cache;
     let _ = semver_compatibility;
-    Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
+    Err(RocketErrorResponse::new(
+        "unimplemented",
+        Status::NotImplemented,
+    ))
 }
 
 #[openapi(tag = "Unstable Nym Nodes")]
@@ -231,8 +249,11 @@ pub async fn mixnodes_expanded(
 pub async fn mixnodes_detailed(
     cache: &State<NodeStatusCache>,
     semver_compatibility: Option<String>,
-) -> Result<Json<CachedNodesResponse<FullFatNode>>, ErrorResponse> {
+) -> Result<Json<CachedNodesResponse<FullFatNode>>, RocketErrorResponse> {
     let _ = cache;
     let _ = semver_compatibility;
-    Err(ErrorResponse::new("unimplemented", Status::NotImplemented))
+    Err(RocketErrorResponse::new(
+        "unimplemented",
+        Status::NotImplemented,
+    ))
 }

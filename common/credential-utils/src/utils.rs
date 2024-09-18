@@ -3,9 +3,7 @@
 
 use crate::errors::{Error, Result};
 use log::*;
-use nym_bandwidth_controller::acquire::{
-    get_ticket_book, query_and_persist_required_global_signatures,
-};
+use nym_bandwidth_controller::acquire::{get_ticket_book, query_and_persist_required_global_data};
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use nym_config::DEFAULT_DATA_DIR;
 use nym_credential_storage::persistent_storage::PersistentStorage;
@@ -45,14 +43,10 @@ where
     let apis = all_ecash_api_clients(client, epoch_id).await?;
     let ticketbook_expiration = ecash_default_expiration_date();
 
-    // make sure we have all required coin indices and expiration date signatures before attempting the deposit
-    query_and_persist_required_global_signatures(
-        storage,
-        epoch_id,
-        ticketbook_expiration,
-        apis.clone(),
-    )
-    .await?;
+    // make sure we have all required coin indices and expiration date signatures alongside the master verification key
+    // before attempting the deposit
+    query_and_persist_required_global_data(storage, epoch_id, ticketbook_expiration, apis.clone())
+        .await?;
 
     let issuance_data = nym_bandwidth_controller::acquire::make_deposit(
         client,

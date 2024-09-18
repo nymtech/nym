@@ -5,12 +5,16 @@ use crate::{EpochEventId, EpochState, IdentityKey, MixId, OperatingCostRange, Pr
 use contracts_common::signing::verifier::ApiVerifierError;
 use contracts_common::Percent;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
+use cw_controllers::AdminError;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum MixnetContractError {
     #[error("could not perform contract migration: {comment}")]
     FailedMigration { comment: String },
+
+    #[error(transparent)]
+    Admin(#[from] AdminError),
 
     #[error("{source}")]
     StdErr {

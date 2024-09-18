@@ -25,8 +25,8 @@ struct ExampleMessage {
 //
 // To run:
 // - run the echo server with `cargo run`
-// - run this example with `cargo run --example tcp_proxy_multistream -- <ECHO_SERVER_NYM_ADDRESS> <ENV_FILE_PATH>` e.g.
-// cargo run --example tcp_proxy_multistream -- DMHyxo8n6sKWHHTVvjRVDxDSMX8gYXRU1AQ6UpwsrWiB.6STYCWGWyRxqn2juWdgjMkAMsT9EaAzPpLWq5zkS68MB@CJG5zTcmoLijmDrtAiLV9PZHxNz8LQu6hmgA89V2RxxL ../../../envs/canary.env
+// - run this example with `cargo run --example tcp_proxy_multistream -- <ECHO_SERVER_NYM_ADDRESS> <ENV_FILE_PATH> <CLIENT_PORT>` e.g.
+// cargo run --example tcp_proxy_multistream -- DMHyxo8n6sKWHHTVvjRVDxDSMX8gYXRU1AQ6UpwsrWiB.6STYCWGWyRxqn2juWdgjMkAMsT9EaAzPpLWq5zkS68MB@CJG5zTcmoLijmDrtAiLV9PZHxNz8LQu6hmgA89V2RxxL ../../../envs/canary.env 8080
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let server_address = env::args().nth(1).expect("Server address not provided");
@@ -44,16 +44,17 @@ async fn main() -> anyhow::Result<()> {
     let env_path = env::args().nth(2).expect("Env file not specified");
     let env = env_path.to_string();
 
+    let listen_port = env::args().nth(3).expect("Port not specified");
+
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
     let proxy_client =
-        tcp_proxy::NymProxyClient::new(server, "127.0.0.1", "8080", 90, Some(env)).await?;
+        tcp_proxy::NymProxyClient::new(server, "127.0.0.1", &listen_port, 45, Some(env)).await?;
 
     task::spawn(async move {
         let _ = proxy_client.run().await?;
         Ok::<(), anyhow::Error>(())
     });
 
-    // Just wait for Nym clients to connect, TCP clients to bind, etc.
     println!("waiting for everything to be set up..");
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     println!("done. sending bytes");

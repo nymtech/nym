@@ -3,15 +3,13 @@ use bytes::Bytes;
 use nym_sdk::tcp_proxy;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
-use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
 use tokio::sync::broadcast;
-// use tokio::sync::{Mutex, RwLock};
 use tokio::task;
 use tokio_stream::StreamExt;
-use tokio_util::codec;
-use tracing::{debug, error, info, warn};
+use tracing::{error, info, warn};
 use tracing_subscriber;
 
 const HOST: &str = "127.0.0.1";
@@ -56,7 +54,10 @@ async fn main() -> Result<()> {
     info!("ProxyServer listening out on {}", proxy_nym_addr);
 
     task::spawn(async move {
-        let _ = proxy_server.run_with_shutdown().await;
+        let _ = proxy_server
+            .run_with_shutdown()
+            .await
+            .expect("NymProxyServer shutdown unexpectedly");
     });
 
     let (shutdown_sender, _) = broadcast::channel(1);
@@ -76,9 +77,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    let listener = TcpListener::bind(format!("{}:{}", HOST, PORT))
-        .await
-        .unwrap();
+    let listener = TcpListener::bind(format!("{}:{}", HOST, PORT)).await?;
 
     loop {
         tokio::select! {
@@ -112,7 +111,7 @@ async fn main() -> Result<()> {
 }
 
 async fn handle_incoming(
-    mut socket: TcpStream,
+    socket: TcpStream,
     metrics: Arc<Metrics>,
     mut shutdown_rx: broadcast::Receiver<()>,
 ) {
@@ -149,7 +148,7 @@ async fn handle_incoming(
                 info!("Timeout reached, assuming we wont get more messages on this conn, closing");
                 let close_message = "Closing conn, reconnect if you want to ping again";
                 let bytes: Bytes = close_message.into();
-                write.write_all(&bytes).await;
+                write.write_all(&bytes).await.expect("Couldn't write to socket");
                 break;
             }
         }

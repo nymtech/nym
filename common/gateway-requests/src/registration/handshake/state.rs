@@ -5,14 +5,11 @@ use crate::registration::handshake::error::HandshakeError;
 use crate::registration::handshake::messages::{
     HandshakeMessage, Initialisation, MaterialExchange,
 };
-use crate::registration::handshake::shared_key::SharedKeySize;
-use crate::registration::handshake::{
-    LegacySharedKeySize, LegacySharedKeys, SharedSymmetricKey, KDF_SALT_LENGTH,
-};
-use crate::registration::handshake::{SharedGatewayKey, WsItem};
+use crate::registration::handshake::{SharedGatewayKey, WsItem, KDF_SALT_LENGTH};
+use crate::shared_key::SharedKeySize;
 use crate::{
-    types, AES_GCM_SIV_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
-    INITIAL_PROTOCOL_VERSION,
+    types, LegacySharedKeySize, LegacySharedKeys, SharedSymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
+    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
 };
 use futures::{Sink, SinkExt, Stream, StreamExt};
 use nym_crypto::asymmetric::{ed25519, x25519};

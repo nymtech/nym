@@ -1,8 +1,9 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use self::error::HandshakeError;
 use crate::registration::handshake::state::State;
+use crate::SharedGatewayKey;
 use futures::future::BoxFuture;
 use futures::{Sink, Stream};
 use nym_crypto::asymmetric::identity;
@@ -22,13 +23,7 @@ pub mod error;
 #[cfg(not(target_arch = "wasm32"))]
 mod gateway;
 mod messages;
-mod shared_key;
 mod state;
-
-pub use self::shared_key::legacy::{LegacySharedKeySize, LegacySharedKeys};
-pub use self::shared_key::{
-    SharedGatewayKey, SharedKeyConversionError, SharedKeyUsageError, SharedSymmetricKey,
-};
 
 // realistically even 32bit would have sufficed, so 128 is definitely enough
 pub const KDF_SALT_LENGTH: usize = 16;

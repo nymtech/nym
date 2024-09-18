@@ -1,18 +1,24 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::registration::handshake::shared_key::{SharedKeyConversionError, SharedKeyUsageError};
+use crate::registration::handshake::KDF_SALT_LENGTH;
+use crate::shared_key::SharedSymmetricKey;
+use crate::shared_key::{SharedKeyConversionError, SharedKeySize, SharedKeyUsageError};
 use crate::LegacyGatewayMacSize;
 use nym_crypto::generic_array::{
     typenum::{Sum, Unsigned, U16},
     GenericArray,
 };
+use nym_crypto::hkdf;
 use nym_crypto::hmac::{compute_keyed_hmac, recompute_keyed_hmac_and_verify_tag};
 use nym_crypto::symmetric::stream_cipher::{self, CipherKey, KeySizeUser, IV};
 use nym_pemstore::traits::PemStorableKey;
-use nym_sphinx::params::{GatewayIntegrityHmacAlgorithm, LegacyGatewayEncryptionAlgorithm};
+use nym_sphinx::params::{
+    GatewayIntegrityHmacAlgorithm, GatewaySharedKeyHkdfAlgorithm, LegacyGatewayEncryptionAlgorithm,
+};
+use rand::{thread_rng, RngCore};
 use serde::{Deserialize, Serialize};
-use zeroize::{Zeroize, ZeroizeOnDrop};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 // shared key is as long as the encryption key and the MAC key combined.
 pub type LegacySharedKeySize = Sum<EncryptionKeySize, MacKeySize>;
@@ -31,6 +37,25 @@ pub struct LegacySharedKeys {
 }
 
 impl LegacySharedKeys {
+    pub fn upgrade(&self) -> (SharedSymmetricKey, Vec<u8>) {
+        let mut rng = thread_rng();
+        let mut salt = vec![0u8; KDF_SALT_LENGTH];
+        rng.fill_bytes(&mut salt);
+
+        let legacy_bytes = Zeroizing::new(self.to_bytes());
+        let okm = hkdf::extract_then_expand::<GatewaySharedKeyHkdfAlgorithm>(
+            Some(&salt),
+            &legacy_bytes,
+            None,
+            SharedKeySize::to_usize(),
+        )
+        .expect("somehow too long okm was provided");
+
+        let key = SharedSymmetricKey::try_from_bytes(&okm)
+            .expect("okm was expanded to incorrect length!");
+        (key, salt)
+    }
+
     pub fn try_from_bytes(bytes: &[u8]) -> Result<Self, SharedKeyConversionError> {
         if bytes.len() != LegacySharedKeySize::to_usize() {
             return Err(SharedKeyConversionError::InvalidSharedKeysSize {

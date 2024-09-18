@@ -1,7 +1,7 @@
 // Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::registration::handshake::{SharedGatewayKey, SharedKeyUsageError};
+use crate::shared_key::{SharedGatewayKey, SharedKeyUsageError};
 use nym_sphinx::DestinationAddressBytes;
 use thiserror::Error;
 

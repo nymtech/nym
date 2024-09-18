@@ -10,7 +10,14 @@ pub use types::*;
 pub mod authentication;
 pub mod models;
 pub mod registration;
+pub mod shared_key;
 pub mod types;
+
+pub use shared_key::helpers::SymmetricKey;
+pub use shared_key::legacy::{LegacySharedKeySize, LegacySharedKeys};
+pub use shared_key::{
+    SharedGatewayKey, SharedKeyConversionError, SharedKeyUsageError, SharedSymmetricKey,
+};
 
 pub const CURRENT_PROTOCOL_VERSION: u8 = AES_GCM_SIV_PROTOCOL_VERSION;
 

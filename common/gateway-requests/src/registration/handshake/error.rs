@@ -1,7 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::registration::handshake::shared_key::SharedKeyUsageError;
+use crate::shared_key::SharedKeyUsageError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]

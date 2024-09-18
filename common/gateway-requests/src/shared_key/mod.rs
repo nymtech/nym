@@ -1,7 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::registration::handshake::LegacySharedKeys;
+use crate::LegacySharedKeys;
+use nym_crypto::blake3;
+use nym_crypto::crypto_hash::compute_digest;
 use nym_crypto::generic_array::{typenum::Unsigned, GenericArray};
 use nym_crypto::symmetric::aead::{
     self, nonce_size, random_nonce, AeadError, AeadKey, KeySizeUser, Nonce,
@@ -14,6 +16,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
+pub mod helpers;
 pub mod legacy;
 
 pub type SharedKeySize = <GatewayEncryptionAlgorithm as KeySizeUser>::KeySize;
@@ -108,7 +111,7 @@ pub enum SharedKeyUsageError {
 }
 
 impl SharedGatewayKey {
-    fn aead_nonce(
+    fn validate_aead_nonce(
         raw: Option<&[u8]>,
     ) -> Result<Nonce<GatewayEncryptionAlgorithm>, SharedKeyUsageError> {
         let Some(raw) = raw else {
@@ -120,7 +123,7 @@ impl SharedGatewayKey {
         Ok(Nonce::<GatewayEncryptionAlgorithm>::clone_from_slice(raw))
     }
 
-    fn cipher_iv(
+    fn validate_cipher_iv(
         raw: Option<&[u8]>,
     ) -> Result<Option<&IV<LegacyGatewayEncryptionAlgorithm>>, SharedKeyUsageError> {
         let Some(raw) = raw else { return Ok(None) };
@@ -143,11 +146,11 @@ impl SharedGatewayKey {
     ) -> Result<Vec<u8>, SharedKeyUsageError> {
         match self {
             SharedGatewayKey::Current(aes_gcm_siv) => {
-                let nonce = Self::aead_nonce(raw_nonce)?;
+                let nonce = Self::validate_aead_nonce(raw_nonce)?;
                 aes_gcm_siv.encrypt(plaintext, &nonce)
             }
             SharedGatewayKey::Legacy(aes_ctr) => {
-                let iv = Self::cipher_iv(raw_nonce)?;
+                let iv = Self::validate_cipher_iv(raw_nonce)?;
                 Ok(aes_ctr.encrypt_and_tag(plaintext, iv))
             }
         }
@@ -161,11 +164,11 @@ impl SharedGatewayKey {
     ) -> Result<Vec<u8>, SharedKeyUsageError> {
         match self {
             SharedGatewayKey::Current(aes_gcm_siv) => {
-                let nonce = Self::aead_nonce(raw_nonce)?;
+                let nonce = Self::validate_aead_nonce(raw_nonce)?;
                 aes_gcm_siv.decrypt(ciphertext, &nonce)
             }
             SharedGatewayKey::Legacy(aes_ctr) => {
-                let iv = Self::cipher_iv(raw_nonce)?;
+                let iv = Self::validate_cipher_iv(raw_nonce)?;
                 aes_ctr.decrypt_tagged(ciphertext, iv)
             }
         }
@@ -180,11 +183,11 @@ impl SharedGatewayKey {
     ) -> Result<Vec<u8>, SharedKeyUsageError> {
         match self {
             SharedGatewayKey::Current(aes_gcm_siv) => {
-                let nonce = Self::aead_nonce(raw_nonce)?;
+                let nonce = Self::validate_aead_nonce(raw_nonce)?;
                 aes_gcm_siv.encrypt(plaintext, &nonce)
             }
             SharedGatewayKey::Legacy(aes_ctr) => {
-                let iv = Self::cipher_iv(raw_nonce)?;
+                let iv = Self::validate_cipher_iv(raw_nonce)?;
                 Ok(aes_ctr.encrypt_without_tagging(plaintext, iv))
             }
         }
@@ -199,11 +202,11 @@ impl SharedGatewayKey {
     ) -> Result<Vec<u8>, SharedKeyUsageError> {
         match self {
             SharedGatewayKey::Current(aes_gcm_siv) => {
-                let nonce = Self::aead_nonce(raw_nonce)?;
+                let nonce = Self::validate_aead_nonce(raw_nonce)?;
                 aes_gcm_siv.decrypt(ciphertext, &nonce)
             }
             SharedGatewayKey::Legacy(aes_ctr) => {
-                let iv = Self::cipher_iv(raw_nonce)?;
+                let iv = Self::validate_cipher_iv(raw_nonce)?;
                 aes_ctr.decrypt_without_tag(ciphertext, iv)
             }
         }
@@ -235,6 +238,14 @@ impl SharedSymmetricKey {
         }
 
         Ok(SharedSymmetricKey(GenericArray::clone_from_slice(bytes)))
+    }
+
+    pub fn digest(&self) -> Vec<u8> {
+        compute_digest::<blake3::Hasher>(self.as_bytes()).to_vec()
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        self.0.as_slice()
     }
 
     pub fn to_bytes(&self) -> Vec<u8> {

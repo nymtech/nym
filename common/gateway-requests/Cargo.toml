@@ -22,7 +22,7 @@ thiserror = { workspace = true }
 tracing = { workspace = true, features = ["log"] }
 zeroize = { workspace = true }
 
-nym-crypto = { path = "../crypto", features = ["aead"] }
+nym-crypto = { path = "../crypto", features = ["aead", "hashing"] }
 nym-pemstore = { path = "../pemstore" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-task = { path = "../task" }

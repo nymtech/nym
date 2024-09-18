@@ -5,6 +5,7 @@ use rand::rngs::SmallRng;
 use rand::Rng;
 use rand::SeedableRng;
 use serde::{Deserialize, Serialize};
+use std::env;
 use tokio::io::AsyncWriteExt;
 use tokio::net::TcpStream;
 use tokio::signal;
@@ -24,19 +25,20 @@ struct ExampleMessage {
 //
 // To run:
 // - run the echo server with `cargo run`
-// - run this example with `cargo run --example tcp_proxy_multistream
+// - run this example with `cargo run --example tcp_proxy_multistream -- <ECHO_SERVER_ADDRESS>
 #[tokio::main]
-async fn main() {
-    // Fill this in with the address of the echo server running in the other terminal window
-    let server: Recipient = Recipient::try_from_base58_string("DMHyxo8n6sKWHHTVvjRVDxDSMX8gYXRU1AQ6UpwsrWiB.6STYCWGWyRxqn2juWdgjMkAMsT9EaAzPpLWq5zkS68MB@CJG5zTcmoLijmDrtAiLV9PZHxNz8LQu6hmgA89V2RxxL").unwrap();
+async fn main() -> anyhow::Result<()> {
+    let server_address = env::args().nth(1).expect("Server address not provided");
+    let server: Recipient =
+        Recipient::try_from_base58_string(&server_address).expect("Invalid server address");
 
     // Comment this out to just see println! statements from this example.
     // Nym client logging is very informative but quite verbose.
     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering: you need to switch
     // to DEBUG to see the contents of the msg buffer, sphinx packet chunking, etc.
-    // tracing_subscriber::fmt()
-    //     .with_max_level(tracing::Level::INFO)
-    //     .init();
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::INFO)
+        .init();
 
     // Configure our clients to use the Canary test network: you can switch this to use any of the files in `../../../envs/`
     let env_path = "../../../envs/canary.env".to_string();
@@ -131,6 +133,7 @@ async fn main() {
     // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
     signal::ctrl_c().await.unwrap();
     println!("CTRL+C received, shutting down");
+    Ok(())
 }
 
 // emulate a series of small messages followed by a closing larger one

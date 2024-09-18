@@ -79,7 +79,7 @@ impl ClientBandwidth {
         let mut guard = self.inner.write().await;
 
         guard.bandwidth.bytes -= decrease;
-        guard.bytes_at_last_sync -= decrease;
+        guard.bytes_delta_since_sync -= decrease;
     }
 
     pub(crate) async fn increase_bandwidth_with_flushed(

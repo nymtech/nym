@@ -25,7 +25,7 @@ pub struct ClientBandwidth {
 #[derive(Debug)]
 struct ClientBandwidthInner {
     pub(crate) bandwidth: AvailableBandwidth,
-    pub(crate) last_flushed: OffsetDateTime,
+    pub(crate) last_synced: OffsetDateTime,
 
     /// the number of bytes the client had during the last sync.
     /// it is used to determine whether the current value should be synced with the storage
@@ -39,7 +39,7 @@ impl ClientBandwidth {
         ClientBandwidth {
             inner: Arc::new(RwLock::new(ClientBandwidthInner {
                 bandwidth,
-                last_flushed: OffsetDateTime::now_utc(),
+                last_synced: OffsetDateTime::now_utc(),
                 bytes_at_last_sync: bandwidth.bytes,
                 bytes_delta_since_sync: 0,
             })),
@@ -53,7 +53,7 @@ impl ClientBandwidth {
             return true;
         }
 
-        if guard.last_flushed + cfg.client_bandwidth_max_flushing_rate < OffsetDateTime::now_utc() {
+        if guard.last_synced + cfg.client_bandwidth_max_flushing_rate < OffsetDateTime::now_utc() {
             return true;
         }
 
@@ -82,17 +82,11 @@ impl ClientBandwidth {
         guard.bytes_delta_since_sync -= decrease;
     }
 
-    pub(crate) async fn increase_bandwidth_with_flushed(
-        &self,
-        increase: i64,
-        expiration: OffsetDateTime,
-    ) {
+    pub(crate) async fn increase_bandwidth(&self, increase: i64, new_expiration: OffsetDateTime) {
         let mut guard = self.inner.write().await;
 
         guard.bandwidth.bytes += increase;
-        guard.bandwidth.expiration = expiration;
-        guard.last_flushed = OffsetDateTime::now_utc();
-        guard.bytes_at_last_sync = guard.bandwidth.bytes;
+        guard.bandwidth.expiration = new_expiration;
         guard.bytes_delta_since_sync += increase;
     }
 
@@ -100,17 +94,17 @@ impl ClientBandwidth {
         let mut guard = self.inner.write().await;
 
         guard.bandwidth = AvailableBandwidth::default();
-        guard.last_flushed = OffsetDateTime::now_utc();
+        guard.last_synced = OffsetDateTime::now_utc();
         guard.bytes_at_last_sync = 0;
         guard.bytes_delta_since_sync = 0;
     }
 
-    pub(crate) async fn update_and_sync_data(&self, updated_bandwidth: i64) {
+    pub(crate) async fn resync_bandwidth_with_storage(&self, stored: i64) {
         let mut guard = self.inner.write().await;
 
-        guard.bandwidth.bytes = updated_bandwidth;
-        guard.bytes_at_last_sync = updated_bandwidth;
+        guard.bandwidth.bytes = stored;
+        guard.bytes_at_last_sync = stored;
         guard.bytes_delta_since_sync = 0;
-        guard.last_flushed = OffsetDateTime::now_utc();
+        guard.last_synced = OffsetDateTime::now_utc();
     }
 }

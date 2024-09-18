@@ -100,17 +100,14 @@ impl<S: Storage + Clone + 'static> BandwidthStorageManager<S> {
         // since we're going to be operating on a fair use policy anyway, even if we crash and let extra few packets
         // through, that's completely fine
         if self.client_bandwidth.should_sync(self.bandwidth_cfg).await {
-            let synced_bandwidth = self.sync_storage_bandwidth().await?;
-            self.client_bandwidth
-                .update_and_sync_data(synced_bandwidth)
-                .await
+            self.sync_storage_bandwidth().await?;
         }
 
         Ok(())
     }
 
     #[instrument(level = "trace", skip_all)]
-    async fn sync_storage_bandwidth(&mut self) -> Result<i64> {
+    async fn sync_storage_bandwidth(&mut self) -> Result<()> {
         trace!("syncing client bandwidth with the underlying storage");
         let updated = self
             .storage
@@ -119,7 +116,11 @@ impl<S: Storage + Clone + 'static> BandwidthStorageManager<S> {
                 self.client_bandwidth.delta_since_sync().await,
             )
             .await?;
-        Ok(updated)
+
+        self.client_bandwidth
+            .resync_bandwidth_with_storage(updated)
+            .await;
+        Ok(())
     }
 
     /// Increases the amount of available bandwidth of the connected client by the specified value.
@@ -134,7 +135,7 @@ impl<S: Storage + Clone + 'static> BandwidthStorageManager<S> {
         expiration: OffsetDateTime,
     ) -> Result<()> {
         self.client_bandwidth
-            .increase_bandwidth_with_flushed(bandwidth.value() as i64, expiration)
+            .increase_bandwidth(bandwidth.value() as i64, expiration)
             .await;
 
         // any increases to bandwidth should get flushed immediately

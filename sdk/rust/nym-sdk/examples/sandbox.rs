@@ -3,6 +3,7 @@ use nym_network_defaults::setup_env;
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 
+// An example of creating a client relying on a testnet, in this case Sandbox.
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     nym_bin_common::logging::setup_logging();
@@ -24,8 +25,11 @@ async fn main() -> anyhow::Result<()> {
         .await?;
 
     println!("Waiting for message");
-    let received = client.next().await.unwrap();
-    println!("Received: {}", String::from_utf8_lossy(&received.message));
+    if let Some(received) = client.next().await {
+        println!("Received: {}", String::from_utf8_lossy(&received.message));
+    } else {
+        eprintln!("Failed to receive message.");
+    }
 
     client.disconnect().await;
     Ok(())

@@ -6,7 +6,9 @@ use crate::registration::handshake::messages::{
     HandshakeMessage, Initialisation, MaterialExchange,
 };
 use crate::registration::handshake::shared_key::SharedKeySize;
-use crate::registration::handshake::{LegacySharedKeySize, LegacySharedKeys, SharedSymmetricKey};
+use crate::registration::handshake::{
+    LegacySharedKeySize, LegacySharedKeys, SharedSymmetricKey, KDF_SALT_LENGTH,
+};
 use crate::registration::handshake::{SharedGatewayKey, WsItem};
 use crate::{
     types, AES_GCM_SIV_PROTOCOL_VERSION, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
@@ -38,9 +40,12 @@ use tokio::time::timeout;
 use wasmtimer::tokio::timeout;
 
 /// Handshake state.
-pub(crate) struct State<'a, S> {
+pub(crate) struct State<'a, S, R> {
     /// The underlying WebSocket stream.
     ws_stream: &'a mut S,
+
+    /// Pseudorandom number generator used during the exchange
+    rng: &'a mut R,
 
     /// Identity of the local "node" (client or gateway) which is used
     /// during the handshake.
@@ -68,17 +73,21 @@ pub(crate) struct State<'a, S> {
     shutdown: TaskClient,
 }
 
-impl<'a, S> State<'a, S> {
+impl<'a, S, R> State<'a, S, R> {
     pub(crate) fn new(
-        rng: &mut (impl RngCore + CryptoRng),
+        rng: &'a mut R,
         ws_stream: &'a mut S,
         identity: &'a identity::KeyPair,
         remote_pubkey: Option<identity::PublicKey>,
         #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
-    ) -> Self {
+    ) -> Self
+    where
+        R: CryptoRng + RngCore,
+    {
         let ephemeral_keypair = encryption::KeyPair::new(rng);
         State {
             ws_stream,
+            rng,
             ephemeral_keypair,
             identity,
             remote_pubkey,
@@ -111,14 +120,27 @@ impl<'a, S> State<'a, S> {
         self.ephemeral_keypair.public_key()
     }
 
-    // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_NON_LEGACY
+    pub(crate) fn maybe_generate_initiator_salt(&mut self) -> Option<Vec<u8>>
+    where
+        R: CryptoRng + RngCore,
+    {
+        if self.derive_aes256_gcm_siv_key {
+            let mut salt = vec![0u8; KDF_SALT_LENGTH];
+            self.rng.fill_bytes(&mut salt);
+            Some(salt)
+        } else {
+            None
+        }
+    }
+
+    // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_SALT
     // Eventually the ID_PUBKEY prefix will get removed and recipient will know
     // initializer's identity from another source.
-    pub(crate) fn init_message(&self) -> Initialisation {
+    pub(crate) fn init_message(&self, initiator_salt: Option<Vec<u8>>) -> Initialisation {
         Initialisation {
             identity: *self.identity.public_key(),
             ephemeral_dh: *self.ephemeral_keypair.public_key(),
-            derive_aes256_gcm_siv_key: self.derive_aes256_gcm_siv_key,
+            initiator_salt,
         }
     }
 
@@ -129,7 +151,11 @@ impl<'a, S> State<'a, S> {
         crate::registration::handshake::messages::Finalization { success: true }
     }
 
-    pub(crate) fn derive_shared_key(&mut self, remote_ephemeral_key: &encryption::PublicKey) {
+    pub(crate) fn derive_shared_key(
+        &mut self,
+        remote_ephemeral_key: &encryption::PublicKey,
+        initiator_salt: Option<&[u8]>,
+    ) {
         let dh_result = self
             .ephemeral_keypair
             .private_key()
@@ -143,7 +169,10 @@ impl<'a, S> State<'a, S> {
 
         // there is no reason for this to fail as our okm is expected to be only 16 bytes
         let okm = hkdf::extract_then_expand::<GatewaySharedKeyHkdfAlgorithm>(
-            None, &dh_result, None, key_size,
+            initiator_salt,
+            &dh_result,
+            None,
+            key_size,
         )
         .expect("somehow too long okm was provided");
 

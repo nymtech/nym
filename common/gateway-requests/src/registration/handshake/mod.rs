@@ -30,6 +30,9 @@ pub use self::shared_key::{
     SharedGatewayKey, SharedKeyConversionError, SharedKeyUsageError, SharedSymmetricKey,
 };
 
+// realistically even 32bit would have sufficed, so 128 is definitely enough
+pub const KDF_SALT_LENGTH: usize = 16;
+
 // Note: the handshake is built on top of WebSocket, but in principle it shouldn't be too difficult
 // to remove that restriction, by just changing Sink<WsMessage> and Stream<Item = WsMessage> into
 // AsyncWrite and AsyncRead and slightly adjusting the implementation. But right now
@@ -47,8 +50,8 @@ impl<'a> Future for GatewayHandshake<'a> {
     }
 }
 
-pub fn client_handshake<'a, S>(
-    rng: &mut (impl RngCore + CryptoRng),
+pub fn client_handshake<'a, S, R>(
+    rng: &'a mut R,
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     gateway_pubkey: identity::PublicKey,
@@ -58,6 +61,7 @@ pub fn client_handshake<'a, S>(
 ) -> GatewayHandshake<'a>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
+    R: CryptoRng + RngCore + Send,
 {
     let state = State::new(
         rng,
@@ -76,8 +80,8 @@ where
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub fn gateway_handshake<'a, S>(
-    rng: &mut (impl RngCore + CryptoRng),
+pub fn gateway_handshake<'a, S, R>(
+    rng: &'a mut R,
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     received_init_payload: Vec<u8>,
@@ -85,6 +89,7 @@ pub fn gateway_handshake<'a, S>(
 ) -> GatewayHandshake<'a>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
+    R: CryptoRng + RngCore + Send,
 {
     let state = State::new(rng, ws_stream, identity, None, shutdown);
     GatewayHandshake {

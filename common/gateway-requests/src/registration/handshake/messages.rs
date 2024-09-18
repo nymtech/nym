@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::registration::handshake::error::HandshakeError;
+use crate::registration::handshake::KDF_SALT_LENGTH;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_crypto::symmetric::aead::{nonce_size, tag_size};
 use nym_sphinx::params::GatewayEncryptionAlgorithm;
-use std::iter::once;
 
 // it is vital nobody changes the serialisation implementation unless you have an EXTREMELY good reason,
 // as otherwise you have very high chance of breaking backwards compatibility
@@ -21,7 +21,13 @@ pub trait HandshakeMessage {
 pub struct Initialisation {
     pub identity: ed25519::PublicKey,
     pub ephemeral_dh: x25519::PublicKey,
-    pub derive_aes256_gcm_siv_key: bool,
+    pub initiator_salt: Option<Vec<u8>>,
+}
+
+impl Initialisation {
+    pub fn is_legacy(&self) -> bool {
+        self.initiator_salt.is_none()
+    }
 }
 
 #[derive(Debug)]
@@ -61,7 +67,7 @@ impl Finalization {
 }
 
 impl HandshakeMessage for Initialisation {
-    // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_NON_LEGACY
+    // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_SALT
     // Eventually the ID_PUBKEY prefix will get removed and recipient will know
     // initializer's identity from another source.
     fn into_bytes(self) -> Vec<u8> {
@@ -71,8 +77,8 @@ impl HandshakeMessage for Initialisation {
             .into_iter()
             .chain(self.ephemeral_dh.to_bytes());
 
-        if self.derive_aes256_gcm_siv_key {
-            bytes.chain(once(1)).collect()
+        if let Some(salt) = self.initiator_salt {
+            bytes.chain(salt.into_iter()).collect()
         } else {
             bytes.collect()
         }
@@ -84,7 +90,7 @@ impl HandshakeMessage for Initialisation {
         Self: Sized,
     {
         let legacy_len = ed25519::PUBLIC_KEY_LENGTH + x25519::PUBLIC_KEY_SIZE;
-        let current_len = legacy_len + 1;
+        let current_len = legacy_len + KDF_SALT_LENGTH;
         if bytes.len() != legacy_len && bytes.len() != current_len {
             return Err(HandshakeError::MalformedRequest);
         }
@@ -97,19 +103,16 @@ impl HandshakeMessage for Initialisation {
         let ephemeral_dh =
             x25519::PublicKey::from_bytes(&bytes[ed25519::PUBLIC_KEY_LENGTH..legacy_len]).unwrap();
 
-        let derive_aes256_gcm_siv_key = if bytes.len() == legacy_len {
-            false
+        let initiator_salt = if bytes.len() == legacy_len {
+            None
         } else {
-            if bytes[legacy_len] != 1 {
-                return Err(HandshakeError::MalformedRequest);
-            }
-            true
+            Some(bytes[legacy_len..].to_vec())
         };
 
         Ok(Initialisation {
             identity,
             ephemeral_dh,
-            derive_aes256_gcm_siv_key,
+            initiator_salt,
         })
     }
 }

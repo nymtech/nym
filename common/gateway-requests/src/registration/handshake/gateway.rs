@@ -10,7 +10,7 @@ use crate::registration::handshake::{error::HandshakeError, WsItem};
 use futures::{Sink, Stream};
 use tungstenite::Message as WsMessage;
 
-impl<'a, S> State<'a, S> {
+impl<'a, S, R> State<'a, S, R> {
     async fn gateway_handshake_inner(
         &mut self,
         raw_init_message: Vec<u8>,
@@ -22,11 +22,14 @@ impl<'a, S> State<'a, S> {
         // LOCAL_ID_PUBKEY || EPHEMERAL_KEY || MAYBE_NON_LEGACY
         let init_message = Initialisation::try_from_bytes(&raw_init_message)?;
         self.update_remote_identity(init_message.identity);
-        self.set_aes256_gcm_siv_key_derivation(init_message.derive_aes256_gcm_siv_key);
+        self.set_aes256_gcm_siv_key_derivation(!init_message.is_legacy());
 
         // 2. derive shared keys locally
         // hkdf::<blake3>::(g^xy)
-        self.derive_shared_key(&init_message.ephemeral_dh);
+        self.derive_shared_key(
+            &init_message.ephemeral_dh,
+            init_message.initiator_salt.as_deref(),
+        );
 
         // 3. send ephemeral x25519 pubkey alongside the encrypted signature
         // g^y || AES(k, sig(gate_priv, (g^y || g^x))

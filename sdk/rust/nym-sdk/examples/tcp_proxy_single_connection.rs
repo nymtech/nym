@@ -34,7 +34,7 @@ struct ExampleMessage {
 // `cargo run --example tcp_proxy_single_connection <SERVER_LISTEN_PORT> <ENV_FILE_PATH> <CLIENT_LISTEN_PATH>` e.g.
 // `cargo run --example tcp_proxy_single_connection 8081 ../../../envs/canary.env 8080 `
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     // Keep track of sent/received messages
     let counter = Arc::new(Mutex::new(0));
 
@@ -59,23 +59,23 @@ async fn main() {
 
     let mut proxy_server =
         tcp_proxy::NymProxyServer::new(&upstream_tcp_addr, &conf_path, Some(env_path.clone()))
-            .await
-            .unwrap();
+            .await?;
     let proxy_nym_addr = proxy_server.nym_address();
 
     // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
     let proxy_client =
         tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 60, Some(env))
-            .await
-            .unwrap();
+            .await?;
 
     task::spawn(async move {
-        let _ = proxy_server.run_with_shutdown().await;
+        let _ = proxy_server.run_with_shutdown().await?;
+        Ok::<(), anyhow::Error>(())
     });
 
     task::spawn(async move {
-        let _ = proxy_client.run().await;
+        let _ = proxy_client.run().await?;
+        Ok::<(), anyhow::Error>(())
     });
 
     // 'Server side' thread: echo back incoming as response to the messages sent in the 'client side' thread below
@@ -98,7 +98,7 @@ async fn main() {
                             message_id: msg.message_id,
                             message_bytes: msg.message_bytes,
                         };
-                        let serialised = bincode::serialize(&msg).unwrap();
+                        let serialised = bincode::serialize(&msg)?;
                         write
                             .write_all(&serialised)
                             .await
@@ -115,6 +115,8 @@ async fn main() {
                 }
             }
         }
+        #[allow(unreachable_code)]
+        Ok::<(), anyhow::Error>(())
     });
 
     // Just wait for Nym clients to connect, TCP clients to bind, etc.
@@ -129,7 +131,8 @@ async fn main() {
     // The assumption regarding integration is that you know what you're sending, and will do proper
     // framing before and after, know what data types you're expecting, etc; the proxies are just piping bytes
     // back and forth using tokio's `Bytecodec` under the hood.
-    let stream = TcpStream::connect("127.0.0.1:8080").await.unwrap();
+    let local_tcp_addr = format!("127.0.0.1:{}", client_port);
+    let stream = TcpStream::connect(local_tcp_addr).await?;
     let (read, mut write) = stream.into_split();
 
     // 'Client side' thread; lets just send a bunch of messages to the server with variable delays between them, with an id to keep track of ordering in the printlns; the mixnet only guarantees message delivery, not ordering. You might not be necessarily streaming traffic in this manner IRL, but this example is a good illustration of how messages travel through the mixnet.
@@ -143,7 +146,7 @@ async fn main() {
                 message_id: i,
                 message_bytes: random_bytes,
             };
-            let serialised = bincode::serialize(&msg).unwrap();
+            let serialised = bincode::serialize(&msg)?;
             write
                 .write_all(&serialised)
                 .await
@@ -152,6 +155,7 @@ async fn main() {
             let delay = rng.gen_range(3.0..7.0);
             tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay.clone())).await;
         }
+        Ok::<(), anyhow::Error>(())
     });
 
     let codec = codec::BytesCodec::new();
@@ -176,9 +180,10 @@ async fn main() {
     }
 
     // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
-    signal::ctrl_c().await.unwrap();
+    signal::ctrl_c().await?;
     println!(":: CTRL+C received, shutting down + cleanup up proxy server config files");
-    fs::remove_dir_all(conf_path).unwrap();
+    fs::remove_dir_all(conf_path)?;
+    Ok(())
 }
 
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {

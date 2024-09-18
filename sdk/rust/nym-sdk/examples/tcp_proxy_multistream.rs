@@ -63,6 +63,7 @@ async fn main() -> anyhow::Result<()> {
     for i in 0..4 {
         let conn_id = i;
         println!("Starting TCP connection {}", conn_id);
+        let local_tcp_addr = format!("127.0.0.1:{}", listen_port.clone());
         tokio::spawn(async move {
             // Now the client and server proxies are running we can create and pipe traffic to/from
             // a socket on the same port as our ProxyClient instance as if we were just communicating
@@ -71,7 +72,8 @@ async fn main() -> anyhow::Result<()> {
             // The assumption regarding integration is that you know what you're sending, and will do proper
             // framing before and after, know what data types you're expecting; the proxies are just piping bytes
             // back and forth using tokio's `Bytecodec` under the hood.
-            let stream = TcpStream::connect("127.0.0.1:8080").await?;
+
+            let stream = TcpStream::connect(local_tcp_addr).await?;
             let (read, mut write) = stream.into_split();
 
             // Lets just send a bunch of messages to the server with variable delays between them, with a message and tcp connection ids to keep track of ordering on the server side (for illustrative purposes **only**; keeping track of anonymous replies is handled by the proxy under the hood with Single Use Reply Blocks (SURBs); for this illustration we want some kind of app-level message id, but irl most of the time you'll probably be parsing on e.g. the incoming response type instead)

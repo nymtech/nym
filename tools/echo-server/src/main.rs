@@ -1,6 +1,9 @@
 use anyhow::Result;
 use bytes::Bytes;
+use dirs;
 use nym_sdk::tcp_proxy;
+use std::env;
+use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
@@ -11,9 +14,6 @@ use tokio::task;
 use tokio_stream::StreamExt;
 use tracing::{error, info, warn};
 use tracing_subscriber;
-
-const HOST: &str = "127.0.0.1";
-const PORT: &str = "9000";
 
 struct Metrics {
     total_conn: AtomicU64,
@@ -40,24 +40,27 @@ async fn main() -> Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    // Configure our client to use the Canary test network: you can switch this to use any of the files in `../../../envs/`
-    let env_path = "../../envs/canary.env".to_string();
-    let conf_path = "./tmp/nym-proxy-server-config";
-    let mut proxy_server = tcp_proxy::NymProxyServer::new(
-        &(format!("{}:{}", HOST, PORT)),
-        conf_path,
-        Some(env_path.clone()),
-    )
-    .await
-    .unwrap();
+    let server_port = env::args()
+        .nth(1)
+        .expect("Server listen port not specified");
+    let tcp_addr = format!("127.0.0.1:{}", server_port);
+
+    // This dir gets cleaned up at the end: NOTE if you switch env between tests without letting the file do the automatic cleanup, make sure to manually remove this directory up before running again, otherwise your client will attempt to use these keys for the new env
+    let home_dir = dirs::home_dir().expect("Unable to get home directory");
+    let conf_path = format!("{}/tmp/nym-proxy-server-config", home_dir.display());
+
+    let env_path = env::args().nth(2).expect("Env file not specified");
+    let env = env_path.to_string();
+
+    let mut proxy_server = tcp_proxy::NymProxyServer::new(&tcp_addr, &conf_path, Some(env.clone()))
+        .await
+        .unwrap();
     let proxy_nym_addr = proxy_server.nym_address().clone();
     info!("ProxyServer listening out on {}", proxy_nym_addr);
 
     task::spawn(async move {
-        let _ = proxy_server
-            .run_with_shutdown()
-            .await
-            .expect("NymProxyServer shutdown unexpectedly");
+        let _ = proxy_server.run_with_shutdown().await?;
+        Ok::<(), anyhow::Error>(())
     });
 
     let (shutdown_sender, _) = broadcast::channel(1);
@@ -77,7 +80,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    let listener = TcpListener::bind(format!("{}:{}", HOST, PORT)).await?;
+    let listener = TcpListener::bind(tcp_addr).await?;
 
     loop {
         tokio::select! {
@@ -101,7 +104,7 @@ async fn main() -> Result<()> {
 
     signal::ctrl_c().await?;
     info!("Received CTRL+C");
-
+    fs::remove_dir_all(conf_path)?;
     while metrics.active_conn.load(Ordering::Relaxed) > 0 {
         info!("Waiting on active connections to close: sleeping 100ms");
         // TODO some kind of hard kill here for the ProxyServer
@@ -125,12 +128,12 @@ async fn handle_incoming(
                 match result {
                     Ok(bytes) => {
                         let len = bytes.len();
-                        metrics.bytes_recv.fetch_add(len as u64, std::sync::atomic::Ordering::Relaxed);
+                        metrics.bytes_recv.fetch_add(len as u64, Ordering::Relaxed);
                         if let Err(e) = write.write_all(&bytes).await {
                             error!("Failed to write to stream with err: {}", e);
                             break;
                         }
-                        metrics.bytes_sent.fetch_add(len as u64, std::sync::atomic::Ordering::Relaxed);
+                        metrics.bytes_sent.fetch_add(len as u64, Ordering::Relaxed);
                     }
                     Err(e) => {
                         error!("Failed to read from stream with err: {}", e);

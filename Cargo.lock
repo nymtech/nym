@@ -5781,6 +5781,7 @@ dependencies = [
  "bytecodec",
  "bytes",
  "dashmap",
+ "dirs",
  "dotenvy",
  "futures",
  "hex",

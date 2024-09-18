@@ -50,7 +50,7 @@ async fn main() -> anyhow::Result<()> {
     let proxy_client =
         tcp_proxy::NymProxyClient::new(server, "127.0.0.1", &listen_port, 45, Some(env)).await?;
 
-    task::spawn(async move {
+    tokio::spawn(async move {
         let _ = proxy_client.run().await?;
         Ok::<(), anyhow::Error>(())
     });
@@ -77,7 +77,7 @@ async fn main() -> anyhow::Result<()> {
             let (read, mut write) = stream.into_split();
 
             // Lets just send a bunch of messages to the server with variable delays between them, with a message and tcp connection ids to keep track of ordering on the server side (for illustrative purposes **only**; keeping track of anonymous replies is handled by the proxy under the hood with Single Use Reply Blocks (SURBs); for this illustration we want some kind of app-level message id, but irl most of the time you'll probably be parsing on e.g. the incoming response type instead)
-            task::spawn(async move {
+            tokio::spawn(async move {
                 for i in 0..4 {
                     let mut rng = SmallRng::from_entropy();
                     let delay: f64 = rng.gen_range(2.5..5.0);
@@ -103,7 +103,7 @@ async fn main() -> anyhow::Result<()> {
                 Ok::<(), anyhow::Error>(())
             });
 
-            task::spawn(async move {
+            tokio::spawn(async move {
                 let mut reply_counter = 0;
                 let codec = codec::BytesCodec::new();
                 let mut framed_read = codec::FramedRead::new(read, codec);

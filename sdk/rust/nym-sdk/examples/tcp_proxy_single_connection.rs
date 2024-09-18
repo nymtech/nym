@@ -11,7 +11,6 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
 use tokio::sync::Mutex;
-use tokio::task;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
 use tracing_subscriber;
@@ -68,19 +67,19 @@ async fn main() -> anyhow::Result<()> {
         tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 60, Some(env))
             .await?;
 
-    task::spawn(async move {
+    tokio::spawn(async move {
         let _ = proxy_server.run_with_shutdown().await?;
         Ok::<(), anyhow::Error>(())
     });
 
-    task::spawn(async move {
+    tokio::spawn(async move {
         let _ = proxy_client.run().await?;
         Ok::<(), anyhow::Error>(())
     });
 
     // 'Server side' thread: echo back incoming as response to the messages sent in the 'client side' thread below
-    task::spawn(async move {
-        let listener = TcpListener::bind(upstream_tcp_addr).await.unwrap();
+    tokio::spawn(async move {
+        let listener = TcpListener::bind(upstream_tcp_addr).await?;
         loop {
             let (socket, _) = listener.accept().await.unwrap();
             let (read, mut write) = socket.into_split();
@@ -138,7 +137,7 @@ async fn main() -> anyhow::Result<()> {
     // 'Client side' thread; lets just send a bunch of messages to the server with variable delays between them, with an id to keep track of ordering in the printlns; the mixnet only guarantees message delivery, not ordering. You might not be necessarily streaming traffic in this manner IRL, but this example is a good illustration of how messages travel through the mixnet.
     // - On the level of individual messages broken into multiple packets, the Proxy abstraction deals with making sure that everything is sent between the sockets in the corrent order.
     // - On the level of different messages, this is not enforced: you might see in the logs that message 1 arrives at the server and is reconstructed after message 2.
-    task::spawn(async move {
+    tokio::spawn(async move {
         let mut rng = SmallRng::from_entropy();
         for i in 0..10 {
             let random_bytes = gen_bytes_fixed(i as usize);

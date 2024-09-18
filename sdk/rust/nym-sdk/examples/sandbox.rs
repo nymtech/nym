@@ -7,8 +7,10 @@ use nym_sdk::mixnet::MixnetMessageSender;
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     nym_bin_common::logging::setup_logging();
-    // relative root is `sdk/rust/nym-sdk/`
-    setup_env(Some("../../../envs/sandbox.env"));
+    // relative root is `sdk/rust/nym-sdk/` for fallback file path
+    let env_path =
+        std::env::var("NYM_ENV_PATH").unwrap_or_else(|_| "../../../envs/sandbox.env".to_string());
+    setup_env(Some(&env_path));
     let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
 
     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()

@@ -4,6 +4,8 @@
 use semver::SemVerError;
 pub use semver::Version;
 
+/// Checks if the version is minor version compatible.
+///
 /// Checks whether given `version` is compatible with a given semantic version requirement `req`
 /// according to major-minor semver rules. The semantic version requirement can be passed as a full,
 /// concrete version number, because that's what we'll have in our Cargo.toml files (e.g. 0.3.2).

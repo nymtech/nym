@@ -22,6 +22,8 @@ use std::fmt::{self, Debug, Formatter};
 // (the current limitation for making the seemingly trivial change is "linked id" which
 // has to have same amount of space available and right now it only has 31 bits available)
 
+/// Length of the header of a `Fragment` when it's part of a single `FragmentSet`.
+///
 /// When the underlying message has to be split into multiple Fragments, but still manages to fit
 /// into a single `FragmentSet`, each `FragmentHeader` needs to hold additional information to allow
 /// for correct message reconstruction: 4 bytes for set id, 1 byte to represent total number
@@ -29,6 +31,8 @@ use std::fmt::{self, Debug, Formatter};
 /// and finally an extra byte to indicate the fragment has no links to other sets.
 pub const UNLINKED_FRAGMENTED_HEADER_LEN: usize = 7;
 
+///  Length of the header of a `Fragment` when it's linked.
+///
 /// Logically almost identical to `UNLINKED_FRAGMENTED_HEADER_LEN`, however, the extra three
 /// bytes are due to changing the final byte that used to indicate the `Fragment` is not linked
 /// into 4 byte id of either previous or the next set.
@@ -111,6 +115,7 @@ impl FragmentIdentifier {
 }
 
 /// The basic unit of division of underlying bytes message sent through the mix network.
+///
 /// Each `Fragment` after being marshaled is guaranteed to fit into a single sphinx packet.
 /// The `Fragment` itself consists of part, or whole of, message to be sent as well as additional
 /// header used to reconstruct the message after being received.
@@ -283,6 +288,8 @@ impl Fragment {
     }
 }
 
+/// Header of a `Fragment` that is used to be able to reconstruct the original message.
+///
 /// In order to be able to re-assemble fragmented message sent through a mix-network, some
 /// metadata is attached alongside the actual message payload. The idea is to include as little
 /// of that data as possible due to computationally very costly process of sphinx encapsulation.

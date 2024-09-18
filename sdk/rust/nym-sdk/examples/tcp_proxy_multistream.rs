@@ -25,7 +25,8 @@ struct ExampleMessage {
 //
 // To run:
 // - run the echo server with `cargo run`
-// - run this example with `cargo run --example tcp_proxy_multistream -- <ECHO_SERVER_ADDRESS>
+// - run this example with `cargo run --example tcp_proxy_multistream -- <ECHO_SERVER_NYM_ADDRESS> <ENV_FILE_PATH>` e.g.
+// cargo run --example tcp_proxy_multistream -- DMHyxo8n6sKWHHTVvjRVDxDSMX8gYXRU1AQ6UpwsrWiB.6STYCWGWyRxqn2juWdgjMkAMsT9EaAzPpLWq5zkS68MB@CJG5zTcmoLijmDrtAiLV9PZHxNz8LQu6hmgA89V2RxxL ../../../envs/canary.env
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     let server_address = env::args().nth(1).expect("Server address not provided");
@@ -40,14 +41,12 @@ async fn main() -> anyhow::Result<()> {
         .with_max_level(tracing::Level::INFO)
         .init();
 
-    // Configure our clients to use the Canary test network: you can switch this to use any of the files in `../../../envs/`
-    let env_path = "../../../envs/canary.env".to_string();
+    let env_path = env::args().nth(2).expect("Env file not specified");
+    let env = env_path.to_string();
 
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
     let proxy_client =
-        tcp_proxy::NymProxyClient::new(server, "127.0.0.1", "8080", 60, Some(env_path))
-            .await
-            .unwrap();
+        tcp_proxy::NymProxyClient::new(server, "127.0.0.1", "8080", 90, Some(env)).await?;
 
     task::spawn(async move {
         let _ = proxy_client.run().await;
@@ -126,7 +125,7 @@ async fn main() -> anyhow::Result<()> {
             });
         });
         let mut rng = SmallRng::from_entropy();
-        let delay: f64 = rng.gen_range(2.5..5.0);
+        let delay: f64 = rng.gen_range(4.5..7.0);
         tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
     }
 

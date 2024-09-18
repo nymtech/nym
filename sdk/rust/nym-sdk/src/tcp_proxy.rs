@@ -1,5 +1,3 @@
-//! todo
-//!
 //! use bincode;
 //! use nym_sdk::tcp_proxy;
 //! use rand::rngs::SmallRng;

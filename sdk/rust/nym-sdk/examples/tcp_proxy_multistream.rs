@@ -49,7 +49,8 @@ async fn main() -> anyhow::Result<()> {
         tcp_proxy::NymProxyClient::new(server, "127.0.0.1", "8080", 90, Some(env)).await?;
 
     task::spawn(async move {
-        let _ = proxy_client.run().await;
+        let _ = proxy_client.run().await?;
+        Ok::<(), anyhow::Error>(())
     });
 
     // Just wait for Nym clients to connect, TCP clients to bind, etc.
@@ -69,7 +70,7 @@ async fn main() -> anyhow::Result<()> {
             // The assumption regarding integration is that you know what you're sending, and will do proper
             // framing before and after, know what data types you're expecting; the proxies are just piping bytes
             // back and forth using tokio's `Bytecodec` under the hood.
-            let stream = TcpStream::connect("127.0.0.1:8080").await.unwrap();
+            let stream = TcpStream::connect("127.0.0.1:8080").await?;
             let (read, mut write) = stream.into_split();
 
             // Lets just send a bunch of messages to the server with variable delays between them, with a message and tcp connection ids to keep track of ordering on the server side (for illustrative purposes **only**; keeping track of anonymous replies is handled by the proxy under the hood with Single Use Reply Blocks (SURBs); for this illustration we want some kind of app-level message id, but irl most of the time you'll probably be parsing on e.g. the incoming response type instead)
@@ -84,7 +85,7 @@ async fn main() -> anyhow::Result<()> {
                         message_bytes: random_bytes,
                         tcp_conn: conn_id,
                     };
-                    let serialised = bincode::serialize(&msg).unwrap();
+                    let serialised = bincode::serialize(&msg)?;
                     write
                         .write_all(&serialised)
                         .await
@@ -96,6 +97,7 @@ async fn main() -> anyhow::Result<()> {
                         &conn_id
                     );
                 }
+                Ok::<(), anyhow::Error>(())
             });
 
             task::spawn(async move {
@@ -123,6 +125,7 @@ async fn main() -> anyhow::Result<()> {
                     }
                 }
             });
+            Ok::<(), anyhow::Error>(())
         });
         let mut rng = SmallRng::from_entropy();
         let delay: f64 = rng.gen_range(4.5..7.0);
@@ -130,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
-    signal::ctrl_c().await.unwrap();
+    signal::ctrl_c().await?;
     println!("CTRL+C received, shutting down");
     Ok(())
 }

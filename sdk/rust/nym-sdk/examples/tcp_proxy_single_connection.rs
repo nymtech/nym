@@ -6,11 +6,10 @@ use rand::{Rng, SeedableRng};
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fs;
-use std::sync::Arc;
+use std::sync::atomic::{AtomicU8, Ordering};
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
-use tokio::sync::Mutex;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
 use tracing_subscriber;
@@ -35,7 +34,8 @@ struct ExampleMessage {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Keep track of sent/received messages
-    let counter = Arc::new(Mutex::new(0));
+    // let counter = Arc::new(Mutex::new(0));
+    let counter = AtomicU8::new(0);
 
     // Comment this out to just see println! statements from this example, as Nym client logging is very informative but quite verbose.
     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering. To see the contents of the msg buffer, sphinx packet chunking, etc change the tracing::Level to DEBUG.
@@ -167,10 +167,11 @@ async fn main() -> anyhow::Result<()> {
                     msg.message_id,
                     msg.message_bytes.len()
                 );
-                let counter = Arc::clone(&counter);
-                let mut newcount = counter.lock().await;
-                *newcount += 1;
-                println!(":: messages received back: {:?}/10", newcount);
+                counter.fetch_add(1, Ordering::SeqCst);
+                println!(
+                    ":: messages received back: {:?}/10",
+                    counter.load(Ordering::SeqCst)
+                );
             }
             Err(e) => {
                 println!("<< client received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);

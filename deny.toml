@@ -30,6 +30,8 @@ targets = [
     # particular target. target_features are currently not validated against
     # the actual valid features supported by the target architecture.
     #{ triple = "wasm32-unknown-unknown", features = ["atomics"] },
+    "x86_64-unknown-linux-gnu",
+    "wasm32-unknown-unknown",
 ]
 # When creating the dependency graph used as the source of truth when checks are
 # executed, this field can be used to prune crates from the graph, removing them
@@ -100,7 +102,6 @@ allow = [
     "Unicode-DFS-2016",
     "OpenSSL",
     "Zlib",
-    "Unicode-3.0",
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
@@ -124,20 +125,20 @@ exceptions = [
 # Some crates don't have (easily) machine readable licensing information,
 # adding a clarification entry for it allows you to manually specify the
 # licensing information
-#[[licenses.clarify]]
+[[licenses.clarify]]
 # The package spec the clarification applies to
-#crate = "ring"
+crate = "ring"
 # The SPDX expression for the license requirements of the crate
-#expression = "MIT AND ISC AND OpenSSL"
+expression = "MIT AND ISC AND OpenSSL"
 # One or more files in the crate's source used as the "source of truth" for
 # the license expression. If the contents match, the clarification will be used
 # when running the license check, otherwise the clarification will be ignored
 # and the crate will be checked normally, which may produce warnings or errors
 # depending on the rest of your configuration
-#license-files = [
-# Each entry is a crate relative path, and the (opaque) hash of its contents
-#{ path = "LICENSE", hash = 0xbd0eed23 }
-#]
+license-files = [
+    # Each entry is a crate relative path, and the (opaque) hash of its contents
+    { path = "LICENSE", hash = 0xbd0eed23 }
+]
 
 [licenses.private]
 # If true, ignores workspace crates that aren't published, or are only
@@ -226,10 +227,12 @@ skip-tree = [
     #{ crate = "ansi_term@0.11.0", depth = 20 },
 ]
 
-[bans.workspace-dependencies]
-duplicates = "deny"
-include-path-dependencies = false
-unused = "deny"
+# NOTE: re-enable once we remove the last duplicates (only digest and sha2 at
+# the time of this writing).
+#[bans.workspace-dependencies]
+#duplicates = "deny"
+#include-path-dependencies = false
+#unused = "deny"
 
 # This section is considered when running `cargo deny check sources`.
 # More documentation about the 'sources' section can be found here:

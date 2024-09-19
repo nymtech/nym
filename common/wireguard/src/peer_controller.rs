@@ -194,6 +194,23 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         Ok(client_id)
     }
 
+    async fn handle_query_peer(&self, key: &Key) -> (bool, Option<Peer>) {
+        match self.storage.get_wireguard_peer(&key.to_string()).await {
+            Err(e) => {
+                log::error!("Could not query peer storage {e}");
+                (false, None)
+            }
+            Ok(None) => (true, None),
+            Ok(Some(storage_peer)) => match Peer::try_from(storage_peer) {
+                Ok(peer) => (true, Some(peer)),
+                Err(e) => {
+                    log::error!("Could not parse storage peer {e}");
+                    (false, None)
+                }
+            },
+        }
+    }
+
     pub async fn run(&mut self) {
         loop {
             tokio::select! {
@@ -222,23 +239,8 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                             let success = self.remove_peer(&key).await.is_ok();
                             response_tx.send(RemovePeerControlResponse { success }).ok();
                         }
-                        Some(PeerControlRequest::QueryPeer{key,response_tx}) => {
-                            let (success, peer) = match self.storage.get_wireguard_peer(&key.to_string()).await {
-                                Err(e) => {
-                                    log::error!("Could not query peer storage {e}");
-                                    (false, None)
-                                },
-                                Ok(None) => (true, None),
-                                Ok(Some(storage_peer)) => {
-                                    match Peer::try_from(storage_peer) {
-                                        Ok(peer) => (true, Some(peer)),
-                                        Err(e) => {
-                                            log::error!("Could not parse storage peer {e}");
-                                            (false, None)
-                                        }
-                                    }
-                                },
-                            };
+                        Some(PeerControlRequest::QueryPeer { key, response_tx }) => {
+                            let (success, peer) = self.handle_query_peer(&key).await;
                             response_tx.send(QueryPeerControlResponse { success, peer }).ok();
                         }
                         Some(PeerControlRequest::QueryBandwidth{key, response_tx}) => {

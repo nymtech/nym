@@ -1,3 +1,8 @@
+//! Proxy wrappers allowing devs to pipe and read from a tcp socket whilst sending messages through
+//! the mixnet. 
+//!
+//! Basic example using both NymProxyClient and NymProxyServer
+//! ```no_run
 //! use bincode;
 //! use dirs;
 //! use nym_sdk::tcp_proxy;
@@ -193,6 +198,7 @@
 //!     let mut rng = rand::thread_rng();
 //!     (0..len).map(|_| rng.gen::<u8>()).collect()
 //! }
+//! ```
 
 mod tcp_proxy_client;
 mod tcp_proxy_server;

@@ -44,7 +44,7 @@ rand = { workspace = true, features = ["small_rng"] }
 tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
-toml = "0.5.10"
+toml = { workspace = true }
 
 # tcpproxy dependencies
 anyhow.workspace = true

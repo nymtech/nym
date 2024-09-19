@@ -24,7 +24,7 @@ tempfile = { workspace = true }
 thiserror.workspace = true
 time = { workspace = true, features = ["parsing", "formatting"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros", "process"] }
-toml = "0.8.14"
+toml = { workspace = true }
 tracing.workspace = true
 url.workspace = true
 zeroize = { workspace = true, features = ["zeroize_derive"] }

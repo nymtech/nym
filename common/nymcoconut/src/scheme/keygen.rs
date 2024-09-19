@@ -581,6 +581,7 @@ impl TryFrom<&[u8]> for KeyPair {
 }
 
 /// Generate a single Coconut keypair ((x, y0, y1...), (g2^x, g2^y0, ...)).
+///
 /// It is not suitable for threshold credentials as all subsequent calls to `keygen` generate keys
 /// that are independent of each other.
 pub fn keygen(params: &Parameters) -> KeyPair {
@@ -599,6 +600,8 @@ pub fn keygen(params: &Parameters) -> KeyPair {
     }
 }
 
+/// Generate Coconut keypairs.
+///
 /// Generate a set of n Coconut keypairs [((x, y0, y1...), (g2^x, g2^y0, ...)), ...],
 /// such that they support threshold aggregation by `threshold` number of parties.
 /// It is expected that this procedure is executed by a Trusted Third Party.

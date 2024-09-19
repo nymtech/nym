@@ -616,6 +616,7 @@ fn compute_kappa(
 }
 
 /// Represents the unique payment information associated with the payment.
+///
 /// The bytes representing the payment information encode the public key of the
 /// provider with whom you are spending the payment, timestamp and a unique random 32 bytes.
 ///

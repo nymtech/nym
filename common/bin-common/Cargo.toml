@@ -14,7 +14,7 @@ clap_complete = { workspace = true, optional = true }
 clap_complete_fig = { workspace = true, optional = true }
 log = { workspace = true }
 pretty_env_logger = { workspace = true }
-semver = "0.11"
+semver = "1.0"
 schemars = { workspace = true, features = ["preserve_order"], optional = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }

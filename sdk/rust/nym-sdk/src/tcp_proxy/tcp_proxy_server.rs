@@ -13,6 +13,7 @@ use tokio::sync::watch::Receiver;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
 use tracing::{debug, error, info};
+#[allow(clippy::duplicate_mod)]
 #[path = "utils.rs"]
 mod utils;
 use utils::{MessageBuffer, Payload, ProxiedMessage};

@@ -44,7 +44,6 @@ pub fn init_ephemeral_internal() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
 
-// persistent client with storage and keys located at config_dir
 pub fn init_default_storage_internal(config_dir: PathBuf) -> anyhow::Result<(), anyhow::Error> {
     if NYM_CLIENT.lock().unwrap().as_ref().is_some() {
         bail!("client already exists");
@@ -80,6 +79,8 @@ pub fn get_self_address_internal() -> anyhow::Result<String, anyhow::Error> {
     Ok(nym_client.nym_address().to_string())
 }
 
+// TODO split sender
+
 pub fn send_message_internal(
     recipient: Recipient,
     message: &str,
@@ -92,7 +93,6 @@ pub fn send_message_internal(
         .as_ref()
         .ok_or_else(|| anyhow!("could not get client as_ref()"))?;
 
-    // send message
     RUNTIME.block_on(async move {
         nym_client.send_plain_message(recipient, message).await?;
         Ok::<(), anyhow::Error>(())
@@ -155,7 +155,7 @@ pub async fn wait_for_non_empty_message(
 }
 
 // Proxy functions TODO split out into own file and import
-pub async fn proxy_client_new_internal(
+pub fn proxy_client_new_internal(
     server_address: Recipient,
     listen_address: &str,
     listen_port: &str,
@@ -186,7 +186,7 @@ pub async fn proxy_client_new_internal(
     Ok(())
 }
 
-pub async fn proxy_client_new_defaults_internal(
+pub fn proxy_client_new_defaults_internal(
     server_address: Recipient,
     env: Option<String>,
 ) -> anyhow::Result<(), anyhow::Error> {
@@ -207,7 +207,7 @@ pub async fn proxy_client_new_defaults_internal(
     Ok(())
 }
 
-pub async fn run() -> anyhow::Result<(), anyhow::Error> {
+pub fn proxy_client_run_internal() -> anyhow::Result<(), anyhow::Error> {
     let proxy_client = NYM_PROXY_CLIENT
         .lock()
         .expect("could not lock NYM_PROXY_CLIENT");
@@ -218,7 +218,9 @@ pub async fn run() -> anyhow::Result<(), anyhow::Error> {
         .as_ref()
         .ok_or_else(|| anyhow!("could not get proxy_client as_ref()"))?;
     RUNTIME.block_on(async move {
+        println!("start running");
         proxy.run().await?;
+        print!("?");
         Ok::<(), anyhow::Error>(())
     })?;
     Ok(())

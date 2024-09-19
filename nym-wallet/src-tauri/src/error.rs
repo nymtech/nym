@@ -1,5 +1,6 @@
 use nym_contracts_common::signing::SigningAlgorithm;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
+use nym_node_requests::api::client::NymNodeApiClientError;
 use nym_types::error::TypesError;
 use nym_validator_client::nym_api::error::NymAPIError;
 use nym_validator_client::signing::direct_wallet::DirectSecp256k1HdWalletError;
@@ -12,17 +13,17 @@ use thiserror::Error;
 
 #[derive(Error, Debug)]
 pub enum BackendError {
-    #[error("{source}")]
+    #[error(transparent)]
     TypesError {
         #[from]
         source: TypesError,
     },
-    #[error("{source}")]
+    #[error(transparent)]
     Bip39Error {
         #[from]
         source: bip39::Error,
     },
-    #[error("{source}")]
+    #[error(transparent)]
     TendermintError {
         #[from]
         source: cosmrs::rpc::Error,
@@ -33,42 +34,47 @@ pub enum BackendError {
         #[source]
         source: NyxdError,
     },
-    #[error("{source}")]
+    #[error(transparent)]
     CosmwasmStd {
         #[from]
         source: cosmwasm_std::StdError,
     },
-    #[error("{source}")]
+    #[error(transparent)]
     ErrorReport {
         #[from]
         source: eyre::Report,
     },
-    #[error("{source}")]
+    #[error(transparent)]
     NymApiError {
         #[from]
         source: NymAPIError,
     },
-    #[error("{source}")]
+    #[error(transparent)]
+    NymNodeApiError {
+        #[from]
+        source: NymNodeApiClientError,
+    },
+    #[error(transparent)]
     IOError {
         #[from]
         source: io::Error,
     },
-    #[error("{source}")]
+    #[error(transparent)]
     SerdeJsonError {
         #[from]
         source: serde_json::Error,
     },
-    #[error("{source}")]
+    #[error(transparent)]
     MalformedUrlProvided {
         #[from]
         source: url::ParseError,
     },
-    #[error("{source}")]
+    #[error(transparent)]
     ReqwestError {
         #[from]
         source: reqwest::Error,
     },
-    #[error("{source}")]
+    #[error(transparent)]
     K256Error {
         #[from]
         source: k256::ecdsa::Error,

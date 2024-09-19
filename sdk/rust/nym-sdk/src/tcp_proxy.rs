@@ -1,7 +1,8 @@
-//! Proxy wrappers allowing devs to pipe and read from a tcp socket whilst sending messages through
-//! the mixnet. 
+//! Proxy abstractions for interacting with the mixnet like a tcp socket
 //!
-//! Basic example using both NymProxyClient and NymProxyServer
+//!
+//! # Basic example
+//!
 //! ```no_run
 //! use bincode;
 //! use dirs;

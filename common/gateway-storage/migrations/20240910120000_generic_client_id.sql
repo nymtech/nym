@@ -73,6 +73,9 @@ CREATE TABLE ticket_verification_tmp (
    PRIMARY KEY (ticket_id, signer_id)
 );
 
+INSERT INTO ticket_verification_tmp
+SELECT * FROM ticket_verification;
+
 DROP INDEX ticket_verification_index;
 CREATE INDEX ticket_verification_index ON ticket_verification_tmp (ticket_id);
 
@@ -84,6 +87,9 @@ CREATE TABLE verified_tickets_tmp (
    ticket_id           INTEGER NOT NULL PRIMARY KEY REFERENCES received_ticket_tmp(id),
    proposal_id         INTEGER REFERENCES redemption_proposals(proposal_id)
 );
+
+INSERT INTO verified_tickets_tmp
+SELECT * FROM verified_tickets;
 
 DROP INDEX verified_tickets_index;
 CREATE INDEX verified_tickets_index ON verified_tickets_tmp (proposal_id);

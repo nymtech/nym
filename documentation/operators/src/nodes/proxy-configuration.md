@@ -496,7 +496,7 @@ server {
 ```
 ~~~
 
-4. Activate the configuration by creating a simlink to `/etc/nginx/sites-enabled`:
+4. Activate the configuration by creating a symlink to `/etc/nginx/sites-enabled`:
 ```sh
 ln -s /etc/nginx/sites-available/wss-config-nym /etc/nginx/sites-enabled
 ```
@@ -512,13 +512,23 @@ systemctl restart nginx
 
 ```
 
-7. Finally, configure your `nym-node` to announce the port you have setup. This is done by opening your node configuration file located at `~/.nym/nym-nodes/<ID>/config/config.toml` and changing the value of the line `announce_wss_port` in the `[entry_gateway]` section:
+7. Finally, configure your `nym-node` to announce the port and hostname you have setup.
+
+This is done by opening your node configuration file located at `~/.nym/nym-nodes/<ID>/config/config.toml` and changing the following values :
+
+-  `announce_wss_port` in the `[entry_gateway]` section:
 
 ```
 announce_wss_port =  <WSS_PORT>
 
 # example
 # announce_wss_port = 9001
+```
+
+- `hostname` in the `[host]` section:
+
+```
+hostname = '<HOSTNAME>'
 ```
 
 8. Restart your `nym-node` :

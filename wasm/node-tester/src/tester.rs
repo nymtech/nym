@@ -221,7 +221,7 @@ impl NymNodeTesterBuilder {
                 .await?;
         }
         gateway_client.claim_initial_bandwidth().await?;
-        gateway_client.start_listening_for_mixnet_messages().await?;
+        gateway_client.start_listening_for_mixnet_messages()?;
 
         // TODO: make those values configurable later
         let tester = NodeTester::new(

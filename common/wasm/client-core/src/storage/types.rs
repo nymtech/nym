@@ -8,12 +8,14 @@ use nym_gateway_client::SharedGatewayKey;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
 use time::OffsetDateTime;
+use zeroize::Zeroize;
 
 // a more nested struct since we only have a single gateway type in wasm (no 'custom')
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Zeroize)]
 pub struct WasmRawRegisteredGateway {
     pub gateway_id_bs58: String,
 
+    #[zeroize(skip)]
     pub registration_timestamp: OffsetDateTime,
 
     pub derived_aes128_ctr_blake3_hmac_keys_bs58: Option<String>,

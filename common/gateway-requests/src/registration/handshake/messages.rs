@@ -25,6 +25,7 @@ pub struct Initialisation {
 }
 
 impl Initialisation {
+    #[cfg(not(target_arch = "wasm32"))]
     pub fn is_legacy(&self) -> bool {
         self.initiator_salt.is_none()
     }
@@ -78,7 +79,7 @@ impl HandshakeMessage for Initialisation {
             .chain(self.ephemeral_dh.to_bytes());
 
         if let Some(salt) = self.initiator_salt {
-            bytes.chain(salt.into_iter()).collect()
+            bytes.chain(salt).collect()
         } else {
             bytes.collect()
         }

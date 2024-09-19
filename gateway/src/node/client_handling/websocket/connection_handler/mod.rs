@@ -102,7 +102,7 @@ where
     .await
     {
         Err(timeout_err) => {
-            warn!("websocket handshake timedout: {timeout_err}");
+            warn!("websocket handshake timed out: {timeout_err}");
             return;
         }
         Ok(Err(err)) => {

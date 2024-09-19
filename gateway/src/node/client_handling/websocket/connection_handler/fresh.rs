@@ -419,7 +419,7 @@ where
         // we can't handle clients with higher protocol than ours
         // (perhaps we could try to negotiate downgrade on our end? sounds like a nice future improvement)
         if client_protocol_version <= CURRENT_PROTOCOL_VERSION {
-            info!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
+            debug!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
             Ok(CURRENT_PROTOCOL_VERSION)
         } else {
             let err = InitialAuthenticationError::IncompatibleProtocol {

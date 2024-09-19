@@ -89,9 +89,18 @@ ignore = [
 # See https://spdx.org/licenses/ for list of possible licenses
 # [possible values: any SPDX 3.11 short identifier (+ optional exception)].
 allow = [
-    #"MIT",
-    #"Apache-2.0",
-    #"Apache-2.0 WITH LLVM-exception",
+    "MIT",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "0BSD",
+    "MPL-2.0",
+    "CC0-1.0",
+    "Unicode-DFS-2016",
+    "OpenSSL",
+    "Zlib",
+    "Unicode-3.0",
 ]
 # The confidence threshold for detecting a license from license text.
 # The higher the value, the more closely the license text must be to the
@@ -171,6 +180,7 @@ deny = [
     # Wrapper crates can optionally be specified to allow the crate when it
     # is a direct dependency of the otherwise banned crate
     #{ crate = "ansi_term@0.11.0", wrappers = ["this-crate-directly-depends-on-ansi_term"] },
+    { name = "openssl" },
 ]
 
 # List of features to allow/deny
@@ -209,6 +219,11 @@ skip-tree = [
     #"ansi_term@0.11.0", # will be skipped along with _all_ of its direct and transitive dependencies
     #{ crate = "ansi_term@0.11.0", depth = 20 },
 ]
+
+[bans.workspace-dependencies]
+duplicates = "deny"
+include-path-dependencies = false
+unused = "deny"
 
 # This section is considered when running `cargo deny check sources`.
 # More documentation about the 'sources' section can be found here:

@@ -166,6 +166,7 @@ impl Ciphertexts {
 #[derive(Zeroize)]
 #[zeroize(drop)]
 /// Randomness generated during ciphertext generation that is required for proofs of knowledge.
+///
 /// It must be handled with extreme care as its misuse might help malicious parties to recover
 /// the underlying plaintext.
 pub struct HazmatRandomness {

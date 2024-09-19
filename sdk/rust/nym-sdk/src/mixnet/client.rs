@@ -265,6 +265,8 @@ where
     }
 }
 
+/// Represents a client that is not yet connected to the mixnet.
+///
 /// Represents a client that is not yet connected to the mixnet. You typically create one when you
 /// want to have a separate configuration and connection phase. Once the mixnet client builder is
 /// configured, call [`MixnetClientBuilder::connect_to_mixnet()`] or

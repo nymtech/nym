@@ -7,6 +7,7 @@ use crate::models::Client;
 
 #[derive(Debug, PartialEq, sqlx::Type)]
 #[sqlx(type_name = "TEXT")] // SQLite TEXT type
+#[sqlx(rename_all = "snake_case")]
 pub enum ClientType {
     EntryMixnet,
     ExitMixnet,

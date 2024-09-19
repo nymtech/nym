@@ -1,7 +1,7 @@
 package bindings
 
 // #include <bindings.h>
-// #cgo LDFLAGS: -L../../target/release -lnym_go_ffi
+// #cgo LDFLAGS: -L../../../../../target/release -lnym_go_ffi
 import "C"
 
 import (
@@ -381,6 +381,15 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_new_proxy_client(uniffiStatus)
+		})
+		if checksum != 14386 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_new_proxy_client: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_nym_go_ffi_checksum_func_reply(uniffiStatus)
 		})
 		if checksum != 50524 {
@@ -398,6 +407,30 @@ func uniffiCheckChecksums() {
 		}
 	}
 }
+
+type FfiConverterUint64 struct{}
+
+var FfiConverterUint64INSTANCE = FfiConverterUint64{}
+
+func (FfiConverterUint64) Lower(value uint64) C.uint64_t {
+	return C.uint64_t(value)
+}
+
+func (FfiConverterUint64) Write(writer io.Writer, value uint64) {
+	writeUint64(writer, value)
+}
+
+func (FfiConverterUint64) Lift(value C.uint64_t) uint64 {
+	return uint64(value)
+}
+
+func (FfiConverterUint64) Read(reader io.Reader) uint64 {
+	return readUint64(reader)
+}
+
+type FfiDestroyerUint64 struct{}
+
+func (FfiDestroyerUint64) Destroy(_ uint64) {}
 
 type FfiConverterString struct{}
 
@@ -552,6 +585,8 @@ var ErrGoWrapErrorSelfAddrError = fmt.Errorf("GoWrapErrorSelfAddrError")
 var ErrGoWrapErrorSendMsgError = fmt.Errorf("GoWrapErrorSendMsgError")
 var ErrGoWrapErrorReplyError = fmt.Errorf("GoWrapErrorReplyError")
 var ErrGoWrapErrorListenError = fmt.Errorf("GoWrapErrorListenError")
+var ErrGoWrapErrorProxyInitError = fmt.Errorf("GoWrapErrorProxyInitError")
+var ErrGoWrapErrorProxyUninitialisedError = fmt.Errorf("GoWrapErrorProxyUninitialisedError")
 
 // Variant structs
 type GoWrapErrorClientInitError struct {
@@ -662,6 +697,42 @@ func (self GoWrapErrorListenError) Is(target error) bool {
 	return target == ErrGoWrapErrorListenError
 }
 
+type GoWrapErrorProxyInitError struct {
+	message string
+}
+
+func NewGoWrapErrorProxyInitError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorProxyInitError{},
+	}
+}
+
+func (err GoWrapErrorProxyInitError) Error() string {
+	return fmt.Sprintf("ProxyInitError: %s", err.message)
+}
+
+func (self GoWrapErrorProxyInitError) Is(target error) bool {
+	return target == ErrGoWrapErrorProxyInitError
+}
+
+type GoWrapErrorProxyUninitialisedError struct {
+	message string
+}
+
+func NewGoWrapErrorProxyUninitialisedError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorProxyUninitialisedError{},
+	}
+}
+
+func (err GoWrapErrorProxyUninitialisedError) Error() string {
+	return fmt.Sprintf("ProxyUninitialisedError: %s", err.message)
+}
+
+func (self GoWrapErrorProxyUninitialisedError) Is(target error) bool {
+	return target == ErrGoWrapErrorProxyUninitialisedError
+}
+
 type FfiConverterTypeGoWrapError struct{}
 
 var FfiConverterTypeGoWrapErrorINSTANCE = FfiConverterTypeGoWrapError{}
@@ -691,6 +762,10 @@ func (c FfiConverterTypeGoWrapError) Read(reader io.Reader) error {
 		return &GoWrapError{&GoWrapErrorReplyError{message}}
 	case 6:
 		return &GoWrapError{&GoWrapErrorListenError{message}}
+	case 7:
+		return &GoWrapError{&GoWrapErrorProxyInitError{message}}
+	case 8:
+		return &GoWrapError{&GoWrapErrorProxyUninitialisedError{message}}
 	default:
 		panic(fmt.Sprintf("Unknown error code %d in FfiConverterTypeGoWrapError.Read()", errorID))
 	}
@@ -711,9 +786,50 @@ func (c FfiConverterTypeGoWrapError) Write(writer io.Writer, value *GoWrapError)
 		writeInt32(writer, 5)
 	case *GoWrapErrorListenError:
 		writeInt32(writer, 6)
+	case *GoWrapErrorProxyInitError:
+		writeInt32(writer, 7)
+	case *GoWrapErrorProxyUninitialisedError:
+		writeInt32(writer, 8)
 	default:
 		_ = variantValue
 		panic(fmt.Sprintf("invalid error value `%v` in FfiConverterTypeGoWrapError.Write", value))
+	}
+}
+
+type FfiConverterOptionalString struct{}
+
+var FfiConverterOptionalStringINSTANCE = FfiConverterOptionalString{}
+
+func (c FfiConverterOptionalString) Lift(rb RustBufferI) *string {
+	return LiftFromRustBuffer[*string](c, rb)
+}
+
+func (_ FfiConverterOptionalString) Read(reader io.Reader) *string {
+	if readInt8(reader) == 0 {
+		return nil
+	}
+	temp := FfiConverterStringINSTANCE.Read(reader)
+	return &temp
+}
+
+func (c FfiConverterOptionalString) Lower(value *string) RustBuffer {
+	return LowerIntoRustBuffer[*string](c, value)
+}
+
+func (_ FfiConverterOptionalString) Write(writer io.Writer, value *string) {
+	if value == nil {
+		writeInt8(writer, 0)
+	} else {
+		writeInt8(writer, 1)
+		FfiConverterStringINSTANCE.Write(writer, *value)
+	}
+}
+
+type FfiDestroyerOptionalString struct{}
+
+func (_ FfiDestroyerOptionalString) Destroy(value *string) {
+	if value != nil {
+		FfiDestroyerString{}.Destroy(*value)
 	}
 }
 
@@ -754,6 +870,14 @@ func ListenForIncoming() (IncomingMessage, error) {
 	} else {
 		return FfiConverterTypeIncomingMessageINSTANCE.Lift(_uniffiRV), _uniffiErr
 	}
+}
+
+func NewProxyClient(serverAddress string, listenAddress string, listenPort string, closeTimeout uint64, env *string) error {
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_nym_go_ffi_fn_func_new_proxy_client(FfiConverterStringINSTANCE.Lower(serverAddress), FfiConverterStringINSTANCE.Lower(listenAddress), FfiConverterStringINSTANCE.Lower(listenPort), FfiConverterUint64INSTANCE.Lower(closeTimeout), FfiConverterOptionalStringINSTANCE.Lower(env), _uniffiStatus)
+		return false
+	})
+	return _uniffiErr
 }
 
 func Reply(recipient []byte, message string) error {

@@ -19,6 +19,10 @@ enum GoWrapError {
     ReplyError {},
     #[error("Could not start listening")]
     ListenError {},
+    #[error("Couldn't init proxy client")]
+    ProxyInitError {},
+    #[error("Proxy client is uninitialised: init proxy client first")]
+    ProxyUninitialisedError {},
 }
 
 #[no_mangle]
@@ -44,7 +48,8 @@ fn get_self_address() -> Result<String, GoWrapError> {
 
 #[no_mangle]
 fn send_message(recipient: String, message: String) -> Result<(), GoWrapError> {
-    let nym_recipient_type = Recipient::try_from_base58_string(recipient).unwrap();
+    let nym_recipient_type =
+        Recipient::try_from_base58_string(recipient).expect("couldn't create Recipient");
     match nym_ffi_shared::send_message_internal(nym_recipient_type, &message) {
         Ok(_) => Ok(()),
         Err(_) => Err(GoWrapError::SendMsgError {}),
@@ -72,11 +77,35 @@ fn listen_for_incoming() -> Result<IncomingMessage, GoWrapError> {
     match nym_ffi_shared::listen_for_incoming_internal() {
         Ok(received) => {
             let message = String::from_utf8_lossy(&received.message).to_string();
-            // maybe change this to raw bytes to send over TODO
-            let sender = received.sender_tag.unwrap().to_bytes().to_vec(); //.to_base58_string();
+            let sender = received.sender_tag.unwrap().to_bytes().to_vec();
             let incoming = IncomingMessage { message, sender };
             Ok(incoming)
         }
         Err(_) => Err(GoWrapError::ListenError {}),
     }
 }
+
+#[no_mangle]
+fn new_proxy_client(
+    server_address: String,
+    listen_address: String,
+    listen_port: String,
+    close_timeout: u64,
+    env: Option<String>,
+) -> Result<(), GoWrapError> {
+    let server_nym_addr =
+        Recipient::try_from_base58_string(server_address).expect("couldn't create Recipient");
+    match nym_ffi_shared::proxy_client_new_internal(
+        server_nym_addr,
+        &listen_address,
+        &listen_port,
+        close_timeout,
+        env,
+    ) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(GoWrapError::ProxyInitError {}),
+    }
+}
+
+// new proxy client defaults
+// run proxy client

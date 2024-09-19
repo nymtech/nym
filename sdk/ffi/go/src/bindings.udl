@@ -5,7 +5,9 @@ enum GoWrapError {
   "SelfAddrError",
   "SendMsgError",
   "ReplyError",
-  "ListenError"
+  "ListenError",
+  "ProxyInitError",
+  "ProxyUninitialisedError"
 };
 
 dictionary IncomingMessage {
@@ -25,4 +27,6 @@ namespace bindings {
   void reply(bytes recipient, string message);
   [Throws=GoWrapError]
   IncomingMessage listen_for_incoming();
+  [Throws=GoWrapError]
+  void new_proxy_client(string server_address, string listen_address, string listen_port, u64 close_timeout, string? env);
 };

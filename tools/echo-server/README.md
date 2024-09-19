@@ -1,6 +1,6 @@
 # Nym Echo Server
 
-This is an initial minimal implementation of an echo server built using the [`NymProxyServer`]() abstraction.
+This is an initial minimal implementation of an echo server built using the `NymProxyServer` Rust SDK abstraction.
 
 ## Usage
 ```

@@ -232,10 +232,12 @@ hex-literal = "0.3.3"
 hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "1"
+http-body-util = "0.1"
 httpcodec = "0.2.3"
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
 hyper = "1.4.1"
+hyper-util = "0.1"
 indicatif = "0.17.8"
 inquire = "0.6.2"
 ip_network = "0.4.1"
@@ -300,6 +302,7 @@ time = "0.3.30"
 tokio = "1.39"
 tokio-stream = "0.1.16"
 tokio-test = "0.4.4"
+tokio-tun = "0.11.5"
 tokio-tungstenite = { version = "0.20.1" }
 tokio-util = "0.7.12"
 toml = "0.8.14"
@@ -313,7 +316,6 @@ ts-rs = "7.0.0"
 tungstenite = { version = "0.20.1", default-features = false }
 url = "2.5"
 utoipa = "4.2"
-utoipa-rapidoc = "4.0"
 utoipa-swagger-ui = "7.1"
 utoipauto = "0.1"
 uuid = "*"
@@ -334,7 +336,6 @@ group = { version = "0.13.0", default-features = false }
 ff = { version = "0.13.0", default-features = false }
 
 # cosmwasm-related
-cosmwasm-derive = "=1.4.3"
 cosmwasm-schema = "=1.4.3"
 cosmwasm-std = "=1.4.3"
 # use 0.5.0 as that's the version used by cosmwasm-std 1.4.3

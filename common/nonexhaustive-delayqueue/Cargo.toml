@@ -14,7 +14,7 @@ tokio-stream = { workspace = true } # this one seems to be a thing until `Stream
 workspace = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-util]
-version = "0.7.12"
+workspace = true
 features = ["time"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]

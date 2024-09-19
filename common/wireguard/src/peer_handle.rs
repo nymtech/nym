@@ -5,10 +5,7 @@ use crate::error::Error;
 use crate::peer_controller::PeerControlRequest;
 use defguard_wireguard_rs::{host::Host, key::Key};
 use futures::channel::oneshot;
-use nym_credential_verification::{
-    bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
-    ClientBandwidth,
-};
+use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_gateway_storage::models::WireguardPeer;
 use nym_gateway_storage::Storage;
 use nym_task::TaskClient;
@@ -21,52 +18,34 @@ pub struct PeerHandle<St> {
     storage: St,
     public_key: Key,
     host_information: Arc<RwLock<Host>>,
-    bandwidth_manager: Option<BandwidthStorageManager<St>>,
+    bandwidth_storage_manager: Option<BandwidthStorageManager<St>>,
     request_tx: mpsc::UnboundedSender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
     task_client: TaskClient,
 }
 
 impl<St: Storage + Clone + 'static> PeerHandle<St> {
-    pub async fn new(
+    pub fn new(
         storage: St,
         public_key: Key,
         host_information: Arc<RwLock<Host>>,
+        bandwidth_storage_manager: Option<BandwidthStorageManager<St>>,
         request_tx: mpsc::UnboundedSender<PeerControlRequest>,
-        task_client: TaskClient,
-    ) -> Result<Self, Error> {
+        task_client: &TaskClient,
+    ) -> Self {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
-        let bandwidth_manager = if let Some(client_id) = storage
-            .get_wireguard_peer(&public_key.to_string())
-            .await?
-            .ok_or(Error::MissingClientBandwidthEntry)?
-            .client_id
-        {
-            let bandwidth = storage
-                .get_available_bandwidth(client_id)
-                .await?
-                .ok_or(Error::MissingClientBandwidthEntry)?;
-            Some(BandwidthStorageManager::new(
-                storage.clone(),
-                ClientBandwidth::new(bandwidth.into()),
-                client_id,
-                BandwidthFlushingBehaviourConfig::default(),
-                true,
-            ))
-        } else {
-            None
-        };
-        Ok(PeerHandle {
+        let task_client = task_client.fork(format!("peer{}", public_key.to_string()));
+        PeerHandle {
             storage,
             public_key,
             host_information,
-            bandwidth_manager,
+            bandwidth_storage_manager,
             request_tx,
             timeout_check_interval,
             task_client,
-        })
+        }
     }
 
     async fn active_peer(&mut self, storage_peer: WireguardPeer) -> Result<bool, Error> {
@@ -83,7 +62,7 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
             .ok_or(Error::InconsistentConsumedBytes)?
             .try_into()
             .map_err(|_| Error::InconsistentConsumedBytes)?;
-        if let Some(bandwidth_manager) = self.bandwidth_manager.as_mut() {
+        if let Some(bandwidth_manager) = self.bandwidth_storage_manager.as_mut() {
             if bandwidth_manager
                 .try_use_bandwidth(spent_bandwidth)
                 .await

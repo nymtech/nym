@@ -131,8 +131,10 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
         interface_config.peers,
         wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,
-    );
-    tokio::spawn(async move { controller.run(task_client).await });
+        task_client,
+    )
+    .await?;
+    tokio::spawn(async move { controller.run().await });
 
     Ok(wg_api)
 }

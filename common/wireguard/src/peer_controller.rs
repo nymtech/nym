@@ -8,6 +8,10 @@ use defguard_wireguard_rs::{
 };
 use futures::channel::oneshot;
 use nym_authenticator_requests::v2::registration::{RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY};
+use nym_credential_verification::{
+    bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
+    ClientBandwidth,
+};
 use nym_gateway_storage::Storage;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::sync::Arc;
@@ -64,30 +68,50 @@ pub struct PeerController<St: Storage + Clone + 'static> {
     wg_api: Arc<WgApiWrapper>,
     host_information: Arc<RwLock<Host>>,
     timeout_check_interval: IntervalStream,
+    task_client: nym_task::TaskClient,
 }
 
 impl<St: Storage + Clone + 'static> PeerController<St> {
-    pub fn new(
+    pub async fn new(
         storage: St,
         wg_api: Arc<WgApiWrapper>,
         initial_host_information: Host,
         startup_peers: Vec<Peer>,
         request_tx: mpsc::UnboundedSender<PeerControlRequest>,
         request_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
-    ) -> Self {
+        task_client: nym_task::TaskClient,
+    ) -> Result<Self, Error> {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
         let host_information = Arc::new(RwLock::new(initial_host_information));
+        for peer in startup_peers {
+            let bandwidth_storage_manager =
+                Self::generate_bandwidth_manager(storage.clone(), &peer.public_key).await?;
+            let mut handle = PeerHandle::new(
+                storage.clone(),
+                peer.public_key.clone(),
+                host_information.clone(),
+                bandwidth_storage_manager,
+                request_tx.clone(),
+                &task_client,
+            );
+            tokio::spawn(async move {
+                if let Err(e) = handle.run().await {
+                    log::error!("Peer handle shut down ungracefully - {e}");
+                }
+            });
+        }
 
-        PeerController {
+        Ok(PeerController {
             storage,
             wg_api,
             host_information,
             request_tx,
             request_rx,
             timeout_check_interval,
-        }
+            task_client,
+        })
     }
 
     // Function that should be used for peer insertion, to handle both storage and kernel interaction
@@ -122,21 +146,48 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         Ok(ret?)
     }
 
+    async fn generate_bandwidth_manager(
+        storage: St,
+        public_key: &Key,
+    ) -> Result<Option<BandwidthStorageManager<St>>, Error> {
+        if let Some(client_id) = storage
+            .get_wireguard_peer(&public_key.to_string())
+            .await?
+            .ok_or(Error::MissingClientBandwidthEntry)?
+            .client_id
+        {
+            let bandwidth = storage
+                .get_available_bandwidth(client_id)
+                .await?
+                .ok_or(Error::MissingClientBandwidthEntry)?;
+            Ok(Some(BandwidthStorageManager::new(
+                storage,
+                ClientBandwidth::new(bandwidth.into()),
+                client_id,
+                BandwidthFlushingBehaviourConfig::default(),
+                true,
+            )))
+        } else {
+            Ok(None)
+        }
+    }
+
     async fn handle_add_request(
         &self,
         peer: &Peer,
         with_client_id: bool,
-        task_client: nym_task::TaskClient,
     ) -> Result<Option<i64>, Error> {
         let client_id = self.add_peer(peer, with_client_id).await?;
+        let bandwidth_storage_manager =
+            Self::generate_bandwidth_manager(self.storage.clone(), &peer.public_key).await?;
         let mut handle = PeerHandle::new(
             self.storage.clone(),
             peer.public_key.clone(),
             self.host_information.clone(),
+            bandwidth_storage_manager,
             self.request_tx.clone(),
-            task_client,
-        )
-        .await?;
+            &self.task_client,
+        );
         tokio::spawn(async move {
             if let Err(e) = handle.run().await {
                 log::error!("Peer handle shut down ungracefully - {e}");
@@ -145,7 +196,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         Ok(client_id)
     }
 
-    pub async fn run(&mut self, mut task_client: nym_task::TaskClient) {
+    pub async fn run(&mut self) {
         loop {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
@@ -155,14 +206,14 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                     };
                     *self.host_information.write().await = host;
                 }
-                _ = task_client.recv() => {
+                _ = self.task_client.recv() => {
                     log::trace!("PeerController handler: Received shutdown");
                     break;
                 }
                 msg = self.request_rx.recv() => {
                     match msg {
                         Some(PeerControlRequest::AddPeer { peer, ticket_validation, response_tx }) => {
-                            let ret = self.handle_add_request(&peer, ticket_validation, task_client.fork(format!("peer{}", peer.public_key.to_string()))).await;
+                            let ret = self.handle_add_request(&peer, ticket_validation).await;
                             if let Ok(client_id) = ret {
                                 response_tx.send(AddPeerControlResponse { success: true, client_id }).ok();
                             } else {

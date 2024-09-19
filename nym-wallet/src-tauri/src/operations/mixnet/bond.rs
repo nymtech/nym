@@ -4,12 +4,18 @@
 use crate::error::BackendError;
 use crate::operations::helpers::{
     verify_gateway_bonding_sign_payload, verify_mixnode_bonding_sign_payload,
+    verify_nym_node_bonding_sign_payload,
 };
 use crate::state::WalletState;
 use crate::{nyxd_client, Gateway, MixNode};
+use log::info;
 use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
-use nym_mixnet_contract_common::{MixNodeConfigUpdate, NodeId};
+use nym_mixnet_contract_common::nym_node::NodeConfigUpdate;
+use nym_mixnet_contract_common::{MixNodeConfigUpdate, NodeId, NymNode};
+use nym_node_requests::api::client::NymNodeApiClientExt;
+use nym_node_requests::api::v1::node::models::NodeDescription;
+use nym_node_requests::api::ErrorResponse;
 use nym_types::currency::DecCoin;
 use nym_types::gateway::GatewayBond;
 use nym_types::mixnode::{MixNodeDetails, NodeCostParams};
@@ -23,7 +29,7 @@ use std::cmp::Ordering;
 use std::time::Duration;
 
 #[derive(Debug, Serialize, Deserialize)]
-pub struct NodeDescription {
+pub struct LegacyNodeDescription {
     name: String,
     description: String,
     link: String,
@@ -128,6 +134,54 @@ pub async fn bond_mixnode(
     let res = client
         .nyxd
         .bond_mixnode(mixnode, cost_params, msg_signature, pledge_base, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn bond_nymnode(
+    nymnode: NymNode,
+    cost_params: NodeCostParams,
+    msg_signature: MessageSignature,
+    pledge: DecCoin,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.write().await;
+    let reg = guard.registered_coins()?;
+    let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    let cost_params = cost_params.try_convert_to_mixnet_contract_cost_params(reg)?;
+    log::info!(
+        ">>> Bond NymNode: identity_key = {}, pledge_display = {}, pledge_base = {}, fee = {:?}",
+        nymnode.identity_key,
+        pledge,
+        pledge_base,
+        fee,
+    );
+
+    let client = guard.current_client()?;
+    // check the signature to make sure the user copied it correctly
+    if let Err(err) = verify_nym_node_bonding_sign_payload(
+        client,
+        &nymnode,
+        &cost_params,
+        &pledge_base,
+        &msg_signature,
+    )
+    .await
+    {
+        log::warn!("failed to verify provided nymnode bonding signature: {err}");
+        return Err(err);
+    }
+
+    let res = client
+        .nyxd
+        .bond_nymnode(nymnode, cost_params, msg_signature, pledge_base, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -250,6 +304,23 @@ pub async fn unbond_mixnode(
     let res = guard.current_client()?.nyxd.unbond_mixnode(fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn unbond_nymnode(
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.write().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(">>> Unbond NymNode, fee = {fee:?}");
+    let res = guard.current_client()?.nyxd.unbond_nymnode(fee).await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+
     Ok(TransactionExecuteResult::from_execute_result(
         res, fee_amount,
     )?)
@@ -506,7 +577,7 @@ pub async fn get_number_of_mixnode_delegators(
 pub async fn get_mix_node_description(
     host: &str,
     port: u16,
-) -> Result<NodeDescription, BackendError> {
+) -> Result<LegacyNodeDescription, BackendError> {
     Ok(reqwest::Client::builder()
         .timeout(Duration::from_millis(1000))
         .build()?
@@ -515,6 +586,23 @@ pub async fn get_mix_node_description(
         .await?
         .json()
         .await?)
+}
+
+#[tauri::command]
+pub async fn get_nym_node_description(
+    host: &str,
+    port: u16,
+) -> Result<NodeDescription, BackendError> {
+    Ok(
+        nym_node_requests::api::Client::builder::<_, ErrorResponse>(format!(
+            "http://{host}:{port}"
+        ))?
+        .with_timeout(Duration::from_millis(1000))
+        .with_user_agent(format!("nym-wallet/{}", env!("CARGO_PKG_VERSION")))
+        .build::<ErrorResponse>()?
+        .get_description()
+        .await?,
+    )
 }
 
 #[tauri::command]
@@ -530,4 +618,85 @@ pub async fn get_mixnode_uptime(
 
     log::info!(">>> Uptime response: {}", uptime.avg_uptime);
     Ok(uptime.avg_uptime)
+}
+
+#[tauri::command]
+pub async fn migrate_legacy_mixnode(
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.write().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
+    info!(">>> migrate to NymNode, fee = {fee:?}");
+    let client = guard.current_client()?;
+
+    let res = client.nyxd.migrate_legacy_mixnode(fee).await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn migrate_legacy_gateway(
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.write().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+
+    info!(">>> migrate to NymNode, fee = {fee:?}");
+    let client = guard.current_client()?;
+
+    let res = client.nyxd.migrate_legacy_gateway(None, fee).await?;
+
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn update_nymnode_config(
+    update: NodeConfigUpdate,
+    fee: Option<Fee>,
+    state: tauri::State<'_, WalletState>,
+) -> Result<TransactionExecuteResult, BackendError> {
+    let guard = state.write().await;
+    let fee_amount = guard.convert_tx_fee(fee.as_ref());
+    log::info!(">>> update nym node config: update = {update:?}, fee {fee:?}",);
+    let res = guard
+        .current_client()?
+        .nyxd
+        .update_nymnode_config(update, fee)
+        .await?;
+    log::info!("<<< tx hash = {}", res.transaction_hash);
+    log::trace!("<<< {:?}", res);
+    Ok(TransactionExecuteResult::from_execute_result(
+        res, fee_amount,
+    )?)
+}
+
+#[tauri::command]
+pub async fn get_nymnode_performance(
+    state: tauri::State<'_, WalletState>,
+) -> Result<Option<f64>, BackendError> {
+    let Some(details) = nym_node_bond_details(state.clone()).await? else {
+        return Ok(None);
+    };
+    let node_id = details.bond_information.node_id;
+
+    log::trace!("  >>> Get node performance: node_id = {node_id}");
+    let guard = state.read().await;
+    let res = guard
+        .current_client()?
+        .nym_api
+        .get_current_node_performance(node_id)
+        .await?;
+    log::trace!("  <<< {res:?}");
+
+    Ok(res.performance)
 }

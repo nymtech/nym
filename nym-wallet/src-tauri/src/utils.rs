@@ -48,7 +48,7 @@ pub async fn owns_gateway(state: tauri::State<'_, WalletState>) -> Result<bool, 
 #[tauri::command]
 pub async fn owns_nym_node(state: tauri::State<'_, WalletState>) -> Result<bool, BackendError> {
     Ok(nyxd_client!(state)
-        .get_owned_nym_node(&nyxd_client!(state).address())
+        .get_owned_nymnode(&nyxd_client!(state).address())
         .await?
         .details
         .is_some())

@@ -76,7 +76,7 @@ impl GatewayConfig {
 #[must_use]
 #[derive(Debug)]
 pub struct AuthenticationResponse {
-    pub current_shared_key: Arc<SharedGatewayKey>,
+    pub initial_shared_key: Arc<SharedGatewayKey>,
     pub requires_key_upgrade: bool,
 }
 
@@ -468,6 +468,8 @@ impl<C, St> GatewayClient<C, St> {
     pub async fn upgrade_key_authenticated(
         &mut self,
     ) -> Result<Zeroizing<SharedSymmetricKey>, GatewayClientError> {
+        info!("*** STARTING AES128CTR-HMAC KEY UPGRADE INTO AES256GCM-SIV***");
+
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
@@ -607,7 +609,7 @@ impl<C, St> GatewayClient<C, St> {
             debug!("Already authenticated");
             return if let Some(shared_key) = &self.shared_key {
                 Ok(AuthenticationResponse {
-                    current_shared_key: Arc::clone(shared_key),
+                    initial_shared_key: Arc::clone(shared_key),
                     requires_key_upgrade: shared_key.is_legacy() && supports_aes_gcm_siv,
                 })
             } else {
@@ -625,7 +627,7 @@ impl<C, St> GatewayClient<C, St> {
                 let requires_key_upgrade = shared_key.is_legacy() && supports_aes_gcm_siv;
 
                 Ok(AuthenticationResponse {
-                    current_shared_key: Arc::clone(shared_key),
+                    initial_shared_key: Arc::clone(shared_key),
                     requires_key_upgrade,
                 })
             } else {
@@ -640,7 +642,7 @@ impl<C, St> GatewayClient<C, St> {
             // we're always registering with the highest supported protocol,
             // so no upgrades are required
             Ok(AuthenticationResponse {
-                current_shared_key: Arc::clone(shared_key),
+                initial_shared_key: Arc::clone(shared_key),
                 requires_key_upgrade: false,
             })
         }

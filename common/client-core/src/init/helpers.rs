@@ -336,7 +336,7 @@ pub(super) async fn register_with_gateway(
     assert!(!auth_response.requires_key_upgrade);
 
     Ok(RegistrationResult {
-        shared_keys: auth_response.current_shared_key,
+        shared_keys: auth_response.initial_shared_key,
         authenticated_ephemeral_client: gateway_client,
     })
 }

@@ -417,6 +417,9 @@ where
             .map_err(gateway_failure)?;
 
         if auth_res.requires_key_upgrade {
+            // drop the shared_key arc because we don't need it and we can't hold it for the purposes of upgrade
+            drop(auth_res);
+
             let updated_key = gateway_client
                 .upgrade_key_authenticated()
                 .await

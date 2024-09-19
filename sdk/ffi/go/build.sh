@@ -16,9 +16,12 @@ build_artifacts() {
   uniffi-bindgen-go $UDL_PATH --out-dir $GO_DIR
   printf "bindings built \n\n"
 
+  # TODO pull in from https://github.com/NordSecurity/uniffi-bindgen-go/blob/main/test_bindings.sh
+  #
   # something not right with these - having to add it manually to bindings.go for the moment
   # pushd $GO_DIR/bindings
   # echo $(pwd)
+  # TODO change this path since this ffi lib is now part of the workspaces
   # LD_LIBRARY_PATH="${LD_LIBRARY_PATH:-}:../../target/release" \
   #	CGO_LDFLAGS="-L../target/release -lnym_go_ffi -lm -ldl" \
   #	CGO_ENABLED=1 \

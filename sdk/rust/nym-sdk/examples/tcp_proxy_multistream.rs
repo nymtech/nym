@@ -1,4 +1,3 @@
-use bincode;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::tcp_proxy;
 use rand::rngs::SmallRng;
@@ -11,7 +10,6 @@ use tokio::net::TcpStream;
 use tokio::signal;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
-use tracing_subscriber;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ExampleMessage {
@@ -50,7 +48,7 @@ async fn main() -> anyhow::Result<()> {
         tcp_proxy::NymProxyClient::new(server, "127.0.0.1", &listen_port, 45, Some(env)).await?;
 
     tokio::spawn(async move {
-        let _ = proxy_client.run().await?;
+        proxy_client.run().await?;
         Ok::<(), anyhow::Error>(())
     });
 
@@ -142,7 +140,7 @@ async fn main() -> anyhow::Result<()> {
 
 // emulate a series of small messages followed by a closing larger one
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
-    let amounts = vec![10, 15, 50, 1000];
+    let amounts = [10, 15, 50, 1000];
     let len = amounts[i];
     let mut rng = rand::thread_rng();
     (0..len).map(|_| rng.gen::<u8>()).collect()

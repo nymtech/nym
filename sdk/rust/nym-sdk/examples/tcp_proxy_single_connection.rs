@@ -1,4 +1,3 @@
-use bincode;
 use dirs;
 use nym_sdk::tcp_proxy;
 use rand::rngs::SmallRng;
@@ -12,7 +11,6 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
-use tracing_subscriber;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ExampleMessage {
@@ -68,12 +66,12 @@ async fn main() -> anyhow::Result<()> {
             .await?;
 
     tokio::spawn(async move {
-        let _ = proxy_server.run_with_shutdown().await?;
+        proxy_server.run_with_shutdown().await?;
         Ok::<(), anyhow::Error>(())
     });
 
     tokio::spawn(async move {
-        let _ = proxy_client.run().await?;
+        proxy_client.run().await?;
         Ok::<(), anyhow::Error>(())
     });
 
@@ -152,7 +150,7 @@ async fn main() -> anyhow::Result<()> {
                 .expect("couldn't write to stream");
             println!(">> client sent {}: {} bytes", &i, msg.message_bytes.len());
             let delay = rng.gen_range(3.0..7.0);
-            tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay.clone())).await;
+            tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
         }
         Ok::<(), anyhow::Error>(())
     });
@@ -188,7 +186,7 @@ async fn main() -> anyhow::Result<()> {
 
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
     // let amounts = vec![1, 10, 50, 100, 150, 200, 350, 500, 750, 1000];
-    let amounts = vec![158, 1088, 505, 1001, 150, 200, 3500, 500, 750, 100];
+    let amounts = [158, 1088, 505, 1001, 150, 200, 3500, 500, 750, 100];
     let len = amounts[i];
     let mut rng = rand::thread_rng();
     (0..len).map(|_| rng.gen::<u8>()).collect()

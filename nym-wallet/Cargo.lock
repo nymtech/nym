@@ -5943,7 +5943,11 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
+<<<<<<< HEAD
  "toml_edit 0.22.22",
+=======
+ "toml_edit 0.22.21",
+>>>>>>> 2485d63d0 (fix legacy test)
 ]
 
 [[package]]
@@ -5970,15 +5974,25 @@ dependencies = [
 
 [[package]]
 name = "toml_edit"
+<<<<<<< HEAD
 version = "0.22.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ae48d6208a266e853d946088ed816055e556cc6028c5e8e2b84d9fa5dd7c7f5"
+=======
+version = "0.22.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b072cee73c449a636ffd6f32bd8de3a9f7119139aff882f44943ce2986dc5cf"
+>>>>>>> 2485d63d0 (fix legacy test)
 dependencies = [
  "indexmap 2.5.0",
  "serde",
  "serde_spanned",
  "toml_datetime",
+<<<<<<< HEAD
  "winnow 0.6.19",
+=======
+ "winnow 0.6.18",
+>>>>>>> 2485d63d0 (fix legacy test)
 ]
 
 [[package]]
@@ -6854,9 +6868,15 @@ dependencies = [
 
 [[package]]
 name = "winnow"
+<<<<<<< HEAD
 version = "0.6.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c52ac009d615e79296318c1bcce2d422aaca15ad08515e344feeda07df67a587"
+=======
+version = "0.6.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "68a9bda4691f099d435ad181000724da8e5899daa10713c2d432552b9ccd3a6f"
+>>>>>>> 2485d63d0 (fix legacy test)
 dependencies = [
  "memchr",
 ]

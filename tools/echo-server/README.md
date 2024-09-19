@@ -1,7 +1,9 @@
-Echo server for quick conn testing
+# Nym Echo Server
 
-Plan:
-- static client address
-- use tcpproxy for echo
-- multiplex
-- optional: standard endpoint to ping which returns address
+This is an initial minimal implementation of an echo server built using the [`NymProxyServer`]() abstraction.
+
+## Usage
+```
+cargo build --release
+../../target/release/echo-server <PORT> <PATH_TO_ENV_FILE> e.g.  ../../target/release/echo-server 9000 ../../envs/canary.env
+```

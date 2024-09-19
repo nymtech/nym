@@ -5462,7 +5462,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ffi-shared"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bs58 0.5.1",
@@ -5671,14 +5671,14 @@ dependencies = [
 
 [[package]]
 name = "nym-go-ffi"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "lazy_static",
- "nym-bin-common 0.6.0 (git+https://github.com/nymtech/nym?branch=master)",
+ "nym-bin-common 0.6.0",
  "nym-ffi-shared",
- "nym-sdk 0.1.0 (git+https://github.com/nymtech/nym?branch=master)",
- "nym-sphinx-anonymous-replies 0.1.0 (git+https://github.com/nymtech/nym?branch=master)",
+ "nym-sdk 0.1.0",
+ "nym-sphinx-anonymous-replies 0.1.0",
  "thiserror",
  "tokio",
  "uniffi",

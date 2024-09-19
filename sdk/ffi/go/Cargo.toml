@@ -1,19 +1,19 @@
 [package]
 name = "nym-go-ffi" #"goffitest"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib"]
-name = "nym_go_ffi" #"go_ffi"
+name = "nym_go_ffi"     #"go_ffi"
 
 [dependencies]
 # Bindgen
 uniffi = { version = "0.25.2", features = ["cli"] }
 # Nym clients, addressing, packet format, common tools (logging), ffi shared
-nym-bin-common = { git = "https://github.com/nymtech/nym", branch = "master" }
-nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
-nym-sphinx-anonymous-replies = { git = "https://github.com/nymtech/nym", branch = "master" }
+nym-sdk = { path = "../../rust/nym-sdk/" }
+nym-bin-common = { path = "../../../common/bin-common" }
+nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
 nym-ffi-shared = { path = "../shared" }
 # Async runtime
 tokio = { version = "1", features = ["full"] }
@@ -23,8 +23,8 @@ anyhow = "1.0.79"
 thiserror = "1.0.56"
 
 [build-dependencies]
-uniffi = { version = "0.25.2", features = ["build" ] }
-uniffi_build = { version = "0.25.2", features=["builtin-bindgen"] }
+uniffi = { version = "0.25.2", features = ["build"] }
+uniffi_build = { version = "0.25.2", features = ["builtin-bindgen"] }
 
 [[bin]]
 name = "uniffi-bindgen"

@@ -11,16 +11,15 @@ bs58 = { workspace = true }
 cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
 getset = { workspace = true }
+rocket = { workspace = true, optional = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
-ts-rs = { workspace = true, optional = true }
+sha2.workspace = true
 tendermint = { workspace = true }
-time = { workspace = true, features = ["serde", "parsing", "formatting"] }
 thiserror.workspace = true
-rocket = { workspace = true, optional = true }
+time = { workspace = true, features = ["serde", "parsing", "formatting"] }
+ts-rs = { workspace = true, optional = true }
 utoipa.workspace = true
-
-sha2 = "0.10.8"
 
 # for serde on secp256k1 signatures
 ecdsa = { workspace = true, features = ["serde"] }

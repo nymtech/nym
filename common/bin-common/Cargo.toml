@@ -8,14 +8,14 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-const-str = { workspace = true }
 clap = { workspace = true, features = ["derive"], optional = true }
 clap_complete = { workspace = true, optional = true }
 clap_complete_fig = { workspace = true, optional = true }
+const-str = { workspace = true }
 log = { workspace = true }
 pretty_env_logger = { workspace = true }
-semver = "1.0"
 schemars = { workspace = true, features = ["preserve_order"], optional = true }
+semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 

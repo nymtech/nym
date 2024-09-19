@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::BackendError;
-use crate::nyxd_client;
 use crate::state::WalletState;
 use nym_mixnet_contract_common::ExecuteMsg;
 use nym_types::transaction::TransactionExecuteResult;
@@ -20,7 +19,11 @@ pub async fn migrate_vested_mixnode(
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     log::info!(">>> migrate vested mixnode, fee = {fee:?}");
 
-    let res = nyxd_client!(state).migrate_vested_mixnode(fee).await?;
+    let res = guard
+        .current_client()?
+        .nyxd
+        .migrate_vested_mixnode(fee)
+        .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(

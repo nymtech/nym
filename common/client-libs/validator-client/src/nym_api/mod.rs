@@ -11,7 +11,7 @@ use nym_api_requests::ecash::models::{
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::legacy::LegacyGatewayBondWithId;
-use nym_api_requests::models::LegacyDescribedMixNode;
+use nym_api_requests::models::{LegacyDescribedMixNode, NodePerformanceResponse};
 pub use nym_api_requests::{
     ecash::{
         models::{
@@ -425,6 +425,14 @@ pub trait NymApiClientExt: ApiClient {
             NO_PARAMS,
         )
         .await
+    }
+
+    async fn get_current_node_performance(
+        &self,
+        node_id: NodeId,
+    ) -> Result<NodePerformanceResponse, NymAPIError> {
+        self.get_json_from(format!("/v1/nym-nodes/performance/{node_id}"))
+            .await
     }
 
     async fn get_mixnode_avg_uptime(&self, mix_id: NodeId) -> Result<UptimeResponse, NymAPIError> {

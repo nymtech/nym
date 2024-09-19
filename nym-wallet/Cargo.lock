@@ -3335,6 +3335,7 @@ dependencies = [
 name = "nym-node-requests"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "celes",
  "humantime 2.1.0",
@@ -3342,6 +3343,7 @@ dependencies = [
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
+ "nym-http-api-client",
  "nym-wireguard-types",
  "schemars",
  "serde",
@@ -3549,6 +3551,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-crypto",
  "nym-mixnet-contract-common",
+ "nym-node-requests",
  "nym-store-cipher",
  "nym-types",
  "nym-validator-client",

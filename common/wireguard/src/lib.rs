@@ -89,6 +89,8 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
+    use std::collections::HashMap;
+
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
     use ip_network::IpNetwork;
@@ -96,10 +98,16 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
 
     let ifname = String::from(WG_TUN_NAME);
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
+    let mut peer_bandwidth_managers = HashMap::with_capacity(all_peers.len());
     let peers = all_peers
         .into_iter()
         .map(Peer::try_from)
         .collect::<Result<Vec<_>, _>>()?;
+    for peer in peers.iter() {
+        let bandwidth_manager =
+            PeerController::generate_bandwidth_manager(storage.clone(), &peer.public_key).await?;
+        peer_bandwidth_managers.insert(peer.public_key.clone(), bandwidth_manager);
+    }
     wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
@@ -128,12 +136,11 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
         storage,
         wg_api.clone(),
         host,
-        interface_config.peers,
+        peer_bandwidth_managers,
         wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,
         task_client,
-    )
-    .await?;
+    );
     tokio::spawn(async move { controller.run().await });
 
     Ok(wg_api)

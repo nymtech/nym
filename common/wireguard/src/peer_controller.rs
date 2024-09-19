@@ -14,7 +14,7 @@ use nym_credential_verification::{
 };
 use nym_gateway_storage::Storage;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
@@ -72,25 +72,23 @@ pub struct PeerController<St: Storage + Clone + 'static> {
 }
 
 impl<St: Storage + Clone + 'static> PeerController<St> {
-    pub async fn new(
+    pub fn new(
         storage: St,
         wg_api: Arc<WgApiWrapper>,
         initial_host_information: Host,
-        startup_peers: Vec<Peer>,
+        bw_storage_managers: HashMap<Key, Option<BandwidthStorageManager<St>>>,
         request_tx: mpsc::UnboundedSender<PeerControlRequest>,
         request_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
         task_client: nym_task::TaskClient,
-    ) -> Result<Self, Error> {
+    ) -> Self {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
         let host_information = Arc::new(RwLock::new(initial_host_information));
-        for peer in startup_peers {
-            let bandwidth_storage_manager =
-                Self::generate_bandwidth_manager(storage.clone(), &peer.public_key).await?;
+        for (public_key, bandwidth_storage_manager) in bw_storage_managers {
             let mut handle = PeerHandle::new(
                 storage.clone(),
-                peer.public_key.clone(),
+                public_key,
                 host_information.clone(),
                 bandwidth_storage_manager,
                 request_tx.clone(),
@@ -103,7 +101,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
             });
         }
 
-        Ok(PeerController {
+        PeerController {
             storage,
             wg_api,
             host_information,
@@ -111,7 +109,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
             request_rx,
             timeout_check_interval,
             task_client,
-        })
+        }
     }
 
     // Function that should be used for peer insertion, to handle both storage and kernel interaction
@@ -146,7 +144,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         Ok(ret?)
     }
 
-    async fn generate_bandwidth_manager(
+    pub async fn generate_bandwidth_manager(
         storage: St,
         public_key: &Key,
     ) -> Result<Option<BandwidthStorageManager<St>>, Error> {

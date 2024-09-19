@@ -331,9 +331,13 @@ pub(super) async fn register_with_gateway(
             }
         })?;
 
-    // we can ignore the authentication result because we have **REGISTERED** a fresh client
-    // (we didn't have a prior key to upgrade/authenticate with)
-    assert!(!auth_response.requires_key_upgrade);
+    // this should NEVER happen, if it did, it means the function was misused,
+    // because for any fresh **registration**, the derived key is always up to date
+    if auth_response.requires_key_upgrade {
+        return Err(ClientCoreError::UnexpectedKeyUpgrade {
+            gateway_id: gateway_id.to_base58_string(),
+        });
+    }
 
     Ok(RegistrationResult {
         shared_keys: auth_response.initial_shared_key,

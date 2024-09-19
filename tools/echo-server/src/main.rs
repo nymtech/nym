@@ -1,6 +1,5 @@
 use anyhow::Result;
 use bytes::Bytes;
-use dirs;
 use nym_sdk::tcp_proxy;
 use std::env;
 use std::fs;
@@ -13,7 +12,6 @@ use tokio::sync::broadcast;
 use tokio::task;
 use tokio_stream::StreamExt;
 use tracing::{error, info, warn};
-use tracing_subscriber;
 
 struct Metrics {
     total_conn: AtomicU64,
@@ -55,11 +53,11 @@ async fn main() -> Result<()> {
     let mut proxy_server = tcp_proxy::NymProxyServer::new(&tcp_addr, &conf_path, Some(env.clone()))
         .await
         .unwrap();
-    let proxy_nym_addr = proxy_server.nym_address().clone();
+    let proxy_nym_addr = *proxy_server.nym_address();
     info!("ProxyServer listening out on {}", proxy_nym_addr);
 
     task::spawn(async move {
-        let _ = proxy_server.run_with_shutdown().await?;
+        proxy_server.run_with_shutdown().await?;
         Ok::<(), anyhow::Error>(())
     });
 

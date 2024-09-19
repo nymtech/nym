@@ -362,10 +362,10 @@ pub mod tests {
             .unwrap();
         assert_eq!(nym_node.bond_information.owner, info.sender);
 
-        // make sure we got assigned the next id (note: we have already bonded a mixnode before in this test)
+        // make sure we got assigned the next id (note: we have already bonded a mixnode and a gateway before in this test)
         let bond =
             must_get_node_bond_by_owner(test.deps().storage, &Addr::unchecked(sender2)).unwrap();
-        assert_eq!(2, bond.node_id);
+        assert_eq!(3, bond.node_id);
     }
 
     #[test]

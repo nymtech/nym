@@ -31,11 +31,11 @@ use nym_gateway_storage::Storage;
 use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, TransmissionLane};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
-use nym_wireguard::{peer_controller::PeerControlResponse, WireguardGatewayData};
+use nym_wireguard::WireguardGatewayData;
 use nym_wireguard_types::PeerPublicKey;
 use rand::{prelude::IteratorRandom, thread_rng};
 use tap::tap::TapFallible;
-use tokio::sync::{mpsc::UnboundedReceiver, RwLock};
+use tokio::sync::RwLock;
 use tokio_stream::wrappers::IntervalStream;
 
 use crate::{config::Config, error::*};
@@ -82,7 +82,6 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         config: Config,
         free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
-        response_rx: UnboundedReceiver<PeerControlResponse>,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         task_handle: TaskHandle,
         ecash_verifier: Option<Arc<EcashManager<S>>>,
@@ -94,7 +93,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             mixnet_client,
             task_handle,
             registred_and_free: RwLock::new(RegistredAndFree::new(free_private_network_ips)),
-            peer_manager: PeerManager::new(wireguard_gateway_data, response_rx),
+            peer_manager: PeerManager::new(wireguard_gateway_data),
             ecash_verifier,
             timeout_check_interval,
         }
@@ -306,10 +305,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 ecash_verifier.storage().clone(),
                 client_bandwidth,
                 client_id,
-                BandwidthFlushingBehaviourConfig {
-                    client_bandwidth_max_flushing_rate: Default::default(),
-                    client_bandwidth_max_delta_flushing_amount: Default::default(),
-                },
+                BandwidthFlushingBehaviourConfig::default(),
                 true,
             ),
         );

@@ -19,6 +19,7 @@ const WG_TUN_NAME: &str = "nymwg";
 
 pub(crate) mod error;
 pub mod peer_controller;
+pub mod peer_handle;
 
 pub struct WgApiWrapper {
     inner: WGApi,
@@ -82,32 +83,23 @@ pub struct WireguardData {
 
 /// Start wireguard device
 #[cfg(target_os = "linux")]
-pub async fn start_wireguard<St: nym_gateway_storage::Storage + 'static>(
+pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>(
     storage: St,
     all_peers: Vec<nym_gateway_storage::models::WireguardPeer>,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
-    control_tx: UnboundedSender<peer_controller::PeerControlResponse>,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
     use ip_network::IpNetwork;
     use peer_controller::PeerController;
 
-    let mut peers = vec![];
-    let mut suspended_peers = vec![];
-    for storage_peer in all_peers {
-        let suspended = storage_peer.suspended;
-        let peer = Peer::try_from(storage_peer)?;
-        if suspended {
-            suspended_peers.push(peer);
-        } else {
-            peers.push(peer);
-        }
-    }
-
     let ifname = String::from(WG_TUN_NAME);
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
+    let peers = all_peers
+        .into_iter()
+        .map(Peer::try_from)
+        .collect::<Result<Vec<_>, _>>()?;
     wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
@@ -130,14 +122,15 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + 'static>(
     )]);
     wg_api.configure_peer_routing(&[catch_all_peer])?;
 
+    let host = wg_api.read_interface_data()?;
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
     let mut controller = PeerController::new(
         storage,
         wg_api.clone(),
+        host,
         interface_config.peers,
-        suspended_peers,
+        wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,
-        control_tx,
     );
     tokio::spawn(async move { controller.run(task_client).await });
 

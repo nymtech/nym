@@ -88,7 +88,6 @@ pub struct WireguardPeer {
     pub rx_bytes: i64,
     pub persistent_keepalive_interval: Option<i64>,
     pub allowed_ips: Vec<u8>,
-    pub suspended: bool,
     pub client_id: Option<i64>,
 }
 
@@ -119,7 +118,6 @@ impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
                 &value.allowed_ips,
             )
             .unwrap_or_default(),
-            suspended: false,
             client_id: None,
         }
     }

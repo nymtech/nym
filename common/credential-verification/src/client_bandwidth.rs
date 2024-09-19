@@ -6,6 +6,9 @@ use std::time::Duration;
 use nym_credentials_interface::AvailableBandwidth;
 use time::OffsetDateTime;
 
+const DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE: Duration = Duration::from_millis(5);
+const DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT: i64 = 512 * 1024; // 512kB
+
 #[derive(Debug, Clone, Copy)]
 pub struct BandwidthFlushingBehaviourConfig {
     /// Defines maximum delay between client bandwidth information being flushed to the persistent storage.
@@ -13,6 +16,16 @@ pub struct BandwidthFlushingBehaviourConfig {
 
     /// Defines a maximum change in client bandwidth before it gets flushed to the persistent storage.
     pub client_bandwidth_max_delta_flushing_amount: i64,
+}
+
+impl Default for BandwidthFlushingBehaviourConfig {
+    fn default() -> Self {
+        Self {
+            client_bandwidth_max_flushing_rate: DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE,
+            client_bandwidth_max_delta_flushing_amount:
+                DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy)]

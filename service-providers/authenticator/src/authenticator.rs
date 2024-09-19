@@ -10,8 +10,7 @@ use nym_credential_verification::ecash::EcashManager;
 use nym_gateway_storage::Storage;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::{TaskClient, TaskHandle};
-use nym_wireguard::{peer_controller::PeerControlResponse, WireguardGatewayData};
-use tokio::sync::mpsc::UnboundedReceiver;
+use nym_wireguard::WireguardGatewayData;
 
 use crate::{config::Config, error::AuthenticatorError};
 
@@ -35,7 +34,6 @@ pub struct Authenticator<S> {
     wireguard_gateway_data: WireguardGatewayData,
     ecash_verifier: Option<Arc<EcashManager<S>>>,
     used_private_network_ips: Vec<IpAddr>,
-    response_rx: UnboundedReceiver<PeerControlResponse>,
     shutdown: Option<TaskClient>,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
@@ -45,7 +43,6 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
         config: Config,
         wireguard_gateway_data: WireguardGatewayData,
         used_private_network_ips: Vec<IpAddr>,
-        response_rx: UnboundedReceiver<PeerControlResponse>,
     ) -> Self {
         Self {
             config,
@@ -55,7 +52,6 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
             ecash_verifier: None,
             wireguard_gateway_data,
             used_private_network_ips,
-            response_rx,
             shutdown: None,
             on_start: None,
         }
@@ -163,7 +159,6 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
             self.config,
             free_private_network_ips,
             self.wireguard_gateway_data,
-            self.response_rx,
             mixnet_client,
             task_handle,
             self.ecash_verifier,

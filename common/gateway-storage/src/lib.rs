@@ -225,14 +225,12 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `peer`: wireguard peer data to be stored
-    /// * `suspended`: if peer exists, but it's currently suspended
     /// * `with_client_id`: if the peer should have a corresponding client_id
     ///   (created with entry wireguard ticket) or live without one (or with an
     ///   exiting one), for temporary backwards compatibility.
     async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
-        suspended: bool,
         with_client_id: bool,
     ) -> Result<Option<i64>, StorageError>;
 
@@ -650,7 +648,6 @@ impl Storage for PersistentStorage {
     async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
-        suspended: bool,
         with_client_id: bool,
     ) -> Result<Option<i64>, StorageError> {
         let client_id = match self
@@ -672,7 +669,6 @@ impl Storage for PersistentStorage {
             }
         };
         let mut peer = WireguardPeer::from(peer.clone());
-        peer.suspended = suspended;
         peer.client_id = client_id;
         self.wireguard_peer_manager.insert_peer(&peer).await?;
         Ok(client_id)

@@ -1,4 +1,3 @@
-use dirs;
 use nym_sdk::tcp_proxy;
 use rand::rngs::SmallRng;
 use rand::{Rng, SeedableRng};

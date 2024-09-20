@@ -11,7 +11,7 @@ use models::{
     VerifiedTicket, WireguardPeer,
 };
 use nym_credentials_interface::ClientTicket;
-use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::DestinationAddressBytes;
 use shared_keys::SharedKeysManager;
 use sqlx::ConnectOptions;
@@ -42,11 +42,13 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `client_address`: base58-encoded address of the client
-    /// * `shared_keys`: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
+    /// * `shared_keys`:
+    ///     - legacy: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
+    ///     - current: shared AES256-GCM-SIV keys
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedKeys,
+        shared_keys: &SharedGatewayKey,
     ) -> Result<i64, StorageError>;
 
     /// Tries to retrieve shared keys stored for the particular client.
@@ -332,7 +334,7 @@ impl Storage for PersistentStorage {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedKeys,
+        shared_keys: &SharedGatewayKey,
     ) -> Result<i64, StorageError> {
         let client_address_bs58 = client_address.as_base58_string();
         let client_id = match self
@@ -351,7 +353,8 @@ impl Storage for PersistentStorage {
             .insert_shared_keys(
                 client_id,
                 client_address_bs58,
-                shared_keys.to_base58_string(),
+                shared_keys.aes128_ctr_hmac_bs58().as_deref(),
+                shared_keys.aes256_gcm_siv().as_deref(),
             )
             .await?;
         Ok(client_id)

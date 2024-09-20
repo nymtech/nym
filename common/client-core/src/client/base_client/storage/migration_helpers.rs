@@ -13,7 +13,7 @@ pub mod v1_1_33 {
     use nym_client_core_gateways_storage::{
         CustomGatewayDetails, GatewayDetails, GatewayRegistration, RemoteGatewayDetails,
     };
-    use nym_gateway_requests::registration::handshake::SharedKeys;
+    use nym_gateway_requests::shared_key::LegacySharedKeys;
     use serde::{Deserialize, Serialize};
     use sha2::{digest::Digest, Sha256};
     use std::ops::Deref;
@@ -58,7 +58,7 @@ pub mod v1_1_33 {
     }
 
     impl PersistedGatewayConfig {
-        fn verify(&self, shared_key: &SharedKeys) -> bool {
+        fn verify(&self, shared_key: &LegacySharedKeys) -> bool {
             let key_bytes = Zeroizing::new(shared_key.to_bytes());
 
             let mut key_hasher = Sha256::new();
@@ -74,7 +74,7 @@ pub mod v1_1_33 {
         gateway_id: String,
     }
 
-    fn load_shared_key<P: AsRef<Path>>(path: P) -> Result<SharedKeys, ClientCoreError> {
+    fn load_shared_key<P: AsRef<Path>>(path: P) -> Result<LegacySharedKeys, ClientCoreError> {
         // the shared key was a simple pem file
         Ok(nym_pemstore::load_key(path)?)
     }
@@ -83,7 +83,7 @@ pub mod v1_1_33 {
         gateway_id: String,
         gateway_owner: String,
         gateway_listener: String,
-        gateway_shared_key: SharedKeys,
+        gateway_shared_key: LegacySharedKeys,
     ) -> Result<GatewayDetails, ClientCoreError> {
         Ok(GatewayDetails::Remote(RemoteGatewayDetails {
             gateway_id: gateway_id
@@ -91,7 +91,7 @@ pub mod v1_1_33 {
                 .map_err(|err| ClientCoreError::UpgradeFailure {
                     message: format!("the stored gateway id was malformed: {err}"),
                 })?,
-            derived_aes128_ctr_blake3_hmac_keys: Arc::new(gateway_shared_key),
+            shared_key: Arc::new(gateway_shared_key.into()),
             gateway_owner_address: Some(gateway_owner.parse().map_err(|err| {
                 ClientCoreError::UpgradeFailure {
                     message: format!("the stored gateway owner address was malformed: {err}"),

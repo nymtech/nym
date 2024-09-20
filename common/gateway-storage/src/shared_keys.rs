@@ -41,19 +41,27 @@ impl SharedKeysManager {
         &self,
         client_id: i64,
         client_address_bs58: String,
-        derived_aes128_ctr_blake3_hmac_keys_bs58: String,
+        derived_aes128_ctr_blake3_hmac_keys_bs58: Option<&String>,
+        derived_aes256_gcm_siv_key: Option<&Vec<u8>>,
     ) -> Result<(), sqlx::Error> {
         // https://stackoverflow.com/a/20310838
         // we don't want to be using `INSERT OR REPLACE INTO` due to the foreign key on `available_bandwidth` if the entry already exists
         sqlx::query!(
             r#"
-                INSERT OR IGNORE INTO shared_keys(client_id, client_address_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58) VALUES (?, ?, ?);
-                UPDATE shared_keys SET derived_aes128_ctr_blake3_hmac_keys_bs58 = ? WHERE client_address_bs58 = ?
+                INSERT OR IGNORE INTO shared_keys(client_id, client_address_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key) VALUES (?, ?, ?, ?);
+
+                UPDATE shared_keys
+                SET
+                    derived_aes128_ctr_blake3_hmac_keys_bs58 = ?,
+                    derived_aes256_gcm_siv_key = ?
+                WHERE client_address_bs58 = ?
             "#,
             client_id,
             client_address_bs58,
             derived_aes128_ctr_blake3_hmac_keys_bs58,
+            derived_aes256_gcm_siv_key,
             derived_aes128_ctr_blake3_hmac_keys_bs58,
+            derived_aes256_gcm_siv_key,
             client_address_bs58,
         ).execute(&self.connection_pool).await?;
 

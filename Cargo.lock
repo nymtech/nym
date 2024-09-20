@@ -87,6 +87,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "aes-gcm-siv"
+version = "0.11.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ae0784134ba9375416d469ec31e7c5f9fa94405049cf08c5ce5b4698be673e0d"
+dependencies = [
+ "aead",
+ "aes",
+ "cipher",
+ "ctr",
+ "polyval",
+ "subtle 2.5.0",
+ "zeroize",
+]
+
+[[package]]
 name = "ahash"
 version = "0.7.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4782,7 +4797,9 @@ dependencies = [
 name = "nym-crypto"
 version = "0.4.0"
 dependencies = [
+ "aead",
  "aes",
+ "aes-gcm-siv",
  "blake3",
  "bs58",
  "cipher",
@@ -4967,7 +4984,6 @@ dependencies = [
  "futures",
  "getrandom",
  "gloo-utils 0.2.0",
- "log",
  "nym-bandwidth-controller",
  "nym-credential-storage",
  "nym-credentials",
@@ -4986,12 +5002,14 @@ dependencies = [
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
+ "tracing",
  "tungstenite 0.20.1",
  "url",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-utils",
  "wasmtimer",
+ "zeroize",
 ]
 
 [[package]]
@@ -5011,6 +5029,7 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
+ "strum 0.26.3",
  "thiserror",
  "tokio",
  "tracing",

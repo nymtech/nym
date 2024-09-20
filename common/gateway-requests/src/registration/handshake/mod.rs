@@ -1,17 +1,20 @@
-// Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2020-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use self::client::ClientHandshake;
 use self::error::HandshakeError;
-#[cfg(not(target_arch = "wasm32"))]
-use self::gateway::GatewayHandshake;
-pub use self::shared_key::{SharedKeySize, SharedKeys};
+use crate::registration::handshake::state::State;
+use crate::SharedGatewayKey;
+use futures::future::BoxFuture;
 use futures::{Sink, Stream};
 use nym_crypto::asymmetric::identity;
+use rand::{CryptoRng, RngCore};
+use std::future::Future;
+use std::pin::Pin;
+use std::task::{Context, Poll};
+use tungstenite::{Error as WsError, Message as WsMessage};
+
 #[cfg(not(target_arch = "wasm32"))]
 use nym_task::TaskClient;
-use rand::{CryptoRng, RngCore};
-use tungstenite::{Error as WsError, Message as WsMessage};
 
 pub(crate) type WsItem = Result<WsMessage, WsError>;
 
@@ -19,49 +22,74 @@ mod client;
 pub mod error;
 #[cfg(not(target_arch = "wasm32"))]
 mod gateway;
-pub mod shared_key;
+mod messages;
 mod state;
+
+// realistically even 32bit would have sufficed, so 128 is definitely enough
+pub const KDF_SALT_LENGTH: usize = 16;
 
 // Note: the handshake is built on top of WebSocket, but in principle it shouldn't be too difficult
 // to remove that restriction, by just changing Sink<WsMessage> and Stream<Item = WsMessage> into
 // AsyncWrite and AsyncRead and slightly adjusting the implementation. But right now
 // we do not need to worry about that.
 
-pub async fn client_handshake<'a, S>(
-    rng: &mut (impl RngCore + CryptoRng),
+pub struct GatewayHandshake<'a> {
+    handshake_future: BoxFuture<'a, Result<SharedGatewayKey, HandshakeError>>,
+}
+
+impl<'a> Future for GatewayHandshake<'a> {
+    type Output = Result<SharedGatewayKey, HandshakeError>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Pin::new(&mut self.handshake_future).poll(cx)
+    }
+}
+
+pub fn client_handshake<'a, S, R>(
+    rng: &'a mut R,
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     gateway_pubkey: identity::PublicKey,
     expects_credential_usage: bool,
+    derive_aes256_gcm_siv_key: bool,
     #[cfg(not(target_arch = "wasm32"))] shutdown: TaskClient,
-) -> Result<SharedKeys, HandshakeError>
+) -> GatewayHandshake<'a>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
+    R: CryptoRng + RngCore + Send,
 {
-    ClientHandshake::new(
+    let state = State::new(
         rng,
         ws_stream,
         identity,
-        gateway_pubkey,
-        expects_credential_usage,
+        Some(gateway_pubkey),
         #[cfg(not(target_arch = "wasm32"))]
         shutdown,
     )
-    .await
+    .with_credential_usage(expects_credential_usage)
+    .with_aes256_gcm_siv_key(derive_aes256_gcm_siv_key);
+
+    GatewayHandshake {
+        handshake_future: Box::pin(state.perform_client_handshake()),
+    }
 }
 
 #[cfg(not(target_arch = "wasm32"))]
-pub async fn gateway_handshake<'a, S>(
-    rng: &mut (impl RngCore + CryptoRng),
+pub fn gateway_handshake<'a, S, R>(
+    rng: &'a mut R,
     ws_stream: &'a mut S,
     identity: &'a identity::KeyPair,
     received_init_payload: Vec<u8>,
     shutdown: TaskClient,
-) -> Result<SharedKeys, HandshakeError>
+) -> GatewayHandshake<'a>
 where
     S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin + Send + 'a,
+    R: CryptoRng + RngCore + Send,
 {
-    GatewayHandshake::new(rng, ws_stream, identity, received_init_payload, shutdown).await
+    let state = State::new(rng, ws_stream, identity, None, shutdown);
+    GatewayHandshake {
+        handshake_future: Box::pin(state.perform_gateway_handshake(received_init_payload)),
+    }
 }
 
 /*

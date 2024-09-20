@@ -9,15 +9,15 @@ use crate::{cleanup_socket_messages, try_decrypt_binary_message};
 use futures::channel::oneshot;
 use futures::stream::{SplitSink, SplitStream};
 use futures::{SinkExt, StreamExt};
-use log::*;
-use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_gateway_requests::{ServerResponse, SimpleGatewayRequestsError};
 use nym_task::TaskClient;
+use si_scale::helpers::bibytes2;
 use std::os::raw::c_int as RawFd;
 use std::sync::Arc;
+use tracing::*;
 use tungstenite::{protocol::Message, Error as WsError};
 
-use si_scale::helpers::bibytes2;
 #[cfg(unix)]
 use std::os::fd::AsRawFd;
 #[cfg(not(target_arch = "wasm32"))]
@@ -62,7 +62,7 @@ pub(crate) struct PartiallyDelegatedHandle {
 
 struct PartiallyDelegatedRouter {
     packet_router: PacketRouter,
-    shared_key: Arc<SharedKeys>,
+    shared_key: Arc<SharedGatewayKey>,
     client_bandwidth: ClientBandwidth,
 
     stream_return: SplitStreamSender,
@@ -72,7 +72,7 @@ struct PartiallyDelegatedRouter {
 impl PartiallyDelegatedRouter {
     fn new(
         packet_router: PacketRouter,
-        shared_key: Arc<SharedKeys>,
+        shared_key: Arc<SharedGatewayKey>,
         client_bandwidth: ClientBandwidth,
         stream_return: SplitStreamSender,
         stream_return_requester: oneshot::Receiver<()>,
@@ -247,7 +247,7 @@ impl PartiallyDelegatedHandle {
     pub(crate) fn split_and_listen_for_mixnet_messages(
         conn: WsConn,
         packet_router: PacketRouter,
-        shared_key: Arc<SharedKeys>,
+        shared_key: Arc<SharedGatewayKey>,
         client_bandwidth: ClientBandwidth,
         shutdown: TaskClient,
     ) -> Self {

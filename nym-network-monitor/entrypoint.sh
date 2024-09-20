@@ -4,17 +4,18 @@
 
 set -ex
 
-private_key=${1}
-network=${2:-mainnet}
-timeout=${3:-600}
-users=${4:-10}
+_private_key=${PRIVATE_KEY}
+network=${NYM_NETWORK:-mainnet}
+timeout=${LOCUST_TIMEOUT:-600}
+users=${LOCUST_USERS:-10}
+processes=${LOCUST_PROCESSES:-4}
 
-RUST_LOG=info nym-network-monitor --env envs/"${network}".env --host 127.0.0.1 --port 8080 --private-key "${private_key}" &
+RUST_LOG=info nym-network-monitor --env envs/"${network}".env --private-key "${_private_key}" &
 nnm_pid=$!
 
 sleep 10
 
-python -m locust -H http://127.0.0.1:8080 --processes 4 --autostart --autoquit 60 -u "${users}" -t "${timeout}"s &
+python -m locust -H http://127.0.0.1:8080 --processes "${processes}" --autostart --autoquit 60 -u "${users}" -t "${timeout}"s &
 locust_pid=$!
 
 wait $locust_pid

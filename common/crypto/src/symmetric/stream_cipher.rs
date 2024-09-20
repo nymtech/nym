@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use cipher::{Iv, StreamCipher};
-pub use cipher::{IvSizeUser, KeyIvInit, KeySizeUser};
+use generic_array::typenum::Unsigned;
+
 #[cfg(feature = "rand")]
 use rand::{CryptoRng, RngCore};
 
 // re-export this for ease of use
 pub use cipher::Key as CipherKey;
+pub use cipher::{IvSizeUser, KeyIvInit, KeySizeUser};
 
 // SECURITY:
 // TODO: note that this is not the most secure approach here
@@ -36,7 +38,7 @@ where
 #[cfg(feature = "rand")]
 pub fn random_iv<C, R>(rng: &mut R) -> IV<C>
 where
-    C: KeyIvInit,
+    C: IvSizeUser,
     R: RngCore + CryptoRng,
 {
     let mut iv = IV::<C>::default();
@@ -44,16 +46,23 @@ where
     iv
 }
 
+pub fn iv_size<C>() -> usize
+where
+    C: IvSizeUser,
+{
+    <<C as IvSizeUser>::IvSize>::to_usize()
+}
+
 pub fn zero_iv<C>() -> IV<C>
 where
-    C: KeyIvInit,
+    C: IvSizeUser,
 {
     Iv::<C>::default()
 }
 
 pub fn iv_from_slice<C>(b: &[u8]) -> &IV<C>
 where
-    C: KeyIvInit,
+    C: IvSizeUser,
 {
     if b.len() != C::iv_size() {
         // `from_slice` would have caused a panic about this issue anyway.

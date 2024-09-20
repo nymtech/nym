@@ -63,6 +63,14 @@ func handleConnection(conn net.Conn) {
 	}
 }
 
+/*
+Flow showing:
+  - setting up Nym client logging
+  - creating instances of both the NymProxyClient and NymProxyServer
+  - running both in goroutines to kick off the process
+  - starting a vanilla tcp listener/echo in a goroutine connected to the ProxyServer instance
+  - pinging that via a tcp client and waiting for the reply: this is (under the hood) sent anonymously via SURBs - the ProxyServer and 'server-side' tcp listener never know the Nym address or IP of the ProxyClient/'client-side' tcp client.
+*/
 func main() {
 
 	// our mixnet client config file defining which network to use
@@ -143,7 +151,8 @@ func main() {
 	fmt.Printf("Client-side tcp received: %s", buf)
 	conn.Close()
 
-	// TODO replace with ctrl+c
+	// sleep so that the nym client processes can catch up - in reality you'd have another process
+	// running to keep logging going, so this is only necessary for this reference
 	time.Sleep(60 * time.Second)
 	fmt.Println("(Go) end go example")
 }

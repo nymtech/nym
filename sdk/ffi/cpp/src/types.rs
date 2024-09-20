@@ -1,3 +1,5 @@
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
 // TODO REMOVE when you're working on new CPP branch
 #![allow(clippy::all)]
 pub mod types {

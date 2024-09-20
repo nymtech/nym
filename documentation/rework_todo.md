@@ -31,8 +31,10 @@ Initial overhaul
       - [ ] general
     - [ ] remove numbering from sidebar
   - [ ] check all links work and fix
-     
+
 - [ ] pull in all docs updates after 37d9f919227cec148e0355404b4029c0949e4dea from develop !!
+  - [ ] operators docs (various)
+  - [ ] ProxyClient/Server docs: formulate new integrations and docs around this
 
 - [ ] replace `mdbook-cmdrun`
 - [ ] all images to root images dir with subdirs
@@ -42,7 +44,7 @@ Initial overhaul
 - [ ] remove dangling index
 
 - [ ] new theme
-  - [ ] sidebar: collapsed by default
+  - [ ] sidebar: collapsed by default?
   - [ ] landing page
   - [x] level selection (sdks, network, developers, operators) in top right
   - [x] make SDKs a dropdown menu to choose between

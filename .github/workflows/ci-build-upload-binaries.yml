@@ -26,6 +26,7 @@ on:
       - "nym-api/**"
       - "nym-node/**"
       - "nym-outfox/**"
+      - 'nym-data-observatory/**'
       - "nym-validator-rewarder/**"
       - "sdk/rust/nym-sdk/**"
       - "service-providers/**"
@@ -96,6 +97,7 @@ jobs:
             target/release/nym-socks5-client
             target/release/nym-api
             target/release/nym-network-requester
+            target/release/nym-data-observatory
             target/release/nym-cli
             target/release/nymvisor
             target/release/nym-node
@@ -113,6 +115,7 @@ jobs:
           cp target/release/nym-socks5-client $OUTPUT_DIR
           cp target/release/nym-api $OUTPUT_DIR
           cp target/release/nym-network-requester $OUTPUT_DIR
+          cp target/release/nym-data-observatory $OUTPUT_DIR
           cp target/release/nymvisor $OUTPUT_DIR
           cp target/release/nym-node $OUTPUT_DIR
           cp target/release/nym-cli $OUTPUT_DIR

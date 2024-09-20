@@ -5,12 +5,13 @@ use nym_sdk::mixnet::Recipient;
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;
 uniffi::include_scaffolding!("bindings");
 
+#[allow(clippy::enum_variant_names)]
 #[derive(Debug, thiserror::Error)]
 enum GoWrapError {
     #[error("Couldn't init client")]
     ClientInitError {},
-    #[error("Client is uninitialised: init client first")]
-    ClientUninitialisedError {},
+    // #[error("Client is uninitialised: init client first")]
+    // ClientUninitialisedError {},
     #[error("Error getting self address")]
     SelfAddrError {},
     #[error("Error sending message")]
@@ -21,10 +22,16 @@ enum GoWrapError {
     ListenError {},
     #[error("Couldn't init proxy client")]
     ProxyInitError {},
-    #[error("Proxy client is uninitialised: init proxy client first")]
-    ProxyUninitialisedError {},
+    // #[error("Proxy client is uninitialised: init proxy client first")]
+    // ProxyUninitialisedError {},
     #[error("Couldn't run proxy client")]
     ProxyRunError {},
+    #[error("Couldn't init proxy server")]
+    ServerInitError {},
+    #[error("Couldn't get proxy server address")]
+    AddressGetterError {},
+    #[error("Couldn't run proxy server")]
+    ServerRunError {},
 }
 
 #[no_mangle]
@@ -109,7 +116,7 @@ fn new_proxy_client(
     }
 }
 
-// TODO new proxy client defaults
+// TODO new proxy client w defaults
 
 fn run_proxy_client() -> Result<(), GoWrapError> {
     match nym_ffi_shared::proxy_client_run_internal() {
@@ -120,4 +127,29 @@ fn run_proxy_client() -> Result<(), GoWrapError> {
 
 // server
 // new
+fn new_proxy_server(
+    upstream_address: String,
+    config_dir: String,
+    env: Option<String>,
+) -> Result<(), GoWrapError> {
+    match nym_ffi_shared::proxy_server_new_internal(&upstream_address, &config_dir, env) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(GoWrapError::ServerInitError {}),
+    }
+}
+
+// get addr
+fn proxy_server_address() -> Result<String, GoWrapError> {
+    match nym_ffi_shared::proxy_server_address_internal() {
+        Ok(address) => Ok(address.to_string()),
+        Err(_) => Err(GoWrapError::AddressGetterError {}),
+    }
+}
+
 // run
+fn run_proxy_server() -> Result<(), GoWrapError> {
+    match nym_ffi_shared::proxy_server_run_internal() {
+        Ok(_) => Ok(()),
+        Err(_) => Err(GoWrapError::ServerRunError {}),
+    }
+}

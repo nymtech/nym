@@ -247,6 +247,7 @@ pub fn proxy_server_new_internal(
     }
     Ok(())
 }
+
 // run w shutdown
 pub fn proxy_server_run_internal() -> anyhow::Result<(), anyhow::Error> {
     let mut proxy_server = NYM_PROXY_SERVER
@@ -263,4 +264,18 @@ pub fn proxy_server_run_internal() -> anyhow::Result<(), anyhow::Error> {
         Ok::<(), anyhow::Error>(())
     })?;
     Ok(())
+}
+
+// get nym addr
+pub fn proxy_server_address_internal() -> anyhow::Result<Recipient, anyhow::Error> {
+    let mut proxy_server = NYM_PROXY_SERVER
+        .lock()
+        .expect("could not lock NYM_PROXY_CLIENT");
+    if proxy_server.is_none() {
+        bail!("Server is not yet initialised");
+    }
+    let proxy = proxy_server
+        .as_mut()
+        .ok_or_else(|| anyhow!("could not get proxy_client as_ref()"))?;
+    Ok(proxy.nym_address().to_owned())
 }

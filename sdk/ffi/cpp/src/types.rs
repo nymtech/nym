@@ -1,12 +1,15 @@
+// TODO REMOVE when you're working on new CPP branch
+#![allow(clippy::all)]
 pub mod types {
 
     use std::ffi::c_char;
 
+    // TODO change all the numbers / replace -2 with prxy?
     #[derive(Debug)]
     pub enum StatusCode {
         NoError = 0,
         ClientInitError = -1,
-        ClientUninitialisedError = -2,
+        // ClientUninitialisedError = -2,
         SelfAddrError = -3,
         SendMsgError = -4,
         ReplyError = -5,

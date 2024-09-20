@@ -93,6 +93,12 @@ void uniffi_nym_go_ffi_fn_func_new_proxy_client(
 	RustCallStatus* out_status
 );
 
+void uniffi_nym_go_ffi_fn_func_new_proxy_client_default(
+	RustBuffer server_address,
+	RustBuffer env,
+	RustCallStatus* out_status
+);
+
 void uniffi_nym_go_ffi_fn_func_new_proxy_server(
 	RustBuffer upstream_address,
 	RustBuffer config_dir,
@@ -440,6 +446,10 @@ uint16_t uniffi_nym_go_ffi_checksum_func_listen_for_incoming(
 );
 
 uint16_t uniffi_nym_go_ffi_checksum_func_new_proxy_client(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_nym_go_ffi_checksum_func_new_proxy_client_default(
 	RustCallStatus* out_status
 );
 

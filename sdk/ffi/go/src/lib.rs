@@ -10,8 +10,6 @@ uniffi::include_scaffolding!("bindings");
 enum GoWrapError {
     #[error("Couldn't init client")]
     ClientInitError {},
-    // #[error("Client is uninitialised: init client first")]
-    // ClientUninitialisedError {},
     #[error("Error getting self address")]
     SelfAddrError {},
     #[error("Error sending message")]
@@ -22,8 +20,6 @@ enum GoWrapError {
     ListenError {},
     #[error("Couldn't init proxy client")]
     ProxyInitError {},
-    // #[error("Proxy client is uninitialised: init proxy client first")]
-    // ProxyUninitialisedError {},
     #[error("Couldn't run proxy client")]
     ProxyRunError {},
     #[error("Couldn't init proxy server")]
@@ -116,7 +112,18 @@ fn new_proxy_client(
     }
 }
 
-// TODO new proxy client w defaults
+#[no_mangle]
+fn new_proxy_client_default(
+    server_address: String,
+    env: Option<String>,
+) -> Result<(), GoWrapError> {
+    let server_nym_addr =
+        Recipient::try_from_base58_string(server_address).expect("couldn't create Recipient");
+    match nym_ffi_shared::proxy_client_new_defaults_internal(server_nym_addr, env) {
+        Ok(_) => Ok(()),
+        Err(_) => Err(GoWrapError::ProxyInitError {}),
+    }
+}
 
 fn run_proxy_client() -> Result<(), GoWrapError> {
     match nym_ffi_shared::proxy_client_run_internal() {
@@ -125,8 +132,6 @@ fn run_proxy_client() -> Result<(), GoWrapError> {
     }
 }
 
-// server
-// new
 fn new_proxy_server(
     upstream_address: String,
     config_dir: String,
@@ -138,7 +143,6 @@ fn new_proxy_server(
     }
 }
 
-// get addr
 fn proxy_server_address() -> Result<String, GoWrapError> {
     match nym_ffi_shared::proxy_server_address_internal() {
         Ok(address) => Ok(address.to_string()),
@@ -146,7 +150,6 @@ fn proxy_server_address() -> Result<String, GoWrapError> {
     }
 }
 
-// run
 fn run_proxy_server() -> Result<(), GoWrapError> {
     match nym_ffi_shared::proxy_server_run_internal() {
         Ok(_) => Ok(()),

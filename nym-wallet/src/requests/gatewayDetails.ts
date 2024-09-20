@@ -2,6 +2,7 @@ import { TNodeDescription } from 'src/types';
 import { TauriReq, decCoinToDisplay, fireRequests } from 'src/utils';
 import { getGatewayReport, getNodeDescription as getNodeDescriptionRequest } from './queries';
 import { getGatewayBondDetails } from './bond';
+import { TBondedGateway } from 'src/context';
 
 async function getAdditionalGatewayDetails(identityKey: string, host: string, port: number) {
   const details: {
@@ -30,7 +31,7 @@ async function getAdditionalGatewayDetails(identityKey: string, host: string, po
   return details;
 }
 
-async function getGatewayDetails() {
+async function getGatewayDetails(): Promise<TBondedGateway | null> {
   try {
     const data = await getGatewayBondDetails();
     if (!data) {

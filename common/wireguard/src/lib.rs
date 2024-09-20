@@ -13,7 +13,8 @@ use nym_crypto::asymmetric::encryption::KeyPair;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{self, Receiver, Sender};
+use tokio::sync::RwLock;
 
 const WG_TUN_NAME: &str = "nymwg";
 
@@ -44,15 +45,12 @@ impl Drop for WgApiWrapper {
 pub struct WireguardGatewayData {
     config: Config,
     keypair: Arc<KeyPair>,
-    peer_tx: UnboundedSender<PeerControlRequest>,
+    peer_tx: Sender<PeerControlRequest>,
 }
 
 impl WireguardGatewayData {
-    pub fn new(
-        config: Config,
-        keypair: Arc<KeyPair>,
-    ) -> (Self, UnboundedReceiver<PeerControlRequest>) {
-        let (peer_tx, peer_rx) = mpsc::unbounded_channel();
+    pub fn new(config: Config, keypair: Arc<KeyPair>) -> (Self, Receiver<PeerControlRequest>) {
+        let (peer_tx, peer_rx) = mpsc::channel(1);
         (
             WireguardGatewayData {
                 config,
@@ -71,14 +69,14 @@ impl WireguardGatewayData {
         &self.keypair
     }
 
-    pub fn peer_tx(&self) -> &UnboundedSender<PeerControlRequest> {
+    pub fn peer_tx(&self) -> &Sender<PeerControlRequest> {
         &self.peer_tx
     }
 }
 
 pub struct WireguardData {
     pub inner: WireguardGatewayData,
-    pub peer_rx: UnboundedReceiver<PeerControlRequest>,
+    pub peer_rx: Receiver<PeerControlRequest>,
 }
 
 /// Start wireguard device
@@ -105,7 +103,9 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
         .collect::<Result<Vec<_>, _>>()?;
     for peer in peers.iter() {
         let bandwidth_manager =
-            PeerController::generate_bandwidth_manager(storage.clone(), &peer.public_key).await?;
+            PeerController::generate_bandwidth_manager(storage.clone(), &peer.public_key)
+                .await?
+                .map(|bw_m| Arc::new(RwLock::new(bw_m)));
         peer_bandwidth_managers.insert(peer.public_key.clone(), bandwidth_manager);
     }
     wg_api.create_interface()?;

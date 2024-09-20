@@ -12,8 +12,8 @@ pub enum Error {
     #[error("{0}")]
     Defguard(#[from] defguard_wireguard_rs::error::WireguardInterfaceError),
 
-    #[error("internal error {0}")]
-    InternalError(String),
+    #[error("internal {0}")]
+    Internal(String),
 
     #[error("storage should have the requested bandwidht entry")]
     MissingClientBandwidthEntry,

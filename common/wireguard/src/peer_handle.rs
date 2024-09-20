@@ -5,6 +5,7 @@ use crate::error::Error;
 use crate::peer_controller::PeerControlRequest;
 use defguard_wireguard_rs::{host::Host, key::Key};
 use futures::channel::oneshot;
+use nym_authenticator_requests::v2::registration::BANDWIDTH_CAP_PER_DAY;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_gateway_storage::models::WireguardPeer;
 use nym_gateway_storage::Storage;
@@ -14,12 +15,14 @@ use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
+pub(crate) type SharedBandwidthStorageManager<St> = Arc<RwLock<BandwidthStorageManager<St>>>;
+
 pub struct PeerHandle<St> {
     storage: St,
     public_key: Key,
     host_information: Arc<RwLock<Host>>,
-    bandwidth_storage_manager: Option<BandwidthStorageManager<St>>,
-    request_tx: mpsc::UnboundedSender<PeerControlRequest>,
+    bandwidth_storage_manager: Option<SharedBandwidthStorageManager<St>>,
+    request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
     task_client: TaskClient,
 }
@@ -29,14 +32,14 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         storage: St,
         public_key: Key,
         host_information: Arc<RwLock<Host>>,
-        bandwidth_storage_manager: Option<BandwidthStorageManager<St>>,
-        request_tx: mpsc::UnboundedSender<PeerControlRequest>,
+        bandwidth_storage_manager: Option<SharedBandwidthStorageManager<St>>,
+        request_tx: mpsc::Sender<PeerControlRequest>,
         task_client: &TaskClient,
     ) -> Self {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
-        let task_client = task_client.fork(format!("peer{}", public_key.to_string()));
+        let task_client = task_client.fork(format!("peer{public_key}"));
         PeerHandle {
             storage,
             public_key,
@@ -48,6 +51,26 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         }
     }
 
+    async fn remove_depleted_peer(&self) -> Result<bool, Error> {
+        log::debug!(
+            "Peer {} doesn't have bandwidth anymore, removing it",
+            self.public_key.to_string()
+        );
+        let (response_tx, response_rx) = oneshot::channel();
+        self.request_tx
+            .send(PeerControlRequest::RemovePeer {
+                key: self.public_key.clone(),
+                response_tx,
+            })
+            .await
+            .map_err(|_| Error::Internal("peer controller shut down".to_string()))?;
+        let success = response_rx
+            .await
+            .map_err(|_| Error::Internal("peer controller didn't respond".to_string()))?
+            .success;
+        Ok(success)
+    }
+
     async fn active_peer(&mut self, storage_peer: WireguardPeer) -> Result<bool, Error> {
         let kernel_peer = self
             .host_information
@@ -57,34 +80,26 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
             .get(&self.public_key)
             .ok_or(Error::PeerMismatch)?
             .clone();
-        let spent_bandwidth = (kernel_peer.rx_bytes + kernel_peer.tx_bytes)
-            .checked_sub(storage_peer.rx_bytes as u64 + storage_peer.tx_bytes as u64)
-            .ok_or(Error::InconsistentConsumedBytes)?
-            .try_into()
-            .map_err(|_| Error::InconsistentConsumedBytes)?;
-        if let Some(bandwidth_manager) = self.bandwidth_storage_manager.as_mut() {
+        if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
+            let spent_bandwidth = (kernel_peer.rx_bytes + kernel_peer.tx_bytes)
+                .checked_sub(storage_peer.rx_bytes as u64 + storage_peer.tx_bytes as u64)
+                .ok_or(Error::InconsistentConsumedBytes)?
+                .try_into()
+                .map_err(|_| Error::InconsistentConsumedBytes)?;
             if bandwidth_manager
+                .write()
+                .await
                 .try_use_bandwidth(spent_bandwidth)
                 .await
                 .is_err()
             {
-                log::debug!(
-                    "Peer {} doesn't have bandwidth anymore, removing it",
-                    self.public_key.to_string()
-                );
-                let (response_tx, response_rx) = oneshot::channel();
-                self.request_tx
-                    .send(PeerControlRequest::RemovePeer {
-                        key: self.public_key.clone(),
-                        response_tx,
-                    })
-                    .map_err(|_| Error::InternalError("peer controller shut down".to_string()))?;
-                let success = response_rx
-                    .await
-                    .map_err(|_| {
-                        Error::InternalError("peer controller didn't respond".to_string())
-                    })?
-                    .success;
+                let success = self.remove_depleted_peer().await?;
+                return Ok(!success);
+            }
+        } else {
+            let spent_bandwidth = kernel_peer.rx_bytes + kernel_peer.tx_bytes;
+            if spent_bandwidth >= BANDWIDTH_CAP_PER_DAY {
+                let success = self.remove_depleted_peer().await?;
                 return Ok(!success);
             }
         }

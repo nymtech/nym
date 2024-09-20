@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_credentials::ecash::utils::ecash_today;
-use nym_credentials_interface::Bandwidth;
+use nym_credentials_interface::{AvailableBandwidth, Bandwidth};
 use nym_gateway_requests::ServerResponse;
 use nym_gateway_storage::Storage;
 use si_scale::helpers::bibytes2;
@@ -39,6 +39,10 @@ impl<S: Storage + Clone + 'static> BandwidthStorageManager<S> {
             bandwidth_cfg,
             only_coconut_credentials,
         }
+    }
+
+    pub fn available_bandwidth(&self) -> AvailableBandwidth {
+        self.client_bandwidth.bandwidth
     }
 
     async fn sync_expiration(&mut self) -> Result<()> {

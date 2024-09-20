@@ -9,15 +9,12 @@ use nym_wireguard::peer_controller::{
 use tokio::sync::mpsc;
 
 pub struct DummyHandler {
-    peer_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
+    peer_rx: mpsc::Receiver<PeerControlRequest>,
     task_client: TaskClient,
 }
 
 impl DummyHandler {
-    pub fn new(
-        peer_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
-        task_client: TaskClient,
-    ) -> Self {
+    pub fn new(peer_rx: mpsc::Receiver<PeerControlRequest>, task_client: TaskClient) -> Self {
         DummyHandler {
             peer_rx,
             task_client,
@@ -40,11 +37,11 @@ impl DummyHandler {
                             }
                             PeerControlRequest::QueryPeer{key, response_tx} => {
                                 log::info!("[DUMMY] Querying peer {:?}", key);
-                                response_tx.send(QueryPeerControlResponse { success: false, peer: None }).ok();
+                                response_tx.send(QueryPeerControlResponse { success: true, peer: None }).ok();
                             }
                             PeerControlRequest::QueryBandwidth{key, response_tx} => {
                                 log::info!("[DUMMY] Querying bandwidth for peer {:?}", key);
-                                response_tx.send(QueryBandwidthControlResponse { bandwidth_data: None }).ok();
+                                response_tx.send(QueryBandwidthControlResponse { success: true, bandwidth_data: None }).ok();
                             }
                         }
                     } else {

@@ -41,6 +41,7 @@ impl PeerManager {
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
+            .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
         let AddPeerControlResponse { success, client_id } = response_rx.await.map_err(|_| {
@@ -61,6 +62,7 @@ impl PeerManager {
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
+            .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
         let RemovePeerControlResponse { success } = response_rx.await.map_err(|_| {
@@ -81,6 +83,7 @@ impl PeerManager {
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
+            .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
         let QueryPeerControlResponse { success, peer } = response_rx.await.map_err(|_| {
@@ -104,11 +107,20 @@ impl PeerManager {
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
+            .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let QueryBandwidthControlResponse { bandwidth_data } = response_rx
+        let QueryBandwidthControlResponse {
+            success,
+            bandwidth_data,
+        } = response_rx
             .await
             .map_err(|_| AuthenticatorError::InternalError("no response for query".to_string()))?;
+        if !success {
+            return Err(AuthenticatorError::InternalError(
+                "querying bandwidth could not be performed".to_string(),
+            ));
+        }
         Ok(bandwidth_data)
     }
 }

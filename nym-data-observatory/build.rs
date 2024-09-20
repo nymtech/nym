@@ -4,13 +4,27 @@ use std::io::Write;
 use std::{collections::HashMap, fs::File};
 
 const POSTGRES_USER: &str = "nym";
-const POSTGRES_PASSWORD: &str = "password123$";
+const POSTGRES_PASSWORD: &str = "password123";
 const POSTGRES_DB: &str = "data_obs_db";
 
 /// If you need to re-run migrations or reset the db, just run
 /// cargo clean -p nym-node-status-api
 #[tokio::main]
 async fn main() -> Result<()> {
+    if let Ok(value) = std::env::var("CI") {
+        if value == "true" {
+            println!("cargo::rustc-env=SQLX_OFFLINE=true");
+        }
+    } else {
+        let db_url = export_db_variables()?;
+        run_migrations(&db_url).await?;
+    }
+
+    rerun_if_changed();
+    Ok(())
+}
+
+fn export_db_variables() -> Result<String> {
     let mut map = HashMap::new();
     map.insert("POSTGRES_USER", POSTGRES_USER);
     map.insert("POSTGRES_PASSWORD", POSTGRES_PASSWORD);
@@ -23,18 +37,17 @@ async fn main() -> Result<()> {
 
     let mut file = File::create(".env")?;
     for (var, value) in map.iter() {
-        unsafe {
-            std::env::set_var(var, value);
-        }
+        println!("cargo::rustc-env={}={}", var, value);
         writeln!(file, "{}={}", var, value).expect("Failed to write to dotenv file");
     }
 
-    let mut conn = PgConnection::connect(&db_url).await?;
+    Ok(db_url)
+}
+
+async fn run_migrations(db_url: &str) -> Result<()> {
+    let mut conn = PgConnection::connect(db_url).await?;
     sqlx::migrate!("./migrations").run(&mut conn).await?;
 
-    println!("cargo::rustc-env=DATABASE_URL={}", &db_url);
-
-    rerun_if_changed();
     Ok(())
 }
 

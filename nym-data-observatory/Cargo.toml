@@ -23,7 +23,7 @@ nym-task = { path = "../common/task" }
 nym-node-requests = { path = "../nym-node/nym-node-requests", features = ["openapi"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "offline"] }
 tokio = { workspace = true, features = ["process"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }

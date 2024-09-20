@@ -25,7 +25,6 @@ lazy_static! {
     static ref RUNTIME: Runtime = Runtime::new().unwrap();
 }
 
-// Mixnet module functions TODO split out into own file and import
 pub fn init_ephemeral_internal() -> anyhow::Result<(), anyhow::Error> {
     if NYM_CLIENT.lock().unwrap().as_ref().is_some() {
         bail!("client already exists");
@@ -154,7 +153,6 @@ pub async fn wait_for_non_empty_message(
     bail!("(Rust) did not receive any non-empty message")
 }
 
-// Proxy functions TODO split out into own file and import
 pub fn proxy_client_new_internal(
     server_address: Recipient,
     listen_address: &str,
@@ -224,8 +222,6 @@ pub fn proxy_client_run_internal() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
 
-// server
-// new
 pub fn proxy_server_new_internal(
     upstream_address: &str,
     config_dir: &str,
@@ -248,7 +244,6 @@ pub fn proxy_server_new_internal(
     Ok(())
 }
 
-// run w shutdown
 pub fn proxy_server_run_internal() -> anyhow::Result<(), anyhow::Error> {
     let mut proxy_server = NYM_PROXY_SERVER
         .lock()
@@ -266,7 +261,6 @@ pub fn proxy_server_run_internal() -> anyhow::Result<(), anyhow::Error> {
     Ok(())
 }
 
-// get nym addr
 pub fn proxy_server_address_internal() -> anyhow::Result<Recipient, anyhow::Error> {
     let mut proxy_server = NYM_PROXY_SERVER
         .lock()

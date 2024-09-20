@@ -14,7 +14,6 @@ use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-use tokio::sync::RwLock;
 
 const WG_TUN_NAME: &str = "nymwg";
 
@@ -87,12 +86,12 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
-    use std::collections::HashMap;
-
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
     use ip_network::IpNetwork;
     use peer_controller::PeerController;
+    use std::collections::HashMap;
+    use tokio::sync::RwLock;
 
     let ifname = String::from(WG_TUN_NAME);
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;

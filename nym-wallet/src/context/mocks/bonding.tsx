@@ -33,7 +33,6 @@ const bondedMixnodeMock: TBondedMixnode = {
 };
 
 const bondedGatewayMock: TBondedGateway = {
-  id: 1,
   name: 'Monster node',
   identityKey: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',
@@ -41,12 +40,13 @@ const bondedGatewayMock: TBondedGateway = {
   host: '1.2.34.5 ',
   httpApiPort: 8000,
   mixPort: 1789,
-  verlocPort: 1790,
   version: '1.0.2',
   routingScore: {
     average: 100,
     current: 100,
   },
+  location: 'Germany',
+  proxy: null,
 };
 
 const TxResultMock: TransactionExecuteResult = {

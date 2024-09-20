@@ -56,7 +56,6 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
         location,
         version: clean(version) as string,
         clients_port: httpApiPort,
-        verloc_port: bondedNode.verlocPort,
       };
 
       if (bondedNode.proxy) {
@@ -206,7 +205,6 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
                 clients_port: data.httpApiPort,
                 location: bondedNode.location!,
                 version: data.version,
-                verloc_port: bondedNode.verlocPort,
               }),
             )}
             sx={{ m: 3 }}

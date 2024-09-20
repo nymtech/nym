@@ -399,6 +399,15 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_run_proxy_client(uniffiStatus)
+		})
+		if checksum != 45441 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_run_proxy_client: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_nym_go_ffi_checksum_func_send_message(uniffiStatus)
 		})
 		if checksum != 33425 {
@@ -587,6 +596,7 @@ var ErrGoWrapErrorReplyError = fmt.Errorf("GoWrapErrorReplyError")
 var ErrGoWrapErrorListenError = fmt.Errorf("GoWrapErrorListenError")
 var ErrGoWrapErrorProxyInitError = fmt.Errorf("GoWrapErrorProxyInitError")
 var ErrGoWrapErrorProxyUninitialisedError = fmt.Errorf("GoWrapErrorProxyUninitialisedError")
+var ErrGoWrapErrorProxyRunError = fmt.Errorf("GoWrapErrorProxyRunError")
 
 // Variant structs
 type GoWrapErrorClientInitError struct {
@@ -733,6 +743,24 @@ func (self GoWrapErrorProxyUninitialisedError) Is(target error) bool {
 	return target == ErrGoWrapErrorProxyUninitialisedError
 }
 
+type GoWrapErrorProxyRunError struct {
+	message string
+}
+
+func NewGoWrapErrorProxyRunError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorProxyRunError{},
+	}
+}
+
+func (err GoWrapErrorProxyRunError) Error() string {
+	return fmt.Sprintf("ProxyRunError: %s", err.message)
+}
+
+func (self GoWrapErrorProxyRunError) Is(target error) bool {
+	return target == ErrGoWrapErrorProxyRunError
+}
+
 type FfiConverterTypeGoWrapError struct{}
 
 var FfiConverterTypeGoWrapErrorINSTANCE = FfiConverterTypeGoWrapError{}
@@ -766,6 +794,8 @@ func (c FfiConverterTypeGoWrapError) Read(reader io.Reader) error {
 		return &GoWrapError{&GoWrapErrorProxyInitError{message}}
 	case 8:
 		return &GoWrapError{&GoWrapErrorProxyUninitialisedError{message}}
+	case 9:
+		return &GoWrapError{&GoWrapErrorProxyRunError{message}}
 	default:
 		panic(fmt.Sprintf("Unknown error code %d in FfiConverterTypeGoWrapError.Read()", errorID))
 	}
@@ -790,6 +820,8 @@ func (c FfiConverterTypeGoWrapError) Write(writer io.Writer, value *GoWrapError)
 		writeInt32(writer, 7)
 	case *GoWrapErrorProxyUninitialisedError:
 		writeInt32(writer, 8)
+	case *GoWrapErrorProxyRunError:
+		writeInt32(writer, 9)
 	default:
 		_ = variantValue
 		panic(fmt.Sprintf("invalid error value `%v` in FfiConverterTypeGoWrapError.Write", value))
@@ -883,6 +915,14 @@ func NewProxyClient(serverAddress string, listenAddress string, listenPort strin
 func Reply(recipient []byte, message string) error {
 	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
 		C.uniffi_nym_go_ffi_fn_func_reply(FfiConverterBytesINSTANCE.Lower(recipient), FfiConverterStringINSTANCE.Lower(message), _uniffiStatus)
+		return false
+	})
+	return _uniffiErr
+}
+
+func RunProxyClient() error {
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_nym_go_ffi_fn_func_run_proxy_client(_uniffiStatus)
 		return false
 	})
 	return _uniffiErr

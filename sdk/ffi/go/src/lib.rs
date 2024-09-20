@@ -23,6 +23,8 @@ enum GoWrapError {
     ProxyInitError {},
     #[error("Proxy client is uninitialised: init proxy client first")]
     ProxyUninitialisedError {},
+    #[error("Couldn't run proxy client")]
+    ProxyRunError {},
 }
 
 #[no_mangle]
@@ -107,5 +109,15 @@ fn new_proxy_client(
     }
 }
 
-// new proxy client defaults
-// run proxy client
+// TODO new proxy client defaults
+
+fn run_proxy_client() -> Result<(), GoWrapError> {
+    match nym_ffi_shared::proxy_client_run_internal() {
+        Ok(_) => Ok(()),
+        Err(_) => Err(GoWrapError::ProxyRunError {}),
+    }
+}
+
+// server
+// new
+// run

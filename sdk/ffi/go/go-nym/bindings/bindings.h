@@ -99,6 +99,10 @@ void uniffi_nym_go_ffi_fn_func_reply(
 	RustCallStatus* out_status
 );
 
+void uniffi_nym_go_ffi_fn_func_run_proxy_client(
+	RustCallStatus* out_status
+);
+
 void uniffi_nym_go_ffi_fn_func_send_message(
 	RustBuffer recipient,
 	RustBuffer message,
@@ -425,6 +429,10 @@ uint16_t uniffi_nym_go_ffi_checksum_func_new_proxy_client(
 );
 
 uint16_t uniffi_nym_go_ffi_checksum_func_reply(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_nym_go_ffi_checksum_func_run_proxy_client(
 	RustCallStatus* out_status
 );
 

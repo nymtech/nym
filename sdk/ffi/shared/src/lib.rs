@@ -218,9 +218,7 @@ pub fn proxy_client_run_internal() -> anyhow::Result<(), anyhow::Error> {
         .as_ref()
         .ok_or_else(|| anyhow!("could not get proxy_client as_ref()"))?;
     RUNTIME.block_on(async move {
-        println!("start running");
         proxy.run().await?;
-        print!("?");
         Ok::<(), anyhow::Error>(())
     })?;
     Ok(())
@@ -228,4 +226,41 @@ pub fn proxy_client_run_internal() -> anyhow::Result<(), anyhow::Error> {
 
 // server
 // new
+pub fn proxy_server_new_internal(
+    upstream_address: &str,
+    config_dir: &str,
+    env: Option<String>,
+) -> anyhow::Result<(), anyhow::Error> {
+    if NYM_PROXY_SERVER.lock().unwrap().as_ref().is_some() {
+        bail!("proxy client already exists");
+    } else {
+        RUNTIME.block_on(async move {
+            let init_proxy_server = NymProxyServer::new(upstream_address, config_dir, env).await?;
+            let mut client = NYM_PROXY_SERVER.try_lock();
+            if let Ok(ref mut client) = client {
+                **client = Some(init_proxy_server);
+            } else {
+                return Err(anyhow!("couldn't lock PROXY_SERVER"));
+            }
+            Ok::<(), anyhow::Error>(())
+        })?;
+    }
+    Ok(())
+}
 // run w shutdown
+pub fn proxy_server_run_internal() -> anyhow::Result<(), anyhow::Error> {
+    let mut proxy_server = NYM_PROXY_SERVER
+        .lock()
+        .expect("could not lock NYM_PROXY_CLIENT");
+    if proxy_server.is_none() {
+        bail!("Server is not yet initialised");
+    }
+    let proxy = proxy_server
+        .as_mut()
+        .ok_or_else(|| anyhow!("could not get proxy_client as_ref()"))?;
+    RUNTIME.block_on(async move {
+        proxy.run_with_shutdown().await?;
+        Ok::<(), anyhow::Error>(())
+    })?;
+    Ok(())
+}

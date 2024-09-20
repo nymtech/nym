@@ -11,13 +11,14 @@ license.workspace = true
 # TODO: (for this and other crates), similarly to 'tokio', import only required "futures" modules rather than
 # the entire crate
 futures = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 si-scale = { workspace = true }
 time.workspace = true
+zeroize.workspace = true
 
 # internal
 nym-bandwidth-controller = { path = "../../bandwidth-controller" }

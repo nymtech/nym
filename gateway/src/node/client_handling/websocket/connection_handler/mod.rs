@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use nym_credential_verification::BandwidthFlushingBehaviourConfig;
-use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_gateway_requests::ServerResponse;
 use nym_gateway_storage::Storage;
 use nym_sphinx::DestinationAddressBytes;
@@ -46,11 +46,15 @@ pub(crate) struct ClientDetails {
     #[zeroize(skip)]
     pub(crate) address: DestinationAddressBytes,
     pub(crate) id: i64,
-    pub(crate) shared_keys: SharedKeys,
+    pub(crate) shared_keys: SharedGatewayKey,
 }
 
 impl ClientDetails {
-    pub(crate) fn new(id: i64, address: DestinationAddressBytes, shared_keys: SharedKeys) -> Self {
+    pub(crate) fn new(
+        id: i64,
+        address: DestinationAddressBytes,
+        shared_keys: SharedGatewayKey,
+    ) -> Self {
         ClientDetails {
             address,
             id,
@@ -88,7 +92,7 @@ impl InitialAuthResult {
 #[instrument(level = "debug", skip_all, fields(peer = %handle.peer_address))]
 pub(crate) async fn handle_connection<R, S, St>(mut handle: FreshHandler<R, S, St>)
 where
-    R: Rng + CryptoRng,
+    R: Rng + CryptoRng + Send,
     S: AsyncRead + AsyncWrite + Unpin + Send,
     St: Storage + Clone + 'static,
 {

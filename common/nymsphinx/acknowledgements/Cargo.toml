@@ -14,7 +14,7 @@ generic-array = { workspace = true, optional = true, features = ["serde"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true }
 
-nym-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
+nym-crypto = { path = "../../crypto", features = ["stream_cipher", "rand"] }
 nym-pemstore = { path = "../../pemstore" }
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }

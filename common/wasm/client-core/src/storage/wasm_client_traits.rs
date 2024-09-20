@@ -10,6 +10,7 @@ use std::error::Error;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
 use wasm_storage::traits::BaseWasmStorage;
+use zeroize::Zeroize;
 
 // v1 tables
 pub(crate) mod v1 {
@@ -226,6 +227,23 @@ pub trait WasmClientStorage: BaseWasmStorage {
         )
         .await
         .map_err(Into::into)
+    }
+
+    async fn update_remote_gateway_key(
+        &self,
+        gateway_id_bs58: &str,
+        derived_aes128_ctr_blake3_hmac_keys_bs58: Option<&str>,
+        derived_aes256_gcm_siv_key: Option<&[u8]>,
+    ) -> Result<(), <Self as WasmClientStorage>::StorageError> {
+        if let Some(mut current) = self.maybe_get_registered_gateway(gateway_id_bs58).await? {
+            current.derived_aes128_ctr_blake3_hmac_keys_bs58 =
+                derived_aes128_ctr_blake3_hmac_keys_bs58.map(|k| k.to_string());
+            current.derived_aes256_gcm_siv_key = derived_aes256_gcm_siv_key.map(|k| k.to_vec());
+            self.store_registered_gateway(&current).await?;
+            current.zeroize();
+        }
+
+        Ok(())
     }
 
     async fn remove_registered_gateway(

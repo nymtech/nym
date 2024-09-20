@@ -4,6 +4,7 @@
 use nym_crypto::aes::Aes128;
 use nym_crypto::blake3;
 use nym_crypto::ctr;
+use nym_crypto::Aes256GcmSiv;
 
 type Aes128Ctr = ctr::Ctr64BE<Aes128>;
 
@@ -48,7 +49,7 @@ pub type GatewaySharedKeyHkdfAlgorithm = blake3::Hasher;
 pub type ReplySurbKeyDigestAlgorithm = blake3::Hasher;
 
 /// Hashing algorithm used when computing integrity (H)Mac for message exchanged between client and gateway.
-// TODO: if updated, the pem type defined in gateway\gateway-requests\src\registration\handshake\shared_key
+// TODO: if updated, the pem type defined in gateway\gateway-requests\src\registration\handshake\legacy_shared_key
 // needs updating!
 pub type GatewayIntegrityHmacAlgorithm = blake3::Hasher;
 
@@ -59,11 +60,16 @@ pub type GatewayIntegrityHmacAlgorithm = blake3::Hasher;
 // - the pem type defined in nym\common\nymsphinx\acknowledgements\src\key needs updating!
 pub type AckEncryptionAlgorithm = Aes128Ctr;
 
+/// Legacy encryption algorithm used for end-to-end encryption of messages exchanged between clients
+/// and their gateways.
+// TODO: if updated, the pem type defined in gateway\gateway-requests\src\registration\handshake\legacy_shared_key
+// needs updating!
+pub type LegacyGatewayEncryptionAlgorithm = Aes128Ctr;
+
 /// Encryption algorithm used for end-to-end encryption of messages exchanged between clients
 /// and their gateways.
-// TODO: if updated, the pem type defined in gateway\gateway-requests\src\registration\handshake\shared_key
-// needs updating!
-pub type GatewayEncryptionAlgorithm = Aes128Ctr;
+// NOTE: if updated, the pem type defined in gateway\gateway-requests\src\registration\handshake\shared_key
+pub type GatewayEncryptionAlgorithm = Aes256GcmSiv;
 
 /// Encryption algorithm used for end-to-end encryption of messages exchanged between clients that are
 /// encapsulated inside sphinx packets.

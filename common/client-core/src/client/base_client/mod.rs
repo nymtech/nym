@@ -354,12 +354,14 @@ where
         config: &Config,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
+        details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         shutdown: TaskClient,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
+        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
         let managed_keys = initialisation_result.client_keys;
         let GatewayDetails::Remote(details) = initialisation_result.gateway_registration.details
@@ -387,23 +389,57 @@ where
                         ),
                     cfg,
                     managed_keys.identity_keypair(),
-                    Some(details.derived_aes128_ctr_blake3_hmac_keys),
+                    Some(details.shared_key),
                     packet_router,
                     bandwidth_controller,
                     shutdown,
                 )
             };
 
-        gateway_client
-            .authenticate_and_start()
+        let gateway_failure = |err| {
+            log::error!("Could not authenticate and start up the gateway connection - {err}");
+            ClientCoreError::GatewayClientError {
+                gateway_id: details.gateway_id.to_base58_string(),
+                source: err,
+            }
+        };
+
+        // the gateway client startup procedure is slightly more complicated now
+        // we need to:
+        // - perform handshake (reg or auth)
+        // - check for key upgrade
+        // - maybe perform another upgrade handshake
+        // - check for bandwidth
+        // - start background tasks
+        let auth_res = gateway_client
+            .perform_initial_authentication()
             .await
-            .map_err(|err| {
-                log::error!("Could not authenticate and start up the gateway connection - {err}");
-                ClientCoreError::GatewayClientError {
-                    gateway_id: details.gateway_id.to_base58_string(),
-                    source: err,
-                }
-            })?;
+            .map_err(gateway_failure)?;
+
+        if auth_res.requires_key_upgrade {
+            // drop the shared_key arc because we don't need it and we can't hold it for the purposes of upgrade
+            drop(auth_res);
+
+            let updated_key = gateway_client
+                .upgrade_key_authenticated()
+                .await
+                .map_err(gateway_failure)?;
+
+            details_store
+                .upgrade_stored_remote_gateway_key(gateway_client.gateway_identity(), &updated_key)
+                .await.map_err(|err| {
+                    error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
+                    ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
+            })?
+        }
+
+        gateway_client
+            .claim_initial_bandwidth()
+            .await
+            .map_err(gateway_failure)?;
+        gateway_client
+            .start_listening_for_mixnet_messages()
+            .map_err(gateway_failure)?;
 
         Ok(gateway_client)
     }
@@ -413,12 +449,14 @@ where
         config: &Config,
         initialisation_result: InitialisationResult,
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
+        details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         mut shutdown: TaskClient,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
         <S::KeyStore as KeyStore>::StorageError: Send + Sync + 'static,
         <S::CredentialStore as CredentialStorage>::StorageError: Send + Sync + 'static,
+        <S::GatewaysDetailsStore as GatewaysDetailsStore>::StorageError: Sync + Send,
     {
         // if we have setup custom gateway sender and persisted details agree with it, return it
         if let Some(mut custom_gateway_transceiver) = custom_gateway_transceiver {
@@ -429,7 +467,7 @@ where
             {
                 Err(ClientCoreError::CustomGatewaySelectionExpected)
             } else {
-                // and make sure to invalidate the task client so we wouldn't cause premature shutdown
+                // and make sure to invalidate the task client, so we wouldn't cause premature shutdown
                 shutdown.disarm();
                 custom_gateway_transceiver.set_packet_router(packet_router)?;
                 Ok(custom_gateway_transceiver)
@@ -441,6 +479,7 @@ where
             config,
             initialisation_result,
             bandwidth_controller,
+            details_store,
             packet_router,
             shutdown,
         )
@@ -630,7 +669,8 @@ where
         )
         .await?;
 
-        let (reply_storage_backend, credential_store) = self.client_store.into_runtime_stores();
+        let (reply_storage_backend, credential_store, details_store) =
+            self.client_store.into_runtime_stores();
 
         // channels for inter-component communication
         // TODO: make the channels be internally created by the relevant components
@@ -705,6 +745,7 @@ where
             self.config,
             init_res,
             bandwidth_controller,
+            &details_store,
             gateway_packet_router,
             shutdown.fork("gateway_transceiver"),
         )

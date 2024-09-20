@@ -301,6 +301,10 @@ impl PacketSender {
         // and it wasn't shared with anyone, therefore we're the only one holding reference to it
         // and hence it's impossible to fail to obtain the permit.
         let mut unlocked_client = new_client.lock_client_unchecked();
+
+        // SAFETY: it's fine to use the deprecated method here as we're creating brand new clients each time,
+        // and there's no need to deal with any key upgrades
+        #[allow(deprecated)]
         match tokio::time::timeout(
             gateway_connection_timeout,
             unlocked_client.get_mut_unchecked().authenticate_and_start(),

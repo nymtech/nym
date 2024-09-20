@@ -320,7 +320,7 @@ pub(super) async fn register_with_gateway(
             source: err,
         }
     })?;
-    let shared_keys = gateway_client
+    let auth_response = gateway_client
         .perform_initial_authentication()
         .await
         .map_err(|err| {
@@ -330,8 +330,17 @@ pub(super) async fn register_with_gateway(
                 source: err,
             }
         })?;
+
+    // this should NEVER happen, if it did, it means the function was misused,
+    // because for any fresh **registration**, the derived key is always up to date
+    if auth_response.requires_key_upgrade {
+        return Err(ClientCoreError::UnexpectedKeyUpgrade {
+            gateway_id: gateway_id.to_base58_string(),
+        });
+    }
+
     Ok(RegistrationResult {
-        shared_keys,
+        shared_keys: auth_response.initial_shared_key,
         authenticated_ephemeral_client: gateway_client,
     })
 }

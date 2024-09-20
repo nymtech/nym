@@ -44,7 +44,7 @@ impl PacketRouter {
             // having already been dropped
             if self.shutdown.is_shutdown_poll() || self.shutdown.is_dummy() {
                 // This should ideally not happen, but it's ok
-                log::warn!("Failed to send mixnet messages due to receiver task shutdown");
+                tracing::warn!("Failed to send mixnet messages due to receiver task shutdown");
                 return Err(GatewayClientError::ShutdownInProgress);
             }
             // This should never happen during ordinary operation the way it's currently used.
@@ -60,7 +60,7 @@ impl PacketRouter {
             // having already been dropped
             if self.shutdown.is_shutdown_poll() || self.shutdown.is_dummy() {
                 // This should ideally not happen, but it's ok
-                log::warn!("Failed to send acks due to receiver task shutdown");
+                tracing::warn!("Failed to send acks due to receiver task shutdown");
                 return Err(GatewayClientError::ShutdownInProgress);
             }
             // This should never happen during ordinary operation the way it's currently used.

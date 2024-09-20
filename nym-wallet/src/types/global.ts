@@ -1,10 +1,11 @@
 import { DecCoin, Gateway, MixNode, MixNodeCostParams, PledgeData } from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
-import { TBondedGateway, TBondedMixnode } from 'src/context';
+import { TBondedGateway, TBondedMixnode, TNymNode } from 'src/context';
 
 export enum EnumNodeType {
   mixnode = 'mixnode',
   gateway = 'gateway',
+  nymnode = 'nymnode',
 }
 
 export type TNodeOwnership = {
@@ -90,7 +91,11 @@ export type TGatewayReport = {
   most_recent: number;
 };
 
-export const isMixnode = (node: TBondedMixnode | TBondedGateway): node is TBondedMixnode =>
+export const isMixnode = (node: TBondedMixnode | TBondedGateway | TNymNode): node is TBondedMixnode =>
   (node as TBondedMixnode).profitMargin !== undefined;
 
-export const isGateway = (node: TBondedMixnode | TBondedGateway): node is TBondedGateway => !isMixnode(node);
+export const isGateway = (node: TBondedMixnode | TBondedGateway | TNymNode): node is TBondedGateway =>
+  (node as TBondedGateway).location !== undefined;
+
+export const isNymNode = (node: TBondedMixnode | TBondedGateway | TNymNode): node is TNymNode =>
+  !isMixnode(node) && !isGateway(node);

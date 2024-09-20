@@ -15,7 +15,7 @@ import { NymNodeSuccessModal } from 'src/components/Bonding/modals/NymNodeSucces
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { AppContext, urls } from 'src/context/main';
-import { isGateway, isMixnode, TBondGatewayArgs, TBondMixNodeArgs, TUpdateBondArgs } from 'src/types';
+import { isGateway, isMixnode, isNymNode, TBondGatewayArgs, TBondMixNodeArgs, TUpdateBondArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { VestingWarningModal } from 'src/components/VestingWarningModal';
@@ -160,10 +160,11 @@ export const Bonding = () => {
   if (error) {
     return <ErrorModal open message="An error occured, please check logs for details" onClose={() => refresh()} />;
   }
+  console.log(bondedNode);
 
   return (
     <Box sx={{ mt: 4 }}>
-      {bondedNode?.proxy && (
+      {bondedNode && !isNymNode(bondedNode) && bondedNode?.proxy && (
         <Alert severity="warning" sx={{ mb: 3 }}>
           <AlertTitle sx={{ fontWeight: 600 }}>Your bonded node is using tokens from the vesting contract!</AlertTitle>
           <Typography>

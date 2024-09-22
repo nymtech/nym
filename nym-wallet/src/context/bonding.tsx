@@ -1,18 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import { FeeDetails, DecCoin, MixnodeStatus, TransactionExecuteResult, SelectionChance } from '@nymproject/types';
+import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
-  FeeDetails,
-  DecCoin,
-  MixnodeStatus,
-  TransactionExecuteResult,
-  decimalToPercentage,
-  SelectionChance,
-  InclusionProbabilityResponse,
-  decimalToFloatApproximation,
-} from '@nymproject/types';
-import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
-import Big from 'big.js';
-import {
-  EnumNodeType,
   isGateway,
   isMixnode,
   TBondGatewayArgs,
@@ -20,7 +9,6 @@ import {
   TBondMixNodeArgs,
   TBondMixnodeSignatureArgs,
   TUpdateBondArgs,
-  TNodeDescription,
   isNymNode,
 } from 'src/types';
 import { Console } from 'src/utils/console';
@@ -28,8 +16,6 @@ import {
   bondGateway as bondGatewayRequest,
   bondMixNode as bondMixNodeRequest,
   claimOperatorReward,
-  getGatewayBondDetails,
-  getMixnodeBondDetails,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
   vestingBondGateway,
@@ -38,16 +24,7 @@ import {
   vestingUnbondMixnode,
   updateMixnodeCostParams as updateMixnodeCostParamsRequest,
   vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
-  getNodeDescription as getNodeDescriptionRequest,
-  getMixnodeStatus,
-  getPendingOperatorRewards,
-  getMixnodeStakeSaturation,
   vestingClaimOperatorReward,
-  getInclusionProbability,
-  getMixnodeAvgUptime,
-  getMixnodeRewardEstimation,
-  getGatewayReport,
-  getMixnodeUptime,
   vestingGenerateMixnodeMsgPayload as vestingGenerateMixnodeMsgPayloadReq,
   generateMixnodeMsgPayload as generateMixnodeMsgPayloadReq,
   vestingGenerateGatewayMsgPayload as vestingGenerateGatewayMsgPayloadReq,
@@ -58,15 +35,7 @@ import {
 } from '../requests';
 import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
-import {
-  fireRequests,
-  TauriReq,
-  attachDefaultOperatingCost,
-  decCoinToDisplay,
-  toPercentFloatString,
-  toPercentIntegerString,
-  unymToNym,
-} from '../utils';
+import { attachDefaultOperatingCost, toPercentFloatString } from '../utils';
 import useGetNodeDetails from 'src/hooks/useGetNodeDetails';
 
 export type TBondedMixnode = {
@@ -113,19 +82,20 @@ export interface TBondedGateway {
   };
 }
 
-export type TNymNode = {
+export type TBondedNymNode = {
   nodeId: number;
 };
 
-export type TBondedNode = TBondedMixnode | TBondedGateway | TNymNode;
+export type TBondedNode = TBondedMixnode | TBondedGateway | TBondedNymNode;
 
 export type TokenPool = 'locked' | 'balance';
 
 export type TBondingContext = {
   isLoading: boolean;
   error?: string;
-  bondedNode?: TBondedMixnode | TBondedGateway | TNymNode | null;
-  refresh: () => Promise<void>;
+  bondedNode?: TBondedNode | null;
+  isVestingAccount: boolean;
+  refresh: () => void;
   bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
@@ -134,7 +104,6 @@ export type TBondingContext = {
   updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   generateMixnodeMsgPayload: (data: TBondMixnodeSignatureArgs) => Promise<string | undefined>;
   generateGatewayMsgPayload: (data: TBondGatewaySignatureArgs) => Promise<string | undefined>;
-  isVestingAccount: boolean;
   migrateVestedMixnode: () => Promise<TransactionExecuteResult | undefined>;
 };
 
@@ -177,9 +146,9 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
 
   const [isVestingAccount, setIsVestingAccount] = useState(false);
 
-  const { userBalance, clientDetails } = useContext(AppContext);
-  const { ownership, isLoading: isOwnershipLoading } = useCheckOwnership();
-  const { bondedNode } = useGetNodeDetails(clientDetails?.client_address || '');
+  const { userBalance, clientDetails, network } = useContext(AppContext);
+
+  const { bondedNode, isLoading: isBondedNodeLoading } = useGetNodeDetails(clientDetails?.client_address, network);
 
   useEffect(() => {
     userBalance.fetchBalance();
@@ -198,8 +167,8 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
 
   const refresh = () => {
     resetState();
-    return Promise.resolve();
   };
+
   const bondMixnode = async (data: TBondMixNodeArgs, tokenPool: TokenPool) => {
     let tx: TransactionExecuteResult | undefined;
     setIsLoading(true);
@@ -367,10 +336,10 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
 
   const memoizedValue = useMemo(
     () => ({
-      isLoading: isLoading || isOwnershipLoading,
+      isLoading: isLoading || isBondedNodeLoading,
       error,
-      bondMixnode,
       bondedNode,
+      bondMixnode,
       bondGateway,
       unbond,
       updateMixnode,
@@ -382,7 +351,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       migrateVestedMixnode,
       isVestingAccount,
     }),
-    [isLoading, isOwnershipLoading, error, bondedNode, isVestingAccount],
+    [isLoading, error, bondedNode, isVestingAccount, isBondedNodeLoading],
   );
 
   return <BondingContext.Provider value={memoizedValue}>{children}</BondingContext.Provider>;

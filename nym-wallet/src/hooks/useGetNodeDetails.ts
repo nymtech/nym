@@ -1,41 +1,68 @@
 import React, { useEffect, useState } from 'react';
-import { TBondedGateway, TBondedMixnode, TNymNode } from 'src/context';
+import { TBondedNode } from 'src/context';
 import { getNymNodeBondDetails } from 'src/requests';
 import { getGatewayDetails } from 'src/requests/gatewayDetails';
 import { getMixnodeDetails } from 'src/requests/mixnodeDetails';
+import { fireRequests, TauriReq } from 'src/utils';
 
-type TNode = TBondedMixnode | TBondedGateway | TNymNode | null;
+const useGetNodeDetails = (clientAddress?: string, network?: string) => {
+  const [bondedNode, setBondedNode] = useState<TBondedNode | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [isError, setIsError] = useState(false);
 
-const useGetNodeDetails = (clientAddress: string) => {
-  const [bondedNode, setBondedNode] = useState<TNode>(null);
+  const getNodeDetails = async (clientAddress: string) => {
+    setIsError(false);
+    setBondedNode(null);
+    setIsLoading(true);
 
-  const getNodeDetails = async () => {
-    // Check if the address has a NymNode bonded
-    const nymNode = await getNymNodeBondDetails();
-    if (nymNode) {
-      setBondedNode({ nodeId: nymNode.bond_information.node_id });
-      return;
-    }
+    // Check if the address has a Nym node bonded
+    const nymnode: TauriReq<typeof getNymNodeBondDetails> = {
+      name: 'getNymNodeBondDetails',
+      request: () => getNymNodeBondDetails(),
+      onFulfilled: (value) => {
+        if (value) {
+          setBondedNode({ nodeId: value.bond_information.node_id });
+        }
+      },
+    };
 
-    // Check if the address has a Mixnode bonded
-    const mixnode = await getMixnodeDetails(clientAddress);
-    if (mixnode) {
-      setBondedNode(mixnode);
-    }
+    // Check if the address has a Mix node bonded
+    const mixnode: TauriReq<typeof getMixnodeDetails> = {
+      name: 'getMixnodeDetails',
+      request: () => getMixnodeDetails(clientAddress),
+      onFulfilled: (value) => {
+        if (value) {
+          setBondedNode(value);
+        }
+      },
+    };
 
     // Check if the address has a Gateway bonded
-    const gateway = await getGatewayDetails();
-    if (gateway) {
-      setBondedNode(gateway);
-    }
+    const gateway: TauriReq<typeof getGatewayDetails> = {
+      name: 'getGatewayDetails',
+      request: () => getGatewayDetails(),
+      onFulfilled: (value) => {
+        if (value) {
+          setBondedNode(value);
+        }
+      },
+    };
+
+    await fireRequests([nymnode, mixnode, gateway]);
+
+    setIsLoading(false);
   };
 
   useEffect(() => {
-    getNodeDetails();
-  }, [clientAddress]);
+    if (clientAddress) {
+      getNodeDetails(clientAddress);
+    }
+  }, [clientAddress, network]);
 
   return {
     bondedNode,
+    isLoading,
+    isError,
   };
 };
 

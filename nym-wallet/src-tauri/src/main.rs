@@ -104,6 +104,7 @@ fn main() {
             state::save_config_to_files,
             utils::owns_gateway,
             utils::owns_mixnode,
+            utils::owns_nym_node,
             utils::get_env,
             utils::try_convert_pubkey_to_mix_id,
             utils::default_mixnode_cost_params,

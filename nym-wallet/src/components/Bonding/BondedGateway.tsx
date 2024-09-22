@@ -1,5 +1,5 @@
 import React from 'react';
-import { Box, Button, Stack, Typography } from '@mui/material';
+import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { TBondedGateway, urls } from 'src/context';
 import { NymCard } from 'src/components';
@@ -9,6 +9,7 @@ import { useNavigate } from 'react-router-dom';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedGatewayActions, TBondedGatwayActions } from './BondedGatewayAction';
+import { UpgradeRounded } from '@mui/icons-material';
 
 const headers: Header[] = [
   {
@@ -39,10 +40,12 @@ const headers: Header[] = [
 export const BondedGateway = ({
   gateway,
   network,
+  onShowMigrateToNymNodeModal,
   onActionSelect,
 }: {
   gateway: TBondedGateway;
   network?: Network;
+  onShowMigrateToNymNodeModal: () => void;
   onActionSelect: (action: TBondedGatwayActions) => void;
 }) => {
   const { name, bond, ip, identityKey, routingScore } = gateway;
@@ -91,16 +94,33 @@ export const BondedGateway = ({
         </Stack>
       }
       Action={
-        <Box>
-          <Button
-            variant="text"
-            color="secondary"
-            onClick={() => navigate('/bonding/node-settings')}
-            startIcon={<NodeIcon />}
+        <Stack direction="row" gap={1}>
+          <Tooltip
+            title={
+              'Gateway settings are disabled for legacy Gateways. Please migrate your node in order to access your Gateway settings.'
+            }
           >
-            Gateway Settings
+            <Box>
+              <Button
+                variant="text"
+                color="secondary"
+                onClick={() => navigate('/bonding/node-settings')}
+                startIcon={<NodeIcon />}
+                disabled
+              >
+                Gateway Settings
+              </Button>
+            </Box>
+          </Tooltip>
+          <Button
+            startIcon={<UpgradeRounded />}
+            variant="contained"
+            disableElevation
+            onClick={onShowMigrateToNymNodeModal}
+          >
+            Migrate to Nym Node
           </Button>
-        </Box>
+        </Stack>
       }
     >
       <NodeTable headers={headers} cells={cells} />

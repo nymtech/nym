@@ -92,7 +92,7 @@ export const NodeSettings = () => {
             </Box>
             <Box sx={{ width: '100%' }}>
               <Tabs
-                tabs={makeNavItems(isMixnode(bondedNode))}
+                tabs={makeNavItems(bondedNode)}
                 selectedTab={value}
                 onChange={handleChange}
                 tabSx={{

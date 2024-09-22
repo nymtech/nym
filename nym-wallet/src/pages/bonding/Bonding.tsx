@@ -20,6 +20,7 @@ import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { VestingWarningModal } from 'src/components/VestingWarningModal';
 import { BondingContextProvider, useBondingContext } from '../../context';
+import MigrateLegacyNode from 'src/components/Bonding/modals/MigrateLegacyNode';
 
 export const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -28,7 +29,7 @@ export const Bonding = () => {
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
   const [uncappedSaturation, setUncappedSaturation] = useState<number | undefined>();
   const [showMigrationModal, setShowMigrationModal] = useState(false);
-  const [succesfullUpdate, setSuccesfullUpdate] = useState(false);
+  const [showMigrateLegacyNodeModal, setShowMigrateLegacyNodeModal] = useState(true);
 
   const {
     network,
@@ -40,12 +41,12 @@ export const Bonding = () => {
 
   const {
     bondedNode,
+    isLoading,
+    error,
     bondMixnode,
     bondGateway,
     redeemRewards,
-    isLoading,
     updateBondAmount,
-    error,
     refresh,
     migrateVestedMixnode,
   } = useBondingContext();
@@ -160,7 +161,6 @@ export const Bonding = () => {
   if (error) {
     return <ErrorModal open message="An error occured, please check logs for details" onClose={() => refresh()} />;
   }
-  console.log(bondedNode);
 
   return (
     <Box sx={{ mt: 4 }}>
@@ -191,19 +191,32 @@ export const Bonding = () => {
         }}
       />
 
+      {bondedNode && !isNymNode(bondedNode) && (
+        <MigrateLegacyNode
+          open={showMigrateLegacyNodeModal}
+          onClose={() => setShowMigrateLegacyNodeModal(false)}
+          handleMigrate={() => Promise.resolve()}
+        />
+      )}
+
       {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-mixnode')} />}
 
       {bondedNode && isMixnode(bondedNode) && (
         <BondedMixnode
           mixnode={bondedNode}
           network={network}
+          onShowMigrateToNymNodeModal={() => setShowMigrateLegacyNodeModal(true)}
           onActionSelect={(action) => handleBondedMixnodeAction(action)}
-          setSuccesfullUpdate={setSuccesfullUpdate}
         />
       )}
 
       {bondedNode && isGateway(bondedNode) && (
-        <BondedGateway gateway={bondedNode} onActionSelect={handleBondedMixnodeAction} network={network} />
+        <BondedGateway
+          gateway={bondedNode}
+          network={network}
+          onShowMigrateToNymNodeModal={() => setShowMigrateLegacyNodeModal(true)}
+          onActionSelect={handleBondedMixnodeAction}
+        />
       )}
 
       {showModal === 'bond-mixnode' && (
@@ -271,8 +284,6 @@ export const Bonding = () => {
       {confirmationDetails && confirmationDetails.status === 'error' && (
         <ErrorModal open message={confirmationDetails.subtitle} onClose={() => setConfirmationDetails(undefined)} />
       )}
-
-      {succesfullUpdate && <NymNodeSuccessModal status="success" onClose={() => setSuccesfullUpdate(false)} />}
 
       {isLoading && <LoadingModal />}
     </Box>

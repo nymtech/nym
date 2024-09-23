@@ -20,8 +20,8 @@ pub enum AuthenticatorError {
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
 
-    #[error("received empty packet")]
-    EmptyPacket,
+    #[error("received too short packet")]
+    ShortPacket,
 
     #[error("failed local version check, client and config mismatch")]
     FailedLocalVersionCheck,
@@ -49,6 +49,9 @@ pub enum AuthenticatorError {
 
     #[error("internal error: {0}")]
     InternalError(String),
+
+    #[error("received packet has an invalid type: {0}")]
+    InvalidPacketType(u8),
 
     #[error("received packet has an invalid version: {0}")]
     InvalidPacketVersion(u8),

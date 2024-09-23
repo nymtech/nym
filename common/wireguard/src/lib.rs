@@ -13,12 +13,13 @@ use nym_crypto::asymmetric::encryption::KeyPair;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
-use tokio::sync::mpsc::{self, UnboundedReceiver, UnboundedSender};
+use tokio::sync::mpsc::{self, Receiver, Sender};
 
 const WG_TUN_NAME: &str = "nymwg";
 
 pub(crate) mod error;
 pub mod peer_controller;
+pub mod peer_handle;
 
 pub struct WgApiWrapper {
     inner: WGApi,
@@ -43,15 +44,12 @@ impl Drop for WgApiWrapper {
 pub struct WireguardGatewayData {
     config: Config,
     keypair: Arc<KeyPair>,
-    peer_tx: UnboundedSender<PeerControlRequest>,
+    peer_tx: Sender<PeerControlRequest>,
 }
 
 impl WireguardGatewayData {
-    pub fn new(
-        config: Config,
-        keypair: Arc<KeyPair>,
-    ) -> (Self, UnboundedReceiver<PeerControlRequest>) {
-        let (peer_tx, peer_rx) = mpsc::unbounded_channel();
+    pub fn new(config: Config, keypair: Arc<KeyPair>) -> (Self, Receiver<PeerControlRequest>) {
+        let (peer_tx, peer_rx) = mpsc::channel(1);
         (
             WireguardGatewayData {
                 config,
@@ -70,44 +68,45 @@ impl WireguardGatewayData {
         &self.keypair
     }
 
-    pub fn peer_tx(&self) -> &UnboundedSender<PeerControlRequest> {
+    pub fn peer_tx(&self) -> &Sender<PeerControlRequest> {
         &self.peer_tx
     }
 }
 
 pub struct WireguardData {
     pub inner: WireguardGatewayData,
-    pub peer_rx: UnboundedReceiver<PeerControlRequest>,
+    pub peer_rx: Receiver<PeerControlRequest>,
 }
 
 /// Start wireguard device
 #[cfg(target_os = "linux")]
-pub async fn start_wireguard<St: nym_gateway_storage::Storage + 'static>(
+pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>(
     storage: St,
     all_peers: Vec<nym_gateway_storage::models::WireguardPeer>,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
-    control_tx: UnboundedSender<peer_controller::PeerControlResponse>,
 ) -> Result<std::sync::Arc<WgApiWrapper>, Box<dyn std::error::Error + Send + Sync + 'static>> {
     use base64::{prelude::BASE64_STANDARD, Engine};
     use defguard_wireguard_rs::{InterfaceConfiguration, WireguardInterfaceApi};
     use ip_network::IpNetwork;
     use peer_controller::PeerController;
-
-    let mut peers = vec![];
-    let mut suspended_peers = vec![];
-    for storage_peer in all_peers {
-        let suspended = storage_peer.suspended;
-        let peer = Peer::try_from(storage_peer)?;
-        if suspended {
-            suspended_peers.push(peer);
-        } else {
-            peers.push(peer);
-        }
-    }
+    use std::collections::HashMap;
+    use tokio::sync::RwLock;
 
     let ifname = String::from(WG_TUN_NAME);
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
+    let mut peer_bandwidth_managers = HashMap::with_capacity(all_peers.len());
+    let peers = all_peers
+        .into_iter()
+        .map(Peer::try_from)
+        .collect::<Result<Vec<_>, _>>()?;
+    for peer in peers.iter() {
+        let bandwidth_manager =
+            PeerController::generate_bandwidth_manager(storage.clone(), &peer.public_key)
+                .await?
+                .map(|bw_m| Arc::new(RwLock::new(bw_m)));
+        peer_bandwidth_managers.insert(peer.public_key.clone(), bandwidth_manager);
+    }
     wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
@@ -130,16 +129,18 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + 'static>(
     )]);
     wg_api.configure_peer_routing(&[catch_all_peer])?;
 
+    let host = wg_api.read_interface_data()?;
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
     let mut controller = PeerController::new(
         storage,
         wg_api.clone(),
-        interface_config.peers,
-        suspended_peers,
+        host,
+        peer_bandwidth_managers,
+        wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,
-        control_tx,
+        task_client,
     );
-    tokio::spawn(async move { controller.run(task_client).await });
+    tokio::spawn(async move { controller.run().await });
 
     Ok(wg_api)
 }

@@ -81,6 +81,7 @@ members = [
     "common/nyxd-scraper",
     "common/pemstore",
     "common/serde-helpers",
+    "common/service-provider-requests-common",
     "common/socks5-client-core",
     "common/socks5/proxy-helpers",
     "common/socks5/requests",

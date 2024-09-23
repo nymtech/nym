@@ -12,7 +12,7 @@ license.workspace = true
 
 [dependencies]
 base64 = { workspace = true }
-celes = { workspace = true } # country codes
+celes = { workspace = true }                                               # country codes
 humantime = { workspace = true }
 humantime-serde = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
@@ -21,7 +21,10 @@ serde_json = { workspace = true }
 time = { workspace = true, features = ["serde", "formatting", "parsing"] }
 thiserror = { workspace = true }
 
-nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
+nym-crypto = { path = "../../common/crypto", features = [
+    "asymmetric",
+    "serde",
+] }
 nym-exit-policy = { path = "../../common/exit-policy" }
 nym-wireguard-types = { path = "../../common/wireguard-types", default-features = false }
 
@@ -33,7 +36,9 @@ nym-http-api-client = { path = "../../common/http-api-client", optional = true }
 
 ## openapi:
 utoipa = { workspace = true, optional = true }
-nym-bin-common = { path = "../../common/bin-common", features = ["bin_info_schema"] }
+nym-bin-common = { path = "../../common/bin-common", features = [
+    "bin_info_schema",
+] }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }
@@ -44,4 +49,4 @@ nym-crypto = { path = "../../common/crypto", features = ["rand"] }
 [features]
 default = ["client"]
 client = ["nym-http-api-client", "async-trait"]
-openapi = ["utoipa", "nym-bin-common/openapi", "nym-wireguard-types/openapi", "nym-exit-policy/openapi"]
+openapi = ["utoipa", "nym-bin-common/openapi", "nym-exit-policy/openapi"]

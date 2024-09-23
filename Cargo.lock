@@ -4228,7 +4228,11 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core",
  "nym-config",
+ "nym-credential-verification",
+ "nym-credentials-interface",
  "nym-crypto",
+ "nym-gateway-requests",
+ "nym-gateway-storage",
  "nym-id",
  "nym-network-defaults",
  "nym-sdk",
@@ -4252,11 +4256,19 @@ dependencies = [
 name = "nym-authenticator-requests"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "bincode",
+ "hmac",
+ "nym-credentials-interface",
+ "nym-crypto",
+ "nym-service-provider-requests-common",
  "nym-sphinx",
  "nym-wireguard-types",
  "rand",
  "serde",
+ "sha2 0.10.8",
+ "thiserror",
+ "x25519-dalek",
 ]
 
 [[package]]
@@ -5483,7 +5495,6 @@ dependencies = [
  "nym-node-requests",
  "nym-task",
  "nym-wireguard",
- "nym-wireguard-types",
  "rand",
  "serde_json",
  "thiserror",
@@ -5676,6 +5687,13 @@ dependencies = [
  "bs58",
  "serde",
  "time",
+]
+
+[[package]]
+name = "nym-service-provider-requests-common"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -6192,8 +6210,11 @@ dependencies = [
  "chrono",
  "dashmap",
  "defguard_wireguard_rs",
+ "futures",
  "ip_network",
  "log",
+ "nym-authenticator-requests",
+ "nym-credential-verification",
  "nym-crypto",
  "nym-gateway-storage",
  "nym-network-defaults",
@@ -6210,17 +6231,13 @@ name = "nym-wireguard-types"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
- "hmac",
  "log",
  "nym-config",
  "nym-crypto",
  "nym-network-defaults",
  "rand",
  "serde",
- "serde_json",
- "sha2 0.10.8",
  "thiserror",
- "utoipa",
  "x25519-dalek",
 ]
 

@@ -1,7 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::registration::{GatewayClient, InitMessage};
+use super::registration::{FinalMessage, InitMessage};
+use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::addressing::Recipient;
 use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
@@ -18,7 +19,7 @@ fn generate_random() -> u64 {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthenticatorRequest {
-    pub version: u8,
+    pub protocol: Protocol,
     pub data: AuthenticatorRequestData,
     pub reply_to: Recipient,
     pub request_id: u64,
@@ -36,7 +37,10 @@ impl AuthenticatorRequest {
         let request_id = generate_random();
         (
             Self {
-                version: VERSION,
+                protocol: Protocol {
+                    service_provider_type: ServiceProviderType::Authenticator,
+                    version: VERSION,
+                },
                 data: AuthenticatorRequestData::Initial(init_message),
                 reply_to,
                 request_id,
@@ -45,12 +49,15 @@ impl AuthenticatorRequest {
         )
     }
 
-    pub fn new_final_request(gateway_client: GatewayClient, reply_to: Recipient) -> (Self, u64) {
+    pub fn new_final_request(final_message: FinalMessage, reply_to: Recipient) -> (Self, u64) {
         let request_id = generate_random();
         (
             Self {
-                version: VERSION,
-                data: AuthenticatorRequestData::Final(gateway_client),
+                protocol: Protocol {
+                    service_provider_type: ServiceProviderType::Authenticator,
+                    version: VERSION,
+                },
+                data: AuthenticatorRequestData::Final(Box::new(final_message)),
                 reply_to,
                 request_id,
             },
@@ -62,7 +69,10 @@ impl AuthenticatorRequest {
         let request_id = generate_random();
         (
             Self {
-                version: VERSION,
+                protocol: Protocol {
+                    service_provider_type: ServiceProviderType::Authenticator,
+                    version: VERSION,
+                },
                 data: AuthenticatorRequestData::QueryBandwidth(peer_public_key),
                 reply_to,
                 request_id,
@@ -80,7 +90,7 @@ impl AuthenticatorRequest {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum AuthenticatorRequestData {
     Initial(InitMessage),
-    Final(GatewayClient),
+    Final(Box<FinalMessage>),
     QueryBandwidth(PeerPublicKey),
 }
 
@@ -93,7 +103,10 @@ mod tests {
     fn check_first_byte_version() {
         let version = 2;
         let data = AuthenticatorRequest {
-            version,
+            protocol: Protocol {
+                version,
+                service_provider_type: ServiceProviderType::Authenticator,
+            },
             data: AuthenticatorRequestData::Initial(InitMessage::new(
                 PeerPublicKey::from_str("yvNUDpT5l7W/xDhiu6HkqTHDQwbs/B3J5UrLmORl1EQ=").unwrap(),
             )),

@@ -28,3 +28,9 @@ impl From<ConnectionError> for Socks5ClientCoreError {
         }
     }
 }
+
+impl nym_task::manager::TaskEvent for Socks5ClientCoreError {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}

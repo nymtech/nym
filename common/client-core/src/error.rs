@@ -221,3 +221,9 @@ pub enum ClientCoreStatusMessage {
     #[error("The connected gateway is very slow, or the connection to it is very slow")]
     GatewayIsVerySlow,
 }
+
+impl nym_task::manager::TaskEvent for ClientCoreStatusMessage {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}

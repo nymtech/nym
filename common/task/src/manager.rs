@@ -23,8 +23,7 @@ pub(crate) type SentError = Box<dyn Error + Send + Sync>;
 type ErrorSender = mpsc::UnboundedSender<SentError>;
 type ErrorReceiver = mpsc::UnboundedReceiver<SentError>;
 
-// pub type SentStatus = Box<dyn Error + Send + Sync>;
-pub type SentStatus = Box<dyn TaskEvent>;
+pub type SentStatus = Box<dyn TaskStatusEvent>;
 pub type StatusSender = futures::channel::mpsc::Sender<SentStatus>;
 pub type StatusReceiver = futures::channel::mpsc::Receiver<SentStatus>;
 
@@ -42,7 +41,7 @@ enum TaskError {
     UnexpectedHalt { shutdown_name: Option<String> },
 }
 
-pub trait TaskEvent: std::error::Error + Send + Sync + Any {
+pub trait TaskStatusEvent: std::error::Error + Send + Sync + Any {
     fn as_any(&self) -> &dyn Any;
 }
 
@@ -55,7 +54,7 @@ pub enum TaskStatus {
     ReadyWithGateway(String),
 }
 
-impl TaskEvent for TaskStatus {
+impl TaskStatusEvent for TaskStatus {
     fn as_any(&self) -> &dyn Any {
         self
     }

@@ -4646,6 +4646,7 @@ dependencies = [
  "nym-ecash-contract-common",
  "nym-ecash-time",
  "nym-network-defaults",
+ "nym-task",
  "nym-validator-client",
  "rand",
  "thiserror",

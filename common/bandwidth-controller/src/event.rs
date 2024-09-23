@@ -11,3 +11,9 @@ pub enum BandwidthStatusMessage {
     #[error("no bandwidth left")]
     NoBandwidth,
 }
+
+impl nym_task::manager::TaskEvent for BandwidthStatusMessage {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}

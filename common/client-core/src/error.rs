@@ -222,14 +222,26 @@ pub enum ClientCoreError {
 }
 
 /// Set of messages that the client can send to listeners via the task manager
-#[derive(thiserror::Error, Debug)]
+#[derive(Debug)]
 pub enum ClientCoreStatusMessage {
-    // NOTE: The nym-connect frontend listens for these strings, so don't change them until we have a more robust mechanism in place
-    #[error("The connected gateway is slow, or the connection to it is slow")]
     GatewayIsSlow,
-    // NOTE: The nym-connect frontend listens for these strings, so don't change them until we have a more robust mechanism in place
-    #[error("The connected gateway is very slow, or the connection to it is very slow")]
     GatewayIsVerySlow,
+}
+
+impl std::fmt::Display for ClientCoreStatusMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        // NOTE: The nym-connect frontend listens for these strings, so don't change them until we have a more robust mechanism in place
+        match self {
+            ClientCoreStatusMessage::GatewayIsSlow => write!(
+                f,
+                "The connected gateway is slow, or the connection to it is slow"
+            ),
+            ClientCoreStatusMessage::GatewayIsVerySlow => write!(
+                f,
+                "The connected gateway is very slow, or the connection to it is very slow"
+            ),
+        }
+    }
 }
 
 impl nym_task::manager::TaskStatusEvent for ClientCoreStatusMessage {

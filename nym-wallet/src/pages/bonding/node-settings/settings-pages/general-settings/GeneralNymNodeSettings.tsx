@@ -6,7 +6,6 @@ import { Box, Button, Divider, Grid, Stack, TextField, Typography } from '@mui/m
 import { useTheme } from '@mui/material/styles';
 import { isMixnode } from 'src/types';
 import { simulateUpdateMixnodeConfig, simulateVestingUpdateMixnodeConfig, updateMixnodeConfig } from 'src/requests';
-import { TBondedGateway, TBondedMixnode, TBondedNymNode } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedInfoParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
@@ -16,6 +15,7 @@ import { useGetFee } from 'src/hooks/useGetFee';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { AppContext } from 'src/context';
+import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 
 export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymNode }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);

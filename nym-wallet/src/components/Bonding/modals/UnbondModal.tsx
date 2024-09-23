@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { useEffect } from 'react';
 import { Typography } from '@mui/material';
-import { TBondedGateway, TBondedMixnode } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { isGateway, isMixnode } from 'src/types';
 import { ModalFee } from '../../Modals/ModalFee';
@@ -13,6 +12,8 @@ import {
   simulateVestingUnbondGateway,
   simulateVestingUnbondMixnode,
 } from '../../../requests';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 
 interface Props {
   node: TBondedMixnode | TBondedGateway;

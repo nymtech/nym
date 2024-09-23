@@ -1,9 +1,11 @@
 import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Network } from 'src/types';
-import { BondingContext, TBondedGateway, TBondedMixnode } from '../bonding';
+import { BondingContext } from '../bonding';
 import { mockSleep } from './utils';
 import { TBondGatewaySignatureArgs, TBondMixnodeSignatureArgs } from '../../types';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
 
 const SLEEP_MS = 1000;
 
@@ -30,6 +32,8 @@ const bondedMixnodeMock: TBondedMixnode = {
   version: '1.0.2',
   isUnbonding: false,
   uptime: 1,
+  proxy: null,
+  uncappedStakeSaturation: 100,
 };
 
 const bondedGatewayMock: TBondedGateway = {

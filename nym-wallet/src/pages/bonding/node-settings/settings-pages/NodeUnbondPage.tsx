@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Box, Button, Typography, Grid, TextField, Stack } from '@mui/material';
-import { TBondedMixnode, TBondedGateway, TBondedNode } from 'src/context/bonding';
+import { TBondedNode } from 'src/context/bonding';
 import { Error } from 'src/components/Error';
 import { UnbondModal } from 'src/components/Bonding/modals/UnbondModal';
 import { isMixnode, isNymNode } from 'src/types';

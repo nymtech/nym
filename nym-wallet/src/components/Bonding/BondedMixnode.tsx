@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Box, Button, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
 import { isMixnode, Network } from 'src/types';
-import { TBondedMixnode, urls } from 'src/context';
+import { urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { NodeStatus } from 'src/components/NodeStatus';
@@ -14,6 +14,7 @@ import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedMixnodeActions, TBondedMixnodeActions } from './BondedMixnodeActions';
 import { NodeStats } from './NodeStats';
 import { UpgradeRounded } from '@mui/icons-material';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 
 const textWhenNotName = 'This node has not yet set a name';
 

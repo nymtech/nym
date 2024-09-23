@@ -33,58 +33,12 @@ import {
   vestingUpdateBond as vestingUpdateBondReq,
   migrateVestedMixnode as tauriMigrateVestedMixnode,
 } from '../requests';
-import { useCheckOwnership } from '../hooks/useCheckOwnership';
 import { AppContext } from './main';
 import { attachDefaultOperatingCost, toPercentFloatString } from '../utils';
 import useGetNodeDetails from 'src/hooks/useGetNodeDetails';
-
-export type TBondedMixnode = {
-  name?: string;
-  mixId: number;
-  identityKey: string;
-  stake: DecCoin;
-  bond: DecCoin;
-  stakeSaturation: string;
-  uncappedStakeSaturation?: number;
-  profitMargin: string;
-  operatorRewards?: DecCoin;
-  delegators: number;
-  status: MixnodeStatus;
-  proxy?: string | null;
-  operatorCost: DecCoin;
-  host: string;
-  estimatedRewards?: DecCoin;
-  activeSetProbability?: SelectionChance;
-  standbySetProbability?: SelectionChance;
-  routingScore?: number;
-  httpApiPort: number;
-  mixPort: number;
-  verlocPort: number;
-  version: string;
-  isUnbonding: boolean;
-  uptime: number;
-};
-
-export interface TBondedGateway {
-  name?: string;
-  identityKey: string;
-  ip: string;
-  bond: DecCoin;
-  location: string;
-  proxy: string | null;
-  host: string;
-  httpApiPort: number;
-  mixPort: number;
-  version: string;
-  routingScore?: {
-    current: number;
-    average: number;
-  };
-}
-
-export type TBondedNymNode = {
-  nodeId: number;
-};
+import { TBondedNymNode } from 'src/requests/nymNodeDetails';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
 
 export type TBondedNode = TBondedMixnode | TBondedGateway | TBondedNymNode;
 

@@ -9,9 +9,12 @@ use std::{
 use crate::{error::AuthenticatorError, peer_manager::PeerManager};
 use futures::StreamExt;
 use log::warn;
-use nym_authenticator_requests::v2::registration::{
-    FinalMessage, GatewayClient, InitMessage, PendingRegistrations, PrivateIPs, RegistrationData,
-    RegistredData,
+use nym_authenticator_requests::v2::{
+    self,
+    registration::{
+        FinalMessage, GatewayClient, InitMessage, PendingRegistrations, PrivateIPs,
+        RegistrationData, RegistredData,
+    },
 };
 use nym_authenticator_requests::{
     v1,
@@ -435,6 +438,9 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
     // Check version of the request and convert to the latest version if necessary
     match request_version {
         1 => v1::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+            .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
+            .map(Into::into),
+        2 => v2::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
             .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
             .map(Into::into),
         _ => {

@@ -3,12 +3,13 @@
 
 use crate::node_status_api::helpers::RewardedSetStatus;
 use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
+use crate::nym_contract_cache::cache::CachedRewardedSet;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_api_requests::models::{
     GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation, NodePerformance,
 };
-use nym_mixnet_contract_common::{reward_params::Performance, Interval, NodeId, RewardedSet};
+use nym_mixnet_contract_common::{reward_params::Performance, Interval, NodeId};
 use nym_mixnet_contract_common::{NymNodeDetails, RewardingParams};
 use nym_topology::NetworkAddress;
 use std::collections::{HashMap, HashSet};
@@ -46,7 +47,7 @@ pub(super) async fn get_gateway_performance_from_storage(
 }
 
 // TODO: this might have to be moved to a different file if other places also rely on this functionality
-fn get_rewarded_set_status(rewarded_set: &RewardedSet, node_id: NodeId) -> RewardedSetStatus {
+fn get_rewarded_set_status(rewarded_set: &CachedRewardedSet, node_id: NodeId) -> RewardedSetStatus {
     if rewarded_set.is_standby(&node_id) {
         RewardedSetStatus::Standby
     } else if rewarded_set.is_active_mixnode(&node_id) {
@@ -61,7 +62,7 @@ pub(super) async fn annotate_legacy_mixnodes_nodes_with_details(
     mixnodes: Vec<LegacyMixNodeDetailsWithLayer>,
     interval_reward_params: RewardingParams,
     current_interval: Interval,
-    rewarded_set: &RewardedSet,
+    rewarded_set: &CachedRewardedSet,
     blacklist: &HashSet<NodeId>,
 ) -> HashMap<NodeId, MixNodeBondAnnotated> {
     let mut annotated = HashMap::new();
@@ -188,6 +189,7 @@ pub(crate) async fn produce_node_annotations(
     legacy_mixnodes: &[LegacyMixNodeDetailsWithLayer],
     legacy_gateways: &[LegacyGatewayBondWithId],
     nym_nodes: &[NymNodeDetails],
+    rewarded_set: &CachedRewardedSet,
     current_interval: Interval,
 ) -> HashMap<NodeId, NodeAnnotation> {
     let mut annotations = HashMap::new();
@@ -207,6 +209,7 @@ pub(crate) async fn produce_node_annotations(
             legacy_mix.mix_id(),
             NodeAnnotation {
                 last_24h_performance: perf,
+                current_role: rewarded_set.role(legacy_mix.mix_id()),
             },
         );
     }
@@ -226,6 +229,7 @@ pub(crate) async fn produce_node_annotations(
             legacy_gateway.node_id,
             NodeAnnotation {
                 last_24h_performance: perf,
+                current_role: rewarded_set.role(legacy_gateway.node_id),
             },
         );
     }
@@ -245,6 +249,7 @@ pub(crate) async fn produce_node_annotations(
             nym_node.node_id(),
             NodeAnnotation {
                 last_24h_performance: perf,
+                current_role: rewarded_set.role(nym_node.node_id()),
             },
         );
     }

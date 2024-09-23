@@ -149,6 +149,7 @@ impl NodeStatusCacheRefresher {
             &mixnode_details,
             &gateway_bonds,
             &nym_nodes,
+            &rewarded_set,
             current_interval,
         )
         .await;

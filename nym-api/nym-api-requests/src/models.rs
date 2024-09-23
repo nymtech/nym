@@ -8,6 +8,7 @@ use crate::legacy::{
 use crate::nym_nodes::{BasicEntryInformation, NodeRole, SkimmedNode};
 use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
+use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{IdentityKey, Interval, MixNode, NodeId, Percent};
@@ -125,6 +126,7 @@ pub struct NodePerformance {
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
 pub struct NodeAnnotation {
     pub last_24h_performance: Performance,
+    pub current_role: Option<Role>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]

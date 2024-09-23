@@ -232,7 +232,7 @@ pub enum ClientCoreStatusMessage {
     GatewayIsVerySlow,
 }
 
-impl nym_task::manager::TaskEvent for ClientCoreStatusMessage {
+impl nym_task::manager::TaskStatusEvent for ClientCoreStatusMessage {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

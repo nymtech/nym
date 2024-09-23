@@ -12,7 +12,7 @@ pub enum BandwidthStatusMessage {
     NoBandwidth,
 }
 
-impl nym_task::manager::TaskEvent for BandwidthStatusMessage {
+impl nym_task::manager::TaskStatusEvent for BandwidthStatusMessage {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

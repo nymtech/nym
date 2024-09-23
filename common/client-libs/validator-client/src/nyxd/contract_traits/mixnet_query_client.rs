@@ -7,14 +7,13 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
-use nym_api_requests::models::StakeSaturationResponse;
 use nym_contracts_common::signing::Nonce;
 use nym_mixnet_contract_common::gateway::{PreassignedGatewayIdsResponse, PreassignedId};
 use nym_mixnet_contract_common::nym_node::{
     EpochAssignmentResponse, NodeDetailsByIdentityResponse, NodeOwnershipResponse,
     NodeRewardingDetailsResponse, PagedNymNodeBondsResponse, PagedNymNodeDetailsResponse,
-    PagedUnbondedNymNodesResponse, Role, RolesMetadataResponse, UnbondedNodeResponse,
-    UnbondedNymNode,
+    PagedUnbondedNymNodesResponse, Role, RolesMetadataResponse, StakeSaturationResponse,
+    UnbondedNodeResponse, UnbondedNymNode,
 };
 use nym_mixnet_contract_common::reward_params::WorkFactor;
 use nym_mixnet_contract_common::{

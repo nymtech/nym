@@ -11,7 +11,9 @@ use nym_api_requests::ecash::models::{
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::legacy::LegacyGatewayBondWithId;
-use nym_api_requests::models::{LegacyDescribedMixNode, NodePerformanceResponse};
+use nym_api_requests::models::{
+    AnnotationResponse, LegacyDescribedMixNode, NodePerformanceResponse,
+};
 pub use nym_api_requests::{
     ecash::{
         models::{
@@ -432,6 +434,14 @@ pub trait NymApiClientExt: ApiClient {
         node_id: NodeId,
     ) -> Result<NodePerformanceResponse, NymAPIError> {
         self.get_json_from(format!("/v1/nym-nodes/performance/{node_id}"))
+            .await
+    }
+
+    async fn get_node_annotation(
+        &self,
+        node_id: NodeId,
+    ) -> Result<AnnotationResponse, NymAPIError> {
+        self.get_json_from(format!("/v1/nym-nodes/annotation/{node_id}"))
             .await
     }
 

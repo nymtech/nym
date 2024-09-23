@@ -84,6 +84,7 @@ impl EpochAdvancer {
                     .rewarded_set_owned()
                     .await
                     .into_inner()
+                    .into()
             }
         };
 

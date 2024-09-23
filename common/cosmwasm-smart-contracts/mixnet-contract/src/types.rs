@@ -64,62 +64,6 @@ impl RewardedSet {
     pub fn rewarded_set_size(&self) -> usize {
         self.active_set_size() + self.standby.len()
     }
-
-    pub fn try_get_mix_layer(&self, node_id: &NodeId) -> Option<u8> {
-        if self.layer1.contains(node_id) {
-            Some(1)
-        } else if self.layer2.contains(node_id) {
-            Some(2)
-        } else if self.layer3.contains(node_id) {
-            Some(3)
-        } else {
-            None
-        }
-    }
-
-    pub fn is_entry(&self, node_id: &NodeId) -> bool {
-        self.entry_gateways.contains(node_id)
-    }
-
-    pub fn is_exit(&self, node_id: &NodeId) -> bool {
-        self.exit_gateways.contains(node_id)
-    }
-
-    pub fn is_active_mixnode(&self, node_id: &NodeId) -> bool {
-        self.layer1.contains(node_id)
-            || self.layer2.contains(node_id)
-            || self.layer3.contains(node_id)
-    }
-
-    pub fn gateways(&self) -> Vec<NodeId> {
-        let mut gateways = Vec::with_capacity(self.entry_gateways.len() + self.exit_gateways.len());
-        for entry in &self.entry_gateways {
-            gateways.push(*entry)
-        }
-        for exit in &self.exit_gateways {
-            gateways.push(*exit)
-        }
-        gateways
-    }
-
-    pub fn active_mixnodes(&self) -> Vec<NodeId> {
-        let mut mixnodes =
-            Vec::with_capacity(self.layer1.len() + self.layer2.len() + self.layer3.len());
-        for mix in &self.layer1 {
-            mixnodes.push(*mix)
-        }
-        for mix in &self.layer2 {
-            mixnodes.push(*mix)
-        }
-        for mix in &self.layer3 {
-            mixnodes.push(*mix)
-        }
-        mixnodes
-    }
-
-    pub fn is_standby(&self, node_id: &NodeId) -> bool {
-        self.standby.contains(node_id)
-    }
 }
 
 #[cw_serde]

@@ -11,7 +11,7 @@ use crate::{nyxd_client, Gateway, MixNode};
 use log::info;
 use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::gateway::GatewayConfigUpdate;
-use nym_mixnet_contract_common::nym_node::NodeConfigUpdate;
+use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, StakeSaturationResponse};
 use nym_mixnet_contract_common::{MixNodeConfigUpdate, NodeId, NymNode};
 use nym_node_requests::api::client::NymNodeApiClientExt;
 use nym_node_requests::api::v1::node::models::NodeDescription;
@@ -682,13 +682,9 @@ pub async fn update_nymnode_config(
 
 #[tauri::command]
 pub async fn get_nymnode_performance(
+    node_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Option<f64>, BackendError> {
-    let Some(details) = nym_node_bond_details(state.clone()).await? else {
-        return Ok(None);
-    };
-    let node_id = details.bond_information.node_id;
-
     log::trace!("  >>> Get node performance: node_id = {node_id}");
     let guard = state.read().await;
     let res = guard
@@ -699,4 +695,34 @@ pub async fn get_nymnode_performance(
     log::trace!("  <<< {res:?}");
 
     Ok(res.performance)
+}
+
+#[tauri::command]
+pub async fn get_nymnode_uptime(
+    node_id: NodeId,
+    state: tauri::State<'_, WalletState>,
+) -> Result<u8, BackendError> {
+    log::info!(">>> Get legacy nymnode uptime");
+
+    let performance = get_nymnode_performance(node_id, state).await?;
+
+    // convert value in range 0.0 - 1.0 into 0-100
+    Ok(performance
+        .map(|p| (p * 100.).floor() as u8)
+        .unwrap_or_default())
+}
+
+#[tauri::command]
+pub async fn get_nymnode_stake_saturation(
+    node_id: NodeId,
+    state: tauri::State<'_, WalletState>,
+) -> Result<StakeSaturationResponse, BackendError> {
+    log::trace!("  >>> Get node stake saturation: node_id = {node_id}");
+
+    let res = nyxd_client!(state)
+        .get_node_stake_saturation(node_id)
+        .await?;
+    log::trace!("  <<< {res:?}");
+
+    Ok(res)
 }

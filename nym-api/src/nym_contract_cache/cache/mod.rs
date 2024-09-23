@@ -24,6 +24,8 @@ use tracing::{debug, error};
 mod data;
 pub(crate) mod refresher;
 
+pub(crate) use self::data::CachedRewardedSet;
+
 const CACHE_TIMEOUT_MS: u64 = 100;
 
 #[derive(Clone)]
@@ -259,11 +261,11 @@ impl NymContractCache {
         todo!()
     }
 
-    pub async fn rewarded_set(&self) -> Option<RwLockReadGuard<Cache<RewardedSet>>> {
+    pub async fn rewarded_set(&self) -> Option<RwLockReadGuard<Cache<CachedRewardedSet>>> {
         self.get(|cache| &cache.rewarded_set).await
     }
 
-    pub async fn rewarded_set_owned(&self) -> Cache<RewardedSet> {
+    pub async fn rewarded_set_owned(&self) -> Cache<CachedRewardedSet> {
         self.get_owned(|cache| cache.rewarded_set.clone_cache())
             .await
             .unwrap_or_default()

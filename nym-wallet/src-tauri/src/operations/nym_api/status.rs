@@ -4,14 +4,15 @@
 use crate::api_client;
 use crate::error::BackendError;
 use crate::state::WalletState;
+use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::{
     reward_params::Performance, Coin, IdentityKeyRef, NodeId, Percent,
 };
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{
-    ComputeRewardEstParam, GatewayCoreStatusResponse, GatewayStatusReportResponse,
-    InclusionProbabilityResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse,
+    AnnotationResponse, ComputeRewardEstParam, GatewayCoreStatusResponse,
+    GatewayStatusReportResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
+    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse,
 };
 
 #[tauri::command]
@@ -103,4 +104,21 @@ pub async fn mixnode_inclusion_probability(
     Ok(api_client!(state)
         .get_mixnode_inclusion_probability(mix_id)
         .await?)
+}
+
+#[tauri::command]
+pub async fn get_nymnode_role(
+    node_id: NodeId,
+    state: tauri::State<'_, WalletState>,
+) -> Result<Option<Role>, BackendError> {
+    let annotation = get_nymnode_annotation(node_id, state).await?;
+    Ok(annotation.annotation.and_then(|n| n.current_role))
+}
+
+#[tauri::command]
+pub async fn get_nymnode_annotation(
+    node_id: NodeId,
+    state: tauri::State<'_, WalletState>,
+) -> Result<AnnotationResponse, BackendError> {
+    Ok(api_client!(state).get_node_annotation(node_id).await?)
 }

@@ -4,7 +4,7 @@
 use crate::network_monitor::monitor::sender::GatewayPackets;
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_describe_cache::{DescribedNodes, NodeDescriptionTopologyExt};
-use crate::nym_contract_cache::cache::NymContractCache;
+use crate::nym_contract_cache::cache::{CachedRewardedSet, NymContractCache};
 use crate::support::caching::cache::SharedCache;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer};
 use nym_api_requests::models::NymNodeDescription;
@@ -275,7 +275,7 @@ impl PacketPreparer {
         &self,
         rng: &mut R,
         blacklist: &mut HashSet<NodeId>,
-        rewarded_set: &RewardedSet,
+        rewarded_set: &CachedRewardedSet,
         legacy_mixnodes: Vec<LegacyMixNodeBondWithLayer>,
         mixing_nym_nodes: impl Iterator<Item = &'a NymNodeDescription> + 'a,
     ) -> HashMap<LegacyMixLayer, Vec<mix::LegacyNode>> {
@@ -477,7 +477,7 @@ impl PacketPreparer {
     fn nym_node_to_legacy_mix<R: Rng>(
         &self,
         rng: &mut R,
-        rewarded_set: &RewardedSet,
+        rewarded_set: &CachedRewardedSet,
         mixing_nym_node: &NymNodeDescription,
     ) -> Option<mix::LegacyNode> {
         let maybe_explicit_layer = rewarded_set

@@ -1,6 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_status_api::handlers::MixIdParam;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::helpers::PaginationRequest;
 use crate::support::http::state::AppState;
@@ -162,6 +163,17 @@ async fn _mixnode_test_results(
     })
 }
 
+#[utoipa::path(
+    tag = "UNSTABLE - DO **NOT** USE",
+    get,
+    params(
+        MixIdParam, PaginationRequest
+    ),
+    path = "/v1/status/mixnodes/unstable/{mix_id}/test-results",
+    responses(
+        (status = 200, body = MixnodeTestResultResponse)
+    )
+)]
 pub async fn mixnode_test_results(
     Path(mix_id): Path<NodeId>,
     Query(pagination): Query<PaginationRequest>,
@@ -250,6 +262,17 @@ async fn _gateway_test_results(
     })
 }
 
+#[utoipa::path(
+    tag = "UNSTABLE - DO **NOT** USE",
+    get,
+    params(
+        PaginationRequest
+    ),
+    path = "/v1/status/gateways/unstable/{identity}/test-results",
+    responses(
+        (status = 200, body = GatewayTestResultResponse)
+    )
+)]
 pub async fn gateway_test_results(
     Path(gateway_identity): Path<String>,
     Query(pagination): Query<PaginationRequest>,

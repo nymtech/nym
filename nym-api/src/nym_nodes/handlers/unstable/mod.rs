@@ -32,6 +32,10 @@ use nym_bin_common::version_checker;
 use serde::Deserialize;
 use std::collections::HashSet;
 
+mod full_fat;
+mod semi_skimmed;
+mod skimmed;
+
 pub(crate) fn nym_node_routes_unstable() -> axum::Router<AppState> {
     Router::new()
         .route("/skimmed", axum::routing::get(nodes_basic))
@@ -73,6 +77,10 @@ impl SemverCompatibilityQueryParam {
     }
 }
 
+// async fn nodes_noise() -> AxumResult<Json()> {
+//     todo!()
+// }
+
 #[utoipa::path(
     tag = "Unstable Nym Nodes",
     get,
@@ -108,6 +116,14 @@ async fn nodes_basic(
             _ => {}
         }
     }
+
+    // TODO:
+    /*
+    - `/v1/unstable/nym-nodes/skimmed` - now works with `exit` parameter
+    - `/v1/unstable/nym-nodes/skimmed` - introduced `no-legacy` flag to ignore legacy mixnodes/gateways (where applicable)
+    - `/v1/unstable/nym-nodes/skimmed` - will now return **ALL** nodes if no query parameter is provided
+
+     */
 
     Err(AxumErrorResponse::not_implemented())
 }
@@ -199,6 +215,7 @@ async fn nodes_detailed(
         (status = 200, body = CachedNodesResponse<SkimmedNode>)
     )
 )]
+#[deprecated(note = "use '/v1/unstable/nym-nodes/entry-gateways/skimmed/all' instead")]
 async fn gateways_basic(
     state: State<AppState>,
     Query(SemverCompatibilityQueryParam {
@@ -355,6 +372,7 @@ async fn gateways_detailed(
         (status = 200, body = CachedNodesResponse<SkimmedNode>)
     )
 )]
+#[deprecated(note = "use '/v1/unstable/nym-nodes/mixnodes/skimmed/active' instead")]
 async fn mixnodes_basic(
     state: State<AppState>,
     Query(SemverCompatibilityQueryParam {

@@ -1,15 +1,16 @@
 import React from 'react';
 import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
-import { TBondedGateway, urls } from 'src/context';
+import { urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { Network } from 'src/types';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { useNavigate } from 'react-router-dom';
+import { UpgradeRounded } from '@mui/icons-material';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedGatewayActions, TBondedGatwayActions } from './BondedGatewayAction';
-import { UpgradeRounded } from '@mui/icons-material';
 
 const headers: Header[] = [
   {
@@ -95,11 +96,7 @@ export const BondedGateway = ({
       }
       Action={
         <Stack direction="row" gap={1}>
-          <Tooltip
-            title={
-              'Gateway settings are disabled for legacy Gateways. Please migrate your node in order to access your Gateway settings.'
-            }
-          >
+          <Tooltip title="Gateway settings are disabled for legacy Gateways. Please migrate your node in order to access your Gateway settings.">
             <Box>
               <Button
                 variant="text"

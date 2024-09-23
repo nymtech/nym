@@ -10,11 +10,12 @@ import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { NymCard } from 'src/components';
 import { PageLayout } from 'src/layouts';
 import { Tabs } from 'src/components/Tabs';
-import { useBondingContext, BondingContextProvider, TBondedMixnode } from 'src/context';
+import { useBondingContext, BondingContextProvider } from 'src/context';
 import { AppContext, urls } from 'src/context/main';
 
 import { isMixnode } from 'src/types';
 import { getIntervalAsDate } from 'src/utils';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
 import { NavItems, makeNavItems } from './node-settings.constant';

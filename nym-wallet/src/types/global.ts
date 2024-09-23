@@ -1,6 +1,9 @@
-import { DecCoin, Gateway, MixNode, MixNodeCostParams, PledgeData } from '@nymproject/types';
+import { DecCoin, Gateway, MixNode, MixNodeCostParams, NymNode, PledgeData } from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
-import { TBondedGateway, TBondedMixnode, TBondedNode, TBondedNymNode } from 'src/context';
+import { TBondedNode } from 'src/context';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 
 export enum EnumNodeType {
   mixnode = 'mixnode',
@@ -25,6 +28,14 @@ export type TDelegation = {
   block_height: number;
   proxy: string; // proxy address used to delegate the funds on behalf of another address
   pending?: TPendingDelegation;
+};
+
+export type TBondNymNodeArgs = {
+  nymnode: NymNode;
+  costParams: MixNodeCostParams;
+  pledge: DecCoin;
+  msgSignature: string;
+  fee?: Fee;
 };
 
 export type TBondGatewayArgs = {
@@ -91,8 +102,7 @@ export type TGatewayReport = {
   most_recent: number;
 };
 
-export const isMixnode = (node: TBondedNode): node is TBondedMixnode =>
-  (node as TBondedMixnode).profitMargin !== undefined;
+export const isMixnode = (node: TBondedNode): node is TBondedMixnode => (node as TBondedMixnode) !== undefined;
 
 export const isGateway = (node: TBondedNode): node is TBondedGateway => (node as TBondedGateway).location !== undefined;
 

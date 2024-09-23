@@ -1,4 +1,3 @@
-import Big from 'big.js';
 import {
   DecCoin,
   decimalToFloatApproximation,
@@ -7,7 +6,6 @@ import {
   MixnodeStatus,
 } from '@nymproject/types';
 import { Console } from 'src/utils/console';
-import { TBondedMixnode } from 'src/context';
 import { TNodeDescription } from 'src/types';
 import { TauriReq, unymToNym, decCoinToDisplay, fireRequests, toPercentIntegerString, calculateStake } from 'src/utils';
 import {
@@ -17,7 +15,7 @@ import {
   getMixnodeRewardEstimation,
   getInclusionProbability,
   getMixnodeAvgUptime,
-  getNodeDescription as getNodeDescriptionRequest,
+  getMixNodeDescription as getNodeDescriptionRequest,
   getPendingOperatorRewards,
 } from './queries';
 import { getMixnodeBondDetails } from './bond';
@@ -127,7 +125,7 @@ async function getAdditionalMixnodeDetails(mixId: number, host: string, port: nu
   return details;
 }
 
-async function getMixnodeDetails(client_address: string): Promise<TBondedMixnode | null> {
+async function getMixnodeDetails(client_address: string) {
   try {
     const data = await getMixnodeBondDetails();
 
@@ -193,4 +191,8 @@ async function getMixnodeDetails(client_address: string): Promise<TBondedMixnode
   }
 }
 
+type TBondedMixnodeResponse = Awaited<ReturnType<typeof getMixnodeDetails>>;
+type TBondedMixnode = NonNullable<TBondedMixnodeResponse>;
+
 export { getMixnodeDetails };
+export type { TBondedMixnodeResponse, TBondedMixnode };

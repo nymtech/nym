@@ -5,9 +5,10 @@ import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { ModalFee } from 'src/components/Modals/ModalFee';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { simulateClaimOperatorReward, simulateVestingClaimOperatorReward } from 'src/requests';
-import { AppContext, TBondedMixnode } from 'src/context';
+import { AppContext } from 'src/context';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { Box } from '@mui/material';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 
 export const RedeemRewardsModal = ({
   node,

@@ -41,17 +41,25 @@ enum TaskError {
     UnexpectedHalt { shutdown_name: Option<String> },
 }
 
-pub trait TaskStatusEvent: std::error::Error + Send + Sync + Any {
+pub trait TaskStatusEvent: Send + Sync + Any + std::fmt::Display {
     fn as_any(&self) -> &dyn Any;
 }
 
-// TODO: possibly we should create a `Status` trait instead of reusing `Error`
-#[derive(thiserror::Error, Debug, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum TaskStatus {
-    #[error("Ready")]
     Ready,
-    #[error("Ready and connected to gateway: {0}")]
     ReadyWithGateway(String),
+}
+
+impl std::fmt::Display for TaskStatus {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            TaskStatus::Ready => write!(f, "Ready"),
+            TaskStatus::ReadyWithGateway(gateway) => {
+                write!(f, "Ready and connected to gateway: {gateway}")
+            }
+        }
+    }
 }
 
 impl TaskStatusEvent for TaskStatus {

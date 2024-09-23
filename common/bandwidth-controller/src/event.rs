@@ -1,15 +1,21 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-// See other comments for other TaskStatus message enumds about abusing the Error trait when we
-// should have a new trait for TaskStatus messages
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug)]
 pub enum BandwidthStatusMessage {
-    #[error("remaining bandwidth: {0}")]
     RemainingBandwidth(i64),
-
-    #[error("no bandwidth left")]
     NoBandwidth,
+}
+
+impl std::fmt::Display for BandwidthStatusMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            BandwidthStatusMessage::RemainingBandwidth(b) => {
+                write!(f, "remaining bandwidth: {}", b)
+            }
+            BandwidthStatusMessage::NoBandwidth => write!(f, "no bandwidth left"),
+        }
+    }
 }
 
 impl nym_task::manager::TaskStatusEvent for BandwidthStatusMessage {

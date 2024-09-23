@@ -13,7 +13,7 @@ use crate::rewards::helpers::update_and_save_last_rewarded;
 use crate::rewards::storage::RewardingStorage;
 use crate::support::helpers::{
     ensure_any_node_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state,
-     AttachSendTokens,
+    AttachSendTokens,
 };
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
@@ -149,14 +149,20 @@ pub(crate) fn try_withdraw_nym_node_operator_reward(
     deps: DepsMut<'_>,
     node_details: NymNodeDetails,
 ) -> Result<Response, MixnetContractError> {
-    ensure_can_withdraw_rewards(&node_details)?;
-
     let node_id = node_details.node_id();
     let owner = node_details.bond_information.owner.clone();
 
-    let reward = helpers::withdraw_operator_reward(deps.storage, node_details)?;
+    ensure_can_withdraw_rewards(&node_details)?;
 
-    Ok(Response::new().add_event(new_withdraw_operator_reward_event(&owner, reward, node_id)))
+    let reward = helpers::withdraw_operator_reward(deps.storage, node_details)?;
+    let mut response = Response::new();
+
+    // if the reward is zero, don't track or send anything - there's no point
+    if !reward.amount.is_zero() {
+        response = response.send_tokens(&owner, reward.clone())
+    }
+
+    Ok(response.add_event(new_withdraw_operator_reward_event(&owner, reward, node_id)))
 }
 
 pub(crate) fn try_withdraw_mixnode_operator_reward(

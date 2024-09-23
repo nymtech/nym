@@ -672,6 +672,7 @@ pub enum QueryMsg {
     // delegation-related:
     /// Gets all delegations associated with particular node
     #[cfg_attr(feature = "schema", returns(PagedNodeDelegationsResponse))]
+    #[serde(alias = "GetMixnodeDelegations", alias = "get_mixnode_delegations")]
     GetNodeDelegations {
         /// Id of the node to query.
         #[serde(alias = "mix_id")]

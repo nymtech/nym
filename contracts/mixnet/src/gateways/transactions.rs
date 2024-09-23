@@ -143,7 +143,7 @@ pub mod tests {
     use crate::gateways::queries;
     use crate::interval::pending_events;
     use crate::mixnet_contract_settings::storage::minimum_node_pledge;
-    use crate::nodes::helpers::get_node_details_by_identity;
+    use crate::nodes::helpers::{get_node_details_by_identity, must_get_node_bond_by_owner};
     use crate::signing::storage as signing_storage;
     use crate::support::tests;
     use crate::support::tests::fixtures::{good_gateway_pledge, good_mixnode_pledge};
@@ -153,7 +153,7 @@ pub mod tests {
     use mixnet_contract_common::ExecuteMsg;
 
     #[test]
-    fn gateway_add() {
+    fn gateway_add() -> anyhow::Result<()> {
         let mut test = TestSetup::new();
 
         // if we fail validation (by say not sending enough funds
@@ -218,10 +218,22 @@ pub mod tests {
         assert!(result.is_ok());
 
         // and the node has been added as a nym-node
-        let nym_node = get_node_details_by_identity(test.deps().storage, gateway.identity_key)
-            .unwrap()
-            .unwrap();
-        assert_eq!(nym_node.bond_information.owner, info.sender)
+        let nym_node =
+            get_node_details_by_identity(test.deps().storage, gateway.identity_key.clone())
+                .unwrap()
+                .unwrap();
+        assert_eq!(nym_node.bond_information.owner, info.sender);
+
+        let maybe_legacy =
+            storage::gateways().may_load(test.deps().storage, &gateway.identity_key)?;
+        assert!(maybe_legacy.is_none());
+
+        // make sure we got assigned the next id (note: we have already bonded a mixnode and a gateway before in this test)
+        let bond =
+            must_get_node_bond_by_owner(test.deps().storage, &Addr::unchecked(sender2)).unwrap();
+        assert_eq!(3, bond.node_id);
+
+        Ok(())
     }
 
     #[test]

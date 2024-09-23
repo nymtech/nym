@@ -6,7 +6,7 @@ pub(crate) struct Error {
 }
 
 impl Error {
-    pub(crate) fn unknown_gateway(message: String) -> Self {
+    pub(crate) fn invalid_input(message: String) -> Self {
         Self {
             message,
             status: axum::http::StatusCode::BAD_REQUEST,

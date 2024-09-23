@@ -94,7 +94,7 @@ struct IdentityKeyParam {
     )
 )]
 async fn get_gateway(
-    Path(identity_key): Path<String>,
+    Path(IdentityKeyParam { identity_key }): Path<IdentityKeyParam>,
     State(state): State<AppState>,
 ) -> HttpResult<Json<Gateway>> {
     let db = state.db_pool();
@@ -105,6 +105,6 @@ async fn get_gateway(
         .find(|item| item.gateway_identity_key == identity_key)
     {
         Some(res) => Ok(Json(res.clone())),
-        None => Err(Error::unknown_gateway(identity_key)),
+        None => Err(Error::invalid_input(identity_key)),
     }
 }

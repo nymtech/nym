@@ -35,8 +35,9 @@ impl RouterBuilder {
             )
             .nest(
                 "/v2",
-                Router::new().nest("/gateways", gateways::routes()),
-                // .nest("/mixnodes", mixnodes::routes())
+                Router::new()
+                    .nest("/gateways", gateways::routes())
+                    .nest("/mixnodes", mixnodes::routes()),
                 // .merge(services::routes())
                 // .merge(summary::routes())
                 // .merge(testruns::routes()),

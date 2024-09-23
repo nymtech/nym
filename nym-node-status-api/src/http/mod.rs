@@ -1,4 +1,4 @@
-use models::{Gateway, GatewaySkinny};
+use models::{Gateway, GatewaySkinny, Mixnode};
 
 pub(crate) mod api;
 pub(crate) mod api_docs;
@@ -17,7 +17,8 @@ pub(crate) mod state;
 // you wish to document
 #[aliases(
     PagedGateway = PagedResult<Gateway>,
-    PagedGatewaySkinny = PagedResult<GatewaySkinny>
+    PagedGatewaySkinny = PagedResult<GatewaySkinny>,
+    PagedMixnode = PagedResult<Mixnode>,
 )]
 pub struct PagedResult<T> {
     pub page: usize,
@@ -29,7 +30,7 @@ pub struct PagedResult<T> {
 impl<T: Clone> PagedResult<T> {
     pub fn paginate(pagination: Pagination, res: Vec<T>) -> Self {
         let total = res.len();
-        let (size, mut page) = pagination.to_inner_values();
+        let (size, mut page) = pagination.intoto_inner_values();
 
         if page * size > total {
             page = total / size;
@@ -55,7 +56,7 @@ pub(crate) struct Pagination {
 
 impl Pagination {
     // unwrap stored values or use predefined defaults
-    pub(crate) fn to_inner_values(self) -> (usize, usize) {
+    pub(crate) fn intoto_inner_values(self) -> (usize, usize) {
         const SIZE_DEFAULT: usize = 10;
         const SIZE_MAX: usize = 200;
 

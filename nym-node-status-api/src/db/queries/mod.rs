@@ -7,4 +7,6 @@ pub(crate) use gateways::{
     write_blacklisted_gateways_to_db,
 };
 pub(crate) use misc::insert_summaries;
-pub(crate) use mixnodes::{ensure_mixnodes_still_bonded, insert_mixnodes};
+pub(crate) use mixnodes::{
+    ensure_mixnodes_still_bonded, get_all_mixnodes, get_daily_stats, insert_mixnodes,
+};

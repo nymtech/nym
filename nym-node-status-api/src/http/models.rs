@@ -31,3 +31,25 @@ pub struct GatewaySkinny {
     pub config_score: u32,
     pub performance: u8,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct Mixnode {
+    pub mix_id: u32,
+    pub bonded: bool,
+    pub blacklisted: bool,
+    pub is_dp_delegatee: bool,
+    pub total_stake: i64,
+    pub full_details: Option<serde_json::Value>,
+    pub self_described: Option<serde_json::Value>,
+    pub description: NodeDescription,
+    pub last_updated_utc: String,
+}
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct DailyStats {
+    pub date_utc: String,
+    pub total_packets_received: i64,
+    pub total_packets_sent: i64,
+    pub total_packets_dropped: i64,
+    pub total_stake: i64,
+}

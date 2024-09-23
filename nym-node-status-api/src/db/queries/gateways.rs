@@ -146,7 +146,7 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
     .try_collect::<Vec<_>>()
     .await?;
 
-    let items: Vec<Gateway> = items.iter().map(|item| item.to_gateway()).collect();
+    let items: Vec<Gateway> = items.into_iter().map(|item| item.into()).collect();
     tracing::trace!("Fetched {} gateways from DB", items.len());
     Ok(items)
 }

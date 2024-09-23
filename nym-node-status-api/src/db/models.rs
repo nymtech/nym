@@ -1,7 +1,6 @@
+use crate::http;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
-
-use crate::http;
 
 pub(crate) struct GatewayRecord {
     pub(crate) identity_key: String,
@@ -31,42 +30,45 @@ pub(crate) struct GatewayDto {
     pub(crate) website: String,
 }
 
-impl GatewayDto {
-    pub fn to_gateway(&self) -> http::models::Gateway {
+impl From<GatewayDto> for http::models::Gateway {
+    fn from(value: GatewayDto) -> Self {
         // Instead of using routing_score_successes / routing_score_samples, we use the
         // number of successful testruns in the last 24h.
         let routing_score = 0f32;
         let config_score = 0u32;
-        let last_updated_utc = timestamp_as_utc(self.last_updated_utc as u64).to_rfc3339();
-        let last_testrun_utc = self
+        let last_updated_utc = timestamp_as_utc(value.last_updated_utc as u64).to_rfc3339();
+        let last_testrun_utc = value
             .last_testrun_utc
             .map(|t| timestamp_as_utc(t as u64).to_rfc3339());
 
-        let self_described = self.self_described.clone().unwrap_or("null".to_string());
-        let explorer_pretty_bond = self
+        let self_described = value.self_described.clone().unwrap_or("null".to_string());
+        let explorer_pretty_bond = value
             .explorer_pretty_bond
             .clone()
             .unwrap_or("null".to_string());
-        let last_probe_result = self.last_probe_result.clone().unwrap_or("null".to_string());
-        let last_probe_log = self.last_probe_log.clone();
+        let last_probe_result = value
+            .last_probe_result
+            .clone()
+            .unwrap_or("null".to_string());
+        let last_probe_log = value.last_probe_log.clone();
 
         let self_described = serde_json::from_str(&self_described).unwrap_or(None);
         let explorer_pretty_bond = serde_json::from_str(&explorer_pretty_bond).unwrap_or(None);
         let last_probe_result = serde_json::from_str(&last_probe_result).unwrap_or(None);
 
-        let bonded = self.bonded;
-        let blacklisted = self.blacklisted;
-        let performance = self.performance as u8;
+        let bonded = value.bonded;
+        let blacklisted = value.blacklisted;
+        let performance = value.performance as u8;
 
         let description = NodeDescription {
-            moniker: self.moniker.clone(),
-            website: self.website.clone(),
-            security_contact: self.security_contact.clone(),
-            details: self.details.clone(),
+            moniker: value.moniker.clone(),
+            website: value.website.clone(),
+            security_contact: value.security_contact.clone(),
+            details: value.details.clone(),
         };
 
         http::models::Gateway {
-            gateway_identity_key: self.gateway_identity_key.clone(),
+            gateway_identity_key: value.gateway_identity_key.clone(),
             bonded,
             blacklisted,
             performance,
@@ -100,6 +102,61 @@ pub(crate) struct MixnodeRecord {
     pub(crate) self_described: Option<String>,
     pub(crate) last_updated_utc: i64,
     pub(crate) is_dp_delegatee: bool,
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct MixnodeDto {
+    pub(crate) mix_id: i64,
+    pub(crate) bonded: bool,
+    pub(crate) blacklisted: bool,
+    pub(crate) is_dp_delegatee: bool,
+    pub(crate) total_stake: i64,
+    pub(crate) full_details: String,
+    pub(crate) self_described: Option<String>,
+    pub(crate) last_updated_utc: i64,
+    pub(crate) moniker: String,
+    pub(crate) website: String,
+    pub(crate) security_contact: String,
+    pub(crate) details: String,
+}
+
+impl From<MixnodeDto> for http::models::Mixnode {
+    fn from(value: MixnodeDto) -> Self {
+        // TODO dz avoid as?
+        let mix_id = value.mix_id as u32;
+        let full_details = value.full_details.clone();
+        let full_details = serde_json::from_str(&full_details).unwrap_or(None);
+
+        let self_described = value
+            .self_described
+            .clone()
+            .map(|v| serde_json::from_str(&v).unwrap_or(serde_json::Value::Null));
+
+        let last_updated_utc = timestamp_as_utc(value.last_updated_utc as u64).to_rfc3339();
+        let blacklisted = value.blacklisted;
+        let is_dp_delegatee = value.is_dp_delegatee;
+        let moniker = value.moniker.clone();
+        let website = value.website.clone();
+        let security_contact = value.security_contact.clone();
+        let details = value.details.clone();
+
+        http::models::Mixnode {
+            mix_id,
+            bonded: value.bonded,
+            blacklisted,
+            is_dp_delegatee,
+            total_stake: value.total_stake,
+            full_details,
+            description: NodeDescription {
+                moniker,
+                website,
+                security_contact,
+                details,
+            },
+            self_described,
+            last_updated_utc,
+        }
+    }
 }
 
 #[allow(unused)]

@@ -5,7 +5,7 @@ pub mod registration;
 pub mod request;
 pub mod response;
 
-pub use registration::{ClientMac, ClientMessage, GatewayClient, InitMessage, Nonce};
+pub use registration::{ClientMac, GatewayClient, InitMessage, Nonce};
 
 #[cfg(feature = "verify")]
 pub use registration::HmacSha256;

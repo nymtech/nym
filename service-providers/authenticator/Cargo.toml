@@ -44,6 +44,7 @@ nym-id = { path = "../../common/nym-id" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-service-providers-common = { path = "../common" }
+nym-service-provider-requests-common = { path = "../../common/service-provider-requests-common" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 nym-task = { path = "../../common/task" }
 nym-types = { path = "../../common/types" }

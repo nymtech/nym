@@ -32,6 +32,7 @@ use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::Storage;
 use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, TransmissionLane};
+use nym_service_provider_requests_common::ServiceProviderType;
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 use nym_wireguard::WireguardGatewayData;
@@ -432,20 +433,28 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<AuthenticatorRequest> {
     let request_version = *reconstructed
         .message
-        .first()
-        .ok_or(AuthenticatorError::EmptyPacket)?;
+        .first_chunk::<2>()
+        .ok_or(AuthenticatorError::ShortPacket)?;
 
     // Check version of the request and convert to the latest version if necessary
     match request_version {
-        1 => v1::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+        [1, _] => v1::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
             .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
             .map(Into::into),
-        2 => v2::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
-            .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
-            .map(Into::into),
-        _ => {
-            log::info!("Received packet with invalid version: v{request_version}");
-            Err(AuthenticatorError::InvalidPacketVersion(request_version))
+        [2, request_type] => {
+            if request_type == ServiceProviderType::Authenticator as u8 {
+                v2::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+                    .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
+                        source: err,
+                    })
+                    .map(Into::into)
+            } else {
+                Err(AuthenticatorError::InvalidPacketType(request_type))
+            }
+        }
+        [version, _] => {
+            log::info!("Received packet with invalid version: v{version}");
+            Err(AuthenticatorError::InvalidPacketVersion(version))
         }
     }
 }

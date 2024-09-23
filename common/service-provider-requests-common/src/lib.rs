@@ -4,10 +4,11 @@
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
+#[repr(u8)]
 pub enum ServiceProviderType {
-    Authenticator,
-    IpPacketRouter,
-    NetworkRequester,
+    NetworkRequester = 0,
+    IpPacketRouter = 1,
+    Authenticator = 2,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

@@ -4236,6 +4236,7 @@ dependencies = [
  "nym-id",
  "nym-network-defaults",
  "nym-sdk",
+ "nym-service-provider-requests-common",
  "nym-service-providers-common",
  "nym-sphinx",
  "nym-task",

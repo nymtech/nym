@@ -234,7 +234,7 @@ impl std::fmt::Display for ClientCoreStatusMessage {
     }
 }
 
-impl nym_task::manager::TaskStatusEvent for ClientCoreStatusMessage {
+impl nym_task::TaskStatusEvent for ClientCoreStatusMessage {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

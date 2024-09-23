@@ -4245,7 +4245,6 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
- "tap",
  "thiserror",
  "tokio",
  "tokio-stream",

@@ -34,7 +34,6 @@ use nym_task::TaskHandle;
 use nym_wireguard::WireguardGatewayData;
 use nym_wireguard_types::PeerPublicKey;
 use rand::{prelude::IteratorRandom, thread_rng};
-use tap::tap::TapFallible;
 use tokio::sync::RwLock;
 use tokio_stream::wrappers::IntervalStream;
 
@@ -253,7 +252,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 self.peer_manager
                     .remove_peer(&final_message.gateway_client)
                     .await
-                    .tap_err(|err| {
+                    .inspect_err(|err| {
                         warn!(
                             "Could not revert adding peer {} on credential verification {err}",
                             final_message.gateway_client.pub_key()

@@ -18,7 +18,7 @@ impl std::fmt::Display for BandwidthStatusMessage {
     }
 }
 
-impl nym_task::manager::TaskStatusEvent for BandwidthStatusMessage {
+impl nym_task::TaskStatusEvent for BandwidthStatusMessage {
     fn as_any(&self) -> &dyn std::any::Any {
         self
     }

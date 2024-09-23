@@ -1,15 +1,20 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::{
+    error::Error,
+    sync::atomic::{AtomicBool, Ordering},
+    time::Duration,
+};
+
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
 use log::{log, Level};
-use std::any::Any;
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::{error::Error, time::Duration};
 use tokio::sync::{
     mpsc,
     watch::{self, error::SendError},
 };
+
+use crate::event::{SentStatus, StatusReceiver, StatusSender, TaskStatus};
 
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::{sleep, timeout};
@@ -23,10 +28,6 @@ pub(crate) type SentError = Box<dyn Error + Send + Sync>;
 type ErrorSender = mpsc::UnboundedSender<SentError>;
 type ErrorReceiver = mpsc::UnboundedReceiver<SentError>;
 
-pub type SentStatus = Box<dyn TaskStatusEvent>;
-pub type StatusSender = futures::channel::mpsc::Sender<SentStatus>;
-pub type StatusReceiver = futures::channel::mpsc::Receiver<SentStatus>;
-
 fn try_recover_name(name: &Option<String>) -> String {
     if let Some(name) = name {
         name.clone()
@@ -39,33 +40,6 @@ fn try_recover_name(name: &Option<String>) -> String {
 enum TaskError {
     #[error("Task '{}' halted unexpectedly", try_recover_name(.shutdown_name))]
     UnexpectedHalt { shutdown_name: Option<String> },
-}
-
-pub trait TaskStatusEvent: Send + Sync + Any + std::fmt::Display {
-    fn as_any(&self) -> &dyn Any;
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum TaskStatus {
-    Ready,
-    ReadyWithGateway(String),
-}
-
-impl std::fmt::Display for TaskStatus {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
-            TaskStatus::Ready => write!(f, "Ready"),
-            TaskStatus::ReadyWithGateway(gateway) => {
-                write!(f, "Ready and connected to gateway: {gateway}")
-            }
-        }
-    }
-}
-
-impl TaskStatusEvent for TaskStatus {
-    fn as_any(&self) -> &dyn Any {
-        self
-    }
 }
 
 /// Listens to status and error messages from tasks, as well as notifying them to gracefully

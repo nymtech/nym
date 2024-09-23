@@ -30,14 +30,6 @@ pub type Taken = Option<SystemTime>;
 pub const BANDWIDTH_CAP_PER_DAY: u64 = 1024 * 1024 * 1024; // 1 GB
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type", rename_all = "camelCase")]
-pub enum ClientMessage {
-    Initial(InitMessage),
-    Final(GatewayClient),
-    Query(PeerPublicKey),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct InitMessage {
     /// Base64 encoded x25519 public key
     pub pub_key: PeerPublicKey,

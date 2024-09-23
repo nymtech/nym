@@ -18,7 +18,7 @@ pub struct UserAgent {
 impl fmt::Display for UserAgent {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let abbreviated_commit = self.git_commit.chars().take(7).collect::<String>();
-        let system_information = self.system.clone().unwrap_or_else(|| "unknown".to_string());
+        let system = self.system.clone().unwrap_or_else(|| "unknown".to_string());
         write!(
             f,
             "{}/{}/{}/{}/{}",

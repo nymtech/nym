@@ -1,12 +1,17 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
+
 use crate::{v1, v2};
 
 impl From<v1::request::AuthenticatorRequest> for v2::request::AuthenticatorRequest {
     fn from(authenticator_request: v1::request::AuthenticatorRequest) -> Self {
         Self {
-            version: 2,
+            protocol: Protocol {
+                version: 2,
+                service_provider_type: ServiceProviderType::Authenticator,
+            },
             data: authenticator_request.data.into(),
             reply_to: authenticator_request.reply_to,
             request_id: authenticator_request.request_id,

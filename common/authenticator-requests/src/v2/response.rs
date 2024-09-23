@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::registration::{RegistrationData, RegistredData, RemainingBandwidthData};
+use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::addressing::Recipient;
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +12,7 @@ use super::VERSION;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthenticatorResponse {
-    pub version: u8,
+    pub protocol: Protocol,
     pub data: AuthenticatorResponseData,
     pub reply_to: Recipient,
 }
@@ -23,7 +24,10 @@ impl AuthenticatorResponse {
         reply_to: Recipient,
     ) -> Self {
         Self {
-            version: VERSION,
+            protocol: Protocol {
+                service_provider_type: ServiceProviderType::Authenticator,
+                version: VERSION,
+            },
             data: AuthenticatorResponseData::PendingRegistration(PendingRegistrationResponse {
                 reply: registration_data,
                 reply_to,
@@ -39,7 +43,10 @@ impl AuthenticatorResponse {
         request_id: u64,
     ) -> Self {
         Self {
-            version: VERSION,
+            protocol: Protocol {
+                service_provider_type: ServiceProviderType::Authenticator,
+                version: VERSION,
+            },
             data: AuthenticatorResponseData::Registered(RegisteredResponse {
                 reply: registred_data,
                 reply_to,
@@ -55,7 +62,10 @@ impl AuthenticatorResponse {
         request_id: u64,
     ) -> Self {
         Self {
-            version: VERSION,
+            protocol: Protocol {
+                service_provider_type: ServiceProviderType::Authenticator,
+                version: VERSION,
+            },
             data: AuthenticatorResponseData::RemainingBandwidth(RemainingBandwidthResponse {
                 reply: remaining_bandwidth_data,
                 reply_to,

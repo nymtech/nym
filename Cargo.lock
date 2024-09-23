@@ -4261,6 +4261,7 @@ dependencies = [
  "hmac",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-service-provider-requests-common",
  "nym-sphinx",
  "nym-wireguard-types",
  "rand",
@@ -5686,6 +5687,13 @@ dependencies = [
  "bs58",
  "serde",
  "time",
+]
+
+[[package]]
+name = "nym-service-provider-requests-common"
+version = "0.1.0"
+dependencies = [
+ "serde",
 ]
 
 [[package]]

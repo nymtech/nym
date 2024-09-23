@@ -83,3 +83,24 @@ pub enum AuthenticatorRequestData {
     Final(GatewayClient),
     QueryBandwidth(PeerPublicKey),
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn check_first_byte_version() {
+        let version = 2;
+        let data = AuthenticatorRequest {
+            version,
+            data: AuthenticatorRequestData::Initial(InitMessage::new(
+                PeerPublicKey::from_str("yvNUDpT5l7W/xDhiu6HkqTHDQwbs/B3J5UrLmORl1EQ=").unwrap(),
+            )),
+            reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
+            request_id: 1,
+        };
+        let bytes = data.to_bytes().unwrap();
+        assert_eq!(*bytes.first().unwrap(), version);
+    }
+}

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::registration::{FinalMessage, InitMessage};
+use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::addressing::Recipient;
 use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
@@ -18,7 +19,7 @@ fn generate_random() -> u64 {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthenticatorRequest {
-    pub version: u8,
+    pub protocol: Protocol,
     pub data: AuthenticatorRequestData,
     pub reply_to: Recipient,
     pub request_id: u64,
@@ -36,7 +37,10 @@ impl AuthenticatorRequest {
         let request_id = generate_random();
         (
             Self {
-                version: VERSION,
+                protocol: Protocol {
+                    service_provider_type: ServiceProviderType::Authenticator,
+                    version: VERSION,
+                },
                 data: AuthenticatorRequestData::Initial(init_message),
                 reply_to,
                 request_id,
@@ -49,7 +53,10 @@ impl AuthenticatorRequest {
         let request_id = generate_random();
         (
             Self {
-                version: VERSION,
+                protocol: Protocol {
+                    service_provider_type: ServiceProviderType::Authenticator,
+                    version: VERSION,
+                },
                 data: AuthenticatorRequestData::Final(Box::new(final_message)),
                 reply_to,
                 request_id,
@@ -62,7 +69,10 @@ impl AuthenticatorRequest {
         let request_id = generate_random();
         (
             Self {
-                version: VERSION,
+                protocol: Protocol {
+                    service_provider_type: ServiceProviderType::Authenticator,
+                    version: VERSION,
+                },
                 data: AuthenticatorRequestData::QueryBandwidth(peer_public_key),
                 reply_to,
                 request_id,
@@ -82,4 +92,28 @@ pub enum AuthenticatorRequestData {
     Initial(InitMessage),
     Final(Box<FinalMessage>),
     QueryBandwidth(PeerPublicKey),
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::str::FromStr;
+
+    #[test]
+    fn check_first_byte_version() {
+        let version = 2;
+        let data = AuthenticatorRequest {
+            protocol: Protocol {
+                version,
+                service_provider_type: ServiceProviderType::Authenticator,
+            },
+            data: AuthenticatorRequestData::Initial(InitMessage::new(
+                PeerPublicKey::from_str("yvNUDpT5l7W/xDhiu6HkqTHDQwbs/B3J5UrLmORl1EQ=").unwrap(),
+            )),
+            reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
+            request_id: 1,
+        };
+        let bytes = data.to_bytes().unwrap();
+        assert_eq!(*bytes.first().unwrap(), version);
+    }
 }

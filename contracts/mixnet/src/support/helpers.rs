@@ -301,7 +301,7 @@ pub fn ensure_operating_cost_within_range(
     storage: &dyn Storage,
     operating_cost: &Coin,
 ) -> Result<(), MixnetContractError> {
-    let range = mixnet_params_storage::interval_oprating_cost_range(storage)?;
+    let range = mixnet_params_storage::interval_operating_cost_range(storage)?;
     if !range.within_range(operating_cost.amount) {
         return Err(MixnetContractError::OperatingCostOutsideRange {
             denom: operating_cost.denom.clone(),

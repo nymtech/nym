@@ -16,14 +16,18 @@ pub mod test_helpers {
         perform_pending_epoch_actions, perform_pending_interval_actions, try_begin_epoch_transition,
     };
     use crate::interval::{pending_events, storage as interval_storage};
+    use crate::mixnet_contract_settings::queries::query_contract_settings_params;
     use crate::mixnet_contract_settings::storage::{
         self as mixnet_params_storage, minimum_node_pledge,
     };
     use crate::mixnet_contract_settings::storage::{rewarding_denom, rewarding_validator_address};
+    use crate::mixnodes::helpers::get_mixnode_details_by_id;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::mixnode_bonds;
     use crate::mixnodes::transactions::try_remove_mixnode;
-    use crate::nodes::helpers::{get_node_details_by_identity, must_get_node_bond_by_owner};
+    use crate::nodes::helpers::{
+        get_node_details_by_id, get_node_details_by_identity, must_get_node_bond_by_owner,
+    };
     use crate::nodes::storage as nymnodes_storage;
     use crate::nodes::storage::helpers::RoleStorageBucket;
     use crate::nodes::storage::rewarded_set::{ACTIVE_ROLES_BUCKET, ROLES, ROLES_METADATA};
@@ -68,10 +72,11 @@ pub mod test_helpers {
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        Delegation, EpochEventId, EpochState, EpochStatus, ExecuteMsg, Gateway,
-        GatewayBondingPayload, IdentityKey, IdentityKeyRef, InitialRewardingParams, InstantiateMsg,
-        Interval, MixNode, MixNodeBond, MixnodeBondingPayload, NodeId, NymNode, NymNodeBond,
-        NymNodeBondingPayload, Percent, RoleAssignment, SignableGatewayBondingMsg,
+        ContractStateParams, Delegation, EpochEventId, EpochState, EpochStatus, ExecuteMsg,
+        Gateway, GatewayBondingPayload, IdentityKey, IdentityKeyRef, InitialRewardingParams,
+        InstantiateMsg, Interval, MixNode, MixNodeBond, MixNodeDetails, MixnodeBondingPayload,
+        NodeId, NymNode, NymNodeBond, NymNodeBondingPayload, NymNodeDetails, OperatingCostRange,
+        Percent, ProfitMarginRange, RoleAssignment, SignableGatewayBondingMsg,
         SignableMixNodeBondingMsg, SignableNymNodeBondingMsg,
     };
     use nym_contracts_common::signing::{
@@ -86,6 +91,23 @@ pub mod test_helpers {
     use std::fmt::Debug;
     use std::str::FromStr;
     use std::time::Duration;
+
+    pub(crate) trait ExtractBankMsg {
+        fn unwrap_bank_msg(self) -> Option<BankMsg>;
+    }
+
+    impl ExtractBankMsg for Response {
+        fn unwrap_bank_msg(self) -> Option<BankMsg> {
+            for msg in self.messages {
+                match msg.msg {
+                    CosmosMsg::Bank(bank_msg) => return Some(bank_msg),
+                    _ => continue,
+                }
+            }
+
+            None
+        }
+    }
 
     pub enum NodeQueryType {
         ById(NodeId),
@@ -168,7 +190,6 @@ pub mod test_helpers {
             self.env.clone()
         }
 
-        #[allow(unused)]
         pub fn execute(
             &mut self,
             info: MessageInfo,
@@ -187,7 +208,6 @@ pub mod test_helpers {
             self.execute(self.mock_info(sender), msg)
         }
 
-        #[allow(unused)]
         pub fn execute_fn<F>(
             &mut self,
             exec_fn: F,
@@ -213,7 +233,6 @@ pub mod test_helpers {
             self.execute_fn(exec_fn, info)
         }
 
-        #[allow(unused)]
         #[track_caller]
         pub fn assert_simple_execution<F>(&mut self, exec_fn: F, info: MessageInfo) -> Response
         where
@@ -237,6 +256,36 @@ pub mod test_helpers {
             let caller = std::panic::Location::caller();
             self.execute_fn_no_funds(exec_fn, sender)
                 .unwrap_or_else(|err| panic!("{caller} failed with: '{err}' ({err:?})"))
+        }
+
+        pub fn update_profit_margin_range(&mut self, range: ProfitMarginRange) {
+            let current = query_contract_settings_params(self.deps()).unwrap();
+
+            self.execute(
+                self.owner(),
+                ExecuteMsg::UpdateContractStateParams {
+                    updated_parameters: ContractStateParams {
+                        profit_margin: range,
+                        ..current
+                    },
+                },
+            )
+            .unwrap();
+        }
+
+        pub fn update_operating_cost_range(&mut self, range: OperatingCostRange) {
+            let current = query_contract_settings_params(self.deps()).unwrap();
+
+            self.execute(
+                self.owner(),
+                ExecuteMsg::UpdateContractStateParams {
+                    updated_parameters: ContractStateParams {
+                        interval_operating_cost: range,
+                        ..current
+                    },
+                },
+            )
+            .unwrap();
         }
 
         pub fn get_node_id(&self, query_type: impl Into<NodeQueryType>) -> NodeId {
@@ -452,6 +501,7 @@ pub mod test_helpers {
             (bond.node_id, keypair)
         }
 
+        #[track_caller]
         pub fn add_legacy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
             let stake = self.make_mix_pledge(stake);
             let (mixnode, _, _) = self.mixnode_with_signature(owner, Some(stake.clone()));
@@ -545,6 +595,14 @@ pub mod test_helpers {
 
         pub fn make_gateway_pledge(&self, stake: Option<Uint128>) -> Vec<Coin> {
             self.make_node_pledge(stake)
+        }
+
+        pub fn mixnode_by_id(&self, node_id: NodeId) -> Option<MixNodeDetails> {
+            get_mixnode_details_by_id(self.deps().storage, node_id).unwrap()
+        }
+
+        pub fn nymnode_by_id(&self, node_id: NodeId) -> Option<NymNodeDetails> {
+            get_node_details_by_id(self.deps().storage, node_id).unwrap()
         }
 
         pub fn mixnode_bonding_signature(
@@ -657,6 +715,7 @@ pub mod test_helpers {
             (gateway, owner_signature)
         }
 
+        #[track_caller]
         pub fn start_unbonding_mixnode(&mut self, mix_id: NodeId) {
             let bond_details = mixnodes_storage::mixnode_bonds()
                 .load(self.deps().storage, mix_id)
@@ -671,6 +730,7 @@ pub mod test_helpers {
             .unwrap();
         }
 
+        #[track_caller]
         pub fn start_unbonding_nymnode(&mut self, node_id: NodeId) {
             let bond_details = nymnodes_storage::nym_nodes()
                 .load(self.deps().storage, node_id)

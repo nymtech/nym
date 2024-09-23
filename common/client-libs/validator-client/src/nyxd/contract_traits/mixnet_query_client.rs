@@ -886,50 +886,54 @@ mod tests {
             MixnetQueryMsg::GetSigningNonce { address } => {
                 client.get_signing_nonce(&address.parse().unwrap()).ignore()
             }
-            QueryMsg::GetPreassignedGatewayIds { start_after, limit } => client
+            MixnetQueryMsg::GetPreassignedGatewayIds { start_after, limit } => client
                 .get_preassigned_gateway_ids_paged(start_after, limit)
                 .ignore(),
-            QueryMsg::GetNymNodeBondsPaged { limit, start_after } => {
+            MixnetQueryMsg::GetNymNodeBondsPaged { limit, start_after } => {
                 client.get_nymnode_bonds_paged(limit, start_after).ignore()
             }
-            QueryMsg::GetNymNodesDetailedPaged { limit, start_after } => client
+            MixnetQueryMsg::GetNymNodesDetailedPaged { limit, start_after } => client
                 .get_nymnodes_detailed_paged(limit, start_after)
                 .ignore(),
-            QueryMsg::GetUnbondedNymNode { node_id } => {
+            MixnetQueryMsg::GetUnbondedNymNode { node_id } => {
                 client.get_unbonded_nymnode_information(node_id).ignore()
             }
-            QueryMsg::GetUnbondedNymNodesPaged { limit, start_after } => client
+            MixnetQueryMsg::GetUnbondedNymNodesPaged { limit, start_after } => client
                 .get_unbonded_nymnodes_paged(limit, start_after)
                 .ignore(),
-            QueryMsg::GetUnbondedNymNodesByOwnerPaged {
+            MixnetQueryMsg::GetUnbondedNymNodesByOwnerPaged {
                 owner,
                 limit,
                 start_after,
             } => client
                 .get_unbonded_nymnodes_by_owner_paged(&owner.parse().unwrap(), limit, start_after)
                 .ignore(),
-            QueryMsg::GetUnbondedNymNodesByIdentityKeyPaged {
+            MixnetQueryMsg::GetUnbondedNymNodesByIdentityKeyPaged {
                 identity_key,
                 limit,
                 start_after,
             } => client
                 .get_unbonded_nymnodes_by_identity_paged(&identity_key, limit, start_after)
                 .ignore(),
-            QueryMsg::GetOwnedNymNode { address } => {
+            MixnetQueryMsg::GetOwnedNymNode { address } => {
                 client.get_owned_nymnode(&address.parse().unwrap()).ignore()
             }
-            QueryMsg::GetNymNodeDetails { node_id } => client.get_nymnode_details(node_id).ignore(),
-            QueryMsg::GetNymNodeDetailsByIdentityKey { node_identity } => client
+            MixnetQueryMsg::GetNymNodeDetails { node_id } => {
+                client.get_nymnode_details(node_id).ignore()
+            }
+            MixnetQueryMsg::GetNymNodeDetailsByIdentityKey { node_identity } => client
                 .get_nymnode_details_by_identity(node_identity)
                 .ignore(),
-            QueryMsg::GetNodeRewardingDetails { node_id } => {
+            MixnetQueryMsg::GetNodeRewardingDetails { node_id } => {
                 client.get_nymnode_rewarding_details(node_id).ignore()
             }
-            QueryMsg::GetNodeStakeSaturation { node_id } => {
+            MixnetQueryMsg::GetNodeStakeSaturation { node_id } => {
                 client.get_node_stake_saturation(node_id).ignore()
             }
-            QueryMsg::GetRoleAssignment { role } => client.get_role_assignment(role).ignore(),
-            QueryMsg::GetRewardedSetMetadata {} => client.get_rewarded_set_metadata().ignore(),
+            MixnetQueryMsg::GetRoleAssignment { role } => client.get_role_assignment(role).ignore(),
+            MixnetQueryMsg::GetRewardedSetMetadata {} => {
+                client.get_rewarded_set_metadata().ignore()
+            }
         }
     }
 }

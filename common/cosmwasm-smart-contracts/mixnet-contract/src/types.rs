@@ -166,6 +166,10 @@ impl<T> RangedValue<T>
 where
     T: Copy + PartialOrd + PartialEq,
 {
+    pub fn new(minimum: T, maximum: T) -> Self {
+        RangedValue { minimum, maximum }
+    }
+
     pub fn normalise(&self, value: T) -> T {
         if value < self.minimum {
             self.minimum

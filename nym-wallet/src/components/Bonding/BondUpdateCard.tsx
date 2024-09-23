@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { isMixnode, Network } from 'src/types';
-import { TBondedMixnode } from 'src/context';
 import { NymCard } from 'src/components';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 
 export const BondUpdateCard = ({
   mixnode,

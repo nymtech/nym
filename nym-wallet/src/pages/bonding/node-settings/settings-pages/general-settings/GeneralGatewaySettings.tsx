@@ -10,7 +10,7 @@ import {
   updateGatewayConfig,
   vestingUpdateGatewayConfig,
 } from 'src/requests';
-import { TBondedGateway, useBondingContext } from 'src/context/bonding';
+import { useBondingContext } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { Console } from 'src/utils/console';
 import { Alert } from 'src/components/Alert';
@@ -20,6 +20,7 @@ import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { updateGatewayValidationSchema } from 'src/components/Bonding/forms/gatewayValidationSchema';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { AppContext } from 'src/context';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
 
 export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGateway }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);

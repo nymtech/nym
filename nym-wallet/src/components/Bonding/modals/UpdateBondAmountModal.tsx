@@ -10,9 +10,10 @@ import { useGetFee } from 'src/hooks/useGetFee';
 import { decCoinToDisplay, validateAmount } from 'src/utils';
 import { simulateUpdateBond, simulateVestingUpdateBond } from 'src/requests';
 import { TSimulateUpdateBondArgs, TUpdateBondArgs } from 'src/types';
-import { AppContext, TBondedMixnode } from 'src/context';
+import { AppContext } from 'src/context';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { TPoolOption } from '../../TokenPoolSelector';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 
 export const UpdateBondAmountModal = ({
   node,

@@ -1,11 +1,11 @@
 import React from 'react';
 import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import { TBondedMixnode } from 'src/context';
 import { Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
 import { SelectionChance } from '@nymproject/types';
 import { NymCard } from '../NymCard';
 import { InfoTooltip } from '../InfoToolTip';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 
 const LinearProgressWithLabel = (props: LinearProgressProps & { value: number }) => {
   const { value } = props;

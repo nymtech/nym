@@ -1,7 +1,7 @@
 import { calculateStake, Console, decCoinToDisplay, toPercentIntegerString } from 'src/utils';
 import { getNymNodeBondDetails } from './bond';
 
-async function getNymNodeDetails(client_address: string) {
+async function getNymNodeDetails() {
   try {
     const data = await getNymNodeBondDetails();
 
@@ -16,7 +16,7 @@ async function getNymNodeDetails(client_address: string) {
     } = data;
 
     return {
-      mixId: node_id,
+      nodeId: node_id,
       identityKey: bond_information.identity_key,
       stake: {
         amount: calculateStake(rewarding_details.operator, rewarding_details.delegates) || '0',
@@ -25,7 +25,6 @@ async function getNymNodeDetails(client_address: string) {
       bond: decCoinToDisplay(bond_information.original_pledge),
       profitMargin: toPercentIntegerString(rewarding_details.cost_params.profit_margin_percent),
       delegators: rewarding_details.unique_delegations,
-      status,
       operatorCost: decCoinToDisplay(rewarding_details.cost_params.interval_operating_cost),
       host: bond_information.host.replace(/\s/g, ''),
       httpApiPort: bond_information.custom_http_port,
@@ -37,4 +36,8 @@ async function getNymNodeDetails(client_address: string) {
   }
 }
 
+type TBondedNymNodeResponse = Awaited<ReturnType<typeof getNymNodeDetails>>;
+type TBondedNymNode = NonNullable<TBondedNymNodeResponse>;
+
 export { getNymNodeDetails };
+export type { TBondedNymNodeResponse, TBondedNymNode };

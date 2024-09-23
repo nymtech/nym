@@ -1,7 +1,7 @@
 import React from 'react';
 import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
-import { TBondedGateway, urls } from 'src/context';
+import { urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { Network } from 'src/types';
 import { IdentityKey } from 'src/components/IdentityKey';
@@ -10,6 +10,7 @@ import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedGatewayActions, TBondedGatwayActions } from './BondedGatewayAction';
 import { UpgradeRounded } from '@mui/icons-material';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
 
 const headers: Header[] = [
   {

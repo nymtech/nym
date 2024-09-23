@@ -24,7 +24,6 @@ import {
   updateMixnodeCostParams,
   vestingUpdateMixnodeCostParams,
 } from 'src/requests';
-import { TBondedMixnode } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
@@ -36,6 +35,7 @@ import { useGetFee } from 'src/hooks/useGetFee';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { InfoOutlined } from '@mui/icons-material';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 
 const operatorCostHint = `This is your (operator) rewards including the PM and cost. Rewards are automatically compounded every epoch.You can redeem your rewards at any time.
 `;

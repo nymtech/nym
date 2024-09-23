@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { TBondedNode } from 'src/context';
-import { getNymNodeBondDetails } from 'src/requests';
 import { getGatewayDetails } from 'src/requests/gatewayDetails';
 import { getMixnodeDetails } from 'src/requests/mixnodeDetails';
+import { getNymNodeDetails } from 'src/requests/nymNodeDetails';
 import { fireRequests, TauriReq } from 'src/utils';
 
 const useGetNodeDetails = (clientAddress?: string, network?: string) => {
@@ -16,12 +16,12 @@ const useGetNodeDetails = (clientAddress?: string, network?: string) => {
     setIsLoading(true);
 
     // Check if the address has a Nym node bonded
-    const nymnode: TauriReq<typeof getNymNodeBondDetails> = {
+    const nymnode: TauriReq<typeof getNymNodeDetails> = {
       name: 'getNymNodeBondDetails',
-      request: () => getNymNodeBondDetails(),
+      request: () => getNymNodeDetails(),
       onFulfilled: (value) => {
         if (value) {
-          setBondedNode({ nodeId: value.bond_information.node_id });
+          setBondedNode(value);
         }
       },
     };

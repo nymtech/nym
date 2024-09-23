@@ -655,6 +655,7 @@ where
                 .next()
                 .await
                 .ok_or(Error::Socks5NotStarted)?
+                .as_any()
                 .downcast_ref::<TaskStatus>()
                 .ok_or(Error::Socks5NotStarted)?
             {

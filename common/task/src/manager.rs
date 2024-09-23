@@ -3,6 +3,7 @@
 
 use futures::{future::pending, FutureExt, SinkExt, StreamExt};
 use log::{log, Level};
+use std::any::Any;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::{error::Error, time::Duration};
 use tokio::sync::{
@@ -22,7 +23,8 @@ pub(crate) type SentError = Box<dyn Error + Send + Sync>;
 type ErrorSender = mpsc::UnboundedSender<SentError>;
 type ErrorReceiver = mpsc::UnboundedReceiver<SentError>;
 
-pub type SentStatus = Box<dyn Error + Send + Sync>;
+// pub type SentStatus = Box<dyn Error + Send + Sync>;
+pub type SentStatus = Box<dyn TaskEvent>;
 pub type StatusSender = futures::channel::mpsc::Sender<SentStatus>;
 pub type StatusReceiver = futures::channel::mpsc::Receiver<SentStatus>;
 
@@ -40,6 +42,10 @@ enum TaskError {
     UnexpectedHalt { shutdown_name: Option<String> },
 }
 
+pub trait TaskEvent: std::error::Error + Send + Sync + Any {
+    fn as_any(&self) -> &dyn Any;
+}
+
 // TODO: possibly we should create a `Status` trait instead of reusing `Error`
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum TaskStatus {
@@ -47,6 +53,12 @@ pub enum TaskStatus {
     Ready,
     #[error("Ready and connected to gateway: {0}")]
     ReadyWithGateway(String),
+}
+
+impl TaskEvent for TaskStatus {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
 }
 
 /// Listens to status and error messages from tasks, as well as notifying them to gracefully

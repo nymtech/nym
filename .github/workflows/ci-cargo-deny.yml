@@ -22,4 +22,4 @@ jobs:
       with:
         log-level: warn
         command: check ${{ matrix.checks }}
-        argument: --all-features
+        arguments: --all-features

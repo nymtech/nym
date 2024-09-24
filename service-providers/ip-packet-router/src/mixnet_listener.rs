@@ -4,6 +4,7 @@ use std::{collections::HashMap, net::SocketAddr};
 
 use bytes::{Bytes, BytesMut};
 use futures::StreamExt;
+use nym_ip_packet_requests::v7::request::{HealthRequest, PingRequest};
 use nym_ip_packet_requests::v7::response::{
     DynamicConnectFailureReason, InfoLevel, InfoResponseReply, StaticConnectFailureReason,
 };
@@ -378,6 +379,41 @@ impl Response {
         }
     }
 
+    fn new_pong(
+        request_id: u64,
+        reply_to: Recipient,
+        client_version: SupportedClientVersion,
+    ) -> Self {
+        match client_version {
+            SupportedClientVersion::V6 => Response::V6(v6::response::IpPacketResponse::new_pong(
+                request_id, reply_to,
+            )),
+            SupportedClientVersion::V7 => Response::V7(v7::response::IpPacketResponse::new_pong(
+                request_id, reply_to,
+            )),
+        }
+    }
+
+    fn new_health_response(
+        request_id: u64,
+        reply_to: Recipient,
+        build_info: nym_bin_common::build_information::BinaryBuildInformationOwned,
+        client_version: SupportedClientVersion,
+    ) -> Self {
+        match client_version {
+            SupportedClientVersion::V6 => {
+                Response::V6(v6::response::IpPacketResponse::new_health_response(
+                    request_id, reply_to, build_info, None,
+                ))
+            }
+            SupportedClientVersion::V7 => {
+                Response::V7(v7::response::IpPacketResponse::new_health_response(
+                    request_id, reply_to, build_info, None,
+                ))
+            }
+        }
+    }
+
     fn to_bytes(&self) -> Result<Vec<u8>> {
         match self {
             Response::V6(response) => response.to_bytes(),
@@ -664,6 +700,48 @@ impl MixnetListener {
         Ok(responses)
     }
 
+    fn on_ping_request(
+        &self,
+        ping_request: PingRequest,
+        client_version: SupportedClientVersion,
+    ) -> PacketHandleResult {
+        log::info!(
+            "Received ping request from {sender_address}",
+            sender_address = ping_request.reply_to
+        );
+
+        let reply_to = ping_request.reply_to;
+        let request_id = ping_request.request_id;
+
+        Ok(Some(Response::new_pong(
+            request_id,
+            reply_to,
+            client_version,
+        )))
+    }
+
+    fn on_health_request(
+        &self,
+        health_request: HealthRequest,
+        client_version: SupportedClientVersion,
+    ) -> PacketHandleResult {
+        log::info!(
+            "Received health request from {sender_address}",
+            sender_address = health_request.reply_to
+        );
+
+        let reply_to = health_request.reply_to;
+        let request_id = health_request.request_id;
+        let build_info = nym_bin_common::bin_info_owned!();
+
+        Ok(Some(Response::new_health_response(
+            request_id,
+            reply_to,
+            build_info,
+            client_version,
+        )))
+    }
+
     fn on_version_mismatch(
         &self,
         _version: u8,
@@ -718,14 +796,12 @@ impl MixnetListener {
             IpPacketRequestData::Data(data_request) => {
                 self.on_data_request(data_request, client_version).await
             }
-            IpPacketRequestData::Ping(_) => {
-                log::info!("Received ping request: not implemented, dropping");
-                Ok(vec![])
+            IpPacketRequestData::Ping(ping_request) => {
+                Ok(vec![self.on_ping_request(ping_request, client_version)])
             }
-            IpPacketRequestData::Health(_) => {
-                log::info!("Received health request: not implemented, dropping");
-                Ok(vec![])
-            }
+            IpPacketRequestData::Health(health_request) => Ok(vec![
+                self.on_health_request(health_request, client_version).await,
+            ]),
         }
     }
 

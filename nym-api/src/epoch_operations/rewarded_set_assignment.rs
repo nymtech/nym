@@ -262,10 +262,10 @@ impl EpochAdvancer {
             };
 
             let mut available_roles = Vec::new();
-            if self_described.declared_role.can_operate_mixnode() {
+            if self_described.declared_role.mixnode {
                 available_roles.push(AvailableRole::Mix)
             }
-            if self_described.declared_role.can_operate_entry_gateway() {
+            if self_described.declared_role.entry {
                 available_roles.push(AvailableRole::EntryGateway)
             }
             if self_described.declared_role.can_operate_exit_gateway() {

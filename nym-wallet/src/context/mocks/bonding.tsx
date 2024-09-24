@@ -1,11 +1,11 @@
 import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { Network } from 'src/types';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
 import { BondingContext } from '../bonding';
 import { mockSleep } from './utils';
 import { TBondGatewaySignatureArgs, TBondMixnodeSignatureArgs } from '../../types';
-import { TBondedMixnode } from 'src/requests/mixnodeDetails';
-import { TBondedGateway } from 'src/requests/gatewayDetails';
 
 const SLEEP_MS = 1000;
 

@@ -18,7 +18,7 @@ const useGetNodeDetails = (clientAddress?: string, network?: string) => {
     // Check if the address has a Nym node bonded
     const nymnode: TauriReq<typeof getNymNodeDetails> = {
       name: 'getNymNodeBondDetails',
-      request: () => getNymNodeDetails(),
+      request: () => getNymNodeDetails(clientAddress),
       onFulfilled: (value) => {
         if (value) {
           setBondedNode(value);

@@ -1,6 +1,6 @@
 import { TNodeDescription } from 'src/types';
 import { TauriReq, decCoinToDisplay, fireRequests } from 'src/utils';
-import { getGatewayReport, getNodeDescription as getNodeDescriptionRequest } from './queries';
+import { getGatewayReport, getMixNodeDescription as getNodeDescriptionRequest } from './queries';
 import { getGatewayBondDetails } from './bond';
 
 async function getAdditionalGatewayDetails(identityKey: string, host: string, port: number) {

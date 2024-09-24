@@ -8,13 +8,13 @@ import { NymCard } from 'src/components';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { NodeStatus } from 'src/components/NodeStatus';
 import { getIntervalAsDate } from 'src/utils';
-import { BondUpdateCard } from 'src/components/Bonding/BondUpdateCard';
 import { UpgradeRounded } from '@mui/icons-material';
 import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedMixnodeActions, TBondedMixnodeActions } from './BondedMixnodeActions';
 import { NodeStats } from './NodeStats';
+import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 
 const textWhenNotName = 'This node has not yet set a name';
 
@@ -61,12 +61,12 @@ const headers: Header[] = [
 ];
 
 export const BondedMixnode = ({
-  mixnode,
+  nymnode,
   network,
   onShowMigrateToNymNodeModal,
   onActionSelect,
 }: {
-  mixnode: TBondedMixnode;
+  nymnode: TBondedNymNode;
   network?: Network;
   onShowMigrateToNymNodeModal: () => void;
   onActionSelect: (action: TBondedMixnodeActions) => void;
@@ -75,7 +75,7 @@ export const BondedMixnode = ({
   const navigate = useNavigate();
   const {
     name,
-    mixId,
+    nodeId,
     stake,
     bond,
     stakeSaturation,
@@ -86,7 +86,7 @@ export const BondedMixnode = ({
     status,
     identityKey,
     host,
-  } = mixnode;
+  } = nymnode;
 
   const getNextInterval = async () => {
     try {
@@ -126,13 +126,12 @@ export const BondedMixnode = ({
       id: 'delegators-cell',
     },
     {
-      cell: mixnode.isUnbonding ? (
+      cell: nymnode.isUnbonding ? (
         <Chip label="Pending unbond" sx={{ textTransform: 'initial' }} />
       ) : (
         <BondedMixnodeActions
           onActionSelect={onActionSelect}
           disabledRedeemAndCompound={(operatorRewards && Number(operatorRewards.amount) === 0) || false}
-          disabledUpdateBond={Boolean(mixnode.proxy)}
         />
       ),
       id: 'actions-cell',
@@ -173,7 +172,7 @@ export const BondedMixnode = ({
             <Stack direction="row" gap={1}>
               <Tooltip
                 title={
-                  mixnode.isUnbonding
+                  nymnode.isUnbonding
                     ? 'You have a pending unbond event. Node settings are disabled.'
                     : 'Node settings are disabled for legacy nodes. Please migrate your node in order to access your node settings.'
                 }
@@ -212,13 +211,13 @@ export const BondedMixnode = ({
         {network && (
           <Typography sx={{ mt: 2, fontSize: 'small' }}>
             Check more stats of your node on the{' '}
-            <Link href={`${urls(network).networkExplorer}/network-components/mixnode/${mixId}`} target="_blank">
+            <Link href={`${urls(network).networkExplorer}/network-components/mixnode/${nodeId}`} target="_blank">
               explorer
             </Link>
           </Typography>
         )}
       </NymCard>
-      <NodeStats mixnode={mixnode} />
+      <NodeStats bondedNode={nymnode} />
     </Stack>
   );
 };

@@ -12,6 +12,12 @@ import {
   isNymNode,
 } from 'src/types';
 import { Console } from 'src/utils/console';
+import useGetNodeDetails from 'src/hooks/useGetNodeDetails';
+import { TBondedNymNode } from 'src/requests/nymNodeDetails';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
+import { attachDefaultOperatingCost, toPercentFloatString } from '../utils';
+import { AppContext } from './main';
 import {
   bondGateway as bondGatewayRequest,
   bondMixNode as bondMixNodeRequest,
@@ -33,12 +39,6 @@ import {
   vestingUpdateBond as vestingUpdateBondReq,
   migrateVestedMixnode as tauriMigrateVestedMixnode,
 } from '../requests';
-import { AppContext } from './main';
-import { attachDefaultOperatingCost, toPercentFloatString } from '../utils';
-import useGetNodeDetails from 'src/hooks/useGetNodeDetails';
-import { TBondedNymNode } from 'src/requests/nymNodeDetails';
-import { TBondedMixnode } from 'src/requests/mixnodeDetails';
-import { TBondedGateway } from 'src/requests/gatewayDetails';
 
 export type TBondedNode = TBondedMixnode | TBondedGateway | TBondedNymNode;
 

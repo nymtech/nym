@@ -11,7 +11,6 @@ import { BondMixnodeModal } from 'src/components/Bonding/modals/BondMixnodeModal
 import { UpdateBondAmountModal } from 'src/components/Bonding/modals/UpdateBondAmountModal';
 import { BondOversaturatedModal } from 'src/components/Bonding/modals/BondOversaturatedModal';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
-import { NymNodeSuccessModal } from 'src/components/Bonding/modals/NymNodeSuccessModal';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { AppContext, urls } from 'src/context/main';
@@ -19,8 +18,8 @@ import { isGateway, isMixnode, isNymNode, TBondGatewayArgs, TBondMixNodeArgs, TU
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { VestingWarningModal } from 'src/components/VestingWarningModal';
-import { BondingContextProvider, useBondingContext } from '../../context';
 import MigrateLegacyNode from 'src/components/Bonding/modals/MigrateLegacyNode';
+import { BondingContextProvider, useBondingContext } from '../../context';
 
 export const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -199,7 +198,7 @@ export const Bonding = () => {
         />
       )}
 
-      {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-mixnode')} />}
+      {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-nymnode')} />}
 
       {bondedNode && isMixnode(bondedNode) && (
         <BondedMixnode
@@ -218,6 +217,8 @@ export const Bonding = () => {
           onActionSelect={handleBondedMixnodeAction}
         />
       )}
+
+      {showModal === 'bond-nymnode' && <div />}
 
       {showModal === 'bond-mixnode' && (
         <BondMixnodeModal

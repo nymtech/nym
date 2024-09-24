@@ -44,8 +44,11 @@ export const getCurrentInterval = async () => invokeWrapper<Interval>('get_curre
 export const getNumberOfMixnodeDelegators = async (mixId: number) =>
   invokeWrapper<number>('get_number_of_mixnode_delegators', { mixId });
 
-export const getNodeDescription = async (host: string, port: number) =>
+export const getMixNodeDescription = async (host: string, port: number) =>
   invokeWrapper<TNodeDescription>('get_mix_node_description', { host, port });
+
+export const getNymNodeDescription = async (host: string, port: number) =>
+  invokeWrapper<TNodeDescription>('get_nym_node_description', { host, port });
 
 export const getPendingIntervalEvents = async () =>
   invokeWrapper<PendingIntervalEvent[]>('get_pending_interval_events');
@@ -62,3 +65,5 @@ export const computeMixnodeRewardEstimation = async (args: {
   intervalOperatingCost: { denom: 'unym'; amount: string };
 }) => invokeWrapper<RewardEstimationResponse>('compute_mixnode_reward_estimation', args);
 export const getMixnodeUptime = async (mixId: number) => invokeWrapper<number>('get_mixnode_uptime', { mixId });
+
+export const getNymNodePerformance = async () => invokeWrapper<number>('get_nymnode_performance');

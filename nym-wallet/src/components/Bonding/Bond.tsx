@@ -20,7 +20,7 @@ export const Bond = ({
       }}
     >
       <Typography variant="body2">
-        Bond a mix node or a gateway. Learn how to set up and run a node{' '}
+        Bond a nym node. Learn how to set up and run a Nym node{' '}
         <Link href="https://nymtech.net/operators/nodes/mix-node-setup.html" target="_blank">
           here
         </Link>

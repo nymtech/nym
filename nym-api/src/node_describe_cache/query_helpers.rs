@@ -12,7 +12,7 @@ use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_config::defaults::mainnet;
 use nym_mixnet_contract_common::NodeId;
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
-use nym_node_requests::api::v1::node::models::{AuxiliaryDetails, NodeRoles};
+use nym_node_requests::api::v1::node::models::AuxiliaryDetails;
 use nym_node_requests::api::Client;
 use pin_project::pin_project;
 use std::future::Future;

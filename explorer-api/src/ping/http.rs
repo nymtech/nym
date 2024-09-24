@@ -1,7 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_mixnet_contract_common::{NodeId, MixNode};
+use nym_mixnet_contract_common::{MixNode, NodeId};
 use rocket::serde::json::Json;
 use rocket::{Route, State};
 use rocket_okapi::okapi::openapi3::OpenApi;

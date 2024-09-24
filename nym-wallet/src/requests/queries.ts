@@ -10,7 +10,7 @@ import {
   WrappedDelegationEvent,
   NymNodeDetails,
 } from '@nymproject/types';
-import { Interval, TGatewayReport, TNodeDescription } from 'src/types';
+import { Interval, MixnodeSaturationResponse, TGatewayReport, TNodeDescription, TNodeRole } from 'src/types';
 import { invokeWrapper } from './wrapper';
 
 export const getAllPendingDelegations = async () =>
@@ -22,7 +22,7 @@ export const getPendingOperatorRewards = async (address: string) =>
   invokeWrapper<DecCoin>('get_pending_operator_rewards', { address });
 
 export const getMixnodeStakeSaturation = async (mixId: number) =>
-  invokeWrapper<StakeSaturationResponse>('mixnode_stake_saturation', { mixId });
+  invokeWrapper<MixnodeSaturationResponse>('mixnode_stake_saturation', { mixId });
 
 export const getMixnodeRewardEstimation = async (mixId: number) =>
   invokeWrapper<RewardEstimationResponse>('mixnode_reward_estimation', { mixId });
@@ -67,3 +67,10 @@ export const computeMixnodeRewardEstimation = async (args: {
 export const getMixnodeUptime = async (mixId: number) => invokeWrapper<number>('get_mixnode_uptime', { mixId });
 
 export const getNymNodePerformance = async () => invokeWrapper<number>('get_nymnode_performance');
+
+export const getNymNodeUptime = async (nodeId: number) => invokeWrapper<number>('get_nymnode_uptime', { nodeId });
+
+export const getNymNodeStakeSaturation = async (nodeId: number) =>
+  invokeWrapper<StakeSaturationResponse>('get_nymnode_stake_saturation', { nodeId });
+
+export const getNymNodeRole = async (nodeId: number) => invokeWrapper<TNodeRole>('get_nymnode_role', { nodeId });

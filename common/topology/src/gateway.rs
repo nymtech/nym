@@ -153,7 +153,7 @@ impl<'a> TryFrom<&'a SkimmedNode> for LegacyNode {
 
         if value.ip_addresses.is_empty() {
             return Err(GatewayConversionError::NoIpAddressesProvided {
-                gateway: value.ed25519_identity_pubkey.clone(),
+                gateway: value.ed25519_identity_pubkey.to_base58_string(),
             });
         }
 
@@ -173,8 +173,8 @@ impl<'a> TryFrom<&'a SkimmedNode> for LegacyNode {
             mix_host: SocketAddr::new(*ip, value.mix_port),
             clients_ws_port: entry_details.ws_port,
             clients_wss_port: entry_details.wss_port,
-            identity_key: value.ed25519_identity_pubkey.parse()?,
-            sphinx_key: value.x25519_sphinx_pubkey.parse()?,
+            identity_key: value.ed25519_identity_pubkey,
+            sphinx_key: value.x25519_sphinx_pubkey,
             version: NodeVersion::Unknown,
         })
     }

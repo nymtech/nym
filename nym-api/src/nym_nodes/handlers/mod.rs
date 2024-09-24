@@ -8,8 +8,8 @@ use axum::extract::{Path, Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
 use nym_api_requests::models::{
-    AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NymNodeData,
-    PerformanceHistoryResponse, UptimeHistoryResponse,
+    AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NoiseDetails,
+    NymNodeData, PerformanceHistoryResponse, UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;
@@ -25,6 +25,7 @@ pub(crate) mod unstable;
 
 pub(crate) fn nym_node_routes() -> Router<AppState> {
     Router::new()
+        .route("/noise", get(nodes_noise))
         .route("/bonded", get(get_bonded_nodes))
         .route("/described", get(get_described_nodes))
         .route("/annotation/:node_id", get(get_node_annotation))
@@ -39,6 +40,25 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
         )
         // to make it compatible with all the explorers that were used to using 0-100 values
         .route("/uptime-history/:node_id", get(get_node_uptime_history))
+}
+
+#[utoipa::path(
+    tag = "Nym Nodes",
+    get,
+    path = "/noise",
+    context_path = "/v1/nym-nodes",
+    responses(
+        (status = 200, body = PaginatedResponse<NoiseDetails>)
+    ),
+    params(PaginationRequest)
+)]
+async fn nodes_noise(
+    State(state): State<AppState>,
+    Query(pagination): Query<PaginationRequest>,
+) -> AxumResult<Json<PaginatedResponse<NoiseDetails>>> {
+    // TODO: implement it
+    let _ = pagination;
+    todo!()
 }
 
 #[utoipa::path(

@@ -1,6 +1,9 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+#![warn(clippy::todo)]
+#![warn(clippy::dbg_macro)]
+
 use crate::epoch_operations::EpochAdvancer;
 use crate::support::cli;
 use crate::support::storage;

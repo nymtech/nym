@@ -11,7 +11,6 @@ use async_trait::async_trait;
 use futures::{stream, StreamExt};
 use nym_api_requests::models::{DescribedNodeType, NymNodeData, NymNodeDescription};
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
-use nym_crypto::asymmetric::{ed25519, encryption, identity, x25519};
 use nym_mixnet_contract_common::{LegacyMixLayer, NodeId};
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
 use nym_topology::gateway::GatewayConversionError;
@@ -159,24 +158,29 @@ impl DescribedNodes {
         self.nodes.get(node_id)
     }
 
-    pub fn all_nodes<'a>(&'a self) -> impl Iterator<Item = &'a NymNodeDescription> + 'a {
+    pub fn all_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
         self.nodes.values()
     }
 
-    pub fn mixing_nym_nodes<'a>(&'a self) -> impl Iterator<Item = &'a NymNodeDescription> + 'a {
+    pub fn mixing_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
         self.nodes
             .values()
             .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
             .filter(|n| n.description.declared_role.mixnode)
     }
 
-    pub fn gateway_capable_nym_nodes<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = &'a NymNodeDescription> + 'a {
+    pub fn entry_capable_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
         self.nodes
             .values()
             .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
             .filter(|n| n.description.declared_role.entry)
+    }
+
+    pub fn exit_capable_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
+        self.nodes
+            .values()
+            .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
+            .filter(|n| n.description.declared_role.can_operate_exit_gateway())
     }
 }
 

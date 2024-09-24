@@ -36,6 +36,7 @@ use nym_api_requests::nym_nodes::NodeRoleQueryParam;
 use serde::Deserialize;
 
 pub(crate) mod full_fat;
+mod helpers;
 pub(crate) mod semi_skimmed;
 pub(crate) mod skimmed;
 

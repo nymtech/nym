@@ -29,6 +29,7 @@ use std::fmt::{Debug, Display, Formatter};
 use std::net::IpAddr;
 use std::ops::{Deref, DerefMut};
 use std::{fmt, time::Duration};
+use thiserror::Error;
 use time::{Date, OffsetDateTime};
 use utoipa::{IntoParams, ToResponse, ToSchema};
 
@@ -192,6 +193,15 @@ pub struct MixNodeBondAnnotated {
     pub ip_addresses: Vec<IpAddr>,
 }
 
+#[derive(Debug, Error)]
+pub enum MalformedNodeBond {
+    #[error("the associated ed25519 identity key is malformed")]
+    InvalidEd25519Key,
+
+    #[error("the associated x25519 sphinx key is malformed")]
+    InvalidX25519Key,
+}
+
 impl MixNodeBondAnnotated {
     pub fn mix_node(&self) -> &MixNode {
         &self.mixnode_details.bond_information.mix_node
@@ -211,6 +221,32 @@ impl MixNodeBondAnnotated {
 
     pub fn version(&self) -> &str {
         &self.mixnode_details.bond_information.mix_node.version
+    }
+
+    pub fn try_to_skimmed_node(&self, role: NodeRole) -> Result<SkimmedNode, MalformedNodeBond> {
+        Ok(SkimmedNode {
+            node_id: self.mix_id(),
+            ed25519_identity_pubkey: self
+                .identity_key()
+                .parse()
+                .map_err(|_| MalformedNodeBond::InvalidEd25519Key)?,
+            ip_addresses: self.ip_addresses.clone(),
+            mix_port: self.mix_node().mix_port,
+            x25519_sphinx_pubkey: self
+                .mix_node()
+                .sphinx_key
+                .parse()
+                .map_err(|_| MalformedNodeBond::InvalidX25519Key)?,
+            epoch_role: role,
+            supported_roles: DeclaredRoles {
+                mixnode: true,
+                entry: false,
+                exit_nr: false,
+                exit_ipr: false,
+            },
+            entry: None,
+            performance: self.node_performance.last_24h,
+        })
     }
 }
 
@@ -241,6 +277,39 @@ impl GatewayBondAnnotated {
 
     pub fn owner(&self) -> &Addr {
         self.gateway_bond.bond.owner()
+    }
+
+    pub fn try_to_skimmed_node(&self, role: NodeRole) -> Result<SkimmedNode, MalformedNodeBond> {
+        Ok(SkimmedNode {
+            node_id: self.gateway_bond.node_id,
+            ip_addresses: self.ip_addresses.clone(),
+            ed25519_identity_pubkey: self
+                .gateway_bond
+                .gateway
+                .identity_key
+                .parse()
+                .map_err(|_| MalformedNodeBond::InvalidEd25519Key)?,
+            mix_port: self.gateway_bond.bond.gateway.mix_port,
+            x25519_sphinx_pubkey: self
+                .gateway_bond
+                .gateway
+                .sphinx_key
+                .parse()
+                .map_err(|_| MalformedNodeBond::InvalidX25519Key)?,
+            epoch_role: role,
+            supported_roles: DeclaredRoles {
+                mixnode: false,
+                entry: true,
+                exit_nr: false,
+                exit_ipr: false,
+            },
+            entry: Some(BasicEntryInformation {
+                hostname: None,
+                ws_port: self.gateway_bond.bond.gateway.clients_port,
+                wss_port: None,
+            }),
+            performance: self.node_performance.last_24h,
+        })
     }
 }
 
@@ -640,7 +709,7 @@ impl NymNodeDescription {
         }
     }
 
-    pub fn try_to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
+    pub fn to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
         let keys = &self.description.host_information.keys;
         let entry = if self.description.declared_role.entry {
             Some(self.entry_information())
@@ -650,15 +719,15 @@ impl NymNodeDescription {
 
         SkimmedNode {
             node_id: self.node_id,
-            ed25519_identity_pubkey: keys.ed25519.clone(),
+            ed25519_identity_pubkey: keys.ed25519,
             ip_addresses: self.description.host_information.ip_address.clone(),
             mix_port: self.description.mix_port(),
-            x25519_sphinx_pubkey: keys.x25519.clone(),
+            x25519_sphinx_pubkey: keys.x25519,
             // we can't use the declared roles, we have to take whatever was provided in the contract.
             // why? say this node COULD operate as an exit, but it might be the case the contract decided
             // to assign it an ENTRY role only. we have to use that one instead.
             epoch_role: role,
-            supported_roles: self.description.declared_role.into(),
+            supported_roles: self.description.declared_role,
             entry,
             performance,
         }

@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
 use sqlx::{Connection, SqliteConnection};
+use tokio::{fs::File, io::AsyncWriteExt};
 
 const SQLITE_DB_FILENAME: &str = "nym-node-status-api.sqlite";
 
@@ -10,6 +11,7 @@ async fn main() -> Result<()> {
     let out_dir = read_env_var("OUT_DIR")?;
     let database_path = format!("sqlite://{}/{}?mode=rwc", out_dir, SQLITE_DB_FILENAME);
 
+    write_db_path_to_file(&out_dir, SQLITE_DB_FILENAME).await?;
     let mut conn = SqliteConnection::connect(&database_path).await?;
     sqlx::migrate!("./migrations").run(&mut conn).await?;
 
@@ -32,4 +34,13 @@ fn read_env_var(var: &str) -> Result<String> {
 fn rerun_if_changed() {
     println!("cargo::rerun-if-changed=migrations");
     println!("cargo::rerun-if-changed=src/db/queries");
+}
+
+/// use `./enter_db.sh` to inspect DB
+async fn write_db_path_to_file(out_dir: &str, db_filename: &str) -> anyhow::Result<()> {
+    let mut file = File::create("enter_db.sh").await?;
+    file.write(b"#!/bin/bash\n").await?;
+    file.write_all(format!("sqlite3 {}/{}", out_dir, db_filename).as_bytes())
+        .await
+        .map_err(From::from)
 }

@@ -103,6 +103,9 @@ members = [
     "mixnode",
     "sdk/lib/socks5-listener",
     "sdk/rust/nym-sdk",
+    "sdk/ffi/shared",
+    "sdk/ffi/go",
+    "sdk/ffi/cpp",
     "service-providers/authenticator",
     "service-providers/common",
     "service-providers/ip-packet-router",
@@ -116,6 +119,7 @@ members = [
     "nym-node/nym-node-requests",
     "nym-outfox",
     "nym-validator-rewarder",
+    "tools/echo-server",
     "tools/internal/ssl-inject",
     # "tools/internal/sdk-version-bump",
     "tools/internal/testnet-manager",
@@ -130,6 +134,9 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
+    "tools/internal/testnet-manager",
+    "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/echo-server",
 ]
 
 default-members = [
@@ -153,7 +160,6 @@ exclude = [
     "nym-wallet",
     "nym-vpn/ui/src-tauri",
     "cpu-cycles",
-    "sdk/ffi/cpp",
 ]
 
 [workspace.package]

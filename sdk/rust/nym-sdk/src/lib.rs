@@ -1,11 +1,13 @@
 //! Rust SDK for the Nym platform
 //!
 //! The main component currently is [`mixnet`].
+//! [`tcp_proxy`] is probably a good place to start for anyone wanting to integrate with existing app code and read/write from a socket.
 
 mod error;
 
 pub mod bandwidth;
 pub mod mixnet;
+pub mod tcp_proxy;
 
 pub use error::{Error, Result};
 pub use nym_client_core::client::mix_traffic::transceiver::*;

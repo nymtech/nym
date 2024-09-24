@@ -20,8 +20,8 @@ build_artifacts_and_link() {
   cargo build --release &&
   cd src/ &&
   printf "compiling cpp \n"
-  g++ -std=c++11 -o main main.cpp -ldl -lpthread -L../target/release -lnym_cpp_ffi -lboost_thread &&
-  export LD_LIBRARY_PATH=../target/release:$LD_LIBRARY_PATH 
+  g++ -std=c++11 -o main main.cpp -ldl -lpthread -L../../../../target/release -lnym_cpp_ffi -lboost_thread &&
+  export LD_LIBRARY_PATH=../../../../target/release:$LD_LIBRARY_PATH
   # check output for name of rust lib - can be helpful if you've changed e.g. the name of a file and the compilation is failing
   # printf "ldd main: \n"
   # ldd main
@@ -48,4 +48,3 @@ else
       exit 1
   fi
 fi
-

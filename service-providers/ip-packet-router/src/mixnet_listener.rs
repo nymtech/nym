@@ -96,6 +96,32 @@ impl ConnectedClients {
             })
     }
 
+    fn remove_client_with_nym_address(&self, nym_address: &Recipient) {
+        // Remove the client from both the ipv4 and ipv6 maps
+        let ipv4 = self.clients_ipv4_mapping.iter().find_map(|(ip, client)| {
+            if client.nym_address == *nym_address {
+                Some(ip)
+            } else {
+                None
+            }
+        });
+        let client_ipv4 = self.clients_ipv4_mapping.remove(ipv4);
+
+        let ipv6 = self.clients_ipv6_mapping.iter().find_map(|(ip, client)| {
+            if client.nym_address == *nym_address {
+                Some(ip)
+            } else {
+                None
+            }
+        });
+        let client_ipv6 = self.clients_ipv6_mapping.remove(ipv6);
+
+        // These two should be the same
+        if let Some(client) = client_ipv4 {
+            // client.update_activity()
+        }
+    }
+
     #[allow(dead_code)]
     fn lookup_client_from_nym_address(&self, nym_address: &Recipient) -> Option<&ConnectedClient> {
         self.clients_ipv4_mapping
@@ -191,20 +217,24 @@ impl ConnectedClients {
         ret
     }
 
+    fn disconnect(&mut self, ips: &IpPair) {
+        self.clients_ipv4_mapping.remove(&ips.ipv4);
+        self.clients_ipv6_mapping.remove(&ips.ipv6);
+        self.tun_listener_connected_client_tx
+            .send(ConnectedClientEvent::Disconnect(DisconnectEvent(*ips)))
+            .inspect_err(|err| {
+                log::error!("Failed to send disconnect event: {err}");
+            })
+            .ok();
+    }
+
     fn disconnect_stopped_client_handlers(
         &mut self,
         stopped_clients: Vec<(IpPair, Recipient, SupportedClientVersion)>,
     ) {
         for (ips, _, _) in &stopped_clients {
             log::info!("Disconnect stopped client: {ips}");
-            self.clients_ipv4_mapping.remove(&ips.ipv4);
-            self.clients_ipv6_mapping.remove(&ips.ipv6);
-            self.tun_listener_connected_client_tx
-                .send(ConnectedClientEvent::Disconnect(DisconnectEvent(*ips)))
-                .tap_err(|err| {
-                    log::error!("Failed to send disconnect event: {err}");
-                })
-                .ok();
+            self.disconnect(ips);
         }
     }
 
@@ -214,14 +244,7 @@ impl ConnectedClients {
     ) {
         for (ips, _, _) in &inactive_clients {
             log::info!("Disconnect inactive client: {ips}");
-            self.clients_ipv4_mapping.remove(&ips.ipv4);
-            self.clients_ipv6_mapping.remove(&ips.ipv6);
-            self.tun_listener_connected_client_tx
-                .send(ConnectedClientEvent::Disconnect(DisconnectEvent(*ips)))
-                .tap_err(|err| {
-                    log::error!("Failed to send disconnect event: {err}");
-                })
-                .ok();
+            self.disconnect(ips);
         }
     }
 
@@ -638,11 +661,17 @@ impl MixnetListener {
 
     fn on_disconnect_request(
         &self,
-        _disconnect_request: DisconnectRequest,
-        _client_version: SupportedClientVersion,
+        disconnect_request: DisconnectRequest,
+        client_version: SupportedClientVersion,
     ) -> PacketHandleResult {
-        log::info!("Received disconnect request: not implemented, dropping");
-        Ok(None)
+        log::info!("Received disconnect request");
+
+        let request_id = disconnect_request.request_id;
+        let reply_to = disconnect_request.reply_to;
+
+        let ips = self.connected_clients.lookup_ip_from_nym_address(&reply_to);
+        self.connected_clients.disconnect(&ips);
+
     }
 
     async fn handle_packet(

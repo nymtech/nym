@@ -1,6 +1,6 @@
 [package]
 name = "nym-cpp-ffi"
-version = "0.1.1"
+version = "0.1.2"
 edition = "2021"
 
 [lib]
@@ -11,13 +11,12 @@ crate-type = ["cdylib"]
 # Async runtime
 tokio = { version = "1", features = ["full"] }
 # Nym clients, addressing, packet format, common tools (logging), ffi shared
-nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
-nym-bin-common = { git = "https://github.com/nymtech/nym", branch = "master" }
-nym-sphinx-anonymous-replies = { git = "https://github.com/nymtech/nym", branch = "master" }
+nym-sdk = { path = "../../rust/nym-sdk/" }
+nym-bin-common = { path = "../../../common/bin-common" }
+nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
 nym-ffi-shared = { path = "../shared" }
 lazy_static = "1.4.0"
 # error handling
 anyhow = "1.0.75"
 # base58 en/decoding
 bs58 = "0.5.0"
-

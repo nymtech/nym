@@ -1,7 +1,7 @@
 package bindings
 
 // #include <bindings.h>
-// #cgo LDFLAGS: -L../../target/release -lnym_go_ffi
+// #cgo LDFLAGS: -L../../../../../target/release -lnym_go_ffi
 import "C"
 
 import (
@@ -381,11 +381,65 @@ func uniffiCheckChecksums() {
 	}
 	{
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_new_proxy_client(uniffiStatus)
+		})
+		if checksum != 14386 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_new_proxy_client: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_new_proxy_client_default(uniffiStatus)
+		})
+		if checksum != 23215 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_new_proxy_client_default: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_new_proxy_server(uniffiStatus)
+		})
+		if checksum != 40789 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_new_proxy_server: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_proxy_server_address(uniffiStatus)
+		})
+		if checksum != 1079 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_proxy_server_address: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_nym_go_ffi_checksum_func_reply(uniffiStatus)
 		})
 		if checksum != 50524 {
 			// If this happens try cleaning and rebuilding your project
 			panic("bindings: uniffi_nym_go_ffi_checksum_func_reply: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_run_proxy_client(uniffiStatus)
+		})
+		if checksum != 45441 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_run_proxy_client: UniFFI API checksum mismatch")
+		}
+	}
+	{
+		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
+			return C.uniffi_nym_go_ffi_checksum_func_run_proxy_server(uniffiStatus)
+		})
+		if checksum != 57536 {
+			// If this happens try cleaning and rebuilding your project
+			panic("bindings: uniffi_nym_go_ffi_checksum_func_run_proxy_server: UniFFI API checksum mismatch")
 		}
 	}
 	{
@@ -398,6 +452,30 @@ func uniffiCheckChecksums() {
 		}
 	}
 }
+
+type FfiConverterUint64 struct{}
+
+var FfiConverterUint64INSTANCE = FfiConverterUint64{}
+
+func (FfiConverterUint64) Lower(value uint64) C.uint64_t {
+	return C.uint64_t(value)
+}
+
+func (FfiConverterUint64) Write(writer io.Writer, value uint64) {
+	writeUint64(writer, value)
+}
+
+func (FfiConverterUint64) Lift(value C.uint64_t) uint64 {
+	return uint64(value)
+}
+
+func (FfiConverterUint64) Read(reader io.Reader) uint64 {
+	return readUint64(reader)
+}
+
+type FfiDestroyerUint64 struct{}
+
+func (FfiDestroyerUint64) Destroy(_ uint64) {}
 
 type FfiConverterString struct{}
 
@@ -547,11 +625,15 @@ func (err GoWrapError) Unwrap() error {
 
 // Err* are used for checking error type with `errors.Is`
 var ErrGoWrapErrorClientInitError = fmt.Errorf("GoWrapErrorClientInitError")
-var ErrGoWrapErrorClientUninitialisedError = fmt.Errorf("GoWrapErrorClientUninitialisedError")
 var ErrGoWrapErrorSelfAddrError = fmt.Errorf("GoWrapErrorSelfAddrError")
 var ErrGoWrapErrorSendMsgError = fmt.Errorf("GoWrapErrorSendMsgError")
 var ErrGoWrapErrorReplyError = fmt.Errorf("GoWrapErrorReplyError")
 var ErrGoWrapErrorListenError = fmt.Errorf("GoWrapErrorListenError")
+var ErrGoWrapErrorProxyInitError = fmt.Errorf("GoWrapErrorProxyInitError")
+var ErrGoWrapErrorProxyRunError = fmt.Errorf("GoWrapErrorProxyRunError")
+var ErrGoWrapErrorServerInitError = fmt.Errorf("GoWrapErrorServerInitError")
+var ErrGoWrapErrorAddressGetterError = fmt.Errorf("GoWrapErrorAddressGetterError")
+var ErrGoWrapErrorServerRunError = fmt.Errorf("GoWrapErrorServerRunError")
 
 // Variant structs
 type GoWrapErrorClientInitError struct {
@@ -570,24 +652,6 @@ func (err GoWrapErrorClientInitError) Error() string {
 
 func (self GoWrapErrorClientInitError) Is(target error) bool {
 	return target == ErrGoWrapErrorClientInitError
-}
-
-type GoWrapErrorClientUninitialisedError struct {
-	message string
-}
-
-func NewGoWrapErrorClientUninitialisedError() *GoWrapError {
-	return &GoWrapError{
-		err: &GoWrapErrorClientUninitialisedError{},
-	}
-}
-
-func (err GoWrapErrorClientUninitialisedError) Error() string {
-	return fmt.Sprintf("ClientUninitialisedError: %s", err.message)
-}
-
-func (self GoWrapErrorClientUninitialisedError) Is(target error) bool {
-	return target == ErrGoWrapErrorClientUninitialisedError
 }
 
 type GoWrapErrorSelfAddrError struct {
@@ -662,6 +726,96 @@ func (self GoWrapErrorListenError) Is(target error) bool {
 	return target == ErrGoWrapErrorListenError
 }
 
+type GoWrapErrorProxyInitError struct {
+	message string
+}
+
+func NewGoWrapErrorProxyInitError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorProxyInitError{},
+	}
+}
+
+func (err GoWrapErrorProxyInitError) Error() string {
+	return fmt.Sprintf("ProxyInitError: %s", err.message)
+}
+
+func (self GoWrapErrorProxyInitError) Is(target error) bool {
+	return target == ErrGoWrapErrorProxyInitError
+}
+
+type GoWrapErrorProxyRunError struct {
+	message string
+}
+
+func NewGoWrapErrorProxyRunError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorProxyRunError{},
+	}
+}
+
+func (err GoWrapErrorProxyRunError) Error() string {
+	return fmt.Sprintf("ProxyRunError: %s", err.message)
+}
+
+func (self GoWrapErrorProxyRunError) Is(target error) bool {
+	return target == ErrGoWrapErrorProxyRunError
+}
+
+type GoWrapErrorServerInitError struct {
+	message string
+}
+
+func NewGoWrapErrorServerInitError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorServerInitError{},
+	}
+}
+
+func (err GoWrapErrorServerInitError) Error() string {
+	return fmt.Sprintf("ServerInitError: %s", err.message)
+}
+
+func (self GoWrapErrorServerInitError) Is(target error) bool {
+	return target == ErrGoWrapErrorServerInitError
+}
+
+type GoWrapErrorAddressGetterError struct {
+	message string
+}
+
+func NewGoWrapErrorAddressGetterError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorAddressGetterError{},
+	}
+}
+
+func (err GoWrapErrorAddressGetterError) Error() string {
+	return fmt.Sprintf("AddressGetterError: %s", err.message)
+}
+
+func (self GoWrapErrorAddressGetterError) Is(target error) bool {
+	return target == ErrGoWrapErrorAddressGetterError
+}
+
+type GoWrapErrorServerRunError struct {
+	message string
+}
+
+func NewGoWrapErrorServerRunError() *GoWrapError {
+	return &GoWrapError{
+		err: &GoWrapErrorServerRunError{},
+	}
+}
+
+func (err GoWrapErrorServerRunError) Error() string {
+	return fmt.Sprintf("ServerRunError: %s", err.message)
+}
+
+func (self GoWrapErrorServerRunError) Is(target error) bool {
+	return target == ErrGoWrapErrorServerRunError
+}
+
 type FfiConverterTypeGoWrapError struct{}
 
 var FfiConverterTypeGoWrapErrorINSTANCE = FfiConverterTypeGoWrapError{}
@@ -682,15 +836,23 @@ func (c FfiConverterTypeGoWrapError) Read(reader io.Reader) error {
 	case 1:
 		return &GoWrapError{&GoWrapErrorClientInitError{message}}
 	case 2:
-		return &GoWrapError{&GoWrapErrorClientUninitialisedError{message}}
-	case 3:
 		return &GoWrapError{&GoWrapErrorSelfAddrError{message}}
-	case 4:
+	case 3:
 		return &GoWrapError{&GoWrapErrorSendMsgError{message}}
-	case 5:
+	case 4:
 		return &GoWrapError{&GoWrapErrorReplyError{message}}
-	case 6:
+	case 5:
 		return &GoWrapError{&GoWrapErrorListenError{message}}
+	case 6:
+		return &GoWrapError{&GoWrapErrorProxyInitError{message}}
+	case 7:
+		return &GoWrapError{&GoWrapErrorProxyRunError{message}}
+	case 8:
+		return &GoWrapError{&GoWrapErrorServerInitError{message}}
+	case 9:
+		return &GoWrapError{&GoWrapErrorAddressGetterError{message}}
+	case 10:
+		return &GoWrapError{&GoWrapErrorServerRunError{message}}
 	default:
 		panic(fmt.Sprintf("Unknown error code %d in FfiConverterTypeGoWrapError.Read()", errorID))
 	}
@@ -701,19 +863,64 @@ func (c FfiConverterTypeGoWrapError) Write(writer io.Writer, value *GoWrapError)
 	switch variantValue := value.err.(type) {
 	case *GoWrapErrorClientInitError:
 		writeInt32(writer, 1)
-	case *GoWrapErrorClientUninitialisedError:
-		writeInt32(writer, 2)
 	case *GoWrapErrorSelfAddrError:
-		writeInt32(writer, 3)
+		writeInt32(writer, 2)
 	case *GoWrapErrorSendMsgError:
-		writeInt32(writer, 4)
+		writeInt32(writer, 3)
 	case *GoWrapErrorReplyError:
-		writeInt32(writer, 5)
+		writeInt32(writer, 4)
 	case *GoWrapErrorListenError:
+		writeInt32(writer, 5)
+	case *GoWrapErrorProxyInitError:
 		writeInt32(writer, 6)
+	case *GoWrapErrorProxyRunError:
+		writeInt32(writer, 7)
+	case *GoWrapErrorServerInitError:
+		writeInt32(writer, 8)
+	case *GoWrapErrorAddressGetterError:
+		writeInt32(writer, 9)
+	case *GoWrapErrorServerRunError:
+		writeInt32(writer, 10)
 	default:
 		_ = variantValue
 		panic(fmt.Sprintf("invalid error value `%v` in FfiConverterTypeGoWrapError.Write", value))
+	}
+}
+
+type FfiConverterOptionalString struct{}
+
+var FfiConverterOptionalStringINSTANCE = FfiConverterOptionalString{}
+
+func (c FfiConverterOptionalString) Lift(rb RustBufferI) *string {
+	return LiftFromRustBuffer[*string](c, rb)
+}
+
+func (_ FfiConverterOptionalString) Read(reader io.Reader) *string {
+	if readInt8(reader) == 0 {
+		return nil
+	}
+	temp := FfiConverterStringINSTANCE.Read(reader)
+	return &temp
+}
+
+func (c FfiConverterOptionalString) Lower(value *string) RustBuffer {
+	return LowerIntoRustBuffer[*string](c, value)
+}
+
+func (_ FfiConverterOptionalString) Write(writer io.Writer, value *string) {
+	if value == nil {
+		writeInt8(writer, 0)
+	} else {
+		writeInt8(writer, 1)
+		FfiConverterStringINSTANCE.Write(writer, *value)
+	}
+}
+
+type FfiDestroyerOptionalString struct{}
+
+func (_ FfiDestroyerOptionalString) Destroy(value *string) {
+	if value != nil {
+		FfiDestroyerString{}.Destroy(*value)
 	}
 }
 
@@ -756,9 +963,61 @@ func ListenForIncoming() (IncomingMessage, error) {
 	}
 }
 
+func NewProxyClient(serverAddress string, listenAddress string, listenPort string, closeTimeout uint64, env *string) error {
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_nym_go_ffi_fn_func_new_proxy_client(FfiConverterStringINSTANCE.Lower(serverAddress), FfiConverterStringINSTANCE.Lower(listenAddress), FfiConverterStringINSTANCE.Lower(listenPort), FfiConverterUint64INSTANCE.Lower(closeTimeout), FfiConverterOptionalStringINSTANCE.Lower(env), _uniffiStatus)
+		return false
+	})
+	return _uniffiErr
+}
+
+func NewProxyClientDefault(serverAddress string, env *string) error {
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_nym_go_ffi_fn_func_new_proxy_client_default(FfiConverterStringINSTANCE.Lower(serverAddress), FfiConverterOptionalStringINSTANCE.Lower(env), _uniffiStatus)
+		return false
+	})
+	return _uniffiErr
+}
+
+func NewProxyServer(upstreamAddress string, configDir string, env *string) error {
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_nym_go_ffi_fn_func_new_proxy_server(FfiConverterStringINSTANCE.Lower(upstreamAddress), FfiConverterStringINSTANCE.Lower(configDir), FfiConverterOptionalStringINSTANCE.Lower(env), _uniffiStatus)
+		return false
+	})
+	return _uniffiErr
+}
+
+func ProxyServerAddress() (string, error) {
+	_uniffiRV, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) RustBufferI {
+		return C.uniffi_nym_go_ffi_fn_func_proxy_server_address(_uniffiStatus)
+	})
+	if _uniffiErr != nil {
+		var _uniffiDefaultValue string
+		return _uniffiDefaultValue, _uniffiErr
+	} else {
+		return FfiConverterStringINSTANCE.Lift(_uniffiRV), _uniffiErr
+	}
+}
+
 func Reply(recipient []byte, message string) error {
 	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
 		C.uniffi_nym_go_ffi_fn_func_reply(FfiConverterBytesINSTANCE.Lower(recipient), FfiConverterStringINSTANCE.Lower(message), _uniffiStatus)
+		return false
+	})
+	return _uniffiErr
+}
+
+func RunProxyClient() error {
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_nym_go_ffi_fn_func_run_proxy_client(_uniffiStatus)
+		return false
+	})
+	return _uniffiErr
+}
+
+func RunProxyServer() error {
+	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
+		C.uniffi_nym_go_ffi_fn_func_run_proxy_server(_uniffiStatus)
 		return false
 	})
 	return _uniffiErr

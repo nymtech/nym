@@ -84,9 +84,43 @@ RustBuffer uniffi_nym_go_ffi_fn_func_listen_for_incoming(
 	RustCallStatus* out_status
 );
 
+void uniffi_nym_go_ffi_fn_func_new_proxy_client(
+	RustBuffer server_address,
+	RustBuffer listen_address,
+	RustBuffer listen_port,
+	uint64_t close_timeout,
+	RustBuffer env,
+	RustCallStatus* out_status
+);
+
+void uniffi_nym_go_ffi_fn_func_new_proxy_client_default(
+	RustBuffer server_address,
+	RustBuffer env,
+	RustCallStatus* out_status
+);
+
+void uniffi_nym_go_ffi_fn_func_new_proxy_server(
+	RustBuffer upstream_address,
+	RustBuffer config_dir,
+	RustBuffer env,
+	RustCallStatus* out_status
+);
+
+RustBuffer uniffi_nym_go_ffi_fn_func_proxy_server_address(
+	RustCallStatus* out_status
+);
+
 void uniffi_nym_go_ffi_fn_func_reply(
 	RustBuffer recipient,
 	RustBuffer message,
+	RustCallStatus* out_status
+);
+
+void uniffi_nym_go_ffi_fn_func_run_proxy_client(
+	RustCallStatus* out_status
+);
+
+void uniffi_nym_go_ffi_fn_func_run_proxy_server(
 	RustCallStatus* out_status
 );
 
@@ -411,7 +445,31 @@ uint16_t uniffi_nym_go_ffi_checksum_func_listen_for_incoming(
 	RustCallStatus* out_status
 );
 
+uint16_t uniffi_nym_go_ffi_checksum_func_new_proxy_client(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_nym_go_ffi_checksum_func_new_proxy_client_default(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_nym_go_ffi_checksum_func_new_proxy_server(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_nym_go_ffi_checksum_func_proxy_server_address(
+	RustCallStatus* out_status
+);
+
 uint16_t uniffi_nym_go_ffi_checksum_func_reply(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_nym_go_ffi_checksum_func_run_proxy_client(
+	RustCallStatus* out_status
+);
+
+uint16_t uniffi_nym_go_ffi_checksum_func_run_proxy_server(
 	RustCallStatus* out_status
 );
 

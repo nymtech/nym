@@ -1,7 +1,8 @@
 [package]
-name = "nym-go-ffi" #"goffitest"
+name = "nym-go-ffi"      #"goffitest"
 version = "0.2.0"
 edition = "2021"
+license.workspace = true
 
 [lib]
 crate-type = ["cdylib"]

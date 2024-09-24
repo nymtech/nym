@@ -2,6 +2,7 @@
 name = "nym-cpp-ffi"
 version = "0.1.2"
 edition = "2021"
+license.workspace = true
 
 [lib]
 name = "nym_cpp_ffi"

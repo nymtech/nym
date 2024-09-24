@@ -9,7 +9,10 @@ use crate::nym_nodes::{BasicEntryInformation, NodeRole, SkimmedNode};
 use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
 use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
-use nym_crypto::asymmetric::x25519::{self, serde_helpers::bs58_x25519_pubkey};
+use nym_crypto::asymmetric::x25519::{
+    self,
+    serde_helpers::{bs58_x25519_pubkey, option_bs58_x25519_pubkey},
+};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
@@ -586,6 +589,11 @@ pub struct HostKeys {
     #[serde(with = "bs58_x25519_pubkey")]
     #[schemars(with = "String")]
     pub x25519: x25519::PublicKey,
+
+    #[serde(default)]
+    #[serde(with = "option_bs58_x25519_pubkey")]
+    #[schemars(with = "Option<String>")]
+    pub x25519_noise: Option<x25519::PublicKey>,
 }
 
 impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
@@ -593,6 +601,7 @@ impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
         HostKeys {
             ed25519: value.ed25519_identity,
             x25519: value.x25519_sphinx,
+            x25519_noise: value.x25519_noise,
         }
     }
 }

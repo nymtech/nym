@@ -6,6 +6,7 @@ import { TBondedGateway } from 'src/requests/gatewayDetails';
 import { BondingContext } from '../bonding';
 import { mockSleep } from './utils';
 import { TBondGatewaySignatureArgs, TBondMixnodeSignatureArgs } from '../../types';
+import { migrateLegacyMixnode } from 'src/requests';
 
 const SLEEP_MS = 1000;
 
@@ -212,6 +213,7 @@ export const MockBondingContextProvider = ({
       generateGatewayMsgPayload,
       isVestingAccount: false,
       migrateVestedMixnode: async () => undefined,
+      migrateLegacyMixnode: async () => undefined,
     }),
     [isLoading, error, bondedMixnode, bondedGateway, trigger, fee],
   );

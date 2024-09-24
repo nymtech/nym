@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/naming-convention */
-import { FeeDetails, DecCoin, MixnodeStatus, TransactionExecuteResult, SelectionChance } from '@nymproject/types';
+import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import {
   isGateway,
@@ -24,6 +24,7 @@ import {
   claimOperatorReward,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
+  unbondNymNode as unbondNymNodeRequest,
   vestingBondGateway,
   vestingBondMixNode,
   vestingUnbondGateway,
@@ -38,6 +39,7 @@ import {
   updateBond as updateBondReq,
   vestingUpdateBond as vestingUpdateBondReq,
   migrateVestedMixnode as tauriMigrateVestedMixnode,
+  migrateLegacyMixnode as migrateLegacyMixnodeReq,
 } from '../requests';
 
 export type TBondedNode = TBondedMixnode | TBondedGateway | TBondedNymNode;
@@ -59,6 +61,7 @@ export type TBondingContext = {
   generateMixnodeMsgPayload: (data: TBondMixnodeSignatureArgs) => Promise<string | undefined>;
   generateGatewayMsgPayload: (data: TBondGatewaySignatureArgs) => Promise<string | undefined>;
   migrateVestedMixnode: () => Promise<TransactionExecuteResult | undefined>;
+  migrateLegacyMixnode: () => Promise<TransactionExecuteResult | undefined>;
 };
 
 export const BondingContext = createContext<TBondingContext>({
@@ -89,6 +92,9 @@ export const BondingContext = createContext<TBondingContext>({
     throw new Error('Not implemented');
   },
   migrateVestedMixnode: async () => {
+    throw new Error('Not implemented');
+  },
+  migrateLegacyMixnode: async () => {
     throw new Error('Not implemented');
   },
   isVestingAccount: false,
@@ -171,6 +177,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     let tx;
     setIsLoading(true);
     try {
+      if (bondedNode && isNymNode(bondedNode)) tx = await unbondNymNodeRequest(fee?.fee);
       if (bondedNode && isMixnode(bondedNode) && bondedNode.proxy) tx = await vestingUnbondMixnode(fee?.fee);
       if (bondedNode && isMixnode(bondedNode) && !bondedNode.proxy) tx = await unbondMixnodeRequest(fee?.fee);
       if (bondedNode && isGateway(bondedNode) && bondedNode.proxy) tx = await vestingUnbondGateway(fee?.fee);
@@ -288,6 +295,13 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return tx;
   };
 
+  const migrateLegacyMixnode = async () => {
+    setIsLoading(true);
+    const tx = await migrateLegacyMixnodeReq();
+    setIsLoading(false);
+    return tx;
+  };
+
   const memoizedValue = useMemo(
     () => ({
       isLoading: isLoading || isBondedNodeLoading,
@@ -303,6 +317,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       generateMixnodeMsgPayload,
       generateGatewayMsgPayload,
       migrateVestedMixnode,
+      migrateLegacyMixnode,
       isVestingAccount,
     }),
     [isLoading, error, bondedNode, isVestingAccount, isBondedNodeLoading],

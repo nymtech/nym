@@ -5,7 +5,12 @@ import { clean } from 'semver';
 import { Box, Button, Divider, Grid, Stack, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { isMixnode } from 'src/types';
-import { simulateUpdateMixnodeConfig, simulateVestingUpdateMixnodeConfig, updateMixnodeConfig } from 'src/requests';
+import {
+  simulateUpdateMixnodeConfig,
+  simulateVestingUpdateMixnodeConfig,
+  updateMixnodeConfig,
+  updateNymNodeConfig,
+} from 'src/requests';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { bondedInfoParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
@@ -44,7 +49,7 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
     resetFeeState();
     const { host, version, mixPort, verlocPort, httpApiPort } = data;
     if (host && version && mixPort && verlocPort && httpApiPort) {
-      const MixNodeConfigParams = {
+      const NymNodeConfigParams = {
         host,
         mix_port: mixPort,
         verloc_port: verlocPort,
@@ -52,7 +57,7 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
         version: clean(version) as string,
       };
       try {
-        await updateMixnodeConfig(MixNodeConfigParams);
+        await updateNymNodeConfig(NymNodeConfigParams);
         setOpenConfirmationModal(true);
       } catch (error) {
         Console.error(error);

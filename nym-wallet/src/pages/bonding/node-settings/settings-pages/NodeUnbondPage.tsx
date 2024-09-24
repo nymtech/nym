@@ -15,6 +15,9 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
   const [confirmField, setConfirmField] = useState('');
   const [isConfirmed, setIsConfirmed] = useState(false);
   // TODO: Check what happens with a gateway
+
+  const shouldDisplayWarning = isMixnode(bondedNode) || isNymNode(bondedNode);
+
   return (
     <Box sx={{ p: 3, minHeight: '450px' }}>
       <Grid container justifyContent="space-between">
@@ -24,7 +27,7 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
               Unbond
             </Typography>
 
-            {isMixnode(bondedNode) && (
+            {shouldDisplayWarning && (
               <Grid item>
                 <Typography variant="body2" sx={{ color: (theme) => theme.palette.nym.text.muted }}>
                   Remember you should only unbond if you want to remove your node from the network for good.
@@ -35,7 +38,7 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
         </Grid>
         <Grid item xs={12} lg={6}>
           <Stack gap={3}>
-            {isMixnode(bondedNode) && (
+            {shouldDisplayWarning && (
               <Error message="Unbonding is irreversible. You will lose all your delegations. It won’t be possible to restore the current state of your node again." />
             )}
 

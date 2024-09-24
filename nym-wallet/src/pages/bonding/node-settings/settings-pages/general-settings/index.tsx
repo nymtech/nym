@@ -29,6 +29,7 @@ export const NodeGeneralSettings = ({ bondedNode }: { bondedNode: TBondedNode })
       }
       case 1: {
         if (isMixnode(bondedNode)) return <ParametersSettings bondedNode={bondedNode} />;
+        if (isNymNode(bondedNode)) return null;
         break;
       }
       default:

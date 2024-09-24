@@ -46,3 +46,7 @@ export const getNymNodeBondDetails = async () => invokeWrapper<NymNodeDetails | 
 export const getMixnodeBondDetails = async () => invokeWrapper<MixNodeDetails | null>('mixnode_bond_details');
 
 export const getGatewayBondDetails = async () => invokeWrapper<GatewayBond | null>('gateway_bond_details');
+
+export const migrateLegacyMixnode = async () => invokeWrapper<TransactionExecuteResult>('migrate_legacy_mixnode');
+
+export const migrateLegacyGateway = async () => invokeWrapper<TransactionExecuteResult>('migrate_legacy_gateway');

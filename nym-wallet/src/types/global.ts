@@ -102,7 +102,14 @@ export type TGatewayReport = {
   most_recent: number;
 };
 
-export const isMixnode = (node: TBondedNode): node is TBondedMixnode => (node as TBondedMixnode) !== undefined;
+export type TNodeRole = 'entry' | 'exit' | 'layer1' | 'layer2' | 'layer3' | 'standby';
+
+export type MixnodeSaturationResponse = {
+  saturation: string;
+  uncapped_saturation: string;
+};
+
+export const isMixnode = (node: TBondedNode): node is TBondedMixnode => (node as TBondedMixnode).mixId !== undefined;
 
 export const isGateway = (node: TBondedNode): node is TBondedGateway => (node as TBondedGateway).location !== undefined;
 

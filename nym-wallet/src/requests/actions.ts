@@ -19,6 +19,9 @@ export const generateGatewayMsgPayload = async (args: Omit<TBondGatewaySignature
 export const updateMixnodeConfig = async (update: MixNodeConfigUpdate, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('update_mixnode_config', { update, fee });
 
+export const updateNymNodeConfig = async (update: MixNodeConfigUpdate, fee?: Fee) =>
+  invokeWrapper<TransactionExecuteResult>('update_nymnode_config', { update, fee });
+
 export const updateGatewayConfig = async (update: GatewayConfigUpdate, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('update_gateway_config', { update, fee });
 

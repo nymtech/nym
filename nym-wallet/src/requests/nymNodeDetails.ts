@@ -1,7 +1,14 @@
 import { calculateStake, Console, decCoinToDisplay, fireRequests, TauriReq, toPercentIntegerString } from 'src/utils';
 import { getNymNodeBondDetails } from './bond';
-import { getNymNodeDescription, getNymNodePerformance, getPendingOperatorRewards } from './queries';
-import { DecCoin } from '@nymproject/types';
+import {
+  getNymNodeDescription,
+  getNymNodeRole,
+  getNymNodeStakeSaturation,
+  getNymNodeUptime,
+  getPendingOperatorRewards,
+} from './queries';
+import { DecCoin, decimalToFloatApproximation, decimalToPercentage } from '@nymproject/types';
+import { TNodeRole } from 'src/types';
 
 async function getNymNodeDetails(clientAddress: string) {
   try {
@@ -17,12 +24,15 @@ async function getNymNodeDetails(clientAddress: string) {
       bond_information: { node_id },
     } = data;
 
-    const { name, operatorRewards, uptime } = await getAdditionalNymNodeDetails(
-      node_id,
-      bond_information.host,
-      bond_information.custom_http_port,
-      clientAddress,
-    );
+    console.log('bond_information', data);
+
+    const { name, operatorRewards, uptime, stakeSaturation, uncappedSaturation, role } =
+      await getAdditionalNymNodeDetails(
+        node_id,
+        bond_information.host,
+        bond_information.custom_http_port,
+        clientAddress,
+      );
 
     return {
       name,
@@ -41,6 +51,9 @@ async function getNymNodeDetails(clientAddress: string) {
       isUnbonding: bond_information.is_unbonding,
       operatorRewards,
       uptime,
+      stakeSaturation,
+      uncappedStakeSaturation: uncappedSaturation,
+      role,
     };
   } catch (e: any) {
     Console.warn(e);
@@ -48,14 +61,18 @@ async function getNymNodeDetails(clientAddress: string) {
   }
 }
 
-async function getAdditionalNymNodeDetails(_: number, host: string, port: number | null, clientAddress: string) {
+async function getAdditionalNymNodeDetails(nodeId: number, host: string, port: number | null, clientAddress: string) {
   const details: {
     name: string;
     uptime: number;
     operatorRewards?: DecCoin;
+    stakeSaturation: string;
+    uncappedSaturation?: number;
+    role?: TNodeRole;
   } = {
     name: 'Name has not been set',
     uptime: 0,
+    stakeSaturation: '0',
   };
 
   if (port) {
@@ -63,11 +80,23 @@ async function getAdditionalNymNodeDetails(_: number, host: string, port: number
     details.name = nodeDescription.name;
   }
 
-  const uptimeReq: TauriReq<typeof getNymNodePerformance> = {
+  const uptimeReq: TauriReq<typeof getNymNodeUptime> = {
     name: 'getMixnodeAvgUptime',
-    request: () => getNymNodePerformance(),
+    request: () => getNymNodeUptime(nodeId),
     onFulfilled: (value) => {
       details.uptime = value;
+    },
+  };
+
+  const stakeSaturationReq: TauriReq<typeof getNymNodeStakeSaturation> = {
+    name: 'getMixnodeStakeSaturation',
+    request: () => getNymNodeStakeSaturation(nodeId),
+    onFulfilled: (value) => {
+      details.stakeSaturation = decimalToPercentage(value.current_saturation);
+      const rawUncappedSaturation = decimalToFloatApproximation(value.uncapped_saturation);
+      if (rawUncappedSaturation && rawUncappedSaturation > 1) {
+        details.uncappedSaturation = Math.round(rawUncappedSaturation * 100);
+      }
     },
   };
 
@@ -79,7 +108,15 @@ async function getAdditionalNymNodeDetails(_: number, host: string, port: number
     },
   };
 
-  await fireRequests([operatorRewardsReq, uptimeReq]);
+  const getNymNodeRoleReq: TauriReq<typeof getNymNodeRole> = {
+    name: 'getNymNodeRole',
+    request: () => getNymNodeRole(nodeId),
+    onFulfilled: (value) => {
+      details.role = value;
+    },
+  };
+
+  await fireRequests([operatorRewardsReq, uptimeReq, stakeSaturationReq, getNymNodeRoleReq]);
 
   return details;
 }

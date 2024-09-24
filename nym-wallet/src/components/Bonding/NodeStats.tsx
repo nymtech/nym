@@ -3,9 +3,10 @@ import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressP
 import { useNavigate } from 'react-router-dom';
 import { Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
 import { SelectionChance } from '@nymproject/types';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { NymCard } from '../NymCard';
 import { InfoTooltip } from '../InfoToolTip';
-import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 
 const LinearProgressWithLabel = (props: LinearProgressProps & { value: number }) => {
   const { value } = props;
@@ -47,8 +48,8 @@ const StatRow = ({
   </Stack>
 );
 
-export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
-  const { activeSetProbability, routingScore } = mixnode;
+export const NodeStats = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedNymNode }) => {
+  const { activeSetProbability, routingScore } = bondedNode;
   const theme = useTheme();
   const navigate = useNavigate();
 

@@ -6,13 +6,24 @@ import {
   NymNodeDetails,
   MixNodeDetails,
 } from '@nymproject/types';
-import { TBondMixNodeArgs, TBondMixnodeSignatureArgs, EnumNodeType, TUpdateBondArgs } from 'src/types';
+import {
+  TBondMixNodeArgs,
+  TBondMixnodeSignatureArgs,
+  EnumNodeType,
+  TUpdateBondArgs,
+  TBondNymNodeArgs,
+} from 'src/types';
 import { invokeWrapper } from './wrapper';
 
 export const unbondGateway = async (fee?: Fee) => invokeWrapper<TransactionExecuteResult>('unbond_gateway', { fee });
 
 export const bondMixNode = async (args: TBondMixNodeArgs) =>
   invokeWrapper<TransactionExecuteResult>('bond_mixnode', args);
+
+export const bondNymNode = async (args: TBondNymNodeArgs) =>
+  invokeWrapper<TransactionExecuteResult>('bond_nymnode', args);
+
+export const unbondNymNode = async (fee?: Fee) => invokeWrapper<TransactionExecuteResult>('unbond_nymnode', { fee });
 
 export const generateMixnodeMsgPayload = async (args: Omit<TBondMixnodeSignatureArgs, 'tokenPool'>) =>
   invokeWrapper<string>('generate_mixnode_bonding_msg_payload', args);

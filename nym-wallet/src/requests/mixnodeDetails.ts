@@ -1,4 +1,3 @@
-import Big from 'big.js';
 import {
   DecCoin,
   decimalToFloatApproximation,
@@ -16,7 +15,7 @@ import {
   getMixnodeRewardEstimation,
   getInclusionProbability,
   getMixnodeAvgUptime,
-  getNodeDescription as getNodeDescriptionRequest,
+  getMixNodeDescription as getNodeDescriptionRequest,
   getPendingOperatorRewards,
 } from './queries';
 import { getMixnodeBondDetails } from './bond';

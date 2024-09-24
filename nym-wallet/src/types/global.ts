@@ -1,4 +1,4 @@
-import { DecCoin, Gateway, MixNode, MixNodeCostParams, PledgeData } from '@nymproject/types';
+import { DecCoin, Gateway, MixNode, MixNodeCostParams, NymNode, PledgeData } from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { TBondedNode } from 'src/context';
 import { TBondedGateway } from 'src/requests/gatewayDetails';
@@ -28,6 +28,14 @@ export type TDelegation = {
   block_height: number;
   proxy: string; // proxy address used to delegate the funds on behalf of another address
   pending?: TPendingDelegation;
+};
+
+export type TBondNymNodeArgs = {
+  nymnode: NymNode;
+  costParams: MixNodeCostParams;
+  pledge: DecCoin;
+  msgSignature: string;
+  fee?: Fee;
 };
 
 export type TBondGatewayArgs = {

@@ -12,8 +12,8 @@ import { simulateUpdateBond, simulateVestingUpdateBond } from 'src/requests';
 import { TSimulateUpdateBondArgs, TUpdateBondArgs } from 'src/types';
 import { AppContext } from 'src/context';
 import { BalanceWarning } from 'src/components/FeeWarning';
-import { TPoolOption } from '../../TokenPoolSelector';
 import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { TPoolOption } from '../../TokenPoolSelector';
 
 export const UpdateBondAmountModal = ({
   node,

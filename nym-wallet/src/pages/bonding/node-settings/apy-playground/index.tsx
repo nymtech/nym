@@ -7,8 +7,8 @@ import { CalculateArgs, Inputs } from 'src/components/RewardsPlayground/Inputs';
 import { useSnackbar } from 'notistack';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { Console } from 'src/utils/console';
-import { computeEstimate, computeStakeSaturation, handleCalculatePeriodRewards } from './utils';
 import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { computeEstimate, computeStakeSaturation, handleCalculatePeriodRewards } from './utils';
 
 export type DefaultInputValues = {
   profitMargin: string;

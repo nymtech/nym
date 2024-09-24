@@ -69,18 +69,6 @@ impl CachedRewardedSet {
         }
     }
 
-    pub fn active_set_size(&self) -> usize {
-        self.entry_gateways.len()
-            + self.exit_gateways.len()
-            + self.layer1.len()
-            + self.layer2.len()
-            + self.layer3.len()
-    }
-
-    pub fn rewarded_set_size(&self) -> usize {
-        self.active_set_size() + self.standby.len()
-    }
-
     pub fn try_get_mix_layer(&self, node_id: &NodeId) -> Option<u8> {
         if self.layer1.contains(node_id) {
             Some(1)
@@ -97,20 +85,13 @@ impl CachedRewardedSet {
         self.standby.contains(node_id)
     }
 
-    pub fn is_entry(&self, node_id: &NodeId) -> bool {
-        self.entry_gateways.contains(node_id)
-    }
-
-    pub fn is_exit(&self, node_id: &NodeId) -> bool {
-        self.exit_gateways.contains(node_id)
-    }
-
     pub fn is_active_mixnode(&self, node_id: &NodeId) -> bool {
         self.layer1.contains(node_id)
             || self.layer2.contains(node_id)
             || self.layer3.contains(node_id)
     }
 
+    #[allow(dead_code)]
     pub(crate) fn gateways(&self) -> HashSet<NodeId> {
         let mut gateways =
             HashSet::with_capacity(self.entry_gateways.len() + self.exit_gateways.len());

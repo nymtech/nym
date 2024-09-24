@@ -58,7 +58,35 @@ async fn nodes_noise(
 ) -> AxumResult<Json<PaginatedResponse<NoiseDetails>>> {
     // TODO: implement it
     let _ = pagination;
-    todo!()
+
+    let describe_cache = state.describe_nodes_cache_data().await?;
+
+    let nodes = describe_cache
+        .all_nodes()
+        .filter_map(|n| {
+            n.description
+                .host_information
+                .keys
+                .x25519_noise
+                .map(|noise_key| (noise_key, n))
+        })
+        .map(|(noise_key, node)| NoiseDetails {
+            x25119_pubkey: noise_key,
+            mixnet_port: node.description.mix_port(),
+            ip_addresses: node.description.host_information.ip_address.clone(),
+        })
+        .collect::<Vec<_>>();
+
+    let total = nodes.len();
+
+    Ok(Json(PaginatedResponse {
+        pagination: Pagination {
+            total,
+            page: 0,
+            size: total,
+        },
+        data: nodes,
+    }))
 }
 
 #[utoipa::path(

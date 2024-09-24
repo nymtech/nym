@@ -1,11 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::models::{
-    DeclaredRoles, GatewayBondAnnotated, MixNodeBondAnnotated, NymNodeData,
-    OffsetDateTimeJsonSchemaWrapper,
-};
-use crate::pagination::PaginatedResponse;
+use crate::models::{DeclaredRoles, NymNodeData, OffsetDateTimeJsonSchemaWrapper};
+use crate::pagination::{PaginatedResponse, Pagination};
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
@@ -41,6 +38,25 @@ impl<T> CachedNodesResponse<T> {
 pub struct PaginatedCachedNodesResponse<T> {
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: PaginatedResponse<T>,
+}
+
+impl<T> PaginatedCachedNodesResponse<T> {
+    pub fn new_full(
+        refreshed_at: impl Into<OffsetDateTimeJsonSchemaWrapper>,
+        nodes: Vec<T>,
+    ) -> Self {
+        PaginatedCachedNodesResponse {
+            refreshed_at: refreshed_at.into(),
+            nodes: PaginatedResponse {
+                pagination: Pagination {
+                    total: nodes.len(),
+                    page: 0,
+                    size: nodes.len(),
+                },
+                data: nodes,
+            },
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, schemars::JsonSchema, utoipa::ToSchema)]
@@ -125,85 +141,7 @@ impl SkimmedNode {
             _ => None,
         }
     }
-
-    // pub fn from_described_gateway(
-    //     annotated: &GatewayBondAnnotated,
-    //     description: Option<&NymNodeData>,
-    // ) -> Self {
-    //     let mut base: SkimmedNode = annotated.into();
-    //     let Some(description) = description else {
-    //         return base;
-    //     };
-    //
-    //     // safety: the conversion always sets the entry field
-    //     let entry = base.entry.as_mut().unwrap();
-    //     entry
-    //         .hostname
-    //         .clone_from(&description.host_information.hostname);
-    //     entry.ws_port = description.mixnet_websockets.ws_port;
-    //     entry.wss_port = description.mixnet_websockets.wss_port;
-    //
-    //     // always prefer self-described data
-    //     if !description.host_information.ip_address.is_empty() {
-    //         base.ip_addresses
-    //             .clone_from(&description.host_information.ip_address)
-    //     }
-    //
-    //     base.supported_roles = description.declared_role;
-    //
-    //     base
-    // }
 }
-
-// impl<'a> From<&'a MixNodeBondAnnotated> for SkimmedNode {
-//     fn from(value: &'a MixNodeBondAnnotated) -> Self {
-//         todo!()
-//         // SkimmedNode {
-//         //     node_id: value.mix_id(),
-//         //     ed25519_identity_pubkey: value.identity_key().to_string(),
-//         //     ip_addresses: value.ip_addresses.clone(),
-//         //     mix_port: value.mix_node().mix_port,
-//         //     x25519_sphinx_pubkey: value.mix_node().sphinx_key.clone(),
-//         //     epoch_role: NodeRole::Mixnode {
-//         //         layer: value.mixnode_details.bond_information.layer.into(),
-//         //     },
-//         //     supported_roles: DeclaredRoles {
-//         //         mixnode: true,
-//         //         entry: false,
-//         //         exit_nr: false,
-//         //         exit_ipr: false,
-//         //     },
-//         //     entry: None,
-//         //     performance: value.node_performance.last_24h,
-//         // }
-//     }
-// }
-
-// impl<'a> From<&'a GatewayBondAnnotated> for SkimmedNode {
-//     fn from(value: &'a GatewayBondAnnotated) -> Self {
-//         todo!()
-//         // SkimmedNode {
-//         //     node_id: value.gateway_bond.node_id,
-//         //     ip_addresses: value.ip_addresses.clone(),
-//         //     ed25519_identity_pubkey: value.gateway_bond.bond.identity().clone(),
-//         //     mix_port: value.gateway_bond.bond.gateway.mix_port,
-//         //     x25519_sphinx_pubkey: value.gateway_bond.bond.gateway.sphinx_key.clone(),
-//         //     epoch_role: NodeRole::EntryGateway,
-//         //     supported_roles: DeclaredRoles {
-//         //         mixnode: false,
-//         //         entry: true,
-//         //         exit_nr: false,
-//         //         exit_ipr: false,
-//         //     },
-//         //     entry: Some(BasicEntryInformation {
-//         //         hostname: None,
-//         //         ws_port: value.gateway_bond.bond.gateway.clients_port,
-//         //         wss_port: None,
-//         //     }),
-//         //     performance: value.node_performance.last_24h,
-//         // }
-//     }
-// }
 
 // an intermediate variant that exposes additional data such as noise keys but without
 // the full fat of the self-described data

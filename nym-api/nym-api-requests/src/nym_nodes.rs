@@ -6,6 +6,7 @@ use crate::pagination::{PaginatedResponse, Pagination};
 use nym_crypto::asymmetric::ed25519::serde_helpers::bs58_ed25519_pubkey;
 use nym_crypto::asymmetric::x25519::serde_helpers::bs58_x25519_pubkey;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
@@ -88,6 +89,26 @@ pub enum NodeRole {
     Standby,
 
     Inactive,
+}
+
+impl NodeRole {
+    pub fn is_inactive(&self) -> bool {
+        matches!(self, NodeRole::Inactive)
+    }
+}
+
+impl From<Option<Role>> for NodeRole {
+    fn from(role: Option<Role>) -> Self {
+        match role {
+            Some(Role::EntryGateway) => NodeRole::EntryGateway,
+            Some(Role::Layer1) => NodeRole::Mixnode { layer: 1 },
+            Some(Role::Layer2) => NodeRole::Mixnode { layer: 2 },
+            Some(Role::Layer3) => NodeRole::Mixnode { layer: 3 },
+            Some(Role::ExitGateway) => NodeRole::ExitGateway,
+            Some(Role::Standby) => NodeRole::Standby,
+            None => NodeRole::Inactive,
+        }
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]

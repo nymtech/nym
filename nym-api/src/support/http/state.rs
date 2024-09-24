@@ -111,9 +111,9 @@ impl AppState {
 
 // handler helpers to easily get data or return error response
 impl AppState {
-    pub(crate) async fn describe_nodes_cache_data(
-        &self,
-    ) -> Result<RwLockReadGuard<Cache<DescribedNodes>>, AxumErrorResponse> {
+    pub(crate) async fn describe_nodes_cache_data<'a>(
+        &'a self,
+    ) -> Result<RwLockReadGuard<'a, Cache<DescribedNodes>>, AxumErrorResponse> {
         Ok(self.described_nodes_cache().get().await?)
     }
 

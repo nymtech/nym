@@ -6,7 +6,6 @@ import { SelectionChance } from '@nymproject/types';
 import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { NymCard } from '../NymCard';
 import { InfoTooltip } from '../InfoToolTip';
-import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 
 const LinearProgressWithLabel = (props: LinearProgressProps & { value: number }) => {
   const { value } = props;
@@ -48,8 +47,8 @@ const StatRow = ({
   </Stack>
 );
 
-export const NodeStats = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedNymNode }) => {
-  const { activeSetProbability, routingScore } = bondedNode;
+export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
+  const { activeSetProbability, routingScore } = mixnode;
   const theme = useTheme();
   const navigate = useNavigate();
 
@@ -105,11 +104,6 @@ export const NodeStats = ({ bondedNode }: { bondedNode: TBondedMixnode | TBonded
             <Typography variant="h5" fontWeight={600}>
               Node stats
             </Typography>
-          }
-          Action={
-            <Button size="small" variant="contained" disableElevation onClick={handleGoToTestNode}>
-              Test node
-            </Button>
           }
         >
           <Stack justifyContent="center" alignItems="center" mb={2}>

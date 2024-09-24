@@ -20,10 +20,19 @@ import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsM
 import { VestingWarningModal } from 'src/components/VestingWarningModal';
 import MigrateLegacyNode from 'src/components/Bonding/modals/MigrateLegacyNode';
 import { BondingContextProvider, useBondingContext } from '../../context';
+import { BondedNymNode } from 'src/components/Bonding/BondedNymNode';
+import { UpdateBondAmountNymNode } from 'src/components/Bonding/modals/UpdateBondAmountNymNode';
 
 export const Bonding = () => {
   const [showModal, setShowModal] = useState<
-    'bond-mixnode' | 'bond-nymnode' | 'bond-gateway' | 'update-bond' | 'update-bond-oversaturated' | 'unbond' | 'redeem'
+    | 'bond-mixnode'
+    | 'bond-nymnode'
+    | 'bond-gateway'
+    | 'update-bond'
+    | 'update-bond-oversaturated'
+    | 'unbond'
+    | 'redeem'
+    | 'update-bond-nymnode'
   >();
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
   const [uncappedSaturation, setUncappedSaturation] = useState<number | undefined>();
@@ -48,6 +57,7 @@ export const Bonding = () => {
     updateBondAmount,
     refresh,
     migrateVestedMixnode,
+    migrateLegacyMixnode,
   } = useBondingContext();
 
   useEffect(() => {
@@ -59,6 +69,18 @@ export const Bonding = () => {
   const handleMigrateVestedMixnode = async () => {
     setShowMigrationModal(false);
     const tx = await migrateVestedMixnode();
+    if (tx) {
+      setConfirmationDetails({
+        status: 'success',
+        title: 'Migration successful',
+        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+      });
+    }
+  };
+
+  const handleMigrateLegacyNode = async () => {
+    setShowMigrateLegacyNodeModal(false);
+    const tx = await migrateLegacyMixnode();
     if (tx) {
       setConfirmationDetails({
         status: 'success',
@@ -93,6 +115,10 @@ export const Bonding = () => {
       });
     }
     return undefined;
+  };
+
+  const handleBondNymNode = async (data: TBondMixNodeArgs, tokenPool: TPoolOption) => {
+    throw new Error('Not implemented');
   };
 
   const handleBondGateway = async (data: TBondGatewayArgs, tokenPool: TPoolOption) => {
@@ -157,6 +183,27 @@ export const Bonding = () => {
     return undefined;
   };
 
+  const handleBondedNymNodeAction = async (action: TBondedMixnodeActions) => {
+    switch (action) {
+      case 'unbond': {
+        navigate('/bonding/node-settings', { state: 'unbond' });
+        break;
+      }
+      case 'updateBond': {
+        setShowModal('update-bond-nymnode');
+        break;
+      }
+      case 'redeem': {
+        setShowModal('redeem');
+        break;
+      }
+      default: {
+        return undefined;
+      }
+    }
+    return undefined;
+  };
+
   if (error) {
     return <ErrorModal open message="An error occured, please check logs for details" onClose={() => refresh()} />;
   }
@@ -190,15 +237,23 @@ export const Bonding = () => {
         }}
       />
 
-      {bondedNode && !isNymNode(bondedNode) && (
+      {bondedNode && isMixnode(bondedNode) && (
         <MigrateLegacyNode
           open={showMigrateLegacyNodeModal}
           onClose={() => setShowMigrateLegacyNodeModal(false)}
-          handleMigrate={() => Promise.resolve()}
+          handleMigrate={handleMigrateLegacyNode}
         />
       )}
 
       {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-nymnode')} />}
+
+      {bondedNode && isNymNode(bondedNode) && (
+        <BondedNymNode
+          nymnode={bondedNode}
+          network={network}
+          onActionSelect={(action) => handleBondedNymNodeAction(action)}
+        />
+      )}
 
       {bondedNode && isMixnode(bondedNode) && (
         <BondedMixnode
@@ -253,6 +308,15 @@ export const Bonding = () => {
 
       {showModal === 'update-bond' && bondedNode && isMixnode(bondedNode) && (
         <UpdateBondAmountModal
+          node={bondedNode}
+          onUpdateBond={handleUpdateBond}
+          onClose={() => setShowModal(undefined)}
+          onError={handleError}
+        />
+      )}
+
+      {showModal === 'update-bond-nymnode' && bondedNode && isNymNode(bondedNode) && (
+        <UpdateBondAmountNymNode
           node={bondedNode}
           onUpdateBond={handleUpdateBond}
           onClose={() => setShowModal(undefined)}

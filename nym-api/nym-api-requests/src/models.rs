@@ -810,7 +810,7 @@ impl NymNodeDescription {
         }
     }
 
-    pub fn to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
+    pub fn try_to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
         let keys = &self.description.host_information.keys;
         let entry = if self.description.declared_role.entry {
             Some(self.entry_information())

@@ -7,7 +7,7 @@ use tracing::instrument;
 use utoipa::IntoParams;
 
 use crate::http::{
-    error::{Error, HttpResult},
+    error::{HttpError, HttpResult},
     models::{DailyStats, Mixnode},
     state::AppState,
     PagedResult, Pagination,
@@ -70,10 +70,10 @@ async fn get_mixnodes(
 
             match res.iter().find(|item| item.mix_id == parsed_mix_id) {
                 Some(res) => Ok(Json(res.clone())),
-                None => Err(Error::invalid_input(mix_id)),
+                None => Err(HttpError::invalid_input(mix_id)),
             }
         }
-        Err(_e) => Err(Error::invalid_input(mix_id)),
+        Err(_e) => Err(HttpError::invalid_input(mix_id)),
     }
 }
 

@@ -53,3 +53,15 @@ pub struct DailyStats {
     pub total_packets_dropped: i64,
     pub total_stake: i64,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct Service {
+    pub gateway_identity_key: String,
+    pub last_updated_utc: String,
+    pub routing_score: f32,
+    pub service_provider_client_id: Option<String>,
+    pub ip_address: Option<String>,
+    pub hostname: Option<String>,
+    pub mixnet_websockets: Option<serde_json::Value>,
+    pub last_successful_ping_utc: Option<String>,
+}

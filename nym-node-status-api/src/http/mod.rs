@@ -1,4 +1,4 @@
-use models::{Gateway, GatewaySkinny, Mixnode};
+use models::{Gateway, GatewaySkinny, Mixnode, Service};
 
 pub(crate) mod api;
 pub(crate) mod api_docs;
@@ -19,6 +19,7 @@ pub(crate) mod state;
     PagedGateway = PagedResult<Gateway>,
     PagedGatewaySkinny = PagedResult<GatewaySkinny>,
     PagedMixnode = PagedResult<Mixnode>,
+    PagedService = PagedResult<Service>,
 )]
 pub struct PagedResult<T> {
     pub page: usize,

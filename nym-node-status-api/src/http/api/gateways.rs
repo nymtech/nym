@@ -6,7 +6,7 @@ use serde::Deserialize;
 use utoipa::IntoParams;
 
 use crate::http::{
-    error::{Error, HttpResult},
+    error::{HttpError, HttpResult},
     models::{Gateway, GatewaySkinny},
     state::AppState,
     PagedResult, Pagination,
@@ -105,6 +105,6 @@ async fn get_gateway(
         .find(|item| item.gateway_identity_key == identity_key)
     {
         Some(res) => Ok(Json(res.clone())),
-        None => Err(Error::invalid_input(identity_key)),
+        None => Err(HttpError::invalid_input(identity_key)),
     }
 }

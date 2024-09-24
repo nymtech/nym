@@ -96,6 +96,7 @@ impl ConnectedClients {
             })
     }
 
+    #[allow(dead_code)]
     fn lookup_client_from_nym_address(&self, nym_address: &Recipient) -> Option<&ConnectedClient> {
         self.clients_ipv4_mapping
             .iter()
@@ -112,7 +113,6 @@ impl ConnectedClients {
         &mut self,
         ips: IpPair,
         nym_address: Recipient,
-        mix_hops: Option<u8>,
         client_version: SupportedClientVersion,
         forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
         close_tx: tokio::sync::oneshot::Sender<()>,
@@ -123,7 +123,6 @@ impl ConnectedClients {
         let client = ConnectedClient {
             nym_address,
             ipv6: ips.ipv6,
-            mix_hops,
             last_activity: Arc::new(RwLock::new(std::time::Instant::now())),
             client_version,
             _close_tx: Arc::new(CloseTx {
@@ -246,10 +245,6 @@ pub(crate) struct ConnectedClient {
 
     // The assigned IPv6 address of this client
     pub(crate) ipv6: Ipv6Addr,
-
-    // Number of mix node hops that the client has requested to use
-    // WIP(JON): remove me
-    pub(crate) mix_hops: Option<u8>,
 
     // Keep track of last activity so we can disconnect inactive clients
     pub(crate) last_activity: Arc<RwLock<std::time::Instant>>,
@@ -494,10 +489,8 @@ impl MixnetListener {
         let request_id = connect_request.request_id;
         let requested_ips = connect_request.ips;
         let reply_to = connect_request.reply_to;
-        let reply_to_hops = connect_request.reply_to_hops;
         // TODO: add to connect request
         let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
-        // TODO: ignoring reply_to_avg_mix_delays for now
 
         // Check that the IP is available in the set of connected clients
         let is_ip_taken = self.connected_clients.is_ip_connected(&requested_ips);
@@ -529,7 +522,6 @@ impl MixnetListener {
                 let (forward_from_tun_tx, close_tx, handle) =
                     connected_client_handler::ConnectedClientHandler::start(
                         reply_to,
-                        reply_to_hops,
                         buffer_timeout,
                         client_version,
                         self.mixnet_client.split_sender(),
@@ -539,7 +531,6 @@ impl MixnetListener {
                 self.connected_clients.connect(
                     requested_ips,
                     reply_to,
-                    reply_to_hops,
                     client_version,
                     forward_from_tun_tx,
                     close_tx,
@@ -584,10 +575,8 @@ impl MixnetListener {
 
         let request_id = connect_request.request_id;
         let reply_to = connect_request.reply_to;
-        let reply_to_hops = connect_request.reply_to_hops;
         // TODO: add to connect request
         let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
-        // TODO: ignoring reply_to_avg_mix_delays for now
 
         // Check if it's the same client connecting again, then we just reuse the same IP
         // TODO: this is problematic. Until we sign connect requests this means you can spam people
@@ -625,7 +614,6 @@ impl MixnetListener {
         let (forward_from_tun_tx, close_tx, handle) =
             connected_client_handler::ConnectedClientHandler::start(
                 reply_to,
-                reply_to_hops,
                 buffer_timeout,
                 client_version,
                 self.mixnet_client.split_sender(),
@@ -635,7 +623,6 @@ impl MixnetListener {
         self.connected_clients.connect(
             new_ips,
             reply_to,
-            reply_to_hops,
             client_version,
             forward_from_tun_tx,
             close_tx,
@@ -878,17 +865,7 @@ impl MixnetListener {
 
         let response_packet = response.to_bytes()?;
 
-        // We could avoid this lookup if we check this when we create the response.
-        let mix_hops = if let Some(c) = self
-            .connected_clients
-            .lookup_client_from_nym_address(recipient)
-        {
-            c.mix_hops
-        } else {
-            None
-        };
-
-        let input_message = create_input_message(*recipient, response_packet, mix_hops);
+        let input_message = create_input_message(*recipient, response_packet);
         self.mixnet_client
             .send(input_message)
             .await

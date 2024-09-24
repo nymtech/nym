@@ -19,6 +19,17 @@ Initial overhaul
   - [ ] docs
     - [ ] split chain stuff into integrations (interacting with the chain) and then move rest into the architecture subsection?
   - [ ] operators
+    - [ ] tabs / general condensation of page length 
+    - [ ] unify steps convention 
+    - [ ] variable component / page 
+    - [ ] community page with resources (explorers, forum, etc)
+    - [ ] prerequisites 
+      - [ ] own page 
+      - [ ] admonishment at the top of other pages pointing @ prerequisites / RTFM
+  - [ ] pull in all docs updates after 37d9f919227cec148e0355404b4029c0949e4dea from develop !!
+   - [ ] operators docs (various)
+    - [ ] ProxyClient/Server docs: formulate new integrations and docs around this
+
   - [ ] developers
     - [ ] overhaul the FAQs and split out into integrations section
     - [x] rust sdk - move to its own dir
@@ -32,10 +43,6 @@ Initial overhaul
     - [ ] remove numbering from sidebar
   - [ ] check all links work and fix
 
-- [ ] pull in all docs updates after 37d9f919227cec148e0355404b4029c0949e4dea from develop !!
-  - [ ] operators docs (various)
-  - [ ] ProxyClient/Server docs: formulate new integrations and docs around this
-
 - [ ] replace `mdbook-cmdrun`
 - [ ] all images to root images dir with subdirs
 - [ ] change mdbook admonishes to nextra admonish
@@ -43,7 +50,18 @@ Initial overhaul
 - [ ] make common links (e.g. github) variables if we require several
 - [ ] remove dangling index
 
-- [ ] new theme
+- [ ] pull integration decision tree out of ts sdk and into dev portal - make its own subsection
+
+- [ ] redo all diagrams
+ 
+CI / deployment 
+- [ ] try and get rid of as many random scripts from github CI as possible
+- [ ] redirects on server
+- [ ] QU shall we move to our own server?
+- [ ] add redirect page + sitemap for old links
+- [ ] new readme
+
+new theme - this is not a TODO but a wishlist for Hux/frontenders
   - [ ] sidebar: collapsed by default?
   - [ ] landing page
   - [x] level selection (sdks, network, developers, operators) in top right
@@ -55,13 +73,7 @@ Initial overhaul
   - [x] get rid of discord
   - [ ] link to matrix
 
-- [ ] pull integration decision tree out of ts sdk and into dev portal - make its own subsection
-- [ ] try and get rid of as many random scripts from github CI as possible
-- [ ] redirects on server
-- [ ] QU shall we move to our own server?
-- [ ] redo all diagrams
-- [ ] add redirect page + sitemap for old links
-- [ ] new readme
+
 
 New Features
 ------------

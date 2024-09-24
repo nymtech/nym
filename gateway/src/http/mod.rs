@@ -40,9 +40,9 @@ fn load_host_details(
         ip_address: config.host.public_ips.clone(),
         hostname: config.host.hostname.clone(),
         keys: api_requests::v1::node::models::HostKeys {
-            ed25519_identity: identity_keypair.public_key().to_base58_string(),
-            x25519_sphinx: sphinx_key.to_base58_string(),
-            x25519_noise: "".to_string(),
+            ed25519_identity: *identity_keypair.public_key(),
+            x25519_sphinx: *sphinx_key,
+            x25519_noise: None,
         },
     };
 

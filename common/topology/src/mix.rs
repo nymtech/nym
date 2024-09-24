@@ -112,11 +112,11 @@ impl<'a> TryFrom<&'a SkimmedNode> for LegacyNode {
     fn try_from(value: &'a SkimmedNode) -> Result<Self, Self::Error> {
         if value.ip_addresses.is_empty() {
             return Err(MixnodeConversionError::NoIpAddressesProvided {
-                mixnode: value.ed25519_identity_pubkey.clone(),
+                mixnode: value.ed25519_identity_pubkey.to_base58_string(),
             });
         }
 
-        let layer = match value.role {
+        let layer = match value.epoch_role {
             NodeRole::Mixnode { layer } => layer
                 .try_into()
                 .map_err(|_| MixnodeConversionError::InvalidLayer)?,
@@ -133,8 +133,8 @@ impl<'a> TryFrom<&'a SkimmedNode> for LegacyNode {
             mix_id: value.node_id,
             host,
             mix_host: SocketAddr::new(*ip, value.mix_port),
-            identity_key: value.ed25519_identity_pubkey.parse()?,
-            sphinx_key: value.x25519_sphinx_pubkey.parse()?,
+            identity_key: value.ed25519_identity_pubkey,
+            sphinx_key: value.x25519_sphinx_pubkey,
             layer,
             version: NodeVersion::Unknown,
         })

@@ -5,14 +5,14 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct Pagination {
     pub total: usize,
     pub page: u32,
     pub size: usize,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct PaginatedResponse<T> {
     pub pagination: Pagination,
     pub data: Vec<T>,

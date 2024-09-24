@@ -5,8 +5,8 @@ use crate::node_describe_cache::NodeDescribeCacheError;
 use futures::future::{maybe_done, MaybeDone};
 use futures::{FutureExt, TryFutureExt};
 use nym_api_requests::models::{
-    AuthenticatorDetails, HostInformation, IpPacketRouterDetails, NetworkRequesterDetails,
-    NymNodeData, WebSockets, WireguardDetails,
+    AuthenticatorDetails, DeclaredRoles, HostInformation, IpPacketRouterDetails,
+    NetworkRequesterDetails, NymNodeData, WebSockets, WireguardDetails,
 };
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_config::defaults::mainnet;
@@ -46,7 +46,7 @@ pub(crate) async fn query_for_described_data(
     // all of those should be happening concurrently.
     NodeDescribedInfoMegaFuture::new(
         client.get_build_information().map_err(map_query_err),
-        client.get_roles().map_err(map_query_err),
+        client.get_roles().ok_into().map_err(map_query_err),
         client.get_auxiliary_details()
             .inspect_err(|err| {
                 // old nym-nodes will not have this field, so use the default instead
@@ -102,7 +102,7 @@ impl<F1, F2, F3, F4, F5, F6, F7, F8> Future
     for NodeDescribedInfoMegaFuture<F1, F2, F3, F4, F5, F6, F7, F8>
 where
     F1: Future<Output = Result<BinaryBuildInformationOwned, NodeDescribeCacheError>>,
-    F2: Future<Output = Result<NodeRoles, NodeDescribeCacheError>>,
+    F2: Future<Output = Result<DeclaredRoles, NodeDescribeCacheError>>,
     F3: Future<Output = AuxiliaryDetails>,
     F4: Future<Output = Result<WebSockets, NodeDescribeCacheError>>,
     F5: Future<Output = Result<Option<NetworkRequesterDetails>, NodeDescribeCacheError>>,
@@ -185,7 +185,7 @@ where
 
 struct ResolvedNodeDescribedInfo {
     build_info: Result<BinaryBuildInformationOwned, NodeDescribeCacheError>,
-    roles: Result<NodeRoles, NodeDescribeCacheError>,
+    roles: Result<DeclaredRoles, NodeDescribeCacheError>,
     // TODO: in the future make it return a Result as well.
     auxiliary_details: AuxiliaryDetails,
     websockets: Result<WebSockets, NodeDescribeCacheError>,
@@ -212,7 +212,7 @@ impl ResolvedNodeDescribedInfo {
 
 pub(crate) struct UnwrappedResolvedNodeDescribedInfo {
     pub(crate) build_info: BinaryBuildInformationOwned,
-    pub(crate) roles: NodeRoles,
+    pub(crate) roles: DeclaredRoles,
     pub(crate) auxiliary_details: AuxiliaryDetails,
     pub(crate) websockets: WebSockets,
     pub(crate) network_requester: Option<NetworkRequesterDetails>,

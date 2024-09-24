@@ -8,6 +8,8 @@ use crate::legacy::{
 use crate::nym_nodes::{BasicEntryInformation, NodeRole, SkimmedNode};
 use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
+use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
+use nym_crypto::asymmetric::x25519::{self, serde_helpers::bs58_x25519_pubkey};
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
@@ -508,8 +510,13 @@ impl From<nym_node_requests::api::v1::node::models::HostInformation> for HostInf
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct HostKeys {
-    pub ed25519: String,
-    pub x25519: String,
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[schemars(with = "String")]
+    pub ed25519: ed25519::PublicKey,
+
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[schemars(with = "String")]
+    pub x25519: x25519::PublicKey,
 }
 
 impl From<nym_node_requests::api::v1::node::models::HostKeys> for HostKeys {
@@ -633,9 +640,9 @@ impl NymNodeDescription {
         }
     }
 
-    pub fn to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
+    pub fn try_to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
         let keys = &self.description.host_information.keys;
-        let entry = if self.description.declared_role.can_operate_entry_gateway() {
+        let entry = if self.description.declared_role.entry {
             Some(self.entry_information())
         } else {
             None
@@ -650,7 +657,8 @@ impl NymNodeDescription {
             // we can't use the declared roles, we have to take whatever was provided in the contract.
             // why? say this node COULD operate as an exit, but it might be the case the contract decided
             // to assign it an ENTRY role only. we have to use that one instead.
-            role,
+            epoch_role: role,
+            supported_roles: self.description.declared_role.into(),
             entry,
             performance,
         }
@@ -665,6 +673,31 @@ pub enum DescribedNodeType {
     NymNode,
 }
 
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct DeclaredRoles {
+    pub mixnode: bool,
+    pub entry: bool,
+    pub exit_nr: bool,
+    pub exit_ipr: bool,
+}
+
+impl DeclaredRoles {
+    pub fn can_operate_exit_gateway(&self) -> bool {
+        self.exit_ipr && self.exit_nr
+    }
+}
+
+impl From<NodeRoles> for DeclaredRoles {
+    fn from(value: NodeRoles) -> Self {
+        DeclaredRoles {
+            mixnode: value.mixnode_enabled,
+            entry: value.gateway_enabled,
+            exit_nr: value.gateway_enabled && value.network_requester_enabled,
+            exit_ipr: value.gateway_enabled && value.ip_packet_router_enabled,
+        }
+    }
+}
+
 // this struct is getting quite bloated...
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NymNodeData {
@@ -674,7 +707,7 @@ pub struct NymNodeData {
     pub host_information: HostInformation,
 
     #[serde(default)]
-    pub declared_role: NodeRoles,
+    pub declared_role: DeclaredRoles,
 
     #[serde(default)]
     pub auxiliary_details: AuxiliaryDetails,
@@ -860,6 +893,17 @@ pub struct PartialTestResult {
 
 pub type MixnodeTestResultResponse = PaginatedResponse<PartialTestResult>;
 pub type GatewayTestResultResponse = PaginatedResponse<PartialTestResult>;
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct NoiseDetails {
+    #[schemars(with = "String")]
+    #[serde(with = "bs58_x25519_pubkey")]
+    pub x25119_pubkey: x25519::PublicKey,
+
+    pub mixnet_port: u16,
+
+    pub ip_addresses: Vec<IpAddr>,
+}
 
 #[cfg(test)]
 mod tests {

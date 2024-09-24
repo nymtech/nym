@@ -80,7 +80,7 @@ impl NodeDescriptionTopologyExt for NymNodeDescription {
         let ips = &self.description.host_information.ip_address;
         if ips.is_empty() {
             return Err(MixnodeConversionError::NoIpAddressesProvided {
-                mixnode: keys.ed25519.clone(),
+                mixnode: keys.ed25519.to_base58_string(),
             });
         }
 
@@ -97,8 +97,8 @@ impl NodeDescriptionTopologyExt for NymNodeDescription {
             mix_id: self.node_id,
             host,
             mix_host,
-            identity_key: ed25519::PublicKey::from_base58_string(&keys.ed25519)?,
-            sphinx_key: x25519::PublicKey::from_base58_string(&keys.x25519)?,
+            identity_key: keys.ed25519,
+            sphinx_key: keys.x25519,
             layer,
             version: self
                 .description
@@ -115,7 +115,7 @@ impl NodeDescriptionTopologyExt for NymNodeDescription {
         let ips = &self.description.host_information.ip_address;
         if ips.is_empty() {
             return Err(GatewayConversionError::NoIpAddressesProvided {
-                gateway: keys.ed25519.clone(),
+                gateway: keys.ed25519.to_base58_string(),
             });
         }
 
@@ -134,12 +134,8 @@ impl NodeDescriptionTopologyExt for NymNodeDescription {
             mix_host,
             clients_ws_port: self.description.mixnet_websockets.ws_port,
             clients_wss_port: self.description.mixnet_websockets.wss_port,
-            identity_key: identity::PublicKey::from_base58_string(
-                &self.description.host_information.keys.ed25519,
-            )?,
-            sphinx_key: encryption::PublicKey::from_base58_string(
-                &self.description.host_information.keys.x25519,
-            )?,
+            identity_key: self.description.host_information.keys.ed25519,
+            sphinx_key: self.description.host_information.keys.x25519,
             version: self
                 .description
                 .build_information
@@ -171,7 +167,7 @@ impl DescribedNodes {
         self.nodes
             .values()
             .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
-            .filter(|n| n.description.declared_role.can_operate_mixnode())
+            .filter(|n| n.description.declared_role.mixnode)
     }
 
     pub fn gateway_capable_nym_nodes<'a>(
@@ -180,7 +176,7 @@ impl DescribedNodes {
         self.nodes
             .values()
             .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
-            .filter(|n| n.description.declared_role.can_operate_entry_gateway())
+            .filter(|n| n.description.declared_role.entry)
     }
 }
 

@@ -113,6 +113,7 @@ impl ConnectedClients {
         ips: IpPair,
         nym_address: Recipient,
         mix_hops: Option<u8>,
+        client_version: SupportedClientVersion,
         forward_from_tun_tx: tokio::sync::mpsc::UnboundedSender<Vec<u8>>,
         close_tx: tokio::sync::oneshot::Sender<()>,
         handle: tokio::task::JoinHandle<()>,
@@ -124,6 +125,7 @@ impl ConnectedClients {
             ipv6: ips.ipv6,
             mix_hops,
             last_activity: Arc::new(RwLock::new(std::time::Instant::now())),
+            client_version,
             _close_tx: Arc::new(CloseTx {
                 nym_address,
                 inner: Some(close_tx),
@@ -156,7 +158,7 @@ impl ConnectedClients {
     }
 
     // Identify connected client handlers that have stopped without being told to stop
-    fn get_finished_client_handlers(&mut self) -> Vec<(IpPair, Recipient)> {
+    fn get_finished_client_handlers(&mut self) -> Vec<(IpPair, Recipient, SupportedClientVersion)> {
         self.clients_ipv4_mapping
             .iter_mut()
             .filter_map(|(ip, connected_client)| {
@@ -164,6 +166,7 @@ impl ConnectedClients {
                     Some((
                         IpPair::new(*ip, connected_client.ipv6),
                         connected_client.nym_address,
+                        connected_client.client_version,
                     ))
                 } else {
                     None
@@ -172,7 +175,7 @@ impl ConnectedClients {
             .collect()
     }
 
-    async fn get_inactive_clients(&mut self) -> Vec<(IpPair, Recipient)> {
+    async fn get_inactive_clients(&mut self) -> Vec<(IpPair, Recipient, SupportedClientVersion)> {
         let now = std::time::Instant::now();
         let mut ret = vec![];
         for (ip, connected_client) in self.clients_ipv4_mapping.iter() {
@@ -182,14 +185,18 @@ impl ConnectedClients {
                 ret.push((
                     IpPair::new(*ip, connected_client.ipv6),
                     connected_client.nym_address,
+                    connected_client.client_version,
                 ))
             }
         }
         ret
     }
 
-    fn disconnect_stopped_client_handlers(&mut self, stopped_clients: Vec<(IpPair, Recipient)>) {
-        for (ips, _) in &stopped_clients {
+    fn disconnect_stopped_client_handlers(
+        &mut self,
+        stopped_clients: Vec<(IpPair, Recipient, SupportedClientVersion)>,
+    ) {
+        for (ips, _, _) in &stopped_clients {
             log::info!("Disconnect stopped client: {ips}");
             self.clients_ipv4_mapping.remove(&ips.ipv4);
             self.clients_ipv6_mapping.remove(&ips.ipv6);
@@ -202,8 +209,11 @@ impl ConnectedClients {
         }
     }
 
-    fn disconnect_inactive_clients(&mut self, inactive_clients: Vec<(IpPair, Recipient)>) {
-        for (ips, _) in &inactive_clients {
+    fn disconnect_inactive_clients(
+        &mut self,
+        inactive_clients: Vec<(IpPair, Recipient, SupportedClientVersion)>,
+    ) {
+        for (ips, _, _) in &inactive_clients {
             log::info!("Disconnect inactive client: {ips}");
             self.clients_ipv4_mapping.remove(&ips.ipv4);
             self.clients_ipv6_mapping.remove(&ips.ipv6);
@@ -238,10 +248,14 @@ pub(crate) struct ConnectedClient {
     pub(crate) ipv6: Ipv6Addr,
 
     // Number of mix node hops that the client has requested to use
+    // WIP(JON): remove me
     pub(crate) mix_hops: Option<u8>,
 
     // Keep track of last activity so we can disconnect inactive clients
     pub(crate) last_activity: Arc<RwLock<std::time::Instant>>,
+
+    // The version of the client, since we need to know this to send the correct response
+    pub(crate) client_version: SupportedClientVersion,
 
     pub(crate) _close_tx: Arc<CloseTx>,
 
@@ -414,6 +428,21 @@ impl Response {
         }
     }
 
+    fn new_unrequested_disconnect(
+        reply_to: Recipient,
+        reason: v7::response::UnrequestedDisconnectReason,
+        client_version: SupportedClientVersion,
+    ) -> Self {
+        match client_version {
+            SupportedClientVersion::V6 => Response::V6(
+                v6::response::IpPacketResponse::new_unrequested_disconnect(reply_to, reason.into()),
+            ),
+            SupportedClientVersion::V7 => Response::V7(
+                v7::response::IpPacketResponse::new_unrequested_disconnect(reply_to, reason),
+            ),
+        }
+    }
+
     fn to_bytes(&self) -> Result<Vec<u8>> {
         match self {
             Response::V6(response) => response.to_bytes(),
@@ -511,6 +540,7 @@ impl MixnetListener {
                     requested_ips,
                     reply_to,
                     reply_to_hops,
+                    client_version,
                     forward_from_tun_tx,
                     close_tx,
                     handle,
@@ -606,6 +636,7 @@ impl MixnetListener {
             new_ips,
             reply_to,
             reply_to_hops,
+            client_version,
             forward_from_tun_tx,
             close_tx,
             handle,
@@ -799,9 +830,9 @@ impl MixnetListener {
             IpPacketRequestData::Ping(ping_request) => {
                 Ok(vec![self.on_ping_request(ping_request, client_version)])
             }
-            IpPacketRequestData::Health(health_request) => Ok(vec![
-                self.on_health_request(health_request, client_version).await,
-            ]),
+            IpPacketRequestData::Health(health_request) => {
+                Ok(vec![self.on_health_request(health_request, client_version)])
+            }
         }
     }
 
@@ -809,13 +840,27 @@ impl MixnetListener {
         let stopped_clients = self.connected_clients.get_finished_client_handlers();
         let inactive_clients = self.connected_clients.get_inactive_clients().await;
 
-        // TODO: Send disconnect responses to all disconnected clients
-        //for (ip, nym_address) in stopped_clients.iter().chain(disconnected_clients.iter()) {
-        //    let response = IpPacketResponse::new_unrequested_disconnect(...)
-        //    if let Err(err) = self.handle_response(response).await {
-        //        log::error!("Failed to send disconnect response: {err}");
-        //    }
-        //}
+        // WIP(JON): confirm we should send disconnect on handle stopped
+        for (_ip, nym_address, client_version) in &stopped_clients {
+            let response = Response::new_unrequested_disconnect(
+                *nym_address,
+                v7::response::UnrequestedDisconnectReason::Other("handler stopped".to_string()),
+                *client_version,
+            );
+            if let Err(err) = self.handle_response(response).await {
+                log::error!("Failed to send disconnect response: {err}");
+            }
+        }
+        for (_ip, nym_address, client_version) in &inactive_clients {
+            let response = Response::new_unrequested_disconnect(
+                *nym_address,
+                v7::response::UnrequestedDisconnectReason::ClientMixnetTrafficTimeout,
+                *client_version,
+            );
+            if let Err(err) = self.handle_response(response).await {
+                log::error!("Failed to send disconnect response: {err}");
+            }
+        }
 
         self.connected_clients
             .disconnect_stopped_client_handlers(stopped_clients);

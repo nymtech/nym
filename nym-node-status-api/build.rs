@@ -39,7 +39,7 @@ fn rerun_if_changed() {
 /// use `./enter_db.sh` to inspect DB
 async fn write_db_path_to_file(out_dir: &str, db_filename: &str) -> anyhow::Result<()> {
     let mut file = File::create("enter_db.sh").await?;
-    file.write(b"#!/bin/bash\n").await?;
+    let _ = file.write(b"#!/bin/bash\n").await?;
     file.write_all(format!("sqlite3 {}/{}", out_dir, db_filename).as_bytes())
         .await
         .map_err(From::from)

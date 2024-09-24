@@ -1,6 +1,7 @@
-use crate::http;
+use crate::http::{self, models::SummaryHistory};
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 pub(crate) struct GatewayRecord {
     pub(crate) identity_key: String,
@@ -175,6 +176,27 @@ pub(crate) struct SummaryDto {
     pub(crate) last_updated_utc: i64,
 }
 
+#[derive(Debug, Clone, Default)]
+pub(crate) struct SummaryHistoryDto {
+    #[allow(dead_code)]
+    pub id: i64,
+    pub date: String,
+    pub value_json: String,
+    pub timestamp_utc: i64,
+}
+
+impl From<SummaryHistoryDto> for SummaryHistory {
+    fn from(value: SummaryHistoryDto) -> Self {
+        let value_json = serde_json::from_str(&value.value_json).unwrap_or_default();
+        SummaryHistory {
+            value_json,
+            date: value.date.clone(),
+            // TODO dz avoid as?
+            timestamp_utc: timestamp_as_utc(value.timestamp_utc as u64).to_rfc3339(),
+        }
+    }
+}
+
 pub(crate) const MIXNODES_BONDED_COUNT: &str = "mixnodes.bonded.count";
 pub(crate) const MIXNODES_BONDED_ACTIVE: &str = "mixnodes.bonded.active";
 pub(crate) const MIXNODES_BONDED_INACTIVE: &str = "mixnodes.bonded.inactive";
@@ -188,23 +210,28 @@ pub(crate) const GATEWAYS_BLACKLISTED_COUNT: &str = "gateways.blacklisted.count"
 pub(crate) const MIXNODES_HISTORICAL_COUNT: &str = "mixnodes.historical.count";
 pub(crate) const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+// `utoipa`` goes crazy if you use module-qualified prefix as field type so we
+//  have to import it
+use gateway::GatewaySummary;
+use mixnode::MixnodeSummary;
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
 pub(crate) struct NetworkSummary {
-    pub(crate) mixnodes: mixnode::MixnodeSummary,
-    pub(crate) gateways: gateway::GatewaySummary,
+    pub(crate) mixnodes: MixnodeSummary,
+    pub(crate) gateways: GatewaySummary,
 }
 
 pub(crate) mod mixnode {
     use super::*;
 
-    #[derive(Debug, Clone, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct MixnodeSummary {
         pub(crate) bonded: MixnodeSummaryBonded,
         pub(crate) blacklisted: MixnodeSummaryBlacklisted,
         pub(crate) historical: MixnodeSummaryHistorical,
     }
 
-    #[derive(Debug, Clone, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct MixnodeSummaryBonded {
         pub(crate) count: i32,
         pub(crate) active: i32,
@@ -213,13 +240,13 @@ pub(crate) mod mixnode {
         pub(crate) last_updated_utc: String,
     }
 
-    #[derive(Debug, Clone, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct MixnodeSummaryBlacklisted {
         pub(crate) count: i32,
         pub(crate) last_updated_utc: String,
     }
 
-    #[derive(Debug, Clone, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct MixnodeSummaryHistorical {
         pub(crate) count: i32,
         pub(crate) last_updated_utc: String,
@@ -229,7 +256,7 @@ pub(crate) mod mixnode {
 pub(crate) mod gateway {
     use super::*;
 
-    #[derive(Debug, Clone, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummary {
         pub(crate) bonded: GatewaySummaryBonded,
         pub(crate) blacklisted: GatewaySummaryBlacklisted,
@@ -237,25 +264,25 @@ pub(crate) mod gateway {
         pub(crate) explorer: GatewaySummaryExplorer,
     }
 
-    #[derive(Debug, Clone, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummaryExplorer {
         pub(crate) count: i32,
         pub(crate) last_updated_utc: String,
     }
 
-    #[derive(Debug, Clone, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummaryBonded {
         pub(crate) count: i32,
         pub(crate) last_updated_utc: String,
     }
 
-    #[derive(Debug, Clone, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummaryHistorical {
         pub(crate) count: i32,
         pub(crate) last_updated_utc: String,
     }
 
-    #[derive(Debug, Clone, Deserialize, Serialize)]
+    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummaryBlacklisted {
         pub(crate) count: i32,
         pub(crate) last_updated_utc: String,

@@ -5,7 +5,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     db::DbPool,
-    http::models::{DailyStats, Gateway, Mixnode},
+    http::models::{DailyStats, Gateway, Mixnode, SummaryHistory},
 };
 
 #[derive(Debug, Clone)]
@@ -34,14 +34,14 @@ impl AppState {
 static GATEWAYS_LIST_KEY: &str = "gateways";
 static MIXNODES_LIST_KEY: &str = "mixnodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
-// static SUMMARY_HISTORY_LIST_KEY: &str = "summary-history";
+static SUMMARY_HISTORY_LIST_KEY: &str = "summary-history";
 
 #[derive(Debug, Clone)]
 pub(crate) struct HttpCache {
     gateways: Cache<String, Arc<RwLock<Vec<Gateway>>>>,
     mixnodes: Cache<String, Arc<RwLock<Vec<Mixnode>>>>,
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
-    // history: Cache<String, Arc<RwLock<Vec<SummaryHistory>>>>,
+    history: Cache<String, Arc<RwLock<Vec<SummaryHistory>>>>,
 }
 
 impl HttpCache {
@@ -59,10 +59,10 @@ impl HttpCache {
                 .max_capacity(2)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
-            // history: Cache::builder()
-            //     .max_capacity(2)
-            //     .time_to_live(Duration::from_secs(ttl_seconds))
-            //     .build(),
+            history: Cache::builder()
+                .max_capacity(2)
+                .time_to_live(Duration::from_secs(ttl_seconds))
+                .build(),
         }
     }
 
@@ -184,5 +184,40 @@ impl HttpCache {
                 mixnode_stats
             }
         }
+    }
+
+    pub async fn get_summary_history(&self, db: &DbPool) -> Vec<SummaryHistory> {
+        match self.history.get(SUMMARY_HISTORY_LIST_KEY).await {
+            Some(guard) => {
+                let read_lock = guard.read().await;
+                read_lock.to_vec()
+            }
+            None => {
+                let summary_history = crate::db::queries::get_summary_history(db)
+                    .await
+                    .unwrap_or(vec![]);
+                self.upsert_summary_history(summary_history.clone()).await;
+                summary_history
+            }
+        }
+    }
+
+    pub async fn upsert_summary_history(
+        &self,
+        summary_history: Vec<SummaryHistory>,
+    ) -> Entry<String, Arc<RwLock<Vec<SummaryHistory>>>> {
+        self.history
+            .entry_by_ref(SUMMARY_HISTORY_LIST_KEY)
+            .and_upsert_with(|maybe_entry| async {
+                if let Some(entry) = maybe_entry {
+                    let v = entry.into_value();
+                    let mut guard = v.write().await;
+                    *guard = summary_history;
+                    v.clone()
+                } else {
+                    Arc::new(RwLock::new(summary_history))
+                }
+            })
+            .await
     }
 }

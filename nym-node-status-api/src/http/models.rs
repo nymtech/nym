@@ -65,3 +65,10 @@ pub struct Service {
     pub mixnet_websockets: Option<serde_json::Value>,
     pub last_successful_ping_utc: Option<String>,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub(crate) struct SummaryHistory {
+    pub date: String,
+    pub value_json: serde_json::Value,
+    pub timestamp_utc: String,
+}

@@ -23,10 +23,9 @@
 use crate::nym_nodes::handlers::unstable::full_fat::nodes_detailed;
 use crate::nym_nodes::handlers::unstable::semi_skimmed::nodes_expanded;
 use crate::nym_nodes::handlers::unstable::skimmed::{
-    deprecated_gateways_basic, deprecated_mixnodes_basic, entry_gateways_basic_active,
-    entry_gateways_basic_all, exit_gateways_basic_active, exit_gateways_basic_all,
-    mixnodes_basic_active, mixnodes_basic_all, nodes_basic, nodes_basic_active,
-    nodes_basic_standby,
+    entry_gateways_basic_active, entry_gateways_basic_all, exit_gateways_basic_active,
+    exit_gateways_basic_all, mixnodes_basic_active, mixnodes_basic_all, nodes_basic_active,
+    nodes_basic_all,
 };
 use crate::support::http::helpers::PaginationRequest;
 use crate::support::http::state::AppState;
@@ -46,9 +45,8 @@ pub(crate) fn nym_node_routes_unstable() -> Router<AppState> {
         .nest(
             "/skimmed",
             Router::new()
-                .route("/", get(nodes_basic))
+                .route("/", get(nodes_basic_all))
                 .route("/active", get(nodes_basic_active))
-                .route("/standby", get(nodes_basic_standby))
                 .nest(
                     "/mixnodes",
                     Router::new()
@@ -73,8 +71,8 @@ pub(crate) fn nym_node_routes_unstable() -> Router<AppState> {
             Router::new().route("/", get(nodes_expanded)),
         )
         .nest("/full-fat", Router::new().route("/", get(nodes_detailed)))
-        .route("/gateways/skimmed", get(deprecated_gateways_basic))
-        .route("/mixnodes/skimmed", get(deprecated_mixnodes_basic))
+        .route("/gateways/skimmed", get(skimmed::deprecated_gateways_basic))
+        .route("/mixnodes/skimmed", get(skimmed::deprecated_mixnodes_basic))
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]

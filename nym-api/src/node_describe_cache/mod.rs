@@ -162,6 +162,12 @@ impl DescribedNodes {
         self.nodes.values()
     }
 
+    pub fn all_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
+        self.nodes
+            .values()
+            .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
+    }
+
     pub fn mixing_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
         self.nodes
             .values()

@@ -9,7 +9,7 @@ use crate::support::caching::cache::SharedCache;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer};
 use nym_api_requests::models::NymNodeDescription;
 use nym_crypto::asymmetric::{encryption, identity};
-use nym_mixnet_contract_common::{LegacyMixLayer, NodeId, RewardedSet};
+use nym_mixnet_contract_common::{LegacyMixLayer, NodeId};
 use nym_node_tester_utils::node::TestableNode;
 use nym_node_tester_utils::NodeTester;
 use nym_sphinx::acknowledgements::AckKey;
@@ -344,7 +344,7 @@ impl PacketPreparer {
 
         let mixing_nym_nodes = descriptions.mixing_nym_nodes();
         // last I checked `gatewaying` wasn't a word : )
-        let gateway_capable_nym_nodes = descriptions.gateway_capable_nym_nodes();
+        let gateway_capable_nym_nodes = descriptions.entry_capable_nym_nodes();
 
         let mut rng = thread_rng();
 
@@ -527,7 +527,7 @@ impl PacketPreparer {
             .await
             .expect("the cache must have been initialised!");
         let mixing_nym_nodes = descriptions.mixing_nym_nodes();
-        let gateway_capable_nym_nodes = descriptions.gateway_capable_nym_nodes();
+        let gateway_capable_nym_nodes = descriptions.entry_capable_nym_nodes();
 
         let (mixnodes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(mixnodes);
         let (gateways, invalid_gateways) = self.filter_outdated_and_malformed_gateways(gateways);

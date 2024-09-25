@@ -221,10 +221,8 @@ pub(crate) fn ensure_any_node_bonded(
 
     // current nym-node
     match nymnodes_storage::nym_nodes().may_load(storage, node_id)? {
-        None => return Err(MixnetContractError::NymNodeBondNotFound { node_id }),
-        Some(bond) if bond.is_unbonding => {
-            return Err(MixnetContractError::NodeIsUnbonding { node_id })
-        }
+        None => Err(MixnetContractError::NymNodeBondNotFound { node_id }),
+        Some(bond) if bond.is_unbonding => Err(MixnetContractError::NodeIsUnbonding { node_id }),
         _ => Ok(()),
     }
 }

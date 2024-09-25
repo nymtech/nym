@@ -284,7 +284,7 @@ mod tests {
             assert!(res.amount_earned.is_none());
             assert!(res.amount_earned_detailed.is_none());
             assert!(res.amount_staked.is_none());
-            assert!(!res.mixnode_still_fully_bonded);
+            assert!(!res.node_still_fully_bonded);
         }
 
         #[test]
@@ -304,7 +304,7 @@ mod tests {
             assert_eq!(res.amount_earned.unwrap(), expected_actual);
             assert_eq!(res.amount_earned_detailed.unwrap(), Decimal::zero());
             assert_eq!(res.amount_staked.unwrap().amount, initial_stake);
-            assert!(res.mixnode_still_fully_bonded);
+            assert!(res.node_still_fully_bonded);
         }
 
         #[test]
@@ -313,15 +313,13 @@ mod tests {
             let owner = "mix-owner";
             let initial_stake = Uint128::new(1_000_000_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(initial_stake));
+            let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
             total_earned += dist.operator;
 
             let res = query_pending_operator_reward(test.deps(), owner.into()).unwrap();
@@ -333,15 +331,12 @@ mod tests {
             assert_eq!(res.amount_earned.unwrap(), expected_actual);
             assert_eq!(res.amount_earned_detailed.unwrap(), total_earned);
             assert_eq!(res.amount_staked.unwrap().amount, initial_stake);
-            assert!(res.mixnode_still_fully_bonded);
+            assert!(res.node_still_fully_bonded);
 
             // reward it few more times for good measure
             for _ in 0..10 {
                 test.skip_to_next_epoch_end();
-                let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id,
-                    test_helpers::performance(100.0),
-                );
+                let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
                 total_earned += dist.operator;
 
                 let res = query_pending_operator_reward(test.deps(), owner.into()).unwrap();
@@ -353,7 +348,7 @@ mod tests {
                 assert_eq!(res.amount_earned.unwrap(), expected_actual);
                 assert_eq!(res.amount_earned_detailed.unwrap(), total_earned);
                 assert_eq!(res.amount_staked.unwrap().amount, initial_stake);
-                assert!(res.mixnode_still_fully_bonded);
+                assert!(res.node_still_fully_bonded);
             }
         }
 
@@ -363,15 +358,13 @@ mod tests {
             let owner = "mix-owner";
             let initial_stake = Uint128::new(1_000_000_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(initial_stake));
+            let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
             total_earned += dist.operator;
 
             let sender = mock_info(owner, &[]);
@@ -386,7 +379,7 @@ mod tests {
             assert_eq!(res.amount_earned.unwrap(), expected_actual);
             assert_eq!(res.amount_earned_detailed.unwrap(), total_earned);
             assert_eq!(res.amount_staked.unwrap().amount, initial_stake);
-            assert!(!res.mixnode_still_fully_bonded);
+            assert!(!res.node_still_fully_bonded);
         }
 
         #[test]
@@ -395,14 +388,12 @@ mod tests {
             let owner = "mix-owner";
             let initial_stake = Uint128::new(1_000_000_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(initial_stake));
+            let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
 
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let sender = mock_info(owner, &[]);
             let env = test.env();
@@ -418,7 +409,7 @@ mod tests {
             assert!(res.amount_earned.is_none());
             assert!(res.amount_earned_detailed.is_none());
             assert!(res.amount_staked.is_none());
-            assert!(!res.mixnode_still_fully_bonded);
+            assert!(!res.node_still_fully_bonded);
         }
     }
 
@@ -442,7 +433,7 @@ mod tests {
             assert!(res.amount_earned.is_none());
             assert!(res.amount_earned_detailed.is_none());
             assert!(res.amount_staked.is_none());
-            assert!(!res.mixnode_still_fully_bonded);
+            assert!(!res.node_still_fully_bonded);
         }
 
         #[test]
@@ -463,13 +454,14 @@ mod tests {
             assert_eq!(res.amount_earned.unwrap(), expected_actual);
             assert_eq!(res.amount_earned_detailed.unwrap(), Decimal::zero());
             assert_eq!(res.amount_staked.unwrap().amount, initial_stake);
-            assert!(res.mixnode_still_fully_bonded);
+            assert!(res.node_still_fully_bonded);
         }
 
         #[test]
         fn for_delegator_with_pending_reward() {
             let mut test = TestSetup::new();
             let owner = "delegator";
+            let active_params = test.active_node_params(100.);
 
             let initial_stake = Uint128::new(100_000_000);
             let mix_id = test
@@ -480,10 +472,7 @@ mod tests {
             test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
             total_earned += dist.delegates;
 
             let res =
@@ -494,15 +483,12 @@ mod tests {
             assert_eq!(res.amount_earned.unwrap(), expected_actual);
             assert_eq!(res.amount_earned_detailed.unwrap(), total_earned);
             assert_eq!(res.amount_staked.unwrap().amount, initial_stake);
-            assert!(res.mixnode_still_fully_bonded);
+            assert!(res.node_still_fully_bonded);
 
             // reward it few more times for good measure
             for _ in 0..10 {
                 test.skip_to_next_epoch_end();
-                let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id,
-                    test_helpers::performance(100.0),
-                );
+                let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
                 total_earned += dist.delegates;
 
                 let res = query_pending_delegator_reward(test.deps(), owner.into(), mix_id, None)
@@ -513,7 +499,7 @@ mod tests {
                 assert_eq!(res.amount_earned.unwrap(), expected_actual);
                 assert_eq!(res.amount_earned_detailed.unwrap(), total_earned);
                 assert_eq!(res.amount_staked.unwrap().amount, initial_stake);
-                assert!(res.mixnode_still_fully_bonded);
+                assert!(res.node_still_fully_bonded);
             }
         }
 
@@ -521,6 +507,7 @@ mod tests {
         fn for_node_that_is_unbonding() {
             let mut test = TestSetup::new();
             let owner = "delegator";
+            let active_params = test.active_node_params(100.);
 
             let initial_stake = Uint128::new(100_000_000);
             let mix_id = test
@@ -531,10 +518,7 @@ mod tests {
             test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
             total_earned += dist.delegates;
 
             let sender = mock_info("mix-owner", &[]);
@@ -548,13 +532,14 @@ mod tests {
             assert_eq!(res.amount_earned.unwrap(), expected_actual);
             assert_eq!(res.amount_earned_detailed.unwrap(), total_earned);
             assert_eq!(res.amount_staked.unwrap().amount, initial_stake);
-            assert!(!res.mixnode_still_fully_bonded);
+            assert!(!res.node_still_fully_bonded);
         }
 
         #[test]
         fn for_node_that_has_unbonded() {
             let mut test = TestSetup::new();
             let owner = "delegator";
+            let active_params = test.active_node_params(100.);
 
             let initial_stake = Uint128::new(100_000_000);
             let mix_id = test
@@ -565,10 +550,7 @@ mod tests {
             test.force_change_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
-            let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
             total_earned += dist.delegates;
 
             let sender = mock_info("mix-owner", &[]);
@@ -583,7 +565,7 @@ mod tests {
             assert_eq!(res.amount_earned.unwrap(), expected_actual);
             assert_eq!(res.amount_earned_detailed.unwrap(), total_earned);
             assert_eq!(res.amount_staked.unwrap().amount, initial_stake);
-            assert!(!res.mixnode_still_fully_bonded);
+            assert!(!res.node_still_fully_bonded);
         }
 
         #[test]
@@ -595,6 +577,7 @@ mod tests {
             let del2 = "delegator2";
             let del3 = "delegator3";
             let del4 = "delegator4";
+            let active_params = test.active_node_params(100.);
 
             let mix_id = test
                 .add_rewarded_legacy_mixnode("mix-owner", Some(Uint128::new(1_000_000_000_000)));
@@ -605,58 +588,35 @@ mod tests {
             test.force_change_rewarded_set(vec![mix_id]);
 
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             test.add_immediate_delegation(del3, 500_000_000u32, mix_id);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(85.0),
-            );
+            let params = test.active_node_params(85.0);
+            test.reward_with_distribution_ignore_state(mix_id, params);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(5.0),
-            );
+            let params = test.active_node_params(5.0);
+            test.reward_with_distribution_ignore_state(mix_id, params);
 
             test.add_immediate_delegation(del4, 5_000_000u32, mix_id);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             test.add_immediate_delegation(del2, 250_000_000u32, mix_id);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(98.0),
-            );
+            let params = test.active_node_params(98.0);
+            test.reward_with_distribution_ignore_state(mix_id, params);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             test.remove_immediate_delegation(del3, mix_id);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(98.0),
-            );
+            let params = test.active_node_params(98.0);
+            test.reward_with_distribution_ignore_state(mix_id, params);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let pending1 =
                 query_pending_delegator_reward(test.deps(), del1.into(), mix_id, None).unwrap();
@@ -731,13 +691,11 @@ mod tests {
             let initial_stake = Uint128::new(1_000_000_000_000);
             let owner = "mix-owner";
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(initial_stake));
+            let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let sender = mock_info(owner, &[]);
             let env = test.env();
@@ -761,13 +719,11 @@ mod tests {
             let initial_stake = Uint128::new(1_000_000_000_000);
             let owner = "mix-owner";
             let mix_id = test.add_rewarded_legacy_mixnode(owner, Some(initial_stake));
+            let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let sender = mock_info(owner, &[]);
             let env = test.env();
@@ -789,13 +745,11 @@ mod tests {
             let mut test = TestSetup::new();
             let initial_stake = Uint128::new(1_000_000_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", Some(initial_stake));
+            let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.force_change_rewarded_set(vec![]);
 
             let res = query_estimated_current_epoch_operator_reward(
@@ -815,13 +769,11 @@ mod tests {
             let mut test = TestSetup::new();
             let initial_stake = Uint128::new(1_000_000_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", Some(initial_stake));
+            let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let res = query_estimated_current_epoch_operator_reward(
                 test.deps(),
@@ -840,13 +792,11 @@ mod tests {
             let mut test = TestSetup::new();
             let initial_stake = Uint128::new(1_000_000_000_000);
             let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", Some(initial_stake));
+            let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let mix_rewarding = test.mix_rewarding(mix_id);
             let res = query_estimated_current_epoch_operator_reward(
@@ -858,10 +808,8 @@ mod tests {
             .unwrap();
 
             test.skip_to_next_epoch_end();
-            let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(95.0),
-            );
+            let params = test.active_node_params(95.);
+            let dist = test.reward_with_distribution_ignore_state(mix_id, params);
 
             let expected = EstimatedCurrentEpochRewardResponse {
                 original_stake: Some(coin(initial_stake.u128(), TEST_COIN_DENOM)),
@@ -910,13 +858,11 @@ mod tests {
         fn when_delegation_doesnt_exist() {
             let mut test = TestSetup::new();
             let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let res = query_estimated_current_epoch_delegator_reward(
                 test.deps(),
@@ -934,6 +880,7 @@ mod tests {
         fn when_node_is_unbonding() {
             let mut test = TestSetup::new();
             let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let active_params = test.active_node_params(100.);
 
             let initial_stake = Uint128::new(1_000_000_000);
             let owner = "delegator";
@@ -941,10 +888,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let sender = mock_info("mix-owner", &[]);
             let env = test.env();
@@ -967,6 +911,7 @@ mod tests {
         fn when_node_has_already_unbonded() {
             let mut test = TestSetup::new();
             let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let active_params = test.active_node_params(100.);
 
             let initial_stake = Uint128::new(1_000_000_000);
             let owner = "delegator";
@@ -974,10 +919,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let sender = mock_info("mix-owner", &[]);
             let env = test.env();
@@ -1001,6 +943,7 @@ mod tests {
         fn when_node_is_not_in_the_rewarded_set() {
             let mut test = TestSetup::new();
             let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
+            let active_params = test.active_node_params(100.);
 
             let initial_stake = Uint128::new(1_000_000_000);
             let owner = "delegator";
@@ -1008,10 +951,7 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.force_change_rewarded_set(vec![]);
 
             let res = query_estimated_current_epoch_delegator_reward(
@@ -1032,16 +972,14 @@ mod tests {
             let mut test = TestSetup::new();
             let mix_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
+            let active_params = test.active_node_params(100.);
             let initial_stake = Uint128::new(1_000_000_000);
             let owner = "delegator";
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let res = query_estimated_current_epoch_delegator_reward(
                 test.deps(),
@@ -1079,10 +1017,8 @@ mod tests {
             .unwrap();
 
             test.skip_to_next_epoch_end();
-            let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(95.0),
-            );
+            let params = test.active_node_params(95.);
+            let dist = test.reward_with_distribution_ignore_state(mix_id, params);
 
             let expected = EstimatedCurrentEpochRewardResponse {
                 original_stake: Some(coin(initial_stake.u128(), TEST_COIN_DENOM)),
@@ -1118,17 +1054,13 @@ mod tests {
 
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id]);
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(95.0),
-            );
+            let params = test.active_node_params(95.0);
+            test.reward_with_distribution_ignore_state(mix_id, params);
 
             test.add_immediate_delegation(del3, initial_stake3, mix_id);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(85.0),
-            );
+            let params = test.active_node_params(85.0);
+            test.reward_with_distribution_ignore_state(mix_id, params);
 
             let mix_rewarding = test.mix_rewarding(mix_id);
 
@@ -1165,10 +1097,8 @@ mod tests {
             let cur3 = initial_stake3_dec + est3;
 
             test.skip_to_next_epoch_end();
-            let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(95.0),
-            );
+            let params = test.active_node_params(95.0);
+            let dist = test.reward_with_distribution_ignore_state(mix_id, params);
 
             let share1 = cur1 / mix_rewarding.delegates * dist.delegates;
             let share2 = cur2 / mix_rewarding.delegates * dist.delegates;

@@ -73,11 +73,11 @@ pub mod test_helpers {
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
         ContractStateParams, Delegation, EpochEventId, EpochState, EpochStatus, ExecuteMsg,
-        Gateway, GatewayBondingPayload, IdentityKey, IdentityKeyRef, InitialRewardingParams,
-        InstantiateMsg, Interval, MixNode, MixNodeBond, MixNodeDetails, MixnodeBondingPayload,
-        NodeId, NymNode, NymNodeBond, NymNodeBondingPayload, NymNodeDetails, OperatingCostRange,
-        Percent, ProfitMarginRange, RoleAssignment, SignableGatewayBondingMsg,
-        SignableMixNodeBondingMsg, SignableNymNodeBondingMsg,
+        Gateway, GatewayBondingPayload, IdentityKey, InitialRewardingParams, InstantiateMsg,
+        Interval, MixNode, MixNodeBond, MixNodeDetails, MixnodeBondingPayload, NodeId, NymNode,
+        NymNodeBond, NymNodeBondingPayload, NymNodeDetails, OperatingCostRange, Percent,
+        ProfitMarginRange, RoleAssignment, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
+        SignableNymNodeBondingMsg,
     };
     use nym_contracts_common::signing::{
         ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
@@ -109,6 +109,7 @@ pub mod test_helpers {
         }
     }
 
+    #[allow(clippy::enum_variant_names)]
     pub enum NodeQueryType {
         ById(NodeId),
         ByIdentity(IdentityKey),
@@ -997,6 +998,7 @@ pub mod test_helpers {
             self.rewarding_params().active_node_work()
         }
 
+        #[allow(dead_code)]
         pub fn standby_node_work(&self) -> WorkFactor {
             self.rewarding_params().standby_node_work()
         }
@@ -1008,6 +1010,7 @@ pub mod test_helpers {
             }
         }
 
+        #[allow(dead_code)]
         pub fn standby_node_params(&self, performance: f32) -> NodeRewardingParameters {
             NodeRewardingParameters {
                 performance: test_helpers::performance(performance),
@@ -1015,6 +1018,7 @@ pub mod test_helpers {
             }
         }
 
+        #[track_caller]
         pub fn reward_with_distribution_ignore_state(
             &mut self,
             node_id: NodeId,
@@ -1027,6 +1031,7 @@ pub mod test_helpers {
             )
         }
 
+        #[track_caller]
         pub fn reward_with_distribution_with_state_bypass(
             &mut self,
             node_id: NodeId,
@@ -1045,16 +1050,7 @@ pub mod test_helpers {
             res
         }
 
-        #[deprecated]
-        pub fn legacy_reward_with_distribution_with_state_bypass(
-            &mut self,
-            node_id: NodeId,
-            performance: Performance,
-        ) -> RewardDistribution {
-            let work_factor = self.get_legacy_rewarding_node_work_factor(node_id);
-            self.reward_with_distribution_with_state_bypass(node_id, performance, work_factor)
-        }
-
+        #[allow(dead_code)]
         #[track_caller]
         pub fn node_role(&self, node_id: NodeId) -> Role {
             if read_assigned_roles(&self.deps.storage, Role::EntryGateway)
@@ -1117,21 +1113,7 @@ pub mod test_helpers {
             work_factor
         }
 
-        pub fn legacy_reward_with_distribution_and_legacy_work_factor(
-            &mut self,
-            node_id: NodeId,
-            performance: Performance,
-        ) -> RewardDistribution {
-            let work_factor = self.get_legacy_rewarding_node_work_factor(node_id);
-            self.reward_with_distribution(
-                node_id,
-                NodeRewardingParameters {
-                    performance,
-                    work_factor,
-                },
-            )
-        }
-
+        #[track_caller]
         pub fn reward_with_distribution(
             &mut self,
             node_id: NodeId,

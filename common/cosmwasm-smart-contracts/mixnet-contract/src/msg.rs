@@ -283,17 +283,7 @@ pub enum ExecuteMsg {
     TestingResolveAllPendingEvents {
         limit: Option<u32>,
     },
-
-    // TO BE REMOVED BEFORE MERGING
-    TestingUncheckedBondLegacyMixnode {
-        node: MixNode,
-    },
-    TestingUncheckedBondLegacyGateway {
-        node: Gateway,
-    },
 }
-
-const bad_const: &str = "clippy will yell so that i'd remember to remove those legacy bonding ops";
 
 impl ExecuteMsg {
     pub fn default_memo(&self) -> String {
@@ -384,8 +374,6 @@ impl ExecuteMsg {
             ExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 "resolving all pending events".into()
             }
-            ExecuteMsg::TestingUncheckedBondLegacyMixnode { .. } => "todo!".into(),
-            ExecuteMsg::TestingUncheckedBondLegacyGateway { .. } => "todo!".into(),
         }
     }
 }

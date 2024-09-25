@@ -142,12 +142,6 @@ pub enum MixnetContractError {
     #[error("node {node_id} hasn't been assigned the role of {role} for this epoch")]
     IncorrectEpochRole { node_id: NodeId, role: Role },
 
-    #[error("Mixnode {mix_id} hasn't been selected to the rewarding set in this epoch ({absolute_epoch_id})")]
-    MixnodeNotInRewardedSet {
-        mix_id: NodeId,
-        absolute_epoch_id: u32,
-    },
-
     #[error("Mixnode {mix_id} is currently in the process of unbonding")]
     MixnodeIsUnbonding { mix_id: NodeId },
 

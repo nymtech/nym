@@ -137,7 +137,7 @@ mod tests {
     use super::*;
     use crate::mixnodes::helpers::get_mixnode_details_by_id;
     use crate::rewards::models::RewardPoolChange;
-    use crate::support::tests::test_helpers::{assert_decimals, performance, TestSetup};
+    use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
     use cosmwasm_std::Uint128;
     use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
@@ -259,6 +259,7 @@ mod tests {
         let pledge = Uint128::new(250_000_000);
         let pledge_dec = 250_000_000u32.into_base_decimal().unwrap();
         let mix_id = test.add_legacy_mixnode("mix-owner", Some(pledge));
+        let active_params = test.active_node_params(100.0);
 
         // no rewards
         let mix_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
@@ -269,16 +270,13 @@ mod tests {
 
         test.skip_to_next_epoch_end();
         test.force_change_rewarded_set(vec![mix_id]);
-        let dist1 =
-            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
         test.skip_to_next_epoch_end();
-        let dist2 =
-            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist2 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
         test.skip_to_next_epoch_end();
-        let dist3 =
-            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist3 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
         let mix_details = get_mixnode_details_by_id(test.deps().storage, mix_id)
             .unwrap()
@@ -295,6 +293,7 @@ mod tests {
     #[test]
     fn withdrawing_delegator_reward() {
         let mut test = TestSetup::new();
+        let active_params = test.active_node_params(100.0);
 
         let delegation_amount = Uint128::new(2_500_000_000);
         let delegation_dec = 2_500_000_000_u32.into_base_decimal().unwrap();
@@ -311,16 +310,13 @@ mod tests {
 
         test.skip_to_next_epoch_end();
         test.force_change_rewarded_set(vec![mix_id]);
-        let dist1 =
-            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
         test.skip_to_next_epoch_end();
-        let dist2 =
-            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist2 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
         test.skip_to_next_epoch_end();
-        let dist3 =
-            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist3 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
         let delegation_pre = test.delegation(mix_id, delegator, &None);
         let mix_rewarding = test.mix_rewarding(mix_id);

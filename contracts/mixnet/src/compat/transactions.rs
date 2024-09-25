@@ -364,7 +364,7 @@ mod tests {
                 MixnetContractError::ProfitMarginOutsideRange { .. }
             ));
 
-            // hundred
+            // a hundred
             test.add_dummy_nymnode("owner5", None);
             let sender = mock_info("owner5", &[]);
             let env = test.env();
@@ -561,7 +561,6 @@ mod tests {
     #[cfg(test)]
     mod withdrawing_operator_reward {
         use super::*;
-        use crate::support::tests::test_helpers;
         use crate::support::tests::test_helpers::{ExtractBankMsg, TestSetup};
         use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::Addr;
@@ -586,6 +585,7 @@ mod tests {
         #[test]
         fn for_legacy_mixnode() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
+            let active_params = test.active_node_params(100.0);
 
             // no rewards
             test.add_legacy_mixnode("owner1", None);
@@ -600,10 +600,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![node_id]);
             test.start_epoch_transition();
-            test.legacy_reward_with_distribution_and_legacy_work_factor(
-                node_id,
-                test_helpers::performance(100.),
-            );
+            test.reward_with_distribution(node_id, active_params);
 
             let res = try_withdraw_operator_reward(test.deps_mut(), sender)?;
             let maybe_bank = res.unwrap_bank_msg();
@@ -634,6 +631,7 @@ mod tests {
         #[test]
         fn for_nymnode() -> anyhow::Result<()> {
             let mut test = TestSetup::new();
+            let active_params = test.active_node_params(100.0);
 
             // no rewards
             test.add_dummy_nymnode("owner1", None);
@@ -648,10 +646,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![node_id]);
             test.start_epoch_transition();
-            test.legacy_reward_with_distribution_and_legacy_work_factor(
-                node_id,
-                test_helpers::performance(100.),
-            );
+            test.reward_with_distribution(node_id, active_params);
 
             let res = try_withdraw_operator_reward(test.deps_mut(), sender)?;
             let maybe_bank = res.unwrap_bank_msg();

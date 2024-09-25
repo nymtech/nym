@@ -157,7 +157,7 @@ pub const PRIOR_UNIT_REWARD_KEY: &str = "prior_unit_reward";
 
 pub const NO_REWARD_REASON_KEY: &str = "no_reward_reason";
 pub const BOND_NOT_FOUND_VALUE: &str = "bond_not_found";
-pub const ZERO_PERFORMANCE_VALUE: &str = "zero_performance";
+pub const ZERO_PERFORMANCE_OR_WORK_VALUE: &str = "zero_performance_or_work";
 
 // rewarded set update
 pub const NUM_MIXNODES_KEY: &str = "num_mixnodes";
@@ -491,7 +491,7 @@ pub fn new_zero_uptime_mix_operator_rewarding_event(interval: Interval, node_id:
             interval.current_epoch_absolute_id().to_string(),
         )
         .add_attribute(NODE_ID_KEY, node_id.to_string())
-        .add_attribute(NO_REWARD_REASON_KEY, ZERO_PERFORMANCE_VALUE)
+        .add_attribute(NO_REWARD_REASON_KEY, ZERO_PERFORMANCE_OR_WORK_VALUE)
 }
 
 pub fn new_mix_rewarding_event(

@@ -2,4 +2,4 @@ pub mod conversion;
 pub mod request;
 pub mod response;
 
-const VERSION: u8 = 6;
+pub const VERSION: u8 = 6;

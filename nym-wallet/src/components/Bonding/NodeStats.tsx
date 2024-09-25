@@ -105,11 +105,6 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
               Node stats
             </Typography>
           }
-          Action={
-            <Button size="small" variant="contained" disableElevation onClick={handleGoToTestNode}>
-              Test node
-            </Button>
-          }
         >
           <Stack justifyContent="center" alignItems="center" mb={2}>
             <ResponsiveContainer width="100%" height={100}>

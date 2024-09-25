@@ -529,8 +529,7 @@ pub mod tests {
 
         // prior increase
         let owner = "mix-owner1";
-        let node_id = test.add_legacy_mixnode(owner, None);
-        let details = test.mixnode_by_id(node_id).unwrap();
+        test.add_legacy_mixnode(owner, None);
 
         let sender = mock_info(owner, &[test.coin(1000)]);
         try_increase_pledge(test.deps_mut(), env.clone(), sender.clone()).unwrap();
@@ -777,11 +776,8 @@ pub mod tests {
 
     #[cfg(test)]
     mod increasing_mixnode_pledge {
-        use crate::mixnodes::helpers::tests::{
-            setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
-        };
-
         use super::*;
+        use crate::mixnodes::helpers::tests::setup_mix_combinations;
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress() {
@@ -948,11 +944,8 @@ pub mod tests {
 
     #[cfg(test)]
     mod decreasing_mixnode_pledge {
-        use crate::mixnodes::helpers::tests::{
-            setup_mix_combinations, OWNER_UNBONDED, OWNER_UNBONDED_LEFTOVER, OWNER_UNBONDING,
-        };
-
         use super::*;
+        use crate::mixnodes::helpers::tests::setup_mix_combinations;
 
         #[test]
         fn cant_be_performed_if_epoch_transition_is_in_progress() {
@@ -1154,7 +1147,6 @@ pub mod tests {
             let events = test.pending_epoch_events();
             assert!(events.is_empty());
 
-            let sender = mock_info(owner, &[]);
             try_decrease_mixnode_pledge(test.deps_mut(), env, decrease.clone(), details).unwrap();
 
             let events = test.pending_epoch_events();

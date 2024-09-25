@@ -75,7 +75,6 @@ pub(crate) fn try_update_contract_settings(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::constants::INITIAL_PLEDGE_AMOUNT;
     use crate::mixnet_contract_settings::queries::query_rewarding_validator_address;
     use crate::mixnet_contract_settings::storage::rewarding_denom;
     use crate::support::tests::test_helpers;

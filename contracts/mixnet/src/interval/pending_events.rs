@@ -636,7 +636,6 @@ impl ContractExecutableEvent for PendingIntervalEventData {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::support::tests::test_helpers;
     use crate::support::tests::test_helpers::{assert_decimals, TestSetup};
     use cosmwasm_std::Decimal;
     use mixnet_contract_common::Percent;
@@ -835,33 +834,24 @@ mod tests {
             let delegation_og = 120_000_000u128;
             let delegation_new = 543_000_000u128;
             let delegation_coin_new = coin(delegation_new, TEST_COIN_DENOM);
+            let active_params = test.active_node_params(100.0);
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
+            test.skip_to_next_epoch_end();
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let owner = "delegator";
             test.add_immediate_delegation(owner, delegation_og, mix_id);
 
             test.skip_to_next_epoch_end();
-            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
-            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist2 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let storage_key =
                 Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
@@ -918,19 +908,14 @@ mod tests {
 
             let delegation = 120_000_000u128;
             let delegation_coin = coin(120_000_000u128, TEST_COIN_DENOM);
+            let active_params = test.active_node_params(100.0);
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
-            test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let storage_key =
                 Delegation::generate_storage_key(mix_id, &Addr::unchecked(owner), None);
@@ -1059,15 +1044,10 @@ mod tests {
         use crate::compat::transactions::{try_decrease_pledge, try_increase_pledge};
         use crate::interval::pending_events::unbond_mixnode;
         use crate::mixnodes::storage as mixnodes_storage;
-        use crate::mixnodes::transactions::{
-            try_decrease_mixnode_pledge, try_increase_mixnode_pledge,
-        };
         use crate::rewards::storage as rewards_storage;
-        use crate::support::tests::fixtures::TEST_COIN_DENOM;
-        use crate::support::tests::test_helpers;
         use crate::support::tests::test_helpers::{get_bank_send_msg, TestSetup};
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{coin, to_binary, Addr, CosmosMsg, Uint128, WasmMsg};
+        use cosmwasm_std::{Addr, Uint128};
         use mixnet_contract_common::error::MixnetContractError;
         use mixnet_contract_common::mixnode::{PendingMixNodeChanges, UnbondedMixnode};
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
@@ -1153,18 +1133,13 @@ mod tests {
             let mix_details = mixnodes_storage::mixnode_bonds()
                 .load(test.deps().storage, mix_id)
                 .unwrap();
+            let active_params = test.active_node_params(100.0);
 
             test.force_change_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
-            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
-            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id,
-                test_helpers::performance(100.0),
-            );
+            let dist2 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let expected_reward = dist1.operator + dist2.operator;
             let truncated_reward = truncate_reward_amount(expected_reward);
@@ -1271,6 +1246,7 @@ mod tests {
             let pledge1 = Uint128::new(150_000_000);
             let pledge2 = Uint128::new(50_000_000);
             let pledge3 = Uint128::new(200_000_000);
+            let active_params = test.active_node_params(100.0);
 
             let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
@@ -1291,14 +1267,9 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
-            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id_repledge,
-                test_helpers::performance(100.0),
-            );
-            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id_full_pledge,
-                test_helpers::performance(100.0),
-            );
+            let dist1 = test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
+            let dist2 =
+                test.reward_with_distribution_ignore_state(mix_id_full_pledge, active_params);
 
             assert_eq!(dist1, dist2)
         }
@@ -1308,6 +1279,7 @@ mod tests {
             let mut test = TestSetup::new();
             let pledge1 = Uint128::new(150_000_000_000);
             let pledge2 = Uint128::new(50_000_000_000);
+            let active_params = test.active_node_params(100.0);
 
             let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
@@ -1319,10 +1291,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge]);
 
-            let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id_repledge,
-                test_helpers::performance(100.0),
-            );
+            let dist = test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
 
             let increase = test.coin(pledge2.u128());
             increase_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, increase).unwrap();
@@ -1363,14 +1332,10 @@ mod tests {
             // go through few epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id_repledge,
-                    test_helpers::performance(100.0),
-                );
-                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id_full_pledge,
-                    test_helpers::performance(100.0),
-                );
+                let dist1 =
+                    test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
+                let dist2 =
+                    test.reward_with_distribution_ignore_state(mix_id_full_pledge, active_params);
 
                 assert_eq!(dist1, dist2)
             }
@@ -1381,6 +1346,7 @@ mod tests {
             let mut test = TestSetup::new();
             let pledge1 = Uint128::new(150_000_000_000);
             let pledge2 = Uint128::new(50_000_000_000);
+            let active_params = test.active_node_params(100.0);
 
             let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
@@ -1398,10 +1364,8 @@ mod tests {
             // go few epochs of rewarding before adding more pledge
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id_repledge,
-                    test_helpers::performance(100.0),
-                );
+                let dist =
+                    test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
                 cumulative_op_reward += dist.operator;
                 cumulative_del_reward += dist.delegates;
             }
@@ -1446,14 +1410,10 @@ mod tests {
             // go through few more epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id_repledge,
-                    test_helpers::performance(100.0),
-                );
-                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id_full_pledge,
-                    test_helpers::performance(100.0),
-                );
+                let dist1 =
+                    test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
+                let dist2 =
+                    test.reward_with_distribution_ignore_state(mix_id_full_pledge, active_params);
 
                 assert_eq!(dist1, dist2)
             }
@@ -1565,6 +1525,7 @@ mod tests {
             let pledge1 = Uint128::new(200_000_000);
             let pledge_change = Uint128::new(50_000_000);
             let pledge3 = Uint128::new(150_000_000);
+            let active_params = test.active_node_params(100.0);
 
             let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
@@ -1585,14 +1546,9 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
-            let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id_repledge,
-                test_helpers::performance(100.0),
-            );
-            let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id_full_pledge,
-                test_helpers::performance(100.0),
-            );
+            let dist1 = test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
+            let dist2 =
+                test.reward_with_distribution_ignore_state(mix_id_full_pledge, active_params);
 
             assert_eq!(dist1, dist2)
         }
@@ -1602,6 +1558,7 @@ mod tests {
             let mut test = TestSetup::new();
             let pledge1 = Uint128::new(200_000_000_000);
             let pledge_change = Uint128::new(50_000_000_000);
+            let active_params = test.active_node_params(100.0);
 
             let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
@@ -1613,10 +1570,7 @@ mod tests {
             test.skip_to_next_epoch_end();
             test.force_change_rewarded_set(vec![mix_id_repledge]);
 
-            let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                mix_id_repledge,
-                test_helpers::performance(100.0),
-            );
+            let dist = test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
 
             let decrease = test.coin(pledge_change.u128());
             decrease_mixnode_pledge(test.deps_mut(), 123, mix_id_repledge, decrease).unwrap();
@@ -1657,14 +1611,10 @@ mod tests {
             // go through few epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id_repledge,
-                    test_helpers::performance(100.0),
-                );
-                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id_full_pledge,
-                    test_helpers::performance(100.0),
-                );
+                let dist1 =
+                    test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
+                let dist2 =
+                    test.reward_with_distribution_ignore_state(mix_id_full_pledge, active_params);
 
                 assert_eq!(dist1, dist2)
             }
@@ -1675,6 +1625,7 @@ mod tests {
             let mut test = TestSetup::new();
             let pledge1 = Uint128::new(200_000_000_000);
             let pledge_change = Uint128::new(50_000_000_000);
+            let active_params = test.active_node_params(100.0);
 
             let mix_id_repledge = test.add_rewarded_legacy_mixnode("mix-owner1", Some(pledge1));
             test.set_pending_pledge_change(mix_id_repledge, None);
@@ -1692,10 +1643,8 @@ mod tests {
             // go few epochs of rewarding before decreasing pledge
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id_repledge,
-                    test_helpers::performance(100.0),
-                );
+                let dist =
+                    test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
                 cumulative_op_reward += dist.operator;
                 cumulative_del_reward += dist.delegates;
             }
@@ -1740,14 +1689,10 @@ mod tests {
             // go through few more epochs of rewarding
             for _ in 0..500 {
                 test.skip_to_next_epoch_end();
-                let dist1 = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id_repledge,
-                    test_helpers::performance(100.0),
-                );
-                let dist2 = test.legacy_reward_with_distribution_with_state_bypass(
-                    mix_id_full_pledge,
-                    test_helpers::performance(100.0),
-                );
+                let dist1 =
+                    test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
+                let dist2 =
+                    test.reward_with_distribution_ignore_state(mix_id_full_pledge, active_params);
 
                 assert_eq!(dist1, dist2)
             }

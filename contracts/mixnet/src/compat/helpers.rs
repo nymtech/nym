@@ -146,7 +146,6 @@ pub fn may_get_bond(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyhow::bail;
 
     #[cfg(test)]
     mod reward_withdrawing_permission {

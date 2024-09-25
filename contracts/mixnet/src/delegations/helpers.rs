@@ -24,13 +24,14 @@ pub(crate) fn undelegate(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::support::tests::test_helpers::{performance, TestSetup};
+    use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::{Addr, Decimal, Uint128};
     use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
     #[test]
     fn undelegation_updates_mix_rewarding_storage_and_deletes_delegation() {
         let mut test = TestSetup::new();
+        let active_params = test.active_node_params(100.0);
 
         let mix_id =
             test.add_rewarded_set_nymnode_id("mix-owner", Some(Uint128::new(100_000_000_000)));
@@ -40,11 +41,9 @@ mod tests {
 
         test.skip_to_next_epoch_end();
         test.force_change_rewarded_set(vec![mix_id]);
-        let dist1 =
-            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
         test.skip_to_next_epoch_end();
-        let dist2 =
-            test.legacy_reward_with_distribution_with_state_bypass(mix_id, performance(100.0));
+        let dist2 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
         let mix_rewarding = test.mix_rewarding(mix_id);
         let delegation = test.delegation(mix_id, delegator, &None);

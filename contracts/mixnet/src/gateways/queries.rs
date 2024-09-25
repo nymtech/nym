@@ -83,11 +83,10 @@ pub(crate) fn query_preassigned_ids_paged(
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
-    use crate::contract::execute;
     use crate::support::tests;
     use crate::support::tests::test_helpers;
     use crate::support::tests::test_helpers::TestSetup;
-    use cosmwasm_std::testing::{mock_env, mock_info};
+    use cosmwasm_std::testing::mock_info;
 
     #[test]
     fn gateways_empty_on_init() {

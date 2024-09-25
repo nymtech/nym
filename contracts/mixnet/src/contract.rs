@@ -7,17 +7,15 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::storage as nymnodes_storage;
 use crate::queued_migrations::migrate_to_nym_nodes_usage;
 use crate::rewards::storage::RewardingStorage;
-use crate::support::tests::legacy;
 use cosmwasm_std::{
-    coin, entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse,
-    Response,
+    entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
     ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg,
-    NodeCostParams, OperatingCostRange, ProfitMarginRange, QueryMsg,
+    OperatingCostRange, ProfitMarginRange, QueryMsg,
 };
-use nym_contracts_common::{set_build_information, Percent};
+use nym_contracts_common::set_build_information;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crate:nym-mixnet-contract";
@@ -295,24 +293,6 @@ pub fn execute(
         #[cfg(feature = "contract-testing")]
         ExecuteMsg::TestingResolveAllPendingEvents { limit } => {
             crate::testing::transactions::try_resolve_all_pending_events(deps, env, limit)
-        }
-        ExecuteMsg::TestingUncheckedBondLegacyMixnode { node } => {
-            legacy::save_new_mixnode(
-                deps.storage,
-                env,
-                node,
-                NodeCostParams {
-                    profit_margin_percent: Percent::from_percentage_value(20).unwrap(),
-                    interval_operating_cost: coin(40_000_000, "unym"),
-                },
-                info.sender,
-                info.funds[0].clone(),
-            )?;
-            Ok(Response::default())
-        }
-        ExecuteMsg::TestingUncheckedBondLegacyGateway { node } => {
-            legacy::save_new_gateway(deps.storage, env, node, info.sender, info.funds[0].clone())?;
-            Ok(Response::default())
         }
     }
 }

@@ -1158,48 +1158,6 @@
           }
         },
         "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
-          "testing_unchecked_bond_legacy_mixnode"
-        ],
-        "properties": {
-          "testing_unchecked_bond_legacy_mixnode": {
-            "type": "object",
-            "required": [
-              "node"
-            ],
-            "properties": {
-              "node": {
-                "$ref": "#/definitions/MixNode"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
-          "testing_unchecked_bond_legacy_gateway"
-        ],
-        "properties": {
-          "testing_unchecked_bond_legacy_gateway": {
-            "type": "object",
-            "required": [
-              "node"
-            ],
-            "properties": {
-              "node": {
-                "$ref": "#/definitions/Gateway"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
       }
     ],
     "definitions": {

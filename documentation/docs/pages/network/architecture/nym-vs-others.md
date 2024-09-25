@@ -2,11 +2,6 @@
 
 The diagram and brief explainer texts below give a high level overview of the difference between Nym and other comparable systems.
 
-> If you want to dig more deeply into the way traffic is packetised and moved through the mixnet, check out the [Mixnet Traffic Flow](https://nymtech.net/docs/architecture/traffic-flow.html) page of the docs.
-<!-- IMG DOES NOT EXIST
-![](../images/nym-vs-animation.gif)
--->
-
 ### Nym vs VPNs
 
 The most popular network-level privacy solution currently is the VPN (virtual private network), which provides network-level protection via an encrypted tunnel between a user’s computer and one run by a VPN provider. VPNs are often misconfigured, however, and even when configured correctly, don’t offer real privacy or adequate resistance to censorship.

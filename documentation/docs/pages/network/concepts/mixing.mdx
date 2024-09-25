@@ -1,0 +1,15 @@
+# Packet Mixing
+
+> Continuous-time mixing strategies ... delay each message independently, forwarding it to its next destination once a specified delay has timed out. The aggregate effect of independently delaying each message is an output sequence of messages that is randomly reordered with respect to the input sequence.
+>
+> [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf) §4.4
+
+Mixnets are networks of nodes that route traffic in a way that makes it untraceable, even for Global Passive Adversaries employing Machine Learning to try and deanonymise traffic based on timing and fingerprinting attacks.
+
+One of the key features of a Mixnet - unsurprisingly - is that these nodes 'mix' traffic. As traffic moves through the network, each node, on receiving a message, will wait a variable length amount of time before sending it onwards - aka nodes do **not** pass messages on in a FIFO manner.
+
+> An easy analogy is each node constantly receiving and sending out cards, shuffling their local deck each time and randomly selecting a card to pass along in the chain of messages.
+
+The Mixnet employs continuous-time mixing, in which each message is dealt with independently of the other messages in the node's local storage. This is in contrast to other Mixnet designs which rely on nodes sending out periodic bursts of accrued messages.
+
+TODO ADD DIAGRAM

@@ -1,0 +1,12 @@
+# Anonymous Replies using SURBs
+SURBs ('Single Use Reply Blocks') allow clients to reply to incoming messages anonymously.
+
+It will often be the case that a client app wants to interact with a service of some kind, or a P2P application on someone else's machine. It defeats the purpose of the whole system if a client app needs to reveal its own gateway public key and client public key in order to get a response.
+
+Luckily, SURBs allow for anonymous replies. A SURB is a layer encrypted set of Sphinx headers detailing a reply path ending in the original client's [Nym address](../traffic/addressing-system). SURBs are encrypted by the client, so the recieving service/app can attach its response and send back the resulting Sphinx packet, but it **never has sight of who it is replying to**.
+
+MultiSURBs were implemented in `v1.1.4`. Clients, when sending a message to another client, attach a bundle of SURBs which can be used by the receiver to construct large anonymous replies.
+
+If a reply is too large still (i.e. it would use more SURBs than sent with the original message), the receiver will use a SURB to ask the sender for more SURBs.
+
+You can read more about SURBs in §4.5 of the [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf).

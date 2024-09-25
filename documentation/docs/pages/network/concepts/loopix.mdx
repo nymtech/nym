@@ -1,0 +1,7 @@
+# Loopix
+The Nym Mixnet is based upon the [Loopix](https://arxiv.org/pdf/1703.00536) design.
+
+This design lays out a stratified design of several layers of Mix Nodes and Gateways in which:
+- Traffic path selection is chosen independently per-message, unlike designs such as Onion routing.
+- Messages are routed through an ingress Gateway, 3 layers of Mix Nodes, and an egress Gateway, where each node is connected only to adjecent layers.
+- Continuous-time mixing is employed, wherein connected clients and nodes continuously generate packets that are sent into the network. This generation can by modeled by a Poisson process. Whether a packet contains a user-defined payload or not defines the difference between 'real' and 'cover' traffic but it is impossible to make this distinction by just monitoring the traffic flow itself by an observer.

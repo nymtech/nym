@@ -11,8 +11,8 @@ import { simulateBondGateway, simulateVestingBondGateway } from 'src/requests';
 import { TBondGatewayArgs } from 'src/types';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { AppContext } from 'src/context';
-import { BondGatewayForm } from '../forms/BondGatewayForm';
 import { gatewayToTauri } from '../utils';
+import { BondGatewayForm } from '../forms/legacyForms/BondGatewayForm';
 
 const defaultGatewayValues: GatewayData = {
   identityKey: '',

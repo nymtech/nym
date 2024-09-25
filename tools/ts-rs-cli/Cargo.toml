@@ -15,7 +15,7 @@ nym-validator-client = { path = "../../common/client-libs/validator-client", fea
     "generate-ts"
 ] }
 nym-api-requests = { path = "../../nym-api/nym-api-requests", features = ["generate-ts"] }
-nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = [ "generate-ts" ]}
-nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", features = [ "generate-ts" ] }
-nym-types = { path = "../../common/types", features = [ "generate-ts" ] }
-nym-wallet-types = { path = "../../nym-wallet/nym-wallet-types", features = [ "generate-ts" ] }
+nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract", features = ["generate-ts"] }
+nym-vesting-contract-common = { path = "../../common/cosmwasm-smart-contracts/vesting-contract", features = ["generate-ts"] }
+nym-types = { path = "../../common/types", features = ["generate-ts"] }
+nym-wallet-types = { path = "../../nym-wallet/nym-wallet-types", features = ["generate-ts"] }

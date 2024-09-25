@@ -14,7 +14,10 @@ pub type WorkFactor = Decimal;
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardParams.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/IntervalRewardParams.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Copy)]
@@ -80,7 +83,10 @@ impl IntervalRewardParams {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/RewardingParams.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/RewardingParams.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Copy)]
@@ -241,7 +247,10 @@ impl RewardingParams {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/RewardedSetParams.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/RewardedSetParams.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Copy)]
@@ -306,7 +315,10 @@ impl RewardedSetParams {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/NodeRewardingParameters.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodeRewardingParameters.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Copy)]
@@ -338,7 +350,10 @@ impl NodeRewardingParameters {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardingParamsUpdate.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/IntervalRewardingParamsUpdate.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Copy, Default)]
@@ -392,7 +407,10 @@ impl IntervalRewardingParamsUpdate {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/ActiveSetUpdate.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/ActiveSetUpdate.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Copy, Default)]

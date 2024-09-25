@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Gas.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/Gas.ts")
 )]
 #[derive(Deserialize, Serialize, Copy, Clone, Debug)]
 pub struct Gas {
@@ -36,7 +36,7 @@ impl From<i64> for Gas {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/GasInfo.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/GasInfo.ts")
 )]
 #[derive(Deserialize, Serialize, Copy, Clone, Debug)]
 pub struct GasInfo {

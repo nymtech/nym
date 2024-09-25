@@ -541,7 +541,7 @@ impl MixNodeBond {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Mixnode.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/Mixnode.ts")
 )]
 pub struct MixNode {
     /// Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com
@@ -642,7 +642,10 @@ impl From<LegacyMixLayer> for u8 {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingMixnodeChanges.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingMixnodeChanges.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Default, Copy)]
@@ -665,7 +668,10 @@ impl PendingMixNodeChanges {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/UnbondedMixnode.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/UnbondedMixnode.ts"
+    )
 )]
 #[cw_serde]
 pub struct UnbondedMixnode {
@@ -689,7 +695,10 @@ pub struct UnbondedMixnode {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/MixNodeConfigUpdate.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/MixNodeConfigUpdate.ts"
+    )
 )]
 #[cw_serde]
 pub struct MixNodeConfigUpdate {

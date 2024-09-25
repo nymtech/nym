@@ -17,7 +17,10 @@ use std::net::IpAddr;
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/MixNodeDetails.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/MixNodeDetails.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeDetails {
@@ -46,7 +49,7 @@ impl MixNodeDetails {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/MixNodeBond.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/MixNodeBond.ts")
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct MixNodeBond {
@@ -80,7 +83,10 @@ impl MixNodeBond {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/NodeRewarding.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodeRewarding.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct NodeRewarding {
@@ -126,7 +132,10 @@ impl NodeRewarding {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/MixNodeCostParams.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/MixNodeCostParams.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct NodeCostParams {

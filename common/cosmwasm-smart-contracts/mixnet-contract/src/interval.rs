@@ -215,7 +215,7 @@ impl Display for EpochState {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Interval.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/Interval.ts")
 )]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]

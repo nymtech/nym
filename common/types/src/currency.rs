@@ -13,7 +13,10 @@ use strum::{Display, EnumString, VariantNames};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/CurrencyDenom.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/CurrencyDenom.ts"
+    )
 )]
 #[cfg_attr(feature = "generate-ts", ts(rename_all = "lowercase"))]
 #[derive(
@@ -247,7 +250,7 @@ impl From<DenomDetailsOwned> for CoinMetadata {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DecCoin.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/DecCoin.ts")
 )]
 pub struct DecCoin {
     #[cfg_attr(feature = "generate-ts", ts(as = "CurrencyDenom"))]

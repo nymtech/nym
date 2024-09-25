@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/FeeDetails.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/FeeDetails.ts")
 )]
 pub struct FeeDetails {
     // expected to be used by the wallet in order to display detailed fee information to the user
@@ -30,14 +30,14 @@ pub mod ts_type_helpers {
     use serde::{Deserialize, Serialize};
 
     #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-    #[ts(export_to = "ts-packages/types/src/types/rust/Fee.ts")]
+    #[ts(export, export_to = "ts-packages/types/src/types/rust/Fee.ts")]
     pub enum Fee {
         Manual(CosmosFee),
         Auto(Option<GasAdjustment>),
     }
 
     #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-    #[ts(export_to = "ts-packages/types/src/types/rust/CosmosFee.ts")]
+    #[ts(export, export_to = "ts-packages/types/src/types/rust/CosmosFee.ts")]
     // this should corresponds to cosmrs::tx::Fee
     // IMPORTANT NOTE: this should work as of cosmrs 0.7.1 due to their `FromStr` implementations
     // on the type. The below struct might have to get readjusted if we update cosmrs!!
@@ -50,7 +50,7 @@ pub mod ts_type_helpers {
 
     // Note: I've got a feeling this one will bite us hard at some point...
     #[derive(Debug, Clone, Serialize, Deserialize, ts_rs::TS)]
-    #[ts(export_to = "ts-packages/types/src/types/rust/Coin.ts")]
+    #[ts(export, export_to = "ts-packages/types/src/types/rust/Coin.ts")]
     // this should corresponds to cosmrs::Coin
     // IMPORTANT NOTE: this should work as of cosmrs 0.7.1 due to their `FromStr` implementations
     // on the type. The below struct might have to get readjusted if we update cosmrs!!

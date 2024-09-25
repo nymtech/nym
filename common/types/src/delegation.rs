@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Delegation.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/Delegation.ts")
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct Delegation {
@@ -39,7 +39,10 @@ impl Delegation {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DelegationWithEverything.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/DelegationWithEverything.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct DelegationWithEverything {
@@ -70,7 +73,10 @@ pub struct DelegationWithEverything {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DelegationResult.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/DelegationResult.ts"
+    )
 )]
 #[derive(Serialize, Deserialize, JsonSchema, Clone, PartialEq, Eq, Debug)]
 pub struct DelegationResult {
@@ -82,7 +88,10 @@ pub struct DelegationResult {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DelegationSummaryResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/DelegationSummaryResponse.ts"
+    )
 )]
 #[derive(Deserialize, Serialize)]
 pub struct DelegationsSummaryResponse {

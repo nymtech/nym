@@ -10,7 +10,10 @@ pub mod simulator;
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/RewardEstimate.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/RewardEstimate.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Copy, Default)]

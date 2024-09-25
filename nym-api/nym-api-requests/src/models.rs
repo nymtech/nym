@@ -69,7 +69,10 @@ impl Display for RequestError {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/MixnodeStatus.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/MixnodeStatus.ts"
+    )
 )]
 #[serde(rename_all = "snake_case")]
 pub enum MixnodeStatus {
@@ -88,7 +91,10 @@ impl MixnodeStatus {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/MixnodeCoreStatusResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/MixnodeCoreStatusResponse.ts"
+    )
 )]
 pub struct MixnodeCoreStatusResponse {
     pub mix_id: NodeId,
@@ -99,7 +105,10 @@ pub struct MixnodeCoreStatusResponse {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/GatewayCoreStatusResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/GatewayCoreStatusResponse.ts"
+    )
 )]
 pub struct GatewayCoreStatusResponse {
     pub identity: String,
@@ -110,7 +119,10 @@ pub struct GatewayCoreStatusResponse {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/MixnodeStatusResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/MixnodeStatusResponse.ts"
+    )
 )]
 pub struct MixnodeStatusResponse {
     pub status: MixnodeStatus,
@@ -133,7 +145,10 @@ pub struct NodePerformance {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/NodeAnnotation.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodeAnnotation.ts"
+    )
 )]
 pub struct NodeAnnotation {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
@@ -145,7 +160,10 @@ pub struct NodeAnnotation {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/AnnotationResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/AnnotationResponse.ts"
+    )
 )]
 pub struct AnnotationResponse {
     #[schema(value_type = u32)]
@@ -157,7 +175,10 @@ pub struct AnnotationResponse {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/NodePerformanceResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodePerformanceResponse.ts"
+    )
 )]
 pub struct NodePerformanceResponse {
     #[schema(value_type = u32)]
@@ -169,7 +190,10 @@ pub struct NodePerformanceResponse {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/NodeDatePerformanceResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodeDatePerformanceResponse.ts"
+    )
 )]
 pub struct NodeDatePerformanceResponse {
     #[schema(value_type = u32)]
@@ -359,7 +383,10 @@ pub struct ComputeRewardEstParam {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/RewardEstimationResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/RewardEstimationResponse.ts"
+    )
 )]
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct RewardEstimationResponse {
@@ -391,7 +418,10 @@ pub struct GatewayUptimeResponse {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/StakeSaturationResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/StakeSaturationResponse.ts"
+    )
 )]
 pub struct StakeSaturationResponse {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
@@ -410,7 +440,10 @@ pub type StakeSaturation = Decimal;
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/SelectionChance.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/SelectionChance.ts"
+    )
 )]
 pub enum SelectionChance {
     High,
@@ -452,7 +485,10 @@ impl fmt::Display for SelectionChance {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/InclusionProbabilityResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/InclusionProbabilityResponse.ts"
+    )
 )]
 pub struct InclusionProbabilityResponse {
     pub in_active: SelectionChance,
@@ -515,7 +551,10 @@ pub struct GatewayStatusReportResponse {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PerformanceHistoryResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PerformanceHistoryResponse.ts"
+    )
 )]
 pub struct PerformanceHistoryResponse {
     #[schema(value_type = u32)]
@@ -527,7 +566,10 @@ pub struct PerformanceHistoryResponse {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/UptimeHistoryResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/UptimeHistoryResponse.ts"
+    )
 )]
 pub struct UptimeHistoryResponse {
     #[schema(value_type = u32)]
@@ -539,7 +581,10 @@ pub struct UptimeHistoryResponse {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/HistoricalUptimeResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/HistoricalUptimeResponse.ts"
+    )
 )]
 pub struct HistoricalUptimeResponse {
     #[schema(value_type = String, example = "1970-01-01")]
@@ -554,7 +599,10 @@ pub struct HistoricalUptimeResponse {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/HistoricalPerformanceResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/HistoricalPerformanceResponse.ts"
+    )
 )]
 pub struct HistoricalPerformanceResponse {
     #[schema(value_type = String, example = "1970-01-01")]
@@ -792,7 +840,10 @@ impl NymNodeDescription {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DescribedNodeType.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/DescribedNodeType.ts"
+    )
 )]
 pub enum DescribedNodeType {
     LegacyMixnode,
@@ -804,7 +855,10 @@ pub enum DescribedNodeType {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DeclaredRoles.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/DeclaredRoles.ts"
+    )
 )]
 pub struct DeclaredRoles {
     pub mixnode: bool,

@@ -10,7 +10,7 @@ use std::str::FromStr;
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Period.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/Period.ts")
 )]
 #[cw_serde]
 /// The vesting period.

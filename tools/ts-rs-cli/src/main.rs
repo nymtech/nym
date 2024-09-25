@@ -1,7 +1,14 @@
 use nym_api_requests::models::{
-    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatus, MixnodeStatusResponse, RewardEstimationResponse, SelectionChance,
-    StakeSaturationResponse,
+    AnnotationResponse, DeclaredRoles, DescribedNodeType, GatewayCoreStatusResponse,
+    HistoricalPerformanceResponse, HistoricalUptimeResponse, InclusionProbabilityResponse,
+    MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusResponse, NodeAnnotation,
+    NodeDatePerformanceResponse, NodePerformanceResponse, PerformanceHistoryResponse,
+    RewardEstimationResponse, SelectionChance, StakeSaturationResponse, UptimeHistoryResponse,
+};
+use nym_api_requests::pagination::{PaginatedResponse, Pagination};
+use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, Role};
+use nym_mixnet_contract_common::reward_params::{
+    ActiveSetUpdate, NodeRewardingParameters, RewardedSetParams,
 };
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
@@ -70,11 +77,16 @@ fn main() {
     do_export!(MixNode);
     do_export!(MixNodeConfigUpdate);
     do_export!(RewardingParams);
+    do_export!(RewardedSetParams);
+    do_export!(NodeRewardingParameters);
+    do_export!(ActiveSetUpdate);
     do_export!(UnbondedMixnode);
     do_export!(RewardEstimate);
     do_export!(ContractInterval);
     do_export!(NymNode);
     do_export!(PendingNodeChanges);
+    do_export!(NodeConfigUpdate);
+    do_export!(Role);
 
     // common/types/src
     do_export!(Account);
@@ -133,6 +145,18 @@ fn main() {
     do_export!(SelectionChance);
     do_export!(StakeSaturationResponse);
     do_export!(RewardEstimationResponse);
+    do_export!(NodeAnnotation);
+    do_export!(AnnotationResponse);
+    do_export!(NodePerformanceResponse);
+    do_export!(NodeDatePerformanceResponse);
+    do_export!(PerformanceHistoryResponse);
+    do_export!(UptimeHistoryResponse);
+    do_export!(HistoricalUptimeResponse);
+    do_export!(HistoricalPerformanceResponse);
+    do_export!(DescribedNodeType);
+    do_export!(DeclaredRoles);
+    do_export!(PaginatedResponse<ts_rs::Dummy>);
+    do_export!(Pagination);
 
     // nym-wallet
     do_export!(AppEnv);

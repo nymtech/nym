@@ -130,12 +130,23 @@ pub struct NodePerformance {
 // nym-api shouldn't be calculating apy or stake saturation for you.
 // it should just return its own metrics (performance) and then you can do with it as you wish
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/NodeAnnotation.ts")
+)]
 pub struct NodeAnnotation {
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub last_24h_performance: Performance,
     pub current_role: Option<Role>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/AnnotationResponse.ts")
+)]
 pub struct AnnotationResponse {
     #[schema(value_type = u32)]
     pub node_id: NodeId,
@@ -143,6 +154,11 @@ pub struct AnnotationResponse {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/NodePerformanceResponse.ts")
+)]
 pub struct NodePerformanceResponse {
     #[schema(value_type = u32)]
     pub node_id: NodeId,
@@ -150,11 +166,17 @@ pub struct NodePerformanceResponse {
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/NodeDatePerformanceResponse.ts")
+)]
 pub struct NodeDatePerformanceResponse {
     #[schema(value_type = u32)]
     pub node_id: NodeId,
     #[schema(value_type = String, example = "1970-01-01")]
     #[schemars(with = "String")]
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub date: Date,
     pub performance: Option<f64>,
 }
@@ -490,6 +512,11 @@ pub struct GatewayStatusReportResponse {
 }
 
 #[derive(Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/PerformanceHistoryResponse.ts")
+)]
 pub struct PerformanceHistoryResponse {
     #[schema(value_type = u32)]
     pub node_id: NodeId,
@@ -497,6 +524,11 @@ pub struct PerformanceHistoryResponse {
 }
 
 #[derive(Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/UptimeHistoryResponse.ts")
+)]
 pub struct UptimeHistoryResponse {
     #[schema(value_type = u32)]
     pub node_id: NodeId,
@@ -504,18 +536,30 @@ pub struct UptimeHistoryResponse {
 }
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/HistoricalUptimeResponse.ts")
+)]
 pub struct HistoricalUptimeResponse {
     #[schema(value_type = String, example = "1970-01-01")]
     #[schemars(with = "String")]
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub date: Date,
 
     pub uptime: Uptime,
 }
 
 #[derive(Clone, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/HistoricalPerformanceResponse.ts")
+)]
 pub struct HistoricalPerformanceResponse {
     #[schema(value_type = String, example = "1970-01-01")]
     #[schemars(with = "String")]
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub date: Date,
 
     pub performance: f64,
@@ -745,6 +789,11 @@ impl NymNodeDescription {
 
 #[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 #[serde(rename_all = "snake_case")]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/DescribedNodeType.ts")
+)]
 pub enum DescribedNodeType {
     LegacyMixnode,
     LegacyGateway,
@@ -752,6 +801,11 @@ pub enum DescribedNodeType {
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/DeclaredRoles.ts")
+)]
 pub struct DeclaredRoles {
     pub mixnode: bool,
     pub entry: bool,

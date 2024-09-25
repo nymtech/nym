@@ -6,6 +6,11 @@ use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/Pagination.ts")
+)]
 pub struct Pagination {
     pub total: usize,
     pub page: u32,
@@ -13,6 +18,11 @@ pub struct Pagination {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/PaginatedResponse.ts")
+)]
 pub struct PaginatedResponse<T> {
     pub pagination: Pagination,
     pub data: Vec<T>,

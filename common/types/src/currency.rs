@@ -7,12 +7,8 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::collections::HashMap;
-
 use std::fmt::{Display, Formatter};
 use strum::{Display, EnumString, VariantNames};
-
-#[cfg(feature = "generate-ts")]
-use ts_rs::{Dependency, TS};
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -248,38 +244,18 @@ impl From<DenomDetailsOwned> for CoinMetadata {
 // tries to semi-replicate cosmos-sdk's DecCoin for being able to handle tokens with decimal amounts
 // https://github.com/cosmos/cosmos-sdk/blob/v0.45.4/types/dec_coin.go
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/DecCoin.ts")
+)]
 pub struct DecCoin {
+    #[cfg_attr(feature = "generate-ts", ts(as = "CurrencyDenom"))]
     pub denom: Denom,
     // Decimal is already serialized to string and using string in its schema, so lets also go straight to string for ts_rs
     // todo: is `Decimal` the correct type to use? Do we want to depend on cosmwasm_std here?
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub amount: Decimal,
-}
-
-// I had to implement it manually to correctly set dependencies
-#[cfg(feature = "generate-ts")]
-impl TS for DecCoin {
-    const EXPORT_TO: Option<&'static str> = Some("ts-packages/types/src/types/rust/DecCoin.ts");
-
-    fn decl() -> String {
-        format!("type {} = {};", Self::name(), Self::inline())
-    }
-
-    fn name() -> String {
-        "DecCoin".into()
-    }
-
-    fn inline() -> String {
-        "{ denom: CurrencyDenom, amount: string }".into()
-    }
-
-    fn dependencies() -> Vec<Dependency> {
-        vec![Dependency::from_ty::<CurrencyDenom>()
-            .expect("TS was incorrectly defined on `CurrencyDenom`")]
-    }
-
-    fn transparent() -> bool {
-        false
-    }
 }
 
 impl DecCoin {

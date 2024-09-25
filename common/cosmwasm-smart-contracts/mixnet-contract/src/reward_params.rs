@@ -303,14 +303,21 @@ impl RewardedSetParams {
 }
 
 /// Parameters used for rewarding particular node.
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/NodeRewardingParameters.ts")
+)]
 #[cw_serde]
 #[derive(Copy)]
 pub struct NodeRewardingParameters {
     /// Performance of the particular node in the current epoch.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub performance: Performance,
 
     /// Amount of work performed by this node in the current epoch
     /// also known as 'omega' in the paper
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub work_factor: WorkFactor,
 }
 

@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "nym-wallet/src/types/rust/Interval.ts")
+    ts(export, export_to = "nym-wallet/src/types/rust/Interval.ts")
 )]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize)]
 pub struct Interval {

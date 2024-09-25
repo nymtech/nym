@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "nym-wallet/src/types/rust/StateParams.ts")
+    ts(export, export_to = "nym-wallet/src/types/rust/StateParams.ts")
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TauriContractStateParams {
@@ -27,7 +27,7 @@ pub struct TauriContractStateParams {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "nym-wallet/src/types/rust/OperatingCostRange.ts")
+    ts(export, export_to = "nym-wallet/src/types/rust/OperatingCostRange.ts")
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TauriOperatingCostRange {
@@ -38,7 +38,7 @@ pub struct TauriOperatingCostRange {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "nym-wallet/src/types/rust/ProfitMarginRange.ts")
+    ts(export, export_to = "nym-wallet/src/types/rust/ProfitMarginRange.ts")
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct TauriProfitMarginRange {

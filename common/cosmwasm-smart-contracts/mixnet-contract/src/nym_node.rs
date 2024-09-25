@@ -15,7 +15,7 @@ use std::fmt::{Display, Formatter};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Role.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/Role.ts")
 )]
 pub enum Role {
     #[serde(rename = "eg", alias = "entry", alias = "entry_gateway")]
@@ -343,7 +343,7 @@ impl NymNodeBond {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/NymNode.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/NymNode.ts")
 )]
 pub struct NymNode {
     /// Network address of this nym-node, for example 1.1.1.1 or foo.mixnode.com
@@ -405,7 +405,10 @@ impl From<Gateway> for NymNode {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/NodeConfigUpdate.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodeConfigUpdate.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Default)]
@@ -424,7 +427,10 @@ pub struct NodeConfigUpdate {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingNodeChanges.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingNodeChanges.ts"
+    )
 )]
 pub struct PendingNodeChanges {
     pub pledge_change: Option<EpochEventId>,

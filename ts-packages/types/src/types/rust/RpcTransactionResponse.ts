@@ -2,7 +2,7 @@
 import type { DecCoin } from './DecCoin';
 import type { Gas } from './Gas';
 
-export interface RpcTransactionResponse {
+export type RpcTransactionResponse = {
   index: number;
   tx_result_json: string;
   block_height: bigint;
@@ -10,4 +10,4 @@ export interface RpcTransactionResponse {
   gas_used: Gas;
   gas_wanted: Gas;
   fee: DecCoin | null;
-}
+};

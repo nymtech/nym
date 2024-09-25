@@ -135,7 +135,10 @@ impl Display for GatewayBond {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/GatewayConfigUpdate.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/GatewayConfigUpdate.ts"
+    )
 )]
 #[cw_serde]
 pub struct GatewayConfigUpdate {

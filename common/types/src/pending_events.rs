@@ -17,7 +17,10 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingEpochEvent.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingEpochEvent.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub struct PendingEpochEvent {
@@ -42,7 +45,10 @@ impl PendingEpochEvent {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingEpochEventData.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingEpochEventData.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
 pub enum PendingEpochEventData {
@@ -125,7 +131,10 @@ impl PendingEpochEventData {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingIntervalEvent.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingIntervalEvent.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct PendingIntervalEvent {
@@ -153,7 +162,10 @@ impl PendingIntervalEvent {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingIntervalEventData.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingIntervalEventData.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub enum PendingIntervalEventData {

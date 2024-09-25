@@ -5,5 +5,6 @@ export type PendingEpochEventData =
   | { Delegate: { owner: string; mix_id: number; amount: DecCoin; proxy: string | null } }
   | { Undelegate: { owner: string; mix_id: number; proxy: string | null } }
   | { PledgeMore: { mix_id: number; amount: DecCoin } }
+  | { DecreasePledge: { mix_id: number; decrease_by: DecCoin } }
   | { UnbondMixnode: { mix_id: number } }
   | { UpdateActiveSetSize: { new_size: number } };

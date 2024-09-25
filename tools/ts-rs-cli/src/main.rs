@@ -60,7 +60,7 @@ macro_rules! do_export {
     }};
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     println!("Starting export of types using ts-rs...");
     println!();
 
@@ -175,7 +175,10 @@ fn main() {
     println!();
     println!("Moving output files into place...");
 
-    for file in WalkDir::new("./")
+    let source = Path::new("./bindings");
+
+    // move from ./bindings/foo/bar/X.ts into ../../foo/bar/X.ts
+    for file in WalkDir::new(source)
         .into_iter()
         .filter_map(|file| file.ok())
         .filter(|f| {
@@ -191,7 +194,9 @@ fn main() {
     {
         // construct the source and destination paths that can be used to replace the output file
         let src = file.path();
-        let dst = dst_base.join(src);
+        let sourceless_src = src.strip_prefix(source)?;
+
+        let dst = dst_base.join(sourceless_src);
         let dst_directory = dst.parent().expect("Could not get parent directory");
 
         if !dst_directory.exists() {
@@ -208,15 +213,19 @@ fn main() {
                     println!("✅ {}  =>  {}", file.path().display(), res.display());
                 }
                 Err(e) => {
-                    println!("❌ {}: {}", file.path().display(), e);
+                    println!("❌ {}: {e}", file.path().display());
                 }
             },
             Err(e) => {
-                println!("❌ {}: {}", file.path().display(), e);
+                println!("❌ {}: {e}", file.path().display());
             }
         }
     }
 
+    // finally remove the ephemeral dir
+    std::fs::remove_dir_all(source)?;
+
     println!();
     println!("Done");
+    Ok(())
 }

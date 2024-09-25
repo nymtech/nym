@@ -15,7 +15,10 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/NymNodeDetails.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NymNodeDetails.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct NymNodeDetails {
@@ -51,7 +54,7 @@ impl NymNodeDetails {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/NymNodeBond.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/NymNodeBond.ts")
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Serialize, JsonSchema)]
 pub struct NymNodeBond {

@@ -1,0 +1,432 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Desktop Wallet - Nym Docs</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Nym technical documentation">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././themes/custom.css">
+        <link rel="stylesheet" href=".././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item affix "><li class="part-title">Architecture</li><li class="chapter-item "><a href="../architecture/network-overview.html"><strong aria-hidden="true">1.</strong> Network Overview</a></li><li class="chapter-item "><a href="../architecture/nym-vs-others.html"><strong aria-hidden="true">2.</strong> Nym vs Other Systems</a></li><li class="chapter-item "><a href="../architecture/traffic-flow.html"><strong aria-hidden="true">3.</strong> Mixnet Traffic Flow</a></li><li class="chapter-item "><a href="../architecture/addressing-system.html"><strong aria-hidden="true">4.</strong> Addressing System</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../binaries/init-and-config.html"><strong aria-hidden="true">5.1.</strong> Binary Initialisation and Configuration</a></li></ol></li><li class="chapter-item "><a href="../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Nodes</li><li class="chapter-item "><a href="../nodes/overview.html"><strong aria-hidden="true">7.</strong> Node Types (Previously Setup Guides)</a></li><li class="chapter-item affix "><li class="part-title">Wallet</li><li class="chapter-item expanded "><a href="../wallet/desktop-wallet.html" class="active"><strong aria-hidden="true">8.</strong> Desktop Wallet</a></li><li class="chapter-item "><a href="../wallet/cli-wallet.html"><strong aria-hidden="true">9.</strong> CLI Wallet</a></li><li class="chapter-item affix "><li class="part-title">Explorers</li><li class="chapter-item "><a href="../explorers/mixnet-explorer.html"><strong aria-hidden="true">10.</strong> Mixnet Explorer</a></li><li class="chapter-item affix "><li class="part-title">Nyx Blockchain</li><li class="chapter-item "><a href="../nyx/interacting-with-chain.html"><strong aria-hidden="true">11.</strong> Interacting with Nyx Chain and Smart Contracts</a></li><li class="chapter-item "><a href="../nyx/smart-contracts.html"><strong aria-hidden="true">12.</strong> Smart Contracts</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nyx/mixnet-contract.html"><strong aria-hidden="true">12.1.</strong> Mixnet Contract</a></li><li class="chapter-item "><a href="../nyx/vesting-contract.html"><strong aria-hidden="true">12.2.</strong> Vesting Contract</a></li></ol></li><li class="chapter-item "><a href="../nyx/rpc-node.html"><strong aria-hidden="true">13.</strong> RPC Nodes</a></li><li class="chapter-item "><a href="../nyx/ledger-live.html"><strong aria-hidden="true">14.</strong> Ledger Live Support</a></li><li class="chapter-item affix "><li class="part-title">Coconut</li><li class="chapter-item "><a href="../coconut.html"><strong aria-hidden="true">15.</strong> Coconut</a></li><li class="chapter-item "><a href="../bandwidth-credentials.html"><strong aria-hidden="true">16.</strong> Bandwidth Credentials</a></li><li class="chapter-item affix "><li class="part-title">Tools</li><li class="chapter-item "><a href="../tools/nym-cli.html"><strong aria-hidden="true">17.</strong> NymCLI</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../coc.html"><strong aria-hidden="true">18.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../licensing.html"><strong aria-hidden="true">19.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/docs/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="">Setup Guides</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Docs</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym/documentation/" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="desktop-wallet"><a class="header" href="#desktop-wallet">Desktop Wallet</a></h1>
+<p>The Nym Desktop Wallet lets you interact with your Nym node and to delegate stake to others, see the vesting schedule of tokens, and transfer tokens. In future releases, it will also let you access the Nym mixnet.</p>
+<p>You can download it for Mac, Windows, or Linux.</p>
+<p><a href="https://nymtech.net/download/wallet"><img src="../images/download-wallet.png" alt="download nym wallet" /></a></p>
+<h3 id="bypassing-security-warnings"><a class="header" href="#bypassing-security-warnings">Bypassing security warnings</a></h3>
+<p>On Windows you will see a security warning pop up when you attempt to run the wallet. We are in the process of getting app store keys from Microsoft so that this doesn’t happen. See the section below for details on steps to bypass these.</p>
+<h4 id="linux"><a class="header" href="#linux">Linux</a></h4>
+<p>You will need to <code>chmod +x</code> the AppImage in the terminal (or give it execute permission in your file browser) before it will run.</p>
+<h4 id="windows"><a class="header" href="#windows">Windows</a></h4>
+<p><em>You will still encounter warnings when opening the wallet on Windows. This is because - although the wallet is approved by Microsoft - it has less than 10 thousand downloads at the current time. Once the wallet has passed this threshold, this warning will disappear.</em></p>
+<p>Follow the steps below to bypass the warnings.</p>
+<ul>
+<li>Select more-info after clicking the msi installer app:</li>
+</ul>
+<p><img src="../images/wallet-warnings/windows_warningv1-0-2.png" alt="Windows Warning" /></p>
+<ul>
+<li>Proceed to ‘run-anyway’:</li>
+</ul>
+<p><img src="../images/wallet-warnings/windows_warning2.png" alt="Windows Warning" /></p>
+<ul>
+<li>Follow the installer instructions:</li>
+</ul>
+<p><img src="../images/wallet-warnings/windows_warning3.png" alt="Windows Warning" /></p>
+<p><img src="../images/wallet-warnings/windows_warning4.png" alt="Windows Warning" /></p>
+<p><img src="../images/wallet-warnings/windows_warning5.png" alt="Windows Warning" /></p>
+<h3 id="for-developers"><a class="header" href="#for-developers">For developers</a></h3>
+<p>If you would like to the compile the wallet yourself, follow the instructions below.</p>
+<blockquote>
+<p>Please note that the wallet has currently only been built on the operating systems for which there are binaries as listed above. If you find an issue or any additional prerequisties, please create an issue or PR against <code>develop</code> on <a href="https://github.com/nymtech/docs">Github</a>.</p>
+</blockquote>
+<h4 id="software-prerequisites-for-building-the-wallet"><a class="header" href="#software-prerequisites-for-building-the-wallet">Software prerequisites for building the wallet</a></h4>
+<ul>
+<li><code>git</code></li>
+</ul>
+<pre><code>sudo apt update
+sudo apt install git
+</code></pre>
+<p>Verify <code>git</code> is installed with:</p>
+<pre><code>git version
+# Should return: git version X.Y.Z
+</code></pre>
+<ul>
+<li>
+<p><a href="https://yarnpkg.com/">Yarn</a></p>
+</li>
+<li>
+<p><code>NodeJS &gt;= v16.8.0</code></p>
+</li>
+<li>
+<p><code>Rust &amp; cargo &gt;= v1.56</code></p>
+</li>
+</ul>
+<p>We recommend using the <a href="https://www.rust-lang.org/tools/install">Rust shell script installer</a>. Installing cargo from your package manager (e.g. <code>apt</code>) is not recommended as the packaged versions are usually too old.</p>
+<p>If you really don’t want to use the shell script installer, the <a href="https://forge.rust-lang.org/infra/other-installation-methods.html">Rust installation docs</a> contain instructions for many platforms.</p>
+<h4 id="additional-prerequisites-for-ubuntudebian-systems"><a class="header" href="#additional-prerequisites-for-ubuntudebian-systems">Additional prerequisites for Ubuntu/Debian systems</a></h4>
+<pre><code>sudo apt update
+sudo apt install pkg-config build-essential libssl-dev curl jq
+</code></pre>
+<h4 id="additional-prerequisites-for-windows"><a class="header" href="#additional-prerequisites-for-windows">Additional prerequisites for Windows</a></h4>
+<ul>
+<li>When running on Windows you will need to install the <code>c++</code> build tools.</li>
+<li>An easy guide to get Rust up and running can be found <a href="http://kennykerr.ca/2019/11/18/rust-getting-started/">here</a>.</li>
+<li>When installing <code>NodeJS</code> please use the <code>current features</code> version.</li>
+<li>Using a package manager like <a href="https://chocolatey.org/">Chocolatey</a> is recommended.</li>
+</ul>
+<h3 id="removing-signing-errors-when-building-in-development-mode"><a class="header" href="#removing-signing-errors-when-building-in-development-mode">Removing signing errors when building in development mode</a></h3>
+<p>If you’re wanting to build the wallet yourself, you will need to make a few modifications to the file located at <code>nym-wallet/src-tauri/tauri.conf.json</code> before doing so. These relate to the wallet being accepted by Mac and Windows app stores, and so aren’t relevant to you when building and running the wallet yourself.</p>
+<p>On <strong>all</strong> operating systems:</p>
+<ul>
+<li>set the value of line 49 to <code>false</code></li>
+<li>remove lines 50 to 54</li>
+</ul>
+<p>As well as these modifications for MacOS and Windows users:</p>
+<ul>
+<li>MacOS users must also remove line 39</li>
+<li>Windows users must remove lines 42 to 46</li>
+</ul>
+<h3 id="installation"><a class="header" href="#installation">Installation</a></h3>
+<p>Once you have made these modifications to <code>tauri.conf.json</code>, inside of the <code>nym-wallet</code> folder, run:</p>
+<pre><code>yarn install
+</code></pre>
+<h3 id="running-in-development-mode"><a class="header" href="#running-in-development-mode">Running in Development Mode</a></h3>
+<blockquote>
+<p>Make sure you copy over the contents of the provided <code>.env.sample</code> to a new <code>.env</code> file before proceeding</p>
+</blockquote>
+<p>You can run the wallet without having to install it in development mode by running the following terminal command from the <code>nym-wallet</code> folder</p>
+<pre><code>yarn dev
+</code></pre>
+<p>This will then start the Wallet GUI and produce a binary in <code>nym-wallet/target/debug/</code> named <code>nym-wallet</code>.</p>
+<h3 id="running-in-production-mode"><a class="header" href="#running-in-production-mode">Running in Production Mode</a></h3>
+<blockquote>
+<p>Make sure you copy over the contents of the provided <code>.env.sample</code> to a new <code>.env</code> file before proceeding</p>
+</blockquote>
+<p>To build and install the wallet, run the following terminal command from the <code>nym-wallet</code> folder.</p>
+<pre><code>yarn build
+</code></pre>
+<p>This will build an executable file that you can use to install the wallet on your machine. The output will compile different types of binaries dependent on your hardware / OS system. Once the binaries are built, they can be located as follows:</p>
+<pre><code>Binary output directory structure
+**macos**
+|
+└─── target/release
+|   |─ nym-wallet
+└───target/release/bundle/dmg
+│   │─ bundle_dmg.sh
+│   │─ nym-wallet.*.dmg
+└───target/release/bundle/macos/MacOs
+│   │─ nym-wallet
+|
+**Linux**
+└─── target/release
+|   │─  nym-wallet
+└───target/release/bundle/appimage
+│   │─  nym-wallet_*_.AppImage
+│   │─  build_appimage.sh
+└───target/release/bundle/deb
+│   │─  nym-wallet_*_.deb
+|
+**Windows**
+└─── target/release
+|   │─  nym-wallet.exe
+└───target/release/bundle/msi
+│   │─  nym-wallet_*_.msi
+</code></pre>
+<h3 id="importing-or-creating-accounts-when-you-have-signed-in-with-mnemonic"><a class="header" href="#importing-or-creating-accounts-when-you-have-signed-in-with-mnemonic">Importing or creating account(s) when you have signed in with mnemonic</a></h3>
+<p>To import or create a new account, first you need to create a password for your wallet:</p>
+<ol>
+<li>Log out from the wallet</li>
+<li>Sign in using “Sign in with mnemonic” button</li>
+<li>On the next screen select “Create a password“</li>
+<li>Type in the mnemonic you want to create a password for and follow the next steps</li>
+<li>Sign back in the wallet using your new password</li>
+<li>Come back to this page to import or create new accounts</li>
+</ol>
+<h3 id="importing-or-creating-accounts-when-you-have-signed-in-with-mnemonic-but-a-password-already-exists-on-your-machine"><a class="header" href="#importing-or-creating-accounts-when-you-have-signed-in-with-mnemonic-but-a-password-already-exists-on-your-machine">Importing or creating account(s) when you have signed in with mnemonic but a password already exists on your machine</a></h3>
+<p>To import or create a new account, you need to log in with your existing password or create a new password.</p>
+<blockquote>
+<p>Creating a new password will overwrite any old one stored on your machine. Make sure you have saved any mnemonics associated with the password before creating a new one.</p>
+</blockquote>
+<ol>
+<li>Log out</li>
+<li>Click on “Forgot password”</li>
+<li>On the next screen select “Create new password”</li>
+<li>Follow the instructions and create a new password</li>
+<li>Sign in using your new password</li>
+</ol>
+<h3 id="cli-tool-for-wallet-encrypted-file-password-recovery"><a class="header" href="#cli-tool-for-wallet-encrypted-file-password-recovery">CLI tool for wallet encrypted file (password) recovery:</a></h3>
+<p>The mnemonics that are stored in the local password protected file can also be decrypted and recovered through a simple CLI tool, <code>nym-wallet-recovery-cli</code>.</p>
+<pre><code>nym-wallet-recovery –file saved-wallet.json –password foo
+</code></pre>
+<p>The saved wallet file can be found in <code>$XDG_DATA_HOME</code> or <code>$HOME/.local/share</code> on Linux, <code>$HOME/Library/Application Support</code> on Mac, and <code>C:\Users\username\AppData\Local</code> on Windows.</p>
+<footer id="last-change">Last change: 2024-06-12, commit: <a href="https://github.com/nymtech/nym/documentation//commit/405d4653d">405d4653d</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../nodes/overview.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../wallet/cli-wallet.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../nodes/overview.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../wallet/cli-wallet.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,822 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>WSS &amp; Reversed Proxy - Nym Operators Guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Everything needed to run Nym Mixnet components">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././themes/custom.css">
+        <link rel="stylesheet" href=".././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="../changelog.html"><strong aria-hidden="true">2.</strong> Changelog</a></li><li class="chapter-item "><a href="../release-cycle.html"><strong aria-hidden="true">3.</strong> Release Cycle</a></li><li class="chapter-item "><a href="../sandbox.html"><strong aria-hidden="true">4.</strong> Sandbox Testnet</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Operators Guides</li><li class="chapter-item "><a href="../nodes/preliminary-steps.html"><strong aria-hidden="true">7.</strong> Preliminary Steps</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/wallet-preparation.html"><strong aria-hidden="true">7.1.</strong> Nym Wallet Preparation</a></li><li class="chapter-item "><a href="../nodes/vps-setup.html"><strong aria-hidden="true">7.2.</strong> VPS Setup</a></li></ol></li><li class="chapter-item expanded "><a href="../nodes/nym-node.html"><strong aria-hidden="true">8.</strong> Nym Node</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/setup.html"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item expanded "><a href="../nodes/configuration.html"><strong aria-hidden="true">8.2.</strong> Configuration</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../nodes/proxy-configuration.html" class="active"><strong aria-hidden="true">8.2.1.</strong> WSS & Reversed Proxy</a></li></ol></li><li class="chapter-item "><a href="../nodes/bonding.html"><strong aria-hidden="true">8.3.</strong> Bonding</a></li></ol></li><li class="chapter-item "><a href="../nodes/validator-setup.html"><strong aria-hidden="true">9.</strong> Nyx Validator Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/nym-api.html"><strong aria-hidden="true">9.1.</strong> Nym API Setup</a></li><li class="chapter-item "><a href="../nodes/nyx-configuration.html"><strong aria-hidden="true">9.2.</strong> Validator & API Configuration</a></li></ol></li><li class="chapter-item "><a href="../nodes/maintenance.html"><strong aria-hidden="true">10.</strong> Maintenance</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/manual-upgrade.html"><strong aria-hidden="true">10.1.</strong> Manual Node Upgrade</a></li><li class="chapter-item "><a href="../nodes/nymvisor-upgrade.html"><strong aria-hidden="true">10.2.</strong> Automatic Node Upgrade: Nymvisor Setup and Usage</a></li></ol></li><li class="chapter-item "><a href="../testing/performance.html"><strong aria-hidden="true">11.</strong> Performance Monitoring & Testing</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/gateway-probe.html"><strong aria-hidden="true">11.1.</strong> Gateway Probe</a></li><li class="chapter-item "><a href="../testing/node-api-check.html"><strong aria-hidden="true">11.2.</strong> Node API Check</a></li><li class="chapter-item "><a href="../testing/prometheus-grafana.html"><strong aria-hidden="true">11.3.</strong> Prometheus & Grafana</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/explorenym-scripts.html"><strong aria-hidden="true">11.3.1.</strong> ExploreNYM scripts</a></li></ol></li></ol></li><li class="chapter-item "><li class="part-title">Troubleshooting</li><li class="chapter-item "><a href="../troubleshooting/vps-isp.html"><strong aria-hidden="true">12.</strong> VPS Setup</a></li><li class="chapter-item "><a href="../troubleshooting/nodes.html"><strong aria-hidden="true">13.</strong> Nym Node</a></li><li class="chapter-item "><a href="../troubleshooting/validators.html"><strong aria-hidden="true">14.</strong> Validators</a></li><li class="chapter-item affix "><li class="part-title">Token Economics</li><li class="chapter-item "><a href="../tokenomics/validator-rewards.html"><strong aria-hidden="true">15.</strong> Nyx: Validator Rewards</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="../faq/general-faq.html"><strong aria-hidden="true">16.</strong> General Operators FAQ</a></li><li class="chapter-item "><a href="../faq/nym-nodes-faq.html"><strong aria-hidden="true">17.</strong> Nym Nodes</a></li><li class="chapter-item "><a href="../faq/nyx-faq.html"><strong aria-hidden="true">18.</strong> Nyx & Validators</a></li><li class="chapter-item affix "><li class="part-title">Community & Legal Forum</li><li class="chapter-item "><a href="../legal/exit-gateway.html"><strong aria-hidden="true">19.</strong> Exit Gateway</a></li><li class="chapter-item "><a href="../legal/community-counsel.html"><strong aria-hidden="true">20.</strong> Community Counsel</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/isp-list.html"><strong aria-hidden="true">20.1.</strong> ISP List</a></li><li class="chapter-item "><a href="../legal/jurisdictions.html"><strong aria-hidden="true">20.2.</strong> Jurisdictions</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/swiss.html"><strong aria-hidden="true">20.2.1.</strong> Switzerland</a></li><li class="chapter-item "><a href="../legal/united-states.html"><strong aria-hidden="true">20.2.2.</strong> United States</a></li></ol></li><li class="chapter-item "><a href="../legal/landing-pages.html"><strong aria-hidden="true">20.3.</strong> Landing Pages</a></li></ol></li><li class="chapter-item "><a href="../legal/add-content.html"><strong aria-hidden="true">21.</strong> How to Add Info</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="../archive/archive.html"><strong aria-hidden="true">22.</strong> Why archive?</a></li><li class="chapter-item "><a href="../archive/nodes/setup-guides.html"><strong aria-hidden="true">23.</strong> Mixnet Nodes Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../archive/nodes/initial-steps.html"><strong aria-hidden="true">23.1.</strong> Preliminary Steps</a></li><li class="chapter-item "><a href="../archive/nodes/mix-node-setup.html"><strong aria-hidden="true">23.2.</strong> Mix Node</a></li><li class="chapter-item "><a href="../archive/nodes/gateway-setup.html"><strong aria-hidden="true">23.3.</strong> Gateway</a></li><li class="chapter-item "><a href="../archive/nodes/network-requester-setup.html"><strong aria-hidden="true">23.4.</strong> Network Requester</a></li></ol></li><li class="chapter-item "><a href="../archive/faq/mixnodes-faq.html"><strong aria-hidden="true">24.</strong> FAQ: Mix Nodes</a></li><li class="chapter-item "><a href="../archive/faq/smoosh-faq.html"><strong aria-hidden="true">25.</strong> FAQ: Project Smoosh</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../coc.html"><strong aria-hidden="true">26.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../toc.html"><strong aria-hidden="true">27.</strong> Terms & Conditions</a></li><li class="chapter-item "><a href="../licensing.html"><strong aria-hidden="true">28.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Operators Guide</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="reverse-proxy--web-secure-socket"><a class="header" href="#reverse-proxy--web-secure-socket">Reverse Proxy &amp; Web Secure Socket</a></h1>
+<p>This section will guide you in setting up a reverse proxy for serving <code>nym-node</code> HTTP requests and to set up a custom <a href="../legal/landing-pages.html">landing page</a> for your node.</p>
+<p>In later sections, you will be setting up secure websocket (wss) to add additional security and encrypt connections coming to your node. Follow <a href="#web-secure-socket-setup">this guide</a> for installation.</p>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info"></a>
+</div>
+<div>
+<p>Since SSL certificates can only be issued for a domain name and not an IP address, it is essential for you to register a new domain name and configure a domain record pointing to your node’s IP address</p>
+</div>
+</div>
+<h2 id="variables-explanation"><a class="header" href="#variables-explanation">Variables Explanation</a></h2>
+<p>This guide contains several variables. Substitute them with your own value, without <code>&lt;&gt;</code> brackets. Here is a list of variables we used below.</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: left">Variable</th><th style="text-align: left">Description</th><th style="text-align: left">Syntax example</th></tr></thead><tbody>
+<tr><td style="text-align: left"><code>&lt;HOSTNAME&gt;</code></td><td style="text-align: left">Your registered DNS domain, asigned to the VPS with <code>nym-node</code></td><td style="text-align: left">exit-gateway1.squad.nsl</td></tr>
+<tr><td style="text-align: left"><code>&lt;WSS_PORT&gt;</code></td><td style="text-align: left">Port listening to WSS, default is <code>9001</code></td><td style="text-align: left">9001</td></tr>
+<tr><td style="text-align: left"><code>&lt;YOUR_WELCOME_TEXT&gt;</code></td><td style="text-align: left">Any text you want to show on the landing page</td><td style="text-align: left">Welcome to Nym Node, operator contact is example@email.me</td></tr>
+<tr><td style="text-align: left"><code>&lt;LANDING_PAGE_PATH&gt;</code></td><td style="text-align: left">A sub-directory located at <code>/var/www/&lt;HOSTNAME&gt;</code> containing html configuration files</td><td style="text-align: left"><code>/var/www/exit-gateway1.squad.nsl</code></td></tr>
+<tr><td style="text-align: left"><code>&lt;ID&gt;</code></td><td style="text-align: left">A local only <code>nym-node</code> identifier, specified by flag <code>--id</code>, default is <code>default-nym-node</code></td><td style="text-align: left">alice_super_node</td></tr>
+<tr><td style="text-align: left"><code>&lt;PATH_TO&gt;</code></td><td style="text-align: left">Specify a full path to the given file, directory or binary behind this variable</td><td style="text-align: left"><code>/root/src/nym/target/release/</code></td></tr>
+</tbody></table>
+</div><div id="admonition-default" class="admonition admonish-warning" role="note">
+<div>
+<p>The commands in this setup need to be run with root permission. Either add a prefix <code>sudo</code> or execute them from a root shell.</p>
+</div>
+</div>
+<h2 id="reverse-proxy-setup"><a class="header" href="#reverse-proxy-setup">Reverse Proxy Setup</a></h2>
+<div id="admonition-info-1" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-1-title">
+<div class="admonition-title">
+<div id="admonition-info-1-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info-1"></a>
+</div>
+<div>
+<p>This guide was created by a Nym node operator, <a href="https://avril14th.org">Avril 14th</a> as a part of <a href="../legal/community-counsel.html">Nym Operators Community Counsel</a>, edited by Nym.</p>
+</div>
+</div>
+<p>The following snippet needs  be modified as described below according to the public identity that you may want to show on this public notice, i.e. your graphics and your email.
+It would allow you to serve it as a landing page resembling the one proposed by <a href="https://gitlab.torproject.org/tpo/core/tor/-/raw/HEAD/contrib/operator-tools/tor-exit-notice.html">Tor</a> but with all the changes needed to adhere to the Nym’s operators case.</p>
+<h3 id="html-file-customization"><a class="header" href="#html-file-customization">HTML File Customization</a></h3>
+<p>File for html configuration are by convention located at <code>/var/www/&lt;HOSTNAME&gt;</code> directory and it’s subdirectories. We refer to this directory as <code>&lt;LANDING_PAGE_PATH&gt;</code>.</p>
+<ol>
+<li>Start by creating this directory:</li>
+</ol>
+<pre><code class="language-sh">mkdir -p /var/www/&lt;HOSTNAME&gt;
+</code></pre>
+<ol start="2">
+<li>Use your own html code or copy the template below to a new file called <code>index.html</code> located in <code>/var/www/&lt;HOSTNAME&gt;</code> directory.</li>
+</ol>
+<details id="admonition-an-example-template-for-varwwwindexhtml-page" class="admonition admonish-example" role="note" aria-labelledby="admonition-an-example-template-for-varwwwindexhtml-page-title">
+<summary class="admonition-title">
+<div id="admonition-an-example-template-for-varwwwindexhtml-page-title">
+<p>An example template for <code>/var/www/&lt;HOSTNAME&gt;/index.html</code> page</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-an-example-template-for-varwwwindexhtml-page"></a>
+</summary>
+<div>
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html lang="en-US"&gt;
+&lt;head&gt;
+&lt;meta charset="UTF-8"&gt;
+&lt;title&gt;This is a NYM Exit Gateway&lt;/title&gt;
+&lt;meta name="viewport" content="width=device-width, initial-scale=1"&gt;
+&lt;link rel="icon" type="image/png" href=""&gt;
+&lt;style&gt;
+:root {
+  font-family: Consolas, "Ubuntu Mono", Menlo, "DejaVu Sans Mono", monospace;
+}
+:root{
+--background-color: #121726;
+--text-color: #f2f2f2;
+--link-color: #fb6e4e;
+}
+html{
+background: var(--background-color);
+}
+body{
+margin-left: auto;
+margin-right: auto;
+padding-left: 5vw;
+padding-right: 5vw;
+max-width: 1000px;
+}
+h1{
+font-size: 55px;
+text-align: center;
+color: var(--title-color)
+}
+p{
+color: var(--text-color);
+}
+p, a{
+font-size: 20px;
+}
+a{
+color: var(--link-color);
+text-decoration: none;
+}
+a:hover{
+filter: brightness(.8);
+text-decoration: underline;
+}
+.links{
+display: flex;
+flex-wrap: wrap;
+justify-content: space-evenly;
+}
+.links &gt; a{
+margin: 10px;
+white-space: nowrap;
+}
+&lt;/style&gt;
+
+&lt;/head&gt;
+&lt;body&gt;
+&lt;main&gt;
+&lt;h1&gt;This is a NYM Exit Gateway&lt;/h1&gt;
+&lt;p style="text-align:center"&gt;
+&lt;img class="logo" src="&lt;FIXME&gt;"&gt;
+&lt;/p&gt;
+
+&lt;p&gt;
+You are most likely accessing this website because you've had some issue with
+the traffic coming from this IP. This router is part of the &lt;a
+href="https://nymtech.net/"&gt;NYM project&lt;/a&gt;, which is
+dedicated to &lt;a href="https://nymtech.net/about/mission"&gt;create&lt;/a&gt; outstanding
+privacy software that is legally compliant without sacrificing integrity or
+having any backdoors.
+This router IP should be generating no other traffic, unless it has been
+compromised.&lt;/p&gt;
+
+&lt;p&gt;
+The Nym mixnet is operated by a decentralised community of node operators
+and stakers. The Nym mixnet is trustless, meaning that no parts of the system
+nor its operators have access to information that might compromise the privacy
+of users. Nym software enacts a strict principle of data minimisation and has
+no back doors. The Nym mixnet works by encrypting packets in several layers
+and relaying those through a multi-layered network called a mixnet,  eventually
+letting the traffic exit the Nym mixnet through an exit gateway like this one.
+This design makes it very hard for a service to know which user is connecting to it,
+since it can only see the IP-address of the Nym exit gateway:&lt;/p&gt;
+
+&lt;p style="text-align:center;margin:40px 0"&gt;
+&lt;svg xmlns="http://www.w3.org/2000/svg" width="500" viewBox="0 0 490.28 293.73" style="width:100%;max-width:600px"&gt;
+&lt;desc&gt;Illustration showing how a user might connect to a service through the Nym network. The user first sends their data through three daisy-chained encrypted Nym nodes that exist on three different continents. Then the last Nym node in the chain connects to the target service over the normal internet.&lt;/desc&gt;
+&lt;defs&gt;
+&lt;style&gt;
+.t{
+fill: var(--text-color);
+stroke: var(--text-color);
+}
+&lt;/style&gt;
+&lt;/defs&gt;
+&lt;path fill="#6fc8b7" d="M257.89 69.4c-6.61-6.36-10.62-7.73-18.36-8.62-7.97-1.83-20.06-7.99-24.17-.67-3.29 5.85-18.2 12.3-16.87 2.08.92-7.03 11.06-13.28 17-17.37 8.69-5.99 24.97-2.87 26.1-10.28 1.04-6.86-8.33-13.22-8.55-2.3-.38 12.84-19.62 2.24-8.73-6.2 8.92-6.9 16.05-9.02 25.61-6.15 12.37 4.83 25.58-2.05 33.73-.71 12.37-2.01 24.69-5.25 37.39-3.96 13 .43 24.08-.14 37.06.63 9.8 1.58 16.5 2.87 26.37 3.6 6.6.48 17.68-.82 24.3 1.9 8.3 4.24.44 10.94-6.89 11.8-8.79 1.05-23.59-1.19-26.6 1.86-5.8 7.41 10.75 5.68 11.27 14.54.57 9.45-5.42 9.38-8.72 16-2.7 4.2.3 13.93-1.18 18.45-1.85 5.64-19.64 4.47-14.7 14.4 4.16 8.34 1.17 19.14-10.33 12.02-5.88-3.65-9.85-22.04-15.66-21.9-11.06.27-11.37 13.18-12.7 17.52-1.3 4.27-3.79 2.33-6-.63-3.54-4.76-7.75-14.22-12.01-17.32-6.12-4.46-10.75-1.17-15.55 2.83-5.63 4.69-8.78 7.82-7.46 16.5.78 9.1-12.9 15.84-14.98 24.09-2.61 10.32-2.57 22.12-8.81 31.47-4 5.98-14.03 20.12-21.27 14.97-7.5-5.34-7.22-14.6-9.56-23.08-2.5-9.02.6-17.35-2.57-26.2-2.45-6.82-6.23-14.54-13.01-13.24-6.5.92-15.08 1.38-19.23-2.97-5.65-5.93-6-10.1-6.61-18.56 1.65-6.94 5.79-12.64 10.38-18.63 3.4-4.42 17.45-10.39 25.26-7.83 10.35 3.38 17.43 10.5 28.95 8.57 3.12-.53 9.14-4.65 7.1-6.62zm-145.6 37.27c-4.96-1.27-11.57 1.13-11.8 6.94-1.48 5.59-4.82 10.62-5.8 16.32.56 6.42 4.34 12.02 8.18 16.97 3.72 3.85 8.58 7.37 9.3 13.1 1.24 5.88 1.6 11.92 2.28 17.87.34 9.37.95 19.67 7.29 27.16 4.26 3.83 8.4-2.15 6.52-6.3-.54-4.54-.6-9.11 1.01-13.27 4.2-6.7 7.32-10.57 12.44-16.64 5.6-7.16 12.74-11.75 14-20.9.56-4.26 5.72-13.86 1.7-16.72-3.14-2.3-15.83-4-18.86-6.49-2.36-1.71-3.86-9.2-9.86-12.07-4.91-3.1-10.28-6.73-16.4-5.97zm11.16-49.42c6.13-2.93 10.58-4.77 14.61-10.25 3.5-4.28 2.46-12.62-2.59-15.45-7.27-3.22-13.08 5.78-18.81 8.71-5.96 4.2-12.07-5.48-6.44-10.6 5.53-4.13.38-9.2-5.66-8.48-6.12.8-12.48-1.45-18.6-1.73-5.3-.7-10.13-1-15.45-1.37-5.37-.05-16.51-2.23-25.13.87-5.42 1.79-12.5 5.3-16.73 9.06-4.85 4.2.2 7.56 5.54 7.45 5.3-.22 16.8-5.36 20.16.98 3.68 8.13-5.82 18.29-5.2 26.69.1 6.2 3.37 11 4.74 16.98 1.62 5.94 6.17 10.45 10 15.14 4.7 5.06 13.06 6.3 19.53 8.23 7.46.14 3.34-9.23 3.01-14.11 1.77-7.15 8.49-7.82 12.68-13.5 7.14-7.72 16.41-13.4 24.34-18.62zM190.88 3.1c-4.69 0-13.33.04-18.17-.34-7.65.12-13.1-.62-19.48-1.09-3.67.39-9.09 3.34-5.28 7.04 3.8.94 7.32 4.92 7.1 9.31 1.32 4.68 1.2 11.96 6.53 13.88 4.76-.2 7.12-7.6 11.93-8.25 6.85-2.05 12.5-4.58 17.87-9.09 2.48-2.76 7.94-6.38 5.26-10.33-1.55-1.31-2.18-.64-5.76-1.13zm178.81 157.37c-2.66 10.08-5.88 24.97 9.4 15.43 7.97-5.72 12.58-2.02 17.47 1.15.5.43 2.65 9.2 7.19 8.53 5.43-2.1 11.55-5.1 14.96-11.2 2.6-4.62 3.6-12.39 2.76-13.22-3.18-3.43-6.24-11.03-7.7-15.1-.76-2.14-2.24-2.6-2.74-.4-2.82 12.85-6.04 1.22-10.12-.05-8.2-1.67-29.62 7.17-31.22 14.86z"/&gt;
+&lt;g fill="none"&gt;
+&lt;path stroke="#cf63a6" stroke-linecap="round" stroke-width="2.76" d="M135.2 140.58c61.4-3.82 115.95-118.83 151.45-103.33"/&gt;
+&lt;path stroke="#cf63a6" stroke-linecap="round" stroke-width="2.76" d="M74.43 46.66c38.15 8.21 64.05 42.26 60.78 93.92M286.65 37.25c-9.6 39.44-3.57 57.12-35.64 91.98"/&gt;
+&lt;path stroke="#e4c101" stroke-dasharray="9.06,2.265" stroke-width="2.27" d="M397.92 162.52c-31.38 1.26-90.89-53.54-148.3-36.17"/&gt;
+&lt;path stroke="#cf63a6" stroke-linecap="round" stroke-width="2.77" d="M17.6 245.88c14.35 0 14.4.05 28-.03"/&gt;
+&lt;path stroke="#e3bf01" stroke-dasharray="9.06,2.265" stroke-width="2.27" d="M46.26 274.14c-17.52-.12-16.68.08-30.34.07"/&gt;
+&lt;/g&gt;
+&lt;g transform="translate(120.8 -35.81)"&gt;
+&lt;circle cx="509.78" cy="68.74" r="18.12" fill="#240a3b" transform="translate(-93.3 38.03) scale(.50637)"/&gt;
+&lt;circle cx="440.95" cy="251.87" r="18.12" fill="#240a3b" transform="translate(-93.3 38.03) scale(.50637)"/&gt;
+&lt;circle cx="212.62" cy="272.19" r="18.12" fill="#240a3b" transform="translate(-93.3 38.03) scale(.50637)"/&gt;
+&lt;circle cx="92.12" cy="87.56" r="18.12" fill="#240a3b" transform="translate(-93.3 38.03) scale(.50637)"/&gt;
+&lt;circle cx="730.88" cy="315.83" r="18.12" fill="#67727b" transform="translate(-93.3 38.03) scale(.50637)"/&gt;
+&lt;circle cx="-102.85" cy="282.18" r="9.18" fill="#240a3b"/&gt;
+&lt;circle cx="-102.85" cy="309.94" r="9.18" fill="#67727b"/&gt;
+&lt;/g&gt;
+&lt;g class="t"&gt;
+&lt;text xml:space="preserve" x="-24.76" y="10.37" stroke-width=".26" font-size="16.93" font-weight="700" style="line-height:1.25" transform="translate(27.79 2.5)" word-spacing="0"&gt;&lt;tspan x="-24.76" y="10.37"&gt;The user&lt;/tspan&gt;&lt;/text&gt;
+&lt;text xml:space="preserve" x="150.63" y="196.62" stroke-width=".26" font-size="16.93" font-weight="700" style="line-height:1.25" transform="translate(27.79 2.5)" word-spacing="0"&gt;&lt;tspan x="150.63" y="196.62"&gt;This server&lt;/tspan&gt;&lt;/text&gt;
+&lt;text xml:space="preserve" x="346.39" y="202.63" stroke-width=".26" font-size="16.93" font-weight="700" style="line-height:1.25" transform="translate(27.79 2.5)" word-spacing="0"&gt;&lt;tspan x="346.39" y="202.63"&gt;Your service&lt;/tspan&gt;&lt;/text&gt;
+&lt;text xml:space="preserve" x="34.52" y="249.07" stroke-width=".26" font-size="16.93" font-weight="700" style="line-height:1.25" transform="translate(27.79 2.5)" word-spacing="0"&gt;&lt;tspan x="34.52" y="249.07"&gt;Nym network link&lt;/tspan&gt;&lt;/text&gt;
+&lt;text xml:space="preserve" x="34.13" y="276.05" stroke-width=".26" font-size="16.93" font-weight="700" style="line-height:1.25" transform="translate(27.79 2.5)" word-spacing="0"&gt;&lt;tspan x="34.13" y="276.05"&gt;Unencrypted link&lt;/tspan&gt;&lt;/text&gt;
+&lt;path fill="none" stroke-linecap="round" stroke-width="1.67" d="M222.6 184.1c-2.6-15.27 8.95-23.6 18.43-38.86m186.75 45.61c-.68-10.17-9.4-17.68-18.08-23.49"/&gt;
+&lt;path fill="none" stroke-linecap="round" stroke-width="1.67" d="M240.99 153.41c.35-3.41 1.19-6.17.04-8.17m-7.15 5.48c1.83-2.8 4.58-4.45 7.15-5.48"/&gt;
+&lt;path fill="none" stroke-linecap="round" stroke-width="1.67" d="M412.43 173.21c-2.2-3.15-2.54-3.85-2.73-5.85m0 0c2.46-.65 3.85.01 6.67 1.24M61.62 40.8C48.89 36.98 36.45 27.54 36.9 18.96M61.62 40.8c.05-2.58-3.58-4.8-5.25-5.26m-2.65 6.04c1.8.54 6.8 1.31 7.9-.78"/&gt;
+&lt;path fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="2.44" d="M1.22 229.4h247.74v63.1H1.22z"/&gt;
+&lt;/g&gt;
+&lt;/svg&gt;
+&lt;/p&gt;
+
+&lt;p&gt;
+&lt;a href="https://nymtech.net/about/mixnet"&gt;Read more about how Nym works.&lt;/a&gt;&lt;/p&gt;
+
+&lt;p&gt;
+Nym relies on a growing ecosystem of users, developers and researcher partners
+aligned with the mission to make sure Nym software is running, remains usable
+and solves real problems. While Nym is not designed for malicious computer
+users, it is true that they can use the network for malicious ends. This
+is largely because criminals and hackers have significantly better access to
+privacy and anonymity than do the regular users whom they prey upon. Criminals
+can and do build, sell, and trade far larger and more powerful networks than
+Nym on a daily basis. Thus, in the mind of this operator, the social need for
+easily accessible censorship-resistant private, anonymous communication trumps
+the risk of unskilled bad actors, who are almost always more easily uncovered
+by traditional police work than by extensive monitoring and surveillance anyway.&lt;/p&gt;
+
+&lt;p&gt;
+In terms of applicable law, the best way to understand Nym is to consider it a
+network of routers operating as common carriers, much like the Internet
+backbone. However, unlike the Internet backbone routers, Nym mixnodes do not
+contain identifiable routing information about the source of a packet and do
+mix the user internet traffic with that of other users, making communications
+private and protecting not just the user content but the metadata
+(user's IP address, who the user talks to, when, where, from what device and
+more) and no single Nym node can determine both the origin and destination
+of a given transmission.&lt;/p&gt;
+
+&lt;p&gt;
+As such, there is little the operator of this Exit Gateway can do to help you
+track the connection further. This Exit Gateway maintains no logs of any of the
+Nym mixnet traffic, so there is little that can be done to trace either legitimate or
+illegitimate traffic (or to filter one from the other).  Attempts to
+seize this router will accomplish nothing.&lt;/p&gt;
+
+&lt;!-- FIXME: US-Only section. Remove if you are a non-US operator --&gt;
+&lt;!--
+&lt;p&gt;
+Furthermore, this machine also serves as a carrier of email, which means that
+its contents are further protected under the ECPA. &lt;a
+href="https://www.law.cornell.edu/uscode/text/18/2707"&gt;18
+USC 2707&lt;/a&gt; explicitly allows for civil remedies ($1000/account
+&lt;i&gt;plus&lt;/i&gt;  legal fees)
+in the event of a seizure executed without good faith or probable cause (it
+should be clear at this point that traffic with an originating IP address of
+FIXME_DNS_NAME should not constitute probable cause to seize the
+machine). Similar considerations exist for 1st amendment content on this
+machine.&lt;/p&gt;
+--&gt;
+&lt;!-- FIXME: May or may not be US-only. Some non-US tor nodes have in
+     fact reported DMCA harassment... --&gt;
+&lt;!--
+&lt;p&gt;
+If you are a representative of a company who feels that this router is being
+used to violate the DMCA, please be aware that this machine does not host or
+contain any illegal content. Also be aware that network infrastructure
+maintainers are not liable for the type of content that passes over their
+equipment, in accordance with &lt;a
+href="https://www.law.cornell.edu/uscode/text/17/512"&gt;DMCA
+"safe harbor" provisions&lt;/a&gt;. In other words, you will have just as much luck
+sending a takedown notice to the Internet backbone providers.
+&lt;/p&gt;
+--&gt;
+
+&lt;p&gt;To decentralise and enable privacy for a broad range of services, this
+Exit Gateway adopts an &lt;a href="https://nymtech.net/.wellknown/network-requester/exit-policy.txt"&gt;Exit Policy&lt;/a&gt;
+in accordance with the &lt;a href="https://tornull.org/"&gt;Tor Null ‘deny’ list&lt;/a&gt;
+and the &lt;a href="https://tornull.org/tor-reduced-reduced-exit-policy.php"&gt;Tor reduced policy&lt;/a&gt;,
+which are two established safeguards.
+&lt;/p&gt;
+
+&lt;p&gt;
+That being said, if you still have a complaint about the router, you may email the
+ &lt;a href="mailto:&gt;YOUR_EMAIL_ADDRESS&gt;"&gt;maintainer&lt;/a&gt;. If complaints are related
+ to a particular service that is being abused, the maintainer will submit that to the
+ NYM Operators Community in order to add it to the Exit Policy cited above.
+If approved, that would prevent this router from allowing that traffic to exit through it.
+That can be done only on an IP+destination port basis, however. Common P2P ports are already blocked.&lt;/p&gt;
+
+&lt;p&gt;
+You also have the option of blocking this IP address and others on the Nym network if you so desire.
+ The Nym project provides a &lt;a href="https://explorer.nymtech.net/network-components/gateways"&gt;
+ web service&lt;/a&gt; to fetch a list of all IP addresses of Nym Gateway Exit nodes that allow exiting to a
+specified IP:port combination. Please be considerate when using these options.&lt;/p&gt;
+
+&lt;/main&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+</div>
+</details>
+<ol start="3">
+<li>Before you save and close the file, make sure to edit the text, especially the information in these points:</li>
+</ol>
+<ul>
+<li>Add your favicon logo on the line:</li>
+</ul>
+<pre><code>&lt;link rel="icon" type="image/png" href=""&gt;
+</code></pre>
+<ul>
+<li>Add your header logo on the line:</li>
+</ul>
+<pre><code>&lt;img class="logo" src="&lt;FIXME&gt;"&gt;
+</code></pre>
+<ul>
+<li>By either setting the URl to the image (if you’re hosting it publicly, i.e. on your web server)</li>
+</ul>
+<pre><code>href="&lt;PATH_TO_YOUR_PUBLIC_URL&gt;"
+
+# and
+
+src="&lt;PATH_TO_YOUR_PUBLIC_URL&gt;"
+</code></pre>
+<ul>
+<li><strong>or</strong> by adding the image inline as base64 encoded image</li>
+</ul>
+<pre><code>href="href="data:image/x-icon;base64,AAABAAMA....""
+
+# and
+
+src="href="data:image/x-icon;base64,AAABAAMA....""
+</code></pre>
+<ul>
+<li>Add the email address you’re willing to use for being contacted.</li>
+</ul>
+<pre><code>&lt;a href="mailto:&gt;YOUR_EMAIL_ADDRESS&gt;"&gt;maintainer&lt;/a&gt;
+</code></pre>
+<ul>
+<li>If you’re running the node within the US check the sections marked as <code>FIXME</code>, add your DNS name and un-comment those.</li>
+</ul>
+<ol start="4">
+<li>Save and exit</li>
+</ol>
+<p>Now your html page is configured.</p>
+<h3 id="nym-node-configuration"><a class="header" href="#nym-node-configuration"><code>nym-node</code> Configuration</a></h3>
+<p>When done with the customization, you’ll need to make sure your <code>nym-node</code> uploads the file and reference to it. This is done by opening your node configuration file located at <code>~/.nym/nym-nodes/&lt;ID&gt;/config/config.toml</code> and changing the value of the line <code>landing_page_assets_path</code> on the <code>[http]</code> section:</p>
+<pre><code>landing_page_assets_path = '&lt;LANDING_PAGE_PATH&gt;'
+</code></pre>
+<h3 id="reverse-proxy-configuration"><a class="header" href="#reverse-proxy-configuration">Reverse Proxy Configuration</a></h3>
+<p>You may set up a <a href="https://www.nginx.com/resources/glossary/reverse-proxy-server/">reverse proxy</a> in order to serve this landing page with proper SSL and DNS management, i.e. to resolve it to https://<HOSTNAME>.</p>
+<p><strong>Configure Nginx</strong></p>
+<ol>
+<li>Install <code>nginx</code>:</li>
+</ol>
+<pre><code class="language-sh">sudo apt install nginx
+</code></pre>
+<ol>
+<li>Setup firewall with <code>ufw</code>. <code>ufw</code> has three profile pre-configured for <code>nginx</code>, we will need the first one for <code>nym-node</code>:</li>
+</ol>
+<ul>
+<li><code>Nginx Full</code>: This profile opens both port 80 (normal, unencrypted web traffic) and port 443 (TLS/SSL encrypted traffic)</li>
+<li><code>Nginx HTTP</code>: This profile opens only port 80 (normal, unencrypted web traffic)</li>
+<li><code>Nginx HTTPS</code>: This profile opens only port 443 (TLS/SSL encrypted traffic)</li>
+</ul>
+<pre><code class="language-sh">ufw allow 'Nginx Full'
+
+# you can verify by
+ufw status
+
+# possibly reload ufw by
+ufw reload
+</code></pre>
+<ol start="3">
+<li>Disable the default Nginx landing page</li>
+</ol>
+<pre><code>systemctl status nginx
+unlink /etc/nginx/sites-enabled/default
+systemctl restart nginx
+</code></pre>
+<ol start="4">
+<li>Add your endpoint configuration to Nginx by creating file:</li>
+</ol>
+<pre><code class="language-sh">nano /etc/nginx/sites-available/&lt;HOSTNAME&gt;
+</code></pre>
+<ul>
+<li>and changing <code>&lt;HOSTNAME&gt;</code> occurrences below with your domain name:</li>
+</ul>
+<pre><code>server {
+    listen 80;
+    listen [::]:80;
+
+    # Replace &lt;HOSTNAME&gt; with your domain name
+    server_name &lt;HOSTNAME&gt;;
+
+    location / {
+        proxy_pass http://127.0.0.1:8080;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header Host $host;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+}
+</code></pre>
+<p>This guide assumes that the HTTP port used by you is <code>8080</code>. Adjust the configuration accordingly if you have defined
+a custom port for your <code>nym-node</code> HTTP connections</p>
+<ol start="5">
+<li>Activate the configuration by creating a symlink to <code>/etc/nginx/sites-enabled</code>:</li>
+</ol>
+<pre><code class="language-sh">ln -s /etc/nginx/sites-available/&lt;HOSTNAME&gt; /etc/nginx/sites-enabled
+</code></pre>
+<ol start="6">
+<li>Test your configuration syntax:</li>
+</ol>
+<pre><code class="language-sh">nginx -t
+</code></pre>
+<p>Nginx must report that the config is “ok” and the test was successful.</p>
+<ol start="7">
+<li>Restart <code>nginx</code>:</li>
+</ol>
+<pre><code class="language-sh">systemctl restart nginx
+</code></pre>
+<ol start="8">
+<li>Get an <code>SSL</code> certificate using certbot:</li>
+</ol>
+<pre><code class="language-sh">apt install certbot python3-certbot-nginx
+certbot --nginx --non-interactive --agree-tos --redirect -m &lt;YOUR_EMAIL_ADDRESS&gt; -d &lt;HOSTNAME&gt;
+</code></pre>
+<ol start="9">
+<li>Restart your <code>nym-node</code> or if you’re running your <code>nym-node</code> as a <a href="configuration.html#systemd"><code>systemd</code> service</a>, restart your service:</li>
+</ol>
+<pre><code class="language-sh">systemctl daemon-reload &amp;&amp; systemctl restart nym-node
+</code></pre>
+<ol start="9">
+<li>Check for the page being served reading the service logs</li>
+</ol>
+<pre><code class="language-sh">journalctl -u  nym-node.service | grep 8080
+
+# where you should see
+... Started NymNodeHTTPServer on 0.0.0.0:8080
+</code></pre>
+<p>Now your <code>nginx</code> should be configured, up and running. Test it by inserting your <code>&lt;HOSTNAME&gt;</code> as a URL in a browser.</p>
+<h2 id="web-secure-socket-setup"><a class="header" href="#web-secure-socket-setup">Web Secure Socket Setup</a></h2>
+<p>This section assumes that you have already configured a reverse proxy and have set it up to work over https. If not, head over to <a href="#reverse-proxy-configuration">the reverse proxy section</a> to configure it.</p>
+<p>We strongly recommend node operators to configure secure web sockets on their nodes. This will provide clients a more secure way to connect to your node.</p>
+<p>You can read more about <em>Secure Socket Layer</em> (SSL) in <a href="https://www.geeksforgeeks.org/secure-socket-layer-ssl/">here</a>.</p>
+<p>Remember that there may be some unique variables and customization depending on the way your reverse proxy is setup which you may have to adjust when configuring WSS to ensure correct functionality</p>
+<div id="admonition-tip" class="admonition admonish-tip" role="note" aria-labelledby="admonition-tip-title">
+<div class="admonition-title">
+<div id="admonition-tip-title">
+<p>Tip</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-tip"></a>
+</div>
+<div>
+<p>To see description of used variables (noted in <code>&lt;&gt;</code> brackets), scroll to the top of this page, chapter <a href="#variables-explanation"><em>Variables Explanation</em></a>.</p>
+</div>
+</div>
+<h4 id="firewall-configuration"><a class="header" href="#firewall-configuration">Firewall configuration</a></h4>
+<p>Make sure to open all <a href="vps-setup.html#configure-your-firewall">needed ports</a>, adding your <code>&lt;WSS_PORT&gt;</code>:</p>
+<pre><code class="language-sh">ufw allow &lt;WSS_PORT&gt;/tcp
+
+# for example
+# ufw allow 9001/tcp
+</code></pre>
+<h4 id="wss-configuration"><a class="header" href="#wss-configuration">WSS configuration</a></h4>
+<p>This section assumes that you have already configured a reverse proxy and have set it up to work over https. If not, head over to <a href="#reverse-proxy">the reverse proxy section</a> to configure it.</p>
+<ol>
+<li>Create a new Nginx configuration file called <code>/etc/nginx/sites-available/wss-config-nym</code> and paste the block below. Don’t forget to insert your correct values.</li>
+</ol>
+<details id="admonition-site-configuration-etcnginxsites-availablewss-config-nym" class="admonition admonish-example" role="note" aria-labelledby="admonition-site-configuration-etcnginxsites-availablewss-config-nym-title">
+<summary class="admonition-title">
+<div id="admonition-site-configuration-etcnginxsites-availablewss-config-nym-title">
+<p>Site configuration <code>/etc/nginx/sites-available/wss-config-nym</code></p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-site-configuration-etcnginxsites-availablewss-config-nym"></a>
+</summary>
+<div>
+<pre><code class="language-bash">#####################################################
+# EXCHANGE ALL &lt;HOSTNAME&gt; &amp; &lt;WSS_PORT&gt; VARIABLES ! #
+####################################################
+
+server {
+    listen &lt;WSS_PORT&gt; ssl http2;
+    listen [::]:&lt;WSS_PORT&gt; ssl http2;
+
+    server_name &lt;HOSTNAME&gt;;
+
+    ssl_certificate /etc/letsencrypt/live/&lt;HOSTNAME&gt;/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/&lt;HOSTNAME&gt;/privkey.pem;
+    include /etc/letsencrypt/options-ssl-nginx.conf; # managed by Certbot
+    ssl_dhparam /etc/letsencrypt/ssl-dhparams.pem; # managed by Certbot
+
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    # Ignore favicon requests
+    location /favicon.ico {
+        return 204;
+        access_log     off;
+        log_not_found  off;
+    }
+
+    location / {
+
+        add_header 'Access-Control-Allow-Origin' '*';
+        add_header 'Access-Control-Allow-Credentials' 'true';
+        add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS, HEAD';
+        add_header 'Access-Control-Allow-Headers' '*';
+
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "Upgrade";
+        proxy_set_header X-Forwarded-For $remote_addr;
+
+        proxy_pass http://localhost:9000;
+        proxy_intercept_errors on;
+    }
+}
+</code></pre>
+</div>
+</details>
+<ol start="4">
+<li>Activate the configuration by creating a simlink to <code>/etc/nginx/sites-enabled</code>:</li>
+</ol>
+<pre><code class="language-sh">ln -s /etc/nginx/sites-available/wss-config-nym /etc/nginx/sites-enabled
+</code></pre>
+<ol start="5">
+<li>Test your configuration syntax:</li>
+</ol>
+<pre><code class="language-sh">nginx -t
+</code></pre>
+<ol start="6">
+<li>Restart <code>nginx</code>:</li>
+</ol>
+<pre><code class="language-sh">systemctl restart nginx
+
+</code></pre>
+<ol start="7">
+<li>Finally, configure your <code>nym-node</code> to announce the port you have setup. This is done by opening your node configuration file located at <code>~/.nym/nym-nodes/&lt;ID&gt;/config/config.toml</code> and changing the value of the line <code>announce_wss_port</code> in the <code>[entry_gateway]</code> section:</li>
+</ol>
+<pre><code>announce_wss_port =  &lt;WSS_PORT&gt;
+
+# example
+# announce_wss_port = 9001
+</code></pre>
+<ol start="8">
+<li>Restart your <code>nym-node</code> :</li>
+</ol>
+<pre><code class="language-sh">systemctl restart nym-node
+</code></pre>
+<p>Your <code>nym-node</code> should be configured to run over WSS now. Test it using the steps in the chapter <a href="#test-wss-setup">below</a>.</p>
+<h3 id="test-wss-setup"><a class="header" href="#test-wss-setup">Test WSS Setup</a></h3>
+<p>You can do a few quick checks to test that your installation worked out and your <code>nym-node</code> is running correctly using WSS:</p>
+<ul>
+<li>Check out connection with <code>wscat</code> from another (local) machine:</li>
+</ul>
+<pre><code class="language-sh"># install
+sudo apt install node-ws
+
+# run
+wscat -c wss://&lt;HOSTNAME&gt;:&lt;WSS_PORT&gt;
+</code></pre>
+<ul>
+<li>Check Swagger API of your node using the hostname: <code>https://&lt;HOSTNAME&gt;/api/v1/swagger/#/</code></li>
+</ul>
+<footer id="last-change">Last change: 2024-09-13, commit: <a href="https://github.com/nymtech/nym/commit/05d665217">05d665217</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../nodes/configuration.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../nodes/bonding.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../nodes/configuration.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../nodes/bonding.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

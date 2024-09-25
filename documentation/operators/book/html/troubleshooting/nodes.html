@@ -1,0 +1,611 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Nym Node - Nym Operators Guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Everything needed to run Nym Mixnet components">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././themes/custom.css">
+        <link rel="stylesheet" href=".././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="../changelog.html"><strong aria-hidden="true">2.</strong> Changelog</a></li><li class="chapter-item "><a href="../release-cycle.html"><strong aria-hidden="true">3.</strong> Release Cycle</a></li><li class="chapter-item "><a href="../sandbox.html"><strong aria-hidden="true">4.</strong> Sandbox Testnet</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Operators Guides</li><li class="chapter-item "><a href="../nodes/preliminary-steps.html"><strong aria-hidden="true">7.</strong> Preliminary Steps</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/wallet-preparation.html"><strong aria-hidden="true">7.1.</strong> Nym Wallet Preparation</a></li><li class="chapter-item "><a href="../nodes/vps-setup.html"><strong aria-hidden="true">7.2.</strong> VPS Setup</a></li></ol></li><li class="chapter-item "><a href="../nodes/nym-node.html"><strong aria-hidden="true">8.</strong> Nym Node</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/setup.html"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../nodes/configuration.html"><strong aria-hidden="true">8.2.</strong> Configuration</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/proxy-configuration.html"><strong aria-hidden="true">8.2.1.</strong> WSS & Reversed Proxy</a></li></ol></li><li class="chapter-item "><a href="../nodes/bonding.html"><strong aria-hidden="true">8.3.</strong> Bonding</a></li></ol></li><li class="chapter-item "><a href="../nodes/validator-setup.html"><strong aria-hidden="true">9.</strong> Nyx Validator Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/nym-api.html"><strong aria-hidden="true">9.1.</strong> Nym API Setup</a></li><li class="chapter-item "><a href="../nodes/nyx-configuration.html"><strong aria-hidden="true">9.2.</strong> Validator & API Configuration</a></li></ol></li><li class="chapter-item "><a href="../nodes/maintenance.html"><strong aria-hidden="true">10.</strong> Maintenance</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/manual-upgrade.html"><strong aria-hidden="true">10.1.</strong> Manual Node Upgrade</a></li><li class="chapter-item "><a href="../nodes/nymvisor-upgrade.html"><strong aria-hidden="true">10.2.</strong> Automatic Node Upgrade: Nymvisor Setup and Usage</a></li></ol></li><li class="chapter-item "><a href="../testing/performance.html"><strong aria-hidden="true">11.</strong> Performance Monitoring & Testing</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/gateway-probe.html"><strong aria-hidden="true">11.1.</strong> Gateway Probe</a></li><li class="chapter-item "><a href="../testing/node-api-check.html"><strong aria-hidden="true">11.2.</strong> Node API Check</a></li><li class="chapter-item "><a href="../testing/prometheus-grafana.html"><strong aria-hidden="true">11.3.</strong> Prometheus & Grafana</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/explorenym-scripts.html"><strong aria-hidden="true">11.3.1.</strong> ExploreNYM scripts</a></li></ol></li></ol></li><li class="chapter-item "><li class="part-title">Troubleshooting</li><li class="chapter-item "><a href="../troubleshooting/vps-isp.html"><strong aria-hidden="true">12.</strong> VPS Setup</a></li><li class="chapter-item expanded "><a href="../troubleshooting/nodes.html" class="active"><strong aria-hidden="true">13.</strong> Nym Node</a></li><li class="chapter-item "><a href="../troubleshooting/validators.html"><strong aria-hidden="true">14.</strong> Validators</a></li><li class="chapter-item affix "><li class="part-title">Token Economics</li><li class="chapter-item "><a href="../tokenomics/validator-rewards.html"><strong aria-hidden="true">15.</strong> Nyx: Validator Rewards</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="../faq/general-faq.html"><strong aria-hidden="true">16.</strong> General Operators FAQ</a></li><li class="chapter-item "><a href="../faq/nym-nodes-faq.html"><strong aria-hidden="true">17.</strong> Nym Nodes</a></li><li class="chapter-item "><a href="../faq/nyx-faq.html"><strong aria-hidden="true">18.</strong> Nyx & Validators</a></li><li class="chapter-item affix "><li class="part-title">Community & Legal Forum</li><li class="chapter-item "><a href="../legal/exit-gateway.html"><strong aria-hidden="true">19.</strong> Exit Gateway</a></li><li class="chapter-item "><a href="../legal/community-counsel.html"><strong aria-hidden="true">20.</strong> Community Counsel</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/isp-list.html"><strong aria-hidden="true">20.1.</strong> ISP List</a></li><li class="chapter-item "><a href="../legal/jurisdictions.html"><strong aria-hidden="true">20.2.</strong> Jurisdictions</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/swiss.html"><strong aria-hidden="true">20.2.1.</strong> Switzerland</a></li><li class="chapter-item "><a href="../legal/united-states.html"><strong aria-hidden="true">20.2.2.</strong> United States</a></li></ol></li><li class="chapter-item "><a href="../legal/landing-pages.html"><strong aria-hidden="true">20.3.</strong> Landing Pages</a></li></ol></li><li class="chapter-item "><a href="../legal/add-content.html"><strong aria-hidden="true">21.</strong> How to Add Info</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="../archive/archive.html"><strong aria-hidden="true">22.</strong> Why archive?</a></li><li class="chapter-item "><a href="../archive/nodes/setup-guides.html"><strong aria-hidden="true">23.</strong> Mixnet Nodes Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../archive/nodes/initial-steps.html"><strong aria-hidden="true">23.1.</strong> Preliminary Steps</a></li><li class="chapter-item "><a href="../archive/nodes/mix-node-setup.html"><strong aria-hidden="true">23.2.</strong> Mix Node</a></li><li class="chapter-item "><a href="../archive/nodes/gateway-setup.html"><strong aria-hidden="true">23.3.</strong> Gateway</a></li><li class="chapter-item "><a href="../archive/nodes/network-requester-setup.html"><strong aria-hidden="true">23.4.</strong> Network Requester</a></li></ol></li><li class="chapter-item "><a href="../archive/faq/mixnodes-faq.html"><strong aria-hidden="true">24.</strong> FAQ: Mix Nodes</a></li><li class="chapter-item "><a href="../archive/faq/smoosh-faq.html"><strong aria-hidden="true">25.</strong> FAQ: Project Smoosh</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../coc.html"><strong aria-hidden="true">26.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../toc.html"><strong aria-hidden="true">27.</strong> Terms & Conditions</a></li><li class="chapter-item "><a href="../licensing.html"><strong aria-hidden="true">28.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Operators Guide</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="nym-node-troubleshooting"><a class="header" href="#nym-node-troubleshooting">Nym Node Troubleshooting</a></h1>
+<h2 id="binary-build-problems"><a class="header" href="#binary-build-problems">Binary Build Problems</a></h2>
+<h3 id="i-am-trying-to-build-from-the-github-archive-files-and-the-build-fails"><a class="header" href="#i-am-trying-to-build-from-the-github-archive-files-and-the-build-fails">I am trying to build from the GitHub archive files and the build fails</a></h3>
+<p>GitHub automatically includes .zip and tar.gz files of the Nym repository in its release. You cannot extract these and build - you’ll see something like this:</p>
+<pre><code>  process didn't exit successfully: `/build/nym/src/nym-0.12.1/target/release/build/nym-socks5-client-c1d0f76a8c7d7e9a/build-script-build` (exit status: 101)
+  --- stderr
+  thread 'main' panicked at 'failed to extract build metadata: could not find repository from '/build/nym/src/nym-0.12.1/clients/socks5'; class=Repository (6); code=NotFound (-3)', clients/socks5/build.rs:7:31
+  note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+warning: build failed, waiting for other jobs to finish...
+error: build failed
+</code></pre>
+<p>Why does this happen?</p>
+<p>We have scripts which automatically include the Git commit hash and Git tag in the binary for easier debugging later. If you download a .zip and try building from that, it’s not a Git repository and build will fail as above.</p>
+<p>What to do?</p>
+<ul>
+<li>Open terminal in the directory where you want to have a git repository</li>
+<li>To get Nym repository for the first time, run:</li>
+</ul>
+<pre><code>git clone https://github.com/nymtech/nym.git
+</code></pre>
+<ul>
+<li>Follow the instructions to build the platform</li>
+<li>To upgrade, pause your nodes, in the same terminal window run <code>git pull</code>, follow the upgrade instructions and re-start your nodes.</li>
+</ul>
+<h2 id="general-node-config"><a class="header" href="#general-node-config">General Node Config</a></h2>
+<h3 id="where-can-i-find-my-private-and-public-keys-and-config"><a class="header" href="#where-can-i-find-my-private-and-public-keys-and-config">Where can I find my private and public keys and config?</a></h3>
+<p>All config and keys files are stored in a directory named after your <code>id</code> which you chose during the <code>init</code> process, and can be found at the following PATH: <code>$HOME/.nym/&lt;NODE_TYPE&gt;/&lt;NODE_ID&gt;</code> where <code>$HOME</code> is a home directory of the user (your current user in this case) that launched the node or client.</p>
+<p>The directory structure for each node will be roughly as follows:</p>
+<pre><code>bob@desktop:~/nym/target/release# tree ~/.nym/nym-nodes/
+~/.nym/nym-nodes/
+└── default-nym-node
+    ├── config
+    │   └── config.toml
+    └── data
+        ├── aes128ctr_ipr_ack
+        ├── aes128ctr_nr_ack
+        ├── clients.sqlite
+        ├── cosmos_mnemonic
+        ├── description.toml
+        ├── ed25519_identity
+        ├── ed25519_identity.pub
+        ├── ed25519_ipr_identity
+        ├── ed25519_ipr_identity.pub
+        ├── ed25519_nr_identity
+        ├── ed25519_nr_identity.pub
+        ├── ipr_gateways_info_store.sqlite
+        ├── nr_gateways_info_store.sqlite
+        ├── nr_persistent_reply_store.sqlite
+        ├── x25519_ipr_dh
+        ├── x25519_ipr_dh.pub
+        ├── x25519_noise
+        ├── x25519_noise.pub
+        ├── x25519_nr_dh
+        ├── x25519_nr_dh.pub
+        ├── x25519_sphinx
+        └── x25519_sphinx.pub
+</code></pre>
+<blockquote>
+<p>If you <code>cat</code> the <code>public_sphinx.pem</code> key, the output will be different from the public key you will see on Nym <a href="https://sandbox-explorer.nymtech.net/">dashboard</a>. The reason for this is that <code>.pem</code> files are encoded in <strong>base64</strong>, however on the web they are in <strong>base58</strong>. Don’t be confused if your keys look different. They are the same keys, just with different encoding :)</p>
+</blockquote>
+<h2 id="mixnode-mode"><a class="header" href="#mixnode-mode">Mixnode Mode</a></h2>
+<h3 id="how-can-i-tell-my-node-is-up-and-running-and-mixing-traffic"><a class="header" href="#how-can-i-tell-my-node-is-up-and-running-and-mixing-traffic">How can I tell my node is up and running and mixing traffic?</a></h3>
+<p>First of all check the ‘Mixnodes’ section of either of the Nym Network Explorers:</p>
+<ul>
+<li><a href="https://explorer.nymtech.net/">Mainnet</a></li>
+<li><a href="https://sandbox-explorer.nymtech.net/">Sandbox testnet</a></li>
+</ul>
+<p>Enter your <strong>identity key</strong> to find your node. Check the contents of the <code>Mixnode stats</code> and <code>Routing score</code> sections.</p>
+<p>There are 2 community explorers currently, which have been created by <a href="https://nodes.guru">Nodes Guru</a>:</p>
+<ul>
+<li><a href="https://mixnet.explorers.guru/">Mainnet</a></li>
+<li><a href="https://sandbox.mixnet.explorers.guru/">Sandbox testnet</a></li>
+</ul>
+<p>You can run <a href="../testing/node-api-check.html">Node API Check CLI</a> to query all API endpoints of your node at once.</p>
+<p><a href="https://github.com/cosmos/chain-registry/blob/master/nyx/chain.json#L158-L187">Here</a> is a dictionary with Nyx chain registry entry regarding all explorers.</p>
+<p>If you want more information, or if your node isn’t showing up on the explorer of your choice and you want to double-check, here are some examples on how to check if the node is configured properly.</p>
+<h4 id="check-from-your-vps"><a class="header" href="#check-from-your-vps">Check from your VPS</a></h4>
+<p>Additional details can be obtained via various methods after you connect to your VPS:</p>
+<h5 id="socket-statistics-with-ss"><a class="header" href="#socket-statistics-with-ss">Socket statistics with <code>ss</code></a></h5>
+<pre><code>sudo ss -s -t | grep 1789 # if you have specified a different port in your Mix Node config, change accordingly
+</code></pre>
+<p>This command should return a lot of data containing <code>ESTAB</code>. This command should work on every unix based system.</p>
+<h5 id="list-open-files-and-reliant-processes-with-lsof"><a class="header" href="#list-open-files-and-reliant-processes-with-lsof">List open files and reliant processes with <code>lsof</code></a></h5>
+<pre><code># check if lsof is installed:
+lsof -v
+# install if not installed
+sudo apt install lsof
+# run against nym-mix-node node port
+sudo lsof -i TCP:1789 # if you have specified a different port in your mixnode config, change accordingly
+</code></pre>
+<p>This command should return something like this:</p>
+<pre><code>nym-node 103349 root   53u  IPv6 1333229972      0t0  TCP [2a03:b0c0:3:d0::ff3:f001]:57844-&gt;[2a01:4f9:c011:38ae::5]:1789 (ESTABLISHED)
+nym-node 103349 root   54u  IPv4 1333229973      0t0  TCP nym:57104-&gt;194.5.78.73:1789 (ESTABLISHED)
+nym-node 103349 root   55u  IPv4 1333229974      0t0  TCP nym:48130-&gt;static.236.109.119.168.clients.your-server.de:1789 (ESTABLISHED)
+nym-node 103349 root   56u  IPv4 1333229975      0t0  TCP nym:52548-&gt;vmi572614.contaboserver.net:1789 (ESTABLISHED)
+nym-node 103349 root   57u  IPv6 1333229976      0t0  TCP [2a03:b0c0:3:d0::ff3:f001]:43244-&gt;[2600:1f18:1031:2401:c04b:2f25:ca79:fef3]:1789 (ESTABLISHED)
+</code></pre>
+<h5 id="query-systemd-journal-with-journalctl"><a class="header" href="#query-systemd-journal-with-journalctl">Query <code>systemd</code> journal with <code>journalctl</code></a></h5>
+<pre><code class="language-sh">sudo journalctl -u nym-node -o cat | grep "Since startup mixed"
+</code></pre>
+<p>If you have created <code>nym-node.service</code> file (i.e. you are running your Ny, Node via <code>systemd</code>) then this command shows you how many packets have you mixed so far, and should return a list of messages like this:</p>
+<pre><code class="language-sh">2021-05-18T12:35:24.057Z INFO  nym_node::node::metrics                      &gt; Since startup mixed 233639 packets!
+2021-05-18T12:38:02.178Z INFO  nym_node::node::metrics                      &gt; Since startup mixed 233739 packets!
+2021-05-18T12:40:32.344Z INFO  nym_node::node::metrics                      &gt; Since startup mixed 233837 packets!
+2021-05-18T12:46:08.549Z INFO  nym_node::node::metrics                      &gt; Since startup mixed 234081 packets!
+2021-05-18T12:56:57.129Z INFO  nym_node::node::metrics                      &gt; Since startup mixed 234491 packets!
+</code></pre>
+<p>You can add <code> | tail</code> to the end of the command to watch for new entries in real time if needed.</p>
+<h5 id="build-info"><a class="header" href="#build-info">build-info</a></h5>
+<p>A <code>build-info</code> command prints the build information like commit hash, rust version, binary version just like what command <code>--version</code> does. However, you can also specify an <code>--output=json</code> flag that will format the whole output as a json, making it an order of magnitude easier to parse.</p>
+<p>For example <code>./target/debug/nym-node --no-banner build-info --output json</code> will return:</p>
+<pre><code class="language-sh">{"binary_name":"nym-network-requester","build_timestamp":"2023-07-24T15:38:37.00657Z","build_version":"1.1.23","commit_sha":"c70149400206dce24cf20babb1e64f22202672dd","commit_timestamp":"2023-07-24T14:45:45Z","commit_branch":"feature/simplify-cli-parsing","rustc_version":"1.71.0","rustc_channel":"stable","cargo_profile":"debug"}
+</code></pre>
+<h4 id="check-from-your-local-machine"><a class="header" href="#check-from-your-local-machine">Check from your local machine</a></h4>
+<h5 id="scan-ports-with-nmap"><a class="header" href="#scan-ports-with-nmap">Scan ports with <code>nmap</code>:</a></h5>
+<pre><code class="language-sh">nmap -p 1789 &lt;IP ADDRESS&gt; -Pn
+</code></pre>
+<p>If your Nym Node is configured properly it should output something like this:</p>
+<pre><code class="language-sh">bob@desktop:~$ nmap -p 1789 95.296.134.220 -Pn
+
+Host is up (0.053s latency).
+
+PORT     STATE SERVICE
+1789/tcp open  hello
+</code></pre>
+<h5 id="check-with-telnet"><a class="header" href="#check-with-telnet">Check with <code>telnet</code></a></h5>
+<p>Your node should connect to telnet when running:</p>
+<pre><code class="language-sh">telnet &lt;IP_ADDRESS&gt; &lt;PORT&gt;
+</code></pre>
+<h5 id="query-online-nodes"><a class="header" href="#query-online-nodes">Query online nodes:</a></h5>
+<pre><code class="language-sh">curl --location --request GET 'https://validator.nymtech.net/api/v1/mixnodes/'
+</code></pre>
+<p>Will return a list all nodes currently online.</p>
+<p>You can query Gateways by replacing <code>nym-mixnodes</code> with <code>nym-gateways</code> in the above command, and can query for the Mix Nodes and Gateways on the Sandbox testnet by replacing <code>validator</code> with <code>sandbox-validator</code>.</p>
+<h4 id="check-with-network-api"><a class="header" href="#check-with-network-api">Check with Network API</a></h4>
+<p>We currently have an API set up returning our metrics tests of the network. There are two endpoints to ping for information about your Mix Node, <code>report</code> and <code>history</code>. Find more information about this in the <a href="../nodes/maintenance.html#metrics--api-endpoints">Mixnodes metrics documentation</a>.</p>
+<p>For more information about available endpoints and their status, you can refer to:</p>
+<pre><code class="language-sh"># for http
+http://&lt;IP&gt;:8080/api/v1/swagger/#/
+
+# for https reversed proxy
+https://&lt;DOMAIN&gt;/api/v1/swagger/#/
+</code></pre>
+<h3 id="why-is-my-node-not-mixing-any-packets"><a class="header" href="#why-is-my-node-not-mixing-any-packets">Why is my node not mixing any packets?</a></h3>
+<p>If you are still unable to see your node on the dashboard, or your node is declaring it has not mixed any packets, there are several potential issues:</p>
+<ul>
+<li>The firewall on your host machine is not configured properly. Checkout the <a href="../nodes/vps-setup.html#configure-your-firewall">instructions</a>.</li>
+<li>You provided incorrect information when bonding your node.</li>
+<li>You are running your node from a VPS without IPv6 support.</li>
+<li>You did not configure your router firewall while running the node from your local machine behind NAT, or you are lacking IPv6 support</li>
+<li>Your Mix Node is not running at all, it has either exited / panicked or you closed the session without making the node persistent. Check out the <a href="../nodes/configuration.html#automating-your-node-with-tmux-and-systemd">instructions</a>.</li>
+</ul>
+<div id="admonition-default" class="admonition admonish-warning" role="note">
+<div>
+<p>Your Nym Node <strong>must speak both IPv4 and IPv6</strong> in order to cooperate with other nodes and route traffic. This is a common reason behind many errors we are seeing among node operators, so check with your provider that your VPS is able to do this!</p>
+</div>
+</div>
+<h4 id="check-ipv6-connectivity"><a class="header" href="#check-ipv6-connectivity">Check IPv6 Connectivity</a></h4>
+<p>You can always check IPv6 address and connectivity by using some of these methods:</p>
+<pre><code class="language-sh"># locally listed IPv6 addresses
+ip -6 addr
+
+# globally reachable IPv6 addresses
+ip -6 addr show scope global
+
+# with DNS
+dig -6 TXT +short o-o.myaddr.l.google.com @ns1.google.com
+dig -t aaaa +short myip.opendns.com @resolver1.opendns.com
+
+# https check
+curl -6 https://ifconfig.co
+curl -6 https://ipv6.icanhazip.com
+
+# using telnet
+telnet -6 ipv6.telnetmyip.com
+</code></pre>
+<p>If your connection doesn’t work make sure to follow <a href="../nodes/configuration.html#connectivity-test-and-configuration">VPS IPv6 setup</a>. If there is more troubleshooting needed, check out <a href="vps-isp.html#ipv6-troubleshooting">VPS IPv6 troubleshooting</a> page.</p>
+<h4 id="incorrect-bonding-information"><a class="header" href="#incorrect-bonding-information">Incorrect bonding information</a></h4>
+<p>Check that you have provided the correct information when bonding your Nym Node in the web wallet interface. When in doubt, un-bond and then re-bond your node!</p>
+<blockquote>
+<p>All delegated stake will be lost when un-bonding! However the Nym Node must be operational in the first place for the delegation to have any effect.</p>
+</blockquote>
+<h3 id="running-on-a-local-machine-behind-nat-with-no-fixed-ip-address"><a class="header" href="#running-on-a-local-machine-behind-nat-with-no-fixed-ip-address">Running on a local machine behind NAT with no fixed IP address</a></h3>
+<p>Your ISP has to be IPv6 ready if you want to run a Nym Node on your local machine. Sadly, in 2020, most of them are not and you won’t get an IPv6 address by default from your ISP. Usually it is an extra paid service or they simply don’t offer it.</p>
+<p>Before you begin, check if you have IPv6 <a href="https://test-ipv6.cz/">here</a> or by running command explained in the <a href="#no-ipv6-connectivity">section above</a>. If not, then don’t waste your time to run a node which won’t ever be able to mix any packet due to this limitation. Call your ISP and ask for IPv6, there is a plenty of it for everyone!</p>
+<p>If all goes well and you have IPv6 available, then you will need to <code>init</code> the Nym Node with an extra flag, <code>--announce-host</code>. You will also need to edit your <code>config.toml</code> file each time your IPv4 address changes, that could be a few days or a few weeks. Check the your IPv4 in the <a href="#no-ipv6-connectivity">section above</a>.</p>
+<p>Additional configuration on your router might also be needed to allow traffic in and out to port 1789 and IPv6 support.</p>
+<ul>
+<li>
+<p><code>--host 0.0.0.0</code> should work every time even if your local machine IPv4 address changes. For example on Monday your router gives your machine an address <code>192.168.0.13</code> and on Wednesday, the <a href="https://en.wikipedia.org/wiki/Dynamic_Host_Configuration_Protocol">DHCP</a> lease will end and you will be assigned <code>192.168.0.14</code>. Using <code>0.0.0.0</code> should avoid this without having to set any static IP in your router’s configuration.</p>
+</li>
+<li>
+<p>you can get your current IPv4 address by either using <code>curl ipinfo.io</code> if you’re on MacOS or Linux or visiting <a href="https://www.whatsmyip.org/">whatsmyip site</a>. Simply copy it and use it as <code>--anounce-host</code> address.</p>
+</li>
+</ul>
+<p>Make sure you check if your node is really mixing. We are aiming to improve the setup for operators running locally, however you may need a bit of patience to set this up from your home behind NAT.</p>
+<h3 id="accidentally-killing-your-node-process-on-exiting-session"><a class="header" href="#accidentally-killing-your-node-process-on-exiting-session">Accidentally killing your node process on exiting session</a></h3>
+<p>When you close your current terminal session, you need to make sure you don’t kill the Mix Node process! There are multiple ways on how to make it persistent even after exiting your ssh session, the easiest solution is to use <code>tmux</code> or <code>nohup</code>, and the more elegant solution is to run the node with <code>systemd</code>. Read the automation manual <a href="../nodes/configuration.html#automating-your-node-with-tmux-and-systemd">here</a>.</p>
+<h3 id="common-errors-and-warnings"><a class="header" href="#common-errors-and-warnings">Common errors and warnings</a></h3>
+<p>Most of the <code>ERROR</code> and <code>WARN</code> messages in your node logs are benign - as long as your node outputs <code>since startup mixed X packets!</code> (<code>X</code> bust be &gt; 0) in your logs (and this number increases over time), your node is mixing packets. If you want to be sure, check the Nym <a href="https://sandbox-explorer.nymtech.net/">dashboard</a> or see other ways on how to check if your node is mixing properly as outlined in the section <a href="#how-can-i-tell-my-node-is-up-and-running-and-mixing-traffic?"><strong>How can I tell my node is up and running and mixing traffic?</strong></a> above.</p>
+<p>More specific errors and warnings are covered below.</p>
+<h3 id="what-is-verloc-and-do-i-have-to-configure-my-nym-node-to-implement-it"><a class="header" href="#what-is-verloc-and-do-i-have-to-configure-my-nym-node-to-implement-it">What is <code>verloc</code> and do I have to configure my Nym Node to implement it?</a></h3>
+<p><code>verloc</code> is short for <em>verifiable location</em>. Mix Nodes and Gateways now measure speed-of-light distances to each other, in an attempt to verify how far apart they are. In later releases, this will allow us to algorithmically verify node locations in a non-fake-able and trustworthy manner.</p>
+<p>You don’t have to do any additional configuration for your node to implement this, it is a passive process that runs in the background of the mixnet from version <code>0.10.1</code> onward.</p>
+<h2 id="gateways-mode"><a class="header" href="#gateways-mode">Gateways Mode</a></h2>
+<h3 id="my-exit-gateway-is-running-but-appears-offline-in-the-explorer"><a class="header" href="#my-exit-gateway-is-running-but-appears-offline-in-the-explorer">My <code>exit-gateway</code> is running but appears offline in the explorer</a></h3>
+<p>Let your Gateway run and follow these steps:</p>
+<ol>
+<li>Check if your <a href="../nodes/vps-setup.html#configure-your-firewall">firewall configuration</a> is active and if the necessary ports are open / allowed, including the ones for Swagger page and Reversed proxy/WSS if this is your case.</li>
+<li>See if the Gateway is not on the <a href="https://validator.nymtech.net/api/v1/gateways/blacklisted">list of blacklisted Gateways</a></li>
+<li>If it’s blacklisted, check out the <a href="#my-gateway-is-blacklisted">point below</a></li>
+</ol>
+<h3 id="my-gateway-is-blacklisted"><a class="header" href="#my-gateway-is-blacklisted">My Gateway is blacklisted</a></h3>
+<p>Nym API measures performance by routing traffic through the Mixnet. If the average of a Gateway’s routing score in past 24h is less than 50%, the Gateway gets blacklisted and it remains so until its performance is higher than 50%.</p>
+<p>In case your Gateway appeared on the <a href="https://validator.nymtech.net/api/v1/gateways/blacklisted">blacklist</a>, it’s because there is some flaw in the configuration. The most common sources of problems are:</p>
+<ul>
+<li>Outdated version of <code>nym-node</code></li>
+<li>Bonding before starting the node/service</li>
+<li>Bonding before opening <a href="../nodes/vps-setup.html#configure-your-firewall">needed ports</a></li>
+<li>VPS restarted without operator having a <a href="../nodes/configuration.html#systemd">systemd automation</a> or some alert notification flow setup (so the operator doesn’t know the node was stopped)</li>
+<li>IP address or host is incorrectly configured</li>
+<li>Process logs grew too big</li>
+<li>Node is wrapped in <a href="../nodes/configuration.html#systemd">systemd service</a> and the operator forgot to run <code>systemctl daemon-reload</code> after last changes</li>
+</ul>
+<p><strong>What to do</strong></p>
+<p>Begin with a sanity check by opening <a href="https://harbourmaster.nymtech.net">harbourmaster.nymtech.net</a> and check your node there. To query all API endpoints of your node at once, you can run <a href="../testing/node-api-check.html">Node API Check CLI</a>. To see IPv4 and IPv6 routing in real time (harbourmaster can have a cache up to 90 min), run <a href="../testing/gateway-probe.html">Gateway Probe CLI</a>.</p>
+<p>Then follow these steps:</p>
+<ol>
+<li>Make sure your node is on the <a href="../changelog.html">latest version</a> and it’s running . Do <em>not</em> stop it if there is no need!</li>
+<li>Open all <a href="../nodes/vps-setup.html#configure-your-firewall">needed ports</a></li>
+<li>Check your <code>config.toml</code> - often people have filled <code>hostname</code> without the domain being registered to <code>nym-node</code> IP, or a wrong IP address after moving their node.</li>
+<li><a href="#check-gateway-connectivity">Check Gateway Connectivity</a></li>
+<li>See logs of your Gateway and search <a href="#nym-node-errors">for errors</a> - if you find any unusual one, you can ask in the <a href="https://matrix.to/#/#operators:nymtech.chat">Element Node Operators</a> channel</li>
+</ol>
+<ul>
+<li>If your logs show that your Node has <code>cover down: 0.00</code> that means that the embedded IPR and NR is not sending any cover traffic.</li>
+</ul>
+<ol start="6">
+<li><a href="vps-isp.html#pruning-logs">Check out if your <code>syslog</code>s</a> aren’t eating all your disk space and prune them</li>
+<li>When all problems are addressed: Restart the node/service (don’t forget <code>systemctl daemon-reload</code>) and wait until your node gets above 50% of performance (average of last 24h) - this will likely take 24-48 hours. During this time your node is tested by <code>nym-api</code> and every positive response picks up your routing score.</li>
+<li>If your node doesn’t pick up the routing score within 24h at all and it was running in <code>--mode exit-gateway</code>, run it as <code>--mode entry-gateway</code>. When your node is above 75% performance (past 24h), switch back to <code>--mode exit-gateway</code>.</li>
+</ol>
+<p><strong>Do not repeatedly restart your Nym Node without reason, your routing score will only get worse!</strong></p>
+<h3 id="check-gateway-connectivity"><a class="header" href="#check-gateway-connectivity">Check Gateway connectivity</a></h3>
+<p><strong>1. Check out the API endpoints</strong></p>
+<p>Start with checking if your Gateway IPR and NR is active. To determine which mode your node is running, you can check the <code>:8080/api/v1/roles</code> endpoint. For example:</p>
+<pre><code class="language-sh"># sustitude &lt;NODE_IP_ADDRESS&gt; or &lt;NODE_DOMAIN&gt; with a real one
+# for http
+http://&lt;NODE_IP_ADDRESS&gt;:8080/api/v1/roles
+# or
+http://&lt;NODE_IP_ADDRESS&gt;/api/v1/roles
+
+# for reversed proxy/WSS
+https://&lt;NODE_DOMAIN&gt;/api/v1/roles
+</code></pre>
+<p>Everything necessary will exist on your node by default. For instance, if you’re running a mixnode, you’ll find that a NR (Network Requester) and IPR (IP Packet Router) address exist, but they will be ignored in <code>mixnode</code> mode.</p>
+<p>For more information about available endpoints and their status, you can refer to:</p>
+<pre><code class="language-sh"># sustitude &lt;NODE_IP_ADDRESS&gt; or &lt;NODE_DOMAIN&gt; with a real one
+# for http
+http://&lt;NODE_IP_ADDRESS&gt;:8080/api/v1/swagger/#/
+# or
+http://&lt;NODE_IP_ADDRESS&gt;/api/v1/swagger/#/
+
+# for reversed proxy/WSS
+https://&lt;NODE_DOMAIN&gt;/api/v1/swagger/#/
+</code></pre>
+<p><strong>2. Configure IPv4 and IPv6 tables and rules</strong></p>
+<ul>
+<li>In case you haven’t, follow the steps in the node <a href="../nodes/configuration.html">configuration</a> chapter <a href="../nodes/configuration.html#connectivity-test-and-configuration">connectivity test and configurastion</a>.</li>
+</ul>
+<p><strong>3. Test connectivity</strong></p>
+<ul>
+<li>Telnet - from your local machine try to connect to your VPS bu running:</li>
+</ul>
+<pre><code class="language-sh">telnet &lt;IP_ADDRESS&gt; &lt;PORT&gt;
+</code></pre>
+<ul>
+<li><a href="https://github.com/websockets/wscat">Websocket wcat</a>:
+<ul>
+<li>Install on your local machine:</li>
+</ul>
+</li>
+</ul>
+<pre><code class="language-sh">sudo apt install node-ws
+</code></pre>
+<ul>
+<li>Run <code>wscat</code> pointing to the IP of your VPS with port <code>9000</code>:</li>
+</ul>
+<pre><code>wscat -c ws://&lt;IP&gt;:&lt;PORT&gt;
+</code></pre>
+<h3 id="my-exit-gateway-is-still-not-online"><a class="header" href="#my-exit-gateway-is-still-not-online">My exit Gateway “is still not online…”</a></h3>
+<p>The Nyx chain epoch takes up to 60 min. To prevent the Gateway getting blacklisted, it’s essential to start it before the bonding process and let it running. In case it already got <a href="#my-gateway-is-backlisted">blacklisted</a> check the steps above.</p>
+<!-- THIS NEEDS TO BE REWORKED
+### When enabling `ip_packet_router` (IPR) I get a `client-core error`
+
+This error tells you that you already have IPR keys in your data storage, to activate them you have two options:
+
+1. Open `~/.nym/nym-nodes/<ID>/config/config.toml` and **set the correct values**
+```toml
+[ip_packer_router_enabled]
+enabled = true
+
+# UNDER [storage_paths] CHANGE
+ip_packet_router_config = '~/.nym/nym-nodes/<ID>/config/ip_packet_router_config.toml'
+```
+
+2. Or **remove the IPR data storage and initialise a new one** with these commands
+```toml
+rm -rf ~/.nym/nym-nodes/<ID>/data/ip-packet-router-data
+
+./nym-gateway setup-ip-packet-router --id <ID>
+```
+
+### My `ip_packet_router` (IPR) seems to not work
+
+There are a few steps to mitigate problems with IPR:
+
+1. Check out the issue right above regarding the [Exit Gateway config](#when-enabling-ip_packet_router-ipr-i-get-a-client-core-error)
+2. Open your browser and checkout the Swagger UI page and see if all the roles are enabled:
+```sh
+# in case of IP
+http://<YOUR_LISTENING_IP_ADDRESS>:8080/api/v1/roles
+
+# in case of hostname domain
+https://<YOUR_DOMAIN>/api/v1/roles
+```
+3. Make sure all your [ports are open](https://nymtech.net/operators/nodes/maintenance.html#configure-your-firewall) properly
+4. Make sure to run your Gateway with embedded IPR as root. Either in a root shell with your configs in `/root/.nym/` or with a command `sudo -E` which gives root privileges but looks for user config folder
+5. If it's all good in the API but you don't see the right tick/badge in the [Performance testing list](https://nymtech.net/events/fast-and-furious), just wait some time and then try to refresh the page
+-->
+<footer id="last-change">Last change: 2024-06-27, commit: <a href="https://github.com/nymtech/nym/commit/789914b09">789914b09</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../troubleshooting/vps-isp.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../troubleshooting/validators.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../troubleshooting/vps-isp.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../troubleshooting/validators.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

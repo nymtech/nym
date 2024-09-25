@@ -1,0 +1,627 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Automatic Node Upgrade: Nymvisor Setup and Usage - Nym Operators Guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Everything needed to run Nym Mixnet components">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././themes/custom.css">
+        <link rel="stylesheet" href=".././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="../changelog.html"><strong aria-hidden="true">2.</strong> Changelog</a></li><li class="chapter-item "><a href="../release-cycle.html"><strong aria-hidden="true">3.</strong> Release Cycle</a></li><li class="chapter-item "><a href="../sandbox.html"><strong aria-hidden="true">4.</strong> Sandbox Testnet</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Operators Guides</li><li class="chapter-item "><a href="../nodes/preliminary-steps.html"><strong aria-hidden="true">7.</strong> Preliminary Steps</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/wallet-preparation.html"><strong aria-hidden="true">7.1.</strong> Nym Wallet Preparation</a></li><li class="chapter-item "><a href="../nodes/vps-setup.html"><strong aria-hidden="true">7.2.</strong> VPS Setup</a></li></ol></li><li class="chapter-item "><a href="../nodes/nym-node.html"><strong aria-hidden="true">8.</strong> Nym Node</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/setup.html"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../nodes/configuration.html"><strong aria-hidden="true">8.2.</strong> Configuration</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/proxy-configuration.html"><strong aria-hidden="true">8.2.1.</strong> WSS & Reversed Proxy</a></li></ol></li><li class="chapter-item "><a href="../nodes/bonding.html"><strong aria-hidden="true">8.3.</strong> Bonding</a></li></ol></li><li class="chapter-item "><a href="../nodes/validator-setup.html"><strong aria-hidden="true">9.</strong> Nyx Validator Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/nym-api.html"><strong aria-hidden="true">9.1.</strong> Nym API Setup</a></li><li class="chapter-item "><a href="../nodes/nyx-configuration.html"><strong aria-hidden="true">9.2.</strong> Validator & API Configuration</a></li></ol></li><li class="chapter-item expanded "><a href="../nodes/maintenance.html"><strong aria-hidden="true">10.</strong> Maintenance</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/manual-upgrade.html"><strong aria-hidden="true">10.1.</strong> Manual Node Upgrade</a></li><li class="chapter-item expanded "><a href="../nodes/nymvisor-upgrade.html" class="active"><strong aria-hidden="true">10.2.</strong> Automatic Node Upgrade: Nymvisor Setup and Usage</a></li></ol></li><li class="chapter-item "><a href="../testing/performance.html"><strong aria-hidden="true">11.</strong> Performance Monitoring & Testing</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/gateway-probe.html"><strong aria-hidden="true">11.1.</strong> Gateway Probe</a></li><li class="chapter-item "><a href="../testing/node-api-check.html"><strong aria-hidden="true">11.2.</strong> Node API Check</a></li><li class="chapter-item "><a href="../testing/prometheus-grafana.html"><strong aria-hidden="true">11.3.</strong> Prometheus & Grafana</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/explorenym-scripts.html"><strong aria-hidden="true">11.3.1.</strong> ExploreNYM scripts</a></li></ol></li></ol></li><li class="chapter-item "><li class="part-title">Troubleshooting</li><li class="chapter-item "><a href="../troubleshooting/vps-isp.html"><strong aria-hidden="true">12.</strong> VPS Setup</a></li><li class="chapter-item "><a href="../troubleshooting/nodes.html"><strong aria-hidden="true">13.</strong> Nym Node</a></li><li class="chapter-item "><a href="../troubleshooting/validators.html"><strong aria-hidden="true">14.</strong> Validators</a></li><li class="chapter-item affix "><li class="part-title">Token Economics</li><li class="chapter-item "><a href="../tokenomics/validator-rewards.html"><strong aria-hidden="true">15.</strong> Nyx: Validator Rewards</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="../faq/general-faq.html"><strong aria-hidden="true">16.</strong> General Operators FAQ</a></li><li class="chapter-item "><a href="../faq/nym-nodes-faq.html"><strong aria-hidden="true">17.</strong> Nym Nodes</a></li><li class="chapter-item "><a href="../faq/nyx-faq.html"><strong aria-hidden="true">18.</strong> Nyx & Validators</a></li><li class="chapter-item affix "><li class="part-title">Community & Legal Forum</li><li class="chapter-item "><a href="../legal/exit-gateway.html"><strong aria-hidden="true">19.</strong> Exit Gateway</a></li><li class="chapter-item "><a href="../legal/community-counsel.html"><strong aria-hidden="true">20.</strong> Community Counsel</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/isp-list.html"><strong aria-hidden="true">20.1.</strong> ISP List</a></li><li class="chapter-item "><a href="../legal/jurisdictions.html"><strong aria-hidden="true">20.2.</strong> Jurisdictions</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/swiss.html"><strong aria-hidden="true">20.2.1.</strong> Switzerland</a></li><li class="chapter-item "><a href="../legal/united-states.html"><strong aria-hidden="true">20.2.2.</strong> United States</a></li></ol></li><li class="chapter-item "><a href="../legal/landing-pages.html"><strong aria-hidden="true">20.3.</strong> Landing Pages</a></li></ol></li><li class="chapter-item "><a href="../legal/add-content.html"><strong aria-hidden="true">21.</strong> How to Add Info</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="../archive/archive.html"><strong aria-hidden="true">22.</strong> Why archive?</a></li><li class="chapter-item "><a href="../archive/nodes/setup-guides.html"><strong aria-hidden="true">23.</strong> Mixnet Nodes Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../archive/nodes/initial-steps.html"><strong aria-hidden="true">23.1.</strong> Preliminary Steps</a></li><li class="chapter-item "><a href="../archive/nodes/mix-node-setup.html"><strong aria-hidden="true">23.2.</strong> Mix Node</a></li><li class="chapter-item "><a href="../archive/nodes/gateway-setup.html"><strong aria-hidden="true">23.3.</strong> Gateway</a></li><li class="chapter-item "><a href="../archive/nodes/network-requester-setup.html"><strong aria-hidden="true">23.4.</strong> Network Requester</a></li></ol></li><li class="chapter-item "><a href="../archive/faq/mixnodes-faq.html"><strong aria-hidden="true">24.</strong> FAQ: Mix Nodes</a></li><li class="chapter-item "><a href="../archive/faq/smoosh-faq.html"><strong aria-hidden="true">25.</strong> FAQ: Project Smoosh</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../coc.html"><strong aria-hidden="true">26.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../toc.html"><strong aria-hidden="true">27.</strong> Terms & Conditions</a></li><li class="chapter-item "><a href="../licensing.html"><strong aria-hidden="true">28.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Operators Guide</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="automatic-node-upgrade-nymvisor-setup-and-usage"><a class="header" href="#automatic-node-upgrade-nymvisor-setup-and-usage">Automatic Node Upgrade: Nymvisor Setup and Usage</a></h1>
+<blockquote>
+<p>The Nymvisor binary was built in the <a href="../binaries/building-nym.html">building nym</a> section. If you haven’t yet built Nym and want to run the code, go there first. You can build just Nymvisor with <code>cargo build --release --bin nymvisor</code>.</p>
+</blockquote>
+<blockquote>
+<p>Any syntax in <code>&lt;&gt;</code> brackets is a user’s unique variable. Exchange with a corresponding name without the <code>&lt;&gt;</code> brackets.</p>
+</blockquote>
+<h2 id="what-is-nymvisor"><a class="header" href="#what-is-nymvisor">What is Nymvisor?</a></h2>
+<p>Nymvisor is a process manager for Nym binaries that monitors the Nym release information for any newly released binaries. If it detects any changes, Nymvisor can automatically download the binary, stop the current binary, switch from the old binary to the new one, and finally restart the underlying process with the new binary.</p>
+<p>In essence, it tries to mirror the behaviour of <a href="https://github.com/cosmos/cosmos-sdk/tree/main/tools/cosmovisor">Cosmovisor</a>, a tool used by Cosmos blockchain operators for managing/automating chain upgrades. Nymvisor, however, introduces some Nym-specific changes since, for example, upgrade information is obtained from our GitHub <a href="https://github.com/nymtech/nym/releases">releases page</a> instead of (in the case of Cosmos blockchains) governance proposals.</p>
+<p>You can use Nymvisor to automate the upgrades of the following binaries:</p>
+<ul>
+<li><code>nym-api</code></li>
+<li><code>nym-node</code></li>
+<li><code>nym-client</code></li>
+<li><code>nym-socks5-client</code></li>
+</ul>
+<div id="admonition-warning" class="admonition admonish-warning" role="note" aria-labelledby="admonition-warning-title">
+<div class="admonition-title">
+<div id="admonition-warning-title">
+<p>Warning</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-warning"></a>
+</div>
+<div>
+<p>Nymvisor is an early and experimental software. Users should use it at their own risk.</p>
+</div>
+</div>
+<h2 id="current-version"><a class="header" href="#current-version">Current version</a></h2>
+<pre><code>0.1.5
+</code></pre>
+<h2 id="preliminary-steps"><a class="header" href="#preliminary-steps">Preliminary steps</a></h2>
+<p>You need to have at least one Nym Node / client / Nym API instance already set up on the <strong>same VPS</strong> that you wish to run Nymvisor on.</p>
+<blockquote>
+<p>Using Nymvisor presumes your VPS is running an operating system that is compatible with the pre-compiled binaries availiable on the <a href="https://github.com/nymtech/nym/releases">Github releases page</a>. If you’re not, then until we’re packaging for a greater variety of operating systems, you’re stuck with <a href="manual-upgrade.html">manually upgrading your node</a>.</p>
+</blockquote>
+<h2 id="setup-and-usage"><a class="header" href="#setup-and-usage">Setup and Usage</a></h2>
+<h3 id="viewing-command-help"><a class="header" href="#viewing-command-help">Viewing command help</a></h3>
+<p>You can check that your binaries are properly compiled with:</p>
+<pre><code>./nymvisor --help
+</code></pre>
+<p>Which should return a list of all available commands.</p>
+<details id="admonition-console-output" class="admonition admonish-example" role="note" aria-labelledby="admonition-console-output-title">
+<summary class="admonition-title">
+<div id="admonition-console-output-title">
+<p>Console output</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-console-output"></a>
+</summary>
+<div>
+<pre><code>Usage: nymvisor [OPTIONS] &lt;COMMAND&gt;
+
+Commands:
+  init               Initialise a nymvisor instance with persistent Config.toml file
+  run                Run the associated daemon with the preconfigured settings
+  build-info         Show build information of this binary
+  daemon-build-info  Show build information of the associated daemon
+  add-upgrade        Queues up another upgrade for the associated daemon
+  config             Show configuration options being used by this instance of nymvisor
+  help               Print this message or the help of the given subcommand(s)
+
+Options:
+  -c, --config-env-file &lt;CONFIG_ENV_FILE&gt;
+          Path pointing to an env file that configures the nymvisor and overrides any preconfigured values
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+</code></pre>
+</div>
+</details>
+<p>You can also check the various arguments required for individual commands with:</p>
+<pre><code>./nymvisor &lt;COMMAND&gt; --help
+</code></pre>
+<h3 id="initialising-your-nymvisor-instance"><a class="header" href="#initialising-your-nymvisor-instance">Initialising your Nymvisor Instance</a></h3>
+<blockquote>
+<p>This example will use the Nym Node binary as an example - however replacing <code>nym-node</code> with any other supported binary will work the same.</p>
+</blockquote>
+<p>Initialise your Nymvisor instance with the following command. You must initialise Nymvisor with the binary you wish to add upgrades for:</p>
+<pre><code>./nymvisor init --daemon-home ~/.nym/&lt;NODE_TYPE&gt;/&lt;NODE_ID&gt; &lt;PATH_TO_NODE_BINARY&gt;
+</code></pre>
+<p>Where the value of <code>--daemon-home</code> might be <code>~/.nym/nym-nodes/default-nym-node</code> and <code>&lt;PATH_TO_NODE_BINARY&gt;</code> might be <code>/home/my_user/nym/target/release/nym-node</code>, or wherever your node binary is located.</p>
+<details id="admonition-console-output-1" class="admonition admonish-example" role="note" aria-labelledby="admonition-console-output-1-title">
+<summary class="admonition-title">
+<div id="admonition-console-output-1-title">
+<p>Console output</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-console-output-1"></a>
+</summary>
+<div>
+<pre><code>[2m2024-09-17T08:12:55.535520Z[0m [32m INFO[0m [2mtools/nymvisor/src/cli/init.rs[0m[2m:[0m[2m416[0m[2m:[0m enabled nymvisor logging
+[2m2024-09-17T08:12:55.535529Z[0m [32m INFO[0m [2mtools/nymvisor/src/cli/init.rs[0m[2m:[0m[2m419[0m[2m:[0m initialising the nymvisor
+[2m2024-09-17T08:12:55.535548Z[0m [32m INFO[0m [1mget_build_information[0m: [2mtools/nymvisor/src/daemon/mod.rs[0m[2m:[0m[2m63[0m[2m:[0m attempting to obtain daemon build information [2m[3mself.executable_path[0m[2m=[0m"../../../../target/release/nym-node"[0m
+[2m2024-09-17T08:12:55.540642Z[0m [32m INFO[0m [2mtools/nymvisor/src/cli/init.rs[0m[2m:[0m[2m217[0m[2m:[0m initialising the directory structure
+[2m2024-09-17T08:12:55.540702Z[0m [32m INFO[0m [2mtools/nymvisor/src/cli/init.rs[0m[2m:[0m[2m250[0m[2m:[0m setting up the genesis binary
+[2m2024-09-17T08:12:55.540718Z[0m [32m INFO[0m [1mget_build_information[0m: [2mtools/nymvisor/src/daemon/mod.rs[0m[2m:[0m[2m63[0m[2m:[0m attempting to obtain daemon build information [2m[3mself.executable_path[0m[2m=[0m"/home/strix/.nym/nymvisors/data/nym-node/genesis/bin/nym-node"[0m
+</code></pre>
+</div>
+</details>
+<p>By default this will create config files at <code>~/.nym/nymvisors/instances/&lt;NODE_TYPE&gt;-default/config/config.toml</code> as shown in the console output above. For config options look at the different <code>--flags</code> available, or the <a href="nymvisor-upgrade.html#environment-variables">environment variables</a> section below.</p>
+<h3 id="running-your-nymvisor-instance"><a class="header" href="#running-your-nymvisor-instance">Running your Nymvisor Instance</a></h3>
+<p>Nymvisor acts as a wrapper around the specified node process - it has to do this in order to be able to pause and restart this process. As such, you need to run your node <em>via</em> Nymvisor!</p>
+<p>The interface to the <code>nymvisor run &lt;ARGS&gt;</code> command is quite simple. Any argument passed after the <code>run</code> command will be passed directly to the underlying daemon, for example: <code>nymvisor run run --id default-nym-node</code> will run the <code>$DAEMON_NAME run --id default-nym-node</code> command (where <code>DAEMON_NAME</code> is the name of the binary itself (e.g. <code>nym-api</code>, <code>nym-node</code>, etc.)).</p>
+<p><code>run</code> Nymvisor and start your node via the following command. Make sure to stop any existing node before running this command.</p>
+<pre><code>./nymvisor run run --id &lt;NODE_ID&gt;
+</code></pre>
+<details id="admonition-console-output-2" class="admonition admonish-example" role="note" aria-labelledby="admonition-console-output-2-title">
+<summary class="admonition-title">
+<div id="admonition-console-output-2-title">
+<p>Console output</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-console-output-2"></a>
+</summary>
+<div>
+<pre><code></code></pre>
+</div>
+</details>
+<p>Nymvisor will now manage your node process (for an in-depth overview of this command check the <a href="./nymvisor-upgrade.html#commands-in-depth">in-depth command information</a> below). It will periodically poll <a href="https://nymtech.net/.wellknown/nym-node/upgrade-info.json">this endpoint</a> (replace <code>nym-node</code> with whatever node you may actually be running via Nymvisor) and check for a new <code>version</code> of the binary it is watching. If this exists, it will then, using the information there:</p>
+<ul>
+<li>pause your node process</li>
+<li>grab the new binary (<code>version</code>)</li>
+<li>verify it against the provided <code>checksum</code></li>
+<li>perform a data backup of the existing node</li>
+<li>replace the old binary with the new one</li>
+<li>restart the process</li>
+</ul>
+<p>And that’s it! Check the <a href="./maintenance.html#for-nymvisor">maintenance page</a> for information on Nymvisor process maintenance and automation, and you can find more in-depth information about the various aspects of Nymvisor such as what happens <a href="#commands-in-depth">under the hood</a> for various commands.</p>
+<h3 id="creating-an-adhoc-upgrade"><a class="header" href="#creating-an-adhoc-upgrade">Creating an Adhoc Upgrade</a></h3>
+<p><code>nymvisor add-upgrade &lt;PATH_TO_EXECUTABLE&gt; --upgrade-name=&lt;NAME&gt; --arg1=value1 --arg2=value2 ...</code> can be used to amend an existing <code>upgrade-plan.json</code> by creating new entries or to add an executable to an existing scheduled upgrade so that it would not have to be downloaded.</p>
+<blockquote>
+<p>Generally users <strong>will not have to use this command</strong>. Situations in which this command might be used are:</p>
+<ul>
+<li>an adhoc upgrade if e.g. a patched version of a binary was required</li>
+<li>if a user doesn’t trust the verification process of Nymvisor’s pipeline and wishes to build/verify the binary themselves before using Nymvisor to perform the upgrade</li>
+<li>if a user isn’t using a currently supported operating system and needs to manually specify a binary they have built themselves</li>
+</ul>
+</blockquote>
+<p>Similarly to <code>init</code>, <code>add-upgrade</code> requires a positional argument specifying a valid path to the upgrade binary. Furthermore, the <code>--upgrade-name</code> keyword argument must be set in order to declare the upgrade name. The remaining arguments are optional. They include:</p>
+<ul>
+<li><code>--force</code> - if specified, will allow Nymvisor to overwrite existing upgrade binary / <code>upgrade-info.json</code> files if they already exist</li>
+<li><code>--add-binary</code> - indicate that this command should only add binary to an existing scheduled upgrade</li>
+<li><code>--now</code> - if specified will force the upgrade to be performed immediately (technically not ‘immediately’ within few seconds). It can’t be specified alongside either <code>--upgrade-time</code> or <code>--upgrade-delay</code> arguments</li>
+<li><code>--publish-date</code> - if a new <code>upgrade-info.json</code> file is going to be created, this argument will specify the <code>publish_date</code> metadata field. Otherwise, the current time will be used. The <a href="https://www.rfc-editor.org/rfc/rfc3339">RFC3339 datetime</a> format is expected</li>
+<li><code>--upgrade-time</code> - specifies the time at which the provided upgrade will be performed (RFC3339 formatted). If left unset, the upgrade will be performed in 15 minutes. It can’t be specified alongside either <code>--now</code> or <code>--upgrade-delay</code> arguments.</li>
+<li><code>--upgrade-delay</code> - specifies delay until the provided upgrade is going to get performed. If let unset, the upgrade will be performed in 15 minutes. It can’t be specified alongside either <code>--upgrade_time</code> or <code>--now</code> arguments.</li>
+</ul>
+<h2 id="config"><a class="header" href="#config">Config</a></h2>
+<p>The output format of <code>nymvisor config</code> can be further configured with <code>--output</code> argument. By default a human-readable text representation is used:</p>
+<pre><code>id:                                nym-node-default
+daemon name:                       nym-node
+daemon home:                       /home/nym/.nym/nym-nodes/default-nym-node
+upstream base upgrade url:         https://nymtech.net/.wellknown/
+disable nymvisor logs:             false
+CUSTOM upgrade data directory      ""
+upstream absolute upgrade url:     ""
+allow binaries download:           true
+enforce download checksum:         true
+restart after upgrade:             true
+restart on failure:                false
+on failure restart delay:          10s
+max startup failures:              10
+startup period duration:           2m
+shutdown grace period:             10s
+CUSTOM backup data directory       ""
+UNSAFE skip backups                false
+</code></pre>
+<p>Adding <code>--output=json</code> would format the same data into JSON which can be more easily parsed programmatically to e.g. pipe the output into <code>jq</code> for further processing.</p>
+<pre><code>nymvisor config --output=json
+</code></pre>
+<p>outputs:</p>
+<pre><code>{"nymvisor":{"id":"nym-node-default","upstream_base_upgrade_url":"https://nymtech.net/.wellknown/","upstream_polling_rate":"1h","disable_logs":false,"upgrade_data_directory":null},"daemon":{"name":"nym-node","home":"/home/nym/.nym/nym-nodes/default-nym-nodee","absolute_upstream_upgrade_url":null,"allow_binaries_download":true,"enforce_download_checksum":true,"restart_after_upgrade":true,"restart_on_failure":false,"failure_restart_delay":"10s","max_startup_failures":10,"startup_period_duration":"2m","shutdown_grace_period":"10s","backup_data_directory":null,"unsafe_skip_backup":false}}
+</code></pre>
+<h2 id="cli-overview"><a class="header" href="#cli-overview">CLI Overview</a></h2>
+<p>Command options are:</p>
+<ul>
+<li><code>help</code>, <code>--help</code>, or <code>-h</code> - Output Nymvisor help information and display the available commands.</li>
+<li><code>config</code> - Display the current Nymvisor configuration, that means displaying the current configuration file that might have been overridden with environment variables value that Nymvisor is using.</li>
+<li><code>init</code> - Generate a <code>config.toml</code> file for this instance of Nymvisor that will use the provided arguments alongside any environmental variables that are set.</li>
+<li><code>add-upgrade</code> - Add an upgrade manually to Nymvisor. This command allows you to easily add the binary corresponding to an upgrade or amend the existing <code>upgrade-plan.json</code> whilst creating new <code>upgrade-info.json</code> file.</li>
+<li><code>build-info</code> - Output the build information.</li>
+<li><code>daemon-build-info</code> - Output the build information of the current binary used by the associated daemon.</li>
+<li><code>run</code> - Run the configured binary using the rest of the provided arguments.</li>
+<li><code>-V</code> or <code>--version</code> - Output the Nymvisor version</li>
+</ul>
+<p>Similarly to other Nym binaries, Nymvisor supports a global <code>--config-env-file</code> or <code>-c</code> flag that allows specifying path to a <code>.env</code> file defining any relevant environmental variables that are going to be applied to any of the Nymvisor commands as described in the <a href="./nymvisor-upgrade.html#environment-variables">Environment section</a>.</p>
+<p>For commands that depend on Nymvisor config file (i.e. all but <code>init</code>), the configuration file is loaded as follows:</p>
+<ul>
+<li>if available, reading <code>$NYMVISOR_CONFIG_PATH</code></li>
+<li>otherwise, if <code>$NYMVISOR_ID</code> is set, a default path will be used, i.e. <code>$HOME/.nym/nymvisors/instances/$NYMVISOR_ID/config/config.toml</code></li>
+<li>finally, if there’s only a single <code>nymvisor</code> instance instantiated (as defined by directories in <code>$HOME/.nym/nymvisors/instances</code>), that one will be loaded</li>
+<li>if all of the above fails, an error is returned</li>
+</ul>
+<p>Nymvisor attempts to load the file from the derived path. If it fails, it attempts to use one of the older schemas to and upgrade it as it goes, the loaded configuration is then overridden with any value that might have been set in the environment.</p>
+<h2 id="environment-variables"><a class="header" href="#environment-variables">Environment Variables</a></h2>
+<blockquote>
+<p>Please note environmental variables take precedence over any arguments passed, i.e. if one were to specify <code>--daemon_home="/foo"</code> and set <code>DAEMON_HOME="bar"</code>, the value of <code>"bar"</code> would end up being used.</p>
+</blockquote>
+<p>For any of its commands as described in <a href="./nymvisor-upgrade.html#cli-overview">CLI Overview section</a>, Nymvisor reads its configuration from the following environment variables:</p>
+<ul>
+<li><code>NYMVISOR_ID</code> is the human-readable identifier of the particular Nymvisor instance.</li>
+<li><code>NYMVISOR_CONFIG_PATH</code> is used to manually override path to the configuration file of the Nymvisor instance.</li>
+<li><code>NYMVISOR_UPSTREAM_BASE_UPGRADE_URL</code> (defaults to https://nymtech.net/.wellknown/) is the base url of the upstream source for obtaining upgrade information for the daemon. It will be used fo constructing the full url, i.e. <code>$NYMVISOR_UPSTREAM_BASE_UPGRADE_URL/$DAEMON_NAME/upgrade-info.json</code>.</li>
+<li><code>NYMVISOR_UPSTREAM_POLLING_RATE</code> (defaults to 1h) is polling rate the upstream url for upgrade information.</li>
+<li><code>NYMVISOR_DISABLE_LOGS</code> (defaults to <code>false</code>). If set to <code>true</code>, this will disable Nymvisor logs (but not the underlying process) completely.</li>
+<li><code>NYMVISOR_UPGRADE_DATA_DIRECTORY</code> is the custom directory for upgrade data - binaries and upgrade plans. If not set, the global Nymvisors’ data directory will be used instead.</li>
+<li><code>DAEMON_NAME</code> is the name of the binary itself (e.g. <code>nym-api</code>, <code>nym-node</code>, etc.).</li>
+<li><code>DAEMON_HOME</code> is the location where the <code>nymvisor/</code> directory is kept that contains the auxiliary files associated with the underlying daemon instance, such as any backups or current version information, e.g. <code>$HOME/.nym/nym-api/my-nym-api</code>, <code>$HOME/.nym/nym-nodes/default-nym-node</code>, etc.</li>
+<li><code>DAEMON_ABSOLUTE_UPSTREAM_UPGRADE_URL</code> is the absolute (i.e. the full url) upstream source for upgrade plans for this daemon. The url has to point to an endpoint containing a valid <code>UpgradeInfo</code> json file. If set it takes precedence over <code>NYMVISOR_UPSTREAM_BASE_UPGRADE_URL</code>.</li>
+<li><code>DAEMON_ALLOW_BINARIES_DOWNLOAD</code> (defaults to <code>true</code>), if set to <code>true</code>, it will enable auto-downloading of new binaries (as declared by urls in corresponding <code>upgrade-info.json</code> files). For security reasons one might wish to disable it and instead manually provide binaries by either placing them in the appropriate directory or by invoking <code>add-upgrade</code> command.</li>
+<li><code>DAEMON_ENFORCE_DOWNLOAD_CHECKSUM</code> (defaults to <code>true</code>), if set to <code>true</code> Nymvisor will require that a checksum is provided in the upgrade plan for the upgrade binary to be downloaded. If disabled, Nymvisor will not require a checksum to be provided, but still check the checksum if one is provided.</li>
+<li><code>DAEMON_RESTART_AFTER_UPGRADE</code> (defaults to <code>true</code>), if set to <code>true</code> Nymvisor will restart the subprocess with the same command-line arguments and flags (but with the new binary) after a successful upgrade. Otherwise (<code>false</code>), Nymvisor stops running after an upgrade and requires the system administrator to manually restart it. <strong>Note restart is only after the upgrade and does not auto-restart the subprocess after an error occurs.</strong> That is controlled via <code>DAEMON_RESTART_ON_FAILURE</code>.</li>
+<li><code>DAEMON_RESTART_ON_FAILURE</code> (defaults to <code>true</code>), if set to <code>true</code>, Nymvisor will restart the subprocess with the same command-line arguments and flags if it has terminated with a non-zero exit code.</li>
+<li><code>DAEMON_FAILURE_RESTART_DELAY</code> (defaults to 10s), if <code>DAEMON_RESTART_ON_FAILURE</code> is set to <code>true</code>, this will specify a delay between the process shutdown (with a non-zero exit code) and it being restarted.</li>
+<li><code>DAEMON_MAX_STARTUP_FAILURES</code> (defaults to 10) if <code>DAEMON_RESTART_ON_FAILURE</code> is set to <code>true</code>, this defines the maximum number of startup failures the subprocess can experience in a quick succession before no further restarts will be attempted and Nymvisor will terminate.</li>
+<li><code>DAEMON_STARTUP_PERIOD_DURATION</code> (defaults to 120s) if <code>DAEMON_RESTART_ON_FAILURE</code> is set to <code>true</code>, this defines the length of time during which the subprocess is still considered to be in the startup phase when its failures are going to be counted towards the limit defined in <code>DAEMON_MAX_STARTUP_FAILURES</code>.</li>
+<li><code>DAEMON_SHUTDOWN_GRACE_PERIOD</code> (defaults to 10s), specifies the amount of time Nymvisor is willing to wait for the subprocess to undergo graceful shutdown after receiving an interrupt before it sends a kill signal.</li>
+<li><code>DAEMON_BACKUP_DATA_DIRECTORY</code> specifies custom backup directory for daemon data. If not set, <code>DAEMON_HOME/nymvisor/backups</code> is used instead.</li>
+<li><code>DAEMON_UNSAFE_SKIP_BACKUP</code> (defaults to <code>false</code>), if set to <code>true</code>, all upgrades will be performed directly without performing any backups. Otherwise (<code>false</code>), Nymvisor will back up the contents of <code>DAEMON_HOME</code> before trying the upgrade.</li>
+</ul>
+<h2 id="dir-structure"><a class="header" href="#dir-structure">Dir structure</a></h2>
+<p>The folder structure of Nymvisor is heavily inspired by Cosmovisor, but with some notable changes to accommodate our binaries having possibly multiple instances due to their different <code>--id</code> flags. The data is spread through three main directories:</p>
+<ul>
+<li>in a global <code>nymvisors</code> data directory shared by all Nymvisor instances (default: <code>$HOME/.nym/nymvisors/data</code>) that contains daemon upgrade plans, binaries and upgrades histories. It includes a subdirectory for each version of the application (i.e. <code>genesis</code> or <code>upgrades&lt;name&gt;</code>). Within each subdirectory is the application binary (i.e. <code>bin/$DAEMON_NAME</code>), the associated <code>upgrade-info.json</code> and any additional auxiliary files associated with each binary. <code>current</code> is a symbolic link to the currently active directory (i.e. <code>genesis</code> or <code>upgrades/&lt;NAME&gt;</code>)</li>
+<li>in a home directory of a particular <code>nymvisor</code> instance (e.g. <code>$HOME/.nym/nymvisors/instances/&lt;nymvisor-instance-id&gt;/</code>). It includes subdirectories for its configuration file (i.e. <code>config/config.toml</code>), that preconfigures the instance, and for any additional persistent data that might be added in the future (i.e. <code>data</code>)</li>
+<li>in a <code>nymvisor</code> data directory inside the home directory of the managed daemon instance (default: <code>$HOME/.nym/$DAEMON_NAME/nymvisor</code>) that contains subdirectories for data backups (i.e. <code>backups/&lt;name&gt;</code>) and current version information (<code>current-version-info.json</code>)</li>
+</ul>
+<p>A sample full structure looks as follows:</p>
+<pre><code>~/.nym
+├── nymvisors
+│   ├── instances
+│   │   ├── &lt;id1&gt;
+│   │   │   ├── config
+│   │   │   │   └── config.toml
+│   │   │   └── data
+│   │   │       └── ...
+│   │   └── &lt;id2&gt;
+│   │       └── ...
+│   └── data
+│       ├── nym-api
+│       │   ├── current -&gt; genesis or upgrades/&lt;name&gt;
+│       │   ├── genesis
+│       │   │   ├── bin
+│       │   │   │   └── nym-api
+│       │   │   └── upgrade-info.json
+│       │   ├── upgrades
+│       │   │   └── &lt;upgrade-name&gt;
+│       │   │       ├── bin
+│       │   │       │   └── nym-api
+│       │   │       └── upgrade-info.json
+│       │   ├── upgrade-history.json
+│       │   └── upgrade-plan.json
+│       ├── nym-node
+│       │   └── ...
+│       └── $DAEMON_NAME
+│           └── ...
+└── nym-api
+├── &lt;id1&gt;
+│   ├── config
+│   │   └── &lt;nym-api-config-data&gt;
+│   ├── data
+│   │   └── &lt;nym-api-data&gt;
+│   └── nymvisor
+│       ├── backups
+│       │   └── &lt;upgrade-name&gt;
+│       │       └── ....
+│       └── current-version-info.json
+└── &lt;id2&gt;
+└── ...
+</code></pre>
+<h2 id="commands-in-depth"><a class="header" href="#commands-in-depth">Commands In-Depth</a></h2>
+<p>This section outlines what happens under the hood with the following commands:</p>
+<h3 id="init"><a class="header" href="#init">Init</a></h3>
+<p><code>init</code> does the following:</p>
+<ul>
+<li>executes the <code>$DAEMON_NAME build-info</code> command on the daemon executable to check its validity and obtain its name</li>
+<li>creates the required directory structure:
+<ul>
+<li><code>$DAEMON_HOME/nymvisor</code> folder if it doesn’t yet exist</li>
+<li><code>$DAEMON_BACKUP_DATA_DIRECTORY</code> folder if it doesn’t yet exist</li>
+<li><code>$NYMVISOR_UPGRADE_DATA_DIRECTORY</code> folder if it doesn’t yet exist</li>
+<li><code>$NYMVISOR_UPGRADE_DATA_DIRECTORY/$DAEMON_NAME/genesis/bin</code> folder if it doesn’t yet exist</li>
+<li><code>$NYMVISOR_UPGRADE_DATA_DIRECTORY/$DAEMON_NAME/upgrades</code> folder if it doesn’t yet exist</li>
+</ul>
+</li>
+<li>copies the provided executable to <code>$NYMVISOR_UPGRADE_DATA_DIRECTORY/$DAEMON_NAME/genesis/bin/$DAEMON_NAME</code></li>
+<li>generates initial <code>$NYMVISOR_UPGRADE_DATA_DIRECTORY/$DAEMON_NAME/genesis/upgrade-info.json</code> file based on the provided binary</li>
+<li>generates initial <code>$DAEMON_HOME/nymvisor/current-version-info.json</code> file based on the provided binary</li>
+<li>creates a <code>$NYMVISOR_UPGRADE_DATA_DIRECTORY/$DAEMON_NAME/current</code> symlink pointing to <code>$NYMVISOR_UPGRADE_DATA_DIRECTORY/$DAEMON_NAME/genesis</code></li>
+<li>saves the Nymvisor instance’s config file to <code>$NYMVISOR_CONFIG_PATH</code> and creates the full directory structure for the file</li>
+<li>outputs (to <code>stdout</code>) the full configuration used</li>
+</ul>
+<blockquote>
+<p><code>nymvisor init</code> is specifically for initializing Nymvisor, and should <strong>not</strong> be confused with a daemon’s <code>init</code> command - such as <code>nym-node init</code> (e.g. <code>cosmovisor run init</code>).</p>
+</blockquote>
+<h3 id="run"><a class="header" href="#run">Run</a></h3>
+<p><code>nymvisor run</code> is a lightweight wrapper around the underlying daemon. It uses only a single thread and spawns three simple tasks:</p>
+<ul>
+<li>an upstream poller that checks the upstream source (as defined by <code>DAEMON_ABSOLUTE_UPSTREAM_UPGRADE_URL</code> or derived from <code>NYMVISOR_UPSTREAM_BASE_UPGRADE_URL</code>) for any recently released upgrades. It then creates appropriate <code>upgrade-info.json</code> file and updates the <code>upgrade-plan.json</code></li>
+<li>a file watcher for the <code>upgrade-plan.json</code> file that can notify the main run loop of upgrades that were added by either the above upstream poller task or via the <code>add-upgrade</code> command,</li>
+<li>the daemon run loop that:
+<ul>
+<li>runs the <code>DAEMON_NAME</code> with the provided arguments until:
+<ul>
+<li>it completes the execution (with any exit code),</li>
+<li>Nymvisor receives a <code>SIGINT</code>, <code>SIGTERM</code> or <code>SIGQUIT</code>,</li>
+<li>a new upgrade is scheduled to be performed (by other task watching for changes in <code>upgrade-plan.json</code> and waiting until the <code>upgrade_time</code>,</li>
+</ul>
+</li>
+<li>if <code>DAEMON_UNSAFE_SKIP_BACKUP</code> is not set to <code>true</code>, it backups the content of <code>DAEMON_HOME</code> directory,</li>
+<li>performs the binary upgrade by:
+<ul>
+<li>creating a temporary, exclusive and non-blocking, <code>upgrade.lock</code> file for the <code>DAEMON_NAME</code>. <code>flock</code> with <code>LOCK_EX | LOCK_NB</code> is used for that purpose. The file is created in case users didn’t read any warnings and attempted to run multiple instances of <code>nymvisor</code> managing the same <code>DAEMON_NAME</code>,</li>
+<li>downloading the upgrade binary for the runners architecture using one of the urls defined in <code>upgrade-info.json</code>. Note, however, that this is only done if the binary associated with the <code>&lt;UPGRADE-NAME&gt;</code> does not already exist and <code>DAEMON_ALLOW_DOWNLOAD_BINARIES</code> is set to <code>true</code>,
+<ul>
+<li>if the binary has been downloaded and <code>DAEMON_ENFORCE_DOWNLOAD_CHECKSUM</code> is set to true, the file checksum is verified using the specified algorithm,</li>
+</ul>
+</li>
+<li>verifying the upgrade binary - checking if it’s a valid executable with expected <code>build-info</code>. Note that this will also set <code>a+x</code> bits on the file if those permissions have not already been set,
+<ul>
+<li>removing the queued upgrade from <code>upgrade-plan.json</code>,</li>
+<li>inserting new upgrade into the <code>upgrade-history.json</code>,</li>
+<li>updating the <code>current-version-info.json</code>,</li>
+<li>updating the <code>$NYMVISOR_UPGRADE_DATA_DIRECTORY/$DAEMON_NAME/current</code> symlink to the upgrade directory,</li>
+<li>removing the <code>upgrade.lock</code> file.</li>
+</ul>
+</li>
+</ul>
+</li>
+<li>the above loop is repeated if either:
+<ul>
+<li>the daemon has crashed and <code>DAEMON_MAX_STARTUP_FAILURES</code> has not been reached yet,</li>
+<li>the daemon has successfully been upgraded, <code>DAEMON_RESTART_AFTER_UPGRADE</code> has been set to <code>true</code> and the manual flag on the performed upgrade has been set to <code>false</code>.</li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+<h3 id="add-upgrade"><a class="header" href="#add-upgrade">Add-Upgrade</a></h3>
+<p><code>nymvisor add-upgrade</code> does the following:</p>
+<ul>
+<li>executes the <code>$DAEMON_NAME build-info</code> command on the daemon executable to check its validity and obtain its name</li>
+<li>attempts to load existing <code>upgrade-info.json</code> for the provided <code>&lt;upgrade-name&gt;</code>. If it already exists and neither <code>--force</code> nor <code>--add-binary</code> was specified, Nymvisor will terminate</li>
+<li>checks if <code>upgrades/&lt;upgrade-name&gt;/$DAEMON_NAME</code> binary already exists. If it does and <code>--force</code> flag was not specified, Nymvisor will terminate the provided upgrade binary is copied to its appropriate location</li>
+<li>if applicable, new <code>upgrade-info.json</code> is created and written to its appropriate location</li>
+<li><code>upgrade-plan.json</code> is updated with the new upgrade details. If there’s an active Nymvisor instance running, this change will be detected to initialise upgrade process</li>
+</ul>
+<footer id="last-change">Last change: 2024-04-23, commit: <a href="https://github.com/nymtech/nym/commit/ce067db40">ce067db40</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../nodes/manual-upgrade.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../testing/performance.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../nodes/manual-upgrade.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../testing/performance.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

@@ -12,6 +12,8 @@
     "start": "next start"
   },
   "dependencies": {
+    "@coreui/coreui": "^5.1.2",
+    "@coreui/react": "^5.4.0",
     "@cosmjs/amino": "^0.32.2",
     "@cosmjs/cosmwasm-launchpad": "^0.25.6",
     "@cosmjs/cosmwasm-stargate": "^0.32.2",
@@ -35,7 +37,7 @@
     "chain-registry": "^1.19.0",
     "cosmjs-types": "^0.9.0",
     "lucide-react": "^0.438.0",
-    "next": "^13.4.19",
+    "next": "^14.2.13",
     "nextra": "latest",
     "nextra-theme-docs": "latest",
     "react": "^18.2.0",

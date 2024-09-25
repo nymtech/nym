@@ -1,0 +1,47 @@
+/* src: https://github.com/JorelAli/mdBook-pagetoc */
+
+@media only screen and (max-width:1439px) {
+    .sidetoc {
+        display: none;
+    }
+}
+
+@media only screen and (min-width:1440px) {
+    main {
+        position: relative;
+    }
+    .sidetoc {
+        margin-left: auto;
+        margin-right: auto;
+        /* left: calc(90% + (var(--content-min-width))/4 - 110px); */
+        left: 101%;
+        position: absolute;
+        font-size: var(--pagetoc-fontsize);
+    }
+    .pagetoc {
+        position: fixed;
+        width: var(--pagetoc-width);
+    }
+    .pagetoc a {
+        border-left: 1px solid var(--sidebar-bg);
+        /* color: var(--fg); */
+        /* color: var(--sidebar-fg); */
+        color: var(--links);
+        display: block;
+        padding-bottom: 5px;
+        padding-top: 5px;
+        padding-left: 10px;
+        text-align: left;
+        text-decoration: none;
+        font-weight: normal;
+        background: var(--sidebar-bg);
+    }
+    .pagetoc a:hover,
+    .pagetoc a.active {
+        background: var(--sidebar-bg);
+        /* color: var(--sidebar-fg); */
+        color: var(--sidebar-active);
+        font-weight: bold;
+        font-size: var(--pagetoc-fontsize);
+    }
+}

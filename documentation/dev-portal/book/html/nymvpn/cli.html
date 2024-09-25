@@ -1,0 +1,519 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>CLI - Nym Docs</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Nym technical documentation">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././themes/custom.css">
+        <link rel="stylesheet" href=".././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="../clients-overview.html"><strong aria-hidden="true">2.</strong> Clients Overview - Start Here!</a></li><li class="chapter-item affix "><li class="part-title">SDKs</li><li class="chapter-item "><a href="../sdk/rust/rust.html"><strong aria-hidden="true">3.</strong> Rust SDK</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../sdk/rust/message-types.html"><strong aria-hidden="true">3.1.</strong> Message Types</a></li><li class="chapter-item "><a href="../sdk/rust/message-helpers.html"><strong aria-hidden="true">3.2.</strong> Message Helpers</a></li><li class="chapter-item "><a href="../sdk/rust/troubleshooting.html"><strong aria-hidden="true">3.3.</strong> Troubleshooting</a></li><li class="chapter-item "><a href="../sdk/rust/examples.html"><strong aria-hidden="true">3.4.</strong> Examples</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../sdk/rust/examples/simple.html"><strong aria-hidden="true">3.4.1.</strong> Simple Send</a></li><li class="chapter-item "><a href="../sdk/rust/examples/keys.html"><strong aria-hidden="true">3.4.2.</strong> Create and Store Keys</a></li><li class="chapter-item "><a href="../sdk/rust/examples/storage.html"><strong aria-hidden="true">3.4.3.</strong> Manual Storage</a></li><li class="chapter-item "><a href="../sdk/rust/examples/surbs.html"><strong aria-hidden="true">3.4.4.</strong> Anonymous Replies</a></li><li class="chapter-item "><a href="../sdk/rust/examples/custom-network.html"><strong aria-hidden="true">3.4.5.</strong> Use Custom Network Topology</a></li><li class="chapter-item "><a href="../sdk/rust/examples/socks.html"><strong aria-hidden="true">3.4.6.</strong> Socks Proxy</a></li><li class="chapter-item "><a href="../sdk/rust/examples/split-send.html"><strong aria-hidden="true">3.4.7.</strong> Split Send and Receive</a></li><li class="chapter-item "><a href="../sdk/rust/examples/credential.html"><strong aria-hidden="true">3.4.8.</strong> Testnet Bandwidth Cred</a></li><li class="chapter-item "><a href="../sdk/rust/examples/cargo.html"><strong aria-hidden="true">3.4.9.</strong> Example Cargo file</a></li></ol></li></ol></li><li class="chapter-item "><a href="../sdk/typescript.html"><strong aria-hidden="true">4.</strong> Typescript SDK</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Standalone Clients</li><li class="chapter-item "><a href="../clients/websocket-client.html"><strong aria-hidden="true">7.</strong> Websocket Client</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../clients/websocket/setup.html"><strong aria-hidden="true">7.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../clients/websocket/config.html"><strong aria-hidden="true">7.2.</strong> Configuration</a></li><li class="chapter-item "><a href="../clients/websocket/usage.html"><strong aria-hidden="true">7.3.</strong> Using Your Client</a></li><li class="chapter-item "><a href="../clients/websocket/examples.html"><strong aria-hidden="true">7.4.</strong> Examples</a></li></ol></li><li class="chapter-item "><a href="../clients/socks5-client.html"><strong aria-hidden="true">8.</strong> Socks5 Client</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../clients/socks5/setup.html"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../clients/socks5/usage.html"><strong aria-hidden="true">8.2.</strong> Using Your Client</a></li></ol></li><li class="chapter-item "><a href="../clients/webassembly-client.html"><strong aria-hidden="true">9.</strong> Webassembly Client</a></li><li class="chapter-item affix "><li class="part-title">Tutorials</li><li class="chapter-item "><a href="../tutorials/coming-soon.html"><strong aria-hidden="true">10.</strong> Stub: Updates Coming Soon!</a></li><li class="chapter-item affix "><li class="part-title">Code Examples</li><li class="chapter-item "><a href="../examples/custom-services.html"><strong aria-hidden="true">11.</strong> Custom Service Providers</a></li><li class="chapter-item "><a href="../examples/using-nrs.html"><strong aria-hidden="true">12.</strong> Apps Using Network Requesters</a></li><li class="chapter-item "><a href="../examples/browser-only.html"><strong aria-hidden="true">13.</strong> Browser only</a></li><li class="chapter-item "><a href="../examples/monorepo-examples.html"><strong aria-hidden="true">14.</strong> Monorepo examples</a></li><li class="chapter-item affix "><li class="part-title">Integrations</li><li class="chapter-item "><a href="../integrations/integration-options.html"><strong aria-hidden="true">15.</strong> Integration Options</a></li><li class="chapter-item "><a href="../integrations/payment-integration.html"><strong aria-hidden="true">16.</strong> Payment Integration</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="../faq/integrations-faq.html"><strong aria-hidden="true">17.</strong> Integrations</a></li><li class="chapter-item affix "><li class="part-title">User Manuals</li><li class="chapter-item expanded "><a href="../nymvpn/intro.html"><strong aria-hidden="true">18.</strong> NymVPN beta</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../nymvpn/cli.html" class="active"><strong aria-hidden="true">18.1.</strong> CLI</a></li></ol></li><li class="chapter-item "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="../archive/nym-connect.html"><strong aria-hidden="true">19.</strong> NymConnect Setup</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../coc.html"><strong aria-hidden="true">20.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../licensing.html"><strong aria-hidden="true">21.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Docs</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="nymvpn-cli-guide"><a class="header" href="#nymvpn-cli-guide">NymVPN CLI Guide</a></h1>
+<div id="admonition-nymvpn-cli-testnet" class="admonition admonish-tip" role="note" aria-labelledby="admonition-nymvpn-cli-testnet-title">
+<div class="admonition-title">
+<div id="admonition-nymvpn-cli-testnet-title">
+<p>NymVPN CLI Testnet</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-nymvpn-cli-testnet"></a>
+</div>
+<div>
+<p>If you testing NymVPN CLI and want to try our Sandbox testnet environment, you can visit an explicit guide at <a href="https://nym-vpn-cli.sandbox.nymtech.net/">nym-vpn-cli.sandbox.nymtech.net</a>. This page alco contains an auto generating access token button.</p>
+</div>
+</div>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info"></a>
+</div>
+<div>
+<p>To download NymVPN desktop version, visit <a href="https://nymvpn.com/en/download">nymvpn.com/en/download</a>.</p>
+<p>NymVPN is an experimental software and it’s for testing purposes only. Anyone can submit a registration to the private alpha round on <a href="https://nymvpn.com/en">nymvpn.com</a>.</p>
+</div>
+</div>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>The core binaries consist of:</p>
+<ul>
+<li>
+<p><strong><code>nym-vpn-cli</code></strong>: Basic commandline client for running the vpn. This runs in the foreground.</p>
+</li>
+<li>
+<p><strong><code>nym-vpnd</code></strong>: Daemon implementation of the vpn client that can run in the background and interacted with using <code>nym-vpnc</code>.</p>
+</li>
+<li>
+<p><strong><code>nym-vpnc</code></strong>: The commandline client used to interact with <code>nym-vpnd</code>.</p>
+</li>
+</ul>
+<h2 id="installation"><a class="header" href="#installation">Installation</a></h2>
+<blockquote>
+<p>Any syntax in <code>&lt;&gt;</code> brackets is a user’s/version unique variable. Exchange with a corresponding name without the <code>&lt;&gt;</code> brackets.</p>
+</blockquote>
+<ol>
+<li>
+<p>Open Github <a href="https://github.com/nymtech/nym-vpn-client/releases">releases page</a> and download the CLI latest binary for your system (labelled as <code>nym-vpn-core</code>)</p>
+</li>
+<li>
+<p>Verify sha hash of your downloaded binary with the one listed on the <a href="https://github.com/nymtech/nym-vpn-client/releases">releases page</a>. You can use a simple <code>shasum</code> command and compare strings (ie with Python) or run in the same directory the following command, exchanging <code>&lt;SHA_STRING&gt;</code> with the one of your binary, like in the example:</p>
+</li>
+</ol>
+<pre><code class="language-sh">echo "&lt;SHA_STRING&gt;" | shasum -a 256 -c
+
+# choose a correct one according to your binary, this is just an example
+# echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli__ubuntu-22.04_amd64.tar.gz" | shasum -a 256 -c
+</code></pre>
+<ol start="3">
+<li>Extract files:</li>
+</ol>
+<pre><code class="language-sh">tar -xvf &lt;BINARY&gt;.tar.gz
+# for example
+# tar -xvf nym-vpn-cli__ubuntu-22.04_x86_64.tar.gz
+</code></pre>
+<h3 id="building-from-source"><a class="header" href="#building-from-source">Building From Source</a></h3>
+<p>NymVPN CLI can be built from source. This process is recommended for more advanced users as the installation may require different dependencies based on the operating system used.</p>
+<p>Start by installing <a href="https://go.dev/doc/install">Go</a> and <a href="https://rustup.rs/">Rust</a> languages on your system and then follow these steps:</p>
+<ol>
+<li>Clone NymVPN repository:</li>
+</ol>
+<pre><code class="language-sh">git clone https://github.com/nymtech/nym-vpn-client.git
+</code></pre>
+<ol start="2">
+<li>Move to <code>nym-vpn-client</code> directory and compile <code>wireguard</code>:</li>
+</ol>
+<pre><code class="language-sh">cd nym-vpn-client
+
+make build-wireguard
+</code></pre>
+<ol start="3">
+<li>Compile NymVPN CLI</li>
+</ol>
+<pre><code class="language-sh">make build-nym-vpn-core
+</code></pre>
+<p>Now your NymVPN CLI is installed. Navigate to <code>nym-vpn-core/target/release</code> and use the commands the section below to run the client.</p>
+<h2 id="running"><a class="header" href="#running">Running</a></h2>
+<p>If you are running Debian/Ubuntu/PopOS or any other distributio supporting debian packages and systemd, see the <a href="#debian-package-for-debianubuntupopos">relevant section below</a>.</p>
+<h3 id="daemon"><a class="header" href="#daemon">Daemon</a></h3>
+<p>Start the daemon with</p>
+<pre><code class="language-sh">sudo -E ./nym-vpnd
+</code></pre>
+<p>Then run</p>
+<pre><code class="language-sh">./nym-vpnc status
+./nym-vpnc connect
+./nym-vpnc disconnect
+</code></pre>
+<h3 id="cli"><a class="header" href="#cli">CLI</a></h3>
+<p>An alternative to the daemon is to run the <code>nym-vpn-cli</code> commandline client that runs in the foreground.</p>
+<pre><code class="language-sh">./nym-vpn-cli run
+</code></pre>
+<h2 id="credentials"><a class="header" href="#credentials">Credentials</a></h2>
+<p>NymVPN uses <a href="https://nymtech.net/docs/bandwidth-credentials.html">zkNym bandwidth credentials</a>. Those can be imported as a file or base58 encoded string.</p>
+<pre><code class="language-sh">sudo -E ./nym-vpn-cli import-credential --credential-path &lt;/PATH/TO/freepass.nym&gt;
+sudo -E ./nym-vpn-cli import-credential --credential-data "&lt;STRING&gt;"
+</code></pre>
+<h2 id="debian-package-for-debianubuntupopos"><a class="header" href="#debian-package-for-debianubuntupopos">Debian package for Debian/Ubuntu/PopOS</a></h2>
+<p>For linux platforms using deb packages and systemd, there are also debian packages.</p>
+<pre><code class="language-sh">sudo apt install ./nym-vpnd_-1_amd64.deb ./nym-vpnc_-1_amd64.deb
+
+# In case of error please substitute the correct version
+</code></pre>
+<p>Installing the <code>nym-vpnd</code> deb package starts a <code>nym-vpnd.service</code>. Check that the daemon is running with</p>
+<pre><code class="language-sh">systemctl status nym-vpnd.service
+</code></pre>
+<p>and check its logs with</p>
+<pre><code class="language-sh">sudo journalctl -u nym-vpnd.service -f
+</code></pre>
+<p>To stop the background service</p>
+<pre><code class="language-sh">systemctl stop nym-vpnd.service
+</code></pre>
+<p>It will start again on startup, so disable with</p>
+<pre><code class="language-sh">systemctl disable nym-vpnd.service
+</code></pre>
+<p>Interact with it with <code>nym-vpnc</code></p>
+<pre><code class="language-sh">nym-vpnc status
+nym-vpnc connect
+nym-vpnc disconnect
+</code></pre>
+<h2 id="commands--options"><a class="header" href="#commands--options">Commands &amp; Options</a></h2>
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
+<div class="admonition-title">
+<div id="admonition-note-title">
+<p>Note</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-note"></a>
+</div>
+<div>
+<p>Nym Exit Gateway functionality was implemented just recently and not all the Gateways are upgraded and ready to handle the VPN connections. If you want to make sure you are connecting to a Gateway with an embedded Network Requester, IP Packet Router and applied Nym exit policy, visit <a href="https://harbourmaster.nymtech.net/">harbourmaster.nymtech.net</a> and search Gateways with all the functionalities enabled.</p>
+</div>
+</div>
+<p>The basic syntax of <code>nym-vpn-cli</code> is:</p>
+<pre><code class="language-sh"># choose only one conditional --argument listed in {brackets}
+sudo ./nym-vpn-cli { --exit-router-address &lt;EXIT_ROUTER_ADDRESS&gt;|--exit-gateway-id &lt;EXIT_GATEWAY_ID&gt;|--exit-gateway-country &lt;EXIT_GATEWAY_COUNTRY&gt; }
+</code></pre>
+<p>To see all the possibilities run with <code>--help</code> flag:</p>
+<pre><code class="language-sh">./nym-vpn-cli --help
+</code></pre>
+<details id="admonition-nym-vpn-cli---help" class="admonition admonish-example" role="note" aria-labelledby="admonition-nym-vpn-cli---help-title">
+<summary class="admonition-title">
+<div id="admonition-nym-vpn-cli---help-title">
+<p>nym-vpn-cli –help</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-nym-vpn-cli---help"></a>
+</summary>
+<div>
+<pre><code class="language-sh">Usage: nym-vpn-cli [OPTIONS] &lt;COMMAND&gt;
+
+Commands:
+  run                Run the client
+  import-credential  Import credential
+  help               Print this message or the help of the given subcommand(s)
+
+Options:
+  -c, --config-env-file &lt;CONFIG_ENV_FILE&gt;  Path pointing to an env file describing the network
+      --data-path &lt;DATA_PATH&gt;              Path to the data directory of the mixnet client
+  -h, --help                               Print help
+  -V, --version                            Print version
+</code></pre>
+</div>
+</details>
+<p>You can also run any command with <code>--help</code> flag to see a list of all options associated witht that command, the most important may be <code>run</code> command, like in this example.</p>
+<details id="admonition-nym-vpn-cli-run---help" class="admonition admonish-example" role="note" aria-labelledby="admonition-nym-vpn-cli-run---help-title">
+<summary class="admonition-title">
+<div id="admonition-nym-vpn-cli-run---help-title">
+<p>nym-vpn-cli run –help</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-nym-vpn-cli-run---help"></a>
+</summary>
+<div>
+<pre><code class="language-sh">Run the client
+
+Usage: nym-vpn-cli run [OPTIONS]
+
+Options:
+      --entry-gateway-id &lt;ENTRY_GATEWAY_ID&gt;
+          Mixnet public ID of the entry gateway
+      --entry-gateway-country &lt;ENTRY_GATEWAY_COUNTRY&gt;
+          Auto-select entry gateway by country ISO
+      --entry-gateway-low-latency
+          Auto-select entry gateway by latency
+      --exit-router-address &lt;EXIT_ROUTER_ADDRESS&gt;
+          Mixnet recipient address
+      --exit-gateway-id &lt;EXIT_GATEWAY_ID&gt;
+          Mixnet public ID of the exit gateway
+      --exit-gateway-country &lt;EXIT_GATEWAY_COUNTRY&gt;
+          Auto-select exit gateway by country ISO
+      --wireguard-mode
+          Enable the wireguard mode
+      --nym-ipv4 &lt;NYM_IPV4&gt;
+          The IPv4 address of the nym TUN device that wraps IP packets in sphinx packets
+      --nym-ipv6 &lt;NYM_IPV6&gt;
+          The IPv6 address of the nym TUN device that wraps IP packets in sphinx packets
+      --nym-mtu &lt;NYM_MTU&gt;
+          The MTU of the nym TUN device that wraps IP packets in sphinx packets
+      --dns &lt;DNS&gt;
+          The DNS server to use
+      --disable-routing
+          Disable routing all traffic through the nym TUN device. When the flag is set, the nym TUN device will be created, but to route traffic through it you will need to do it manually, e.g. ping -Itun0
+      --enable-two-hop
+          Enable two-hop mixnet traffic. This means that traffic jumps directly from entry gateway to exit gateway
+      --enable-poisson-rate
+          Enable Poisson process rate limiting of outbound traffic
+      --disable-background-cover-traffic
+          Disable constant rate background loop cover traffic
+      --enable-credentials-mode
+          Enable credentials mode
+      --min-mixnode-performance &lt;MIN_MIXNODE_PERFORMANCE&gt;
+          Set the minimum performance level for mixnodes
+  -h, --help
+          Print help
+
+</code></pre>
+</div>
+</details>
+<h2 id="testnet-environment"><a class="header" href="#testnet-environment">Testnet environment</a></h2>
+<p>If you want to run NymVPN CLI in Nym Sandbox environment, there are a few adjustments to be done. You can follow the steps below or follow more explicit guide on <a href="https://nym-vpn-cli.sandbox.nymtech.net">nym-vpn-cli.sandbox.nymtech.net</a>, including the access token auto generation button.</p>
+<ol>
+<li>Create Sandbox environment config file by saving <a href="https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env">this</a> as <code>sandbox.env</code> in the same directory as your NymVPN binaries:</li>
+</ol>
+<pre><code class="language-sh">curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
+</code></pre>
+<ol start="2">
+<li>
+<p>Check available Gateways at <a href="https://sandbox-nym-api1.nymtech.net/api/v1/gateways">Sandbox API</a> or <a href="https://sandbox-nym-api1.nymtech.net/api/swagger/index.html">Sandbox Swagger page</a></p>
+</li>
+<li>
+<p>Run with a flag <code>-c</code></p>
+</li>
+</ol>
+<pre><code class="language-sh">sudo ./nym-vpn-cli -c &lt;PATH_TO&gt;/sandbox.env &lt;--exit-router-address &lt;EXIT_ROUTER_ADDRESS&gt;|--exit-gateway-id &lt;EXIT_GATEWAY_ID&gt;|--exit-gateway-country &lt;EXIT_GATEWAY_COUNTRY&gt;&gt;
+</code></pre>
+<footer id="last-change">Last change: 2024-08-20, commit: <a href="https://github.com/nymtech/nym/commit/f3ac17eb9">f3ac17eb9</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../nymvpn/intro.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../archive/nym-connect.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../nymvpn/intro.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../archive/nym-connect.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

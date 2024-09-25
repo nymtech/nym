@@ -1,0 +1,16 @@
+import { Steps } from 'nextra/components';
+
+<>
+Migrate your `nym-mixnode` to `nym-node --mode mixnode` using these commands:
+<Steps>
+###### 1. Move relevant info from `config.toml`
+```sh
+./nym-node migrate --config-file ~/.nym/mixnodes/<MIXNODE_ID>/config/config.toml mixnode
+```
+
+###### 2. Initialise with new `nym-node` config
+```sh
+./nym-node run --mode mixnode --id <ID> --location <LOCATION> --mixnet-bind-address 0.0.0.0:1789 --http-bind-address 0.0.0.0:8080 --accept-operator-terms-and-conditions
+```
+</Steps>
+</>

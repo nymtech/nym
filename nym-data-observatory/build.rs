@@ -7,33 +7,34 @@ const POSTGRES_USER: &str = "nym";
 const POSTGRES_PASSWORD: &str = "password123";
 const POSTGRES_DB: &str = "data_obs_db";
 
-/// If you need to re-run migrations or reset the db, just run
-/// cargo clean -p nym-node-status-api
+/// if schema changes, rerun `cargo sqlx prepare` with a running DB
+/// https://github.com/launchbadge/sqlx/blob/main/sqlx-cli/README.md#enable-building-in-offline-mode-with-query
 #[tokio::main]
 async fn main() -> Result<()> {
-    if let Ok(value) = std::env::var("CI") {
-        if value == "true" {
-            println!("cargo::rustc-env=SQLX_OFFLINE=true");
-        }
-    } else {
-        let db_url = export_db_variables()?;
+    let db_url =
+        format!("postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@localhost:5432/{POSTGRES_DB}");
+
+    // if a live DB is reachable, use that
+    if PgConnection::connect(&db_url).await.is_ok() {
+        export_db_variables(&db_url)?;
+        println!("cargo::rustc-env=SQLX_OFFLINE=false");
         run_migrations(&db_url).await?;
+    } else {
+        // by default, run in offline mode
+        println!("cargo::rustc-env=SQLX_OFFLINE=true");
     }
 
     rerun_if_changed();
+
     Ok(())
 }
 
-fn export_db_variables() -> Result<String> {
+fn export_db_variables(db_url: &str) -> Result<()> {
     let mut map = HashMap::new();
     map.insert("POSTGRES_USER", POSTGRES_USER);
     map.insert("POSTGRES_PASSWORD", POSTGRES_PASSWORD);
     map.insert("POSTGRES_DB", POSTGRES_DB);
-    let db_url = format!(
-        "postgresql://{}:{}@localhost:5432/{}",
-        POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
-    );
-    map.insert("DATABASE_URL", db_url.as_str());
+    map.insert("DATABASE_URL", db_url);
 
     let mut file = File::create(".env")?;
     for (var, value) in map.iter() {
@@ -41,7 +42,7 @@ fn export_db_variables() -> Result<String> {
         writeln!(file, "{}={}", var, value).expect("Failed to write to dotenv file");
     }
 
-    Ok(db_url)
+    Ok(())
 }
 
 async fn run_migrations(db_url: &str) -> Result<()> {

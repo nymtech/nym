@@ -12,8 +12,8 @@ import { simulateUpdateBond, simulateVestingUpdateBond } from 'src/requests';
 import { TSimulateUpdateBondArgs, TUpdateBondArgs } from 'src/types';
 import { AppContext } from 'src/context';
 import { BalanceWarning } from 'src/components/FeeWarning';
-import { TPoolOption } from '../../TokenPoolSelector';
 import { TBondedNymNode } from 'src/requests/nymNodeDetails';
+import { TPoolOption } from '../../TokenPoolSelector';
 
 export const UpdateBondAmountNymNode = ({
   node,
@@ -133,7 +133,7 @@ export const UpdateBondAmountNymNode = ({
         </Box>
 
         <Box>
-          <ModalListItem fontWeight={600} label={'Account balance'} value={printBalance} divider />
+          <ModalListItem fontWeight={600} label="Account balance" value={printBalance} divider />
           <ModalListItem label="Current bond amount" value={`${currentBond.amount} ${currentBond.denom}`} divider />
           {uncappedStakeSaturation ? (
             <ModalListItem

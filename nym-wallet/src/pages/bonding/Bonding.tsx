@@ -1,27 +1,25 @@
-import React, { useContext, useEffect, useState } from 'react';
+import { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
 import { Alert, AlertTitle, Box, Button, Typography } from '@mui/material';
-import { TPoolOption } from 'src/components';
 import { Bond } from 'src/components/Bonding/Bond';
 import { BondedMixnode } from 'src/components/Bonding/BondedMixnode';
 import { TBondedMixnodeActions } from 'src/components/Bonding/BondedMixnodeActions';
-import { BondGatewayModal } from 'src/components/Bonding/modals/BondGatewayModal';
-import { BondMixnodeModal } from 'src/components/Bonding/modals/BondMixnodeModal';
 import { UpdateBondAmountModal } from 'src/components/Bonding/modals/UpdateBondAmountModal';
 import { BondOversaturatedModal } from 'src/components/Bonding/modals/BondOversaturatedModal';
 import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/components/Bonding/modals/ConfirmationModal';
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { AppContext, urls } from 'src/context/main';
-import { isGateway, isMixnode, isNymNode, TBondGatewayArgs, TBondMixNodeArgs, TUpdateBondArgs } from 'src/types';
+import { isGateway, isMixnode, isNymNode, TUpdateBondArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { VestingWarningModal } from 'src/components/VestingWarningModal';
 import MigrateLegacyNode from 'src/components/Bonding/modals/MigrateLegacyNode';
-import { BondingContextProvider, useBondingContext } from '../../context';
 import { BondedNymNode } from 'src/components/Bonding/BondedNymNode';
 import { UpdateBondAmountNymNode } from 'src/components/Bonding/modals/UpdateBondAmountNymNode';
+import { BondingContextProvider, useBondingContext } from '../../context';
+import { BondNymNodeModalWithState } from 'src/components/Bonding/modals/BondNymNodeModal';
 
 export const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -34,10 +32,6 @@ export const Bonding = () => {
     | 'redeem'
     | 'update-bond-nymnode'
   >();
-  const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
-  const [uncappedSaturation, setUncappedSaturation] = useState<number | undefined>();
-  const [showMigrationModal, setShowMigrationModal] = useState(false);
-  const [showMigrateLegacyNodeModal, setShowMigrateLegacyNodeModal] = useState(true);
 
   const {
     network,
@@ -51,14 +45,30 @@ export const Bonding = () => {
     bondedNode,
     isLoading,
     error,
-    bondMixnode,
-    bondGateway,
     redeemRewards,
     updateBondAmount,
     refresh,
     migrateVestedMixnode,
-    migrateLegacyMixnode,
+    migrateLegacyNode,
   } = useBondingContext();
+
+  const shouldShowMigrateLegacyNodeModal = () => {
+    if (!bondedNode) {
+      return false;
+    }
+    if (isMixnode(bondedNode) && !bondedNode.isUnbonding) {
+      return true;
+    }
+    if (isGateway(bondedNode)) {
+      return true;
+    }
+    return false;
+  };
+
+  const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
+  const [uncappedSaturation, setUncappedSaturation] = useState<number | undefined>();
+  const [showMigrationModal, setShowMigrationModal] = useState(false);
+  const [showMigrateLegacyNodeModal, setShowMigrateLegacyNodeModal] = useState(shouldShowMigrateLegacyNodeModal());
 
   useEffect(() => {
     if (bondedNode && isMixnode(bondedNode) && bondedNode.uncappedStakeSaturation) {
@@ -80,7 +90,7 @@ export const Bonding = () => {
 
   const handleMigrateLegacyNode = async () => {
     setShowMigrateLegacyNodeModal(false);
-    const tx = await migrateLegacyMixnode();
+    const tx = await migrateLegacyNode();
     if (tx) {
       setConfirmationDetails({
         status: 'success',
@@ -104,39 +114,10 @@ export const Bonding = () => {
     });
   };
 
-  const handleBondMixnode = async (data: TBondMixNodeArgs, tokenPool: TPoolOption) => {
-    setShowModal(undefined);
-    const tx = await bondMixnode(data, tokenPool);
-    if (tx) {
-      setConfirmationDetails({
-        status: 'success',
-        title: 'Bond successful',
-        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-      });
-    }
-    return undefined;
-  };
-
-  const handleBondNymNode = async (data: TBondMixNodeArgs, tokenPool: TPoolOption) => {
-    throw new Error('Not implemented');
-  };
-
-  const handleBondGateway = async (data: TBondGatewayArgs, tokenPool: TPoolOption) => {
-    setShowModal(undefined);
-    const tx = await bondGateway(data, tokenPool);
-    if (tx) {
-      setConfirmationDetails({
-        status: 'success',
-        title: 'Bond successful',
-        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
-      });
-    }
-  };
-
-  const handleUpdateBond = async (data: TUpdateBondArgs, tokenPool: TPoolOption) => {
+  const handleUpdateBond = async (data: TUpdateBondArgs) => {
     setShowModal(undefined);
 
-    const tx = await updateBondAmount(data, tokenPool);
+    const tx = await updateBondAmount(data);
     if (tx) {
       setConfirmationDetails({
         status: 'success',
@@ -237,13 +218,11 @@ export const Bonding = () => {
         }}
       />
 
-      {bondedNode && isMixnode(bondedNode) && (
-        <MigrateLegacyNode
-          open={showMigrateLegacyNodeModal}
-          onClose={() => setShowMigrateLegacyNodeModal(false)}
-          handleMigrate={handleMigrateLegacyNode}
-        />
-      )}
+      <MigrateLegacyNode
+        open={showMigrateLegacyNodeModal}
+        onClose={() => setShowMigrateLegacyNodeModal(false)}
+        handleMigrate={handleMigrateLegacyNode}
+      />
 
       {!bondedNode && <Bond disabled={isLoading} onBond={() => setShowModal('bond-nymnode')} />}
 
@@ -273,29 +252,7 @@ export const Bonding = () => {
         />
       )}
 
-      {showModal === 'bond-nymnode' && <div />}
-
-      {showModal === 'bond-mixnode' && (
-        <BondMixnodeModal
-          denom={clientDetails?.display_mix_denom || 'nym'}
-          hasVestingTokens={Boolean(originalVesting)}
-          onBondMixnode={handleBondMixnode}
-          onSelectNodeType={() => setShowModal('bond-gateway')}
-          onClose={() => setShowModal(undefined)}
-          onError={handleError}
-        />
-      )}
-
-      {showModal === 'bond-gateway' && (
-        <BondGatewayModal
-          denom={clientDetails?.display_mix_denom || 'nym'}
-          hasVestingTokens={Boolean(originalVesting)}
-          onBondGateway={handleBondGateway}
-          onSelectNodeType={() => setShowModal('bond-mixnode')}
-          onClose={() => setShowModal(undefined)}
-          onError={handleError}
-        />
-      )}
+      <BondNymNodeModalWithState open={showModal === 'bond-nymnode'} onClose={handleCloseModal} />
 
       {showModal === 'update-bond-oversaturated' && uncappedSaturation && (
         <BondOversaturatedModal

@@ -7,11 +7,10 @@ import { urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { getIntervalAsDate } from 'src/utils';
+import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
-import { BondedNymNodeActions } from './BondedNymNodeActions';
-import { TBondedNymNode } from 'src/requests/nymNodeDetails';
-import { TBondedNymNodeActions } from './BondedNymNodeActions';
+import { BondedNymNodeActions, TBondedNymNodeActions } from './BondedNymNodeActions';
 
 const textWhenNotName = 'This node has not yet set a name';
 
@@ -78,7 +77,6 @@ export const BondedNymNode = ({
     operatorRewards,
     operatorCost,
     delegators,
-    role,
     identityKey,
     host,
   } = nymnode;

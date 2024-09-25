@@ -2,7 +2,7 @@ import React from 'react';
 import { Box } from '@mui/material';
 import { NodeTypeSelector } from 'src/components';
 import { CurrencyDenom, TNodeType } from '@nymproject/types';
-import { GatewayAmount, GatewayData, Signature } from 'src/pages/bonding/types';
+import { GatewayAmount, GatewayData } from 'src/pages/bonding/types';
 import GatewayInitForm from './GatewayInitForm';
 import GatewayAmountForm from './GatewayAmountForm';
 
@@ -15,7 +15,6 @@ export const BondGatewayForm = ({
   onSelectNodeType,
   onValidateGatewayData,
   onValidateAmountData,
-  onValidateSignature,
 }: {
   step: 1 | 2 | 3 | 4;
   gatewayData: GatewayData;
@@ -25,7 +24,6 @@ export const BondGatewayForm = ({
   onSelectNodeType: (nodeType: TNodeType) => void;
   onValidateGatewayData: (data: GatewayData) => void;
   onValidateAmountData: (data: GatewayAmount) => Promise<void>;
-  onValidateSignature: (signature: Signature) => void;
 }) => (
   <>
     {step === 1 && (

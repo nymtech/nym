@@ -1,18 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Box, Button, Stack, Tooltip, Typography } from '@mui/material';
-import { isMixnode, Network } from 'src/types';
 import { NymCard } from 'src/components';
-import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 
-export const BondUpdateCard = ({
-  mixnode,
-  network,
-  setSuccesfullUpdate,
-}: {
-  mixnode: TBondedMixnode;
-  network?: Network;
-  setSuccesfullUpdate: (staus: boolean) => void;
-}) => (
+export const BondUpdateCard = ({ setSuccesfullUpdate }: { setSuccesfullUpdate: (staus: boolean) => void }) => (
   <Stack gap={2}>
     <NymCard
       borderless
@@ -49,7 +39,6 @@ export const BondUpdateCard = ({
           </Tooltip>
         </Box>
       }
-      children={undefined}
     />
   </Stack>
 );

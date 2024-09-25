@@ -1,4 +1,4 @@
-import { useContext, useEffect, useState } from 'react';
+import React, { useContext, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FeeDetails } from '@nymproject/types';
 import { Alert, AlertTitle, Box, Button, Typography } from '@mui/material';
@@ -18,8 +18,8 @@ import { VestingWarningModal } from 'src/components/VestingWarningModal';
 import MigrateLegacyNode from 'src/components/Bonding/modals/MigrateLegacyNode';
 import { BondedNymNode } from 'src/components/Bonding/BondedNymNode';
 import { UpdateBondAmountNymNode } from 'src/components/Bonding/modals/UpdateBondAmountNymNode';
-import { BondingContextProvider, useBondingContext } from '../../context';
 import { BondNymNodeModalWithState } from 'src/components/Bonding/modals/BondNymNodeModal';
+import { BondingContextProvider, useBondingContext } from '../../context';
 
 export const Bonding = () => {
   const [showModal, setShowModal] = useState<
@@ -33,11 +33,7 @@ export const Bonding = () => {
     | 'update-bond-nymnode'
   >();
 
-  const {
-    network,
-    clientDetails,
-    userBalance: { originalVesting },
-  } = useContext(AppContext);
+  const { network } = useContext(AppContext);
 
   const navigate = useNavigate();
 
@@ -68,12 +64,14 @@ export const Bonding = () => {
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
   const [uncappedSaturation, setUncappedSaturation] = useState<number | undefined>();
   const [showMigrationModal, setShowMigrationModal] = useState(false);
-  const [showMigrateLegacyNodeModal, setShowMigrateLegacyNodeModal] = useState(shouldShowMigrateLegacyNodeModal());
+  const [showMigrateLegacyNodeModal, setShowMigrateLegacyNodeModal] = useState(false);
 
   useEffect(() => {
     if (bondedNode && isMixnode(bondedNode) && bondedNode.uncappedStakeSaturation) {
       setUncappedSaturation(bondedNode.uncappedStakeSaturation);
     }
+
+    setShowMigrateLegacyNodeModal(shouldShowMigrateLegacyNodeModal());
   }, [bondedNode]);
 
   const handleMigrateVestedMixnode = async () => {

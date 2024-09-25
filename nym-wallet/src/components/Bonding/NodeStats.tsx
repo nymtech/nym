@@ -1,6 +1,5 @@
 import React from 'react';
-import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps, Button } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
+import { Stack, Typography, Box, useTheme, Grid, LinearProgress, LinearProgressProps } from '@mui/material';
 import { Cell, Pie, PieChart, Legend, ResponsiveContainer } from 'recharts';
 import { SelectionChance } from '@nymproject/types';
 import { TBondedMixnode } from 'src/requests/mixnodeDetails';
@@ -50,7 +49,6 @@ const StatRow = ({
 export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
   const { activeSetProbability, routingScore } = mixnode;
   const theme = useTheme();
-  const navigate = useNavigate();
 
   // clamp routing score to [0-100]
   const score = Math.min(Math.max(routingScore || 0, 0), 100);
@@ -72,10 +70,6 @@ export const NodeStats = ({ mixnode }: { mixnode: TBondedMixnode }) => {
       default:
         return { value: 'Unknown' };
     }
-  };
-
-  const handleGoToTestNode = () => {
-    navigate('/bonding/node-settings', { state: 'test-node' });
   };
 
   const renderLegend = () => (

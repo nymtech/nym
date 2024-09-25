@@ -7,7 +7,6 @@ import {
   FeeDetails,
   TransactionExecuteResult,
 } from '@nymproject/types';
-import { ms } from 'date-fns/locale';
 import { DelegationContext, TDelegationTransaction } from '../delegations';
 
 import { mockSleep } from './utils';

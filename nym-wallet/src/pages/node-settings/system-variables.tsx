@@ -7,7 +7,6 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { InclusionProbabilityResponse, SelectionChance } from '@nymproject/types';
 import { validationSchema } from './validationSchema';
 import { InfoTooltip } from '../../components';
-import { useCheckOwnership } from '../../hooks/useCheckOwnership';
 import { updateMixnodeCostParams } from '../../requests';
 import { AppContext } from '../../context';
 import { Console } from '../../utils/console';
@@ -74,7 +73,6 @@ export const SystemVariables = ({
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>();
   const { mixnodeDetails } = useContext(AppContext);
-  const { ownership } = useCheckOwnership();
 
   const {
     register,

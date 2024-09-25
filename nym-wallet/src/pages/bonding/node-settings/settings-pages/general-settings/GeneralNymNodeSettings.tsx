@@ -1,4 +1,4 @@
-import { useContext, useState } from 'react';
+import React, { useContext, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Divider, Grid, Stack, TextField, Typography } from '@mui/material';
@@ -17,7 +17,7 @@ import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 
 export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymNode }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
-  const { getFee, fee, resetFeeState } = useGetFee();
+  const { fee, resetFeeState } = useGetFee();
   const { userBalance } = useContext(AppContext);
 
   const theme = useTheme();
@@ -134,7 +134,7 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
               size="large"
               variant="contained"
               disabled={isSubmitting || !isDirty || !isValid}
-              onClick={handleSubmit((data) => undefined)}
+              onClick={handleSubmit(() => undefined)}
               sx={{ m: 3, mr: 0 }}
               fullWidth
             >

@@ -1,12 +1,13 @@
 /* eslint-disable @typescript-eslint/naming-convention */
+import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { isGateway, isMixnode, TUpdateBondArgs, isNymNode, TNymNodeSignatureArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import useGetNodeDetails from 'src/hooks/useGetNodeDetails';
 import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { TBondedGateway } from 'src/requests/gatewayDetails';
+import { toPercentFloatString } from 'src/utils';
 import { AppContext } from './main';
 import {
   claimOperatorReward,
@@ -16,12 +17,10 @@ import {
   vestingClaimOperatorReward,
   generateNymNodeMsgPayload as generateNymNodeMsgPayloadReq,
   updateBond as updateBondReq,
-  vestingUpdateBond as vestingUpdateBondReq,
   migrateVestedMixnode as tauriMigrateVestedMixnode,
   migrateLegacyMixnode as migrateLegacyMixnodeReq,
   migrateLegacyGateway as migrateLegacyGatewayReq,
 } from '../requests';
-import { toPercentFloatString } from 'src/utils';
 
 export type TBondedNode = TBondedMixnode | TBondedGateway | TBondedNymNode;
 
@@ -141,7 +140,6 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
 
   const generateNymNodeMsgPayload = async (data: TNymNodeSignatureArgs) => {
     setIsLoading(true);
-    console.log('data', data);
 
     try {
       const message = await generateNymNodeMsgPayloadReq({
@@ -159,6 +157,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     } finally {
       setIsLoading(false);
     }
+    return undefined;
   };
 
   const migrateVestedMixnode = async () => {

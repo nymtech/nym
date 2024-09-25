@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/naming-convention */
+
 import { calculateStake, Console, decCoinToDisplay, fireRequests, TauriReq, toPercentIntegerString } from 'src/utils';
 import { DecCoin, decimalToFloatApproximation, decimalToPercentage } from '@nymproject/types';
 import { TNodeRole } from 'src/types';

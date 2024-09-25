@@ -8,7 +8,7 @@ import { DecCoin } from '@nymproject/types';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { decCoinToDisplay, validateAmount } from 'src/utils';
-import { simulateUpdateBond, simulateVestingUpdateBond } from 'src/requests';
+import { simulateUpdateBond } from 'src/requests';
 import { TSimulateUpdateBondArgs, TUpdateBondArgs } from 'src/types';
 import { AppContext } from 'src/context';
 import { BalanceWarning } from 'src/components/FeeWarning';
@@ -32,7 +32,7 @@ export const UpdateBondAmountNymNode = ({
   const [newBond, setNewBond] = useState<DecCoin | undefined>();
   const [errorAmount, setErrorAmount] = useState(false);
 
-  const { printBalance, printVestedBalance, userBalance } = useContext(AppContext);
+  const { printBalance, userBalance } = useContext(AppContext);
 
   useEffect(() => {
     if (feeError) {

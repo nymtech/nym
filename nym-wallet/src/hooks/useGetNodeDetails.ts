@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { TBondedNode } from 'src/context';
 import { getGatewayDetails } from 'src/requests/gatewayDetails';
 import { getMixnodeDetails } from 'src/requests/mixnodeDetails';
@@ -10,7 +10,7 @@ const useGetNodeDetails = (clientAddress?: string, network?: string) => {
   const [isLoading, setIsLoading] = useState(false);
   const [isError, setIsError] = useState(false);
 
-  const getNodeDetails = async (clientAddress: string) => {
+  const getNodeDetails = async (address: string) => {
     setIsError(false);
     setBondedNode(null);
     setIsLoading(true);
@@ -18,7 +18,7 @@ const useGetNodeDetails = (clientAddress?: string, network?: string) => {
     // Check if the address has a Nym node bonded
     const nymnode: TauriReq<typeof getNymNodeDetails> = {
       name: 'getNymNodeBondDetails',
-      request: () => getNymNodeDetails(clientAddress),
+      request: () => getNymNodeDetails(address),
       onFulfilled: (value) => {
         if (value) {
           setBondedNode(value);
@@ -29,7 +29,7 @@ const useGetNodeDetails = (clientAddress?: string, network?: string) => {
     // Check if the address has a Mix node bonded
     const mixnode: TauriReq<typeof getMixnodeDetails> = {
       name: 'getMixnodeDetails',
-      request: () => getMixnodeDetails(clientAddress),
+      request: () => getMixnodeDetails(address),
       onFulfilled: (value) => {
         if (value) {
           setBondedNode(value);

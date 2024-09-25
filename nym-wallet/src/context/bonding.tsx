@@ -1,50 +1,29 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import {
-  isGateway,
-  isMixnode,
-  TBondGatewayArgs,
-  TBondGatewaySignatureArgs,
-  TBondMixNodeArgs,
-  TBondMixnodeSignatureArgs,
-  TUpdateBondArgs,
-  isNymNode,
-} from 'src/types';
+import { isGateway, isMixnode, TUpdateBondArgs, isNymNode, TNymNodeSignatureArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import useGetNodeDetails from 'src/hooks/useGetNodeDetails';
 import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { TBondedGateway } from 'src/requests/gatewayDetails';
-import { attachDefaultOperatingCost, toPercentFloatString } from '../utils';
 import { AppContext } from './main';
 import {
-  bondGateway as bondGatewayRequest,
-  bondMixNode as bondMixNodeRequest,
   claimOperatorReward,
   unbondGateway as unbondGatewayRequest,
   unbondMixNode as unbondMixnodeRequest,
   unbondNymNode as unbondNymNodeRequest,
-  vestingBondGateway,
-  vestingBondMixNode,
-  vestingUnbondGateway,
-  vestingUnbondMixnode,
-  updateMixnodeCostParams as updateMixnodeCostParamsRequest,
-  vestingUpdateMixnodeCostParams as updateMixnodeVestingCostParamsRequest,
   vestingClaimOperatorReward,
-  vestingGenerateMixnodeMsgPayload as vestingGenerateMixnodeMsgPayloadReq,
-  generateMixnodeMsgPayload as generateMixnodeMsgPayloadReq,
-  vestingGenerateGatewayMsgPayload as vestingGenerateGatewayMsgPayloadReq,
-  generateGatewayMsgPayload as generateGatewayMsgPayloadReq,
+  generateNymNodeMsgPayload as generateNymNodeMsgPayloadReq,
   updateBond as updateBondReq,
   vestingUpdateBond as vestingUpdateBondReq,
   migrateVestedMixnode as tauriMigrateVestedMixnode,
   migrateLegacyMixnode as migrateLegacyMixnodeReq,
+  migrateLegacyGateway as migrateLegacyGatewayReq,
 } from '../requests';
+import { toPercentFloatString } from 'src/utils';
 
 export type TBondedNode = TBondedMixnode | TBondedGateway | TBondedNymNode;
-
-export type TokenPool = 'locked' | 'balance';
 
 export type TBondingContext = {
   isLoading: boolean;
@@ -52,27 +31,17 @@ export type TBondingContext = {
   bondedNode?: TBondedNode | null;
   isVestingAccount: boolean;
   refresh: () => void;
-  bondMixnode: (data: TBondMixNodeArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
-  bondGateway: (data: TBondGatewayArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  updateBondAmount: (data: TUpdateBondArgs, tokenPool: TokenPool) => Promise<TransactionExecuteResult | undefined>;
+  updateBondAmount: (data: TUpdateBondArgs) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  updateMixnode: (pm: string, fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
-  generateMixnodeMsgPayload: (data: TBondMixnodeSignatureArgs) => Promise<string | undefined>;
-  generateGatewayMsgPayload: (data: TBondGatewaySignatureArgs) => Promise<string | undefined>;
+  generateNymNodeMsgPayload: (data: TNymNodeSignatureArgs) => Promise<string | undefined>;
   migrateVestedMixnode: () => Promise<TransactionExecuteResult | undefined>;
-  migrateLegacyMixnode: () => Promise<TransactionExecuteResult | undefined>;
+  migrateLegacyNode: () => Promise<TransactionExecuteResult | undefined>;
 };
 
 export const BondingContext = createContext<TBondingContext>({
   isLoading: true,
   refresh: async () => undefined,
-  bondMixnode: async () => {
-    throw new Error('Not implemented');
-  },
-  bondGateway: async () => {
-    throw new Error('Not implemented');
-  },
   unbond: async () => {
     throw new Error('Not implemented');
   },
@@ -82,19 +51,13 @@ export const BondingContext = createContext<TBondingContext>({
   redeemRewards: async () => {
     throw new Error('Not implemented');
   },
-  updateMixnode: async () => {
-    throw new Error('Not implemented');
-  },
-  generateMixnodeMsgPayload: async () => {
-    throw new Error('Not implemented');
-  },
-  generateGatewayMsgPayload: async () => {
+  generateNymNodeMsgPayload: async () => {
     throw new Error('Not implemented');
   },
   migrateVestedMixnode: async () => {
     throw new Error('Not implemented');
   },
-  migrateLegacyMixnode: async () => {
+  migrateLegacyNode: async () => {
     throw new Error('Not implemented');
   },
   isVestingAccount: false,
@@ -129,86 +92,16 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     resetState();
   };
 
-  const bondMixnode = async (data: TBondMixNodeArgs, tokenPool: TokenPool) => {
-    let tx: TransactionExecuteResult | undefined;
-    setIsLoading(true);
-    try {
-      if (tokenPool === 'balance') {
-        tx = await bondMixNodeRequest(data);
-        await userBalance.fetchBalance();
-      }
-      if (tokenPool === 'locked') {
-        tx = await vestingBondMixNode(data);
-        await userBalance.fetchTokenAllocation();
-      }
-      return tx;
-    } catch (e: any) {
-      Console.warn(e);
-      setError(`an error occurred: ${e}`);
-    } finally {
-      setIsLoading(false);
-    }
-    return undefined;
-  };
-
-  const bondGateway = async (data: TBondGatewayArgs, tokenPool: TokenPool) => {
-    let tx: TransactionExecuteResult | undefined;
-    setIsLoading(true);
-    try {
-      if (tokenPool === 'balance') {
-        tx = await bondGatewayRequest(data);
-        await userBalance.fetchBalance();
-      }
-      if (tokenPool === 'locked') {
-        tx = await vestingBondGateway(data);
-        await userBalance.fetchTokenAllocation();
-      }
-      return tx;
-    } catch (e: any) {
-      Console.warn(e);
-      setError(`an error occurred: ${e}`);
-    } finally {
-      setIsLoading(false);
-    }
-    return undefined;
-  };
-
   const unbond = async (fee?: FeeDetails) => {
     let tx;
     setIsLoading(true);
     try {
       if (bondedNode && isNymNode(bondedNode)) tx = await unbondNymNodeRequest(fee?.fee);
-      if (bondedNode && isMixnode(bondedNode) && bondedNode.proxy) tx = await vestingUnbondMixnode(fee?.fee);
       if (bondedNode && isMixnode(bondedNode) && !bondedNode.proxy) tx = await unbondMixnodeRequest(fee?.fee);
-      if (bondedNode && isGateway(bondedNode) && bondedNode.proxy) tx = await vestingUnbondGateway(fee?.fee);
       if (bondedNode && isGateway(bondedNode) && !bondedNode.proxy) tx = await unbondGatewayRequest(fee?.fee);
     } catch (e) {
       Console.warn(e);
       setError(`an error occurred: ${e as string}`);
-    } finally {
-      setIsLoading(false);
-    }
-    return tx;
-  };
-
-  const updateMixnode = async (pm: string, fee?: FeeDetails) => {
-    let tx;
-    setIsLoading(true);
-
-    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(pm));
-
-    try {
-      // JS: this check is not entirely valid. you can have proxy field set whilst not using the vesting contract,
-      // you have to check if proxy exists AND if it matches the known vesting contract address!
-      if (bondedNode && isMixnode(bondedNode) && bondedNode.proxy) {
-        tx = await updateMixnodeVestingCostParamsRequest(defaultCostParams, fee?.fee);
-      } else {
-        tx = await updateMixnodeCostParamsRequest(defaultCostParams, fee?.fee);
-      }
-    } catch (e: any) {
-      Console.warn(e);
-      setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);
     }
@@ -229,18 +122,12 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return tx;
   };
 
-  const updateBondAmount = async (data: TUpdateBondArgs, tokenPool: TokenPool) => {
+  const updateBondAmount = async (data: TUpdateBondArgs) => {
     let tx: TransactionExecuteResult | undefined;
     setIsLoading(true);
     try {
-      if (tokenPool === 'balance') {
-        tx = await updateBondReq(data);
-        await userBalance.fetchBalance();
-      }
-      if (tokenPool === 'locked') {
-        tx = await vestingUpdateBondReq(data);
-        await userBalance.fetchTokenAllocation();
-      }
+      tx = await updateBondReq(data);
+      await userBalance.fetchBalance();
 
       return tx;
     } catch (e: any) {
@@ -252,40 +139,26 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return undefined;
   };
 
-  const generateMixnodeMsgPayload = async (data: TBondMixnodeSignatureArgs) => {
-    let message;
+  const generateNymNodeMsgPayload = async (data: TNymNodeSignatureArgs) => {
     setIsLoading(true);
-    try {
-      if (data.tokenPool === 'locked') {
-        message = await vestingGenerateMixnodeMsgPayloadReq(data);
-      } else {
-        message = await generateMixnodeMsgPayloadReq(data);
-      }
-    } catch (e) {
-      Console.warn(e);
-      setError(`an error occurred: ${e}`);
-    } finally {
-      setIsLoading(false);
-    }
-    return message;
-  };
+    console.log('data', data);
 
-  const generateGatewayMsgPayload = async (data: TBondGatewaySignatureArgs) => {
-    let message;
-    setIsLoading(true);
     try {
-      if (data.tokenPool === 'locked') {
-        message = await vestingGenerateGatewayMsgPayloadReq(data);
-      } else {
-        message = await generateGatewayMsgPayloadReq(data);
-      }
+      const message = await generateNymNodeMsgPayloadReq({
+        nymNode: data.nymNode,
+        pledge: data.pledge,
+        costParams: {
+          ...data.costParams,
+          profit_margin_percent: toPercentFloatString(data.costParams.profit_margin_percent),
+        },
+      });
+      return message;
     } catch (e) {
       Console.warn(e);
       setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);
     }
-    return message;
   };
 
   const migrateVestedMixnode = async () => {
@@ -295,9 +168,17 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return tx;
   };
 
-  const migrateLegacyMixnode = async () => {
+  const migrateLegacyNode = async () => {
     setIsLoading(true);
-    const tx = await migrateLegacyMixnodeReq();
+    let tx: TransactionExecuteResult | undefined;
+
+    if (bondedNode && isMixnode(bondedNode)) {
+      tx = await migrateLegacyMixnodeReq();
+    }
+    if (bondedNode && isGateway(bondedNode)) {
+      tx = await migrateLegacyGatewayReq();
+    }
+
     setIsLoading(false);
     return tx;
   };
@@ -307,17 +188,13 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       isLoading: isLoading || isBondedNodeLoading,
       error,
       bondedNode,
-      bondMixnode,
-      bondGateway,
       unbond,
-      updateMixnode,
       refresh,
       redeemRewards,
       updateBondAmount,
-      generateMixnodeMsgPayload,
-      generateGatewayMsgPayload,
+      generateNymNodeMsgPayload,
       migrateVestedMixnode,
-      migrateLegacyMixnode,
+      migrateLegacyNode,
       isVestingAccount,
     }),
     [isLoading, error, bondedNode, isVestingAccount, isBondedNodeLoading],

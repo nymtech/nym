@@ -62,8 +62,113 @@ impl From<v1::registration::GatewayClient> for v2::registration::GatewayClient {
     }
 }
 
+impl From<v2::registration::GatewayClient> for v1::registration::GatewayClient {
+    fn from(gw_client: v2::registration::GatewayClient) -> Self {
+        Self {
+            pub_key: gw_client.pub_key,
+            private_ip: gw_client.private_ip,
+            mac: gw_client.mac.into(),
+        }
+    }
+}
+
 impl From<v1::registration::ClientMac> for v2::registration::ClientMac {
     fn from(mac: v1::registration::ClientMac) -> Self {
         Self::new(mac.to_vec())
+    }
+}
+
+impl From<v2::registration::ClientMac> for v1::registration::ClientMac {
+    fn from(mac: v2::registration::ClientMac) -> Self {
+        Self::new(mac.to_vec())
+    }
+}
+
+impl From<v2::response::AuthenticatorResponse> for v1::response::AuthenticatorResponse {
+    fn from(authenticator_response: v2::response::AuthenticatorResponse) -> Self {
+        Self {
+            version: authenticator_response.protocol.version,
+            data: authenticator_response.data.into(),
+            reply_to: authenticator_response.reply_to,
+        }
+    }
+}
+
+impl From<v2::response::AuthenticatorResponseData> for v1::response::AuthenticatorResponseData {
+    fn from(authenticator_response_data: v2::response::AuthenticatorResponseData) -> Self {
+        match authenticator_response_data {
+            v2::response::AuthenticatorResponseData::PendingRegistration(
+                pending_registration_response,
+            ) => v1::response::AuthenticatorResponseData::PendingRegistration(
+                pending_registration_response.into(),
+            ),
+            v2::response::AuthenticatorResponseData::Registered(registered_response) => {
+                v1::response::AuthenticatorResponseData::Registered(registered_response.into())
+            }
+            v2::response::AuthenticatorResponseData::RemainingBandwidth(
+                remaining_bandwidth_response,
+            ) => v1::response::AuthenticatorResponseData::RemainingBandwidth(
+                remaining_bandwidth_response.into(),
+            ),
+        }
+    }
+}
+
+impl From<v2::response::PendingRegistrationResponse> for v1::response::PendingRegistrationResponse {
+    fn from(value: v2::response::PendingRegistrationResponse) -> Self {
+        Self {
+            request_id: value.request_id,
+            reply_to: value.reply_to,
+            reply: value.reply.into(),
+        }
+    }
+}
+
+impl From<v2::response::RegisteredResponse> for v1::response::RegisteredResponse {
+    fn from(value: v2::response::RegisteredResponse) -> Self {
+        Self {
+            request_id: value.request_id,
+            reply_to: value.reply_to,
+            reply: value.reply.into(),
+        }
+    }
+}
+
+impl From<v2::response::RemainingBandwidthResponse> for v1::response::RemainingBandwidthResponse {
+    fn from(value: v2::response::RemainingBandwidthResponse) -> Self {
+        Self {
+            request_id: value.request_id,
+            reply_to: value.reply_to,
+            reply: value.reply.map(Into::into),
+        }
+    }
+}
+
+impl From<v2::registration::RegistrationData> for v1::registration::RegistrationData {
+    fn from(value: v2::registration::RegistrationData) -> Self {
+        Self {
+            nonce: value.nonce,
+            gateway_data: value.gateway_data.into(),
+            wg_port: value.wg_port,
+        }
+    }
+}
+
+impl From<v2::registration::RegistredData> for v1::registration::RegistredData {
+    fn from(value: v2::registration::RegistredData) -> Self {
+        Self {
+            pub_key: value.pub_key,
+            private_ip: value.private_ip,
+            wg_port: value.wg_port,
+        }
+    }
+}
+
+impl From<v2::registration::RemainingBandwidthData> for v1::registration::RemainingBandwidthData {
+    fn from(value: v2::registration::RemainingBandwidthData) -> Self {
+        Self {
+            available_bandwidth: value.available_bandwidth,
+            suspended: false,
+        }
     }
 }

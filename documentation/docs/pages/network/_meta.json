@@ -4,7 +4,6 @@
   "architecture": "Architecture",
   "traffic": "Traffic Flow",
   "cryptography": "Crypto",
-  "rewards": "Rewards",
   "---": {
     "type": "separator"
   },

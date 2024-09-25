@@ -258,6 +258,9 @@ pub enum MixnetContractError {
         provided: Uint128,
         range: OperatingCostRange,
     },
+
+    #[error("this operation is temporarily disabled. please try again later")]
+    TemporarilyDisabled,
 }
 
 impl MixnetContractError {

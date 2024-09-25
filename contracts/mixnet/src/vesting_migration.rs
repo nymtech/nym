@@ -69,27 +69,33 @@ pub(crate) fn try_migrate_vested_delegation(
 
     let storage_key =
         Delegation::generate_storage_key(mix_id, &info.sender, Some(&vesting_contract));
-    let Some(mut delegation) =
+    let Some(delegation) =
         delegations_storage::delegations().may_load(deps.storage, storage_key.clone())?
     else {
         return Err(MixnetContractError::NotAVestingDelegation);
     };
 
-    // sanity check that's meant to blow up the contract
-    assert_eq!(delegation.proxy, Some(vesting_contract.clone()));
+    let _ = delegation;
 
-    // update the delegation and save it under the correct storage key
-    delegation.proxy = None;
-    let updated_storage_key = Delegation::generate_storage_key(mix_id, &info.sender, None);
-    delegations_storage::delegations().remove(deps.storage, storage_key)?;
-    delegations_storage::delegations().save(deps.storage, updated_storage_key, &delegation)?;
+    Err(MixnetContractError::TemporarilyDisabled)
 
-    Ok(Response::new().add_message(wasm_execute(
-        vesting_contract,
-        &VestingExecuteMsg::TrackMigratedDelegation {
-            owner: info.sender.into_string(),
-            mix_id,
-        },
-        vec![],
-    )?))
+    //
+    //
+    // // sanity check that's meant to blow up the contract
+    // assert_eq!(delegation.proxy, Some(vesting_contract.clone()));
+    //
+    // // update the delegation and save it under the correct storage key
+    // delegation.proxy = None;
+    // let updated_storage_key = Delegation::generate_storage_key(mix_id, &info.sender, None);
+    // delegations_storage::delegations().remove(deps.storage, storage_key)?;
+    // delegations_storage::delegations().save(deps.storage, updated_storage_key, &delegation)?;
+    //
+    // Ok(Response::new().add_message(wasm_execute(
+    //     vesting_contract,
+    //     &VestingExecuteMsg::TrackMigratedDelegation {
+    //         owner: info.sender.into_string(),
+    //         mix_id,
+    //     },
+    //     vec![],
+    // )?))
 }

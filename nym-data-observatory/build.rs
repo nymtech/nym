@@ -11,10 +11,8 @@ const POSTGRES_DB: &str = "data_obs_db";
 /// https://github.com/launchbadge/sqlx/blob/main/sqlx-cli/README.md#enable-building-in-offline-mode-with-query
 #[tokio::main]
 async fn main() -> Result<()> {
-    let db_url = format!(
-        "postgresql://{}:{}@localhost:5432/{}",
-        POSTGRES_USER, POSTGRES_PASSWORD, POSTGRES_DB
-    );
+    let db_url =
+        format!("postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@localhost:5432/{POSTGRES_DB}");
 
     // if a live DB is reachable, use that
     if PgConnection::connect(&db_url).await.is_ok() {

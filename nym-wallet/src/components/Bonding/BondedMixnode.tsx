@@ -8,7 +8,6 @@ import { NymCard } from 'src/components';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { NodeStatus } from 'src/components/NodeStatus';
 import { getIntervalAsDate } from 'src/utils';
-import { BondUpdateCard } from 'src/components/Bonding/BondUpdateCard';
 import { UpgradeRounded } from '@mui/icons-material';
 import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { Node as NodeIcon } from '../../svg-icons/node';
@@ -86,6 +85,7 @@ export const BondedMixnode = ({
     status,
     identityKey,
     host,
+    isUnbonding,
   } = mixnode;
 
   const getNextInterval = async () => {
@@ -195,6 +195,7 @@ export const BondedMixnode = ({
                 variant="contained"
                 disableElevation
                 onClick={onShowMigrateToNymNodeModal}
+                disabled={isUnbonding}
               >
                 Migrate to Nym Node
               </Button>

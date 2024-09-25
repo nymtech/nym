@@ -1,4 +1,4 @@
-import { Gateway, MixNode, MixNodeCostParams } from '@nymproject/types';
+import { Gateway, MixNode, NodeCostParams } from '@nymproject/types';
 import { GatewayData, MixnodeAmount, MixnodeData } from '../../pages/bonding/types';
 import { toPercentFloatString } from '../../utils';
 
@@ -14,7 +14,7 @@ export function mixnodeToTauri(data: MixnodeData): MixNode {
   };
 }
 
-export function costParamsToTauri(data: MixnodeAmount): MixNodeCostParams {
+export function costParamsToTauri(data: MixnodeAmount): NodeCostParams {
   return {
     profit_margin_percent: toPercentFloatString(data.profitMargin),
     interval_operating_cost: {

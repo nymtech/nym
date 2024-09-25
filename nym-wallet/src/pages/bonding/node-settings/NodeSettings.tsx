@@ -13,7 +13,6 @@ import { Tabs } from 'src/components/Tabs';
 import { useBondingContext, BondingContextProvider } from 'src/context';
 import { AppContext, urls } from 'src/context/main';
 
-import { isMixnode } from 'src/types';
 import { getIntervalAsDate } from 'src/utils';
 import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { NodeGeneralSettings } from './settings-pages/general-settings';
@@ -87,7 +86,7 @@ export const NodeSettings = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <NodeIcon />
                 <Typography variant="h6" fontWeight={600}>
-                  {isMixnode(bondedNode) ? 'Node' : 'Gateway'} Settings
+                  Nym Node Settings
                 </Typography>
               </Box>
             </Box>
@@ -147,8 +146,7 @@ export const NodeSettings = () => {
             }}
           >
             <Typography fontWeight="bold">
-              You should NOT shutdown your {isMixnode(bondedNode) ? 'mix node' : 'gateway'} until the unbond process is
-              complete
+              You should NOT shutdown your node until the unbond process is complete
             </Typography>
           </ConfirmationDetailsModal>
         )}

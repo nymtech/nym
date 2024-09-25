@@ -14,7 +14,7 @@ import {
   Typography,
 } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { CurrencyDenom, MixNodeCostParams } from '@nymproject/types';
+import { CurrencyDenom, NodeCostParams } from '@nymproject/types';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { isMixnode } from 'src/types';
 import {
@@ -22,10 +22,9 @@ import {
   simulateUpdateMixnodeCostParams,
   simulateVestingUpdateMixnodeCostParams,
   updateMixnodeCostParams,
-  vestingUpdateMixnodeCostParams,
 } from 'src/requests';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
-import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
+import { bondedNodeParametersValidationSchema } from 'src/components/Bonding/forms/legacyForms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
 import { getIntervalAsDate } from 'src/utils';
 import { Alert } from 'src/components/Alert';
@@ -45,7 +44,7 @@ const profitMarginHint =
 export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }): JSX.Element => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const [intervalTime, setIntervalTime] = useState<string>();
-  const [pendingUpdates, setPendingUpdates] = useState<MixNodeCostParams>();
+  const [pendingUpdates, setPendingUpdates] = useState<NodeCostParams>();
   const { clientDetails } = useContext(AppContext);
   const theme = useTheme();
 
@@ -115,11 +114,8 @@ export const ParametersSettings = ({ bondedNode }: { bondedNode: TBondedMixnode 
         },
       };
       try {
-        if (bondedNode.proxy) {
-          await vestingUpdateMixnodeCostParams(mixNodeCostParams);
-        } else {
-          await updateMixnodeCostParams(mixNodeCostParams);
-        }
+        await updateMixnodeCostParams(mixNodeCostParams);
+
         await getPendingEvents();
         reset();
         setOpenConfirmationModal(true);

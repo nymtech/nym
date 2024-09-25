@@ -17,7 +17,7 @@ import { Alert } from 'src/components/Alert';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
-import { updateGatewayValidationSchema } from 'src/components/Bonding/forms/gatewayValidationSchema';
+import { updateGatewayValidationSchema } from 'src/components/Bonding/forms/legacyForms/gatewayValidationSchema';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { AppContext } from 'src/context';
 import { TBondedGateway } from 'src/requests/gatewayDetails';

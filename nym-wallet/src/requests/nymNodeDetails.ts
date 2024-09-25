@@ -1,4 +1,6 @@
 import { calculateStake, Console, decCoinToDisplay, fireRequests, TauriReq, toPercentIntegerString } from 'src/utils';
+import { DecCoin, decimalToFloatApproximation, decimalToPercentage } from '@nymproject/types';
+import { TNodeRole } from 'src/types';
 import { getNymNodeBondDetails } from './bond';
 import {
   getNymNodeDescription,
@@ -7,8 +9,6 @@ import {
   getNymNodeUptime,
   getPendingOperatorRewards,
 } from './queries';
-import { DecCoin, decimalToFloatApproximation, decimalToPercentage } from '@nymproject/types';
-import { TNodeRole } from 'src/types';
 
 async function getNymNodeDetails(clientAddress: string) {
   try {
@@ -23,8 +23,6 @@ async function getNymNodeDetails(clientAddress: string) {
       rewarding_details,
       bond_information: { node_id },
     } = data;
-
-    console.log('bond_information', data);
 
     const { name, operatorRewards, uptime, stakeSaturation, uncappedSaturation, role } =
       await getAdditionalNymNodeDetails(
@@ -47,7 +45,7 @@ async function getNymNodeDetails(clientAddress: string) {
       delegators: rewarding_details.unique_delegations,
       operatorCost: decCoinToDisplay(rewarding_details.cost_params.interval_operating_cost),
       host: bond_information.host.replace(/\s/g, ''),
-      httpApiPort: bond_information.custom_http_port,
+      customHttpPort: bond_information.custom_http_port,
       isUnbonding: bond_information.is_unbonding,
       operatorRewards,
       uptime,
@@ -76,9 +74,26 @@ async function getAdditionalNymNodeDetails(nodeId: number, host: string, port: n
   };
 
   if (port) {
-    const nodeDescription = await getNymNodeDescription(host, port);
-    details.name = nodeDescription.name;
+    try {
+      const nodeDescription = await getNymNodeDescription(host, port);
+      details.name = nodeDescription.name;
+    } catch (e) {
+      Console.warn(`Failed to get node description for ${host}:${port}`);
+    }
   }
+
+  const nodeDescription: TauriReq<typeof getNymNodeDescription> = {
+    name: 'getNymNodeDescription',
+    request: () => {
+      if (port) {
+        return getNymNodeDescription(host, port);
+      }
+      return Promise.resolve({ name: 'Name has not been set', description: '', link: '', location: '' });
+    },
+    onFulfilled: (value) => {
+      details.name = value.name;
+    },
+  };
 
   const uptimeReq: TauriReq<typeof getNymNodeUptime> = {
     name: 'getMixnodeAvgUptime',
@@ -92,7 +107,7 @@ async function getAdditionalNymNodeDetails(nodeId: number, host: string, port: n
     name: 'getMixnodeStakeSaturation',
     request: () => getNymNodeStakeSaturation(nodeId),
     onFulfilled: (value) => {
-      details.stakeSaturation = decimalToPercentage(value.current_saturation);
+      details.stakeSaturation = decimalToPercentage(value.uncapped_saturation);
       const rawUncappedSaturation = decimalToFloatApproximation(value.uncapped_saturation);
       if (rawUncappedSaturation && rawUncappedSaturation > 1) {
         details.uncappedSaturation = Math.round(rawUncappedSaturation * 100);
@@ -116,7 +131,7 @@ async function getAdditionalNymNodeDetails(nodeId: number, host: string, port: n
     },
   };
 
-  await fireRequests([operatorRewardsReq, uptimeReq, stakeSaturationReq, getNymNodeRoleReq]);
+  await fireRequests([operatorRewardsReq, uptimeReq, stakeSaturationReq, getNymNodeRoleReq, nodeDescription]);
 
   return details;
 }

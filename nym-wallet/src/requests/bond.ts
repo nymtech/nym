@@ -1,7 +1,7 @@
 import {
   Fee,
   TransactionExecuteResult,
-  MixNodeCostParams,
+  NodeCostParams,
   GatewayBond,
   NymNodeDetails,
   MixNodeDetails,
@@ -12,6 +12,7 @@ import {
   EnumNodeType,
   TUpdateBondArgs,
   TBondNymNodeArgs,
+  TNymNodeSignatureArgs,
 } from 'src/types';
 import { invokeWrapper } from './wrapper';
 
@@ -28,9 +29,12 @@ export const unbondNymNode = async (fee?: Fee) => invokeWrapper<TransactionExecu
 export const generateMixnodeMsgPayload = async (args: Omit<TBondMixnodeSignatureArgs, 'tokenPool'>) =>
   invokeWrapper<string>('generate_mixnode_bonding_msg_payload', args);
 
+export const generateNymNodeMsgPayload = async (args: TNymNodeSignatureArgs) =>
+  invokeWrapper<string>('generate_nym_node_bonding_msg_payload', args);
+
 export const unbondMixNode = async (fee?: Fee) => invokeWrapper<TransactionExecuteResult>('unbond_mixnode', { fee });
 
-export const updateMixnodeCostParams = async (newCosts: MixNodeCostParams, fee?: Fee) =>
+export const updateMixnodeCostParams = async (newCosts: NodeCostParams, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('update_mixnode_cost_params', { newCosts, fee });
 
 export const unbond = async (type: EnumNodeType) => {

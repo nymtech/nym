@@ -3,12 +3,12 @@ import bs58 from 'bs58';
 import Big from 'big.js';
 import { valid } from 'semver';
 import { add, format, fromUnixTime } from 'date-fns';
-import { DecCoin, isValidRawCoin, MixNodeCostParams } from '@nymproject/types';
+import { DecCoin, isValidRawCoin, NodeCostParams } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 import Joi from 'joi';
 import {
   getCurrentInterval,
-  getDefaultMixnodeCostParams,
+  getDefaultNodeCostParams,
   getLockedCoins,
   getSpendableCoins,
   userBalance,
@@ -138,8 +138,8 @@ export const checkTokenBalance = async (tokenPool: TPoolOption, amount: string) 
 
 export const isDecimal = (value: number) => value - Math.floor(value) !== 0;
 
-export const attachDefaultOperatingCost = async (profitMarginPercent: string): Promise<MixNodeCostParams> =>
-  getDefaultMixnodeCostParams(profitMarginPercent);
+export const attachDefaultOperatingCost = async (profitMarginPercent: string): Promise<NodeCostParams> =>
+  getDefaultNodeCostParams(profitMarginPercent);
 
 /**
  * Converts a stringified percentage integer (0-100) to a stringified float (0.0-1.0).

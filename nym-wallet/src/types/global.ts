@@ -1,4 +1,4 @@
-import { DecCoin, Gateway, MixNode, MixNodeCostParams, NymNode, PledgeData } from '@nymproject/types';
+import { DecCoin, Gateway, MixNode, NodeCostParams, NymNode, PledgeData } from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
 import { TBondedNode } from 'src/context';
 import { TBondedGateway } from 'src/requests/gatewayDetails';
@@ -30,12 +30,15 @@ export type TDelegation = {
   pending?: TPendingDelegation;
 };
 
-export type TBondNymNodeArgs = {
-  nymnode: NymNode;
-  costParams: MixNodeCostParams;
-  pledge: DecCoin;
+export type TBondNymNodeArgs = TNymNodeSignatureArgs & {
   msgSignature: string;
   fee?: Fee;
+};
+
+export type TNymNodeSignatureArgs = {
+  nymNode: NymNode;
+  costParams: NodeCostParams;
+  pledge: DecCoin;
 };
 
 export type TBondGatewayArgs = {
@@ -47,7 +50,7 @@ export type TBondGatewayArgs = {
 
 export type TBondMixNodeArgs = {
   mixnode: MixNode;
-  costParams: MixNodeCostParams;
+  costParams: NodeCostParams;
   pledge: DecCoin;
   msgSignature: string;
   fee?: Fee;
@@ -55,7 +58,7 @@ export type TBondMixNodeArgs = {
 
 export type TBondMixnodeSignatureArgs = {
   mixnode: MixNode;
-  costParams: MixNodeCostParams;
+  costParams: NodeCostParams;
   pledge: DecCoin;
   tokenPool: 'balance' | 'locked';
 };
@@ -79,6 +82,11 @@ export type TNodeDescription = {
   description: string;
   link: string;
   location: string;
+};
+
+export type TNodeConfigUpdateArgs = {
+  host: string;
+  custom_http_port: number;
 };
 
 export type TDelegateArgs = {

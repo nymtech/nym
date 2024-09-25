@@ -10,11 +10,4 @@ As outlined on the previous page, the various types of Mixnet nodes - Mix Nodes,
 - Accepting incoming Sphinx packets from other Nym nodes and, using a variable delay, 'mixing' them with other packets (not forwarding on received packets according to FIFO but instead relying on a randomised delay function) - a role currently fulfilled by Mix Nodes.
 - Forwarding packets on to their final destination: the 'receiving' Nym client.
 
-Traffic moving through the mixnet will always move between a sending and receiving client, with 5 'hops' between them:
-- Start. sender -> Ingress Gateway
-- Hop 1. Ingress Gateway -> Mix Node 1
-- Hops 2..4 Mix Node 1 -> Mix Node 2 -> Mix Node 3
-- Hop 5. Mix Node 3 -> Exit Gateway
-- Fin. Exit Gateway -> receiving client.
-
-See the [traffic flow]() TODO LINK page for detailed information on how traffic moves through the Mixnet.
+See the [traffic flow]() TODO LINK page for detailed information on how traffic moves through the Mixnet as well as the [Loopix](https://arxiv.org/pdf/1703.00536) design paper for overview of the stratified nature of the Mixnet.

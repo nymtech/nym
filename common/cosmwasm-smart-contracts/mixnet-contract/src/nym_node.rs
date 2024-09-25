@@ -12,6 +12,11 @@ use std::fmt::{Display, Formatter};
 #[cw_serde]
 #[derive(PartialOrd, Copy, Hash, Eq)]
 #[repr(u8)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/Role.ts")
+)]
 pub enum Role {
     #[serde(rename = "eg", alias = "entry", alias = "entry_gateway")]
     EntryGateway = 0,

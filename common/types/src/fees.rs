@@ -2,48 +2,22 @@ use crate::currency::DecCoin;
 use nym_validator_client::nyxd::Fee;
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "generate-ts")]
-use ts_rs::{Dependency, TS};
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export_to = "ts-packages/types/src/types/rust/FeeDetails.ts")
+)]
 pub struct FeeDetails {
     // expected to be used by the wallet in order to display detailed fee information to the user
     pub amount: Option<DecCoin>,
+    #[cfg_attr(feature = "generate-ts", ts(as = "ts_type_helpers::Fee"))]
     pub fee: Fee,
 }
 
 impl FeeDetails {
     pub fn new(amount: Option<DecCoin>, fee: Fee) -> Self {
         FeeDetails { amount, fee }
-    }
-}
-
-#[cfg(feature = "generate-ts")]
-impl TS for FeeDetails {
-    const EXPORT_TO: Option<&'static str> = Some("ts-packages/types/src/types/rust/FeeDetails.ts");
-
-    fn decl() -> String {
-        format!("type {} = {};", Self::name(), Self::inline())
-    }
-
-    fn name() -> String {
-        "FeeDetails".into()
-    }
-
-    fn inline() -> String {
-        "{ amount: DecCoin | null, fee: Fee }".into()
-    }
-
-    fn dependencies() -> Vec<Dependency> {
-        vec![
-            Dependency::from_ty::<DecCoin>().expect("TS was incorrectly defined on `DecCoin`"),
-            Dependency::from_ty::<ts_type_helpers::Fee>()
-                .expect("TS was incorrectly defined on `ts_type_helpers::Fee`"),
-        ]
-    }
-
-    fn transparent() -> bool {
-        false
     }
 }
 

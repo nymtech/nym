@@ -4,6 +4,8 @@ The mixnet is made up of nodes running in several different roles:
 * **Gateways** REWRITE act as message storage for clients which may go offline and come back online again, and defend against denial of service attacks. The default gateway implementation included in the Nym platform code holds packets for later retrieval. For many applications (such as simple chat), this is usable out of the box, as it provides a place that potentially offline clients can retrieve packets from. The access token allows clients to pull messages from the gateway node.
 * **Services** are applications that communicate with nym clients, listening and sending traffic to the mixnet. This is an umbrella term for a variety of different pieces of code, such as the Network Requester.
 
+> You can find the old pages for the individual nodes in the archive TODO LINK subsection.
+
 ## Smoosh Status
 These were originally completely separate binaries. They are in the process of being 'smooshed' together into a single `nym-node` binary which runs in different modes.
 

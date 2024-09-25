@@ -6,4 +6,4 @@ pub mod registration;
 pub mod request;
 pub mod response;
 
-const VERSION: u8 = 2;
+pub const VERSION: u8 = 2;

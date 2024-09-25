@@ -671,7 +671,6 @@ impl MixnetListener {
 
         let ips = self.connected_clients.lookup_ip_from_nym_address(&reply_to);
         self.connected_clients.disconnect(&ips);
-
     }
 
     async fn handle_packet(
@@ -1008,14 +1007,9 @@ fn verify_signed_request(
     request: &impl SignedRequest,
     client_version: SupportedClientVersion,
 ) -> Result<()> {
-    if let Err(err) = request.verify() {
-        // If the client is V6, we don't care about missing signature
-        if client_version == SupportedClientVersion::V6 {
-            return Ok(());
-        }
-        return Err(IpPacketRouterError::FailedToVerifyRequest { source: err });
-    }
-    Ok(())
+    request
+        .verify()
+        .map_err(|source| IpPacketRouterError::FailedToVerifyRequest { source })
 }
 
 pub(crate) enum ConnectedClientEvent {

@@ -2,20 +2,36 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use si_scale::helpers::bibytes2;
-use std::sync::atomic::{AtomicI64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
 
-#[derive(Clone, Default)]
+pub(crate) struct BandwidthClaimGuard {
+    inner: Arc<ClientBandwidthInner>,
+}
+
+impl Drop for BandwidthClaimGuard {
+    fn drop(&mut self) {
+        let old = self.inner.claiming_more.swap(false, Ordering::SeqCst);
+        assert!(
+            old,
+            "critical failure: there were multiple BandwidthClaimGuard existing"
+        )
+    }
+}
+
+#[derive(Clone)]
 pub struct ClientBandwidth {
     inner: Arc<ClientBandwidthInner>,
 }
 
-#[derive(Default)]
 struct ClientBandwidthInner {
     /// the actual bandwidth amount (in bytes) available
     available: AtomicI64,
+
+    /// flag to indicate whether this client is currently in the process of claiming additional bandwidth
+    claiming_more: AtomicBool,
 
     /// defines the timestamp when the bandwidth information has been logged to the logs stream
     last_logged_ts: AtomicI64,
@@ -29,11 +45,28 @@ impl ClientBandwidth {
         ClientBandwidth {
             inner: Arc::new(ClientBandwidthInner {
                 available: AtomicI64::new(0),
+                claiming_more: AtomicBool::new(false),
                 last_logged_ts: AtomicI64::new(0),
                 last_updated_ts: AtomicI64::new(0),
             }),
         }
     }
+
+    pub(crate) fn begin_bandwidth_claim(&self) -> Option<BandwidthClaimGuard> {
+        if self
+            .inner
+            .claiming_more
+            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+            .is_ok()
+        {
+            Some(BandwidthClaimGuard {
+                inner: self.inner.clone(),
+            })
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn remaining(&self) -> i64 {
         self.inner.available.load(Ordering::Acquire)
     }

@@ -68,12 +68,14 @@ export const Bonding = () => {
   const [confirmationDetails, setConfirmationDetails] = useState<ConfirmationDetailProps>();
   const [uncappedSaturation, setUncappedSaturation] = useState<number | undefined>();
   const [showMigrationModal, setShowMigrationModal] = useState(false);
-  const [showMigrateLegacyNodeModal, setShowMigrateLegacyNodeModal] = useState(shouldShowMigrateLegacyNodeModal());
+  const [showMigrateLegacyNodeModal, setShowMigrateLegacyNodeModal] = useState(false);
 
   useEffect(() => {
     if (bondedNode && isMixnode(bondedNode) && bondedNode.uncappedStakeSaturation) {
       setUncappedSaturation(bondedNode.uncappedStakeSaturation);
     }
+
+    setShowMigrateLegacyNodeModal(shouldShowMigrateLegacyNodeModal());
   }, [bondedNode]);
 
   const handleMigrateVestedMixnode = async () => {

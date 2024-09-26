@@ -1,3 +1,5 @@
+# Zk-Nym Contract
+
 NOTE the contract repo is called 'ecash' from back in the day: this is the contract that is responsible fr zk-nyms tho
 
 functions - these are controlled by the multisig:

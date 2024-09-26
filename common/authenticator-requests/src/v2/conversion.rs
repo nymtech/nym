@@ -167,7 +167,7 @@ impl From<v2::registration::RegistredData> for v1::registration::RegistredData {
 impl From<v2::registration::RemainingBandwidthData> for v1::registration::RemainingBandwidthData {
     fn from(value: v2::registration::RemainingBandwidthData) -> Self {
         Self {
-            available_bandwidth: value.available_bandwidth,
+            available_bandwidth: value.available_bandwidth as u64,
             suspended: false,
         }
     }

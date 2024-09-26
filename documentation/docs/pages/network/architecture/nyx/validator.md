@@ -1,6 +1,10 @@
+import { Callout } from 'nextra/components'
+
 # Validators
 
-> The validator setup and maintenance guide has moved to the [Operator Guides book](https://nymtech.net/operators/nodes/validator-setup.html).
+<Callout type="info" emoji="ℹ️">
+The validator setup and maintenance guide has moved to the [Operator Guides book](../../operators/index).
+</Callout>
 
 Validators secure the Nyx blockchain via Proof of Stake consensus. The Nyx blockchain records the ledger of `NYM` transactions and executes the smart contracts for distributing `NYM` rewards. The Nyx validators are run via the `nyxd` binary ([codebase](https://github.com/nymtech/nyxd)), maintaining a CosmWasm- and IBC-enabled blockchain.
 

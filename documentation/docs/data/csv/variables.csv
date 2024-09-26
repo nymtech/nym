@@ -15,3 +15,4 @@
 *not a flag*                             ,`<PATH_TO>`                                                                                                ,"Specify a full path to the given file, directory or binary behind this variable                                                                                            ",`/root/src/nym/target/release/`                 
 `--announce-wss-port`,`<ANNOUNCE_WSS_PORT>`,"Port listening to Web Secure Socket, default and recommended `9001`",`9001`
 `--landing-page-assets-path`,`<LANDING_PAGE_ASSETS_PATH>`,A sub-directory located at `/var/www/<HOSTNAME>` containing html configuration files,`/var/www/exit-gateway1.squad.nsl` 
+,`<BINARY> `,A name of a binary,`nym-node`

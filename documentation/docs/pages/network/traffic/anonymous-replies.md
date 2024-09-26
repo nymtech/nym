@@ -11,7 +11,3 @@ prepare the SURB are only valid for a limited period).
 As outlined in the [concepts](../concepts/anonymous-replies) section, SURBs are layer encrypted sets of Sphinx headers detailing a reply path ending in the sending client's [Nym address](../traffic/addressing-system). Clients receiving messages with SURBs attached are able to write a payload to the provided headers without ever learning about anything other than the first hop back into the Mixnet - the Gateway they are currently connected to.
 
 There is a balance to be struck between the amount of SURBs to compute to send along with messages (which takes computation resources) and not sending enough SURBs initially, thus having to wait for a SURB to be sent from the receiver to the sender, requesting more SURBs be sent.
-
-TODO DIAGRAM BOTH POSSIBILITIES
-
-TODO DIAGRAM PACKET / SURB

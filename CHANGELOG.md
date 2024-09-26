@@ -4,6 +4,82 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.11-wedel] (2024-09-23)
+
+- Backport #4894 to fix ci ([#4899])
+- Bugfix/ticketbook false double spending ([#4892])
+- fix: allow updating globally stored signatures ([#4891])
+- [DOCs/operators]: Document changelog for patch/2024.10-caramello ([#4886])
+- [DOCs/operators]: Post release docs updates ([#4874])
+- Bump defguard to github latest version ([#4872])
+- chore: removed completed queued mixnet migration ([#4865])
+- Disable push trigger and add missing paths in ci-build ([#4864])
+- Fix linux conditional in ci-build.yml ([#4863])
+- Remove golang workaround in ci-sdk-wasm ([#4858])
+- Revert runner for ci-docs ([#4855])
+- Move credential verification into common crate ([#4853])
+- Fix test failure in ipr request size ([#4844])
+- Start switching over jobs to arc-ubuntu-20.04 ([#4843])
+- Use ecash credential type for bandwidth value ([#4840])
+- Create nym-repo-setup debian package and nym-vpn meta package ([#4837])
+- Remove serde_crate named import ([#4832])
+- Run cargo autoinherit following last weeks dependabot updates ([#4831])
+- revamped ticketbook serialisation and exposed additional cli methods ([#4827])
+- Expose wireguard details on self described endpoint ([#4825])
+- Remove unused wireguard flag from SDK ([#4823])
+- Add `axum` server to `nym-api` ([#4803])
+- Run cargo-autoinherit for a few new crates ([#4801])
+- Update dependabot ([#4796])
+- Fix clippy for unwrap_or_default ([#4783])
+- Enable dependabot version upgrades for root rust workspace ([#4778])
+- Persist used wireguard private IPs ([#4771])
+- Avoid race on ip and registration structures ([#4766])
+- docs/hotfix ([#4765])
+- chore: remove repetitive words ([#4763])
+- Make gateway latency check generic ([#4759])
+- Remove duplicate stat count for retransmissions ([#4756])
+- Update peer refresh value ([#4754])
+- Remove deprecated mark_as_success and use new disarm ([#4751])
+- Add get_mixnodes_described to validator_client ([#4725])
+- New Network Monitor ([#4610])
+
+[#4899]: https://github.com/nymtech/nym/pull/4899
+[#4892]: https://github.com/nymtech/nym/pull/4892
+[#4891]: https://github.com/nymtech/nym/pull/4891
+[#4886]: https://github.com/nymtech/nym/pull/4886
+[#4874]: https://github.com/nymtech/nym/pull/4874
+[#4872]: https://github.com/nymtech/nym/pull/4872
+[#4865]: https://github.com/nymtech/nym/pull/4865
+[#4864]: https://github.com/nymtech/nym/pull/4864
+[#4863]: https://github.com/nymtech/nym/pull/4863
+[#4858]: https://github.com/nymtech/nym/pull/4858
+[#4855]: https://github.com/nymtech/nym/pull/4855
+[#4853]: https://github.com/nymtech/nym/pull/4853
+[#4844]: https://github.com/nymtech/nym/pull/4844
+[#4843]: https://github.com/nymtech/nym/pull/4843
+[#4840]: https://github.com/nymtech/nym/pull/4840
+[#4837]: https://github.com/nymtech/nym/pull/4837
+[#4832]: https://github.com/nymtech/nym/pull/4832
+[#4831]: https://github.com/nymtech/nym/pull/4831
+[#4827]: https://github.com/nymtech/nym/pull/4827
+[#4825]: https://github.com/nymtech/nym/pull/4825
+[#4823]: https://github.com/nymtech/nym/pull/4823
+[#4803]: https://github.com/nymtech/nym/pull/4803
+[#4801]: https://github.com/nymtech/nym/pull/4801
+[#4796]: https://github.com/nymtech/nym/pull/4796
+[#4783]: https://github.com/nymtech/nym/pull/4783
+[#4778]: https://github.com/nymtech/nym/pull/4778
+[#4771]: https://github.com/nymtech/nym/pull/4771
+[#4766]: https://github.com/nymtech/nym/pull/4766
+[#4765]: https://github.com/nymtech/nym/pull/4765
+[#4763]: https://github.com/nymtech/nym/pull/4763
+[#4759]: https://github.com/nymtech/nym/pull/4759
+[#4756]: https://github.com/nymtech/nym/pull/4756
+[#4754]: https://github.com/nymtech/nym/pull/4754
+[#4751]: https://github.com/nymtech/nym/pull/4751
+[#4725]: https://github.com/nymtech/nym/pull/4725
+[#4610]: https://github.com/nymtech/nym/pull/4610
+
 ## [2024.10-caramello] (2024-09-10)
 
 - Backport 4844 and 4845 ([#4857])

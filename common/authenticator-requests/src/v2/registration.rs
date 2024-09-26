@@ -66,7 +66,7 @@ pub struct RegistredData {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RemainingBandwidthData {
-    pub available_bandwidth: u64,
+    pub available_bandwidth: i64,
 }
 
 /// Client that wants to register sends its PublicKey bytes mac digest encrypted with a DH shared secret.

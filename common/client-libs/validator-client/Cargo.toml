@@ -9,7 +9,7 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-base64 = "0.13"
+base64 = { workspace = true }
 colored = { workspace = true }
 
 nym-coconut-dkg-common = { path = "../../cosmwasm-smart-contracts/coconut-dkg" }
@@ -90,4 +90,6 @@ default = ["http-client"]
 http-client = ["cosmrs/rpc"]
 generate-ts = []
 contract-testing = ["nym-mixnet-contract-common/contract-testing"]
-
+# Features below are added to make clippy happy, it seems like they're unused we should remove them
+tendermint-rpc-http-client = ["tendermint-rpc/http-client"]
+tendermint-rpc-websocket-client = ["tendermint-rpc/websocket-client"]

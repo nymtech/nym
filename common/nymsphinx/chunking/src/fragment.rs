@@ -3,6 +3,8 @@
 
 use crate::ChunkingError;
 use nym_sphinx_params::{SerializedFragmentIdentifier, FRAG_ID_LEN};
+use serde::Serialize;
+use utoipa::ToSchema;
 
 use std::fmt::{self, Debug, Formatter};
 
@@ -58,7 +60,7 @@ pub const COVER_FRAG_ID: FragmentIdentifier = FragmentIdentifier {
 /// and u8 position of the `Fragment` in the set.
 // TODO: this should really be redesigned, especially how cover and reply messages are really
 // "abusing" this. They should work with it natively instead.
-#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd)]
+#[derive(Debug, Clone, Copy, Hash, Eq, PartialEq, Ord, PartialOrd, Serialize)]
 pub struct FragmentIdentifier {
     set_id: i32,
     fragment_position: u8,
@@ -75,6 +77,10 @@ impl fmt::Display for FragmentIdentifier {
 }
 
 impl FragmentIdentifier {
+    pub fn set_id(&self) -> i32 {
+        self.set_id
+    }
+
     pub fn to_bytes(self) -> SerializedFragmentIdentifier {
         debug_assert_eq!(FRAG_ID_LEN, 5);
 
@@ -125,6 +131,10 @@ impl Debug for Fragment {
 }
 
 impl Fragment {
+    pub fn header(&self) -> FragmentHeader {
+        self.header.clone()
+    }
+
     /// Tries to encapsulate provided payload slice and metadata into a `Fragment`.
     /// It can fail if payload would not fully fit in a single `Fragment` or some of the metadata
     /// is malformed or self-contradictory, for example if current_fragment > total_fragments.
@@ -216,6 +226,10 @@ impl Fragment {
         }
     }
 
+    pub fn seed(&self) -> i32 {
+        self.header().seed()
+    }
+
     /// Gets the size of payload contained in this `Fragment`.
     pub fn payload_size(&self) -> usize {
         self.payload.len()
@@ -297,8 +311,8 @@ impl Fragment {
 /// there is 7 bytes of overhead inside each sphinx packet sent
 /// and for the longest messages, without upper bound, there is usually also only 7 bytes
 /// of overhead apart from first and last fragments in each set that instead have 10 bytes of overhead.
-#[derive(PartialEq, Clone, Debug)]
-pub(crate) struct FragmentHeader {
+#[derive(PartialEq, Clone, Debug, Serialize, ToSchema)]
+pub struct FragmentHeader {
     /// ID associated with `FragmentSet` to which this particular `Fragment` belongs.
     /// Its value is restricted to (0, i32::MAX].
     /// Note that it *excludes* 0, but *includes* i32::MAX.
@@ -324,6 +338,20 @@ pub(crate) struct FragmentHeader {
 }
 
 impl FragmentHeader {
+    pub fn seed(&self) -> i32 {
+        let mut seed = self.id;
+        seed = seed.wrapping_mul(self.total_fragments as i32);
+        seed = seed.wrapping_mul(self.current_fragment as i32);
+        seed
+    }
+
+    pub fn total_fragments(&self) -> u8 {
+        self.total_fragments
+    }
+
+    pub fn current_fragment(&self) -> u8 {
+        self.current_fragment
+    }
     /// Tries to create a new `FragmentHeader` using provided metadata. Bunch of logical
     /// checks are performed to see if the data is not self-contradictory,
     /// for example if current_fragment > total_fragments.

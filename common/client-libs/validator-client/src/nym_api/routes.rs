@@ -7,6 +7,7 @@ pub const API_VERSION: &str = NYM_API_VERSION;
 pub const MIXNODES: &str = "mixnodes";
 pub const GATEWAYS: &str = "gateways";
 pub const DESCRIBED: &str = "described";
+pub const BLACKLISTED: &str = "blacklisted";
 
 pub const DETAILED: &str = "detailed";
 pub const DETAILED_UNFILTERED: &str = "detailed-unfiltered";
@@ -49,5 +50,7 @@ pub const COMPUTE_REWARD_ESTIMATION: &str = "compute-reward-estimation";
 pub const AVG_UPTIME: &str = "avg_uptime";
 pub const STAKE_SATURATION: &str = "stake-saturation";
 pub const INCLUSION_CHANCE: &str = "inclusion-probability";
+pub const SUBMIT_GATEWAY: &str = "submit-gateway-monitoring-results";
+pub const SUBMIT_NODE: &str = "submit-node-monitoring-results";
 
 pub const SERVICE_PROVIDERS: &str = "services";

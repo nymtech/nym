@@ -70,8 +70,8 @@ impl PacketRouter {
         Ok(())
     }
 
-    pub fn mark_as_success(&mut self) {
-        self.shutdown.mark_as_success();
+    pub fn disarm(&mut self) {
+        self.shutdown.disarm();
     }
 }
 

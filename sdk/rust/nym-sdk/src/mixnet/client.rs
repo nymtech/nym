@@ -29,14 +29,12 @@ use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_credentials_interface::TicketType;
-use nym_network_defaults::WG_TUN_DEVICE_IP_ADDRESS;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::manager::TaskStatus;
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
-use std::net::IpAddr;
 use std::path::Path;
 use std::path::PathBuf;
 use url::Url;
@@ -51,7 +49,6 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     storage_paths: Option<StoragePaths>,
     socks5_config: Option<Socks5>,
 
-    wireguard_mode: bool,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
@@ -87,7 +84,6 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             config: Default::default(),
             storage_paths: None,
             socks5_config: None,
-            wireguard_mode: false,
             wait_for_gateway: false,
             custom_topology_provider: None,
             storage: storage_paths
@@ -119,7 +115,6 @@ where
             config: Default::default(),
             storage_paths: None,
             socks5_config: None,
-            wireguard_mode: false,
             wait_for_gateway: false,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
@@ -138,7 +133,6 @@ where
             config: self.config,
             storage_paths: self.storage_paths,
             socks5_config: self.socks5_config,
-            wireguard_mode: self.wireguard_mode,
             wait_for_gateway: self.wait_for_gateway,
             custom_topology_provider: self.custom_topology_provider,
             custom_gateway_transceiver: self.custom_gateway_transceiver,
@@ -227,13 +221,6 @@ where
 
     /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
     #[must_use]
-    pub fn with_wireguard_mode(mut self, wireguard_mode: bool) -> Self {
-        self.wireguard_mode = wireguard_mode;
-        self
-    }
-
-    /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
-    #[must_use]
     pub fn with_wait_for_gateway(mut self, wait_for_gateway: bool) -> Self {
         self.wait_for_gateway = wait_for_gateway;
         self
@@ -270,7 +257,6 @@ where
         client.custom_gateway_transceiver = self.custom_gateway_transceiver;
         client.custom_topology_provider = self.custom_topology_provider;
         client.custom_shutdown = self.custom_shutdown;
-        client.wireguard_mode = self.wireguard_mode;
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
         client.user_agent = self.user_agent;
@@ -310,9 +296,6 @@ where
 
     /// advanced usage of custom gateways
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
-
-    /// If the client connects via Wireguard tunnel to the gateway.
-    wireguard_mode: bool,
 
     /// Attempt to wait for the selected gateway (if applicable) to come online if its currently not bonded.
     wait_for_gateway: bool,
@@ -369,7 +352,6 @@ where
             storage,
             custom_topology_provider: None,
             custom_gateway_transceiver: None,
-            wireguard_mode: false,
             wait_for_gateway: false,
             force_tls: false,
             custom_shutdown: None,
@@ -395,15 +377,6 @@ where
             .map(|details| details.nyxd_url.as_ref())
             .filter_map(|s| Url::parse(s).ok())
             .collect()
-    }
-
-    fn wireguard_tun_address(&self) -> Option<IpAddr> {
-        // currently use a hardcoded value here, but perhaps we should change that later
-        if self.wireguard_mode {
-            Some(WG_TUN_DEVICE_IP_ADDRESS)
-        } else {
-            None
-        }
     }
 
     async fn setup_client_keys(&self) -> Result<()> {
@@ -482,7 +455,6 @@ where
         Ok(GatewaySetup::New {
             specification: selection_spec,
             available_gateways,
-            wg_tun_address: self.wireguard_tun_address(),
         })
     }
 
@@ -598,8 +570,7 @@ where
 
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway)
-                .with_wireguard_connection(self.wireguard_mode);
+                .with_wait_for_gateway(self.wait_for_gateway);
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);
@@ -629,7 +600,8 @@ where
     ///
     /// - If the client is already registered with a gateway, use that gateway.
     /// - If no gateway is registered, but there is an existing configuration and key, use that.
-    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to register a new gateway.
+    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
+    ///   register a new gateway.
     ///
     /// # Example
     ///
@@ -709,7 +681,8 @@ where
     ///
     /// - If the client is already registered with a gateway, use that gateway.
     /// - If no gateway is registered, but there is an existing configuration and key, use that.
-    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to register a new gateway.
+    /// - If no gateway is registered, and there is no pre-existing configuration or key, try to
+    ///   register a new gateway.
     ///
     /// # Example
     ///
@@ -731,7 +704,8 @@ where
         let (mut started_client, nym_address) = self.connect_to_mixnet_common().await?;
         let client_input = started_client.client_input.register_producer();
         let mut client_output = started_client.client_output.register_consumer();
-        let client_state = started_client.client_state;
+        let client_state: nym_client_core::client::base_client::ClientState =
+            started_client.client_state;
 
         let identity_keys = started_client.identity_keys.clone();
         let reconstructed_receiver = client_output.register_receiver()?;

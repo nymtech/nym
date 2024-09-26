@@ -49,3 +49,6 @@ foxyfox.env
 .next
 ppa-private-key.b64
 ppa-private-key.asc
+nym-network-monitor/topology.json
+nym-network-monitor/__pycache__
+nym-network-monitor/*.key

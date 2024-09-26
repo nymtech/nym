@@ -20,8 +20,8 @@ cipher = { workspace = true, optional = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"], optional = true }
 ed25519-dalek = { workspace = true, features = ["rand_core"], optional = true }
 rand = { workspace = true, optional = true }
-serde_bytes = { version = "0.11.6", optional = true }
-serde_crate = { version = "1.0", optional = true, default-features = false, features = ["derive"], package = "serde" }
+serde_bytes = { workspace = true, optional = true }
+serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
 subtle-encoding = { workspace = true, features = ["bech32-preview"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true, optional = true, features = ["zeroize_derive"] }
@@ -35,7 +35,7 @@ rand_chacha = { workspace = true }
 
 [features]
 default = ["sphinx"]
-serde = ["serde_crate", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
+serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
 asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize"]
 hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array"]
 symmetric = ["aes", "ctr", "cipher", "generic-array"]

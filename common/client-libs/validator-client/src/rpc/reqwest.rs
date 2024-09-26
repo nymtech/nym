@@ -3,6 +3,7 @@
 
 use crate::rpc::TendermintRpcClient;
 use async_trait::async_trait;
+use base64::Engine;
 use cosmrs::tendermint::{block::Height, evidence::Evidence, Hash};
 use reqwest::header::HeaderMap;
 use reqwest::{header, RequestBuilder};
@@ -13,7 +14,6 @@ use tendermint_rpc::{
     query::Query,
     Error, Order, Response, SimpleRequest,
 };
-
 use url::Url;
 
 // copied macro from tendermint-rpc crate because that's exactly what we have to do here too
@@ -206,7 +206,7 @@ pub fn extract_authorization(url: &Url) -> Option<String> {
 
     let authority = url.authority();
     if let Some((userpass, _)) = authority.split_once('@') {
-        Some(base64::encode(userpass))
+        Some(base64::prelude::BASE64_STANDARD.encode(userpass))
     } else {
         None
     }

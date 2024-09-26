@@ -11,6 +11,7 @@ pub mod gas;
 pub mod gateway;
 pub mod helpers;
 pub mod mixnode;
+pub mod monitoring;
 pub mod pending_events;
 pub mod transaction;
 pub mod vesting;

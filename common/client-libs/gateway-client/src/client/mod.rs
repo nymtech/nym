@@ -598,6 +598,11 @@ impl<C, St> GatewayClient<C, St> {
             return Err(GatewayClientError::NoBandwidthControllerAvailable);
         }
 
+        let Some(_claim_guard) = self.bandwidth.begin_bandwidth_claim() else {
+            debug!("there's already an existing bandwidth claim ongoing");
+            return Ok(());
+        };
+
         warn!("Not enough bandwidth. Trying to get more bandwidth, this might take a while");
         if !self.cfg.bandwidth.require_tickets {
             info!("The client is running in disabled credentials mode - attempting to claim bandwidth without a credential");

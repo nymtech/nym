@@ -102,7 +102,6 @@ pub mod v1_1_33 {
                     message: format!("the stored gateway listener address was malformed: {err}"),
                 }
             })?,
-            wg_tun_address: None,
         }))
     }
 

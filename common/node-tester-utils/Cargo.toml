@@ -9,11 +9,12 @@ license.workspace = true
 [dependencies]
 futures = { workspace = true }
 rand = { workspace = true }
+rand_chacha = { workspace = true }
 
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
-tokio = { workspace = true, features = ["macros"]}
+tokio = { workspace = true, features = ["macros"] }
 
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-task = { path = "../task" }

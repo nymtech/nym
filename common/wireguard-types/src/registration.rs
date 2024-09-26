@@ -4,8 +4,8 @@
 use crate::error::Error;
 use crate::PeerPublicKey;
 use base64::{engine::general_purpose, Engine};
-use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::net::IpAddr;
 use std::time::SystemTime;
 use std::{fmt, ops::Deref, str::FromStr};
@@ -17,8 +17,8 @@ use nym_crypto::asymmetric::encryption::PrivateKey;
 #[cfg(feature = "verify")]
 use sha2::Sha256;
 
-pub type PendingRegistrations = DashMap<PeerPublicKey, RegistrationData>;
-pub type PrivateIPs = DashMap<IpAddr, Taken>;
+pub type PendingRegistrations = HashMap<PeerPublicKey, RegistrationData>;
+pub type PrivateIPs = HashMap<IpAddr, Taken>;
 
 #[cfg(feature = "verify")]
 pub type HmacSha256 = Hmac<Sha256>;

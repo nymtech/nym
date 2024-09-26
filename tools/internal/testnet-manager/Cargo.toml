@@ -12,10 +12,10 @@ license.workspace = true
 anyhow.workspace = true
 bip39.workspace = true
 bs58.workspace = true
-console = "0.15.8"
+console = { workspace = true }
 cw-utils.workspace = true
 clap = { workspace = true, features = ["cargo", "derive"] }
-indicatif = "0.17.8"
+indicatif = { workspace = true }
 rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true

@@ -35,21 +35,29 @@ class MainFunctions:
         print(f"Identity Key = {id_key}")
         print(f"Host = {host}")
         print(f"Version = {version}")
+        toc = "Swagger page is not accessible. T&Cs are unrecognized and treated as False!"
+        if swagger_data:
+            toc = swagger_data["/auxiliary-details"]["accepted_operator_terms_and_conditions"]
+        print(f"T&Cs = {toc}")
+
         if mix_id:
             print(f"Mix ID = {mix_id}")
         print("\n\nNODE RESULTS FROM UNFILTERED QUERY\n")
+
         if args.markdown:
             node_markdown = self._dataframe_to_markdown(node_df, ["RESULT"], ["API EDNPOINT"])
             print(node_markdown, "\n")
         else:
             self.print_neat_dict(node_dict)
         print(f"\n\nNODE RESULTS FROM {self.api_url.upper()}\n")
+
         if args.markdown:
             api_df = self._json_to_dataframe(api_data)
             node_markdown = self._dataframe_to_markdown(api_df, ["RESULT"], ["API EDNPOINT"])
             print(node_markdown, "\n")
         else:
             self.print_neat_dict(api_data)
+
         if swagger_data:
             print(f"\n\nNODE RESULTS FROM SWAGGER PAGE\n")
             if args.markdown:
@@ -61,6 +69,7 @@ class MainFunctions:
                 print(swagger_data)
         else:
             swagger_data = f"\nSwagger API endpoints of node {id_key} hosted on IP: {host} are not responding. Maybe you querying a deprecated version of nym-mixnode or the VPS ports are not open correctly.\n"
+
         if routing_history:
             print(f"\n\nNODE UPTIME HISTORY\n")
             if args.markdown:
@@ -71,13 +80,14 @@ class MainFunctions:
                 routing_history = self._json_neat_format(routing_history)
         else:
             routing_history = " "
+
         if args.output or args.output == "":
             node_dict = self._json_neat_format(node_dict)
             api_data = self._json_neat_format(api_data)
             if role:
-                data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", f"Mode = {role}", node_dict, api_data, swagger_data, routing_history]
+                data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", f"Mode = {role}", f"T&Cs = {toc}", node_dict, api_data, swagger_data, routing_history]
             else:
-                data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", node_dict, api_data, swagger_data, routing_history]
+                data_list = [f"Id. Key = {id_key}", f"Host = {host}", f"Type = {mode}", f"T&Cs = {toc}", node_dict, api_data, swagger_data, routing_history]
             self.output.concat_to_file(args, data_list)
 
     def collect_all_results(self,args):
@@ -118,6 +128,8 @@ class MainFunctions:
             dicts = json.load(f)
             endpoints = dicts[mode]
             swagger = dicts["swagger"]
+        if args.no_verloc_metrics:
+            swagger.remove("/metrics/verloc")
         api_data = {}
         swagger_data = {}
         routing_history = {}
@@ -364,7 +376,8 @@ class ArgParser:
 
         # pull_stats arguments
         parser_pull_stats.add_argument("id", help="supply nym-node identity key")
-        parser_pull_stats.add_argument("-n","--no_routing_history", help="Display node stats without routing history", action="store_true")
+        parser_pull_stats.add_argument("--no_routing_history", help="Display node stats without routing history", action="store_true")
+        parser_pull_stats.add_argument("--no_verloc_metrics", help="Display node stats without verloc metrics", action="store_true")
         parser_pull_stats.add_argument("-m","--markdown",help="Display results in markdown format", action="store_true")
         parser_pull_stats.add_argument("-o","--output",help="Save results to file (in current dir or supply with path without filename)", nargs='?',const="", type=str)
         parser_pull_stats.set_defaults(func=self.functions.display_results)

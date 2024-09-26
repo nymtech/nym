@@ -44,7 +44,6 @@ pub enum KeyRecoveryError {
 
 #[derive(Zeroize, ZeroizeOnDrop)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "serde", serde(crate = "serde_crate"))]
 pub struct KeyPair {
     pub(crate) private_key: PrivateKey,
 

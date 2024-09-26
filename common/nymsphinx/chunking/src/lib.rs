@@ -1,9 +1,16 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::sync::LazyLock;
+
 use crate::fragment::{linked_fragment_payload_max_len, unlinked_fragment_payload_max_len};
+use dashmap::DashMap;
+use fragment::{Fragment, FragmentHeader};
+use nym_crypto::asymmetric::ed25519::PublicKey;
+use serde::Serialize;
 pub use set::split_into_sets;
 use thiserror::Error;
+use utoipa::ToSchema;
 
 pub const MIN_PADDING_OVERHEAD: usize = 1;
 
@@ -21,6 +28,118 @@ pub const MIN_PADDING_OVERHEAD: usize = 1;
 pub mod fragment;
 pub mod reconstruction;
 pub mod set;
+
+#[derive(Debug, Clone)]
+pub struct FragmentMixParams {
+    destination: PublicKey,
+    hops: u8,
+}
+
+impl FragmentMixParams {
+    pub fn destination(&self) -> &PublicKey {
+        &self.destination
+    }
+
+    pub fn hops(&self) -> u8 {
+        self.hops
+    }
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct SentFragment {
+    header: FragmentHeader,
+    at: u64,
+    client_nonce: i32,
+    #[serde(skip)]
+    mixnet_params: FragmentMixParams,
+}
+
+impl SentFragment {
+    fn new(
+        header: FragmentHeader,
+        at: u64,
+        client_nonce: i32,
+        destination: PublicKey,
+        hops: u8,
+    ) -> Self {
+        let mixnet_params = FragmentMixParams { destination, hops };
+        SentFragment {
+            header,
+            at,
+            client_nonce,
+            mixnet_params,
+        }
+    }
+
+    pub fn header(&self) -> FragmentHeader {
+        self.header.clone()
+    }
+
+    pub fn at(&self) -> u64 {
+        self.at
+    }
+
+    pub fn client_nonce(&self) -> i32 {
+        self.client_nonce
+    }
+
+    pub fn seed(&self) -> i32 {
+        self.header().seed().wrapping_mul(self.client_nonce())
+    }
+
+    pub fn mixnet_params(&self) -> FragmentMixParams {
+        self.mixnet_params.clone()
+    }
+}
+
+#[derive(Debug, Clone, Serialize, ToSchema)]
+pub struct ReceivedFragment {
+    header: FragmentHeader,
+    at: u64,
+}
+
+impl ReceivedFragment {
+    fn new(header: FragmentHeader, at: u64) -> Self {
+        ReceivedFragment { header, at }
+    }
+
+    pub fn header(&self) -> FragmentHeader {
+        self.header.clone()
+    }
+
+    pub fn at(&self) -> u64 {
+        self.at
+    }
+}
+
+pub static FRAGMENTS_RECEIVED: LazyLock<DashMap<i32, Vec<ReceivedFragment>>> =
+    LazyLock::new(DashMap::new);
+
+pub static FRAGMENTS_SENT: LazyLock<DashMap<i32, Vec<SentFragment>>> = LazyLock::new(DashMap::new);
+
+#[macro_export]
+macro_rules! now {
+    () => {
+        match std::time::SystemTime::now().duration_since(std::time::SystemTime::UNIX_EPOCH) {
+            Ok(n) => n.as_secs(),
+            Err(_) => 0,
+        }
+    };
+}
+
+pub fn fragment_received(fragment: &Fragment) {
+    let id = fragment.fragment_identifier().set_id();
+    let mut entry = FRAGMENTS_RECEIVED.entry(id).or_default();
+    let r = ReceivedFragment::new(fragment.header(), now!());
+    entry.push(r);
+}
+
+pub fn fragment_sent(fragment: &Fragment, client_nonce: i32, destination: PublicKey, hops: u8) {
+    let id = fragment.fragment_identifier().set_id();
+    let mut entry = FRAGMENTS_SENT.entry(id).or_default();
+    let s = SentFragment::new(fragment.header(), now!(), client_nonce, destination, hops);
+    entry.push(s);
+}
 
 /// The idea behind the process of chunking is to incur as little data overhead as possible due
 /// to very computationally costly sphinx encapsulation procedure.

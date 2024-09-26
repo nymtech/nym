@@ -1,0 +1,39 @@
+name: build-deb-meta
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: arc-ubuntu-22.04
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Build Environment
+        run: sudo apt-get update && sudo apt-get install -y make dpkg-dev
+
+      - name: Build Debian Packages
+        working-directory: ppa/packages
+        run: make
+
+      - name: Find .deb files
+        working-directory: ppa/packages
+        run: |
+          echo "file1=$(ls nym-repo-setup*.deb)" >> $GITHUB_ENV
+          echo "file2=$(ls nym-vpn*.deb)" >> $GITHUB_ENV
+
+      - name: Upload nym-repo-setup
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.file1 }}
+          path: ppa/packages/nym-repo-setup*.deb
+          retention-days: 10
+
+      - name: Upload nym-vpn
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.file2 }}
+          path: ppa/packages/nym-vpn*.deb
+          retention-days: 10

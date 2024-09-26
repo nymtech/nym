@@ -1,8 +1,8 @@
+use crate::cli::ecash::Ecash;
 use clap::{CommandFactory, Parser, Subcommand};
 use log::error;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::{bin_info, version_checker};
-use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
 use nym_client_core::cli_helpers::CliClient;
 use nym_ip_packet_router::config::helpers::try_upgrade_config;
 use nym_ip_packet_router::config::{BaseClientConfig, Config};
@@ -11,11 +11,10 @@ use std::sync::OnceLock;
 
 mod add_gateway;
 mod build_info;
-mod import_credential;
+pub mod ecash;
 mod init;
 mod list_gateways;
 mod run;
-mod show_ticketbooks;
 mod sign;
 mod switch_gateway;
 
@@ -65,8 +64,8 @@ pub(crate) enum Commands {
     /// parameters.
     Run(run::Run),
 
-    /// Import a pre-generated credential
-    ImportCredential(CommonClientImportCredentialArgs),
+    /// Ecash-related functionalities
+    Ecash(Ecash),
 
     /// List all registered with gateways
     ListGateways(list_gateways::Args),
@@ -76,9 +75,6 @@ pub(crate) enum Commands {
 
     /// Change the currently active gateway. Note that you must have already registered with the new gateway!
     SwitchGateway(switch_gateway::Args),
-
-    /// Display information associated with the imported ticketbooks,
-    ShowTicketbooks(show_ticketbooks::Args),
 
     /// Sign to prove ownership of this network requester
     Sign(sign::Sign),
@@ -132,11 +128,10 @@ pub(crate) async fn execute(args: Cli) -> Result<(), IpPacketRouterError> {
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(&m).await?,
-        Commands::ImportCredential(m) => import_credential::execute(m).await?,
+        Commands::Ecash(ecash) => ecash.execute().await?,
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
         Commands::AddGateway(args) => add_gateway::execute(args).await?,
         Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,
-        Commands::ShowTicketbooks(args) => show_ticketbooks::execute(args).await?,
         Commands::Sign(m) => sign::execute(&m).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),

@@ -419,7 +419,7 @@ where
         // we can't handle clients with higher protocol than ours
         // (perhaps we could try to negotiate downgrade on our end? sounds like a nice future improvement)
         if client_protocol_version <= CURRENT_PROTOCOL_VERSION {
-            info!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
+            debug!("the client is using exactly the same (or older) protocol version as we are. We're good to continue!");
             Ok(CURRENT_PROTOCOL_VERSION)
         } else {
             let err = InitialAuthenticationError::IncompatibleProtocol {
@@ -581,7 +581,7 @@ where
             .unwrap_or_default();
 
         let bandwidth_remaining = if available_bandwidth.expired() {
-            self.expire_bandwidth(client_id).await?;
+            self.shared_state.storage.reset_bandwidth(client_id).await?;
             0
         } else {
             available_bandwidth.bytes
@@ -595,10 +595,6 @@ where
                 bandwidth_remaining,
             },
         ))
-    }
-
-    pub(crate) async fn expire_bandwidth(&self, client_id: i64) -> Result<(), StorageError> {
-        self.shared_state.storage.reset_bandwidth(client_id).await
     }
 
     /// Attempts to finalize registration of the client by storing the derived shared keys in the

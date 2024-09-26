@@ -344,22 +344,18 @@ less ~/.nym/nym-nodes/default-nym-node/config/config.toml
 ## Ports
 All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
 
-### Nym Node: Mixnode mode port reference
+### Nym Node Port Reference
 | Default port | Use                       |
 | ------------ | ------------------------- |
 | `1789`       | Listen for Mixnet traffic |
 | `1790`       | Listen for VerLoc traffic |
 | `8080`       | Metrics http API endpoint |
-
-
-### Nym Node: Gateway modes port reference
-| Default port | Use                       |
-|--------------|---------------------------|
 | `1789`       | Listen for Mixnet traffic |
 | `9000`       | Listen for Client traffic |
 | `9001`       | WSS                       |
+| `51822/udp`  | WireGuard                 |
 
-### Validator port reference
+### Validator Port Reference
 All validator-specific port configuration can be found in `$HOME/.nymd/config/config.toml`. If you do edit any port configs, remember to restart your validator.
 
 | Default port | Use                                  |

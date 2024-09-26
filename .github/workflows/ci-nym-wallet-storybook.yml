@@ -4,12 +4,13 @@ on:
   pull_request:
     paths:
       - 'nym-wallet/**'
+      - '.github/workflows/ci-nym-wallet-storybook.yml'
 
 jobs:
   build:
     runs-on: custom-linux
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
 
     - name: Install rsync
       run: sudo apt-get install rsync
@@ -17,7 +18,7 @@ jobs:
 
     - uses: rlespinasse/github-slug-action@v3.x
 
-    - uses: actions/setup-node@v3
+    - uses: actions/setup-node@v4
       with:
         node-version: 18
 

@@ -300,8 +300,8 @@ pub trait TendermintRpcClient {
     }
 
     #[cfg(any(
-        feature = "tendermint-rpc/http-client",
-        feature = "tendermint-rpc/websocket-client"
+        feature = "tendermint-rpc-http-client",
+        feature = "tendermint-rpc-websocket-client"
     ))]
     /// Poll the `/health` endpoint until it returns a successful result or
     /// the given `timeout` has elapsed.
@@ -518,8 +518,8 @@ mod non_wasm {
         }
 
         #[cfg(any(
-            feature = "tendermint-rpc/http-client",
-            feature = "tendermint-rpc/websocket-client"
+            feature = "tendermint-rpc-http-client",
+            feature = "tendermint-rpc-websocket-client"
         ))]
         async fn wait_until_healthy<T>(&self, timeout: T) -> Result<(), Error>
         where

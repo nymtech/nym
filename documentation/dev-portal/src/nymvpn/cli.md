@@ -1,5 +1,9 @@
 # NymVPN CLI Guide
 
+```admonish tip title="NymVPN CLI Testnet"
+If you testing NymVPN CLI and want to try our Sandbox testnet environment, you can visit an explicit guide at [nym-vpn-cli.sandbox.nymtech.net](https://nym-vpn-cli.sandbox.nymtech.net/). This page alco contains an auto generating access token button.
+```
+
 ```admonish info
 To download NymVPN desktop version, visit [nymvpn.com/en/download](https://nymvpn.com/en/download).
 
@@ -37,6 +41,32 @@ tar -xvf <BINARY>.tar.gz
 # for example
 # tar -xvf nym-vpn-cli_<!-- cmdrun ../../../scripts/cmdrun/nym_vpn_cli_version.sh -->_ubuntu-22.04_x86_64.tar.gz
 ```
+
+### Building From Source
+
+NymVPN CLI can be built from source. This process is recommended for more advanced users as the installation may require different dependencies based on the operating system used.
+
+Start by installing [Go](https://go.dev/doc/install) and [Rust](https://rustup.rs/) languages on your system and then follow these steps:
+
+1. Clone NymVPN repository:
+```sh
+git clone https://github.com/nymtech/nym-vpn-client.git
+```
+
+2. Move to `nym-vpn-client` directory and compile `wireguard`:
+
+```sh
+cd nym-vpn-client
+
+make build-wireguard
+```
+
+3. Compile NymVPN CLI
+```sh
+make build-nym-vpn-core
+```
+
+Now your NymVPN CLI is installed. Navigate to `nym-vpn-core/target/release` and use the commands the section below to run the client.
 
 ## Running
 
@@ -125,7 +155,8 @@ To see all the possibilities run with `--help` flag:
 ```sh
 ./nym-vpn-cli --help
 ```
-~~~admonish example collapsible=true title="Console output"
+
+~~~admonish example collapsible=true title="nym-vpn-cli --help"
 ```sh
 Usage: nym-vpn-cli [OPTIONS] <COMMAND>
 
@@ -142,36 +173,66 @@ Options:
 ```
 ~~~
 
-Here is a list of the options and their descriptions. Some are essential, some are more technical and not needed to be adjusted by users.
+You can also run any command with `--help` flag to see a list of all options associated witht that command, the most important may be `run` command, like in this example.
 
-**Fundamental commands and arguments**
+~~~admonish example collapsible=true title="nym-vpn-cli run --help"
+```sh
+Run the client
 
-- `--entry-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`)
-- `--exit-gateway-id`: paste one of the values labeled with a key `"identityKey"` (without `" "`)
-- `--exit-router-address`: paste one of the values labeled with a key `"address"` (without `" "`)
-- `--enable-wireguard`: Enable the wireguard traffic between the client and the entry gateway. NymVPN uses Mullvad libraries for wrapping `wireguard-go` and to setup local routing rules to route all traffic to the TUN virtual network device
-- `--wg-ip`: The address of the wireguard interface, you can get it [here](https://nymvpn.com/en/alpha)
-- `--private-key`: get your private key for testing purposes [here](https://nymvpn.com/en/alpha)
-- `--enable-two-hop` is a faster setup where the traffic is routed from the client to Entry Gateway and directly to Exit Gateway (default is 5-hops)
+Usage: nym-vpn-cli run [OPTIONS]
 
-**Advanced options**
+Options:
+      --entry-gateway-id <ENTRY_GATEWAY_ID>
+          Mixnet public ID of the entry gateway
+      --entry-gateway-country <ENTRY_GATEWAY_COUNTRY>
+          Auto-select entry gateway by country ISO
+      --entry-gateway-low-latency
+          Auto-select entry gateway by latency
+      --exit-router-address <EXIT_ROUTER_ADDRESS>
+          Mixnet recipient address
+      --exit-gateway-id <EXIT_GATEWAY_ID>
+          Mixnet public ID of the exit gateway
+      --exit-gateway-country <EXIT_GATEWAY_COUNTRY>
+          Auto-select exit gateway by country ISO
+      --wireguard-mode
+          Enable the wireguard mode
+      --nym-ipv4 <NYM_IPV4>
+          The IPv4 address of the nym TUN device that wraps IP packets in sphinx packets
+      --nym-ipv6 <NYM_IPV6>
+          The IPv6 address of the nym TUN device that wraps IP packets in sphinx packets
+      --nym-mtu <NYM_MTU>
+          The MTU of the nym TUN device that wraps IP packets in sphinx packets
+      --dns <DNS>
+          The DNS server to use
+      --disable-routing
+          Disable routing all traffic through the nym TUN device. When the flag is set, the nym TUN device will be created, but to route traffic through it you will need to do it manually, e.g. ping -Itun0
+      --enable-two-hop
+          Enable two-hop mixnet traffic. This means that traffic jumps directly from entry gateway to exit gateway
+      --enable-poisson-rate
+          Enable Poisson process rate limiting of outbound traffic
+      --disable-background-cover-traffic
+          Disable constant rate background loop cover traffic
+      --enable-credentials-mode
+          Enable credentials mode
+      --min-mixnode-performance <MIN_MIXNODE_PERFORMANCE>
+          Set the minimum performance level for mixnodes
+  -h, --help
+          Print help
 
-- `-c` is a path to an enviroment config, like [`sandbox.env`](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env)
-- `--enable-poisson`: Enables process rate limiting of outbound traffic (disabled by default). It means that NymVPN client will send packets at a steady stream to the Entry Gateway. By default it's on average one sphinx packet per 20ms, but there is some randomness (poisson distribution). When there are no real data to fill the sphinx packets with, cover packets are generated instead.
-- `--ip` is the IP address of the TUN device. That is the IP address of the local private network that is set up between local client and the Exit Gateway.
-- `--mtu`: The MTU of the TUN device. That is the max IP packet size of the local private network that is set up between local client and the Exit Gateway.
-- `--disable-routing`: Disable routing all traffic through the VPN TUN device.
+```
+~~~
+
 
 ## Testnet environment
 
-If you want to run NymVPN CLI in Nym Sandbox environment, there are a few adjustments to be done:
+If you want to run NymVPN CLI in Nym Sandbox environment, there are a few adjustments to be done. You can follow the steps below or follow more explicit guide on [nym-vpn-cli.sandbox.nymtech.net](https://nym-vpn-cli.sandbox.nymtech.net), including the access token auto generation button.
 
 1. Create Sandbox environment config file by saving [this](https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env) as `sandbox.env` in the same directory as your NymVPN binaries:
 ```sh
 curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
 ```
 
-2. Check available Gateways at [nymvpn.com/en/alpha/api/gateways](https://nymvpn.com/en/alpha/api/gateways)
+2. Check available Gateways at [Sandbox API](https://sandbox-nym-api1.nymtech.net/api/v1/gateways) or [Sandbox Swagger page](https://sandbox-nym-api1.nymtech.net/api/swagger/index.html)
 
 3. Run with a flag `-c`
 ```sh

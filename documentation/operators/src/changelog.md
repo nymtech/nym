@@ -2,6 +2,656 @@
 
 This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
+## `v2024.10-caramello`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.10-caramello)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.10-caramello/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.md) version `1.1.7`
+
+~~~admonish example collapsible=true title='CHANGELOG.md'
+- Backport 4844 and 4845 ([#4857])
+- Bugfix/client registration vol2 ([#4856])
+- Remove wireguard feature flag and pass runtime enabled flag ([#4839])
+- Eliminate cancel unsafe sig awaiting ([#4834])
+- added explicit updateable admin to the mixnet contract ([#4822])
+- using legacy signing payload in CLI and verifying both variants in contract ([#4821])
+- adding ecash contract address ([#4819])
+- Check profit margin of node before defaulting to hardcoded value  ([#4802])
+- Sync last_seen_bandwidth immediately ([#4774])
+- Feature/additional ecash nym cli utils ([#4773])
+- Better storage error logging ([#4772])
+- bugfix: make sure DKG parses data out of events if logs are empty ([#4764])
+- Fix clippy on rustc beta toolchain ([#4746])
+- Fix clippy for beta toolchain ([#4742])
+- Disable testnet-manager on non-unix ([#4741])
+- Don't set NYM_VPN_API to default ([#4740])
+- Update publish-nym-binaries.yml ([#4739])
+- Update ci-build-upload-binaries.yml ([#4738])
+- Add NYM_VPN_API to network config ([#4736])
+- Re-export RecipientFormattingError in nym sdk ([#4735])
+- Persist wireguard peers ([#4732])
+- Fix tokio error in 1.39 ([#4730])
+- Feature/vesting purge plus ranged cost params ([#4716])
+- Fix (some) feature unification build failures ([#4681])
+- Feature Compact Ecash : The One PR ([#4623])
+
+[#4857]: https://github.com/nymtech/nym/pull/4857
+[#4856]: https://github.com/nymtech/nym/pull/4856
+[#4839]: https://github.com/nymtech/nym/pull/4839
+[#4834]: https://github.com/nymtech/nym/pull/4834
+[#4822]: https://github.com/nymtech/nym/pull/4822
+[#4821]: https://github.com/nymtech/nym/pull/4821
+[#4819]: https://github.com/nymtech/nym/pull/4819
+[#4802]: https://github.com/nymtech/nym/pull/4802
+[#4774]: https://github.com/nymtech/nym/pull/4774
+[#4773]: https://github.com/nymtech/nym/pull/4773
+[#4772]: https://github.com/nymtech/nym/pull/4772
+[#4764]: https://github.com/nymtech/nym/pull/4764
+[#4746]: https://github.com/nymtech/nym/pull/4746
+[#4742]: https://github.com/nymtech/nym/pull/4742
+[#4741]: https://github.com/nymtech/nym/pull/4741
+[#4740]: https://github.com/nymtech/nym/pull/4740
+[#4739]: https://github.com/nymtech/nym/pull/4739
+[#4738]: https://github.com/nymtech/nym/pull/4738
+[#4736]: https://github.com/nymtech/nym/pull/4736
+[#4735]: https://github.com/nymtech/nym/pull/4735
+[#4732]: https://github.com/nymtech/nym/pull/4732
+[#4730]: https://github.com/nymtech/nym/pull/4730
+[#4716]: https://github.com/nymtech/nym/pull/4716
+[#4681]: https://github.com/nymtech/nym/pull/4681
+[#4623]: https://github.com/nymtech/nym/pull/4623
+~~~
+
+### Features
+
+- [Add 1GB/day/user bandwidth cap](https://github.com/nymtech/nym/pull/4717)
+
+~~~admonish example collapsible=true title='Testing steps performed'
+**Scenario 1: Bandwidth Decreasing Continuously**
+
+1. Started the client and noted the initial bandwidth (e.g., 1GB).
+2. Used the client and tracked bandwidth usage over time (e.g., decrease by 100MB every hour).
+3. Restarted the client after some usage.
+4. Verified the bandwidth continued from the last recorded value, not reset.
+
+The bandwidth continued decreasing without resetting upon restart. Logs and reports correctly reflected the decreasing bandwidth.
+
+**Scenario 2: Bandwidth Reset Next Day**
+
+1. Used the client normally until the end of the day.
+2. Suspended some clients and kept others active.
+3. Checked bandwidth at midnight.
+4. Verified that bandwidth reset to 1GB for both suspended and active clients.
+
+Bandwidth reset to 1GB for all clients at midnight. Logs and reports correctly showed the reset.
+
+**Scenario 3: Bandwidth Reset at a Different Time (e.g., Midday)**
+
+1. Configured the system to reset bandwidth at midday.
+2. Used the client and monitored bandwidth until midday.
+3. Kept the client connected during the reset time.
+4. Verified that bandwidth reset to 1GB live at midday.
+
+Bandwidth reset to 1GB at midday while the client was connected. Logs and reports correctly reflected the reset.
+
+**Scenario 4: Stale Check for 3 Days**
+
+1. Kept a client inactive for 3 days.
+2. Verified removal from the peer list after 3 days.
+3. Reconnected the client after 3 days and checked for a new private IP.
+4. Restarted a client within 3 days and verified it retained the same private IP.
+
+The client was removed from the peer list after 3 days of inactivity. Upon re-connection after 3 days, the client received a new private IP. The client retained the same private IP when restarted within 3 days.
+~~~
+
+- [Feature/merge back](https://github.com/nymtech/nym/pull/4710): Merge back from the release branch the changes that fix the `nym-node` upgrades
+
+- [Removed mixnode/gateway config migration code and disabled cli without explicit flag](https://github.com/nymtech/nym/pull/4706): `nym-gateway` and `nym-mixnode` commands now won't do anything without explicit `--force-run` to bypass the deprecation. The next step, in say a month or so, is to completely remove all `cli` related things.
+
+~~~admonish example collapsible=true title='Testing steps performed'
+- Verify that the `nym-gateway` binary and `nym-mixnode` binary commands return the _error message_ stating to update to nym-node
+- Check that when adding the `--force-run` flag, it still allows the command to be run (aside from `init` which has been removed) and the message stating to update to nym-node is a _warning_ now
+- Check `nym-node` is not affected
+- Reviewed the changes in the PR
+~~~
+
+- [Handle clients with different versions in IPR](https://github.com/nymtech/nym/pull/4723): Allow the IPR to handle clients connecting both using `v6` and `v7`, independently. The motivation is that we want to be able to roll out a API version change gradually for VPN clients without breaking backwards compatibility. The main feature on the new `v7` format that is not yet used, is that it adds signatures for connect/disconnect.
+
+~~~admonish example collapsible=true title='Testing steps performed'
+Run the same command (using same gateways deployed from this PR) on different versions of the `nym-vpn-cli`. 
+
+Example: 
+```sh
+~/nym-vpn-core-v0.1.10_macos_universal ❯ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
+ 
+~/nym-vpn-core-v0.1.11-dev_macos_universal ❯ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
+```
+~~~
+
+- [Backport `#4844` and `#4845`](https://github.com/nymtech/nym/pull/4857)
+
+- [Remove wireguard feature flag and pass runtime enabled flag](https://github.com/nymtech/nym/pull/4839)
+
+- [Eliminate cancel unsafe sig awaiting](https://github.com/nymtech/nym/pull/4834)
+
+- [Added explicit updateable admin to the mixnet contract](https://github.com/nymtech/nym/pull/4822)
+
+- [Using legacy signing payload in CLI and verifying both variants in contract](https://github.com/nymtech/nym/pull/4821)
+
+- [Adding ecash contract address](https://github.com/nymtech/nym/pull/4819)
+
+- [Check profit margin of node before defaulting to hardcoded value ](https://github.com/nymtech/nym/pull/4802)
+
+- [Sync `last_seen_bandwidth` immediately](https://github.com/nymtech/nym/pull/4774)
+
+- [Feature/additional ecash `nym-cli` utils](https://github.com/nymtech/nym/pull/4773)
+
+- [Better storage error logging](https://github.com/nymtech/nym/pull/4772)
+
+- [Disable testnet-manager on non-unix](https://github.com/nymtech/nym/pull/4741)
+
+- [Don't set NYM_VPN_API to default](https://github.com/nymtech/nym/pull/4740)
+
+- [Update publish-nym-binaries.yml](https://github.com/nymtech/nym/pull/4739): Adds wireguard to builds
+
+- [Update ci-build-upload-binaries.yml](https://github.com/nymtech/nym/pull/4738): Adds wireguard for ci-builds
+
+- [Add NYM_VPN_API to network config](https://github.com/nymtech/nym/pull/4736)
+
+- [Re-export RecipientFormattingError in nym sdk](https://github.com/nymtech/nym/pull/4735)
+
+- [Persist wireguard peers](https://github.com/nymtech/nym/pull/4732)
+
+- [Feature/vesting purge plus ranged cost params](https://github.com/nymtech/nym/pull/4716): Combines [\#4715](https://github.com/nymtech/nym/pull/4715) and [\#4711](https://github.com/nymtech/nym/pull/4711) into one.
+    - Disables all non-essential operations on the vesting contract => you can no longer bond mixnodes/make delegations/etc. (you can still, however, withdraw your vested tokens and so on)
+    - Introduces admin-controlled minimum (and maximum) profit margin and interval operating costs.  
+    - both contracts have to be migrated **at the same time**. ideally within the same transaction
+    - mixnet contract migration is not allowed (and will fail) if there are any pending actions involving vesting tokens, like delegating, increasing pledge, etc
+
+- [Bump braces from `3.0.2` to `3.0.3` in `/nym-wallet/webdriver`](https://github.com/nymtech/nym/pull/4709): Bumps [braces](https://github.com/micromatch/braces) from `3.0.2` to `3.0.3`. 
+
+### Bugfix
+
+- [chore: fix 1.80 lint issues](https://github.com/nymtech/nym/pull/4731)
+
+~~~admonish example collapsible=true title='Testing steps performed'
+- Building all binaries is ok
+- Running `cargo fmt` returns no issues 
+~~~
+
+- [Fix version 1 not having template correspondent initially](https://github.com/nymtech/nym/pull/4733)
+
+~~~admonish example collapsible=true title='Testing steps performed'
+Tested updating an old `nym-node` version and ensuring it did not throw any errors. 
+~~~
+
+- [Bugfix/client registration vol2](https://github.com/nymtech/nym/pull/4856)
+
+- [Fix tokio error in `1.39`](https://github.com/nymtech/nym/pull/4730):
+    - Bump tokio to `1.39.2`, skipping the issue with `1.39.1`
+    
+
+- [Fix (some) feature unification build failures](https://github.com/nymtech/nym/pull/4681): Running a script in the root workspace that builds each crate independently
+
+~~~admonish example collapsible=true title='The script'
+ ```sh
+ #!/bin/bash
+ 
+ packages=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[].name')
+ 
+ # Loop through each package and build
+ for package in $packages; do
+     echo "Building $package"
+     cargo clean
+     cargo check -p "$package"
+     if [ $? -ne 0 ]; then
+         echo "Build failed for $package. Stopping."
+         exit 1
+     fi
+ done
+ ```
+~~~
+ 
+- [bugfix: make sure DKG parses data out of events if logs are empty](https://github.com/nymtech/nym/pull/4764): This will be the case on post `0.50` chains
+
+- [Fix clippy on rustc beta toolchain](https://github.com/nymtech/nym/pull/4746): Fix clippy warnings for rust beta toolchain
+ 
+- [Fix clippy for beta toolchain](https://github.com/nymtech/nym/pull/4742): Fix beta toolchain clippy by removing unused module
+    - Add `nym-` prefix to `serde-common` crate
+    - Remove ignored `default-features = false` attribute for workspace dependency
+
+### Crypto 
+
+- [Feature Compact Ecash : The One PR](https://github.com/nymtech/nym/pull/4623)
+
+### Operators Guide, Tooling & Updates
+
+- More explicit [setup for `nym-node`](nodes/setup.md#initialise--run) with a new [option explanation](nodes/setup.md#essential-parameters--variables), including syntax examples
+
+- New [VPS networking configuration steps for Wireguard](nodes/configuration.md#routing-configuration)
+
+- Wireguard [builds from source](binaries/building-nym.md) together with `nym-node`, no need to specify with a feature flag anymore
+
+- Wireguard peers stay connected for longer time, re-connections are also faster
+
+- Profit margin and operating cost values will be set to the agreed values, the values can be changed in the future through [Nym Operators governance process](https://forum.nymtech.net/t/poll-proposal-for-on-chain-minimum-profit-margin-for-all-nym-nodes/253)
+```admonish success title=""
+- Minimum profit margin = 20%
+- Maximum profit margin = 50%
+- Minimum operating cost = 0 NYM
+- Maximum operating cost = 1000 NYM
+```
+
+- [Nym Harbourmater](https://harbourmaster.nymtech.net) has several new functionalities:
+    - Version counting graph for Gateways and Mixnodes
+    - Several new columns with larger nodes performance and settings overview.
+    - Top routing score now includes:
+        - Wireguard registration and complete handshake test, to configure see [tasklist below](#operators-tasks)
+        - DNS resolution check, to configure see [tasklist below](#operators-tasks)
+        - Wireguard perfomance > 0.75, to configure see [tasklist below](#operators-tasks)
+    
+- New wallet coming out soon!
+    - Vesting contract functionalities have been purged, users can only remove tokens from vesting
+
+- [Nym API Check CLI](testing/node-api-check.md) is upgraded according to the latest API endpoints, output is cleaner and more concise.
+
+
+#### Operators Tasks
+
+```admonish warning title=""
+**The steps below are highly recommended for all operators and mandatory for everyone who is a part of Nym Delegation or Grant program. Deadline is Friday, September 20th, 2024.**
+```
+
+Every `nym-node` should be upgraded to the latest version! Operators can test using [Sandbox env](sandbox.md) during the pre-release period, then upgrade on mainnet. During the upgrade, please follow the points below before you restart the node:
+
+**`nym-node`**
+
+- Make sure to fill in basic description info, into the file located at `.nym/nym-nodes/<ID>/data/description.toml` (all nodes)
+- Configure wireguard routing with new [`network_tunnel_manager.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) following [these steps](nodes/configuration.md#routing-configuration) (Gateways only for the time being)
+- Enable Wireguard with `--wireguard-enabled true` flag included in your run command (Gateways only for the time being)
+    - Note: On some VPS this setup may not be enough to get the correct results as some ISPs  have their own security groups setup below the individual VPS. In that case a ticket to ISP will have to be issued to open the needed settings. We are working on a template for such ticket.
+- Setup [reverse proxy and WSS](nodes/proxy-configuration.md) on `nym-node` (Gateways only for the time being)
+- Don't forget to restart your node - or (preferably using [systemd automation](nodes/configuration.md#systemd)) reload daemon and restart the service
+- Migrating from `mixnet` or `gateway` smart contracts to a new `nym-node` smart contract will be available soon with an upcoming version of Nym desktop wallet. After this migration all `nym-nodes` will be able to receive delegation. The operators will have to confirm the migration once it's deployed.
+- Optional: Use [`nym-gateway-probe`](testing/gateway-probe.html) and [NymVPN CLI](https://nymtech.net/developers/nymvpn/cli.html) to test your own Gateway
+- Optional: Run the script below to measure ping speed of your Gateway and share your results in [Nym Operators channel](https://matrix.to/#/#operators:nymtech.chat)
+
+~~~admonish example collapsible=true title='The script to measure Gateway ping results'
+We made a script for pinging nymtech.net from your GWs. Can you please install it and then share the result together with your Gateway ID:
+
+1. Get the script onto your machine (soon on github for curl or wget):
+
+```sh
+# paste all this block as one command
+cat <<'EOL' > ping_with_curl_average_for_wg_check.sh
+#!/bin/bash
+
+ping_with_curl_average_for_wg_check() {
+    total_connect_time=0
+    total_total_time=0
+    iterations=5
+    timeout=2
+
+    for ((i=1; i<=iterations; i++)); do
+        echo "ping attempt $i..."
+
+        echo "curling nymtech.net to check ping response times"
+        times=$(curl -I https://nymtech.net --max-time $timeout \
+        -w "time_connect=%{time_connect}\ntime_total=%{time_total}" -o /dev/null -s)
+
+        time_connect=$(echo "$times" | grep "time_connect" | cut -d"=" -f2)
+        time_total=$(echo "$times" | grep "time_total" | cut -d"=" -f2)
+
+        total_connect_time=$(echo "$total_connect_time + $time_connect" | bc)
+        total_total_time=$(echo "$total_total_time + $time_total" | bc)
+
+        echo "time to connect: $time_connect s"
+        echo "total time: $time_total s"
+    done
+
+    average_connect_time=$(echo "scale=3; $total_connect_time / $iterations" | bc)
+    average_total_time=$(echo "scale=3; $total_total_time / $iterations" | bc)
+
+    echo "-----------------------------------"
+    echo "average time to connect: $average_connect_time s"
+    echo "average total time: $average_total_time s"
+}
+
+ping_with_curl_average_for_wg_check
+EOL
+```
+
+2. Make executable:
+
+```sh
+chmod +x ping_with_curl_average_for_wg_check.sh
+```
+
+3. In case you don't have `bc`, install it:
+
+```sh
+sudo apt install bc
+```
+
+4. Run:
+
+```sh
+./ping_with_curl_average_for_wg_check.sh
+```
+
+5. Share results and ID key in [Nym Operators channel](https://matrix.to/#/#operators:nymtech.chat)
+
+THANK YOU!
+~~~
+
+**validators**
+
+- Validators need to update and prepare for ecash implementation.
+
+### Known Bugs & Undone features
+
+- New `nym-nodes` without a performance 24h history above 50% don't show routing properly on `nym-gateway-probe`, on Nym Harbourmaster the page may appear blank - we are working on a fix.
+- Wireguard works on IPv4 only for the time being, we are working on IPv6 implementation.
+---
+
+## `v2024.9-topdeck`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.9-topdeck/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.md) version `1.1.6`
+
+~~~admonish example collapsible=true title='CHANGELOG.md'
+- chore: fix 1.80 lint issues ([#4731])
+- Handle clients with different versions in IPR ([#4723])
+- Add 1GB/day/user bandwidth cap ([#4717])
+- Feature/merge back ([#4710])
+- removed mixnode/gateway config migration code and disabled cli without explicit flag ([#4706])
+
+[#4731]: https://github.com/nymtech/nym/pull/4731
+[#4723]: https://github.com/nymtech/nym/pull/4723
+[#4717]: https://github.com/nymtech/nym/pull/4717
+[#4710]: https://github.com/nymtech/nym/pull/4710
+[#4706]: https://github.com/nymtech/nym/pull/4706
+~~~
+
+### Features
+
+* [Removed `nym-mixnode` and `nym-gateway` config migration code and disabled CLI without explicit flag](https://github.com/nymtech/nym/pull/4706): Gateway and Mixnode commands now won't do anything without explicit `--force-run` to bypass the deprecation, instead it will tell an operator to run a `nym-node`.  The next step, in say a month or so, is to completely remove all `cli` related things.
+~~~admonish example collapsible=true title='Testing steps performed'
+- Verify that the `nym-gateway` binary and `nym-mixnode` binary commands return the `_error message_` stating to *update to `nym-node`*
+- Check that when adding the `--force-run` flag, it still allows the command to be run (aside from `init` which has been removed) and the message stating to update to `nym-node` is a `_warning_` now
+- Check `nym-node` is not affected
+- Review the changes in the PR
+~~~
+
+* [Add 1GB/day/user bandwidth cap](https://github.com/nymtech/nym/pull/4717)
+
+~~~admonish example collapsible=true title='Testing steps performed - Scenario 1: Bandwidth Decreasing Continuously'
+1. Start the client and noted the initial bandwidth (e.g., 1GB).
+2. Us the client and track bandwidth usage over time (e.g., decrease by 100MB every hour).
+3. Restart the client after some usage.
+4. Verify the bandwidth continued from the last recorded value, not reset.
+
+**Notes:**
+ The bandwidth continued decreasing without resetting upon restart. Logs and reports correctly reflected the decreasing bandwidth.
+~~~
+
+~~~admonish example collapsible=true title='Testing steps performed - Scenario 2: Bandwidth Reset Next Day'
+1. Use the client normally until the end of the day.
+2. Suspend some clients and kept others active.
+3. Check bandwidth at midnight.
+4. Verify that bandwidth reset to 1GB for both suspended and active clients.
+
+**Notes:**
+Bandwidth reset to 1GB for all clients at midnight. Logs and reports correctly showed the reset.
+~~~
+   
+~~~admonish example collapsible=true title='Testing steps performed - Scenario 3: Bandwidth Reset at a Different Time (e.g., Midday)'
+1. Configure the system to reset bandwidth at midday.
+2. Use the client and monitored bandwidth until midday.
+3. Keep the client connected during the reset time.
+4. Verify that bandwidth reset to 1GB live at midday.
+ 
+**Notes:**
+Bandwidth reset to 1GB at midday while the client was connected. Logs and reports correctly reflected the reset.
+~~~
+
+* [Handle clients with different versions in IPR](https://github.com/nymtech/nym/pull/4723): Allow the IPR to handle clients connecting both using `v6` and `v7`, independently. The motivation is that we want to be able to roll out an API version change gradually for NymVPN clients without breaking backwards compatibility. The main feature on the new `v7` format that is not yet used, is that it adds signatures for connect/disconnect.
+~~~admonish example collapsible=true title='Testing steps performed'
+Run the same command (using same gateways deployed from this PR) on different versions of the `nym-vpn-cli`. 
+
+Example: 
+```sh
+sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
+ 
+sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
+```
+~~~
+
+### Bugfix
+
+* [Feature/merge back](https://github.com/nymtech/nym/pull/4710): Merge back from the release branch the changes that fix the `nym-node` upgrades. 
+
+* [Fix version `1.x.x` not having template correspondent initially](https://github.com/nymtech/nym/pull/4733): This should fix the problem of config deserialisation when operators upgrade nodes and skip over multiple versions. 
+~~~admonish example collapsible=true title='Testing steps performed'
+- Tested updating an old nym-node version and ensuring it did not throw any errors.
+~~~
+
+* [chore: fix 1.80 lint issues](https://github.com/nymtech/nym/pull/4731): 
+~~~admonish example collapsible=true title='Testing steps performed'
+- Building all binaries is ok
+- Running `cargo fmt` returns no issues 
+~~~
+
+### Operators Guide updates
+
+* [WireGuard tunnel configuration guide](nodes/configuration.md#routing-configuration) for `nym-node` (currently Gateways functionalities). For simplicity we made a detailed step by step guide to upgrade an existing `nym-node` to the latest version and configure your VPS routing for WireGuard. Open by clicking on the example block below.
+
+~~~admonish example collapsible=true title='Upgrading  `nym-node` with WG'
+**Prerequisites**
+
+- **Nym Node Version:** You must be running the `2024.9-topdeck` release branch, which operates as `nym-node` version `1.1.6`. You can find the release here: [Nym 2024.9-topdeck Release](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck).
+
+- **Important:** Before proceeding, make sure to [back up](nodes/maintenance.md#backup-a-node) your current `nym-node` configuration to avoid any potential data loss or issues.
+
+
+- **Download Nym Node:**
+    - You can download the `nym-node` binary directly using the following command:
+```bash
+curl -L https://github.com/nymtech/nym/releases/download/nym-binaries-v2024.9-topdeck/nym-node -o nym-node && chmod u+x nym-node
+```
+
+**Step 1: Update UFW Firewall Rules**
+
+- **Warning:** Enabling the firewall with UFW without allowing SSH port 22 first will lead to losing access over SSH. Make sure port 22 is allowed before proceeding with any UFW configurations.
+
+Run the following as root or with `sudo` prefix:
+
+1. Check the current status of UFW (Uncomplicated Firewall):
+```bash
+ufw status
+```
+
+2. Ensure that the following ports are allowed on your machine before adding the WireGuard port:
+
+```bash
+ufw allow 22/tcp    # SSH - you're in control of these ports
+ufw allow 80/tcp    # HTTP
+ufw allow 443/tcp   # HTTPS
+ufw allow 1789/tcp  # Nym specific
+ufw allow 1790/tcp  # Nym specific
+ufw allow 8080/tcp  # Nym specific - nym-node-api
+ufw allow 9000/tcp  # Nym Specific - clients port
+ufw allow 9001/tcp  # Nym specific - wss port 
+ufw allow 51822/udp # WireGuard
+```
+
+3. Confirm that the UFW rules have been updated:
+```bash
+ufw status
+```
+
+**Step 2: Download and Prepare the Network Tunnel Manager Script**
+
+1. Download the [`network_tunnel_manager.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) script:
+```bash
+curl -L -o network_tunnel_manager.sh https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/3c0a38c1416f8fdf22906c013299dd08d1497183/network_tunnel_manager.sh
+```
+
+2. Make the script executable:
+```bash
+chmod u+x network_tunnel_manager.sh
+```
+
+3. Apply the WireGuard IPTables rules:
+```bash
+./network_tunnel_manager.sh apply_iptables_rules_wg
+```
+
+**Step 3: Update the Nym Node Service File**
+
+1. Modify your [`nym-node` service file](nodes/configuration.md#systemd) to enable WireGuard. Open the file (usually located at `/etc/systemd/system/nym-node.service`) and update the `[Service]` section as follows:
+
+```ini
+[Service]
+User=<YOUR_USER_NAME>
+Type=simple
+#Environment=RUST_LOG=debug
+# CAHNGE PATH IF YOU DON'T RUN IT FROM ROOT HOME DIRECTORY
+ExecStart=/root/nym-node run --mode exit-gateway --id <YOUR_NODE_LOCAL_ID> --accept-operator-terms-and-conditions --wireguard-enabled true
+Restart=on-failure
+RestartSec=30
+StartLimitInterval=350
+StartLimitBurst=10
+LimitNOFILE=65536
+
+[Install]
+WantedBy=multi-user.target
+
+# ADD OR TWEAK ANY CUSTOM SETTINGS
+```
+
+2. Reload the systemd daemon to apply the changes:
+```bash
+systemctl daemon-reload
+```
+
+3. Restart the `nym-node service`:
+```bash
+systemctl restart nym-node.service
+```
+
+4. Optionally, you can check if the node is running correctly by monitoring the service logs:
+```bash
+journalctl -u nym-node.service -f -n 100
+```
+
+**Step 4: Run the Network Tunnel Manager Script**
+
+Finally, run the following command to initiate our favorite routing test - run the joke through the WireGuard tunnel:
+```bash
+./network_tunnel_manager.sh joke_through_wg_tunnel
+```
+
+- **Note:** Wireguard will return only IPv4 joke, not IPv6. WG IPv6 is under development. Running IPR joke through the mixnet with `./network_tunnel_manager.sh joke_through_the_mixnet` should work with both IPv4 and IPv6!
+~~~
+
+* [Change `--wireguard-enabled` flag to `true`](nodes/setup.md#-initialise--run): With a proper [routing configuration](nodes/configuration.md#routing-configuration) `nym-nodes` running as Gateways can now enable WG. See the example below:
+
+~~~admonish example collapsible=true title='Syntax to run `nym-node` with WG enabled'
+For Exit Gateway:
+```sh
+./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <COUNTRY_FULL_NAME> --accept-operator-terms-and-conditions --wireguard-enabled true
+
+# <YOUR_DOMAIN> is in format without 'https://' prefix
+# <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
+# wireguard can be enabled from version 1.1.6 onwards
+```
+
+For Entry Gateway:
+```sh
+./nym-node run --id <ID> --mode entry-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "<YOUR_DOMAIN>" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --accept-operator-terms-and-conditions --wireguard-enabled true
+
+# <YOUR_DOMAIN> is in format without 'https://' prefix
+# <COUNTRY_FULL_NAME> is format like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided.
+# wireguard can be enabled from version 1.1.6 onwards
+```
+~~~
+
+* [Update Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt): Based on the survey, AMA and following discussions we added several ports to Nym exit policy. The ports voted upon in the [forum governance](https://forum.nymtech.net/t/poll-a-new-nym-exit-policy-for-exit-gateways-and-the-nym-mixnet-is-inbound/464) have not been added yet due to the concerns raised. These ports were unrestricted: 
+
+~~~admonish example collapsible=true title='Newly opened ports in Nym exit policy'
+```
+22 # SSH
+123 # NTP
+445 # SMB file share Windows
+465 # URD for SSM
+587 # SMTP
+853 # DNS over TLS
+1433 # databases
+1521 # databases
+2049 # NFS
+3074 # Xbox Live
+3306 # databases
+5000-5005 # RTP / VoIP
+5432 # databases
+6543 # databases
+8080 # HTTP Proxies
+8767 # TeamSpeak
+8883 # Secure MQ Telemetry Transport - MQTT over SSL
+9053 # Tari
+9339 # gaming
+9443 # alternative HTTPS
+9735 # Lightning
+25565 # Minecraft
+27000-27050 # Steam and game servers
+60000-61000 # MOSH
+```
+~~~
+
+* [Create a NymConnect archive page](https://nymtech.net/developers/archive/nym-connect.html), PR [\#4750](https://github.com/nymtech/nym/commit/5096c1e60e203dcf8be934823946e24fda16a9a3): Archive deprecated NymConnect for backward compatibility, show PEApps examples for both NC and maintained `nym-socks5-client`.
+
+* Fix broken URLs and correct redirection. PRs: [\#4745](https://github.com/nymtech/nym/commit/7e36595d8fa7706876880b42df1c998a4b8c1478), [\#4752](https://github.com/nymtech/nym/commit/1db61f800c6884e284c5ab21e7abce3bc6d91d99) [\#4755](https://github.com/nymtech/nym/commit/aaf3dca5b999ad7f19d2ff170078b43c9c4476c2), [\#4737](https://github.com/nymtech/nym/commit/6f669866e92e637772726ad05caa5c5501a830f3) 
+~~~admonish example collapsible=true title='Testing steps performed'
+- Use [deadlinkchecker.com](https://www.deadlinkchecker.com/website-dead-link-checker.asp) to go over `nymtech.net` and correct all docs URLs
+- Go over search engines and old medium articles and check that all dead URLs re-directing correctly
+~~~
+
+* [Clarify syntax on `nym-nodes` ports on VPS setup page](https://nymtech.net/operators/nodes/vps-setup.html#configure-your-firewall), PR [\#4734](https://github.com/nymtech/nym/commit/5e6417f83788f30b2a84e4dd73d6dd9619a2bb16): Make crystal clear that the addresses and ports in operators `config.toml` must be opened using [`ufw`](https://nymtech.net/operators/nodes/vps-setup.html#configure-your-firewall) and set up as in the example below:
+~~~admonish example collapsible=true title='snap of binding addresses and ports in `config.toml`'
+```toml
+[host]
+public_ips = [
+'<YOUR_PUBLIC_IPv4>'
+]
+
+[mixnet]
+bind_address = '0.0.0.0:1789'
+
+[http]
+bind_address = '0.0.0.0:8080'
+
+[mixnode]
+[mixnode.verloc]
+bind_address = '0.0.0.0:1790'
+
+[entry_gateway]
+bind_address = '0.0.0.0:9000'
+```
+~~~
+
+### Tooling
+
+* [Nym Harbourmaster](https://https://harbourmaster.nymtech.net/) has now several new functionalities:
+    - Tab for Mixnodes
+    - Tab with Charts
+    - New columns with: *Moniker (node description)*, *DP delegatee*, *Accepted T&Cs* - also part of a new category 🐼😀
+
+* Nym has a new [Token page](https://nymtech.net/about/token)
+
+---
+
+
 ## `v2024.8-wispa`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.8-wispa)

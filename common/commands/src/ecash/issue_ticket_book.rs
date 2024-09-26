@@ -1,40 +1,68 @@
-// Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::context::SigningClient;
 use crate::utils::CommonConfigsWrapper;
-use anyhow::bail;
+use anyhow::{anyhow, bail};
+use clap::ArgGroup;
 use clap::Parser;
 use nym_credential_storage::initialise_persistent_storage;
+use nym_credential_storage::storage::Storage;
 use nym_credential_utils::utils;
+use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
+use nym_credentials::{
+    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
+};
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::identity;
-use rand::rngs::OsRng;
-use rand::RngCore;
-use std::fs::create_dir_all;
+use std::fs;
 use std::path::PathBuf;
+use tempfile::NamedTempFile;
 
 #[derive(Debug, Parser)]
+#[clap(
+    group(ArgGroup::new("output").required(true)),
+)]
 pub struct Args {
     /// Specify which type of ticketbook should be issued
-    #[clap(long, default_value_t = TicketType::default())]
+    #[clap(long, default_value_t = TicketType::V1MixnetEntry)]
     pub(crate) ticketbook_type: TicketType,
 
     /// Config file of the client that is supposed to use the credential.
     #[clap(long, group = "output")]
     pub(crate) client_config: Option<PathBuf>,
 
-    /// Path to the dedicated credential storage database
-    #[clap(long, group = "output")]
-    pub(crate) credential_storage: Option<PathBuf>,
+    /// Output file for the ticketbook
+    #[clap(long, group = "output", requires = "bs58_encoded_client_secret")]
+    pub(crate) output_file: Option<PathBuf>,
+
+    /// Specifies whether the output file should use binary or bs58 encoded data
+    #[clap(long, requires = "output_file")]
+    pub(crate) bs58_output: bool,
+
+    /// Specifies whether the file output should contain expiration date signatures
+    #[clap(long, requires = "output_file")]
+    pub(crate) include_expiration_date_signatures: bool,
+
+    /// Specifies whether the file output should contain coin index signatures
+    #[clap(long, requires = "output_file")]
+    pub(crate) include_coin_index_signatures: bool,
+
+    /// Specifies whether the file output should contain master verification key
+    #[clap(long, requires = "output_file")]
+    pub(crate) include_master_verification_key: bool,
+
+    /// Secret value that's used for deriving underlying ecash keypair
+    #[clap(long)]
+    pub(crate) bs58_encoded_client_secret: Option<String>,
 }
 
 async fn issue_client_ticketbook(
-    cfg: PathBuf,
-    typ: TicketType,
+    config_path: PathBuf,
+    ticketbook_type: TicketType,
     client: SigningClient,
 ) -> anyhow::Result<()> {
-    let loaded = CommonConfigsWrapper::try_load(cfg)?;
+    let loaded = CommonConfigsWrapper::try_load(config_path)?;
 
     if let Ok(id) = loaded.try_get_id() {
         println!("loaded config file for client '{id}'");
@@ -59,40 +87,84 @@ async fn issue_client_ticketbook(
         &client,
         &persistent_storage,
         &private_id_key.to_bytes(),
-        typ,
+        ticketbook_type,
     )
     .await?;
 
     Ok(())
 }
 
-async fn issue_standalone_ticketbook(
-    credentials_store: PathBuf,
-    typ: TicketType,
-    client: SigningClient,
-) -> anyhow::Result<()> {
-    println!("attempting to issue a standalone ticketbook");
+async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> {
+    // those MUST HAVE been specified; clap ensures it
+    let output_file = args.output_file.unwrap();
+    let secret = bs58::decode(&args.bs58_encoded_client_secret.unwrap()).into_vec()?;
 
-    let mut rng = OsRng;
-    let mut random_seed = [0u8; 32];
-    rng.fill_bytes(&mut random_seed);
+    let temp_credential_store_file = NamedTempFile::new()?;
+    let credential_store_path = temp_credential_store_file.into_temp_path();
 
-    if let Some(parent) = credentials_store.parent() {
-        create_dir_all(parent)?;
+    let credentials_store = initialise_persistent_storage(credential_store_path).await;
+
+    utils::issue_credential(&client, &credentials_store, &secret, args.ticketbook_type).await?;
+
+    let ticketbook = credentials_store
+        .get_next_unspent_usable_ticketbook(0)
+        .await?
+        .ok_or(anyhow!("we just issued a ticketbook, it must be present!"))?
+        .ticketbook;
+
+    let expiration_date = ticketbook.expiration_date();
+    let epoch_id = ticketbook.epoch_id();
+
+    let mut exported = ticketbook.begin_export();
+
+    if args.include_expiration_date_signatures {
+        let signatures = credentials_store
+            .get_expiration_date_signatures(expiration_date)
+            .await?
+            .ok_or(anyhow!("missing expiration date signatures!"))?;
+
+        exported = exported.with_expiration_date_signatures(&AggregatedExpirationDateSignatures {
+            epoch_id,
+            expiration_date,
+            signatures,
+        });
     }
 
-    let persistent_storage = initialise_persistent_storage(credentials_store).await;
-    utils::issue_credential(&client, &persistent_storage, &random_seed, typ).await?;
+    if args.include_coin_index_signatures {
+        let signatures = credentials_store
+            .get_coin_index_signatures(epoch_id)
+            .await?
+            .ok_or(anyhow!("missing coin index signatures!"))?;
+        exported = exported.with_coin_index_signatures(&AggregatedCoinIndicesSignatures {
+            epoch_id,
+            signatures,
+        });
+    }
+
+    if args.include_master_verification_key {
+        let key = credentials_store
+            .get_master_verification_key(epoch_id)
+            .await?
+            .ok_or(anyhow!("missing master verification key!"))?;
+
+        exported = exported.with_master_verification_key(&EpochVerificationKey { epoch_id, key });
+    }
+
+    let data = exported.pack().data;
+
+    if args.bs58_output {
+        fs::write(output_file, bs58::encode(&data).into_string())?;
+    } else {
+        fs::write(output_file, &data)?;
+    }
 
     Ok(())
 }
 
 pub async fn execute(args: Args, client: SigningClient) -> anyhow::Result<()> {
-    match (args.client_config, args.credential_storage) {
-        (Some(cfg), None) => issue_client_ticketbook(cfg, args.ticketbook_type, client).await,
-        (None, Some(storage)) => {
-            issue_standalone_ticketbook(storage, args.ticketbook_type, client).await
-        }
-        _ => unreachable!("clap should have made this branch impossible to reach!"),
+    if let Some(client_config) = args.client_config {
+        return issue_client_ticketbook(client_config, args.ticketbook_type, client).await;
     }
+
+    issue_to_file(args, client).await
 }

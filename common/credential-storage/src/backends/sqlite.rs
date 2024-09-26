@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::models::{
-    BasicTicketbookInformation, RawExpirationDateSignatures, StoredIssuedTicketbook,
-    StoredPendingTicketbook,
+    BasicTicketbookInformation, RawCoinIndexSignatures, RawExpirationDateSignatures,
+    RawVerificationKey, StoredIssuedTicketbook, StoredPendingTicketbook,
 };
 use nym_ecash_time::Date;
 use sqlx::{Executor, Sqlite, Transaction};
@@ -151,25 +151,40 @@ impl SqliteEcashTicketbookManager {
     pub(crate) async fn get_master_verification_key(
         &self,
         epoch_id: i64,
-    ) -> Result<Option<Vec<u8>>, sqlx::Error> {
-        sqlx::query!(
-            "SELECT serialised_key FROM master_verification_key WHERE epoch_id = ?",
+    ) -> Result<Option<RawVerificationKey>, sqlx::Error> {
+        sqlx::query_as!(
+            RawVerificationKey,
+            r#"
+                SELECT epoch_id as "epoch_id: u32", serialised_key, serialization_revision as "serialization_revision: u8"
+                FROM master_verification_key WHERE epoch_id = ?
+            "#,
             epoch_id
         )
         .fetch_optional(&self.connection_pool)
         .await
-        .map(|maybe_record| maybe_record.map(|r| r.serialised_key))
     }
 
     pub(crate) async fn insert_master_verification_key(
         &self,
+        serialisation_revision: u8,
         epoch_id: i64,
         data: &[u8],
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO master_verification_key(epoch_id, serialised_key) VALUES (?, ?)",
+            r#"
+                INSERT OR IGNORE INTO master_verification_key(epoch_id, serialised_key, serialization_revision) VALUES (?, ?, ?);
+                UPDATE master_verification_key
+                    SET
+                        serialised_key = ?,
+                        serialization_revision = ?
+                     WHERE epoch_id = ?
+            "#,
             epoch_id,
-            data
+            data,
+            serialisation_revision,
+            data,
+            serialisation_revision,
+            epoch_id
         )
         .execute(&self.connection_pool)
         .await?;
@@ -179,25 +194,40 @@ impl SqliteEcashTicketbookManager {
     pub(crate) async fn get_coin_index_signatures(
         &self,
         epoch_id: i64,
-    ) -> Result<Option<Vec<u8>>, sqlx::Error> {
-        sqlx::query!(
-            "SELECT serialised_signatures FROM coin_indices_signatures WHERE epoch_id = ?",
+    ) -> Result<Option<RawCoinIndexSignatures>, sqlx::Error> {
+        sqlx::query_as!(
+            RawCoinIndexSignatures,
+            r#"
+                SELECT epoch_id as "epoch_id: u32", serialised_signatures, serialization_revision as "serialization_revision: u8"
+                FROM coin_indices_signatures WHERE epoch_id = ?
+            "#,
             epoch_id
         )
         .fetch_optional(&self.connection_pool)
         .await
-        .map(|maybe_record| maybe_record.map(|r| r.serialised_signatures))
     }
 
     pub(crate) async fn insert_coin_index_signatures(
         &self,
+        serialisation_revision: u8,
         epoch_id: i64,
         data: &[u8],
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO coin_indices_signatures(epoch_id, serialised_signatures) VALUES (?, ?)",
+            r#"
+                INSERT OR IGNORE INTO coin_indices_signatures(epoch_id, serialised_signatures, serialization_revision) VALUES (?, ?, ?);
+                UPDATE coin_indices_signatures
+                    SET
+                        serialised_signatures = ?,
+                        serialization_revision = ?
+                     WHERE epoch_id = ?
+            "#,
             epoch_id,
-            data
+            data,
+            serialisation_revision,
+            data,
+            serialisation_revision,
+            epoch_id,
         )
         .execute(&self.connection_pool)
         .await?;
@@ -211,7 +241,7 @@ impl SqliteEcashTicketbookManager {
         sqlx::query_as!(
             RawExpirationDateSignatures,
             r#"
-                SELECT epoch_id as "epoch_id: u32", serialised_signatures
+                SELECT epoch_id as "epoch_id: u32", serialised_signatures, serialization_revision as "serialization_revision: u8"
                 FROM expiration_date_signatures
                 WHERE expiration_date = ?
             "#,
@@ -223,15 +253,28 @@ impl SqliteEcashTicketbookManager {
 
     pub(crate) async fn insert_expiration_date_signatures(
         &self,
+        serialisation_revision: u8,
         epoch_id: i64,
         expiration_date: Date,
         data: &[u8],
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO expiration_date_signatures(expiration_date, epoch_id, serialised_signatures) VALUES (?, ?, ?)",
+            r#"
+                INSERT OR IGNORE INTO expiration_date_signatures(expiration_date, epoch_id, serialised_signatures, serialization_revision)
+                VALUES (?, ?, ?, ?);
+                UPDATE expiration_date_signatures
+                    SET
+                        serialised_signatures = ?,
+                        serialization_revision = ?
+                     WHERE expiration_date = ?
+            "#,
             expiration_date,
             epoch_id,
-            data
+            data,
+            serialisation_revision,
+            data,
+            serialisation_revision,
+            expiration_date
         )
             .execute(&self.connection_pool)
             .await?;

@@ -5,7 +5,7 @@ use axum::extract::Query;
 use cupid::TopologyType;
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use serde::Serialize;
-use sysinfo::{System, SystemExt};
+use sysinfo::System;
 
 #[derive(Serialize, Debug)]
 pub struct Hardware {
@@ -43,7 +43,7 @@ fn hardware_info() -> Option<Hardware> {
 /// Sysinfo gives back basic stuff like number of CPU cores and available memory. If available, this includes the hardware encryption
 /// extensions report
 fn hardware_from_sysinfo(crypto_hardware: Option<CryptoHardware>) -> Option<Hardware> {
-    if System::IS_SUPPORTED {
+    if sysinfo::IS_SUPPORTED_SYSTEM {
         let mut system = System::new_all();
         system.refresh_all();
         let ram = format!("{}KB", system.total_memory());

@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::cli::ecash::Ecash;
 use crate::config::helpers::try_upgrade_config_by_id;
 use crate::{
     config::{BaseClientConfig, Config},
@@ -11,18 +12,16 @@ use log::error;
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_bin_common::version_checker;
-use nym_client_core::cli_helpers::client_import_credential::CommonClientImportCredentialArgs;
 use nym_client_core::cli_helpers::CliClient;
 use nym_config::OptionalSet;
 use std::sync::OnceLock;
 
 mod add_gateway;
 mod build_info;
-mod import_credential;
+pub mod ecash;
 mod init;
 mod list_gateways;
 mod run;
-mod show_ticketbooks;
 mod sign;
 mod switch_gateway;
 
@@ -72,11 +71,11 @@ pub(crate) enum Commands {
     /// parameters.
     Run(run::Run),
 
+    /// Ecash-related functionalities
+    Ecash(Ecash),
+
     /// Sign to prove ownership of this network requester
     Sign(sign::Sign),
-
-    /// Import a pre-generated credential
-    ImportCredential(CommonClientImportCredentialArgs),
 
     /// List all registered with gateways
     ListGateways(list_gateways::Args),
@@ -86,9 +85,6 @@ pub(crate) enum Commands {
 
     /// Change the currently active gateway. Note that you must have already registered with the new gateway!
     SwitchGateway(switch_gateway::Args),
-
-    /// Display information associated with the imported ticketbooks,
-    ShowTicketbooks(show_ticketbooks::Args),
 
     /// Show build information of this binary
     BuildInfo(build_info::BuildInfo),
@@ -151,12 +147,11 @@ pub(crate) async fn execute(args: Cli) -> Result<(), NetworkRequesterError> {
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(&m).await?,
+        Commands::Ecash(ecash) => ecash.execute().await?,
         Commands::Sign(m) => sign::execute(&m).await?,
-        Commands::ImportCredential(m) => import_credential::execute(m).await?,
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
         Commands::AddGateway(args) => add_gateway::execute(args).await?,
         Commands::SwitchGateway(args) => switch_gateway::execute(args).await?,
-        Commands::ShowTicketbooks(args) => show_ticketbooks::execute(args).await?,
         Commands::BuildInfo(m) => build_info::execute(m),
         Commands::Completions(s) => s.generate(&mut Cli::command(), bin_name),
         Commands::GenerateFigSpec => fig_generate(&mut Cli::command(), bin_name),

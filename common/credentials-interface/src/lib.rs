@@ -28,7 +28,7 @@ pub use nym_compact_ecash::{
     withdrawal_request, Base58, BlindedSignature, Bytable, EncodedDate, EncodedTicketType,
     PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
-use nym_ecash_time::{ecash_today, EcashTime};
+pub use nym_ecash_time::{ecash_today, EcashTime};
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {
@@ -221,20 +221,11 @@ impl From<PayInfo> for NymPayInfo {
 }
 
 #[derive(
-    Default,
-    Copy,
-    Clone,
-    Debug,
-    PartialEq,
-    Serialize,
-    Deserialize,
-    strum::Display,
-    strum::EnumString,
+    Copy, Clone, Debug, PartialEq, Serialize, Deserialize, strum::Display, strum::EnumString,
 )]
 #[serde(rename_all = "kebab-case")]
 #[strum(serialize_all = "kebab-case")]
 pub enum TicketType {
-    #[default]
     V1MixnetEntry,
     V1MixnetExit,
     V1WireguardEntry,
@@ -326,5 +317,26 @@ impl Default for AvailableBandwidth {
             bytes: 0,
             expiration: OffsetDateTime::UNIX_EPOCH,
         }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub struct Bandwidth {
+    value: u64,
+}
+
+impl Bandwidth {
+    pub const fn new_unchecked(value: u64) -> Bandwidth {
+        Bandwidth { value }
+    }
+
+    pub fn ticket_amount(typ: TicketTypeRepr) -> Self {
+        Bandwidth {
+            value: typ.bandwidth_value(),
+        }
+    }
+
+    pub fn value(&self) -> u64 {
+        self.value
     }
 }

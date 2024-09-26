@@ -545,7 +545,6 @@ pub fn migrate(
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    crate::queued_migrations::vesting_purge(deps.branch())?;
     crate::queued_migrations::explicit_contract_admin(deps.branch())?;
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address

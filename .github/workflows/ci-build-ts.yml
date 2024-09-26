@@ -5,17 +5,18 @@ on:
     paths:
       - "ts-packages/**"
       - "sdk/typescript/**"
+      - ".github/workflows/ci-build-ts.yml"
 
 jobs:
   build:
     runs-on: ubuntu-20.04-16-core
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Install rsync
       run: sudo apt-get install rsync
       continue-on-error: true
     - uses: rlespinasse/github-slug-action@v3.x
-    - uses: actions/setup-node@v3
+    - uses: actions/setup-node@v4
       with:
         node-version: 18
     - name: Setup yarn

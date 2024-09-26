@@ -34,7 +34,7 @@ nym-tun = { path = "../../common/tun" }
 nym-types = { path = "../../common/types" }
 nym-wireguard = { path = "../../common/wireguard" }
 nym-wireguard-types = { path = "../../common/wireguard-types" }
-rand = "0.8.5"
+rand = { workspace = true }
 reqwest.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
@@ -46,4 +46,4 @@ tokio-util = { workspace = true, features = ["codec"] }
 url.workspace = true
 
 [target.'cfg(target_os = "linux")'.dependencies]
-tokio-tun = "0.11.2"
+tokio-tun = "0.11.5"

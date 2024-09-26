@@ -31,19 +31,20 @@ on:
       - "service-providers/**"
       - "tools/**"
       - "nymvisor/**"
+      - ".github/workflows/ci-build-upload-binaries.yml"
 
 jobs:
   publish-nym:
     strategy:
       fail-fast: false
       matrix:
-        platform: [ ubuntu-20.04 ]
+        platform: [ arc-ubuntu-20.04 ]
 
     runs-on: ${{ matrix.platform }}
     env:
       CARGO_TERM_COLOR: always
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Prepare build output directory
         shell: bash
@@ -55,7 +56,7 @@ jobs:
           echo $OUTPUT_DIR
 
       - name: Install Dependencies (Linux)
-        run: sudo apt update && sudo apt install libudev-dev
+        run: sudo apt-get update && sudo apt-get -y install libudev-dev
 
       - name: Sets env vars for tokio if set in manual dispatch inputs
         run: |

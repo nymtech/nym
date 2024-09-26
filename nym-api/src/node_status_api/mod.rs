@@ -15,10 +15,14 @@ use rocket_okapi::{openapi_get_routes_spec, settings::OpenApiSettings};
 use std::time::Duration;
 
 pub(crate) mod cache;
+#[cfg(feature = "axum")]
+pub(crate) mod handlers;
+#[cfg(feature = "axum")]
 pub(crate) mod helpers;
+pub(crate) mod helpers_deprecated;
 pub(crate) mod models;
 pub(crate) mod reward_estimate;
-pub(crate) mod routes;
+pub(crate) mod routes_deprecated;
 pub(crate) mod uptime_updater;
 pub(crate) mod utils;
 
@@ -32,40 +36,42 @@ pub(crate) fn node_status_routes(
 ) -> (Vec<Route>, OpenApi) {
     if enabled {
         openapi_get_routes_spec![
-            settings: routes::gateway_report,
-            routes::gateway_uptime_history,
-            routes::gateway_core_status_count,
-            routes::mixnode_report,
-            routes::mixnode_uptime_history,
-            routes::mixnode_core_status_count,
-            routes::get_mixnode_status,
-            routes::get_mixnode_reward_estimation,
-            routes::compute_mixnode_reward_estimation,
-            routes::get_mixnode_stake_saturation,
-            routes::get_mixnode_inclusion_probability,
-            routes::get_mixnode_avg_uptime,
-            routes::get_gateway_avg_uptime,
-            routes::get_mixnode_inclusion_probabilities,
-            routes::get_mixnodes_detailed,
-            routes::get_mixnodes_detailed_unfiltered,
-            routes::get_rewarded_set_detailed,
-            routes::get_active_set_detailed,
-            routes::get_gateways_detailed,
-            routes::get_gateways_detailed_unfiltered,
-            routes::unstable::mixnode_test_results,
-            routes::unstable::gateway_test_results,
+            settings: routes_deprecated::gateway_report,
+            routes_deprecated::gateway_uptime_history,
+            routes_deprecated::gateway_core_status_count,
+            routes_deprecated::mixnode_report,
+            routes_deprecated::mixnode_uptime_history,
+            routes_deprecated::mixnode_core_status_count,
+            routes_deprecated::get_mixnode_status,
+            routes_deprecated::get_mixnode_reward_estimation,
+            routes_deprecated::compute_mixnode_reward_estimation,
+            routes_deprecated::get_mixnode_stake_saturation,
+            routes_deprecated::get_mixnode_inclusion_probability,
+            routes_deprecated::get_mixnode_avg_uptime,
+            routes_deprecated::get_gateway_avg_uptime,
+            routes_deprecated::get_mixnode_inclusion_probabilities,
+            routes_deprecated::get_mixnodes_detailed,
+            routes_deprecated::get_mixnodes_detailed_unfiltered,
+            routes_deprecated::get_rewarded_set_detailed,
+            routes_deprecated::get_active_set_detailed,
+            routes_deprecated::get_gateways_detailed,
+            routes_deprecated::get_gateways_detailed_unfiltered,
+            routes_deprecated::unstable::mixnode_test_results,
+            routes_deprecated::unstable::gateway_test_results,
+            routes_deprecated::submit_gateway_monitoring_results,
+            routes_deprecated::submit_node_monitoring_results,
         ]
     } else {
         // in the minimal variant we would not have access to endpoints relying on existence
         // of the network monitor and the associated storage
         openapi_get_routes_spec![
-            settings: routes::get_mixnode_status,
-            routes::get_mixnode_stake_saturation,
-            routes::get_mixnode_inclusion_probability,
-            routes::get_mixnode_inclusion_probabilities,
-            routes::get_mixnodes_detailed,
-            routes::get_rewarded_set_detailed,
-            routes::get_active_set_detailed,
+            settings: routes_deprecated::get_mixnode_status,
+            routes_deprecated::get_mixnode_stake_saturation,
+            routes_deprecated::get_mixnode_inclusion_probability,
+            routes_deprecated::get_mixnode_inclusion_probabilities,
+            routes_deprecated::get_mixnodes_detailed,
+            routes_deprecated::get_rewarded_set_detailed,
+            routes_deprecated::get_active_set_detailed,
         ]
     }
 }
@@ -78,7 +84,7 @@ pub(crate) fn start_cache_refresh(
     config: &config::NodeStatusAPI,
     nym_contract_cache_state: &NymContractCache,
     node_status_cache_state: &NodeStatusCache,
-    storage: Option<&storage::NymApiStorage>,
+    storage: storage::NymApiStorage,
     nym_contract_cache_listener: tokio::sync::watch::Receiver<support::caching::CacheNotification>,
     shutdown: &TaskManager,
 ) {
@@ -87,7 +93,7 @@ pub(crate) fn start_cache_refresh(
         config.debug.caching_interval,
         nym_contract_cache_state.to_owned(),
         nym_contract_cache_listener,
-        storage.cloned(),
+        storage,
     );
     let shutdown_listener = shutdown.subscribe();
     tokio::spawn(async move { nym_api_cache_refresher.run(shutdown_listener).await });

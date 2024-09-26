@@ -641,7 +641,7 @@ impl NymNode {
         let wireguard = if self.config.wireguard.enabled {
             Some(api_requests::v1::gateway::models::Wireguard {
                 port: self.config.wireguard.announced_port,
-                public_key: "placeholder key value".to_string(),
+                public_key: self.wireguard.inner.keypair().public_key().to_string(),
             })
         } else {
             None

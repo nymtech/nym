@@ -5,17 +5,18 @@ on:
     paths:
       - "sdk/typescript/**"
       - "wasm/**"
+      - '.github/workflows/ci-sdk-docs-typescript.yml'
 
 jobs:
   build:
     runs-on: custom-linux
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
       - name: Install rsync
         run: sudo apt-get install rsync
         continue-on-error: true
       - uses: rlespinasse/github-slug-action@v3.x
-      - uses: actions/setup-node@v3
+      - uses: actions/setup-node@v4
         with:
           node-version: 18.17
       - name: Install Rust stable
@@ -26,7 +27,7 @@ jobs:
         run: npm install -g yarn
 
       - name: Set up Go
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: '1.20'
 

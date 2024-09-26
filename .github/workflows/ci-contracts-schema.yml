@@ -6,16 +6,17 @@ on:
     paths:
       - 'contracts/**'
       - 'common/**'
+      - '.github/workflows/ci-contracts-schema.yml'
 
 jobs:
   check-schema:
     name: Generate and check schema
-    runs-on: custom-linux
+    runs-on: arc-ubuntu-20.04
     env:
       CARGO_TERM_COLOR: always
     steps:
       - name: Check out repository code
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Install Rust toolchain
         uses: actions-rs/toolchain@v1

@@ -1,0 +1,18 @@
+#!/bin/bash
+
+# Path to the repository list file
+REPO_LIST_FILE="/etc/apt/sources.list.d/nymtech.list"
+
+# Check if the repository list file already exists
+if [ -f "$REPO_LIST_FILE" ]; then
+    # Generate a backup file name with a timestamp
+    TIMESTAMP=$(date +%Y%m%d%H%M%S)
+    BACKUP_FILE="/etc/apt/sources.list.d/nymtech.list.${TIMESTAMP}.bak"
+
+    # Rename the existing list file to the backup file
+    echo "Backing up existing nymtech.list to $BACKUP_FILE"
+    mv "$REPO_LIST_FILE" "$BACKUP_FILE"
+fi
+
+# Continue with the installation
+exit 0

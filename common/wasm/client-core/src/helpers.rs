@@ -106,7 +106,6 @@ pub async fn setup_gateway_wasm(
         GatewaySetup::New {
             specification: selection_spec,
             available_gateways: gateways.to_vec(),
-            wg_tun_address: None,
         }
     };
 

@@ -10,6 +10,7 @@ use std::fmt::Display;
 /// Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.
 #[cw_serde]
 #[derive(PartialOrd)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct Gateway {
     /// Network address of this gateway, for example 1.1.1.1 or foo.gateway.com
     pub host: String,
@@ -25,9 +26,11 @@ pub struct Gateway {
     pub location: String,
 
     /// Base58-encoded x25519 public key used for sphinx key derivation.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub sphinx_key: SphinxKey,
 
     /// Base58 encoded ed25519 EdDSA public key of the gateway used to derive shared keys with clients
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub identity_key: IdentityKey,
 
     /// The self-reported semver version of this gateway.
@@ -36,6 +39,7 @@ pub struct Gateway {
 
 /// Basic gateway information provided by the node operator.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct GatewayBond {
     /// Original amount pledged by the operator of this node.
     pub pledge_amount: Coin,

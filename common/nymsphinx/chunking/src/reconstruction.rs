@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 use crate::fragment::Fragment;
-use crate::ChunkingError;
+use crate::{fragment_received, ChunkingError};
 use log::*;
 use std::collections::HashMap;
 
@@ -66,6 +66,12 @@ impl ReconstructionBuffer {
         // if the set is complete.
         debug_assert!(self.is_complete);
 
+        debug!(
+            "Got {} fragments for set id {}",
+            self.fragments.len(),
+            self.fragments[0].as_ref().unwrap().id()
+        );
+
         self.fragments
             .into_iter()
             .map(|fragment| fragment.unwrap().extract_payload())
@@ -103,6 +109,8 @@ impl ReconstructionBuffer {
                 true
             }
         });
+
+        fragment_received(&fragment);
 
         let fragment_index = fragment.current_fragment() as usize - 1;
         if self.fragments[fragment_index].is_some() {

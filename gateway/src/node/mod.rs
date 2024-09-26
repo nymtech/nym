@@ -12,10 +12,12 @@ use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::client_handling::websocket::connection_handler::ecash::EcashManager;
 use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use futures::channel::{mpsc, oneshot};
+use nym_credential_verification::ecash::{
+    credential_sender::CredentialHandlerConfig, EcashManager,
+};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
@@ -35,7 +37,6 @@ pub(crate) mod client_handling;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
 
-use crate::node::client_handling::websocket::connection_handler::ecash::credential_sender::CredentialHandlerConfig;
 pub use nym_gateway_storage::{PersistentStorage, Storage};
 
 // TODO: should this struct live here?
@@ -262,12 +263,29 @@ impl<St> Gateway<St> {
             forwarding_channel,
             router_tx,
         );
+        let all_peers = self.storage.get_all_wireguard_peers().await?;
+        let used_private_network_ips = all_peers
+            .iter()
+            .cloned()
+            .map(|wireguard_peer| {
+                defguard_wireguard_rs::host::Peer::try_from(wireguard_peer).map(|mut peer| {
+                    peer.allowed_ips
+                        .pop()
+                        .ok_or(Box::new(GatewayError::InternalWireguardError(format!(
+                            "no private IP set for peer {}",
+                            peer.public_key
+                        ))))
+                        .map(|p| p.ip)
+                })
+            })
+            .collect::<Result<Result<Vec<_>, _>, _>>()??;
 
         if let Some(wireguard_data) = self.wireguard_data.take() {
             let (on_start_tx, on_start_rx) = oneshot::channel();
             let mut authenticator_server = nym_authenticator::Authenticator::new(
                 opts.config.clone(),
                 wireguard_data.inner.clone(),
+                used_private_network_ips,
                 peer_response_rx,
             )
             .with_custom_gateway_transceiver(Box::new(transceiver))
@@ -301,6 +319,7 @@ impl<St> Gateway<St> {
 
             let wg_api = nym_wireguard::start_wireguard(
                 self.storage.clone(),
+                all_peers,
                 shutdown,
                 wireguard_data,
                 peer_response_tx,
@@ -597,16 +616,14 @@ impl<St> Gateway<St> {
                 .maximum_time_between_redemption,
         };
 
-        let ecash_manager = {
-            EcashManager::new(
-                handler_config,
-                nyxd_client,
-                self.identity_keypair.public_key().to_bytes(),
-                shutdown.fork("EcashVerifier"),
-                self.storage.clone(),
-            )
-            .await
-        }?;
+        let ecash_manager = EcashManager::new(
+            handler_config,
+            nyxd_client,
+            self.identity_keypair.public_key().to_bytes(),
+            shutdown.fork("EcashVerifier"),
+            self.storage.clone(),
+        )
+        .await?;
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.fork("PacketForwarder"));
 

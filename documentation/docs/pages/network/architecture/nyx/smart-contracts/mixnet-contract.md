@@ -2,7 +2,7 @@
 
 The Mixnet smart contract is a core piece of the Nym system, functioning as the mixnet directory and keeping track of delegations and rewards: the core functionality required by an incentivised mixnet.  You can find the code and build instructions [here](https://github.com/nymtech/nym/tree/master/contracts/mixnet).
 
-> Having a smart contract act as a decentralised topology directory for clients connecting to the Mixnet allows us to mitigate several possible attacks which systems relying on P2P networking are susceptible to TODO LINK TO WHY NOT P2P PAGE
+> Having a smart contract act as a decentralised topology directory for clients connecting to the Mixnet allows us to mitigate several possible attacks which systems relying on P2P networking are susceptible to. See [Why Nym is not P2P](../../nym-not-p2p).
 
 Functionality
 The Mixnet contract has multiple functions:

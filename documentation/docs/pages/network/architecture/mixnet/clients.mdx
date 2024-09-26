@@ -8,17 +8,9 @@ Clients perform the following actions on behalf of users:
 * Register with a gateway
 * Authenticate with a gateway
 * Receive and decrypt messages from the gateway
-* Create layer-encrypted Sphinx packets TODO LINK
+* Create layer-encrypted [Sphinx packets](../cryptography/sphinx)
 * Send Sphinx packets with real messages
-* Send Sphinx packet _cover traffic_ when no real messages are being sent TODO LINK
-* Retransmit un-acknowledged packet sends TODO LINK
+* Send Sphinx packet [cover traffic](../concepts/cover-traffic) when no real messages are being sent
+* Retransmit [un-acknowledged packet sends](../traffic/acks)
 
-> At the moment due to the fact that Nym clients are message-based LINK, using the Mixnet requires another client on the 'other side' of the mixet to send packets to, unless you're using the `nymvpn` client (part of the NymVPN app) or the `socks5` client, which operates as a SOCKS4,4a, or 5 proxy and is able to utilise the client embedded within the `nym-node`'s Exit Gateway functionality (prev. this functionality was a standalone service, the Network Requester). In the future we wish to remove this point of friction and have all Nym clients construct IP packets instead, easing the integration burden and abstracting away the message-based nature of client communication.
-
-TODO breakdown of client path:
-- startup
-- gateway connection
-  - what keys what auth format etc
-- auth
-- message sending
-- poisson process
+> At the moment due to the fact that Nym clients are [message-based](../../../developers/concepts/messages), using the Mixnet requires another client on the 'other side' of the mixet to send packets to, unless you're using the `nymvpn` client (part of the NymVPN app) or the `socks5` client, which operates as a SOCKS4,4a, or 5 proxy and is able to utilise the client embedded within the `nym-node`'s Exit Gateway functionality (prev. this functionality was a standalone service, the Network Requester). In the future we wish to remove this point of friction and have all Nym clients construct IP packets instead, easing the integration burden and abstracting away the message-based nature of client communication.

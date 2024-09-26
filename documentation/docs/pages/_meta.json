@@ -1,4 +1,7 @@
 {
+  "index": {
+    "display": "hidden"
+  },
   "network": {
     "title": "Network",
     "type": "page"

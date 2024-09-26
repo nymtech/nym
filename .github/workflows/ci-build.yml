@@ -16,6 +16,7 @@ on:
       - 'nym-api/**'
       - 'nym-node/**'
       - 'nym-outfox/**'
+      - 'nym-data-observatory/**'
       - 'nym-validator-rewarder/**'
       - 'tools/**'
       - 'wasm/**'

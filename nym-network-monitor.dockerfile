@@ -9,6 +9,6 @@ EXPOSE 8089
 COPY --from=builder /usr/src/nym/target/release/nym-network-monitor /bin/nym-network-monitor
 COPY --from=builder /usr/src/nym/nym-network-monitor/locustfile.py locustfile.py
 COPY --from=builder /usr/src/nym/nym-network-monitor/entrypoint.sh entrypoint.sh
-COPY --from=builder /usr/src/nym/envs/mainnet.env mainnet.env
+COPY --from=builder /usr/src/nym/envs envs
 
 ENTRYPOINT ["./entrypoint.sh"]

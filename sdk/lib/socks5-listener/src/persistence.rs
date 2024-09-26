@@ -22,8 +22,18 @@ impl MixnetClientStorage for MobileClientStorage {
     type CredentialStore = EphemeralCredentialStorage;
     type GatewaysDetailsStore = InMemGatewaysDetails;
 
-    fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
-        (self.reply_store, self.credential_store)
+    fn into_runtime_stores(
+        self,
+    ) -> (
+        Self::ReplyStore,
+        Self::CredentialStore,
+        Self::GatewaysDetailsStore,
+    ) {
+        (
+            self.reply_store,
+            self.credential_store,
+            self.gateway_details_store,
+        )
     }
 
     fn key_store(&self) -> &Self::KeyStore {

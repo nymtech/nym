@@ -14,11 +14,14 @@ pub enum AuthenticatorError {
     #[error("failed to validate the loaded config")]
     ConfigValidationFailure,
 
+    #[error("{0}")]
+    CredentialVerificationError(#[from] nym_credential_verification::Error),
+
     #[error("the entity wrapping the network requester has disconnected")]
     DisconnectedParent,
 
-    #[error("received empty packet")]
-    EmptyPacket,
+    #[error("received too short packet")]
+    ShortPacket,
 
     #[error("failed local version check, client and config mismatch")]
     FailedLocalVersionCheck,
@@ -41,8 +44,14 @@ pub enum AuthenticatorError {
     #[error("failed to setup mixnet client: {source}")]
     FailedToSetupMixnetClient { source: nym_sdk::Error },
 
+    #[error("{0}")]
+    GatewayStorageError(#[from] nym_gateway_storage::error::StorageError),
+
     #[error("internal error: {0}")]
     InternalError(String),
+
+    #[error("received packet has an invalid type: {0}")]
+    InvalidPacketType(u8),
 
     #[error("received packet has an invalid version: {0}")]
     InvalidPacketVersion(u8),

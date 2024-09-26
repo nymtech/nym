@@ -1,0 +1,79 @@
+{
+  "db": "PostgreSQL",
+  "249faa11b88b749f50342bb5c9cc41d20896db543eed74a6f320c041bcbb723d": {
+    "describe": {
+      "columns": [],
+      "nullable": [],
+      "parameters": {
+        "Left": [
+          "Varchar",
+          "Text",
+          "Int4"
+        ]
+      }
+    },
+    "query": "INSERT INTO responses\n                (joke_id, joke, date_created)\n                VALUES\n                ($1, $2, $3)\n            ON CONFLICT(joke_id) DO UPDATE SET\n            joke=excluded.joke,\n            date_created=excluded.date_created;"
+  },
+  "aff7fbd06728004d2f2226d20c32f1482df00de2dc1d2b4debbb2e12553d997b": {
+    "describe": {
+      "columns": [
+        {
+          "name": "joke_id",
+          "ordinal": 0,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "joke",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "date_created",
+          "ordinal": 2,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": [
+          "Text"
+        ]
+      }
+    },
+    "query": "SELECT joke_id, joke, date_created FROM responses WHERE joke_id = $1"
+  },
+  "e53f479f8cead3dc8aa1875e5d450ad69686cf6a109e37d6c3f0623c3e9f91d0": {
+    "describe": {
+      "columns": [
+        {
+          "name": "joke_id",
+          "ordinal": 0,
+          "type_info": "Varchar"
+        },
+        {
+          "name": "joke",
+          "ordinal": 1,
+          "type_info": "Text"
+        },
+        {
+          "name": "date_created",
+          "ordinal": 2,
+          "type_info": "Int4"
+        }
+      ],
+      "nullable": [
+        false,
+        false,
+        false
+      ],
+      "parameters": {
+        "Left": []
+      }
+    },
+    "query": "SELECT joke_id, joke, date_created FROM responses"
+  }
+}

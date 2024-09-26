@@ -3,16 +3,49 @@
 
 use crate::error::StorageError;
 use nym_credentials_interface::{AvailableBandwidth, ClientTicket, CredentialSpendingData};
+use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
 use sqlx::FromRow;
 use time::OffsetDateTime;
 
+pub struct Client {
+    pub id: i64,
+    pub client_type: crate::clients::ClientType,
+}
+
+#[derive(FromRow)]
 pub struct PersistedSharedKeys {
     #[allow(dead_code)]
-    pub id: i64,
+    pub client_id: i64,
 
     #[allow(dead_code)]
     pub client_address_bs58: String,
-    pub derived_aes128_ctr_blake3_hmac_keys_bs58: String,
+    pub derived_aes128_ctr_blake3_hmac_keys_bs58: Option<String>,
+    pub derived_aes256_gcm_siv_key: Option<Vec<u8>>,
+}
+
+impl TryFrom<PersistedSharedKeys> for SharedGatewayKey {
+    type Error = StorageError;
+
+    fn try_from(value: PersistedSharedKeys) -> Result<Self, Self::Error> {
+        match (
+            &value.derived_aes256_gcm_siv_key,
+            &value.derived_aes128_ctr_blake3_hmac_keys_bs58,
+        ) {
+            (None, None) => Err(StorageError::MissingSharedKey {
+                id: value.client_id,
+            }),
+            (Some(aes256gcm_siv), _) => {
+                let current_key = SharedSymmetricKey::try_from_bytes(aes256gcm_siv)
+                    .map_err(|source| StorageError::DataCorruption(source.to_string()))?;
+                Ok(SharedGatewayKey::Current(current_key))
+            }
+            (None, Some(aes128ctr_hmac)) => {
+                let legacy_key = LegacySharedKeys::try_from_base58_string(aes128ctr_hmac)
+                    .map_err(|source| StorageError::DataCorruption(source.to_string()))?;
+                Ok(SharedGatewayKey::Legacy(legacy_key))
+            }
+        }
+    }
 }
 
 pub struct StoredMessage {
@@ -83,7 +116,7 @@ pub struct WireguardPeer {
     pub rx_bytes: i64,
     pub persistent_keepalive_interval: Option<i64>,
     pub allowed_ips: Vec<u8>,
-    pub suspended: bool,
+    pub client_id: Option<i64>,
 }
 
 impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
@@ -113,7 +146,7 @@ impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
                 &value.allowed_ips,
             )
             .unwrap_or_default(),
-            suspended: false,
+            client_id: None,
         }
     }
 }

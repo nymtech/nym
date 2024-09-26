@@ -10,6 +10,8 @@ use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use std::ops::Deref;
 use zeroize::Zeroizing;
 
+/// Represents a client that can be used to acquire bandwidth.
+///
 /// Represents a client that can be used to acquire bandwidth. You typically create one when you
 /// want to connect to the mixnet using paid coconut bandwidth credentials.
 /// The way to create this client is by calling

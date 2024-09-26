@@ -1,9 +1,10 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::Error;
-use crate::PeerPublicKey;
 use base64::{engine::general_purpose, Engine};
+use nym_credentials_interface::CredentialSpendingData;
+use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::IpAddr;
@@ -29,30 +30,24 @@ pub type Taken = Option<SystemTime>;
 pub const BANDWIDTH_CAP_PER_DAY: u64 = 1024 * 1024 * 1024; // 1 GB
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(tag = "type", rename_all = "camelCase")]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-pub enum ClientMessage {
-    Initial(InitMessage),
-    Final(GatewayClient),
-    Query(PeerPublicKey),
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct InitMessage {
     /// Base64 encoded x25519 public key
-    #[cfg_attr(feature = "openapi", schema(value_type = String, format = Byte))]
     pub pub_key: PeerPublicKey,
 }
 
 impl InitMessage {
-    pub fn pub_key(&self) -> PeerPublicKey {
-        self.pub_key
-    }
-
     pub fn new(pub_key: PeerPublicKey) -> Self {
         InitMessage { pub_key }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct FinalMessage {
+    /// Gateway client data
+    pub gateway_client: GatewayClient,
+
+    /// Ecash credential
+    pub credential: Option<CredentialSpendingData>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -72,23 +67,19 @@ pub struct RegistredData {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct RemainingBandwidthData {
     pub available_bandwidth: u64,
-    pub suspended: bool,
 }
 
 /// Client that wants to register sends its PublicKey bytes mac digest encrypted with a DH shared secret.
 /// Gateway/Nym node can then verify pub_key payload using the same process
 #[derive(Serialize, Deserialize, Debug, Clone)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct GatewayClient {
     /// Base64 encoded x25519 public key
-    #[cfg_attr(feature = "openapi", schema(value_type = String, format = Byte))]
     pub pub_key: PeerPublicKey,
 
     /// Assigned private IP
     pub private_ip: IpAddr,
 
     /// Sha256 hmac on the data (alongside the prior nonce)
-    #[cfg_attr(feature = "openapi", schema(value_type = String, format = Byte))]
     pub mac: ClientMac,
 }
 

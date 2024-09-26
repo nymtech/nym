@@ -42,7 +42,7 @@ nym-crypto = { path = "../crypto", version = "0.4.0", features = [
 path = "framing"
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
-version = "1.39.3"
+workspace = true
 features = ["sync"]
 
 [features]

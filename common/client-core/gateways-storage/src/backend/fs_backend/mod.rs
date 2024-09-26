@@ -7,7 +7,8 @@ use crate::{
 };
 use async_trait::async_trait;
 use manager::StorageManager;
-use nym_crypto::asymmetric::identity::PublicKey;
+use nym_crypto::asymmetric::ed25519;
+use nym_gateway_requests::SharedSymmetricKey;
 use std::path::Path;
 
 pub mod error;
@@ -67,7 +68,7 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
         Ok(registered)
     }
 
-    async fn all_gateways_identities(&self) -> Result<Vec<PublicKey>, Self::StorageError> {
+    async fn all_gateways_identities(&self) -> Result<Vec<ed25519::PublicKey>, Self::StorageError> {
         Ok(self
             .manager
             .registered_gateways()
@@ -129,6 +130,21 @@ impl GatewaysDetailsStore for OnDiskGatewaysDetails {
                     .await?;
             }
         }
+        Ok(())
+    }
+
+    async fn upgrade_stored_remote_gateway_key(
+        &self,
+        gateway_id: ed25519::PublicKey,
+        updated_key: &SharedSymmetricKey,
+    ) -> Result<(), Self::StorageError> {
+        self.manager
+            .update_remote_gateway_key(
+                &gateway_id.to_base58_string(),
+                None,
+                Some(updated_key.as_bytes()),
+            )
+            .await?;
         Ok(())
     }
 

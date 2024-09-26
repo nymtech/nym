@@ -32,7 +32,7 @@ pub const NYXD_URL: &str = "https://rpc.nymtech.net";
 pub const NYM_API: &str = "https://validator.nymtech.net/api/";
 pub const NYXD_WS: &str = "wss://rpc.nymtech.net/websocket";
 pub const EXPLORER_API: &str = "https://explorer.nymtech.net/api/";
-pub const NYM_VPN_API: &str = "https://nymvpn.net/api/";
+pub const NYM_VPN_API: &str = "https://nymvpn.com/api/";
 
 // I'm making clippy mad on purpose, because that url HAS TO be updated and deployed before merging
 pub const EXIT_POLICY_URL: &str =

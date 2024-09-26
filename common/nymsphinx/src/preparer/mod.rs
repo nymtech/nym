@@ -302,6 +302,8 @@ pub trait FragmentPreparer {
     }
 }
 
+/// Prepares the message that is to be sent through the mix network.
+///
 /// Prepares the message that is to be sent through the mix network by attaching
 /// an optional reply-SURB, padding it to appropriate length, encrypting its content,
 /// and chunking into appropriate size [`Fragment`]s.

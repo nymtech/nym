@@ -13,7 +13,7 @@ bs58 = { workspace = true }
 serde = { workspace = true }
 thiserror = { workspace = true }
 
-nym-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
+nym-crypto = { path = "../../crypto", features = ["stream_cipher", "rand"] }
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }
 nym-sphinx-routing = { path = "../routing" }

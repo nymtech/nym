@@ -86,9 +86,9 @@ impl ClientBandwidth {
         let remaining_bi2 = bibytes2(remaining as f64);
 
         if remaining < 0 {
-            log::warn!("OUT OF BANDWIDTH. remaining: {remaining_bi2}");
+            tracing::warn!("OUT OF BANDWIDTH. remaining: {remaining_bi2}");
         } else {
-            log::info!("remaining bandwidth: {remaining_bi2}");
+            tracing::info!("remaining bandwidth: {remaining_bi2}");
         }
 
         self.inner

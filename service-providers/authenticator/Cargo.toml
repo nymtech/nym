@@ -35,11 +35,16 @@ nym-bin-common = { path = "../../common/bin-common", features = [
 ] }
 nym-client-core = { path = "../../common/client-core", features = ["cli"] }
 nym-config = { path = "../../common/config" }
+nym-credentials-interface = { path = "../../common/credentials-interface" }
+nym-credential-verification = { path = "../../common/credential-verification" }
 nym-crypto = { path = "../../common/crypto" }
+nym-gateway-requests = { path = "../../common/gateway-requests" }
+nym-gateway-storage = { path = "../../common/gateway-storage" }
 nym-id = { path = "../../common/nym-id" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sdk = { path = "../../sdk/rust/nym-sdk" }
 nym-service-providers-common = { path = "../common" }
+nym-service-provider-requests-common = { path = "../../common/service-provider-requests-common" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 nym-task = { path = "../../common/task" }
 nym-types = { path = "../../common/types" }

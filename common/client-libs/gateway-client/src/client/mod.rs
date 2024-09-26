@@ -1,5 +1,6 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
+
 use crate::bandwidth::ClientBandwidth;
 use crate::client::config::GatewayClientConfig;
 use crate::error::GatewayClientError;
@@ -11,24 +12,24 @@ use crate::socket_state::{ws_fd, PartiallyDelegatedHandle, SocketState};
 use crate::traits::GatewayPacketRouter;
 use crate::{cleanup_socket_message, try_decrypt_binary_message};
 use futures::{SinkExt, StreamExt};
-use log::*;
 use nym_bandwidth_controller::{BandwidthController, BandwidthStatusMessage};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_credentials::CredentialSpendingData;
 use nym_crypto::asymmetric::identity;
-use nym_gateway_requests::authentication::encrypted_address::EncryptedAddressBytes;
-use nym_gateway_requests::iv::IV;
-use nym_gateway_requests::registration::handshake::{client_handshake, SharedKeys};
+use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
-    BinaryRequest, ClientControlRequest, ServerResponse, CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION,
-    CURRENT_PROTOCOL_VERSION,
+    BinaryRequest, ClientControlRequest, ClientRequest, SensitiveServerResponse, ServerResponse,
+    SharedGatewayKey, SharedSymmetricKey, AES_GCM_SIV_PROTOCOL_VERSION,
+    CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
 use std::sync::Arc;
+use tracing::instrument;
+use tracing::*;
 use tungstenite::protocol::Message;
 use url::Url;
 
@@ -45,6 +46,7 @@ use std::os::raw::c_int as RawFd;
 use wasm_utils::websocket::JSWebsocket;
 #[cfg(target_arch = "wasm32")]
 use wasmtimer::tokio::sleep;
+use zeroize::Zeroizing;
 
 pub mod config;
 
@@ -71,6 +73,13 @@ impl GatewayConfig {
     }
 }
 
+#[must_use]
+#[derive(Debug)]
+pub struct AuthenticationResponse {
+    pub initial_shared_key: Arc<SharedGatewayKey>,
+    pub requires_key_upgrade: bool,
+}
+
 // TODO: this should be refactored into a state machine that keeps track of its authentication state
 pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     pub cfg: GatewayClientConfig,
@@ -80,7 +89,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     gateway_address: String,
     gateway_identity: identity::PublicKey,
     local_identity: Arc<identity::KeyPair>,
-    shared_key: Option<Arc<SharedKeys>>,
+    shared_key: Option<Arc<SharedGatewayKey>>,
     connection: SocketState,
     packet_router: PacketRouter,
     bandwidth_controller: Option<BandwidthController<C, St>>,
@@ -98,7 +107,7 @@ impl<C, St> GatewayClient<C, St> {
         gateway_config: GatewayConfig,
         local_identity: Arc<identity::KeyPair>,
         // TODO: make it mandatory. if you don't want to pass it, use `new_init`
-        shared_key: Option<Arc<SharedKeys>>,
+        shared_key: Option<Arc<SharedGatewayKey>>,
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         task_client: TaskClient,
@@ -293,7 +302,7 @@ impl<C, St> GatewayClient<C, St> {
     // as we need to be able to write the request and read the subsequent response
     async fn send_websocket_message(
         &mut self,
-        msg: Message,
+        msg: impl Into<Message>,
     ) -> Result<ServerResponse, GatewayClientError> {
         let should_restart_mixnet_listener = if self.connection.is_partially_delegated() {
             self.recover_socket_connection().await?;
@@ -307,7 +316,7 @@ impl<C, St> GatewayClient<C, St> {
             SocketState::NotConnected => return Err(GatewayClientError::ConnectionNotEstablished),
             _ => return Err(GatewayClientError::ConnectionInInvalidState),
         };
-        conn.send(msg).await?;
+        conn.send(msg.into()).await?;
         let response = self.read_control_response().await;
 
         if should_restart_mixnet_listener {
@@ -398,13 +407,19 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
-    async fn register(&mut self) -> Result<(), GatewayClientError> {
+    async fn register(
+        &mut self,
+        derive_aes256_gcm_siv_key: bool,
+    ) -> Result<(), GatewayClientError> {
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
 
         debug_assert!(self.connection.is_available());
-        log::debug!("Registering gateway");
+        log::debug!(
+            "registering with gateway. using legacy key derivation: {}",
+            !derive_aes256_gcm_siv_key
+        );
 
         // it's fine to instantiate it here as it's only used once (during authentication or registration)
         // and putting it into the GatewayClient struct would be a hassle
@@ -417,13 +432,15 @@ impl<C, St> GatewayClient<C, St> {
                 self.local_identity.as_ref(),
                 self.gateway_identity,
                 self.cfg.bandwidth.require_tickets,
+                derive_aes256_gcm_siv_key,
                 #[cfg(not(target_arch = "wasm32"))]
                 self.task_client.clone(),
             )
             .await
             .map_err(GatewayClientError::RegistrationFailure),
-            _ => unreachable!(),
+            _ => return Err(GatewayClientError::ConnectionInInvalidState),
         }?;
+
         let (authentication_status, gateway_protocol) = match self.read_control_response().await? {
             ServerResponse::Register {
                 protocol_version,
@@ -432,7 +449,7 @@ impl<C, St> GatewayClient<C, St> {
             ServerResponse::Error { message } => {
                 return Err(GatewayClientError::GatewayError(message))
             }
-            _ => return Err(GatewayClientError::UnexpectedResponse),
+            other => return Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         };
 
         self.check_gateway_protocol(gateway_protocol)?;
@@ -448,41 +465,93 @@ impl<C, St> GatewayClient<C, St> {
         Ok(())
     }
 
-    async fn authenticate(
+    pub async fn upgrade_key_authenticated(
         &mut self,
-        shared_key: Option<SharedKeys>,
-    ) -> Result<(), GatewayClientError> {
-        if shared_key.is_none() && self.shared_key.is_none() {
-            return Err(GatewayClientError::NoSharedKeyAvailable);
-        }
+    ) -> Result<Zeroizing<SharedSymmetricKey>, GatewayClientError> {
+        info!("*** STARTING AES128CTR-HMAC KEY UPGRADE INTO AES256GCM-SIV***");
+
         if !self.connection.is_established() {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
-        log::debug!("Authenticating with gateway");
 
-        // it's fine to instantiate it here as it's only used once (during authentication or registration)
-        // and putting it into the GatewayClient struct would be a hassle
-        let mut rng = OsRng;
+        if !self.authenticated {
+            return Err(GatewayClientError::NotAuthenticated);
+        }
 
-        // because of the previous check one of the unwraps MUST succeed
-        let shared_key = shared_key
-            .as_ref()
-            .unwrap_or_else(|| self.shared_key.as_ref().unwrap());
-        let iv = IV::new_random(&mut rng);
+        let Some(shared_key) = self.shared_key.as_ref() else {
+            return Err(GatewayClientError::NoSharedKeyAvailable);
+        };
+
+        if !shared_key.is_legacy() {
+            return Err(GatewayClientError::KeyAlreadyUpgraded);
+        }
+
+        // make sure we have the only reference, so we could safely swap it
+        if Arc::strong_count(shared_key) != 1 {
+            return Err(GatewayClientError::KeyAlreadyInUse);
+        }
+
+        assert!(shared_key.is_legacy());
+        let legacy_key = shared_key.unwrap_legacy();
+        let (updated_key, hkdf_salt) = legacy_key.upgrade();
+        let derived_key_digest = updated_key.digest();
+
+        let upgrade_request = ClientRequest::UpgradeKey {
+            hkdf_salt,
+            derived_key_digest,
+        }
+        .encrypt(legacy_key)?;
+
+        info!("sending upgrade request and awaiting the acknowledgement back");
+        let (ciphertext, nonce) = match self.send_websocket_message(upgrade_request).await? {
+            ServerResponse::EncryptedResponse { ciphertext, nonce } => (ciphertext, nonce),
+            ServerResponse::Error { message } => {
+                return Err(GatewayClientError::GatewayError(message))
+            }
+            other => return Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
+        };
+
+        // attempt to decrypt it using NEW key
+        let Ok(response) = SensitiveServerResponse::decrypt(&ciphertext, &nonce, &updated_key)
+        else {
+            return Err(GatewayClientError::FatalKeyUpgradeFailure);
+        };
+
+        match response {
+            SensitiveServerResponse::KeyUpgradeAck { .. } => {
+                info!("received key upgrade acknowledgement")
+            }
+            _ => return Err(GatewayClientError::FatalKeyUpgradeFailure),
+        }
+
+        // perform in memory swap and make a copy for updating storage
+        let zeroizing_updated_key = updated_key.zeroizing_clone();
+        self.shared_key = Some(Arc::new(updated_key.into()));
+
+        Ok(zeroizing_updated_key)
+    }
+
+    async fn authenticate(&mut self) -> Result<(), GatewayClientError> {
+        let Some(shared_key) = self.shared_key.as_ref() else {
+            return Err(GatewayClientError::NoSharedKeyAvailable);
+        };
+
+        if !self.connection.is_established() {
+            return Err(GatewayClientError::ConnectionNotEstablished);
+        }
+        debug!("authenticating with gateway");
+
         let self_address = self
             .local_identity
             .as_ref()
             .public_key()
             .derive_destination_address();
-        let encrypted_address = EncryptedAddressBytes::new(&self_address, shared_key, &iv);
 
         let msg = ClientControlRequest::new_authenticate(
             self_address,
-            encrypted_address,
-            iv,
+            shared_key,
             self.cfg.bandwidth.require_tickets,
-        )
-        .into();
+        )?;
 
         match self.send_websocket_message(msg).await? {
             ServerResponse::Authenticate {
@@ -496,39 +565,101 @@ impl<C, St> GatewayClient<C, St> {
 
                 self.negotiated_protocol = protocol_version;
                 log::debug!("authenticated: {status}, bandwidth remaining: {bandwidth_remaining}");
+
                 self.task_client.send_status_msg(Box::new(
                     BandwidthStatusMessage::RemainingBandwidth(bandwidth_remaining),
                 ));
                 Ok(())
             }
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => Err(GatewayClientError::UnexpectedResponse),
+            other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         }
     }
 
     /// Helper method to either call register or authenticate based on self.shared_key value
+    #[instrument(skip_all,
+        fields(
+            gateway = %self.gateway_identity,
+            gateway_address = %self.gateway_address
+        )
+    )]
     pub async fn perform_initial_authentication(
         &mut self,
-    ) -> Result<Arc<SharedKeys>, GatewayClientError> {
+    ) -> Result<AuthenticationResponse, GatewayClientError> {
+        if !self.connection.is_established() {
+            self.establish_connection().await?;
+        }
+
+        // 1. check gateway's protocol version
+        let supports_aes_gcm_siv = match self.get_gateway_protocol().await {
+            Ok(protocol) => protocol >= AES_GCM_SIV_PROTOCOL_VERSION,
+            Err(_) => {
+                // if we failed to send the request, it means the gateway is running the old binary,
+                // so it has reset our connection - we have to reconnect
+                self.establish_connection().await?;
+                false
+            }
+        };
+
+        if !supports_aes_gcm_siv {
+            warn!("this gateway is on an old version that doesn't support AES256-GCM-SIV");
+        }
+
         if self.authenticated {
             debug!("Already authenticated");
             return if let Some(shared_key) = &self.shared_key {
-                Ok(Arc::clone(shared_key))
+                Ok(AuthenticationResponse {
+                    initial_shared_key: Arc::clone(shared_key),
+                    requires_key_upgrade: shared_key.is_legacy() && supports_aes_gcm_siv,
+                })
             } else {
                 Err(GatewayClientError::AuthenticationFailureWithPreexistingSharedKey)
             };
         }
 
         if self.shared_key.is_some() {
-            self.authenticate(None).await?;
+            self.authenticate().await?;
+
+            if self.authenticated {
+                // if we are authenticated it means we MUST have an associated shared_key
+                let shared_key = self.shared_key.as_ref().unwrap();
+
+                let requires_key_upgrade = shared_key.is_legacy() && supports_aes_gcm_siv;
+
+                Ok(AuthenticationResponse {
+                    initial_shared_key: Arc::clone(shared_key),
+                    requires_key_upgrade,
+                })
+            } else {
+                Err(GatewayClientError::AuthenticationFailure)
+            }
         } else {
-            self.register().await?;
+            self.register(supports_aes_gcm_siv).await?;
+
+            // if registration didn't return an error, we MUST have an associated shared key
+            let shared_key = self.shared_key.as_ref().unwrap();
+
+            // we're always registering with the highest supported protocol,
+            // so no upgrades are required
+            Ok(AuthenticationResponse {
+                initial_shared_key: Arc::clone(shared_key),
+                requires_key_upgrade: false,
+            })
         }
-        if self.authenticated {
-            // if we are authenticated it means we MUST have an associated shared_key
-            Ok(Arc::clone(self.shared_key.as_ref().unwrap()))
-        } else {
-            Err(GatewayClientError::AuthenticationFailure)
+    }
+
+    pub async fn get_gateway_protocol(&mut self) -> Result<u8, GatewayClientError> {
+        if !self.connection.is_established() {
+            return Err(GatewayClientError::ConnectionNotEstablished);
+        }
+
+        match self
+            .send_websocket_message(ClientControlRequest::SupportedProtocol {})
+            .await?
+        {
+            ServerResponse::SupportedProtocol { version } => Ok(version),
+            ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
+            other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         }
     }
 
@@ -536,22 +667,17 @@ impl<C, St> GatewayClient<C, St> {
         &mut self,
         credential: CredentialSpendingData,
     ) -> Result<(), GatewayClientError> {
-        let mut rng = OsRng;
-        let iv = IV::new_random(&mut rng);
-
         let msg = ClientControlRequest::new_enc_ecash_credential(
             credential,
             self.shared_key.as_ref().unwrap(),
-            iv,
-        )
-        .into();
+        )?;
         let bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
             ServerResponse::TypedError { error } => {
                 Err(GatewayClientError::TypedGatewayError(error))
             }
-            _ => Err(GatewayClientError::UnexpectedResponse),
+            other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         }?;
 
         // TODO: create tracing span
@@ -562,11 +688,11 @@ impl<C, St> GatewayClient<C, St> {
     }
 
     async fn try_claim_testnet_bandwidth(&mut self) -> Result<(), GatewayClientError> {
-        let msg = ClientControlRequest::ClaimFreeTestnetBandwidth.into();
+        let msg = ClientControlRequest::ClaimFreeTestnetBandwidth;
         let bandwidth_remaining = match self.send_websocket_message(msg).await? {
             ServerResponse::Bandwidth { available_total } => Ok(available_total),
             ServerResponse::Error { message } => Err(GatewayClientError::GatewayError(message)),
-            _ => Err(GatewayClientError::UnexpectedResponse),
+            other => Err(GatewayClientError::UnexpectedResponse { name: other.name() }),
         }?;
 
         info!("managed to claim testnet bandwidth");
@@ -670,10 +796,10 @@ impl<C, St> GatewayClient<C, St> {
             return Err(GatewayClientError::ConnectionNotEstablished);
         }
 
-        let messages: Vec<_> = packets
+        let messages: Result<Vec<_>, _> = packets
             .into_iter()
             .map(|mix_packet| {
-                BinaryRequest::new_forward_request(mix_packet).into_ws_message(
+                BinaryRequest::ForwardSphinx { packet: mix_packet }.into_ws_message(
                     self.shared_key
                         .as_ref()
                         .expect("no shared key present even though we're authenticated!"),
@@ -682,7 +808,7 @@ impl<C, St> GatewayClient<C, St> {
             .collect();
 
         if let Err(err) = self
-            .batch_send_websocket_messages_without_response(messages)
+            .batch_send_websocket_messages_without_response(messages?)
             .await
         {
             if err.is_closed_connection() && self.cfg.connection.should_reconnect_on_failure {
@@ -746,11 +872,11 @@ impl<C, St> GatewayClient<C, St> {
         }
         // note: into_ws_message encrypts the requests and adds a MAC on it. Perhaps it should
         // be more explicit in the naming?
-        let msg = BinaryRequest::new_forward_request(mix_packet).into_ws_message(
+        let msg = BinaryRequest::ForwardSphinx { packet: mix_packet }.into_ws_message(
             self.shared_key
                 .as_ref()
                 .expect("no shared key present even though we're authenticated!"),
-        );
+        )?;
         self.send_with_reconnection_on_failure(msg).await
     }
 
@@ -810,8 +936,8 @@ impl<C, St> GatewayClient<C, St> {
             self.establish_connection().await?;
         }
 
-        // TODO: the name of this method is very deceiving
-        self.perform_initial_authentication().await?;
+        // if we're reconnecting, because we lost connection, we need to re-authenticate the connection
+        self.authenticate().await?;
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;
@@ -825,16 +951,16 @@ impl<C, St> GatewayClient<C, St> {
         Ok(())
     }
 
-    pub async fn authenticate_and_start(&mut self) -> Result<Arc<SharedKeys>, GatewayClientError>
+    pub async fn claim_initial_bandwidth(&mut self) -> Result<(), GatewayClientError>
     where
         C: DkgQueryClient + Send + Sync,
         St: CredentialStorage,
         <St as CredentialStorage>::StorageError: Send + Sync + 'static,
     {
-        if !self.connection.is_established() {
-            self.establish_connection().await?;
+        if !self.authenticated {
+            return Err(GatewayClientError::NotAuthenticated);
         }
-        let shared_key = self.perform_initial_authentication().await?;
+
         let bandwidth_remaining = self.bandwidth.remaining();
         if bandwidth_remaining < self.cfg.bandwidth.remaining_bandwidth_threshold {
             self.cfg
@@ -843,6 +969,20 @@ impl<C, St> GatewayClient<C, St> {
             info!("Claiming more bandwidth with existing credentials. Stop the process now if you don't want that to happen.");
             self.claim_bandwidth().await?;
         }
+        Ok(())
+    }
+
+    #[deprecated(note = "this method does not deal with upgraded keys for legacy clients")]
+    pub async fn authenticate_and_start(
+        &mut self,
+    ) -> Result<AuthenticationResponse, GatewayClientError>
+    where
+        C: DkgQueryClient + Send + Sync,
+        St: CredentialStorage,
+        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
+    {
+        let shared_key = self.perform_initial_authentication().await?;
+        self.claim_initial_bandwidth().await?;
 
         // this call is NON-blocking
         self.start_listening_for_mixnet_messages()?;

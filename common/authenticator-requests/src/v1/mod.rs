@@ -10,4 +10,4 @@ pub use registration::{ClientMac, GatewayClient, InitMessage, Nonce};
 #[cfg(feature = "verify")]
 pub use registration::HmacSha256;
 
-const VERSION: u8 = 1;
+pub const VERSION: u8 = 1;

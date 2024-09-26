@@ -1,0 +1,10 @@
+import { GitHubRepoSearch } from '../../../code-snippets/mixfetchurl';
+import { Tabs } from 'nextra/components'
+
+# Typescript/Javascript Applications
+
+## Relying on `fetch` for network traffic and remote connections?
+<Tabs items={['Yes- my repo currently uses `fetch`', 'No']}>
+  <Tabs.Tab >The best way to integrate Nym's `mixFetch` into your application will be where external network calls and RPC happens, for example, something in the lines of `sendRawTransaction` if you have an ETH-compatible wallet or `JsonRpcClient` if you use CosmJS. Although you can simply search for any JS `fetch` calls in your code (using our tool above) that are easily replaceable with `mixFetch`, keep in mind that `fetch` is not the only way to make `JSONRPC` or `XHR` calls. We advise to approach the integration process in a semantic way, searching for a module that is the common denominator for external communication in the codebase. Usually these are API controllers, middlewares or repositories. <GitHubRepoSearch /> </Tabs.Tab>
+  <Tabs.Tab>While mixFetch is the shortest and easiest way to integrate Nym, a well-modularized JS/TS codebase should permit the integration of one of our SDK components, which will allow more flexibility and control. Read more about our different SDK components in the [TS SDK overview page](). TODO LINK </Tabs.Tab>
+</Tabs>

@@ -1,0 +1,14 @@
+import Box from '@mui/material/Box';
+import { Steps } from 'nextra/components'
+import { Tabs } from 'nextra/components'
+import { GitRepoSearch } from '../../code-snippets/mixfetchurl';
+
+# Integrations
+
+There are several options available to developers wanting to embed a Nym client in their application code.
+
+<Tabs items={['Typescript/Javascript', 'Rust/Go/C++', 'Other']}>
+  <Tabs.Tab > See the [Typescript/Javascript](./integrations/ts-js) page. </Tabs.Tab>
+  <Tabs.Tab> See the [Rust/Go/C++](./integrations/rust-go-cpp) page. </Tabs.Tab>
+  <Tabs.Tab> If your app is not written in any of the supported languages, you might still be able to send traffic through a standalone socks5 client TODO LINK but will have to think about packaging and bundling the client binary with e.g. a `systemd` file for autostart to run the client as a daemon. If you want to discuss FFI options reach out to us via our public dev channel. </Tabs.Tab>
+</Tabs>

@@ -1,16 +1,20 @@
+import { Callout } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components'
+
 # Sandbox Testnet
 
 Nym node operators can run their nodes in Nym Sandbox testnet environment. Whether it's testing new configuration, hot features from Nym developers or just trying to setup a node for the first time, this environment is for you.
 
 Below are steps to [setup your environment](#sandbox-environment-setup) and an introduction to [Sandbox token faucet](#sandbox-token-faucet).
 
-```admonish warning title=""
-This page is for Nym node operators. If you want to run NymVPN CLI over Sandbox testnet, visit our [developers portal](https://nymtech.net/developers/nymvpn/cli.html#testnet-environment).
-```
+<Callout type="info" emoji="ℹ️">
+This page is for Nym node operators. If you want to run NymVPN CLI over Sandbox testnet, visit [Nym Developers portal](https://nymtech.net/docs/developers/nymvpn/cli.html#testnet-environment).
+</Callout>
 
 ## Sandbox Environment Setup
 
-> Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
+<VarInfo/ >
 
 To run Nym binaries in Sandbox testnet, you need to get `sandbox.env` configuration file and point your binary to it. Follow the steps below:
 

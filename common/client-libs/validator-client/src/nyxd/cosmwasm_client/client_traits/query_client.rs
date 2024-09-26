@@ -218,17 +218,19 @@ pub trait CosmWasmClient: TendermintRpcClient {
 
         loop {
             let mut res = self
-                .tx_search(query.clone(), false, page, 100, Order::Ascending)
+                .tx_search(query.clone(), false, page, per_page, Order::Ascending)
                 .await?;
 
-            results.append(&mut res.txs);
             // sanity check for if tendermint's maximum per_page was modified -
             // we don't want to accidentally be stuck in an infinite loop
-            if res.total_count == 0 || res.txs.is_empty() {
+            let early_break = res.total_count == 0 || res.txs.is_empty();
+            results.append(&mut res.txs);
+
+            if early_break {
                 break;
             }
 
-            if res.total_count >= per_page {
+            if res.total_count > results.len() as u32 {
                 page += 1
             } else {
                 break;

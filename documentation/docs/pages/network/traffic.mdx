@@ -8,7 +8,7 @@
 >
 > [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf) §4
 
-The Nym mixnet re-orders encrypted, indistinguishable Sphinx TODO LINK packets as they travel through the network.
+The Nym mixnet re-orders encrypted, indistinguishable [Sphinx](cryptography/sphinx) packets as they travel through the network.
 
 Traffic to send through the mixnet is broken up into uniformly-sized packets, encrypted in the Sphinx packet format according to the route the packet will take, and sent through the mixnet to be mixed among other real traffic and fake - but identical - cover traffic.
 
@@ -16,7 +16,6 @@ At each 'hop' (i.e. as a packet is forwarded from one node in the sequence to an
 
 Traffic always travels through the nodes of the mixnet like such:
 
-TODO REDO DIAGRAM
 ```
 
        +----------+              +----------+             +----------+

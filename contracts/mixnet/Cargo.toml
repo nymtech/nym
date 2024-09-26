@@ -44,6 +44,7 @@ thiserror = { workspace = true }
 time = { version = "0.3", features = ["macros"] }
 
 [dev-dependencies]
+anyhow.workspace = true
 rand_chacha = "0.3"
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 

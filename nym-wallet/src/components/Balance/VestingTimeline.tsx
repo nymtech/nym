@@ -26,7 +26,7 @@ export const VestingTimeline: FCWithChildren<{ percentageComplete: number }> = (
 
   const nextPeriod =
     typeof currentVestingPeriod === 'object' && !!vestingAccountInfo?.periods
-      ? Number(vestingAccountInfo?.periods[currentVestingPeriod.in + 1]?.start_time)
+      ? Number(vestingAccountInfo?.periods[currentVestingPeriod.In + 1]?.start_time)
       : undefined;
 
   return (

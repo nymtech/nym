@@ -10,7 +10,7 @@ use std::fmt;
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Gateway.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/Gateway.ts")
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, PartialOrd, Serialize, JsonSchema)]
 pub struct Gateway {
@@ -51,7 +51,7 @@ impl From<MixnetContractGateway> for Gateway {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/GatewayBond.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/GatewayBond.ts")
 )]
 #[derive(Clone, Debug, Deserialize, PartialEq, Eq, Serialize, JsonSchema)]
 pub struct GatewayBond {

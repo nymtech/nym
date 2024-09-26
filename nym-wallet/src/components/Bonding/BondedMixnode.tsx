@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Chip, Stack, Tooltip, Typography } from '@mui/material';
 import { Link } from '@nymproject/react/link/Link';
-import { isMixnode, Network } from 'src/types';
-import { TBondedMixnode, urls } from 'src/context';
+import { Network } from 'src/types';
+import { urls } from 'src/context';
 import { NymCard } from 'src/components';
 import { IdentityKey } from 'src/components/IdentityKey';
 import { NodeStatus } from 'src/components/NodeStatus';
 import { getIntervalAsDate } from 'src/utils';
+import { UpgradeRounded } from '@mui/icons-material';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { Node as NodeIcon } from '../../svg-icons/node';
 import { Cell, Header, NodeTable } from './NodeTable';
 import { BondedMixnodeActions, TBondedMixnodeActions } from './BondedMixnodeActions';
@@ -60,10 +62,12 @@ const headers: Header[] = [
 export const BondedMixnode = ({
   mixnode,
   network,
+  onShowMigrateToNymNodeModal,
   onActionSelect,
 }: {
   mixnode: TBondedMixnode;
   network?: Network;
+  onShowMigrateToNymNodeModal: () => void;
   onActionSelect: (action: TBondedMixnodeActions) => void;
 }) => {
   const [nextEpoch, setNextEpoch] = useState<string | Error>();
@@ -81,6 +85,7 @@ export const BondedMixnode = ({
     status,
     identityKey,
     host,
+    isUnbonding,
   } = mixnode;
 
   const getNextInterval = async () => {
@@ -165,9 +170,13 @@ export const BondedMixnode = ({
         }
         Action={
           <Box display="flex" flexDirection="column" alignItems="flex-end" justifyContent="space-between" height={70}>
-            {isMixnode(mixnode) && (
+            <Stack direction="row" gap={1}>
               <Tooltip
-                title={mixnode.isUnbonding ? 'You have a pending unbond event. Node settings are disabled.' : ''}
+                title={
+                  mixnode.isUnbonding
+                    ? 'You have a pending unbond event. Node settings are disabled.'
+                    : 'Node settings are disabled for legacy nodes. Please migrate your node in order to access your node settings.'
+                }
               >
                 <Box>
                   <Button
@@ -175,13 +184,23 @@ export const BondedMixnode = ({
                     color="secondary"
                     onClick={() => navigate('/bonding/node-settings')}
                     startIcon={<NodeIcon />}
-                    disabled={mixnode.isUnbonding}
+                    disabled
                   >
                     Node Settings
                   </Button>
                 </Box>
               </Tooltip>
-            )}
+              <Button
+                startIcon={<UpgradeRounded />}
+                variant="contained"
+                disableElevation
+                onClick={onShowMigrateToNymNodeModal}
+                disabled={isUnbonding}
+              >
+                Migrate to Nym Node
+              </Button>
+            </Stack>
+
             {nextEpoch instanceof Error ? null : (
               <Typography fontSize={14} marginRight={1}>
                 Next epoch starts at <b>{nextEpoch}</b>

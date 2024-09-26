@@ -1,0 +1,114 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "RolesMetadataResponse",
+  "type": "object",
+  "required": [
+    "metadata"
+  ],
+  "properties": {
+    "metadata": {
+      "$ref": "#/definitions/RewardedSetMetadata"
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "RewardedSetMetadata": {
+      "description": "Metadata associated with the rewarded set.",
+      "type": "object",
+      "required": [
+        "entry_gateway_metadata",
+        "epoch_id",
+        "exit_gateway_metadata",
+        "fully_assigned",
+        "layer1_metadata",
+        "layer2_metadata",
+        "layer3_metadata",
+        "standby_metadata"
+      ],
+      "properties": {
+        "entry_gateway_metadata": {
+          "description": "Metadata for the 'EntryGateway' role",
+          "allOf": [
+            {
+              "$ref": "#/definitions/RoleMetadata"
+            }
+          ]
+        },
+        "epoch_id": {
+          "description": "Epoch that this data corresponds to.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "exit_gateway_metadata": {
+          "description": "Metadata for the 'ExitGateway' role",
+          "allOf": [
+            {
+              "$ref": "#/definitions/RoleMetadata"
+            }
+          ]
+        },
+        "fully_assigned": {
+          "description": "Indicates whether all roles got assigned to the set for this epoch.",
+          "type": "boolean"
+        },
+        "layer1_metadata": {
+          "description": "Metadata for the 'Layer1' role",
+          "allOf": [
+            {
+              "$ref": "#/definitions/RoleMetadata"
+            }
+          ]
+        },
+        "layer2_metadata": {
+          "description": "Metadata for the 'Layer2' role",
+          "allOf": [
+            {
+              "$ref": "#/definitions/RoleMetadata"
+            }
+          ]
+        },
+        "layer3_metadata": {
+          "description": "Metadata for the 'Layer3' role",
+          "allOf": [
+            {
+              "$ref": "#/definitions/RoleMetadata"
+            }
+          ]
+        },
+        "standby_metadata": {
+          "description": "Metadata for the 'Standby' role",
+          "allOf": [
+            {
+              "$ref": "#/definitions/RoleMetadata"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "RoleMetadata": {
+      "description": "Metadata associated with particular node role.",
+      "type": "object",
+      "required": [
+        "highest_id",
+        "num_nodes"
+      ],
+      "properties": {
+        "highest_id": {
+          "description": "Highest, also latest, node-id of a node assigned this role.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "num_nodes": {
+          "description": "Number of nodes assigned this particular role.",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

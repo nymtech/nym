@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::network::models::{ContractInformation, NetworkDetails};
-use crate::v2::AxumAppState;
+use crate::support::http::state::AppState;
 use axum::{extract, Router};
 use nym_contracts_common::ContractBuildInformation;
 use std::collections::HashMap;
 use utoipa::ToSchema;
 
-pub(crate) fn nym_network_routes() -> Router<AxumAppState> {
+pub(crate) fn nym_network_routes() -> Router<AppState> {
     Router::new()
         .route("/details", axum::routing::get(network_details))
         .route("/nym-contracts", axum::routing::get(nym_contracts))
@@ -27,7 +27,7 @@ pub(crate) fn nym_network_routes() -> Router<AxumAppState> {
     )
 )]
 async fn network_details(
-    extract::State(state): extract::State<AxumAppState>,
+    extract::State(state): extract::State<AppState>,
 ) -> axum::Json<NetworkDetails> {
     state.network_details().to_owned().into()
 }
@@ -56,7 +56,7 @@ pub(crate) struct ContractVersionSchemaResponse {
     )
 )]
 async fn nym_contracts(
-    extract::State(state): extract::State<AxumAppState>,
+    extract::State(state): extract::State<AppState>,
 ) -> axum::Json<HashMap<String, ContractInformation<cw2::ContractVersion>>> {
     let info = state.nym_contract_cache().contract_details().await;
     info.iter()
@@ -82,7 +82,7 @@ async fn nym_contracts(
     )
 )]
 async fn nym_contracts_detailed(
-    extract::State(state): extract::State<AxumAppState>,
+    extract::State(state): extract::State<AppState>,
 ) -> axum::Json<HashMap<String, ContractInformation<ContractBuildInformation>>> {
     let info = state.nym_contract_cache().contract_details().await;
     info.iter()

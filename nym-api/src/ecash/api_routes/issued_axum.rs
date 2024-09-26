@@ -6,7 +6,7 @@ use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
 use crate::ecash::storage::EcashStorageExt;
 use crate::node_status_api::models::AxumResult;
-use crate::v2::AxumAppState;
+use crate::support::http::state::AppState;
 use axum::extract::Path;
 use axum::{Json, Router};
 use nym_api_requests::ecash::models::{
@@ -17,7 +17,7 @@ use serde::Deserialize;
 use std::sync::Arc;
 use utoipa::IntoParams;
 
-pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AxumAppState> {
+pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
     Router::new()
         .route(
             "/epoch-credentials/:epoch",

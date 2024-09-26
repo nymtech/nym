@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::MixId;
+use crate::NodeId;
 use nym_topology::{gateway, mix};
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -9,27 +9,27 @@ use std::fmt::{Display, Formatter};
 #[derive(Serialize, Deserialize, Debug, Clone, Hash, Eq, PartialEq)]
 pub struct TestableNode {
     pub encoded_identity: String,
-    pub owner: String,
+    pub node_id: NodeId,
 
     #[serde(rename = "type")]
     pub typ: NodeType,
 }
 
 impl TestableNode {
-    pub fn new(encoded_identity: String, owner: String, typ: NodeType) -> Self {
+    pub fn new(encoded_identity: String, typ: NodeType, node_id: NodeId) -> Self {
         TestableNode {
             encoded_identity,
-            owner,
+            node_id,
             typ,
         }
     }
 
-    pub fn new_mixnode(encoded_identity: String, owner: String, mix_id: MixId) -> Self {
-        TestableNode::new(encoded_identity, owner, NodeType::Mixnode { mix_id })
+    pub fn new_mixnode(encoded_identity: String, node_id: NodeId) -> Self {
+        TestableNode::new(encoded_identity, NodeType::Mixnode, node_id)
     }
 
-    pub fn new_gateway(encoded_identity: String, owner: String) -> Self {
-        TestableNode::new(encoded_identity, owner, NodeType::Gateway)
+    pub fn new_gateway(encoded_identity: String, node_id: NodeId) -> Self {
+        TestableNode::new(encoded_identity, NodeType::Gateway, node_id)
     }
 
     pub fn is_mixnode(&self) -> bool {
@@ -37,24 +37,34 @@ impl TestableNode {
     }
 }
 
-impl<'a> From<&'a mix::Node> for TestableNode {
-    fn from(value: &'a mix::Node) -> Self {
+impl<'a> From<&'a mix::LegacyNode> for TestableNode {
+    fn from(value: &'a mix::LegacyNode) -> Self {
         TestableNode {
             encoded_identity: value.identity_key.to_base58_string(),
-            owner: value.owner.as_ref().cloned().unwrap_or_default(),
-            typ: NodeType::Mixnode {
-                mix_id: value.mix_id,
-            },
+            typ: NodeType::Mixnode,
+            node_id: value.mix_id,
         }
     }
 }
 
-impl<'a> From<&'a gateway::Node> for TestableNode {
-    fn from(value: &'a gateway::Node) -> Self {
+impl<'a> From<(&'a gateway::LegacyNode, NodeId)> for TestableNode {
+    fn from((gateway, node_id): (&'a gateway::LegacyNode, NodeId)) -> Self {
+        (&(gateway, node_id)).into()
+    }
+}
+
+impl<'a> From<&'a (gateway::LegacyNode, NodeId)> for TestableNode {
+    fn from((gateway, node_id): &'a (gateway::LegacyNode, NodeId)) -> Self {
+        (gateway, *node_id).into()
+    }
+}
+
+impl<'a, 'b> From<&'a (&'b gateway::LegacyNode, NodeId)> for TestableNode {
+    fn from((gateway, node_id): &'a (&'b gateway::LegacyNode, NodeId)) -> Self {
         TestableNode {
-            encoded_identity: value.identity_key.to_base58_string(),
-            owner: value.owner.as_ref().cloned().unwrap_or_default(),
+            encoded_identity: gateway.identity_key.to_base58_string(),
             typ: NodeType::Gateway,
+            node_id: *node_id,
         }
     }
 }
@@ -63,8 +73,8 @@ impl Display for TestableNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{} {} owned by {}",
-            self.typ, self.encoded_identity, self.owner
+            "{}-{}: {}",
+            self.typ, self.node_id, self.encoded_identity
         )
     }
 }
@@ -72,7 +82,7 @@ impl Display for TestableNode {
 #[derive(Serialize, Deserialize, Hash, Clone, Copy, Debug, Eq, PartialEq)]
 #[serde(rename_all = "snake_case")]
 pub enum NodeType {
-    Mixnode { mix_id: MixId },
+    Mixnode,
     Gateway,
 }
 
@@ -85,7 +95,7 @@ impl NodeType {
 impl Display for NodeType {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
-            NodeType::Mixnode { mix_id } => write!(f, "mixnode (mix_id {mix_id})"),
+            NodeType::Mixnode => write!(f, "mixnode"),
             NodeType::Gateway => write!(f, "gateway"),
         }
     }

@@ -2,4 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub(crate) mod helpers;
+pub(crate) mod legacy;
+
+#[cfg(test)]
 pub(crate) mod tests;

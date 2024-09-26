@@ -4,19 +4,20 @@
 use crate::api_client;
 use crate::error::BackendError;
 use crate::state::WalletState;
+use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::{
-    reward_params::Performance, Coin, IdentityKeyRef, MixId, Percent,
+    reward_params::Performance, Coin, IdentityKeyRef, NodeId, Percent,
 };
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{
-    ComputeRewardEstParam, GatewayCoreStatusResponse, GatewayStatusReportResponse,
-    InclusionProbabilityResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse,
+    AnnotationResponse, ComputeRewardEstParam, GatewayCoreStatusResponse,
+    GatewayStatusReportResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
+    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse,
 };
 
 #[tauri::command]
 pub async fn mixnode_core_node_status(
-    mix_id: MixId,
+    mix_id: NodeId,
     since: Option<i64>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<MixnodeCoreStatusResponse, BackendError> {
@@ -46,7 +47,7 @@ pub async fn gateway_report(
 
 #[tauri::command]
 pub async fn mixnode_status(
-    mix_id: MixId,
+    mix_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<MixnodeStatusResponse, BackendError> {
     Ok(api_client!(state).get_mixnode_status(mix_id).await?)
@@ -54,7 +55,7 @@ pub async fn mixnode_status(
 
 #[tauri::command]
 pub async fn mixnode_reward_estimation(
-    mix_id: MixId,
+    mix_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<RewardEstimationResponse, BackendError> {
     Ok(api_client!(state)
@@ -87,7 +88,7 @@ pub async fn compute_mixnode_reward_estimation(
 
 #[tauri::command]
 pub async fn mixnode_stake_saturation(
-    mix_id: MixId,
+    mix_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<StakeSaturationResponse, BackendError> {
     Ok(api_client!(state)
@@ -97,10 +98,27 @@ pub async fn mixnode_stake_saturation(
 
 #[tauri::command]
 pub async fn mixnode_inclusion_probability(
-    mix_id: MixId,
+    mix_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<InclusionProbabilityResponse, BackendError> {
     Ok(api_client!(state)
         .get_mixnode_inclusion_probability(mix_id)
         .await?)
+}
+
+#[tauri::command]
+pub async fn get_nymnode_role(
+    node_id: NodeId,
+    state: tauri::State<'_, WalletState>,
+) -> Result<Option<Role>, BackendError> {
+    let annotation = get_nymnode_annotation(node_id, state).await?;
+    Ok(annotation.annotation.and_then(|n| n.current_role))
+}
+
+#[tauri::command]
+pub async fn get_nymnode_annotation(
+    node_id: NodeId,
+    state: tauri::State<'_, WalletState>,
+) -> Result<AnnotationResponse, BackendError> {
+    Ok(api_client!(state).get_node_annotation(node_id).await?)
 }

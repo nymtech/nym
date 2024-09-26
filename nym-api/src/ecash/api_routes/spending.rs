@@ -78,16 +78,16 @@ pub async fn verify_ticket(
         ) {
             IdentifyResult::NotADuplicatePayment => {} //SW NOTE This should never happen, quick message?
             IdentifyResult::DuplicatePayInfo(_) => {
-                log::warn!("Identical payInfo");
+                warn!("Identical payInfo");
                 return reject_ticket(EcashTicketVerificationRejection::ReplayedTicket);
             }
             IdentifyResult::DoubleSpendingPublicKeys(pub_key) => {
                 //Actual double spending
-                log::warn!(
+                warn!(
                     "Double spending attempt for key {}",
                     pub_key.to_base58_string()
                 );
-                log::error!("UNIMPLEMENTED: blacklisting the double spend key");
+                error!("UNIMPLEMENTED: blacklisting the double spend key");
                 return reject_ticket(EcashTicketVerificationRejection::DoubleSpend);
             }
         }

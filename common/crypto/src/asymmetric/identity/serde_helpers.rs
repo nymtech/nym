@@ -3,7 +3,7 @@
 
 use super::PublicKey;
 
-pub mod bs58_pubkey {
+pub mod bs58_ed25519_pubkey {
     use super::*;
     use serde::{Deserialize, Deserializer, Serializer};
 

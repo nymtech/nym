@@ -5,7 +5,7 @@ use std::fmt;
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "nym-wallet/src/types/rust/ValidatorUrls.ts")
+    ts(export, export_to = "nym-wallet/src/types/rust/ValidatorUrls.ts")
 )]
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ValidatorUrls {

@@ -10,16 +10,17 @@ import {
   updateGatewayConfig,
   vestingUpdateGatewayConfig,
 } from 'src/requests';
-import { TBondedGateway, useBondingContext } from 'src/context/bonding';
+import { useBondingContext } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { Console } from 'src/utils/console';
 import { Alert } from 'src/components/Alert';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
-import { updateGatewayValidationSchema } from 'src/components/Bonding/forms/gatewayValidationSchema';
+import { updateGatewayValidationSchema } from 'src/components/Bonding/forms/legacyForms/gatewayValidationSchema';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { AppContext } from 'src/context';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
 
 export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGateway }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
@@ -56,7 +57,6 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
         location,
         version: clean(version) as string,
         clients_port: httpApiPort,
-        verloc_port: bondedNode.verlocPort,
       };
 
       if (bondedNode.proxy) {
@@ -206,7 +206,6 @@ export const GeneralGatewaySettings = ({ bondedNode }: { bondedNode: TBondedGate
                 clients_port: data.httpApiPort,
                 location: bondedNode.location!,
                 version: data.version,
-                verloc_port: bondedNode.verlocPort,
               }),
             )}
             sx={{ m: 3 }}

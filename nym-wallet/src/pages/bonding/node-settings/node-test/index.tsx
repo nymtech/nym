@@ -10,6 +10,7 @@ import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { PrintResults } from 'src/components/TestNode/PrintResults';
 import { MAINNET_VALIDATOR_URL, QA_VALIDATOR_URL } from 'src/constants';
 import { TestStatus } from 'src/components/TestNode/types';
+import { isMixnode } from 'src/types';
 
 export const NodeTestPage = () => {
   const [nodeTestClient, setNodeTestClient] = useState<NodeTester>();
@@ -37,7 +38,7 @@ export const NodeTestPage = () => {
   };
 
   const handleTestNode = async () => {
-    if (nodeTestClient && bondedNode) {
+    if (nodeTestClient && bondedNode && isMixnode(bondedNode)) {
       setResults(undefined);
       setTestDate(format(new Date(), 'dd/MM/yyyy HH:mm'));
       setIsLoading(true);
@@ -87,7 +88,7 @@ export const NodeTestPage = () => {
     <Box p={4}>
       {isLoading && <LoadingModal text="Testing mixnode, please wait.." />}
       {error && <ErrorModal open title="Node test failed" message={error} onClose={() => setError(undefined)} />}
-      {printResults && results && (
+      {printResults && results && bondedNode && isMixnode(bondedNode) && (
         <PrintResults
           mixnodeId={bondedNode?.identityKey || '-'}
           mixnodeName={bondedNode?.name || '-'}

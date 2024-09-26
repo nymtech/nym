@@ -1,7 +1,13 @@
-export const makeNavItems = (isMixnode: boolean) => {
-  const navItems: NavItems[] = ['General', 'Unbond'];
+import { TBondedNode } from 'src/context';
+import { isNymNode } from 'src/types';
 
-  if (isMixnode) navItems.splice(1, 0, 'Test my node', 'Playground');
+export const makeNavItems = (bondedNode: TBondedNode) => {
+  const navItems: NavItems[] = ['Unbond'];
+
+  if (isNymNode(bondedNode)) {
+    // add these items to the beginning of the array "General", "Test my node", "Playground"
+    navItems.unshift('General', 'Test my node', 'Playground');
+  }
 
   return navItems;
 };

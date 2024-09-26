@@ -4,23 +4,23 @@
 use crate::node_status_api::models::Uptime;
 use crate::node_status_api::{FIFTEEN_MINUTES, ONE_HOUR};
 use crate::storage::models::NodeStatus;
-use log::warn;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
+use tracing::warn;
 
 use time::OffsetDateTime;
 
 // A temporary helper structs used to produce reports for active nodes.
 pub(crate) struct ActiveMixnodeStatuses {
-    pub(crate) mix_id: MixId,
+    pub(crate) mix_id: NodeId,
 
     pub(crate) identity: String,
-    pub(crate) owner: String,
     pub(crate) statuses: Vec<NodeStatus>,
 }
 
 pub(crate) struct ActiveGatewayStatuses {
+    pub(crate) node_id: NodeId,
+
     pub(crate) identity: String,
-    pub(crate) owner: String,
     pub(crate) statuses: Vec<NodeStatus>,
 }
 

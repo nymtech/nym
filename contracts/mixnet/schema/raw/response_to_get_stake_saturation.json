@@ -1,6 +1,6 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "StakeSaturationResponse",
+  "title": "MixStakeSaturationResponse",
   "description": "Response containing the current state of the stake saturation of a mixnode with the provided id.",
   "type": "object",
   "required": [

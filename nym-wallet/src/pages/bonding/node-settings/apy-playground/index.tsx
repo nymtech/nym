@@ -4,10 +4,10 @@ import { ResultsTable } from 'src/components/RewardsPlayground/ResultsTable';
 import { getDelegationSummary } from 'src/requests';
 import { NodeDetails } from 'src/components/RewardsPlayground/NodeDetail';
 import { CalculateArgs, Inputs } from 'src/components/RewardsPlayground/Inputs';
-import { TBondedMixnode } from 'src/context';
 import { useSnackbar } from 'notistack';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { Console } from 'src/utils/console';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { computeEstimate, computeStakeSaturation, handleCalculatePeriodRewards } from './utils';
 
 export type DefaultInputValues = {

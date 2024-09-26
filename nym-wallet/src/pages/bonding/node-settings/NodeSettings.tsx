@@ -10,11 +10,11 @@ import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { NymCard } from 'src/components';
 import { PageLayout } from 'src/layouts';
 import { Tabs } from 'src/components/Tabs';
-import { useBondingContext, BondingContextProvider, TBondedMixnode } from 'src/context';
+import { useBondingContext, BondingContextProvider } from 'src/context';
 import { AppContext, urls } from 'src/context/main';
 
-import { isMixnode } from 'src/types';
 import { getIntervalAsDate } from 'src/utils';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
 import { NavItems, makeNavItems } from './node-settings.constant';
@@ -86,13 +86,13 @@ export const NodeSettings = () => {
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <NodeIcon />
                 <Typography variant="h6" fontWeight={600}>
-                  {isMixnode(bondedNode) ? 'Node' : 'Gateway'} Settings
+                  Nym Node Settings
                 </Typography>
               </Box>
             </Box>
             <Box sx={{ width: '100%' }}>
               <Tabs
-                tabs={makeNavItems(isMixnode(bondedNode))}
+                tabs={makeNavItems(bondedNode)}
                 selectedTab={value}
                 onChange={handleChange}
                 tabSx={{
@@ -146,8 +146,7 @@ export const NodeSettings = () => {
             }}
           >
             <Typography fontWeight="bold">
-              You should NOT shutdown your {isMixnode(bondedNode) ? 'mix node' : 'gateway'} until the unbond process is
-              complete
+              You should NOT shutdown your node until the unbond process is complete
             </Typography>
           </ConfirmationDetailsModal>
         )}

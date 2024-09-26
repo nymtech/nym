@@ -66,7 +66,7 @@ async fn print_delegations(delegations: Vec<Delegation>, client: &SigningClientW
     for delegation in delegations {
         table.add_row(vec![
             to_iso_timestamp(delegation.height as u32, client).await,
-            delegation.mix_id.to_string(),
+            delegation.node_id.to_string(),
             pretty_cosmwasm_coin(&delegation.amount),
             delegation
                 .proxy
@@ -93,7 +93,7 @@ async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &Signin
         match event.event.kind {
             PendingEpochEventKind::Delegate {
                 owner,
-                mix_id,
+                node_id: mix_id,
                 amount,
                 proxy,
                 ..
@@ -110,7 +110,7 @@ async fn print_delegation_events(events: Vec<PendingEpochEvent>, client: &Signin
             }
             PendingEpochEventKind::Undelegate {
                 owner,
-                mix_id,
+                node_id: mix_id,
                 proxy,
                 ..
             } => {

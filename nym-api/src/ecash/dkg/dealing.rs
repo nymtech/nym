@@ -6,7 +6,6 @@ use crate::ecash::dkg::controller::keys::archive_coconut_keypair;
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::error::EcashError;
 use crate::ecash::keys::KeyPairWithEpoch;
-use log::debug;
 use nym_coconut_dkg_common::dealing::{chunk_dealing, DealingChunkInfo, MAX_DEALING_CHUNK_SIZE};
 use nym_coconut_dkg_common::types::{DealingIndex, EpochId};
 use nym_dkg::{Dealing, Scalar};
@@ -15,6 +14,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{Debug, Formatter};
 use std::path::PathBuf;
 use thiserror::Error;
+use tracing::{debug, error, info, warn};
 
 enum DealingGeneration {
     Fresh { number: u32 },

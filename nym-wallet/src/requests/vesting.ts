@@ -8,7 +8,7 @@ import {
   PledgeData,
   TransactionExecuteResult,
   VestingAccountInfo,
-  MixNodeCostParams,
+  NodeCostParams,
   MixNodeConfigUpdate,
   GatewayConfigUpdate,
 } from '@nymproject/types';
@@ -61,7 +61,7 @@ export const vestingBondMixNode = async ({
   msgSignature,
 }: {
   mixnode: MixNode;
-  costParams: MixNodeCostParams;
+  costParams: NodeCostParams;
   pledge: DecCoin;
   msgSignature: string;
 }) => invokeWrapper<TransactionExecuteResult>('vesting_bond_mixnode', { mixnode, costParams, msgSignature, pledge });
@@ -75,7 +75,7 @@ export const vestingUnbondMixnode = async (fee?: Fee) =>
 export const withdrawVestedCoins = async (amount: DecCoin, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('withdraw_vested_coins', { amount, fee });
 
-export const vestingUpdateMixnodeCostParams = async (newCosts: MixNodeCostParams, fee?: Fee) =>
+export const vestingUpdateNodeCostParams = async (newCosts: NodeCostParams, fee?: Fee) =>
   invokeWrapper<TransactionExecuteResult>('vesting_update_mixnode_cost_params', { newCosts, fee });
 
 export const vestingUpdateMixnodeConfig = async (update: MixNodeConfigUpdate, fee?: Fee) =>

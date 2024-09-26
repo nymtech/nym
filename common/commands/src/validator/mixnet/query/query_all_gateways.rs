@@ -39,7 +39,7 @@ pub async fn query(args: Args, client: &QueryClientWithNyxd) {
                         node.owner.to_string(),
                         node.gateway.host.to_string(),
                         pretty_cosmwasm_coin(&node.pledge_amount),
-                        node.gateway.version,
+                        node.gateway.version.clone(),
                     ]);
                 }
 

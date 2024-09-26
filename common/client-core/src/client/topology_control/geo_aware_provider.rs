@@ -3,11 +3,11 @@ use log::{debug, error};
 use nym_explorer_client::{ExplorerClient, PrettyDetailedMixNodeBond};
 use nym_network_defaults::var_names::EXPLORER_API;
 use nym_topology::{
-    nym_topology_from_detailed,
+    nym_topology_from_basic_info,
     provider_trait::{async_trait, TopologyProvider},
     NymTopology,
 };
-use nym_validator_client::client::MixId;
+use nym_validator_client::client::NodeId;
 use rand::{prelude::SliceRandom, thread_rng};
 use std::collections::HashMap;
 use tap::TapOptional;
@@ -39,10 +39,10 @@ fn create_explorer_client() -> Option<ExplorerClient> {
 
 fn group_mixnodes_by_country_code(
     mixnodes: Vec<PrettyDetailedMixNodeBond>,
-) -> HashMap<CountryGroup, Vec<MixId>> {
+) -> HashMap<CountryGroup, Vec<NodeId>> {
     mixnodes
         .into_iter()
-        .fold(HashMap::<CountryGroup, Vec<MixId>>::new(), |mut acc, m| {
+        .fold(HashMap::<CountryGroup, Vec<NodeId>>::new(), |mut acc, m| {
             if let Some(ref location) = m.location {
                 let country_code = location.two_letter_iso_country_code.clone();
                 let group_code = CountryGroup::new(country_code.as_str());
@@ -53,7 +53,7 @@ fn group_mixnodes_by_country_code(
         })
 }
 
-fn log_mixnode_distribution(mixnodes: &HashMap<CountryGroup, Vec<MixId>>) {
+fn log_mixnode_distribution(mixnodes: &HashMap<CountryGroup, Vec<NodeId>>) {
     let mixnode_distribution = mixnodes
         .iter()
         .map(|(k, v)| format!("{}: {}", k, v.len()))
@@ -110,7 +110,7 @@ impl GeoAwareTopologyProvider {
     }
 
     async fn get_topology(&self) -> Option<NymTopology> {
-        let mixnodes = match self.validator_client.get_cached_active_mixnodes().await {
+        let mixnodes = match self.validator_client.get_basic_mixnodes(None).await {
             Err(err) => {
                 error!("failed to get network mixnodes - {err}");
                 return None;
@@ -118,7 +118,7 @@ impl GeoAwareTopologyProvider {
             Ok(mixes) => mixes,
         };
 
-        let gateways = match self.validator_client.get_cached_gateways().await {
+        let gateways = match self.validator_client.get_basic_gateways(None).await {
             Err(err) => {
                 error!("failed to get network gateways - {err}");
                 return None;
@@ -182,10 +182,10 @@ impl GeoAwareTopologyProvider {
 
         let mixnodes = mixnodes
             .into_iter()
-            .filter(|m| filtered_mixnode_ids.contains(&m.mix_id()))
+            .filter(|m| filtered_mixnode_ids.contains(&m.node_id))
             .collect::<Vec<_>>();
 
-        let topology = nym_topology_from_detailed(mixnodes, gateways)
+        let topology = nym_topology_from_basic_info(&mixnodes, &gateways)
             .filter_system_version(&self.client_version);
 
         // TODO: return real error type

@@ -4,14 +4,14 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::delegate::vesting_undelegate_from_mixnode;
-use nym_mixnet_contract_common::mixnode::StakeSaturationResponse;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::mixnode::MixStakeSaturationResponse;
+use nym_mixnet_contract_common::NodeId;
 use nym_types::currency::DecCoin;
 use nym_types::delegation::{Delegation, DelegationWithEverything, DelegationsSummaryResponse};
 use nym_types::deprecated::{
     convert_to_delegation_events, DelegationEvent, WrappedDelegationEvent,
 };
-use nym_types::mixnode::MixNodeCostParams;
+use nym_types::mixnode::NodeCostParams;
 use nym_types::pending_events::PendingEpochEvent;
 use nym_types::transaction::TransactionExecuteResult;
 use nym_validator_client::client::NymApiClientExt;
@@ -69,7 +69,7 @@ pub async fn get_pending_delegation_events(
 
 #[tauri::command]
 pub async fn delegate_to_mixnode(
-    mix_id: MixId,
+    mix_id: NodeId,
     amount: DecCoin,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -86,10 +86,7 @@ pub async fn delegate_to_mixnode(
         delegation_base,
         fee,
     );
-    let res = client
-        .nyxd
-        .delegate_to_mixnode(mix_id, delegation_base, fee)
-        .await?;
+    let res = client.nyxd.delegate(mix_id, delegation_base, fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
@@ -99,7 +96,7 @@ pub async fn delegate_to_mixnode(
 
 #[tauri::command]
 pub async fn undelegate_from_mixnode(
-    mix_id: MixId,
+    mix_id: NodeId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
@@ -111,11 +108,7 @@ pub async fn undelegate_from_mixnode(
         mix_id,
         fee
     );
-    let res = guard
-        .current_client()?
-        .nyxd
-        .undelegate_from_mixnode(mix_id, fee)
-        .await?;
+    let res = guard.current_client()?.nyxd.undelegate(mix_id, fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
@@ -125,7 +118,7 @@ pub async fn undelegate_from_mixnode(
 
 #[tauri::command]
 pub async fn undelegate_all_from_mixnode(
-    mix_id: MixId,
+    mix_id: NodeId,
     uses_vesting_contract_tokens: bool,
     fee_liquid: Option<Fee>,
     fee_vesting: Option<Fee>,
@@ -195,8 +188,8 @@ pub async fn get_all_mix_delegations(
 
         let d = Delegation::from_mixnet_contract(delegation.clone(), reg).tap_err(|err| {
             log::error!(
-                "  <<< Failed to get delegation for mix id {} from contract. Error: {}",
-                delegation.mix_id,
+                "  <<< Failed to get delegation for node id {} from contract. Error: {}",
+                delegation.node_id,
                 err
             );
         })?;
@@ -262,7 +255,7 @@ pub async fn get_all_mix_delegations(
         let cost_params = mixnode
             .as_ref()
             .map(|m| {
-                MixNodeCostParams::from_mixnet_contract_mixnode_cost_params(
+                NodeCostParams::from_mixnet_contract_mixnode_cost_params(
                     m.rewarding_details.cost_params.clone(),
                     reg,
                 )
@@ -329,7 +322,7 @@ pub async fn get_all_mix_delegations(
                 log::error!("  <<< {}", str_err);
                 error_strings.push(str_err);
             })
-            .unwrap_or(StakeSaturationResponse {
+            .unwrap_or(MixStakeSaturationResponse {
                 mix_id: d.mix_id,
                 uncapped_saturation: None,
                 current_saturation: None,
@@ -420,7 +413,7 @@ pub async fn get_all_mix_delegations(
 }
 
 fn filter_pending_events(
-    mix_id: MixId,
+    mix_id: NodeId,
     pending_events: &[WrappedDelegationEvent],
 ) -> Vec<DelegationEvent> {
     pending_events
@@ -434,7 +427,7 @@ fn filter_pending_events(
 #[tauri::command]
 pub async fn get_pending_delegator_rewards(
     address: String,
-    mix_id: MixId,
+    mix_id: NodeId,
     proxy: Option<String>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {

@@ -1,7 +1,7 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::rewards::vesting_claim_delegator_reward;
-use nym_mixnet_contract_common::{MixId, RewardingParams};
+use nym_mixnet_contract_common::{NodeId, RewardingParams};
 use nym_types::transaction::TransactionExecuteResult;
 use nym_validator_client::nyxd::contract_traits::{
     MixnetQueryClient, MixnetSigningClient, NymContractsProvider, PagedMixnetQueryClient,
@@ -31,17 +31,17 @@ pub async fn claim_operator_reward(
 
 #[tauri::command]
 pub async fn claim_delegator_reward(
-    mix_id: MixId,
+    node_id: NodeId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
-    log::info!(">>> Withdraw delegator reward: mix_id = {}", mix_id);
+    log::info!(">>> Withdraw delegator reward: node_id = {node_id}");
     let guard = state.read().await;
     let fee_amount = guard.convert_tx_fee(fee.as_ref());
     let res = guard
         .current_client()?
         .nyxd
-        .withdraw_delegator_reward(mix_id, fee)
+        .withdraw_delegator_reward(node_id, fee)
         .await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
@@ -52,19 +52,16 @@ pub async fn claim_delegator_reward(
 
 #[tauri::command]
 pub async fn claim_locked_and_unlocked_delegator_reward(
-    mix_id: MixId,
+    node_id: NodeId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<Vec<TransactionExecuteResult>, BackendError> {
-    log::info!(
-        ">>> Claim delegator reward (locked and unlocked): mix_id = {}",
-        mix_id
-    );
+    log::info!(">>> Claim delegator reward (locked and unlocked): node_id = {node_id}",);
 
     let guard = state.read().await;
     let client = guard.current_client()?;
 
-    log::trace!(">>> Get delegations: mix_id = {}", mix_id);
+    log::trace!(">>> Get delegations: node_id = {node_id}");
     let address = client.nyxd.address();
     let delegations = client.nyxd.get_all_delegator_delegations(&address).await?;
     log::trace!("<<< {} delegations", delegations.len());
@@ -76,11 +73,11 @@ pub async fn claim_locked_and_unlocked_delegator_reward(
         .to_string();
     let liquid_delegation = client
         .nyxd
-        .get_delegation_details(mix_id, &address, None)
+        .get_delegation_details(node_id, &address, None)
         .await?;
     let vesting_delegation = client
         .nyxd
-        .get_delegation_details(mix_id, &address, Some(vesting_contract))
+        .get_delegation_details(node_id, &address, Some(vesting_contract))
         .await?;
 
     drop(guard);
@@ -97,10 +94,10 @@ pub async fn claim_locked_and_unlocked_delegator_reward(
 
     let mut res: Vec<TransactionExecuteResult> = vec![];
     if did_delegate_with_mixnet_contract {
-        res.push(claim_delegator_reward(mix_id, fee.clone(), state.clone()).await?);
+        res.push(claim_delegator_reward(node_id, fee.clone(), state.clone()).await?);
     }
     if did_delegate_with_vesting_contract {
-        res.push(vesting_claim_delegator_reward(mix_id, fee, state).await?);
+        res.push(vesting_claim_delegator_reward(node_id, fee, state).await?);
     }
     log::trace!("<<< {:?}", res);
     Ok(res)

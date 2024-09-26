@@ -7,6 +7,7 @@ use crate::error::MixnodeError;
 use clap::crate_version;
 use nym_config::defaults::DEFAULT_VERLOC_LISTENING_PORT;
 use nym_config::helpers::inaddr_any;
+use nym_config::serde_helpers::de_maybe_port;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use std::time::Duration;
@@ -41,6 +42,12 @@ pub struct Verloc {
     /// default: `0.0.0.0:1790`
     pub bind_address: SocketAddr,
 
+    /// If applicable, custom port announced in the self-described API that other clients and nodes
+    /// will use.
+    /// Useful when the node is behind a proxy.
+    #[serde(deserialize_with = "de_maybe_port")]
+    pub announce_port: Option<u16>,
+
     #[serde(default)]
     pub debug: VerlocDebug,
 }
@@ -49,6 +56,7 @@ impl Default for Verloc {
     fn default() -> Self {
         Verloc {
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_VERLOC_PORT),
+            announce_port: None,
             debug: Default::default(),
         }
     }

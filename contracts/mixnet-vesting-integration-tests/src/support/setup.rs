@@ -11,7 +11,7 @@ use nym_contracts_common::signing::{ContractMessageContent, MessageSignature, No
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{
-    CurrentIntervalResponse, LayerAssignment, MixNodeCostParams, MixnodeBondingPayload,
+    CurrentIntervalResponse, LayerAssignment, MixnodeBondingPayload, NodeCostParams,
     PagedRewardedSetResponse, RewardingParams, SignableMixNodeBondingMsg,
 };
 use nym_mixnet_contract_common::{
@@ -156,8 +156,8 @@ impl TestSetup {
                 .execute_contract(
                     rewarding_validator(),
                     self.mixnet_contract(),
-                    &MixnetExecuteMsg::RewardMixnode {
-                        mix_id: *mix_id,
+                    &MixnetExecuteMsg::RewardNode {
+                        node_id: *mix_id,
                         performance: Performance::hundred(),
                     },
                     &[],
@@ -206,7 +206,7 @@ impl TestSetup {
     pub fn valid_mixnode_with_sig(
         &mut self,
         owner: &str,
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         stake: Coin,
     ) -> (MixNode, MessageSignature) {
         let signing_nonce: Nonce = self

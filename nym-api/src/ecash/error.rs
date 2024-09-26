@@ -15,14 +15,6 @@ use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITL
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
-use okapi::openapi3::Responses;
-use rocket::http::{ContentType, Status};
-use rocket::response::Responder;
-use rocket::{response, Request, Response};
-use rocket_okapi::gen::OpenApiGenerator;
-use rocket_okapi::response::OpenApiResponderInner;
-use rocket_okapi::util::ensure_status_code_exists;
-use std::io::Cursor;
 use std::num::ParseIntError;
 use thiserror::Error;
 use time::error::ComponentRange;
@@ -219,24 +211,24 @@ pub enum EcashError {
     UnknownTicketBookType(#[from] UnknownTicketType),
 }
 
-impl<'r, 'o: 'r> Responder<'r, 'o> for EcashError {
-    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'o> {
-        let err_msg = self.to_string();
-        Response::build()
-            .header(ContentType::Plain)
-            .sized_body(err_msg.len(), Cursor::new(err_msg))
-            .status(Status::BadRequest)
-            .ok()
-    }
-}
-
-impl OpenApiResponderInner for EcashError {
-    fn responses(_gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
-        let mut responses = Responses::default();
-        ensure_status_code_exists(&mut responses, 400);
-        Ok(responses)
-    }
-}
+// impl<'r, 'o: 'r> Responder<'r, 'o> for EcashError {
+//     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'o> {
+//         let err_msg = self.to_string();
+//         Response::build()
+//             .header(ContentType::Plain)
+//             .sized_body(err_msg.len(), Cursor::new(err_msg))
+//             .status(Status::BadRequest)
+//             .ok()
+//     }
+// }
+//
+// impl OpenApiResponderInner for EcashError {
+//     fn responses(_gen: &mut OpenApiGenerator) -> rocket_okapi::Result<Responses> {
+//         let mut responses = Responses::default();
+//         ensure_status_code_exists(&mut responses, 400);
+//         Ok(responses)
+//     }
+// }
 
 #[derive(Debug, Error)]
 pub enum RedemptionError {

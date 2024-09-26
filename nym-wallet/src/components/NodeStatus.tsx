@@ -32,5 +32,4 @@ export const NodeStatus = ({ status }: { status: MixnodeStatus }) => {
     default:
       return null;
   }
-  return null;
 };

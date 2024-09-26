@@ -1,3 +1,7 @@
+import VarInfo from 'components/snippets-general/variable-info.tsx'
+
+<VarInfo />
+
 # Nym Node
 
 ```admonish note
@@ -78,7 +82,7 @@ sudo service nym-node start && journalctl -u nym-node -f -n 100
 
 10. After a minute of running properly, validate your `nymtun0` routing:
 
-  - Display the address 
+  - Display the address
 ```sh
 ip addr show nymtun0
 ```

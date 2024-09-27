@@ -20,9 +20,11 @@ Initial overhaul
     - [x] finish pass @ all pages, at least minimal stubs
     - [x] one-pager
     - [x] split chain stuff into integrations (interacting with the chain) and then move rest into the architecture subsection?
-    - [ ] make sure to pull ecash docs in
+    - [x] make sure to pull ecash docs in
     - [x] ~~diagrams~~ (moved to new features)
     - [ ] remove TODO links
+
+- [ ] all licensing pages are the same: make a single component to import
 
   - [ ] operators
     - [ ] tabs / general condensation of page length
@@ -35,10 +37,11 @@ Initial overhaul
 
   - [ ] pull in all docs updates after 37d9f919227cec148e0355404b4029c0949e4dea from develop !!
    - [ ] operators docs (various)
-   - [ ] ProxyClient/Server docs: formulate new integrations and docs around this
+   - [x] ecash
 
   - [ ] developers
     - [ ] overhaul the FAQs and split out into integrations section
+    - [ ] ProxyClient/Server docs: formulate new integrations and docs around this
     - [ ] integrations: pull all integration stuff from the TS SDK into its own subdir
     - [ ] rewrite around the idea of using the proxy logic for the moment, in order for ease of integration
     - [ ] write ovrview for the proxy
@@ -53,17 +56,12 @@ Initial overhaul
     - [ ] remove numbering from sidebar
   - [ ] check all links work and fix
 
-- [ ] replace `mdbook-cmdrun`
+- [ ] replace `mdbook-cmdrun` with scripts in `package.json`
 - [ ] all images to root images dir with subdirs
 - [ ] change mdbook admonishes to nextra admonish
 
 - [ ] make common links (e.g. github) variables if we require several
-- [ ] remove dangling index
-
-- [ ] redo all diagrams - look @ tool Mark linked in Zulip
-  - [ ] existing
-  - [ ] packets
-  - [ ] trace a packet
+- [x] remove dangling index
 
 Autodocs
 --------

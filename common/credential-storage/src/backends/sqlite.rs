@@ -171,10 +171,20 @@ impl SqliteEcashTicketbookManager {
         data: &[u8],
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO master_verification_key(epoch_id, serialised_key, serialization_revision) VALUES (?, ?, ?)",
+            r#"
+                INSERT OR IGNORE INTO master_verification_key(epoch_id, serialised_key, serialization_revision) VALUES (?, ?, ?);
+                UPDATE master_verification_key
+                    SET
+                        serialised_key = ?,
+                        serialization_revision = ?
+                     WHERE epoch_id = ?
+            "#,
             epoch_id,
             data,
-            serialisation_revision
+            serialisation_revision,
+            data,
+            serialisation_revision,
+            epoch_id
         )
         .execute(&self.connection_pool)
         .await?;
@@ -204,10 +214,20 @@ impl SqliteEcashTicketbookManager {
         data: &[u8],
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
-            "INSERT INTO coin_indices_signatures(epoch_id, serialised_signatures, serialization_revision) VALUES (?, ?, ?)",
+            r#"
+                INSERT OR IGNORE INTO coin_indices_signatures(epoch_id, serialised_signatures, serialization_revision) VALUES (?, ?, ?);
+                UPDATE coin_indices_signatures
+                    SET
+                        serialised_signatures = ?,
+                        serialization_revision = ?
+                     WHERE epoch_id = ?
+            "#,
             epoch_id,
             data,
-            serialisation_revision
+            serialisation_revision,
+            data,
+            serialisation_revision,
+            epoch_id,
         )
         .execute(&self.connection_pool)
         .await?;
@@ -240,13 +260,21 @@ impl SqliteEcashTicketbookManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO expiration_date_signatures(expiration_date, epoch_id, serialised_signatures, serialization_revision)
-                VALUES (?, ?, ?, ?)
+                INSERT OR IGNORE INTO expiration_date_signatures(expiration_date, epoch_id, serialised_signatures, serialization_revision)
+                VALUES (?, ?, ?, ?);
+                UPDATE expiration_date_signatures
+                    SET
+                        serialised_signatures = ?,
+                        serialization_revision = ?
+                     WHERE expiration_date = ?
             "#,
             expiration_date,
             epoch_id,
             data,
-            serialisation_revision
+            serialisation_revision,
+            data,
+            serialisation_revision,
+            expiration_date
         )
             .execute(&self.connection_pool)
             .await?;

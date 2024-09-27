@@ -150,7 +150,7 @@ impl<S: Storage + Clone + 'static> CredentialVerifier<S> {
         Ok(self
             .bandwidth_storage_manager
             .client_bandwidth
-            .bandwidth
-            .bytes)
+            .available()
+            .await)
     }
 }

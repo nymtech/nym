@@ -27,7 +27,7 @@ use nym_gateway_storage::{error::StorageError, Storage};
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::EcashApiError;
-use rand::{CryptoRng, Rng};
+use rand::{random, CryptoRng, Rng};
 use std::{process, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -236,11 +236,7 @@ where
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        // TODO: change it into a span field instead once we move to tracing
-        debug!(
-            "handling e-cash bandwidth request from {}",
-            self.client.address
-        );
+        debug!("handling e-cash bandwidth request");
 
         let credential = ClientControlRequest::try_from_enc_ecash_credential(
             enc_credential,
@@ -253,7 +249,11 @@ where
             self.bandwidth_storage_manager.clone(),
         );
 
-        let available_total = verifier.verify().await?;
+        let available_total = verifier
+            .verify()
+            .await
+            .inspect_err(|verification_failure| debug!("{verification_failure}"))?;
+        trace!("available total bandwidth: {available_total}");
 
         Ok(ServerResponse::Bandwidth { available_total })
     }
@@ -340,20 +340,17 @@ where
         &mut self,
         ciphertext: Vec<u8>,
         nonce: Vec<u8>,
-    ) -> Message {
+    ) -> Result<ServerResponse, RequestHandlingError> {
         let Ok(req) = ClientRequest::decrypt(&ciphertext, &nonce, &self.client.shared_keys) else {
-            return RequestHandlingError::InvalidEncryptedTextRequest.into_error_message();
+            return Err(RequestHandlingError::InvalidEncryptedTextRequest);
         };
 
         match req {
             ClientRequest::UpgradeKey {
                 hkdf_salt,
                 derived_key_digest,
-            } => self
-                .handle_key_upgrade(hkdf_salt, derived_key_digest)
-                .await
-                .into_ws_message(),
-            _ => RequestHandlingError::UnknownEncryptedTextRequest.into_error_message(),
+            } => self.handle_key_upgrade(hkdf_salt, derived_key_digest).await,
+            _ => Err(RequestHandlingError::UnknownEncryptedTextRequest),
         }
     }
 
@@ -366,59 +363,64 @@ where
     /// * `raw_request`: raw message to handle.
     async fn handle_text(&mut self, raw_request: String) -> Message {
         trace!("text request");
-        match ClientControlRequest::try_from(raw_request) {
-            Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
-            Ok(request) => match request {
-                ClientControlRequest::EncryptedRequest { ciphertext, nonce } => {
-                    self.handle_encrypted_text_request(ciphertext, nonce).await
-                }
-                ClientControlRequest::EcashCredential { enc_credential, iv } => self
-                    .handle_ecash_bandwidth(enc_credential, iv)
-                    .await
-                    .into_ws_message(),
-                ClientControlRequest::BandwidthCredential { .. } => {
-                    RequestHandlingError::IllegalRequest {
-                        additional_context: "coconut credential are not longer supported".into(),
-                    }
-                    .into_error_message()
-                }
-                ClientControlRequest::BandwidthCredentialV2 { .. } => {
-                    RequestHandlingError::IllegalRequest {
-                        additional_context: "coconut credential are not longer supported".into(),
-                    }
-                    .into_error_message()
-                }
-                ClientControlRequest::ClaimFreeTestnetBandwidth => self
-                    .bandwidth_storage_manager
-                    .handle_claim_testnet_bandwidth()
-                    .await
-                    .map_err(|e| e.into())
-                    .into_ws_message(),
-                ClientControlRequest::SupportedProtocol { .. } => self
-                    .inner
-                    .handle_supported_protocol_request()
-                    .into_ws_message(),
-                other @ ClientControlRequest::Authenticate { .. } => {
-                    RequestHandlingError::IllegalRequest {
-                        additional_context: format!(
-                            "received illegal message of type {} in an authenticated client",
-                            other.name()
-                        ),
-                    }
-                    .into_error_message()
-                }
-                other @ ClientControlRequest::RegisterHandshakeInitRequest { .. } => {
-                    RequestHandlingError::IllegalRequest {
-                        additional_context: format!(
-                            "received illegal message of type {} in an authenticated client",
-                            other.name()
-                        ),
-                    }
-                    .into_error_message()
-                }
-                _ => RequestHandlingError::UnknownTextRequest.into_error_message(),
-            },
+
+        let request = match ClientControlRequest::try_from(raw_request) {
+            Ok(req) => {
+                debug!("received request of type {}", req.name());
+                req
+            }
+            Err(err) => {
+                debug!("request was malformed: {err}");
+                return RequestHandlingError::InvalidTextRequest(err).into_error_message();
+            }
+        };
+
+        match request {
+            ClientControlRequest::EncryptedRequest { ciphertext, nonce } => {
+                self.handle_encrypted_text_request(ciphertext, nonce).await
+            }
+            ClientControlRequest::EcashCredential { enc_credential, iv } => {
+                self.handle_ecash_bandwidth(enc_credential, iv).await
+            }
+            ClientControlRequest::BandwidthCredential { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: "coconut credential are not longer supported".into(),
+                })
+            }
+            ClientControlRequest::BandwidthCredentialV2 { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: "coconut credential are not longer supported".into(),
+                })
+            }
+            ClientControlRequest::ClaimFreeTestnetBandwidth => self
+                .bandwidth_storage_manager
+                .handle_claim_testnet_bandwidth()
+                .await
+                .map_err(|e| e.into()),
+            ClientControlRequest::SupportedProtocol { .. } => {
+                Ok(self.inner.handle_supported_protocol_request())
+            }
+            other @ ClientControlRequest::Authenticate { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: format!(
+                        "received illegal message of type {} in an authenticated client",
+                        other.name()
+                    ),
+                })
+            }
+            other @ ClientControlRequest::RegisterHandshakeInitRequest { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: format!(
+                        "received illegal message of type {} in an authenticated client",
+                        other.name()
+                    ),
+                })
+            }
+            _ => Err(RequestHandlingError::UnknownTextRequest),
         }
+        .inspect(|res| debug!(response = ?res, "success"))
+        .inspect_err(|err| debug!(error = %err, "failure"))
+        .into_ws_message()
     }
 
     /// Handles pong message received from the client.
@@ -452,12 +454,13 @@ where
     /// # Arguments
     ///
     /// * `raw_request`: raw received websocket message.
+    #[instrument(level = "debug", skip_all,
+        fields(
+            client = %self.client.address.as_base58_string()
+        )
+    )]
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
-        // TODO: this should be added via tracing
-        debug!(
-            "handling request from {}",
-            self.client.address.as_base58_string()
-        );
+        trace!("new request");
 
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
@@ -478,8 +481,8 @@ where
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
-        let tag: u64 = rand::thread_rng().gen();
-        debug!("Got request to ping our connection: {}", tag);
+        let tag: u64 = random();
+        debug!("got request to ping our connection: {tag}");
         self.inner
             .send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec()))
             .await?;

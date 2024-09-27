@@ -5143,12 +5143,12 @@ dependencies = [
 name = "nym-explorer-client"
 version = "0.1.0"
 dependencies = [
- "log",
  "nym-explorer-api-requests",
  "reqwest 0.12.4",
  "serde",
  "thiserror",
  "tokio",
+ "tracing",
  "url",
 ]
 
@@ -6404,7 +6404,6 @@ dependencies = [
  "flate2",
  "futures",
  "itertools 0.13.0",
- "log",
  "nym-api-requests",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
@@ -6427,6 +6426,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
+ "tracing",
  "ts-rs",
  "url",
  "wasmtimer",

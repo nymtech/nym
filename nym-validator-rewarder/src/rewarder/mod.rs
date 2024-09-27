@@ -288,6 +288,58 @@ impl Rewarder {
         self.current_epoch = self.current_epoch.next();
     }
 
+    async fn ensure_has_epoch_blocks(&self) -> Result<(), NymRewarderError> {
+        // make sure we at least have a single block processed within the epoch
+        let epoch_start = self.current_epoch.start_time;
+        let epoch_end = self.current_epoch.end_time;
+
+        if let Some(epoch_signing) = &self.epoch_signing {
+            if epoch_signing
+                .nyxd_scraper
+                .storage
+                .get_first_block_height_after(epoch_start)
+                .await?
+                .is_none()
+            {
+                return Err(NymRewarderError::NoBlocksProcessedInEpoch {
+                    epoch: self.current_epoch,
+                });
+            }
+
+            if epoch_signing
+                .nyxd_scraper
+                .storage
+                .get_last_block_height_before(epoch_end)
+                .await?
+                .is_none()
+            {
+                return Err(NymRewarderError::NoBlocksProcessedInEpoch {
+                    epoch: self.current_epoch,
+                });
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn startup_resync(&mut self) -> Result<(), NymRewarderError> {
+        // no sync required
+        if !self.current_epoch.has_finished() {
+            return Ok(());
+        }
+
+        info!("attempting to distribute missed rewards");
+        while self.current_epoch.has_finished() {
+            info!("processing epoch {}", self.current_epoch);
+            self.ensure_has_epoch_blocks().await?;
+
+            // we need to perform rewarding from the 'current' epoch until the actual current epoch
+            self.handle_epoch_end().await
+        }
+
+        Ok(())
+    }
+
     pub async fn run(mut self) -> Result<(), NymRewarderError> {
         info!("Starting nym validators rewarder");
 
@@ -314,6 +366,20 @@ impl Rewarder {
             .into();
 
         let until_end = self.current_epoch.until_end();
+
+        if let Err(err) = self.startup_resync().await {
+            error!("failed to perform startup sync: {err}");
+            error!("if the failure was due to insufficient number of blocks, your course of action is as follows:");
+            error!("(ideally it would have been automatically resolved in this very method, but that'd require some serious refactoring)");
+            error!(
+                "1. determine height of the first block of the epoch (doesn't have to be exact)"
+            );
+            error!("2. run the following subcommand of the rewarder: `nym-validator-rewarder process-until --start_height=$STARTING_BLOCK");
+            error!("3. !!IMPORTANT!! go to config.toml and temporarily disable block pruning, i.e. `pruning.strategy=nothing`");
+            error!("4. restart nym-validator-rewarder as normal until it sends missing rewards");
+            error!("5. re-enable pruning and restart the nym-validator rewarder");
+            return Err(err);
+        }
 
         info!(
             "the initial epoch (id: {}) will finish in {} secs",

@@ -208,7 +208,17 @@ impl NyxdScraper {
             }
         };
 
-        let end_height = end_height.unwrap_or(current_height);
+        let end_height = match end_height {
+            Some(explicit) => explicit,
+            None => {
+                let last_processed = block_processor.last_process_height();
+                if last_processed != 0 {
+                    last_processed - 1
+                } else {
+                    current_height
+                }
+            }
+        };
 
         info!(
             starting_height = starting_height,

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::RewardingRatios;
+use crate::rewarder::Epoch;
 use nym_compact_ecash::error::CompactEcashError;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::nym_api::error::NymAPIError;
@@ -178,6 +179,9 @@ pub enum NymRewarderError {
 
     #[error("pruning.keep_recent must not be smaller than {min_to_keep}. got: {keep_recent}")]
     TooSmallKeepRecent { min_to_keep: u32, keep_recent: u32 },
+
+    #[error("there were no blocks processed within the epoch {epoch}")]
+    NoBlocksProcessedInEpoch { epoch: Epoch },
 }
 
 #[derive(Debug)]

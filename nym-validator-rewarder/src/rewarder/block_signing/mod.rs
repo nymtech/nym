@@ -92,18 +92,28 @@ impl EpochSigning {
 
         let epoch_start = current_epoch.start_time;
         let epoch_end = current_epoch.end_time;
-        let first_block = self
+
+        let Some(first_block) = self
             .nyxd_scraper
             .storage
             .get_first_block_height_after(epoch_start)
             .await?
-            .unwrap_or_default();
-        let last_block = self
+        else {
+            return Err(NymRewarderError::NoBlocksProcessedInEpoch {
+                epoch: current_epoch,
+            });
+        };
+
+        let Some(last_block) = self
             .nyxd_scraper
             .storage
             .get_last_block_height_before(epoch_end)
             .await?
-            .unwrap_or_default();
+        else {
+            return Err(NymRewarderError::NoBlocksProcessedInEpoch {
+                epoch: current_epoch,
+            });
+        };
 
         // each validator MUST be online at some point during the first 20 blocks, otherwise they're not getting anything.
         let vp_range_end = min(first_block + 20, last_block);

@@ -7,7 +7,6 @@ use crate::rewarder::block_signing::types::EpochSigningResults;
 use crate::rewarder::block_signing::EpochSigning;
 use crate::rewarder::credential_issuance::types::CredentialIssuanceResults;
 use crate::rewarder::credential_issuance::CredentialIssuance;
-use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
 use crate::rewarder::storage::RewarderStorage;
 use futures::future::{FusedFuture, OptionFuture};
@@ -28,6 +27,8 @@ mod nyxd_client;
 mod storage;
 mod tasks;
 
+pub(crate) use crate::rewarder::epoch::Epoch;
+
 pub struct RewardingResult {
     pub total_spent: Coin,
     pub rewarding_tx: Hash,
@@ -47,15 +48,20 @@ impl EpochRewards {
     pub fn amounts(&self) -> Result<Vec<(AccountId, Vec<Coin>)>, NymRewarderError> {
         let mut amounts = Vec::new();
 
-        if let Ok(Some(signing)) = &self.signing {
+        match &self.signing {
+            Ok(Some(signing)) => {
             for (account, signing_amount) in signing.rewarding_amounts(&self.signing_budget) {
                 if signing_amount[0].amount != 0 {
                     amounts.push((account, signing_amount))
                 }
             }
+            }
+            Err(err) => error!("failed to determine rewards for block signing: {err}"),
+            _ => (),
         }
 
-        if let Ok(Some(credentials)) = &self.credentials {
+        match &self.credentials {
+            Ok(Some(credentials)) => {
             for (account, credential_amount) in
                 credentials.rewarding_amounts(&self.credentials_budget)
             {
@@ -63,6 +69,9 @@ impl EpochRewards {
                     amounts.push((account, credential_amount))
                 }
             }
+            }
+            Err(err) => error!("failed to determine rewards for credential issuance: {err}"),
+            _ => (),
         }
 
         Ok(amounts)

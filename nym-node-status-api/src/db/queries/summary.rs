@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use futures_util::TryStreamExt;
 use std::collections::HashMap;
+use tracing::error;
 
 use crate::{
     db::{
@@ -40,7 +41,14 @@ pub(crate) async fn get_summary_history(pool: &DbPool) -> anyhow::Result<Vec<Sum
     .try_collect::<Vec<_>>()
     .await?;
 
-    let items = items.into_iter().map(|item| item.into()).collect();
+    let items = items
+        .into_iter()
+        .map(|item| item.try_into())
+        .collect::<anyhow::Result<Vec<_>>>()
+        .map_err(|e| {
+            error!("Conversion from DTO failed: {e}. Invalidly stored data?");
+            e
+        })?;
     Ok(items)
 }
 

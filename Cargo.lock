@@ -2296,6 +2296,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "envy"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f47e0157f2cb54f5ae1bd371b30a2ae4311e1c028f575cd4e81de7353215965"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "equivalent"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5804,6 +5813,7 @@ dependencies = [
  "chrono",
  "clap 4.5.17",
  "cosmwasm-std",
+ "envy",
  "futures-util",
  "moka",
  "nym-bin-common",
@@ -5812,6 +5822,7 @@ dependencies = [
  "nym-node-requests",
  "nym-task",
  "nym-validator-client",
+ "reqwest 0.12.4",
  "serde",
  "serde_json",
  "serde_json_path",
@@ -5821,6 +5832,7 @@ dependencies = [
  "tokio-util",
  "tower-http",
  "tracing",
+ "tracing-log 0.2.0",
  "tracing-subscriber",
  "utoipa",
  "utoipa-swagger-ui",

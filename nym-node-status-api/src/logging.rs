@@ -2,8 +2,11 @@ use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{filter::Directive, EnvFilter};
 
 pub(crate) fn setup_tracing_logger() {
-    fn directive_checked(directive: String) -> Directive {
-        directive.parse().expect("Failed to parse log directive")
+    fn directive_checked(directive: impl Into<String>) -> Directive {
+        directive
+            .into()
+            .parse()
+            .expect("Failed to parse log directive")
     }
 
     let log_builder = tracing_subscriber::fmt()
@@ -13,6 +16,7 @@ pub(crate) fn setup_tracing_logger() {
         .with_file(true)
         // Display source code line numbers
         .with_line_number(true)
+        .with_thread_ids(true)
         // Don't display the event's target (module path)
         .with_target(false);
 
@@ -22,10 +26,6 @@ pub(crate) fn setup_tracing_logger() {
         .from_env_lossy();
     // these crates are more granularly filtered
     let filter_crates = [
-        "nym_bin_common",
-        "nym_explorer_client",
-        "nym_network_defaults",
-        "nym_validator_client",
         "reqwest",
         "rustls",
         "hyper",
@@ -38,6 +38,11 @@ pub(crate) fn setup_tracing_logger() {
     for crate_name in filter_crates {
         filter = filter.add_directive(directive_checked(format!("{}=warn", crate_name)));
     }
+
+    filter = filter.add_directive(directive_checked("nym_bin_common=debug"));
+    filter = filter.add_directive(directive_checked("nym_explorer_client=debug"));
+    filter = filter.add_directive(directive_checked("nym_network_defaults=debug"));
+    filter = filter.add_directive(directive_checked("nym_validator_client=debug"));
 
     log_builder.with_env_filter(filter).init();
 }

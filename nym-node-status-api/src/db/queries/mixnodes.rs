@@ -1,5 +1,6 @@
 use futures_util::TryStreamExt;
 use nym_validator_client::models::MixNodeBondAnnotated;
+use tracing::error;
 
 use crate::{
     db::{
@@ -74,7 +75,14 @@ pub(crate) async fn get_all_mixnodes(pool: &DbPool) -> anyhow::Result<Vec<Mixnod
     .try_collect::<Vec<_>>()
     .await?;
 
-    let items = items.into_iter().map(|item| item.into()).collect();
+    let items = items
+        .into_iter()
+        .map(|item| item.try_into())
+        .collect::<anyhow::Result<Vec<_>>>()
+        .map_err(|e| {
+            error!("Conversion from DTO failed: {e}. Invalidly stored data?");
+            e
+        })?;
     Ok(items)
 }
 

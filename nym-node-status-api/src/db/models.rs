@@ -1,4 +1,7 @@
-use crate::http::{self, models::SummaryHistory};
+use crate::{
+    http::{self, models::SummaryHistory},
+    monitor::NumericalCheckedCast,
+};
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -31,16 +34,20 @@ pub(crate) struct GatewayDto {
     pub(crate) website: String,
 }
 
-impl From<GatewayDto> for http::models::Gateway {
-    fn from(value: GatewayDto) -> Self {
+impl TryFrom<GatewayDto> for http::models::Gateway {
+    type Error = anyhow::Error;
+
+    fn try_from(value: GatewayDto) -> Result<Self, Self::Error> {
         // Instead of using routing_score_successes / routing_score_samples, we use the
         // number of successful testruns in the last 24h.
         let routing_score = 0f32;
         let config_score = 0u32;
-        let last_updated_utc = timestamp_as_utc(value.last_updated_utc as u64).to_rfc3339();
+        let last_updated_utc =
+            timestamp_as_utc(value.last_updated_utc.cast_checked()?).to_rfc3339();
         let last_testrun_utc = value
             .last_testrun_utc
-            .map(|t| timestamp_as_utc(t as u64).to_rfc3339());
+            .and_then(|i| i.cast_checked().ok())
+            .map(|t| timestamp_as_utc(t).to_rfc3339());
 
         let self_described = value.self_described.clone().unwrap_or("null".to_string());
         let explorer_pretty_bond = value
@@ -68,7 +75,7 @@ impl From<GatewayDto> for http::models::Gateway {
             details: value.details.clone(),
         };
 
-        http::models::Gateway {
+        Ok(http::models::Gateway {
             gateway_identity_key: value.gateway_identity_key.clone(),
             bonded,
             blacklisted,
@@ -82,7 +89,7 @@ impl From<GatewayDto> for http::models::Gateway {
             config_score,
             last_testrun_utc,
             last_updated_utc,
-        }
+        })
     }
 }
 
@@ -121,10 +128,11 @@ pub(crate) struct MixnodeDto {
     pub(crate) details: String,
 }
 
-impl From<MixnodeDto> for http::models::Mixnode {
-    fn from(value: MixnodeDto) -> Self {
-        // TODO dz avoid as?
-        let mix_id = value.mix_id as u32;
+impl TryFrom<MixnodeDto> for http::models::Mixnode {
+    type Error = anyhow::Error;
+
+    fn try_from(value: MixnodeDto) -> Result<Self, Self::Error> {
+        let mix_id = value.mix_id.cast_checked()?;
         let full_details = value.full_details.clone();
         let full_details = serde_json::from_str(&full_details).unwrap_or(None);
 
@@ -133,7 +141,8 @@ impl From<MixnodeDto> for http::models::Mixnode {
             .clone()
             .map(|v| serde_json::from_str(&v).unwrap_or(serde_json::Value::Null));
 
-        let last_updated_utc = timestamp_as_utc(value.last_updated_utc as u64).to_rfc3339();
+        let last_updated_utc =
+            timestamp_as_utc(value.last_updated_utc.cast_checked()?).to_rfc3339();
         let blacklisted = value.blacklisted;
         let is_dp_delegatee = value.is_dp_delegatee;
         let moniker = value.moniker.clone();
@@ -141,7 +150,7 @@ impl From<MixnodeDto> for http::models::Mixnode {
         let security_contact = value.security_contact.clone();
         let details = value.details.clone();
 
-        http::models::Mixnode {
+        Ok(http::models::Mixnode {
             mix_id,
             bonded: value.bonded,
             blacklisted,
@@ -156,7 +165,7 @@ impl From<MixnodeDto> for http::models::Mixnode {
             },
             self_described,
             last_updated_utc,
-        }
+        })
     }
 }
 
@@ -185,15 +194,16 @@ pub(crate) struct SummaryHistoryDto {
     pub timestamp_utc: i64,
 }
 
-impl From<SummaryHistoryDto> for SummaryHistory {
-    fn from(value: SummaryHistoryDto) -> Self {
+impl TryFrom<SummaryHistoryDto> for SummaryHistory {
+    type Error = anyhow::Error;
+
+    fn try_from(value: SummaryHistoryDto) -> Result<Self, Self::Error> {
         let value_json = serde_json::from_str(&value.value_json).unwrap_or_default();
-        SummaryHistory {
+        Ok(SummaryHistory {
             value_json,
             date: value.date.clone(),
-            // TODO dz avoid as?
-            timestamp_utc: timestamp_as_utc(value.timestamp_utc as u64).to_rfc3339(),
-        }
+            timestamp_utc: timestamp_as_utc(value.timestamp_utc.cast_checked()?).to_rfc3339(),
+        })
     }
 }
 

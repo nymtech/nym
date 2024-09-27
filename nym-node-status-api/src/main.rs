@@ -23,13 +23,14 @@ async fn main() -> anyhow::Result<()> {
     tracing::debug!("{:?}", read_env_var("EXPLORER_API"));
     tracing::debug!("{:?}", read_env_var("NYM_API"));
 
-    let conf = config::Config::from_env();
-    tracing::debug!("Using config:\n{:?}", conf);
+    let conf = config::Config::from_env()?;
+    tracing::debug!("Using config:\n{:#?}", conf);
 
     let storage = db::Storage::init().await?;
     let db_pool = storage.pool_owned().await;
+    let conf_clone = conf.clone();
     tokio::spawn(async move {
-        monitor::spawn_in_background(db_pool).await;
+        monitor::spawn_in_background(db_pool, conf_clone).await;
     });
     tracing::info!("Started monitor task");
 
@@ -40,8 +41,7 @@ async fn main() -> anyhow::Result<()> {
     )
     .await
     .expect("Failed to start server");
-    // TODO dz load bind address from config
-    // TODO dz log bind address
+
     tracing::info!("Started HTTP server on port {}", conf.http_port());
 
     wait_for_signal().await;

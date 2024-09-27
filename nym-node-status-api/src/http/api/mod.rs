@@ -7,15 +7,10 @@ use utoipa_swagger_ui::SwaggerUi;
 
 use crate::http::{server::HttpServer, state::AppState};
 
-// TODO dz src/http/gateways.rs
 pub(crate) mod gateways;
-// TODO dz src/http/mixnodes.rs
 pub(crate) mod mixnodes;
-// TODO dz src/http/services.rs
 pub(crate) mod services;
-// TODO dz src/http/summary.rs
 pub(crate) mod summary;
-// TODO dz src/http/testruns.rs
 pub(crate) mod testruns;
 
 pub(crate) struct RouterBuilder {
@@ -40,7 +35,7 @@ impl RouterBuilder {
                     .nest("/mixnodes", mixnodes::routes())
                     .nest("/services", services::routes())
                     .nest("/summary", summary::routes()),
-                // .merge(testruns::routes()),
+                // .nest("/testruns", testruns::_routes()),
             );
 
         Self {

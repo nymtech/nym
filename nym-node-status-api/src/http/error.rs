@@ -15,7 +15,7 @@ impl HttpError {
 
     pub(crate) fn internal() -> Self {
         Self {
-            message: String::from("Internal"),
+            message: serde_json::json!({"message": "Internal server error"}).to_string(),
             status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
         }
     }

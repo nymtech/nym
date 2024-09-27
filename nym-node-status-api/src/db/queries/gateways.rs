@@ -7,6 +7,7 @@ use crate::{
 };
 use futures_util::TryStreamExt;
 use nym_validator_client::models::DescribedGateway;
+use tracing::error;
 
 pub(crate) async fn insert_gateways(
     pool: &DbPool,
@@ -146,7 +147,14 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
     .try_collect::<Vec<_>>()
     .await?;
 
-    let items: Vec<Gateway> = items.into_iter().map(|item| item.into()).collect();
+    let items: Vec<Gateway> = items
+        .into_iter()
+        .map(|item| item.try_into())
+        .collect::<anyhow::Result<Vec<_>>>()
+        .map_err(|e| {
+            error!("Conversion from DTO failed: {e}. Invalidly stored data?");
+            e
+        })?;
     tracing::trace!("Fetched {} gateways from DB", items.len());
     Ok(items)
 }

@@ -24,6 +24,7 @@ cargo Profile:      release
 ### Features
 
 - [New Network Monitor](https://github.com/nymtech/nym/pull/4610): Monitors the Nym network by sending itself packages across the mixnet. Network monitor is running two tokio tasks, one manages mixnet clients and another manages monitoring itself. Monitor is designed to be driven externally, via an `HTTP api`. This means that it does not do any monitoring unless driven by something like [`locust`](https://locust.io/). This allows us to tailor the load externally, potentially distributing it across multiple monitors. Includes a dockerised setup for automatically spinning up monitor and driving it with locust.
+    - *Note: NNM is not deployed on mainnet yet!*
  
 - [Add get_mixnodes_described to validator_client](https://github.com/nymtech/nym/pull/4725)
 
@@ -226,10 +227,7 @@ sudo apt remove nym-repo-setup
 
 - [Allow updating globally stored signatures](https://github.com/nymtech/nym/pull/4891)
 
-- [Bugfix/ticketbook false double spending](https://github.com/nymtech/nym/pull/4892): 
-<!-- Reviewable:start --> This change is [<img src="https://reviewable.io/review_button.svg" height="34" align="absmiddle" alt="Reviewable"/>](https://reviewable.io/reviews/nymtech/nym/4892) <!-- Reviewable:end --> 
-
-
+- [Bugfix/ticketbook false double spending](https://github.com/nymtech/nym/pull/4892)
 ~~~admonish example collapsible=true title='Testing steps performed'
 Tested running a client in mixnet mode, with a standard ticketbook, as well as a client using an imported ticketbook. The double spending bug is no longer an issue, bandwidth is consumed properly, and upon consumption of one ticket another ticket is properly obtained. 
 ~~~

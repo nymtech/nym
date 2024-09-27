@@ -50,11 +50,11 @@ impl EpochRewards {
 
         match &self.signing {
             Ok(Some(signing)) => {
-            for (account, signing_amount) in signing.rewarding_amounts(&self.signing_budget) {
-                if signing_amount[0].amount != 0 {
-                    amounts.push((account, signing_amount))
+                for (account, signing_amount) in signing.rewarding_amounts(&self.signing_budget) {
+                    if signing_amount[0].amount != 0 {
+                        amounts.push((account, signing_amount))
+                    }
                 }
-            }
             }
             Err(err) => error!("failed to determine rewards for block signing: {err}"),
             _ => (),
@@ -62,13 +62,13 @@ impl EpochRewards {
 
         match &self.credentials {
             Ok(Some(credentials)) => {
-            for (account, credential_amount) in
-                credentials.rewarding_amounts(&self.credentials_budget)
-            {
-                if credential_amount[0].amount != 0 {
-                    amounts.push((account, credential_amount))
+                for (account, credential_amount) in
+                    credentials.rewarding_amounts(&self.credentials_budget)
+                {
+                    if credential_amount[0].amount != 0 {
+                        amounts.push((account, credential_amount))
+                    }
                 }
-            }
             }
             Err(err) => error!("failed to determine rewards for credential issuance: {err}"),
             _ => (),
@@ -374,7 +374,7 @@ impl Rewarder {
             error!(
                 "1. determine height of the first block of the epoch (doesn't have to be exact)"
             );
-            error!("2. run the following subcommand of the rewarder: `nym-validator-rewarder process-until --start_height=$STARTING_BLOCK");
+            error!("2. run the following subcommand of the rewarder: `nym-validator-rewarder process-until --start-height=$STARTING_BLOCK");
             error!("3. !!IMPORTANT!! go to config.toml and temporarily disable block pruning, i.e. `pruning.strategy=nothing`");
             error!("4. restart nym-validator-rewarder as normal until it sends missing rewards");
             error!("5. re-enable pruning and restart the nym-validator rewarder");

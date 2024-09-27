@@ -1,11 +1,9 @@
 # Types of Nym clients
-At present, there are three standalone Nym clients:
+At present, there are three standalone Nym clients. These are built as standalone binaries when building our codebase, but are most easily accessed through one of our SDKs:
 
-- the websocket (native) client
-- the SOCKS5 client
-- the wasm (webassembly) client
-
-The wasm client can be accessed most easily via the [Typescript SDK]() TODO LINK, and websocket & socks5 functionality is available for Rust, Go, and C/C++ codebases via the [Rust SDK] TODO LINK , however the standalone client binaries are built along with the rest of the codebase for those who either wish to quickly experiment, or are programming in an unsupported language.
+- the websocket (native) client - most easily accessed via the [Rust SDK]() TODO LINK and Go/C++ FFI TODO LINK
+- the SOCKS5 client - most easily accessed via the [Rust SDK]() TODO LINK and Go/C++ FFI TODO LINK
+- the wasm (webassembly) client - most easily via the [Typescript SDK]() TODO LINK
 
 > For information about the role that clients play within the Nym system and their role when communicating with the Mixnet, see the [Client network docs](../network/architecture/mixnet/clients).
 

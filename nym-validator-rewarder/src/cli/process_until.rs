@@ -16,9 +16,10 @@ pub struct Args {
     #[clap(long)]
     start_height: Option<u32>,
 
-    /// Height of until we want to be processing the blocks
+    /// Height of until we want to be processing the blocks.
+    /// If none is provided, the currrent block height will be used
     #[clap(long)]
-    stop_height: u32,
+    stop_height: Option<u32>,
 
     /// Specifies custom location for the configuration file of nym validators rewarder.
     #[clap(long)]
@@ -26,11 +27,14 @@ pub struct Args {
 }
 
 pub(crate) async fn execute(args: Args) -> Result<(), NymRewarderError> {
-    if let Some(start_height) = args.start_height {
-        if start_height > args.stop_height {
-            eprintln!("the start height can't be larger than the stop height!");
-            return Ok(());
+    match (args.start_height, args.stop_height) {
+        (Some(start), Some(end)) => {
+            if start > end {
+                eprintln!("the start height can't be larger than the stop height!");
+                return Ok(());
+            }
         }
+        _ => (),
     }
 
     let config =

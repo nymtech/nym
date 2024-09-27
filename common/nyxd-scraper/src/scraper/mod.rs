@@ -180,7 +180,7 @@ impl NyxdScraper {
     pub async fn process_block_range(
         &self,
         starting_height: Option<u32>,
-        end_height: u32,
+        end_height: Option<u32>,
     ) -> Result<(), ScraperError> {
         if !self.task_tracker.is_empty() {
             return Err(ScraperError::ScraperAlreadyRunning);
@@ -194,6 +194,8 @@ impl NyxdScraper {
             .await?
             .with_pruning(PruningOptions::nothing());
 
+        let current_height = self.rpc_client.current_block_height().await? as u32;
+
         let starting_height = match starting_height {
             Some(explicit) => explicit,
             None => {
@@ -201,10 +203,12 @@ impl NyxdScraper {
                 if last_processed != 0 {
                     last_processed
                 } else {
-                    self.rpc_client.current_block_height().await? as u32
+                    current_height
                 }
             }
         };
+
+        let end_height = end_height.unwrap_or(current_height);
 
         info!(
             starting_height = starting_height,

@@ -8,19 +8,19 @@
   },
   "developers": {
     "title": "Developers",
-    "type": "page"
-  },
-  "sdk": {
-    "title": "SDKs",
     "type": "menu",
     "items": {
+      "developers": {
+        "title": "Developer Overview",
+        "href": "/developers/"
+      },
       "rust": {
         "title": "Rust SDK",
-        "href": "/sdk/rust"
+        "href": "/developers/rust"
       },
       "typescript": {
         "title": "Typescript SDK",
-        "href": "/sdk/typescript"
+        "href": "/developers/typescript"
       }
     }
   },

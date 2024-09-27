@@ -1,10 +1,15 @@
 {
+  "index": "Introduction",
   "concepts": "Core Concepts",
-  "integrations": "Integrating",
+  "integrations": "Integration Options",
   "clients": "Clients",
   "tools": "Tools",
   "chain": "Interacting with Nyx",
-  "tutorials": "Tutorials (Coming Soon)",
+  "--": {
+    "type": "separator"
+  },
+  "rust": "Rust SDK",
+  "typescript": "Typescript SDK",
   "---": {
     "type": "separator"
   },

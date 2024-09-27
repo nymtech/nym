@@ -49,7 +49,12 @@ impl EpochSigning {
     ) -> Result<Vec<staking::Validator>, NymRewarderError> {
         // first attempt to get it via the historical info.
         // if that fails, attempt to use current block information to at least get **something**
-        if let Some(validators) = self.nyxd_client.historical_info(height).await?.hist {
+        if let Ok(Some(validators)) = self
+            .nyxd_client
+            .historical_info(height)
+            .await
+            .map(|v| v.hist)
+        {
             Ok(validators.valset)
         } else {
             let mut page_request = None;
@@ -62,6 +67,10 @@ impl EpochSigning {
                 let Some(pagination) = res.pagination else {
                     break;
                 };
+
+                if pagination.next_key.is_empty() {
+                    break;
+                }
 
                 page_request = Some(PageRequest {
                     key: pagination.next_key,

@@ -195,11 +195,14 @@ impl NyxdScraper {
             .with_pruning(PruningOptions::nothing());
 
         let current_height = self.rpc_client.current_block_height().await? as u32;
+        let last_processed = block_processor.last_process_height();
 
         let starting_height = match starting_height {
+            // always attempt to use whatever the user has provided
             Some(explicit) => explicit,
             None => {
-                let last_processed = block_processor.last_process_height();
+                // otherwise, attempt to resume where we last stopped
+                // and if we haven't processed anything, start from the current height
                 if last_processed != 0 {
                     last_processed
                 } else {
@@ -209,10 +212,13 @@ impl NyxdScraper {
         };
 
         let end_height = match end_height {
+            // always attempt to use whatever the user has provided
             Some(explicit) => explicit,
             None => {
-                let last_processed = block_processor.last_process_height();
-                if last_processed != 0 {
+                // otherwise, attempt to either go from the start height to the height right
+                // before the final processed block held in the storage (in case there are gaps)
+                // or finally, just go to the current block height
+                if last_processed > starting_height {
                     last_processed - 1
                 } else {
                     current_height

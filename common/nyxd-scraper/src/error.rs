@@ -16,7 +16,7 @@ pub enum ScraperError {
     #[error("failed to perform startup SQL migration: {0}")]
     StartupMigrationFailure(#[from] sqlx::migrate::MigrateError),
 
-    #[error("can't add any modules to the scraper as it's already running")]
+    #[error("the block scraper is already running")]
     ScraperAlreadyRunning,
 
     #[error("failed to establish websocket connection to {url}: {source}")]

@@ -3,6 +3,7 @@
 
 use crate::error::NymRewarderError;
 use sqlx::FromRow;
+use std::fmt::{Display, Formatter};
 use std::ops::Add;
 use std::time::Duration;
 use time::format_description::well_known::Rfc3339;
@@ -34,6 +35,11 @@ impl Epoch {
         })
     }
 
+    pub fn has_finished(&self) -> bool {
+        let now = OffsetDateTime::now_utc();
+        self.end_time < now
+    }
+
     pub fn until_end(&self) -> Duration {
         let now = OffsetDateTime::now_utc();
         (self.end_time - now).try_into().unwrap_or_default()
@@ -58,5 +64,17 @@ impl Epoch {
         // safety: unwrap here is fine as we're using a predefined formatter
         #[allow(clippy::unwrap_used)]
         self.end_time.format(&Rfc3339).unwrap()
+    }
+}
+
+impl Display for Epoch {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}: {} - {}",
+            self.id,
+            self.start_rfc3339(),
+            self.end_rfc3339()
+        )
     }
 }

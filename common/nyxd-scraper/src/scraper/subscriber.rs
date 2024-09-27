@@ -16,7 +16,7 @@ use url::Url;
 
 const MAX_FAILURES: usize = 10;
 const MAX_RECONNECTION_ATTEMPTS: usize = 8;
-const SOCKET_FAILURE_RESET: Duration = Duration::hours(2);
+const SOCKET_FAILURE_RESET: Duration = Duration::minutes(15);
 
 pub struct ChainSubscriber {
     cancel: CancellationToken,

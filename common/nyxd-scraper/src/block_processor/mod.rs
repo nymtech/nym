@@ -10,6 +10,7 @@ use crate::rpc_client::RpcClient;
 use crate::storage::{persist_block, ScraperStorage};
 use crate::PruningOptions;
 use futures::StreamExt;
+use std::cmp::max;
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::ops::{Add, Range};
 use std::sync::Arc;
@@ -266,6 +267,7 @@ impl BlockProcessor {
         }
 
         if to_prune == 0 {
+            self.last_pruned_height = self.last_processed_height;
             return Ok(());
         }
 
@@ -365,7 +367,14 @@ impl BlockProcessor {
         self.maybe_prune_storage().await?;
 
         let latest_block = self.rpc_client.current_block_height().await? as u32;
+
         if latest_block > self.last_processed_height && self.last_processed_height != 0 {
+            // in case we were offline for a while,
+            // make sure we don't request blocks we'd have to prune anyway
+            let keep_recent = self.pruning_options.strategy_keep_recent();
+            let last_to_keep = latest_block - keep_recent;
+            self.last_processed_height = max(self.last_processed_height, last_to_keep);
+
             let request_range = self.last_processed_height + 1..latest_block + 1;
             info!("we need to request {request_range:?} to resync");
             self.request_missing_blocks(request_range).await?;

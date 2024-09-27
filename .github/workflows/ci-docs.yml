@@ -10,7 +10,7 @@ on:
 
 jobs:
   build:
-    runs-on: arc-ubuntu-20.04
+    runs-on: arc-ubuntu-20.04-dind
     steps:
       - uses: actions/checkout@v4
       - name: Install Dependencies (Linux)

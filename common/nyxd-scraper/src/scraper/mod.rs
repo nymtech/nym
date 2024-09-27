@@ -10,6 +10,7 @@ use crate::rpc_client::RpcClient;
 use crate::scraper::subscriber::ChainSubscriber;
 use crate::storage::ScraperStorage;
 use crate::PruningOptions;
+use futures::future::join_all;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::mpsc::{
@@ -18,7 +19,7 @@ use tokio::sync::mpsc::{
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
-use tracing::info;
+use tracing::{error, info};
 use url::Url;
 
 mod subscriber;
@@ -158,6 +159,7 @@ impl NyxdScraper {
     }
 
     pub async fn process_single_block(&self, height: u32) -> Result<(), ScraperError> {
+        info!(height = height, "attempting to process a single block");
         if !self.task_tracker.is_empty() {
             return Err(ScraperError::ScraperAlreadyRunning);
         }
@@ -165,13 +167,74 @@ impl NyxdScraper {
         let (_, processing_rx) = unbounded_channel();
         let (req_tx, _) = channel(5);
 
+        let mut block_processor = self
+            .new_block_processor(req_tx.clone(), processing_rx)
+            .await?
+            .with_pruning(PruningOptions::nothing());
+
         let block = self.rpc_client.get_basic_block_details(height).await?;
+
+        block_processor.process_block(block.into()).await
+    }
+
+    pub async fn process_block_range(
+        &self,
+        starting_height: Option<u32>,
+        end_height: u32,
+    ) -> Result<(), ScraperError> {
+        if !self.task_tracker.is_empty() {
+            return Err(ScraperError::ScraperAlreadyRunning);
+        }
+
+        let (_, processing_rx) = unbounded_channel();
+        let (req_tx, _) = channel(5);
 
         let mut block_processor = self
             .new_block_processor(req_tx.clone(), processing_rx)
             .await?
             .with_pruning(PruningOptions::nothing());
-        block_processor.process_block(block.into()).await
+
+        let starting_height = match starting_height {
+            Some(explicit) => explicit,
+            None => {
+                let last_processed = block_processor.last_process_height();
+                if last_processed != 0 {
+                    last_processed
+                } else {
+                    self.rpc_client.current_block_height().await? as u32
+                }
+            }
+        };
+
+        info!(
+            starting_height = starting_height,
+            end_height = end_height,
+            "attempting to process block range"
+        );
+
+        let range = (starting_height..=end_height).collect::<Vec<_>>();
+
+        // the most likely bottleneck here are going to be the chain queries,
+        // so batch multiple requests
+        for batch in range.chunks(4) {
+            let batch_result = join_all(
+                batch
+                    .iter()
+                    .map(|height| self.rpc_client.get_basic_block_details(*height)),
+            )
+            .await;
+            for result in batch_result {
+                match result {
+                    Ok(block) => block_processor.process_block(block.into()).await?,
+                    Err(err) => {
+                        error!("failed to retrieve the block: {err}. stopping...");
+                        return Err(err);
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     fn new_block_requester(

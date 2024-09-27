@@ -177,6 +177,10 @@ impl BlockProcessor {
         self.msg_modules = modules;
     }
 
+    pub(super) fn last_process_height(&self) -> u32 {
+        self.last_processed_height
+    }
+
     async fn maybe_request_missing_blocks(&mut self) -> Result<(), ScraperError> {
         // we're still processing, so we're good
         if self.last_processed_at.elapsed() < MAX_MISSING_BLOCKS_DELAY {

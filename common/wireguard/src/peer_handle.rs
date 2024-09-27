@@ -39,7 +39,8 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
-        let task_client = task_client.fork(format!("peer{public_key}"));
+        let mut task_client = task_client.fork(format!("peer-{public_key}"));
+        task_client.disarm();
         PeerHandle {
             storage,
             public_key,

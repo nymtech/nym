@@ -1,8 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::block_processor::types::BlockToProcess;
 use crate::block_processor::BlockProcessor;
-use crate::block_requester::BlockRequester;
+use crate::block_requester::{BlockRequest, BlockRequester};
 use crate::error::ScraperError;
 use crate::modules::{BlockModule, MsgModule, TxModule};
 use crate::rpc_client::RpcClient;
@@ -11,7 +12,9 @@ use crate::storage::ScraperStorage;
 use crate::PruningOptions;
 use std::path::PathBuf;
 use std::sync::Arc;
-use tokio::sync::mpsc::{channel, unbounded_channel};
+use tokio::sync::mpsc::{
+    channel, unbounded_channel, Receiver, Sender, UnboundedReceiver, UnboundedSender,
+};
 use tokio::sync::Notify;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
@@ -115,6 +118,7 @@ pub struct NyxdScraper {
     cancel_token: CancellationToken,
     startup_sync: Arc<Notify>,
     pub storage: ScraperStorage,
+    rpc_client: RpcClient,
 }
 
 impl NyxdScraper {
@@ -125,6 +129,7 @@ impl NyxdScraper {
     pub async fn new(config: Config) -> Result<Self, ScraperError> {
         config.pruning_options.validate()?;
         let storage = ScraperStorage::init(&config.database_path).await?;
+        let rpc_client = RpcClient::new(&config.rpc_url)?;
 
         Ok(NyxdScraper {
             config,
@@ -132,6 +137,7 @@ impl NyxdScraper {
             cancel_token: CancellationToken::new(),
             startup_sync: Arc::new(Default::default()),
             storage,
+            rpc_client,
         })
     }
 
@@ -151,36 +157,74 @@ impl NyxdScraper {
         self.task_tracker.close();
     }
 
-    pub async fn start(&self) -> Result<(), ScraperError> {
-        let (processing_tx, processing_rx) = unbounded_channel();
-        let (req_tx, req_rx) = channel(5);
+    pub async fn process_single_block(&self, height: u32) -> Result<(), ScraperError> {
+        if !self.task_tracker.is_empty() {
+            return Err(ScraperError::ScraperAlreadyRunning);
+        }
 
-        let rpc_client = RpcClient::new(&self.config.rpc_url)?;
+        let (_, processing_rx) = unbounded_channel();
+        let (req_tx, _) = channel(5);
 
-        // create the tasks
-        let block_requester = BlockRequester::new(
+        let block = self.rpc_client.get_basic_block_details(height).await?;
+
+        let mut block_processor = self
+            .new_block_processor(req_tx.clone(), processing_rx)
+            .await?
+            .with_pruning(PruningOptions::nothing());
+        block_processor.process_block(block.into()).await
+    }
+
+    fn new_block_requester(
+        &self,
+        req_rx: Receiver<BlockRequest>,
+        processing_tx: UnboundedSender<BlockToProcess>,
+    ) -> BlockRequester {
+        BlockRequester::new(
             self.cancel_token.clone(),
-            rpc_client.clone(),
+            self.rpc_client.clone(),
             req_rx,
             processing_tx.clone(),
-        );
-        let block_processor = BlockProcessor::new(
+        )
+    }
+
+    async fn new_block_processor(
+        &self,
+        req_tx: Sender<BlockRequest>,
+        processing_rx: UnboundedReceiver<BlockToProcess>,
+    ) -> Result<BlockProcessor, ScraperError> {
+        BlockProcessor::new(
             self.config.pruning_options,
             self.cancel_token.clone(),
             self.startup_sync.clone(),
             processing_rx,
             req_tx,
             self.storage.clone(),
-            rpc_client,
+            self.rpc_client.clone(),
         )
-        .await?;
-        let chain_subscriber = ChainSubscriber::new(
+        .await
+    }
+
+    async fn new_chain_subscriber(
+        &self,
+        processing_tx: UnboundedSender<BlockToProcess>,
+    ) -> Result<ChainSubscriber, ScraperError> {
+        ChainSubscriber::new(
             &self.config.websocket_url,
             self.cancel_token.clone(),
             self.task_tracker.clone(),
             processing_tx,
         )
-        .await?;
+        .await
+    }
+
+    pub async fn start(&self) -> Result<(), ScraperError> {
+        let (processing_tx, processing_rx) = unbounded_channel();
+        let (req_tx, req_rx) = channel(5);
+
+        // create the tasks
+        let block_requester = self.new_block_requester(req_rx, processing_tx.clone());
+        let block_processor = self.new_block_processor(req_tx, processing_rx).await?;
+        let chain_subscriber = self.new_chain_subscriber(processing_tx).await?;
 
         // spawn them
         self.start_tasks(block_requester, block_processor, chain_subscriber);

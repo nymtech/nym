@@ -99,7 +99,15 @@ impl BlockProcessor {
         })
     }
 
-    async fn process_block(&mut self, block: BlockToProcess) -> Result<(), ScraperError> {
+    pub fn with_pruning(mut self, pruning_options: PruningOptions) -> Self {
+        self.pruning_options = pruning_options;
+        self
+    }
+
+    pub(super) async fn process_block(
+        &mut self,
+        block: BlockToProcess,
+    ) -> Result<(), ScraperError> {
         info!("processing block at height {}", block.height);
 
         let full_info = self.rpc_client.try_get_full_details(block).await?;

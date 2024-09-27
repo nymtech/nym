@@ -13,6 +13,7 @@ use url::Url;
 
 pub mod build_info;
 pub mod init;
+pub mod process_block;
 pub mod run;
 pub mod upgrade_helpers;
 
@@ -42,6 +43,7 @@ impl Cli {
         match self.command {
             Commands::Init(args) => init::execute(args),
             Commands::Run(args) => run::execute(args).await,
+            Commands::ProcessBlock(args) => process_block::execute(args).await,
             Commands::BuildInfo(args) => build_info::execute(args),
         }
     }
@@ -96,6 +98,9 @@ pub(crate) enum Commands {
 
     /// Run the validator rewarder with the preconfigured settings.
     Run(run::Args),
+
+    /// Attempt to process a single block.
+    ProcessBlock(process_block::Args),
 
     /// Show build information of this binary
     BuildInfo(build_info::Args),

@@ -435,7 +435,7 @@ where
     trace!("update_last_processed");
     let start = Instant::now();
 
-    sqlx::query!("UPDATE metadata SET last_processed_height = ?", height)
+    sqlx::query!("UPDATE metadata SET last_processed_height = MAX(last_processed_height, ?)", height)
         .execute(executor)
         .await?;
     log_db_operation_time("update_last_processed", start);

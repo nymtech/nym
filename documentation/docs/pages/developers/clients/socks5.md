@@ -1,8 +1,10 @@
 # Socks5 Client
 
+TODO REMOVE THIS REPLACE WITH A BUILD INSTRUCTIONS DROPDOWN MENU COMPONENT
 > The Nym Socks5 Client was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code on this page, go there first.
 
 ## Current version
+TODO
 ```
 <!-- cmdrun ../../../../target/release/nym-socks5-client --version | grep "Build Version" | cut -b 21-26  -->
 ```

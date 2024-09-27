@@ -1,8 +1,9 @@
 {
   "concepts": "Core Concepts",
-  "integrations": "Integrations",
+  "integrations": "Integrating",
   "clients": "Clients",
   "tools": "Tools",
+  "chain": "Interacting with Nyx",
   "tutorials": "Tutorials (Coming Soon)",
   "---": {
     "type": "separator"

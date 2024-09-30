@@ -2,6 +2,8 @@
 
 ### What determines the rewards when running a `nym-node --mode mixnode`?
 
+> **Visit [nymtech.net/about/token](https://nymtech.net/about/token) to find live information, graphs and dashboards about NYM token.**
+
 The stake required for a Mix Node to achieve maximum rewards is called Mix Node saturation point. This is calculated from the staking supply (all circulating supply + part of unlocked tokens). The target level of staking is to have 40% of the staking supply locked in Mix Nodes.
 
 The node stake saturation point, which we denote by Nsat, is given by the stake supply, target level of staking divided between the rewarded nodes.

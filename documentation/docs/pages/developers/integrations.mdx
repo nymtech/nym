@@ -3,8 +3,11 @@ import { Steps } from 'nextra/components'
 import { Tabs } from 'nextra/components'
 import { GitHubRepoSearch } from '../../code-snippets/mixfetchurl';
 
-# Integrating Mixnet Functionality
+# Integration Options
 
+Developers might want to either integrate a Mixnet client or just to interact with the blockchain. See the relevant section below.
+
+### Integrating Mixnet Functionality
 There are several options available to developers wanting to embed a Nym client in their application code.
 
 <Tabs items={['Typescript/Javascript', 'Rust/Go/C++', 'Other']}>
@@ -30,7 +33,7 @@ There are several options available to developers wanting to embed a Nym client 
   <Tabs.Tab> If your app is not written in any of the supported languages, you might still be able to send traffic through a standalone socks5 client TODO LINK but will have to think about packaging and bundling the client binary with e.g. a `systemd` file for autostart to run the client as a daemon. If you want to discuss FFI options reach out to us via our public dev channel. </Tabs.Tab>
 </Tabs>
 
-## Interacting with Nyx
+### Interacting with Nyx
 
 If instead of relying on the Mixnet you wish to interact with the [Nyx]() TODO LINK chain, either as a payment processor or to get on-chain events, see [interacting with the chain]() TODO LINK.
 

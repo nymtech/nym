@@ -131,6 +131,7 @@ nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"
 
 [features]
 no-reward = []
+v2-performance = []
 generate-ts = ["ts-rs"]
 axum = ["dep:axum",
     "axum-extra",

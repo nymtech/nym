@@ -395,18 +395,33 @@ impl StorageManager {
         start: i64,
         end: i64,
     ) -> Result<Option<f32>, sqlx::Error> {
-        let result = sqlx::query!(
-            r#"
-            SELECT AVG(reliability) as "reliability: f32" FROM mixnode_status
-            WHERE mixnode_details_id= ? AND timestamp >= ? AND timestamp <= ?
-            "#,
-            id,
-            start,
-            end
-        )
-        .fetch_one(&self.connection_pool)
-        .await?;
-        Ok(result.reliability)
+        if cfg!(feature = "v2-performance") {
+            let result = sqlx::query!(
+                r#"
+                SELECT AVG(reliability) as "reliability: f32" FROM mixnode_status_v2
+                WHERE mixnode_details_id= ? AND timestamp >= ? AND timestamp <= ?
+                "#,
+                id,
+                start,
+                end
+            )
+            .fetch_one(&self.connection_pool)
+            .await?;
+            Ok(result.reliability)
+        } else {
+            let result = sqlx::query!(
+                r#"
+                SELECT AVG(reliability) as "reliability: f32" FROM mixnode_status
+                WHERE mixnode_details_id= ? AND timestamp >= ? AND timestamp <= ?
+                "#,
+                id,
+                start,
+                end
+            )
+            .fetch_one(&self.connection_pool)
+            .await?;
+            Ok(result.reliability)
+        }
     }
 
     pub(super) async fn get_gateway_average_reliability_in_interval(

@@ -20,13 +20,3 @@ The rewarded nodes are the nodes which will receive some rewards by the end of t
 
 
 For more detailed calculation, read our blog post [Nym Token Economics update](https://blog.nymtech.net/nym-token-economics-update-fedff0ed5267). More info on staking can be found [here](https://blog.nymtech.net/staking-in-nym-introducing-mainnet-mixmining-f9bb1cbc7c36). And [here](https://blog.nymtech.net/want-to-stake-in-nym-here-is-how-to-choose-a-mix-node-to-delegate-nym-to-c3b862add165) is more info on how to choose a Mix Node for delegation. And finally an [update](https://blog.nymtech.net/quarterly-token-economic-parameter-update-b2862948710f) on token economics from July 2023.
-
-<!--
-<iframe src="https://status.notrustverify.ch/d-solo/CW3L7dVVk/nym-mixnet?orgId=1&from=1703074829887&to=1705666829887&panelId=31" width="850" height="400" frameborder="0"></iframe>
--->
-
-<iframe src="https://dashboard.notrustverify.ch/d-solo/l71MWkX7k/ntv-mixnode?orgId=1&from=1710949572440&to=1713537972440&panelId=18" width="850" height="400" frameborder="0"></iframe>
-
-*More graphs and stats at [stats.notrustverify.ch](https://status.notrustverify.ch/d/CW3L7dVVk/nym-mixnet?orgId=1&from=1703074861988&to=1705666862004).*
-
-

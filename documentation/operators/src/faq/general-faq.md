@@ -25,7 +25,7 @@ We don't recommend this setup because it's really difficult to get a static IP a
 
 ### What's the Sphinx packet size?
 
-The sizes are shown in the configs [here](https://github.com/nymtech/nym/blob/1ba6444e722e7757f1175a296bed6e31e25b8db8/common/nymsphinx/params/src/packet_sizes.rs#L12) (default is the one clients use, the others are for research purposes, not to be used in production as this would fragment the anonymity set). More info can be found [here](https://github.com/nymtech/nym/blob/4844ac953a12b29fa27688609ec193f1d560c996/common/nymsphinx/anonymous-replies/src/reply_surb.rs#L80).
+The sizes are shown in the configs [here](https://github.com/nymtech/nym/blob/develop/common/nymsphinx/params/src/packet_sizes.rs#L32) (default is the one clients use, the others are for research purposes, not to be used in production as this would fragment the anonymity set). More info can be found [here](https://github.com/nymtech/nym/blob/develop/common/nymsphinx/anonymous-replies/src/reply_surb.rs#L80).
 
 ### Why a Mix Node and a Gateway cannot be bonded with the same wallet?
 

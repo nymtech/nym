@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: arc-ubuntu-20.04-dind
+    runs-on: arc-ubuntu-20.04
     steps:
     - uses: actions/checkout@v4
     - name: Install rsync
@@ -45,23 +45,3 @@ jobs:
         REMOTE_USER: ${{ secrets.CI_WWW_REMOTE_USER }}
         TARGET: ${{ secrets.CI_WWW_REMOTE_TARGET }}/ts-${{ env.GITHUB_REF_SLUG }}-example
         EXCLUDE: "/dist/, /node_modules/"
-    - name: Matrix - Node Install
-      run: npm install
-      working-directory: .github/workflows/support-files
-    - name: Matrix - Send Notification
-      env:
-        NYM_NOTIFICATION_KIND: ts-packages
-        NYM_PROJECT_NAME: "ts-packages"
-        NYM_CI_WWW_BASE: "${{ secrets.NYM_CI_WWW_BASE }}"
-        NYM_CI_WWW_LOCATION: "ts-${{ env.GITHUB_REF_SLUG }}"
-        GIT_COMMIT_MESSAGE: "${{ github.event.head_commit.message }}"
-        GIT_BRANCH: "${GITHUB_REF##*/}"
-        IS_SUCCESS: "${{ job.status == 'success' }}"
-        MATRIX_SERVER: "${{ secrets.MATRIX_SERVER }}"
-        MATRIX_ROOM: "${{ secrets.MATRIX_ROOM }}"
-        MATRIX_USER_ID: "${{ secrets.MATRIX_USER_ID }}"
-        MATRIX_TOKEN: "${{ secrets.MATRIX_TOKEN }}"
-        MATRIX_DEVICE_ID: "${{ secrets.MATRIX_DEVICE_ID }}"
-      uses: docker://keybaseio/client:stable-node
-      with:
-        args: .github/workflows/support-files/notifications/entry_point.sh

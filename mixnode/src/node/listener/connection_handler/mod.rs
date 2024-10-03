@@ -1,9 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::listener::connection_handler::packet_processing::{
-    MixProcessingResult, PacketProcessor,
-};
+use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
@@ -13,7 +11,9 @@ use nym_metrics::nanos;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
+use nym_sphinx::framing::processing::MixProcessingResult;
 use nym_sphinx::Delay as SphinxDelay;
+use packet_processing::process_received_packet;
 use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
@@ -38,6 +38,10 @@ impl ConnectionHandler {
         }
     }
 
+    pub fn packet_processor(&self) -> &PacketProcessor {
+        &self.packet_processor
+    }
+
     fn delay_and_forward_packet(&self, mix_packet: MixPacket, delay: Option<SphinxDelay>) {
         // determine instant at which packet should get forwarded. this way we minimise effect of
         // being stuck in the queue [of the channel] to get inserted into the delay queue
@@ -60,7 +64,10 @@ impl ConnectionHandler {
         // all processing such, key caching, etc. was done.
         // however, if it was a forward hop, we still need to delay it
         nanos!("handle_received_packet", {
-            match self.packet_processor.process_received(framed_sphinx_packet) {
+            self.packet_processor
+                .node_stats_update_sender
+                .report_received();
+            match process_received_packet(framed_sphinx_packet, self.packet_processor().inner()) {
                 Err(err) => debug!("We failed to process received sphinx packet - {err}"),
                 Ok(res) => match res {
                     MixProcessingResult::ForwardHop(forward_packet, delay) => {

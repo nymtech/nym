@@ -1,6 +1,7 @@
 name: ci-lint-typescript
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - "ts-packages/**"

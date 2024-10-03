@@ -1,6 +1,7 @@
 name: ci-build-ts
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - "ts-packages/**"

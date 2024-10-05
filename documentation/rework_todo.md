@@ -38,6 +38,8 @@ Initial overhaul
   - [ ] pull in all docs updates after 37d9f919227cec148e0355404b4029c0949e4dea from develop !!
    - [ ] operators docs (various)
    - [x] ecash
+    - [ ] wait on ania's updates
+    - [ ] wait on whether we change the language now that we have 4 ticketbooks.. talk to jaya
 
   - [ ] developers
     - [ ] overhaul the FAQs and split out into integrations section
@@ -62,11 +64,12 @@ Initial overhaul
 
 - [ ] make common links (e.g. github) variables if we require several
 - [x] remove dangling index
+- [ ] bring in notes from Claudia's presentation
 
 Autodocs
 --------
 - [x] autodocs branch - merge in
-- [ ] work out where `autodocs` sits in CI
+- [ ] work out where `autodocs` sits in CI - call in package.json instead
 - [ ] `autodocs` pages - incorporate
 
 CI / deployment

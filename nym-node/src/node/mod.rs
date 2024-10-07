@@ -522,6 +522,7 @@ impl NymNode {
             x25519_wireguard_key: self.x25519_wireguard_key().to_base58_string(),
             exit_network_requester_address: self.exit_network_requester_address().to_string(),
             exit_ip_packet_router_address: self.exit_ip_packet_router_address().to_string(),
+            exit_authenticator_address: self.exit_authenticator_address().to_string(),
         }
     }
 

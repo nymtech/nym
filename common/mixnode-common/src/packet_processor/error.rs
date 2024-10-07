@@ -13,6 +13,6 @@ pub enum MixProcessingError {
     #[error("the received packet was set to use the very old and very much deprecated 'VPN' mode")]
     ReceivedOldTypeVpnPacket,
 
-    #[error("failed to process received sphinx packet: {0}")]
+    #[error("failed to process received Nym packet: {0}")]
     NymPacketProcessingError(#[from] PacketProcessingError),
 }

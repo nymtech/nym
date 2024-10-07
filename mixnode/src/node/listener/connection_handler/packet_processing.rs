@@ -10,12 +10,12 @@ use nym_sphinx::framing::processing::{process_framed_packet, MixProcessingResult
 
 // PacketProcessor contains all data required to correctly unwrap and forward sphinx packets
 #[derive(Clone)]
-pub struct PacketProcessor {
+pub(crate) struct PacketProcessor {
     /// Responsible for performing unwrapping
-    pub inner_processor: SphinxPacketProcessor,
+    inner_processor: SphinxPacketProcessor,
 
     /// Responsible for updating metrics data
-    pub node_stats_update_sender: node_statistics::UpdateSender,
+    node_stats_update_sender: node_statistics::UpdateSender,
 }
 
 impl PacketProcessor {
@@ -31,6 +31,10 @@ impl PacketProcessor {
 
     pub fn inner(&self) -> &SphinxPacketProcessor {
         &self.inner_processor
+    }
+
+    pub fn node_stats_update_sender(&self) -> &node_statistics::UpdateSender {
+        &self.node_stats_update_sender
     }
 }
 

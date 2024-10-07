@@ -65,7 +65,7 @@ impl ConnectionHandler {
         // however, if it was a forward hop, we still need to delay it
         nanos!("handle_received_packet", {
             self.packet_processor
-                .node_stats_update_sender
+                .node_stats_update_sender()
                 .report_received();
             match process_received_packet(framed_sphinx_packet, self.packet_processor().inner()) {
                 Err(err) => debug!("We failed to process received sphinx packet - {err}"),

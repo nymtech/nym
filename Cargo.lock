@@ -6166,9 +6166,15 @@ name = "nym-sphinx-framing"
 version = "0.1.0"
 dependencies = [
  "bytes",
+ "log",
+ "nym-metrics",
+ "nym-sphinx-acknowledgements",
+ "nym-sphinx-addressing",
+ "nym-sphinx-forwarding",
  "nym-sphinx-params",
  "nym-sphinx-types",
  "thiserror",
+ "tokio",
  "tokio-util",
 ]
 

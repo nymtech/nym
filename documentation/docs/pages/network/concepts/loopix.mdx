@@ -1,4 +1,11 @@
 # Loopix
+
+> Hiding "who messages whom" is a necessary mixnet property in terms of metadata protection – but it is not always sufficient to prevent surveillance. Adversaries that observe the volume and timing of sent and received messages over time may still be able to infer private information, even if individual messages are strongly anonymized. Detailed data on the volume and timing of user interactions leaks information over time about which services the user accesses and the patterns of usage of such services. If the user engages in persistent behavior (e.g., always messaging the same friend or always accessing the same service), communication profiles may leak over time and be recoverable through long-term statistical disclosure attacks. Mixnets – including classical Chaumian batch mixnets – provide unlinkability, but do not provide unobservability. In order for access to Nym to be unobservable, the adversary should not know when or how much actual traffic is being sent or received by a participant.
+>
+> Cover traffic disguises real traffic patterns by adding “dummy” messages that carry no payload data and are simply discarded at their final destination. While routing a message, mix nodes cannot distinguish whether it is a dummy message or a normal message carrying user data. Routing dummy traffic to circle back to the sender rather than ending at a randomly chosen destination was originally proposed to proactively detect active attacks on mixnets. Loopix, the name of which refers to its use of "loops" of dummy traffic, extends this approach to guarantee both a lower bound on anonymity and unobservability properties for end users. Nym follows a similar approach, with participants generating dummy messages that travel in a loop and have themselves as final destination.
+>
+> [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf) §4.6
+
 The Nym Mixnet is based upon the [Loopix](https://arxiv.org/pdf/1703.00536) design.
 
 This design lays out a stratified design of several layers of Mix Nodes and Gateways in which:

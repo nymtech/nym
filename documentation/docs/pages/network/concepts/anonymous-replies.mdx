@@ -1,9 +1,14 @@
 # Anonymous Replies using SURBs
-SURBs ('Single Use Reply Blocks') allow clients to reply to incoming messages anonymously.
+
+> SURBs are pre-computed Sphinx packet headers encoding a mixnet route that ends in the participant that created the SURB. A sender can generate one or more SURBs and include them in their Sphinx message to a recipient. The recipient can use the SURBs as Sphinx headers to send back replies – or acknowledgements – that anonymously reach back the original sender after going through the mixnet.
+>
+> SURBs are the Sphinx equivalent of "onion addresses" in Tor, with the caveat that a SURB can only be used once (to prevent replay attacks) and within its epoch of validity (the mix node public keys used to prepare the SURB are only valid for a limited period). SURB headers are encrypted by the sender, so the recipient sending it back cannot infer from it any information about the message route, the per-hop latency, or the sender’s address, which is encoded in the innermost (last) routing layer of the SURB. SURBs ('Single Use Reply Blocks') allow clients to reply to incoming messages anonymously.
+>
+> [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf) §4.5
 
 It will often be the case that a client app wants to interact with a service of some kind, or a P2P application on someone else's machine. It defeats the purpose of the whole system if a client app needs to reveal its own gateway public key and client public key in order to get a response.
 
-Luckily, SURBs allow for anonymous replies. A SURB is a layer encrypted set of Sphinx headers detailing a reply path ending in the original client's [Nym address](../traffic/addressing-system). SURBs are encrypted by the client, so the recieving service/app can attach its response and send back the resulting Sphinx packet, but it **never has sight of who it is replying to**.
+Luckily, SURBs (Single Use Reply Blocks) allow for anonymous replies. A SURB is a layer encrypted set of Sphinx headers detailing a reply path ending in the original client's [Nym address](../traffic/addressing-system). SURBs are encrypted by the client, so the recieving service/app can attach its response and send back the resulting Sphinx packet, but it **never has sight of who it is replying to**.
 
 MultiSURBs were implemented in `v1.1.4`. Clients, when sending a message to another client, attach a bundle of SURBs which can be used by the receiver to construct large anonymous replies.
 

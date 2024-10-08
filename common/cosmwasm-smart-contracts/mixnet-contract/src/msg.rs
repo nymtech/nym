@@ -532,7 +532,7 @@ pub enum QueryMsg {
     /// Gets the basic list of all unbonded mixnodes that belonged to a particular owner.
     #[cfg_attr(feature = "schema", returns(PagedUnbondedMixnodesResponse))]
     GetUnbondedMixNodesByOwner {
-        /// The address of the owner of the the mixnodes used for the query.
+        /// The address of the owner of the mixnodes used for the query.
         owner: String,
 
         /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
@@ -784,6 +784,25 @@ pub enum QueryMsg {
 }
 
 #[cw_serde]
+pub struct AffectedDelegator {
+    pub address: String,
+    pub missing_ratio: Decimal,
+}
+
+#[cw_serde]
+pub struct AffectedNode {
+    pub mix_id: MixId,
+    pub delegators: Vec<AffectedDelegator>,
+}
+
+impl AffectedNode {
+    pub fn total_ratio(&self) -> Decimal {
+        self.delegators.iter().map(|d| d.missing_ratio).sum()
+    }
+}
+
+#[cw_serde]
 pub struct MigrateMsg {
     pub vesting_contract_address: Option<String>,
+    pub fix_nodes: Vec<AffectedNode>,
 }

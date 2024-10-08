@@ -1,8 +1,13 @@
 # Bandwidth Credentials
 
+```admonish caution
+This page is now archived.
+
+For up-to-date example interaction with zk-nyms navigate to the [zk-nym unlinkability](./unlinkability.md) page.
+```
 You can now try using Nym Bandwidth Credentials in our [Sandbox testnet environment](https://sandbox-explorer.nymtech.net).
 
-Create a `sandbox.env` file with the following details: 
+Create a `sandbox.env` file with the following details:
 
 ```
 CONFIGURED=true
@@ -32,17 +37,17 @@ NYXD="https://rpc.sandbox.nymtech.net"
 NYM_API="https://sandbox-validator1-api.nymtech.net/api"
 ```
 
-Create an account on Sandbox using the nym-cli: 
+Create an account on Sandbox using the nym-cli:
 
 ```./nym-cli --config-env-file <path-to>sandbox.env account create```
 
-You will need `nymt` funds sent to this account. Get in touch via Nym [Telegram](https://t.me/nymchan) or [Discord](https://nymtech.net/go/discord) and we can send them to you. 
+You will need `nymt` funds sent to this account. Get in touch via Nym [Telegram](https://t.me/nymchan) or [Discord](https://nymtech.net/go/discord) and we can send them to you.
 
-Next, you init the nym-client with the enabled credentials mode set to true:  
+Next, you init the nym-client with the enabled credentials mode set to true:
 
 ```./nym-client --config-env-file <path-to>sandbox.env init --id <ID> --enabled-credentials-mode true```
 
-Using the new credentials binary, purchase some credentials for the client. The recovery directory is a directory where the credentials will be temporarily stored in case the request fails.  
+Using the new credentials binary, purchase some credentials for the client. The recovery directory is a directory where the credentials will be temporarily stored in case the request fails.
 
 ```./credential --config-env-file <path-to>sandbox.env run --client-home-directory <path-to-the-client-config> --nyxd-url https://rpc.sandbox.nymtech.net --mnemonic "<mnemonic of the account created above>" --amount 50 --recovery-dir <a-path> ```
 
@@ -56,11 +61,11 @@ Run the network requester which can be downloaded [here](https://github.com/nymt
 
 > You need to run this version for now, as the `nym-client` functionality was recently integrated into the `network-requester` binary but for the moment cannot support coconut credentials natively.
 
-Now time to init the socks5 client: 
+Now time to init the socks5 client:
 
 `./nym-socks5-client --config-env-file <path-to>sandbox.env init --id <ID> --provider <insert provider address which was returned when init-ing the nym-client> --enabled-credentials-mode true`
 
-Purchase credentials for this now too: 
+Purchase credentials for this now too:
 
 `./credential --config-env-file <path-to>sandbox.env run --client-home-directory <path-to-socks5-config> --nyxd-url https://rpc.sandbox.nymtech.net --mnemonic "<any valid sandbox mnemonic>" --amount 100 --recovery-dir <a-path>`
 
@@ -68,13 +73,13 @@ Run the socks5 client:
 
 `./nym-socks5-client --config-env-file <path-to>sandbox.env run --id <ID> --enabled-credentials-mode true`
 
-NOTE 
+NOTE
 
 You can check to see if credentials have been correctly purchased by installing sqlite, and proceeding to do the following:
 
 ```
-sqlite3 ~/.nym/socks5-clients/<ID>/data/credentials_database.db  
+sqlite3 ~/.nym/socks5-clients/<ID>/data/credentials_database.db
 select * from coconut_credentials;
 ```
 
-Keep in mind 1GB = 1NYM 
+Keep in mind 1GB = 1NYM

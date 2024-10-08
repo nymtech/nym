@@ -24,6 +24,7 @@ zeroize.workspace = true
 nym-bandwidth-controller = { path = "../../bandwidth-controller" }
 nym-credentials = { path = "../../credentials" }
 nym-credential-storage = { path = "../../credential-storage" }
+nym-credentials-interface = { path = "../../credentials-interface" }
 nym-crypto = { path = "../../crypto" }
 nym-gateway-requests = { path = "../../gateway-requests" }
 nym-network-defaults = { path = "../../network-defaults" }

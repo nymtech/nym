@@ -171,13 +171,16 @@ impl Storage for PersistentStorage {
     /// could obtain their own tickets at the same time
     async fn get_next_unspent_usable_ticketbook(
         &self,
+        ticketbook_type: String,
         tickets: u32,
     ) -> Result<Option<RetrievedTicketbook>, Self::StorageError> {
         let deadline = ecash_today().ecash_date();
         let mut tx = self.storage_manager.begin_storage_tx().await?;
 
         // we don't want ticketbooks with expiration in the past
-        let Some(raw) = get_next_unspent_ticketbook(&mut tx, deadline, tickets).await? else {
+        let Some(raw) =
+            get_next_unspent_ticketbook(&mut tx, ticketbook_type, deadline, tickets).await?
+        else {
             // make sure to finish our tx
             tx.commit().await?;
             return Ok(None);

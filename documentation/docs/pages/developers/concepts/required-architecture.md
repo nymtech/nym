@@ -11,11 +11,13 @@ Nym clients on 'both sides' of the Mixnet.
 
 That's it - so long as you have a Nym client, you can communicate with other Nym clients through the Mixnet. The content of your message payloads is up to you.
 
+TODO DIAGRAM
+
 ## What don't I need (but is maybe nice to have)?
-You **do not need to run any infrastructure to integrate Mixnet functionality** and can basically use the Mixnet as a black box if you want to. That said, if you are expecting a lot of traffic and perhaps don't want to rly on other people's Gateway infrastructure, you could run your own. However, this is something that is more in the 'nice to have'/'quality of service' category, and is not necessarily expected/necessary when starting to build on Nym. Furthermore, if our tokenomic incentives are working as they should, Gateway uptimes should be so good as to not require this regardless!
+You **do not need to run any infrastructure to integrate Mixnet functionality** and can basically use the Mixnet as a black box if you want to.
+
+That said, if you are expecting a lot of traffic and perhaps don't want to rely on other people's Gateway infrastructure, you could run your own. However, this is something that is more in the 'nice to have'/'quality of service' category, and is not necessarily expected when starting to build on Nym. Furthermore, if our tokenomic incentives are working as they should, Gateway uptimes should be so good as to not require this regardless!
 
 ## What do I definitely not need?
 - To run a Mix Node. Defining which Mix Nodes you want to run traffic through is, although [technically possible]() TODO LINK TO CUSTOM TOPOLOGY SDK EXAMPLE, **only to be used in testing or research scenarios**; limiting the potential paths of your packets to a subset of the overall Mixnet topology is effectively reducing your anonymity set, and potentially leaking this subset through e.g. having the calculation logic open sourced is even worse. The best performing Mix Nodes are selected to route traffic per epoch, and will be used by your Nym clients when routing packets.
 - To run a Validator / NymAPI instance.
-
-_We always encourage people to run infrastructure, but it is not required for your app integration._

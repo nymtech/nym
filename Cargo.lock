@@ -577,6 +577,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
+name = "base85"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "36915bbaca237c626689b5bd14d02f2ba7a5a359d30a2a08be697392e3718079"
+dependencies = [
+ "thiserror",
+]
+
+[[package]]
 name = "basic-toml"
 version = "0.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3297,6 +3306,34 @@ checksum = "634d9b1461af396cad843f47fdba5597a4f9e6ddd4bfb6ff5d85028c25cb12f6"
 dependencies = [
  "unicode-bidi",
  "unicode-normalization",
+]
+
+[[package]]
+name = "importer-cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bip39",
+ "clap 4.5.18",
+ "dirs 5.0.1",
+ "importer-contract",
+ "nym-bin-common",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "importer-contract"
+version = "0.1.0"
+dependencies = [
+ "base85",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cosmwasm-storage",
 ]
 
 [[package]]

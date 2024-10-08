@@ -138,6 +138,8 @@ members = [
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
     "tools/echo-server",
+    "tools/internal/contract-state-importer/importer-cli",
+    "tools/internal/contract-state-importer/importer-contract",
 ]
 
 default-members = [

@@ -1015,9 +1015,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.18"
+version = "4.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0956a43b323ac1afaffc053ed5c4b7c1f1800bacd1683c353aabbb752515dd3"
+checksum = "b97f376d85a664d5837dbae44bf546e6477a679ff6610010f17276f686d867e8"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1025,9 +1025,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.18"
+version = "4.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d72166dd41634086d5803a47eb71ae740e61d84709c36f3c34110173db3961b"
+checksum = "19bc80abd44e4bed93ca373a0704ccbd1b710dc5749406201bb018272808dc54"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1037,11 +1037,11 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.5.29"
+version = "4.5.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8937760c3f4c60871870b8c3ee5f9b30771f792a7045c48bcbba999d7d6b3b8e"
+checksum = "9646e2e245bf62f45d39a0f3f36f1171ad1ea0d6967fd114bca72cb02a8fcdfb"
 dependencies = [
- "clap 4.5.18",
+ "clap 4.5.20",
 ]
 
 [[package]]
@@ -1050,7 +1050,7 @@ version = "4.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d494102c8ff3951810c72baf96910b980fb065ca5d3101243e6a8dc19747c86b"
 dependencies = [
- "clap 4.5.18",
+ "clap 4.5.20",
  "clap_complete",
 ]
 
@@ -1458,7 +1458,7 @@ dependencies = [
  "anes",
  "cast",
  "ciborium",
- "clap 4.5.18",
+ "clap 4.5.20",
  "criterion-plot",
  "is-terminal",
  "itertools 0.10.5",
@@ -2326,7 +2326,7 @@ name = "explorer-api"
 version = "1.1.40"
 dependencies = [
  "chrono",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dotenvy",
  "humantime-serde",
  "isocountry",
@@ -3311,7 +3311,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bip39",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dirs 5.0.1",
  "importer-contract",
  "nym-bin-common",
@@ -4267,7 +4267,7 @@ dependencies = [
  "bloomfilter",
  "bs58",
  "cfg-if",
- "clap 4.5.18",
+ "clap 4.5.20",
  "console-subscriber",
  "cosmwasm-std",
  "cw-utils",
@@ -4388,7 +4388,7 @@ dependencies = [
  "bincode",
  "bs58",
  "bytes",
- "clap 4.5.18",
+ "clap 4.5.20",
  "defguard_wireguard_rs",
  "fastrand 2.1.1",
  "futures",
@@ -4466,7 +4466,7 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.6.0"
 dependencies = [
- "clap 4.5.18",
+ "clap 4.5.20",
  "clap_complete",
  "clap_complete_fig",
  "const-str",
@@ -4508,7 +4508,7 @@ dependencies = [
  "base64 0.22.1",
  "bip39",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "clap_complete",
  "clap_complete_fig",
  "dotenvy",
@@ -4534,7 +4534,7 @@ dependencies = [
  "bip39",
  "bs58",
  "cfg-if",
- "clap 4.5.18",
+ "clap 4.5.20",
  "colored",
  "comfy-table",
  "cosmrs 0.17.0-pre",
@@ -4586,7 +4586,7 @@ name = "nym-client"
 version = "1.1.41"
 dependencies = [
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dirs 5.0.1",
  "futures",
  "log",
@@ -4626,7 +4626,7 @@ dependencies = [
  "base64 0.22.1",
  "bs58",
  "cfg-if",
- "clap 4.5.18",
+ "clap 4.5.20",
  "comfy-table",
  "futures",
  "gloo-timers",
@@ -5152,7 +5152,7 @@ dependencies = [
  "async-trait",
  "bip39",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "colored",
  "dashmap",
  "defguard_wireguard_rs",
@@ -5356,7 +5356,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "nym-bin-common",
  "nym-credential-storage",
  "nym-id",
@@ -5398,7 +5398,7 @@ dependencies = [
  "bincode",
  "bs58",
  "bytes",
- "clap 4.5.18",
+ "clap 4.5.20",
  "etherparse",
  "futures",
  "log",
@@ -5495,7 +5495,7 @@ dependencies = [
  "anyhow",
  "axum 0.7.7",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "colored",
  "cupid",
  "dirs 5.0.1",
@@ -5596,7 +5596,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.7.7",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dashmap",
  "futures",
  "log",
@@ -5628,7 +5628,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dirs 5.0.1",
  "futures",
  "humantime-serde",
@@ -5680,7 +5680,7 @@ dependencies = [
  "bs58",
  "cargo_metadata 0.18.1",
  "celes",
- "clap 4.5.18",
+ "clap 4.5.20",
  "colored",
  "cupid",
  "humantime-serde",
@@ -5827,7 +5827,7 @@ name = "nym-nr-query"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.18",
+ "clap 4.5.20",
  "log",
  "nym-bin-common",
  "nym-network-defaults",
@@ -5966,7 +5966,7 @@ name = "nym-socks5-client"
 version = "1.1.41"
 dependencies = [
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "log",
  "nym-bin-common",
  "nym-client-core",
@@ -6392,7 +6392,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bip39",
- "clap 4.5.18",
+ "clap 4.5.20",
  "cosmwasm-std",
  "futures",
  "humantime 2.1.0",
@@ -6502,7 +6502,7 @@ version = "0.1.7"
 dependencies = [
  "anyhow",
  "bytes",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dotenvy",
  "flate2",
  "futures",
@@ -6940,18 +6940,18 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
-version = "1.1.5"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6bf43b791c5b9e34c3d182969b4abb522f9343702850a2e57f460d00d09b4b3"
+checksum = "baf123a161dde1e524adf36f90bc5d8d3462824a9c43553ad07a8183161189ec"
 dependencies = [
  "pin-project-internal",
 ]
 
 [[package]]
 name = "pin-project-internal"
-version = "1.1.5"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f38a4412a78282e09a2cf38d195ea5420d15ba0602cb375210efbc877243965"
+checksum = "a4502d8515ca9f32f1fb543d987f63d95a14934883db45bdb48060b6b69257f8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8667,7 +8667,7 @@ name = "ssl-inject"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.18",
+ "clap 4.5.20",
  "hex",
  "tokio",
 ]
@@ -9083,7 +9083,7 @@ dependencies = [
  "anyhow",
  "bip39",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "console",
  "cw-utils",
  "dkg-bypass-contract",
@@ -9898,7 +9898,7 @@ checksum = "21345172d31092fd48c47fd56c53d4ae9e41c4b1f559fb8c38c1ab1685fd919f"
 dependencies = [
  "anyhow",
  "camino",
- "clap 4.5.18",
+ "clap 4.5.20",
  "uniffi_bindgen",
  "uniffi_build",
  "uniffi_core",
@@ -9915,7 +9915,7 @@ dependencies = [
  "askama",
  "camino",
  "cargo_metadata 0.15.4",
- "clap 4.5.18",
+ "clap 4.5.20",
  "fs-err",
  "glob",
  "goblin",

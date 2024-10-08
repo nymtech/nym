@@ -26,8 +26,8 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, StdError> {
     for (key, value) in msg.pairs {
-        let key = base85::decode(&key).unwrap();
-        let value = base85::decode(&value).unwrap();
+        let key = base85rs::decode(&key).unwrap();
+        let value = base85rs::decode(&value).unwrap();
         deps.storage.set(&key, &value);
     }
 

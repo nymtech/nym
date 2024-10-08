@@ -4,5 +4,5 @@
 pub mod contract;
 pub mod msg;
 
-pub use base85;
+pub use base85rs;
 pub use msg::ExecuteMsg;

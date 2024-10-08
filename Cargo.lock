@@ -577,13 +577,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8c3c1a368f70d6cf7302d78f8f7093da241fb8e8807c05cc9e51a125895a6d5b"
 
 [[package]]
-name = "base85"
-version = "2.0.0"
+name = "base85rs"
+version = "0.1.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36915bbaca237c626689b5bd14d02f2ba7a5a359d30a2a08be697392e3718079"
-dependencies = [
- "thiserror",
-]
+checksum = "87678d33a2af71f019ed11f52db246ca6c5557edee2cccbe689676d1ad9c6b5a"
 
 [[package]]
 name = "basic-toml"
@@ -3330,7 +3327,7 @@ dependencies = [
 name = "importer-contract"
 version = "0.1.0"
 dependencies = [
- "base85",
+ "base85rs",
  "cosmwasm-schema",
  "cosmwasm-std",
  "cosmwasm-storage",

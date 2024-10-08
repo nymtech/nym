@@ -13,7 +13,7 @@ impl From<Vec<(Vec<u8>, Vec<u8>)>> for ExecuteMsg {
         ExecuteMsg {
             pairs: raw
                 .into_iter()
-                .map(|(k, v)| (base85::encode(&k), base85::encode(&v)))
+                .map(|(k, v)| (base85rs::encode(&k), base85rs::encode(&v)))
                 .collect(),
         }
     }

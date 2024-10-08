@@ -5,7 +5,7 @@ use anyhow::bail;
 use clap::ArgGroup;
 use clap::{Args, Parser, Subcommand};
 use importer_contract::contract::EmptyMessage;
-use importer_contract::{base85, ExecuteMsg};
+use importer_contract::{base85rs, ExecuteMsg};
 use nym_bin_common::bin_info;
 use nym_bin_common::logging::setup_tracing_logger;
 use nym_network_defaults::{setup_env, NymNetworkDetails};
@@ -255,7 +255,7 @@ async fn execute_prepare_contract(
 }
 
 fn approximate_size(pair: &Model) -> usize {
-    base85::encode(&pair.key).len() + base85::encode(&pair.value).len()
+    base85rs::encode(&pair.key).len() + base85rs::encode(&pair.value).len()
 }
 
 fn models_to_exec(data: Vec<Model>) -> ExecuteMsg {

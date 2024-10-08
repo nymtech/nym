@@ -7,9 +7,9 @@ const config: DocsThemeConfig = {
   project: {
     link: "https://github.com/nymtech/nym",
   },
-  // chat: {
-  //   link: "https://matrix.to/#/#dev:nymtech.chat",
-  // },
+  chat: {
+    link: "https://matrix.to/#/#dev:nymtech.chat",
+  },
   docsRepositoryBase:
     "https://github.com/nymtech/nym/tree/develop/documentation/",
   footer: {

@@ -20,16 +20,16 @@ ReconstructedMessage {
 ```
 
 Examples for:
-- [Standalone Websocket Client]() TODO LINKS ON ALL
-- [Rust SDK Client]()
-- [TS SDK Client]()
+- [Standalone Websocket Client](../clients/websocket)
+- [Rust SDK Client](../rust)
+- [TS SDK Client](../typescript)
 
 This is obviously quite different to e.g. simply being able to read/write from a stream returned from a function call to create a TCP connection, but there are several approaches that developers can take to dealing with this right now.
 
 _We are planning future developments to make a more developer-friendly interface for our clients, but this will not be released before early/mid 2025_.
 
 ## Message Abstractions
-- Rust/Go/C++ developers can use the `TcpProxy` [stream abstraction](./abstractions).
-- Developers who are using Typescript/Javascript can also avoid having to deal directly with messages via using [MixFetch]() TODO LINK...
-- ... As can developers who are bundling and running the standalone [socks5 client]() using some form of init script.
-- There will be a seperate pair of binaries coming soon which other developers can use to run as a persistent secondary proxy process based on the [zcash gRPC demo]() codebase, built using the `TcpProxy` abstraction. These will simply expose a `localhost` socket port to pipe traffic to and from in the same way as you would a TCP connection.
+- Rust/Go/C++ developers can use the `TcpProxy` [stream abstraction](../rust/tcpproxy).
+- Developers who are using Typescript/Javascript can also avoid having to deal directly with messages via using [MixFetch](../typescript/examples/mix-fetch).
+- As can developers who are bundling and running the standalone [socks5 client](../clients/socks5) using some form of init script.
+- There will be a seperate pair of binaries coming soon which other developers can use to run as a persistent secondary proxy process based on the [zcash gRPC demo](https://github.com/nymtech/nym-zcash-grpc-demo) codebase, built using the `TcpProxy` abstraction. These will simply expose a `localhost` socket port to pipe traffic to and from in the same way as you would a TCP connection.

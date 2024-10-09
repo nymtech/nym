@@ -804,5 +804,5 @@ impl AffectedNode {
 #[cw_serde]
 pub struct MigrateMsg {
     pub vesting_contract_address: Option<String>,
-    pub fix_nodes: Vec<AffectedNode>,
+    pub fix_nodes: Option<Vec<AffectedNode>>,
 }

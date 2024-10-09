@@ -3,6 +3,15 @@
   "title": "MigrateMsg",
   "type": "object",
   "properties": {
+    "fix_nodes": {
+      "type": [
+        "array",
+        "null"
+      ],
+      "items": {
+        "$ref": "#/definitions/AffectedNode"
+      }
+    },
     "vesting_contract_address": {
       "type": [
         "string",
@@ -10,5 +19,48 @@
       ]
     }
   },
-  "additionalProperties": false
+  "additionalProperties": false,
+  "definitions": {
+    "AffectedDelegator": {
+      "type": "object",
+      "required": [
+        "address",
+        "missing_ratio"
+      ],
+      "properties": {
+        "address": {
+          "type": "string"
+        },
+        "missing_ratio": {
+          "$ref": "#/definitions/Decimal"
+        }
+      },
+      "additionalProperties": false
+    },
+    "AffectedNode": {
+      "type": "object",
+      "required": [
+        "delegators",
+        "mix_id"
+      ],
+      "properties": {
+        "delegators": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AffectedDelegator"
+          }
+        },
+        "mix_id": {
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    }
+  }
 }

@@ -558,7 +558,9 @@ pub fn migrate(
 
     let mut response = Response::new();
 
-    queued_migrations::restore_vested_delegations(&mut response, deps, env, msg.fix_nodes)?;
+    if let Some(nodes_to_fix) = msg.fix_nodes {
+        queued_migrations::restore_vested_delegations(&mut response, deps, env, nodes_to_fix)?;
+    }
 
     Ok(response)
 }

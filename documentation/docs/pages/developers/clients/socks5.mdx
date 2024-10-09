@@ -90,9 +90,9 @@ Before you can use the client, you need to initalise a new instance of it, which
 
 The `--id` in the example above is a local identifier so that you can name your clients and keep track of them on your local system; it is **never** transmitted over the network.
 
-The `--use-reply-surbs` field denotes whether you wish to send [SURBs](https://nymtech.net/docs/architecture/traffic-flow.md#private-replies-using-surbs) along with your request. It defaults to `false`, we are explicitly setting it as `true`. It defaults to `false` for compatibility with older versions of the [Network Requester](https://nymtech.net/nodes/network-requester.md).
+The `--use-reply-surbs` field denotes whether you wish to send [SURBs](../../network/concepts/anonymous-replies) along with your request. It defaults to `false`, we are explicitly setting it as `true`. It defaults to `false` for compatibility with versions of the pre-smoosh `nym-network-requester` binary which will soon be deprecated.
 
-The `--provider` field needs to be filled with the Nym address of a Network Requester that can make network requests on your behalf. If you don't want to [run your own](https://nymtech.net/operators/nodes/network-requester.md) you can select one from the [mixnet explorer](https://explorer.nymtech.net/network-components/service-providers) by copying its `Client ID` and using this as the value of the `--provider` flag. Alternatively, you could use [this list](https://harbourmaster.nymtech.net/).
+The `--provider` field needs to be filled with the Nym address of an Exit Gateway that can make network requests on your behalf. You can select one from the [mixnet explorer](https://explorer.nymtech.net/network-components/) by copying its `Client ID` and using this as the value of the `--provider` flag. Alternatively, you could use [Harbourmaster](https://harbourmaster.nymtech.net/).
 
 #### Choosing a Gateway
 By default - as in the example above - your client will choose a random gateway to connect to.
@@ -103,6 +103,8 @@ However, there are several options for choosing a gateway, if you do not want on
 	* fetch a list of all availiable gateways
 	* send few ping messages to all of them, and measure response times.
 	* create a weighted distribution to randomly choose one, favouring ones with lower latency.
+
+You can select one from the [mixnet explorer](https://explorer.nymtech.net/network-components/) by copying its `Client ID` and using this as the value of the `--provider` flag. Alternatively, you could use [Harbourmaster](https://harbourmaster.nymtech.net/).
 
 > Note this doesn't mean that your client will pick the closest gateway to you, but it will be far more likely to connect to gateway with a 20ms ping rather than 200ms
 

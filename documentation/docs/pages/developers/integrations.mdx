@@ -13,11 +13,11 @@ There are several options available to developers wanting to embed a Nym client 
   <Tabs.Tab >
     <>
   Typescript and Javascript developers have several options avaliable to them:
-    - [`mixfetch`]() TODO LINK is an almost-dropin replacement for the `fetch` library. The best way to integrate Nym's `mixFetch` into your application will be where external network calls and RPC happens, for example, something in the lines of `sendRawTransaction` if you have an ETH-compatible wallet or `JsonRpcClient` if you use CosmJS. Although you can simply search for any JS `fetch` calls in your code (using our tool below) that are easily replaceable with `mixFetch`, keep in mind that `fetch` is not the only way to make `JSONRPC` or `XHR` calls. We advise to approach the integration process in a semantic way, searching for a module that is the common denominator for external communication in the codebase. Usually these are API controllers, middlewares or repositories.
+    - [`mixfetch`](./typescript/examples/mix-fetch) is an almost-dropin replacement for the `fetch` library. The best way to integrate Nym's `mixFetch` into your application will be where external network calls and RPC happens, for example, something in the lines of `sendRawTransaction` if you have an ETH-compatible wallet or `JsonRpcClient` if you use CosmJS. Although you can simply search for any JS `fetch` calls in your code (using our tool below) that are easily replaceable with `mixFetch`, keep in mind that `fetch` is not the only way to make `JSONRPC` or `XHR` calls. We advise to approach the integration process in a semantic way, searching for a module that is the common denominator for external communication in the codebase. Usually these are API controllers, middlewares or repositories.
 
   <GitHubRepoSearch />
 
-  - Otherwise, a well-modularized JS/TS codebase should permit the integration of one of our other SDK components, which will allow more flexibility and control (or if your codebase is not using something that can be covered by `fetch` for networking). Read more about our different SDK components in the [TS SDK overview page](). TODO LINK
+  - Otherwise, a well-modularized JS/TS codebase should permit the integration of one of our other SDK components, which will allow more flexibility and control (or if your codebase is not using something that can be covered by `fetch` for networking). Read more about our different SDK components in the [TS SDK overview page](./typescript/overview).
 
   </>
   </Tabs.Tab>
@@ -25,15 +25,15 @@ There are several options available to developers wanting to embed a Nym client 
   <>
   Rust developers can rely on our Rust SDK to import Nym client functionality into their code. This can either be in the form of a standard message-based client, the `socks5` client, or the `TcpProxy` modules.
 
-  We aim to expose at least the majority of this functionality via FFI to Go and C/C++. This is detailed alongside the Rust SDK components in the [Rust SDK docs]() TODO LINK.
+  We aim to expose at least the majority of this functionality via FFI to Go and C/C++. This is detailed alongside the Rust SDK components in the [Rust SDK docs](./rust).
 
   </ >
   </Tabs.Tab>
-  <Tabs.Tab> If your app is not written in any of the supported languages, you might still be able to send traffic through a standalone socks5 client TODO LINK but will have to think about packaging and bundling the client binary with e.g. a `systemd` file for autostart to run the client as a daemon. If you want to discuss FFI options reach out to us via our public dev channel. TODO LINK </Tabs.Tab>
+  <Tabs.Tab> If your app is not written in any of the supported languages, you might still be able to send traffic through a standalone socks5 client TODO LINK but will have to think about packaging and bundling the client binary with e.g. a `systemd` file for autostart to run the client as a daemon. If you want to discuss FFI options reach out to us via our public dev channel. </Tabs.Tab>
 </Tabs>
 
 ### Interacting with Nyx
 
-If instead of relying on the Mixnet you wish to interact with the [Nyx]() TODO LINK chain, either as a payment processor or to get on-chain events, see [interacting with the chain]() TODO LINK.
+If instead of relying on the Mixnet you wish to interact with the Nyx chain, either as a payment processor or to get on-chain events, see [interacting with the chain](./chain).
 
 > Note that depending on your setup, you might already be able to combine interacting with the chain with using the Mixnet: check the options above for more.

@@ -54,7 +54,7 @@ In some applications, e.g. where people are chatting with friends who they know,
 
 **If that fits your security model, good. However, will probably be the case that you want to send anonymous replies using Single Use Reply Blocks (SURBs)**.
 
-You can read more about SURBs [here](https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs) but in short they are ways for the receiver of this message to anonymously reply to you - the sender - **without them having to know your client address**.
+You can read more about SURBs [here](../../network/concepts/anonymous-replies) but in short they are ways for the receiver of this message to anonymously reply to you - the sender - **without them having to know your client address**.
 
 Your client will send along a number of `replySurbs` to the recipient of the message. These are pre-addressed Sphinx packets that the recipient can write to the payload of (i.e. write response data to), but not view the final destination of. If the recipient is unable to fit the response data into the bucket of SURBs sent to it, it will use a SURB to request more SURBs be sent to it from your client.
 
@@ -103,7 +103,7 @@ Errors from the app's client, or from the gateway, will be sent down the websock
 ```
 
 ### LaneQueueLength
-This is currently only used in the [Socks Client](../socks5-client.md) to keep track of the number of Sphinx packets waiting to be sent to the mixnet via being slotted amongst cover traffic. As this value becomes larger, the client signals to the application it should slow down the speed with which it writes to the proxy. This is to stop situations arising whereby an app connected to the client appears as if it has sent (e.g.) a bunch of messages and is awaiting a reply, when they in fact have not been sent through the mixnet yet.
+This is currently only used in the [Socks Client](../socks5) to keep track of the number of Sphinx packets waiting to be sent to the mixnet via being slotted amongst cover traffic. As this value becomes larger, the client signals to the application it should slow down the speed with which it writes to the proxy. This is to stop situations arising whereby an app connected to the client appears as if it has sent (e.g.) a bunch of messages and is awaiting a reply, when they in fact have not been sent through the mixnet yet.
 
 ## Message Responses
 Responses to your messages are defined [here](https://github.com/nymtech/nym/blob/master/clients/native/websocket-requests/src/responses.rs#L47):

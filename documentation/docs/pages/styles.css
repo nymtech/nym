@@ -1,14 +1,15 @@
 body {
---colorPrimary: #fb6e4e;
---textPrimary: #121726;
+    --colorPrimary: #fb6e4e;
+    --textPrimary: #121726;
 }
 
-div.nextra-code-block > div  {
-    background:var(--colorPrimary) !important;
+div.nextra-code-block > div {
+    background: var(--colorPrimary) !important;
 }
 
 .nextra-code-block > pre {
-    max-height: 350px !important;
+    /* max-height: 350px !important; */
+    max-height: none !important;
     scroll-y: auto !important;
 }
 
@@ -18,14 +19,12 @@ div.nextra-code-block > div  {
     color: var(--textPrimary) !important;
 }
 
-
-:is(html[class~=dark] .dark\:nx-bg-primary-300\/10) {
-    background-color: hsl(var(black)100% 77%/.1) !important;
+:is(html[class~="dark"] .dark\:nx-bg-primary-300\/10) {
+    background-color: hsl(var(black) 100% 77%/0.1) !important;
 }
 
-
 /* Sidebar buttons */
-:is(html .dark\:nx-bg-primary-400\/10){
+:is(html .dark\:nx-bg-primary-400\/10) {
     background: var(--colorPrimary) !important;
     color: var(--textPrimary) !important;
 }
@@ -38,10 +37,9 @@ div.nextra-code-block > div  {
     background: #fb6e4e !important;
 } */
 
-
 /* Links*/
 .nx-text-primary-600.nx-underline.nx-decoration-from-font {
-    color: var(--colorPrimary)!important;
+    color: var(--colorPrimary) !important;
 }
 
 .MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineAlways.css-1xr3c94-MuiTypography-root-MuiLink-root {
@@ -54,7 +52,7 @@ div.nextra-code-block > div  {
 }
 
 .nx-mt-6 .nx-leading-7 > p {
-    color: var(--colorPrimary)!important;
+    color: var(--colorPrimary) !important;
 }
 
 /* Callout Secondary */
@@ -64,22 +62,22 @@ div.nextra-code-block > div  {
 
 /* Callout Primary */
 :is(html .dark\:nx-border-blue-200\/30) {
-    border-color: var(--colorPrimary)!important;
+    border-color: var(--colorPrimary) !important;
 }
 
 /* Chips*/
-.chipContained{
+.chipContained {
     background-color: var(--colorPrimary) !important;
 }
 
 /* Buttons */
 .MuiButton-root {
-    color:  var(--colorPrimary) !important;
-    border-color:  var(--colorPrimary) !important;
+    color: var(--colorPrimary) !important;
+    border-color: var(--colorPrimary) !important;
 }
 
 .MuiButton-root:hover {
-    color:  white !important;
+    color: white !important;
     background-color: var(--colorPrimary) !important;
 }
 
@@ -87,8 +85,8 @@ div.nextra-code-block > div  {
     color: var(--colorPrimary) !important;
 }
 
-.nextra-scrollbar.nx-sticky{
-    color: var(--colorPrimary) !important; 
+.nextra-scrollbar.nx-sticky {
+    color: var(--colorPrimary) !important;
 }
 
 .nx-text-primary-600 {
@@ -100,8 +98,8 @@ input:focus-visible {
 }
 
 .Mui-focused > fieldset {
-border-color: var(--colorPrimary) !important;
-} 
+    border-color: var(--colorPrimary) !important;
+}
 
 a.MuiLink-root {
     color: var(--colorPrimary) !important;

@@ -265,6 +265,13 @@ impl NymApiClient {
         NymApiClient { nym_api }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new_with_timeout(api_url: Url, timeout: std::time::Duration) -> Self {
+        let nym_api = nym_api::Client::new(api_url, Some(timeout));
+
+        NymApiClient { nym_api }
+    }
+
     pub fn new_with_user_agent(api_url: Url, user_agent: UserAgent) -> Self {
         let nym_api = nym_api::Client::builder::<_, ValidatorClientError>(api_url)
             .expect("invalid api url")

@@ -45,7 +45,10 @@ At the time of writing the following functionality is not exposed to the shared 
 ### TcpProxy Module
 A connection abstraction which exposes a local TCP socket which developers are able to interact with basically as expected, being able to read/write to/from a bytestream, without really having to take into account the workings of the Mixnet/Sphinx/the [message-based](../concepts/messages) format of the underlying client.
 
-> At the time of writing this functionality is **only** exposed to Go. C/C++ bindings will follow in the future in a larger update to the C FFI.
+<Callout type="info" emoji="ℹ️">
+  At the time of writing this functionality is **only** exposed to Go. C/C++ bindings will follow in the future in a larger update to the C FFI.
+</Callout>
+
 
 | `shared/lib.rs` function                                                                                                                | Rust Function                                                                         |
 | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |

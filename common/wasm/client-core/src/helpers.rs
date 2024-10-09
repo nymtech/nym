@@ -67,10 +67,10 @@ pub async fn current_network_topology_async(
     };
 
     let api_client = NymApiClient::new(url);
-    let mixnodes = api_client.get_basic_mixnodes().await?;
-    let gateways = api_client.get_basic_gateways().await?;
+    let mixnodes = api_client.get_basic_mixnodes(None).await?;
+    let gateways = api_client.get_basic_gateways(None).await?;
 
-    Ok(NymTopology::from_basic(&mixnodes, g & ateways).into())
+    Ok(NymTopology::from_basic(&mixnodes, &gateways).into())
 }
 
 #[wasm_bindgen(js_name = "currentNetworkTopology")]

@@ -46,13 +46,12 @@ pub(crate) fn log_db_operation_time(op_name: &str, start_time: Instant) {
 impl ScraperStorage {
     #[instrument]
     pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, ScraperError> {
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
+            .create_if_missing(true)
+            .disable_statement_logging();
 
         // TODO: do we want auto_vacuum ?
-
-        opts.disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,
@@ -90,11 +89,11 @@ impl ScraperStorage {
 
         let mut tx = self.begin_processing_tx().await?;
 
-        prune_messages(oldest_to_keep.into(), &mut tx).await?;
-        prune_transactions(oldest_to_keep.into(), &mut tx).await?;
-        prune_pre_commits(oldest_to_keep.into(), &mut tx).await?;
-        prune_blocks(oldest_to_keep.into(), &mut tx).await?;
-        update_last_pruned(current_height.into(), &mut tx).await?;
+        prune_messages(oldest_to_keep.into(), &mut *tx).await?;
+        prune_transactions(oldest_to_keep.into(), &mut *tx).await?;
+        prune_pre_commits(oldest_to_keep.into(), &mut *tx).await?;
+        prune_blocks(oldest_to_keep.into(), &mut *tx).await?;
+        update_last_pruned(current_height.into(), &mut *tx).await?;
 
         let commit_start = Instant::now();
         tx.commit()
@@ -234,7 +233,7 @@ pub async fn persist_block(
     // persist messages (inside the transactions)
     persist_messages(&block.transactions, tx).await?;
 
-    update_last_processed(block.block.header.height.into(), tx).await?;
+    update_last_processed(block.block.header.height.into(), tx.as_mut()).await?;
 
     Ok(())
 }
@@ -251,7 +250,7 @@ async fn persist_validators(
         insert_validator(
             consensus_address.to_string(),
             consensus_pubkey.to_string(),
-            &mut *tx,
+            &mut **tx,
         )
         .await?;
     }
@@ -274,7 +273,7 @@ async fn persist_block_data(
         total_gas,
         proposer_address,
         block.header.time.into(),
-        tx,
+        tx.as_mut(),
     )
     .await?;
     Ok(())
@@ -320,7 +319,7 @@ async fn persist_commits(
             (*timestamp).into(),
             validator.power.into(),
             validator.proposer_priority.value(),
-            &mut *tx,
+            &mut *tx.as_mut(),
         )
         .await?;
     }
@@ -345,7 +344,7 @@ async fn persist_txs(
             chain_tx.tx_result.gas_wanted,
             chain_tx.tx_result.gas_used,
             chain_tx.tx_result.log.clone(),
-            &mut *tx,
+            tx.as_mut(),
         )
         .await?;
     }
@@ -366,7 +365,7 @@ async fn persist_messages(
                 index as i64,
                 msg.type_url.clone(),
                 chain_tx.height.into(),
-                &mut *tx,
+                tx.as_mut(),
             )
             .await?
         }

@@ -27,11 +27,10 @@ impl StorageManager {
             })?;
         }
 
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(fresh);
-
-        opts.disable_statement_logging();
+            .create_if_missing(fresh)
+            .disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(pool) => pool,

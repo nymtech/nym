@@ -118,9 +118,9 @@ impl StorageManager {
         let count = sqlx::query!(
             r#"
                 SELECT COUNT(*) as count FROM pre_commit
-                WHERE 
+                WHERE
                     validator_address == ?
-                    AND height >= ? 
+                    AND height >= ?
                     AND height <= ?
             "#,
             consensus_address,
@@ -146,7 +146,7 @@ impl StorageManager {
         let res = sqlx::query_as(
             r#"
                 SELECT * FROM pre_commit
-                WHERE validator_address = ? 
+                WHERE validator_address = ?
                 AND height = ?
             "#,
         )
@@ -169,7 +169,7 @@ impl StorageManager {
         let res = sqlx::query_as!(
             Validator,
             r#"
-                SELECT * FROM validator 
+                SELECT * FROM validator
                 WHERE EXISTS (
                     SELECT 1 FROM pre_commit
                     WHERE height == ?

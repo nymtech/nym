@@ -29,11 +29,10 @@ impl StorageManager {
             })?;
         }
 
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
-
-        opts.disable_statement_logging();
+            .create_if_missing(true)
+            .disable_statement_logging();
 
         let connection_pool = sqlx::SqlitePool::connect_with(opts)
             .await
@@ -82,7 +81,7 @@ impl StorageManager {
         sqlx::query!("SELECT EXISTS (SELECT 1 FROM registered_gateway WHERE gateway_id_bs58 = ?) AS 'exists'", gateway_id)
             .fetch_one(&self.connection_pool)
             .await
-            .map(|result| result.exists == 1)
+            .map(|result| result.exists.is_some())
     }
 
     pub(crate) async fn maybe_get_registered_gateway(
@@ -111,7 +110,7 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO registered_gateway(gateway_id_bs58, registration_timestamp, gateway_type) 
+                INSERT INTO registered_gateway(gateway_id_bs58, registration_timestamp, gateway_type)
                 VALUES (?, ?, ?)
             "#,
             registered_gateway.gateway_id_bs58,
@@ -225,7 +224,7 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO custom_gateway_details(gateway_id_bs58, data) 
+                INSERT INTO custom_gateway_details(gateway_id_bs58, data)
                 VALUES (?, ?)
             "#,
             custom.gateway_id_bs58,

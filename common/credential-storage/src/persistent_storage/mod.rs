@@ -47,11 +47,10 @@ impl PersistentStorage {
             database_path.as_ref().as_os_str()
         );
 
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
-
-        opts.disable_statement_logging();
+            .create_if_missing(true)
+            .disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,
@@ -177,7 +176,7 @@ impl Storage for PersistentStorage {
         let mut tx = self.storage_manager.begin_storage_tx().await?;
 
         // we don't want ticketbooks with expiration in the past
-        let Some(raw) = get_next_unspent_ticketbook(&mut tx, deadline, tickets).await? else {
+        let Some(raw) = get_next_unspent_ticketbook(&mut *tx, deadline, tickets).await? else {
             // make sure to finish our tx
             tx.commit().await?;
             return Ok(None);
@@ -191,7 +190,7 @@ impl Storage for PersistentStorage {
                     ))
                 })?;
 
-        increase_used_ticketbook_tickets(&mut tx, raw.id, tickets).await?;
+        increase_used_ticketbook_tickets(&mut *tx, raw.id, tickets).await?;
         tx.commit().await?;
 
         // set the number of spent tickets on the crypto object

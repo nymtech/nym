@@ -21,9 +21,9 @@ impl Storage {
         let connection_url = read_env_var(DATABASE_URL_ENV_VAR)?;
         let connect_options = {
             let connect_options = SqliteConnectOptions::from_str(&connection_url)?;
-            let mut connect_options = connect_options.create_if_missing(true);
+            let connect_options = connect_options.create_if_missing(true);
             let connect_options = connect_options.disable_statement_logging();
-            (*connect_options).clone()
+            connect_options.clone()
         };
 
         let pool = sqlx::SqlitePool::connect_with(connect_options)

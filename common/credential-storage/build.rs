@@ -8,6 +8,8 @@ use std::env;
 
 #[tokio::main]
 async fn main() {
+    println!("cargo:rustc-env=SQLX_OFFLINE=false");
+
     let out_dir = env::var("OUT_DIR").unwrap();
     let database_path = format!("{out_dir}/coconut-credential-example.sqlite");
 

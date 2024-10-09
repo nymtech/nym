@@ -1,10 +1,14 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
-use crate::node_status_api::models::{HistoricalUptime, Uptime};
-use crate::node_status_api::utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses};
-use crate::support::storage::models::{
-    ActiveGateway, ActiveMixnode, GatewayDetails, MixnodeDetails, NodeStatus, RewardingReport,
-    TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
+use crate::{
+    node_status_api::{
+        models::{HistoricalUptime, Uptime},
+        utils::{ActiveGatewayStatuses, ActiveMixnodeStatuses},
+    },
+    support::storage::models::{
+        ActiveGateway, ActiveMixnode, GatewayDetails, MixnodeDetails, NodeStatus, RewardingReport,
+        TestedGatewayStatus, TestedMixnodeStatus, TestingRoute,
+    },
 };
 use nym_mixnet_contract_common::{EpochId, IdentityKey, MixId};
 use nym_types::monitoring::{GatewayResult, MixnodeResult, NodeResult};
@@ -497,7 +501,7 @@ impl StorageManager {
                 mixnode_result.owner,
                 mixnode_result.mix_id,
             )
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?
             .id;
 
@@ -510,7 +514,7 @@ impl StorageManager {
                 mixnode_result.reliability,
                 timestamp
             )
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
         }
 
@@ -538,7 +542,7 @@ impl StorageManager {
                 mixnode_result.identity,
                 mixnode_result.node_id,
             )
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?
             .id;
 
@@ -551,7 +555,7 @@ impl StorageManager {
                 mixnode_result.reliability,
                 timestamp
             )
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
         }
 
@@ -587,7 +591,7 @@ impl StorageManager {
                 gateway_result.owner,
                 gateway_result.identity,
             )
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?
             .id;
 
@@ -600,7 +604,7 @@ impl StorageManager {
                     gateway_result.reliability,
                     timestamp
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
         }
 
@@ -632,7 +636,7 @@ impl StorageManager {
                 gateway_result.node_id,
                 gateway_result.identity,
             )
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?
             .id;
 
@@ -645,7 +649,7 @@ impl StorageManager {
                     gateway_result.reliability,
                     timestamp
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
         }
 
@@ -768,7 +772,7 @@ impl StorageManager {
         )
         .fetch_one(&self.connection_pool)
         .await
-        .map(|result| result.exists == 1)
+        .map(|result| result.exists == Some(1))
     }
 
     /// Creates new entry for mixnode historical uptime

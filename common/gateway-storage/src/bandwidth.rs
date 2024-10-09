@@ -111,14 +111,14 @@ impl BandwidthManager {
             amount,
             client_id
         )
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
         let remaining = sqlx::query!(
             "SELECT available FROM available_bandwidth WHERE client_id = ?",
             client_id
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?
         .available;
 
@@ -160,14 +160,14 @@ impl BandwidthManager {
             amount,
             client_id
         )
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await?;
 
         let remaining = sqlx::query!(
             "SELECT available FROM available_bandwidth WHERE client_id = ?",
             client_id
         )
-        .fetch_one(&mut tx)
+        .fetch_one(&mut *tx)
         .await?
         .available;
 

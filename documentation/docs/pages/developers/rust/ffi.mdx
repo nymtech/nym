@@ -8,7 +8,7 @@ import { Callout } from 'nextra/components'
 
 We currently have FFI bindings for Go and C/C++. See the table below to check the coverage of functionality we expect devs would like to see.
 
-The `sdk/ffi` directory has the following structure:
+The [`nym/sdk/ffi`](https://github.com/nymtech/nym/tree/master/sdk/ffi) directory has the following structure:
 
 ```
 ffi
@@ -19,6 +19,8 @@ ffi
 ```
 
 The main functionality of exposed functions will be imported from `sdk/ffi/shared` into `sdk/ffi/<LANGUAGE>` in order to cut down on code duplication, and so that the imported bindings can be language-specific with regards to types and any `unsafe` code that is required, as well as allowing for the use of language-specific FFI libraries in the future (e.g. we are using `uniffi-bindgen-go` for Go, and at the moment have custom C/C++ bindings, which we might in the future replace with `cxx`).
+
+Furthermore, the `shared/` code makes sure that client access is thread-safe, and that client actions happen in blocking threads on the Rust side of the FFI boundary.
 
 ### Mixnet Module
 This is the basic mixnet component of the SDK, exposing client functionality with which people can build custom interfaces with the Mixnet. These functions are exposed to both Go and C/C++ via the `sdk/ffi/shared/` crate.

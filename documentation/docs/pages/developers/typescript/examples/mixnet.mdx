@@ -20,14 +20,14 @@ npm create vite@latest
 During the environment setup, choose React and subsequently opt for Typescript if you want your application to function smoothly following this tutorial. Next, navigate to your application directory and run the following commands:
 ```bash
 cd < YOUR_APP >
-npm i 
+npm i
 npm run dev
 ```
 
 ##### Installation
 Install the required package:
 ```bash
-npm install @nymproject/sdk-full-fat 
+npm install @nymproject/sdk-full-fat
 ```
 
 ##### Imports
@@ -41,7 +41,7 @@ import { createNymMixnetClient, NymMixnetClient, Payload } from "@nymproject/sdk
 ##### Example: using the SDK's Mixnet Client to send and receive messages over the Nym mixnet
 By pasting the below code example, you should be able to send and receive messages through the mixnet through an unstyled mixnet app template!
 <Callout type="warning" emoji="ℹ️">
-    For this example, we will be using the `full-fat` version of the ESM SDK. If you'd like to use the unbundled version of the ESM one, make sure your [bundler configuration](../../bundling/bundling) copies the WebAssembly (WASM) and web worker files to the output bundle.
+    For this example, we will be using the `full-fat` version of the ESM SDK. If you'd like to use the unbundled version of the ESM one, make sure your [bundler configuration](../bundling/bundling) copies the WebAssembly (WASM) and web worker files to the output bundle.
 </Callout>
 
 ```ts
@@ -52,33 +52,33 @@ import {
   NymMixnetClient,
   Payload,
 } from "@nymproject/sdk-full-fat";
- 
+
 const nymApiUrl = "https://validator.nymtech.net/api";
- 
+
 export function MixnetClient() {
   const [nym, setNym] = useState<NymMixnetClient>();
   const [selfAddress, setSelfAddress] = useState<string>();
   const [recipient, setRecipient] = useState<string>();
   const [payload, setPayload] = useState<Payload>();
   const [receivedMessage, setReceivedMessage] = useState<string>();
- 
+
   const init = async () => {
     const client = await createNymMixnetClient();
     setNym(client);
- 
+
     // Start the client and connect to a gateway
     await client?.client.start({
       clientId: crypto.randomUUID(),
       nymApiUrl,
       forceTls: true, // force WSS
     });
- 
+
     // Check when is connected and set the self address
     client?.events.subscribeToConnected((e) => {
       const { address } = e.args;
       setSelfAddress(address);
     });
- 
+
     // Show whether the client is ready or not
     client?.events.subscribeToLoaded((e) => {
       console.log("Client ready: ", e.args);
@@ -100,19 +100,19 @@ export function MixnetClient() {
     if (!nym || !payload || !recipient) return
     nym.client.send({ payload, recipient });
   }
- 
+
   useEffect(() => {
     init();
     return () => {
       stop();
     };
   }, []);
- 
+
   if (!nym) return <div>Waiting for the mixnet client...</div>;
- 
+
   if (!selfAddress) return <div>Connecting...</div>;
 
- 
+
   return (
     <div>
       <h1>Send messages through the Nym mixnet</h1>
@@ -137,7 +137,7 @@ export function MixnetClient() {
     </div>
   );
 };
- 
+
 export default function App () {
   return (
     <>

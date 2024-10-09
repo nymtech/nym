@@ -9,27 +9,27 @@ use anyhow::bail;
 pub(crate) struct Args {
     /// Id of the nym-api we want to initialise. if unspecified, a default value will be used.
     /// default: "default"
-    #[clap(long, default_value = "default")]
+    #[clap(long, default_value = "default", env)]
     pub(crate) id: String,
 
     /// Specifies whether network monitoring is enabled on this API
     /// default: false
-    #[clap(short = 'm', long)]
+    #[clap(short = 'm', long, env)]
     pub(crate) enable_monitor: bool,
 
     /// Specifies whether network rewarding is enabled on this API
     /// default: false
-    #[clap(short = 'r', long, requires = "enable_monitor", requires = "mnemonic")]
+    #[clap(short = 'r', long, requires = "enable_monitor", requires = "mnemonic", env)]
     pub(crate) enable_rewarding: bool,
 
     /// Endpoint to nyxd instance used for contract information.
     /// default: http://localhost:26657
-    #[clap(long)]
+    #[clap(long, env)]
     pub(crate) nyxd_validator: Option<url::Url>,
 
     /// Mnemonic of the network monitor used for sending rewarding and zk-nyms transactions
     /// default: None
-    #[clap(long)]
+    #[clap(long, env)]
     pub(crate) mnemonic: Option<bip39::Mnemonic>,
 
     /// Flag to indicate whether credential signer authority is enabled on this API
@@ -38,18 +38,19 @@ pub(crate) struct Args {
         long,
         requires = "mnemonic",
         requires = "announce_address",
-        alias = "enable_coconut"
+        alias = "enable_coconut",
+        env
     )]
     pub(crate) enable_zk_nym: bool,
 
     /// Announced address that is going to be put in the DKG contract where zk-nym clients will connect
     /// to obtain their credentials
     /// default: None
-    #[clap(long)]
+    #[clap(long, env)]
     pub(crate) announce_address: Option<url::Url>,
 
     /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
-    #[clap(long, requires = "enable_monitor")]
+    #[clap(long, requires = "enable_monitor", env)]
     pub(crate) monitor_credentials_mode: bool,
     // #[clap(short, long, default_value_t = OutputFormat::default())]
     // output: OutputFormat,

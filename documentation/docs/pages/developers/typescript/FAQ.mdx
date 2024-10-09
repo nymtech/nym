@@ -1,48 +1,4 @@
-# Welcome to the TS SDK FAQ!
-
-## How can I interact with Nym?
-
-#### For existing projects:
-If you would like to integrate parts of the Nym stack to your existing app, please check out the dedicated [integrations page](../FAQ/integrations).
-
-#### For builders:
-###### SDKs
-If you’re looking to build or ‘Nymify’ existing solutions, read on: For developing in Rust or TS/JS, then the Nym SDKs are your go-to. Please visit the [Rust SDK documentation](https://nymtech.net/developers/tutorials/rust-sdk.html) for more Rust-related information and tutorials.
-Stay on this page, the [TS SDK handbook](../) (you are here) for using the TypeScript SDK.
-These SDKs abstract away much of the messaging and core logic from your app, and allow you to run a Nym client as part of your application process, instead of having to run them separately. In short, they simplify building Nym clients into your project.
-
-###### Standalone Nym clients: Websocket, WebAssembly, SOCKS5
-Alternatively, you can also use one of the three standalone Nym clients to connect your application to the mixnet. 
-These clients do the majority of the heavy-lifting with regards to cryptographic operations and routing under the hood. 
-Essentially, they all do the same thing: create a connection to a gateway, encrypt and decrypt packets sent to and received from the mixnet, and send cover traffic to hide the flow of actual app traffic from observers. You can learn more about the Nym clients in this [Nym integration page](https://nymtech.net/developers/integrations/mixnet-integration.html).
-
-###### Network requesters: 
-Network requesters are a type of Service Provider that essentially act as a kind of proxy, somewhat similarly to a Tor exit node. If you have access to a server, you can run a Network Requester, which will perform the following functions: 
-- Send outbound requests from the local machine through the mixnet to a server;
-- The Network Requester then makes a request on the user’s behalf, shielding the user and their metadata from the untrusted and unknown infrastructure, for example with  email or instant messaging client servers;
-
-
-By default the Network Requester is not an open proxy but rather uses a local and global [allow list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to whitelist host access.
-
-## Which Service Provider to run?
-In order to ensure uptime and reliability, it is recommended that you run some pieces of mixnet infrastructure. This infrastructure varies depending on the architecture of your application, as well as the endpoints that it needs to hit:
-
-- No Service Provider (Network Requester) needed: If you’re running a purely P2P application, then just integrating clients and having some method of sharing addresses should be enough to route your traffic through the mixnet;
-- Network Requester needed (existing or own): If you’re wanting to place the mixnet between your users’ application instances and a server-based backend, you will need a Network Requester. In this case, if your app supports SOCKS5, you could either use an existing NR or, if your app supports SOCKS5 but needs more extensive whitelisting, you could  use the [network requester service provider binary](https://nymtech.net/operators/nodes/network-requester-setup.html) to proxy these requests to your application backend yourself, with the mixnet ‘between’ the user and your service, in order to prevent metadata leakage being broadcast to the internet.
-- Running your own Service Provider: If your usecase is more complex, you’re wanting to route RPC requests through the mixnet to a blockchain for example, you will need to look into setting up some sort of Service that does the transaction broadcasting for you. You can find examples of such projects on the [community applications page](https://nymtech.net/developers/community-resources/community-applications-and-guides.html).
-
-
-## Why gateways?
-Nym apps have a stable, potentially long-lasting relation to a gateway node. A client will establish a symmetric key share with a gateway that can be verified on subsequent connection attempts.
-
-Gateways serve a few different functions:
-
-- They act as an end-to-end encrypted message store in case your app goes offline;
-- They send encrypted [surb-acks](https://nymtech.net/docs/architecture/traffic-flow.html) for potentially offline recipients, to ensure reliable message delivery;
-- They offer a stable addressing location for apps, although the IP may change frequently;
-
-If you want to learn more about gateways, you can check the [mixnet integration page](https://nymtech.net/developers/integrations/mixnet-integration.html).
-
+# TS SDK FAQ
 
 ## Why and when does the mixnet client complain about insufficient topology?
 
@@ -55,20 +11,12 @@ To avoid the last two, you need to make sure the gateway you are calling is bond
 
 ## How can I check whether the gateway I am connecting to is bonded and not blacklisted?
 
-The easiest way of checking what gateway you're registered with is to look at your client address. 
+The easiest way of checking what gateway you're registered with is to look at your client address.
 Client addresses are in the format of:
-`client-id . client-dh @ gateway-id. ` 
+`client-id . client-dh @ gateway-id. `
 
 To illustrate this: `DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh `
 
 - `DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko`: is the client's identity key;
 - `ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx`: is the client's Diffie Hellman key;
-- `2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh`: is the gateway's identity, which is what you'll need to check the state of the gateway in the [Nym Explorer](https://explorer.nymtech.net/network-components/gateways). 
-
-
-## How can I get my service host whitelisted?
-Currently, the different options are: 
-- You can get it added to the local list of an existing Network Requester;
-- You can ask the Nym team to add it to the global [allow list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) if it's not already there;
-- You can run your own Network Requester and locally configure it to allow the hosts you need to connect to;
-If you'd like to learn more about Network Requesters and the global allow list, you can visit the [network requester set-up page](https://nymtech.net/operators/nodes/network-requester-setup.html).
+- `2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh`: is the gateway's identity, which is what you'll need to check the state of the gateway in the [Nym Explorer](https://explorer.nymtech.net/network-components/gateways).

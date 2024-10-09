@@ -1,20 +1,24 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::block_processor::types::{FullBlockInformation, ParsedTransactionResponse};
-use crate::error::ScraperError;
-use crate::storage::manager::{
-    insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
-    prune_blocks, prune_messages, prune_pre_commits, prune_transactions, update_last_processed,
-    update_last_pruned, StorageManager,
+use crate::{
+    block_processor::types::{FullBlockInformation, ParsedTransactionResponse},
+    error::ScraperError,
+    storage::{
+        manager::{
+            insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
+            prune_blocks, prune_messages, prune_pre_commits, prune_transactions,
+            update_last_processed, update_last_pruned, StorageManager,
+        },
+        models::{CommitSignature, Validator},
+    },
 };
-use crate::storage::models::{CommitSignature, Validator};
-use sqlx::types::time::OffsetDateTime;
-use sqlx::{ConnectOptions, Sqlite, Transaction};
-use std::fmt::Debug;
-use std::path::Path;
-use tendermint::block::{Commit, CommitSig};
-use tendermint::Block;
+use sqlx::{types::time::OffsetDateTime, ConnectOptions, Sqlite, Transaction};
+use std::{fmt::Debug, path::Path};
+use tendermint::{
+    block::{Commit, CommitSig},
+    Block,
+};
 use tendermint_rpc::endpoint::validators;
 use tokio::time::Instant;
 use tracing::{debug, error, info, instrument, trace, warn};
@@ -48,11 +52,10 @@ impl ScraperStorage {
     pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, ScraperError> {
         let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
+            .create_if_missing(true)
+            .disable_statement_logging();
 
         // TODO: do we want auto_vacuum ?
-
-        opts.disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,

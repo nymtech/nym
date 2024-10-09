@@ -22,7 +22,7 @@ bip39 = { workspace = true }
 bincode.workspace = true
 bloomfilter = { workspace = true }
 cfg-if = { workspace = true }
-clap = { workspace = true, features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive", "env"] }
 console-subscriber = { workspace = true, optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
 dirs = { workspace = true }
 futures = { workspace = true }

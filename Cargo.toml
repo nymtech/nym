@@ -149,7 +149,7 @@ default-members = [
     "gateway",
     "mixnode",
     "nym-api",
-    #"nym-data-observatory",
+    "nym-data-observatory",
     "nym-node",
     "nym-validator-rewarder",
     "service-providers/authenticator",

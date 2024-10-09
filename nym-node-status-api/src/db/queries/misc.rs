@@ -45,6 +45,8 @@ async fn insert_summary(
         })?;
     }
 
+    tx.commit().await?;
+
     Ok(())
 }
 

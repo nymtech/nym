@@ -1,9 +1,13 @@
 use futures_util::TryStreamExt;
 use nym_validator_client::models::MixNodeBondAnnotated;
+use tracing::error;
 
-use crate::db::{
-    models::{BondedStatusDto, MixnodeRecord},
-    DbPool,
+use crate::{
+    db::{
+        models::{BondedStatusDto, MixnodeDto, MixnodeRecord},
+        DbPool,
+    },
+    http::models::{DailyStats, Mixnode},
 };
 
 pub(crate) async fn insert_mixnodes(
@@ -44,6 +48,78 @@ pub(crate) async fn insert_mixnodes(
     }
 
     Ok(())
+}
+
+pub(crate) async fn get_all_mixnodes(pool: &DbPool) -> anyhow::Result<Vec<Mixnode>> {
+    let mut conn = pool.acquire().await?;
+    let items = sqlx::query_as!(
+        MixnodeDto,
+        r#"SELECT
+            mn.mix_id as "mix_id!",
+            mn.bonded as "bonded: bool",
+            mn.blacklisted as "blacklisted: bool",
+            mn.is_dp_delegatee as "is_dp_delegatee: bool",
+            mn.total_stake as "total_stake!",
+            mn.full_details as "full_details!",
+            mn.self_described as "self_described",
+            mn.last_updated_utc as "last_updated_utc!",
+            COALESCE(md.moniker, "NA") as "moniker!",
+            COALESCE(md.website, "NA") as "website!",
+            COALESCE(md.security_contact, "NA") as "security_contact!",
+            COALESCE(md.details, "NA") as "details!"
+         FROM mixnodes mn
+         LEFT JOIN mixnode_description md ON mn.mix_id = md.mix_id
+         ORDER BY mn.mix_id"#
+    )
+    .fetch(&mut conn)
+    .try_collect::<Vec<_>>()
+    .await?;
+
+    let items = items
+        .into_iter()
+        .map(|item| item.try_into())
+        .collect::<anyhow::Result<Vec<_>>>()
+        .map_err(|e| {
+            error!("Conversion from DTO failed: {e}. Invalidly stored data?");
+            e
+        })?;
+    Ok(items)
+}
+
+/// We fetch the latest 30 days of data as a subquery and then
+/// return it in ascending order, so we don't break existing UI
+pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailyStats>> {
+    let mut conn = pool.acquire().await?;
+    let items = sqlx::query_as!(
+        DailyStats,
+        r#"
+        SELECT
+            date_utc as "date_utc!",
+            packets_received as "total_packets_received!: i64",
+            packets_sent as "total_packets_sent!: i64",
+            packets_dropped as "total_packets_dropped!: i64",
+            total_stake as "total_stake!: i64"
+        FROM (
+            SELECT
+                date_utc,
+                SUM(packets_received) as packets_received,
+                SUM(packets_sent) as packets_sent,
+                SUM(packets_dropped) as packets_dropped,
+                SUM(total_stake) as total_stake
+            FROM mixnode_daily_stats
+            GROUP BY date_utc
+            ORDER BY date_utc DESC
+            LIMIT 30
+        )
+        GROUP BY date_utc
+        ORDER BY date_utc
+        "#
+    )
+    .fetch(&mut conn)
+    .try_collect::<Vec<DailyStats>>()
+    .await?;
+
+    Ok(items)
 }
 
 /// Ensure all mixnodes that are set as bonded, are still bonded

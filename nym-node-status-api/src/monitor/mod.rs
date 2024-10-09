@@ -1,10 +1,11 @@
+use crate::config::Config;
 use crate::db::models::{
     gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_BLACKLISTED_COUNT,
     GATEWAYS_BONDED_COUNT, GATEWAYS_EXPLORER_COUNT, GATEWAYS_HISTORICAL_COUNT,
     MIXNODES_BLACKLISTED_COUNT, MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT,
     MIXNODES_BONDED_INACTIVE, MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
 };
-use crate::db::{queries, DbPool, Storage};
+use crate::db::{queries, DbPool};
 use anyhow::anyhow;
 use cosmwasm_std::Decimal;
 use nym_explorer_client::{ExplorerClient, PrettyDetailedGatewayBond};
@@ -15,43 +16,46 @@ use nym_validator_client::nym_nodes::SkimmedNode;
 use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::{AccountId, NyxdClient};
 use nym_validator_client::NymApiClient;
+use reqwest::Url;
 use std::collections::HashSet;
 use std::str::FromStr;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;
 
 const REFRESH_DELAY: Duration = Duration::from_secs(60 * 5);
-const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
+const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(15);
+
 static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
 
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
-pub(crate) fn spawn_in_background(storage: Storage) -> JoinHandle<()> {
-    tokio::spawn(async move {
-        let db_pool = storage.pool().await;
-        let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
+pub(crate) async fn spawn_in_background(db_pool: DbPool, config: Config) -> JoinHandle<()> {
+    let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
-        loop {
-            tracing::info!("Refreshing node info...");
+    loop {
+        tracing::info!("Refreshing node info...");
 
-            if let Err(e) = run(db_pool, &network_defaults).await {
-                tracing::error!(
-                    "Monitor run failed: {e}, retrying in {}s...",
-                    FAILURE_RETRY_DELAY.as_secs()
-                );
-                tokio::time::sleep(FAILURE_RETRY_DELAY).await;
-            } else {
-                tracing::info!(
-                    "Info successfully collected, sleeping for {}s...",
-                    REFRESH_DELAY.as_secs()
-                );
-                tokio::time::sleep(REFRESH_DELAY).await;
-            }
+        if let Err(e) = run(&db_pool, &network_defaults, &config).await {
+            tracing::error!(
+                "Monitor run failed: {e}, retrying in {}s...",
+                FAILURE_RETRY_DELAY.as_secs()
+            );
+            tokio::time::sleep(FAILURE_RETRY_DELAY).await;
+        } else {
+            tracing::info!(
+                "Info successfully collected, sleeping for {}s...",
+                REFRESH_DELAY.as_secs()
+            );
+            tokio::time::sleep(REFRESH_DELAY).await;
         }
-    })
+    }
 }
 
-async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> anyhow::Result<()> {
+async fn run(
+    pool: &DbPool,
+    network_details: &NymNetworkDetails,
+    config: &Config,
+) -> anyhow::Result<()> {
     let default_api_url = network_details
         .endpoints
         .first()
@@ -66,15 +70,32 @@ async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> anyhow::Resu
 
     let default_explorer_url =
         default_explorer_url.expect("explorer url missing in network config");
-    let explorer_client = ExplorerClient::new(default_explorer_url)?;
-    let explorer_gateways = explorer_client.get_gateways().await?;
+    let explorer_client = ExplorerClient::new_with_timeout(
+        default_explorer_url,
+        config.nym_explorer_client_timeout(),
+    )?;
+    let explorer_gateways = explorer_client
+        .get_gateways()
+        .await
+        .log_error("get_gateways")?;
+    tracing::debug!("6");
 
-    let api_client = NymApiClient::new(default_api_url);
-    let gateways = api_client.get_cached_described_gateways().await?;
+    let api_client =
+        NymApiClient::new_with_timeout(default_api_url, config.nym_api_client_timeout());
+    let gateways = api_client
+        .get_cached_described_gateways()
+        .await
+        .log_error("get_described_gateways")?;
     tracing::debug!("Fetched {} gateways", gateways.len());
-    let skimmed_gateways = api_client.get_basic_gateways(None).await?;
+    let skimmed_gateways = api_client
+        .get_basic_gateways(None)
+        .await
+        .log_error("get_basic_gateways")?;
 
-    let mixnodes = api_client.get_cached_mixnodes().await?;
+    let mixnodes = api_client
+        .get_cached_mixnodes()
+        .await
+        .log_error("get_cached_mixnodes")?;
     tracing::debug!("Fetched {} mixnodes", mixnodes.len());
 
     // TODO dz can we calculate blacklisted GWs from their performance?
@@ -83,17 +104,28 @@ async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> anyhow::Resu
         .nym_api
         .get_gateways_blacklisted()
         .await
-        .map(|vec| vec.into_iter().collect::<HashSet<_>>())?;
+        .map(|vec| vec.into_iter().collect::<HashSet<_>>())
+        .log_error("get_gateways_blacklisted")?;
 
     // Cached mixnodes don't include blacklisted nodes
     // We need that to calculate the total locked tokens later
     let mixnodes = api_client
         .nym_api
         .get_mixnodes_detailed_unfiltered()
-        .await?;
-    let mixnodes_described = api_client.nym_api.get_mixnodes_described().await?;
-    let mixnodes_active = api_client.nym_api.get_active_mixnodes().await?;
-    let delegation_program_members = get_delegation_program_details(network_details).await?;
+        .await
+        .log_error("get_mixnodes_detailed_unfiltered")?;
+    let mixnodes_described = api_client
+        .nym_api
+        .get_mixnodes_described()
+        .await
+        .log_error("get_mixnodes_described")?;
+    let mixnodes_active = api_client
+        .nym_api
+        .get_active_mixnodes()
+        .await
+        .log_error("get_active_mixnodes")?;
+    let delegation_program_members =
+        get_delegation_program_details(network_details, config.nyxd_addr()).await?;
 
     // keep stats for later
     let count_bonded_mixnodes = mixnodes.len();
@@ -168,42 +200,41 @@ async fn run(pool: &DbPool, network_details: &NymNetworkDetails) -> anyhow::Resu
         (GATEWAYS_BLACKLISTED_COUNT, &count_gateways_blacklisted),
     ];
 
-    // TODO dz do we need signed int in type definition? maybe because of API?
     let last_updated = chrono::offset::Utc::now();
     let last_updated_utc = last_updated.timestamp().to_string();
     let network_summary = NetworkSummary {
         mixnodes: mixnode::MixnodeSummary {
             bonded: mixnode::MixnodeSummaryBonded {
-                count: count_bonded_mixnodes as i32,
-                active: count_bonded_mixnodes_active as i32,
-                inactive: count_bonded_mixnodes_inactive as i32,
-                reserve: count_bonded_mixnodes_reserve as i32,
+                count: count_bonded_mixnodes.cast_checked()?,
+                active: count_bonded_mixnodes_active.cast_checked()?,
+                inactive: count_bonded_mixnodes_inactive.cast_checked()?,
+                reserve: count_bonded_mixnodes_reserve.cast_checked()?,
                 last_updated_utc: last_updated_utc.to_owned(),
             },
             blacklisted: mixnode::MixnodeSummaryBlacklisted {
-                count: count_mixnodes_blacklisted as i32,
+                count: count_mixnodes_blacklisted.cast_checked()?,
                 last_updated_utc: last_updated_utc.to_owned(),
             },
             historical: mixnode::MixnodeSummaryHistorical {
-                count: all_historical_mixnodes as i32,
+                count: all_historical_mixnodes.cast_checked()?,
                 last_updated_utc: last_updated_utc.to_owned(),
             },
         },
         gateways: gateway::GatewaySummary {
             bonded: gateway::GatewaySummaryBonded {
-                count: count_bonded_gateways as i32,
+                count: count_bonded_gateways.cast_checked()?,
                 last_updated_utc: last_updated_utc.to_owned(),
             },
             blacklisted: gateway::GatewaySummaryBlacklisted {
-                count: count_gateways_blacklisted as i32,
+                count: count_gateways_blacklisted.cast_checked()?,
                 last_updated_utc: last_updated_utc.to_owned(),
             },
             historical: gateway::GatewaySummaryHistorical {
-                count: all_historical_gateways as i32,
+                count: all_historical_gateways.cast_checked()?,
                 last_updated_utc: last_updated_utc.to_owned(),
             },
             explorer: gateway::GatewaySummaryExplorer {
-                count: count_explorer_gateways as i32,
+                count: count_explorer_gateways.cast_checked()?,
                 last_updated_utc: last_updated_utc.to_owned(),
             },
         },
@@ -317,27 +348,56 @@ fn prepare_mixnode_data(
     Ok(mixnode_records)
 }
 
+// TODO dz is there a common monorepo place this can be put?
+pub trait NumericalCheckedCast<T>
+where
+    T: TryFrom<Self>,
+    <T as TryFrom<Self>>::Error: std::error::Error,
+    Self: std::fmt::Display + Copy,
+{
+    fn cast_checked(self) -> anyhow::Result<T> {
+        T::try_from(self).map_err(|e| {
+            anyhow::anyhow!(
+                "Couldn't cast {} to {}: {}",
+                self,
+                std::any::type_name::<T>(),
+                e
+            )
+        })
+    }
+}
+
+impl<T, U> NumericalCheckedCast<U> for T
+where
+    U: TryFrom<T>,
+    <U as TryFrom<T>>::Error: std::error::Error,
+    T: std::fmt::Display + Copy,
+{
+}
+
 async fn calculate_stats(pool: &DbPool) -> anyhow::Result<(usize, usize)> {
     let mut conn = pool.acquire().await?;
 
     let all_historical_gateways = sqlx::query_scalar!(r#"SELECT count(id) FROM gateways"#)
         .fetch_one(&mut *conn)
-        .await? as usize;
+        .await?
+        .cast_checked()?;
 
     let all_historical_mixnodes = sqlx::query_scalar!(r#"SELECT count(id) FROM mixnodes"#)
         .fetch_one(&mut *conn)
-        .await? as usize;
+        .await?
+        .cast_checked()?;
 
     Ok((all_historical_gateways, all_historical_mixnodes))
 }
 
 async fn get_delegation_program_details(
     network_details: &NymNetworkDetails,
+    nyxd_addr: &Url,
 ) -> anyhow::Result<Vec<u32>> {
     let config = nym_validator_client::nyxd::Config::try_from_nym_network_details(network_details)?;
 
-    // TODO dz should this be configurable?
-    let client = NyxdClient::connect(config, "https://rpc.nymtech.net")
+    let client = NyxdClient::connect(config, nyxd_addr.as_str())
         .map_err(|err| anyhow::anyhow!("Couldn't connect: {}", err))?;
 
     let account_id = AccountId::from_str(DELEGATION_PROGRAM_WALLET)
@@ -371,4 +431,20 @@ fn decimal_to_i64(decimal: Decimal) -> i64 {
     let rounded_value = (float_value * 1_000_000.0).round() / 1_000_000.0;
 
     rounded_value as i64
+}
+
+trait LogError<T, E> {
+    fn log_error(self, msg: &str) -> Result<T, E>;
+}
+
+impl<T, E> LogError<T, E> for anyhow::Result<T, E>
+where
+    E: std::error::Error,
+{
+    fn log_error(self, msg: &str) -> Result<T, E> {
+        if let Err(e) = &self {
+            tracing::error!("[{msg}]:\t{e}");
+        }
+        self
+    }
 }

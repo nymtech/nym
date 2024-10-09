@@ -29,7 +29,6 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
 };
 use cosmrs::tendermint::{block, chain, Hash};
 use cosmrs::{AccountId, Coin as CosmosCoin, Tx};
-use log::trace;
 use prost::Message;
 use serde::{Deserialize, Serialize};
 
@@ -68,7 +67,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
         Res: Message + Default,
     {
         if let Some(ref abci_path) = path {
-            trace!("performing query on abci path {abci_path}")
+            tracing::trace!("performing query on abci path {abci_path}")
         }
         let mut buf = Vec::with_capacity(req.encoded_len());
         req.encode(&mut buf)?;
@@ -297,7 +296,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
 
         let start = Instant::now();
         loop {
-            log::debug!(
+            tracing::debug!(
                 "Polling for result of including {} in a block...",
                 broadcasted.hash
             );
@@ -522,7 +521,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
             .make_abci_query::<_, QuerySmartContractStateResponse>(path, req)
             .await?;
 
-        trace!("raw query response: {}", String::from_utf8_lossy(&res.data));
+        tracing::trace!("raw query response: {}", String::from_utf8_lossy(&res.data));
         Ok(serde_json::from_slice(&res.data)?)
     }
 

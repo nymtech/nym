@@ -1,9 +1,13 @@
-use anyhow::anyhow;
 use clap::Parser;
 use nym_network_defaults::setup_env;
+use nym_task::signal::wait_for_signal;
+
+use crate::config::read_env_var;
 
 mod cli;
+mod config;
 mod db;
+mod http;
 mod logging;
 mod monitor;
 
@@ -15,24 +19,36 @@ async fn main() -> anyhow::Result<()> {
     // if dotenv file is present, load its values
     // otherwise, default to mainnet
     setup_env(args.config_env_file.as_ref());
-    tracing::debug!("{:?}", std::env::var("NETWORK_NAME"));
-    tracing::debug!("{:?}", std::env::var("EXPLORER_API"));
-    tracing::debug!("{:?}", std::env::var("NYM_API"));
+    tracing::debug!("{:?}", read_env_var("NETWORK_NAME"));
+    tracing::debug!("{:?}", read_env_var("EXPLORER_API"));
+    tracing::debug!("{:?}", read_env_var("NYM_API"));
+
+    let conf = config::Config::from_env()?;
+    tracing::debug!("Using config:\n{:#?}", conf);
 
     let storage = db::Storage::init().await?;
-    monitor::spawn_in_background(storage)
-        .await
-        .expect("Monitor task failed");
-    tracing::info!("Started server");
+    let db_pool = storage.pool_owned().await;
+    let conf_clone = conf.clone();
+    tokio::spawn(async move {
+        monitor::spawn_in_background(db_pool, conf_clone).await;
+    });
+    tracing::info!("Started monitor task");
+
+    let shutdown_handles = http::server::start_http_api(
+        storage.pool_owned().await,
+        conf.http_port(),
+        conf.nym_http_cache_ttl(),
+    )
+    .await
+    .expect("Failed to start server");
+
+    tracing::info!("Started HTTP server on port {}", conf.http_port());
+
+    wait_for_signal().await;
+
+    if let Err(err) = shutdown_handles.shutdown().await {
+        tracing::error!("{err}");
+    };
 
     Ok(())
-}
-
-pub(crate) fn read_env_var(env_var: &str) -> anyhow::Result<String> {
-    std::env::var(env_var)
-        .map(|value| {
-            tracing::trace!("{}={}", env_var, value);
-            value
-        })
-        .map_err(|_| anyhow!("You need to set {}", env_var))
 }

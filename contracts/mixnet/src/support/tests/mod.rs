@@ -24,9 +24,10 @@ pub mod test_helpers {
         minimum_gateway_pledge, minimum_mixnode_pledge, rewarding_denom,
         rewarding_validator_address,
     };
-    use crate::mixnodes::storage as mixnodes_storage;
-    use crate::mixnodes::storage::mixnode_bonds;
+    use crate::mixnodes::helpers::get_mixnode_details_by_id;
+    use crate::mixnodes::storage::{assign_layer, mixnode_bonds, next_mixnode_id_counter};
     use crate::mixnodes::transactions::{try_add_mixnode, try_remove_mixnode};
+    use crate::mixnodes::{storage as mixnodes_storage, storage};
     use crate::rewards::queries::{
         query_pending_delegator_reward, query_pending_mixnode_operator_reward,
     };
@@ -42,7 +43,7 @@ pub mod test_helpers {
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::{coin, coins, Addr, BankMsg, CosmosMsg, Storage};
+    use cosmwasm_std::{coin, coins, Addr, Api, BankMsg, CosmosMsg, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use cosmwasm_std::{Deps, OwnedDeps};
@@ -120,6 +121,10 @@ pub mod test_helpers {
             }
         }
 
+        pub fn random_address(&mut self) -> String {
+            format!("n1foomp{}", self.rng.next_u64())
+        }
+
         pub fn deps(&self) -> Deps<'_> {
             self.deps.as_ref()
         }
@@ -144,6 +149,13 @@ pub mod test_helpers {
 
         pub fn owner(&self) -> MessageInfo {
             self.owner.clone()
+        }
+
+        pub fn vesting_contract(&self) -> Addr {
+            mixnet_params_storage::CONTRACT_STATE
+                .load(self.deps().storage)
+                .unwrap()
+                .vesting_contract_address
         }
 
         pub fn coin(&self, amount: u128) -> Coin {
@@ -264,6 +276,72 @@ pub mod test_helpers {
 
             // newly added mixnode gets assigned the current counter + 1
             current_id_counter + 1
+        }
+
+        pub fn add_dummy_mixnode_with_proxy_and_keypair(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> (MixId, identity::KeyPair) {
+            let pledge = self.make_mix_pledge(stake).pop().unwrap();
+
+            let proxy = self.vesting_contract();
+
+            let keypair = identity::KeyPair::new(&mut self.rng);
+            let identity_key = keypair.public_key().to_base58_string();
+            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+
+            let mixnode = MixNode {
+                identity_key,
+                sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
+                ..tests::fixtures::mix_node_fixture()
+            };
+
+            let height = self.env.block.height;
+            let storage = self.deps_mut().storage;
+
+            // manually unroll `save_new_mixnode` to allow for proxy usage
+            let layer = assign_layer(storage).unwrap();
+            let mix_id = next_mixnode_id_counter(storage).unwrap();
+
+            let current_epoch = interval_storage::current_interval(storage)
+                .unwrap()
+                .current_epoch_absolute_id();
+
+            let mixnode_rewarding = MixNodeRewarding::initialise_new(
+                tests::fixtures::mix_node_cost_params_fixture(),
+                &pledge,
+                current_epoch,
+            )
+            .unwrap();
+            let mixnode_bond = MixNodeBond {
+                mix_id,
+                owner: Addr::unchecked(owner),
+                original_pledge: pledge,
+                layer,
+                mix_node: mixnode,
+                proxy: Some(proxy),
+                bonding_height: height,
+                is_unbonding: false,
+            };
+
+            mixnode_bonds()
+                .save(storage, mix_id, &mixnode_bond)
+                .unwrap();
+            rewards_storage::MIXNODE_REWARDING
+                .save(storage, mix_id, &mixnode_rewarding)
+                .unwrap();
+
+            (mix_id, keypair)
+        }
+
+        pub fn add_dummy_mixnode_with_legal_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> MixId {
+            self.add_dummy_mixnode_with_proxy_and_keypair(owner, stake)
+                .0
         }
 
         pub fn add_dummy_gateway(&mut self, sender: &str, stake: Option<Uint128>) -> IdentityKey {
@@ -454,6 +532,55 @@ pub mod test_helpers {
             .unwrap();
         }
 
+        pub fn add_immediate_delegation_with_legal_proxy(
+            &mut self,
+            delegator: &str,
+            amount: impl Into<Uint128>,
+            target: MixId,
+        ) {
+            let denom = rewarding_denom(self.deps().storage).unwrap();
+            let amount = Coin {
+                denom,
+                amount: amount.into(),
+            };
+            let proxy = self.vesting_contract();
+
+            let owner = self.deps.api.addr_validate(delegator).unwrap();
+            let storage_key = Delegation::generate_storage_key(target, &owner, Some(&proxy));
+
+            let mut mix_rewarding = self.mix_rewarding(target);
+
+            let mut stored_delegation_amount = amount;
+
+            if let Some(existing_delegation) = delegations_storage::delegations()
+                .may_load(&self.deps.storage, storage_key.clone())
+                .unwrap()
+            {
+                let og_with_reward = mix_rewarding.undelegate(&existing_delegation).unwrap();
+                stored_delegation_amount.amount += og_with_reward.amount;
+            }
+
+            mix_rewarding
+                .add_base_delegation(stored_delegation_amount.amount)
+                .unwrap();
+
+            let delegation = Delegation {
+                owner,
+                mix_id: target,
+                cumulative_reward_ratio: mix_rewarding.total_unit_reward,
+                amount: stored_delegation_amount,
+                height: self.env.block.height,
+                proxy: Some(proxy),
+            };
+
+            delegations_storage::delegations()
+                .save(&mut self.deps.storage, storage_key, &delegation)
+                .unwrap();
+            rewards_storage::MIXNODE_REWARDING
+                .save(&mut self.deps.storage, target, &mix_rewarding)
+                .unwrap();
+        }
+
         #[allow(unused)]
         pub fn add_delegation(
             &mut self,
@@ -639,6 +766,14 @@ pub mod test_helpers {
 
             let res =
                 try_reward_mixnode(self.deps_mut(), env, sender, mix_id, performance).unwrap();
+
+            if performance.is_zero() {
+                return RewardDistribution {
+                    operator: Decimal::zero(),
+                    delegates: Decimal::zero(),
+                };
+            }
+
             let operator: Decimal = find_attribute(
                 Some(MixnetEventType::MixnodeRewarding.to_string()),
                 OPERATOR_REWARD_KEY,
@@ -749,6 +884,7 @@ pub mod test_helpers {
         None
     }
 
+    #[track_caller]
     pub fn find_attribute<S: Into<String>>(
         event_type: Option<S>,
         attribute: &str,

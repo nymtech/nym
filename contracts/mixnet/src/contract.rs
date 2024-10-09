@@ -273,7 +273,7 @@ pub fn execute(
             crate::vesting_migration::try_migrate_vested_mixnode(deps, info)
         }
         ExecuteMsg::MigrateVestedDelegation { mix_id } => {
-            crate::vesting_migration::try_migrate_vested_delegation(deps, info, mix_id)
+            crate::vesting_migration::try_migrate_vested_delegation(deps, env, info, mix_id)
         }
 
         // legacy vesting

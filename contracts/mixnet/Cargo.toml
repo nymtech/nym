@@ -45,6 +45,7 @@ time = { version = "0.3", features = ["macros"] }
 
 [dev-dependencies]
 rand_chacha = "0.3"
+rand = "0.8.5"
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 
 [features]

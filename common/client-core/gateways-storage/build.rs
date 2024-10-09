@@ -8,6 +8,8 @@ async fn main() {
         use sqlx::{Connection, SqliteConnection};
         use std::env;
 
+        println!("cargo:rustc-env=SQLX_OFFLINE=false");
+
         let out_dir = env::var("OUT_DIR").unwrap();
         let database_path = format!("{out_dir}/gateways-storage-example.sqlite");
 

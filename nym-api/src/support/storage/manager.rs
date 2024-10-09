@@ -553,7 +553,7 @@ impl StorageManager {
                 mixnode_result.identity,
                 mixnode_result.node_id,
             )
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?
             .id;
 
@@ -566,7 +566,7 @@ impl StorageManager {
                 mixnode_result.reliability,
                 timestamp
             )
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
         }
 
@@ -594,7 +594,7 @@ impl StorageManager {
                 mixnode_result.identity,
                 mixnode_result.node_id,
             )
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?
             .id;
 
@@ -607,7 +607,7 @@ impl StorageManager {
                 mixnode_result.reliability,
                 timestamp
             )
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
         }
 
@@ -643,7 +643,7 @@ impl StorageManager {
                 gateway_result.identity,
                 gateway_result.identity,
             )
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?
             .id;
 
@@ -656,7 +656,7 @@ impl StorageManager {
                     gateway_result.reliability,
                     timestamp
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
         }
 
@@ -688,7 +688,7 @@ impl StorageManager {
                 gateway_result.node_id,
                 gateway_result.identity,
             )
-            .fetch_one(&mut tx)
+            .fetch_one(&mut *tx)
             .await?
             .id;
 
@@ -701,7 +701,7 @@ impl StorageManager {
                     gateway_result.reliability,
                     timestamp
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
         }
 
@@ -752,14 +752,14 @@ impl StorageManager {
             r#"
                 SELECT COUNT(*) as count FROM
                 (
-                    SELECT monitor_run_id 
-                    FROM testing_route 
+                    SELECT monitor_run_id
+                    FROM testing_route
                     WHERE testing_route.layer1_mix_id = ? OR testing_route.layer2_mix_id = ? OR testing_route.layer3_mix_id = ?
                 ) testing_route
-                JOIN 
+                JOIN
                 (
-                    SELECT id 
-                    FROM monitor_run 
+                    SELECT id
+                    FROM monitor_run
                     WHERE monitor_run.timestamp > ?
                 ) monitor_run
                 ON monitor_run.id = testing_route.monitor_run_id;
@@ -791,14 +791,14 @@ impl StorageManager {
             r#"
                 SELECT COUNT(*) as count FROM
                 (
-                    SELECT monitor_run_id 
-                    FROM testing_route 
+                    SELECT monitor_run_id
+                    FROM testing_route
                     WHERE testing_route.gateway_id = ?
                 ) testing_route
-                JOIN 
+                JOIN
                 (
-                    SELECT id 
-                    FROM monitor_run 
+                    SELECT id
+                    FROM monitor_run
                     WHERE monitor_run.timestamp > ?
                 ) monitor_run
                 ON monitor_run.id = testing_route.monitor_run_id;
@@ -824,7 +824,7 @@ impl StorageManager {
         )
         .fetch_one(&self.connection_pool)
         .await
-        .map(|result| result.exists == 1)
+        .map(|result| result.exists == Some(1))
     }
 
     /// Creates new entry for mixnode historical uptime
@@ -1051,10 +1051,10 @@ impl StorageManager {
         sqlx::query_as!(
             RewardingReport,
             r#"
-                SELECT 
+                SELECT
                     absolute_epoch_id as "absolute_epoch_id: u32",
                     eligible_mixnodes as "eligible_mixnodes: u32"
-                FROM rewarding_report 
+                FROM rewarding_report
                 WHERE absolute_epoch_id = ?
             "#,
             absolute_epoch_id

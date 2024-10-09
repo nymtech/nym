@@ -92,7 +92,7 @@ impl TicketStorageManager {
         )
         .fetch_one(&self.connection_pool)
         .await
-        .map(|result| result.exists == 1)
+        .map(|result| result.exists == Some(1))
     }
 
     pub(crate) async fn remove_binary_ticket_data(

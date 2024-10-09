@@ -1,14 +1,5 @@
 # Socks5 Client
 
-TODO REMOVE THIS REPLACE WITH A BUILD INSTRUCTIONS DROPDOWN MENU COMPONENT
-> The Nym Socks5 Client was built in the [building nym](../binaries/building-nym.md) section. If you haven't yet built Nym and want to run the code on this page, go there first.
-
-## Current version
-TODO
-```
-<!-- cmdrun ../../../../target/release/nym-socks5-client --version | grep "Build Version" | cut -b 21-26  -->
-```
-
 ## What is this client for?
 Many existing applications are able to use either the SOCKS4, SOCKS4A, or SOCKS5 proxy protocols. If you want to send such an application's traffic through the mixnet, you can use the `nym-socks5-client` to bounce network traffic through the Nym network, like this:
 
@@ -57,14 +48,23 @@ Many existing applications are able to use either the SOCKS4, SOCKS4A, or SOCKS5
   Your Local Machine
 ```
 
-There are 2 pieces of software that work together to send SOCKS traffic through the mixnet: the `nym-socks5-client`, and the `nym-network-requester`.
+There are 2 pieces of software that work together to send SOCKS traffic through the mixnet: the `nym-socks5-client`, and a `nym-node` running as an Exit Gateway.
+
+> The functionality performed by the Exit Gateway was previously performed by the `nym-network-requester`: this functionality has been migrated into the Exit Gateway mode.
 
 The `nym-socks5-client` allows you to do the following from your local machine:
 * Take a TCP data stream from a application that can send traffic via SOCKS5.
 * Chop up the TCP stream into multiple Sphinx packets, assigning sequence numbers to them, while leaving the TCP connection open for more data
 * Send the Sphinx packets through the Nym Network. Packets are shuffled and mixed as they transit the mixnet.
 
-The `nym-network-requester` then reassembles the original TCP stream using the packets' sequence numbers, and make the intended request. It will then chop up the response into Sphinx packets and send them back through the mixnet to your  `nym-socks5-client`. The application will then receive its data, without even noticing that it wasn't talking to a "normal" SOCKS5 proxy!
+The `nym-node` then reassembles the original TCP stream using the packets' sequence numbers, and make the intended request. It will then chop up the response into Sphinx packets and send them back through the mixnet to your `nym-socks5-client`. The application will then receive its data, without even noticing that it wasn't talking to a "normal" SOCKS5 proxy!
+
+
+## Download or compile socks5 client
+
+If you are using OSX or a Debian-based operating system, you can download the `nym-socks5-client` binary from our [Github releases page](https://github.com/nymtech/nym/releases).
+
+If you are using a different operating system, or want to build from source, simply use `cargo build --release` from the root of the Nym monorepo.
 
 ## Client setup
 ### Viewing command help
@@ -74,12 +74,6 @@ You can check that your binaries are properly compiled with:
 ```
 ./nym-socks5-client --help
 ```
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-socks5-client --help -->
-```
-~~~
 
 You can check the necessary parameters for the available commands by running:
 
@@ -93,12 +87,6 @@ Before you can use the client, you need to initalise a new instance of it, which
 ```
 ./nym-socks5-client init --id docs-example --use-reply-surbs true --provider Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf
 ```
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../target/release/nym-socks5-client init --id docs-example --provider Entztfv6Uaz2hpYHQJ6JKoaCTpDL5dja18SuQWVJAmmx.Cvhn9rBJw5Ay9wgHcbgCnVg89MPSV5s2muPV2YF1BXYu@Fo4f4SQLdoyoGkFae5TpVhRVoXCF8UiypLVGtGjujVPf -->
-```
-~~~
 
 The `--id` in the example above is a local identifier so that you can name your clients and keep track of them on your local system; it is **never** transmitted over the network.
 

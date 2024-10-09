@@ -20,11 +20,11 @@ fn pretty_build_info_static() -> &'static str {
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
     /// Path pointing to an env file that configures the Nym API.
-    #[clap(short, long, env)]
+    #[clap(short, long, env = "NYMAPI_CONFIG_ENV_FILE_ARG")]
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     /// A no-op flag included for consistency with other binaries (and compatibility with nymvisor, oops)
-    #[clap(long, env)]
+    #[clap(long, env = "NYMAPI_NO_BANNER_ARG")]
     pub(crate) no_banner: bool,
 
     #[clap(subcommand)]

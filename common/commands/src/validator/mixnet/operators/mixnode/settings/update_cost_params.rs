@@ -2,13 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::context::SigningClient;
-use anyhow::{anyhow, bail};
+use anyhow::anyhow;
 use clap::Parser;
 use cosmwasm_std::Uint128;
 use log::info;
-use nym_mixnet_contract_common::{
-    NodeCostParams, Percent, DEFAULT_INTERVAL_OPERATING_COST_AMOUNT, DEFAULT_PROFIT_MARGIN_PERCENT,
-};
+use nym_mixnet_contract_common::{NodeCostParams, Percent};
 use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
 use nym_validator_client::nyxd::CosmWasmCoin;
 
@@ -30,37 +28,41 @@ pub struct Args {
 pub async fn update_cost_params(args: Args, client: SigningClient) -> anyhow::Result<()> {
     let denom = client.current_chain_details().mix_denom.base.as_str();
 
-    let default_profit_margin =
-        Percent::from_percentage_value(DEFAULT_PROFIT_MARGIN_PERCENT).unwrap();
-
-    let mix_details = client
+    let current_parameters = if let Some(client_mixnode) = client
         .get_owned_mixnode(&client.address())
         .await?
         .mixnode_details
-        .ok_or_else(|| anyhow!("the client does not own any mixnodes"))?;
-    let current_parameters = mix_details.rewarding_details.cost_params;
-
-    let profit_margin_percent = current_parameters
-        .map(|rd| rd.cost_params.profit_margin_percent)
-        .unwrap_or(default_profit_margin);
-
-    let profit_margin_value = args
-        .profit_margin_percent
-        .map(|pm| Percent::from_percentage_value(pm as u64))
-        .unwrap_or(profit_margin_percent)?;
-
-    let cost_params = NodeCostParams {
-        profit_margin_percent: profit_margin_value,
-        interval_operating_cost: CosmWasmCoin {
-            denom: denom.into(),
-            amount: Uint128::new(
-                args.interval_operating_cost
-                    .unwrap_or(DEFAULT_INTERVAL_OPERATING_COST_AMOUNT),
-            ),
-        },
+    {
+        client_mixnode.rewarding_details.cost_params
+    } else {
+        client
+            .get_owned_nymnode(&client.address())
+            .await?
+            .details
+            .ok_or_else(|| anyhow!("the client does not own any nodes"))?
+            .rewarding_details
+            .cost_params
     };
 
-    info!("Starting mixnode params updating!");
+    let profit_margin_percent = args
+        .profit_margin_percent
+        .map(|pm| Percent::from_percentage_value(pm as u64))
+        .unwrap_or(Ok(current_parameters.profit_margin_percent))?;
+
+    let interval_operating_cost = args
+        .interval_operating_cost
+        .map(|oc| CosmWasmCoin {
+            denom: denom.into(),
+            amount: Uint128::new(oc),
+        })
+        .unwrap_or(current_parameters.interval_operating_cost);
+
+    let cost_params = NodeCostParams {
+        profit_margin_percent,
+        interval_operating_cost,
+    };
+
+    info!("Starting cost params updating using {cost_params:?} !");
     let res = client
         .update_cost_params(cost_params, None)
         .await

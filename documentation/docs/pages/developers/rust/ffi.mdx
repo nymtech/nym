@@ -3,7 +3,7 @@ import { Callout } from 'nextra/components'
 # FFI Bindings
 
 <Callout type="info" emoji="ℹ️">
-  We are only working on the intitial versions of the FFI code to allow developers to experiment and get feedback. Please get in touch if you think the FFI bindings are lacking certain functionality.
+  We are working on the intitial versions of the FFI code to allow developers to experiment and get feedback. Please get in touch if you think the FFI bindings are lacking certain functionality.
 </Callout>
 
 We currently have FFI bindings for Go and C/C++. See the table below to check the coverage of functionality we expect devs would like to see.
@@ -33,6 +33,12 @@ This is the basic mixnet component of the SDK, exposing client functionality wit
 
 
 > We have also implemented `listen_for_incoming_internal()` which is a wrapper around the Mixnet client's `wait_for_messages()`. This is a helper method for listening out for and handling incoming messages.
+
+#### Currently Unsupported Functionality
+At the time of writing the following functionality is not exposed to the shared FFI library:
+- `split_sender()`: the ability to [split a client into sender and receiver](./mixnet/examples/split-send) for concurrent send/receive.
+- The use of [custom network topologies](./mixnet/examples/custom-topology).
+- `Socks5::new()`: creation and use of the [socks5/4a/4 proxy client](./mixnet/examples/socks).
 
 ### TcpProxy Module
 A connection abstraction which exposes a local TCP socket which developers are able to interact with basically as expected, being able to read/write to/from a bytestream, without really having to take into account the workings of the Mixnet/Sphinx/the [message-based](../concepts/messages) format of the underlying client.

@@ -289,111 +289,17 @@ mod tests {
     mod migrating_vested_delegation {
         use super::*;
         use crate::delegations::storage::delegations;
-        use crate::mixnodes::storage::mixnode_bonds;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{from_binary, Addr, CosmosMsg, Decimal, Order, Uint128, WasmMsg};
+        use cosmwasm_std::{from_binary, Addr, CosmosMsg, Order, Uint128, WasmMsg};
         use mixnet_contract_common::helpers::compare_decimals;
         use mixnet_contract_common::reward_params::Performance;
         use mixnet_contract_common::rewarding::helpers::truncate_reward;
-        use rand::distributions::Distribution;
-        use rand::distributions::WeightedIndex;
-        use rand::prelude::SliceRandom;
         use rand::RngCore;
-
-        fn setup_state() -> TestSetup {
-            let mut test = TestSetup::new();
-
-            let mut nodes = Vec::new();
-
-            let problematic_delegator = "n1unhappydelegator";
-            let problematic_delegator_twin = "n1anotherunhappydelegator";
-
-            let choices = [true, false];
-
-            // every epoch there's a 2% chance of somebody bonding a node
-            let bonding_weights = [2, 98];
-
-            // and 15% of making a delegation
-            let delegation_weights = [15, 85];
-
-            // and 1% of making a VESTED delegation
-            let vested_delegation_weights = [1, 99];
-
-            let bonding_dist = WeightedIndex::new(bonding_weights).unwrap();
-            let delegation_dist = WeightedIndex::new(delegation_weights).unwrap();
-            let vested_delegation_dist = WeightedIndex::new(vested_delegation_weights).unwrap();
-
-            // make sure we have at least a single node at the beginning
-            let owner = test.random_address();
-            let mix_id = test.add_dummy_mixnode(&owner, None);
-            nodes.push(mix_id);
-
-            // create a bunch of nodes and delegations and progress through epochs
-            for epoch_id in 0..1000 {
-                // go through 1000 epochs
-
-                let owner = test.random_address();
-                let min_stake = 100_000_000;
-                // u32 has max value of 4B, which is ~4k nym tokens, which is a realistic amount somebody could bond/delegate
-                let variance = test.rng.next_u32();
-                let stake = Uint128::new(min_stake as u128 + variance as u128);
-
-                if choices[bonding_dist.sample(&mut test.rng)] {
-                    // bond
-                    let mix_id = test.add_dummy_mixnode(&owner, Some(stake));
-                    nodes.push(mix_id);
-                }
-
-                if choices[delegation_dist.sample(&mut test.rng)] {
-                    // uniformly choose a random node to delegate to
-                    let node = nodes.choose(&mut test.rng).unwrap();
-                    test.add_immediate_delegation(&owner, stake, *node)
-                }
-
-                if choices[vested_delegation_dist.sample(&mut test.rng)] {
-                    // uniformly choose a random node to make vested delegation to
-                    let node = nodes.choose(&mut test.rng).unwrap();
-                    test.add_immediate_delegation_with_legal_proxy(&owner, stake, *node)
-                }
-
-                // make sure we cover our edge case of somebody having both liquid and vested delegation towards the same node
-                if epoch_id == 123 {
-                    test.add_immediate_delegation(problematic_delegator, stake, 4);
-                    test.add_immediate_delegation(problematic_delegator_twin, stake, 4);
-                }
-
-                if epoch_id == 666 {
-                    test.add_immediate_delegation_with_legal_proxy(problematic_delegator, stake, 4);
-                    test.add_immediate_delegation_with_legal_proxy(
-                        problematic_delegator_twin,
-                        stake,
-                        4,
-                    );
-                }
-
-                test.skip_to_next_epoch_end();
-                test.force_change_rewarded_set(nodes.clone());
-                test.start_epoch_transition();
-
-                // reward each node
-                for node in &nodes {
-                    let performance = test.rng.next_u64() % 100;
-                    test.reward_with_distribution(
-                        *node,
-                        Performance::from_percentage_value(performance).unwrap(),
-                    );
-                }
-
-                test.set_epoch_in_progress_state();
-            }
-
-            test
-        }
 
         #[test]
         fn with_no_delegation() {
-            let mut test = setup_state();
+            let mut test = TestSetup::new_complex();
             let env = test.env();
 
             let sender = mock_info("owner-without-any-delegations", &[]);
@@ -405,7 +311,7 @@ mod tests {
 
         #[test]
         fn with_just_liquid_delegation() {
-            let mut test = setup_state();
+            let mut test = TestSetup::new_complex();
             let env = test.env();
 
             // find a valid delegation
@@ -432,7 +338,7 @@ mod tests {
 
         #[test]
         fn with_just_vested_delegation() {
-            let mut test = setup_state();
+            let mut test = TestSetup::new_complex();
             let env = test.env();
 
             // find a valid delegation
@@ -487,32 +393,11 @@ mod tests {
 
         #[test]
         fn with_both_liquid_and_vested_delegation() {
-            #[track_caller]
-            fn ensure_delegation_sync(test: &TestSetup, mix_id: MixId) {
-                let mix_info = test.mix_rewarding(mix_id);
-                let epsilon = "0.001".parse().unwrap();
-
-                let subtotal: Decimal = delegations()
-                    .prefix(mix_id)
-                    .range(test.deps().storage, None, None, Order::Ascending)
-                    .filter_map(|d| {
-                        d.map(|(_, del)| {
-                            let pending_rewards =
-                                mix_info.determine_delegation_reward(&del).unwrap();
-                            pending_rewards + del.dec_amount().unwrap()
-                        })
-                        .ok()
-                    })
-                    .sum();
-
-                compare_decimals(mix_info.delegates, subtotal, Some(epsilon))
-            }
-
-            let mut test = setup_state();
+            let mut test = TestSetup::new_complex();
             let env = test.env();
 
-            let problematic_delegator = "n1unhappydelegator";
-            let problematic_delegator_twin = "n1anotherunhappydelegator";
+            let problematic_delegator = "n1foomp";
+            let problematic_delegator_twin = "n1bar";
             let mix_id = 4;
 
             let liquid_storage_key = Delegation::generate_storage_key(
@@ -541,7 +426,7 @@ mod tests {
                 .unwrap();
 
             // sanity check before doing anything
-            ensure_delegation_sync(&test, mix_id);
+            test.ensure_delegation_sync(mix_id);
 
             //  a track message is sent into the vesting contract
             let sender = mock_info(problematic_delegator, &[]);
@@ -595,14 +480,11 @@ mod tests {
             );
 
             // this assertion must still hold
-            ensure_delegation_sync(&test, mix_id);
+            test.ensure_delegation_sync(mix_id);
 
             // go through few more rewarding epochs to make sure the rewards and accounting
             // would be the same as if the delegations remained separate
-            let all_nodes = mixnode_bonds()
-                .range(test.deps().storage, None, None, Order::Ascending)
-                .filter_map(|m| m.map(|(_, node)| node.mix_id).ok())
-                .collect::<Vec<_>>();
+            let all_nodes = test.all_mixnodes();
 
             let twin_liquid_storage_key = Delegation::generate_storage_key(
                 mix_id,
@@ -649,7 +531,7 @@ mod tests {
             }
 
             // this assertion must still hold
-            ensure_delegation_sync(&test, mix_id);
+            test.ensure_delegation_sync(mix_id);
 
             let info = test.mix_rewarding(mix_id);
 

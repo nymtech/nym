@@ -5,6 +5,7 @@ use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMO
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::mixnodes::storage as mixnode_storage;
+use crate::queued_migrations;
 use crate::rewards::storage as rewards_storage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
@@ -272,7 +273,7 @@ pub fn execute(
             crate::vesting_migration::try_migrate_vested_mixnode(deps, info)
         }
         ExecuteMsg::MigrateVestedDelegation { mix_id } => {
-            crate::vesting_migration::try_migrate_vested_delegation(deps, info, mix_id)
+            crate::vesting_migration::try_migrate_vested_delegation(deps, env, info, mix_id)
         }
 
         // legacy vesting
@@ -539,7 +540,7 @@ pub fn query(
 #[entry_point]
 pub fn migrate(
     deps: DepsMut<'_>,
-    _env: Env,
+    env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     set_build_information!(deps.storage)?;
@@ -555,7 +556,13 @@ pub fn migrate(
         mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &current_state)?;
     }
 
-    Ok(Default::default())
+    let mut response = Response::new();
+
+    if let Some(nodes_to_fix) = msg.fix_nodes {
+        queued_migrations::restore_vested_delegations(&mut response, deps, env, nodes_to_fix)?;
+    }
+
+    Ok(response)
 }
 
 #[cfg(test)]

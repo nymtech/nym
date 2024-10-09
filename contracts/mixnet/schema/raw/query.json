@@ -438,7 +438,7 @@
               "minimum": 0.0
             },
             "owner": {
-              "description": "The address of the owner of the the mixnodes used for the query.",
+              "description": "The address of the owner of the mixnodes used for the query.",
               "type": "string"
             },
             "start_after": {

@@ -7,7 +7,7 @@ If you come across something that isn't explained here, [PRs are welcome](https:
 ### On client shutdown (expected)
 If this is happening at the end of your code when disconnecting your client, this is fine; we just have a verbose client! When calling `client.disconnect().await` this is simply informing you that the client is shutting down.
 
-On client shutdown / disconnect this is to be expected - this can be seen in many of the code examples as well. We use the [`nym_bin_common::logging`](https://github.com/nymtech/nym/blob/develop/common/bin-common/src/logging/mod.rs) import to set logging in our example code. This defaults to `INFO` level.
+On client shutdown / disconnect this is to be expected - this can be seen in many of the code examples as well. We use the [`nym_bin_common::logging`](https://github.com/nymtech/nym/blob/master/common/bin-common/src/logging/mod.rs) import to set logging in our example code. This defaults to `INFO` level.
 
 If you wish to quickly lower the verbosity of your client process logs when developing you can prepend your command with `RUST_LOG=<LOGGING_LEVEL>`.
 

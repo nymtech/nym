@@ -11,7 +11,7 @@ Sends bytes to the supplied Nym address. There is the option to specify the numb
 - `send_plain_message<M>(&self, address: Recipient, message: M) -> Result<()>`
 Sends data to the supplied Nym address with the default surb behaviour.
 
-> Note we specify *outgoing* messages above: this is because the SDK assumes that replies will be anonymous via [SURBs]() TODO LINK.
+> Note we specify *outgoing* messages above: this is because the SDK assumes that replies will be anonymous via [SURBs](../../../network/traffic/anonymous-replies).
 
 Replies rely on the creation of an `AnonymousSenderTag` by parsing and storing the `sender_tag` from incoming messages, and using this to reply, instead of the `Receipient` type used by the functions outlined above:
 

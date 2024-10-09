@@ -3,6 +3,8 @@
 This example starts off several Tcp connections on a loop to a remote endpoint: in this case the `TcpListener` behind the `NymProxyServer` instance on the echo server found in
 [`nym/tools/echo-server/`](https://github.com/nymtech/nym/tree/develop/tools/echo-server). It pipes a few messages to it, logs the replies, and keeps track of the number of replies received per connection.
 
+> You can find this code [here](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/examples/tcp_proxy_multistream.rs)
+
 ```rust
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::tcp_proxy;

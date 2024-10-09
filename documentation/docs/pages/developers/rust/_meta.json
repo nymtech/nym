@@ -1,6 +1,7 @@
 {
   "development-status": "Development Status",
   "importing": "Importing",
+  "modules": "Modules",
   "examples": "Basic Examples",
   "message-helpers": "Message Helpers",
   "message-types": "Message Types",

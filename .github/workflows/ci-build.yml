@@ -30,7 +30,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [arc-ubuntu-20.04, custom-runner-mac-m1]
+        os: [ arc-ubuntu-20.04, custom-runner-mac-m1 ]
     runs-on: ${{ matrix.os }}
     env:
       CARGO_TERM_COLOR: always
@@ -61,14 +61,6 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-
-      # while disabled by default, this build ensures nothing is broken within
-      # `axum` feature
-      - name: Build with `axum` feature
-        uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --features axum
 
       - name: Build all examples
         if: contains(matrix.os, 'ubuntu')

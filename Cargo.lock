@@ -5055,6 +5055,7 @@ dependencies = [
  "anyhow",
  "axum 0.7.7",
  "chrono",
+ "clap 4.5.18",
  "nym-bin-common",
  "nym-network-defaults",
  "nym-node-requests",

@@ -16,9 +16,9 @@ const config: DocsThemeConfig = {
     text: Footer,
   },
   darkMode: true,
-  nextThemes: {
-    forcedTheme: "dark",
-  },
+  // nextThemes: {
+  //   forcedTheme: "dark",
+  // },
   primaryHue: {
     dark: 30,
     light: 30,

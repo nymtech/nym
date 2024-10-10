@@ -17,7 +17,7 @@ Each of the sub-modules exposed by the `TcpProxy` deal with Nym clients in a dif
 - the `NymProxyServer` has a single Nym client with a persistent identity.
 
 ## Framing
-We are currently relying on the TODO LINK [`tokio::Bytecodec`](https://docs.rs/tokio-util/latest/tokio_util/codec/struct.BytesCodec.html) and [`framedRead`](https://docs.rs/tokio-util/latest/tokio_util/codec/struct.Framed.html) to frame bytes moving through the `NymProxyClient` and `NymProxyServer`.
+We are currently relying on the [`tokio::Bytecodec`](https://docs.rs/tokio-util/latest/tokio_util/codec/struct.BytesCodec.html) and [`framedRead`](https://docs.rs/tokio-util/latest/tokio_util/codec/struct.Framed.html) to frame bytes moving through the `NymProxyClient` and `NymProxyServer`.
 
 > For those interested, under the hood the client uses our own [`NymCodec`](https://github.com/nymtech/nym/blob/27ac34522cf0f8bfe1ca265e0b57ee52f2ded0d2/common/nymsphinx/framing/src/codec.rs) to frame message bytes as Sphinx packet payloads.
 

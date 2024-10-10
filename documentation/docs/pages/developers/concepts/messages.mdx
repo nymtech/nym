@@ -1,6 +1,6 @@
 # Message-based Paradigm
 
-For the moment, Mixnet clients work assuming they will have atomic messages given to them to packetise, encrypt, and send through the Mixnet looking something like this:
+For the moment, Mixnet clients work assuming they will be piped atomic messages looking something like this:
 
 ```
 MixnetMessage {
@@ -10,7 +10,9 @@ MixnetMessage {
 }
 ```
 
-Likewise, they assume that once they have received and decrypted a Sphinx packet, reconstruct messages with a structure something like this:
+That the client will then encrypt as Sphinx packets and send through the Mixnet.
+
+Likewise, they assume that once they have received and decrypted a Sphinx packet, they will kick back a reconstructed message to the rest of your app logic that look something like:
 
 ```
 ReconstructedMessage {
@@ -19,14 +21,7 @@ ReconstructedMessage {
 }
 ```
 
-Examples for:
-- [Standalone Websocket Client](../clients/websocket)
-- [Rust SDK Client](../rust)
-- [TS SDK Client](../typescript)
-
 This is obviously quite different to e.g. simply being able to read/write from a stream returned from a function call to create a TCP connection, but there are several approaches that developers can take to dealing with this right now.
-
-_We are planning future developments to make a more developer-friendly interface for our clients, but this will not be released before early/mid 2025_.
 
 ## Message Abstractions
 - Rust/Go/C++ developers can use the `TcpProxy` [stream abstraction](../rust/tcpproxy).

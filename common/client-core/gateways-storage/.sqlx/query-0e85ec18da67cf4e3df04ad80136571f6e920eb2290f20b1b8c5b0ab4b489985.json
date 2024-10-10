@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT * FROM remote_gateway_details WHERE gateway_id_bs58 = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "gateway_id_bs58",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "gateway_owner_address",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "gateway_listener",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "derived_aes128_ctr_blake3_hmac_keys_bs58",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "derived_aes256_gcm_siv_key",
+        "ordinal": 4,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      true,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "0e85ec18da67cf4e3df04ad80136571f6e920eb2290f20b1b8c5b0ab4b489985"
+}

@@ -21,7 +21,6 @@ async fn main() {
         1,
         vec![mix::LegacyNode {
             mix_id: 63,
-            owner: None,
             host: "172.105.92.48".parse().unwrap(),
             mix_host: "172.105.92.48:1789".parse().unwrap(),
             identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
@@ -38,7 +37,6 @@ async fn main() {
         2,
         vec![mix::LegacyNode {
             mix_id: 23,
-            owner: None,
             host: "178.79.143.65".parse().unwrap(),
             mix_host: "178.79.143.65:1789".parse().unwrap(),
             identity_key: "4Yr4qmEHd9sgsuQ83191FR2hD88RfsbMmB4tzhhZWriz"
@@ -55,7 +53,6 @@ async fn main() {
         3,
         vec![mix::LegacyNode {
             mix_id: 66,
-            owner: None,
             host: "139.162.247.97".parse().unwrap(),
             mix_host: "139.162.247.97:1789".parse().unwrap(),
             identity_key: "66UngapebhJRni3Nj52EW1qcNsWYiuonjkWJzHFsmyYY"

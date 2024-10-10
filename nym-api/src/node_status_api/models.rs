@@ -456,11 +456,3 @@ impl NymApiStorageError {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn uptime_response_conversion() {}
-}

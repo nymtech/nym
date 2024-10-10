@@ -69,6 +69,7 @@ impl NymContractCache {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(crate) async fn update(
         &self,
         mixnodes: Vec<LegacyMixNodeDetailsWithLayer>,
@@ -182,6 +183,7 @@ impl NymContractCache {
             .map(|g| g.owner.to_string())
     }
 
+    #[allow(dead_code)]
     pub async fn legacy_mixnode_owner(&self, node_id: NodeId) -> Option<String> {
         self.get(|c| &c.legacy_mixnodes)
             .await?
@@ -255,10 +257,6 @@ impl NymContractCache {
             .await
             .unwrap_or_default()
             .into_inner()
-    }
-
-    pub async fn nym_nodes_filtered(&self) -> Vec<NymNodeDetails> {
-        todo!()
     }
 
     pub async fn rewarded_set(&self) -> Option<RwLockReadGuard<Cache<CachedRewardedSet>>> {

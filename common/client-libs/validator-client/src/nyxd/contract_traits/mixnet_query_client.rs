@@ -732,7 +732,6 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
-    use nym_mixnet_contract_common::QueryMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]

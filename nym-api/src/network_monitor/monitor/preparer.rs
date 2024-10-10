@@ -539,14 +539,14 @@ impl PacketPreparer {
         if let Some(rewarded_set) = rewarded_set {
             let mut rng = thread_rng();
             for mix in mixing_nym_nodes {
-                if let Some(parsed) = self.nym_node_to_legacy_mix(&mut rng, &rewarded_set, &mix) {
+                if let Some(parsed) = self.nym_node_to_legacy_mix(&mut rng, &rewarded_set, mix) {
                     tested_mixnodes.push(TestableNode::from(&parsed));
                 }
             }
         }
 
         for gateway in gateway_capable_nym_nodes {
-            if let Some(parsed) = self.nym_node_to_legacy_gateway(&gateway) {
+            if let Some(parsed) = self.nym_node_to_legacy_gateway(gateway) {
                 tested_gateways.push((&parsed, gateway.node_id).into())
             }
         }

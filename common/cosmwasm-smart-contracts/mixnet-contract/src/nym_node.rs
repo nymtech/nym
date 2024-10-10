@@ -287,7 +287,6 @@ impl NymNodeDetails {
     }
 }
 
-///
 #[cw_serde]
 pub struct NymNodeBond {
     /// Unique id assigned to the bonded node.

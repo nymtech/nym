@@ -235,7 +235,6 @@ mod message_receiver {
             1,
             vec![mix::LegacyNode {
                 mix_id: 123,
-                owner: None,
                 host: "10.20.30.40".parse().unwrap(),
                 mix_host: "10.20.30.40:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -255,7 +254,6 @@ mod message_receiver {
             2,
             vec![mix::LegacyNode {
                 mix_id: 234,
-                owner: None,
                 host: "11.21.31.41".parse().unwrap(),
                 mix_host: "11.21.31.41:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -275,7 +273,6 @@ mod message_receiver {
             3,
             vec![mix::LegacyNode {
                 mix_id: 456,
-                owner: None,
                 host: "12.22.32.42".parse().unwrap(),
                 mix_host: "12.22.32.42:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -295,7 +292,7 @@ mod message_receiver {
             // currently coco_nodes don't really exist so this is still to be determined
             mixes,
             vec![gateway::LegacyNode {
-                owner: None,
+                node_id: 789,
                 host: "1.2.3.4".parse().unwrap(),
                 mix_host: "1.2.3.4:1789".parse().unwrap(),
                 clients_ws_port: 9000,

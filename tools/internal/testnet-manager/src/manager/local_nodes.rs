@@ -9,7 +9,7 @@ use crate::manager::NetworkManager;
 use console::style;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::RoleAssignment;
-use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_validator_client::nyxd::contract_traits::MixnetSigningClient;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -372,7 +372,7 @@ impl NetworkManager {
         ctx: &LocalNodesCtx<'a>,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
-            "🔌 {}Assigning mixnodes to the active set...",
+            "🔌 {}Assigning nodes to the active set...",
             style("[4/5]").bold().dim()
         ));
 
@@ -386,58 +386,17 @@ impl NetworkManager {
         let fut = rewarder.reconcile_epoch_events(None, None);
         ctx.async_with_progress(fut).await?;
 
-        ctx.set_pb_message("[BROKEN] finally assigning the active set...");
-        // let fut = rewarder.get_rewarding_parameters();
-        // let rewarding_params = ctx.async_with_progress(fut).await?;
-        // let active_set_size = rewarding_params.active_set_size;
-
-        let unused_variable = "this has to be fixed up and refactored....";
-        /*
-                fn generate_role_assignment_messages(
-            &self,
-            rewarded_set: RewardedSet,
-        ) -> Vec<(ExecuteMsg, Vec<Coin>)> {
-            // currently we just assign all of them together,
-            // but the contract is ready to handle them separately should we need it
-            // if the tx is too big
-            let mut msgs = Vec::new();
-            for (role, nodes) in [
-                (Role::ExitGateway, rewarded_set.exit_gateways),
-                (Role::EntryGateway, rewarded_set.entry_gateways),
-                (Role::Layer1, rewarded_set.layer1),
-                (Role::Layer2, rewarded_set.layer2),
-                (Role::Layer3, rewarded_set.layer3),
-                (Role::Standby, rewarded_set.standby),
-            ] {
-                msgs.push((
-                    ExecuteMsg::AssignRoles {
-                        assignment: RoleAssignment { role, nodes },
-                    },
-                    Vec::new(),
-                ));
-            }
-            msgs
-        }
-             */
-
+        ctx.set_pb_message("finally assigning the active set... entry...");
         let fut = rewarder.assign_roles(
             RoleAssignment {
-                role: Role::ExitGateway,
+                role: Role::EntryGateway,
                 nodes: vec![4],
             },
             None,
         );
         ctx.async_with_progress(fut).await?;
 
-        let fut = rewarder.assign_roles(
-            RoleAssignment {
-                role: Role::EntryGateway,
-                nodes: vec![],
-            },
-            None,
-        );
-        ctx.async_with_progress(fut).await?;
-
+        ctx.set_pb_message("finally assigning the active set... layer1...");
         let fut = rewarder.assign_roles(
             RoleAssignment {
                 role: Role::Layer1,
@@ -447,6 +406,7 @@ impl NetworkManager {
         );
         ctx.async_with_progress(fut).await?;
 
+        ctx.set_pb_message("finally assigning the active set... layer2...");
         let fut = rewarder.assign_roles(
             RoleAssignment {
                 role: Role::Layer2,
@@ -456,6 +416,7 @@ impl NetworkManager {
         );
         ctx.async_with_progress(fut).await?;
 
+        ctx.set_pb_message("finally assigning the active set... layer3...");
         let fut = rewarder.assign_roles(
             RoleAssignment {
                 role: Role::Layer3,
@@ -465,6 +426,7 @@ impl NetworkManager {
         );
         ctx.async_with_progress(fut).await?;
 
+        ctx.set_pb_message("finally assigning the active set... [empty] standby...");
         let fut = rewarder.assign_roles(
             RoleAssignment {
                 role: Role::Standby,

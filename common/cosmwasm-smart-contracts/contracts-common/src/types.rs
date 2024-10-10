@@ -272,7 +272,6 @@ impl ContractBuildInformation {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cosmwasm_std::Fraction;
 
     #[test]
     fn percent_serde() {

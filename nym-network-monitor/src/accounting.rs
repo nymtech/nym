@@ -15,16 +15,16 @@ use utoipa::ToSchema;
 use crate::{NYM_API_URL, PRIVATE_KEY, TOPOLOGY};
 
 struct HydratedRoute {
-    mix_nodes: Vec<mix::Node>,
-    gateway_node: gateway::Node,
+    mix_nodes: Vec<mix::LegacyNode>,
+    gateway_node: gateway::LegacyNode,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, ToSchema)]
-struct GatewayStats(u32, u32, Option<String>);
+struct GatewayStats(u32, u32);
 
 impl GatewayStats {
-    fn new(sent: u32, recv: u32, owner: Option<String>) -> Self {
-        GatewayStats(sent, recv, owner)
+    fn new(sent: u32, recv: u32) -> Self {
+        GatewayStats(sent, recv)
     }
 
     fn success(&self) -> u32 {
@@ -60,9 +60,9 @@ pub struct NetworkAccount {
     topology: NymTopology,
     tested_nodes: HashSet<u32>,
     #[serde(skip)]
-    mix_details: HashMap<u32, mix::Node>,
+    mix_details: HashMap<u32, mix::LegacyNode>,
     #[serde(skip)]
-    gateway_details: HashMap<String, gateway::Node>,
+    gateway_details: HashMap<String, gateway::LegacyNode>,
 }
 
 impl NetworkAccount {
@@ -82,7 +82,6 @@ impl NetworkAccount {
             complete_routes,
             incomplete_routes,
             node.identity_key.to_base58_string(),
-            node.owner.clone(),
         )
     }
 
@@ -186,7 +185,7 @@ impl NetworkAccount {
                 let gateway_stats_entry = self
                     .gateway_stats
                     .entry(route.gateway_node.identity_key.to_base58_string())
-                    .or_insert(GatewayStats::new(0, 0, route.gateway_node.owner.clone()));
+                    .or_insert(GatewayStats::new(0, 0));
                 self.gateway_details.insert(
                     route.gateway_node.identity_key.to_base58_string(),
                     route.gateway_node,
@@ -265,7 +264,6 @@ pub struct NodeStats {
     incomplete_routes: usize,
     reliability: f64,
     identity: String,
-    owner: Option<String>,
 }
 
 impl NodeStats {
@@ -274,7 +272,6 @@ impl NodeStats {
         complete_routes: usize,
         incomplete_routes: usize,
         identity: String,
-        owner: Option<String>,
     ) -> Self {
         NodeStats {
             mix_id,
@@ -282,7 +279,6 @@ impl NodeStats {
             incomplete_routes,
             reliability: complete_routes as f64 / (complete_routes + incomplete_routes) as f64,
             identity,
-            owner,
         }
     }
 

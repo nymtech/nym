@@ -369,7 +369,7 @@ impl Interval {
     }
 
     pub fn ensure_current_epoch_is_over(&self, env: &Env) -> Result<(), MixnetContractError> {
-        if !self.is_current_epoch_over(&env) {
+        if !self.is_current_epoch_over(env) {
             return Err(MixnetContractError::EpochInProgress {
                 current_block_time: env.block.time.seconds(),
                 epoch_start: self.current_epoch_start_unix_timestamp(),

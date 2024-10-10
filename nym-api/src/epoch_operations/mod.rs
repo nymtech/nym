@@ -119,7 +119,10 @@ impl EpochAdvancer {
 
         let legacy_mixnodes = self.nym_contract_cache.legacy_mixnodes_filtered().await;
         let legacy_gateways = self.nym_contract_cache.legacy_gateways_filtered().await;
-        let nym_nodes = self.nym_contract_cache.nym_nodes_filtered().await;
+
+        // TODO: for the purposes of rewarding, this might have to grab some pre-filtered nodes instead,
+        // such as ones that use up to date version or have correct 'peanut' score
+        let nym_nodes = self.nym_contract_cache.nym_nodes().await;
 
         if legacy_mixnodes.is_empty() && legacy_gateways.is_empty() && nym_nodes.is_empty() {
             // that's a bit weird, but ok

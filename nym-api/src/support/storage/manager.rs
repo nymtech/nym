@@ -10,7 +10,7 @@ use crate::support::storage::models::{
 use nym_mixnet_contract_common::{EpochId, IdentityKey, NodeId};
 use nym_types::monitoring::NodeResult;
 use sqlx::FromRow;
-use time::Date;
+use time::{Date, OffsetDateTime};
 use tracing::info;
 
 #[derive(Clone)]
@@ -580,41 +580,39 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         info!("Inserting {} mixnode statuses", mixnode_results.len());
 
-        todo!("look at what broke during rebasing");
-        //
-        // let timestamp = OffsetDateTime::now_utc().unix_timestamp();
-        // // insert it all in a transaction to make sure all nodes are updated at the same time
-        // // (plus it's a nice guard against new nodes)
-        // let mut tx = self.connection_pool.begin().await?;
-        // for mixnode_result in mixnode_results {
-        //     let mixnode_id = sqlx::query!(
-        //         r#"
-        //             INSERT OR IGNORE INTO mixnode_details_v2(node_id, identity_key) VALUES (?, ?);
-        //             SELECT id FROM mixnode_details_v2 WHERE node_id = ?;
-        //         "#,
-        //         mixnode_result.node_id,
-        //         mixnode_result.identity,
-        //         mixnode_result.node_id,
-        //     )
-        //     .fetch_one(&mut tx)
-        //     .await?
-        //     .id;
-        //
-        //     // insert the actual status
-        //     sqlx::query!(
-        //         r#"
-        //             INSERT INTO mixnode_status_v2 (mixnode_details_id, reliability, timestamp) VALUES (?, ?, ?);
-        //         "#,
-        //         mixnode_id,
-        //         mixnode_result.reliability,
-        //         timestamp
-        //     )
-        //     .execute(&mut tx)
-        //     .await?;
-        // }
-        //
-        // // finally commit the transaction
-        // tx.commit().await
+        let timestamp = OffsetDateTime::now_utc().unix_timestamp();
+        // insert it all in a transaction to make sure all nodes are updated at the same time
+        // (plus it's a nice guard against new nodes)
+        let mut tx = self.connection_pool.begin().await?;
+        for mixnode_result in mixnode_results {
+            let mixnode_id = sqlx::query!(
+                r#"
+                    INSERT OR IGNORE INTO mixnode_details_v2(node_id, identity_key) VALUES (?, ?);
+                    SELECT id FROM mixnode_details_v2 WHERE node_id = ?;
+                "#,
+                mixnode_result.node_id,
+                mixnode_result.identity,
+                mixnode_result.node_id,
+            )
+            .fetch_one(&mut tx)
+            .await?
+            .id;
+
+            // insert the actual status
+            sqlx::query!(
+                r#"
+                    INSERT INTO mixnode_status_v2 (mixnode_details_id, reliability, timestamp) VALUES (?, ?, ?);
+                "#,
+                mixnode_id,
+                mixnode_result.reliability,
+                timestamp
+            )
+            .execute(&mut tx)
+            .await?;
+        }
+
+        // finally commit the transaction
+        tx.commit().await
     }
 
     /// Tries to submit gateway [`NodeResult`] from the network monitor to the database.
@@ -672,45 +670,43 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         info!("Inserting {} gateway statuses", gateway_results.len());
 
-        todo!("look at what broke during rebasing");
+        let timestamp = OffsetDateTime::now_utc().unix_timestamp();
+        // insert it all in a transaction to make sure all nodes are updated at the same time
+        // (plus it's a nice guard against new nodes)
+        let mut tx = self.connection_pool.begin().await?;
 
-        // let timestamp = OffsetDateTime::now_utc().unix_timestamp();
-        // // insert it all in a transaction to make sure all nodes are updated at the same time
-        // // (plus it's a nice guard against new nodes)
-        // let mut tx = self.connection_pool.begin().await?;
-        //
-        // for gateway_result in gateway_results {
-        //     // if gateway info doesn't exist, insert it and get its id
-        //
-        //     // same ID "problem" as described for mixnode insertion
-        //     let gateway_id = sqlx::query!(
-        //         r#"
-        //             INSERT OR IGNORE INTO gateway_details_v2(identity, node_id) VALUES (?, ?);
-        //             SELECT id FROM gateway_details_v2 WHERE identity = ?;
-        //         "#,
-        //         gateway_result.identity,
-        //         gateway_result.node_id,
-        //         gateway_result.identity,
-        //     )
-        //     .fetch_one(&mut tx)
-        //     .await?
-        //     .id;
-        //
-        //     // insert the actual status
-        //     sqlx::query!(
-        //             r#"
-        //                 INSERT INTO gateway_status_v2 (gateway_details_id, reliability, timestamp) VALUES (?, ?, ?);
-        //             "#,
-        //             gateway_id,
-        //             gateway_result.reliability,
-        //             timestamp
-        //         )
-        //         .execute(&mut tx)
-        //         .await?;
-        // }
-        //
-        // // finally commit the transaction
-        // tx.commit().await
+        for gateway_result in gateway_results {
+            // if gateway info doesn't exist, insert it and get its id
+
+            // same ID "problem" as described for mixnode insertion
+            let gateway_id = sqlx::query!(
+                r#"
+                    INSERT OR IGNORE INTO gateway_details_v2(identity, node_id) VALUES (?, ?);
+                    SELECT id FROM gateway_details_v2 WHERE identity = ?;
+                "#,
+                gateway_result.identity,
+                gateway_result.node_id,
+                gateway_result.identity,
+            )
+            .fetch_one(&mut tx)
+            .await?
+            .id;
+
+            // insert the actual status
+            sqlx::query!(
+                    r#"
+                        INSERT INTO gateway_status_v2 (gateway_details_id, reliability, timestamp) VALUES (?, ?, ?);
+                    "#,
+                    gateway_id,
+                    gateway_result.reliability,
+                    timestamp
+                )
+                .execute(&mut tx)
+                .await?;
+        }
+
+        // finally commit the transaction
+        tx.commit().await
     }
 
     /// Saves the information about which nodes were used as core nodes during this particular

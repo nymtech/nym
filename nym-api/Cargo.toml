@@ -134,6 +134,7 @@ sqlx = { workspace = true, features = [
 ] }
 
 [dev-dependencies]
+axum-test = "16.2.0"
 tempfile = { workspace = true }
 cw3 = { workspace = true }
 cw-utils = { workspace = true }

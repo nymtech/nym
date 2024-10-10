@@ -845,13 +845,6 @@ mod tests {
                 client.update_nymnode_config(update, None).ignore()
             }
 
-            ExecuteMsg::TestingUncheckedBondLegacyMixnode { .. } => {
-                todo!("purposely not implemented")
-            }
-            ExecuteMsg::TestingUncheckedBondLegacyGateway { .. } => {
-                todo!("purposely not implemented")
-            }
-
             #[cfg(feature = "contract-testing")]
             MixnetExecuteMsg::TestingResolveAllPendingEvents { .. } => {
                 client.testing_resolve_all_pending_events(None).ignore()

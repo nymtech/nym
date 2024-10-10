@@ -60,38 +60,3 @@ zeroize = "1.6.0"
 
 wasm-bindgen = "0.2.93"
 wasmtimer = "0.2.0"
-
-
-# point to the current head of `feature/ticketbook-utils` (as of 30.08.2024)
-nym-bin-common = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-crypto = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-config = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-http-api-common = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-http-api-client = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-credentials = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-credentials-interface = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-validator-client = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-network-defaults = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-api-requests = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-serde-helpers = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-wasm-utils = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-compact-ecash = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-nym-ecash-time = { git = "https://github.com/nymtech/nym", rev = "6dee57fc46fa30420510ef7d8b7100607762fe3e" }
-
-
-## point to local files instead; makes it easier to debug issues
-#[patch.'https://github.com/nymtech/nym']
-#nym-bin-common = { path = "../nym/common/bin-common" }
-#nym-crypto = { path = "../nym/common/crypto" }
-#nym-config = { path = "../nym/common/config" }
-#nym-http-api-common = { path = "../nym/common/http-api-common" }
-#nym-http-api-client = { path = "../nym/common/http-api-client" }
-#nym-credentials = { path = "../nym/common/credentials" }
-#nym-credentials-interface = { path = "../nym/common/credentials-interface" }
-#nym-validator-client = { path = "../nym/common/client-libs/validator-client" }
-#nym-network-defaults = { path = "../nym/common/network-defaults" }
-#nym-api-requests = { path = "../nym/nym-api/nym-api-requests" }
-#nym-serde-helpers = { path = "../nym/common/serde-helpers" }
-#wasm-utils = { path = "../nym/common/wasm/utils" }
-#nym-compact-ecash = { path = "../nym/common/nym_offline_compact_ecash" }
-#nym-ecash-time = { path = "../nym/common/ecash-time" }

@@ -27,12 +27,12 @@ tsify = { workspace = true, features = ["js"] }
 serde-wasm-bindgen = "0.6.5"
 
 # NYM:
-nym-bin-common = { workspace = true }
-nym-crypto = { workspace = true, features = ["asymmetric"] }
-nym-compact-ecash = { workspace = true }
-nym-credentials = { workspace = true }
-nym-credentials-interface = { workspace = true }
-nym-ecash-time = { workspace = true, features = ["expiration"] }
+nym-bin-common = { path = "../../common/bin-common" }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
+nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
+nym-credentials = { path = "../../common/credentials" }
+nym-credentials-interface = { path = "../../common/credentials-interface" }
+nym-ecash-time = { path = "../../common/ecash-time", features = ["expiration"] }
 nym-vpn-api-requests = { path = "../vpn-api-requests", default-features = false, features = ["tsify"] }
-wasm-utils = { workspace = true }
+wasm-utils = { path = "../../common/wasm/utils" }
 

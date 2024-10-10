@@ -42,15 +42,15 @@ utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 zeroize.workspace = true
 
-nym-bin-common = { workspace = true, features = ["basic_tracing"] }
-nym-compact-ecash = { workspace = true }
-nym-config = { workspace = true }
-nym-crypto = { workspace = true, features = ["asymmetric", "rand", "serde"] }
-nym-credentials = { workspace = true }
-nym-credentials-interface = { workspace = true }
-nym-http-api-common = { workspace = true, features = ["utoipa"] }
-nym-validator-client = { workspace = true }
-nym-network-defaults = { workspace = true }
+nym-bin-common = { path = "../../common/bin-common", features = ["basic_tracing"] }
+nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
+nym-config = { path = "../../common/config" }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand", "serde"] }
+nym-credentials = { path = "../../common/credentials" }
+nym-credentials-interface = { path = "../../common/credentials-interface" }
+nym-http-api-common = { path = "../../common/http-api-common", features = ["utoipa"] }
+nym-validator-client = { path = "../../common/client-libs/validator-client" }
+nym-network-defaults = { path = "../../common/network-defaults" }
 
 nym-vpn-api-requests = { path = "../vpn-api-requests", features = ["openapi"] }
 

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE available_bandwidth\n                SET available = available - ?\n                WHERE client_id = (SELECT client_id FROM received_ticket WHERE id = ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "3fa406efeffd9952af3cb044b028eb6d1770c694cf84097222c2bcf299fec680"
+}

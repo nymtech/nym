@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT t1.ticket_id, t1.data as \"data!\"\n                    FROM ticket_data as t1\n                LEFT JOIN verified_tickets as t2\n                ON t1.ticket_id = t2.ticket_id\n                WHERE\n                    t2.ticket_id IS NULL\n                AND\n                    t1.data IS NOT NULL\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "ticket_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "data!",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "73e111225be2ce63d05f1a439a1fc9cc0359a960fe17a135a1d7f8975ebe38ef"
+}

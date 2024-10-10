@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO ticket_verification (ticket_id, signer_id, verified_at, accepted)\n                VALUES (?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "da51030965d8f9ff0e2511ba6d6b9feecd619c043f9d70752521143de4c14959"
+}

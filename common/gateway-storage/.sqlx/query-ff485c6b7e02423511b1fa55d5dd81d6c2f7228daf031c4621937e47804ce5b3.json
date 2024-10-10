@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT proposal_id FROM redemption_proposals WHERE resolved_at IS NULL",
+  "describe": {
+    "columns": [
+      {
+        "name": "proposal_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ff485c6b7e02423511b1fa55d5dd81d6c2f7228daf031c4621937e47804ce5b3"
+}

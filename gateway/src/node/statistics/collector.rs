@@ -28,6 +28,7 @@ pub(crate) struct GatewayStatisticsCollector {
     shared_session_stats: SharedSessionStats,
     active_sessions: HashMap<DestinationAddressBytes, SessionDuration>,
     unique_users: HashSet<DestinationAddressBytes>, //might be a bloom filter if this takes too much space
+    sessions_started: u32,
     finished_sessions: Vec<SessionDuration>,
 }
 
@@ -44,6 +45,7 @@ impl GatewayStatisticsCollector {
             last_update_day: OffsetDateTime::now_utc().date(),
             active_sessions: Default::default(),
             unique_users: Default::default(),
+            sessions_started: 0,
             finished_sessions: Default::default(),
         }
     }
@@ -54,11 +56,13 @@ impl GatewayStatisticsCollector {
 
         //active and new sessions
         for session in &current_sessions {
-            self.active_sessions
-                .entry(*session)
-                .and_modify(|session_duration| *session_duration += 1)
-                .or_insert(1);
-            self.unique_users.insert(*session);
+            if let Some(duration) = self.active_sessions.get_mut(session) {
+                *duration += 1
+            } else {
+                self.active_sessions.insert(*session, 1);
+                self.unique_users.insert(*session);
+                self.sessions_started += 1;
+            }
         }
 
         //handling finished sessions
@@ -73,6 +77,7 @@ impl GatewayStatisticsCollector {
         let mut shared_state = self.shared_session_stats.write().await;
         shared_state.update_time = self.last_update_day;
         shared_state.unique_active_users = self.unique_users.len() as u32;
+        shared_state.session_started = self.sessions_started;
         shared_state.session_durations = self.finished_sessions.clone();
     }
 
@@ -80,6 +85,7 @@ impl GatewayStatisticsCollector {
         self.last_update_day = reset_day;
         self.unique_users = self.active_sessions.keys().copied().collect();
         self.finished_sessions = Default::default();
+        self.sessions_started = 0;
     }
 
     pub async fn run(&mut self, mut shutdown: TaskClient) {

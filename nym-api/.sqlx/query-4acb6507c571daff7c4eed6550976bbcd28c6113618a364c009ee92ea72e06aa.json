@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO partial_bloomfilter(date, parameters, bitmap) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "4acb6507c571daff7c4eed6550976bbcd28c6113618a364c009ee92ea72e06aa"
+}

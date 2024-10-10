@@ -1,0 +1,68 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    gateway_details.id as \"db_id\",\n                    identity as \"identity_key\",\n                    reliability as \"reliability: u8\",\n                    monitor_run.timestamp as \"timestamp!\",\n                    gateway_id as \"gateway_id!\",\n                    layer1_mix_id as \"layer1_mix_id!\",\n                    layer2_mix_id as \"layer2_mix_id!\",\n                    layer3_mix_id as \"layer3_mix_id!\",\n                    monitor_run_id as \"monitor_run_id!\"\n                FROM gateway_status\n                    JOIN gateway_details ON gateway_status.gateway_details_id = gateway_details.id\n                    JOIN monitor_run ON gateway_status.timestamp = monitor_run.timestamp\n                    JOIN testing_route ON monitor_run.id = testing_route.monitor_run_id\n                WHERE identity = ?\n                ORDER BY gateway_status.timestamp DESC\n                LIMIT ? OFFSET ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "db_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "identity_key",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "reliability: u8",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "timestamp!",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "gateway_id!",
+        "ordinal": 4,
+        "type_info": "Int64"
+      },
+      {
+        "name": "layer1_mix_id!",
+        "ordinal": 5,
+        "type_info": "Int64"
+      },
+      {
+        "name": "layer2_mix_id!",
+        "ordinal": 6,
+        "type_info": "Int64"
+      },
+      {
+        "name": "layer3_mix_id!",
+        "ordinal": 7,
+        "type_info": "Int64"
+      },
+      {
+        "name": "monitor_run_id!",
+        "ordinal": 8,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "6b88e7f40bba38053e968d2a7198a0c9646120f24c07134ffb0a33cf2fb6b6ed"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                d.identity as \"identity: String\",\n                CASE WHEN count(*) > 3 THEN AVG(reliability) ELSE 100 END as \"value: f32\"\n            FROM\n                gateway_details d\n            JOIN\n                gateway_status s on d.id = s.gateway_details_id\n            WHERE\n                timestamp >= ? AND\n                timestamp <= ?\n            GROUP BY 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "identity: String",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "value: f32",
+        "ordinal": 1,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "45bbcae0320af3ba7e2ffac8a58c5d9608b5b0e34a34df5ff49ca0e16da76788"
+}

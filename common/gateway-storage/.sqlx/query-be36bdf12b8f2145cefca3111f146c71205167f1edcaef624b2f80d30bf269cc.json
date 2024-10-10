@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT t1.ticket_id, t2.serial_number\n                    FROM verified_tickets as t1\n                JOIN ticket_data as t2\n                    ON t1.ticket_id = t2.ticket_id\n                WHERE t1.proposal_id = ?\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "ticket_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "serial_number",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "be36bdf12b8f2145cefca3111f146c71205167f1edcaef624b2f80d30bf269cc"
+}

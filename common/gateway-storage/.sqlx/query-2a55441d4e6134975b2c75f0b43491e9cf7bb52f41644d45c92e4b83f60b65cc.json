@@ -1,0 +1,74 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    SELECT *\n                    FROM wireguard_peer;\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "public_key",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "preshared_key",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "protocol_version",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "endpoint",
+        "ordinal": 3,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_handshake",
+        "ordinal": 4,
+        "type_info": "Datetime"
+      },
+      {
+        "name": "tx_bytes",
+        "ordinal": 5,
+        "type_info": "Int64"
+      },
+      {
+        "name": "rx_bytes",
+        "ordinal": 6,
+        "type_info": "Int64"
+      },
+      {
+        "name": "persistent_keepalive_interval",
+        "ordinal": 7,
+        "type_info": "Int64"
+      },
+      {
+        "name": "allowed_ips",
+        "ordinal": 8,
+        "type_info": "Blob"
+      },
+      {
+        "name": "client_id",
+        "ordinal": 9,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "2a55441d4e6134975b2c75f0b43491e9cf7bb52f41644d45c92e4b83f60b65cc"
+}

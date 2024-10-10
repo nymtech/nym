@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO master_verification_key(epoch_id, serialised_key) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "dbf79ace08b8e6fe97df0899fd0177ba591e38b513ad5aa9ed4df70e6bf7afd7"
+}

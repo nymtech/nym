@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO received_ticket (client_id, received_at) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "f2b630b29a9e85003c0457dc8a07d24996c50a306b81ad2ae0b30af6683cda0d"
+}

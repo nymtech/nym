@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT serial_number\n                FROM verified_tickets\n                WHERE spending_date = ?    \n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "serial_number",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c4c70332acc4fee3757c6735b967f9be15f910e2db6d74e0246b7a7a86d75f85"
+}

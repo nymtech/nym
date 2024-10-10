@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT serialised_signatures FROM global_coin_index_signatures WHERE epoch_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "serialised_signatures",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9e14089dbc02ea0f64545be769608c4d1ab1e01c3a0f7903cd2667738e0b77e7"
+}

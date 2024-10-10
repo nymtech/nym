@@ -39,35 +39,25 @@ If it's outside of code (i.e. when running `cargo check`)
 - make sure password doesn't have any special characters that could be
   interpreted by the command line/shell weirdly, like `$#\` etc.
 
-## Cannot generate `sqlx-data.json`
+## Offline query data looks like this
 
-In order for `sqlx` to generate schema for "offline" work (without DB
-connection), as of `v0.6.3` you first **need an active DB connection**.
-
-So make sure
-
-- DB is running
-- `DATABASE_URL` is set correctly
-- `SQLX_OFFLINE` isn't exported to true
-
-Then run `cargo sqlx prepare`
-
-After you have the file, you can ignore `DATABASE_URL` and terminate the DB
-instance. This file represents the DB schema, so when your migrations change,
-you'll need to re-generate it
-
-Make sure to commit the file to VCS if you want to avoid re-doing this again on
-each machine (e.g. other developers, CI).
-
-## Generated `sqlx-data.json` looks like this
-
-```json
-{
-  "db": "PostgreSQL"
-}
+```
+.sqlx/
+├─ new_file
+├─ query-249faa11b88b749f50342bb5c9cc41d20896db543eed74a6f320c041bcbb723d.json
+├─ query-aff7fbd06728004d2f2226d20c32f1482df00de2dc1d2b4debbb2e12553d997b.json
+├─ ...
+├─ query-e53f479f8cead3dc8aa1875e5d450ad69686cf6a109e37d6c3f0623c3e9f91d0.json
 ```
 
-after running `cargo sqlx prepare`
+The offline mode for the queries uses a separate file per `query!()` invocation
+
+Each workspace member that works with `sqlx` has `.sqlx` directory, containing
+its own schema description. This allows compile-time checks without needing a
+live DB connection (so called `OFFLINE_MODE`).
+
+To initialize those files, you need to run `cargo sqlx prepare` with a live
+connection to DB (to pull schema information).
 
 ### Similar to:
 
@@ -78,6 +68,17 @@ warning: no queries found; do you have the `offline` feature enabled
 ### Possible solutions
 
 - does your `sqlx-cli` version match `sqlx` version from `Cargo.toml`?
+```
+cargo install sqlx-cli --version <exact semver version as sqlx> --force
+```
+- is your crate a library?
+```
+cargo sqlx prepare -- --lib
+```
+- are your `query!` invocations hidden behind a feature?
+```
+cargo sqlx prepare -- --features <feature_name>
+```
 - do you have `offline` cargo feature enabled?
 - make sure to `cargo clean` after these updates
 

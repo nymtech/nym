@@ -1,11 +1,13 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ecash::storage::models::{
-    EpochCredentials, IssuedTicketbook, RawExpirationDateSignatures, SerialNumberWrapper,
-    StoredBloomfilterParams, TicketProvider, VerifiedTicket,
+use crate::{
+    ecash::storage::models::{
+        EpochCredentials, IssuedTicketbook, RawExpirationDateSignatures, SerialNumberWrapper,
+        StoredBloomfilterParams, TicketProvider, VerifiedTicket,
+    },
+    support::storage::manager::StorageManager,
 };
-use crate::support::storage::manager::StorageManager;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_contract_common::deposit::DepositId;
 use time::{Date, OffsetDateTime};
@@ -305,7 +307,7 @@ impl EcashStorageManagerExt for StorageManager {
             "#,
             epoch_id_downcasted
         )
-        .fetch_optional(&mut tx)
+        .fetch_optional(&mut *tx)
         .await?
         {
             // the entry has existed before -> update it
@@ -320,7 +322,7 @@ impl EcashStorageManagerExt for StorageManager {
                     credential_id,
                     epoch_id_downcasted
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
             } else {
                 // we have issued credentials in this epoch before -> just increment `total_issued`
@@ -332,7 +334,7 @@ impl EcashStorageManagerExt for StorageManager {
                     "#,
                     epoch_id_downcasted
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
             }
         } else {
@@ -347,7 +349,7 @@ impl EcashStorageManagerExt for StorageManager {
                 credential_id,
                 1
             )
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
         }
 

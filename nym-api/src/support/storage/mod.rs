@@ -1,16 +1,22 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::network_monitor::test_route::TestRoute;
-use crate::node_status_api::models::{
-    GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
-    NymApiStorageError, Uptime,
-};
-use crate::node_status_api::{ONE_DAY, ONE_HOUR};
-use crate::storage::manager::StorageManager;
-use crate::storage::models::{NodeStatus, TestingRoute};
-use crate::support::storage::models::{
-    GatewayDetails, MixnodeDetails, TestedGatewayStatus, TestedMixnodeStatus,
+use crate::{
+    network_monitor::test_route::TestRoute,
+    node_status_api::{
+        models::{
+            GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
+            NymApiStorageError, Uptime,
+        },
+        ONE_DAY, ONE_HOUR,
+    },
+    storage::{
+        manager::StorageManager,
+        models::{NodeStatus, TestingRoute},
+    },
+    support::storage::models::{
+        GatewayDetails, MixnodeDetails, TestedGatewayStatus, TestedMixnodeStatus,
+    },
 };
 use nym_mixnet_contract_common::MixId;
 use nym_types::monitoring::{GatewayResult, MixnodeResult};
@@ -34,13 +40,12 @@ impl NymApiStorage {
     pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, NymApiStorageError> {
         // TODO: we can inject here more stuff based on our nym-api global config
         // struct. Maybe different pool size or timeout intervals?
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
+            .create_if_missing(true)
+            .disable_statement_logging();
 
         // TODO: do we want auto_vacuum ?
-
-        opts.disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,

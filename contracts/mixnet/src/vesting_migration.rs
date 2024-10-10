@@ -10,7 +10,7 @@ use crate::support::helpers::{
 };
 use cosmwasm_std::{wasm_execute, DepsMut, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
-use mixnet_contract_common::{Delegation, MixId};
+use mixnet_contract_common::{Delegation, NodeId};
 use vesting_contract_common::messages::ExecuteMsg as VestingExecuteMsg;
 
 pub(crate) fn try_migrate_vested_mixnode(
@@ -61,7 +61,7 @@ pub(crate) fn try_migrate_vested_mixnode(
 pub(crate) fn try_migrate_vested_delegation(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Response, MixnetContractError> {
     ensure_epoch_in_progress_state(deps.storage)?;
 

@@ -1,8 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::families::FamilyHead;
-use crate::{Gateway, IdentityKey, MixNode, MixNodeCostParams};
+use crate::nym_node::NymNode;
+use crate::{Gateway, MixNode, NodeCostParams};
 use contracts_common::signing::{
     ContractMessageContent, LegacyContractMessageContent, MessageType, Nonce, SignableMessage,
     SigningPurpose,
@@ -12,20 +12,20 @@ use serde::Serialize;
 
 pub type SignableMixNodeBondingMsg = SignableMessage<ContractMessageContent<MixnodeBondingPayload>>;
 pub type SignableGatewayBondingMsg = SignableMessage<ContractMessageContent<GatewayBondingPayload>>;
+pub type SignableNymNodeBondingMsg = SignableMessage<ContractMessageContent<NymNodeBondingPayload>>;
 pub type SignableLegacyMixNodeBondingMsg =
     SignableMessage<LegacyContractMessageContent<MixnodeBondingPayload>>;
 pub type SignableLegacyGatewayBondingMsg =
     SignableMessage<LegacyContractMessageContent<GatewayBondingPayload>>;
-pub type SignableFamilyJoinPermitMsg = SignableMessage<FamilyJoinPermit>;
 
 #[derive(Serialize)]
 pub struct MixnodeBondingPayload {
     mix_node: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
 }
 
 impl MixnodeBondingPayload {
-    pub fn new(mix_node: MixNode, cost_params: MixNodeCostParams) -> Self {
+    pub fn new(mix_node: MixNode, cost_params: NodeCostParams) -> Self {
         Self {
             mix_node,
             cost_params,
@@ -44,7 +44,7 @@ pub fn construct_mixnode_bonding_sign_payload(
     sender: Addr,
     pledge: Coin,
     mix_node: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
 ) -> SignableMixNodeBondingMsg {
     let payload = MixnodeBondingPayload::new(mix_node, cost_params);
     let content = ContractMessageContent::new(sender, vec![pledge], payload);
@@ -57,7 +57,7 @@ pub fn construct_legacy_mixnode_bonding_sign_payload(
     sender: Addr,
     pledge: Coin,
     mix_node: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
 ) -> SignableLegacyMixNodeBondingMsg {
     let payload = MixnodeBondingPayload::new(mix_node, cost_params);
     let content: LegacyContractMessageContent<_> =
@@ -109,39 +109,48 @@ pub fn construct_legacy_gateway_bonding_sign_payload(
 }
 
 #[derive(Serialize)]
-pub struct FamilyJoinPermit {
-    // the granter of this permit
-    family_head: FamilyHead,
-    // the actual member we want to permit to join
-    member_node: IdentityKey,
+pub struct NymNodeBondingPayload {
+    nym_node: NymNode,
+    cost_params: NodeCostParams,
 }
 
-impl FamilyJoinPermit {
-    pub fn new(family_head: FamilyHead, member_node: IdentityKey) -> Self {
-        Self {
-            family_head,
-            member_node,
+impl NymNodeBondingPayload {
+    pub fn new(nym_node: NymNode, cost_params: NodeCostParams) -> Self {
+        NymNodeBondingPayload {
+            nym_node,
+            cost_params,
         }
     }
 }
 
-impl SigningPurpose for FamilyJoinPermit {
+impl SigningPurpose for NymNodeBondingPayload {
     fn message_type() -> MessageType {
-        MessageType::new("family-join-permit")
+        MessageType::new("nym-node-bonding")
     }
 }
 
-pub fn construct_family_join_permit(
+pub fn construct_nym_node_bonding_sign_payload(
     nonce: Nonce,
-    family_head: FamilyHead,
-    member_node: IdentityKey,
-) -> SignableFamilyJoinPermitMsg {
-    let payload = FamilyJoinPermit::new(family_head, member_node);
+    sender: Addr,
+    pledge: Coin,
+    nym_node: NymNode,
+    cost_params: NodeCostParams,
+) -> SignableNymNodeBondingMsg {
+    let payload = NymNodeBondingPayload::new(nym_node, cost_params);
+    let content = ContractMessageContent::new(sender, vec![pledge], payload);
 
-    // note: we're NOT wrapping it in `ContractMessageContent` because the family head is not going to be the one
-    // sending the message to the contract
-    SignableMessage::new(nonce, payload)
+    SignableMessage::new(nonce, content)
 }
 
-// TODO: depending on our threat model, we should perhaps extend it to include all _on_behalf methods
-// (update: but we trust our vesting contract since its compromise would be even more devastating so there's no need)
+pub fn construct_generic_node_bonding_payload<T>(
+    nonce: Nonce,
+    sender: Addr,
+    pledge: Coin,
+    payload: T,
+) -> SignableMessage<ContractMessageContent<T>>
+where
+    T: SigningPurpose,
+{
+    let content = ContractMessageContent::new(sender, vec![pledge], payload);
+    SignableMessage::new(nonce, content)
+}

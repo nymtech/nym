@@ -27,7 +27,6 @@ pub(crate) fn build_credentials_response(
     Ok(IssuedCredentialsResponse { credentials })
 }
 
-#[cfg(feature = "axum")]
 #[derive(serde::Deserialize, utoipa::IntoParams)]
 #[into_params(parameter_in = Path)]
 pub(super) struct EpochIdParam {

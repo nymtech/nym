@@ -1,17 +1,19 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
+#![warn(clippy::todo)]
 
-mod constants;
+pub(crate) mod compat;
+pub mod constants;
 pub mod contract;
 mod delegations;
-mod families;
 mod gateways;
 mod interval;
 mod mixnet_contract_settings;
 mod mixnodes;
+mod nodes;
 mod queued_migrations;
 mod rewards;
 pub mod signing;

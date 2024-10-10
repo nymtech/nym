@@ -5,6 +5,7 @@ use clap::{Args, Subcommand};
 
 pub mod bond_gateway;
 pub mod gateway_bonding_sign_payload;
+pub mod nymnode_migration;
 pub mod settings;
 pub mod unbond_gateway;
 pub mod vesting_bond_gateway;
@@ -31,4 +32,6 @@ pub enum MixnetOperatorsGatewayCommands {
     VestingUnbond(vesting_unbond_gateway::Args),
     /// Create base58-encoded payload required for producing valid bonding signature.
     CreateGatewayBondingSignPayload(gateway_bonding_sign_payload::Args),
+    /// Migrate the gateway into a Nym Node
+    MigrateToNymnode(nymnode_migration::Args),
 }

@@ -1,9 +1,9 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::mixnode::MixNodeCostParams;
-use crate::reward_params::IntervalRewardingParamsUpdate;
-use crate::{BlockHeight, MixId};
+use crate::mixnode::NodeCostParams;
+use crate::reward_params::{ActiveSetUpdate, IntervalRewardingParamsUpdate};
+use crate::{BlockHeight, NodeId};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin};
 
@@ -35,7 +35,7 @@ pub struct PendingEpochEventData {
 pub enum PendingEpochEventKind {
     // can't just pass the `Delegation` struct here as it's impossible to determine
     // `cumulative_reward_ratio` ahead of time
-    /// Request to create a delegation towards particular mixnode.
+    /// Request to create a delegation towards particular node.
     /// Note that if such delegation already exists, it will get updated with the provided token amount.
     #[serde(alias = "Delegate")]
     #[non_exhaustive]
@@ -43,8 +43,9 @@ pub enum PendingEpochEventKind {
         /// The address of the owner of the delegation.
         owner: Addr,
 
-        /// The id of the mixnode used for the delegation.
-        mix_id: MixId,
+        /// The id of the node used for the delegation.
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
 
         /// The amount of tokens to use for the delegation.
         amount: Coin,
@@ -54,15 +55,16 @@ pub enum PendingEpochEventKind {
         proxy: Option<Addr>,
     },
 
-    /// Request to remove delegation from particular mixnode.
+    /// Request to remove delegation from particular node.
     #[serde(alias = "Undelegate")]
     #[non_exhaustive]
     Undelegate {
         /// The address of the owner of the delegation.
         owner: Addr,
 
-        /// The id of the mixnode used for the delegation.
-        mix_id: MixId,
+        /// The id of the node used for the delegation.
+        #[serde(alias = "mix_id")]
+        node_id: NodeId,
 
         /// Entity who made the delegation on behalf of the owner.
         /// If present, it's most likely the address of the vesting contract.
@@ -70,20 +72,38 @@ pub enum PendingEpochEventKind {
     },
 
     /// Request to pledge more tokens (by the node operator) towards its node.
-    #[serde(alias = "PledgeMore")]
-    PledgeMore {
-        /// The id of the mixnode that will have its pledge updated.
-        mix_id: MixId,
+    NymNodePledgeMore {
+        /// The id of the nym node that will have its pledge updated.
+        node_id: NodeId,
 
-        /// The amount of additional tokens to use by the pledge.
+        /// The amount of additional tokens to use in the pledge.
+        amount: Coin,
+    },
+
+    /// Request to pledge more tokens (by the node operator) towards its node.
+    #[serde(alias = "PledgeMore")]
+    MixnodePledgeMore {
+        /// The id of the mixnode that will have its pledge updated.
+        mix_id: NodeId,
+
+        /// The amount of additional tokens to use in the pledge.
         amount: Coin,
     },
 
     /// Request to decrease amount of pledged tokens (by the node operator) from its node.
+    NymNodeDecreasePledge {
+        /// The id of the nym node that will have its pledge updated.
+        node_id: NodeId,
+
+        /// The amount of tokens that should be removed from the pledge.
+        decrease_by: Coin,
+    },
+
+    /// Request to decrease amount of pledged tokens (by the node operator) from its node.
     #[serde(alias = "DecreasePledge")]
-    DecreasePledge {
+    MixnodeDecreasePledge {
         /// The id of the mixnode that will have its pledge updated.
-        mix_id: MixId,
+        mix_id: NodeId,
 
         /// The amount of tokens that should be removed from the pledge.
         decrease_by: Coin,
@@ -93,15 +113,17 @@ pub enum PendingEpochEventKind {
     #[serde(alias = "UnbondMixnode")]
     UnbondMixnode {
         /// The id of the mixnode that will get unbonded.
-        mix_id: MixId,
+        mix_id: NodeId,
     },
 
-    /// Request to update the current size of the active set.
-    #[serde(alias = "UpdateActiveSetSize")]
-    UpdateActiveSetSize {
-        /// The new desired size of the active set.
-        new_size: u32,
+    /// Request to unbond a nym node and completely remove it from the network.
+    UnbondNymNode {
+        /// The id of the node that will get unbonded.
+        node_id: NodeId,
     },
+
+    /// Request to update the current active set.
+    UpdateActiveSet { update: ActiveSetUpdate },
 }
 
 impl PendingEpochEventKind {
@@ -112,19 +134,19 @@ impl PendingEpochEventKind {
         }
     }
 
-    pub fn new_delegate(owner: Addr, mix_id: MixId, amount: Coin) -> Self {
+    pub fn new_delegate(owner: Addr, node_id: NodeId, amount: Coin) -> Self {
         PendingEpochEventKind::Delegate {
             owner,
-            mix_id,
+            node_id,
             amount,
             proxy: None,
         }
     }
 
-    pub fn new_undelegate(owner: Addr, mix_id: MixId) -> Self {
+    pub fn new_undelegate(owner: Addr, node_id: NodeId) -> Self {
         PendingEpochEventKind::Undelegate {
             owner,
-            mix_id,
+            node_id,
             proxy: None,
         }
     }
@@ -166,10 +188,19 @@ pub enum PendingIntervalEventKind {
     #[serde(alias = "ChangeMixCostParams")]
     ChangeMixCostParams {
         /// The id of the mixnode that will have its cost parameters updated.
-        mix_id: MixId,
+        mix_id: NodeId,
 
         /// The new updated cost function of this mixnode.
-        new_costs: MixNodeCostParams,
+        new_costs: NodeCostParams,
+    },
+
+    /// Request to update cost parameters of given nym node.
+    ChangeNymNodeCostParams {
+        /// The id of the nym node that will have its cost parameters updated.
+        node_id: NodeId,
+
+        /// The new updated cost function of this nym node.
+        new_costs: NodeCostParams,
     },
 
     /// Request to update the underlying rewarding parameters used by the system

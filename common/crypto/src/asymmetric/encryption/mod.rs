@@ -12,6 +12,9 @@ use rand::{CryptoRng, RngCore};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 
+#[cfg(feature = "serde")]
+pub mod serde_helpers;
+
 /// Size of a X25519 private key
 pub const PRIVATE_KEY_SIZE: usize = 32;
 

@@ -1,12 +1,13 @@
-// Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::interval::storage;
+use crate::rewards;
 use crate::rewards::storage as rewards_storage;
-use cosmwasm_std::{Response, Storage};
+use cosmwasm_std::{Env, Response, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::new_interval_config_update_event;
-use mixnet_contract_common::{BlockHeight, Interval};
+use mixnet_contract_common::{BlockHeight, EpochId, Interval};
 use std::time::Duration;
 
 pub(crate) fn change_interval_config(
@@ -31,6 +32,26 @@ pub(crate) fn change_interval_config(
         epoch_duration_secs,
         rewarding_params.interval,
     )))
+}
+
+/// Update the storage to advance into the next epoch.
+/// It's responsibility of the caller to ensure the epoch is actually over.
+pub(crate) fn advance_epoch(
+    storage: &mut dyn Storage,
+    env: Env,
+) -> Result<EpochId, MixnetContractError> {
+    let current_interval = storage::current_interval(storage)?;
+
+    // if the current **INTERVAL** is over, apply reward pool changes
+    if current_interval.is_current_interval_over(&env) {
+        // this one is a very important one!
+        rewards::helpers::apply_reward_pool_changes(storage)?;
+    }
+
+    let updated_interval = current_interval.advance_epoch();
+    storage::save_interval(storage, &updated_interval)?;
+
+    Ok(updated_interval.current_epoch_absolute_id())
 }
 
 #[cfg(test)]

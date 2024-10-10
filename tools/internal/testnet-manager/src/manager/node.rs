@@ -7,7 +7,7 @@ use nym_contracts_common::signing::MessageSignature;
 use nym_contracts_common::Percent;
 use nym_mixnet_contract_common::{
     construct_gateway_bonding_sign_payload, construct_mixnode_bonding_sign_payload, Gateway,
-    MixNode, MixNodeCostParams,
+    MixNode, NodeCostParams,
 };
 use nym_validator_client::nyxd::CosmWasmCoin;
 
@@ -68,8 +68,8 @@ impl NymNode {
         }
     }
 
-    pub(crate) fn cost_params(&self) -> MixNodeCostParams {
-        MixNodeCostParams {
+    pub(crate) fn cost_params(&self) -> NodeCostParams {
+        NodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
             interval_operating_cost: CosmWasmCoin::new(40_000000, "unym"),
         }

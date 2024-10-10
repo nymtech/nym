@@ -5,11 +5,10 @@ use crate::{PledgeCap, VestingSpecification};
 use contracts_common::signing::MessageSignature;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Coin, Timestamp};
-use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
     gateway::GatewayConfigUpdate,
-    mixnode::{MixNodeConfigUpdate, MixNodeCostParams},
-    Gateway, IdentityKey, MixId, MixNode,
+    mixnode::{MixNodeConfigUpdate, NodeCostParams},
+    Gateway, MixNode, NodeId,
 };
 
 #[cfg(feature = "schema")]
@@ -36,32 +35,16 @@ pub struct MigrateMsg {}
 
 #[cw_serde]
 pub enum ExecuteMsg {
-    // Families
-    /// Only owner of the node can crate the family with node as head
-    CreateFamily {
-        label: String,
-    },
-    /// Family head needs to sign the joining node IdentityKey, the Node provides its signature signaling consent to join the family
-    JoinFamily {
-        join_permit: MessageSignature,
-        family_head: FamilyHead,
-    },
-    LeaveFamily {
-        family_head: FamilyHead,
-    },
-    KickFamilyMember {
-        member: IdentityKey,
-    },
     TrackReward {
         amount: Coin,
         address: String,
     },
     ClaimOperatorReward {},
     ClaimDelegatorReward {
-        mix_id: MixId,
+        mix_id: NodeId,
     },
     UpdateMixnodeCostParams {
-        new_costs: MixNodeCostParams,
+        new_costs: NodeCostParams,
     },
     UpdateMixnodeConfig {
         new_config: MixNodeConfigUpdate,
@@ -70,12 +53,12 @@ pub enum ExecuteMsg {
         address: String,
     },
     DelegateToMixnode {
-        mix_id: MixId,
+        mix_id: NodeId,
         amount: Coin,
         on_behalf_of: Option<String>,
     },
     UndelegateFromMixnode {
-        mix_id: MixId,
+        mix_id: NodeId,
         on_behalf_of: Option<String>,
     },
     CreateAccount {
@@ -89,12 +72,12 @@ pub enum ExecuteMsg {
     },
     TrackUndelegation {
         owner: String,
-        mix_id: MixId,
+        mix_id: NodeId,
         amount: Coin,
     },
     BondMixnode {
         mix_node: MixNode,
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         owner_signature: MessageSignature,
         amount: Coin,
     },
@@ -142,17 +125,13 @@ pub enum ExecuteMsg {
     // no need to track migrated gateways as there are no vesting gateways on mainnet
     TrackMigratedDelegation {
         owner: String,
-        mix_id: MixId,
+        mix_id: NodeId,
     },
 }
 
 impl ExecuteMsg {
     pub fn name(&self) -> &str {
         match self {
-            ExecuteMsg::CreateFamily { .. } => "VestingExecuteMsg::CreateFamily",
-            ExecuteMsg::JoinFamily { .. } => "VestingExecuteMsg::JoinFamily",
-            ExecuteMsg::LeaveFamily { .. } => "VestingExecuteMsg::LeaveFamily",
-            ExecuteMsg::KickFamilyMember { .. } => "VestingExecuteMsg::KickFamilyMember",
             ExecuteMsg::TrackReward { .. } => "VestingExecuteMsg::TrackReward",
             ExecuteMsg::ClaimOperatorReward { .. } => "VestingExecuteMsg::ClaimOperatorReward",
             ExecuteMsg::ClaimDelegatorReward { .. } => "VestingExecuteMsg::ClaimDelegatorReward",
@@ -374,7 +353,7 @@ pub enum QueryMsg {
         address: String,
 
         /// Id of the mixnode towards which the delegation has been made.
-        mix_id: MixId,
+        mix_id: NodeId,
 
         /// Block timestamp of the delegation.
         block_timestamp_secs: u64,
@@ -387,7 +366,7 @@ pub enum QueryMsg {
         address: String,
 
         /// Id of the mixnode towards which the delegations have been made.
-        mix_id: MixId,
+        mix_id: NodeId,
     },
 
     /// Returns timestamps of delegations made towards particular mixnode by the provided vesting account address.
@@ -397,14 +376,14 @@ pub enum QueryMsg {
         address: String,
 
         /// Id of the mixnode towards which the delegations have been made.
-        mix_id: MixId,
+        mix_id: NodeId,
     },
 
     /// Returns all active delegations made with vesting tokens stored in this contract.
     #[cfg_attr(feature = "schema", returns(AllDelegationsResponse))]
     GetAllDelegations {
         /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
-        start_after: Option<(u32, MixId, u64)>,
+        start_after: Option<(u32, NodeId, u64)>,
 
         /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,

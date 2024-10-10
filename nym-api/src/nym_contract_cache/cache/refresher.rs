@@ -6,14 +6,21 @@ use crate::nym_contract_cache::cache::data::{CachedContractInfo, CachedContracts
 use crate::nyxd::Client;
 use crate::support::caching::CacheNotification;
 use anyhow::Result;
-use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardedSetNodeStatus};
+use nym_api_requests::legacy::{
+    LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
+};
+use nym_mixnet_contract_common::{LegacyMixLayer, RewardedSet};
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::{
     MixnetQueryClient, NymContractsProvider, VestingQueryClient,
 };
+use rand::prelude::SliceRandom;
+use rand::rngs::OsRng;
+use std::collections::HashSet;
 use std::{collections::HashMap, sync::atomic::Ordering, time::Duration};
 use tokio::sync::watch;
 use tokio::time;
+use tracing::{error, info, trace, warn};
 
 pub struct NymContractCacheRefresher {
     nyxd_client: Client,
@@ -109,15 +116,66 @@ impl NymContractCacheRefresher {
         let rewarding_params = self.nyxd_client.get_current_rewarding_parameters().await?;
         let current_interval = self.nyxd_client.get_current_interval().await?.interval;
 
-        let mixnodes = self.nyxd_client.get_mixnodes().await?;
-        let gateways = self.nyxd_client.get_gateways().await?;
+        let nym_nodes = self.nyxd_client.get_nymnodes().await?;
+        let mixnode_details = self.nyxd_client.get_mixnodes().await?;
+        let gateway_bonds = self.nyxd_client.get_gateways().await?;
+        let gateway_ids: HashMap<_, _> = self
+            .nyxd_client
+            .get_gateway_ids()
+            .await?
+            .into_iter()
+            .map(|id| (id.identity, id.node_id))
+            .collect();
 
-        let mix_to_family = self.nyxd_client.get_all_family_members().await?;
+        let mut gateways = Vec::with_capacity(gateway_bonds.len());
+        for bond in gateway_bonds {
+            // we explicitly panic here because that value MUST exist.
+            // if it doesn't, we messed up the migration and we have big problems
+            let node_id = *gateway_ids.get(bond.identity()).unwrap_or_else(|| {
+                panic!(
+                    "CONTRACT DATA INCONSISTENCY: MISSING GATEWAY ID FOR: {}",
+                    bond.identity()
+                )
+            });
+            gateways.push(LegacyGatewayBondWithId { bond, node_id })
+        }
 
-        let rewarded_set_map = self.get_rewarded_set_map().await;
+        let rewarded_set = self.get_rewarded_set().await;
+        let layer1 = rewarded_set.layer1.iter().collect::<HashSet<_>>();
+        let layer2 = rewarded_set.layer2.iter().collect::<HashSet<_>>();
+        let layer3 = rewarded_set.layer3.iter().collect::<HashSet<_>>();
 
-        let (rewarded_set, active_set) =
-            Self::collect_rewarded_and_active_set_details(&mixnodes, &rewarded_set_map);
+        let layer_choices = [
+            LegacyMixLayer::One,
+            LegacyMixLayer::Two,
+            LegacyMixLayer::Three,
+        ];
+        let mut rng = OsRng;
+        let mut mixnodes = Vec::with_capacity(mixnode_details.len());
+        for detail in mixnode_details {
+            // if node is not in the rewarded set, well.
+            // slap a random layer on it because legacy clients don't understand a concept of layerless mixnodes
+            let layer = if layer1.contains(&detail.mix_id()) {
+                LegacyMixLayer::One
+            } else if layer2.contains(&detail.mix_id()) {
+                LegacyMixLayer::Two
+            } else if layer3.contains(&detail.mix_id()) {
+                LegacyMixLayer::Three
+            } else {
+                // SAFETY: the slice is not empty so the unwrap is fine
+                #[allow(clippy::unwrap_used)]
+                layer_choices.choose(&mut rng).copied().unwrap()
+            };
+
+            mixnodes.push(LegacyMixNodeDetailsWithLayer {
+                bond_information: LegacyMixNodeBondWithLayer {
+                    bond: detail.bond_information,
+                    layer,
+                },
+                rewarding_details: detail.rewarding_details,
+                pending_changes: detail.pending_changes,
+            })
+        }
 
         let contract_info = self.get_nym_contracts_info().await?;
 
@@ -131,11 +189,10 @@ impl NymContractCacheRefresher {
             .update(
                 mixnodes,
                 gateways,
+                nym_nodes,
                 rewarded_set,
-                active_set,
                 rewarding_params,
                 current_interval,
-                mix_to_family,
                 contract_info,
             )
             .await;
@@ -147,32 +204,31 @@ impl NymContractCacheRefresher {
         Ok(())
     }
 
-    async fn get_rewarded_set_map(&self) -> HashMap<MixId, RewardedSetNodeStatus> {
+    async fn get_rewarded_set(&self) -> RewardedSet {
         self.nyxd_client
-            .get_rewarded_set_mixnodes()
+            .get_rewarded_set_nodes()
             .await
-            .map(|nodes| nodes.into_iter().collect())
             .unwrap_or_default()
     }
 
-    fn collect_rewarded_and_active_set_details(
-        all_mixnodes: &[MixNodeDetails],
-        rewarded_set_nodes: &HashMap<MixId, RewardedSetNodeStatus>,
-    ) -> (Vec<MixNodeDetails>, Vec<MixNodeDetails>) {
-        let mut active_set = Vec::new();
-        let mut rewarded_set = Vec::new();
-
-        for mix in all_mixnodes {
-            if let Some(status) = rewarded_set_nodes.get(&mix.mix_id()) {
-                rewarded_set.push(mix.clone());
-                if status.is_active() {
-                    active_set.push(mix.clone())
-                }
-            }
-        }
-
-        (rewarded_set, active_set)
-    }
+    // fn collect_rewarded_and_active_set_details(
+    //     all_mixnodes: &[MixNodeDetails],
+    //     rewarded_set_nodes: RewardedSet,
+    // ) -> (Vec<MixNodeDetails>, Vec<MixNodeDetails>) {
+    //     let mut active_set = Vec::new();
+    //     let mut rewarded_set = Vec::new();
+    //
+    //     for mix in all_mixnodes {
+    //         if let Some(status) = rewarded_set_nodes.get(&mix.mix_id()) {
+    //             rewarded_set.push(mix.clone());
+    //             if status.is_active() {
+    //                 active_set.push(mix.clone())
+    //             }
+    //         }
+    //     }
+    //
+    //     (rewarded_set, active_set)
+    // }
 
     pub(crate) async fn run(&self, mut shutdown: TaskClient) {
         let mut interval = time::interval(self.caching_interval);

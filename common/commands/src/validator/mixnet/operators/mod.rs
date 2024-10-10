@@ -6,6 +6,7 @@ use clap::{Args, Subcommand};
 pub mod gateway;
 pub mod identity_key;
 pub mod mixnode;
+pub mod nymnode;
 
 #[derive(Debug, Args)]
 #[clap(args_conflicts_with_subcommands = true, subcommand_required = true)]
@@ -17,9 +18,11 @@ pub struct MixnetOperators {
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, Subcommand)]
 pub enum MixnetOperatorsCommands {
-    /// Manage your mixnode
+    /// Manage your Nym Node
+    Nymnode(nymnode::MixnetOperatorsNymNode),
+    /// Manage your legacy mixnode
     Mixnode(mixnode::MixnetOperatorsMixnode),
-    /// Manage your gateway
+    /// Manage your legacy gateway
     Gateway(gateway::MixnetOperatorsGateway),
     /// Sign messages using your private identity key
     IdentityKey(identity_key::MixnetOperatorsIdentityKey),

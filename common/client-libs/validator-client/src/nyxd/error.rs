@@ -154,6 +154,23 @@ pub enum NyxdError {
 
     #[error("the response data has invalid size. got {got} bytes, but expected {expected} bytes instead")]
     MalformedResponseData { got: usize, expected: usize },
+
+    #[error(
+        "one of the extension query for {contract} failed with the following message: {message}"
+    )]
+    ExtensionQueryFailure { contract: String, message: String },
+}
+
+impl NyxdError {
+    pub fn extension_query_failure(
+        contract: impl Into<String>,
+        message: impl Into<String>,
+    ) -> Self {
+        NyxdError::ExtensionQueryFailure {
+            contract: contract.into(),
+            message: message.into(),
+        }
+    }
 }
 
 // The purpose of parsing the abci query result is that we want to generate the `pretty_log` if

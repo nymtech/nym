@@ -2,12 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::context::SigningClient;
+use crate::validator::mixnet::operators::nymnode;
 use clap::Parser;
-use cosmwasm_std::Uint128;
-use log::info;
-use nym_mixnet_contract_common::{MixNodeCostParams, Percent};
-use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
-use nym_validator_client::nyxd::CosmWasmCoin;
 
 #[derive(Debug, Parser)]
 pub struct Args {
@@ -24,62 +20,14 @@ pub struct Args {
     pub interval_operating_cost: Option<u128>,
 }
 
-pub async fn update_cost_params(args: Args, client: SigningClient) {
-    let denom = client.current_chain_details().mix_denom.base.as_str();
-
-    fn convert_to_percent(value: u64) -> Percent {
-        Percent::from_percentage_value(value).expect("Invalid value")
-    }
-
-    let default_profit_margin: Percent = convert_to_percent(20);
-
-    let mixownership_response = match client.get_owned_mixnode(&client.address()).await {
-        Ok(response) => response,
-        Err(_) => {
-            eprintln!("Failed to obtain owned mixnode");
-            return;
-        }
-    };
-
-    let mix_id = match mixownership_response.mixnode_details {
-        Some(details) => details.bond_information.mix_id,
-        None => {
-            eprintln!("Failed to obtain mixnode details");
-            return;
-        }
-    };
-
-    let rewarding_response = match client.get_mixnode_rewarding_details(mix_id).await {
-        Ok(details) => details,
-        Err(_) => {
-            eprintln!("Failed to obtain rewarding details");
-            return;
-        }
-    };
-
-    let profit_margin_percent = rewarding_response
-        .rewarding_details
-        .map(|rd| rd.cost_params.profit_margin_percent)
-        .unwrap_or(default_profit_margin);
-
-    let profit_margin_value = args
-        .profit_margin_percent
-        .map(|pm| convert_to_percent(pm as u64))
-        .unwrap_or(profit_margin_percent);
-
-    let cost_params = MixNodeCostParams {
-        profit_margin_percent: profit_margin_value,
-        interval_operating_cost: CosmWasmCoin {
-            denom: denom.into(),
-            amount: Uint128::new(args.interval_operating_cost.unwrap_or(40_000_000)),
+pub async fn update_cost_params(args: Args, client: SigningClient) -> anyhow::Result<()> {
+    // the below can handle both, nymnode and legacy mixnode
+    nymnode::settings::update_cost_params::update_cost_params(
+        nymnode::settings::update_cost_params::Args {
+            profit_margin_percent: args.profit_margin_percent,
+            interval_operating_cost: args.interval_operating_cost,
         },
-    };
-
-    info!("Starting mixnode params updating!");
-    let res = client
-        .update_mixnode_cost_params(cost_params, None)
-        .await
-        .expect("failed to update cost params");
-
-    info!("Cost params result: {:?}", res)
+        client,
+    )
+    .await
 }

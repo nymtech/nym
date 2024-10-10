@@ -5,10 +5,10 @@ use clap::{Args, Subcommand};
 
 pub mod bond_mixnode;
 pub mod decrease_pledge;
-pub mod families;
 pub mod keys;
 pub mod migrate_vested_mixnode;
 pub mod mixnode_bonding_sign_payload;
+pub mod nymnode_migration;
 pub mod pledge_more;
 pub mod rewards;
 pub mod settings;
@@ -33,8 +33,6 @@ pub enum MixnetOperatorsMixnodeCommands {
     Rewards(rewards::MixnetOperatorsMixnodeRewards),
     /// Manage your mixnode settings stored in the directory
     Settings(settings::MixnetOperatorsMixnodeSettings),
-    /// Operations for mixnode families
-    Families(families::MixnetOperatorsMixnodeFamilies),
     /// Bond to a mixnode
     Bond(bond_mixnode::Args),
     /// Unbond from a mixnode
@@ -55,4 +53,6 @@ pub enum MixnetOperatorsMixnodeCommands {
     DecreasePledgeVesting(vesting_decrease_pledge::Args),
     /// Migrate the mixnode to use liquid tokens
     MigrateVestedNode(migrate_vested_mixnode::Args),
+    /// Migrate the mixnode into a Nym Node
+    MigrateToNymnode(nymnode_migration::Args),
 }

@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_crypto::asymmetric::identity::{self, serde_helpers::bs58_pubkey};
+use nym_crypto::asymmetric::identity::{self, serde_helpers::bs58_ed25519_pubkey};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
@@ -86,7 +86,7 @@ impl VerlocResultData {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct VerlocNodeResult {
-    #[serde(with = "bs58_pubkey")]
+    #[serde(with = "bs58_ed25519_pubkey")]
     pub node_identity: identity::PublicKey,
 
     pub latest_measurement: Option<VerlocMeasurement>,

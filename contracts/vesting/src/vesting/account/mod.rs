@@ -10,14 +10,13 @@ use crate::storage::{
 };
 use crate::traits::VestingAccount;
 use cosmwasm_std::{Addr, Coin, Order, Storage, Timestamp, Uint128};
-use mixnet_contract_common::MixId;
+use mixnet_contract_common::NodeId;
 use vesting_contract_common::account::VestingAccountStorageKey;
 use vesting_contract_common::{Account, PledgeCap, PledgeData, VestingContractError};
 
 mod delegating_account;
 mod gateway_bonding_account;
 mod mixnode_bonding_account;
-mod node_families;
 mod vesting_account;
 
 fn generate_storage_key(
@@ -152,20 +151,20 @@ pub(crate) trait StorableVestingAccountExt: VestingAccount {
 
     fn remove_gateway_pledge(&self, storage: &mut dyn Storage) -> Result<(), VestingContractError>;
 
-    fn any_delegation_for_mix(&self, mix_id: MixId, storage: &dyn Storage) -> bool;
+    fn any_delegation_for_mix(&self, mix_id: NodeId, storage: &dyn Storage) -> bool;
 
-    fn num_subdelegations_for_mix(&self, mix_id: MixId, storage: &dyn Storage) -> u32;
+    fn num_subdelegations_for_mix(&self, mix_id: NodeId, storage: &dyn Storage) -> u32;
 
     fn remove_delegations_for_mix(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         storage: &mut dyn Storage,
     ) -> Result<(), VestingContractError>;
 
     #[allow(dead_code)]
     fn total_delegations_for_mix(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         storage: &dyn Storage,
     ) -> Result<Uint128, VestingContractError>;
 
@@ -273,7 +272,7 @@ impl StorableVestingAccountExt for Account {
         remove_gateway_pledge(self.storage_key(), storage)
     }
 
-    fn any_delegation_for_mix(&self, mix_id: MixId, storage: &dyn Storage) -> bool {
+    fn any_delegation_for_mix(&self, mix_id: NodeId, storage: &dyn Storage) -> bool {
         DELEGATIONS
             .prefix((self.storage_key(), mix_id))
             .range(storage, None, None, Order::Ascending)
@@ -281,13 +280,13 @@ impl StorableVestingAccountExt for Account {
             .is_some()
     }
 
-    fn num_subdelegations_for_mix(&self, mix_id: MixId, storage: &dyn Storage) -> u32 {
+    fn num_subdelegations_for_mix(&self, mix_id: NodeId, storage: &dyn Storage) -> u32 {
         count_subdelegations_for_mix((self.storage_key(), mix_id), storage)
     }
 
     fn remove_delegations_for_mix(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         storage: &mut dyn Storage,
     ) -> Result<(), VestingContractError> {
         // note that the limit is implicitly set to `MAX_PER_MIX_DELEGATIONS`
@@ -302,7 +301,7 @@ impl StorableVestingAccountExt for Account {
 
     fn total_delegations_for_mix(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         storage: &dyn Storage,
     ) -> Result<Uint128, VestingContractError> {
         Ok(DELEGATIONS

@@ -1,8 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_mixnet_contract_common::GatewayBond;
 use nym_task::TaskClient;
+use nym_validator_client::legacy::LegacyGatewayBondWithId;
 use nym_validator_client::models::MixNodeBondAnnotated;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{Paging, TendermintRpcClient, ValidatorResponse};
@@ -28,13 +28,12 @@ impl ExplorerApiTasks {
         F: FnOnce(&'a QueryHttpRpcValidatorClient) -> Fut,
         Fut: Future<Output = Result<Vec<MixNodeBondAnnotated>, ValidatorClientError>>,
     {
-        let bonds = match f(&self.state.inner.validator_client.0).await {
-            Ok(result) => result,
-            Err(err) => {
+        let bonds = f(&self.state.inner.validator_client.0)
+            .await
+            .unwrap_or_else(|err| {
                 error!("Unable to retrieve mixnode bonds: {err}");
                 vec![]
-            }
-        };
+            });
 
         info!("Fetched {} mixnode bonds", bonds.len());
         bonds
@@ -48,7 +47,9 @@ impl ExplorerApiTasks {
         .await
     }
 
-    async fn retrieve_all_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+    async fn retrieve_all_gateways(
+        &self,
+    ) -> Result<Vec<LegacyGatewayBondWithId>, ValidatorClientError> {
         info!("About to retrieve all gateways...");
         self.state
             .inner

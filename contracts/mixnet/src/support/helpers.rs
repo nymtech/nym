@@ -3,45 +3,16 @@
 
 use crate::gateways::storage as gateways_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
+use crate::mixnodes::helpers::must_get_mixnode_bond_by_owner;
 use crate::mixnodes::storage as mixnodes_storage;
-use cosmwasm_std::{Addr, BankMsg, Coin, CosmosMsg, Response, Storage};
+use crate::nodes::helpers::must_get_node_bond_by_owner;
+use crate::nodes::storage as nymnodes_storage;
+use cosmwasm_std::{Addr, Coin, Storage};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::mixnode::PendingMixNodeChanges;
-use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixNodeBond};
+use mixnet_contract_common::{EpochState, EpochStatus, IdentityKeyRef, MixNodeBond, NodeId};
+use nym_contracts_common::IdentityKey;
 use nym_contracts_common::Percent;
-
-// helper trait to attach `Msg` to a response if it's provided
-#[allow(dead_code)]
-pub(crate) trait AttachOptionalMessage<T> {
-    fn add_optional_message(self, msg: Option<impl Into<CosmosMsg<T>>>) -> Self;
-}
-
-impl<T> AttachOptionalMessage<T> for Response<T> {
-    fn add_optional_message(self, msg: Option<impl Into<CosmosMsg<T>>>) -> Self {
-        if let Some(msg) = msg {
-            self.add_message(msg)
-        } else {
-            self
-        }
-    }
-}
-
-pub(crate) trait AttachSendTokens {
-    fn send_tokens(self, to: impl AsRef<str>, amount: Coin) -> Self;
-}
-
-impl<T> AttachSendTokens for Response<T> {
-    fn send_tokens(self, to: impl AsRef<str>, amount: Coin) -> Self {
-        self.add_message(BankMsg::Send {
-            to_address: to.as_ref().to_string(),
-            amount: vec![amount],
-        })
-    }
-}
-
-// pub fn debug_with_visibility<S: Into<String>>(api: &dyn Api, msg: S) {
-//     api.debug(&*format!("\n\n\n=========================================\n{}\n=========================================\n\n\n", msg.into()));
-// }
 
 pub(crate) fn validate_pledge(
     mut pledge: Vec<Coin>,
@@ -132,40 +103,6 @@ pub(crate) fn ensure_epoch_in_progress_state(
     Ok(())
 }
 
-// pub(crate) fn ensure_mix_rewarding_state(storage: &dyn Storage) -> Result<(), MixnetContractError> {
-//     let epoch_status = crate::interval::storage::current_epoch_status(storage)?;
-//     if !matches!(epoch_status.state, EpochState::Rewarding { .. }) {
-//         return Err(MixnetContractError::EpochNotInMixRewardingState {
-//             current_state: epoch_status.state,
-//         });
-//     }
-//     Ok(())
-// }
-//
-// pub(crate) fn ensure_event_reconciliation_state(
-//     storage: &dyn Storage,
-// ) -> Result<(), MixnetContractError> {
-//     let epoch_status = crate::interval::storage::current_epoch_status(storage)?;
-//     if !matches!(epoch_status.state, EpochState::ReconcilingEvents) {
-//         return Err(MixnetContractError::EpochNotInEventReconciliationState {
-//             current_state: epoch_status.state,
-//         });
-//     }
-//     Ok(())
-// }
-//
-// pub(crate) fn ensure_epoch_advancement_state(
-//     storage: &dyn Storage,
-// ) -> Result<(), MixnetContractError> {
-//     let epoch_status = crate::interval::storage::current_epoch_status(storage)?;
-//     if !matches!(epoch_status.state, EpochState::AdvancingEpoch) {
-//         return Err(MixnetContractError::EpochNotInAdvancementState {
-//             current_state: epoch_status.state,
-//         });
-//     }
-//     Ok(())
-// }
-
 pub(crate) fn ensure_is_authorized(
     sender: &Addr,
     storage: &dyn Storage,
@@ -212,12 +149,66 @@ pub(crate) fn ensure_no_pending_pledge_changes(
     Ok(())
 }
 
+pub(crate) fn ensure_no_pending_params_changes(
+    pending_changes: &PendingMixNodeChanges,
+) -> Result<(), MixnetContractError> {
+    if let Some(pending_event_id) = pending_changes.cost_params_change {
+        return Err(MixnetContractError::PendingParamsChange { pending_event_id });
+    }
+    Ok(())
+}
+
+/// get identity key of the currently bonded legacy mixnode or nym-node
+#[allow(dead_code)]
+pub(crate) fn get_bond_identity(
+    storage: &dyn Storage,
+    owner: &Addr,
+) -> Result<IdentityKey, MixnetContractError> {
+    // legacy mixnode
+    if let Ok(bond) = must_get_mixnode_bond_by_owner(storage, owner) {
+        return Ok(bond.mix_node.identity_key);
+    }
+    // current nym-node
+    must_get_node_bond_by_owner(storage, owner).map(|b| b.node.identity_key)
+}
+
+/// Checks whether a nym-node or a legacy mixnode with the provided id is currently bonded
+pub(crate) fn ensure_any_node_bonded(
+    storage: &dyn Storage,
+    node_id: NodeId,
+) -> Result<(), MixnetContractError> {
+    // legacy mixnode
+    if let Some(mixnode_bond) = mixnodes_storage::mixnode_bonds().may_load(storage, node_id)? {
+        return if mixnode_bond.is_unbonding {
+            Err(MixnetContractError::MixnodeIsUnbonding { mix_id: node_id })
+        } else {
+            Ok(())
+        };
+    }
+
+    // current nym-node
+    match nymnodes_storage::nym_nodes().may_load(storage, node_id)? {
+        None => Err(MixnetContractError::NymNodeBondNotFound { node_id }),
+        Some(bond) if bond.is_unbonding => Err(MixnetContractError::NodeIsUnbonding { node_id }),
+        _ => Ok(()),
+    }
+}
+
 // check if the target address has already bonded a mixnode or gateway,
 // in either case, return an appropriate error
 pub(crate) fn ensure_no_existing_bond(
     sender: &Addr,
     storage: &dyn Storage,
 ) -> Result<(), MixnetContractError> {
+    if nymnodes_storage::nym_nodes()
+        .idx
+        .owner
+        .item(storage, sender.clone())?
+        .is_some()
+    {
+        return Err(MixnetContractError::AlreadyOwnsNymNode);
+    }
+
     if mixnodes_storage::mixnode_bonds()
         .idx
         .owner
@@ -275,7 +266,7 @@ pub fn ensure_operating_cost_within_range(
     storage: &dyn Storage,
     operating_cost: &Coin,
 ) -> Result<(), MixnetContractError> {
-    let range = mixnet_params_storage::interval_oprating_cost_range(storage)?;
+    let range = mixnet_params_storage::interval_operating_cost_range(storage)?;
     if !range.within_range(operating_cost.amount) {
         return Err(MixnetContractError::OperatingCostOutsideRange {
             denom: operating_cost.denom.clone(),

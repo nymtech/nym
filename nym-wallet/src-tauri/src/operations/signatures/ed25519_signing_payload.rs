@@ -4,15 +4,16 @@
 use crate::error::BackendError;
 use crate::operations::helpers::{
     create_gateway_bonding_sign_payload, create_mixnode_bonding_sign_payload,
+    create_nym_node_bonding_sign_payload,
 };
 use crate::state::WalletState;
-use nym_mixnet_contract_common::{Gateway, MixNode};
+use nym_mixnet_contract_common::{Gateway, MixNode, NymNode};
 use nym_types::currency::DecCoin;
-use nym_types::mixnode::MixNodeCostParams;
+use nym_types::mixnode::NodeCostParams;
 
 async fn mixnode_bonding_msg_payload(
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     pledge: DecCoin,
     vesting: bool,
     state: tauri::State<'_, WalletState>,
@@ -61,10 +62,33 @@ async fn gateway_bonding_msg_payload(
     Ok(msg.to_base58_string()?)
 }
 
+async fn nym_node_bonding_msg_payload(
+    nym_node: NymNode,
+    cost_params: NodeCostParams,
+    pledge: DecCoin,
+    state: tauri::State<'_, WalletState>,
+) -> Result<String, BackendError> {
+    let guard = state.read().await;
+    let reg = guard.registered_coins()?;
+
+    let pledge_base = guard.attempt_convert_to_base_coin(pledge.clone())?;
+    let cost_params = cost_params.try_convert_to_mixnet_contract_cost_params(reg)?;
+    log::info!(
+        ">>> Bond nym_node bonding signature: identity_key = {}, pledge_display = {pledge}, pledge_base = {pledge_base}",
+        nym_node.identity_key,
+    );
+
+    let client = guard.current_client()?;
+
+    let msg =
+        create_nym_node_bonding_sign_payload(client, nym_node, cost_params, pledge_base).await?;
+    Ok(msg.to_base58_string()?)
+}
+
 #[tauri::command]
 pub async fn generate_mixnode_bonding_msg_payload(
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<String, BackendError> {
@@ -74,7 +98,7 @@ pub async fn generate_mixnode_bonding_msg_payload(
 #[tauri::command]
 pub async fn vesting_generate_mixnode_bonding_msg_payload(
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<String, BackendError> {
@@ -88,6 +112,16 @@ pub async fn generate_gateway_bonding_msg_payload(
     state: tauri::State<'_, WalletState>,
 ) -> Result<String, BackendError> {
     gateway_bonding_msg_payload(gateway, pledge, false, state).await
+}
+
+#[tauri::command]
+pub async fn generate_nym_node_bonding_msg_payload(
+    nym_node: NymNode,
+    cost_params: NodeCostParams,
+    pledge: DecCoin,
+    state: tauri::State<'_, WalletState>,
+) -> Result<String, BackendError> {
+    nym_node_bonding_msg_payload(nym_node, cost_params, pledge, state).await
 }
 
 #[tauri::command]

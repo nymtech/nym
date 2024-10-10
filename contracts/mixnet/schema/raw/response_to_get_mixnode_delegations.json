@@ -54,7 +54,7 @@
         "amount",
         "cumulative_reward_ratio",
         "height",
-        "mix_id",
+        "node_id",
         "owner"
       ],
       "properties": {
@@ -80,8 +80,8 @@
           "format": "uint64",
           "minimum": 0.0
         },
-        "mix_id": {
-          "description": "Id of the MixNode that this delegation was performed against.",
+        "node_id": {
+          "description": "Id of the Node that this delegation was performed against.",
           "type": "integer",
           "format": "uint32",
           "minimum": 0.0

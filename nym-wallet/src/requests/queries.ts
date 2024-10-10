@@ -8,6 +8,7 @@ import {
   RewardEstimationResponse,
   StakeSaturationResponse,
   WrappedDelegationEvent,
+  NymNodeDetails,
 } from '@nymproject/types';
 import { Interval, TGatewayReport, TNodeDescription } from 'src/types';
 import { invokeWrapper } from './wrapper';
@@ -17,6 +18,7 @@ export const getAllPendingDelegations = async () =>
 
 export const getMixnodeBondDetails = async () => invokeWrapper<MixNodeDetails | null>('mixnode_bond_details');
 export const getGatewayBondDetails = async () => invokeWrapper<GatewayBond | null>('gateway_bond_details');
+export const getNymNodeBondDetails = async () => invokeWrapper<NymNodeDetails | null>('nym_node_bond_details');
 export const getMixnodeAvgUptime = async () => invokeWrapper<number | null>('get_mixnode_avg_uptime');
 
 export const getPendingOperatorRewards = async (address: string) =>

@@ -4,6 +4,7 @@
 use crate::support::setup::{MIX_DENOM, REWARDING_VALIDATOR};
 use cosmwasm_std::Decimal;
 use nym_contracts_common::Percent;
+use nym_mixnet_contract_common::reward_params::RewardedSetParams;
 use nym_mixnet_contract_common::InitialRewardingParams;
 use std::time::Duration;
 
@@ -21,8 +22,12 @@ pub fn default_mixnet_init_msg() -> nym_mixnet_contract_common::InstantiateMsg {
             sybil_resistance: Percent::from_percentage_value(30).unwrap(),
             active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
             interval_pool_emission: Percent::from_percentage_value(2).unwrap(),
-            rewarded_set_size: 240,
-            active_set_size: 100,
+            rewarded_set_params: RewardedSetParams {
+                entry_gateways: 70,
+                exit_gateways: 50,
+                mixnodes: 120,
+                standby: 0,
+            },
         },
         profit_margin: Default::default(),
         interval_operating_cost: Default::default(),

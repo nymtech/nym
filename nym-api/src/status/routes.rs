@@ -44,7 +44,7 @@ pub(crate) async fn signer_information(
         identity: signer_state.identity.clone(),
         announce_address: signer_state.announce_address.clone(),
         verification_key: signer_state
-            .coconut_keypair
+            .ecash_keypair
             .verification_key()
             .await
             .map(|maybe_vk| maybe_vk.to_bs58()),

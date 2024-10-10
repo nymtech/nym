@@ -3,13 +3,14 @@
 
 use crate::currency::{DecCoin, RegisteredCoins};
 use crate::error::TypesError;
-use crate::mixnode::MixNodeCostParams;
+use crate::mixnode::NodeCostParams;
+use nym_mixnet_contract_common::reward_params::ActiveSetUpdate;
 use nym_mixnet_contract_common::{
-    BlockHeight, EpochEventId, IntervalEventId, IntervalRewardingParamsUpdate, MixId,
+    BlockHeight, EpochEventId, IntervalEventId, IntervalRewardingParamsUpdate, NodeId,
     PendingEpochEvent as MixnetContractPendingEpochEvent,
     PendingEpochEventKind as MixnetContractPendingEpochEventKind,
     PendingIntervalEvent as MixnetContractPendingIntervalEvent,
-    PendingIntervalEventKind as MixnetContractPendingIntervalEventKind,
+    PendingIntervalEventKind as MixnetContractPendingIntervalEventKind, PendingIntervalEventKind,
 };
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -17,9 +18,12 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingEpochEvent.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingEpochEvent.ts"
+    )
 )]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct PendingEpochEvent {
     pub id: EpochEventId,
     pub created_at: BlockHeight,
@@ -42,34 +46,51 @@ impl PendingEpochEvent {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingEpochEventData.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingEpochEventData.ts"
+    )
 )]
-#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, Eq, JsonSchema)]
+#[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub enum PendingEpochEventData {
     Delegate {
         owner: String,
-        mix_id: MixId,
+        mix_id: NodeId,
         amount: DecCoin,
         proxy: Option<String>,
     },
     Undelegate {
         owner: String,
-        mix_id: MixId,
+        mix_id: NodeId,
         proxy: Option<String>,
     },
     PledgeMore {
-        mix_id: MixId,
+        mix_id: NodeId,
         amount: DecCoin,
     },
     DecreasePledge {
-        mix_id: MixId,
+        mix_id: NodeId,
         decrease_by: DecCoin,
     },
     UnbondMixnode {
-        mix_id: MixId,
+        mix_id: NodeId,
     },
     UpdateActiveSetSize {
         new_size: u32,
+    },
+    NymNodePledgeMore {
+        node_id: NodeId,
+        amount: DecCoin,
+    },
+    NymNodeDecreasePledge {
+        node_id: NodeId,
+        decrease_by: DecCoin,
+    },
+    UnbondNymNode {
+        node_id: NodeId,
+    },
+    UpdateActiveSet {
+        update: ActiveSetUpdate,
     },
 }
 
@@ -81,7 +102,7 @@ impl PendingEpochEventData {
         match pending_event {
             MixnetContractPendingEpochEventKind::Delegate {
                 owner,
-                mix_id,
+                node_id: mix_id,
                 amount,
                 proxy,
                 ..
@@ -93,7 +114,7 @@ impl PendingEpochEventData {
             }),
             MixnetContractPendingEpochEventKind::Undelegate {
                 owner,
-                mix_id,
+                node_id: mix_id,
                 proxy,
                 ..
             } => Ok(PendingEpochEventData::Undelegate {
@@ -101,13 +122,13 @@ impl PendingEpochEventData {
                 mix_id,
                 proxy: proxy.map(|p| p.into_string()),
             }),
-            MixnetContractPendingEpochEventKind::PledgeMore { mix_id, amount } => {
+            MixnetContractPendingEpochEventKind::MixnodePledgeMore { mix_id, amount } => {
                 Ok(PendingEpochEventData::PledgeMore {
                     mix_id,
                     amount: reg.attempt_convert_to_display_dec_coin(amount.into())?,
                 })
             }
-            MixnetContractPendingEpochEventKind::DecreasePledge {
+            MixnetContractPendingEpochEventKind::MixnodeDecreasePledge {
                 mix_id,
                 decrease_by,
             } => Ok(PendingEpochEventData::DecreasePledge {
@@ -117,8 +138,24 @@ impl PendingEpochEventData {
             MixnetContractPendingEpochEventKind::UnbondMixnode { mix_id } => {
                 Ok(PendingEpochEventData::UnbondMixnode { mix_id })
             }
-            MixnetContractPendingEpochEventKind::UpdateActiveSetSize { new_size } => {
-                Ok(PendingEpochEventData::UpdateActiveSetSize { new_size })
+            MixnetContractPendingEpochEventKind::NymNodePledgeMore { node_id, amount } => {
+                Ok(PendingEpochEventData::NymNodePledgeMore {
+                    node_id,
+                    amount: reg.attempt_convert_to_display_dec_coin(amount.into())?,
+                })
+            }
+            MixnetContractPendingEpochEventKind::NymNodeDecreasePledge {
+                node_id,
+                decrease_by,
+            } => Ok(PendingEpochEventData::NymNodeDecreasePledge {
+                node_id,
+                decrease_by: reg.attempt_convert_to_display_dec_coin(decrease_by.into())?,
+            }),
+            MixnetContractPendingEpochEventKind::UnbondNymNode { node_id } => {
+                Ok(PendingEpochEventData::UnbondNymNode { node_id })
+            }
+            MixnetContractPendingEpochEventKind::UpdateActiveSet { update } => {
+                Ok(PendingEpochEventData::UpdateActiveSet { update })
             }
         }
     }
@@ -127,7 +164,10 @@ impl PendingEpochEventData {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingIntervalEvent.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingIntervalEvent.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub struct PendingIntervalEvent {
@@ -155,15 +195,21 @@ impl PendingIntervalEvent {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingIntervalEventData.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingIntervalEventData.ts"
+    )
 )]
 #[derive(Clone, Debug, Deserialize, Serialize, PartialEq, JsonSchema)]
 pub enum PendingIntervalEventData {
     ChangeMixCostParams {
-        mix_id: MixId,
-        new_costs: MixNodeCostParams,
+        mix_id: NodeId,
+        new_costs: NodeCostParams,
     },
-
+    ChangeNymNodeCostParams {
+        node_id: NodeId,
+        new_costs: NodeCostParams,
+    },
     UpdateRewardingParams {
         update: IntervalRewardingParamsUpdate,
     },
@@ -182,7 +228,7 @@ impl PendingIntervalEventData {
             MixnetContractPendingIntervalEventKind::ChangeMixCostParams { mix_id, new_costs } => {
                 Ok(PendingIntervalEventData::ChangeMixCostParams {
                     mix_id,
-                    new_costs: MixNodeCostParams::from_mixnet_contract_mixnode_cost_params(
+                    new_costs: NodeCostParams::from_mixnet_contract_mixnode_cost_params(
                         new_costs, reg,
                     )?,
                 })
@@ -197,6 +243,14 @@ impl PendingIntervalEventData {
                 epochs_in_interval,
                 epoch_duration_secs,
             }),
+            PendingIntervalEventKind::ChangeNymNodeCostParams { node_id, new_costs } => {
+                Ok(PendingIntervalEventData::ChangeNymNodeCostParams {
+                    node_id,
+                    new_costs: NodeCostParams::from_mixnet_contract_mixnode_cost_params(
+                        new_costs, reg,
+                    )?,
+                })
+            }
         }
     }
 }

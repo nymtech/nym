@@ -119,11 +119,11 @@ impl NetworkManager {
         let pub_id = &storage_paths["public_identity_key_file"]
             .as_str()
             .expect("nym-api config serialisation has changed");
-        let ecash = &parsed_config["coconut_signer"]
+        let ecash = &parsed_config["ecash_signer"]
             .as_table()
             .expect("nym-api config serialisation has changed")["storage_paths"]
             .as_table()
-            .expect("nym-api config serialisation has changed")["coconut_key_path"]
+            .expect("nym-api config serialisation has changed")["ecash_key_path"]
             .as_str()
             .expect("nym-api config serialisation has changed");
 

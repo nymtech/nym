@@ -30,9 +30,7 @@ fastrand = { workspace = true }
 
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 nym-http-api-common = { path = "../../common/http-api-common", features = ["utoipa"] }
-nym-node-requests = { path = "../nym-node-requests", default-features = false, features = [
-    "openapi",
-] }
+nym-node-requests = { path = "../nym-node-requests", default-features = false, features = ["openapi"] }
 nym-task = { path = "../../common/task" }
 
 nym-metrics = { path = "../../common/nym-metrics" }

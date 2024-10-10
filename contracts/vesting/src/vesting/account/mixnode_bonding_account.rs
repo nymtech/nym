@@ -8,7 +8,7 @@ use crate::vesting::account::StorableVestingAccountExt;
 use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{wasm_execute, Coin, Env, Response, Storage, Uint128};
 use mixnet_contract_common::mixnode::MixNodeConfigUpdate;
-use mixnet_contract_common::mixnode::MixNodeCostParams;
+use mixnet_contract_common::mixnode::NodeCostParams;
 use mixnet_contract_common::{ExecuteMsg as MixnetExecuteMsg, MixNode};
 use vesting_contract_common::events::{
     new_vesting_decrease_pledge_event, new_vesting_mixnode_bonding_event,
@@ -35,7 +35,7 @@ impl MixnodeBondingAccount for Account {
     fn try_bond_mixnode(
         &self,
         mix_node: MixNode,
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         owner_signature: MessageSignature,
         pledge: Coin,
         env: &Env,
@@ -206,7 +206,7 @@ impl MixnodeBondingAccount for Account {
 
     fn try_update_mixnode_cost_params(
         &self,
-        new_costs: MixNodeCostParams,
+        new_costs: NodeCostParams,
         storage: &mut dyn Storage,
     ) -> Result<Response, VestingContractError> {
         let msg = MixnetExecuteMsg::UpdateMixnodeCostParamsOnBehalf {

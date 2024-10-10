@@ -22,6 +22,10 @@ pub struct RoleAssignment {
 }
 
 impl RoleAssignment {
+    pub fn new(role: Role, nodes: Vec<NodeId>) -> RoleAssignment {
+        RoleAssignment { role, nodes }
+    }
+
     pub fn is_final_assignment(&self) -> bool {
         self.role.is_standby()
     }

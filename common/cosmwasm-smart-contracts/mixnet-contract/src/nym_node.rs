@@ -193,8 +193,6 @@ impl RewardedSetMetadata {
         }
     }
 
-    // important note: this currently does **NOT** include gateway role as they're not being rewarded
-    // and the metadata is primarily used for data lookup during epoch transition
     pub fn highest_rewarded_id(&self) -> NodeId {
         let mut highest = 0;
         if self.layer1_metadata.highest_id > highest {
@@ -205,6 +203,12 @@ impl RewardedSetMetadata {
         }
         if self.layer3_metadata.highest_id > highest {
             highest = self.layer3_metadata.highest_id;
+        }
+        if self.entry_gateway_metadata.highest_id > highest {
+            highest = self.entry_gateway_metadata.highest_id;
+        }
+        if self.exit_gateway_metadata.highest_id > highest {
+            highest = self.exit_gateway_metadata.highest_id;
         }
         if self.standby_metadata.highest_id > highest {
             highest = self.standby_metadata.highest_id;

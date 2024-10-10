@@ -316,7 +316,7 @@ mod tests {
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
             let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
@@ -361,7 +361,7 @@ mod tests {
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
             let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
@@ -391,7 +391,7 @@ mod tests {
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
 
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
@@ -469,7 +469,7 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
             let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
@@ -515,7 +515,7 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
             let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
@@ -547,7 +547,7 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
 
             let mut total_earned = Decimal::zero();
             let dist = test.reward_with_distribution_ignore_state(mix_id, active_params);
@@ -585,7 +585,7 @@ mod tests {
             test.add_immediate_delegation(del2, 150_000_000u32, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
 
             test.skip_to_next_epoch_end();
             test.reward_with_distribution_ignore_state(mix_id, active_params);
@@ -694,7 +694,7 @@ mod tests {
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let sender = mock_info(owner, &[]);
@@ -722,7 +722,7 @@ mod tests {
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let sender = mock_info(owner, &[]);
@@ -748,9 +748,9 @@ mod tests {
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
-            test.force_change_rewarded_set(vec![]);
+            test.force_change_mix_rewarded_set(vec![]);
 
             let res = query_estimated_current_epoch_operator_reward(
                 test.deps(),
@@ -772,7 +772,7 @@ mod tests {
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let res = query_estimated_current_epoch_operator_reward(
@@ -795,7 +795,7 @@ mod tests {
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let mix_rewarding = test.mix_rewarding(mix_id);
@@ -861,7 +861,7 @@ mod tests {
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let res = query_estimated_current_epoch_delegator_reward(
@@ -887,7 +887,7 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let sender = mock_info("mix-owner", &[]);
@@ -918,7 +918,7 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let sender = mock_info("mix-owner", &[]);
@@ -950,9 +950,9 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
-            test.force_change_rewarded_set(vec![]);
+            test.force_change_mix_rewarded_set(vec![]);
 
             let res = query_estimated_current_epoch_delegator_reward(
                 test.deps(),
@@ -978,7 +978,7 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.reward_with_distribution_ignore_state(mix_id, active_params);
 
             let res = query_estimated_current_epoch_delegator_reward(
@@ -1004,7 +1004,7 @@ mod tests {
             test.add_immediate_delegation(owner, initial_stake, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
 
             let mix_rewarding = test.mix_rewarding(mix_id);
             let res = query_estimated_current_epoch_delegator_reward(
@@ -1053,7 +1053,7 @@ mod tests {
             test.add_immediate_delegation(del2, initial_stake2, mix_id);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             let params = test.active_node_params(95.0);
             test.reward_with_distribution_ignore_state(mix_id, params);
 

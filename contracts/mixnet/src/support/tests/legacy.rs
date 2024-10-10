@@ -52,7 +52,7 @@ pub(crate) fn save_new_gateway(
     gateway: Gateway,
     owner: Addr,
     pledge: Coin,
-) -> Result<IdentityKey, MixnetContractError> {
+) -> Result<(IdentityKey, NodeId), MixnetContractError> {
     let gateway_identity = gateway.identity_key.clone();
     let bond = GatewayBond::new(pledge.clone(), owner.clone(), env.block.height, gateway);
 
@@ -61,5 +61,5 @@ pub(crate) fn save_new_gateway(
     let id = next_nymnode_id_counter(storage)?;
     PREASSIGNED_LEGACY_IDS.save(storage, gateway_identity.clone(), &id)?;
 
-    Ok(gateway_identity)
+    Ok((gateway_identity, id))
 }

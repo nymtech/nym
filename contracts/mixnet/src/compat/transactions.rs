@@ -598,7 +598,7 @@ mod tests {
             let node_id = test.add_legacy_mixnode("owner2", None);
             let sender = mock_info("owner2", &[]);
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id]);
+            test.force_change_mix_rewarded_set(vec![node_id]);
             test.start_epoch_transition();
             test.reward_with_distribution(node_id, active_params);
 
@@ -644,7 +644,7 @@ mod tests {
             let node_id = test.add_dummy_nymnode("owner2", None);
             let sender = mock_info("owner2", &[]);
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id]);
+            test.force_change_mix_rewarded_set(vec![node_id]);
             test.start_epoch_transition();
             test.reward_with_distribution(node_id, active_params);
 

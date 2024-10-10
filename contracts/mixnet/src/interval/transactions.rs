@@ -924,7 +924,7 @@ mod tests {
             let mut test = TestSetup::new();
             let rewarding_validator = test.rewarding_validator();
 
-            test.force_change_rewarded_set(vec![1, 2, 3, 4, 5]);
+            test.force_change_mix_rewarded_set(vec![1, 2, 3, 4, 5]);
             test.skip_to_current_epoch_end();
             let env = test.env();
 

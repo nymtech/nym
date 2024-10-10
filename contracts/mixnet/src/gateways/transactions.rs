@@ -8,7 +8,6 @@ use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::helpers::save_new_nymnode_with_id;
 use crate::nodes::transactions::add_nym_node_inner;
 use crate::support::helpers::ensure_epoch_in_progress_state;
-use crate::support::helpers::AttachSendTokens;
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
@@ -16,6 +15,7 @@ use mixnet_contract_common::events::{
 };
 use mixnet_contract_common::gateway::GatewayConfigUpdate;
 use mixnet_contract_common::{Gateway, GatewayBondingPayload, NodeCostParams};
+use nym_contracts_common::helpers::ResponseExt;
 use nym_contracts_common::signing::MessageSignature;
 
 pub(crate) fn try_add_gateway(
@@ -351,7 +351,7 @@ pub mod tests {
         assert_eq!(&Addr::unchecked("bob"), first_node.owner());
 
         // add a node owned by fred
-        let fred_identity = test.add_legacy_gateway("fred", None);
+        let (fred_identity, _) = test.add_legacy_gateway("fred", None);
 
         // let's make sure we now have 2 nodes:
         let nodes = queries::query_gateways_paged(test.deps(), None, None)

@@ -269,7 +269,7 @@ mod tests {
         assert_eq!(res.amount, Uint128::zero());
 
         test.skip_to_next_epoch_end();
-        test.force_change_rewarded_set(vec![mix_id]);
+        test.force_change_mix_rewarded_set(vec![mix_id]);
         let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
         test.skip_to_next_epoch_end();
@@ -309,7 +309,7 @@ mod tests {
         assert_eq!(res.amount, Uint128::zero());
 
         test.skip_to_next_epoch_end();
-        test.force_change_rewarded_set(vec![mix_id]);
+        test.force_change_mix_rewarded_set(vec![mix_id]);
         let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
 
         test.skip_to_next_epoch_end();

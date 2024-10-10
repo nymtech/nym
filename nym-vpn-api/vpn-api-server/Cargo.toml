@@ -1,0 +1,66 @@
+[package]
+name = "nym-vpn-api"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+async-trait.workspace = true
+axum.workspace = true
+anyhow.workspace = true
+bip39 = { workspace = true, features = ["zeroize"] }
+bs58.workspace = true
+cfg-if = { workspace = true }
+colored.workspace = true
+clap = { workspace = true, features = ["derive", "env"] }
+dotenv.workspace = true
+futures.workspace = true
+humantime.workspace = true
+rand.workspace = true
+reqwest = { workspace = true, features = ["rustls-tls"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json.workspace = true
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+strum = { workspace = true, features = ["derive"] }
+strum_macros.workspace = true
+time.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "signal"] }
+tokio-util = { workspace = true, features = ["rt"] }
+tower.workspace = true
+tower-http = { workspace = true, features = ["cors"], optional = true }
+tracing.workspace = true
+url.workspace = true
+uuid = { workspace = true, features = ["serde"] }
+utoipa = { workspace = true, features = ["axum_extras", "time"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+zeroize.workspace = true
+
+nym-bin-common = { workspace = true, features = ["basic_tracing"] }
+nym-compact-ecash = { workspace = true }
+nym-config = { workspace = true }
+nym-crypto = { workspace = true, features = ["asymmetric", "rand", "serde"] }
+nym-credentials = { workspace = true }
+nym-credentials-interface = { workspace = true }
+nym-http-api-common = { workspace = true, features = ["utoipa"] }
+nym-validator-client = { workspace = true }
+nym-network-defaults = { workspace = true }
+
+nym-vpn-api-requests = { path = "../vpn-api-requests", features = ["openapi"] }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+
+[build-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+
+[features]
+default = ["cors"]
+cors = ["tower-http"]

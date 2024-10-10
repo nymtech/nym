@@ -48,11 +48,7 @@ pub mod routes {
                 pub const CURRENT_EPOCH: &str = "/current-epoch";
                 pub const SHARES: &str = "/shares";
 
-                absolute_route!(
-                    obtain_wallet_shares_absolute,
-                    ticketbook_absolute(),
-                    OBTAIN
-                );
+                absolute_route!(obtain_wallet_shares_absolute, ticketbook_absolute(), OBTAIN);
                 absolute_route!(
                     obtain_async_wallet_shares_absolute,
                     ticketbook_absolute(),
@@ -76,7 +72,11 @@ pub mod routes {
                         "/device/:device_id/credential/:credential_id";
 
                     absolute_route!(share_by_id_absolute, shares_absolute(), SHARE_BY_ID);
-                    absolute_route!(share_by_device_and_credential_id_absolute, shares_absolute(), SHARE_BY_DEVICE_AND_CREDENTIAL_ID);
+                    absolute_route!(
+                        share_by_device_and_credential_id_absolute,
+                        shares_absolute(),
+                        SHARE_BY_DEVICE_AND_CREDENTIAL_ID
+                    );
                 }
             }
         }

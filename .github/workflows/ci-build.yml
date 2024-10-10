@@ -87,4 +87,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: clippy
-          args: --workspace --all-targets --features axum -- -D warnings
+          args: --workspace --all-targets -- -D warnings

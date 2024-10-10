@@ -35,6 +35,19 @@ pub struct MixingStats {
     pub dropped_since_last_update: u64,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct SessionStats {
+    #[serde(with = "time::serde::rfc3339")]
+    pub update_time: OffsetDateTime,
+
+    pub unique_active_users: u32,
+
+    pub session_durations: Vec<u32>,
+
+    pub nb_sessions: u32,
+}
+
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct VerlocStats {

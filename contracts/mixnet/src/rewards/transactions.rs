@@ -13,7 +13,6 @@ use crate::rewards::helpers::update_and_save_last_rewarded;
 use crate::rewards::storage::RewardingStorage;
 use crate::support::helpers::{
     ensure_any_node_bonded, ensure_can_advance_epoch, ensure_epoch_in_progress_state,
-    AttachSendTokens,
 };
 use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
@@ -29,6 +28,7 @@ use mixnet_contract_common::reward_params::{
     ActiveSetUpdate, IntervalRewardingParamsUpdate, NodeRewardingParameters,
 };
 use mixnet_contract_common::{Delegation, EpochState, MixNodeDetails, NodeId, NymNodeDetails};
+use nym_contracts_common::helpers::ResponseExt;
 
 pub(crate) fn try_reward_node(
     deps: DepsMut<'_>,
@@ -315,10 +315,51 @@ pub mod tests {
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::support::tests::fixtures::active_set_update_fixture;
     use crate::support::tests::test_helpers;
+    use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::testing::mock_info;
 
+    // a simple wrapper to streamline checking for rewarding results
+    trait TestRewarding {
+        fn execute_rewarding(
+            &mut self,
+            node_id: NodeId,
+            rewarding_params: NodeRewardingParameters,
+        ) -> Result<Response, MixnetContractError>;
+
+        fn assert_rewarding(
+            &mut self,
+            node_id: NodeId,
+            rewarding_params: NodeRewardingParameters,
+        ) -> Response;
+    }
+
+    impl TestRewarding for TestSetup {
+        fn execute_rewarding(
+            &mut self,
+            node_id: NodeId,
+            rewarding_params: NodeRewardingParameters,
+        ) -> Result<Response, MixnetContractError> {
+            let sender = self.rewarding_validator();
+            self.execute_fn(
+                |deps, env, info| try_reward_node(deps, env, info, node_id, rewarding_params),
+                sender,
+            )
+        }
+
+        #[track_caller]
+        fn assert_rewarding(
+            &mut self,
+            node_id: NodeId,
+            rewarding_params: NodeRewardingParameters,
+        ) -> Response {
+            let caller = std::panic::Location::caller();
+            self.execute_rewarding(node_id, rewarding_params)
+                .unwrap_or_else(|err| panic!("{caller} failed with: '{err}' ({err:?})"))
+        }
+    }
+
     #[cfg(test)]
-    mod mixnode_rewarding {
+    mod legacy_mixnode_rewarding {
         use super::*;
         use crate::interval::pending_events;
         use crate::support::tests::test_helpers::{find_attribute, FindAttribute, TestSetup};
@@ -333,46 +374,6 @@ pub mod tests {
         use mixnet_contract_common::reward_params::WorkFactor;
         use mixnet_contract_common::EpochStatus;
 
-        // a simple wrapper to streamline checking for rewarding results
-        trait TestRewarding {
-            fn execute_rewarding(
-                &mut self,
-                node_id: NodeId,
-                rewarding_params: NodeRewardingParameters,
-            ) -> Result<Response, MixnetContractError>;
-
-            fn assert_rewarding(
-                &mut self,
-                node_id: NodeId,
-                rewarding_params: NodeRewardingParameters,
-            ) -> Response;
-        }
-
-        impl TestRewarding for TestSetup {
-            fn execute_rewarding(
-                &mut self,
-                node_id: NodeId,
-                rewarding_params: NodeRewardingParameters,
-            ) -> Result<Response, MixnetContractError> {
-                let sender = self.rewarding_validator();
-                self.execute_fn(
-                    |deps, env, info| try_reward_node(deps, env, info, node_id, rewarding_params),
-                    sender,
-                )
-            }
-
-            #[track_caller]
-            fn assert_rewarding(
-                &mut self,
-                node_id: NodeId,
-                rewarding_params: NodeRewardingParameters,
-            ) -> Response {
-                let caller = std::panic::Location::caller();
-                self.execute_rewarding(node_id, rewarding_params)
-                    .unwrap_or_else(|err| panic!("{caller} failed with: '{err}' ({err:?})"))
-            }
-        }
-
         #[cfg(test)]
         mod epoch_state_is_correctly_updated {
             use super::*;
@@ -386,7 +387,7 @@ pub mod tests {
                     test.add_rewarded_legacy_mixnode("mix-owner-unbonded-leftover", None);
                 let node_id_never_existed = 42;
                 test.skip_to_next_epoch_end();
-                test.force_change_rewarded_set(vec![
+                test.force_change_mix_rewarded_set(vec![
                     node_id_unbonded,
                     node_id_unbonded_leftover,
                     node_id_never_existed,
@@ -460,7 +461,7 @@ pub mod tests {
                 let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
                 test.skip_to_next_epoch_end();
-                test.force_change_rewarded_set(vec![node_id]);
+                test.force_change_mix_rewarded_set(vec![node_id]);
                 test.start_epoch_transition();
 
                 let zero_performance = test.active_node_params(0.);
@@ -479,7 +480,7 @@ pub mod tests {
                 let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
                 test.skip_to_next_epoch_end();
-                test.force_change_rewarded_set(vec![node_id]);
+                test.force_change_mix_rewarded_set(vec![node_id]);
                 test.start_epoch_transition();
 
                 let params = NodeRewardingParameters::new(
@@ -501,7 +502,7 @@ pub mod tests {
                 let node_id = test.add_dummy_nymnode("node-owner", None);
 
                 test.skip_to_next_epoch_end();
-                test.force_change_rewarded_set(vec![node_id]);
+                test.force_change_mix_rewarded_set(vec![node_id]);
                 test.start_epoch_transition();
 
                 let zero_performance = test.active_node_params(0.);
@@ -520,7 +521,7 @@ pub mod tests {
                 let node_id = test.add_dummy_nymnode("mix-owner", None);
 
                 test.skip_to_next_epoch_end();
-                test.force_change_rewarded_set(vec![node_id]);
+                test.force_change_mix_rewarded_set(vec![node_id]);
                 test.start_epoch_transition();
 
                 let params = NodeRewardingParameters::new(
@@ -542,7 +543,7 @@ pub mod tests {
                 let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
                 test.skip_to_next_epoch_end();
-                test.force_change_rewarded_set(vec![node_id]);
+                test.force_change_mix_rewarded_set(vec![node_id]);
                 test.start_epoch_transition();
                 let active_params = test.active_node_params(100.);
 
@@ -566,7 +567,7 @@ pub mod tests {
                 }
 
                 test.skip_to_next_epoch_end();
-                test.force_change_rewarded_set(ids.clone());
+                test.force_change_mix_rewarded_set(ids.clone());
                 test.start_epoch_transition();
                 let active_params = test.active_node_params(100.);
 
@@ -611,7 +612,7 @@ pub mod tests {
                     .unwrap();
 
                 test.skip_to_current_epoch_end();
-                test.force_change_rewarded_set(vec![1, 2, 3]);
+                test.force_change_mix_rewarded_set(vec![1, 2, 3]);
 
                 let res = test.execute_rewarding(1, active_params);
 
@@ -633,7 +634,7 @@ pub mod tests {
             // skip time to when the following epoch is over (since mixnodes are not eligible for rewarding
             // in the same epoch they're bonded and we need the rewarding epoch to be over)
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id]);
+            test.force_change_mix_rewarded_set(vec![node_id]);
             test.start_epoch_transition();
             let params = test.legacy_rewarding_params(node_id, 100.);
 
@@ -656,7 +657,7 @@ pub mod tests {
             let node_id_unbonded_leftover =
                 test.add_rewarded_legacy_mixnode("mix-owner-unbonded-leftover", None);
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![
+            test.force_change_mix_rewarded_set(vec![
                 node_id_unbonded,
                 node_id_unbonded_leftover,
                 node_id_never_existed,
@@ -712,7 +713,7 @@ pub mod tests {
 
             // node is in the active set BUT the current epoch has just begun
             test.skip_to_next_epoch();
-            test.force_change_rewarded_set(vec![node_id]);
+            test.force_change_mix_rewarded_set(vec![node_id]);
 
             let active_params = test.active_node_params(100.);
             let res = test.execute_rewarding(node_id, active_params);
@@ -734,7 +735,7 @@ pub mod tests {
             let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id, 42]);
+            test.force_change_mix_rewarded_set(vec![node_id, 42]);
             test.start_epoch_transition();
             let active_params = test.active_node_params(100.);
 
@@ -762,7 +763,7 @@ pub mod tests {
             let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id, 42]);
+            test.force_change_mix_rewarded_set(vec![node_id, 42]);
             test.start_epoch_transition();
             let zero_perf_params = test.active_node_params(0.);
             let active_params = test.active_node_params(100.);
@@ -800,7 +801,7 @@ pub mod tests {
             let node_id = test.add_rewarded_legacy_mixnode("mix-owner", None);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id, 42]);
+            test.force_change_mix_rewarded_set(vec![node_id, 42]);
             test.start_epoch_transition();
 
             let zero_work_params =
@@ -842,7 +843,7 @@ pub mod tests {
             let node_id3 = test.add_rewarded_legacy_mixnode("mix-owner3", None);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id1, node_id2, node_id3]);
+            test.force_change_mix_rewarded_set(vec![node_id1, node_id2, node_id3]);
             test.start_epoch_transition();
             let params = test.active_node_params(98.0);
 
@@ -908,7 +909,7 @@ pub mod tests {
 
             test.skip_to_next_epoch_end();
             test.start_epoch_transition();
-            test.force_change_rewarded_set(vec![node_id1, node_id2, node_id3]);
+            test.force_change_mix_rewarded_set(vec![node_id1, node_id2, node_id3]);
             let performance = test_helpers::performance(98.0);
 
             test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), node_id2);
@@ -981,7 +982,7 @@ pub mod tests {
             let node_id2 = test.add_rewarded_legacy_mixnode("mix-owner2", Some(operator2));
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id1, node_id2]);
+            test.force_change_mix_rewarded_set(vec![node_id1, node_id2]);
             let performance = test_helpers::performance(98.0);
 
             test.add_immediate_delegation("delegator1", Uint128::new(100_000_000), node_id1);
@@ -1207,12 +1208,305 @@ pub mod tests {
     }
 
     #[cfg(test)]
-    mod gateway_role_rewarding {
+    mod legacy_gateway_rewarding {
         use super::*;
+        use crate::support::tests::test_helpers::FindAttribute;
+        use mixnet_contract_common::events::{BOND_NOT_FOUND_VALUE, NO_REWARD_REASON_KEY};
+        use mixnet_contract_common::nym_node::Role;
+        use mixnet_contract_common::RoleAssignment;
 
         #[test]
-        fn unimplemented() {
-            todo!()
+        fn regardless_of_performance_or_work_they_get_nothing() {
+            let mut test = TestSetup::new();
+            let (_, node_id) = test.add_legacy_gateway("owner", None);
+
+            test.skip_to_next_epoch_end();
+            test.force_assign_rewarded_set(vec![RoleAssignment::new(
+                Role::EntryGateway,
+                vec![node_id],
+            )]);
+            test.start_epoch_transition();
+
+            let rewarding_params = test.active_node_params(100.);
+            let res = test.assert_rewarding(node_id, rewarding_params);
+
+            let reward_attr = res.any_attribute(NO_REWARD_REASON_KEY);
+            assert_eq!(reward_attr, BOND_NOT_FOUND_VALUE);
+
+            // make sure the epoch actually progressed (i.e. unrewarded gateway hasn't stalled it)
+            let current = test.current_epoch_state();
+            assert_eq!(current, EpochState::ReconcilingEvents)
+        }
+    }
+
+    // rewarding for entry gateway, exit gateway and standby nym-nodes
+    #[cfg(test)]
+    mod non_legacy_rewarding {
+        use super::*;
+        use crate::interval::pending_events;
+        use crate::support::tests::test_helpers::FindAttribute;
+        use cosmwasm_std::{Decimal, Uint128};
+        use mixnet_contract_common::events::{
+            BOND_NOT_FOUND_VALUE, NO_REWARD_REASON_KEY, OPERATOR_REWARD_KEY,
+            ZERO_PERFORMANCE_OR_WORK_VALUE,
+        };
+        use mixnet_contract_common::nym_node::Role;
+        use mixnet_contract_common::reward_params::WorkFactor;
+        use mixnet_contract_common::RoleAssignment;
+        use std::collections::HashMap;
+        use std::ops::{Deref, DerefMut};
+
+        struct RewardingSetup {
+            standby_node: NodeId,
+            entry_node: NodeId,
+            exit_node: NodeId,
+            mixing_node: NodeId,
+
+            inner: TestSetup,
+        }
+
+        impl RewardingSetup {
+            pub fn new_rewarding_setup() -> Self {
+                let mut inner = TestSetup::new();
+                let mixing_node = inner.add_dummy_nymnode("mixing-owner", None);
+                let entry_node = inner.add_dummy_nymnode("entry-owner", None);
+                let exit_node = inner.add_dummy_nymnode("exit-owner", None);
+                let standby_node = inner.add_dummy_nymnode("standby-owner", None);
+
+                RewardingSetup {
+                    standby_node,
+                    entry_node,
+                    exit_node,
+                    mixing_node,
+                    inner,
+                }
+            }
+
+            pub fn nodes(&self) -> Vec<NodeId> {
+                vec![
+                    self.mixing_node,
+                    self.entry_node,
+                    self.exit_node,
+                    self.standby_node,
+                ]
+            }
+
+            pub fn reset_rewarded_set(&mut self) {
+                self.inner.force_assign_rewarded_set(vec![
+                    RoleAssignment {
+                        role: Role::Layer1,
+                        nodes: vec![self.mixing_node],
+                    },
+                    RoleAssignment {
+                        role: Role::EntryGateway,
+                        nodes: vec![self.entry_node],
+                    },
+                    RoleAssignment {
+                        role: Role::ExitGateway,
+                        nodes: vec![self.exit_node],
+                    },
+                    RoleAssignment {
+                        role: Role::Standby,
+                        nodes: vec![self.standby_node],
+                    },
+                ]);
+            }
+
+            pub fn local_node_role(&self, node_id: NodeId) -> Role {
+                match node_id {
+                    n if n == self.mixing_node => Role::Layer1,
+                    n if n == self.entry_node => Role::EntryGateway,
+                    n if n == self.exit_node => Role::ExitGateway,
+                    n if n == self.standby_node => Role::Standby,
+                    _ => unreachable!(),
+                }
+            }
+
+            pub fn add_to_rewarded_set(&mut self, node_id: NodeId) {
+                let role = self.local_node_role(node_id);
+                self.inner.force_assign_rewarded_set(vec![RoleAssignment {
+                    role,
+                    nodes: vec![node_id],
+                }])
+            }
+
+            pub fn reward_all(
+                &mut self,
+                performance: f32,
+            ) -> HashMap<NodeId, Result<Response, MixnetContractError>> {
+                let mut results = HashMap::new();
+
+                self.skip_to_next_epoch_end();
+                self.reset_rewarded_set();
+                self.start_epoch_transition();
+
+                let active_params = self.active_node_params(performance);
+                let standby_params = self.standby_node_params(performance);
+
+                let mixing_node = self.mixing_node;
+                let entry_node = self.entry_node;
+                let exit_node = self.exit_node;
+                let standby_node = self.standby_node;
+
+                results.insert(
+                    mixing_node,
+                    self.execute_rewarding(mixing_node, active_params),
+                );
+                results.insert(
+                    entry_node,
+                    self.execute_rewarding(entry_node, active_params),
+                );
+                results.insert(exit_node, self.execute_rewarding(exit_node, active_params));
+                results.insert(
+                    standby_node,
+                    self.execute_rewarding(standby_node, standby_params),
+                );
+
+                results
+            }
+        }
+
+        impl Deref for RewardingSetup {
+            type Target = TestSetup;
+            fn deref(&self) -> &Self::Target {
+                &self.inner
+            }
+        }
+
+        impl DerefMut for RewardingSetup {
+            fn deref_mut(&mut self) -> &mut Self::Target {
+                &mut self.inner
+            }
+        }
+
+        #[test]
+        fn when_target_node_has_zero_performance() {
+            let mut test = RewardingSetup::new_rewarding_setup();
+            let results = test.reward_all(0.);
+            for res in results.into_values() {
+                let reward_attr = res.unwrap().any_attribute(NO_REWARD_REASON_KEY);
+                assert_eq!(reward_attr, ZERO_PERFORMANCE_OR_WORK_VALUE);
+            }
+
+            let current = test.current_epoch_state();
+            assert_eq!(current, EpochState::ReconcilingEvents)
+        }
+
+        #[test]
+        fn when_target_node_has_zero_work_factor() {
+            let mut test = RewardingSetup::new_rewarding_setup();
+
+            test.skip_to_next_epoch_end();
+            test.reset_rewarded_set();
+            test.start_epoch_transition();
+
+            let params =
+                NodeRewardingParameters::new(test_helpers::performance(100.), WorkFactor::zero());
+
+            for node in test.nodes() {
+                let res = test.assert_rewarding(node, params);
+                let reward_attr = res.any_attribute(NO_REWARD_REASON_KEY);
+                assert_eq!(reward_attr, ZERO_PERFORMANCE_OR_WORK_VALUE);
+            }
+
+            let current = test.current_epoch_state();
+            assert_eq!(current, EpochState::ReconcilingEvents)
+        }
+
+        #[test]
+        fn when_theres_only_one_node_to_reward() {
+            let test_lookup = RewardingSetup::new_rewarding_setup();
+
+            for node in test_lookup.nodes() {
+                let mut actual_setup = RewardingSetup::new_rewarding_setup();
+                actual_setup.add_to_rewarded_set(node);
+                let mut res = actual_setup.reward_all(100.);
+
+                // get the response for this particular node
+                let res = res.remove(&node).unwrap().unwrap();
+                let reward: Decimal = res.any_parsed_attribute(OPERATOR_REWARD_KEY);
+                assert!(!reward.is_zero());
+
+                let current = actual_setup.current_epoch_state();
+                assert_eq!(current, EpochState::ReconcilingEvents)
+            }
+        }
+
+        #[test]
+        fn when_theres_multiple_nodes_to_reward() {
+            let mut test = RewardingSetup::new_rewarding_setup();
+            let results = test.reward_all(100.);
+            for res in results.into_values() {
+                let reward: Decimal = res.unwrap().any_parsed_attribute(OPERATOR_REWARD_KEY);
+                assert!(!reward.is_zero());
+            }
+
+            let current = test.current_epoch_state();
+            assert_eq!(current, EpochState::ReconcilingEvents)
+        }
+
+        #[test]
+        fn cant_be_performed_for_unbonded_nodes() {
+            let test_lookup = RewardingSetup::new_rewarding_setup();
+
+            for node in test_lookup.nodes() {
+                let mut actual_setup = RewardingSetup::new_rewarding_setup();
+                actual_setup.add_to_rewarded_set(node);
+
+                let env = actual_setup.env();
+
+                // add some delegations to indicate the rewarding information shouldn't get removed
+                actual_setup.add_immediate_delegation("delegator", Uint128::new(12345678), node);
+                pending_events::unbond_nym_node(actual_setup.deps_mut(), &env, 123, node).unwrap();
+
+                let mut res = actual_setup.reward_all(100.);
+
+                // get the response for this particular node
+                let res = res.remove(&node).unwrap().unwrap();
+                let reward_attr = res.any_attribute(NO_REWARD_REASON_KEY);
+                assert_eq!(reward_attr, BOND_NOT_FOUND_VALUE);
+
+                let current = actual_setup.current_epoch_state();
+                assert_eq!(current, EpochState::ReconcilingEvents)
+            }
+        }
+
+        #[test]
+        fn can_only_be_performed_once_per_node_per_epoch() {
+            let test_lookup = RewardingSetup::new_rewarding_setup();
+
+            let params = test_lookup.active_node_params(100.0);
+            for node in test_lookup.nodes() {
+                let mut actual_setup = RewardingSetup::new_rewarding_setup();
+
+                actual_setup.skip_to_next_epoch_end();
+
+                let extra = actual_setup.add_dummy_nymnode("foomp", None);
+
+                // add extra node to the rewarded set so rewarding wouldn't immediately go into event reconciliation
+                let role = actual_setup.local_node_role(node);
+                actual_setup
+                    .inner
+                    .force_assign_rewarded_set(vec![RoleAssignment {
+                        role,
+                        nodes: vec![node, extra],
+                    }]);
+
+                actual_setup.start_epoch_transition();
+
+                // first rewarding
+                actual_setup.assert_rewarding(node, params);
+
+                // second rewarding
+                let res = actual_setup.execute_rewarding(node, params).unwrap_err();
+                assert_eq!(
+                    res,
+                    MixnetContractError::NodeAlreadyRewarded {
+                        node_id: node,
+                        absolute_epoch_id: 1,
+                    }
+                );
+            }
         }
     }
 
@@ -1220,6 +1514,7 @@ pub mod tests {
     mod withdrawing_delegator_reward {
         use crate::interval::pending_events;
         use crate::support::tests::test_helpers::{assert_eq_with_leeway, TestSetup};
+        use cosmwasm_std::testing::mock_info;
         use cosmwasm_std::{BankMsg, CosmosMsg, Decimal, Uint128};
         use mixnet_contract_common::rewarding::helpers::truncate_reward_amount;
 
@@ -1249,7 +1544,7 @@ pub mod tests {
 
             // perform some rewarding so that we'd have non-zero rewards
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id1, node_id2]);
+            test.force_change_mix_rewarded_set(vec![node_id1, node_id2]);
             test.start_epoch_transition();
             test.reward_with_distribution(node_id1, active_params);
             test.reward_with_distribution(node_id2, active_params);
@@ -1298,7 +1593,7 @@ pub mod tests {
 
             // reward mix1, but don't reward mix2
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id1, low_stake_id]);
+            test.force_change_mix_rewarded_set(vec![node_id1, low_stake_id]);
             test.start_epoch_transition();
             test.reward_with_distribution(node_id1, active_params);
             test.reward_with_distribution(low_stake_id, active_params);
@@ -1337,7 +1632,7 @@ pub mod tests {
 
             let active_params = test.active_node_params(100.);
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id_unbonding, node_id_unbonded_leftover]);
+            test.force_change_mix_rewarded_set(vec![node_id_unbonding, node_id_unbonded_leftover]);
 
             // go through few rewarding cycles before unbonding nodes (partially or fully)
             for _ in 0..10 {
@@ -1416,7 +1711,7 @@ pub mod tests {
 
             let active_params = test.active_node_params(100.);
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id_single, node_id_quad]);
+            test.force_change_mix_rewarded_set(vec![node_id_single, node_id_quad]);
 
             // accumulate some rewards
             let mut accumulated_single = Decimal::zero();
@@ -1577,7 +1872,7 @@ pub mod tests {
             let active_params = test.active_node_params(100.);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id]);
+            test.force_change_mix_rewarded_set(vec![node_id]);
             test.start_epoch_transition();
             test.reward_with_distribution(node_id, active_params);
 
@@ -1606,7 +1901,7 @@ pub mod tests {
 
             // reward mix1, but don't reward mix2
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id1]);
+            test.force_change_mix_rewarded_set(vec![node_id1]);
             test.start_epoch_transition();
             test.reward_with_distribution(node_id1, active_params);
 
@@ -1639,7 +1934,7 @@ pub mod tests {
 
             let active_params = test.active_node_params(100.);
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![node_id_unbonding, node_id_unbonded_leftover]);
+            test.force_change_mix_rewarded_set(vec![node_id_unbonding, node_id_unbonded_leftover]);
 
             // go through few rewarding cycles before unbonding nodes (partially or fully)
             for _ in 0..10 {

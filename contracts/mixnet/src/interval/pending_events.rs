@@ -17,6 +17,7 @@ use mixnet_contract_common::pending_events::{
 };
 use mixnet_contract_common::reward_params::{ActiveSetUpdate, IntervalRewardingParamsUpdate};
 use mixnet_contract_common::{BlockHeight, Delegation, NodeId};
+use nym_contracts_common::helpers::ResponseExt;
 
 use crate::delegations;
 use crate::delegations::storage as delegations_storage;
@@ -28,7 +29,7 @@ use crate::nodes::helpers::{cleanup_post_unbond_nym_node_storage, get_node_detai
 use crate::nodes::storage as nymnodes_storage;
 use crate::rewards::storage as rewards_storage;
 use crate::rewards::storage::RewardingStorage;
-use crate::support::helpers::{ensure_any_node_bonded, AttachSendTokens};
+use crate::support::helpers::ensure_any_node_bonded;
 
 pub(crate) trait ContractExecutableEvent {
     // note: the error only means a HARD error like we failed to read from storage.
@@ -837,7 +838,7 @@ mod tests {
             let active_params = test.active_node_params(100.0);
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
             test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
@@ -911,7 +912,7 @@ mod tests {
             let active_params = test.active_node_params(100.0);
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
             test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
@@ -1001,7 +1002,7 @@ mod tests {
             let active_params = test.active_node_params(100.0);
 
             // perform some rewarding here to advance the unit delegation beyond the initial value
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
             test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
@@ -1135,7 +1136,7 @@ mod tests {
                 .unwrap();
             let active_params = test.active_node_params(100.0);
 
-            test.force_change_rewarded_set(vec![mix_id]);
+            test.force_change_mix_rewarded_set(vec![mix_id]);
             test.skip_to_next_epoch_end();
             let dist1 = test.reward_with_distribution_ignore_state(mix_id, active_params);
             test.skip_to_next_epoch_end();
@@ -1265,7 +1266,7 @@ mod tests {
             test.add_immediate_delegation("carol", 111_111_111u128, mix_id_full_pledge);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_mix_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
             let dist1 = test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
             let dist2 =
@@ -1289,7 +1290,7 @@ mod tests {
             test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id_repledge]);
+            test.force_change_mix_rewarded_set(vec![mix_id_repledge]);
 
             let dist = test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
 
@@ -1327,7 +1328,7 @@ mod tests {
             );
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_mix_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
             // go through few epochs of rewarding
             for _ in 0..500 {
@@ -1356,7 +1357,7 @@ mod tests {
             test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id_repledge]);
+            test.force_change_mix_rewarded_set(vec![mix_id_repledge]);
 
             let mut cumulative_op_reward = Decimal::zero();
             let mut cumulative_del_reward = Decimal::zero();
@@ -1405,7 +1406,7 @@ mod tests {
             );
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_mix_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
             // go through few more epochs of rewarding
             for _ in 0..500 {
@@ -1544,7 +1545,7 @@ mod tests {
             test.add_immediate_delegation("carol", 111_111_111u128, mix_id_full_pledge);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_mix_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
             let dist1 = test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
             let dist2 =
@@ -1568,7 +1569,7 @@ mod tests {
             test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id_repledge]);
+            test.force_change_mix_rewarded_set(vec![mix_id_repledge]);
 
             let dist = test.reward_with_distribution_ignore_state(mix_id_repledge, active_params);
 
@@ -1606,7 +1607,7 @@ mod tests {
             );
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_mix_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
             // go through few epochs of rewarding
             for _ in 0..500 {
@@ -1635,7 +1636,7 @@ mod tests {
             test.add_immediate_delegation("carol", 111_111_111_000u128, mix_id_repledge);
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id_repledge]);
+            test.force_change_mix_rewarded_set(vec![mix_id_repledge]);
 
             let mut cumulative_op_reward = Decimal::zero();
             let mut cumulative_del_reward = Decimal::zero();
@@ -1684,7 +1685,7 @@ mod tests {
             );
 
             test.skip_to_next_epoch_end();
-            test.force_change_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
+            test.force_change_mix_rewarded_set(vec![mix_id_repledge, mix_id_full_pledge]);
 
             // go through few more epochs of rewarding
             for _ in 0..500 {

@@ -159,6 +159,7 @@ pub mod test_helpers {
         pub owner: MessageInfo,
     }
 
+    #[allow(unused)]
     impl TestSetup {
         pub fn new() -> Self {
             let deps = init_contract();
@@ -337,6 +338,12 @@ pub mod test_helpers {
             interval_storage::current_interval(self.deps().storage).unwrap()
         }
 
+        pub fn current_epoch_state(&self) -> EpochState {
+            interval_storage::current_epoch_status(self.deps().storage)
+                .unwrap()
+                .state
+        }
+
         pub fn active_roles_bucket(&self) -> RoleStorageBucket {
             ACTIVE_ROLES_BUCKET.load(self.deps().storage).unwrap()
         }
@@ -395,50 +402,52 @@ pub mod test_helpers {
                 .unwrap();
         }
 
-        pub fn immediately_assign_lowest_mix_layer(&mut self, node_id: NodeId) -> Role {
-            let active_bucket = ACTIVE_ROLES_BUCKET.load(&self.deps.storage).unwrap();
-
-            let mut layer1 = read_assigned_roles(&self.deps.storage, Role::Layer1).unwrap();
-            let mut layer2 = read_assigned_roles(&self.deps.storage, Role::Layer2).unwrap();
-            let mut layer3 = read_assigned_roles(&self.deps.storage, Role::Layer3).unwrap();
+        pub fn lowest_mix_layer(&mut self) -> Role {
+            let layer1 = read_assigned_roles(&self.deps.storage, Role::Layer1).unwrap();
+            let layer2 = read_assigned_roles(&self.deps.storage, Role::Layer2).unwrap();
+            let layer3 = read_assigned_roles(&self.deps.storage, Role::Layer3).unwrap();
             let l1 = layer1.len();
             let l2 = layer2.len();
             let l3 = layer3.len();
 
             if l1 <= l2 && l1 <= l3 {
-                layer1.push(node_id);
-                ROLES
-                    .save(
-                        &mut self.deps.storage,
-                        (active_bucket as u8, Role::Layer1),
-                        &layer1,
-                    )
-                    .unwrap();
-
                 Role::Layer1
             } else if l2 <= l3 && l2 <= l1 {
-                layer2.push(node_id);
-                ROLES
-                    .save(
-                        &mut self.deps.storage,
-                        (active_bucket as u8, Role::Layer2),
-                        &layer2,
-                    )
-                    .unwrap();
-
                 Role::Layer2
             } else {
-                layer3.push(node_id);
-                ROLES
-                    .save(
-                        &mut self.deps.storage,
-                        (active_bucket as u8, Role::Layer3),
-                        &layer3,
-                    )
-                    .unwrap();
-
                 Role::Layer3
             }
+        }
+
+        pub fn immediately_assign_lowest_mix_layer(&mut self, node_id: NodeId) -> Role {
+            let layer = self.lowest_mix_layer();
+            self.immediately_add_to_role(node_id, layer);
+            layer
+        }
+
+        pub fn immediately_add_to_role(&mut self, node_id: NodeId, role: Role) {
+            let active_bucket = ACTIVE_ROLES_BUCKET.load(&self.deps.storage).unwrap();
+            let mut current = read_assigned_roles(self.deps().storage, role).unwrap();
+            current.push(node_id);
+            ROLES
+                .save(
+                    &mut self.deps.storage,
+                    (active_bucket as u8, role),
+                    &current,
+                )
+                .unwrap();
+        }
+
+        pub fn immediately_assign_standby_role(&mut self, node_id: NodeId) {
+            self.immediately_add_to_role(node_id, Role::Standby)
+        }
+
+        pub fn immediately_assign_exit_gateway_role(&mut self, node_id: NodeId) {
+            self.immediately_add_to_role(node_id, Role::ExitGateway)
+        }
+
+        pub fn immediately_assign_entry_gateway_role(&mut self, node_id: NodeId) {
+            self.immediately_add_to_role(node_id, Role::EntryGateway)
         }
 
         pub fn add_rewarded_set_nymnode(
@@ -513,7 +522,7 @@ pub mod test_helpers {
             ensure_no_existing_bond(&info.sender, &self.deps.storage).unwrap();
             signing_storage::increment_signing_nonce(&mut self.deps.storage, info.sender.clone())
                 .unwrap();
-            let node_id = legacy::save_new_mixnode(
+            legacy::save_new_mixnode(
                 &mut self.deps.storage,
                 env,
                 mixnode,
@@ -521,8 +530,38 @@ pub mod test_helpers {
                 info.sender,
                 info.funds[0].clone(),
             )
-            .unwrap();
+            .unwrap()
+        }
 
+        pub fn add_rewarded_mixing_node(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+            let node_id = self.add_dummy_nymnode(owner, stake);
+            self.immediately_assign_lowest_mix_layer(node_id);
+            node_id
+        }
+
+        pub fn add_rewarded_entry_gateway_node(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> NodeId {
+            let node_id = self.add_dummy_nymnode(owner, stake);
+            self.immediately_assign_entry_gateway_role(node_id);
+            node_id
+        }
+
+        pub fn add_rewarded_exit_gateway_node(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> NodeId {
+            let node_id = self.add_dummy_nymnode(owner, stake);
+            self.immediately_assign_exit_gateway_role(node_id);
+            node_id
+        }
+
+        pub fn add_standby_node(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+            let node_id = self.add_dummy_nymnode(owner, stake);
+            self.immediately_assign_standby_role(node_id);
             node_id
         }
 
@@ -537,7 +576,11 @@ pub mod test_helpers {
             node_id
         }
 
-        pub fn add_legacy_gateway(&mut self, sender: &str, stake: Option<Uint128>) -> IdentityKey {
+        pub fn add_legacy_gateway(
+            &mut self,
+            sender: &str,
+            stake: Option<Uint128>,
+        ) -> (IdentityKey, NodeId) {
             let stake = self.make_gateway_pledge(stake);
             let (gateway, _) = self.gateway_with_signature(sender, Some(stake.clone()));
 
@@ -929,7 +972,7 @@ pub mod test_helpers {
         pub fn reset_role_assignment(&mut self) {
             let active_bucket = ACTIVE_ROLES_BUCKET.load(&self.deps.storage).unwrap();
 
-            for role in vec![
+            for role in [
                 Role::EntryGateway,
                 Role::ExitGateway,
                 Role::Layer1,
@@ -943,32 +986,35 @@ pub mod test_helpers {
             }
         }
 
-        // note: this does NOT assign gateway role
-        pub fn force_change_rewarded_set(&mut self, nodes: Vec<NodeId>) {
-            // reset current assignment
+        pub fn force_assign_rewarded_set(&mut self, assignment: Vec<RoleAssignment>) {
             self.reset_role_assignment();
-            let mut roles = HashMap::new();
-            for node in nodes {
-                let role = self.immediately_assign_lowest_mix_layer(node);
-                let assigned = roles.entry(role).or_insert(Vec::new());
-                assigned.push(node)
-            }
 
             // we cheat a bit to write to the 'active' bucket instead
             swap_active_role_bucket(self.deps_mut().storage).unwrap();
+            for role_assignment in assignment {
+                let mut sorted_assignment = role_assignment.clone();
+                sorted_assignment.nodes.sort();
 
-            for (role, assignment) in roles {
-                save_assignment(
-                    self.deps_mut().storage,
-                    RoleAssignment {
-                        role,
-                        nodes: assignment,
-                    },
-                )
-                .unwrap();
+                save_assignment(self.deps_mut().storage, sorted_assignment).unwrap();
+            }
+            swap_active_role_bucket(self.deps_mut().storage).unwrap();
+        }
+
+        // note: this does NOT assign gateway role
+        pub fn force_change_mix_rewarded_set(&mut self, nodes: Vec<NodeId>) {
+            let mut roles = HashMap::new();
+            for node in nodes {
+                let layer = self.lowest_mix_layer();
+                let assigned = roles.entry(layer).or_insert(Vec::new());
+                assigned.push(node)
             }
 
-            swap_active_role_bucket(self.deps_mut().storage).unwrap();
+            let roles = roles
+                .into_iter()
+                .map(|(role, nodes)| RoleAssignment { role, nodes })
+                .collect();
+
+            self.force_assign_rewarded_set(roles)
         }
 
         pub fn instantiate_simulator(&self, node: NodeId) -> Simulator {
@@ -1265,6 +1311,18 @@ pub mod test_helpers {
         where
             E: Into<Option<S>>,
             S: Into<String>;
+
+        fn any_attribute(&self, attribute: &str) -> String {
+            self.attribute::<_, String>(None, attribute)
+        }
+
+        fn any_parsed_attribute<T>(&self, attribute: &str) -> T
+        where
+            T: FromStr,
+            <T as FromStr>::Err: Debug,
+        {
+            self.parsed_attribute::<_, String, T>(None, attribute)
+        }
 
         fn parsed_attribute<E, S, T>(&self, event_type: E, attribute: &str) -> T
         where

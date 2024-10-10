@@ -9,9 +9,8 @@ use crate::ecash::keys::KeyPair;
 use nym_config::defaults::BloomfilterParameters;
 use nym_crypto::asymmetric::identity;
 use nym_ecash_double_spending::DoubleSpendingFilter;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
-use time::{Date, OffsetDateTime};
+use time::Date;
 use tokio::sync::RwLock;
 
 pub(crate) struct TicketDoubleSpendingFilter {
@@ -70,26 +69,11 @@ impl TicketDoubleSpendingFilter {
         self.today_filter.dump_bitmap()
     }
 
-    pub(crate) fn export_global_bitmap(&self) -> Vec<u8> {
-        self.global_filter.dump_bitmap()
-    }
-
     pub(crate) fn advance_day(&mut self, date: Date, new_global: DoubleSpendingFilter) {
         self.built_on = date;
         self.global_filter = new_global;
         self.today_filter.reset();
     }
-}
-
-pub(crate) struct ExportedDoubleSpendingFilterData {
-    pub(crate) last_exported_at: OffsetDateTime,
-    pub(crate) bytes: Vec<u8>,
-}
-
-#[derive(Clone)]
-pub(crate) struct ExportedDoubleSpendingFilter {
-    pub(crate) being_exported: Arc<AtomicBool>,
-    pub(crate) data: Arc<RwLock<ExportedDoubleSpendingFilterData>>,
 }
 
 pub(crate) struct LocalEcashState {
@@ -102,9 +86,6 @@ pub(crate) struct LocalEcashState {
 
     // the actual, up to date, bloomfilter
     pub(crate) double_spending_filter: Arc<RwLock<TicketDoubleSpendingFilter>>,
-
-    // the cached byte representation of the bloomfilter to be used by the clients
-    pub(crate) exported_double_spending_filter: ExportedDoubleSpendingFilter,
 }
 
 impl LocalEcashState {
@@ -118,38 +99,7 @@ impl LocalEcashState {
             identity_keypair,
             partial_coin_index_signatures: Default::default(),
             partial_expiration_date_signatures: Default::default(),
-            exported_double_spending_filter: ExportedDoubleSpendingFilter {
-                being_exported: Arc::new(Default::default()),
-                data: Arc::new(RwLock::new(ExportedDoubleSpendingFilterData {
-                    last_exported_at: OffsetDateTime::now_utc(),
-                    bytes: double_spending_filter.export_global_bitmap(),
-                })),
-            },
             double_spending_filter: Arc::new(RwLock::new(double_spending_filter)),
-        }
-    }
-
-    pub(crate) fn maybe_background_update_exported_bloomfilter(&self) {
-        // make sure another query hasn't already spawned an exporting task
-        let Ok(should_export) = self
-            .exported_double_spending_filter
-            .being_exported
-            .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
-        else {
-            return;
-        };
-
-        let filter = self.double_spending_filter.clone();
-        let exported = self.exported_double_spending_filter.clone();
-
-        if should_export {
-            tokio::spawn(async move {
-                log::debug!("exporting bloomfilter bitmap");
-                let new = filter.read().await.export_global_bitmap();
-                let mut exported_guard = exported.data.write().await;
-                exported_guard.last_exported_at = OffsetDateTime::now_utc();
-                exported_guard.bytes = new;
-            });
         }
     }
 }

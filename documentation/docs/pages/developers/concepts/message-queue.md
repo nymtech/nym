@@ -7,5 +7,3 @@ As such, you need to be careful to keep the process managing your clients alive 
 Accidentally dropping a client before your message has been sent is something that is possible and should be avoided (see the [troubleshooting guide](../rust/mixnet/troubleshooting) for more on this) but is easy to avoid simply by remembering to:
 - keep your client process alive, even if you are not expecting a reply to your message
 - (in the case of the SDKs) properly disconnecting your client in order to make sure that the message queue is flushed of Sphinx packets with actual payloads.
-
-TODO DIAGRAM

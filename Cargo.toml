@@ -125,6 +125,9 @@ members = [
     "nym-node-status-agent",
     "nym-outfox",
     "nym-validator-rewarder",
+    "nym-vpn-api/vpn-api-lib-wasm",
+    "nym-vpn-api/vpn-api-requests",
+    "nym-vpn-api/vpn-api-server",
     "tools/echo-server",
     "tools/internal/ssl-inject",
     # "tools/internal/sdk-version-bump",
@@ -237,6 +240,7 @@ defguard_wireguard_rs = { git = "https://github.com/DefGuard/wireguard-rs.git", 
 digest = "0.10.7"
 dirs = "5.0"
 doc-comment = "0.3"
+dotenv = "0.15.0"
 dotenvy = "0.15.6"
 ecdsa = "0.16"
 ed25519-dalek = "2.1"
@@ -407,7 +411,6 @@ wasm-bindgen = "0.2.95"
 wasm-bindgen-futures = "0.4.45"
 wasmtimer = "0.2.0"
 web-sys = "0.3.72"
-
 
 # Profile settings for individual crates
 

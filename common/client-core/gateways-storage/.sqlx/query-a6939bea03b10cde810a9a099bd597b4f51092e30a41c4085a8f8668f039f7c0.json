@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO remote_gateway_details(gateway_id_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key, gateway_owner_address, gateway_listener)\n                VALUES (?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "a6939bea03b10cde810a9a099bd597b4f51092e30a41c4085a8f8668f039f7c0"
+}

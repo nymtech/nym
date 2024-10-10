@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT OR IGNORE INTO shared_keys(client_id, client_address_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key) VALUES (?, ?, ?, ?);\n\n                UPDATE shared_keys\n                SET\n                    derived_aes128_ctr_blake3_hmac_keys_bs58 = ?,\n                    derived_aes256_gcm_siv_key = ?\n                WHERE client_address_bs58 = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "dd757b04743ab7e80948a60b6ee5ec36e716324498ec2178283a062d5b360464"
+}

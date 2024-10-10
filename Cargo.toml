@@ -397,6 +397,12 @@ web-sys = "0.3.70"
 
 # Profile settings for individual crates
 
+# Compile-time verified queries do quite a bit of work at compile time. Incremental
+#  actions like cargo check and cargo build can be significantly faster when
+# using an optimized build
+[profile.dev.package.sqlx-macros]
+opt-level = 3
+
 [profile.release.package.nym-socks5-listener]
 strip = true
 codegen-units = 1

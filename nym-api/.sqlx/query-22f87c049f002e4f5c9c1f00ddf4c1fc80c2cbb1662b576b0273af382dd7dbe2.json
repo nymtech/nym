@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM partial_bloomfilter WHERE date > ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "22f87c049f002e4f5c9c1f00ddf4c1fc80c2cbb1662b576b0273af382dd7dbe2"
+}

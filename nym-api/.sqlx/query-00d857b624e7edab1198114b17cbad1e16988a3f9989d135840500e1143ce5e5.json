@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT epoch_id as \"epoch_id: u32\", serialised_signatures, serialization_revision as \"serialization_revision: u8\"\n                FROM expiration_date_signatures\n                WHERE expiration_date = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "epoch_id: u32",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "serialised_signatures",
+        "ordinal": 1,
+        "type_info": "Blob"
+      },
+      {
+        "name": "serialization_revision: u8",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "00d857b624e7edab1198114b17cbad1e16988a3f9989d135840500e1143ce5e5"
+}

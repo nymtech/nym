@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE available_bandwidth\n                SET available = available + ?\n                WHERE client_id = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "76b91895b5cd8b4815f4e5b183117c16b6a36c180d9081ab2cce9992792e5a6a"
+}

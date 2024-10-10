@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM verified_tickets WHERE spending_date > ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "fe9c8ec99f8a9c6a41087c870fb9e27a24aada3a8ac681f4f8c7f58941e35502"
+}

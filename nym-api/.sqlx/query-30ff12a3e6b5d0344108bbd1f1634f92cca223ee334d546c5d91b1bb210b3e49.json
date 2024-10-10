@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM gateway_status WHERE timestamp < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "30ff12a3e6b5d0344108bbd1f1634f92cca223ee334d546c5d91b1bb210b3e49"
+}

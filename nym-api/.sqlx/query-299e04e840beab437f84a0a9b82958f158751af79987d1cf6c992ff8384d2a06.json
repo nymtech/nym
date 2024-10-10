@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO partial_coin_index_signatures(epoch_id, serialised_signatures) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "299e04e840beab437f84a0a9b82958f158751af79987d1cf6c992ff8384d2a06"
+}

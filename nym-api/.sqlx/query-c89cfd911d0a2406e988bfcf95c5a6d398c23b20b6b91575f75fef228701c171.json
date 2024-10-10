@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    INSERT OR IGNORE INTO gateway_details_v2(identity, node_id) VALUES (?, ?);\n                    SELECT id FROM gateway_details_v2 WHERE identity = ?;\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c89cfd911d0a2406e988bfcf95c5a6d398c23b20b6b91575f75fef228701c171"
+}

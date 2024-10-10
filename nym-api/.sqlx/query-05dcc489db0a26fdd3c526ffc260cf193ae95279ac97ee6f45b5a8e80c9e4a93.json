@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT DISTINCT identity, owner, id\n                    FROM gateway_details\n                    JOIN gateway_status\n                    ON gateway_details.id = gateway_status.gateway_details_id\n                    WHERE EXISTS (\n                        SELECT 1 FROM gateway_status WHERE timestamp > ? AND timestamp < ?\n                    )\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "identity",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "owner",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "id",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "05dcc489db0a26fdd3c526ffc260cf193ae95279ac97ee6f45b5a8e80c9e4a93"
+}

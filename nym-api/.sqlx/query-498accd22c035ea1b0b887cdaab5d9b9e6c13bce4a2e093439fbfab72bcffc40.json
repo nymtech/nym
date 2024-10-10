@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO mixnode_historical_uptime(mixnode_details_id, date, uptime) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "498accd22c035ea1b0b887cdaab5d9b9e6c13bce4a2e093439fbfab72bcffc40"
+}

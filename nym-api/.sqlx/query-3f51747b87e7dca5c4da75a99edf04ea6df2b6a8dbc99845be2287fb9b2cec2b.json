@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO monitor_run(timestamp) VALUES (?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "3f51747b87e7dca5c4da75a99edf04ea6df2b6a8dbc99845be2287fb9b2cec2b"
+}

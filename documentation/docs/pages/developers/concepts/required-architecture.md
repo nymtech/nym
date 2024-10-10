@@ -16,7 +16,6 @@ That's it - so long as you have a Nym client, you can communicate with other Nym
 config:
   theme: neo-dark
   layout: elk
-title: The 'Black Box' Approach
 ---
 flowchart TB
     subgraph Local Machine[Local Machine]

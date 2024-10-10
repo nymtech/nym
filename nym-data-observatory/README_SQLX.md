@@ -68,6 +68,17 @@ warning: no queries found; do you have the `offline` feature enabled
 ### Possible solutions
 
 - does your `sqlx-cli` version match `sqlx` version from `Cargo.toml`?
+```
+cargo install sqlx-cli --version <exact semver version as sqlx> --force
+```
+- is your crate a library?
+```
+cargo sqlx prepare -- --lib
+```
+- are your `query!` invocations hidden behind a feature?
+```
+cargo sqlx prepare -- --features <feature_name>
+```
 - do you have `offline` cargo feature enabled?
 - make sure to `cargo clean` after these updates
 

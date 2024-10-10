@@ -16,7 +16,11 @@ use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::NodeResult;
 use sqlx::ConnectOptions;
 use std::path::Path;
+<<<<<<< HEAD
 use time::{Date, OffsetDateTime};
+=======
+use time::OffsetDateTime;
+>>>>>>> 16a2aaf6b (resolved first batch of 500 compiler errors)
 use tracing::{error, info, warn};
 
 use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
@@ -434,6 +438,25 @@ impl NymApiStorage {
         }
 
         self.get_average_gateway_reliability_in_time_interval(node_id, start, end)
+            .await
+    }
+
+    pub(crate) async fn get_average_node_uptime_in_time_interval(
+        &self,
+        node_id: NodeId,
+        start: i64,
+        end: i64,
+    ) -> Result<Uptime, NymApiStorageError> {
+        if let Ok(result_as_mix) = self
+            .get_average_mixnode_uptime_in_time_interval(node_id, start, end)
+            .await
+        {
+            if !result_as_mix.is_zero() {
+                return Ok(result_as_mix);
+            }
+        }
+
+        self.get_average_gateway_uptime_in_time_interval(node_id, start, end)
             .await
     }
 

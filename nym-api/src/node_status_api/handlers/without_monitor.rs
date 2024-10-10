@@ -150,6 +150,96 @@ pub(crate) async fn submit_node_monitoring_results(
 
 #[utoipa::path(
     tag = "status",
+    post,
+    path = "/v1/status/submit-gateway-monitoring-results",
+    responses(
+        (status = 200),
+        (status = 400, body = ErrorResponse, description = "TBD"),
+        (status = 403, body = ErrorResponse, description = "TBD"),
+        (status = 500, body = ErrorResponse, description = "TBD"),
+    ),
+)]
+pub(crate) async fn submit_gateway_monitoring_results(
+    State(state): State<AppState>,
+    Json(message): Json<MonitorMessage>,
+) -> AxumResult<()> {
+    if !message.is_in_allowed() {
+        return Err(AxumErrorResponse::forbidden(
+            "Monitor not registered to submit results",
+        ));
+    }
+
+    if !message.timely() {
+        return Err(AxumErrorResponse::bad_request("Message is too old"));
+    }
+
+    if !message.verify() {
+        return Err(AxumErrorResponse::bad_request("invalid signature"));
+    }
+
+    match state
+        .storage
+        .manager
+        .submit_gateway_statuses_v2(message.results())
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            error!("failed to submit gateway monitoring results: {err}");
+            Err(AxumErrorResponse::internal_msg(
+                "failed to submit gateway monitoring results",
+            ))
+        }
+    }
+}
+
+#[utoipa::path(
+    tag = "status",
+    post,
+    path = "/v1/status/submit-node-monitoring-results",
+    responses(
+        (status = 200),
+        (status = 400, body = ErrorResponse, description = "TBD"),
+        (status = 403, body = ErrorResponse, description = "TBD"),
+        (status = 500, body = ErrorResponse, description = "TBD"),
+    ),
+)]
+pub(crate) async fn submit_node_monitoring_results(
+    State(state): State<AppState>,
+    Json(message): Json<MonitorMessage>,
+) -> AxumResult<()> {
+    if !message.is_in_allowed() {
+        return Err(AxumErrorResponse::forbidden(
+            "Monitor not registered to submit results",
+        ));
+    }
+
+    if !message.timely() {
+        return Err(AxumErrorResponse::bad_request("Message is too old"));
+    }
+
+    if !message.verify() {
+        return Err(AxumErrorResponse::bad_request("invalid signature"));
+    }
+
+    match state
+        .storage
+        .manager
+        .submit_mixnode_statuses_v2(message.results())
+        .await
+    {
+        Ok(_) => Ok(()),
+        Err(err) => {
+            error!("failed to submit node monitoring results: {err}");
+            Err(AxumErrorResponse::internal_msg(
+                "failed to submit node monitoring results",
+            ))
+        }
+    }
+}
+
+#[utoipa::path(
+    tag = "status",
     get,
     params(
         MixIdParam

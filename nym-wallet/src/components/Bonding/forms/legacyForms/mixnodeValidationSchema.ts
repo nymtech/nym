@@ -8,7 +8,7 @@ import {
   validateRawPort,
   validateVersion,
 } from 'src/utils';
-import { TauriContractStateParams } from '../../../types';
+import { TauriContractStateParams } from '../../../../types';
 
 export const mixnodeValidationSchema = Yup.object().shape({
   identityKey: Yup.string()

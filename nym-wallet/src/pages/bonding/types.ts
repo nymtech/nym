@@ -1,4 +1,4 @@
-import { DecCoin, MixNodeCostParams, TNodeType, TransactionExecuteResult } from '@nymproject/types';
+import { DecCoin, NodeCostParams, TNodeType, TransactionExecuteResult } from '@nymproject/types';
 import { TPoolOption } from 'src/components';
 
 export type FormStep = 1 | 2 | 3 | 4;
@@ -61,5 +61,5 @@ export interface BondState {
 
 export interface ChangeMixCostParams {
   mix_id: number;
-  new_costs: MixNodeCostParams;
+  new_costs: NodeCostParams;
 }

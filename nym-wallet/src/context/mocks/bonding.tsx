@@ -1,9 +1,10 @@
 import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Network } from 'src/types';
-import { BondingContext, TBondedGateway, TBondedMixnode } from '../bonding';
+import type { Network, TNymNodeSignatureArgs } from 'src/types';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
+import { BondingContext } from '../bonding';
 import { mockSleep } from './utils';
-import { TBondGatewaySignatureArgs, TBondMixnodeSignatureArgs } from '../../types';
 
 const SLEEP_MS = 1000;
 
@@ -30,10 +31,11 @@ const bondedMixnodeMock: TBondedMixnode = {
   version: '1.0.2',
   isUnbonding: false,
   uptime: 1,
+  proxy: null,
+  uncappedStakeSaturation: 100,
 };
 
 const bondedGatewayMock: TBondedGateway = {
-  id: 1,
   name: 'Monster node',
   identityKey: 'WayM2fYbtN6kxMwp1TrmQ4VwPks3URR5pBgWPWhzT98F',
   ip: '112.43.234.57',
@@ -41,17 +43,18 @@ const bondedGatewayMock: TBondedGateway = {
   host: '1.2.34.5 ',
   httpApiPort: 8000,
   mixPort: 1789,
-  verlocPort: 1790,
   version: '1.0.2',
   routingScore: {
     average: 100,
     current: 100,
   },
+  location: 'Germany',
+  proxy: null,
 };
 
 const TxResultMock: TransactionExecuteResult = {
   logs_json: '',
-  data_json: '',
+  msg_responses_json: '',
   transaction_hash: '55303CD4B91FAC4C2715E40EBB52BB3B92829D9431B3A279D37B5CC58432E354',
   gas_info: {
     gas_wanted: { gas_units: BigInt(1) },
@@ -170,15 +173,7 @@ export const MockBondingContextProvider = ({
     return feeMock;
   };
 
-  const generateMixnodeMsgPayload = async (_data: TBondMixnodeSignatureArgs) => {
-    setIsLoading(true);
-    await mockSleep(SLEEP_MS);
-    triggerStateUpdate();
-    setIsLoading(false);
-    return '77dcaba7f41409984f4ebce4a386f59b10f1e65ed5514d1acdccae30174bd84b';
-  };
-
-  const generateGatewayMsgPayload = async (_data: TBondGatewaySignatureArgs) => {
+  const generateNymNodeMsgPayload = async (_data: TNymNodeSignatureArgs) => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
     triggerStateUpdate();
@@ -204,10 +199,10 @@ export const MockBondingContextProvider = ({
       updateMixnode,
       updateBondAmount,
       checkOwnership,
-      generateMixnodeMsgPayload,
-      generateGatewayMsgPayload,
+      generateNymNodeMsgPayload,
       isVestingAccount: false,
       migrateVestedMixnode: async () => undefined,
+      migrateLegacyNode: async () => undefined,
     }),
     [isLoading, error, bondedMixnode, bondedGateway, trigger, fee],
   );

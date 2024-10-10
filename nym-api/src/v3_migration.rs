@@ -16,6 +16,8 @@ pub async fn migrate_v3_database(
         return Ok(());
     }
 
+    return Ok(());
+
     info!(
         "migrating the database to be compatible with the v3 directory. this might take a while..."
     );

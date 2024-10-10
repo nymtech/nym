@@ -9,6 +9,8 @@ mod unstable_routes;
 
 pub(crate) use router::RouterBuilder;
 
+pub(crate) use router::RouterBuilder;
+
 // pub(crate) async fn setup_rocket(
 //     config: &Config,
 //     network_details: NetworkDetails,

@@ -5,7 +5,6 @@ import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { GatewayAmount, GatewayData, Signature } from 'src/pages/bonding/types';
 import GatewayInitForm from './GatewayInitForm';
 import GatewayAmountForm from './GatewayAmountForm';
-import GatewaySignatureForm from './GatewaySignatureForm';
 
 export const BondGatewayForm = ({
   step,
@@ -45,6 +44,5 @@ export const BondGatewayForm = ({
         onNext={onValidateAmountData}
       />
     )}
-    {step === 3 && <GatewaySignatureForm gateway={gatewayData} amount={amountData} onNext={onValidateSignature} />}
   </>
 );

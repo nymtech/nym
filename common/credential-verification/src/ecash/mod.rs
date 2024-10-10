@@ -4,7 +4,6 @@
 use crate::Error;
 use credential_sender::CredentialHandler;
 use credential_sender::CredentialHandlerConfig;
-use double_spending::DoubleSpendingDetector;
 use error::EcashTicketError;
 use futures::channel::mpsc::{self, UnboundedSender};
 use nym_credentials::CredentialSpendingData;
@@ -18,7 +17,6 @@ use tokio::sync::{Mutex, RwLockReadGuard};
 use tracing::error;
 
 pub mod credential_sender;
-pub(crate) mod double_spending;
 pub mod error;
 mod helpers;
 mod state;
@@ -31,7 +29,6 @@ pub struct EcashManager<S> {
     pk_bytes: [u8; 32], // bytes representation of a pub key representing the verifier
     pay_infos: Mutex<Vec<NymPayInfo>>,
     cred_sender: UnboundedSender<ClientTicket>,
-    double_spend_detector: DoubleSpendingDetector<S>,
 }
 
 impl<S> EcashManager<S>
@@ -47,9 +44,6 @@ where
     ) -> Result<Self, Error> {
         let shared_state = SharedState::new(nyxd_client, storage).await?;
 
-        let double_spend_detector = DoubleSpendingDetector::new(shared_state.clone());
-        double_spend_detector.clone().start(shutdown.clone());
-
         let (cred_sender, cred_receiver) = mpsc::unbounded();
 
         let cs =
@@ -62,7 +56,6 @@ where
             pk_bytes,
             pay_infos: Default::default(),
             cred_sender,
-            double_spend_detector,
         })
     }
 
@@ -161,10 +154,6 @@ where
         }
         inner.insert(index, pay_info);
         Ok(())
-    }
-
-    pub async fn check_double_spend(&self, serial_number: &Vec<u8>) -> bool {
-        self.double_spend_detector.check(serial_number).await
     }
 
     pub fn async_verify(&self, ticket: ClientTicket) {

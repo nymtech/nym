@@ -16,10 +16,15 @@ Each of the sub-modules exposed by the `TcpProxy` deal with Nym clients in a dif
 - the `NymProxyClient` creates an ephemeral client per new TCP connection, which is closed according to the configurable timeout: we map one ephemeral client per TCP connection. This is to deal with multiple simultaneous streams. In the future, this will be superceded by a connection pool in order to speed up new connections.
 - the `NymProxyServer` has a single Nym client with a persistent identity.
 
+## Framing
+We are currently relying on the TODO LINK [`tokio::Bytecodec`](https://docs.rs/tokio-util/latest/tokio_util/codec/struct.BytesCodec.html) and [`framedRead`](https://docs.rs/tokio-util/latest/tokio_util/codec/struct.Framed.html) to frame bytes moving through the `NymProxyClient` and `NymProxyServer`.
+
+> For those interested, under the hood the client uses our own [`NymCodec`](https://github.com/nymtech/nym/blob/27ac34522cf0f8bfe1ca265e0b57ee52f2ded0d2/common/nymsphinx/framing/src/codec.rs) to frame message bytes as Sphinx packet payloads.
+
 ## Sessions & Message Ordering
 We have implemented session management and message ordering, where messages are wrapped in a session ID per connection, with individual messages being given an incrememting message ID. Once all the messages have been sent, the `NymProxyClient` then sends a `Close` message as the last outgoing message. This is to notify the `NymProxyServer` that there are no more outbound messages for this session, and that it can trigger the session timeout.
 
-The reason we need to implement session management and message IDs is due to the fact that the Mixnet guarantees message delivery but not message ordering: in the case of trying to e.g. send gRPC protobuf through the Mixnet, ordering is required so that a buffer is not split across Sphinx packet payloads, and that the 2nd half of the frame is not passed upstream to the gRPC parser before the 1st half, even if it is received first.
+> Session management and message IDs are necessary since *the Mixnet guarantees message delivery but not message ordering*: in the case of trying to e.g. send gRPC protobuf through the Mixnet, ordering is required so that a buffer is not split across Sphinx packet payloads, and that the 2nd half of the frame is not passed upstream to the gRPC parser before the 1st half, even if it is received first.
 
 Lets step through a full request/response path between a client process communicating with a remote host via the proxies:
 
@@ -131,8 +136,9 @@ sequenceDiagram
         NymProxyClient->>Client Process: Response bytes
     end
     Note right of NymProxyClient: Note this happens **per session**
-
 ```
+
+After receiving the packets, it can then forward the recoded bytes to the requesting process.
 
 ### Full Flow Diagram
 ```mermaid

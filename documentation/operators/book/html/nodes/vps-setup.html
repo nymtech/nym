@@ -1,0 +1,488 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>VPS Setup - Nym Operators Guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Everything needed to run Nym Mixnet components">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././themes/custom.css">
+        <link rel="stylesheet" href=".././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="../changelog.html"><strong aria-hidden="true">2.</strong> Changelog</a></li><li class="chapter-item "><a href="../release-cycle.html"><strong aria-hidden="true">3.</strong> Release Cycle</a></li><li class="chapter-item "><a href="../sandbox.html"><strong aria-hidden="true">4.</strong> Sandbox Testnet</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Operators Guides</li><li class="chapter-item expanded "><a href="../nodes/preliminary-steps.html"><strong aria-hidden="true">7.</strong> Preliminary Steps</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/wallet-preparation.html"><strong aria-hidden="true">7.1.</strong> Nym Wallet Preparation</a></li><li class="chapter-item expanded "><a href="../nodes/vps-setup.html" class="active"><strong aria-hidden="true">7.2.</strong> VPS Setup</a></li></ol></li><li class="chapter-item "><a href="../nodes/nym-node.html"><strong aria-hidden="true">8.</strong> Nym Node</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/setup.html"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../nodes/configuration.html"><strong aria-hidden="true">8.2.</strong> Configuration</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/proxy-configuration.html"><strong aria-hidden="true">8.2.1.</strong> WSS & Reversed Proxy</a></li></ol></li><li class="chapter-item "><a href="../nodes/bonding.html"><strong aria-hidden="true">8.3.</strong> Bonding</a></li></ol></li><li class="chapter-item "><a href="../nodes/validator-setup.html"><strong aria-hidden="true">9.</strong> Nyx Validator Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/nym-api.html"><strong aria-hidden="true">9.1.</strong> Nym API Setup</a></li><li class="chapter-item "><a href="../nodes/nyx-configuration.html"><strong aria-hidden="true">9.2.</strong> Validator & API Configuration</a></li></ol></li><li class="chapter-item "><a href="../nodes/maintenance.html"><strong aria-hidden="true">10.</strong> Maintenance</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/manual-upgrade.html"><strong aria-hidden="true">10.1.</strong> Manual Node Upgrade</a></li><li class="chapter-item "><a href="../nodes/nymvisor-upgrade.html"><strong aria-hidden="true">10.2.</strong> Automatic Node Upgrade: Nymvisor Setup and Usage</a></li></ol></li><li class="chapter-item "><a href="../testing/performance.html"><strong aria-hidden="true">11.</strong> Performance Monitoring & Testing</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/gateway-probe.html"><strong aria-hidden="true">11.1.</strong> Gateway Probe</a></li><li class="chapter-item "><a href="../testing/node-api-check.html"><strong aria-hidden="true">11.2.</strong> Node API Check</a></li><li class="chapter-item "><a href="../testing/prometheus-grafana.html"><strong aria-hidden="true">11.3.</strong> Prometheus & Grafana</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/explorenym-scripts.html"><strong aria-hidden="true">11.3.1.</strong> ExploreNYM scripts</a></li></ol></li></ol></li><li class="chapter-item "><li class="part-title">Troubleshooting</li><li class="chapter-item "><a href="../troubleshooting/vps-isp.html"><strong aria-hidden="true">12.</strong> VPS Setup</a></li><li class="chapter-item "><a href="../troubleshooting/nodes.html"><strong aria-hidden="true">13.</strong> Nym Node</a></li><li class="chapter-item "><a href="../troubleshooting/validators.html"><strong aria-hidden="true">14.</strong> Validators</a></li><li class="chapter-item affix "><li class="part-title">Token Economics</li><li class="chapter-item "><a href="../tokenomics/validator-rewards.html"><strong aria-hidden="true">15.</strong> Nyx: Validator Rewards</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="../faq/general-faq.html"><strong aria-hidden="true">16.</strong> General Operators FAQ</a></li><li class="chapter-item "><a href="../faq/nym-nodes-faq.html"><strong aria-hidden="true">17.</strong> Nym Nodes</a></li><li class="chapter-item "><a href="../faq/nyx-faq.html"><strong aria-hidden="true">18.</strong> Nyx & Validators</a></li><li class="chapter-item affix "><li class="part-title">Community & Legal Forum</li><li class="chapter-item "><a href="../legal/exit-gateway.html"><strong aria-hidden="true">19.</strong> Exit Gateway</a></li><li class="chapter-item "><a href="../legal/community-counsel.html"><strong aria-hidden="true">20.</strong> Community Counsel</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/isp-list.html"><strong aria-hidden="true">20.1.</strong> ISP List</a></li><li class="chapter-item "><a href="../legal/jurisdictions.html"><strong aria-hidden="true">20.2.</strong> Jurisdictions</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/swiss.html"><strong aria-hidden="true">20.2.1.</strong> Switzerland</a></li><li class="chapter-item "><a href="../legal/united-states.html"><strong aria-hidden="true">20.2.2.</strong> United States</a></li></ol></li><li class="chapter-item "><a href="../legal/landing-pages.html"><strong aria-hidden="true">20.3.</strong> Landing Pages</a></li></ol></li><li class="chapter-item "><a href="../legal/add-content.html"><strong aria-hidden="true">21.</strong> How to Add Info</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="../archive/archive.html"><strong aria-hidden="true">22.</strong> Why archive?</a></li><li class="chapter-item "><a href="../archive/nodes/setup-guides.html"><strong aria-hidden="true">23.</strong> Mixnet Nodes Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../archive/nodes/initial-steps.html"><strong aria-hidden="true">23.1.</strong> Preliminary Steps</a></li><li class="chapter-item "><a href="../archive/nodes/mix-node-setup.html"><strong aria-hidden="true">23.2.</strong> Mix Node</a></li><li class="chapter-item "><a href="../archive/nodes/gateway-setup.html"><strong aria-hidden="true">23.3.</strong> Gateway</a></li><li class="chapter-item "><a href="../archive/nodes/network-requester-setup.html"><strong aria-hidden="true">23.4.</strong> Network Requester</a></li></ol></li><li class="chapter-item "><a href="../archive/faq/mixnodes-faq.html"><strong aria-hidden="true">24.</strong> FAQ: Mix Nodes</a></li><li class="chapter-item "><a href="../archive/faq/smoosh-faq.html"><strong aria-hidden="true">25.</strong> FAQ: Project Smoosh</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../coc.html"><strong aria-hidden="true">26.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../toc.html"><strong aria-hidden="true">27.</strong> Terms & Conditions</a></li><li class="chapter-item "><a href="../licensing.html"><strong aria-hidden="true">28.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Operators Guide</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="vps-setup--configuration"><a class="header" href="#vps-setup--configuration">VPS Setup &amp; Configuration</a></h1>
+<p>We aim for Nym Mixnet to be reliable and quality base layer of privacy accross the globe, while growing as distributed as possible. It’s essential to have a fine tuned machine as a foundation for the nodes to meet the requirements and be rewarded for their work.</p>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info"></a>
+</div>
+<div>
+<p>A suboptimally configured VPS often results in a non-functional node. To follow these steps carefully will save you time and money later on.</p>
+</div>
+</div>
+<h2 id="vps-hardware-specs"><a class="header" href="#vps-hardware-specs">VPS Hardware Specs</a></h2>
+<p>You will need to rent a VPS to run your node on. One key reason for this is that your node <strong>must be able to send TCP data using both IPv4 and IPv6</strong> (as other nodes you talk to may use either protocol).</p>
+<p>Tor community created a very helpful table called <a href="https://community.torproject.org/relay/community-resources/good-bad-isps/"><em>Good Bad ISPs</em></a>, you can use that one as a guideline for your choice of ISP for your VPS.</p>
+<p><strong>Update:</strong> Nym community started an ISP table called <a href="../legal/isp-list.html"><em>Where to host your nym node?</em></a>, check it out and add your findings!</p>
+<h3 id="nym-node"><a class="header" href="#nym-node"><code>nym-node</code></a></h3>
+<p>Before we conclude the testing with exact results, these are the rough specs:</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: left"><strong>Hardware</strong></th><th style="text-align: right"><strong>Minimum Specification</strong> w</th></tr></thead><tbody>
+<tr><td style="text-align: left">CPU Cores</td><td style="text-align: right">4</td></tr>
+<tr><td style="text-align: left">Memory</td><td style="text-align: right">4 GB RAM</td></tr>
+<tr><td style="text-align: left">Storage</td><td style="text-align: right">40 GB</td></tr>
+<tr><td style="text-align: left">Connectivity</td><td style="text-align: right">IPv4, IPv6, TCP/IP, UDP</td></tr>
+<tr><td style="text-align: left">Bandwidth</td><td style="text-align: right">1Tb</td></tr>
+<tr><td style="text-align: left">Port speed</td><td style="text-align: right">1Gbps</td></tr>
+</tbody></table>
+</div>
+<h3 id="nyx-validator"><a class="header" href="#nyx-validator">Nyx validator</a></h3>
+<p>The specification mentioned below is for running a full node alongside the nym-api. It is recommended to run <code>nym-api</code> and a full Nyx node on the same machine for optimum performance.</p>
+<p>Bear in mind that credential signing is primarily CPU-bound, so choose the fastest CPU available to you.</p>
+<h4 id="minimum-requirements"><a class="header" href="#minimum-requirements">Minimum Requirements</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>Hardware</th><th><strong>Minimum Specification</strong></th></tr></thead><tbody>
+<tr><td>CPU</td><td>8-cores, 2.8GHz base clock speed or higher</td></tr>
+<tr><td>RAM</td><td>16GB DDR4+</td></tr>
+<tr><td>Disk</td><td>500 GiB+ NVMe SSD</td></tr>
+</tbody></table>
+</div>
+<h4 id="recommended-requirements"><a class="header" href="#recommended-requirements">Recommended Requirements</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>Hardware</th><th><strong>Minimum Specification</strong></th></tr></thead><tbody>
+<tr><td>CPU</td><td>16-cores, 2.8GHz base clock speed or higher</td></tr>
+<tr><td>RAM</td><td>32GB DDR4+</td></tr>
+<tr><td>Disk</td><td>1 TiB+ NVMe SSD</td></tr>
+</tbody></table>
+</div>
+<h4 id="full-node-configuration-validator"><a class="header" href="#full-node-configuration-validator">Full node configuration (validator)</a></h4>
+<p>To install a full node from scratch, refer to the <a href="validator-setup.html">validator setup guide</a> and follow the steps outlined there.</p>
+<h2 id="vps-configuration"><a class="header" href="#vps-configuration">VPS Configuration</a></h2>
+<p>Before node or validator setup, the VPS needs to be configured and tested, to verify your connectivity and make sure that your provider wasn’t dishonest with the offered services.</p>
+<div id="admonition-info-1" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-1-title">
+<div class="admonition-title">
+<div id="admonition-info-1-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info-1"></a>
+</div>
+<div>
+<p>The commands listed in this chapter must be executed with a prefix <code>sudo</code> or from a root shell.</p>
+</div>
+</div>
+<h3 id="install-dependencies"><a class="header" href="#install-dependencies">Install Dependencies</a></h3>
+<p>SSH to your server as <code>root</code> or become one running <code>sudo -i</code> or <code>su</code>. If you prefer to administrate your VPS from a user environment, supply the commands with prefix <code>sudo</code>.</p>
+<p>Start with setting up the essential tools on your server.</p>
+<pre><code class="language-sh"># get your system up to date
+apt update -y &amp;&amp; apt --fix-broken install
+
+# install dependencies
+apt -y install ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git
+
+# double check ufw is installed correctly
+apt install ufw --fix-missing
+</code></pre>
+<h3 id="configure-your-firewall"><a class="header" href="#configure-your-firewall">Configure your Firewall</a></h3>
+<p>For a <code>nym-node</code> or Nyx validator to recieve traffic, you need to open ports on the server. The following commands will allow you to set up a firewall using <code>ufw</code>.</p>
+<ol>
+<li>Check <code>ufw</code>:</li>
+</ol>
+<pre><code class="language-sh"># check if you have ufw installed
+ufw version
+
+# if it is not installed, install with
+apt install ufw -y
+
+# enable ufw
+ufw enable
+
+# check the status of the firewall
+ufw status
+</code></pre>
+<ol start="2">
+<li>Open all needed ports to have your firewall for <code>nym-node</code> working correctly:</li>
+</ol>
+<pre><code class="language-sh">ufw allow 22/tcp    # SSH - you're in control of these ports
+ufw allow 80/tcp    # HTTP
+ufw allow 443/tcp   # HTTPS
+ufw allow 1789/tcp  # Nym specific
+ufw allow 1790/tcp  # Nym specific
+ufw allow 8080/tcp  # Nym specific - nym-node-api
+ufw allow 9000/tcp  # Nym Specific - clients port
+ufw allow 9001/tcp  # Nym specific - wss port 
+ufw allow 51822/udp # WireGuard
+</code></pre>
+<ul>
+<li>In case of reverse proxy setup add:</li>
+</ul>
+<pre><code class="language-sh">ufw allow 443/tcp
+</code></pre>
+<ul>
+<li>For validator setup open these ports:</li>
+</ul>
+<pre><code class="language-sh">ufw allow 1317,26656,26660,22,80,443/tcp
+</code></pre>
+<ol start="3">
+<li>Check the status of the firewall:</li>
+</ol>
+<pre><code class="language-sh">ufw status
+</code></pre>
+<p>For more information about your node’s port configuration, check the <a href="#ports-reference-table">port reference table</a> below.</p>
+<h2 id="setting-the-ulimit"><a class="header" href="#setting-the-ulimit">Setting the ulimit</a></h2>
+<p>Linux machines limit how many open files a user is allowed to have. This is called a <code>ulimit</code>.</p>
+<p><code>ulimit</code> is 1024 by default on most systems. It needs to be set higher, because Nym Nodes make and receive a lot of connections with each others.</p>
+<p>If you see errors such as:</p>
+<pre><code class="language-sh">Failed to accept incoming connection - Os { code: 24, kind: Other, message: "Too many open files" }
+</code></pre>
+<p>This means that the operating system is preventing network connections from being made.</p>
+<h3 id="set-the-ulimit-via-systemd-service-file"><a class="header" href="#set-the-ulimit-via-systemd-service-file">Set the <code>ulimit</code> via <code>systemd</code> service file</a></h3>
+<blockquote>
+<p><strong>Replace <code>&lt;NODE&gt;</code> variable with the name of your service, for example <code>nym-node</code></strong> as we migrated from <code>nym-mixnode</code>, <code>nym-gateway</code> and <code>nym-network-requester</code>.</p>
+</blockquote>
+<p>The ulimit setup is relevant for maintenance of Nym Node only.</p>
+<p>Query the <code>ulimit</code> of your <code>&lt;NODE&gt;</code> with:</p>
+<pre><code class="language-sh"># for nym-node
+grep -i "open files" /proc/$(ps -A -o pid,cmd|grep &lt;NODE&gt; | grep -v grep |head -n 1 | awk '{print $1}')/limits
+
+# for nyx validator
+grep -i "open files" /proc/$(ps -A -o pid,cmd|grep nymd | grep -v grep |head -n 1 | awk '{print $1}')/limits
+</code></pre>
+<p>You’ll get back the hard and soft limits, which looks something like this:</p>
+<pre><code class="language-sh">Max open files            65536                65536                files
+</code></pre>
+<p>If your output is <strong>the same as above</strong>, your node will not encounter any <code>ulimit</code> related issues.</p>
+<p>However if either value is <code>1024</code>, you must raise the limit via the systemd service file. Add the line:</p>
+<pre><code class="language-sh">LimitNOFILE=65536
+</code></pre>
+<p>Reload the daemon:</p>
+<pre><code class="language-sh">systemctl daemon-reload
+</code></pre>
+<p>or execute this as root for system-wide setting of <code>ulimit</code>:</p>
+<pre><code class="language-sh">echo "DefaultLimitNOFILE=65535" &gt;&gt; /etc/systemd/system.conf
+</code></pre>
+<p>Reboot your server, and restart your node. When it comes back, use:</p>
+<pre><code class="language-sh"># for nym-node
+cat /proc/$(pidof &lt;NODE&gt;)/limits | grep "Max open files"
+
+# for validator
+cat /proc/$(pidof nym-validator)/limits | grep "Max open files"
+</code></pre>
+<p>Make sure the limit has changed to <code>65535</code>.</p>
+<h3 id="set-the-ulimit-on-non-systemd-based-distributions"><a class="header" href="#set-the-ulimit-on-non-systemd-based-distributions">Set the ulimit on <code>non-systemd</code> based distributions</a></h3>
+<p>In case you chose tmux option for Nym Node automation, see your <code>ulimit</code> list by running:</p>
+<pre><code class="language-sh">ulimit -a
+
+# watch for the output line -n
+-n: file descriptors          1024
+</code></pre>
+<p>You can change it either by running a command:</p>
+<pre><code class="language-sh">ulimit -u -n 4096
+</code></pre>
+<p>or editing <code>etc/security/conf</code> and add the following lines:</p>
+<pre><code class="language-sh"># Example hard limit for max opened files
+username        hard nofile 4096
+
+# Example soft limit for max opened files
+username        soft nofile 4096
+</code></pre>
+<p>Then reboot your server and restart your node.</p>
+<h2 id="ports-reference-tables"><a class="header" href="#ports-reference-tables">Ports reference tables</a></h2>
+<p>All node-specific port configuration can be found in <code>$HOME/.nym/&lt;NODE&gt;/&lt;YOUR_ID&gt;/config/config.toml</code>. If you do edit any port configs, remember to restart your client and node processes.</p>
+<h3 id="nym-node-port-reference"><a class="header" href="#nym-node-port-reference">Nym node port reference</a></h3>
+<h4 id="mix-node-functionality-ports"><a class="header" href="#mix-node-functionality-ports">Mix Node functionality ports</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>Default port</th><th>Use</th></tr></thead><tbody>
+<tr><td><code>1789</code></td><td>Listen for Mixnet traffic</td></tr>
+<tr><td><code>1790</code></td><td>Listen for VerLoc traffic</td></tr>
+<tr><td><code>8080</code></td><td>Metrics http API endpoint</td></tr>
+</tbody></table>
+</div>
+<h4 id="gateway-functionality-ports"><a class="header" href="#gateway-functionality-ports">Gateway functionality ports</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>Default port</th><th>Use</th></tr></thead><tbody>
+<tr><td><code>1789</code></td><td>Listen for Mixnet traffic</td></tr>
+<tr><td><code>9000</code></td><td>Listen for Client traffic</td></tr>
+<tr><td><code>9001</code></td><td>WSS</td></tr>
+<tr><td><code>8080, 80, 443</code></td><td>Reversed Proxy &amp; Swagger page</td></tr>
+<tr><td><code>51822/udp</code></td><td>WireGuard</td></tr>
+</tbody></table>
+</div>
+<h4 id="embedded-network-requester-functionality-ports"><a class="header" href="#embedded-network-requester-functionality-ports">Embedded Network Requester functionality ports</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>Default port</th><th>Use</th></tr></thead><tbody>
+<tr><td><code>9000</code></td><td>Listen for Client traffic</td></tr>
+</tbody></table>
+</div>
+<h3 id="validator-port-reference"><a class="header" href="#validator-port-reference">Validator port reference</a></h3>
+<p>All validator-specific port configuration can be found in <code>$HOME/.nymd/config/config.toml</code>. If you do edit any port configs, remember to restart your validator.</p>
+<div class="table-wrapper"><table><thead><tr><th>Default port</th><th>Use</th></tr></thead><tbody>
+<tr><td><code>1317</code></td><td>REST API server endpoint</td></tr>
+<tr><td><code>26656</code></td><td>Listen for incoming peer connections</td></tr>
+<tr><td><code>26660</code></td><td>Listen for Prometheus connections</td></tr>
+</tbody></table>
+</div><footer id="last-change">Last change: 2024-08-13, commit: <a href="https://github.com/nymtech/nym/commit/da8e51362">da8e51362</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../nodes/wallet-preparation.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../nodes/nym-node.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../nodes/wallet-preparation.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../nodes/nym-node.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,466 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Network Requester - Nym Operators Guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Everything needed to run Nym Mixnet components">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././themes/custom.css">
+        <link rel="stylesheet" href="../.././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item "><a href="../../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="../../changelog.html"><strong aria-hidden="true">2.</strong> Changelog</a></li><li class="chapter-item "><a href="../../release-cycle.html"><strong aria-hidden="true">3.</strong> Release Cycle</a></li><li class="chapter-item "><a href="../../sandbox.html"><strong aria-hidden="true">4.</strong> Sandbox Testnet</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="../../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Operators Guides</li><li class="chapter-item "><a href="../../nodes/preliminary-steps.html"><strong aria-hidden="true">7.</strong> Preliminary Steps</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nodes/wallet-preparation.html"><strong aria-hidden="true">7.1.</strong> Nym Wallet Preparation</a></li><li class="chapter-item "><a href="../../nodes/vps-setup.html"><strong aria-hidden="true">7.2.</strong> VPS Setup</a></li></ol></li><li class="chapter-item "><a href="../../nodes/nym-node.html"><strong aria-hidden="true">8.</strong> Nym Node</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nodes/setup.html"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../../nodes/configuration.html"><strong aria-hidden="true">8.2.</strong> Configuration</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nodes/proxy-configuration.html"><strong aria-hidden="true">8.2.1.</strong> WSS & Reversed Proxy</a></li></ol></li><li class="chapter-item "><a href="../../nodes/bonding.html"><strong aria-hidden="true">8.3.</strong> Bonding</a></li></ol></li><li class="chapter-item "><a href="../../nodes/validator-setup.html"><strong aria-hidden="true">9.</strong> Nyx Validator Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nodes/nym-api.html"><strong aria-hidden="true">9.1.</strong> Nym API Setup</a></li><li class="chapter-item "><a href="../../nodes/nyx-configuration.html"><strong aria-hidden="true">9.2.</strong> Validator & API Configuration</a></li></ol></li><li class="chapter-item "><a href="../../nodes/maintenance.html"><strong aria-hidden="true">10.</strong> Maintenance</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nodes/manual-upgrade.html"><strong aria-hidden="true">10.1.</strong> Manual Node Upgrade</a></li><li class="chapter-item "><a href="../../nodes/nymvisor-upgrade.html"><strong aria-hidden="true">10.2.</strong> Automatic Node Upgrade: Nymvisor Setup and Usage</a></li></ol></li><li class="chapter-item "><a href="../../testing/performance.html"><strong aria-hidden="true">11.</strong> Performance Monitoring & Testing</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../testing/gateway-probe.html"><strong aria-hidden="true">11.1.</strong> Gateway Probe</a></li><li class="chapter-item "><a href="../../testing/node-api-check.html"><strong aria-hidden="true">11.2.</strong> Node API Check</a></li><li class="chapter-item "><a href="../../testing/prometheus-grafana.html"><strong aria-hidden="true">11.3.</strong> Prometheus & Grafana</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../testing/explorenym-scripts.html"><strong aria-hidden="true">11.3.1.</strong> ExploreNYM scripts</a></li></ol></li></ol></li><li class="chapter-item "><li class="part-title">Troubleshooting</li><li class="chapter-item "><a href="../../troubleshooting/vps-isp.html"><strong aria-hidden="true">12.</strong> VPS Setup</a></li><li class="chapter-item "><a href="../../troubleshooting/nodes.html"><strong aria-hidden="true">13.</strong> Nym Node</a></li><li class="chapter-item "><a href="../../troubleshooting/validators.html"><strong aria-hidden="true">14.</strong> Validators</a></li><li class="chapter-item affix "><li class="part-title">Token Economics</li><li class="chapter-item "><a href="../../tokenomics/validator-rewards.html"><strong aria-hidden="true">15.</strong> Nyx: Validator Rewards</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="../../faq/general-faq.html"><strong aria-hidden="true">16.</strong> General Operators FAQ</a></li><li class="chapter-item "><a href="../../faq/nym-nodes-faq.html"><strong aria-hidden="true">17.</strong> Nym Nodes</a></li><li class="chapter-item "><a href="../../faq/nyx-faq.html"><strong aria-hidden="true">18.</strong> Nyx & Validators</a></li><li class="chapter-item affix "><li class="part-title">Community & Legal Forum</li><li class="chapter-item "><a href="../../legal/exit-gateway.html"><strong aria-hidden="true">19.</strong> Exit Gateway</a></li><li class="chapter-item "><a href="../../legal/community-counsel.html"><strong aria-hidden="true">20.</strong> Community Counsel</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../legal/isp-list.html"><strong aria-hidden="true">20.1.</strong> ISP List</a></li><li class="chapter-item "><a href="../../legal/jurisdictions.html"><strong aria-hidden="true">20.2.</strong> Jurisdictions</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../legal/swiss.html"><strong aria-hidden="true">20.2.1.</strong> Switzerland</a></li><li class="chapter-item "><a href="../../legal/united-states.html"><strong aria-hidden="true">20.2.2.</strong> United States</a></li></ol></li><li class="chapter-item "><a href="../../legal/landing-pages.html"><strong aria-hidden="true">20.3.</strong> Landing Pages</a></li></ol></li><li class="chapter-item "><a href="../../legal/add-content.html"><strong aria-hidden="true">21.</strong> How to Add Info</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="../../archive/archive.html"><strong aria-hidden="true">22.</strong> Why archive?</a></li><li class="chapter-item expanded "><a href="../../archive/nodes/setup-guides.html"><strong aria-hidden="true">23.</strong> Mixnet Nodes Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../archive/nodes/initial-steps.html"><strong aria-hidden="true">23.1.</strong> Preliminary Steps</a></li><li class="chapter-item "><a href="../../archive/nodes/mix-node-setup.html"><strong aria-hidden="true">23.2.</strong> Mix Node</a></li><li class="chapter-item "><a href="../../archive/nodes/gateway-setup.html"><strong aria-hidden="true">23.3.</strong> Gateway</a></li><li class="chapter-item expanded "><a href="../../archive/nodes/network-requester-setup.html" class="active"><strong aria-hidden="true">23.4.</strong> Network Requester</a></li></ol></li><li class="chapter-item "><a href="../../archive/faq/mixnodes-faq.html"><strong aria-hidden="true">24.</strong> FAQ: Mix Nodes</a></li><li class="chapter-item "><a href="../../archive/faq/smoosh-faq.html"><strong aria-hidden="true">25.</strong> FAQ: Project Smoosh</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../../coc.html"><strong aria-hidden="true">26.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../../toc.html"><strong aria-hidden="true">27.</strong> Terms & Conditions</a></li><li class="chapter-item "><a href="../../licensing.html"><strong aria-hidden="true">28.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Operators Guide</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="network-requester"><a class="header" href="#network-requester">Network Requester</a></h1>
+<div id="admonition-warning" class="admonition admonish-warning" role="note" aria-labelledby="admonition-warning-title">
+<div class="admonition-title">
+<div id="admonition-warning-title">
+<p>Warning</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-warning"></a>
+</div>
+<div>
+<p><strong>This is an archived page for backwards compatibility for existing node operators. To start a new node or migrate, follow the <a href="../../nodes/nym-node.html"><code>nym-node</code> guides</a>.</strong> The content of this page is not updated since April 19th 2024. Eventually this page will be terminated!</p>
+</div>
+</div>
+<blockquote>
+<p>Nym Network Requester was built in the <a href="../../binaries/building-nym.html">building nym</a> section. If you haven’t yet built Nym and want to run the code, go there first.</p>
+</blockquote>
+<blockquote>
+<p>Any syntax in <code>&lt;&gt;</code> brackets is a user’s unique variable. Exchange with a corresponding name without the <code>&lt;&gt;</code> brackets.</p>
+</blockquote>
+<h2 id="current-version"><a class="header" href="#current-version">Current version</a></h2>
+<p>The last version before migration to <a href="../../nodes/nym-node.html"><code>nym-node</code></a> was <code>1.1.33</code>.</p>
+<h2 id="preliminary-steps"><a class="header" href="#preliminary-steps">Preliminary steps</a></h2>
+<p>Make sure you do the preparation listed in the <a href="initial-steps.html">preliminary steps page</a> before setting up your Network Requester.</p>
+<h2 id="network-requester-whitelist"><a class="header" href="#network-requester-whitelist">Network Requester Whitelist</a></h2>
+<p>If you have access to a server, you can run the Network Requester, which allows Nym users to send outbound requests from their local machine through the Mixnet to a server, which then makes the request on their behalf, shielding them (and their metadata) from clearnet, untrusted and unknown infrastructure, such as email or message client servers.</p>
+<p>By default the Network Requester is <strong>not</strong> an open proxy (although it can be used as one). It uses a file called <code>allowed.list</code> (located in <code>~/.nym/service-providers/network-requester/&lt;NETWORK-REQUESTER-ID&gt;/</code>) as a whitelist for outbound requests.</p>
+<p><strong>Note:</strong> If you run Network Requester as a part of the Exit Gateway (suggested setup) the <code>allowed.list</code> will be stored in <code>~/.nym/gateways/&lt;ID&gt;/data/network-requester-data/allowed.list</code>.</p>
+<p>Any request to a URL which is not on this list will be blocked.</p>
+<p>On startup, if this file is not present, the requester will grab the default whitelist from <a href="https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt">Nym’s default list</a> automatically.</p>
+<p>This default whitelist is useful for knowing that the majority of Network Requesters are able to support certain apps ‘out of the box’.</p>
+<p><strong>Operators of a Network Requester are of course free to edit this file and add the URLs of services they wish to support to it!</strong> You can find instructions below on adding your own URLs or IPs to this list.</p>
+<p>The domains and IPs on the default whitelist can be broken down by application as follows:</p>
+<pre><code># Keybase
+keybaseapi.com
+s3.amazonaws.com
+amazonaws.com
+twitter.com
+keybase.io
+gist.githubusercontent.com
+
+# Used to for uptime healthcheck (see the section on testing your requester below for more)
+nymtech.net
+
+# Blockstream Green Bitcoin Wallet
+blockstream.info
+blockstream.com
+greenaddress.it
+
+# Electrum Bitcoin Wallet
+electrum.org
+
+# Helios Ethereum Client
+alchemy.com
+lightclientdata.org
+p2pify.com
+
+# Telegram - these IPs have been copied from https://core.telegram.org/resources/cidr.txt as Telegram does
+# not seem to route by domain as the other apps on this list do
+91.108.56.0/22
+91.108.4.0/22
+91.108.8.0/22
+91.108.16.0/22
+91.108.12.0/22
+149.154.160.0/20
+91.105.192.0/23
+91.108.20.0/22
+185.76.151.0/24
+2001:b28:f23d::/48
+2001:b28:f23f::/48
+2001:67c:4e8::/48
+2001:b28:f23c::/48
+2a0a:f280::/32
+
+# nym matrix server
+nymtech.chat
+
+# generic matrix server backends
+vector.im
+matrix.org
+
+# monero desktop - mainnet
+212.83.175.67
+212.83.172.165
+176.9.0.187
+88.198.163.90
+95.217.25.101
+136.244.105.131
+104.238.221.81
+66.85.74.134
+88.99.173.38
+51.79.173.165
+
+# monero desktop - stagenet
+162.210.173.150
+176.9.0.187
+88.99.173.38
+51.79.173.165
+
+# alephium 
+alephium.org
+
+</code></pre>
+<h2 id="network-requester-directory"><a class="header" href="#network-requester-directory">Network Requester Directory</a></h2>
+<p>You can find a list of Network Requesters running the default whitelist in the <a href="https://explorer.nymtech.net/network-components/service-providers">explorer</a>. This list comprises of the NRs running as infrastructure for NymConnect.</p>
+<blockquote>
+<p>We are currently working on a smart-contract based solution more in line with how Mix Nodes and Gateways announce themselves to the network.</p>
+</blockquote>
+<h2 id="viewing-command-help"><a class="header" href="#viewing-command-help">Viewing command help</a></h2>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info"></a>
+</div>
+<div>
+<p>If you run your Network Requester as a part of your Exit Gateway according to the suggested setup, please skip this part of the page and read about <a href="./gateway-setup.html#initialising-gateway-with-network-requester">Exit Gateway setup</a> instead.</p>
+</div>
+</div>
+<p>To begin, move to <code>/target/release</code> directory from which you run the node commands:</p>
+<pre><code>cd target/release
+</code></pre>
+<p>The <code>./nym-network-requester --help </code> command can be used to show a list of available parameters.</p>
+<p>You can check the required parameters for available commands by running:</p>
+<pre><code>./nym-network-requester &lt;COMMAND&gt; --help
+</code></pre>
+<blockquote>
+<p>Adding <code>--no-banner</code> startup flag will prevent Nym banner being printed even if run in tty environment.</p>
+</blockquote>
+<h2 id="initializing-and-running-your-network-requester"><a class="header" href="#initializing-and-running-your-network-requester">Initializing and running your Network Requester</a></h2>
+<p>The Network Requester needs to be initialized before it can be run. This is required for the embedded nym-client to connect successfully to the Mixnet. We want to specify an <code>&lt;ID&gt;</code> using the <code>--id</code> command and give it a value of your choice. The following command will achieve that:</p>
+<pre><code> ./nym-network-requester init --id &lt;YOUR_ID&gt;
+</code></pre>
+<p>Now that we have initialized our network-requester, we can start it with the following command:</p>
+<pre><code> ./nym-network-requester run --id &lt;YOUR_ID&gt;
+</code></pre>
+<h2 id="using-your-network-requester"><a class="header" href="#using-your-network-requester">Using your Network Requester</a></h2>
+<p>The next thing to do is use your requester, share its address with friends (or whoever you want to help privacy-enhance their app traffic). Is this safe to do? If it was an open proxy, this would be unsafe, because any Nym user could make network requests to any system on the internet.</p>
+<p>To make things a bit less stressful for administrators, the Network Requester drops all incoming requests by default. In order for it to make requests, you need to add specific domains to the <code>allowed.list</code> file at <code>$HOME/.nym/service-providers/network-requester/allowed.list</code> or if Network Requester is ran as a part of <a href="./gateway-setup.html#initialising-gateway-with-network-requester">Exit Gateway</a>, the <code>allowed.list</code> will be stored in <code>~/.nym/gateways/&lt;ID&gt;/data/network-requester-data/allowed.list</code></p>
+<h3 id="global-vs-local-allow-lists"><a class="header" href="#global-vs-local-allow-lists">Global vs local allow lists</a></h3>
+<p>Your Network Requester will check for a domain against 2 lists before allowing traffic through for a particular domain or IP.</p>
+<ul>
+<li>
+<p>The first list is the default list on the <a href="https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt">nymtech.net server</a>. Your Requester will not check against this list every time, but instead will keep a record of accepted domains in memory.</p>
+</li>
+<li>
+<p>The second is the local <code>allowed.list</code> file.</p>
+</li>
+</ul>
+<h3 id="supporting-custom-domains-with-your-network-requester"><a class="header" href="#supporting-custom-domains-with-your-network-requester">Supporting custom domains with your Network Requester</a></h3>
+<p>It is easy to add new domains and services to your Network Requester - simply find out which endpoints (both URLs and raw IP addresses are supported) you need to whitelist, and then add these endpoints to your <code>allowed.list</code>.</p>
+<blockquote>
+<p>In order to keep things more organised, you can now use comments in the <code>allow.list</code> like the example at the top of this page.</p>
+</blockquote>
+<p>How to go about this? Have a look in your <code>nym-network-requester</code> config directory:</p>
+<pre><code># nym-network-requester binary
+ls -lt $HOME/.nym/service-providers/network-requester/*/data | grep "list"
+
+# nym-gateway binary
+ls -lt $HOME/.nym/gateways/*/data/network-requester-data | grep "list"
+
+# returns: allowed.list  unknown.list
+</code></pre>
+<p>We already know that <code>allowed.list</code> is what lets requests go through. All unknown requests are logged to <code>unknown.list</code>. If you want to try using a new client type, just start the new application, point it at your local <a href="https://nymtech.net/docs/clients/socks5-client.html">socks client</a> (configured to use your remote <code>nym-network-requester</code>), and keep copying URLs from <code>unknown.list</code> into <code>allowed.list</code> (it may take multiple tries until you get all of them, depending on the complexity of the application). Make sure to delete the copied ones in <code>unknown.list</code> and restart your Exit Gateway or standalone Network Requester.</p>
+<blockquote>
+<p>If you are adding custom domains, please note that whilst they may appear in the logs of your network-requester as something like <code>api-0.core.keybaseapi.com:443</code>, you <strong>only need</strong> to include the main domain name, in this instance <code>keybaseapi.com</code></p>
+</blockquote>
+<h3 id="running-an-open-proxy"><a class="header" href="#running-an-open-proxy">Running an open proxy</a></h3>
+<p>If you <em>really</em> want to run an open proxy, perhaps for testing purposes for your own use or among a small group of trusted friends, it is possible to do so. You can disable Network checks by passing the flag <code>--open-proxy</code> flag when you run it. If you run in this configuration, you do so at your own risk.</p>
+<h2 id="testing-your-network-requester"><a class="header" href="#testing-your-network-requester">Testing your Network Requester</a></h2>
+<ol>
+<li>
+<p>Make sure <code>nymtech.net</code> is in your <code>allowed.list</code> (remember to restart your Network Requester).</p>
+</li>
+<li>
+<p>Ensure that your <code>nym-network-requester</code> is initialized and running.</p>
+</li>
+<li>
+<p>In another terminal window, run the following:</p>
+</li>
+</ol>
+<pre><code>curl -x socks5h://localhost:1080 https://nymtech.net/.wellknown/connect/healthcheck.json
+</code></pre>
+<p>This command should return the following:</p>
+<pre><code>{ "status": "ok" }
+</code></pre>
+<footer id="last-change">Last change: 2024-04-24, commit: <a href="https://github.com/nymtech/nym/commit/c53b46ee1">c53b46ee1</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../archive/nodes/gateway-setup.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../../archive/faq/mixnodes-faq.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../archive/nodes/gateway-setup.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../../archive/faq/mixnodes-faq.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../.././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

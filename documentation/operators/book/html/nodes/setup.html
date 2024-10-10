@@ -1,0 +1,677 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Setup &amp; Run - Nym Operators Guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Everything needed to run Nym Mixnet components">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././themes/custom.css">
+        <link rel="stylesheet" href=".././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="../changelog.html"><strong aria-hidden="true">2.</strong> Changelog</a></li><li class="chapter-item "><a href="../release-cycle.html"><strong aria-hidden="true">3.</strong> Release Cycle</a></li><li class="chapter-item "><a href="../sandbox.html"><strong aria-hidden="true">4.</strong> Sandbox Testnet</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Operators Guides</li><li class="chapter-item "><a href="../nodes/preliminary-steps.html"><strong aria-hidden="true">7.</strong> Preliminary Steps</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/wallet-preparation.html"><strong aria-hidden="true">7.1.</strong> Nym Wallet Preparation</a></li><li class="chapter-item "><a href="../nodes/vps-setup.html"><strong aria-hidden="true">7.2.</strong> VPS Setup</a></li></ol></li><li class="chapter-item expanded "><a href="../nodes/nym-node.html"><strong aria-hidden="true">8.</strong> Nym Node</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../nodes/setup.html" class="active"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../nodes/configuration.html"><strong aria-hidden="true">8.2.</strong> Configuration</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/proxy-configuration.html"><strong aria-hidden="true">8.2.1.</strong> WSS & Reversed Proxy</a></li></ol></li><li class="chapter-item "><a href="../nodes/bonding.html"><strong aria-hidden="true">8.3.</strong> Bonding</a></li></ol></li><li class="chapter-item "><a href="../nodes/validator-setup.html"><strong aria-hidden="true">9.</strong> Nyx Validator Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/nym-api.html"><strong aria-hidden="true">9.1.</strong> Nym API Setup</a></li><li class="chapter-item "><a href="../nodes/nyx-configuration.html"><strong aria-hidden="true">9.2.</strong> Validator & API Configuration</a></li></ol></li><li class="chapter-item "><a href="../nodes/maintenance.html"><strong aria-hidden="true">10.</strong> Maintenance</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/manual-upgrade.html"><strong aria-hidden="true">10.1.</strong> Manual Node Upgrade</a></li><li class="chapter-item "><a href="../nodes/nymvisor-upgrade.html"><strong aria-hidden="true">10.2.</strong> Automatic Node Upgrade: Nymvisor Setup and Usage</a></li></ol></li><li class="chapter-item "><a href="../testing/performance.html"><strong aria-hidden="true">11.</strong> Performance Monitoring & Testing</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/gateway-probe.html"><strong aria-hidden="true">11.1.</strong> Gateway Probe</a></li><li class="chapter-item "><a href="../testing/node-api-check.html"><strong aria-hidden="true">11.2.</strong> Node API Check</a></li><li class="chapter-item "><a href="../testing/prometheus-grafana.html"><strong aria-hidden="true">11.3.</strong> Prometheus & Grafana</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/explorenym-scripts.html"><strong aria-hidden="true">11.3.1.</strong> ExploreNYM scripts</a></li></ol></li></ol></li><li class="chapter-item "><li class="part-title">Troubleshooting</li><li class="chapter-item "><a href="../troubleshooting/vps-isp.html"><strong aria-hidden="true">12.</strong> VPS Setup</a></li><li class="chapter-item "><a href="../troubleshooting/nodes.html"><strong aria-hidden="true">13.</strong> Nym Node</a></li><li class="chapter-item "><a href="../troubleshooting/validators.html"><strong aria-hidden="true">14.</strong> Validators</a></li><li class="chapter-item affix "><li class="part-title">Token Economics</li><li class="chapter-item "><a href="../tokenomics/validator-rewards.html"><strong aria-hidden="true">15.</strong> Nyx: Validator Rewards</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="../faq/general-faq.html"><strong aria-hidden="true">16.</strong> General Operators FAQ</a></li><li class="chapter-item "><a href="../faq/nym-nodes-faq.html"><strong aria-hidden="true">17.</strong> Nym Nodes</a></li><li class="chapter-item "><a href="../faq/nyx-faq.html"><strong aria-hidden="true">18.</strong> Nyx & Validators</a></li><li class="chapter-item affix "><li class="part-title">Community & Legal Forum</li><li class="chapter-item "><a href="../legal/exit-gateway.html"><strong aria-hidden="true">19.</strong> Exit Gateway</a></li><li class="chapter-item "><a href="../legal/community-counsel.html"><strong aria-hidden="true">20.</strong> Community Counsel</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/isp-list.html"><strong aria-hidden="true">20.1.</strong> ISP List</a></li><li class="chapter-item "><a href="../legal/jurisdictions.html"><strong aria-hidden="true">20.2.</strong> Jurisdictions</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/swiss.html"><strong aria-hidden="true">20.2.1.</strong> Switzerland</a></li><li class="chapter-item "><a href="../legal/united-states.html"><strong aria-hidden="true">20.2.2.</strong> United States</a></li></ol></li><li class="chapter-item "><a href="../legal/landing-pages.html"><strong aria-hidden="true">20.3.</strong> Landing Pages</a></li></ol></li><li class="chapter-item "><a href="../legal/add-content.html"><strong aria-hidden="true">21.</strong> How to Add Info</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="../archive/archive.html"><strong aria-hidden="true">22.</strong> Why archive?</a></li><li class="chapter-item "><a href="../archive/nodes/setup-guides.html"><strong aria-hidden="true">23.</strong> Mixnet Nodes Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../archive/nodes/initial-steps.html"><strong aria-hidden="true">23.1.</strong> Preliminary Steps</a></li><li class="chapter-item "><a href="../archive/nodes/mix-node-setup.html"><strong aria-hidden="true">23.2.</strong> Mix Node</a></li><li class="chapter-item "><a href="../archive/nodes/gateway-setup.html"><strong aria-hidden="true">23.3.</strong> Gateway</a></li><li class="chapter-item "><a href="../archive/nodes/network-requester-setup.html"><strong aria-hidden="true">23.4.</strong> Network Requester</a></li></ol></li><li class="chapter-item "><a href="../archive/faq/mixnodes-faq.html"><strong aria-hidden="true">24.</strong> FAQ: Mix Nodes</a></li><li class="chapter-item "><a href="../archive/faq/smoosh-faq.html"><strong aria-hidden="true">25.</strong> FAQ: Project Smoosh</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../coc.html"><strong aria-hidden="true">26.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../toc.html"><strong aria-hidden="true">27.</strong> Terms & Conditions</a></li><li class="chapter-item "><a href="../licensing.html"><strong aria-hidden="true">28.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Operators Guide</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="nym-node-setup--run"><a class="header" href="#nym-node-setup--run">Nym Node Setup &amp; Run</a></h1>
+<p>This documentation page provides a guide on how to set up and run a <a href="nym-node.html">NYM NODE</a>, along with explanations of available flags, commands, and examples.</p>
+<h2 id="current-version"><a class="header" href="#current-version">Current version</a></h2>
+<pre><code>nym-node 
+Binary Name:        nym-node
+Build Timestamp:    2024-09-06T08:45:16.313081654Z
+Build Version:      1.1.6
+Commit SHA:         3d200db722beab850ee7c80704ff4463817af9d7
+Commit Date:        2024-08-06T17:14:17.000000000+02:00
+Commit Branch:      master
+rustc Version:      1.80.1
+rustc Channel:      stable
+cargo Profile:      release
+
+</code></pre>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info"></a>
+</div>
+<div>
+<p><strong>Migrating an existing node to a new <code>nym-node</code> is simple. The steps are documented <a href="#migrate">below</a>.</strong></p>
+</div>
+</div>
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
+<div class="admonition-title">
+<div id="admonition-note-title">
+<p>Note</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-note"></a>
+</div>
+<div>
+<p>If you are a <code>nym-mixnode</code> or <code>nym-gateway</code> operator and you are not familiar with the binary changes called <em>Project Smoosh</em>, you can read the archived <a href="../archive/faq/smoosh-faq.html">Smoosh FAQ</a> page.</p>
+</div>
+</div>
+<h2 id="summary"><a class="header" href="#summary">Summary</a></h2>
+<blockquote>
+<p>Any syntax in <code>&lt;&gt;</code> brackets is a user’s unique variable. Exchange with a corresponding name without the <code>&lt;&gt;</code> brackets.</p>
+</blockquote>
+<p>To run a new node, you can simply execute the <code>nym-node</code> command without any flags. By default, the node will set necessary configurations. If you later decide to change a setting, you can use the <code>-w</code> flag.</p>
+<p>The most crucial aspect of running the node is specifying the <code>--mode</code>, which can be one of three: <code>mixnode</code>, <code>entry-gateway</code>, and <code>exit-gateway</code>.</p>
+<p>Currently the <code>nym-node</code> binary can only be run in a single <code>--mode</code> at any one time. In the future however, operators will be able to specify multiple modes that a single <code>nym-node</code> binary can run. Our goal is to have as many nodes as possible enabling multiple modes, and allow the Nym API to position the node according the network’s needs in the beginning of each epoch.</p>
+<p>Every <code>exit-gateway</code> mode is basically an <code>entry-gateway</code> with NR (Network Requester) and IPR (IP Packet Router) enabled. This means that every <code>exit-gateway</code> is automatically seen as an <code>entry-gateway</code> but not the opposite.</p>
+<p>Gateway operators can check out the node performance, connectivity and much more in our new tool <a href="https://harbourmaster.nymtech.net/">harbourmaster.nymtech.net</a>.</p>
+<p>To determine which mode your node is running, you can check the <code>:8080/api/v1/roles</code> endpoint. For example:</p>
+<pre><code class="language-sh"># sustitude &lt;NODE_IP_ADDRESS&gt; or &lt;NODE_DOMAIN&gt; with a real one
+# for http
+http://&lt;NODE_IP_ADDRESS&gt;:8080/api/v1/roles
+# or
+http://&lt;NODE_IP_ADDRESS&gt;/api/v1/roles
+
+# for reversed proxy/WSS
+https://&lt;NODE_DOMAIN&gt;/api/v1/roles
+</code></pre>
+<p>Everything necessary will exist on your node by default. For instance, if you’re running a mixnode, you’ll find that a NR (Network Requester) and IPR (IP Packet Router) address exist, but they will be ignored in <code>mixnode</code> mode.</p>
+<p>For more information about available endpoints and their status, you can refer to:</p>
+<pre><code class="language-sh"># sustitude &lt;NODE_IP_ADDRESS&gt; or &lt;NODE_DOMAIN&gt; with a real one
+# for http
+http://&lt;NODE_IP_ADDRESS&gt;:8080/api/v1/swagger/#/
+# or
+http://&lt;NODE_IP_ADDRESS&gt;/api/v1/swagger/#/
+
+# for reversed proxy/WSS
+https://&lt;NODE_DOMAIN&gt;/api/v1/swagger/#/
+</code></pre>
+<h2 id="usage"><a class="header" href="#usage">Usage</a></h2>
+<h3 id="help-command"><a class="header" href="#help-command">Help Command</a></h3>
+<p>There are a few changes from the individual binaries used in the past. For example by default <code>run</code> command does <code>init</code> function as well, local node <code>--id</code> will be set by default unless specified otherwise etcetera.</p>
+<div id="admonition-info-1" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-1-title">
+<div class="admonition-title">
+<div id="admonition-info-1-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info-1"></a>
+</div>
+<div>
+<p>You can always use <code>--help</code> flag to see the commands or arguments associated with a given command.</p>
+</div>
+</div>
+<p>Run <code>./nym-node --help</code> to see all available commands:</p>
+<details id="admonition-nym-node---help-output" class="admonition admonish-example" role="note" aria-labelledby="admonition-nym-node---help-output-title">
+<summary class="admonition-title">
+<div id="admonition-nym-node---help-output-title">
+<p><code>./nym-node --help</code> output:</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-nym-node---help-output"></a>
+</summary>
+<div>
+<pre><code>Usage: nym-node [OPTIONS] &lt;COMMAND&gt;
+
+Commands:
+  build-info           Show build information of this binary
+  bonding-information  Show bonding information of this node depending on its currently selected mode
+  node-details         Show details of this node
+  migrate              Attempt to migrate an existing mixnode or gateway into a nym-node
+  run                  Start this nym-node
+  sign                 Use identity key of this node to sign provided message
+  help                 Print this message or the help of the given subcommand(s)
+
+Options:
+  -c, --config-env-file &lt;CONFIG_ENV_FILE&gt;
+          Path pointing to an env file that configures the nym-node and overrides any preconfigured values [env: NYMNODE_CONFIG_ENV_FILE_ARG=]
+      --no-banner
+          Flag used for disabling the printed banner in tty [env: NYMNODE_NO_BANNER=]
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+</code></pre>
+</div>
+</details>
+<p>To list all available flags for each command, run <code>./nym-node &lt;COMMAND&gt; --help</code> for example <code>./nym-node run --help</code>:</p>
+<details id="admonition-nym-node-run---help-output" class="admonition admonish-example" role="note" aria-labelledby="admonition-nym-node-run---help-output-title">
+<summary class="admonition-title">
+<div id="admonition-nym-node-run---help-output-title">
+<p><code>./nym-node run --help</code> output:</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-nym-node-run---help-output"></a>
+</summary>
+<div>
+<pre><code>Start this nym-node
+
+Usage: nym-node run [OPTIONS]
+
+Options:
+      --id &lt;ID&gt;
+          Id of the nym-node to use [env: NYMNODE_ID=] [default: default-nym-node]
+      --config-file &lt;CONFIG_FILE&gt;
+          Path to a configuration file of this node [env: NYMNODE_CONFIG=]
+      --accept-operator-terms-and-conditions
+          Explicitly specify whether you agree with the terms and conditions of a nym node operator as defined at &lt;https://nymtech.net/terms-and-conditions/operators/v1.0.0&gt; [env: NYMNODE_ACCEPT_OPERATOR_TERMS=]
+      --deny-init
+          Forbid a new node from being initialised if configuration file for the provided specification doesn't already exist [env: NYMNODE_DENY_INIT=]
+      --init-only
+          If this is a brand new nym-node, specify whether it should only be initialised without actually running the subprocesses [env: NYMNODE_INIT_ONLY=]
+      --local
+          Flag specifying this node will be running in a local setting [env: NYMNODE_LOCAL=]
+      --mode &lt;MODE&gt;
+          Specifies the current mode of this nym-node [env: NYMNODE_MODE=] [possible values: mixnode, entry-gateway, exit-gateway]
+  -w, --write-changes
+          If this node has been initialised before, specify whether to write any new changes to the config file [env: NYMNODE_WRITE_CONFIG_CHANGES=]
+      --bonding-information-output &lt;BONDING_INFORMATION_OUTPUT&gt;
+          Specify output file for bonding information of this nym-node, i.e. its encoded keys. NOTE: the required bonding information is still a subject to change and this argument should be treated only as a preview of future features [env: NYMNODE_BONDING_INFORMATION_OUTPUT=]
+  -o, --output &lt;OUTPUT&gt;
+          Specify the output format of the bonding information (`text` or `json`) [env: NYMNODE_OUTPUT=] [default: text] [possible values: text, json]
+      --public-ips &lt;PUBLIC_IPS&gt;
+          Comma separated list of public ip addresses that will be announced to the nym-api and subsequently to the clients. In nearly all circumstances, it's going to be identical to the address you're going to use for bonding [env: NYMNODE_PUBLIC_IPS=]
+      --hostname &lt;HOSTNAME&gt;
+          Optional hostname associated with this gateway that will be announced to the nym-api and subsequently to the clients [env: NYMNODE_HOSTNAME=]
+      --location &lt;LOCATION&gt;
+          Optional **physical** location of this node's server. Either full country name (e.g. 'Poland'), two-letter alpha2 (e.g. 'PL'), three-letter alpha3 (e.g. 'POL') or three-digit numeric-3 (e.g. '616') can be provided [env: NYMNODE_LOCATION=]
+      --http-bind-address &lt;HTTP_BIND_ADDRESS&gt;
+          Socket address this node will use for binding its http API. default: `0.0.0.0:8080` [env: NYMNODE_HTTP_BIND_ADDRESS=]
+      --landing-page-assets-path &lt;LANDING_PAGE_ASSETS_PATH&gt;
+          Path to assets directory of custom landing page of this node [env: NYMNODE_HTTP_LANDING_ASSETS=]
+      --http-access-token &lt;HTTP_ACCESS_TOKEN&gt;
+          An optional bearer token for accessing certain http endpoints. Currently only used for prometheus metrics [env: NYMNODE_HTTP_ACCESS_TOKEN=]
+      --expose-system-info &lt;EXPOSE_SYSTEM_INFO&gt;
+          Specify whether basic system information should be exposed. default: true [env: NYMNODE_HTTP_EXPOSE_SYSTEM_INFO=] [possible values: true, false]
+      --expose-system-hardware &lt;EXPOSE_SYSTEM_HARDWARE&gt;
+          Specify whether basic system hardware information should be exposed. default: true [env: NYMNODE_HTTP_EXPOSE_SYSTEM_HARDWARE=] [possible values: true, false]
+      --expose-crypto-hardware &lt;EXPOSE_CRYPTO_HARDWARE&gt;
+          Specify whether detailed system crypto hardware information should be exposed. default: true [env: NYMNODE_HTTP_EXPOSE_CRYPTO_HARDWARE=] [possible values: true, false]
+      --mixnet-bind-address &lt;MIXNET_BIND_ADDRESS&gt;
+          Address this node will bind to for listening for mixnet packets default: `0.0.0.0:1789` [env: NYMNODE_MIXNET_BIND_ADDRESS=]
+      --nym-api-urls &lt;NYM_API_URLS&gt;
+          Addresses to nym APIs from which the node gets the view of the network [env: NYMNODE_NYM_APIS=]
+      --nyxd-urls &lt;NYXD_URLS&gt;
+          Addresses to nyxd chain endpoint which the node will use for chain interactions [env: NYMNODE_NYXD=]
+      --wireguard-enabled &lt;WIREGUARD_ENABLED&gt;
+          Specifies whether the wireguard service is enabled on this node [env: NYMNODE_WG_ENABLED=] [possible values: true, false]
+      --wireguard-bind-address &lt;WIREGUARD_BIND_ADDRESS&gt;
+          Socket address this node will use for binding its wireguard interface. default: `0.0.0.0:51822` [env: NYMNODE_WG_BIND_ADDRESS=]
+      --wireguard-private-ip &lt;WIREGUARD_PRIVATE_IP&gt;
+          Private IP address of the wireguard gateway. default: `10.1.0.1` [env: NYMNODE_WG_IP=]
+      --wireguard-announced-port &lt;WIREGUARD_ANNOUNCED_PORT&gt;
+          Port announced to external clients wishing to connect to the wireguard interface. Useful in the instances where the node is behind a proxy [env: NYMNODE_WG_ANNOUNCED_PORT=]
+      --wireguard-private-network-prefix &lt;WIREGUARD_PRIVATE_NETWORK_PREFIX&gt;
+          The prefix denoting the maximum number of the clients that can be connected via Wireguard. The maximum value for IPv4 is 32 and for IPv6 is 128 [env: NYMNODE_WG_PRIVATE_NETWORK_PREFIX=]
+      --verloc-bind-address &lt;VERLOC_BIND_ADDRESS&gt;
+          Socket address this node will use for binding its verloc API. default: `0.0.0.0:1790` [env: NYMNODE_VERLOC_BIND_ADDRESS=]
+      --entry-bind-address &lt;ENTRY_BIND_ADDRESS&gt;
+          Socket address this node will use for binding its client websocket API. default: `0.0.0.0:9000` [env: NYMNODE_ENTRY_BIND_ADDRESS=]
+      --announce-ws-port &lt;ANNOUNCE_WS_PORT&gt;
+          Custom announced port for listening for websocket client traffic. If unspecified, the value from the `bind_address` will be used instead [env: NYMNODE_ENTRY_ANNOUNCE_WS_PORT=]
+      --announce-wss-port &lt;ANNOUNCE_WSS_PORT&gt;
+          If applicable, announced port for listening for secure websocket client traffic [env: NYMNODE_ENTRY_ANNOUNCE_WSS_PORT=]
+      --enforce-zk-nyms &lt;ENFORCE_ZK_NYMS&gt;
+          Indicates whether this gateway is accepting only coconut credentials for accessing the mixnet or if it also accepts non-paying clients [env: NYMNODE_ENFORCE_ZK_NYMS=] [possible values: true, false]
+      --mnemonic &lt;MNEMONIC&gt;
+          Custom cosmos wallet mnemonic used for zk-nym redemption. If no value is provided, a fresh mnemonic is going to be generated [env: NYMNODE_MNEMONIC=]
+      --upstream-exit-policy-url &lt;UPSTREAM_EXIT_POLICY_URL&gt;
+          Specifies the url for an upstream source of the exit policy used by this node [env: NYMNODE_UPSTREAM_EXIT_POLICY=]
+      --open-proxy &lt;OPEN_PROXY&gt;
+          Specifies whether this exit node should run in 'open-proxy' mode and thus would attempt to resolve **ANY** request it receives [env: NYMNODE_OPEN_PROXY=] [possible values: true, false]
+  -h, --help
+          Print help
+</code></pre>
+</div>
+</details>
+<div id="admonition-warning" class="admonition admonish-warning" role="note" aria-labelledby="admonition-warning-title">
+<div class="admonition-title">
+<div id="admonition-warning-title">
+<p>Warning</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-warning"></a>
+</div>
+<div>
+<p>The Wireguard flags currently have limited functionality. From version <code>1.1.6</code> (<a href="https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck"><code>v2024.9-topdeck</code></a>) wireguard is available and recommended to be switched on for nodes running as Gateways. Keep in mind that this option needs a bit of a special <a href="configuration.html#wireguard-setup">configuration</a>.</p>
+</div>
+</div>
+<h3 id="terms--conditions"><a class="header" href="#terms--conditions">Terms &amp; Conditions</a></h3>
+<div id="admonition-info-2" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-2-title">
+<div class="admonition-title">
+<div id="admonition-info-2-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info-2"></a>
+</div>
+<div>
+<p>From <code>nym-node</code> version <code>1.1.3</code> onward is required to accept <a href="https://nymtech.net/terms-and-conditions/operators/v1.0.0"><strong>Operators Terms &amp; Conditions</strong></a> in order to be part of the active set. Make sure to read them before you add the flag.</p>
+</div>
+</div>
+<p>There has been a long ongoing discussion whether and how to apply Terms and Conditions for Nym network operators, with an aim to stay aligned with the philosophy of Free Software and provide legal defense for both node operators and Nym developers. To understand better the reasoning behind this decision, you can listen to the first <a href="https://www.youtube.com/live/7hwb8bAZIuc?si=3mQ2ed7AyUA1SsCp&amp;t=915">Nym Operator Town Hall</a> introducing the T&amp;Cs or to <a href="https://www.youtube.com/watch?v=yIN-zYQw0I0">Operator AMA with CEO Harry Halpin</a> from June 4th, 2024, explaining pros and cons of T&amp;Cs implementation.</p>
+<p>Accepting T&amp;Cs is done via a flag <code>--accept-operator-terms-and-conditions</code> added explicitly to <code>nym-node run</code> command every time. If you use <a href="configuration.html#systemd">systemd</a> automation, add the flag to your service file’s <code>ExecStart</code> line.</p>
+<p>To check whether any node has T&amp;Cs accepted or not can be done by querying Swagger API endpoint <code>/auxiliary_details</code> via one of these ports (depending on node setup):</p>
+<pre><code class="language-sh"># sustitude &lt;NODE_IP_ADDRESS&gt; or &lt;NODE_DOMAIN&gt; with a real one
+http://&lt;NODE_IP_ADDRESS&gt;:8080/api/v1/auxiliary_details
+https://&lt;NODE_DOMAIN&gt;/api/v1/auxiliary_details
+http://&lt;NODE_IP_ADDRESS&gt;/api/v1/auxiliary_details
+</code></pre>
+<details id="admonition-example-of-auxiliary_details-query" class="admonition admonish-example" role="note" aria-labelledby="admonition-example-of-auxiliary_details-query-title">
+<summary class="admonition-title">
+<div id="admonition-example-of-auxiliary_details-query-title">
+<p>Example of <code>/auxiliary_details</code> query</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-example-of-auxiliary_details-query"></a>
+</summary>
+<div>
+<pre><code class="language-sh"># substitude &lt;NODE_IP_ADDRESS&gt; with a real one
+curl -X 'GET' \
+  'http://&lt;NODE_IP_ADDRESS&gt;:8080/api/v1/auxiliary-details' \
+  -H 'accept: application/json'
+
+{
+  "location": "Kurdistan",
+  "accepted_operator_terms_and_conditions": true
+}
+</code></pre>
+</div>
+</details>
+<h3 id="commands--examples"><a class="header" href="#commands--examples">Commands &amp; Examples</a></h3>
+<p><strong><code>nym-node</code> introduces a default human readible ID (local only) <code>default-nym-node</code>, which is used if there is not an explicit custom <code>--id &lt;ID&gt;</code> specified. All configuration is stored in <code>~/.nym/nym-nodes/default-nym-node/config/config.toml</code> or <code>~/.nym/nym-nodes/&lt;ID&gt;/config/config.toml</code> respectively.</strong></p>
+<div id="admonition-info-3" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-3-title">
+<div class="admonition-title">
+<div id="admonition-info-3-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info-3"></a>
+</div>
+<div>
+<p>All commands with more options listed below include <code>--accept-operator-terms-and-conditions</code> flag, read <a href="#terms--conditions">Terms &amp; Conditions</a> chapter above before executing these commands.</p>
+</div>
+</div>
+<h3 id="initialise--run"><a class="header" href="#initialise--run">Initialise &amp; Run</a></h3>
+<p>When we use <code>run</code> command the node will do <code>init</code> as well, unless we specify with a flag <code>--deny-init</code>. Below are some examples of initialising and running <code>nym-node</code> with different modes (<code>--mode</code>) like <code>mixnode</code>, <code>entry-gateway</code>, <code>exit-gateway</code>.</p>
+<p>Please keep in mind that currently you can run only one functionality (<code>--mode</code>) per a <code>nym-node</code> instance. We are yet to finalise implement the multi-functionality solution under one node bonded to one Nyx account. Every <code>exit-gateway</code> can function as <code>entry-gateway</code> by default, not vice versa.</p>
+<p>There is a simple default command to initialise and run your node: <code>./nym-node  run  --mode &lt;MODE&gt;</code>, however there quite a few parameters to be configured. When <code>nym-node</code> gets to be <code>run</code>, these parameters are read by the binary from the configuration file located at <code>.nym/nym-nodes/&lt;ID&gt;/config/config.toml</code>.</p>
+<p>If an operator specifies any paramteres with optional flags alongside <code>run</code> command, these parameters passed in the option will take place over the ones in <code>config.toml</code> but they will not overwrite them by default. To overwrite them with the values passed with <code>run</code> command, a flag <code>-w</code> (<code>--write-changes</code>)  must be added.</p>
+<p>Alternatively operators can just open a text editor and change these values manually. After saving the file,don’t forget to restart the node or reload and restart the service. If all values are setup correctly in <code>config.toml</code>, then operator can use as simple command as <code>nym-node run --mode &lt;MODE&gt; --accept-operators-terms-and-conditions</code>, or alternatively paste this command with a correct path to your binary to your <code>ExecStart</code> line into a <a href="configuration.html#systemd">systemd <code>nym-node.service</code></a> config file.</p>
+<div id="admonition-default" class="admonition admonish-success" role="note">
+<div>
+<p><strong>We recommend operators to setup an <a href="configuration.html#systemd">automation</a> flow for their nodes, using systemd!</strong></p>
+<p>In such case, you can <code>run</code> a node to initalise it or try if everything works, but then stop the proces and paste your entire <code>run</code> command syntax (below) to the <code>ExecStart</code> line of your <code>/etc/systemd/system/nym-node.service</code> and start the node as a <a href="configuration.html#following-steps-for-nym-nodes-running-as-systemd-service">service</a>.</p>
+</div>
+</div>
+<h4 id="essential-parameters--variables"><a class="header" href="#essential-parameters--variables">Essential Parameters &amp; Variables</a></h4>
+<p>Running a <code>nym-node</code> in a <code>mixnode</code> mode requires less configuration than a full <code>exit-gateway</code> setup, we recommend operators to still follow through with all documented <a href="configuration.html">configuration</a>. Before you scroll down to syntax examples for the mode of your choice: <a href="#mode-miznode"><code>mixnode</code></a>, <a href="#mode-exit-gateway"><code>exit-gateway</code></a>, or <a href="#mode-entry-gateway">`entry-gateway</a>, please familiarise yourself with the essential paramters and variables convention we use in the guide.</p>
+<p>Substitute any variables in <code>&lt;&gt;</code> brackets your own value, without <code>&lt;&gt;</code> brackets. Here is a list of important options and variables.</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: left">Flag (Option)</th><th style="text-align: left">Variable</th><th style="text-align: left">Description</th><th style="text-align: left">Syntax example</th></tr></thead><tbody>
+<tr><td style="text-align: left"><code>--mode</code></td><td style="text-align: left"><code>&lt;MODE&gt;</code></td><td style="text-align: left">A functionality of your <code>nym-node</code> in the mixnet - mandatory! Chose from <code>entry-gateway</code>, <code>mixnode</code> or <code>exit-gateway</code></td><td style="text-align: left"><code>--mode exit-gateway</code></td></tr>
+<tr><td style="text-align: left"><code>--id</code></td><td style="text-align: left"><code>&lt;ID&gt;</code></td><td style="text-align: left">A local only <code>nym-node</code> identifier, specified by flag <code>--id</code>. Not mandatory as it defaults to <code>default-nym-node</code> if not specified.</td><td style="text-align: left"><code>--id alice_super_node</code></td></tr>
+<tr><td style="text-align: left"><code>-w</code> or <code>--write-changes</code></td><td style="text-align: left"><em>none</em></td><td style="text-align: left">Specify whether to write new changes - the values of other flags in the given command - to the config file</td><td style="text-align: left"><code>--write-changes</code></td></tr>
+<tr><td style="text-align: left"><code>--accept-operator-terms-and-conditions</code></td><td style="text-align: left"><em>none</em></td><td style="text-align: left">A flag added explicitly to <code>nym-node run</code> command every time, showing that the operator agreed with <a href="#terms--conditions">T&amp;Cs</a></td><td style="text-align: left"><code>--accept-operator-terms-and-conditions</code></td></tr>
+<tr><td style="text-align: left"><code>--public-ips</code></td><td style="text-align: left"><code>&lt;PUBLIC_IPS&gt;</code></td><td style="text-align: left">IPv4 of the <code>nym-node</code> server - mandatory! Use this address as a <code>host</code> value for bonding.Use this address as a <code>host</code> value for bonding.</td><td style="text-align: left"><code>--public-ips "$(curl -4 https://ifconfig.me)"</code></td></tr>
+<tr><td style="text-align: left"><code>--mixnet-bind-address</code></td><td style="text-align: left"><code>&lt;MIXNET_BIND_ADDRESS&gt;</code></td><td style="text-align: left">Address to bind to for listening for mixnet packets - mandatory! Must be on port <code>1789</code>!</td><td style="text-align: left"><code>--mixnet-bind-address 0.0.0.0:1789</code></td></tr>
+<tr><td style="text-align: left"><code>--http-bind-address</code></td><td style="text-align: left"><code>&lt;HTTP_BIND_ADDRESS&gt;</code></td><td style="text-align: left">Socket address this node will use for binding its http API - mandatory! Must be on port <code>8080</code>!</td><td style="text-align: left"><code>--http-bind-address 0.0.0.0:8080</code></td></tr>
+<tr><td style="text-align: left"><code>--hostname</code></td><td style="text-align: left"><code>&lt;HOSTNAME&gt;</code></td><td style="text-align: left">Your registered DNS domain, asigned to the VPS with <code>nym-node</code>. Use without prefix like <code>http://</code> or <code>https://</code></td><td style="text-align: left"><code>exit-gateway1.squad.nsl</code></td></tr>
+<tr><td style="text-align: left"><code>--location</code></td><td style="text-align: left"><code>&lt;LOCATION&gt;</code></td><td style="text-align: left">Loacation of your node. Formats like ‘Jamaica’,  or two-letter alpha2 (e.g. ‘JM’), three-letter alpha3 (e.g. ‘JAM’) or three-digit numeric-3 (e.g. ‘388’) can be provided.</td><td style="text-align: left"><code>--location JAM</code></td></tr>
+<tr><td style="text-align: left"><code>--wireguard-private-ip</code></td><td style="text-align: left"><code>&lt;WIREGUARD_PRIVATE_IP&gt;</code></td><td style="text-align: left">Private IP address of the wireguard gateway. This mandatory field is set to a correct default: <code>10.1.0.1</code>, operators upgrading from older versions must overwrite it.</td><td style="text-align: left"><code>--wireguard-private-ip 10.1.0.1</code></td></tr>
+<tr><td style="text-align: left"><code>--wireguard-enabled</code></td><td style="text-align: left"><code>&lt;WIREGUARD_ENABLED&gt;</code></td><td style="text-align: left">Specifies whether the wireguard service is enabled, possible values: <code>true</code> or <code>false</code> - <code>true</code> is recommended</td><td style="text-align: left"><code>--wireguard-enabled true</code></td></tr>
+<tr><td style="text-align: left"><code>--expose-system-info</code></td><td style="text-align: left"><code>&lt;EXPOSE_SYSTEM_INFO&gt;</code></td><td style="text-align: left">Specify whether basic system information should be exposed. default: <code>true</code>, possible values: <code>true</code> or <code>false</code></td><td style="text-align: left"><code>--expose-system-info false</code></td></tr>
+<tr><td style="text-align: left"><code>--expose-system-hardware</code></td><td style="text-align: left"><code>&lt;EXPOSE_SYSTEM_HARDWARE&gt;</code></td><td style="text-align: left">Specify whether basic system hardware information should be exposed. default: <code>true</code>, possible values: <code>true</code> or <code>false</code></td><td style="text-align: left"><code>--expose-system-hardware false</code></td></tr>
+<tr><td style="text-align: left"><em>not a flag</em></td><td style="text-align: left"><code>&lt;PATH_TO&gt;</code></td><td style="text-align: left">Specify a full path to the given file, directory or binary behind this variable</td><td style="text-align: left"><code>/root/src/nym/target/release/</code></td></tr>
+</tbody></table>
+</div><div id="admonition-note-1" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-1-title">
+<div class="admonition-title">
+<div id="admonition-note-1-title">
+<p>Note</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-note-1"></a>
+</div>
+<div>
+<p>To prevent over-flooding of our documentation we cannot provide with every single command syntax as there is a large combination of possibilities. Please use a common sense and the explanation in <code>--help</code> option.</p>
+</div>
+</div>
+<h4 id="mode-exit-gateway"><a class="header" href="#mode-exit-gateway">Mode: <code>exit-gateway</code></a></h4>
+<p>If you run a <code>nym-node</code> for the first time, you will need to specify a few parameters, please read the section <a href="#essential-paramteters--varibles">Essential Parameters &amp; Variables</a> before you start and make sure that your <code>nym-node</code> is up to date with the <a href="https://github.com/nymtech/nym/releases/">latest version</a>.</p>
+<p><strong>Initialise and run</strong> in one command:</p>
+<p>To initialise and test run your node, use this command:</p>
+<pre><code class="language-sh">./nym-node run --id &lt;ID&gt; --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "&lt;HOSTNAME&gt;" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location &lt;LOCATION&gt; --accept-operator-terms-and-conditions --wireguard-enabled true
+</code></pre>
+<p>If you prefer to have a generic local identifier set to <code>default-nym-node</code>, skip <code>--id</code> option.</p>
+<p>We highly recommend to setup <a href="proxy-configuration.html">reverse proxy and WSS</a> for <code>nym-node</code>. If you haven’t configured any of that, skip <code>--hostname</code> flag.</p>
+<p>In any case <code>--public-ips</code> is a necessity for your node to bond to API and communicate with the internet.</p>
+<p><strong>Initialise only</strong> without running the node with <code>--init-only</code> command:</p>
+<p>Adding <code>--init-only</code> option results in <code>nym-node</code> initialising a configuration file <code>config.toml</code> without running - a good option for an initial node setup. Remember that if you using this flag on a node which already has a config file, this will not over-write the values, unless used with a specified flag <code>--write-changes</code> (<code>-w</code>) - a good option for introducing changes to your <code>config.toml</code> file.</p>
+<pre><code class="language-sh">./nym-node run --id &lt;ID&gt; --init-only --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "&lt;HOSTNAME&gt;" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location &lt;LOCATION&gt; --wireguard-enabled true
+</code></pre>
+<p>In the example above we dropped <code>--accept-operator-terms-and-conditions</code> as the flag must be added to a running command explicitly and it is not stored in the config, <code>--init-only</code> will not run the node.</p>
+<p><strong>Deny init</strong></p>
+<p><code>--deny-init</code> was introduced as an additional safety for migration from legacy binaries to <code>nym-node</code> to prevent operators initialise over existing nodes. For most of the operators, this flag is not needed.</p>
+<p>In this example we run the node with custom <code>--id</code> without initialising, using <code>--deny-init</code> command:</p>
+<pre><code class="language-sh">./nym-node run --id &lt;ID&gt; --deny-init --mode exit-gateway --accept-operator-terms-and-conditions
+</code></pre>
+<h4 id="mode-entry-gateway"><a class="header" href="#mode-entry-gateway">Mode: <code>entry-gateway</code></a></h4>
+<p>If you run a <code>nym-node</code> for the first time, you will need to specify a few parameters, please read the section <a href="#essential-paramteters--varibles">Essential Parameters &amp; Variables</a> before you start and make sure that your <code>nym-node</code> is up to date with the <a href="https://github.com/nymtech/nym/releases/">latest version</a>.</p>
+<p><strong>Initialise and run:</strong></p>
+<p>To initialise and test run with yur node with all needed options, use this command:</p>
+<pre><code class="language-sh">./nym-node run --id &lt;ID&gt; --mode entry-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "&lt;HOSTNAME&gt;" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location &lt;LOCATION&gt; --accept-operator-terms-and-conditions --wireguard-enabled true
+</code></pre>
+<p>If you prefer to have a generic local identifier set to <code>default-nym-node</code>, skip <code>--id</code> option.</p>
+<p>We highly recommend to setup <a href="proxy-configuration.html">reverse proxy and WSS</a> for <code>nym-node</code>. If you haven’t configured any of that, skip <code>--hostname</code> flag.</p>
+<p>In any case <code>--public-ips</code> is a necessity for your node to bond to API and communicate with the internet.</p>
+<p><strong>Initialise only</strong> without running the node with <code>--init-only</code> command :</p>
+<p>Adding <code>--init-only</code> option results in <code>nym-node</code> initialising a configuration file <code>config.toml</code> without running - a good option for an initial node setup. Remember that if you using this flag on a node which already has a config file, this will not over-write the values, unless used with a specified flag <code>--write-changes</code> (<code>-w</code>) - a good option for introducing changes to your <code>config.toml</code> file.</p>
+<pre><code class="language-sh">./nym-node run --id &lt;ID&gt; --init-only --mode entry-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "&lt;HOSTNAME&gt;" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location &lt;LOCATION&gt; --wireguard-enabled true
+</code></pre>
+<p>In the example above we dropped <code>--accept-operator-terms-and-conditions</code> as the flag must be added to a running command explicitly and it is not stored in the config, <code>--init-only</code> will not run the node.</p>
+<p><strong>Deny init</strong></p>
+<p><code>--deny-init</code> was introduced as an additional safety for migration from legacy binaries to <code>nym-node</code> to prevent operators initialise over existing nodes. For most of the operators, this flag is not needed.</p>
+<p>In this example we run the node with custom <code>--id</code> without initialising, using <code>--deny-init</code> command:</p>
+<pre><code class="language-sh">./nym-node run --id &lt;ID&gt; --deny-init --mode entry-gateway --accept-operator-terms-and-conditions
+</code></pre>
+<h4 id="mode-mixnode"><a class="header" href="#mode-mixnode">Mode: <code>mixnode</code></a></h4>
+<p><strong>Initialise and run:</strong></p>
+<pre><code class="language-sh">./nym-node run --mode mixnode --mixnet-bind-address 0.0.0.0:1789 --verloc-bind-address 0.0.0.0:1790 --http-bind-address 0.0.0.0:8080 --public-ips "$(curl -4 https://ifconfig.me)" --accept-operator-terms-and-conditions
+</code></pre>
+<p><strong>Init only</strong></p>
+<p>Adding <code>--init-only</code> option results in <code>nym-node</code> initialising a configuration file <code>config.toml</code> without running - a good option for an initial node setup. Remember that if you using this flag on a node which already has a config file, this will not over-write the values, unless used with a specified flag <code>--write-changes</code> (<code>-w</code>) - a good option for introducing changes to your <code>config.toml</code> file.</p>
+<p>Initialise only with a custom <code>--id</code> and <code>--init-only</code> command:</p>
+<pre><code class="language-sh">./nym-node run --mode mixnode --id &lt;ID&gt; --init-only --mixnet-bind-address 0.0.0.0:1789 --verloc-bind-address 0.0.0.0:1790 --http-bind-address 0.0.0.0:8080 --public-ips "$(curl -4 https://ifconfig.me)" --accept-operator-terms-and-conditions
+</code></pre>
+<p>If you prefer to have a generic local identifier set to <code>default-nym-node</code>, skip <code>--id</code> option.</p>
+<p><strong>Deny init</strong></p>
+<p><code>--deny-init</code> was introduced as an additional safety for migration from legacy binaries to <code>nym-node</code> to prevent operators initialise over existing nodes. For most of the operators, this flag is not needed.</p>
+<p>In this example we run the node with custom <code>--id</code> without initialising, using <code>--deny-init</code> command:</p>
+<pre><code class="language-sh">./nym-node run --mode mixnode --id &lt;ID&gt; --deny-init --accept-operator-terms-and-conditions
+</code></pre>
+<h3 id="migrate"><a class="header" href="#migrate">Migrate</a></h3>
+<div id="admonition-caution" class="admonition admonish-warning" role="note" aria-labelledby="admonition-caution-title">
+<div class="admonition-title">
+<div id="admonition-caution-title">
+<p>Caution</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-caution"></a>
+</div>
+<div>
+<p>Migration is a must for all deprecated nodes (<code>nym-mixnode</code>, <code>nym-gateway</code>). For backward compatibility we created an <a href="../archive/nodes/setup-guides.html">archive section</a> with all the guides for individual binaries. However, the binaries from version 1.1.35 (<code>nym-gateway</code>) and 1.1.37 (<code>nym-mixnode</code>) onwards will no longer have <code>init</code> command.</p>
+</div>
+</div>
+<p>Operators who are about to migrate their nodes need to configure their <a href="vps-setup.html">VPS</a> and setup <code>nym-node</code> which can be downloaded as a <a href="../binaries/pre-built-binaries.html">pre-built binary</a> or compiled from <a href="../binaries/building-nym.html">source</a>.</p>
+<p>To migrate a <code>nym-mixnode</code> or a <code>nym-gateway</code> to <code>nym-node</code> is fairly simple, use the <code>migrate</code> command with <code>--config-file</code> flag pointing to the original <code>config.toml</code> file, with a conditional argument defining which type of node this configuration belongs to. Examples are below.</p>
+<p>Make sure to use <code>--deny-init</code> flag to prevent initialisation of a new node.</p>
+<h4 id="mode-mixnode-1"><a class="header" href="#mode-mixnode-1">Mode: <code>mixnode</code></a></h4>
+<pre><code class="language-sh"># move relevant infor from config.toml
+./nym-node migrate --config-file ~/.nym/mixnodes/&lt;MIXNODE_ID&gt;/config/config.toml mixnode
+
+# initialise with the new nym-node config
+./nym-node run --mode mixnode --id &lt;NYM-NODE_ID&gt; --accept-operator-terms-and-conditions
+</code></pre>
+<h4 id="mode-entry-gateway-and-exit-gateway"><a class="header" href="#mode-entry-gateway-and-exit-gateway">Mode: <code>entry-gateway</code> and <code>exit-gateway</code></a></h4>
+<pre><code class="language-sh"># move relevant infor from config.toml
+./nym-node migrate --config-file ~/.nym/gateways/&lt;GATEWAY_ID&gt;/config/config.toml gateway
+
+# initialise with the new nym-node config - entry-gateway
+./nym-node run --mode entry-gateway --id &lt;NYM-NODE_ID&gt; --accept-operator-terms-and-conditions
+
+# or as exit-gateway
+./nym-node run --id &lt;NYM-NODE_ID&gt; --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname "&lt;YOUR_DOMAIN&gt;" --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location &lt;COUNTRY_FULL_NAME&gt; --accept-operator-terms-and-conditions --wireguard-enabled false
+</code></pre>
+<h3 id="next-steps"><a class="header" href="#next-steps">Next steps</a></h3>
+<p>If there are any problems checkout the troubleshooting section or report an issue.</p>
+<p>Follow up with <a href="configuration.html">configuration</a> page for automation, reversed proxy setup and other tweaks, then head straight to <a href="bonding.html">bonding</a> page to finalise your setup.</p>
+<footer id="last-change">Last change: 2024-09-10, commit: <a href="https://github.com/nymtech/nym/commit/12e8d3468">12e8d3468</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../nodes/nym-node.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../nodes/configuration.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../nodes/nym-node.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../nodes/configuration.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

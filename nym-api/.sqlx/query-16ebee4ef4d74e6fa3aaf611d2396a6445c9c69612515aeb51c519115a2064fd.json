@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO testing_route\n                (gateway_id, layer1_mix_id, layer2_mix_id, layer3_mix_id, monitor_run_id)\n                VALUES (?, ?, ?, ?, ?);\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "16ebee4ef4d74e6fa3aaf611d2396a6445c9c69612515aeb51c519115a2064fd"
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT signer_id FROM ticket_verification WHERE ticket_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "signer_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "870e426955cf3d0e297522552a87af82979545975f9df3ac3584fd1bf56a46cd"
+}

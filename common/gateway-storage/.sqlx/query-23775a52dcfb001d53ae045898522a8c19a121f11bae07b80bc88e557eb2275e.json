@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                DELETE FROM ticket_data\n                WHERE ticket_id IN (\n                    SELECT ticket_id\n                    FROM verified_tickets\n                    WHERE proposal_id = ?\n                )\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "23775a52dcfb001d53ae045898522a8c19a121f11bae07b80bc88e557eb2275e"
+}

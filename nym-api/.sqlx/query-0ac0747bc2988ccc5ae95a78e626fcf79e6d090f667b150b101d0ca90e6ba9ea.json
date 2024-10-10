@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM mixnode_status WHERE timestamp < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "0ac0747bc2988ccc5ae95a78e626fcf79e6d090f667b150b101d0ca90e6ba9ea"
+}

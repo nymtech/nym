@@ -26,7 +26,7 @@ use nym_node::config::{
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use nym_node_http_api::api::api_requests;
 use nym_node_http_api::api::api_requests::v1::node::models::{AnnouncePorts, NodeDescription};
-use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
+use nym_node_http_api::state::metrics::{SharedMixingStats, SharedSessionStats, SharedVerlocStats};
 use nym_node_http_api::state::AppState;
 use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
@@ -67,6 +67,7 @@ impl MixnodeData {
 pub struct EntryGatewayData {
     mnemonic: Zeroizing<bip39::Mnemonic>,
     client_storage: nym_gateway::node::PersistentStorage,
+    sessions_stats: SharedSessionStats,
 }
 
 impl EntryGatewayData {
@@ -93,6 +94,7 @@ impl EntryGatewayData {
             )
             .await
             .map_err(nym_gateway::GatewayError::from)?,
+            sessions_stats: SharedSessionStats::new(),
         })
     }
 }
@@ -581,6 +583,7 @@ impl NymNode {
         );
         entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
+        entry_gateway.set_session_stats(self.entry_gateway.sessions_stats.clone());
         if self.config.wireguard.enabled {
             entry_gateway.set_wireguard_data(self.wireguard.into());
         }
@@ -728,6 +731,7 @@ impl NymNode {
 
         let app_state = AppState::new()
             .with_mixing_stats(self.mixnode.mixing_stats.clone())
+            .with_sessions_stats(self.entry_gateway.sessions_stats.clone())
             .with_verloc_stats(self.verloc_stats.clone())
             .with_metrics_key(self.config.http.access_token.clone());
 

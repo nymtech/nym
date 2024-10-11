@@ -5,7 +5,7 @@ use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender
 use crate::node::client_handling::embedded_clients::LocalEmbeddedClientHandle;
 use dashmap::DashMap;
 use nym_sphinx::DestinationAddressBytes;
-use std::sync::Arc;
+use std::{collections::HashSet, sync::Arc};
 use tracing::warn;
 
 enum ActiveClient {
@@ -164,5 +164,9 @@ impl ActiveClientsStore {
     #[allow(unused)]
     pub(crate) fn size(&self) -> usize {
         self.inner.len()
+    }
+
+    pub(crate) fn client_list(&self) -> HashSet<DestinationAddressBytes> {
+        self.inner.iter().map(|entry| *entry.key()).collect()
     }
 }

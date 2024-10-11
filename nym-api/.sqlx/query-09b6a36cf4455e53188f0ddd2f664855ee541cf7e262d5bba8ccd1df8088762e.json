@@ -14,13 +14,8 @@
         "type_info": "Int64"
       },
       {
-        "name": "owner",
-        "ordinal": 2,
-        "type_info": "Text"
-      },
-      {
         "name": "identity_key",
-        "ordinal": 3,
+        "ordinal": 2,
         "type_info": "Text"
       }
     ],
@@ -28,7 +23,6 @@
       "Right": 1
     },
     "nullable": [
-      false,
       false,
       false,
       false

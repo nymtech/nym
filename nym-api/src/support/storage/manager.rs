@@ -1268,7 +1268,7 @@ pub(crate) mod v3_migration {
             sqlx::query!("SELECT EXISTS (SELECT 1 FROM v3_migration_info) AS 'exists'",)
                 .fetch_one(&self.connection_pool)
                 .await
-                .map(|result| result.exists == 1)
+                .map(|result| result.exists == Some(1))
         }
 
         pub(crate) async fn set_v3_migration_completion(&self) -> Result<(), sqlx::Error> {

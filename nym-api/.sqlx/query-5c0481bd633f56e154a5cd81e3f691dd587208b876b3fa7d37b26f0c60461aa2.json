@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO epoch_credentials\n                (epoch_id, start_id, total_issued)\n                VALUES (?, ?, ?);\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "5c0481bd633f56e154a5cd81e3f691dd587208b876b3fa7d37b26f0c60461aa2"
+}

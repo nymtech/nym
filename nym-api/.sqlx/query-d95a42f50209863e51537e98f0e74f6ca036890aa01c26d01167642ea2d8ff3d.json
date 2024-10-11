@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE gateway_details SET node_id = ? WHERE identity = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "d95a42f50209863e51537e98f0e74f6ca036890aa01c26d01167642ea2d8ff3d"
+}

@@ -5,8 +5,7 @@ use nym_task::signal::wait_for_signal;
 use crate::config::read_env_var;
 
 mod cli;
-mod config;
-mod db;
+mod config; 
 mod http;
 mod logging;
 mod monitor;

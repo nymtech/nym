@@ -1,4 +1,6 @@
-# Websocket Client
+# Websocket Client (Standalone)
+
+> This client can also be utilised via the [Rust SDK](../rust) and [Go/C++ FFI](../rust/ffi).
 
 You can run this client as a standalone process and pipe traffic into it to be sent through the mixnet. This is useful if you're building an application in a language other than Typescript or Rust and cannot utilise one of the SDKs.
 

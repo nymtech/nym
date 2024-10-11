@@ -1,8 +1,12 @@
 import React from "react";
 import { DocsThemeConfig } from "nextra-theme-docs";
+import { Search } from 'nextra-theme-docs';
+import { useConfig } from 'nextra-theme-docs';
+
+
 import { Footer } from "./components/footer";
 
-const config: DocsThemeConfig = {
+const config = {
   logo: <span>Nym Docs</span>,
   project: {
     link: "https://github.com/nymtech/nym",
@@ -11,7 +15,7 @@ const config: DocsThemeConfig = {
     link: "https://matrix.to/#/#dev:nymtech.chat",
   },
   docsRepositoryBase:
-    "https://github.com/nymtech/nym/tree/develop/documentation/",
+    "https://github.com/nymtech/nym/tree/develop/documentation/docs",
   footer: {
     text: Footer,
   },

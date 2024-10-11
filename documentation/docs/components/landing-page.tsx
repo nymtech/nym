@@ -9,7 +9,7 @@ export const LandingPage = () => {
       href: "/developers",
       Icon: Zap,
     },
-    { text: "SDKs", href: "/sdk", Icon: Code },
+    { text: "SDKs", href: "/developers/rust", Icon: Code },
     {
       text: "Operators: Setup Guides & Maintenance",
       href: "/operators",

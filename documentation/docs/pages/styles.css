@@ -30,6 +30,10 @@ div.nextra-code-block > div  {
     color: var(--textPrimary) !important;
 }
 
+.nextra-sidebar-container {
+    border-right: 1px solid #262626;
+}
+
 /* aside ul > li > a:hover{
     background: #fb6e4ea9 !important;
 } */

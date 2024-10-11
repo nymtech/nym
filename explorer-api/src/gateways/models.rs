@@ -3,8 +3,7 @@
 
 use crate::{cache::Cache, location::LocationCacheItem};
 use nym_explorer_api_requests::{Location, PrettyDetailedGatewayBond};
-use nym_mixnet_contract_common::IdentityKey;
-use nym_validator_client::legacy::LegacyGatewayBondWithId;
+use nym_mixnet_contract_common::{GatewayBond, IdentityKey};
 use serde::Serialize;
 use std::{sync::Arc, time::SystemTime};
 use tokio::sync::RwLock;
@@ -12,7 +11,7 @@ use tokio::sync::RwLock;
 use super::location::GatewayLocationCache;
 
 pub(crate) struct GatewayCache {
-    pub(crate) gateways: Cache<IdentityKey, LegacyGatewayBondWithId>,
+    pub(crate) gateways: Cache<IdentityKey, GatewayBond>,
 }
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
@@ -38,20 +37,20 @@ impl ThreadsafeGatewayCache {
 
     fn create_detailed_gateway(
         &self,
-        bond: LegacyGatewayBondWithId,
+        bond: GatewayBond,
         location: Option<&LocationCacheItem>,
     ) -> PrettyDetailedGatewayBond {
         PrettyDetailedGatewayBond {
-            pledge_amount: bond.bond.pledge_amount,
-            owner: bond.bond.owner,
-            block_height: bond.bond.block_height,
-            gateway: bond.bond.gateway,
-            proxy: bond.bond.proxy,
+            pledge_amount: bond.pledge_amount,
+            owner: bond.owner,
+            block_height: bond.block_height,
+            gateway: bond.gateway,
+            proxy: bond.proxy,
             location: location.and_then(|l| l.location.clone()),
         }
     }
 
-    pub(crate) async fn get_gateways(&self) -> Vec<LegacyGatewayBondWithId> {
+    pub(crate) async fn get_gateways(&self) -> Vec<GatewayBond> {
         self.gateways.read().await.gateways.get_all()
     }
 
@@ -107,7 +106,7 @@ impl ThreadsafeGatewayCache {
             .insert(identy_key, LocationCacheItem::new_from_location(location));
     }
 
-    pub(crate) async fn update_cache(&self, gateways: Vec<LegacyGatewayBondWithId>) {
+    pub(crate) async fn update_cache(&self, gateways: Vec<GatewayBond>) {
         let mut guard = self.gateways.write().await;
 
         for gateway in gateways {

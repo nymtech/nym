@@ -10,7 +10,6 @@ use nym_api_requests::ecash::models::{
     VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
-use nym_api_requests::legacy::LegacyGatewayBondWithId;
 use nym_api_requests::models::{
     AnnotationResponse, LegacyDescribedMixNode, NodePerformanceResponse,
 };
@@ -38,7 +37,7 @@ use nym_contracts_common::IdentityKey;
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{IdentityKeyRef, NodeId};
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId};
 use time::format_description::BorrowedFormatItem;
 use time::Date;
 
@@ -98,7 +97,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn get_gateways(&self) -> Result<Vec<LegacyGatewayBondWithId>, NymAPIError> {
+    async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
         self.get_json(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
             .await
     }

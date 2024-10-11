@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO available_bandwidth(client_id, available, expiration) VALUES (?, 0, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a2fef59c5d6176170920b940be39f7c98de25d36b7f6516fcc78037862aa7795"
+}

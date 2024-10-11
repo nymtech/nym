@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT serial_number\n                FROM verified_tickets\n                WHERE gateway_id = ?\n                AND verified_at > ?\n                ORDER BY verified_at ASC\n                LIMIT 65535\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "serial_number",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c8927b6e408f470c2fc5d971e9a6a63bf5797c5d133414407b42bacbc75885db"
+}

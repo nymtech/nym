@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    INSERT OR IGNORE INTO mixnode_details(mix_id, identity_key) VALUES (?, ?);\n                    SELECT id FROM mixnode_details WHERE mix_id = ?;\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "22e69e450e12f72e2cf06b2e296913f1e22d90e63a57e6256a9c6669e7c27724"
+}

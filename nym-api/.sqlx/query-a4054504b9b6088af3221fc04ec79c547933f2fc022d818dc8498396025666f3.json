@@ -1,0 +1,62 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    id,\n                    epoch_id as \"epoch_id: u32\",\n                    deposit_id as \"deposit_id: DepositId\",\n                    partial_credential,\n                    signature,\n                    joined_private_commitments,\n                    expiration_date as \"expiration_date: Date\",\n                    ticketbook_type_repr as \"ticketbook_type_repr: u8\"\n                FROM issued_ticketbook\n                WHERE id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "epoch_id: u32",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "deposit_id: DepositId",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "partial_credential",
+        "ordinal": 3,
+        "type_info": "Blob"
+      },
+      {
+        "name": "signature",
+        "ordinal": 4,
+        "type_info": "Blob"
+      },
+      {
+        "name": "joined_private_commitments",
+        "ordinal": 5,
+        "type_info": "Blob"
+      },
+      {
+        "name": "expiration_date: Date",
+        "ordinal": 6,
+        "type_info": "Date"
+      },
+      {
+        "name": "ticketbook_type_repr: u8",
+        "ordinal": 7,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "a4054504b9b6088af3221fc04ec79c547933f2fc022d818dc8498396025666f3"
+}

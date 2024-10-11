@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE redemption_proposals SET resolved_at = ?, rejected = ? WHERE proposal_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "52406dc7b69af59d206542105d3b87114e3b9eda6dfaad180f2d154bc258d6bf"
+}

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO issued_ticketbook\n                (epoch_id, deposit_id, partial_credential, signature, joined_private_commitments, expiration_date, ticketbook_type_repr)\n                VALUES\n                (?, ?, ?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "24a3d608e8a727f863129371be6087976b741fb59d09382cbb09597c6cc44c43"
+}

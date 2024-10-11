@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT bitmap FROM partial_bloomfilter WHERE date = ? AND parameters = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "bitmap",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4ebee7c6043a84afeb4425abefe58f8182edff025a38e25106e00d97659c522a"
+}

@@ -1,0 +1,32 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT joke_id, joke, date_created FROM responses",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "joke_id",
+        "type_info": "Varchar"
+      },
+      {
+        "ordinal": 1,
+        "name": "joke",
+        "type_info": "Text"
+      },
+      {
+        "ordinal": 2,
+        "name": "date_created",
+        "type_info": "Int4"
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e53f479f8cead3dc8aa1875e5d450ad69686cf6a109e37d6c3f0623c3e9f91d0"
+}

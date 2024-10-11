@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT * FROM mixnode_details WHERE id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "mix_id",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "identity_key",
+        "ordinal": 2,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "09b6a36cf4455e53188f0ddd2f664855ee541cf7e262d5bba8ccd1df8088762e"
+}

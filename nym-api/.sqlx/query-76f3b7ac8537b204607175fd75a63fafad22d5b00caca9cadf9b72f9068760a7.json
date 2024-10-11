@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT serialised_signatures FROM partial_coin_index_signatures WHERE epoch_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "serialised_signatures",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "76f3b7ac8537b204607175fd75a63fafad22d5b00caca9cadf9b72f9068760a7"
+}

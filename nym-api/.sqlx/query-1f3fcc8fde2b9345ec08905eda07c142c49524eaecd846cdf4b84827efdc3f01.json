@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT mix_id as \"mix_id: NodeId\" FROM mixnode_details WHERE identity_key = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "mix_id: NodeId",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "1f3fcc8fde2b9345ec08905eda07c142c49524eaecd846cdf4b84827efdc3f01"
+}

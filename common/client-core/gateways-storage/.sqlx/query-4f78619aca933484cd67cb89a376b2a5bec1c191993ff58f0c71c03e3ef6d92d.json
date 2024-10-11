@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM custom_gateway_details WHERE gateway_id_bs58 = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "4f78619aca933484cd67cb89a376b2a5bec1c191993ff58f0c71c03e3ef6d92d"
+}

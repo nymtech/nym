@@ -16,50 +16,49 @@ At each 'hop' (i.e. as a packet is forwarded from one node in the sequence to an
 
 Traffic always travels through the nodes of the mixnet like such:
 
+```mermaid
+---
+config:
+  theme: neo-dark
+  layout: elk
+---
+flowchart LR
+    subgraph Local Machine[Local Machine]
+        A[Application Logic]
+        B[Nym Client]
+    end
+    A <-->|Bytes| B
+    B <-->|Sphinx Packets| EG
+
+    subgraph Mixnet Nodes[Mixnet Nodes]
+        EG[/Entry Gateway/]
+        M{Mix Node Layer 1}
+        M2{Mix Node Layer 2}
+        M3{Mix Node Layer 3}
+        ExG[\Exit Gateway\]
+    end
+    EG <-->|Sphinx Packets| M
+    M <-->|Sphinx Packets| M2
+    M2 <-->|Sphinx Packets| M3
+    M3 <-->|Sphinx Packets| ExG
+
+    subgraph Remote App[Remote App]
+        C[Application Logic]
+        D[Nym Client]
+    end
+    D <-->|Sphinx Packets| ExG
+    C <-->|Bytes| D
 ```
 
-       +----------+              +----------+             +----------+
-       | Mix Node |<-----------> | Mix Node |<----------->| Mix Node |
-       | Layer 1  |              | Layer 2  |             | Layer 3  |
-       +----------+              +----------+             +----------+
-            ^                                                   ^
-            |                                                   |
-            |                                                   |
-            v                                                   v
-    +--------------+                                   +-----------------+
-    | Your gateway |                                   | Service gateway |
-    +--------------+                                   +-----------------+
-            ^                                                    ^
-            |                                                    |
-            |                                                    |
-            v                                                    v
-  +-------------------+                                +-------------------+
-  | +---------------+ |                                | +---------------+ |
-  | |  Nym client   | |                                | |  Nym Client   | |
-  | +---------------+ |                                | +---------------+ |
-  |         ^         |                                |         ^         |
-  |         |         |                                |         |         |
-  |         |         |                                |         |         |
-  |         v         |                                |         v         |
-  | +---------------+ |                                | +---------------+ |
-  | | Your app code | |                                | | Service Code  | |
-  | +---------------+ |                                | +---------------+ |
-  +-------------------+                                +-------------------+
-   Your Local Machine**                               Service Provider Machine**
-
-
-** note that depending on the technical setup, the Nym client running on these machines may
-be either a seperate process or embedded in the same process as the app code via one of our SDKs.
-
-```
-
-From your Nym client, your encrypted traffic is sent to:
+From your Nym client, your traffic is sent as Sphinx packets to:
 * the gateway your client has registered with,
 * a mix node on layer 1 of the Mixnet,
 * a mix node on layer 2 of the Mixnet,
 * a mix node on layer 3 of the Mixnet,
 * the recipient's gateway, which forwards it finally to...
 * the recipient's Nym client, which communicates with an application.
+
+As each node receives the packet, they are able to decrypt the packet, perform a validity check, and then pass the packet along (in the case of Mix Nodes, after a delay).
 
 > If the recipient's Nym client is offline at the time then the packets will be held by the Gateway their Nym client has registered with until they come online.
 

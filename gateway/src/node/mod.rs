@@ -29,7 +29,7 @@ use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
-use statistics::collector::GatewayStatisticsCollector;
+use statistics::GatewayStatisticsCollector;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -406,15 +406,15 @@ impl<St> Gateway<St> {
 
     fn start_stats_collector(
         &self,
-        active_clients_store: ActiveClientsStore,
         shared_session_stats: SharedSessionStats,
         shutdown: TaskClient,
-    ) {
+    ) -> statistics::StatsEventSender {
         info!("Starting gateway stats collector...");
 
-        let mut stats_collector =
-            GatewayStatisticsCollector::new(active_clients_store, shared_session_stats);
+        let (mut stats_collector, stats_event_sender) =
+            GatewayStatisticsCollector::new(shared_session_stats);
         tokio::spawn(async move { stats_collector.run(shutdown).await });
+        stats_event_sender
     }
 
     // TODO: rethink the logic in this function...
@@ -623,6 +623,11 @@ impl<St> Gateway<St> {
                 return Err(GatewayError::InsufficientNodeBalance { account, balance });
             }
         }
+        let shared_session_stats = self.session_stats.take().unwrap_or_default();
+        let stats_event_sender = self.start_stats_collector(
+            shared_session_stats,
+            shutdown.fork("statistics::sessionCollector"),
+        );
 
         let handler_config = CredentialHandlerConfig {
             revocation_bandwidth_penalty: self
@@ -653,18 +658,11 @@ impl<St> Gateway<St> {
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.fork("PacketForwarder"));
 
-        let active_clients_store = ActiveClientsStore::new();
+        let active_clients_store = ActiveClientsStore::new(stats_event_sender.clone());
         self.start_mix_socket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
             shutdown.fork("mixnet_handling::Listener"),
-        );
-
-        let shared_session_stats = self.session_stats.take().unwrap_or_default();
-        self.start_stats_collector(
-            active_clients_store.clone(),
-            shared_session_stats,
-            shutdown.fork("statistics::sessionCollector"),
         );
 
         self.start_client_websocket_listener(

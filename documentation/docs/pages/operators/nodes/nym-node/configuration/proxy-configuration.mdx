@@ -453,7 +453,7 @@ This section assumes that you have already configured a reverse proxy and have s
 
 <Steps>
 
-####### 1. Create a new Nginx configuration file called `/etc/nginx/sites-available/wss-config-nym` 
+###### 1. Create a new Nginx configuration file called `/etc/nginx/sites-available/wss-config-nym` 
 
 - Open text editor
 ```sh
@@ -522,7 +522,7 @@ nginx -t
 systemctl restart nginx
 ```
 
-###### 4. Finally, configure your `nym-node` to announce the port and hostname of your WSS and restart your `nym-node`
+###### 4. Finally, configure your `nym-node` to announce the port and hostname of your WSS and restart the node
 
 - Open your node configuration file located at `~/.nym/nym-nodes/<ID>/config/config.toml` 
 ```sh

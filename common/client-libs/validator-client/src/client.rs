@@ -17,7 +17,6 @@ use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
     PartialExpirationDateSignatureResponse, VerificationKeyResponse,
 };
-use nym_api_requests::legacy::LegacyGatewayBondWithId;
 use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
@@ -240,9 +239,7 @@ impl<C, S> Client<C, S> {
         Ok(self.nym_api.get_active_mixnodes_detailed().await?)
     }
 
-    pub async fn get_cached_gateways(
-        &self,
-    ) -> Result<Vec<LegacyGatewayBondWithId>, ValidatorClientError> {
+    pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
     }
 
@@ -324,9 +321,7 @@ impl NymApiClient {
         Ok(self.nym_api.get_mixnodes().await?)
     }
 
-    pub async fn get_cached_gateways(
-        &self,
-    ) -> Result<Vec<LegacyGatewayBondWithId>, ValidatorClientError> {
+    pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
     }
 

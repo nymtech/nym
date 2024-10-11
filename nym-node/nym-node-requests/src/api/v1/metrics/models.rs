@@ -43,7 +43,7 @@ pub struct SessionStats {
 
     pub unique_active_users: u32,
 
-    pub session_durations: Vec<u32>,
+    pub session_durations: Vec<u64>,
 
     pub sessions_started: u32,
 

@@ -159,7 +159,7 @@ pub struct SessionStatsState {
     pub update_time: Date,
     pub unique_active_users: u32,
     pub session_started: u32,
-    pub session_durations: Vec<u32>,
+    pub session_durations: Vec<u64>,
 }
 
 impl SessionStatsState {

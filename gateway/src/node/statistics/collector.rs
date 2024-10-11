@@ -13,10 +13,12 @@ use tracing::trace;
 
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 
-const STATISTICS_GATHERING_TIMER_INTERVAL: Duration = Duration::from_secs(60); //ticks for measurements
+const PROBING_TIME: u64 = 60;
+const SESSION_DURATION_INCREMENT: u64 = PROBING_TIME * 1000; //miliseconds
+const STATISTICS_GATHERING_TIMER_INTERVAL: Duration = Duration::from_secs(PROBING_TIME); //probing time
 const STATISTICS_UPDATE_TIMER_INTERVAL: Duration = Duration::from_secs(3600); //update timer, no need to check everytime
 
-type SessionDuration = u32; //number of measurements ticks
+type SessionDuration = u64; //in miliseconds
 
 pub(crate) struct GatewayStatisticsCollector {
     gathering_interval: Duration,
@@ -57,9 +59,10 @@ impl GatewayStatisticsCollector {
         //active and new sessions
         for session in &current_sessions {
             if let Some(duration) = self.active_sessions.get_mut(session) {
-                *duration += 1
+                *duration += SESSION_DURATION_INCREMENT;
             } else {
-                self.active_sessions.insert(*session, 1);
+                self.active_sessions
+                    .insert(*session, SESSION_DURATION_INCREMENT);
                 self.unique_users.insert(*session);
                 self.sessions_started += 1;
             }

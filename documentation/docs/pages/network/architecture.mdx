@@ -1,7 +1,5 @@
 # Network Components
 
-TODO new diagram
-
 Core components:
 * A **Mixnet**, which encrypts and mixes Sphinx packet traffic so that it cannot be determined who is communicating with whom. Our mixnet is based on a modified version of the [**Loopix** design](concepts/loopix). This is made up of [Nym nodes](architecture/mixnet/nodes) runnning on servers around the world.
 * Various [**Nym clients**](architecture/mixnet/clients) which manage sending and receiving Sphinx packets, encrypting/decrypting traffic, and providing [cover traffic](./concepts/cover-traffic) to hide 'real' traffic timing.

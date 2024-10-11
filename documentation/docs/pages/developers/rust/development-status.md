@@ -10,6 +10,6 @@ In the future the SDK will be made up of several modules, each of which will all
 | Ecash     | Create & verify Ecash credentials                                                     | ❌        |
 | Validator | Sign & broadcast Nyx blockchain transactions, query the blockchain                    | ❌        |
 
-The `Mixnet` module currently exposes the logic of two clients: the [websocket client](../clients/websocket), and the [socks](../clients/socks5) client.
+The `Mixnet` module currently exposes the logic of two clients: the [websocket client](../clients/websocket), and the [socks client](../clients/socks5).
 
 The `TcpProxy` module exposes functionality to set up client/server instances that expose a localhost TcpSocket to read/write to.

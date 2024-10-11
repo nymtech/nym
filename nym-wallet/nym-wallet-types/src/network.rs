@@ -14,7 +14,7 @@ mod sandbox;
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "nym-wallet/src/types/rust/Network.ts")
+    ts(export, export_to = "nym-wallet/src/types/rust/Network.ts")
 )]
 #[derive(Copy, Clone, Debug, Deserialize, EnumIter, Eq, Hash, PartialEq, Serialize)]
 pub enum Network {

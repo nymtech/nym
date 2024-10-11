@@ -52,6 +52,7 @@ zeroize = { version = "1.5", features = ["zeroize_derive", "serde"] }
 cosmwasm-std = "1.3.0"
 cosmrs = { git = "https://github.com/cosmos/cosmos-rust", rev = "4b1332e6d8258ac845cef71589c8d362a669675a" }
 
+nym-node-requests = { path = "../../nym-node/nym-node-requests" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
 nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
@@ -66,7 +67,7 @@ nym-store-cipher = { path = "../../common/store-cipher", features = ["json"] }
 nym-crypto = { path = "../../common/crypto", features = ["rand"] }
 rand_chacha = "0.3"
 tempfile = "3.3.0"
-ts-rs = "7.0.0"
+ts-rs = "10.0.0"
 
 [features]
 default = ["custom-protocol"]

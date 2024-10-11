@@ -3,12 +3,6 @@
 version = 3
 
 [[package]]
-name = "Inflector"
-version = "0.11.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fe438c63458706e03479442743baae6c88256498e6431708f6dfc520a26515d3"
-
-[[package]]
 name = "addr2line"
 version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3096,10 +3090,12 @@ dependencies = [
  "nym-crypto",
  "nym-ecash-time",
  "nym-mixnet-contract-common",
+ "nym-network-defaults",
  "nym-node-requests",
  "nym-serde-helpers",
  "schemars",
  "serde",
+ "serde_json",
  "sha2 0.10.8",
  "tendermint 0.37.0",
  "thiserror",
@@ -3289,6 +3285,7 @@ dependencies = [
  "cosmwasm-schema",
  "cosmwasm-std",
  "cw-controllers",
+ "cw-storage-plus",
  "humantime-serde",
  "log",
  "nym-contracts-common",
@@ -3332,6 +3329,7 @@ dependencies = [
 name = "nym-node-requests"
 version = "0.1.0"
 dependencies = [
+ "async-trait",
  "base64 0.22.1",
  "celes",
  "humantime 2.1.0",
@@ -3339,6 +3337,7 @@ dependencies = [
  "nym-bin-common",
  "nym-crypto",
  "nym-exit-policy",
+ "nym-http-api-client",
  "nym-wireguard-types",
  "schemars",
  "serde",
@@ -3548,6 +3547,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-crypto",
  "nym-mixnet-contract-common",
+ "nym-node-requests",
  "nym-store-cipher",
  "nym-types",
  "nym-validator-client",
@@ -4878,9 +4878,9 @@ dependencies = [
 
 [[package]]
 name = "serde_spanned"
-version = "0.6.8"
+version = "0.6.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87607cb1398ed59d48732e575a4c28a7a8ebf2454b964fe3f224f2afc07909e1"
+checksum = "eb5b1b31579f3811bf615c144393417496f152e12ac8b7663bf664f4a815306d"
 dependencies = [
  "serde",
 ]
@@ -5977,7 +5977,7 @@ dependencies = [
  "serde",
  "serde_spanned",
  "toml_datetime",
- "winnow 0.6.20",
+ "winnow 0.6.19",
 ]
 
 [[package]]
@@ -6088,21 +6088,21 @@ checksum = "3528ecfd12c466c6f163363caf2d02a71161dd5e1cc6ae7b34207ea2d42d81ed"
 
 [[package]]
 name = "ts-rs"
-version = "7.0.0"
+version = "10.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e1ff1f8c90369bc172200013ac17ae86e7b5def580687df4e6127883454ff2b0"
+checksum = "3a2f31991cee3dce1ca4f929a8a04fdd11fd8801aac0f2030b0fa8a0a3fef6b9"
 dependencies = [
+ "lazy_static",
  "thiserror",
  "ts-rs-macros",
 ]
 
 [[package]]
 name = "ts-rs-macros"
-version = "7.0.0"
+version = "10.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a6f41cc0aeb7a4a55730188e147d3795a7349b501f8334697fd37629b896cdc2"
+checksum = "0ea0b99e8ec44abd6f94a18f28f7934437809dd062820797c52401298116f70e"
 dependencies = [
- "Inflector",
  "proc-macro2",
  "quote",
  "syn 2.0.55",
@@ -6853,9 +6853,9 @@ dependencies = [
 
 [[package]]
 name = "winnow"
-version = "0.6.20"
+version = "0.6.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36c1fec1a2bb5866f07c25f68c26e565c4c200aebb96d7e55710c19d3e8ac49b"
+checksum = "c52ac009d615e79296318c1bcce2d422aaca15ad08515e344feeda07df67a587"
 dependencies = [
  "memchr",
 ]

@@ -220,7 +220,7 @@ impl Default for SphinxMessageReceiver {
 mod message_receiver {
     use super::*;
     use nym_crypto::asymmetric::identity;
-    use nym_mixnet_contract_common::Layer;
+    use nym_mixnet_contract_common::LegacyMixLayer;
     use nym_topology::{gateway, mix, NymTopology};
     use std::collections::BTreeMap;
 
@@ -233,9 +233,8 @@ mod message_receiver {
         let mut mixes = BTreeMap::new();
         mixes.insert(
             1,
-            vec![mix::Node {
+            vec![mix::LegacyNode {
                 mix_id: 123,
-                owner: None,
                 host: "10.20.30.40".parse().unwrap(),
                 mix_host: "10.20.30.40:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -246,16 +245,15 @@ mod message_receiver {
                     "B3GzG62aXAZNg14RoMCp3BhELNBrySLr2JqrwyfYFzRc",
                 )
                 .unwrap(),
-                layer: Layer::One,
+                layer: LegacyMixLayer::One,
                 version: "0.8.0-dev".into(),
             }],
         );
 
         mixes.insert(
             2,
-            vec![mix::Node {
+            vec![mix::LegacyNode {
                 mix_id: 234,
-                owner: None,
                 host: "11.21.31.41".parse().unwrap(),
                 mix_host: "11.21.31.41:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -266,16 +264,15 @@ mod message_receiver {
                     "5Z1VqYwM2xeKxd8H7fJpGWasNiDFijYBAee7MErkZ5QT",
                 )
                 .unwrap(),
-                layer: Layer::Two,
+                layer: LegacyMixLayer::Two,
                 version: "0.8.0-dev".into(),
             }],
         );
 
         mixes.insert(
             3,
-            vec![mix::Node {
+            vec![mix::LegacyNode {
                 mix_id: 456,
-                owner: None,
                 host: "12.22.32.42".parse().unwrap(),
                 mix_host: "12.22.32.42:1789".parse().unwrap(),
                 identity_key: identity::PublicKey::from_base58_string(
@@ -286,7 +283,7 @@ mod message_receiver {
                     "9EyjhCggr2QEA2nakR88YHmXgpy92DWxoe2draDRkYof",
                 )
                 .unwrap(),
-                layer: Layer::Three,
+                layer: LegacyMixLayer::Three,
                 version: "0.8.0-dev".into(),
             }],
         );
@@ -294,8 +291,8 @@ mod message_receiver {
         NymTopology::new(
             // currently coco_nodes don't really exist so this is still to be determined
             mixes,
-            vec![gateway::Node {
-                owner: None,
+            vec![gateway::LegacyNode {
+                node_id: 789,
                 host: "1.2.3.4".parse().unwrap(),
                 mix_host: "1.2.3.4:1789".parse().unwrap(),
                 clients_ws_port: 9000,

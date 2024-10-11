@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::tests::{voucher_fixture, TestFixture};
+use axum::http::StatusCode;
 use nym_api_requests::ecash::models::{
     EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse, Pagination,
 };
 use nym_api_requests::ecash::CredentialsRequestBody;
 use nym_validator_client::nym_api::routes::{API_VERSION, ECASH_ROUTES};
-use rocket::http::Status;
 use std::collections::BTreeMap;
 
 #[tokio::test]
@@ -19,11 +19,10 @@ async fn epoch_credentials() {
     let test_fixture = TestFixture::new().await;
 
     // initially we expect 0 issued
-    let response = test_fixture.rocket.get(&route_epoch1).dispatch().await;
+    let response = test_fixture.axum.get(&route_epoch1).await;
 
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: EpochCredentialsResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: EpochCredentialsResponse = response.json();
 
     assert_eq!(parsed_response.epoch_id, 1);
     assert_eq!(parsed_response.total_issued, 0);
@@ -33,10 +32,9 @@ async fn epoch_credentials() {
     test_fixture.issue_dummy_credential().await;
 
     // now there should be one
-    let response = test_fixture.rocket.get(&route_epoch1).dispatch().await;
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: EpochCredentialsResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    let response = test_fixture.axum.get(&route_epoch1).await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: EpochCredentialsResponse = response.json();
 
     assert_eq!(parsed_response.epoch_id, 1);
     assert_eq!(parsed_response.total_issued, 1);
@@ -45,11 +43,10 @@ async fn epoch_credentials() {
     // and another
     test_fixture.issue_dummy_credential().await;
 
-    let response = test_fixture.rocket.get(&route_epoch1).dispatch().await;
+    let response = test_fixture.axum.get(&route_epoch1).await;
 
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: EpochCredentialsResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: EpochCredentialsResponse = response.json();
 
     // note that first epoch credential didn't change
     assert_eq!(parsed_response.epoch_id, 1);
@@ -58,10 +55,9 @@ async fn epoch_credentials() {
 
     test_fixture.set_epoch(2);
 
-    let response = test_fixture.rocket.get(&route_epoch2).dispatch().await;
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: EpochCredentialsResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    let response = test_fixture.axum.get(&route_epoch2).await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: EpochCredentialsResponse = response.json();
 
     // note the epoch change
     assert_eq!(parsed_response.epoch_id, 2);
@@ -70,10 +66,9 @@ async fn epoch_credentials() {
 
     test_fixture.issue_dummy_credential().await;
 
-    let response = test_fixture.rocket.get(&route_epoch2).dispatch().await;
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: EpochCredentialsResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    let response = test_fixture.axum.get(&route_epoch2).await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: EpochCredentialsResponse = response.json();
 
     // note the epoch change
     assert_eq!(parsed_response.epoch_id, 2);
@@ -81,10 +76,9 @@ async fn epoch_credentials() {
     assert_eq!(parsed_response.first_epoch_credential_id, Some(3));
 
     // random epoch in the future
-    let response = test_fixture.rocket.get(&route_epoch42).dispatch().await;
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: EpochCredentialsResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    let response = test_fixture.axum.get(&route_epoch42).await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: EpochCredentialsResponse = response.json();
     assert_eq!(parsed_response.epoch_id, 42);
     assert_eq!(parsed_response.total_issued, 0);
     assert_eq!(parsed_response.first_epoch_credential_id, None);
@@ -114,10 +108,9 @@ async fn issued_credential() {
     test_fixture.add_deposit(&voucher2);
 
     // random credential that was never issued
-    let response = test_fixture.rocket.get(route(42)).dispatch().await;
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: IssuedCredentialResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    let response = test_fixture.axum.get(&route(42)).await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: IssuedCredentialResponse = response.json();
     assert!(parsed_response.credential.is_none());
 
     let cred1 = test_fixture.issue_credential(request1.clone()).await;
@@ -125,16 +118,14 @@ async fn issued_credential() {
     test_fixture.set_epoch(3);
     let cred2 = test_fixture.issue_credential(request2.clone()).await;
 
-    let response = test_fixture.rocket.get(route(1)).dispatch().await;
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: IssuedCredentialResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    let response = test_fixture.axum.get(&route(1)).await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: IssuedCredentialResponse = response.json();
     let issued1 = parsed_response.credential.unwrap();
 
-    let response = test_fixture.rocket.get(route(2)).dispatch().await;
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: IssuedCredentialResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    let response = test_fixture.axum.get(&route(2)).await;
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: IssuedCredentialResponse = response.json();
     let issued2 = parsed_response.credential.unwrap();
 
     // TODO: currently we have no signature checks
@@ -192,37 +183,33 @@ async fn issued_credentials() {
     let issued13 = test_fixture.issued_unchecked(13).await;
 
     let response = test_fixture
-        .rocket
+        .axum
         .post(&route)
         .json(&CredentialsRequestBody {
             credential_ids: vec![5],
             pagination: None,
         })
-        .dispatch()
         .await;
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: IssuedCredentialsResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: IssuedCredentialsResponse = response.json();
     assert_eq!(parsed_response.credentials[&5], issued5);
     assert!(!parsed_response.credentials.contains_key(&13));
 
     let response = test_fixture
-        .rocket
+        .axum
         .post(&route)
         .json(&CredentialsRequestBody {
             credential_ids: vec![5, 13],
             pagination: None,
         })
-        .dispatch()
         .await;
-    assert_eq!(response.status(), Status::Ok);
-    let parsed_response: IssuedCredentialsResponse =
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap();
+    assert_eq!(response.status_code(), StatusCode::OK);
+    let parsed_response: IssuedCredentialsResponse = response.json();
     assert_eq!(parsed_response.credentials[&5], issued5);
     assert_eq!(parsed_response.credentials[&13], issued13);
 
     let response_paginated = test_fixture
-        .rocket
+        .axum
         .post(&route)
         .json(&CredentialsRequestBody {
             credential_ids: vec![],
@@ -231,11 +218,9 @@ async fn issued_credentials() {
                 limit: Some(2),
             }),
         })
-        .dispatch()
         .await;
-    assert_eq!(response_paginated.status(), Status::Ok);
-    let parsed_response: IssuedCredentialsResponse =
-        serde_json::from_str(&response_paginated.into_string().await.unwrap()).unwrap();
+    assert_eq!(response_paginated.status_code(), StatusCode::OK);
+    let parsed_response: IssuedCredentialsResponse = response_paginated.json();
 
     let mut expected = BTreeMap::new();
     expected.insert(1, issued1);
@@ -243,7 +228,7 @@ async fn issued_credentials() {
     assert_eq!(expected, parsed_response.credentials);
 
     let response_paginated = test_fixture
-        .rocket
+        .axum
         .post(&route)
         .json(&CredentialsRequestBody {
             credential_ids: vec![],
@@ -252,11 +237,9 @@ async fn issued_credentials() {
                 limit: Some(3),
             }),
         })
-        .dispatch()
         .await;
-    assert_eq!(response_paginated.status(), Status::Ok);
-    let parsed_response: IssuedCredentialsResponse =
-        serde_json::from_str(&response_paginated.into_string().await.unwrap()).unwrap();
+    assert_eq!(response_paginated.status_code(), StatusCode::OK);
+    let parsed_response: IssuedCredentialsResponse = response_paginated.json();
 
     let mut expected = BTreeMap::new();
     expected.insert(3, issued3);

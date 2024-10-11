@@ -3,40 +3,50 @@
 
 #[cfg(test)]
 pub mod fixtures;
-#[cfg(test)]
-pub mod messages;
+pub(crate) mod legacy;
 
 #[cfg(test)]
 pub mod test_helpers {
     use crate::constants;
-    use crate::contract::instantiate;
-    use crate::delegations::queries::query_mixnode_delegations_paged;
+    use crate::contract::{execute, instantiate};
+    use crate::delegations::queries::query_node_delegations_paged;
     use crate::delegations::storage as delegations_storage;
-    use crate::delegations::transactions::try_delegate_to_mixnode;
-    use crate::families::transactions::{try_create_family, try_join_family};
-    use crate::gateways::transactions::try_add_gateway;
+    use crate::delegations::transactions::try_delegate_to_node;
     use crate::interval::transactions::{
         perform_pending_epoch_actions, perform_pending_interval_actions, try_begin_epoch_transition,
     };
     use crate::interval::{pending_events, storage as interval_storage};
-    use crate::mixnet_contract_settings::storage::{self as mixnet_params_storage};
+    use crate::mixnet_contract_settings::queries::query_contract_settings_params;
     use crate::mixnet_contract_settings::storage::{
-        minimum_gateway_pledge, minimum_mixnode_pledge, rewarding_denom,
-        rewarding_validator_address,
+        self as mixnet_params_storage, minimum_node_pledge,
     };
+    use crate::mixnet_contract_settings::storage::{rewarding_denom, rewarding_validator_address};
+    use crate::mixnodes::helpers::get_mixnode_details_by_id;
     use crate::mixnodes::storage as mixnodes_storage;
     use crate::mixnodes::storage::mixnode_bonds;
-    use crate::mixnodes::transactions::{try_add_mixnode, try_remove_mixnode};
+    use crate::mixnodes::transactions::try_remove_mixnode;
+    use crate::nodes::helpers::{
+        get_node_details_by_id, get_node_details_by_identity, must_get_node_bond_by_owner,
+    };
+    use crate::nodes::storage as nymnodes_storage;
+    use crate::nodes::storage::helpers::RoleStorageBucket;
+    use crate::nodes::storage::rewarded_set::{ACTIVE_ROLES_BUCKET, ROLES, ROLES_METADATA};
+    use crate::nodes::storage::{read_assigned_roles, save_assignment, swap_active_role_bucket};
+    use crate::nodes::transactions::{try_add_nym_node, try_remove_nym_node};
+    use crate::rewards::helpers::expensive_role_lookup;
     use crate::rewards::queries::{
         query_pending_delegator_reward, query_pending_mixnode_operator_reward,
     };
     use crate::rewards::storage as rewards_storage;
-    use crate::rewards::transactions::try_reward_mixnode;
+    use crate::rewards::storage::RewardingStorage;
+    use crate::rewards::transactions::try_reward_node;
     use crate::signing::storage as signing_storage;
+    use crate::support::helpers::ensure_no_existing_bond;
     use crate::support::tests;
     use crate::support::tests::fixtures::{
-        good_gateway_pledge, good_mixnode_pledge, TEST_COIN_DENOM,
+        good_gateway_pledge, good_mixnode_pledge, good_node_plegge, TEST_COIN_DENOM,
     };
+    use crate::support::tests::{legacy, test_helpers};
     use cosmwasm_std::testing::mock_dependencies;
     use cosmwasm_std::testing::mock_env;
     use cosmwasm_std::testing::mock_info;
@@ -48,21 +58,26 @@ pub mod test_helpers {
     use cosmwasm_std::{Deps, OwnedDeps};
     use cosmwasm_std::{DepsMut, MessageInfo};
     use cosmwasm_std::{Env, Response, Timestamp, Uint128};
+    use mixnet_contract_common::error::MixnetContractError;
     use mixnet_contract_common::events::{
         may_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
     };
-    use mixnet_contract_common::families::FamilyHead;
-    use mixnet_contract_common::mixnode::{MixNodeRewarding, UnbondedMixnode};
+    use mixnet_contract_common::mixnode::{NodeRewarding, UnbondedMixnode};
+    use mixnet_contract_common::nym_node::{RewardedSetMetadata, Role};
     use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
-    use mixnet_contract_common::reward_params::{Performance, RewardingParams};
+    use mixnet_contract_common::reward_params::{
+        NodeRewardingParameters, Performance, RewardedSetParams, RewardingParams, WorkFactor,
+    };
     use mixnet_contract_common::rewarding::simulator::simulated_node::SimulatedNode;
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        construct_family_join_permit, Delegation, EpochEventId, EpochState, EpochStatus, Gateway,
-        GatewayBondingPayload, IdentityKey, IdentityKeyRef, InitialRewardingParams, InstantiateMsg,
-        Interval, MixId, MixNode, MixNodeBond, MixnodeBondingPayload, Percent,
-        RewardedSetNodeStatus, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
+        ContractStateParams, Delegation, EpochEventId, EpochState, EpochStatus, ExecuteMsg,
+        Gateway, GatewayBondingPayload, IdentityKey, InitialRewardingParams, InstantiateMsg,
+        Interval, MixNode, MixNodeBond, MixNodeDetails, MixnodeBondingPayload, NodeId, NymNode,
+        NymNodeBond, NymNodeBondingPayload, NymNodeDetails, OperatingCostRange, Percent,
+        ProfitMarginRange, RoleAssignment, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
+        SignableNymNodeBondingMsg,
     };
     use nym_contracts_common::signing::{
         ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
@@ -72,7 +87,51 @@ pub mod test_helpers {
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
     use serde::Serialize;
+    use std::collections::HashMap;
+    use std::fmt::Debug;
+    use std::str::FromStr;
     use std::time::Duration;
+
+    pub(crate) trait ExtractBankMsg {
+        fn unwrap_bank_msg(self) -> Option<BankMsg>;
+    }
+
+    impl ExtractBankMsg for Response {
+        fn unwrap_bank_msg(self) -> Option<BankMsg> {
+            for msg in self.messages {
+                match msg.msg {
+                    CosmosMsg::Bank(bank_msg) => return Some(bank_msg),
+                    _ => continue,
+                }
+            }
+
+            None
+        }
+    }
+
+    #[allow(clippy::enum_variant_names)]
+    pub enum NodeQueryType {
+        ById(NodeId),
+        ByIdentity(IdentityKey),
+        ByOwner(Addr),
+    }
+
+    impl From<NodeId> for NodeQueryType {
+        fn from(value: NodeId) -> Self {
+            NodeQueryType::ById(value)
+        }
+    }
+
+    impl From<IdentityKey> for NodeQueryType {
+        fn from(value: IdentityKey) -> Self {
+            NodeQueryType::ByIdentity(value)
+        }
+    }
+    impl From<Addr> for NodeQueryType {
+        fn from(value: Addr) -> Self {
+            NodeQueryType::ByOwner(value)
+        }
+    }
 
     pub fn assert_eq_with_leeway(a: Uint128, b: Uint128, leeway: Uint128) {
         if a > b {
@@ -100,6 +159,7 @@ pub mod test_helpers {
         pub owner: MessageInfo,
     }
 
+    #[allow(unused)]
     impl TestSetup {
         pub fn new() -> Self {
             let deps = init_contract();
@@ -132,6 +192,126 @@ pub mod test_helpers {
             self.env.clone()
         }
 
+        pub fn execute(
+            &mut self,
+            info: MessageInfo,
+            msg: ExecuteMsg,
+        ) -> Result<Response, MixnetContractError> {
+            let env = self.env.clone();
+            execute(self.deps_mut(), env, info, msg)
+        }
+
+        #[allow(unused)]
+        pub fn execute_no_funds(
+            &mut self,
+            sender: impl Into<String>,
+            msg: ExecuteMsg,
+        ) -> Result<Response, MixnetContractError> {
+            self.execute(self.mock_info(sender), msg)
+        }
+
+        pub fn execute_fn<F>(
+            &mut self,
+            exec_fn: F,
+            info: MessageInfo,
+        ) -> Result<Response, MixnetContractError>
+        where
+            F: FnOnce(DepsMut<'_>, Env, MessageInfo) -> Result<Response, MixnetContractError>,
+        {
+            let env = self.env().clone();
+            exec_fn(self.deps_mut(), env, info)
+        }
+
+        #[allow(unused)]
+        pub fn execute_fn_no_funds<F>(
+            &mut self,
+            exec_fn: F,
+            sender: impl Into<String>,
+        ) -> Result<Response, MixnetContractError>
+        where
+            F: FnOnce(DepsMut<'_>, Env, MessageInfo) -> Result<Response, MixnetContractError>,
+        {
+            let info = self.mock_info(sender);
+            self.execute_fn(exec_fn, info)
+        }
+
+        #[track_caller]
+        pub fn assert_simple_execution<F>(&mut self, exec_fn: F, info: MessageInfo) -> Response
+        where
+            F: FnOnce(DepsMut<'_>, Env, MessageInfo) -> Result<Response, MixnetContractError>,
+        {
+            let caller = std::panic::Location::caller();
+            self.execute_fn(exec_fn, info)
+                .unwrap_or_else(|err| panic!("{caller} failed with: '{err}' ({err:?})"))
+        }
+
+        #[allow(unused)]
+        #[track_caller]
+        pub fn assert_simple_execution_no_funds<F>(
+            &mut self,
+            exec_fn: F,
+            sender: impl Into<String>,
+        ) -> Response
+        where
+            F: FnOnce(DepsMut<'_>, Env, MessageInfo) -> Result<Response, MixnetContractError>,
+        {
+            let caller = std::panic::Location::caller();
+            self.execute_fn_no_funds(exec_fn, sender)
+                .unwrap_or_else(|err| panic!("{caller} failed with: '{err}' ({err:?})"))
+        }
+
+        pub fn update_profit_margin_range(&mut self, range: ProfitMarginRange) {
+            let current = query_contract_settings_params(self.deps()).unwrap();
+
+            self.execute(
+                self.owner(),
+                ExecuteMsg::UpdateContractStateParams {
+                    updated_parameters: ContractStateParams {
+                        profit_margin: range,
+                        ..current
+                    },
+                },
+            )
+            .unwrap();
+        }
+
+        pub fn update_operating_cost_range(&mut self, range: OperatingCostRange) {
+            let current = query_contract_settings_params(self.deps()).unwrap();
+
+            self.execute(
+                self.owner(),
+                ExecuteMsg::UpdateContractStateParams {
+                    updated_parameters: ContractStateParams {
+                        interval_operating_cost: range,
+                        ..current
+                    },
+                },
+            )
+            .unwrap();
+        }
+
+        pub fn get_node_id(&self, query_type: impl Into<NodeQueryType>) -> NodeId {
+            match query_type.into() {
+                NodeQueryType::ById(id) => id,
+                NodeQueryType::ByIdentity(identity) => {
+                    get_node_details_by_identity(&self.deps.storage, identity)
+                        .unwrap()
+                        .unwrap()
+                        .node_id()
+                }
+                NodeQueryType::ByOwner(owner) => {
+                    must_get_node_bond_by_owner(&self.deps.storage, &owner)
+                        .unwrap()
+                        .node_id
+                }
+            }
+        }
+
+        #[allow(unused)]
+        pub fn mock_info(&self, sender: impl Into<String>) -> MessageInfo {
+            mock_info(&sender.into(), &[])
+        }
+
         pub fn rewarding_validator(&self) -> MessageInfo {
             self.rewarding_validator.clone()
         }
@@ -158,77 +338,60 @@ pub mod test_helpers {
             interval_storage::current_interval(self.deps().storage).unwrap()
         }
 
-        pub fn rewarded_set(&self) -> Vec<(MixId, RewardedSetNodeStatus)> {
-            interval_storage::REWARDED_SET
-                .range(self.deps().storage, None, None, Order::Ascending)
-                .map(|res| res.unwrap())
-                .collect::<Vec<_>>()
+        pub fn current_epoch_state(&self) -> EpochState {
+            interval_storage::current_epoch_status(self.deps().storage)
+                .unwrap()
+                .state
         }
 
-        pub fn generate_family_join_permit(
-            &mut self,
-            family_owner_keys: &identity::KeyPair,
-            member_node: IdentityKeyRef,
-        ) -> MessageSignature {
-            let identity = family_owner_keys.public_key().to_base58_string();
-
-            let head_mixnode = mixnodes_storage::mixnode_bonds()
-                .idx
-                .identity_key
-                .item(self.deps().storage, identity.clone())
-                .unwrap()
-                .map(|record| record.1)
-                .unwrap();
-
-            let family_head = FamilyHead::new(&identity);
-            let owner = head_mixnode.owner;
-
-            let nonce = signing_storage::get_signing_nonce(self.deps().storage, owner).unwrap();
-
-            let msg = construct_family_join_permit(nonce, family_head, member_node.to_owned());
-
-            let sig_bytes = family_owner_keys
-                .private_key()
-                .sign(msg.to_plaintext().unwrap())
-                .to_bytes();
-            MessageSignature::from(sig_bytes.as_ref())
+        pub fn active_roles_bucket(&self) -> RoleStorageBucket {
+            ACTIVE_ROLES_BUCKET.load(self.deps().storage).unwrap()
         }
 
         #[allow(unused)]
-        pub fn join_family(
+        pub fn active_roles_metadata(&self) -> RewardedSetMetadata {
+            let bucket = self.active_roles_bucket().other();
+            ROLES_METADATA
+                .load(self.deps().storage, bucket as u8)
+                .unwrap()
+        }
+
+        pub fn inactive_roles_metadata(&self) -> RewardedSetMetadata {
+            let bucket = self.active_roles_bucket().other();
+            ROLES_METADATA
+                .load(self.deps().storage, bucket as u8)
+                .unwrap()
+        }
+
+        #[allow(unused)]
+        pub fn active_roles(&self, role: Role) -> Vec<NodeId> {
+            let bucket = self.active_roles_bucket().other();
+            ROLES
+                .load(self.deps().storage, (bucket as u8, role))
+                .unwrap()
+        }
+
+        pub fn inactive_roles(&self, role: Role) -> Vec<NodeId> {
+            let bucket = self.active_roles_bucket().other();
+            ROLES
+                .load(self.deps().storage, (bucket as u8, role))
+                .unwrap()
+        }
+
+        pub fn max_role_count(&self, role: Role) -> u32 {
+            RewardingStorage::load()
+                .global_rewarding_params
+                .load(self.deps().storage)
+                .unwrap()
+                .rewarded_set
+                .maximum_role_count(role)
+        }
+
+        pub fn set_pending_pledge_change(
             &mut self,
-            member: &str,
-            member_keys: &identity::KeyPair,
-            head_keys: &identity::KeyPair,
+            mix_id: NodeId,
+            event_id: Option<EpochEventId>,
         ) {
-            let member_identity = member_keys.public_key().to_base58_string();
-            let head_identity = head_keys.public_key().to_base58_string();
-
-            let join_permit = self.generate_family_join_permit(head_keys, &member_identity);
-            let family_head = FamilyHead::new(head_identity);
-
-            try_join_family(
-                self.deps_mut(),
-                mock_info(member, &[]),
-                join_permit,
-                family_head,
-            )
-            .unwrap();
-        }
-
-        #[allow(dead_code)]
-        pub fn create_dummy_mixnode_with_new_family(
-            &mut self,
-            head: &str,
-            label: &str,
-        ) -> (MixId, identity::KeyPair) {
-            let (mix_id, keys) = self.add_dummy_mixnode_with_keypair(head, None);
-
-            try_create_family(self.deps_mut(), mock_info(head, &[]), label.to_string()).unwrap();
-            (mix_id, keys)
-        }
-
-        pub fn set_pending_pledge_change(&mut self, mix_id: MixId, event_id: Option<EpochEventId>) {
             let mut changes = mixnodes_storage::PENDING_MIXNODE_CHANGES
                 .load(self.deps().storage, mix_id)
                 .unwrap_or_default();
@@ -239,77 +402,251 @@ pub mod test_helpers {
                 .unwrap();
         }
 
-        pub fn add_dummy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> MixId {
-            let stake = self.make_mix_pledge(stake);
-            let (mixnode, owner_signature, _) =
-                self.mixnode_with_signature(owner, Some(stake.clone()));
+        pub fn lowest_mix_layer(&mut self) -> Role {
+            let layer1 = read_assigned_roles(&self.deps.storage, Role::Layer1).unwrap();
+            let layer2 = read_assigned_roles(&self.deps.storage, Role::Layer2).unwrap();
+            let layer3 = read_assigned_roles(&self.deps.storage, Role::Layer3).unwrap();
+            let l1 = layer1.len();
+            let l2 = layer2.len();
+            let l3 = layer3.len();
+
+            if l1 <= l2 && l1 <= l3 {
+                Role::Layer1
+            } else if l2 <= l3 && l2 <= l1 {
+                Role::Layer2
+            } else {
+                Role::Layer3
+            }
+        }
+
+        pub fn immediately_assign_lowest_mix_layer(&mut self, node_id: NodeId) -> Role {
+            let layer = self.lowest_mix_layer();
+            self.immediately_add_to_role(node_id, layer);
+            layer
+        }
+
+        pub fn immediately_add_to_role(&mut self, node_id: NodeId, role: Role) {
+            let active_bucket = ACTIVE_ROLES_BUCKET.load(&self.deps.storage).unwrap();
+            let mut current = read_assigned_roles(self.deps().storage, role).unwrap();
+            current.push(node_id);
+            ROLES
+                .save(
+                    &mut self.deps.storage,
+                    (active_bucket as u8, role),
+                    &current,
+                )
+                .unwrap();
+        }
+
+        pub fn immediately_assign_standby_role(&mut self, node_id: NodeId) {
+            self.immediately_add_to_role(node_id, Role::Standby)
+        }
+
+        pub fn immediately_assign_exit_gateway_role(&mut self, node_id: NodeId) {
+            self.immediately_add_to_role(node_id, Role::ExitGateway)
+        }
+
+        pub fn immediately_assign_entry_gateway_role(&mut self, node_id: NodeId) {
+            self.immediately_add_to_role(node_id, Role::EntryGateway)
+        }
+
+        pub fn add_rewarded_set_nymnode(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> (NymNodeBond, MessageSignature, KeyPair) {
+            let res = self.add_nymnode(owner, stake);
+            let id = res.0.node_id;
+            self.immediately_assign_lowest_mix_layer(id);
+
+            res
+        }
+
+        pub fn add_rewarded_set_nymnode_id(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> NodeId {
+            self.add_rewarded_set_nymnode(owner, stake).0.node_id
+        }
+
+        pub fn add_nymnode(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> (NymNodeBond, MessageSignature, KeyPair) {
+            let stake = self.make_node_pledge(stake);
+            let (node, owner_signature, keypair) =
+                self.node_with_signature(owner, Some(stake.clone()));
 
             let info = mock_info(owner, stake.as_ref());
-            let current_id_counter = mixnodes_storage::MIXNODE_ID_COUNTER
-                .may_load(self.deps().storage)
-                .unwrap()
-                .unwrap_or_default();
-
             let env = self.env();
 
-            try_add_mixnode(
+            try_add_nym_node(
                 self.deps_mut(),
                 env,
-                info,
-                mixnode,
-                tests::fixtures::mix_node_cost_params_fixture(),
-                owner_signature,
+                info.clone(),
+                node,
+                tests::fixtures::node_cost_params_fixture(),
+                owner_signature.clone(),
             )
             .unwrap();
 
-            // newly added mixnode gets assigned the current counter + 1
-            current_id_counter + 1
+            let bond = must_get_node_bond_by_owner(&self.deps.storage, &info.sender).unwrap();
+
+            (bond, owner_signature, keypair)
         }
 
-        pub fn add_dummy_gateway(&mut self, sender: &str, stake: Option<Uint128>) -> IdentityKey {
-            let stake = self.make_gateway_pledge(stake);
-            let (gateway, owner_signature) =
-                self.gateway_with_signature(sender, Some(stake.clone()));
+        pub fn add_dummy_nymnode(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+            self.add_nymnode(owner, stake).0.node_id
+        }
 
-            let info = mock_info(sender, &stake);
-            let key = gateway.identity_key.clone();
+        #[allow(unused)]
+        pub fn add_dummy_nym_node_with_keypair(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> (NodeId, identity::KeyPair) {
+            let (bond, _, keypair) = self.add_nymnode(owner, stake);
+            (bond.node_id, keypair)
+        }
+
+        #[track_caller]
+        pub fn add_legacy_mixnode(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+            let stake = self.make_mix_pledge(stake);
+            let (mixnode, _, _) = self.mixnode_with_signature(owner, Some(stake.clone()));
+
+            let info = mock_info(owner, stake.as_ref());
             let env = self.env();
-            try_add_gateway(self.deps_mut(), env, info, gateway, owner_signature).unwrap();
-            key
+
+            ensure_no_existing_bond(&info.sender, &self.deps.storage).unwrap();
+            signing_storage::increment_signing_nonce(&mut self.deps.storage, info.sender.clone())
+                .unwrap();
+            legacy::save_new_mixnode(
+                &mut self.deps.storage,
+                env,
+                mixnode,
+                tests::fixtures::node_cost_params_fixture(),
+                info.sender,
+                info.funds[0].clone(),
+            )
+            .unwrap()
+        }
+
+        pub fn add_rewarded_mixing_node(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+            let node_id = self.add_dummy_nymnode(owner, stake);
+            self.immediately_assign_lowest_mix_layer(node_id);
+            node_id
+        }
+
+        pub fn add_rewarded_entry_gateway_node(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> NodeId {
+            let node_id = self.add_dummy_nymnode(owner, stake);
+            self.immediately_assign_entry_gateway_role(node_id);
+            node_id
+        }
+
+        pub fn add_rewarded_exit_gateway_node(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> NodeId {
+            let node_id = self.add_dummy_nymnode(owner, stake);
+            self.immediately_assign_exit_gateway_role(node_id);
+            node_id
+        }
+
+        pub fn add_standby_node(&mut self, owner: &str, stake: Option<Uint128>) -> NodeId {
+            let node_id = self.add_dummy_nymnode(owner, stake);
+            self.immediately_assign_standby_role(node_id);
+            node_id
+        }
+
+        pub fn add_rewarded_legacy_mixnode(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> NodeId {
+            let node_id = self.add_legacy_mixnode(owner, stake);
+            self.immediately_assign_lowest_mix_layer(node_id);
+
+            node_id
+        }
+
+        pub fn add_legacy_gateway(
+            &mut self,
+            sender: &str,
+            stake: Option<Uint128>,
+        ) -> (IdentityKey, NodeId) {
+            let stake = self.make_gateway_pledge(stake);
+            let (gateway, _) = self.gateway_with_signature(sender, Some(stake.clone()));
+
+            let env = self.env();
+            let info = mock_info(sender, &stake);
+
+            legacy::save_new_gateway(
+                &mut self.deps.storage,
+                env,
+                gateway,
+                info.sender,
+                info.funds[0].clone(),
+            )
+            .unwrap()
+        }
+
+        pub fn save_legacy_gateway(&mut self, gateway: Gateway, info: &MessageInfo) {
+            let env = self.env();
+
+            legacy::save_new_gateway(
+                &mut self.deps.storage,
+                env,
+                gateway,
+                info.sender.clone(),
+                info.funds[0].clone(),
+            )
+            .unwrap();
         }
 
         pub fn add_dummy_mixnodes(&mut self, n: usize) {
             for i in 0..n {
-                self.add_dummy_mixnode(&format!("owner{i}"), None);
+                self.add_legacy_mixnode(&format!("owner{i}"), None);
             }
         }
 
         pub fn add_dummy_gateways(&mut self, n: usize) {
             for i in 0..n {
-                self.add_dummy_gateway(&format!("owner{i}"), None);
+                self.add_legacy_gateway(&format!("owner{i}"), None);
             }
         }
 
-        pub fn make_mix_pledge(&self, stake: Option<Uint128>) -> Vec<Coin> {
+        pub fn make_node_pledge(&self, stake: Option<Uint128>) -> Vec<Coin> {
             let stake = match stake {
                 Some(amount) => {
                     let denom = rewarding_denom(self.deps().storage).unwrap();
                     Coin { denom, amount }
                 }
-                None => minimum_mixnode_pledge(self.deps.as_ref().storage).unwrap(),
+                None => minimum_node_pledge(self.deps.as_ref().storage).unwrap(),
             };
             vec![stake]
         }
 
+        pub fn make_mix_pledge(&self, stake: Option<Uint128>) -> Vec<Coin> {
+            self.make_node_pledge(stake)
+        }
+
         pub fn make_gateway_pledge(&self, stake: Option<Uint128>) -> Vec<Coin> {
-            let stake = match stake {
-                Some(amount) => {
-                    let denom = rewarding_denom(self.deps().storage).unwrap();
-                    Coin { denom, amount }
-                }
-                None => minimum_gateway_pledge(self.deps.as_ref().storage).unwrap(),
-            };
-            vec![stake]
+            self.make_node_pledge(stake)
+        }
+
+        pub fn mixnode_by_id(&self, node_id: NodeId) -> Option<MixNodeDetails> {
+            get_mixnode_details_by_id(self.deps().storage, node_id).unwrap()
+        }
+
+        pub fn nymnode_by_id(&self, node_id: NodeId) -> Option<NymNodeDetails> {
+            get_node_details_by_id(self.deps().storage, node_id).unwrap()
         }
 
         pub fn mixnode_bonding_signature(
@@ -328,42 +665,48 @@ pub mod test_helpers {
             &mut self,
             owner: &str,
             stake: Option<Uint128>,
-        ) -> (MixId, identity::KeyPair) {
+        ) -> (NodeId, identity::KeyPair) {
             let stake = self.make_mix_pledge(stake);
+            let (mixnode, _, keypair) = self.mixnode_with_signature(owner, Some(stake.clone()));
 
-            let keypair = identity::KeyPair::new(&mut self.rng);
-            let identity_key = keypair.public_key().to_base58_string();
-            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
-
-            let mixnode = MixNode {
-                identity_key,
-                sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
-                ..tests::fixtures::mix_node_fixture()
-            };
-
-            let msg =
-                mixnode_bonding_sign_payload(self.deps(), owner, mixnode.clone(), stake.clone());
-            let owner_signature = ed25519_sign_message(msg, keypair.private_key());
-
-            let info = mock_info(owner, &stake);
-            let current_id_counter = mixnodes_storage::MIXNODE_ID_COUNTER
-                .may_load(self.deps().storage)
-                .unwrap()
-                .unwrap_or_default();
-
+            let info = mock_info(owner, stake.as_ref());
             let env = self.env();
-            try_add_mixnode(
-                self.deps_mut(),
+
+            ensure_no_existing_bond(&info.sender, &self.deps.storage).unwrap();
+            signing_storage::increment_signing_nonce(&mut self.deps.storage, info.sender.clone())
+                .unwrap();
+            let node_id = legacy::save_new_mixnode(
+                &mut self.deps.storage,
                 env,
-                info,
                 mixnode,
-                tests::fixtures::mix_node_cost_params_fixture(),
-                owner_signature,
+                tests::fixtures::node_cost_params_fixture(),
+                info.sender,
+                info.funds[0].clone(),
             )
             .unwrap();
 
-            // newly added mixnode gets assigned the current counter + 1
-            (current_id_counter + 1, keypair)
+            (node_id, keypair)
+        }
+
+        pub fn node_with_signature(
+            &mut self,
+            sender: &str,
+            stake: Option<Vec<Coin>>,
+        ) -> (NymNode, MessageSignature, KeyPair) {
+            let stake = stake.unwrap_or(good_node_plegge());
+
+            let keypair = identity::KeyPair::new(&mut self.rng);
+            let identity_key = keypair.public_key().to_base58_string();
+
+            let node = NymNode {
+                host: "1.2.3.4".to_string(),
+                custom_http_port: None,
+                identity_key,
+            };
+            let msg = nymnode_bonding_sign_payload(self.deps(), sender, node.clone(), stake);
+            let owner_signature = ed25519_sign_message(msg, keypair.private_key());
+
+            (node, owner_signature, keypair)
         }
 
         pub fn mixnode_with_signature(
@@ -390,7 +733,7 @@ pub mod test_helpers {
 
         pub fn gateway_with_signature(
             &mut self,
-            sender: &str,
+            sender: impl Into<String>,
             stake: Option<Vec<Coin>>,
         ) -> (Gateway, MessageSignature) {
             let stake = stake.unwrap_or(good_gateway_pledge());
@@ -405,13 +748,19 @@ pub mod test_helpers {
                 ..tests::fixtures::gateway_fixture()
             };
 
-            let msg = gateway_bonding_sign_payload(self.deps(), sender, gateway.clone(), stake);
+            let msg = gateway_bonding_sign_payload(
+                self.deps(),
+                sender.into().as_str(),
+                gateway.clone(),
+                stake,
+            );
             let owner_signature = ed25519_sign_message(msg, keypair.private_key());
 
             (gateway, owner_signature)
         }
 
-        pub fn start_unbonding_mixnode(&mut self, mix_id: MixId) {
+        #[track_caller]
+        pub fn start_unbonding_mixnode(&mut self, mix_id: NodeId) {
             let bond_details = mixnodes_storage::mixnode_bonds()
                 .load(self.deps().storage, mix_id)
                 .unwrap();
@@ -425,9 +774,38 @@ pub mod test_helpers {
             .unwrap();
         }
 
-        pub fn immediately_unbond_mixnode(&mut self, mix_id: MixId) {
+        #[track_caller]
+        pub fn start_unbonding_nymnode(&mut self, node_id: NodeId) {
+            let bond_details = nymnodes_storage::nym_nodes()
+                .load(self.deps().storage, node_id)
+                .unwrap();
+
+            let env = self.env();
+            try_remove_nym_node(
+                self.deps_mut(),
+                env,
+                mock_info(bond_details.owner.as_str(), &[]),
+            )
+            .unwrap();
+        }
+
+        #[track_caller]
+        pub fn immediately_unbond_node(&mut self, node: impl Into<NodeQueryType>) {
+            let node_id = self.get_node_id(node);
+            let env = self.env();
+            pending_events::unbond_nym_node(self.deps_mut(), &env, env.block.height, node_id)
+                .unwrap();
+        }
+
+        pub fn immediately_unbond_mixnode(&mut self, mix_id: NodeId) {
             let env = self.env();
             pending_events::unbond_mixnode(self.deps_mut(), &env, env.block.height, mix_id)
+                .unwrap();
+        }
+
+        pub fn immediately_unbond_nymnode(&mut self, node_id: NodeId) {
+            let env = self.env();
+            pending_events::unbond_nym_node(self.deps_mut(), &env, env.block.height, node_id)
                 .unwrap();
         }
 
@@ -435,7 +813,7 @@ pub mod test_helpers {
             &mut self,
             delegator: &str,
             amount: impl Into<Uint128>,
-            target: MixId,
+            target: NodeId,
         ) {
             let denom = rewarding_denom(self.deps().storage).unwrap();
             let amount = Coin {
@@ -459,7 +837,7 @@ pub mod test_helpers {
             &mut self,
             delegator: &str,
             amount: impl Into<Uint128>,
-            target: MixId,
+            target: NodeId,
         ) {
             let denom = rewarding_denom(self.deps().storage).unwrap();
             let amount = Coin {
@@ -470,7 +848,7 @@ pub mod test_helpers {
             delegate(self.deps_mut(), env, delegator, vec![amount], target)
         }
 
-        pub fn remove_immediate_delegation(&mut self, delegator: &str, target: MixId) {
+        pub fn remove_immediate_delegation(&mut self, delegator: &str, target: NodeId) {
             let height = self.env.block.height;
             pending_events::undelegate(self.deps_mut(), height, Addr::unchecked(delegator), target)
                 .unwrap();
@@ -480,6 +858,12 @@ pub mod test_helpers {
             let env = self.env.clone();
             let sender = self.rewarding_validator.clone();
             try_begin_epoch_transition(self.deps_mut(), env, sender).unwrap();
+        }
+
+        pub fn epoch_state(&self) -> EpochState {
+            interval_storage::current_epoch_status(self.deps().storage)
+                .unwrap()
+                .state
         }
 
         pub fn set_epoch_in_progress_state(&mut self) {
@@ -506,20 +890,22 @@ pub mod test_helpers {
             .unwrap();
         }
 
-        pub fn set_epoch_advancement_state(&mut self) {
+        pub fn set_epoch_role_assignment_state(&mut self) {
             let being_advanced_by = self.rewarding_validator.sender.clone();
             interval_storage::save_current_epoch_status(
                 self.deps_mut().storage,
                 &EpochStatus {
                     being_advanced_by,
-                    state: EpochState::AdvancingEpoch,
+                    state: EpochState::RoleAssignment {
+                        next: Role::first(),
+                    },
                 },
             )
             .unwrap();
         }
 
         #[allow(unused)]
-        pub fn pending_operator_reward(&mut self, mix: MixId) -> Decimal {
+        pub fn pending_operator_reward(&mut self, mix: NodeId) -> Decimal {
             query_pending_mixnode_operator_reward(self.deps(), mix)
                 .unwrap()
                 .amount_earned_detailed
@@ -527,7 +913,7 @@ pub mod test_helpers {
         }
 
         #[allow(unused)]
-        pub fn pending_delegator_reward(&mut self, delegator: &str, target: MixId) -> Decimal {
+        pub fn pending_delegator_reward(&mut self, delegator: &str, target: NodeId) -> Decimal {
             query_pending_delegator_reward(self.deps(), delegator.into(), target, None)
                 .unwrap()
                 .amount_earned_detailed
@@ -583,16 +969,55 @@ pub mod test_helpers {
             self.set_epoch_in_progress_state();
         }
 
-        pub fn force_change_rewarded_set(&mut self, nodes: Vec<MixId>) {
-            let active_set_size = rewards_storage::REWARDING_PARAMS
-                .load(self.deps().storage)
-                .unwrap()
-                .active_set_size;
-            interval_storage::update_rewarded_set(self.deps_mut().storage, active_set_size, nodes)
-                .unwrap();
+        pub fn reset_role_assignment(&mut self) {
+            let active_bucket = ACTIVE_ROLES_BUCKET.load(&self.deps.storage).unwrap();
+
+            for role in [
+                Role::EntryGateway,
+                Role::ExitGateway,
+                Role::Layer1,
+                Role::Layer2,
+                Role::Layer3,
+                Role::Standby,
+            ] {
+                ROLES
+                    .save(&mut self.deps.storage, (active_bucket as u8, role), &vec![])
+                    .unwrap();
+            }
         }
 
-        pub fn instantiate_simulator(&self, node: MixId) -> Simulator {
+        pub fn force_assign_rewarded_set(&mut self, assignment: Vec<RoleAssignment>) {
+            self.reset_role_assignment();
+
+            // we cheat a bit to write to the 'active' bucket instead
+            swap_active_role_bucket(self.deps_mut().storage).unwrap();
+            for role_assignment in assignment {
+                let mut sorted_assignment = role_assignment.clone();
+                sorted_assignment.nodes.sort();
+
+                save_assignment(self.deps_mut().storage, sorted_assignment).unwrap();
+            }
+            swap_active_role_bucket(self.deps_mut().storage).unwrap();
+        }
+
+        // note: this does NOT assign gateway role
+        pub fn force_change_mix_rewarded_set(&mut self, nodes: Vec<NodeId>) {
+            let mut roles = HashMap::new();
+            for node in nodes {
+                let layer = self.lowest_mix_layer();
+                let assigned = roles.entry(layer).or_insert(Vec::new());
+                assigned.push(node)
+            }
+
+            let roles = roles
+                .into_iter()
+                .map(|(role, nodes)| RoleAssignment { role, nodes })
+                .collect();
+
+            self.force_assign_rewarded_set(roles)
+        }
+
+        pub fn instantiate_simulator(&self, node: NodeId) -> Simulator {
             simulator_from_single_node_state(self.deps(), node)
         }
 
@@ -615,39 +1040,145 @@ pub mod test_helpers {
                 .collect::<Vec<_>>()
         }
 
+        pub fn active_node_work(&self) -> WorkFactor {
+            self.rewarding_params().active_node_work()
+        }
+
+        #[allow(dead_code)]
+        pub fn standby_node_work(&self) -> WorkFactor {
+            self.rewarding_params().standby_node_work()
+        }
+
+        pub fn active_node_params(&self, performance: f32) -> NodeRewardingParameters {
+            NodeRewardingParameters {
+                performance: test_helpers::performance(performance),
+                work_factor: self.active_node_work(),
+            }
+        }
+
+        #[allow(dead_code)]
+        pub fn standby_node_params(&self, performance: f32) -> NodeRewardingParameters {
+            NodeRewardingParameters {
+                performance: test_helpers::performance(performance),
+                work_factor: self.standby_node_work(),
+            }
+        }
+
+        #[track_caller]
+        pub fn reward_with_distribution_ignore_state(
+            &mut self,
+            node_id: NodeId,
+            params: NodeRewardingParameters,
+        ) -> RewardDistribution {
+            self.reward_with_distribution_with_state_bypass(
+                node_id,
+                params.performance,
+                params.work_factor,
+            )
+        }
+
+        #[track_caller]
         pub fn reward_with_distribution_with_state_bypass(
             &mut self,
-            mix_id: MixId,
+            node_id: NodeId,
             performance: Performance,
+            work_factor: WorkFactor,
         ) -> RewardDistribution {
             let initial_status =
                 interval_storage::current_epoch_status(self.deps().storage).unwrap();
             self.start_epoch_transition();
-            let res = self.reward_with_distribution(mix_id, performance);
+            let res = self.reward_with_distribution(
+                node_id,
+                NodeRewardingParameters::new(performance, work_factor),
+            );
             interval_storage::save_current_epoch_status(self.deps_mut().storage, &initial_status)
                 .unwrap();
             res
         }
 
+        #[allow(dead_code)]
+        #[track_caller]
+        pub fn node_role(&self, node_id: NodeId) -> Role {
+            if read_assigned_roles(&self.deps.storage, Role::EntryGateway)
+                .unwrap()
+                .contains(&node_id)
+            {
+                Role::EntryGateway
+            } else if read_assigned_roles(&self.deps.storage, Role::ExitGateway)
+                .unwrap()
+                .contains(&node_id)
+            {
+                Role::ExitGateway
+            } else if read_assigned_roles(&self.deps.storage, Role::Layer1)
+                .unwrap()
+                .contains(&node_id)
+            {
+                Role::Layer1
+            } else if read_assigned_roles(&self.deps.storage, Role::Layer2)
+                .unwrap()
+                .contains(&node_id)
+            {
+                Role::Layer2
+            } else if read_assigned_roles(&self.deps.storage, Role::Layer3)
+                .unwrap()
+                .contains(&node_id)
+            {
+                Role::Layer3
+            } else if read_assigned_roles(&self.deps.storage, Role::Standby)
+                .unwrap()
+                .contains(&node_id)
+            {
+                Role::Standby
+            } else {
+                let caller = std::panic::Location::caller();
+                panic!("{caller}: no assigned roles")
+            }
+        }
+
+        pub fn legacy_rewarding_params(
+            &self,
+            node_id: NodeId,
+            performance: f32,
+        ) -> NodeRewardingParameters {
+            let performance = test_helpers::performance(performance);
+            let work_factor = self.get_legacy_rewarding_node_work_factor(node_id);
+            NodeRewardingParameters {
+                performance,
+                work_factor,
+            }
+        }
+
+        pub fn get_legacy_rewarding_node_work_factor(&self, node_id: NodeId) -> Decimal {
+            let global_rewarding_params = self.rewarding_params();
+            let work_factor =
+                match expensive_role_lookup(self.deps.as_ref().storage, node_id).unwrap() {
+                    None => Decimal::zero(),
+                    Some(Role::Standby) => global_rewarding_params.standby_node_work(),
+                    _ => global_rewarding_params.active_node_work(),
+                };
+            work_factor
+        }
+
+        #[track_caller]
         pub fn reward_with_distribution(
             &mut self,
-            mix_id: MixId,
-            performance: Performance,
+            node_id: NodeId,
+            rewarding_params: NodeRewardingParameters,
         ) -> RewardDistribution {
             let env = self.env();
             let sender = self.rewarding_validator();
 
             let res =
-                try_reward_mixnode(self.deps_mut(), env, sender, mix_id, performance).unwrap();
+                try_reward_node(self.deps_mut(), env, sender, node_id, rewarding_params).unwrap();
             let operator: Decimal = find_attribute(
-                Some(MixnetEventType::MixnodeRewarding.to_string()),
+                Some(MixnetEventType::NodeRewarding.to_string()),
                 OPERATOR_REWARD_KEY,
                 &res,
             )
             .parse()
             .unwrap();
             let delegates: Decimal = find_attribute(
-                Some(MixnetEventType::MixnodeRewarding.to_string()),
+                Some(MixnetEventType::NodeRewarding.to_string()),
                 DELEGATES_REWARD_KEY,
                 &res,
             )
@@ -662,7 +1193,7 @@ pub mod test_helpers {
 
         pub fn read_delegation(
             &mut self,
-            mix: MixId,
+            mix: NodeId,
             owner: &str,
             proxy: Option<&str>,
         ) -> Delegation {
@@ -675,19 +1206,25 @@ pub mod test_helpers {
             .unwrap()
         }
 
-        pub fn mix_rewarding(&self, node: MixId) -> MixNodeRewarding {
+        pub fn mix_rewarding(&self, node: NodeId) -> NodeRewarding {
             rewards_storage::MIXNODE_REWARDING
                 .load(self.deps().storage, node)
                 .unwrap()
         }
 
         #[allow(unused)]
-        pub fn mix_bond(&self, mix_id: MixId) -> MixNodeBond {
+        pub fn mix_bond(&self, mix_id: NodeId) -> MixNodeBond {
             mixnode_bonds().load(self.deps().storage, mix_id).unwrap()
         }
 
-        pub fn delegation(&self, mix: MixId, owner: &str, proxy: &Option<Addr>) -> Delegation {
-            read_delegation(self.deps().storage, mix, &Addr::unchecked(owner), proxy).unwrap()
+        #[track_caller]
+        pub fn delegation(&self, mix: NodeId, owner: &str, proxy: &Option<Addr>) -> Delegation {
+            let caller = std::panic::Location::caller();
+
+            read_delegation(self.deps().storage, mix, &Addr::unchecked(owner), proxy)
+                .unwrap_or_else(|| {
+                    panic!("{caller} failed with: delegation for {mix}/{owner} doesn't exist")
+                })
         }
     }
 
@@ -707,11 +1244,11 @@ pub mod test_helpers {
         }
     }
 
-    pub fn simulator_from_single_node_state(deps: Deps<'_>, node: MixId) -> Simulator {
+    pub fn simulator_from_single_node_state(deps: Deps<'_>, node: NodeId) -> Simulator {
         let mix_rewarding = rewards_storage::MIXNODE_REWARDING
             .load(deps.storage, node)
             .unwrap();
-        let delegations = query_mixnode_delegations_paged(deps, node, None, None).unwrap();
+        let delegations = query_node_delegations_paged(deps, node, None, None).unwrap();
         if delegations.delegations.len() as u32
             == constants::DELEGATION_PAGE_DEFAULT_RETRIEVAL_LIMIT
         {
@@ -767,6 +1304,62 @@ pub mod test_helpers {
         }
         // this is only used in tests so panic here is fine
         panic!("did not find the attribute")
+    }
+
+    pub(crate) trait FindAttribute {
+        fn attribute<E, S>(&self, event_type: E, attribute: &str) -> String
+        where
+            E: Into<Option<S>>,
+            S: Into<String>;
+
+        fn any_attribute(&self, attribute: &str) -> String {
+            self.attribute::<_, String>(None, attribute)
+        }
+
+        fn any_parsed_attribute<T>(&self, attribute: &str) -> T
+        where
+            T: FromStr,
+            <T as FromStr>::Err: Debug,
+        {
+            self.parsed_attribute::<_, String, T>(None, attribute)
+        }
+
+        fn parsed_attribute<E, S, T>(&self, event_type: E, attribute: &str) -> T
+        where
+            E: Into<Option<S>>,
+            S: Into<String>,
+            T: FromStr,
+            <T as FromStr>::Err: Debug;
+
+        fn decimal<E, S>(&self, event_type: E, attribute: &str) -> Decimal
+        where
+            E: Into<Option<S>>,
+            S: Into<String>,
+        {
+            self.parsed_attribute(event_type, attribute)
+        }
+    }
+
+    impl FindAttribute for Response {
+        fn attribute<E, S>(&self, event_type: E, attribute: &str) -> String
+        where
+            E: Into<Option<S>>,
+            S: Into<String>,
+        {
+            find_attribute(event_type.into(), attribute, self)
+        }
+
+        fn parsed_attribute<E, S, T>(&self, event_type: E, attribute: &str) -> T
+        where
+            E: Into<Option<S>>,
+            S: Into<String>,
+            T: FromStr,
+            <T as FromStr>::Err: Debug,
+        {
+            find_attribute(event_type.into(), attribute, self)
+                .parse()
+                .unwrap()
+        }
     }
 
     // using floats in tests is fine
@@ -842,7 +1435,7 @@ pub mod test_helpers {
     //     (gateway, owner_signature)
     // }
 
-    pub fn add_dummy_delegations(mut deps: DepsMut<'_>, env: Env, mix_id: MixId, n: usize) {
+    pub fn add_dummy_delegations(mut deps: DepsMut<'_>, env: Env, mix_id: NodeId, n: usize) {
         for i in 0..n {
             pending_events::delegate(
                 deps.branch(),
@@ -916,7 +1509,7 @@ pub mod test_helpers {
         deps: DepsMut<'_>,
         identity_key: Option<&str>,
         owner: &str,
-    ) -> MixId {
+    ) -> NodeId {
         let id = loop {
             let candidate = rng.next_u32();
             if !mixnodes_storage::unbonded_mixnodes().has(deps.storage, candidate) {
@@ -943,13 +1536,28 @@ pub mod test_helpers {
         id
     }
 
+    pub fn nymnode_bonding_sign_payload(
+        deps: Deps<'_>,
+        owner: &str,
+        node: NymNode,
+        stake: Vec<Coin>,
+    ) -> SignableNymNodeBondingMsg {
+        let cost_params = tests::fixtures::node_cost_params_fixture();
+        let nonce =
+            signing_storage::get_signing_nonce(deps.storage, Addr::unchecked(owner)).unwrap();
+
+        let payload = NymNodeBondingPayload::new(node, cost_params);
+        let content = ContractMessageContent::new(Addr::unchecked(owner), stake, payload);
+        SignableNymNodeBondingMsg::new(nonce, content)
+    }
+
     pub fn mixnode_bonding_sign_payload(
         deps: Deps<'_>,
         owner: &str,
         mixnode: MixNode,
         stake: Vec<Coin>,
     ) -> SignableMixNodeBondingMsg {
-        let cost_params = tests::fixtures::mix_node_cost_params_fixture();
+        let cost_params = tests::fixtures::node_cost_params_fixture();
         let nonce =
             signing_storage::get_signing_nonce(deps.storage, Addr::unchecked(owner)).unwrap();
 
@@ -972,6 +1580,15 @@ pub mod test_helpers {
         SignableGatewayBondingMsg::new(nonce, content)
     }
 
+    fn intial_rewarded_set_params() -> RewardedSetParams {
+        RewardedSetParams {
+            entry_gateways: 50,
+            exit_gateways: 70,
+            mixnodes: 120,
+            standby: 50,
+        }
+    }
+
     fn initial_rewarding_params() -> InitialRewardingParams {
         let reward_pool = 250_000_000_000_000u128;
         let staking_supply = 100_000_000_000_000u128;
@@ -983,8 +1600,7 @@ pub mod test_helpers {
             sybil_resistance: Percent::from_percentage_value(30).unwrap(),
             active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
             interval_pool_emission: Percent::from_percentage_value(2).unwrap(),
-            rewarded_set_size: 240,
-            active_set_size: 100,
+            rewarded_set_params: intial_rewarded_set_params(),
         }
     }
 
@@ -1006,14 +1622,14 @@ pub mod test_helpers {
         deps
     }
 
-    pub fn delegate(deps: DepsMut<'_>, env: Env, sender: &str, stake: Vec<Coin>, mix_id: MixId) {
+    pub fn delegate(deps: DepsMut<'_>, env: Env, sender: &str, stake: Vec<Coin>, mix_id: NodeId) {
         let info = mock_info(sender, &stake);
-        try_delegate_to_mixnode(deps, env, info, mix_id).unwrap();
+        try_delegate_to_node(deps, env, info, mix_id).unwrap();
     }
 
     pub(crate) fn read_delegation(
         storage: &dyn Storage,
-        mix: MixId,
+        mix: NodeId,
         owner: &Addr,
         proxy: &Option<Addr>,
     ) -> Option<Delegation> {

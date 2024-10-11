@@ -25,96 +25,6 @@
     "title": "ExecuteMsg",
     "oneOf": [
       {
-        "description": "Only owner of the node can crate the family with node as head",
-        "type": "object",
-        "required": [
-          "create_family"
-        ],
-        "properties": {
-          "create_family": {
-            "type": "object",
-            "required": [
-              "label"
-            ],
-            "properties": {
-              "label": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "description": "Family head needs to sign the joining node IdentityKey, the Node provides its signature signaling consent to join the family",
-        "type": "object",
-        "required": [
-          "join_family"
-        ],
-        "properties": {
-          "join_family": {
-            "type": "object",
-            "required": [
-              "family_head",
-              "join_permit"
-            ],
-            "properties": {
-              "family_head": {
-                "$ref": "#/definitions/FamilyHead"
-              },
-              "join_permit": {
-                "$ref": "#/definitions/MessageSignature"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
-          "leave_family"
-        ],
-        "properties": {
-          "leave_family": {
-            "type": "object",
-            "required": [
-              "family_head"
-            ],
-            "properties": {
-              "family_head": {
-                "$ref": "#/definitions/FamilyHead"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
-        "type": "object",
-        "required": [
-          "kick_family_member"
-        ],
-        "properties": {
-          "kick_family_member": {
-            "type": "object",
-            "required": [
-              "member"
-            ],
-            "properties": {
-              "member": {
-                "type": "string"
-              }
-            },
-            "additionalProperties": false
-          }
-        },
-        "additionalProperties": false
-      },
-      {
         "type": "object",
         "required": [
           "track_reward"
@@ -188,7 +98,7 @@
             ],
             "properties": {
               "new_costs": {
-                "$ref": "#/definitions/MixNodeCostParams"
+                "$ref": "#/definitions/NodeCostParams"
               }
             },
             "additionalProperties": false
@@ -418,7 +328,7 @@
                 "$ref": "#/definitions/Coin"
               },
               "cost_params": {
-                "$ref": "#/definitions/MixNodeCostParams"
+                "$ref": "#/definitions/NodeCostParams"
               },
               "mix_node": {
                 "$ref": "#/definitions/MixNode"
@@ -761,10 +671,6 @@
         "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
         "type": "string"
       },
-      "FamilyHead": {
-        "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
-        "type": "string"
-      },
       "Gateway": {
         "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
         "type": "object",
@@ -937,7 +843,7 @@
         },
         "additionalProperties": false
       },
-      "MixNodeCostParams": {
+      "NodeCostParams": {
         "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
         "type": "object",
         "required": [
@@ -946,7 +852,7 @@
         ],
         "properties": {
           "interval_operating_cost": {
-            "description": "Operating cost of the associated mixnode per the entire interval.",
+            "description": "Operating cost of the associated node per the entire interval.",
             "allOf": [
               {
                 "$ref": "#/definitions/Coin"
@@ -954,7 +860,7 @@
             ]
           },
           "profit_margin_percent": {
-            "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+            "description": "The profit margin of the associated node, i.e. the desired percent of the reward to be distributed to the operator.",
             "allOf": [
               {
                 "$ref": "#/definitions/Percent"

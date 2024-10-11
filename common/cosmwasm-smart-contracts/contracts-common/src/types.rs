@@ -8,7 +8,7 @@ use cosmwasm_std::Uint128;
 use serde::de::Error;
 use serde::{Deserialize, Deserializer};
 use std::fmt::{self, Display, Formatter};
-use std::ops::Mul;
+use std::ops::{Deref, Mul};
 use std::str::FromStr;
 use thiserror::Error;
 
@@ -23,7 +23,7 @@ pub fn truncate_decimal(amount: Decimal) -> Uint128 {
 #[derive(Error, Debug)]
 pub enum ContractsCommonError {
     #[error("Provided percent value ({0}) is greater than 100%")]
-    InvalidPercent(Decimal),
+    InvalidPercent(String),
 
     #[error("{source}")]
     StdErr {
@@ -41,7 +41,7 @@ pub struct Percent(#[serde(deserialize_with = "de_decimal_percent")] Decimal);
 impl Percent {
     pub fn new(value: Decimal) -> Result<Self, ContractsCommonError> {
         if value > Decimal::one() {
-            Err(ContractsCommonError::InvalidPercent(value))
+            Err(ContractsCommonError::InvalidPercent(value.to_string()))
         } else {
             Ok(Percent(value))
         }
@@ -51,11 +51,15 @@ impl Percent {
         self.0 == Decimal::zero()
     }
 
-    pub fn zero() -> Self {
+    pub fn is_hundred(&self) -> bool {
+        self == &Self::hundred()
+    }
+
+    pub const fn zero() -> Self {
         Self(Decimal::zero())
     }
 
-    pub fn hundred() -> Self {
+    pub const fn hundred() -> Self {
         Self(Decimal::one())
     }
 
@@ -114,6 +118,70 @@ impl Mul<Uint128> for Percent {
 
     fn mul(self, rhs: Uint128) -> Self::Output {
         self.0 * rhs
+    }
+}
+
+impl Deref for Percent {
+    type Target = Decimal;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+// this is not implemented via From traits due to its naive nature and loss of precision
+#[cfg(not(target_arch = "wasm32"))]
+pub trait NaiveFloat {
+    fn naive_to_f64(&self) -> f64;
+
+    fn naive_try_from_f64(val: f64) -> Result<Self, ContractsCommonError>
+    where
+        Self: Sized;
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl NaiveFloat for Percent {
+    fn naive_to_f64(&self) -> f64 {
+        use cosmwasm_std::Fraction;
+
+        // note: this conversion loses precision with too many decimal places,
+        // but for the purposes of displaying basic performance, that's not an issue
+        self.numerator().u128() as f64 / self.denominator().u128() as f64
+    }
+
+    fn naive_try_from_f64(val: f64) -> Result<Self, ContractsCommonError>
+    where
+        Self: Sized,
+    {
+        // we are only interested in positive values between 0 and 1
+        if !(0. ..=1.).contains(&val) {
+            return Err(ContractsCommonError::InvalidPercent(val.to_string()));
+        }
+
+        fn gcd(mut x: u64, mut y: u64) -> u64 {
+            while y > 0 {
+                let rem = x % y;
+                x = y;
+                y = rem;
+            }
+
+            x
+        }
+
+        fn to_rational(x: f64) -> (u64, u64) {
+            let log = x.log2().floor();
+            if log >= 0.0 {
+                (x as u64, 1)
+            } else {
+                let num: u64 = (x / f64::EPSILON) as _;
+                let den: u64 = (1.0 / f64::EPSILON) as _;
+                let gcd = gcd(num, den);
+                (num / gcd, den / gcd)
+            }
+        }
+
+        let (n, d) = to_rational(val);
+        Percent::new(Decimal::from_ratio(n, d))
     }
 }
 
@@ -242,5 +310,20 @@ mod tests {
 
         let p = serde_json::from_str::<'_, Percent>("\"1.00\"").unwrap();
         assert_eq!(p.round_to_integer(), 100);
+    }
+
+    #[test]
+    fn naive_float_conversion() {
+        // around 15 decimal places is the maximum precision we can handle
+        // which is still way more than enough for what we use it for
+        let float: f64 = "0.546295475423853".parse().unwrap();
+        let percent: Percent = "0.546295475423853".parse().unwrap();
+
+        assert_eq!(float, percent.naive_to_f64());
+
+        let epsilon = Decimal::from_ratio(1u64, 1000000000000000u64);
+        let converted = Percent::naive_try_from_f64(float).unwrap();
+
+        assert!(converted.0 - converted.0 < epsilon);
     }
 }

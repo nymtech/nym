@@ -1,7 +1,0 @@
-[default]
-limits = { forms = "64 kB", json = "1 MiB" }
-port = 8080
-address = "127.0.0.1"
-
-[release]
-address = "0.0.0.0"

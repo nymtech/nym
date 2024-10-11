@@ -12,6 +12,7 @@ repository = { workspace = true }
 bs58 = { workspace = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
+cw-storage-plus.workspace = true
 cw-controllers = { workspace = true }
 cw2 = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }

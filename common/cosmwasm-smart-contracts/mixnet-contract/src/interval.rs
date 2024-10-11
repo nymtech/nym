@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::MixnetContractError;
-use crate::MixId;
+use crate::nym_node::Role;
+use crate::NodeId;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_schema::schemars::gen::SchemaGenerator;
 use cosmwasm_schema::schemars::schema::{InstanceType, Schema, SchemaObject};
@@ -86,7 +87,7 @@ impl EpochStatus {
 
     pub fn update_last_rewarded(
         &mut self,
-        new_last_rewarded: MixId,
+        new_last_rewarded: NodeId,
     ) -> Result<bool, MixnetContractError> {
         match &mut self.state {
             EpochState::Rewarding {
@@ -109,7 +110,7 @@ impl EpochStatus {
         }
     }
 
-    pub fn last_rewarded(&self) -> Result<MixId, MixnetContractError> {
+    pub fn last_rewarded(&self) -> Result<NodeId, MixnetContractError> {
         match self.state {
             EpochState::Rewarding { last_rewarded, .. } => Ok(last_rewarded),
             state => Err(MixnetContractError::UnexpectedNonRewardingEpochState {
@@ -127,12 +128,23 @@ impl EpochStatus {
         Ok(())
     }
 
-    pub fn ensure_is_in_advancement_state(&self) -> Result<(), MixnetContractError> {
-        if !matches!(self.state, EpochState::AdvancingEpoch) {
-            return Err(MixnetContractError::EpochNotInAdvancementState {
+    pub fn ensure_is_in_expected_role_assignment_state(
+        &self,
+        caller: Role,
+    ) -> Result<(), MixnetContractError> {
+        let EpochState::RoleAssignment { next } = self.state else {
+            return Err(MixnetContractError::EpochNotInRoleAssignmentState {
                 current_state: self.state,
             });
+        };
+
+        if caller != next {
+            return Err(MixnetContractError::UnexpectedRoleAssignment {
+                expected: next,
+                got: caller,
+            });
         }
+
         Ok(())
     }
 
@@ -146,10 +158,6 @@ impl EpochStatus {
 
     pub fn is_reconciling(&self) -> bool {
         matches!(self.state, EpochState::ReconcilingEvents)
-    }
-
-    pub fn is_advancing(&self) -> bool {
-        matches!(self.state, EpochState::AdvancingEpoch)
     }
 }
 
@@ -167,10 +175,10 @@ pub enum EpochState {
     #[serde(alias = "Rewarding")]
     Rewarding {
         /// The id of the last node that has already received its rewards.
-        last_rewarded: MixId,
+        last_rewarded: NodeId,
 
         /// The id of the last node that's going to be rewarded before progressing into the next state.
-        final_node_id: MixId,
+        final_node_id: NodeId,
         // total_rewarded: u32,
     },
 
@@ -179,10 +187,9 @@ pub enum EpochState {
     #[serde(alias = "ReconcilingEvents")]
     ReconcilingEvents,
 
-    /// Represents the state of an epoch when all mixnodes have already been rewarded for their work in this epoch,
-    /// all issued actions got resolved and the epoch should now be advanced whilst assigning new rewarded set.
-    #[serde(alias = "AdvancingEpoch")]
-    AdvancingEpoch,
+    /// Represents the state of an epoch when all nodes have already been rewarded for their work in this epoch,
+    /// all issued actions got resolved and node roles should now be assigned before advancing into the next epoch.
+    RoleAssignment { next: Role },
 }
 
 impl Display for EpochState {
@@ -197,7 +204,9 @@ impl Display for EpochState {
                 "mix rewarding (last rewarded: {last_rewarded}, final node: {final_node_id})"
             ),
             EpochState::ReconcilingEvents => write!(f, "event reconciliation"),
-            EpochState::AdvancingEpoch => write!(f, "advancing epoch"),
+            EpochState::RoleAssignment { next } => {
+                write!(f, "role assignment with next assignment for: {next}")
+            }
         }
     }
 }
@@ -206,7 +215,7 @@ impl Display for EpochState {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Interval.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/Interval.ts")
 )]
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
@@ -357,6 +366,17 @@ impl Interval {
     #[inline]
     pub fn is_current_epoch_over(&self, env: &Env) -> bool {
         self.current_epoch_end_unix_timestamp() <= env.block.time.seconds() as i64
+    }
+
+    pub fn ensure_current_epoch_is_over(&self, env: &Env) -> Result<(), MixnetContractError> {
+        if !self.is_current_epoch_over(env) {
+            return Err(MixnetContractError::EpochInProgress {
+                current_block_time: env.block.time.seconds(),
+                epoch_start: self.current_epoch_start_unix_timestamp(),
+                epoch_end: self.current_epoch_end_unix_timestamp(),
+            });
+        }
+        Ok(())
     }
 
     pub fn secs_until_current_epoch_end(&self, env: &Env) -> i64 {

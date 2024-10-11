@@ -3,10 +3,11 @@
 
 use crate::ecash::dkg::controller::DkgController;
 use crate::ecash::error::EcashError;
-use log::debug;
 use nym_coconut_dkg_common::types::EpochId;
 use rand::{CryptoRng, RngCore};
 use thiserror::Error;
+use tracing::debug;
+use tracing::info;
 
 #[derive(Debug, Error)]
 pub enum PublicKeySubmissionError {

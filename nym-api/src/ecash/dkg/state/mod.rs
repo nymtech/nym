@@ -10,7 +10,6 @@ use crate::ecash::dkg::state::registration::{DkgParticipant, ParticipantState, R
 use crate::ecash::error::EcashError;
 use crate::ecash::keys::{KeyPair as CoconutKeyPair, KeyPairWithEpoch};
 use cosmwasm_std::Addr;
-use log::debug;
 use nym_coconut_dkg_common::dealer::DealerDetails;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_crypto::asymmetric::identity;
@@ -20,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::path::{Path, PathBuf};
 use time::OffsetDateTime;
+use tracing::{debug, warn};
 use url::Url;
 
 pub(crate) mod dealing_exchange;

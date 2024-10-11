@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PledgeData.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/PledgeData.ts")
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct PledgeData {
@@ -32,7 +32,10 @@ impl PledgeData {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/OriginalVestingResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/OriginalVestingResponse.ts"
+    )
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct OriginalVestingResponse {
@@ -57,7 +60,10 @@ impl OriginalVestingResponse {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/VestingAccountInfo.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/VestingAccountInfo.ts"
+    )
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VestingAccountInfo {
@@ -86,7 +92,10 @@ impl VestingAccountInfo {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/VestingPeriod.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/VestingPeriod.ts"
+    )
 )]
 #[derive(Serialize, Deserialize, Debug)]
 pub struct VestingPeriod {

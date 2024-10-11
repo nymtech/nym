@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Api, Storage, Uint128};
 use cosmwasm_std::{Coin, Order};
 use cw_storage_plus::{Item, Map};
-use mixnet_contract_common::{IdentityKey, MixId};
+use mixnet_contract_common::{IdentityKey, NodeId};
 use vesting_contract_common::account::VestingAccountStorageKey;
 use vesting_contract_common::{Account, PledgeData, VestingContractError};
 
@@ -40,7 +40,7 @@ pub const _OLD_DELEGATIONS: Map<
 
 /// Storage map containing information about tokens delegated towards particular mixnodes
 /// in the mixnet contract with given vesting account.
-pub const DELEGATIONS: Map<'_, (VestingAccountStorageKey, MixId, BlockTimestampSecs), Uint128> =
+pub const DELEGATIONS: Map<'_, (VestingAccountStorageKey, NodeId, BlockTimestampSecs), Uint128> =
     Map::new("dlg_v2");
 
 /// Explicit contract admin that is allowed, among other things, to create new vesting accounts.
@@ -53,7 +53,7 @@ pub const MIXNET_CONTRACT_ADDRESS: Item<'_, Addr> = Item::new("mix");
 pub const MIX_DENOM: Item<'_, String> = Item::new("den");
 
 pub fn save_delegation(
-    key: (VestingAccountStorageKey, MixId, BlockTimestampSecs),
+    key: (VestingAccountStorageKey, NodeId, BlockTimestampSecs),
     amount: Uint128,
     storage: &mut dyn Storage,
 ) -> Result<(), VestingContractError> {
@@ -68,7 +68,7 @@ pub fn save_delegation(
 }
 
 pub fn remove_delegation(
-    key: (VestingAccountStorageKey, MixId, BlockTimestampSecs),
+    key: (VestingAccountStorageKey, NodeId, BlockTimestampSecs),
     storage: &mut dyn Storage,
 ) -> Result<(), VestingContractError> {
     DELEGATIONS.remove(storage, key);
@@ -76,7 +76,7 @@ pub fn remove_delegation(
 }
 
 pub fn load_delegation_timestamps(
-    prefix: (VestingAccountStorageKey, MixId),
+    prefix: (VestingAccountStorageKey, NodeId),
     storage: &dyn Storage,
 ) -> Result<Vec<BlockTimestampSecs>, VestingContractError> {
     let block_timestamps = DELEGATIONS
@@ -87,7 +87,7 @@ pub fn load_delegation_timestamps(
 }
 
 pub fn count_subdelegations_for_mix(
-    prefix: (VestingAccountStorageKey, MixId),
+    prefix: (VestingAccountStorageKey, NodeId),
     storage: &dyn Storage,
 ) -> u32 {
     DELEGATIONS

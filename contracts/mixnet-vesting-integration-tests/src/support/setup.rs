@@ -5,14 +5,15 @@ use crate::support::fixtures;
 use crate::support::helpers::{
     mixnet_contract_wrapper, rewarding_validator, test_rng, vesting_contract_wrapper,
 };
-use cosmwasm_std::{coins, Addr, Coin, Timestamp};
+use cosmwasm_std::{coins, Addr, Coin, Decimal, Timestamp};
 use cw_multi_test::{App, AppBuilder, Executor};
 use nym_contracts_common::signing::{ContractMessageContent, MessageSignature, Nonce};
 use nym_crypto::asymmetric::identity;
-use nym_mixnet_contract_common::reward_params::Performance;
+use nym_mixnet_contract_common::nym_node::{EpochAssignmentResponse, Role, RolesMetadataResponse};
+use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance};
 use nym_mixnet_contract_common::{
-    CurrentIntervalResponse, LayerAssignment, MixNodeCostParams, MixnodeBondingPayload,
-    PagedRewardedSetResponse, RewardingParams, SignableMixNodeBondingMsg,
+    CurrentIntervalResponse, MixnodeBondingPayload, NodeCostParams, RewardedSet, RewardingParams,
+    RoleAssignment, SignableMixNodeBondingMsg,
 };
 use nym_mixnet_contract_common::{
     ExecuteMsg as MixnetExecuteMsg, MixNode, QueryMsg as MixnetQueryMsg,
@@ -118,18 +119,95 @@ impl TestSetup {
         })
     }
 
-    pub fn full_mixnet_epoch_operations(&mut self) {
-        let current_rewarded_set: PagedRewardedSetResponse = self
+    fn get_rewarded_set(&self) -> RewardedSet {
+        let metadata: RolesMetadataResponse = self
             .app
             .wrap()
             .query_wasm_smart(
                 self.mixnet_contract(),
-                &MixnetQueryMsg::GetRewardedSet {
-                    limit: Some(9999),
-                    start_after: None,
+                &MixnetQueryMsg::GetRewardedSetMetadata {},
+            )
+            .unwrap();
+
+        let entry: EpochAssignmentResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.mixnet_contract(),
+                &MixnetQueryMsg::GetRoleAssignment {
+                    role: Role::EntryGateway,
                 },
             )
             .unwrap();
+        assert_eq!(entry.epoch_id, metadata.metadata.epoch_id);
+
+        let exit: EpochAssignmentResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.mixnet_contract(),
+                &MixnetQueryMsg::GetRoleAssignment {
+                    role: Role::ExitGateway,
+                },
+            )
+            .unwrap();
+        assert_eq!(exit.epoch_id, metadata.metadata.epoch_id);
+
+        let layer1: EpochAssignmentResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.mixnet_contract(),
+                &MixnetQueryMsg::GetRoleAssignment { role: Role::Layer1 },
+            )
+            .unwrap();
+        assert_eq!(layer1.epoch_id, metadata.metadata.epoch_id);
+
+        let layer2: EpochAssignmentResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.mixnet_contract(),
+                &MixnetQueryMsg::GetRoleAssignment { role: Role::Layer2 },
+            )
+            .unwrap();
+        assert_eq!(layer2.epoch_id, metadata.metadata.epoch_id);
+
+        let layer3: EpochAssignmentResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.mixnet_contract(),
+                &MixnetQueryMsg::GetRoleAssignment { role: Role::Layer3 },
+            )
+            .unwrap();
+        assert_eq!(layer3.epoch_id, metadata.metadata.epoch_id);
+
+        let standby: EpochAssignmentResponse = self
+            .app
+            .wrap()
+            .query_wasm_smart(
+                self.mixnet_contract(),
+                &MixnetQueryMsg::GetRoleAssignment {
+                    role: Role::Standby,
+                },
+            )
+            .unwrap();
+        assert_eq!(standby.epoch_id, metadata.metadata.epoch_id);
+
+        RewardedSet {
+            entry_gateways: entry.nodes,
+            exit_gateways: exit.nodes,
+            layer1: layer1.nodes,
+            layer2: layer2.nodes,
+            layer3: layer3.nodes,
+            standby: standby.nodes,
+        }
+    }
+
+    pub fn full_mixnet_epoch_operations(&mut self) {
+        let rewarded_set = self.get_rewarded_set();
+
         let current_params: RewardingParams = self
             .app
             .wrap()
@@ -150,16 +228,30 @@ impl TestSetup {
             )
             .unwrap();
 
+        let work =
+            Decimal::one() / Decimal::from_ratio(rewarded_set.rewarded_set_size() as u64, 1u64);
+        let params = NodeRewardingParameters::new(Performance::hundred(), work);
+
+        let mut nodes = rewarded_set
+            .layer1
+            .iter()
+            .chain(rewarded_set.layer2.iter())
+            .chain(rewarded_set.layer3.iter())
+            .chain(rewarded_set.entry_gateways.iter())
+            .chain(rewarded_set.exit_gateways.iter())
+            .chain(rewarded_set.standby.iter())
+            .copied()
+            .collect::<Vec<_>>();
+
+        nodes.sort();
+
         // reward
-        for (mix_id, _status) in &current_rewarded_set.nodes {
+        for (node_id) in nodes {
             self.app
                 .execute_contract(
                     rewarding_validator(),
                     self.mixnet_contract(),
-                    &MixnetExecuteMsg::RewardMixnode {
-                        mix_id: *mix_id,
-                        performance: Performance::hundred(),
-                    },
+                    &MixnetExecuteMsg::RewardNode { node_id, params },
                     &[],
                 )
                 .unwrap();
@@ -176,22 +268,86 @@ impl TestSetup {
             .unwrap();
 
         // don't bother changing the active set, use the same node for update and advance
-        let new_rewarded_set = current_rewarded_set
-            .nodes
-            .into_iter()
-            .enumerate()
-            .map(|(i, (node, _))| {
-                LayerAssignment::new(node, ((i as u8 % 3) + 1).try_into().unwrap())
-            })
-            .collect();
 
         self.app
             .execute_contract(
                 rewarding_validator(),
                 self.mixnet_contract(),
-                &MixnetExecuteMsg::AdvanceCurrentEpoch {
-                    new_rewarded_set,
-                    expected_active_set_size: current_params.active_set_size,
+                &MixnetExecuteMsg::AssignRoles {
+                    assignment: RoleAssignment {
+                        role: Role::EntryGateway,
+                        nodes: rewarded_set.entry_gateways,
+                    },
+                },
+                &[],
+            )
+            .unwrap();
+
+        self.app
+            .execute_contract(
+                rewarding_validator(),
+                self.mixnet_contract(),
+                &MixnetExecuteMsg::AssignRoles {
+                    assignment: RoleAssignment {
+                        role: Role::ExitGateway,
+                        nodes: rewarded_set.exit_gateways,
+                    },
+                },
+                &[],
+            )
+            .unwrap();
+
+        self.app
+            .execute_contract(
+                rewarding_validator(),
+                self.mixnet_contract(),
+                &MixnetExecuteMsg::AssignRoles {
+                    assignment: RoleAssignment {
+                        role: Role::Layer1,
+                        nodes: rewarded_set.layer1,
+                    },
+                },
+                &[],
+            )
+            .unwrap();
+
+        self.app
+            .execute_contract(
+                rewarding_validator(),
+                self.mixnet_contract(),
+                &MixnetExecuteMsg::AssignRoles {
+                    assignment: RoleAssignment {
+                        role: Role::Layer2,
+                        nodes: rewarded_set.layer2,
+                    },
+                },
+                &[],
+            )
+            .unwrap();
+
+        self.app
+            .execute_contract(
+                rewarding_validator(),
+                self.mixnet_contract(),
+                &MixnetExecuteMsg::AssignRoles {
+                    assignment: RoleAssignment {
+                        role: Role::Layer3,
+                        nodes: rewarded_set.layer3,
+                    },
+                },
+                &[],
+            )
+            .unwrap();
+
+        self.app
+            .execute_contract(
+                rewarding_validator(),
+                self.mixnet_contract(),
+                &MixnetExecuteMsg::AssignRoles {
+                    assignment: RoleAssignment {
+                        role: Role::Standby,
+                        nodes: rewarded_set.standby,
+                    },
                 },
                 &[],
             )
@@ -206,7 +362,7 @@ impl TestSetup {
     pub fn valid_mixnode_with_sig(
         &mut self,
         owner: &str,
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         stake: Coin,
     ) -> (MixNode, MessageSignature) {
         let signing_nonce: Nonce = self

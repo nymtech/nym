@@ -25,7 +25,7 @@ use nym_node::config::{
 };
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use nym_node_http_api::api::api_requests;
-use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
+use nym_node_http_api::api::api_requests::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
 use nym_node_http_api::state::AppState;
 use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
@@ -632,6 +632,10 @@ impl NymNode {
 
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
             location: self.config.host.location,
+            announce_ports: AnnouncePorts {
+                verloc_port: self.config.mixnode.verloc.announce_port,
+                mix_port: self.config.mixnet.announce_port,
+            },
             accepted_operator_terms_and_conditions: self.accepted_operator_terms_and_conditions,
         };
 

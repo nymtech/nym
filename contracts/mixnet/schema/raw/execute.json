@@ -27,228 +27,6 @@
     {
       "type": "object",
       "required": [
-        "assign_node_layer"
-      ],
-      "properties": {
-        "assign_node_layer": {
-          "type": "object",
-          "required": [
-            "layer",
-            "mix_id"
-          ],
-          "properties": {
-            "layer": {
-              "$ref": "#/definitions/Layer"
-            },
-            "mix_id": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "description": "Only owner of the node can crate the family with node as head",
-      "type": "object",
-      "required": [
-        "create_family"
-      ],
-      "properties": {
-        "create_family": {
-          "type": "object",
-          "required": [
-            "label"
-          ],
-          "properties": {
-            "label": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "description": "Family head needs to sign the joining node IdentityKey",
-      "type": "object",
-      "required": [
-        "join_family"
-      ],
-      "properties": {
-        "join_family": {
-          "type": "object",
-          "required": [
-            "family_head",
-            "join_permit"
-          ],
-          "properties": {
-            "family_head": {
-              "$ref": "#/definitions/FamilyHead"
-            },
-            "join_permit": {
-              "$ref": "#/definitions/MessageSignature"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "leave_family"
-      ],
-      "properties": {
-        "leave_family": {
-          "type": "object",
-          "required": [
-            "family_head"
-          ],
-          "properties": {
-            "family_head": {
-              "$ref": "#/definitions/FamilyHead"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "kick_family_member"
-      ],
-      "properties": {
-        "kick_family_member": {
-          "type": "object",
-          "required": [
-            "member"
-          ],
-          "properties": {
-            "member": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "create_family_on_behalf"
-      ],
-      "properties": {
-        "create_family_on_behalf": {
-          "type": "object",
-          "required": [
-            "label",
-            "owner_address"
-          ],
-          "properties": {
-            "label": {
-              "type": "string"
-            },
-            "owner_address": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "description": "Family head needs to sign the joining node IdentityKey, MixNode needs to provide its signature proving that it wants to join the family",
-      "type": "object",
-      "required": [
-        "join_family_on_behalf"
-      ],
-      "properties": {
-        "join_family_on_behalf": {
-          "type": "object",
-          "required": [
-            "family_head",
-            "join_permit",
-            "member_address"
-          ],
-          "properties": {
-            "family_head": {
-              "$ref": "#/definitions/FamilyHead"
-            },
-            "join_permit": {
-              "$ref": "#/definitions/MessageSignature"
-            },
-            "member_address": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "leave_family_on_behalf"
-      ],
-      "properties": {
-        "leave_family_on_behalf": {
-          "type": "object",
-          "required": [
-            "family_head",
-            "member_address"
-          ],
-          "properties": {
-            "family_head": {
-              "$ref": "#/definitions/FamilyHead"
-            },
-            "member_address": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
-        "kick_family_member_on_behalf"
-      ],
-      "properties": {
-        "kick_family_member_on_behalf": {
-          "type": "object",
-          "required": [
-            "head_address",
-            "member"
-          ],
-          "properties": {
-            "head_address": {
-              "type": "string"
-            },
-            "member": {
-              "type": "string"
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
         "update_rewarding_validator_address"
       ],
       "properties": {
@@ -291,23 +69,21 @@
     {
       "type": "object",
       "required": [
-        "update_active_set_size"
+        "update_active_set_distribution"
       ],
       "properties": {
-        "update_active_set_size": {
+        "update_active_set_distribution": {
           "type": "object",
           "required": [
-            "active_set_size",
-            "force_immediately"
+            "force_immediately",
+            "update"
           ],
           "properties": {
-            "active_set_size": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            },
             "force_immediately": {
               "type": "boolean"
+            },
+            "update": {
+              "$ref": "#/definitions/ActiveSetUpdate"
             }
           },
           "additionalProperties": false
@@ -389,36 +165,6 @@
     {
       "type": "object",
       "required": [
-        "advance_current_epoch"
-      ],
-      "properties": {
-        "advance_current_epoch": {
-          "type": "object",
-          "required": [
-            "expected_active_set_size",
-            "new_rewarded_set"
-          ],
-          "properties": {
-            "expected_active_set_size": {
-              "type": "integer",
-              "format": "uint32",
-              "minimum": 0.0
-            },
-            "new_rewarded_set": {
-              "type": "array",
-              "items": {
-                "$ref": "#/definitions/LayerAssignment"
-              }
-            }
-          },
-          "additionalProperties": false
-        }
-      },
-      "additionalProperties": false
-    },
-    {
-      "type": "object",
-      "required": [
         "reconcile_epoch_events"
       ],
       "properties": {
@@ -442,6 +188,27 @@
     {
       "type": "object",
       "required": [
+        "assign_roles"
+      ],
+      "properties": {
+        "assign_roles": {
+          "type": "object",
+          "required": [
+            "assignment"
+          ],
+          "properties": {
+            "assignment": {
+              "$ref": "#/definitions/RoleAssignment"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "bond_mixnode"
       ],
       "properties": {
@@ -454,7 +221,7 @@
           ],
           "properties": {
             "cost_params": {
-              "$ref": "#/definitions/MixNodeCostParams"
+              "$ref": "#/definitions/NodeCostParams"
             },
             "mix_node": {
               "$ref": "#/definitions/MixNode"
@@ -484,7 +251,7 @@
           ],
           "properties": {
             "cost_params": {
-              "$ref": "#/definitions/MixNodeCostParams"
+              "$ref": "#/definitions/NodeCostParams"
             },
             "mix_node": {
               "$ref": "#/definitions/MixNode"
@@ -618,17 +385,17 @@
     {
       "type": "object",
       "required": [
-        "update_mixnode_cost_params"
+        "update_cost_params"
       ],
       "properties": {
-        "update_mixnode_cost_params": {
+        "update_cost_params": {
           "type": "object",
           "required": [
             "new_costs"
           ],
           "properties": {
             "new_costs": {
-              "$ref": "#/definitions/MixNodeCostParams"
+              "$ref": "#/definitions/NodeCostParams"
             }
           },
           "additionalProperties": false
@@ -650,7 +417,7 @@
           ],
           "properties": {
             "new_costs": {
-              "$ref": "#/definitions/MixNodeCostParams"
+              "$ref": "#/definitions/NodeCostParams"
             },
             "owner": {
               "type": "string"
@@ -702,6 +469,19 @@
               "type": "string"
             }
           },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "migrate_mixnode"
+      ],
+      "properties": {
+        "migrate_mixnode": {
+          "type": "object",
           "additionalProperties": false
         }
       },
@@ -844,16 +624,104 @@
     {
       "type": "object",
       "required": [
-        "delegate_to_mixnode"
+        "migrate_gateway"
       ],
       "properties": {
-        "delegate_to_mixnode": {
+        "migrate_gateway": {
+          "type": "object",
+          "properties": {
+            "cost_params": {
+              "anyOf": [
+                {
+                  "$ref": "#/definitions/NodeCostParams"
+                },
+                {
+                  "type": "null"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "bond_nym_node"
+      ],
+      "properties": {
+        "bond_nym_node": {
           "type": "object",
           "required": [
-            "mix_id"
+            "cost_params",
+            "node",
+            "owner_signature"
           ],
           "properties": {
-            "mix_id": {
+            "cost_params": {
+              "$ref": "#/definitions/NodeCostParams"
+            },
+            "node": {
+              "$ref": "#/definitions/NymNode"
+            },
+            "owner_signature": {
+              "$ref": "#/definitions/MessageSignature"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "unbond_nym_node"
+      ],
+      "properties": {
+        "unbond_nym_node": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "update_node_config"
+      ],
+      "properties": {
+        "update_node_config": {
+          "type": "object",
+          "required": [
+            "update"
+          ],
+          "properties": {
+            "update": {
+              "$ref": "#/definitions/NodeConfigUpdate"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
+        "delegate"
+      ],
+      "properties": {
+        "delegate": {
+          "type": "object",
+          "required": [
+            "node_id"
+          ],
+          "properties": {
+            "node_id": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -894,16 +762,16 @@
     {
       "type": "object",
       "required": [
-        "undelegate_from_mixnode"
+        "undelegate"
       ],
       "properties": {
-        "undelegate_from_mixnode": {
+        "undelegate": {
           "type": "object",
           "required": [
-            "mix_id"
+            "node_id"
           ],
           "properties": {
-            "mix_id": {
+            "node_id": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -944,23 +812,23 @@
     {
       "type": "object",
       "required": [
-        "reward_mixnode"
+        "reward_node"
       ],
       "properties": {
-        "reward_mixnode": {
+        "reward_node": {
           "type": "object",
           "required": [
-            "mix_id",
-            "performance"
+            "node_id",
+            "params"
           ],
           "properties": {
-            "mix_id": {
+            "node_id": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
             },
-            "performance": {
-              "$ref": "#/definitions/Percent"
+            "params": {
+              "$ref": "#/definitions/NodeRewardingParameters"
             }
           },
           "additionalProperties": false
@@ -1011,10 +879,10 @@
         "withdraw_delegator_reward": {
           "type": "object",
           "required": [
-            "mix_id"
+            "node_id"
           ],
           "properties": {
-            "mix_id": {
+            "node_id": {
               "type": "integer",
               "format": "uint32",
               "minimum": 0.0
@@ -1090,6 +958,36 @@
     }
   ],
   "definitions": {
+    "ActiveSetUpdate": {
+      "description": "Specification on how the active set should be updated.",
+      "type": "object",
+      "required": [
+        "entry_gateways",
+        "exit_gateways",
+        "mixnodes"
+      ],
+      "properties": {
+        "entry_gateways": {
+          "description": "The expected number of nodes assigned entry gateway role (i.e. [`Role::EntryGateway`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "exit_gateways": {
+          "description": "The expected number of nodes assigned exit gateway role (i.e. [`Role::ExitGateway`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "mixnodes": {
+          "description": "The expected number of nodes assigned the 'mixnode' role, i.e. total of [`Role::Layer1`], [`Role::Layer2`] and [`Role::Layer3`].",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
     "Coin": {
       "type": "object",
       "required": [
@@ -1109,8 +1007,7 @@
       "description": "Contract parameters that could be adjusted in a transaction by the contract admin.",
       "type": "object",
       "required": [
-        "minimum_gateway_pledge",
-        "minimum_mixnode_pledge"
+        "minimum_pledge"
       ],
       "properties": {
         "interval_operating_cost": {
@@ -1125,15 +1022,7 @@
             }
           ]
         },
-        "minimum_gateway_pledge": {
-          "description": "Minimum amount a gateway must pledge to get into the system.",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Coin"
-            }
-          ]
-        },
-        "minimum_mixnode_delegation": {
+        "minimum_delegation": {
           "description": "Minimum amount a delegator must stake in orders for his delegation to get accepted.",
           "anyOf": [
             {
@@ -1144,8 +1033,8 @@
             }
           ]
         },
-        "minimum_mixnode_pledge": {
-          "description": "Minimum amount a mixnode must pledge to get into the system.",
+        "minimum_pledge": {
+          "description": "Minimum amount a node must pledge to get into the system.",
           "allOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -1169,10 +1058,6 @@
     },
     "Decimal": {
       "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
-      "type": "string"
-    },
-    "FamilyHead": {
-      "description": "Head of particular family as identified by its identity key (i.e. public component of its ed25519 keypair stringified into base58).",
       "type": "string"
     },
     "Gateway": {
@@ -1292,14 +1177,16 @@
             }
           ]
         },
-        "rewarded_set_size": {
-          "description": "Defines the new size of the rewarded set.",
-          "type": [
-            "integer",
-            "null"
-          ],
-          "format": "uint32",
-          "minimum": 0.0
+        "rewarded_set_params": {
+          "description": "Defines the parameters of the rewarded set.",
+          "anyOf": [
+            {
+              "$ref": "#/definitions/RewardedSetParams"
+            },
+            {
+              "type": "null"
+            }
+          ]
         },
         "staking_supply": {
           "description": "Defines the new value of the staking supply.",
@@ -1333,39 +1220,6 @@
               "type": "null"
             }
           ]
-        }
-      },
-      "additionalProperties": false
-    },
-    "Layer": {
-      "type": "string",
-      "enum": [
-        "One",
-        "Two",
-        "Three"
-      ]
-    },
-    "LayerAssignment": {
-      "description": "Specifies layer assignment for the given mixnode.",
-      "type": "object",
-      "required": [
-        "layer",
-        "mix_id"
-      ],
-      "properties": {
-        "layer": {
-          "description": "The layer to which it's going to be assigned",
-          "allOf": [
-            {
-              "$ref": "#/definitions/Layer"
-            }
-          ]
-        },
-        "mix_id": {
-          "description": "The id of the mixnode.",
-          "type": "integer",
-          "format": "uint32",
-          "minimum": 0.0
         }
       },
       "additionalProperties": false
@@ -1462,7 +1316,31 @@
       },
       "additionalProperties": false
     },
-    "MixNodeCostParams": {
+    "NodeConfigUpdate": {
+      "type": "object",
+      "properties": {
+        "custom_http_port": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0.0
+        },
+        "host": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "restore_default_http_port": {
+          "default": false,
+          "type": "boolean"
+        }
+      },
+      "additionalProperties": false
+    },
+    "NodeCostParams": {
       "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
       "type": "object",
       "required": [
@@ -1471,7 +1349,7 @@
       ],
       "properties": {
         "interval_operating_cost": {
-          "description": "Operating cost of the associated mixnode per the entire interval.",
+          "description": "Operating cost of the associated node per the entire interval.",
           "allOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -1479,12 +1357,67 @@
           ]
         },
         "profit_margin_percent": {
-          "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+          "description": "The profit margin of the associated node, i.e. the desired percent of the reward to be distributed to the operator.",
           "allOf": [
             {
               "$ref": "#/definitions/Percent"
             }
           ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "NodeRewardingParameters": {
+      "description": "Parameters used for rewarding particular node.",
+      "type": "object",
+      "required": [
+        "performance",
+        "work_factor"
+      ],
+      "properties": {
+        "performance": {
+          "description": "Performance of the particular node in the current epoch.",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Percent"
+            }
+          ]
+        },
+        "work_factor": {
+          "description": "Amount of work performed by this node in the current epoch also known as 'omega' in the paper",
+          "allOf": [
+            {
+              "$ref": "#/definitions/Decimal"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false
+    },
+    "NymNode": {
+      "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
+      "type": "object",
+      "required": [
+        "host",
+        "identity_key"
+      ],
+      "properties": {
+        "custom_http_port": {
+          "description": "Allow specifying custom port for accessing the http, and thus self-described, api of this node for the capabilities discovery.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint16",
+          "minimum": 0.0
+        },
+        "host": {
+          "description": "Network address of this nym-node, for example 1.1.1.1 or foo.mixnode.com that is used to discover other capabilities of this node.",
+          "type": "string"
+        },
+        "identity_key": {
+          "description": "Base58-encoded ed25519 EdDSA public key.",
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -1525,6 +1458,74 @@
         },
         "minimum": {
           "$ref": "#/definitions/Uint128"
+        }
+      },
+      "additionalProperties": false
+    },
+    "RewardedSetParams": {
+      "type": "object",
+      "required": [
+        "entry_gateways",
+        "exit_gateways",
+        "mixnodes",
+        "standby"
+      ],
+      "properties": {
+        "entry_gateways": {
+          "description": "The expected number of nodes assigned entry gateway role (i.e. [`Role::EntryGateway`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "exit_gateways": {
+          "description": "The expected number of nodes assigned exit gateway role (i.e. [`Role::ExitGateway`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "mixnodes": {
+          "description": "The expected number of nodes assigned the 'mixnode' role, i.e. total of [`Role::Layer1`], [`Role::Layer2`] and [`Role::Layer3`].",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "standby": {
+          "description": "Number of nodes in the 'standby' set. (i.e. [`Role::Standby`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    },
+    "Role": {
+      "type": "string",
+      "enum": [
+        "eg",
+        "l1",
+        "l2",
+        "l3",
+        "xg",
+        "stb"
+      ]
+    },
+    "RoleAssignment": {
+      "type": "object",
+      "required": [
+        "nodes",
+        "role"
+      ],
+      "properties": {
+        "nodes": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "uint32",
+            "minimum": 0.0
+          }
+        },
+        "role": {
+          "$ref": "#/definitions/Role"
         }
       },
       "additionalProperties": false

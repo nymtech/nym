@@ -2,10 +2,10 @@
 import type { DecCoin } from './DecCoin';
 import type { GasInfo } from './GasInfo';
 
-export interface TransactionExecuteResult {
+export type TransactionExecuteResult = {
   logs_json: string;
-  data_json: string;
+  msg_responses_json: string;
   transaction_hash: string;
   gas_info: GasInfo;
   fee: DecCoin | null;
-}
+};

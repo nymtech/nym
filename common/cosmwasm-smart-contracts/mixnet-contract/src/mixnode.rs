@@ -7,41 +7,17 @@
 use crate::constants::{TOKEN_SUPPLY, UNIT_DELEGATION_BASE};
 use crate::error::MixnetContractError;
 use crate::helpers::IntoBaseDecimal;
-use crate::reward_params::{NodeRewardParams, RewardingParams};
+use crate::reward_params::{NodeRewardingParameters, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
 use crate::{
-    Delegation, EpochEventId, EpochId, IdentityKey, MixId, OperatingCostRange, Percent,
-    ProfitMarginRange, SphinxKey,
+    Delegation, EpochEventId, EpochId, IdentityKey, IntervalEventId, NodeId, OperatingCostRange,
+    Percent, ProfitMarginRange, SphinxKey,
 };
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
 use schemars::JsonSchema;
 use serde_repr::{Deserialize_repr, Serialize_repr};
-
-/// Current state of given node in the rewarded set.
-#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
-#[cfg_attr(
-    feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/RewardedSetNodeStatus.ts")
-)]
-#[cw_serde]
-#[derive(Copy)]
-pub enum RewardedSetNodeStatus {
-    /// Node that is currently active, i.e. is expected to be used by clients for mixing packets.
-    #[serde(alias = "Active")]
-    Active,
-
-    /// Node that is currently in standby, i.e. it's present in the rewarded set but is not active.
-    #[serde(alias = "Standby")]
-    Standby,
-}
-
-impl RewardedSetNodeStatus {
-    pub fn is_active(&self) -> bool {
-        matches!(self, RewardedSetNodeStatus::Active)
-    }
-}
 
 /// Full details associated with given mixnode.
 #[cw_serde]
@@ -50,7 +26,7 @@ pub struct MixNodeDetails {
     pub bond_information: MixNodeBond,
 
     /// Details used for computation of rewarding related data.
-    pub rewarding_details: MixNodeRewarding,
+    pub rewarding_details: NodeRewarding,
 
     /// Adjustments to the mixnode that are ought to happen during future epoch transitions.
     #[serde(default)]
@@ -60,7 +36,7 @@ pub struct MixNodeDetails {
 impl MixNodeDetails {
     pub fn new(
         bond_information: MixNodeBond,
-        rewarding_details: MixNodeRewarding,
+        rewarding_details: NodeRewarding,
         pending_changes: PendingMixNodeChanges,
     ) -> Self {
         MixNodeDetails {
@@ -70,12 +46,8 @@ impl MixNodeDetails {
         }
     }
 
-    pub fn mix_id(&self) -> MixId {
+    pub fn mix_id(&self) -> NodeId {
         self.bond_information.mix_id
-    }
-
-    pub fn layer(&self) -> Layer {
-        self.bond_information.layer
     }
 
     pub fn is_unbonding(&self) -> bool {
@@ -106,10 +78,11 @@ impl MixNodeDetails {
     }
 }
 
+// currently this struct is shared between mixnodes and nymnodes
 #[cw_serde]
-pub struct MixNodeRewarding {
+pub struct NodeRewarding {
     /// Information provided by the operator that influence the cost function.
-    pub cost_params: MixNodeCostParams,
+    pub cost_params: NodeCostParams,
 
     /// Total pledge and compounded reward earned by the node operator.
     pub operator: Decimal,
@@ -120,7 +93,7 @@ pub struct MixNodeRewarding {
     /// Cumulative reward earned by the "unit delegation" since the block 0.
     pub total_unit_reward: Decimal,
 
-    /// Value of the theoretical "unit delegation" that has delegated to this mixnode at block 0.
+    /// Value of the theoretical "unit delegation" that has delegated to this node at block 0.
     pub unit_delegation: Decimal,
 
     /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
@@ -133,9 +106,9 @@ pub struct MixNodeRewarding {
     pub unique_delegations: u32,
 }
 
-impl MixNodeRewarding {
+impl NodeRewarding {
     pub fn initialise_new(
-        cost_params: MixNodeCostParams,
+        cost_params: NodeCostParams,
         initial_pledge: &Coin,
         current_epoch: EpochId,
     ) -> Result<Self, MixnetContractError> {
@@ -144,7 +117,7 @@ impl MixNodeRewarding {
             "pledge cannot be larger than the token supply"
         );
 
-        Ok(MixNodeRewarding {
+        Ok(NodeRewarding {
             cost_params,
             operator: initial_pledge.amount.into_base_decimal()?,
             delegates: Decimal::zero(),
@@ -153,6 +126,15 @@ impl MixNodeRewarding {
             last_rewarded_epoch: current_epoch,
             unique_delegations: 0,
         })
+    }
+
+    pub fn normalise_cost_function(
+        &mut self,
+        allowed_profit_margin: ProfitMarginRange,
+        allowed_operating_cost: OperatingCostRange,
+    ) {
+        self.normalise_profit_margin(allowed_profit_margin);
+        self.normalise_operating_cost(allowed_operating_cost)
     }
 
     pub fn normalise_profit_margin(&mut self, allowed_range: ProfitMarginRange) {
@@ -257,23 +239,18 @@ impl MixNodeRewarding {
 
     pub fn node_reward(
         &self,
-        reward_params: &RewardingParams,
-        node_params: NodeRewardParams,
+        global_params: &RewardingParams,
+        node_params: NodeRewardingParameters,
     ) -> Decimal {
-        let work = if node_params.in_active_set {
-            reward_params.active_node_work()
-        } else {
-            reward_params.standby_node_work()
-        };
+        let work = node_params.work_factor;
+        let alpha = global_params.interval.sybil_resistance;
 
-        let alpha = reward_params.interval.sybil_resistance;
-
-        reward_params.interval.epoch_reward_budget
-            * node_params.performance.value()
-            * self.bond_saturation(reward_params)
+        global_params.interval.epoch_reward_budget
+            * node_params.performance
+            * self.bond_saturation(global_params)
             * (work
-                + alpha.value() * self.pledge_saturation(reward_params)
-                    / reward_params.dec_rewarded_set_size())
+                + alpha.value() * self.pledge_saturation(global_params)
+                    / global_params.dec_rewarded_set_size())
             / (Decimal::one() + alpha.value())
     }
 
@@ -285,7 +262,7 @@ impl MixNodeRewarding {
         epochs_in_interval: u32,
     ) -> RewardDistribution {
         let node_cost =
-            self.cost_params.epoch_operating_cost(epochs_in_interval) * node_performance.value();
+            self.cost_params.epoch_operating_cost(epochs_in_interval) * node_performance;
 
         // check if profit is positive
         if node_reward > node_cost {
@@ -315,7 +292,7 @@ impl MixNodeRewarding {
     pub fn calculate_epoch_reward(
         &self,
         reward_params: &RewardingParams,
-        node_params: NodeRewardParams,
+        node_params: NodeRewardingParameters,
         epochs_in_interval: u32,
     ) -> RewardDistribution {
         let node_reward = self.node_reward(reward_params, node_params);
@@ -341,7 +318,7 @@ impl MixNodeRewarding {
     pub fn epoch_rewarding(
         &mut self,
         reward_params: &RewardingParams,
-        node_params: NodeRewardParams,
+        node_params: NodeRewardingParameters,
         epochs_in_interval: u32,
         absolute_epoch_id: EpochId,
     ) {
@@ -492,13 +469,30 @@ impl MixNodeRewarding {
             amount / self.delegates
         }
     }
+
+    /// Returns a copy of `Self` with zeroed operator value
+    pub fn clear_operator(&self) -> NodeRewarding {
+        let mut zeroed = self.clone();
+        zeroed.operator = Decimal::zero();
+        zeroed
+    }
 }
 
 /// Basic mixnode information provided by the node operator.
-#[cw_serde]
+// note: we had to remove `#[cw_serde]` as it enforces `#[serde(deny_unknown_fields)]` which we do not want
+// with the removal of explicit .layer field
+#[derive(
+    ::cosmwasm_schema::serde::Serialize,
+    ::cosmwasm_schema::serde::Deserialize,
+    ::std::clone::Clone,
+    ::std::fmt::Debug,
+    ::std::cmp::PartialEq,
+    ::cosmwasm_schema::schemars::JsonSchema,
+)]
+#[schemars(crate = "::cosmwasm_schema::schemars")]
 pub struct MixNodeBond {
     /// Unique id assigned to the bonded mixnode.
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
 
     /// Address of the owner of this mixnode.
     pub owner: Addr,
@@ -506,9 +500,9 @@ pub struct MixNodeBond {
     /// Original amount pledged by the operator of this node.
     pub original_pledge: Coin,
 
-    /// Layer assigned to this mixnode.
-    pub layer: Layer,
-
+    // REMOVED (but might be needed due to legacy things, idk yet)
+    // /// Layer assigned to this mixnode.
+    // pub layer: Layer,
     /// Information provided by the operator for the purposes of bonding.
     pub mix_node: MixNode,
 
@@ -525,26 +519,6 @@ pub struct MixNodeBond {
 }
 
 impl MixNodeBond {
-    pub fn new(
-        mix_id: MixId,
-        owner: Addr,
-        original_pledge: Coin,
-        layer: Layer,
-        mix_node: MixNode,
-        bonding_height: u64,
-    ) -> Self {
-        MixNodeBond {
-            mix_id,
-            owner,
-            original_pledge,
-            layer,
-            mix_node,
-            proxy: None,
-            bonding_height,
-            is_unbonding: false,
-        }
-    }
-
     pub fn identity(&self) -> &str {
         &self.mix_node.identity_key
     }
@@ -567,7 +541,7 @@ impl MixNodeBond {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/Mixnode.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/Mixnode.ts")
 )]
 pub struct MixNode {
     /// Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com
@@ -595,21 +569,21 @@ pub struct MixNode {
 /// The cost parameters, or the cost function, defined for the particular mixnode that influences
 /// how the rewards should be split between the node operator and its delegators.
 #[cw_serde]
-pub struct MixNodeCostParams {
-    /// The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.
+pub struct NodeCostParams {
+    /// The profit margin of the associated node, i.e. the desired percent of the reward to be distributed to the operator.
     pub profit_margin_percent: Percent,
 
-    /// Operating cost of the associated mixnode per the entire interval.
+    /// Operating cost of the associated node per the entire interval.
     pub interval_operating_cost: Coin,
 }
 
-impl MixNodeCostParams {
+impl NodeCostParams {
     pub fn to_inline_json(&self) -> String {
         serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
     }
 }
 
-impl MixNodeCostParams {
+impl NodeCostParams {
     pub fn epoch_operating_cost(&self, epochs_in_interval: u32) -> Decimal {
         Decimal::from_ratio(self.interval_operating_cost.amount, epochs_in_interval)
     }
@@ -628,38 +602,39 @@ impl MixNodeCostParams {
     Deserialize_repr,
     JsonSchema,
 )]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 #[repr(u8)]
-pub enum Layer {
+pub enum LegacyMixLayer {
     One = 1,
     Two = 2,
     Three = 3,
 }
 
-impl From<Layer> for String {
-    fn from(layer: Layer) -> Self {
+impl From<LegacyMixLayer> for String {
+    fn from(layer: LegacyMixLayer) -> Self {
         (layer as u8).to_string()
     }
 }
 
-impl TryFrom<u8> for Layer {
+impl TryFrom<u8> for LegacyMixLayer {
     type Error = MixnetContractError;
 
-    fn try_from(i: u8) -> Result<Layer, MixnetContractError> {
+    fn try_from(i: u8) -> Result<LegacyMixLayer, MixnetContractError> {
         match i {
-            1 => Ok(Layer::One),
-            2 => Ok(Layer::Two),
-            3 => Ok(Layer::Three),
+            1 => Ok(LegacyMixLayer::One),
+            2 => Ok(LegacyMixLayer::Two),
+            3 => Ok(LegacyMixLayer::Three),
             _ => Err(MixnetContractError::InvalidLayer(i)),
         }
     }
 }
 
-impl From<Layer> for u8 {
-    fn from(layer: Layer) -> u8 {
+impl From<LegacyMixLayer> for u8 {
+    fn from(layer: LegacyMixLayer) -> u8 {
         match layer {
-            Layer::One => 1,
-            Layer::Two => 2,
-            Layer::Three => 3,
+            LegacyMixLayer::One => 1,
+            LegacyMixLayer::Two => 2,
+            LegacyMixLayer::Three => 3,
         }
     }
 }
@@ -667,19 +642,24 @@ impl From<Layer> for u8 {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/PendingMixnodeChanges.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/PendingMixnodeChanges.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Default, Copy)]
 pub struct PendingMixNodeChanges {
     pub pledge_change: Option<EpochEventId>,
-    // pub cost_params_change: Option<IntervalEventId>,
+    #[serde(default)]
+    pub cost_params_change: Option<IntervalEventId>,
 }
 
 impl PendingMixNodeChanges {
     pub fn new_empty() -> PendingMixNodeChanges {
         PendingMixNodeChanges {
             pledge_change: None,
+            cost_params_change: None,
         }
     }
 }
@@ -688,7 +668,10 @@ impl PendingMixNodeChanges {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/UnbondedMixnode.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/UnbondedMixnode.ts"
+    )
 )]
 #[cw_serde]
 pub struct UnbondedMixnode {
@@ -712,7 +695,10 @@ pub struct UnbondedMixnode {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/MixNodeConfigUpdate.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/MixNodeConfigUpdate.ts"
+    )
 )]
 #[cw_serde]
 pub struct MixNodeConfigUpdate {
@@ -740,11 +726,11 @@ pub struct PagedMixnodeBondsResponse {
     pub per_page: usize,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
-    pub start_next_after: Option<MixId>,
+    pub start_next_after: Option<NodeId>,
 }
 
 impl PagedMixnodeBondsResponse {
-    pub fn new(nodes: Vec<MixNodeBond>, per_page: usize, start_next_after: Option<MixId>) -> Self {
+    pub fn new(nodes: Vec<MixNodeBond>, per_page: usize, start_next_after: Option<NodeId>) -> Self {
         PagedMixnodeBondsResponse {
             nodes,
             per_page,
@@ -766,14 +752,14 @@ pub struct PagedMixnodesDetailsResponse {
     pub per_page: usize,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
-    pub start_next_after: Option<MixId>,
+    pub start_next_after: Option<NodeId>,
 }
 
 impl PagedMixnodesDetailsResponse {
     pub fn new(
         nodes: Vec<MixNodeDetails>,
         per_page: usize,
-        start_next_after: Option<MixId>,
+        start_next_after: Option<NodeId>,
     ) -> Self {
         PagedMixnodesDetailsResponse {
             nodes,
@@ -787,21 +773,21 @@ impl PagedMixnodesDetailsResponse {
 #[cw_serde]
 pub struct PagedUnbondedMixnodesResponse {
     /// The past ids of unbonded mixnodes alongside their basic information such as the owner or the identity key.
-    pub nodes: Vec<(MixId, UnbondedMixnode)>,
+    pub nodes: Vec<(NodeId, UnbondedMixnode)>,
 
     /// Maximum number of entries that could be included in a response. `per_page <= nodes.len()`
     // this field is rather redundant and should be deprecated.
     pub per_page: usize,
 
     /// Field indicating paging information for the following queries if the caller wishes to get further entries.
-    pub start_next_after: Option<MixId>,
+    pub start_next_after: Option<NodeId>,
 }
 
 impl PagedUnbondedMixnodesResponse {
     pub fn new(
-        nodes: Vec<(MixId, UnbondedMixnode)>,
+        nodes: Vec<(NodeId, UnbondedMixnode)>,
         per_page: usize,
-        start_next_after: Option<MixId>,
+        start_next_after: Option<NodeId>,
     ) -> Self {
         PagedUnbondedMixnodesResponse {
             nodes,
@@ -825,7 +811,7 @@ pub struct MixOwnershipResponse {
 #[cw_serde]
 pub struct MixnodeDetailsResponse {
     /// Id of the requested mixnode.
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
 
     /// If there exists a mixnode with the provided id, this field contains its detailed information.
     pub mixnode_details: Option<MixNodeDetails>,
@@ -845,17 +831,17 @@ pub struct MixnodeDetailsByIdentityResponse {
 #[cw_serde]
 pub struct MixnodeRewardingDetailsResponse {
     /// Id of the requested mixnode.
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
 
     /// If there exists a mixnode with the provided id, this field contains its rewarding information.
-    pub rewarding_details: Option<MixNodeRewarding>,
+    pub rewarding_details: Option<NodeRewarding>,
 }
 
 /// Response containing basic information of an unbonded mixnode with the provided id.
 #[cw_serde]
 pub struct UnbondedMixnodeResponse {
     /// Id of the requested mixnode.
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
 
     /// If there existed a mixnode with the provided id, this field contains its basic information.
     pub unbonded_info: Option<UnbondedMixnode>,
@@ -863,9 +849,9 @@ pub struct UnbondedMixnodeResponse {
 
 /// Response containing the current state of the stake saturation of a mixnode with the provided id.
 #[cw_serde]
-pub struct StakeSaturationResponse {
+pub struct MixStakeSaturationResponse {
     /// Id of the requested mixnode.
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
 
     /// The current stake saturation of this node that is indirectly used in reward calculation formulas.
     /// Note that it can't be larger than 1.

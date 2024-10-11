@@ -2,26 +2,26 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::storage;
-use crate::interval::helpers::change_interval_config;
+use crate::interval::helpers::{advance_epoch, change_interval_config};
 use crate::interval::pending_events::ContractExecutableEvent;
 use crate::interval::storage::push_new_interval_event;
 use crate::mixnet_contract_settings::storage::ADMIN;
-use crate::mixnodes::transactions::update_mixnode_layer;
-use crate::rewards;
-use crate::rewards::storage as rewards_storage;
+use crate::nodes::storage as nymnodes_storage;
+use crate::nodes::storage::{read_rewarded_set_metadata, reset_inactive_metadata};
+use crate::rewards::storage::RewardingStorage;
 use crate::support::helpers::{
     ensure_can_advance_epoch, ensure_epoch_in_progress_state, ensure_is_authorized,
 };
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Order, Response, Storage};
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
-    new_advance_epoch_event, new_epoch_transition_start_event,
+    new_advance_epoch_event, new_assigned_role_event, new_epoch_transition_start_event,
     new_pending_epoch_events_execution_event, new_pending_interval_config_update_event,
     new_pending_interval_events_execution_event, new_reconcile_pending_events,
 };
+use mixnet_contract_common::nym_node::Role;
 use mixnet_contract_common::pending_events::PendingIntervalEventKind;
-use mixnet_contract_common::{EpochState, EpochStatus, LayerAssignment, MixId};
-use std::collections::BTreeSet;
+use mixnet_contract_common::{EpochState, EpochStatus, RoleAssignment};
 
 // those two should be called in separate tx (from advancing epoch),
 // since there might be a lot of events to execute.
@@ -176,49 +176,13 @@ pub fn try_reconcile_epoch_events(
     };
 
     if progress {
-        current_epoch_status.state = EpochState::AdvancingEpoch;
+        current_epoch_status.state = EpochState::RoleAssignment {
+            next: Role::first(),
+        };
         storage::save_current_epoch_status(deps.storage, &current_epoch_status)?;
     }
 
     Ok(response)
-}
-
-fn update_rewarded_set(
-    storage: &mut dyn Storage,
-    new_rewarded_set: Vec<MixId>,
-    expected_active_set_size: u32,
-) -> Result<(), MixnetContractError> {
-    let reward_params = rewards_storage::REWARDING_PARAMS.load(storage)?;
-
-    // the rewarded set has been determined based off active set size taken from the contract,
-    // thus the expected value HAS TO match
-    if expected_active_set_size != reward_params.active_set_size {
-        return Err(MixnetContractError::UnexpectedActiveSetSize {
-            received: expected_active_set_size,
-            expected: reward_params.active_set_size,
-        });
-    }
-
-    if new_rewarded_set.len() as u32 > reward_params.rewarded_set_size {
-        return Err(MixnetContractError::UnexpectedRewardedSetSize {
-            received: new_rewarded_set.len() as u32,
-            expected: reward_params.rewarded_set_size,
-        });
-    }
-
-    // check for duplicates
-    let mut tmp_set = BTreeSet::new();
-    for node_id in &new_rewarded_set {
-        if !tmp_set.insert(node_id) {
-            return Err(MixnetContractError::DuplicateRewardedSetNode { mix_id: *node_id });
-        }
-    }
-
-    Ok(storage::update_rewarded_set(
-        storage,
-        expected_active_set_size,
-        new_rewarded_set,
-    )?)
 }
 
 pub fn try_begin_epoch_transition(
@@ -231,31 +195,29 @@ pub fn try_begin_epoch_transition(
 
     // can't do pre-mature epoch transition...
     let current_interval = storage::current_interval(deps.storage)?;
-    if !current_interval.is_current_epoch_over(&env) {
-        return Err(MixnetContractError::EpochInProgress {
-            current_block_time: env.block.time.seconds(),
-            epoch_start: current_interval.current_epoch_start_unix_timestamp(),
-            epoch_end: current_interval.current_epoch_end_unix_timestamp(),
-        });
-    }
+    current_interval.ensure_current_epoch_is_over(&env)?;
 
     // ensure some other validator (currently not a problem), hasn't already committed to epoch progression
     ensure_epoch_in_progress_state(deps.storage)?;
 
-    // Note: if at any point we decide to change our rewarded set to be few thousand nodes
-    // and the below call fails, we'll have to pass `last_node_in_rewarded_set` as an argument to this function
-    // and then verify whether the provided value is valid (by using range iterator on `REWARDED_SET`
-    // and checking if there are any other entries following the provided value)
-    let rewarded_set = storage::REWARDED_SET
-        .range(deps.storage, None, None, Order::Ascending)
-        .map(|kv| kv.map(|kv| kv.0))
-        .collect::<Result<Vec<_>, _>>()?;
+    let metadata = read_rewarded_set_metadata(deps.storage)?;
+
+    // TODO: with pre-announcing rewarded set, this will have to happen elsewhere
+    reset_inactive_metadata(
+        deps.storage,
+        current_interval.current_epoch_absolute_id() + 1,
+    )?;
+
+    // make sure to reset the submitted work for this epoch (since it's 0 now)
+    RewardingStorage::load().reset_cumulative_epoch_work(deps.storage)?;
+
+    let final_node_id = metadata.highest_rewarded_id();
 
     // if there are no nodes to reward (i.e. empty rewarded set), we go straight into event reconciliation
-    let new_epoch_state = if let Some(last) = rewarded_set.last() {
+    let new_epoch_state = if final_node_id != 0 {
         EpochState::Rewarding {
             last_rewarded: 0,
-            final_node_id: *last,
+            final_node_id,
         }
     } else {
         EpochState::ReconcilingEvents
@@ -271,51 +233,51 @@ pub fn try_begin_epoch_transition(
     Ok(Response::new().add_event(new_epoch_transition_start_event(current_interval)))
 }
 
-pub fn try_advance_epoch(
+pub fn try_assign_roles(
     deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
-    layer_assignments: Vec<LayerAssignment>,
-    expected_active_set_size: u32,
+    assignment: RoleAssignment,
 ) -> Result<Response, MixnetContractError> {
     // Only rewarding validator can attempt to advance epoch
     let mut current_epoch_status = ensure_can_advance_epoch(&info.sender, deps.storage)?;
-    current_epoch_status.ensure_is_in_advancement_state()?;
+    current_epoch_status.ensure_is_in_expected_role_assignment_state(assignment.role)?;
 
-    // we must make sure that we roll into new epoch / interval with up to date state
-    // with no pending actions (like somebody wanting to update their profit margin)
-    let current_interval = storage::current_interval(deps.storage)?;
-    if !current_interval.is_current_epoch_over(&env) {
-        return Err(MixnetContractError::EpochInProgress {
-            current_block_time: env.block.time.seconds(),
-            epoch_start: current_interval.current_epoch_start_unix_timestamp(),
-            epoch_end: current_interval.current_epoch_end_unix_timestamp(),
-        });
-    }
+    let role = assignment.role;
+    let assigned = assignment.nodes.len() as u32;
 
-    // if the current interval is over, apply reward pool changes
-    if current_interval.is_current_interval_over(&env) {
-        // this one is a very important one!
-        rewards::helpers::apply_reward_pool_changes(deps.storage)?;
-    }
+    let rewarded_set_params = RewardingStorage::load()
+        .global_rewarding_params
+        .load(deps.storage)?
+        .rewarded_set;
 
-    let updated_interval = current_interval.advance_epoch();
-    let num_nodes = layer_assignments.len();
+    // make sure we're not attempting to assign too many nodes to particular role
+    rewarded_set_params.ensure_role_count(role, assigned)?;
 
-    let new_rewarded_set = layer_assignments.iter().map(|l| l.mix_id()).collect();
+    let next = assignment.role.next();
 
-    // finally save updated interval and the rewarded set
-    storage::save_interval(deps.storage, &updated_interval)?;
-    update_rewarded_set(deps.storage, new_rewarded_set, expected_active_set_size)?;
+    // save the nodes for this layer
+    nymnodes_storage::save_assignment(deps.storage, assignment)?;
 
-    for a in layer_assignments {
-        update_mixnode_layer(a.mix_id(), a.layer(), deps.storage)?;
-    }
+    // TODO: optimise: if next is standby and standby set is empty, immediately advance
+    let event = match next {
+        Some(next_roles) => {
+            // update the state for the next assignment
+            current_epoch_status.state = EpochState::RoleAssignment { next: next_roles };
+            new_assigned_role_event(role, assigned)
+        }
+        None => {
+            // the last role has been assigned => we're ready to progress into the next epoch
+            nymnodes_storage::swap_active_role_bucket(deps.storage)?;
+            let epoch_id = advance_epoch(deps.storage, env)?;
+            current_epoch_status.state = EpochState::InProgress;
+            new_advance_epoch_event(epoch_id)
+        }
+    };
 
-    current_epoch_status.state = EpochState::InProgress;
     storage::save_current_epoch_status(deps.storage, &current_epoch_status)?;
 
-    Ok(Response::new().add_event(new_advance_epoch_event(updated_interval, num_nodes as u32)))
+    Ok(Response::new().add_event(event))
 }
 
 pub(crate) fn try_update_interval_config(
@@ -370,10 +332,13 @@ pub(crate) fn try_update_interval_config(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::mixnodes::storage as mixnodes_storage;
+    use crate::rewards::storage as rewards_storage;
     use crate::support::tests::fixtures;
     use crate::support::tests::test_helpers::TestSetup;
     use cosmwasm_std::Addr;
     use mixnet_contract_common::pending_events::PendingEpochEventKind;
+    use mixnet_contract_common::NodeId;
 
     fn push_n_dummy_epoch_actions(test: &mut TestSetup, n: usize) {
         // if you attempt to undelegate non-existent delegation,
@@ -381,7 +346,7 @@ mod tests {
         let env = test.env();
         for i in 0..n {
             let dummy_action =
-                PendingEpochEventKind::new_undelegate(Addr::unchecked("foomp"), i as MixId);
+                PendingEpochEventKind::new_undelegate(Addr::unchecked("foomp"), i as NodeId);
             storage::push_new_epoch_event(test.deps_mut().storage, &env, dummy_action).unwrap();
         }
     }
@@ -392,8 +357,8 @@ mod tests {
         let env = test.env();
         for i in 0..n {
             let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
-                mix_id: i as MixId,
-                new_costs: fixtures::mix_node_cost_params_fixture(),
+                mix_id: i as NodeId,
+                new_costs: fixtures::node_cost_params_fixture(),
             };
             storage::push_new_interval_event(test.deps_mut().storage, &env, dummy_action).unwrap();
         }
@@ -402,7 +367,7 @@ mod tests {
     #[cfg(test)]
     mod performing_pending_epoch_actions {
         use super::*;
-        use crate::support::tests::fixtures::TEST_COIN_DENOM;
+        use crate::support::tests::fixtures::{active_set_update_fixture, TEST_COIN_DENOM};
         use cosmwasm_std::{coin, coins, BankMsg, Empty, SubMsg};
         use mixnet_contract_common::events::{
             new_active_set_update_event, new_delegation_on_unbonded_node_event,
@@ -470,7 +435,9 @@ mod tests {
             );
 
             push_n_dummy_epoch_actions(&mut test, 10);
-            let action_with_event = PendingEpochEventKind::UpdateActiveSetSize { new_size: 50 };
+            let action_with_event = PendingEpochEventKind::UpdateActiveSet {
+                update: active_set_update_fixture(),
+            };
             storage::push_new_epoch_event(test.deps_mut().storage, &env, action_with_event)
                 .unwrap();
             push_n_dummy_epoch_actions(&mut test, 10);
@@ -478,7 +445,10 @@ mod tests {
                 perform_pending_epoch_actions(test.deps_mut(), &env, None).unwrap();
             assert_eq!(
                 res,
-                Response::new().add_event(new_active_set_update_event(env.block.height, 50))
+                Response::new().add_event(new_active_set_update_event(
+                    env.block.height,
+                    active_set_update_fixture()
+                ))
             );
             assert_eq!(executed, 21);
             assert_eq!(
@@ -494,7 +464,7 @@ mod tests {
             let mut test = TestSetup::new();
 
             let env = test.env();
-            let legit_mix = test.add_dummy_mixnode("mix-owner", None);
+            let legit_mix = test.add_legacy_mixnode("mix-owner", None);
             let delegator = Addr::unchecked("delegator");
             let amount = 123_456_789u128;
             test.add_immediate_delegation(delegator.as_str(), amount, legit_mix);
@@ -522,10 +492,15 @@ mod tests {
             }));
 
             // updating active set should only emit events and no cosmos messages
-            let action_with_event = PendingEpochEventKind::UpdateActiveSetSize { new_size: 50 };
+            let action_with_event = PendingEpochEventKind::UpdateActiveSet {
+                update: active_set_update_fixture(),
+            };
             storage::push_new_epoch_event(test.deps_mut().storage, &env, action_with_event)
                 .unwrap();
-            expected_events.push(new_active_set_update_event(env.block.height, 50));
+            expected_events.push(new_active_set_update_event(
+                env.block.height,
+                active_set_update_fixture(),
+            ));
 
             // undelegation just returns tokens and emits event
             let legit_undelegate =
@@ -613,10 +588,10 @@ mod tests {
         use crate::support::tests::fixtures::TEST_COIN_DENOM;
         use cosmwasm_std::{coin, Empty, SubMsg};
         use mixnet_contract_common::events::{
-            new_interval_config_update_event, new_mixnode_cost_params_update_event,
+            new_cost_params_update_event, new_interval_config_update_event,
             new_rewarding_params_update_event,
         };
-        use mixnet_contract_common::mixnode::MixNodeCostParams;
+        use mixnet_contract_common::mixnode::NodeCostParams;
         use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
         use mixnet_contract_common::Percent;
 
@@ -682,7 +657,7 @@ mod tests {
 
             push_n_dummy_interval_actions(&mut test, 10);
             let update = IntervalRewardingParamsUpdate {
-                rewarded_set_size: Some(500),
+                interval_pool_emission: Some(Percent::from_percentage_value(42).unwrap()),
                 ..Default::default()
             };
             let action_with_event = PendingIntervalEventKind::UpdateRewardingParams { update };
@@ -717,25 +692,30 @@ mod tests {
             let mut expected_events = Vec::new();
             let expected_messages: Vec<SubMsg<Empty>> = Vec::new();
 
-            let legit_mix = test.add_dummy_mixnode("mix-owner", None);
-            let new_costs = MixNodeCostParams {
+            let legit_mix = test.add_legacy_mixnode("mix-owner", None);
+            let new_costs = NodeCostParams {
                 profit_margin_percent: Percent::from_percentage_value(12).unwrap(),
                 interval_operating_cost: coin(123_000, TEST_COIN_DENOM),
             };
+            // this would have been normally populated when creating the event itself
+            mixnodes_storage::PENDING_MIXNODE_CHANGES
+                .save(test.deps_mut().storage, legit_mix, &Default::default())
+                .unwrap();
+
             let cost_change = PendingIntervalEventKind::ChangeMixCostParams {
                 mix_id: legit_mix,
                 new_costs: new_costs.clone(),
             };
 
             storage::push_new_interval_event(test.deps_mut().storage, &env, cost_change).unwrap();
-            expected_events.push(new_mixnode_cost_params_update_event(
+            expected_events.push(new_cost_params_update_event(
                 env.block.height,
                 legit_mix,
                 &new_costs,
             ));
 
             let update = IntervalRewardingParamsUpdate {
-                rewarded_set_size: Some(500),
+                interval_pool_emission: Some(Percent::from_percentage_value(42).unwrap()),
                 ..Default::default()
             };
             let change_params = PendingIntervalEventKind::UpdateRewardingParams { update };
@@ -858,7 +838,9 @@ mod tests {
                     final_node_id: 0,
                 },
                 EpochState::ReconcilingEvents,
-                EpochState::AdvancingEpoch,
+                EpochState::RoleAssignment {
+                    next: Role::first(),
+                },
             ];
 
             for bad_state in bad_states {
@@ -942,7 +924,7 @@ mod tests {
             let mut test = TestSetup::new();
             let rewarding_validator = test.rewarding_validator();
 
-            test.force_change_rewarded_set(vec![1, 2, 3, 4, 5]);
+            test.force_change_mix_rewarded_set(vec![1, 2, 3, 4, 5]);
             test.skip_to_current_epoch_end();
             let env = test.env();
 
@@ -972,6 +954,7 @@ mod tests {
             new_delegation_on_unbonded_node_event, new_rewarding_params_update_event,
         };
         use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
+        use nym_contracts_common::Percent;
 
         #[test]
         fn can_only_be_performed_if_in_reconciling_state() {
@@ -981,7 +964,9 @@ mod tests {
                     last_rewarded: 0,
                     final_node_id: 0,
                 },
-                EpochState::AdvancingEpoch,
+                EpochState::RoleAssignment {
+                    next: Role::first(),
+                },
             ];
 
             for bad_state in bad_states {
@@ -1019,7 +1004,9 @@ mod tests {
 
             let expected = EpochStatus {
                 being_advanced_by: test.rewarding_validator().sender,
-                state: EpochState::AdvancingEpoch,
+                state: EpochState::RoleAssignment {
+                    next: Role::first(),
+                },
             };
             assert_eq!(
                 expected,
@@ -1068,7 +1055,9 @@ mod tests {
 
             let expected = EpochStatus {
                 being_advanced_by: test.rewarding_validator().sender,
-                state: EpochState::AdvancingEpoch,
+                state: EpochState::RoleAssignment {
+                    next: Role::first(),
+                },
             };
             assert_eq!(
                 expected,
@@ -1092,7 +1081,9 @@ mod tests {
 
             let expected = EpochStatus {
                 being_advanced_by: test.rewarding_validator().sender,
-                state: EpochState::AdvancingEpoch,
+                state: EpochState::RoleAssignment {
+                    next: Role::first(),
+                },
             };
             assert_eq!(
                 expected,
@@ -1312,7 +1303,7 @@ mod tests {
 
             // interval event
             let update = IntervalRewardingParamsUpdate {
-                rewarded_set_size: Some(500),
+                interval_pool_emission: Some(Percent::from_percentage_value(42).unwrap()),
                 ..Default::default()
             };
             let change_params = PendingIntervalEventKind::UpdateRewardingParams { update };
@@ -1354,89 +1345,24 @@ mod tests {
         }
     }
 
-    #[test]
-    fn updating_rewarded_set() {
-        // the actual logic behind writing stuff to the storage has been tested in
-        // different unit test
-        let mut test = TestSetup::new();
-        let current_active_set = test.rewarding_params().active_set_size;
-        let current_rewarded_set = test.rewarding_params().rewarded_set_size;
-
-        // active set size has to match the expectation
-        let err = update_rewarded_set(
-            test.deps_mut().storage,
-            vec![1, 2, 3],
-            current_active_set - 10,
-        )
-        .unwrap_err();
-        assert_eq!(
-            err,
-            MixnetContractError::UnexpectedActiveSetSize {
-                received: current_active_set - 10,
-                expected: current_active_set,
-            }
-        );
-
-        // number of nodes provided has to be equal or smaller than the current rewarded set size
-
-        // fewer nodes
-        let res = update_rewarded_set(test.deps_mut().storage, vec![1, 2, 3], current_active_set);
-        assert!(res.is_ok());
-
-        let exact_num = (1u32..)
-            .take(current_rewarded_set as usize)
-            .collect::<Vec<_>>();
-        let res = update_rewarded_set(test.deps_mut().storage, exact_num, current_active_set);
-        assert!(res.is_ok());
-
-        // one more
-        let too_many = (1u32..)
-            .take((current_rewarded_set + 1) as usize)
-            .collect::<Vec<_>>();
-        let err =
-            update_rewarded_set(test.deps_mut().storage, too_many, current_active_set).unwrap_err();
-        assert_eq!(
-            err,
-            MixnetContractError::UnexpectedRewardedSetSize {
-                received: current_rewarded_set + 1,
-                expected: current_rewarded_set,
-            }
-        );
-
-        // doesn't allow for duplicates
-        let nodes_with_duplicate = vec![1, 2, 3, 4, 5, 1];
-        let err = update_rewarded_set(
-            test.deps_mut().storage,
-            nodes_with_duplicate,
-            current_active_set,
-        )
-        .unwrap_err();
-        assert_eq!(
-            err,
-            MixnetContractError::DuplicateRewardedSetNode { mix_id: 1 }
-        );
-        let nodes_with_duplicate = vec![1, 2, 3, 5, 4, 5];
-        let err = update_rewarded_set(
-            test.deps_mut().storage,
-            nodes_with_duplicate,
-            current_active_set,
-        )
-        .unwrap_err();
-        assert_eq!(
-            err,
-            MixnetContractError::DuplicateRewardedSetNode { mix_id: 5 }
-        );
-    }
-
     #[cfg(test)]
-    mod advancing_epoch {
+    mod assigning_roles {
         use super::*;
-        use crate::mixnodes::queries::query_mixnode_details;
-        use crate::rewards::models::RewardPoolChange;
         use cosmwasm_std::testing::mock_info;
-        use cosmwasm_std::{Decimal, Uint128};
-        use mixnet_contract_common::reward_params::IntervalRewardingParamsUpdate;
-        use mixnet_contract_common::{Layer, RewardedSetNodeStatus};
+        use cosmwasm_std::Uint128;
+
+        fn setup_test() -> TestSetup {
+            let mut test = TestSetup::new();
+
+            for i in 0..10 {
+                test.add_dummy_nymnode(&format!("node-owner-{i}"), None);
+            }
+
+            test.skip_to_current_epoch_end();
+            test.set_epoch_role_assignment_state();
+
+            test
+        }
 
         #[test]
         fn can_only_be_performed_if_in_advancing_epoch_state() {
@@ -1451,10 +1377,9 @@ mod tests {
 
             for bad_state in bad_states {
                 let mut test = TestSetup::new();
-                test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
-                test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
-                test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
-                let current_active_set = test.rewarding_params().active_set_size;
+                test.add_legacy_mixnode("1", Some(Uint128::new(100000000)));
+                test.add_legacy_mixnode("2", Some(Uint128::new(100000000)));
+                test.add_legacy_mixnode("3", Some(Uint128::new(100000000)));
 
                 test.skip_to_current_epoch_end();
 
@@ -1462,24 +1387,17 @@ mod tests {
                 status.state = bad_state;
                 storage::save_current_epoch_status(test.deps_mut().storage, &status).unwrap();
 
-                let layer_assignments = vec![
-                    LayerAssignment::new(1, Layer::One),
-                    LayerAssignment::new(2, Layer::Two),
-                    LayerAssignment::new(3, Layer::Three),
-                ];
+                let role_assignment = RoleAssignment {
+                    role: Role::Layer1,
+                    nodes: vec![1, 2, 3],
+                };
 
                 let env = test.env();
                 let sender = test.rewarding_validator();
-                let res = try_advance_epoch(
-                    test.deps_mut(),
-                    env,
-                    sender,
-                    layer_assignments,
-                    current_active_set,
-                );
+                let res = try_assign_roles(test.deps_mut(), env, sender, role_assignment);
                 assert_eq!(
                     res,
-                    Err(MixnetContractError::EpochNotInAdvancementState {
+                    Err(MixnetContractError::EpochNotInRoleAssignmentState {
                         current_state: bad_state
                     })
                 );
@@ -1489,276 +1407,381 @@ mod tests {
         #[test]
         fn epoch_state_is_correctly_updated() {
             let mut test = TestSetup::new();
-            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
-            let current_active_set = test.rewarding_params().active_set_size;
-
             test.skip_to_current_epoch_end();
-            test.set_epoch_advancement_state();
+            test.set_epoch_role_assignment_state();
 
-            let layer_assignments = vec![
-                LayerAssignment::new(1, Layer::One),
-                LayerAssignment::new(2, Layer::Two),
-                LayerAssignment::new(3, Layer::Three),
+            let cases = vec![
+                (
+                    RoleAssignment {
+                        role: Role::ExitGateway,
+                        nodes: vec![1, 2, 3],
+                    },
+                    EpochState::RoleAssignment {
+                        next: Role::EntryGateway,
+                    },
+                ),
+                (
+                    RoleAssignment {
+                        role: Role::EntryGateway,
+                        nodes: vec![4, 5, 6],
+                    },
+                    EpochState::RoleAssignment { next: Role::Layer1 },
+                ),
+                (
+                    RoleAssignment {
+                        role: Role::Layer1,
+                        nodes: vec![7, 8, 9],
+                    },
+                    EpochState::RoleAssignment { next: Role::Layer2 },
+                ),
+                (
+                    RoleAssignment {
+                        role: Role::Layer2,
+                        nodes: vec![9, 10, 11],
+                    },
+                    EpochState::RoleAssignment { next: Role::Layer3 },
+                ),
+                (
+                    RoleAssignment {
+                        role: Role::Layer3,
+                        nodes: vec![12],
+                    },
+                    EpochState::RoleAssignment {
+                        next: Role::Standby,
+                    },
+                ),
+                (
+                    RoleAssignment {
+                        role: Role::Standby,
+                        nodes: vec![42],
+                    },
+                    EpochState::InProgress,
+                ),
             ];
 
-            let env = test.env();
-            let sender = test.rewarding_validator();
-            try_advance_epoch(
-                test.deps_mut(),
-                env,
-                sender,
-                layer_assignments,
-                current_active_set,
-            )
-            .unwrap();
+            for (assignment, expected) in cases {
+                let env = test.env();
+                let sender = test.rewarding_validator();
+                try_assign_roles(test.deps_mut(), env, sender, assignment).unwrap();
 
-            let expected = EpochStatus {
-                being_advanced_by: test.rewarding_validator().sender,
-                state: EpochState::InProgress,
-            };
-            assert_eq!(
-                expected,
-                storage::current_epoch_status(test.deps().storage).unwrap()
-            )
+                let expected = EpochStatus {
+                    being_advanced_by: test.rewarding_validator().sender,
+                    state: expected,
+                };
+                assert_eq!(
+                    expected,
+                    storage::current_epoch_status(test.deps().storage).unwrap()
+                );
+            }
         }
 
         #[test]
         fn can_only_be_performed_by_specified_rewarding_validator() {
             let mut test = TestSetup::new();
-            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
-            let current_active_set = test.rewarding_params().active_set_size;
+            test.add_dummy_nymnode("1", Some(Uint128::new(100000000)));
+            test.add_dummy_nymnode("2", Some(Uint128::new(100000000)));
+            test.add_dummy_nymnode("3", Some(Uint128::new(100000000)));
             let some_sender = mock_info("foomper", &[]);
 
             test.skip_to_current_epoch_end();
-            test.set_epoch_advancement_state();
+            test.set_epoch_role_assignment_state();
 
-            let layer_assignments = vec![
-                LayerAssignment::new(1, Layer::One),
-                LayerAssignment::new(2, Layer::Two),
-                LayerAssignment::new(3, Layer::Three),
-            ];
+            let role_assignment = RoleAssignment {
+                role: Role::first(),
+                nodes: vec![1, 2, 3],
+            };
 
             let env = test.env();
-            let res = try_advance_epoch(
-                test.deps_mut(),
-                env,
-                some_sender,
-                layer_assignments.clone(),
-                current_active_set,
-            );
+            let res = try_assign_roles(test.deps_mut(), env, some_sender, role_assignment.clone());
             assert_eq!(res, Err(MixnetContractError::Unauthorized));
 
             // good address (sanity check)
             let env = test.env();
             let sender = test.rewarding_validator();
-            let res = try_advance_epoch(
-                test.deps_mut(),
-                env,
-                sender,
-                layer_assignments,
-                current_active_set,
-            );
+            let res = try_assign_roles(test.deps_mut(), env, sender, role_assignment);
             assert!(res.is_ok())
         }
 
         #[test]
-        fn can_only_be_performed_if_epoch_is_over() {
-            let mut test = TestSetup::new();
-            test.set_epoch_advancement_state();
+        fn has_maximum_nodes_per_role() -> anyhow::Result<()> {
+            fn nodes_vec(start: NodeId, count: u32) -> Vec<NodeId> {
+                (start..start + count).collect()
+            }
 
-            let current_active_set = test.rewarding_params().active_set_size;
+            let mut test = setup_test();
 
-            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
-
-            let layer_assignments = vec![
-                LayerAssignment::new(1, Layer::One),
-                LayerAssignment::new(2, Layer::Two),
-                LayerAssignment::new(3, Layer::Three),
+            let roles = [
+                Role::ExitGateway,
+                Role::EntryGateway,
+                Role::Layer1,
+                Role::Layer2,
+                Role::Layer3,
+                Role::Standby,
             ];
 
             let env = test.env();
             let sender = test.rewarding_validator();
-            let res = try_advance_epoch(
-                test.deps_mut(),
-                env,
-                sender.clone(),
-                layer_assignments.clone(),
-                current_active_set,
-            );
-            assert!(matches!(
-                res,
-                Err(MixnetContractError::EpochInProgress { .. })
-            ));
 
-            let mixnode_1 = query_mixnode_details(test.deps.as_ref(), 1).unwrap();
-            assert_eq!(
-                mixnode_1.mixnode_details.unwrap().bond_information.layer,
-                Layer::One
-            );
+            for role in roles {
+                let max_count = test.max_role_count(role);
 
-            let mixnode_1 = query_mixnode_details(test.deps.as_ref(), 2).unwrap();
-            assert_eq!(
-                mixnode_1.mixnode_details.unwrap().bond_information.layer,
-                Layer::Two
-            );
-
-            let mixnode_1 = query_mixnode_details(test.deps.as_ref(), 3).unwrap();
-            assert_eq!(
-                mixnode_1.mixnode_details.unwrap().bond_information.layer,
-                Layer::Three
-            );
-
-            // sanity check
-            test.skip_to_current_epoch_end();
-
-            let env = test.env();
-            let res = try_advance_epoch(
-                test.deps_mut(),
-                env,
-                sender,
-                layer_assignments,
-                current_active_set,
-            );
-            assert!(res.is_ok())
-        }
-
-        #[test]
-        fn if_interval_is_over_applies_reward_pool_changes() {
-            let mut test = TestSetup::new();
-            test.set_epoch_advancement_state();
-
-            let current_active_set = test.rewarding_params().active_set_size;
-
-            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
-
-            let start_params = test.rewarding_params();
-
-            let pool_update = Decimal::from_atomics(100_000_000u32, 0).unwrap();
-            // push some changes
-            rewards_storage::PENDING_REWARD_POOL_CHANGE
-                .save(
-                    test.deps_mut().storage,
-                    &RewardPoolChange {
-                        removed: pool_update,
-                        added: Default::default(),
+                let res = try_assign_roles(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    RoleAssignment {
+                        role,
+                        nodes: nodes_vec(1, max_count + 1),
                     },
-                )
-                .unwrap();
+                );
+                assert_eq!(
+                    res.unwrap_err(),
+                    MixnetContractError::IllegalRoleCount {
+                        role,
+                        assigned: max_count + 1,
+                        allowed: max_count,
+                    }
+                );
 
-            let layer_assignments = vec![
-                LayerAssignment::new(1, Layer::One),
-                LayerAssignment::new(2, Layer::Two),
-                LayerAssignment::new(3, Layer::Three),
-            ];
+                let res = try_assign_roles(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    RoleAssignment {
+                        role,
+                        nodes: nodes_vec(1, max_count),
+                    },
+                );
+                assert!(res.is_ok());
+            }
 
-            // end of epoch - nothing has happened
-            let sender = test.rewarding_validator();
-            test.skip_to_current_epoch_end();
-
-            let env = test.env();
-            try_advance_epoch(
-                test.deps_mut(),
-                env,
-                sender,
-                layer_assignments.clone(),
-                current_active_set,
-            )
-            .unwrap();
-
-            let params = test.rewarding_params();
-            let pool_change = rewards_storage::PENDING_REWARD_POOL_CHANGE
-                .load(test.deps().storage)
-                .unwrap();
-            assert_eq!(params, start_params);
-            assert_eq!(pool_change.removed, pool_update);
-
-            let sender = test.rewarding_validator();
-            test.skip_to_current_interval_end();
-            test.set_epoch_advancement_state();
-
-            let env = test.env();
-            try_advance_epoch(
-                test.deps_mut(),
-                env,
-                sender,
-                layer_assignments,
-                current_active_set,
-            )
-            .unwrap();
-
-            let epochs_in_interval = test.current_interval().epochs_in_interval();
-            let update = IntervalRewardingParamsUpdate {
-                reward_pool: Some(start_params.interval.reward_pool - pool_update),
-                staking_supply: Some(start_params.interval.staking_supply + pool_update),
-                ..Default::default()
-            };
-            let mut expected = start_params;
-            expected
-                .try_apply_updates(update, epochs_in_interval)
-                .unwrap();
-
-            let params = test.rewarding_params();
-            let pool_change = rewards_storage::PENDING_REWARD_POOL_CHANGE
-                .load(test.deps().storage)
-                .unwrap();
-            assert_eq!(params, expected);
-            assert_eq!(pool_change.removed, Decimal::zero());
+            Ok(())
         }
 
         #[test]
-        fn updates_rewarded_set_and_interval_data() {
-            let mut test = TestSetup::new();
-            test.set_epoch_advancement_state();
+        fn cant_be_performed_out_of_order() -> anyhow::Result<()> {
+            let mut test = setup_test();
 
-            let current_active_set = test.rewarding_params().active_set_size;
+            let env = test.env();
+            let sender = test.rewarding_validator();
 
-            test.add_dummy_mixnode("1", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("2", Some(Uint128::new(100000000)));
-            test.add_dummy_mixnode("3", Some(Uint128::new(100000000)));
-
-            let interval_pre = test.current_interval();
-            let rewarded_set_pre = test.rewarded_set();
-            assert!(rewarded_set_pre.is_empty());
-
-            let layer_assignments = vec![
-                LayerAssignment::new(1, Layer::One),
-                LayerAssignment::new(2, Layer::Two),
-                LayerAssignment::new(3, Layer::Three),
+            let expected_order = [
+                Role::ExitGateway,
+                Role::EntryGateway,
+                Role::Layer1,
+                Role::Layer2,
+                Role::Layer3,
+                Role::Standby,
             ];
 
-            let sender = test.rewarding_validator();
-            test.skip_to_current_interval_end();
-            let env = test.env();
-            try_advance_epoch(
-                test.deps_mut(),
-                env,
-                sender,
-                layer_assignments,
-                current_active_set,
-            )
-            .unwrap();
+            for (i, role) in expected_order.iter().enumerate() {
+                let wrong_role = if role == &Role::Layer1 {
+                    Role::Layer2
+                } else {
+                    Role::Layer1
+                };
 
-            let interval_post = test.current_interval();
-            let rewarded_set = test.rewarded_set();
+                let res = try_assign_roles(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    RoleAssignment {
+                        role: wrong_role,
+                        nodes: vec![i as u32],
+                    },
+                );
+                assert_eq!(
+                    res.unwrap_err(),
+                    MixnetContractError::UnexpectedRoleAssignment {
+                        expected: *role,
+                        got: wrong_role
+                    }
+                );
 
-            let expected_id = interval_pre.current_epoch_absolute_id() + 1;
-            assert_eq!(interval_post.current_epoch_absolute_id(), expected_id);
-            assert_eq!(
-                rewarded_set,
-                vec![
-                    (1, RewardedSetNodeStatus::Active),
-                    (2, RewardedSetNodeStatus::Active),
-                    (3, RewardedSetNodeStatus::Active)
-                ]
-            );
+                let res = try_assign_roles(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    RoleAssignment {
+                        role: *role,
+                        nodes: vec![i as u32],
+                    },
+                );
+                assert!(res.is_ok());
+            }
+
+            Ok(())
+        }
+
+        #[cfg(test)]
+        mod correctly_updates_storage {
+            use super::*;
+            use mixnet_contract_common::nym_node::RoleMetadata;
+
+            fn perform_partial_assignment(test: &mut TestSetup) -> anyhow::Result<()> {
+                let env = test.env();
+                let sender = test.rewarding_validator();
+                try_assign_roles(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    RoleAssignment {
+                        role: Role::ExitGateway,
+                        nodes: vec![1, 2, 3],
+                    },
+                )?;
+
+                try_assign_roles(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    RoleAssignment {
+                        role: Role::EntryGateway,
+                        nodes: vec![4, 5, 6],
+                    },
+                )?;
+
+                try_assign_roles(
+                    test.deps_mut(),
+                    env,
+                    sender,
+                    RoleAssignment {
+                        role: Role::Layer1,
+                        nodes: vec![7, 8],
+                    },
+                )?;
+
+                Ok(())
+            }
+
+            #[test]
+            fn updates_metadata() -> anyhow::Result<()> {
+                let mut test = setup_test();
+
+                let initial = test.inactive_roles_metadata();
+
+                // initial state
+                let empty = RoleMetadata::default();
+                assert_eq!(empty, initial.entry_gateway_metadata);
+                assert_eq!(empty, initial.layer1_metadata);
+                assert_eq!(empty, initial.layer2_metadata);
+                assert_eq!(empty, initial.layer3_metadata);
+                assert_eq!(empty, initial.exit_gateway_metadata);
+                assert_eq!(empty, initial.standby_metadata);
+
+                perform_partial_assignment(&mut test)?;
+
+                let updated = test.inactive_roles_metadata();
+                assert_eq!(3, updated.exit_gateway_metadata.highest_id);
+                assert_eq!(3, updated.exit_gateway_metadata.num_nodes);
+                assert_eq!(6, updated.entry_gateway_metadata.highest_id);
+                assert_eq!(3, updated.entry_gateway_metadata.num_nodes);
+                assert_eq!(8, updated.layer1_metadata.highest_id);
+                assert_eq!(2, updated.layer1_metadata.num_nodes);
+
+                assert_eq!(empty, updated.layer2_metadata);
+                assert_eq!(empty, updated.layer3_metadata);
+                assert_eq!(empty, updated.standby_metadata);
+
+                Ok(())
+            }
+
+            #[test]
+            fn updates_role_data() -> anyhow::Result<()> {
+                let mut test = setup_test();
+
+                assert!(test.inactive_roles(Role::ExitGateway).is_empty());
+                assert!(test.inactive_roles(Role::EntryGateway).is_empty());
+                assert!(test.inactive_roles(Role::Layer1).is_empty());
+                assert!(test.inactive_roles(Role::Layer2).is_empty());
+                assert!(test.inactive_roles(Role::Layer3).is_empty());
+                assert!(test.inactive_roles(Role::Standby).is_empty());
+
+                perform_partial_assignment(&mut test)?;
+
+                assert_eq!(3, test.inactive_roles(Role::ExitGateway).len());
+                assert_eq!(3, test.inactive_roles(Role::EntryGateway).len());
+                assert_eq!(2, test.inactive_roles(Role::Layer1).len());
+                assert!(test.inactive_roles(Role::Layer2).is_empty());
+                assert!(test.inactive_roles(Role::Layer3).is_empty());
+                assert!(test.inactive_roles(Role::Standby).is_empty());
+
+                Ok(())
+            }
+
+            #[test]
+            fn updates_epoch_status() -> anyhow::Result<()> {
+                let mut test = setup_test();
+
+                let env = test.env();
+                let sender = test.rewarding_validator();
+
+                let roles = [
+                    Role::ExitGateway,
+                    Role::EntryGateway,
+                    Role::Layer1,
+                    Role::Layer2,
+                    Role::Layer3,
+                    Role::Standby,
+                ];
+
+                for (i, role) in roles.into_iter().enumerate() {
+                    let expected_next = role.next();
+
+                    try_assign_roles(
+                        test.deps_mut(),
+                        env.clone(),
+                        sender.clone(),
+                        RoleAssignment {
+                            role,
+                            nodes: vec![i as u32],
+                        },
+                    )?;
+
+                    let state = test.epoch_state();
+                    match expected_next {
+                        None => assert_eq!(state, EpochState::InProgress),
+                        Some(next) => assert_eq!(state, EpochState::RoleAssignment { next }),
+                    }
+                }
+
+                Ok(())
+            }
+
+            #[test]
+            fn swaps_roles_buckets_after_final_role() -> anyhow::Result<()> {
+                let mut test = setup_test();
+
+                let env = test.env();
+                let sender = test.rewarding_validator();
+
+                let active = test.active_roles_bucket();
+
+                let roles = [
+                    Role::ExitGateway,
+                    Role::EntryGateway,
+                    Role::Layer1,
+                    Role::Layer2,
+                    Role::Layer3,
+                    Role::Standby,
+                ];
+
+                for (i, role) in roles.into_iter().enumerate() {
+                    try_assign_roles(
+                        test.deps_mut(),
+                        env.clone(),
+                        sender.clone(),
+                        RoleAssignment {
+                            role,
+                            nodes: vec![i as u32],
+                        },
+                    )?;
+                }
+
+                assert_eq!(test.active_roles_bucket(), active.other());
+
+                Ok(())
+            }
         }
     }
 
@@ -1778,7 +1801,9 @@ mod tests {
                     final_node_id: 0,
                 },
                 EpochState::ReconcilingEvents,
-                EpochState::AdvancingEpoch,
+                EpochState::RoleAssignment {
+                    next: Role::first(),
+                },
             ];
 
             for bad_state in bad_states {

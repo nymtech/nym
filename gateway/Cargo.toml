@@ -50,6 +50,7 @@ sqlx = { workspace = true, features = [
 ] }
 subtle-encoding = { workspace = true, features = ["bech32-preview"] }
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = [
     "rt-multi-thread",
     "net",

@@ -1,6 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::commands::initialise_mixnet_vesting_with_states::{
+    execute_initialise_mixnet_vesting_with_states, InitialiseMixnetVestingWithStatesArgs,
+};
 use crate::commands::initialise_with_state::{initialise_with_state, InitialiseWithStateArgs};
 use crate::commands::prepare::{execute_prepare_contract, PrepareArgs};
 use crate::commands::set_state::{execute_set_state, SetStateArgs};
@@ -50,6 +53,10 @@ pub(crate) enum Commands {
 
     /// Combines the functionalities of `prepare-contract`, `set-state` and `swap-contract`
     InitialiseWithState(InitialiseWithStateArgs),
+
+    /// Specialised variant of `initialise-with-state` for the mixnet and vesting contracts that sets
+    /// internal state keys
+    InitialiseMixnetVestingWithStates(InitialiseMixnetVestingWithStatesArgs),
 }
 
 impl Cli {
@@ -73,6 +80,9 @@ impl Cli {
             Commands::SetState(args) => execute_set_state(args, client).await,
             Commands::SwapContract(args) => execute_swap_contract(args, client).await,
             Commands::InitialiseWithState(args) => initialise_with_state(args, client).await,
+            Commands::InitialiseMixnetVestingWithStates(args) => {
+                execute_initialise_mixnet_vesting_with_states(args, client).await
+            }
         }
     }
 }

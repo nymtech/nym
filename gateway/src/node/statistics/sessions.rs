@@ -6,7 +6,7 @@ use nym_sphinx::DestinationAddressBytes;
 use std::collections::{HashMap, HashSet};
 use time::{Date, OffsetDateTime};
 
-use crate::node::statistics::events::SessionEvent;
+use nym_statistics_common::events::SessionEvent;
 
 type SessionDuration = u64; //in miliseconds
 

@@ -3,16 +3,13 @@
 
 use futures::{channel::mpsc, StreamExt};
 use nym_node_http_api::state::metrics::SharedSessionStats;
+use nym_statistics_common::events::{StatsEvent, StatsEventReceiver, StatsEventSender};
 use nym_task::TaskClient;
+use sessions::SessionStatsHandler;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tracing::trace;
 
-use sessions::SessionStatsHandler;
-
-pub use events::{StatsEvent, StatsEventReceiver, StatsEventSender};
-
-pub mod events;
 pub mod sessions;
 
 const STATISTICS_UPDATE_TIMER_INTERVAL: Duration = Duration::from_secs(3600); //update timer, no need to check everytime

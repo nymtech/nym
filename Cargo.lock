@@ -6164,6 +6164,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-node-status-agent"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.5.18",
+ "nym-bin-common 0.6.0",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "nym-node-status-api"
 version = "0.1.0"
 dependencies = [

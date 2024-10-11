@@ -28,6 +28,8 @@ use rocket_okapi::swagger_ui::make_swagger_ui;
 pub(crate) mod helpers;
 pub(crate) mod openapi;
 
+pub(crate) mod mem_prof;
+
 pub(crate) async fn setup_rocket(
     config: &Config,
     network_details: NetworkDetails,
@@ -52,6 +54,7 @@ pub(crate) async fn setup_rocket(
         "/api-status" => api_status_routes(&openapi_settings),
         "/ecash" => ecash::routes_open_api(&openapi_settings, config.coconut_signer.enabled),
         "" => nym_node_routes_deprecated(&openapi_settings),
+        "/prof" => mem_prof::api_status_routes(&openapi_settings),
 
         // => when we move those routes, we'll need to add a redirection for backwards compatibility
         "/unstable/nym-nodes" => nym_node_routes_next(&openapi_settings)

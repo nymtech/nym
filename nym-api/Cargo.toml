@@ -76,7 +76,7 @@ axum = { workspace = true, features = ["tokio"], optional = true }
 axum-extra = { workspace = true, features = ["typed-header"], optional = true }
 tower-http = { workspace = true, features = ["cors", "trace"], optional = true }
 utoipa = { workspace = true, features = ["axum_extras", "time"], optional = true }
-utoipa-swagger-ui = { workspace = true, features = ["axum"], optional = true}
+utoipa-swagger-ui = { workspace = true, features = ["axum"], optional = true }
 utoipauto = { workspace = true, optional = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"], optional = true }
 tracing = { workspace = true, optional = true }
@@ -112,7 +112,7 @@ cw4 = { workspace = true }
 nym-dkg = { path = "../common/dkg", features = ["cw-types"] }
 nym-gateway-client = { path = "../common/client-libs/gateway-client" }
 nym-inclusion-probability = { path = "../common/inclusion-probability" }
-nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"]}
+nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
 nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
 nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
@@ -129,6 +129,10 @@ nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-types = { path = "../common/types" }
 nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
 
+tikv-jemallocator = { version = "0.6", optional = true, features = ["profiling"] }
+tikv-jemalloc-sys = { version = "0.6", optional = true, features = ["stats", "profiling", "unprefixed_malloc_on_supported_platforms"] }
+tikv-jemalloc-ctl = { version = "0.6", optional = true, features = ["use_std", "stats", "profiling"] }
+
 [features]
 no-reward = []
 generate-ts = ["ts-rs"]
@@ -143,6 +147,7 @@ axum = ["dep:axum",
     "nym-http-api-common/utoipa",
     "nym-mixnet-contract-common/utoipa"
 ]
+memory-prof = ["tikv-jemallocator", "tikv-jemalloc-ctl", "tikv-jemalloc-sys"]
 
 [build-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

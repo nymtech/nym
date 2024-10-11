@@ -44,6 +44,10 @@ pub(crate) mod nym_nodes;
 mod status;
 pub(crate) mod support;
 
+#[cfg(feature = "memory-prof")]
+#[global_allocator]
+static ALLOC: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
+
 #[cfg(feature = "axum")]
 mod v2;
 
@@ -59,6 +63,8 @@ async fn main() -> Result<(), anyhow::Error> {
         // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
         console_subscriber::init();
     }}
+
+    // std::env::set_var("MALLOC_CONF", "prof:true,lg_prof_interval:28");
 
     setup_logging();
     // TODO rocket: replace with tracing logger once rocket is eliminated from code

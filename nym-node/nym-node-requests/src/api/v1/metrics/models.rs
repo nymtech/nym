@@ -45,7 +45,9 @@ pub struct SessionStats {
 
     pub session_durations: Vec<u32>,
 
-    pub nb_sessions: u32,
+    pub sessions_started: u32,
+
+    pub sessions_finished: u32,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]

@@ -158,6 +158,7 @@ impl SharedSessionStats {
 pub struct SessionStatsState {
     pub update_time: Date,
     pub unique_active_users: u32,
+    pub session_started: u32,
     pub session_durations: Vec<u32>,
 }
 
@@ -167,7 +168,8 @@ impl SessionStatsState {
             update_time: self.update_time.with_time(time!(0:00)).assume_utc(),
             unique_active_users: self.unique_active_users,
             session_durations: self.session_durations.clone(),
-            nb_sessions: self.session_durations.len() as u32,
+            sessions_started: self.session_started,
+            sessions_finished: self.session_durations.len() as u32,
         }
     }
 }
@@ -177,6 +179,7 @@ impl Default for SessionStatsState {
         SessionStatsState {
             update_time: OffsetDateTime::UNIX_EPOCH.date(),
             unique_active_users: 0,
+            session_started: 0,
             session_durations: Default::default(),
         }
     }

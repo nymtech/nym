@@ -4,13 +4,13 @@ import Mixnode from './snippets/mixnode-run-tab-snippet.mdx';
 import EntryGateway from './snippets/entry-gateway-run-tab-snippet.mdx';
 import ExitGateway from './snippets/exit-gateway-run-tab-snippet.mdx';
 */}
-import { Callout } from 'nextra/components'
+import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
-import { RunTabs } from '../../../../components/operators/nodes/node-run-command-tabs2';
-import { MyTab } from '../../../../components/operators/nodes/node-run-command-tabs';
+import { RunTabs } from 'components/operators/nodes/node-run-command-tabs2';
+import { MyTab } from 'components/operators/nodes/node-run-command-tabs';
 import Mixnode from './snippets/mixnode-run-tab-snippet.mdx';
 import { VarInfo } from 'components/variable-info.tsx';
-import { MigrateTabs } from '../../../../components/operators/nodes/node-migrate-command-tabs'
+import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tabs'
 
 # Nym Node Setup & Run
 
@@ -187,7 +187,7 @@ In such case, you can `run` a node to initalise it or try if everything works, b
 <Callout color="danger">
 Migration is a must for all deprecated nodes (`nym-mixnode`, `nym-gateway`). For backward compatibility we created an [archive section](../archive/nodes/setup-guides.md) with all the guides for individual binaries. However, the binaries from version 1.1.35 (`nym-gateway`) and 1.1.37 (`nym-mixnode`) onwards will no longer have `init` command.
 
-**Nym cannot promise 100% serialisation for operators migrating from long outdated versions to the newest ones. If you are about to migrate, start with  [`nym-node v1.1.0`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.3-eclipse) and keep upgrading version by version all the way to the latest one.** 
+**Nym cannot promise 100% serialisation for operators migrating from long outdated versions to the newest ones. If you are about to migrate, start with  [`nym-node v1.1.0`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.3-eclipse) and keep upgrading version by version all the way to the latest one.**
 </Callout>
 
 Operators who are about to migrate their nodes need to configure their [VPS](vps-setup.md) and setup `nym-node` which can be downloaded as a [pre-built binary](../binaries/pre-built-binaries.md) or compiled from [source](../binaries/building-nym.md).
@@ -203,4 +203,3 @@ Make sure to use `--deny-init` flag to prevent initialisation of a new node.
 If there are any problems checkout the troubleshooting section or report an issue.
 
 Follow up with [configuration](configuration.md) page for automation, reversed proxy setup and other tweaks, then head straight to [bonding](bonding.md) page to finalise your setup.
-

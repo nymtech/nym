@@ -1,0 +1,5 @@
+{
+  "socks5": "Socks5 (standalone)",
+  "webassembly-client": "Webassembly Client",
+  "websocket": "Websocket (standalone)"
+}

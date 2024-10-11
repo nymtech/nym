@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO v3_migration_info(id) VALUES (0)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": []
+  },
+  "hash": "19e3f9bcf0adfea2b12fc50ab5bb7aa84ba3edc90ebcc49644ad52ebdc71e162"
+}

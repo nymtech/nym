@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT\n                d.mix_id as \"mix_id: NodeId\",\n                AVG(s.reliability) as \"value: f32\"\n            FROM\n                mixnode_details d\n            JOIN\n                mixnode_status s on d.id = s.mixnode_details_id\n            WHERE\n                timestamp >= ? AND\n                timestamp <= ?\n            GROUP BY 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "mix_id: NodeId",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "value: f32",
+        "ordinal": 1,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      true
+    ]
+  },
+  "hash": "c19e1b3768bf2929407599e6e8783ead09f4d7319b7997fa2a9bb628f9404166"
+}

@@ -1,14 +1,11 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::support::storage::manager::StorageManager;
-use crate::{
-    ecash::storage::models::{
-        EpochCredentials, IssuedTicketbook, RawExpirationDateSignatures, SerialNumberWrapper,
-        StoredBloomfilterParams, TicketProvider, VerifiedTicket,
-    },
-    support::storage::manager::StorageManager,
+use crate::ecash::storage::models::{
+    EpochCredentials, IssuedTicketbook, RawExpirationDateSignatures, SerialNumberWrapper,
+    StoredBloomfilterParams, TicketProvider, VerifiedTicket,
 };
+use crate::support::storage::manager::StorageManager;
 use async_trait::async_trait;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_contract_common::deposit::DepositId;

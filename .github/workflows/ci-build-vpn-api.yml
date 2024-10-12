@@ -3,6 +3,7 @@ name: ci-build-vpn-api
 on:
   pull_request:
     paths:
+      - 'common/**'
       - 'nym-vpn-api/**'
       - '.github/workspace/ci-build-vpn-api.yml'
   workflow_dispatch:

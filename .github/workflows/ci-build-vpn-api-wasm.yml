@@ -3,6 +3,7 @@ name: ci-build-vpn-api-wasm
 on:
   pull_request:
     paths:
+      - 'common/**'
       - 'nym-vpn-api/**'
       - '.github/workflows/ci-build-vpn-api-wasm.yml'
 

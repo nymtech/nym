@@ -87,7 +87,7 @@ impl NymIssuanceTicketbook {
         };
 
         let ticketbook_type = match opts.ticketbook_type {
-            None => TicketType::default(),
+            None => TicketType::V1MixnetEntry,
             Some(typ) => typ
                 .parse()
                 .map_err(|_| VpnApiLibError::MalformedTicketType)?,
@@ -104,7 +104,7 @@ impl NymIssuanceTicketbook {
         Ok(NymIssuanceTicketbook {
             ecash_keypair,
             withdrawal_request,
-            ticketbook_type: Default::default(),
+            ticketbook_type,
             expiration_date,
             request_info: Zeroizing::new(request_info),
         })

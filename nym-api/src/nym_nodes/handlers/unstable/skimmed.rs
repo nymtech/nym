@@ -221,7 +221,7 @@ pub(super) async fn deprecated_gateways_basic(
         (status = 200, body = CachedNodesResponse<SkimmedNode>)
     )
 )]
-#[deprecated(note = "use '/v1/unstable/nym-nodes/mixnodes/skimmed/active' instead")]
+#[deprecated(note = "use '/v1/unstable/nym-nodes/skimmed/mixnodes/active' instead")]
 pub(super) async fn deprecated_mixnodes_basic(
     state: State<AppState>,
     query_params: Query<NodesParams>,
@@ -335,7 +335,7 @@ pub(super) async fn nodes_basic_all(
 #[utoipa::path(
     tag = "Unstable Nym Nodes",
     get,
-    params(NodesParamsWithRole),
+    params(NodesParams),
     path = "/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
@@ -387,7 +387,7 @@ async fn mixnodes_basic(
 #[utoipa::path(
     tag = "Unstable Nym Nodes",
     get,
-    params(NodesParamsWithRole),
+    params(NodesParams),
     path = "/mixnodes/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
@@ -406,7 +406,7 @@ pub(super) async fn mixnodes_basic_all(
 #[utoipa::path(
     tag = "Unstable Nym Nodes",
     get,
-    params(NodesParamsWithRole),
+    params(NodesParams),
     path = "/mixnodes/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
@@ -444,7 +444,7 @@ async fn entry_gateways_basic(
 #[utoipa::path(
     tag = "Unstable Nym Nodes",
     get,
-    params(NodesParamsWithRole),
+    params(NodesParams),
     path = "/entry-gateways/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
@@ -463,7 +463,7 @@ pub(super) async fn entry_gateways_basic_active(
 #[utoipa::path(
     tag = "Unstable Nym Nodes",
     get,
-    params(NodesParamsWithRole),
+    params(NodesParams),
     path = "/entry-gateways/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
@@ -501,7 +501,7 @@ async fn exit_gateways_basic(
 #[utoipa::path(
     tag = "Unstable Nym Nodes",
     get,
-    params(NodesParamsWithRole),
+    params(NodesParams),
     path = "/exit-gateways/active",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(
@@ -520,7 +520,7 @@ pub(super) async fn exit_gateways_basic_active(
 #[utoipa::path(
     tag = "Unstable Nym Nodes",
     get,
-    params(NodesParamsWithRole),
+    params(NodesParams),
     path = "/exit-gateways/all",
     context_path = "/v1/unstable/nym-nodes/skimmed",
     responses(

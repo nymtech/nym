@@ -143,7 +143,7 @@ where
     );
 
     // 5. if we allow legacy nodes, repeat the procedure for them, otherwise return just nym-nodes
-    if query_params.no_legacy {
+    if let Some(true) = query_params.no_legacy {
         // min of all caches
         let refreshed_at = refreshed_at([
             rewarded_set.timestamp(),

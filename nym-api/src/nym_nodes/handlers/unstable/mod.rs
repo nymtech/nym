@@ -81,7 +81,7 @@ struct NodesParamsWithRole {
     role: Option<NodeRoleQueryParam>,
 
     semver_compatibility: Option<String>,
-    no_legacy: bool,
+    no_legacy: Option<bool>,
     page: Option<u32>,
     per_page: Option<u32>,
 }
@@ -89,7 +89,7 @@ struct NodesParamsWithRole {
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
 struct NodesParams {
     semver_compatibility: Option<String>,
-    no_legacy: bool,
+    no_legacy: Option<bool>,
     page: Option<u32>,
     per_page: Option<u32>,
 }

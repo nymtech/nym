@@ -5,10 +5,7 @@ use crate::manager::contract::Account;
 use nym_coconut_dkg_common::types::Addr;
 use nym_contracts_common::signing::MessageSignature;
 use nym_contracts_common::Percent;
-use nym_mixnet_contract_common::{
-    construct_gateway_bonding_sign_payload, construct_mixnode_bonding_sign_payload, Gateway,
-    MixNode, NodeCostParams,
-};
+use nym_mixnet_contract_common::{construct_nym_node_bonding_sign_payload, NodeCostParams};
 use nym_validator_client::nyxd::CosmWasmCoin;
 
 pub(crate) struct NymNode {
@@ -44,27 +41,11 @@ impl NymNode {
         CosmWasmCoin::new(100_000000, "unym")
     }
 
-    pub(crate) fn gateway(&self) -> Gateway {
-        Gateway {
+    pub(crate) fn bonding_nym_node(&self) -> nym_mixnet_contract_common::NymNode {
+        nym_mixnet_contract_common::NymNode {
             host: "127.0.0.1".to_string(),
-            mix_port: self.mix_port,
-            clients_port: self.clients_port,
-            location: "foomp".to_string(),
-            sphinx_key: self.sphinx_key.clone(),
+            custom_http_port: Some(self.http_port),
             identity_key: self.identity_key.clone(),
-            version: self.version.clone(),
-        }
-    }
-
-    pub(crate) fn mixnode(&self) -> MixNode {
-        MixNode {
-            host: "127.0.0.1".to_string(),
-            mix_port: self.mix_port,
-            verloc_port: self.verloc_port,
-            http_api_port: self.http_port,
-            sphinx_key: self.sphinx_key.clone(),
-            identity_key: self.identity_key.clone(),
-            version: self.version.clone(),
         }
     }
 
@@ -80,23 +61,13 @@ impl NymNode {
         self.bonding_signature.parse().unwrap()
     }
 
-    pub(crate) fn mixnode_bonding_payload(&self) -> String {
-        let payload = construct_mixnode_bonding_sign_payload(
+    pub(crate) fn bonding_payload(&self) -> String {
+        let payload = construct_nym_node_bonding_sign_payload(
             0,
             Addr::unchecked(self.owner.address.to_string()),
             self.pledge(),
-            self.mixnode(),
+            self.bonding_nym_node(),
             self.cost_params(),
-        );
-        payload.to_base58_string().unwrap()
-    }
-
-    pub(crate) fn gateway_bonding_payload(&self) -> String {
-        let payload = construct_gateway_bonding_sign_payload(
-            0,
-            Addr::unchecked(self.owner.address.to_string()),
-            self.pledge(),
-            self.gateway(),
         );
         payload.to_base58_string().unwrap()
     }

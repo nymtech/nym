@@ -8,7 +8,6 @@ use nym_bin_common::build_information::BinaryBuildInformation;
 use tokio::time::Instant;
 
 pub(crate) mod handlers;
-// pub(crate) mod routes;
 
 pub(crate) struct ApiStatusState {
     startup_time: Instant,
@@ -40,12 +39,3 @@ impl ApiStatusState {
         self.signer_information = Some(signer_information)
     }
 }
-
-// pub(crate) fn api_status_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
-//     openapi_get_routes_spec![
-//         settings:
-//         routes::health,
-//         routes::build_information,
-//         routes::signer_information
-//     ]
-// }

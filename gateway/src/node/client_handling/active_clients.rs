@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender};
-use crate::node::client_handling::embedded_clients::LocalEmbeddedClientHandle;
+use crate::node::{client_handling::embedded_clients::LocalEmbeddedClientHandle, statistics};
 use dashmap::DashMap;
 use nym_sphinx::DestinationAddressBytes;
-use std::{collections::HashSet, sync::Arc};
+use std::sync::Arc;
 use tracing::warn;
 
 enum ActiveClient {
@@ -35,6 +35,7 @@ impl ActiveClient {
 #[derive(Clone)]
 pub(crate) struct ActiveClientsStore {
     inner: Arc<DashMap<DestinationAddressBytes, ActiveClient>>,
+    stats_event_sender: statistics::StatsEventSender,
 }
 
 #[derive(Clone)]
@@ -48,9 +49,10 @@ pub(crate) struct ClientIncomingChannels {
 
 impl ActiveClientsStore {
     /// Creates new instance of `ActiveClientsStore` to store in-memory handles to all currently connected clients.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(stats_event_sender: statistics::StatsEventSender) -> Self {
         ActiveClientsStore {
             inner: Arc::new(DashMap::new()),
+            stats_event_sender,
         }
     }
 
@@ -126,6 +128,9 @@ impl ActiveClientsStore {
     /// * `client`: address of the client for which to remove the handle.
     pub(crate) fn disconnect(&self, client: DestinationAddressBytes) {
         self.inner.remove(&client);
+        let _ = self
+            .stats_event_sender
+            .unbounded_send(statistics::events::new_session_stop_event(client));
     }
 
     /// Insert new client handle into the store.
@@ -147,6 +152,9 @@ impl ActiveClientsStore {
         if self.inner.insert(client, entry).is_some() {
             panic!("inserted a duplicate remote client")
         }
+        let _ = self
+            .stats_event_sender
+            .unbounded_send(statistics::events::new_session_start_event(client));
     }
 
     /// Inserts a handle to the embedded client
@@ -164,9 +172,5 @@ impl ActiveClientsStore {
     #[allow(unused)]
     pub(crate) fn size(&self) -> usize {
         self.inner.len()
-    }
-
-    pub(crate) fn client_list(&self) -> HashSet<DestinationAddressBytes> {
-        self.inner.iter().map(|entry| *entry.key()).collect()
     }
 }

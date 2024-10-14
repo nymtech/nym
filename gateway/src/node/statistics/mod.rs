@@ -17,7 +17,7 @@ const STATISTICS_UPDATE_TIMER_INTERVAL: Duration = Duration::from_secs(3600); //
 pub(crate) struct GatewayStatisticsCollector {
     stats_event_rx: StatsEventReceiver,
     session_stats: SessionStatsHandler,
-    //here go additionnal stats handler
+    //here goes additionnal stats handler
 }
 
 impl GatewayStatisticsCollector {
@@ -34,7 +34,7 @@ impl GatewayStatisticsCollector {
 
     async fn update_shared_state(&mut self, update_time: OffsetDateTime) {
         self.session_stats.update_shared_state(update_time).await;
-        //here go additionnal stats handler update
+        //here goes additionnal stats handler update
     }
 
     pub async fn run(&mut self, mut shutdown: TaskClient) {

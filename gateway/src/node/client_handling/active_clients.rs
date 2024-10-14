@@ -130,9 +130,12 @@ impl ActiveClientsStore {
     /// * `client`: address of the client for which to remove the handle.
     pub(crate) fn disconnect(&self, client: DestinationAddressBytes) {
         self.inner.remove(&client);
-        let _ = self
+        if let Err(e) = self
             .stats_event_sender
-            .unbounded_send(events::new_session_stop_event(client));
+            .unbounded_send(events::StatsEvent::new_session_stop(client))
+        {
+            warn!("Failed to send session stop event to collector : {e}")
+        };
     }
 
     /// Insert new client handle into the store.
@@ -154,9 +157,12 @@ impl ActiveClientsStore {
         if self.inner.insert(client, entry).is_some() {
             panic!("inserted a duplicate remote client")
         }
-        let _ = self
+        if let Err(e) = self
             .stats_event_sender
-            .unbounded_send(events::new_session_start_event(client));
+            .unbounded_send(events::StatsEvent::new_session_start(client))
+        {
+            warn!("Failed to send session start event to collector : {e}")
+        };
     }
 
     /// Inserts a handle to the embedded client

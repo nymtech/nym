@@ -11,6 +11,22 @@ pub enum StatsEvent {
     SessionStatsEvent(SessionEvent),
 }
 
+impl StatsEvent {
+    pub fn new_session_start(client: DestinationAddressBytes) -> StatsEvent {
+        StatsEvent::SessionStatsEvent(SessionEvent::SessionStart {
+            start_time: OffsetDateTime::now_utc(),
+            client,
+        })
+    }
+
+    pub fn new_session_stop(client: DestinationAddressBytes) -> StatsEvent {
+        StatsEvent::SessionStatsEvent(SessionEvent::SessionStop {
+            stop_time: OffsetDateTime::now_utc(),
+            client,
+        })
+    }
+}
+
 pub enum SessionEvent {
     SessionStart {
         start_time: OffsetDateTime,
@@ -20,18 +36,4 @@ pub enum SessionEvent {
         stop_time: OffsetDateTime,
         client: DestinationAddressBytes,
     },
-}
-
-pub fn new_session_start_event(client: DestinationAddressBytes) -> StatsEvent {
-    StatsEvent::SessionStatsEvent(SessionEvent::SessionStart {
-        start_time: OffsetDateTime::now_utc(),
-        client,
-    })
-}
-
-pub fn new_session_stop_event(client: DestinationAddressBytes) -> StatsEvent {
-    StatsEvent::SessionStatsEvent(SessionEvent::SessionStop {
-        stop_time: OffsetDateTime::now_utc(),
-        client,
-    })
 }

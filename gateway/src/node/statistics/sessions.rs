@@ -66,12 +66,13 @@ impl SessionStatsHandler {
     pub(crate) async fn update_shared_state(&mut self, update_time: OffsetDateTime) {
         let update_date = update_time.date();
         if update_date != self.last_update_day {
-            let mut shared_state = self.shared_session_stats.write().await;
-            shared_state.update_time = self.last_update_day;
-            shared_state.unique_active_users = self.unique_users.len() as u32;
-            shared_state.session_started = self.sessions_started;
-            shared_state.session_durations = self.finished_sessions.clone();
-            drop(shared_state);
+            {
+                let mut shared_state = self.shared_session_stats.write().await;
+                shared_state.update_time = self.last_update_day;
+                shared_state.unique_active_users = self.unique_users.len() as u32;
+                shared_state.session_started = self.sessions_started;
+                shared_state.session_durations = self.finished_sessions.clone();
+            }
             self.reset_stats(update_date);
         }
     }

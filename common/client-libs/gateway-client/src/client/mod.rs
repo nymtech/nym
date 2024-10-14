@@ -16,6 +16,7 @@ use nym_bandwidth_controller::{BandwidthController, BandwidthStatusMessage};
 use nym_credential_storage::ephemeral_storage::EphemeralStorage as EphemeralCredentialStorage;
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_credentials::CredentialSpendingData;
+use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::registration::handshake::client_handshake;
 use nym_gateway_requests::{
@@ -748,7 +749,11 @@ impl<C, St> GatewayClient<C, St> {
         }
         let prepared_credential = self
             .unchecked_bandwidth_controller()
-            .prepare_ecash_ticket(self.gateway_identity.to_bytes(), TICKETS_TO_SPEND)
+            .prepare_ecash_ticket(
+                TicketType::V1MixnetEntry,
+                self.gateway_identity.to_bytes(),
+                TICKETS_TO_SPEND,
+            )
             .await?;
 
         match self.claim_ecash_bandwidth(prepared_credential.data).await {

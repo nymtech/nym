@@ -284,6 +284,7 @@ impl SqliteEcashTicketbookManager {
 
 pub(crate) async fn get_next_unspent_ticketbook<'a, E>(
     executor: E,
+    ticketbook_type: String,
     deadline: Date,
     tickets: u32,
 ) -> Result<Option<StoredIssuedTicketbook>, sqlx::Error>
@@ -296,12 +297,14 @@ where
                 FROM ecash_ticketbook
                 WHERE used_tickets + ? <= total_tickets
                 AND expiration_date >= ?
+                AND ticketbook_type = ?
                 ORDER BY expiration_date ASC
                 LIMIT 1
             "#,
     )
     .bind(tickets)
     .bind(deadline)
+    .bind(ticketbook_type)
     .fetch_optional(executor)
     .await
 }

@@ -17,6 +17,7 @@ readme.workspace = true
 anyhow = { workspace = true }
 axum = { workspace = true, features = ["tokio"] }
 chrono = { workspace = true }
+clap = { workspace = true, features = ["derive", "env"] }
 nym-bin-common = { path = "../common/bin-common" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-task = { path = "../common/task" }

@@ -16,8 +16,8 @@ pub(crate) struct Storage {
 }
 
 impl Storage {
-    pub async fn init() -> Result<Self> {
-        let connection_url = std::env::var(DATABASE_URL_ENV_VAR).map_err(anyhow::Error::from)?;
+    pub async fn init(connection_url: Option<String>) -> Result<Self> {
+        let connection_url = connection_url.unwrap();
         let connect_options = {
             let mut connect_options = PgConnectOptions::from_str(&connection_url)?;
             let connect_options = connect_options.disable_statement_logging();

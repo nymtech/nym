@@ -193,10 +193,7 @@ pub async fn batch_redeem_tickets(
 #[openapi(tag = "Ecash")]
 #[get("/double-spending-filter-v1")]
 pub async fn double_spending_filter_v1(
-    state: &RocketState<EcashState>,
+    _state: &RocketState<EcashState>,
 ) -> crate::ecash::error::Result<Json<SpentCredentialsResponse>> {
-    let spent_credentials_export = state.get_bloomfilter_bytes().await;
-    Ok(Json(SpentCredentialsResponse::new(
-        spent_credentials_export,
-    )))
+    Err(EcashError::Restricted)
 }

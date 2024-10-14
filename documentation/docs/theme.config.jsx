@@ -5,6 +5,7 @@ import { useConfig } from 'nextra-theme-docs';
 
 
 import { Footer } from "./components/footer";
+import {Matrix} from "./components/matrix-link";
 
 const config = {
   logo: <span>Nym Docs</span>,
@@ -31,6 +32,9 @@ const config = {
     defaultMenuCollapseLevel: 1,
     autoCollapse: true,
   },
+  navbar : { 
+    extraContent: <Matrix/>
+}
 };
 
 export default config;

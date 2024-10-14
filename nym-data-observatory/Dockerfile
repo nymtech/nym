@@ -16,4 +16,4 @@ RUN apt update && apt install -yy curl
 WORKDIR /nym
 
 COPY --from=builder /usr/src/nym/target/release/nym-data-observatory ./
-CMD [ "/nym/nym-data-observatory" ]
+ENTRYPOINT [ "/nym/nym-data-observatory" ]

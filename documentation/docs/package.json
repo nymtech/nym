@@ -31,6 +31,8 @@
     "@mui/icons-material": "^5.14.9",
     "@mui/lab": "^5.0.0-alpha.145",
     "@mui/material": "^5.14.8",
+    "@nextui-org/accordion": "^2.0.40",
+    "@nextui-org/react": "^2.4.8",
     "@nymproject/contract-clients": ">=1.2.4-rc.2 || ^1",
     "@nymproject/mix-fetch-full-fat": ">=1.2.4-rc.2 || ^1",
     "@nymproject/sdk-full-fat": ">=1.2.4-rc.2 || ^1",

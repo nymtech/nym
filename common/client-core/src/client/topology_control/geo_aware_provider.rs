@@ -110,7 +110,11 @@ impl GeoAwareTopologyProvider {
     }
 
     async fn get_topology(&self) -> Option<NymTopology> {
-        let mixnodes = match self.validator_client.get_basic_mixnodes(None).await {
+        let mixnodes = match self
+            .validator_client
+            .get_basic_active_mixing_assigned_nodes(Some(self.client_version.clone()))
+            .await
+        {
             Err(err) => {
                 error!("failed to get network mixnodes - {err}");
                 return None;
@@ -118,7 +122,11 @@ impl GeoAwareTopologyProvider {
             Ok(mixes) => mixes,
         };
 
-        let gateways = match self.validator_client.get_basic_gateways(None).await {
+        let gateways = match self
+            .validator_client
+            .get_all_basic_entry_assigned_nodes(Some(self.client_version.clone()))
+            .await
+        {
             Err(err) => {
                 error!("failed to get network gateways - {err}");
                 return None;
@@ -185,8 +193,7 @@ impl GeoAwareTopologyProvider {
             .filter(|m| filtered_mixnode_ids.contains(&m.node_id))
             .collect::<Vec<_>>();
 
-        let topology = nym_topology_from_basic_info(&mixnodes, &gateways)
-            .filter_system_version(&self.client_version);
+        let topology = nym_topology_from_basic_info(&mixnodes, &gateways);
 
         // TODO: return real error type
         check_layer_integrity(topology.clone()).ok()?;

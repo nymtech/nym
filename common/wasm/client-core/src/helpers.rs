@@ -67,8 +67,10 @@ pub async fn current_network_topology_async(
     };
 
     let api_client = NymApiClient::new(url);
-    let mixnodes = api_client.get_basic_mixnodes(None).await?;
-    let gateways = api_client.get_basic_gateways(None).await?;
+    let mixnodes = api_client
+        .get_basic_active_mixing_assigned_nodes(None)
+        .await?;
+    let gateways = api_client.get_all_basic_entry_assigned_nodes(None).await?;
 
     Ok(NymTopology::from_basic(&mixnodes, &gateways).into())
 }

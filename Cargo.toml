@@ -5,6 +5,7 @@
 panic = "abort"
 opt-level = "s"
 overflow-checks = true
+debug = true
 
 [profile.dev]
 panic = "abort"

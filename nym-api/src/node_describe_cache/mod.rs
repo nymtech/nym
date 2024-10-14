@@ -20,7 +20,7 @@ use std::collections::HashMap;
 use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 mod query_helpers;
 
@@ -388,6 +388,8 @@ impl CacheItemProvider for NodeDescriptionProvider {
             .filter_map(|x| async move { x.map(|d| (d.node_id, d)) })
             .collect::<HashMap<_, _>>()
             .await;
+
+        info!("refreshed self described data for {} nodes", nodes.len());
 
         Ok(DescribedNodes { nodes })
     }

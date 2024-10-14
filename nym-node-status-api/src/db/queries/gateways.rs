@@ -143,7 +143,7 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
          ON gw.gateway_identity_key = gd.gateway_identity_key
          ORDER BY gw.gateway_identity_key"#,
     )
-    .fetch(&mut conn)
+    .fetch(&mut *conn)
     .try_collect::<Vec<_>>()
     .await?;
 

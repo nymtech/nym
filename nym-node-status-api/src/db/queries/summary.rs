@@ -37,7 +37,7 @@ pub(crate) async fn get_summary_history(pool: &DbPool) -> anyhow::Result<Vec<Sum
          ORDER BY date DESC
          LIMIT 30"#,
     )
-    .fetch(&mut conn)
+    .fetch(&mut *conn)
     .try_collect::<Vec<_>>()
     .await?;
 
@@ -62,7 +62,7 @@ async fn get_summary_dto(pool: &DbPool) -> anyhow::Result<Vec<SummaryDto>> {
             last_updated_utc as "last_updated_utc!"
          FROM summary"#
     )
-    .fetch(&mut conn)
+    .fetch(&mut *conn)
     .try_collect::<Vec<_>>()
     .await?)
 }

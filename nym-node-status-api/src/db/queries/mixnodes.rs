@@ -71,7 +71,7 @@ pub(crate) async fn get_all_mixnodes(pool: &DbPool) -> anyhow::Result<Vec<Mixnod
          LEFT JOIN mixnode_description md ON mn.mix_id = md.mix_id
          ORDER BY mn.mix_id"#
     )
-    .fetch(&mut conn)
+    .fetch(&mut *conn)
     .try_collect::<Vec<_>>()
     .await?;
 
@@ -115,7 +115,7 @@ pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailySt
         ORDER BY date_utc
         "#
     )
-    .fetch(&mut conn)
+    .fetch(&mut *conn)
     .try_collect::<Vec<DailyStats>>()
     .await?;
 

@@ -81,7 +81,8 @@ async fn run(
     tracing::debug!("6");
 
     let api_client =
-        NymApiClient::new_with_timeout(default_api_url, config.nym_api_client_timeout());
+    // TODO dz introduce timeout ?
+        NymApiClient::new(default_api_url);
     let gateways = api_client
         .get_cached_described_gateways()
         .await

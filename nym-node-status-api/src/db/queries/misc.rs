@@ -37,7 +37,7 @@ async fn insert_summary(
             value,
             timestamp
         )
-        .execute(&mut tx)
+        .execute(&mut *tx)
         .await
         .map_err(|err| {
             tracing::error!("Failed to insert data for {kind}: {err}, aborting transaction",);

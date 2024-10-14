@@ -155,6 +155,7 @@ default-members = [
     "nym-data-observatory",
     "nym-node",
     "nym-validator-rewarder",
+    "nym-node-status-api",
     "service-providers/authenticator",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",

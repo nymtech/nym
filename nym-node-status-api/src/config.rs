@@ -13,9 +13,6 @@ pub(crate) struct Config {
     nyxd_addr: Url,
     #[serde(default = "Config::default_client_timeout")]
     #[serde(deserialize_with = "parse_duration")]
-    nym_api_client_timeout: Duration,
-    #[serde(default = "Config::default_client_timeout")]
-    #[serde(deserialize_with = "parse_duration")]
     explorer_client_timeout: Duration,
 }
 
@@ -49,10 +46,6 @@ impl Config {
 
     pub(crate) fn nyxd_addr(&self) -> &Url {
         &self.nyxd_addr
-    }
-
-    pub(crate) fn nym_api_client_timeout(&self) -> Duration {
-        self.nym_api_client_timeout.to_owned()
     }
 
     pub(crate) fn nym_explorer_client_timeout(&self) -> Duration {

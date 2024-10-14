@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::sending_delay_controller::SendingDelayController;
+use crate::client::metrics::{packet_statistics::PacketStatisticsEvent, MetricsSender};
 use crate::client::mix_traffic::BatchMixMessageSender;
-use crate::client::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
@@ -115,8 +115,8 @@ where
     /// Report queue lengths so that upstream can backoff sending data, and keep connections open.
     lane_queue_lengths: LaneQueueLengths,
 
-    /// Channel used for sending statistics events to `PacketStatisticsControl`.
-    stats_tx: PacketStatisticsReporter,
+    /// Channel used for sending metrics events (specifically `PacketStatistics` events) to the metrics tracker.
+    stats_tx: MetricsSender,
 }
 
 #[derive(Debug)]
@@ -175,7 +175,7 @@ where
         topology_access: TopologyAccessor,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        stats_tx: PacketStatisticsReporter,
+        stats_tx: MetricsSender,
     ) -> Self {
         OutQueueControl {
             config,
@@ -277,7 +277,7 @@ where
             } else {
                 PacketStatisticsEvent::CoverPacketSent(packet_size)
             };
-            self.stats_tx.report(event);
+            self.stats_tx.report(event.into());
         }
 
         // notify ack controller about sending our message only after we actually managed to push it
@@ -373,13 +373,13 @@ where
             TransmissionLane::Retransmission => Some(PacketStatisticsEvent::RetransmissionQueued),
         };
         if let Some(stat_event) = stat_event {
-            self.stats_tx.report(stat_event);
+            self.stats_tx.report(stat_event.into());
         }
         // To avoid comparing apples to oranges when presenting the fraction of packets that are
         // retransmissions, we also need to keep track to the total number of real messages queued,
         // even though we also track the actual number of messages sent later in the pipeline.
         self.stats_tx
-            .report(PacketStatisticsEvent::RealPacketQueued);
+            .report(PacketStatisticsEvent::RealPacketQueued.into());
 
         Some(real_next)
     }

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::{
-    packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter},
+    metrics::{ packet_statistics::PacketStatisticsEvent, MetricsSender},
     replies::{reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys},
 };
 use crate::spawn_future;
@@ -46,7 +46,7 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     // and every now and then remove ids older than X
     recently_reconstructed: HashSet<i32>,
 
-    stats_tx: PacketStatisticsReporter,
+    stats_tx: MetricsSender,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
@@ -63,14 +63,14 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
             self.stats_tx
                 .report(PacketStatisticsEvent::CoverPacketReceived(
                     fragment_data_size,
-                ));
+                ).into());
             return None;
         }
 
         self.stats_tx
             .report(PacketStatisticsEvent::RealPacketReceived(
                 fragment_data_size,
-            ));
+            ).into());
 
         let fragment = match self.message_receiver.recover_fragment(fragment_data) {
             Err(err) => {
@@ -163,7 +163,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         local_encryption_keypair: Arc<encryption::KeyPair>,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
-        stats_tx: PacketStatisticsReporter,
+        stats_tx: MetricsSender,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -504,13 +504,13 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         mixnet_packet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
-        packet_statistics_reporter: PacketStatisticsReporter,
+        metrics_reporter: MetricsSender,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
             reply_key_storage,
             reply_controller_sender,
-            packet_statistics_reporter,
+            metrics_reporter,
         );
 
         ReceivedMessagesBufferController {

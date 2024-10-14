@@ -1,7 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::packet_statistics_control::PacketStatisticsReporter;
+use super::metrics::{MetricsSender, MetricsController};
 use super::received_buffer::ReceivedBufferMessage;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
@@ -12,7 +12,6 @@ use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
-use crate::client::packet_statistics_control::PacketStatisticsControl;
 use crate::client::real_messages_control;
 use crate::client::real_messages_control::RealMessagesController;
 use crate::client::received_buffer::{
@@ -273,7 +272,7 @@ where
         self_address: Recipient,
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
-        stats_tx: PacketStatisticsReporter,
+        stats_tx: MetricsSender,
         shutdown: TaskClient,
     ) {
         info!("Starting loop cover traffic stream...");
@@ -306,7 +305,7 @@ where
         client_connection_rx: ConnectionCommandReceiver,
         shutdown: TaskClient,
         packet_type: PacketType,
-        stats_tx: PacketStatisticsReporter,
+        stats_tx: MetricsSender,
     ) {
         info!("Starting real traffic stream...");
 
@@ -335,7 +334,7 @@ where
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         shutdown: TaskClient,
-        packet_statistics_control: PacketStatisticsReporter,
+        metrics_reporter: MetricsSender,
     ) {
         info!("Starting received messages buffer controller...");
         let controller: ReceivedMessagesBufferController<SphinxMessageReceiver> =
@@ -345,7 +344,7 @@ where
                 mixnet_receiver,
                 reply_key_storage,
                 reply_controller_sender,
-                packet_statistics_control,
+                metrics_reporter,
             );
         controller.start_with_shutdown(shutdown)
     }
@@ -586,11 +585,11 @@ where
         Ok(())
     }
 
-    fn start_packet_statistics_control(shutdown: TaskClient) -> PacketStatisticsReporter {
+    fn start_packet_statistics_control(shutdown: TaskClient) -> MetricsSender {
         info!("Starting packet statistics control...");
-        let (packet_statistics_control, packet_stats_reporter) = PacketStatisticsControl::new();
-        packet_statistics_control.start_with_shutdown(shutdown);
-        packet_stats_reporter
+        let (metrics_controller, metrics_reporter) = MetricsController::new();
+        metrics_controller.start_with_shutdown(shutdown);
+        metrics_reporter
     }
 
     fn start_mix_traffic_controller(
@@ -731,7 +730,7 @@ where
         )
         .await?;
 
-        let packet_stats_reporter =
+        let metrics_reporter =
             Self::start_packet_statistics_control(shutdown.fork("packet_statistics_control"));
 
         let gateway_packet_router = PacketRouter::new(
@@ -765,7 +764,7 @@ where
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
             shutdown.fork("received_messages_buffer"),
-            packet_stats_reporter.clone(),
+            metrics_reporter.clone(),
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets
@@ -804,7 +803,7 @@ where
             client_connection_rx,
             shutdown.fork("real_traffic_controller"),
             self.config.debug.traffic.packet_type,
-            packet_stats_reporter.clone(),
+            metrics_reporter.clone(),
         );
 
         if !self
@@ -819,7 +818,7 @@ where
                 self_address,
                 shared_topology_accessor.clone(),
                 message_sender,
-                packet_stats_reporter,
+                metrics_reporter,
                 shutdown.fork("cover_traffic_stream"),
             );
         }

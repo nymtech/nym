@@ -1,3 +1,4 @@
+use super::MetricsEvents;
 use std::{
     collections::VecDeque,
     time::{Duration, Instant},
@@ -6,35 +7,6 @@ use std::{
 use nym_metrics::{inc, inc_by};
 use si_scale::helpers::bibytes2;
 
-// Metrics server
-use futures::future::{FusedFuture, OptionFuture};
-use futures::FutureExt;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use http_body_util::Full;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::body::Bytes;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::server::conn::http1;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::service::service_fn;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::{Request, Response};
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper_util::rt::TokioIo;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use std::convert::Infallible;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-#[cfg(feature = "metrics-server")]
-use std::net::SocketAddr;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use tokio::net::TcpListener;
-
-use crate::spawn_future;
-
-// Time interval between reporting packet statistics
-const PACKET_REPORT_INTERVAL_SECS: u64 = 2;
-// Interval for taking snapshots of the packet statistics
-const SNAPSHOT_INTERVAL_MS: u64 = 500;
 // When computing rates, we include snapshots that are up to this old. We set it to some odd number
 // a tad larger than an integer number of snapshot intervals, so that we don't have to worry about
 // threshold effects.
@@ -72,7 +44,7 @@ struct PacketStatistics {
 }
 
 impl PacketStatistics {
-    fn handle_event(&mut self, event: PacketStatisticsEvent) {
+    fn handle(&mut self, event: PacketStatisticsEvent) {
         match event {
             PacketStatisticsEvent::RealPacketSent(packet_size) => {
                 self.real_packets_sent += 1;
@@ -357,29 +329,13 @@ pub(crate) enum PacketStatisticsEvent {
     AdditionalReplySurbRequestQueued,
 }
 
-type PacketStatisticsReceiver = tokio::sync::mpsc::UnboundedReceiver<PacketStatisticsEvent>;
-
-#[derive(Clone)]
-pub(crate) struct PacketStatisticsReporter {
-    stats_tx: tokio::sync::mpsc::UnboundedSender<PacketStatisticsEvent>,
-}
-
-impl PacketStatisticsReporter {
-    pub(crate) fn new(stats_tx: tokio::sync::mpsc::UnboundedSender<PacketStatisticsEvent>) -> Self {
-        Self { stats_tx }
-    }
-
-    pub(crate) fn report(&self, event: PacketStatisticsEvent) {
-        self.stats_tx.send(event).unwrap_or_else(|err| {
-            log::error!("Failed to report packet stat: {:?}", err);
-        });
+impl Into<MetricsEvents> for PacketStatisticsEvent {
+    fn into(self) -> MetricsEvents {
+        MetricsEvents::PacketStatisticsEvent(self)
     }
 }
 
 pub(crate) struct PacketStatisticsControl {
-    // Incoming packet stats events from other tasks
-    stats_rx: PacketStatisticsReceiver,
-
     // Keep track of packet statistics over time
     stats: PacketStatistics,
 
@@ -391,21 +347,49 @@ pub(crate) struct PacketStatisticsControl {
     rates: VecDeque<(Instant, PacketRates)>,
 }
 
-impl PacketStatisticsControl {
-    pub(crate) fn new() -> (Self, PacketStatisticsReporter) {
-        let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
-
-        (
-            Self {
-                stats_rx,
-                stats: PacketStatistics::default(),
-                history: VecDeque::new(),
-                rates: VecDeque::new(),
-            },
-            PacketStatisticsReporter::new(stats_tx),
-        )
+impl super::MetricsObj for PacketStatisticsControl {
+    fn new() -> Self
+    where
+        Self: Sized,
+    {
+        Self {
+            stats: PacketStatistics::default(),
+            history: VecDeque::new(),
+            rates: VecDeque::new(),
+        }
     }
 
+    fn type_identity(&self) -> super::MetricsType {
+        super::MetricsType::PacketStatistics
+    }
+
+    fn handle_event(&mut self, event: MetricsEvents) {
+        match event {
+            MetricsEvents::PacketStatisticsEvent(ev) => self.stats.handle(ev),
+            _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
+        }
+    }
+
+    fn snapshot(&mut self) {
+        self.update_history();
+        self.update_rates();
+    }
+
+    fn periodic_reset(&mut self) {
+        self.stats = PacketStatistics::default();
+    }
+}
+
+impl super::MetricsReporter for PacketStatisticsControl {
+    fn marshall(&self) -> std::io::Result<String> {
+        self.report_rates();
+        self.check_for_notable_events();
+        self.report_counters();
+        Ok(format!("{:?}", self.stats))
+    }
+}
+
+impl PacketStatisticsControl {
     // Add the current stats to the history, and remove old ones.
     fn update_history(&mut self) {
         // Update latest
@@ -498,124 +482,4 @@ impl PacketStatisticsControl {
 
         // IDEA: if there is a burst of acks, that could indicate tokio task starvation.
     }
-
-    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
-        log::debug!("Started PacketStatisticsControl with graceful shutdown support");
-
-        let report_interval = Duration::from_secs(PACKET_REPORT_INTERVAL_SECS);
-        let mut report_interval = tokio::time::interval(report_interval);
-        let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
-        let mut snapshot_interval = tokio::time::interval(snapshot_interval);
-
-        cfg_if::cfg_if! {
-            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
-                log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
-                let listener: Option<WasmEmpty> = None;
-            } else if #[cfg(feature = "metrics-server")] {
-                let mut metrics_port = 18000;
-                let listener: Option<TcpListener>;
-                loop {
-                    let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
-                    match TcpListener::bind(addr).await {
-                        Ok(l) => {
-                            log::info!("###############################");
-                            log::info!("Metrics endpoint is at: {:?}", l.local_addr());
-                            log::info!("###############################");
-                            listener = Some(l);
-                            break;
-                        },
-                        Err(err) => {
-                            log::warn!("Failed to bind metrics server: {:?}", err);
-                            metrics_port += 1;
-                        }
-                    };
-                }
-            } else {
-                log::info!("Metrics server is disabled!");
-                let listener: Option<TcpListener> = None;
-            }
-        }
-
-        loop {
-            // it seems at some point tokio changed its select precondition evaluation,
-            // and it's no longer checked before the future is evaluated.
-            let accept_future: OptionFuture<_> = listener
-                .as_ref()
-                .map(|l| l.accept())
-                .map(FutureExt::fuse)
-                .into();
-
-            tokio::select! {
-                stats_event = self.stats_rx.recv() => match stats_event {
-                    Some(stats_event) => {
-                        log::trace!("PacketStatisticsControl: Received stats event");
-                        self.stats.handle_event(stats_event);
-                    },
-                    None => {
-                        log::trace!("PacketStatisticsControl: stopping since stats channel was closed");
-                        break;
-                    }
-                },
-                // conditional will disable the branch if we're in wasm32-unknown-unknown
-                // use `_` to calm down clippy when running for wasm
-                _result = accept_future, if !accept_future.is_terminated() => {
-                    cfg_if::cfg_if! {
-                        if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
-                            if let Some(Ok((stream, _))) = _result {
-                                let io = TokioIo::new(stream);
-
-                                tokio::task::spawn(async move {
-                                    if let Err(err) = http1::Builder::new()
-                                        .serve_connection(io, service_fn(serve_metrics))
-                                        .await
-                                    {
-                                        log::warn!("Error serving connection: {:?}", err);
-                                    }
-                                });
-                            } else {
-                                log::warn!("Error accepting connection");
-                            }
-                        }
-                    }
-                }
-                _ = snapshot_interval.tick() => {
-                    self.update_history();
-                    self.update_rates();
-                }
-                _ = report_interval.tick() => {
-                    self.report_rates();
-                    self.check_for_notable_events();
-                    self.report_counters();
-                }
-                _ = shutdown.recv_with_delay() => {
-                    log::trace!("PacketStatisticsControl: Received shutdown");
-                    break;
-                },
-            }
-        }
-        log::debug!("PacketStatisticsControl: Exiting");
-    }
-
-    pub(crate) fn start_with_shutdown(mut self, task_client: nym_task::TaskClient) {
-        spawn_future(async move {
-            self.run_with_shutdown(task_client).await;
-        })
-    }
-}
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-async fn serve_metrics(
-    _: Request<hyper::body::Incoming>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
-    use nym_metrics::metrics;
-
-    Ok(Response::new(Full::new(Bytes::from(metrics!()))))
-}
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-struct WasmEmpty;
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-impl WasmEmpty {
-    async fn accept(&self) {}
 }

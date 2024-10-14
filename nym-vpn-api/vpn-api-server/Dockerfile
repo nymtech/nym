@@ -10,4 +10,4 @@ FROM ubuntu:24.04
 WORKDIR /nym
 
 COPY --from=builder /usr/src/nym/nym-vpn-api/target/release/nym-vpn-api ./
-CMD [ "/nym/nym-vpn-api" ]
+ENTRYPOINT [ "/nym/nym-vpn-api" ]

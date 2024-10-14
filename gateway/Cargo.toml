@@ -77,6 +77,7 @@ nym-network-requester = { path = "../service-providers/network-requester" }
 nym-node-http-api = { path = "../nym-node/nym-node-http-api" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-sphinx = { path = "../common/nymsphinx" }
+nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }

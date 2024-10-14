@@ -23,6 +23,7 @@ use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
 use nym_node_http_api::state::metrics::SharedSessionStats;
+use nym_statistics_common::events;
 use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
@@ -408,7 +409,7 @@ impl<St> Gateway<St> {
         &self,
         shared_session_stats: SharedSessionStats,
         shutdown: TaskClient,
-    ) -> statistics::StatsEventSender {
+    ) -> events::StatsEventSender {
         info!("Starting gateway stats collector...");
 
         let (mut stats_collector, stats_event_sender) =

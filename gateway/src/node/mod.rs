@@ -660,12 +660,13 @@ impl<St> Gateway<St> {
             shutdown.fork("mixnet_handling::Listener"),
         );
 
-        let shared_session_stats = self.session_stats.take().unwrap_or_default();
-        self.start_stats_collector(
-            active_clients_store.clone(),
-            shared_session_stats,
-            shutdown.fork("statistics::sessionCollector"),
-        );
+        if let Some(shared_session_stats) = self.session_stats.take() {
+            self.start_stats_collector(
+                active_clients_store.clone(),
+                shared_session_stats,
+                shutdown.fork("statistics::GatewayStatisticsCollector"),
+            );
+        }
 
         self.start_client_websocket_listener(
             mix_forwarding_channel.clone(),

@@ -15,7 +15,10 @@
     "explorer",
     "explorer-nextjs",
     "types",
-    "clients/validator"
+    "clients/validator",
+    "sdk/typescript/packages/**",
+    "sdk/typescript/examples/**",
+    "sdk/typescript/codegen/**"
   ],
   "scripts": {
     "nuke": "npx rimraf **/node_modules node_modules",
@@ -48,10 +51,13 @@
     "dev:off": "node sdk/typescript/scripts/dev-mode-remove.mjs"
   },
   "devDependencies": {
-    "lerna": "^7.3.0",
-    "npm-run-all": "^4.1.5",
     "@npmcli/node-gyp": "^3.0.0",
+    "lerna": "^7.3.0",
     "node-gyp": "^9.3.1",
+    "npm-run-all": "^4.1.5",
     "tslog": "3.3.3"
+  },
+  "dependencies": {
+    "lucide-react": "^0.453.0"
   }
 }

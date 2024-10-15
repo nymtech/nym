@@ -23,7 +23,7 @@ use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
 use nym_node_http_api::state::metrics::SharedSessionStats;
-use nym_statistics_common::events;
+use nym_statistics_common::events::{self, StatsEventSender};
 use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
@@ -364,6 +364,7 @@ impl<St> Gateway<St> {
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
         ecash_verifier: Arc<EcashManager<St>>,
+        stats_event_sender: StatsEventSender,
     ) where
         St: Storage + Send + Sync + Clone + 'static,
     {
@@ -380,6 +381,7 @@ impl<St> Gateway<St> {
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
             bandwidth_cfg: (&self.config).into(),
+            stats_event_sender,
         };
 
         websocket::Listener::new(listening_address, shared_state).start(
@@ -671,6 +673,7 @@ impl<St> Gateway<St> {
             active_clients_store.clone(),
             shutdown.fork("websocket::Listener"),
             ecash_verifier.clone(),
+            stats_event_sender.clone(),
         );
 
         let nr_request_filter = if self.config.network_requester.enabled {

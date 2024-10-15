@@ -6290,6 +6290,7 @@ name = "nym-statistics-common"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "nym-credentials-interface",
  "nym-sphinx",
  "time",
 ]

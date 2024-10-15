@@ -14,3 +14,4 @@ futures = { workspace = true }
 time = { workspace = true }
 
 nym-sphinx = { path = "../nymsphinx" }
+nym-credentials-interface = { path = "../credentials-interface" }

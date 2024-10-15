@@ -159,7 +159,7 @@ fn main() -> io::Result<()> {
         write_output_to_file(&mut file, output)?;
 
         for (subcommand, subsubcommands) in subcommands {
-            writeln!(file, "\n### `{}` ", subcommand)?;
+            writeln!(file, "\n## `{}` ", subcommand)?;
             let output = Command::new(main_command)
                 .arg(subcommand)
                 .arg("--help")

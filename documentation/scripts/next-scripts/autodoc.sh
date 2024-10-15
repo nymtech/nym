@@ -11,4 +11,7 @@ mv autodoc-generated-markdown/nym-cli-commands.md ../docs/pages/developers/tools
 mv autodoc-generated-markdown/nym-client-commands.md ../docs/pages/developers/clients/websocket/commands.mdx &&
 mv autodoc-generated-markdown/nym-socks5-client-commands.md ../docs/pages/developers/clients/socks5/commands.mdx &&
 
+# commit files to git: needed for remote deployment from branch
+
+
 cd ../docs

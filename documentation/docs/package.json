@@ -5,9 +5,8 @@
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "scripts": {
-    "prebuild": "../scripts/next-scripts/autodoc.sh",
+    "generate:commands": "../scripts/next-scripts/autodoc.sh",
     "build": "next build",
-    "predev": "../scripts/next-scripts/autodoc.sh",
     "dev": " next dev",
     "lint": "next lint",
     "lint:fix": "next lint --fix",

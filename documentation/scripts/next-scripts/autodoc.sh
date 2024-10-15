@@ -4,7 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# this is run by the `prebuild` and `predev` scripts in docs/package.json
+# this is run by the `generate:commands` script in docs/package.json
 cd ../autodoc && cargo run --release &&
 
 mv autodoc-generated-markdown/nym-cli-commands.md ../docs/pages/developers/tools/nym-cli/commands.mdx &&

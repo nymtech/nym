@@ -4,9 +4,18 @@ There is an initial version of a simple echo server located at [`nym/tools/echo-
 
 This is an initial minimal implementation of an echo server built using the [`NymProxyServer`](../rust/tcpproxy) Rust SDK abstraction that, aside from the initialisation and running of a `NymProxyServer` instance in the background, is essentially a vanilla TCP echo server written with `tokio`.
 
-You can find usage commands [here](https://github.com/nymtech/nym/tree/develop/tools/echo-server#usage).
-
 This server was initially built for the `TcpProxy` tests, but can be useful for developers to need a constant endpoint to ping when developing. In the future this will be deployed to a remote server so developers don't have to run their own.
+
+## Build
+Run `cargo build --release` from `nym/tools/echo-server`. The binary will be in the main workspace `target/release` dir.
+
+## Run
+All the server requires is a port to connect the TCP listener to. If no `<PATH_TO_ENV>` is supplied then the server defaults to using mainnet.
+
+```sh
+echo-server <PORT> <PATH_TO_ENV_FILE>
+# e.g.  ../../target/release/echo-server 9000 ../../envs/canary.env
+```
 
 ## Logging
 Every 10 seconds, the server logs:

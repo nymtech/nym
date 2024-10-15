@@ -248,7 +248,7 @@ fn execute_command(
 }
 
 fn write_output_to_file(file: &mut File, output: Output) -> io::Result<()> {
-    writeln!(file, "```")?;
+    writeln!(file, "```sh")?;
     file.write_all(&output.stdout)?;
     writeln!(file, "```")?;
 

@@ -1,0 +1,2546 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Nym Docs</title>
+        <meta name="robots" content="noindex">
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Nym technical documentation">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="favicon.svg">
+        <link rel="shortcut icon" href="favicon.png">
+        <link rel="stylesheet" href="css/variables.css">
+        <link rel="stylesheet" href="css/general.css">
+        <link rel="stylesheet" href="css/chrome.css">
+        <link rel="stylesheet" href="css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="highlight.css">
+        <link rel="stylesheet" href="tomorrow-night.css">
+        <link rel="stylesheet" href="ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="./themes/custom.css">
+        <link rel="stylesheet" href="./themes/mdbook-admonish.css">
+        <link rel="stylesheet" href="./themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item "><a href="introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="clients-overview.html"><strong aria-hidden="true">2.</strong> Clients Overview - Start Here!</a></li><li class="chapter-item affix "><li class="part-title">SDKs</li><li class="chapter-item "><a href="sdk/rust/rust.html"><strong aria-hidden="true">3.</strong> Rust SDK</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="sdk/rust/message-types.html"><strong aria-hidden="true">3.1.</strong> Message Types</a></li><li class="chapter-item "><a href="sdk/rust/message-helpers.html"><strong aria-hidden="true">3.2.</strong> Message Helpers</a></li><li class="chapter-item "><a href="sdk/rust/troubleshooting.html"><strong aria-hidden="true">3.3.</strong> Troubleshooting</a></li><li class="chapter-item "><a href="sdk/rust/examples.html"><strong aria-hidden="true">3.4.</strong> Examples</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="sdk/rust/examples/simple.html"><strong aria-hidden="true">3.4.1.</strong> Simple Send</a></li><li class="chapter-item "><a href="sdk/rust/examples/keys.html"><strong aria-hidden="true">3.4.2.</strong> Create and Store Keys</a></li><li class="chapter-item "><a href="sdk/rust/examples/storage.html"><strong aria-hidden="true">3.4.3.</strong> Manual Storage</a></li><li class="chapter-item "><a href="sdk/rust/examples/surbs.html"><strong aria-hidden="true">3.4.4.</strong> Anonymous Replies</a></li><li class="chapter-item "><a href="sdk/rust/examples/custom-network.html"><strong aria-hidden="true">3.4.5.</strong> Use Custom Network Topology</a></li><li class="chapter-item "><a href="sdk/rust/examples/socks.html"><strong aria-hidden="true">3.4.6.</strong> Socks Proxy</a></li><li class="chapter-item "><a href="sdk/rust/examples/split-send.html"><strong aria-hidden="true">3.4.7.</strong> Split Send and Receive</a></li><li class="chapter-item "><a href="sdk/rust/examples/credential.html"><strong aria-hidden="true">3.4.8.</strong> Testnet Bandwidth Cred</a></li><li class="chapter-item "><a href="sdk/rust/examples/cargo.html"><strong aria-hidden="true">3.4.9.</strong> Example Cargo file</a></li></ol></li></ol></li><li class="chapter-item "><a href="sdk/typescript.html"><strong aria-hidden="true">4.</strong> Typescript SDK</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Standalone Clients</li><li class="chapter-item "><a href="clients/websocket-client.html"><strong aria-hidden="true">7.</strong> Websocket Client</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="clients/websocket/setup.html"><strong aria-hidden="true">7.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="clients/websocket/config.html"><strong aria-hidden="true">7.2.</strong> Configuration</a></li><li class="chapter-item "><a href="clients/websocket/usage.html"><strong aria-hidden="true">7.3.</strong> Using Your Client</a></li><li class="chapter-item "><a href="clients/websocket/examples.html"><strong aria-hidden="true">7.4.</strong> Examples</a></li></ol></li><li class="chapter-item "><a href="clients/socks5-client.html"><strong aria-hidden="true">8.</strong> Socks5 Client</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="clients/socks5/setup.html"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="clients/socks5/usage.html"><strong aria-hidden="true">8.2.</strong> Using Your Client</a></li></ol></li><li class="chapter-item "><a href="clients/webassembly-client.html"><strong aria-hidden="true">9.</strong> Webassembly Client</a></li><li class="chapter-item affix "><li class="part-title">Tutorials</li><li class="chapter-item "><a href="tutorials/coming-soon.html"><strong aria-hidden="true">10.</strong> Stub: Updates Coming Soon!</a></li><li class="chapter-item affix "><li class="part-title">Code Examples</li><li class="chapter-item "><a href="examples/custom-services.html"><strong aria-hidden="true">11.</strong> Custom Service Providers</a></li><li class="chapter-item "><a href="examples/using-nrs.html"><strong aria-hidden="true">12.</strong> Apps Using Network Requesters</a></li><li class="chapter-item "><a href="examples/browser-only.html"><strong aria-hidden="true">13.</strong> Browser only</a></li><li class="chapter-item "><a href="examples/monorepo-examples.html"><strong aria-hidden="true">14.</strong> Monorepo examples</a></li><li class="chapter-item affix "><li class="part-title">Integrations</li><li class="chapter-item "><a href="integrations/integration-options.html"><strong aria-hidden="true">15.</strong> Integration Options</a></li><li class="chapter-item "><a href="integrations/payment-integration.html"><strong aria-hidden="true">16.</strong> Payment Integration</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="faq/integrations-faq.html"><strong aria-hidden="true">17.</strong> Integrations</a></li><li class="chapter-item affix "><li class="part-title">User Manuals</li><li class="chapter-item "><a href="nymvpn/intro.html"><strong aria-hidden="true">18.</strong> NymVPN beta</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="nymvpn/cli.html"><strong aria-hidden="true">18.1.</strong> CLI</a></li></ol></li><li class="chapter-item "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="archive/nym-connect.html"><strong aria-hidden="true">19.</strong> NymConnect Setup</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="coc.html"><strong aria-hidden="true">20.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="licensing.html"><strong aria-hidden="true">21.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Docs</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="introduction"><a class="header" href="#introduction">Introduction</a></h1>
+<p>Welcome to the Nym Developer Portal, containing quickstart resources, user manuals, integration information, and tutorials outlining to start building privacy enhanced apps.</p>
+<p>For more in-depth information about nodes, network traffic flows, clients, coconut etc check out the <a href="https://nymtech.net/docs">docs</a>.</p>
+<p>If you are looking for information and setup guides for the various pieces of Nym mixnet infrastructure (mix nodes, gateways and network requesters) and Nyx blockchain validators see the <a href="https://nymtech.net/operators">Operators Guides</a> book.</p>
+<p>If you’re looking for TypeScript/JavaScript related information such as SDKs to build your own tools, step-by-step tutorials, live playgrounds and more, make sure to check out the  <a href="https://sdk.nymtech.net/">TS SDK Handbook</a>.</p>
+<footer id="last-change">Last change: 2023-11-29, commit: <a href="https://github.com/nymtech/nym/commit/435673bcb">435673bcb</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="clients-overview"><a class="header" href="#clients-overview">Clients Overview</a></h1>
+<p>A large proportion of the Nym mixnet’s functionality is implemented client-side.</p>
+<p>Clients perform the following actions on behalf of users:</p>
+<ul>
+<li>determine network topology - what mixnodes exist, what their keys are, etc.</li>
+<li>register with a gateway</li>
+<li>authenticate with a gateway</li>
+<li>receive and decrypt messages from the gateway</li>
+<li>create layer-encrypted Sphinx packets</li>
+<li>send Sphinx packets with real messages</li>
+<li>send Sphinx packet <em>cover traffic</em> when no real messages are being sent</li>
+<li>retransmit un-acknowledged packet sends - if a client sends 100 packets to a gateway, but only receives an acknowledgement (‘ack’) for 95 of them, it will resend those 5 packets to the gateway again, to make sure that all packets are received.</li>
+</ul>
+<blockquote>
+<p>As a developer, you’ll want to use a Nym client to send your application network traffic through the mixnet; whether that is an RPC call, a TCP connection request, or treating it like a UDP pipe, you need to send whatever bytes your app needs to send through it. However, unlike (e.g.) a TCP Socket, Nym client communication is message-based, so you cannot (yet) simply plug-and-play using the mixnet as a seamless drop-in replacement. We are currently working on stream-like abstractions for ease of integration with the Rust SDK.</p>
+</blockquote>
+<h2 id="types-of-nym-clients"><a class="header" href="#types-of-nym-clients">Types of Nym clients</a></h2>
+<p>At present, there are three Nym clients:</p>
+<ul>
+<li>the websocket (native) client</li>
+<li>the SOCKS5 client</li>
+<li>the wasm (webassembly) client</li>
+</ul>
+<p>You need to choose which one you want incorporate into your app. Which one you use will depend largely on your preferred programming style and the purpose of your app.</p>
+<h3 id="the-websocket-client"><a class="header" href="#the-websocket-client">The websocket client</a></h3>
+<p>Your first option is the native websocket client (<code>nym-client</code>). This is a compiled program that can run on Linux, Mac OS X, and Windows machines. It can be run as a persistent process on a desktop or server machine. You can connect to it with <strong>any language that supports websockets</strong>.</p>
+<blockquote>
+<p>Rust developers can import websocket client functionality into their code via the <a href="sdk/rust/rust.html">Rust SDK</a>.</p>
+</blockquote>
+<h3 id="the-webassembly-client"><a class="header" href="#the-webassembly-client">The webassembly client</a></h3>
+<p>If you’re working in JavaScript or Typescript in the browser, or building an <a href="https://en.wikipedia.org/wiki/Edge_computing">edge computing</a> app, you’ll likely want to choose the webassembly client.</p>
+<p>It’s packaged and <a href="https://www.npmjs.com/package/@nymproject/nym-client-wasm">available on the npm registry</a>, so you can <code>npm install</code> it into your JavaScript or TypeScript application.</p>
+<blockquote>
+<p>The webassembly client is most easily used via the <a href="sdk/typescript.html">Typescript SDK</a>. Typescript developers who wish to send API requests through the mixnet can can also check the <a href=""><code>mixfetch</code></a> package.</p>
+</blockquote>
+<h3 id="the-socks5-client"><a class="header" href="#the-socks5-client">The SOCKS5 client</a></h3>
+<p>The <code>nym-socks5-client</code> is useful for allowing existing applications to use the Nym mixnet without any code changes. All that’s necessary is that they can use one of the SOCKS5, SOCKS4a, or SOCKS4 proxy protocols (which many applications can - crypto wallets, browsers, chat applications etc).</p>
+<p>When used as a standalone client, it’s less flexible as a way of writing custom applications than the other clients, but able to be used to proxy application traffic through the mixnet without having to make any code changes.</p>
+<blockquote>
+<p>Rust developers can import socks client functionality into their code via the <a href="sdk/rust/rust.html">Rust SDK</a>.</p>
+</blockquote>
+<h2 id="commonalities-between-clients"><a class="header" href="#commonalities-between-clients">Commonalities between clients</a></h2>
+<p>All Nym client packages present basically the same capabilities to the privacy application developer. They need to run as a persistent process in order to stay connected and ready to receive any incoming messages from their gateway nodes. They register and authenticate to gateways, and encrypt Sphinx packets.</p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="rust-sdk"><a class="header" href="#rust-sdk">Rust SDK</a></h1>
+<p>The Rust SDK allows developers building applications in Rust to import and interact with Nym clients as they would any other dependency, instead of running the client as a separate process on their machine. This makes both developing and running applications much easier, reducing complexity in the development process (not having to restart another client in a separate console window/tab) and being able to have a single binary for other people to use.</p>
+<p>Currently developers can use the Rust SDK to import either websocket client (<a href="sdk/rust/../../clients/websocket-client.html"><code>nym-client</code></a>) or <a href="sdk/rust/../../clients/socks5-client.html"><code>socks-client</code></a> functionality into their Rust code.</p>
+<p>In the future the SDK will be made up of several components, each of which will allow developers to interact with different parts of Nym infrastructure.</p>
+<div class="table-wrapper"><table><thead><tr><th>Component</th><th>Functionality</th><th>Released</th></tr></thead><tbody>
+<tr><td>Mixnet</td><td>Create / load clients &amp; keypairs, subscribe to Mixnet events, send &amp; receive messages</td><td>✔️</td></tr>
+<tr><td>Coconut</td><td>Create &amp; verify Coconut credentials</td><td>🛠️</td></tr>
+<tr><td>Validator</td><td>Sign &amp; broadcast Nyx blockchain transactions, query the blockchain</td><td>❌</td></tr>
+</tbody></table>
+</div>
+<p>The <code>mixnet</code> component currently exposes the logic of two clients: the <a href="sdk/rust/../../clients/websocket-client.html">websocket client</a>, and the <a href="sdk/rust/../../clients/socks5-client.html">socks</a> client.</p>
+<p>The <code>coconut</code> component is currently being worked on. Right now it exposes logic allowing for the creation of coconut credentials on the Sandbox testnet.</p>
+<h3 id="development-status"><a class="header" href="#development-status">Development status</a></h3>
+<p>The SDK is still somewhat a work in progress: interfaces are fairly stable but still may change in subsequent releases.</p>
+<h3 id="installation"><a class="header" href="#installation">Installation</a></h3>
+<p>The <code>nym-sdk</code> crate is <strong>not yet available via <a href="https://crates.io">crates.io</a></strong>. As such, in order to import the crate you must specify the Nym monorepo in your <code>Cargo.toml</code> file:</p>
+<pre><code class="language-toml">nym-sdk = { git = "https://github.com/nymtech/nym" }
+</code></pre>
+<p>By default the above command will import the current <code>HEAD</code> of the default branch, which in our case is <code>develop</code>. Assuming instead you wish to pull in another branch (e.g. <code>master</code> or a particular release) you can specify this like so:</p>
+<pre><code class="language-toml"># importing HEAD of master branch 
+nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
+# importing HEAD of the third release of 2023, codename 'kinder' 
+nym-sdk = { git = "https://github.com/nymtech/nym", branch = "release/2023.3-kinder" }
+</code></pre>
+<p>You can also define a particular git commit to use as your import like so:</p>
+<pre><code class="language-toml">nym-sdk = { git = "https://github.com/nymtech/nym", rev = "85a7ec9f02ca8262d47eebb6c3b19d832341b55d" }
+</code></pre>
+<p>Since the <code>HEAD</code> of <code>master</code> is always the most recent release, we recommend developers use that for their imports, unless they have a reason to pull in a specific historic version of the code.</p>
+<h3 id="generate-crate-docs"><a class="header" href="#generate-crate-docs">Generate Crate Docs</a></h3>
+<p>In order to generate the crate docs run <code>cargo doc --open</code> from <code>nym/sdk/rust/nym-sdk/</code></p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="message-types"><a class="header" href="#message-types">Message Types</a></h1>
+<p>There are two methods for sending messages through the mixnet using your client:</p>
+<ul>
+<li><code>send_plain_message()</code> is the most simple: pass the recipient address and the message you wish to send as a string (this was previously <code>send_str()</code>). This is a nicer-to-use wrapper around <code>send_message()</code>.</li>
+<li><code>send_message()</code> allows you to also define the amount of SURBs to send along with your message (which is sent as bytes).</li>
+</ul>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="message-helpers"><a class="header" href="#message-helpers">Message Helpers</a></h1>
+<h2 id="handling-incoming-messages"><a class="header" href="#handling-incoming-messages">Handling incoming messages</a></h2>
+<p>As seen in the <a href="https://github.com/nymtech/developer-tutorials/blob/0130ee5a61cd6801bdcfc84608b2a520b5392714/rust/chain-query-service/">Chain querier tutorial</a> when listening out for a response to a sent message (e.g. if you have sent a request to a service, and are awaiting the response) you will want to await <a href="sdk/rust/troubleshooting.html#client-receives-empty-messages-when-listening-for-response">non-empty messages (if you don’t know why, read the info on this here)</a>. This can be done with something like the helper functions <a href="https://github.com/nymtech/developer-tutorials/blob/0130ee5a61cd6801bdcfc84608b2a520b5392714/rust/chain-query-service/src/lib.rs#L71">here</a>:</p>
+<pre><pre class="playground"><code class="language-rust edition2018"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>use nym_sdk::mixnet::ReconstructedMessage; 
+
+pub async fn wait_for_non_empty_message(
+    client: &amp;mut MixnetClient,
+) -&gt; anyhow::Result&lt;ReconstructedMessage&gt; {
+    while let Some(mut new_message) = client.wait_for_messages().await {
+        if !new_message.is_empty() {
+            return Ok(new_message.pop().unwrap());
+        }
+    }
+    
+    bail!("did not receive any non-empty message")
+}
+
+pub fn handle_response(message: ReconstructedMessage) -&gt; anyhow::Result&lt;ResponseTypes&gt; {
+    ResponseTypes::try_deserialize(message.message)
+}
+
+// Note here that the only difference between handling a request and a response
+// is that a request will have a sender_tag to parse. 
+// 
+// This is used for anonymous replies with SURBs.  
+pub fn handle_request(
+    message: ReconstructedMessage,
+) -&gt; anyhow::Result&lt;(RequestTypes, Option&lt;AnonymousSenderTag&gt;)&gt; {
+    let request = RequestTypes::try_deserialize(message.message)?;
+    Ok((request, message.sender_tag))
+}
+<span class="boring">}</span></code></pre></pre>
+<p>The above helper functions are used as such by the client in tutorial example: it sends a message to the service (what the message is isn’t important - just that your client has sent a message <em>somewhere</em> and you are awaiting a response), waits for a <em>non_empty</em> message, then handles it (then logs it - but you can do whatever you want, parse it, etc):</p>
+<pre><pre class="playground"><code class="language-rust edition2018"><span class="boring">#![allow(unused)]
+</span><span class="boring">fn main() {
+</span>// [snip]
+
+// Send serialised request to service via mixnet what is await-ed here is 
+// placing the message in the client's message queue, NOT the sending itself.
+let _ = client
+    .send_message(sp_address, message.serialize(), Default::default())
+    .await;
+
+// Await a non-empty message 
+let received = wait_for_non_empty_message(client).await?;
+
+// Handle the response received (the non-empty message awaited above) 
+let sp_response = handle_response(received)?;
+
+// Match JSON -&gt; ResponseType
+let res = match sp_response {
+    crate::ResponseTypes::Balance(response) =&gt; {
+        println!("{:#?}", response);
+        response.balance
+    }
+};
+
+// [snip]
+<span class="boring">}</span></code></pre></pre>
+<p>(<a href="https://github.com/nymtech/developer-tutorials/blob/0130ee5a61cd6801bdcfc84608b2a520b5392714/rust/chain-query-service/src/client.rs#L19">repo code on Github here</a>)</p>
+<h2 id="iterating-over-incoming-messages"><a class="header" href="#iterating-over-incoming-messages">Iterating over incoming messages</a></h2>
+<p>It is recommended to use <code>nym_client.next().await</code> over <code>nym_client.wait_for_messages().await</code> as the latter will return one message at a time which will probably be easier to deal with. See the <a href="https://github.com/nymtech/nym/blob/2993e85c7a17bd5b68171751a48b731b2394ee03/sdk/rust/nym-sdk/examples/parallel_sending_and_receiving.rs#L23-L25">parallel send and receive example</a> for an example.</p>
+<h2 id="remember-to-disconnect-your-client"><a class="header" href="#remember-to-disconnect-your-client">Remember to disconnect your client</a></h2>
+<p>You should always <strong>manually disconnect your client</strong> with <code>client.disconnect().await</code> as seen in the code examples. This is important as your client is writing to a local DB and dealing with SURB storage.</p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="troubleshooting"><a class="header" href="#troubleshooting">Troubleshooting</a></h1>
+<p>Below are several common issues or questions you may have.</p>
+<p>If you come across something that isn’t explained here, <a href="https://github.com/nymtech/nym/issues/new/choose">PRs are welcome</a>.</p>
+<h2 id="verbose-task-client-is-being-dropped-logging"><a class="header" href="#verbose-task-client-is-being-dropped-logging">Verbose <code>task client is being dropped</code> logging</a></h2>
+<h3 id="on-client-shutdown-expected"><a class="header" href="#on-client-shutdown-expected">On client shutdown (expected)</a></h3>
+<p>If this is happening at the end of your code when disconnecting your client, this is fine; we just have a verbose client! When calling <code>client.disconnect().await</code> this is simply informing you that the client is shutting down.</p>
+<p>On client shutdown / disconnect this is to be expected - this can be seen in many of the code examples as well. We use the <a href="https://github.com/nymtech/nym/blob/develop/common/bin-common/src/logging/mod.rs"><code>nym_bin_common::logging</code></a> import to set logging in our example code. This defaults to <code>INFO</code> level.</p>
+<p>If you wish to quickly lower the verbosity of your client process logs when developing you can prepend your command with <code>RUST_LOG=&lt;LOGGING_LEVEL&gt;</code>.</p>
+<p>If you want to run the <code>builder.rs</code> example with only <code>WARN</code> level logging and below:</p>
+<pre><code class="language-sh">cargo run --example builder 
+</code></pre>
+<p>Becomes:</p>
+<pre><code class="language-sh">RUST_LOG=warn cargo run --example builder 
+</code></pre>
+<p>You can also make the logging <em>more</em> verbose with:</p>
+<pre><code class="language-sh">RUST_LOG=debug cargo run --example builder
+</code></pre>
+<h3 id="not-on-client-shutdown-unexpected"><a class="header" href="#not-on-client-shutdown-unexpected">Not on client shutdown (unexpected)</a></h3>
+<p>If this is happening unexpectedly then you might be shutting your client process down too early. See the <a href="sdk/rust/troubleshooting.html#accidentally-killing-your-client-process-too-early">accidentally killing your client process</a> below for possible explanations and how to fix this issue.</p>
+<h2 id="accidentally-killing-your-client-process-too-early"><a class="header" href="#accidentally-killing-your-client-process-too-early">Accidentally killing your client process too early</a></h2>
+<p>If you are seeing either of the following errors when trying to run a client, specifically sending a message, then you may be accidentally killing your client process.</p>
+<pre><code class="language-sh"> 2023-11-02T10:31:03.930Z INFO  TaskClient-BaseNymClient-real_traffic_controller-ack_control-action_controller                           &gt; the task client is getting dropped
+ 2023-11-02T10:31:04.625Z INFO  TaskClient-BaseNymClient-received_messages_buffer-request_receiver                                       &gt; the task client is getting dropped
+ 2023-11-02T10:31:04.626Z DEBUG nym_client_core::client::real_messages_control::acknowledgement_control::input_message_listener          &gt; InputMessageListener: Exiting
+ 2023-11-02T10:31:04.626Z INFO  TaskClient-BaseNymClient-real_traffic_controller-ack_control-input_message_listener                      &gt; the task client is getting dropped
+ 2023-11-02T10:31:04.626Z INFO  TaskClient-BaseNymClient-real_traffic_controller-reply_control                                           &gt; the task client is getting dropped
+ 2023-11-02T10:31:04.626Z DEBUG nym_client_core::client::real_messages_control                                                           &gt; The reply controller has finished execution!
+ 2023-11-02T10:31:04.626Z DEBUG nym_client_core::client::real_messages_control::acknowledgement_control                                  &gt; The input listener has finished execution!
+ 2023-11-02T10:31:04.626Z INFO  nym_task::manager                                                                                        &gt; All registered tasks succesfully shutdown
+</code></pre>
+<pre><code class="language-sh"> 2023-11-02T11:22:08.408Z ERROR TaskClient-BaseNymClient-topology_refresher                                                  &gt; Assuming this means we should shutdown...
+ 2023-11-02T11:22:08.408Z ERROR TaskClient-BaseNymClient-mix_traffic_controller                                              &gt; Polling shutdown failed: channel closed
+ 2023-11-02T11:22:08.408Z INFO  TaskClient-BaseNymClient-gateway_transceiver-child                                           &gt; the task client is getting dropped
+ 2023-11-02T11:22:08.408Z ERROR TaskClient-BaseNymClient-mix_traffic_controller                                              &gt; Assuming this means we should shutdown...
+thread 'tokio-runtime-worker' panicked at 'action control task has died: TrySendError { kind: Disconnected }', /home/.local/share/cargo/git/checkouts/nym-fbd2f6ea2e760da9/a800cba/common/client-core/src/client/real_messages_control/message_handler.rs:634:14
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+ 2023-11-02T11:22:08.477Z INFO  TaskClient-BaseNymClient-real_traffic_controller-ack_control-input_message_listener          &gt; the task client is getting dropped
+ 2023-11-02T11:22:08.477Z ERROR TaskClient-BaseNymClient-real_traffic_controller-ack_control-input_message_listener          &gt; Polling shutdown failed: channel closed
+ 2023-11-02T11:22:08.477Z ERROR TaskClient-BaseNymClient-real_traffic_controller-ack_control-input_message_listener          &gt; Assuming this means we should shutdown...
+</code></pre>
+<p>Using the following piece of code as an example:</p>
+<pre><pre class="playground"><code class="language-rust edition2018">use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, Recipient};
+use clap::Parser;
+
+#[derive(Debug, Clone, Parser)]
+enum Opts {
+    Client {
+        recipient: Recipient
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    let opts: Opts = Parser::parse();
+    nym_bin_common::logging::setup_logging();
+
+    let mut nym_client = MixnetClient::connect_new().await.expect("Could not build Nym client");
+
+    match opts {
+        Opts::Client { recipient } =&gt; {
+            nym_client.send_plain_message(recipient, "some message string").await.expect("send failed");
+        }
+    }
+}</code></pre></pre>
+<p>This is a simplified snippet of code for sending a simple hardcoded message with the following command:</p>
+<pre><code class="language-sh">cargo run client &lt;RECIPIENT_NYM_ADDRESS&gt;
+</code></pre>
+<p>You might assume that <code>send</code>-ing your message would <em>just work</em> as <code>nym_client.send_plain_message()</code> is an async function; you might expect that the client will block until the message is actually sent into the mixnet, then shutdown.</p>
+<p>However, this is not true.</p>
+<p><strong>This will only block until the message is put into client’s internal queue</strong>. Therefore in the above example, the client is being shut down before the message is <em>actually sent to the mixnet</em>; after being placed in the client’s internal queue, there is still work to be done under the hood, such as route encrypting the message and placing it amongst the stream of cover traffic.</p>
+<p>The simple solution? Make sure the program/client stays active, either by calling <code>sleep</code>, or listening out for new messages. As sending a one-shot message without listening out for a response is likely not what you’ll be doing, then you will be then awaiting a response (see the <a href="sdk/rust/message-helpers.html">message helpers page</a> for an example of this).</p>
+<p>Furthermore, you should always <strong>manually disconnect your client</strong> with <code>client.disconnect().await</code> as seen in the code examples. This is important as your client is writing to a local DB and dealing with SURB storage.</p>
+<h2 id="client-receives-empty-messages-when-listening-for-response"><a class="header" href="#client-receives-empty-messages-when-listening-for-response">Client receives empty messages when listening for response</a></h2>
+<p>If you are sending out a message, it makes sense for your client to then listen out for incoming messages; this would probably be the reply you get from the service you’ve sent a message to.</p>
+<p>You might however be receiving messages without data attached to them / empty payloads. This is most likely because your client is receiving a message containing a <a href="https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs">SURB request</a> - a SURB requesting more SURB packets to be sent to the service, in order for them to have enough packets (with a big enough overall payload) to split the entire response to your initial request across.</p>
+<p>Whether the <code>data</code> of a SURB request being empty is a feature or a bug is to be decided - there is some discussion surrounding whether we can use SURB requests to send additional data to streamline the process of sending large replies across the mixnet.</p>
+<p>You can find a few helper functions <a href="sdk/rust/message-helpers.html">here</a> to help deal with this issue in the meantime.</p>
+<blockquote>
+<p>If you can think of a more succinct or different way of handling this do reach out - we’re happy to hear other opinions</p>
+</blockquote>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="examples"><a class="header" href="#examples">Examples</a></h1>
+<p>All the following examples can be found in the <code>nym-sdk</code> <a href="https://github.com/nymtech/nym/tree/master/sdk/rust/nym-sdk/examples">examples directory</a> in the monorepo. Just navigate to <code>nym/sdk/rust/nym-sdk/examples/</code> and run the files from there with:</p>
+<pre><code class="language-sh">cargo run --example &lt;NAME_OF_FILE&gt;
+</code></pre>
+<p>If you wish to run these outside of the workspace - such as if you want to use one as the basis for your own project - then make sure to import the <code>sdk</code>, <code>tokio</code>, and <code>nym_bin_common</code> crates.</p>
+<p>An example <code>Cargo.toml</code> file can be found <a href="sdk/rust/examples/cargo.html">here</a>.</p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="simple-send"><a class="header" href="#simple-send">Simple Send</a></h1>
+<p>Lets look at a very simple example of how you can import and use the websocket client in a piece of Rust code (<code>examples/simple.rs</code>).</p>
+<p>Simply importing the <code>nym_sdk</code> crate into your project allows you to create a client and send traffic through the mixnet.</p>
+<pre><code class="language-rust noplayground">use nym_sdk::mixnet;
+use nym_sdk::mixnet::MixnetMessageSender;
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_logging();
+
+    // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
+    // let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+
+    // Be able to get our client address
+    let our_address = client.nym_address();
+    println!("Our client nym address is: {our_address}");
+
+    // Send a message through the mixnet to ourselves
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
+
+    println!("Waiting for message (ctrl-c to exit)");
+    client
+        .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&amp;msg.message)))
+        .await;
+}</code></pre>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="key-creation-and-use"><a class="header" href="#key-creation-and-use">Key Creation and Use</a></h1>
+<p>The previous example involves ephemeral keys - if we want to create and then maintain a client identity over time, our code becomes a little more complex as we need to create, store, and conditionally load these keys (<code>examples/builder_with_storage</code>):</p>
+<pre><code class="language-rust noplayground">use nym_sdk::mixnet;
+use nym_sdk::mixnet::MixnetMessageSender;
+use std::path::PathBuf;
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_logging();
+
+    // Specify some config options
+    let config_dir = PathBuf::from("/tmp/mixnet-client");
+    let storage_paths = mixnet::StoragePaths::new_from_dir(&amp;config_dir).unwrap();
+
+    // Create the client with a storage backend, and enable it by giving it some paths. If keys
+    // exists at these paths, they will be loaded, otherwise they will be generated.
+    let client = mixnet::MixnetClientBuilder::new_with_default_storage(storage_paths)
+        .await
+        .unwrap()
+        .build()
+        .unwrap();
+
+    // Now we connect to the mixnet, using keys now stored in the paths provided.
+    let mut client = client.connect_to_mixnet().await.unwrap();
+
+    // Be able to get our client address
+    let our_address = client.nym_address();
+    println!("Our client nym address is: {our_address}");
+
+    // Send a message throught the mixnet to ourselves
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
+
+    println!("Waiting for message");
+    if let Some(received) = client.wait_for_messages().await {
+        for r in received {
+            println!("Received: {}", String::from_utf8_lossy(&amp;r.message));
+        }
+    }
+
+    client.disconnect().await;
+}</code></pre>
+<p>As seen in the example above, the <code>mixnet::MixnetClientBuilder::new()</code> function handles checking for keys in a storage location, loading them if present, or creating them and storing them if not, making client key management very simple.</p>
+<p>Assuming our client config is stored in <code>/tmp/mixnet-client</code>, the following files are generated:</p>
+<pre><code>$ tree /tmp/mixnet-client
+
+mixnet-client
+├── ack_key.pem
+├── db.sqlite
+├── db.sqlite-shm
+├── db.sqlite-wal
+├── gateway_details.json
+├── gateway_shared.pem
+├── persistent_reply_store.sqlite
+├── private_encryption.pem
+├── private_identity.pem
+├── public_encryption.pem
+└── public_identity.pem
+
+1 directory, 11 files
+</code></pre>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="manually-handled-storage"><a class="header" href="#manually-handled-storage">Manually Handled Storage</a></h1>
+<p>If you’re integrating mixnet functionality into an existing app and want to integrate saving client configs and keys into your existing storage logic, you can manually perform the actions taken automatically above (<code>examples/manually_handle_keys_and_config.rs</code>)</p>
+<pre><code class="language-rust noplayground">use nym_sdk::mixnet::{
+    self, ActiveGateway, BadGateway, ClientKeys, EmptyReplyStorage, EphemeralCredentialStorage,
+    GatewayRegistration, GatewaysDetailsStore, KeyStore, MixnetClientStorage, MixnetMessageSender,
+};
+use nym_topology::provider_trait::async_trait;
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_logging();
+
+    // Just some plain data to pretend we have some external storage that the application
+    // implementer is using.
+    let mock_storage = MockClientStorage::empty();
+    let mut client = mixnet::MixnetClientBuilder::new_with_storage(mock_storage)
+        .build()
+        .unwrap()
+        .connect_to_mixnet()
+        .await
+        .unwrap();
+
+    // Be able to get our client address
+    let our_address = client.nym_address();
+    println!("Our client nym address is: {our_address}");
+
+    // Send important info up the pipe to a buddy
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
+
+    println!("Waiting for message");
+    if let Some(received) = client.wait_for_messages().await {
+        for r in received {
+            println!("Received: {}", String::from_utf8_lossy(&amp;r.message));
+        }
+    }
+
+    client.disconnect().await;
+}
+
+#[allow(unused)]
+struct MockClientStorage {
+    pub key_store: MockKeyStore,
+    pub gateway_details_store: MockGatewayDetailsStore,
+    pub reply_store: EmptyReplyStorage,
+    pub credential_store: EphemeralCredentialStorage,
+}
+
+impl MockClientStorage {
+    fn empty() -&gt; Self {
+        Self {
+            key_store: MockKeyStore,
+            gateway_details_store: MockGatewayDetailsStore,
+            reply_store: EmptyReplyStorage::default(),
+            credential_store: EphemeralCredentialStorage::default(),
+        }
+    }
+}
+
+impl MixnetClientStorage for MockClientStorage {
+    type KeyStore = MockKeyStore;
+    type ReplyStore = EmptyReplyStorage;
+    type CredentialStore = EphemeralCredentialStorage;
+    type GatewaysDetailsStore = MockGatewayDetailsStore;
+
+    fn into_runtime_stores(self) -&gt; (Self::ReplyStore, Self::CredentialStore) {
+        (self.reply_store, self.credential_store)
+    }
+
+    fn key_store(&amp;self) -&gt; &amp;Self::KeyStore {
+        &amp;self.key_store
+    }
+
+    fn reply_store(&amp;self) -&gt; &amp;Self::ReplyStore {
+        &amp;self.reply_store
+    }
+
+    fn credential_store(&amp;self) -&gt; &amp;Self::CredentialStore {
+        &amp;self.credential_store
+    }
+
+    fn gateway_details_store(&amp;self) -&gt; &amp;Self::GatewaysDetailsStore {
+        &amp;self.gateway_details_store
+    }
+}
+
+struct MockKeyStore;
+
+#[async_trait]
+impl KeyStore for MockKeyStore {
+    type StorageError = MyError;
+
+    async fn load_keys(&amp;self) -&gt; Result&lt;ClientKeys, Self::StorageError&gt; {
+        println!("loading stored keys");
+
+        Err(MyError)
+    }
+
+    async fn store_keys(&amp;self, _keys: &amp;ClientKeys) -&gt; Result&lt;(), Self::StorageError&gt; {
+        println!("storing keys");
+
+        Ok(())
+    }
+}
+
+struct MockGatewayDetailsStore;
+
+#[async_trait]
+impl GatewaysDetailsStore for MockGatewayDetailsStore {
+    type StorageError = MyError;
+
+    async fn active_gateway(&amp;self) -&gt; Result&lt;ActiveGateway, Self::StorageError&gt; {
+        println!("getting active gateway");
+
+        Err(MyError)
+    }
+
+    async fn set_active_gateway(&amp;self, _gateway_id: &amp;str) -&gt; Result&lt;(), Self::StorageError&gt; {
+        println!("setting active gateway");
+
+        Ok(())
+    }
+
+    async fn all_gateways(&amp;self) -&gt; Result&lt;Vec&lt;GatewayRegistration&gt;, Self::StorageError&gt; {
+        println!("getting all registered gateways");
+
+        Err(MyError)
+    }
+
+    async fn has_gateway_details(&amp;self, _gateway_id: &amp;str) -&gt; Result&lt;bool, Self::StorageError&gt; {
+        println!("checking for gateway details");
+
+        Err(MyError)
+    }
+
+    async fn load_gateway_details(
+        &amp;self,
+        _gateway_id: &amp;str,
+    ) -&gt; Result&lt;GatewayRegistration, Self::StorageError&gt; {
+        println!("loading gateway details");
+
+        Err(MyError)
+    }
+
+    async fn store_gateway_details(
+        &amp;self,
+        _details: &amp;GatewayRegistration,
+    ) -&gt; Result&lt;(), Self::StorageError&gt; {
+        println!("storing gateway details");
+
+        Ok(())
+    }
+
+    async fn remove_gateway_details(&amp;self, _gateway_id: &amp;str) -&gt; Result&lt;(), Self::StorageError&gt; {
+        println!("removing gateway details");
+
+        Ok(())
+    }
+}
+
+//
+// struct MockReplyStore;
+//
+// #[async_trait]
+// impl ReplyStorageBackend for MockReplyStore {
+//     type StorageError = MyError;
+//
+//     async fn flush_surb_storage(
+//         &amp;mut self,
+//         _storage: &amp;CombinedReplyStorage,
+//     ) -&gt; Result&lt;(), Self::StorageError&gt; {
+//         todo!()
+//     }
+//
+//     async fn init_fresh(&amp;mut self, _fresh: &amp;CombinedReplyStorage) -&gt; Result&lt;(), Self::StorageError&gt; {
+//         todo!()
+//     }
+//
+//     async fn load_surb_storage(&amp;self) -&gt; Result&lt;CombinedReplyStorage, Self::StorageError&gt; {
+//         todo!()
+//     }
+// }
+//
+// struct MockCredentialStore;
+//
+// #[async_trait]
+// impl CredentialStorage for MockCredentialStore {
+//     type StorageError = MyError;
+//
+//     async fn insert_coconut_credential(
+//         &amp;self,
+//         _voucher_value: String,
+//         _voucher_info: String,
+//         _serial_number: String,
+//        _binding_number: String,
+//         _signature: String,
+//         _epoch_id: String,
+//     ) -&gt; Result&lt;(), Self::StorageError&gt; {
+//         todo!()
+//     }
+//
+//     async fn get_next_coconut_credential(&amp;self) -&gt; Result&lt;CoconutCredential, Self::StorageError&gt; {
+//         todo!()
+//     }
+//
+//     async fn consume_coconut_credential(&amp;self, id: i64) -&gt; Result&lt;(), Self::StorageError&gt; {
+//         todo!()
+//     }
+// }
+
+#[derive(thiserror::Error, Debug)]
+#[error("foobar")]
+struct MyError;
+
+impl From&lt;BadGateway&gt; for MyError {
+    fn from(_: BadGateway) -&gt; Self {
+        MyError
+    }
+}</code></pre>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="anonymous-replies-with-surbs-single-use-reply-blocks"><a class="header" href="#anonymous-replies-with-surbs-single-use-reply-blocks">Anonymous Replies with SURBs (Single Use Reply Blocks)</a></h1>
+<p>Both functions used to send messages through the mixnet (<code>send_message</code> and <code>send_plain_message</code>) send a pre-determined number of SURBs along with their messages by default.</p>
+<p>You can read more about how SURBs function under the hood <a href="https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs">here</a>.</p>
+<p>In order to reply to an incoming message using SURBs, you can construct a <code>recipient</code> from the <code>sender_tag</code> sent along with the message you wish to reply to:</p>
+<pre><code class="language-rust noplayground">use nym_sdk::mixnet::{
+    AnonymousSenderTag, MixnetClientBuilder, MixnetMessageSender, ReconstructedMessage,
+    StoragePaths,
+};
+use std::path::PathBuf;
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_logging();
+
+    // Specify some config options
+    let config_dir = PathBuf::from("/tmp/surb-example");
+    let storage_paths = StoragePaths::new_from_dir(&amp;config_dir).unwrap();
+
+    // Create the client with a storage backend, and enable it by giving it some paths. If keys
+    // exists at these paths, they will be loaded, otherwise they will be generated.
+    let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
+        .await
+        .unwrap()
+        .build()
+        .unwrap();
+
+    // Now we connect to the mixnet, using keys now stored in the paths provided.
+    let mut client = client.connect_to_mixnet().await.unwrap();
+
+    // Be able to get our client address
+    let our_address = client.nym_address();
+    println!("\nOur client nym address is: {our_address}");
+
+    // Send a message through the mixnet to ourselves using our nym address
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
+
+    // we're going to parse the sender_tag (AnonymousSenderTag) from the incoming message and use it to 'reply' to ourselves instead of our Nym address.
+    // we know there will be a sender_tag since the sdk sends SURBs along with messages by default.
+    println!("Waiting for message\n");
+
+    // get the actual message - discard the empty vec sent along with a potential SURB topup request
+    let mut message: Vec&lt;ReconstructedMessage&gt; = Vec::new();
+    while let Some(new_message) = client.wait_for_messages().await {
+        if new_message.is_empty() {
+            continue;
+        }
+        message = new_message;
+        break;
+    }
+
+    let mut parsed = String::new();
+    if let Some(r) = message.first() {
+        parsed = String::from_utf8(r.message.clone()).unwrap();
+    }
+    // parse sender_tag: we will use this to reply to sender without needing their Nym address
+    let return_recipient: AnonymousSenderTag = message[0].sender_tag.unwrap();
+    println!(
+        "\nReceived the following message: {} \nfrom sender with surb bucket {}",
+        parsed, return_recipient
+    );
+
+    // reply to self with it: note we use `send_str_reply` instead of `send_str`
+    println!("Replying with using SURBs");
+    client
+        .send_reply(return_recipient, "hi an0n!")
+        .await
+        .unwrap();
+
+    println!("Waiting for message (once you see it, ctrl-c to exit)\n");
+    client
+        .on_messages(|msg| println!("\nReceived: {}", String::from_utf8_lossy(&amp;msg.message)))
+        .await;
+}</code></pre>
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/7e36595d8">7e36595d8</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="importing-and-using-a-custom-network-topology"><a class="header" href="#importing-and-using-a-custom-network-topology">Importing and using a custom network topology</a></h1>
+<p>If you want to send traffic through a sub-set of nodes (for instance, ones you control, or a small test setup) when developing, debugging, or performing research, you will need to import these nodes as a custom network topology, instead of grabbing it from the <a href="https://validator.nymtech.net/api/swagger/index.html"><code>Mainnet Nym-API</code></a> (<code>examples/custom_topology_provider.rs</code>).</p>
+<p>There are two ways to do this:</p>
+<h2 id="import-a-custom-nym-api-endpoint"><a class="header" href="#import-a-custom-nym-api-endpoint">Import a custom Nym API endpoint</a></h2>
+<p>If you are also running a Validator and Nym API for your network, you can specify that endpoint as such and interact with it as clients usually do (under the hood):</p>
+<pre><code class="language-rust noplayground">// Copyright 2023 - Nym Technologies SA &lt;contact@nymtech.net&gt;
+// SPDX-License-Identifier: Apache-2.0
+
+use nym_sdk::mixnet;
+use nym_sdk::mixnet::MixnetMessageSender;
+use nym_topology::provider_trait::{async_trait, TopologyProvider};
+use nym_topology::{nym_topology_from_detailed, NymTopology};
+use url::Url;
+
+struct MyTopologyProvider {
+    validator_client: nym_validator_client::client::NymApiClient,
+}
+
+impl MyTopologyProvider {
+    fn new(nym_api_url: Url) -&gt; MyTopologyProvider {
+        MyTopologyProvider {
+            validator_client: nym_validator_client::client::NymApiClient::new(nym_api_url),
+        }
+    }
+
+    async fn get_topology(&amp;self) -&gt; NymTopology {
+        let mixnodes = self
+            .validator_client
+            .get_cached_active_mixnodes()
+            .await
+            .unwrap();
+
+        // in our topology provider only use mixnodes that have mix_id divisible by 3
+        // and have more than 100k nym (i.e. 100'000'000'000 unym) in stake
+        // why? because this is just an example to showcase arbitrary uses and capabilities of this trait
+        let filtered_mixnodes = mixnodes
+            .into_iter()
+            .filter(|mix| {
+                mix.mix_id() % 3 == 0 &amp;&amp; mix.total_stake() &gt; "100000000000".parse().unwrap()
+            })
+            .collect::&lt;Vec&lt;_&gt;&gt;();
+
+        let gateways = self.validator_client.get_cached_gateways().await.unwrap();
+
+        nym_topology_from_detailed(filtered_mixnodes, gateways)
+    }
+}
+
+#[async_trait]
+impl TopologyProvider for MyTopologyProvider {
+    // this will be manually refreshed on a timer specified inside mixnet client config
+    async fn get_new_topology(&amp;mut self) -&gt; Option&lt;NymTopology&gt; {
+        Some(self.get_topology().await)
+    }
+}
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_logging();
+
+    let nym_api = "https://validator.nymtech.net/api/".parse().unwrap();
+    let my_topology_provider = MyTopologyProvider::new(nym_api);
+
+    // Passing no config makes the client fire up an ephemeral session and figure things out on its own
+    let mut client = mixnet::MixnetClientBuilder::new_ephemeral()
+        .custom_topology_provider(Box::new(my_topology_provider))
+        .build()
+        .unwrap()
+        .connect_to_mixnet()
+        .await
+        .unwrap();
+
+    let our_address = client.nym_address();
+    println!("Our client nym address is: {our_address}");
+
+    // Send a message through the mixnet to ourselves
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
+
+    println!("Waiting for message (ctrl-c to exit)");
+    client
+        .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&amp;msg.message)))
+        .await;
+}</code></pre>
+<h2 id="import-a-specific-topology-manually"><a class="header" href="#import-a-specific-topology-manually">Import a specific topology manually</a></h2>
+<p>If you aren’t running a Validator and Nym API, and just want to import a specific sub-set of mix nodes, you can simply overwrite the grabbed topology manually:</p>
+<pre><code class="language-rust noplayground">// Copyright 2023 - Nym Technologies SA &lt;contact@nymtech.net&gt;
+// SPDX-License-Identifier: Apache-2.0
+
+use nym_sdk::mixnet;
+use nym_sdk::mixnet::MixnetMessageSender;
+use nym_topology::mix::Layer;
+use nym_topology::{mix, NymTopology};
+use std::collections::BTreeMap;
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_logging();
+
+    // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+    let starting_topology = client.read_current_topology().await.unwrap();
+
+    // but we don't like our default topology, we want to use only those very specific, hardcoded, nodes:
+    let mut mixnodes = BTreeMap::new();
+    mixnodes.insert(
+        1,
+        vec![mix::Node {
+            mix_id: 63,
+            owner: None,
+            host: "172.105.92.48".parse().unwrap(),
+            mix_host: "172.105.92.48:1789".parse().unwrap(),
+            identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
+                .parse()
+                .unwrap(),
+            sphinx_key: "CBmYewWf43iarBq349KhbfYMc9ys2ebXWd4Vp4CLQ5Rq"
+                .parse()
+                .unwrap(),
+            layer: Layer::One,
+            version: "1.1.0".into(),
+        }],
+    );
+    mixnodes.insert(
+        2,
+        vec![mix::Node {
+            mix_id: 23,
+            owner: None,
+            host: "178.79.143.65".parse().unwrap(),
+            mix_host: "178.79.143.65:1789".parse().unwrap(),
+            identity_key: "4Yr4qmEHd9sgsuQ83191FR2hD88RfsbMmB4tzhhZWriz"
+                .parse()
+                .unwrap(),
+            sphinx_key: "8ndjk5oZ6HxUZNScLJJ7hk39XtUqGexdKgW7hSX6kpWG"
+                .parse()
+                .unwrap(),
+            layer: Layer::Two,
+            version: "1.1.0".into(),
+        }],
+    );
+    mixnodes.insert(
+        3,
+        vec![mix::Node {
+            mix_id: 66,
+            owner: None,
+            host: "139.162.247.97".parse().unwrap(),
+            mix_host: "139.162.247.97:1789".parse().unwrap(),
+            identity_key: "66UngapebhJRni3Nj52EW1qcNsWYiuonjkWJzHFsmyYY"
+                .parse()
+                .unwrap(),
+            sphinx_key: "7KyZh8Z8KxuVunqytAJ2eXFuZkCS7BLTZSzujHJZsGa2"
+                .parse()
+                .unwrap(),
+            layer: Layer::Three,
+            version: "1.1.0".into(),
+        }],
+    );
+
+    // but we like the available gateways, so keep using them!
+    // (we like them because the author of this example is too lazy to use the same hardcoded gateway
+    // during client initialisation to make sure we are able to send to ourselves : )  )
+    let custom_topology = NymTopology::new(mixnodes, starting_topology.gateways().to_vec());
+
+    client.manually_overwrite_topology(custom_topology).await;
+
+    // and everything we send now should only ever go via those nodes
+
+    let our_address = client.nym_address();
+    println!("Our client nym address is: {our_address}");
+
+    // Send a message through the mixnet to ourselves
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await
+        .unwrap();
+
+    println!("Waiting for message (ctrl-c to exit)");
+    client
+        .on_messages(|msg| println!("Received: {}", String::from_utf8_lossy(&amp;msg.message)))
+        .await;
+}</code></pre>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="socks-proxy"><a class="header" href="#socks-proxy">Socks Proxy</a></h1>
+<p>There is also the option to embed the <a href="sdk/rust/examples/../../../clients/socks5-client.html"><code>socks5-client</code></a> into your app code (<code>examples/socks5.rs</code>):</p>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="sdk/rust/examples/socks.html#admonition-info"></a>
+</div>
+<div>
+<p>If you are looking at implementing Nym as a transport layer for a crypto wallet or desktop app, this is probably the best place to start if they can speak SOCKS5, 4a, or 4.</p>
+</div>
+</div>
+<pre><code class="language-rust noplayground">use nym_sdk::mixnet;
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_logging();
+
+    println!("Connecting receiver");
+    let mut receiving_client = mixnet::MixnetClient::connect_new().await.unwrap();
+
+    let socks5_config = mixnet::Socks5::new(receiving_client.nym_address().to_string());
+    let sending_client = mixnet::MixnetClientBuilder::new_ephemeral()
+        .socks5_config(socks5_config)
+        .build()
+        .unwrap();
+
+    println!("Connecting sender");
+    let sending_client = sending_client.connect_to_mixnet_via_socks5().await.unwrap();
+
+    let proxy = reqwest::Proxy::all(sending_client.socks5_url()).unwrap();
+    let reqwest_client = reqwest::Client::builder().proxy(proxy).build().unwrap();
+    tokio::spawn(async move {
+        println!("Sending socks5-wrapped http request");
+        // Message should be sent through the mixnet, via socks5
+        // We don't expect to get anything, as there is no network requester on the other end
+        reqwest_client.get("https://nymtech.net").send().await.ok()
+    });
+
+    println!("Waiting for message");
+    if let Some(received) = receiving_client.wait_for_messages().await {
+        for r in received {
+            println!(
+                "Received socks5 message requesting for endpoint: {}",
+                String::from_utf8_lossy(&amp;r.message[10..27])
+            );
+        }
+    }
+
+    receiving_client.disconnect().await;
+    sending_client.disconnect().await;
+}</code></pre>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="send-and-receive-in-different-tasks"><a class="header" href="#send-and-receive-in-different-tasks">Send and Receive in Different Tasks</a></h1>
+<p>If you need to split the different actions of your client across different tasks, you can do so like this:</p>
+<pre><code class="language-rust  noplayground">// Copyright 2023 - Nym Technologies SA &lt;contact@nymtech.net&gt;
+// SPDX-License-Identifier: Apache-2.0
+
+use futures::StreamExt;
+use nym_sdk::mixnet;
+use nym_sdk::mixnet::MixnetMessageSender;
+
+#[tokio::main]
+async fn main() {
+    nym_bin_common::logging::setup_logging();
+
+    // Passing no config makes the client fire up an ephemeral session and figure stuff out on its own
+    let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
+
+    // Be able to get our client address
+    let our_address = *client.nym_address();
+    println!("Our client nym address is: {our_address}");
+
+    let sender = client.split_sender();
+
+    // receiving task
+    let receiving_task_handle = tokio::spawn(async move {
+        if let Some(received) = client.next().await {
+            println!("Received: {}", String::from_utf8_lossy(&amp;received.message));
+        }
+
+        client.disconnect().await;
+    });
+
+    // sending task
+    let sending_task_handle = tokio::spawn(async move {
+        sender
+            .send_plain_message(our_address, "hello from a different task!")
+            .await
+            .unwrap();
+    });
+
+    // wait for both tasks to be done
+    println!("waiting for shutdown");
+    sending_task_handle.await.unwrap();
+    receiving_task_handle.await.unwrap();
+}</code></pre>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="coconut-credential-generation"><a class="header" href="#coconut-credential-generation">Coconut credential generation</a></h1>
+<p>The following code shows how you can use the SDK to create and use a credential representing paid bandwidth on the Sandbox testnet.</p>
+<pre><code class="language-rust noplayground">use futures::StreamExt;
+use nym_network_defaults::setup_env;
+use nym_sdk::mixnet;
+use nym_sdk::mixnet::MixnetMessageSender;
+
+#[tokio::main]
+async fn main() -&gt; anyhow::Result&lt;()&gt; {
+    nym_bin_common::logging::setup_logging();
+    // right now, only sandbox has coconut setup
+    // this should be run from the `sdk/rust/nym-sdk` directory
+    setup_env(Some("../../../envs/sandbox.env"));
+
+    let sandbox_network = mixnet::NymNetworkDetails::new_from_env();
+    let mnemonic = String::from("my super secret mnemonic");
+
+    let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
+        .network_details(sandbox_network)
+        .enable_credentials_mode()
+        .build()?;
+
+    let bandwidth_client = mixnet_client
+        .create_bandwidth_client(mnemonic, Default::default())
+        .await?;
+
+    // Get a bandwidth credential for the mixnet_client
+    bandwidth_client.acquire().await?;
+
+    // Connect using paid bandwidth credential
+    let mut client = mixnet_client.connect_to_mixnet().await?;
+
+    let our_address = client.nym_address();
+
+    // Send a message throughout the mixnet to ourselves
+    client
+        .send_plain_message(*our_address, "hello there")
+        .await?;
+
+    println!("Waiting for message");
+    let received = client.next().await.unwrap();
+    println!("Received: {}", String::from_utf8_lossy(&amp;received.message));
+
+    client.disconnect().await;
+    Ok(())
+}</code></pre>
+<p>You can read more about Coconut credentials (also referred to as <code>zk-Nym</code>) <a href="https://nymtech.net/docs/coconut.html">here</a>.</p>
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/7e36595d8">7e36595d8</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="example-cargo-file"><a class="header" href="#example-cargo-file">Example Cargo File</a></h1>
+<p>This file imports the basic requirements for running these pieces of example code, and can be used as the basis for your own cargo project.</p>
+<pre><code class="language-toml">[package]
+name = "your_app"
+version = "x.y.z"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+# Async runtime
+tokio = { version = "1.24.1", features = ["rt-multi-thread", "macros"] }
+# Used for (de)serialising incoming and outgoing messages 
+serde = "1.0.152"
+serde_json = "1.0.91"
+# Nym clients, addressing, etc 
+nym-sdk = { git = "https://github.com/nymtech/nym", branch = "master" }
+nym-sphinx-addressing = { git = "https://github.com/nymtech/nym", branch = "master" }
+nym-bin-common = { git = "https://github.com/nymtech/nym", branch = "master" }
+nym-sphinx-anonymous-replies = { git = "https://github.com/nymtech/nym", branch = "master" }
+# Additional dependencies if you're interacting with Nyx or another Cosmos SDK blockchain
+cosmrs = "=0.14.0"
+nym-validator-client = { git = "https://github.com/nymtech/nym", branch = "master" }
+
+# If you're building an app with a client and server / serivce this might be a useful structure for your repo 
+[[bin]]
+name = "client"
+path = "bin/client.rs"
+
+[[bin]]
+name = "service"
+path = "bin/service.rs"
+</code></pre>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="typescript-sdk"><a class="header" href="#typescript-sdk">Typescript SDK</a></h1>
+<p>The Typescript SDK allows developers to start building browser-based mixnet applications quickly, by simply importing the SDK into their code via NPM as they would any other Typescript library.</p>
+<p>If you’d like to learn more, build apps or integrate Nym components using the TS SDK, visit the dedicated <a href="https://sdk.nymtech.net/">TS SDK Handbook</a>.</p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="pre-built-binaries"><a class="header" href="#pre-built-binaries">Pre-built Binaries</a></h1>
+<p>The <a href="https://github.com/nymtech/nym/releases">Github releases page</a> has pre-built binaries which should work on Ubuntu 20.04 and other Debian-based systems, but at this stage cannot be guaranteed to work everywhere.</p>
+<p>If the pre-built binaries don’t work or are unavailable for your system, you will need to build the platform yourself.</p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="building-from-source"><a class="header" href="#building-from-source">Building from Source</a></h1>
+<blockquote>
+<p>Nym runs on Mac OS X, Linux, and Windows. All nodes <strong>except the Desktop Wallet and NymConnect</strong> on Windows should be considered experimental - it works fine if you’re an app developer but isn’t recommended for running nodes.</p>
+</blockquote>
+<h2 id="building-nym"><a class="header" href="#building-nym">Building Nym</a></h2>
+<p>Nym has two main codebases:</p>
+<ul>
+<li>the <a href="https://github.com/nymtech/nym">Nym platform</a>, written in Rust. This contains all of our code <em>except</em> for the validators.</li>
+<li>the <a href="https://github.com/nymtech/nyxd">Nym validators</a>, written in Go.</li>
+</ul>
+<blockquote>
+<p>This page details how to build the main Nym platform code.</p>
+</blockquote>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<ul>
+<li>Debian/Ubuntu: <code>pkg-config</code>, <code>build-essential</code>, <code>libssl-dev</code>, <code>curl</code>, <code>jq</code>, <code>git</code></li>
+</ul>
+<pre><code>apt install pkg-config build-essential libssl-dev curl jq git
+</code></pre>
+<ul>
+<li>Arch/Manjaro: <code>base-devel</code></li>
+</ul>
+<pre><code>pacman -S base-devel
+</code></pre>
+<ul>
+<li>Mac OS X: <code>pkg-config</code> , <code>brew</code>, <code>openss1</code>, <code>protobuf</code>, <code>curl</code>, <code>git</code>
+Running the following the script installs Homebrew and the above dependencies:</li>
+</ul>
+<pre><code>/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+</code></pre>
+<ul>
+<li><code>Rust &amp; cargo &gt;= 1.66</code></li>
+</ul>
+<p>We recommend using the <a href="https://www.rust-lang.org/tools/install">Rust shell script installer</a>. Installing cargo from your package manager (e.g. <code>apt</code>) is not recommended as the packaged versions are usually too old.</p>
+<p>If you really don’t want to use the shell script installer, the <a href="https://forge.rust-lang.org/infra/other-installation-methods.html">Rust installation docs</a> contain instructions for many platforms.</p>
+<h2 id="download-and-build-nym-binaries"><a class="header" href="#download-and-build-nym-binaries">Download and build Nym binaries</a></h2>
+<p>The following commands will compile binaries into the <code>nym/target/release</code> directory:</p>
+<pre><code class="language-sh">rustup update
+git clone https://github.com/nymtech/nym.git
+cd nym
+
+git reset --hard # in case you made any changes on your branch
+git pull # in case you've checked it out before
+
+git checkout master # master branch has the latest release version: `develop` will most likely be incompatible with deployed public networks
+
+cargo build --release # build your binaries with **mainnet** configuration
+</code></pre>
+<p>Quite a bit of stuff gets built. The key working parts for devs are the Client binaries and the CLI tool:</p>
+<ul>
+<li><a href="binaries/../clients/websocket-client.html">websocket client</a>: <code>nym-client</code></li>
+<li><a href="binaries/../clients/socks5-client.html">socks5 client</a>: <code>nym-socks5-client</code></li>
+<li><a href="https://nymtech.net/docs/tools/nym-cli.html">nym-cli tool</a>: <code>nym-cli</code></li>
+</ul>
+<blockquote>
+<p>You cannot build from GitHub’s .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn’t a Git repository). Check the code out from github using <code>git clone</code> instead.</p>
+</blockquote>
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/7e36595d8">7e36595d8</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="websocket-client"><a class="header" href="#websocket-client">Websocket Client</a></h1>
+<blockquote>
+<p>The Nym Websocket Client was built in the <a href="clients/../binaries/building-nym.html">building nym</a> section. If you haven’t yet built Nym and want to run the code on this page, go there first.</p>
+</blockquote>
+<h2 id="current-version"><a class="header" href="#current-version">Current version</a></h2>
+<pre><code>1.1.35
+</code></pre>
+<p>You can run this client as a standalone process and pipe traffic into it to be sent through the mixnet. This is useful if you’re building an application in a language other than Typescript or Rust and cannot utilise one of the SDKs.</p>
+<p>You can find the code for this client <a href="https://github.com/nymtech/nym/tree/develop/clients/native">here</a>.</p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="setup--run"><a class="header" href="#setup--run">Setup &amp; Run</a></h1>
+<h2 id="viewing-command-help"><a class="header" href="#viewing-command-help">Viewing command help</a></h2>
+<p>You can check that your binaries are properly compiled with:</p>
+<pre><code>./nym-client --help
+</code></pre>
+<details id="admonition-console-output" class="admonition admonish-example" role="note" aria-labelledby="admonition-console-output-title">
+<summary class="admonition-title">
+<div id="admonition-console-output-title">
+<p>Console output</p>
+</div>
+<a class="admonition-anchor-link" href="clients/websocket/setup.html#admonition-console-output"></a>
+</summary>
+<div>
+<pre><code>Implementation of the Nym Client
+
+Usage: nym-client [OPTIONS] &lt;COMMAND&gt;
+
+Commands:
+  init               Initialise a Nym client. Do this first!
+  run                Run the Nym client with provided configuration client optionally overriding set parameters
+  import-credential  Import a pre-generated credential
+  list-gateways      List all registered with gateways
+  add-gateway        Add new gateway to this client
+  switch-gateway     Change the currently active gateway. Note that you must have already registered with the new gateway!
+  build-info         Show build information of this binary
+  completions        Generate shell completions
+  generate-fig-spec  Generate Fig specification
+  help               Print this message or the help of the given subcommand(s)
+
+Options:
+  -c, --config-env-file &lt;CONFIG_ENV_FILE&gt;  Path pointing to an env file that configures the client
+      --no-banner                          Flag used for disabling the printed banner in tty
+  -h, --help                               Print help
+  -V, --version                            Print version
+</code></pre>
+</div>
+</details>
+<p>The two most important commands you will issue to the client are:</p>
+<ul>
+<li><code>init</code> - initalise a new client instance.</li>
+<li><code>run</code> - run a mixnet client process.</li>
+</ul>
+<p>You can check the necessary parameters for the available commands by running:</p>
+<pre><code>./nym-client &lt;command&gt; --help
+</code></pre>
+<h2 id="initialising-your-client"><a class="header" href="#initialising-your-client">Initialising your client</a></h2>
+<p>Before you can use the client, you need to initalise a new instance of it. Each instance of the client has its own public/private keypair, and connects to its own gateway node. Taken together, these 3 things (public/private keypair + gateway node identity key) make up an app’s identity.</p>
+<p>Initialising a new client instance can be done with the following command:</p>
+<pre><code>./nym-client init --id example-client
+</code></pre>
+<details id="admonition-console-output-1" class="admonition admonish-example" role="note" aria-labelledby="admonition-console-output-1-title">
+<summary class="admonition-title">
+<div id="admonition-console-output-1-title">
+<p>Console output</p>
+</div>
+<a class="admonition-anchor-link" href="clients/websocket/setup.html#admonition-console-output-1"></a>
+</summary>
+<div>
+<pre><code> An error occurred: this client (id: 'example-client') has already been initialised before. If you want to add additional gateway, use `add-gateway` command
+</code></pre>
+</div>
+</details>
+<p>The <code>--id</code> in the example above is a local identifier so that you can name your clients; it is <strong>never</strong> transmitted over the network.</p>
+<p>There is an optional <code>--gateway</code> flag that you can use if you want to use a specific gateway. The supplied argument is the <code>Identity Key</code> of the gateway you wish to use, which can be found on the <a href="https://explorer.nymtech.net/network-components/gateways">mainnet Network Explorer</a> or <a href="https://sandbox-explorer.nymtech.net/network-components/gateways">Sandbox Testnet Explorer</a> depending on which network you are on.</p>
+<p>Not passing this argument will randomly select a gateway for your client.</p>
+<h2 id="running-your-client"><a class="header" href="#running-your-client">Running your client</a></h2>
+<p>You can run the initalised client by doing this:</p>
+<pre><code>./nym-client run --id example-client
+</code></pre>
+<p>When you run the client, it immediately starts generating (fake) cover traffic and sending it to the mixnet.</p>
+<p>When the client is first started, it will reach out to the Nym network’s validators, and get a list of available Nym nodes (gateways, mixnodes, and validators). We call this list of nodes the network <em>topology</em>. The client does this so that it knows how to connect, register itself with the network, and know which mixnodes it can route Sphinx packets through.</p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="configuration"><a class="header" href="#configuration">Configuration</a></h1>
+<h2 id="default-listening-port"><a class="header" href="#default-listening-port">Default listening port</a></h2>
+<p>The Nym native client exposes a websocket interface that your code connects to. To program your app, choose a websocket library for whatever language you’re using. The <strong>default</strong> websocket port is <code>1977</code>, you can override that in the client config if you want.</p>
+<p>You can either set this via the <code>--port</code> flag at <code>init</code> or <code>run</code>, or you can manually edit <code>~/.nym/clients/&lt;CLIENT-ID&gt;/config/config.toml</code>.</p>
+<blockquote>
+<p>Remember to restart your client if you change your listening port via editing your config file.</p>
+</blockquote>
+<h2 id="choosing-a-gateway"><a class="header" href="#choosing-a-gateway">Choosing a Gateway</a></h2>
+<p>By default your client will choose a random gateway to connect to.</p>
+<p>However, there are several options for choosing a gateway, if you do not want one that is randomly assigned to your client:</p>
+<ul>
+<li>If you wish to connect to a specific gateway, you can specify this with the <code>--gateway</code> flag when running <code>init</code>.</li>
+<li>You can also choose a gateway based on its location relative to your client. This can be done by appending the <code>--latency-based-routing</code> flag to your <code>init</code> command. This command means that to select a gateway, your client will:
+<ul>
+<li>fetch a list of all available gateways</li>
+<li>send few ping messages to all of them, and measure response times.</li>
+<li>create a weighted distribution to randomly choose one, favouring ones with lower latency.</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>Note this doesn’t mean that your client will pick the closest gateway to you, but it will be far more likely to connect to gateway with a 20ms ping rather than 200ms</p>
+</blockquote>
+<h2 id="configuring-your-client"><a class="header" href="#configuring-your-client">Configuring your client</a></h2>
+<p>When you initalise a client instance, a configuration directory will be generated and stored in <code>$HOME_DIR/.nym/clients/&lt;client-name&gt;/</code>.</p>
+<pre><code>tree $HOME/&lt;user&gt;/.nym/clients/example-client
+├── config
+│   └── config.toml
+└── data
+    ├── ack_key.pem
+    ├── gateway_shared.pem
+    ├── private_encryption.pem
+    ├── private_identity.pem
+    ├── public_encryption.pem
+    └── public_identity.pem
+</code></pre>
+<p>The <code>config.toml</code> file contains client configuration options, while the two <code>pem</code> files contain client key information.</p>
+<p>The generated files contain the client name, public/private keypairs, and gateway address. The name <code>&lt;client_id&gt;</code> in the example above is just a local identifier so that you can name your clients.</p>
+<h3 id="configuring-your-client-for-docker"><a class="header" href="#configuring-your-client-for-docker">Configuring your client for Docker</a></h3>
+<p>By default, the native client listens to host <code>127.0.0.1</code>. However this can be an issue if you wish to run a client in a Dockerized environment, where it can be convenenient to listen on a different host such as <code>0.0.0.0</code>.</p>
+<p>You can set this via the <code>--host</code> flag during either the <code>init</code> or <code>run</code> commands.</p>
+<p>Alternatively, a custom host can be set in the <code>config.toml</code> file under the <code>socket</code> section. If you do this, remember to restart your client process.</p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="using-your-client"><a class="header" href="#using-your-client">Using Your Client</a></h1>
+<p>The Nym native client exposes a websocket interface that your code connects to. The <strong>default</strong> websocket port is <code>1977</code>, you can override that in the client config if you want.</p>
+<p>Once you have a websocket connection, interacting with the client involves piping messages down the socket and listening for incoming messages.</p>
+<h1 id="message-requests"><a class="header" href="#message-requests">Message Requests</a></h1>
+<p>There are a number of message types that you can send up the websocket as defined <a href="https://github.com/nymtech/nym/blob/develop/clients/native/websocket-requests/src/requests.rs">here</a>:</p>
+<pre><code class="language-rust noplayground">#[derive(Debug)]
+pub enum ClientRequest {
+    /// The simplest message variant where no additional information is attached.
+    /// You're simply sending your `data` to specified `recipient` without any tagging.
+    ///
+    /// Ends up with `NymMessage::Plain` variant
+    Send {
+        recipient: Recipient,
+        message: Vec&lt;u8&gt;,
+        connection_id: Option&lt;u64&gt;,
+    },
+
+    /// Create a message used for a duplex anonymous communication where the recipient
+    /// will never learn of our true identity. This is achieved by carefully sending `reply_surbs`.
+    ///
+    /// Note that if reply_surbs is set to zero then
+    /// this variant requires the client having sent some reply_surbs in the past
+    /// (and thus the recipient also knowing our sender tag).
+    ///
+    /// Ends up with `NymMessage::Repliable` variant
+    SendAnonymous {
+        recipient: Recipient,
+        message: Vec&lt;u8&gt;,
+        reply_surbs: u32,
+        connection_id: Option&lt;u64&gt;,
+    },
+
+    /// Attempt to use our internally received and stored `ReplySurb` to send the message back
+    /// to specified recipient whilst not knowing its full identity (or even gateway).
+    ///
+    /// Ends up with `NymMessage::Reply` variant
+    Reply {
+        sender_tag: AnonymousSenderTag,
+        message: Vec&lt;u8&gt;,
+        connection_id: Option&lt;u64&gt;,
+    },
+
+    SelfAddress,
+
+    ClosedConnection(u64),
+
+    GetLaneQueueLength(u64),
+}</code></pre>
+<h2 id="getting-your-own-address"><a class="header" href="#getting-your-own-address">Getting your own address</a></h2>
+<p>When you start your app, it is best practice to ask the native client to tell you what your own address is (from the generated configuration files <!--add link -->. If you are running a service, you need to do this in order to know what address to give others. In a client-side piece of code you can also use this as a test to make sure your websocket connection is running smoothly. To do this, send:</p>
+<pre><code class="language-json">{
+  "type": "selfAddress"
+}
+</code></pre>
+<p>You’ll receive a response of the format:</p>
+<pre><code class="language-json">{
+  "type": "selfAddress",
+  "address": "your address" // e.g. "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
+}
+</code></pre>
+<p>See <a href="https://github.com/nymtech/nym/blob/93cc281abc2cc951023b51746fa6f2ead1f56c46/clients/native/examples/python-examples/websocket/textsend.py#L16C9-L16C9">here</a> for an example of this being used.</p>
+<blockquote>
+<p>Note that all the pieces of native client example code begin with printing the selfAddress. Examples exist for Rust, Go, Javascript, and Python.</p>
+</blockquote>
+<h2 id="sending-text"><a class="header" href="#sending-text">Sending text</a></h2>
+<p>If you want to send text information through the mixnet, format a message like this one and poke it into the websocket:</p>
+<pre><code class="language-json">{
+  "type": "send",
+  "message": "the message",
+  "recipient": "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
+}
+</code></pre>
+<p>In some applications, e.g. where people are chatting with friends who they know, you might want to include unencrypted reply information in the message field. This provides an easy way for the receiving chat to then turn around and send a reply message:</p>
+<pre><code class="language-json">{
+  "type": "send",
+  "message": {
+    "sender": "198427b63ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm",
+    "chatMessage": "hi julia!"
+  },
+  "recipient": "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
+}
+</code></pre>
+<p><strong>If that fits your security model, good. However, will probably be the case that you want to send anonymous replies using Single Use Reply Blocks (SURBs)</strong>.</p>
+<p>You can read more about SURBs <a href="https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs">here</a> but in short they are ways for the receiver of this message to anonymously reply to you - the sender - <strong>without them having to know your client address</strong>.</p>
+<p>Your client will send along a number of <code>replySurbs</code> to the recipient of the message. These are pre-addressed Sphinx packets that the recipient can write to the payload of (i.e. write response data to), but not view the final destination of. If the recipient is unable to fit the response data into the bucket of SURBs sent to it, it will use a SURB to request more SURBs be sent to it from your client.</p>
+<pre><code class="language-json">{
+    "type": "sendAnonymous",
+    "message": "something you want to keep secret",
+    "recipient": "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm",
+    "replySurbs": 20 // however many reply SURBs to send along with your message
+}
+</code></pre>
+<p>See <a href="clients/websocket/usage.html#replying-to-surb-messages">‘Replying to SURB Messages’</a> below for an example of how to deal with incoming messages that have SURBs attached.</p>
+<p>Deciding on the amount of SURBs to generate and send along with outgoing messages depends on the expected size of the reply. You might want to send a lot of SURBs in order to make sure you get your response as quickly as possible (but accept the minor additional latency when sending, as your client has to generate and encrypt the packets), or you might just send a few (e.g. 20) and then if your response requires more SURBs, send them along, accepting the additional latency in getting your response.</p>
+<h2 id="sending-binary-data"><a class="header" href="#sending-binary-data">Sending binary data</a></h2>
+<p>You can also send bytes instead of JSON. For that you have to send a binary websocket frame containing a binary encoded
+Nym <a href="https://github.com/nymtech/nym/blob/develop/clients/native/websocket-requests/src/requests.rs#L25"><code>ClientRequest</code></a> containing the same information.</p>
+<blockquote>
+<p>As a response the <code>native-client</code> will send a <code>ServerResponse</code> to be decoded. See <a href="clients/websocket/usage.html#message-responses">Message Responses</a> below for more.</p>
+</blockquote>
+<p>You can find examples of sending and receiving binary data in the <a href="https://github.com/nymtech/nym/tree/master/clients/native/examples">code examples</a>, and an example project from the Nym community <a href="https://github.com/sgeisler/btcbc-rs/">BTC-BC</a>: Bitcoin transaction transmission via Nym, a client and service provider written in Rust.</p>
+<h2 id="replying-to-surb-messages"><a class="header" href="#replying-to-surb-messages">Replying to SURB messages</a></h2>
+<p>Each bucket of <code>replySURBs</code>, when received as part of an incoming message, has a unique session identifier, which <strong>only identifies the bucket of pre-addressed packets</strong>. This is necessary to make sure that your app is replying to the correct people with the information meant for them in a situation where multiple clients are sending requests to a single service.</p>
+<p>Constructing a reply with SURBs looks something like this (where <code>senderTag</code> was parsed from the incoming message)</p>
+<pre><code class="language-json">{
+    "type": "reply",
+    "message": "reply you also want to keep secret",
+    "senderTag": "the sender tag you parsed from the incoming message"
+}
+</code></pre>
+<h2 id="error-messages"><a class="header" href="#error-messages">Error messages</a></h2>
+<p>Errors from the app’s client, or from the gateway, will be sent down the websocket to your code in the following format:</p>
+<pre><code class="language-json">{
+  "type": "error",
+  "message": "string message"
+}
+</code></pre>
+<h2 id="lanequeuelength"><a class="header" href="#lanequeuelength">LaneQueueLength</a></h2>
+<p>This is currently only used in the <a href="clients/websocket/../socks5-client.html">Socks Client</a> to keep track of the number of Sphinx packets waiting to be sent to the mixnet via being slotted amongst cover traffic. As this value becomes larger, the client signals to the application it should slow down the speed with which it writes to the proxy. This is to stop situations arising whereby an app connected to the client appears as if it has sent (e.g.) a bunch of messages and is awaiting a reply, when they in fact have not been sent through the mixnet yet.</p>
+<h1 id="message-responses"><a class="header" href="#message-responses">Message Responses</a></h1>
+<p>Responses to your messages are defined <a href="https://github.com/nymtech/nym/blob/develop/clients/native/websocket-requests/src/responses.rs">here</a>:</p>
+<pre><code class="language-rust noplayground">pub enum ServerResponse {
+    Received(ReconstructedMessage),
+    SelfAddress(Box&lt;Recipient&gt;),
+    LaneQueueLength { lane: u64, queue_length: usize },
+    Error(error::Error),
+}</code></pre>
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/aaf3dca5b">aaf3dca5b</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="examples-1"><a class="header" href="#examples-1">Examples</a></h1>
+<p>The Nym monorepo includes websocket client example code for Rust, Go, Javacript, and Python, all of which can be found <a href="https://github.com/nymtech/nym/tree/master/clients/native/examples">here</a>.</p>
+<blockquote>
+<p>Rust users can run the examples with <code>cargo run --example &lt;rust_file&gt;.rs</code>, as the examples are not organised in the same way as the other examples, due to already being inside a Cargo project.</p>
+</blockquote>
+<p>All of these code examples will do the following:</p>
+<ul>
+<li>connect to a running websocket client on port <code>1977</code></li>
+<li>format a message to send in either JSON or Binary format. Nym messages have defined JSON formats.</li>
+<li>send the message into the websocket. The native client packages the message into a Sphinx packet and sends it to the mixnet</li>
+<li>wait for confirmation that the message hit the native client</li>
+<li>wait to receive messages from other Nym apps</li>
+</ul>
+<p>By varying the message content, you can easily build sophisticated service provider apps. For example, instead of printing the response received from the mixnet, your service provider might take some action on behalf of the user - perhaps initiating a network request, a blockchain transaction, or writing to a local data store.</p>
+<!-- THIS PAGE IS NOT WORKING AT THE MOMENT:
+> You can find an example of building both frontend and service provider code with the websocket client in the [Simple Service Provider Tutorial](https://nymtech.net/developers/tutorials/simple-service-provider/simple-service-provider.html) in the Developer Portal.
+-->
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/7e36595d8">7e36595d8</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="socks5-client"><a class="header" href="#socks5-client">Socks5 Client</a></h1>
+<blockquote>
+<p>The Nym Socks5 Client was built in the <a href="clients/../binaries/building-nym.html">building nym</a> section. If you haven’t yet built Nym and want to run the code on this page, go there first.</p>
+</blockquote>
+<p><strong>To install and operate <code>nym-socks5-client</code>, visit <a href="clients/socks5/setup.html">Setup &amp; Run</a> and <a href="clients/socks5/usage.html">Using Your Client</a> pages.</strong></p>
+<h2 id="current-version-1"><a class="header" href="#current-version-1">Current version</a></h2>
+<pre><code>1.1.35
+</code></pre>
+<h2 id="what-is-this-client-for"><a class="header" href="#what-is-this-client-for">What is this client for?</a></h2>
+<p>Many existing applications are able to use either the SOCKS4, SOCKS4A, or SOCKS5 proxy protocols. If you want to send such an application’s traffic through the mixnet, you can use the <code>nym-socks5-client</code> to bounce network traffic through the Nym network, like this:</p>
+<pre><code>                                                                              External Systems:
+                                                                                     +--------------------+
+                                                                             |------&gt;| Monero blockchain  |
+                                                                             |       +--------------------+
+                                                                             |       +--------------------+
+                                                                             |------&gt;|    Email server    |
+                                                                             |       +--------------------+
+                                                                             |       +--------------------+
+                                                                             |------&gt;|    RPC endpoint    |
+                                                                             |       +--------------------+
+                                                                             |       +--------------------+
+                                                                             |------&gt;|       Website      |
+                                                                             |       +--------------------+
+                                                                             |       +--------------------+
+  +----------------------------------+                                       |------&gt;|       etc...       |
+  | Mixnet:                          |                                       |       +--------------------+
+  |       * Gateway your client is   |                                       |
+  |       connected to               |          +--------------------+       |
+  |       * Mix nodes 1 -&gt; 3         |&lt;--------&gt;| Network requester  |&lt;------+
+  |       * Gateway that network     |          +--------------------+
+  |       requester is connected to  |
+  +----------------------------------+
+           ^
+           |
+           |
+           |
+           |
+           v
+ +-------------------+
+ | +---------------+ |
+ | |  Nym client   | |
+ | +---------------+ |
+ |         ^         |
+ |         |         |
+ |         |         |
+ |         |         |
+ |         v         |
+ | +---------------+ |
+ | | Your app code | |
+ | +---------------+ |
+ +-------------------+
+  Your Local Machine
+</code></pre>
+<p>There are 2 pieces of software that work together to send SOCKS traffic through the mixnet: the <code>nym-socks5-client</code>, and the <code>nym-network-requester</code>.</p>
+<p>The <code>nym-socks5-client</code> allows you to do the following from your local machine:</p>
+<ul>
+<li>Take a TCP data stream from a application that can send traffic via SOCKS5.</li>
+<li>Chop up the TCP stream into multiple Sphinx packets, assigning sequence numbers to them, while leaving the TCP connection open for more data</li>
+<li>Send the Sphinx packets through the Nym Network. Packets are shuffled and mixed as they transit the mixnet.</li>
+</ul>
+<p>The <code>nym-network-requester</code> then reassembles the original TCP stream using the packets’ sequence numbers, and make the intended request. It will then chop up the response into Sphinx packets and send them back through the mixnet to your  <code>nym-socks5-client</code>. The application will then receive its data, without even noticing that it wasn’t talking to a “normal” SOCKS5 proxy!</p>
+<p>Since the introduction of <code>nym-node</code> binary, <code>nym-network-requester</code> is incorporated in every node running in <code>exit-gateway</code> mode. The narrow whitelist was exchanged for a less restrictive Nym <a href="https://nymtech.net/.wellknown/network-requester/exit-policy.txt">exit policy</a>, where except the IPs and ports all internet access is permitted. <code>nym-socks5-client</code> users can find a full list of Network Requester addresses on <a href="https://harbourmaster.nymtech.net/">Nym Harbourmaster</a> under tab called <em>SOCKS5 NETWORK REQUESTERS</em>.</p>
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/aaf3dca5b">aaf3dca5b</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="setup--run-nym-socks5-client"><a class="header" href="#setup--run-nym-socks5-client">Setup &amp; Run Nym Socks5 Client</a></h1>
+<blockquote>
+<p><code>nym-socks5-client</code> now also supports SOCKS4 and SOCKS4A protocols as well as SOCKS5.</p>
+</blockquote>
+<p>The Nym socks5 client allows you to proxy traffic from a desktop application through the mixnet, meaning you can send and receive information from remote application servers without leaking metadata which can be used to deanonymise you, even if you’re using an encrypted application such as Signal.</p>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="clients/socks5/setup.html#admonition-info"></a>
+</div>
+<div>
+<p>Since the beginning of 2024 NymConnect is no longer maintained. Nym is developing a new client called <a href="https://nymvpn.com">NymVPN</a>, an application routing all users traffic thorugh the mixnet.
+If users want to route their traffic through socks5 we advice to use this client. If you want to run deprecated NymConnect, visit <a href="clients/socks5/../../archive/nym-connect.html">NymConnect archive page</a> with setup and application examples.</p>
+</div>
+</div>
+<h2 id="setup"><a class="header" href="#setup">Setup</a></h2>
+<h3 id="download-or-compile-socks5-client"><a class="header" href="#download-or-compile-socks5-client">Download or compile socks5 client</a></h3>
+<p>If you are using OSX or a Debian-based operating system, you can download the <code>nym-socks5-client</code> binary from our <a href="https://github.com/nymtech/nym/releases">Github releases page</a>.</p>
+<p>If you are using a different operating system, head over to the <a href="https://nymtech.net/docs/binaries/building-nym.html">Building from Source</a> page for instructions on how to build the repository from source.</p>
+<h3 id="initialise-socks5-client"><a class="header" href="#initialise-socks5-client">Initialise Socks5 Client</a></h3>
+<p>To initialise your <code>nym-socks5-client</code> you need to have an address of a Network Requester (NR). Nowadays NR is part of every Exit Gateway (<code>nym-node --mode exit-gateway</code>). The easiest way to get a NR address is to visit <a href="https://harbourmaster.nymtech.net/">harbourmaster.nymtech.net</a> and open the tab called <em>SOCKS5 NETWORK REQUESTERS</em>. There you can filter the NR by Gateways identity address, and other options.</p>
+<p>Use the following command to initialise <code>nym-socs5-client</code> where <code>&lt;ID&gt;</code> can be anything you want (it’s only for local config file storage identification and never shared on the network) and <code>&lt;PROVIDER&gt;</code> is suplemented with a NR address:</p>
+<pre><code>./nym-socks5-client init --id &lt;ID&gt; --provider &lt;PROVIDER&gt;
+</code></pre>
+<div id="admonition-tip" class="admonition admonish-tip" role="note" aria-labelledby="admonition-tip-title">
+<div class="admonition-title">
+<div id="admonition-tip-title">
+<p>Tip</p>
+</div>
+<a class="admonition-anchor-link" href="clients/socks5/setup.html#admonition-tip"></a>
+</div>
+<div>
+<p>Another option to find a NR address associated with a Gateway is to query nodes <a href="https://validator.nymtech.net/api/v1/gateways/described"><em>Self Described</em> API endpoint</a> where the NR address is noted like in this example:</p>
+<pre><code class="language-sh">"network_requester": {
+    "address": "CyuN49nkyeuiLohSpV5A1MbSqcugHLJQ95B5HooCpjv8.CguTh45Vp99QuGWZRBKpBjZDQbsJaHaXqAMGyc4Qhkzp@2w5RduXRqxKgHt1wtp4qGA4AfXaBj8TuUj1LvcPe2Ea1",
+    "uses_exit_policy": true
+}
+</code></pre>
+</div>
+</div>
+<h2 id="run"><a class="header" href="#run">Run</a></h2>
+<p>Now your client is initialised, start it with the following:</p>
+<pre><code>./nym-socks5-client run --id &lt;ID&gt;
+</code></pre>
+<h2 id="useful-commands"><a class="header" href="#useful-commands">Useful commands</a></h2>
+<h3 id="viewing-command---help"><a class="header" href="#viewing-command---help">Viewing Command <code>--help</code></a></h3>
+<p>You can check that your binaries are properly compiled with:</p>
+<pre><code>./nym-socks5-client --help
+</code></pre>
+<details id="admonition-console-output" class="admonition admonish-example" role="note" aria-labelledby="admonition-console-output-title">
+<summary class="admonition-title">
+<div id="admonition-console-output-title">
+<p>Console output</p>
+</div>
+<a class="admonition-anchor-link" href="clients/socks5/setup.html#admonition-console-output"></a>
+</summary>
+<div>
+<pre><code>A SOCKS5 localhost proxy that converts incoming messages to Sphinx and sends them to a Nym address
+
+Usage: nym-socks5-client [OPTIONS] &lt;COMMAND&gt;
+
+Commands:
+  init               Initialise a Nym client. Do this first!
+  run                Run the Nym client with provided configuration client optionally overriding set parameters
+  import-credential  Import a pre-generated credential
+  list-gateways      List all registered with gateways
+  add-gateway        Add new gateway to this client
+  switch-gateway     Change the currently active gateway. Note that you must have already registered with the new gateway!
+  build-info         Show build information of this binary
+  completions        Generate shell completions
+  generate-fig-spec  Generate Fig specification
+  help               Print this message or the help of the given subcommand(s)
+
+Options:
+  -c, --config-env-file &lt;CONFIG_ENV_FILE&gt;  Path pointing to an env file that configures the client
+      --no-banner                          Flag used for disabling the printed banner in tty
+  -h, --help                               Print help
+  -V, --version                            Print version
+</code></pre>
+</div>
+</details>
+<p>You can check the necessary parameters for the available commands by running:</p>
+<pre><code>./nym-socks5-client &lt;COMMAND&gt; --help
+</code></pre>
+<p>For example <code>./nym-socks5-client run --help</code> will return all options associated with <code>run</code> command.</p>
+<details id="admonition-console-output-1" class="admonition admonish-example" role="note" aria-labelledby="admonition-console-output-1-title">
+<summary class="admonition-title">
+<div id="admonition-console-output-1-title">
+<p>Console output</p>
+</div>
+<a class="admonition-anchor-link" href="clients/socks5/setup.html#admonition-console-output-1"></a>
+</summary>
+<div>
+<pre><code>Run the Nym client with provided configuration client optionally overriding set parameters
+
+Usage: nym-socks5-client run [OPTIONS] --id &lt;ID&gt;
+
+Options:
+      --id &lt;ID&gt;
+          Id of client we want to create config for
+
+      --gateway &lt;GATEWAY&gt;
+          Id of the gateway we want to connect to. If overridden, it is user's responsibility to ensure prior registration happened
+
+      --nym-apis &lt;NYM_APIS&gt;
+          Comma separated list of rest endpoints of the API validators
+
+      --use-anonymous-replies &lt;USE_ANONYMOUS_REPLIES&gt;
+          Specifies whether this client is going to use an anonymous sender tag for communication with the service provider. While this is going to hide its actual address information, it will make the actual communication slower and consume nearly double the bandwidth as it will require sending reply SURBs.
+          
+          Note that some service providers might not support this.
+          
+          [possible values: true, false]
+
+      --provider &lt;PROVIDER&gt;
+          Address of the socks5 provider to send messages to
+
+  -p, --port &lt;PORT&gt;
+          Port for the socket to listen on
+
+      --host &lt;HOST&gt;
+          The custom host on which the socks5 client will be listening for requests
+
+  -h, --help
+          Print help (see a summary with '-h')
+</code></pre>
+</div>
+</details>
+<h3 id="build-info"><a class="header" href="#build-info"><code>build-info</code></a></h3>
+<p>A <code>build-info</code> command prints the build information like commit hash, rust version, binary version just like what command <code>--version</code> does. However, you can also specify an <code>--output=json</code> flag that will format the whole output as a json, making it an order of magnitude easier to parse.</p>
+<h3 id="flags--arguments"><a class="header" href="#flags--arguments">Flags &amp; Arguments</a></h3>
+<ul>
+<li>
+<p><code>--id</code>: A local identifier so that you can name your clients and keep track of them on your local system; it is <strong>never</strong> transmitted over the network.</p>
+</li>
+<li>
+<p><code>--use-reply-surbs</code>: This field denotes whether you wish to send <a href="https://nymtech.net/docs/architecture/traffic-flow.md#private-replies-using-surbs">SURBs</a> along with your request. It defaults to <code>false</code> and must be explicitly set to <code>true</code> to activate.</p>
+</li>
+<li>
+<p><code>--use-anonymous-replies </code>: Specifies whether this client is going to use an anonymous sender tag for communication with the service provider. While this is going to hide its actual address information, it will make the actual communication slower and consume nearly double the bandwidth as it will require sending reply SURBs.</p>
+</li>
+<li>
+<p><code>--gateway</code>: By default your client will choose a random gateway to connect to. However, there are several options for choosing a gateway, if you do not want one that is randomly assigned to your client:</p>
+</li>
+<li>
+<p><code>--latency-based-selection</code>: This flag will choose a gateway based on its location relative to your client. This argument means that to select a gateway, your client will:</p>
+<ul>
+<li>fetch a list of all availiable gateways</li>
+<li>send few ping messages to all of them, and measure response times.</li>
+<li>create a weighted distribution to randomly choose one, favouring ones with lower latency.</li>
+</ul>
+</li>
+</ul>
+<blockquote>
+<p>Note this doesn’t mean that your client will pick the closest gateway to you, but it will be far more likely to connect to gateway with a 20ms ping rather than 200ms</p>
+</blockquote>
+<h2 id="configuring-nym-socks5-client"><a class="header" href="#configuring-nym-socks5-client">Configuring <code>nym-socks5-client</code></a></h2>
+<p>When you initalise a client instance, a configuration directory will be generated and stored in <code>$HOME_DIR/.nym/socks5-clients/&lt;YOUR_CLIENT_ID&gt;/</code>.</p>
+<pre><code>tree $HOME/.nym/socks5-clients/&lt;YOUR_CLIENT_ID&gt;
+├── config
+│   └── config.toml
+└── data
+    ├── ack_key.pem
+    ├── credentials_database.db
+    ├── gateways_registrations.sqlite
+    ├── persistent_reply_store.sqlite
+    ├── private_encryption.pem
+    ├── private_identity.pem
+    ├── public_encryption.pem
+    └── public_identity.pem
+</code></pre>
+<p>The <code>config.toml</code> file contains client configuration options, while the two <code>pem</code> files contain client key information.</p>
+<p>The generated files contain the client name, public/private keypairs, and gateway address. The name <code>&lt;YOUR_CLIENT_ID&gt;</code> in the example above is just a local identifier so that you can name your clients.</p>
+<h3 id="configuring-your-client-for-docker-1"><a class="header" href="#configuring-your-client-for-docker-1">Configuring your client for Docker</a></h3>
+<p>By default, the native client listens to host <code>127.0.0.1</code>. However this can be an issue if you wish to run a client in a Dockerized environment, where it can be convenenient to listen on a different host such as <code>0.0.0.0</code>.</p>
+<p>You can set this via the <code>--host</code> flag during either the <code>init</code> or <code>run</code> commands.</p>
+<p>Alternatively, a custom host can be set in the <code>config.toml</code> file under the <code>socket</code> section. If you do this, remember to restart your client process.</p>
+<h3 id="automating-your-socks5-client-with-systemd"><a class="header" href="#automating-your-socks5-client-with-systemd">Automating your socks5 client with systemd</a></h3>
+<p>Create a service file for the socks5 client at <code>/etc/systemd/system/nym-socks5-client.service</code>:</p>
+<pre><code class="language-ini">[Unit]
+Description=Nym Socks5 Client
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=nym # replace this with whatever user you wish
+LimitNOFILE=65536
+ExecStart=/home/nym/nym-socks5-client run --id &lt;your_id&gt;
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+</code></pre>
+<p>Now enable and start your socks5 client:</p>
+<pre><code>systemctl enable nym-socks5-client.service
+systemctl start nym-socks5-client.service
+
+# you can always check your socks5 client has succesfully started with:
+systemctl status nym-socks5-client.service
+</code></pre>
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/7e36595d8">7e36595d8</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="using-your-client-1"><a class="header" href="#using-your-client-1">Using Your Client</a></h1>
+<h2 id="proxying-traffic"><a class="header" href="#proxying-traffic">Proxying traffic</a></h2>
+<p>After completing the steps above, your local <code>nym-socks5-client</code> will be listening on <code>localhost:1080</code> ready to proxy traffic to the Network Requester set as the <code>--provider</code> when initialising.</p>
+<p>When trying to connect your app, generally the proxy settings are found in <code>settings-&gt;advanced</code> or <code>settings-&gt;connection</code>.</p>
+<p>Here is an example of setting the proxy connecting in Blockstream Green:</p>
+<p><img src="clients/socks5/../../images/blockstream-green.gif" alt="Blockstream Green settings" /></p>
+<p>Most wallets and other applications will work basically the same way: find the network proxy settings, enter the proxy url (host: <strong>localhost</strong>, port: <strong>1080</strong>).</p>
+<p>In some other applications, this might be written as <strong>localhost:1080</strong> if there’s only one proxy entry field.</p>
+<h2 id="supported-applications"><a class="header" href="#supported-applications">Supported Applications</a></h2>
+<p>Any application which can be redirected over Socks5 proxy should work. Nym community has been successfully running over Nym Mixnet these applications:</p>
+<ul>
+<li>Bitcoin Electrum wallet</li>
+<li>Monero wallet (GUI and CLI with monerod)</li>
+<li>Telegram chat</li>
+<li>Element/Matrix chat</li>
+<li>Firo wallet</li>
+<li>Blockstream Green</li>
+</ul>
+<blockquote>
+<p>DarkFi’s ircd chat was previously supported: they have moved to DarkIrc: whether the existing integration work is still operational needs to be tested.</p>
+</blockquote>
+<p>Keep in mind that Nym has been developing a new client <strong><a href="https://nymvpn.com">NymVPN</a> (GUI and CLI) routing all users traffic through the Mixnet.</strong></p>
+<h2 id="further-reading"><a class="header" href="#further-reading">Further reading</a></h2>
+<p>If you want to dig more into the architecture and use of the socks5 client check out its documentation <a href="https://nymtech.net/docs/clients/socks5-client.html">here</a>.</p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="webassembly-client"><a class="header" href="#webassembly-client">Webassembly Client</a></h1>
+<p>The Nym webassembly client allows any webassembly-capable runtime to build and send Sphinx packets to the Nym network, for uses in edge computing and browser-based applications.</p>
+<p>This is currently packaged and distributed for ease of use via the <a href="clients/../sdk/typescript.html">Nym Typescript SDK library</a>. <strong>We imagine most developers will use this client via the SDK for ease.</strong></p>
+<p>The webassembly client allows for the easy creation of Sphinx packets from within mobile apps and browser-based client-side apps (including Electron or similar).</p>
+<h2 id="building-apps-with-webassembly-client"><a class="header" href="#building-apps-with-webassembly-client">Building apps with Webassembly Client</a></h2>
+<p>Check out the <a href="https://sdk.nymtech.net">Typescript SDK docs</a> for examples of usage.</p>
+<p>There are also example applications located in the <code>clients/webassembly</code> directory in the main Nym platform codebase.</p>
+<h2 id="think-about-what-youre-sending"><a class="header" href="#think-about-what-youre-sending">Think about what you’re sending!</a></h2>
+<div id="admonition-caution" class="admonition admonish-warning" role="note" aria-labelledby="admonition-caution-title">
+<div class="admonition-title">
+<div id="admonition-caution-title">
+<p>Caution</p>
+</div>
+<a class="admonition-anchor-link" href="clients/webassembly-client.html#admonition-caution"></a>
+</div>
+<div>
+<p>Think about what information your app sends. That goes for whatever you put into your Sphinx packet messages as well as what your app’s environment may leak.</p>
+</div>
+</div>
+<p>Whenever you write client PEAPPs using HTML/JavaScript, we recommend that you do not load external resources from CDNs. Webapp developers do this all the time, to save load time for common resources, or just for convenience. But when you’re writing privacy apps it’s better not to make these kinds of requests. Pack everything locally.</p>
+<p>If you use only local resources within your Electron app or your browser extensions, explicitly encoding request data in a Sphinx packet does protect you from the normal leakage that gets sent in a browser HTTP request. <a href="https://panopticlick.eff.org/">There’s a lot of stuff that leaks when you make an HTTP request from a browser window</a>. Luckily, all that metadata and request leakage doesn’t happen in Nym, because you’re choosing very explicitly what to encode into Sphinx packets, instead of sending a whole browser environment by default.</p>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="stub-updates-coming-soon"><a class="header" href="#stub-updates-coming-soon">Stub: Updates Coming Soon!</a></h1>
+<p>There is a lot of development work ongoing with our clients; as such the old tutorials that were here got quite out of date.</p>
+<p>However, you can still access the old <a href="https://github.com/nymtech/developer-tutorials">tutorial codebases</a> as well as the markdown files in the <code>tutorial-archives/</code> directory in the <a href="https://github.com/nymtech/nym/tree/develop/documentation/dev-portal/src/tutorials">developer portal docs repo</a> if you want.</p>
+<p>More up to date tutorials will be coming soon for using RPC and gRPC, <code>mixfetch</code>, as well as using the <a href="https://github.com/nymtech/nym/tree/develop/sdk/ffi">FFI libraries</a> for interacting with the Mixnet via C++ and Go.</p>
+<blockquote>
+<p>Developers who are searching for example code can use the following list as the current ‘best practices’:</p>
+<ul>
+<li>Generic traffic transport: the <a href="https://github.com/nymtech/nym-zcash-rpc-demo"><code>zcash-rpc-demo</code></a> repo, although here used to only pipe RPC traffic, is a proof of concept ‘generic’ mixnet piping example which exposes a TPC Socket on the client side for incoming traffic, pipes this through the mixnet, and then streams TCP packets ‘out’ the other side.</li>
+<li>In-browser usage: see the <a href="tutorials/../examples/browser-only.html">browser examples</a> page for examples using <code>mixFetch</code>.</li>
+</ul>
+</blockquote>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="custom-services"><a class="header" href="#custom-services">Custom Services</a></h1>
+<p>Custom services involve two pieces of code that communicate via the mixnet: a client, and a custom server/service. This custom service will most likely interact with the wider internet / a clearnet service on your behalf, with the mixnet between you and the service, acting as a privacy shield.</p>
+<blockquote>
+<p>The current model of relying on a Service Provider has some issues, such as additional complexity in deployment and maintenance, as well as creating potential chokepoints for app traffic. Work is going on (in the open in our <a href="https://github.com/nymtech/nym">monorepo</a> ofc) to start removing this requirement as much as possible, by allowing for the creation of packet-contents in such a way that the existing Network Requester/Exit Gateway infrastructure can support network requests in a similar way to <code>mixFetch</code>. More on this as and when it is released.</p>
+</blockquote>
+<ul>
+<li>
+<p><a href="https://github.com/nymtech/nym-zcash-rpc-demo">Nym Zcash RPC demo</a>, although used to only pipe RPC traffic, is a proof of concept ‘generic’ mixnet piping example which exposes a TPC Socket on the client side for incoming traffic, pipes this through the mixnet, and then streams TCP packets ‘out’ the other side. A good example of non-app-specific traffic transport which developers could also quite easily use as a template for their own app-specific work.</p>
+<ul>
+<li><a href="https://github.com/nymtech/nym-zcash-rpc-demo">Codebase</a></li>
+</ul>
+</li>
+<li>
+<p>PasteNym is a private pastebin alternative. It involves a browser-based frontend utilising the Typescript SDK and a Python-based backend service communicating with a standalone Nym Websocket Client. <strong>If you’re a Python developer, start here!</strong>.</p>
+<ul>
+<li><a href="https://github.com/notrustverify/pastenym">Frontend codebase</a></li>
+<li><a href="https://github.com/notrustverify/pastenym-frontend">Backend codebase</a></li>
+</ul>
+</li>
+<li>
+<p>Nostr-Nym is another application written by <a href="https://notrustverify.ch/">NoTrustVerify</a>, standing between mixnet users and a Nostr server in order to protect their metadata from being revealed when gossiping. <strong>Useful for Go and Python developers</strong>.</p>
+<ul>
+<li><a href="https://github.com/notrustverify/nostr-nym">Codebase</a></li>
+</ul>
+</li>
+<li>
+<p>Spook and Nym-Ethtx are both examples of Ethereum transaction broadcasters utilising the mixnet, written in Rust. Since they were written before the release of the Rust SDK, they utilise standalone clients to communicate with the mixnet.</p>
+<ul>
+<li><a href="https://github.com/EdenBlockVC/spook">Spook</a> (<strong>Typescript</strong>)</li>
+<li><a href="https://github.com/noot/nym-ethtx">Nym-Ethtx</a> (<strong>Rust</strong>)</li>
+</ul>
+</li>
+<li>
+<p>NymDrive is an early proof of concept application for privacy-enhanced file storage on IPFS. <strong>JS and CSS</strong>, and a good example of packaging as an Electrum app.</p>
+<ul>
+<li><a href="https://github.com/saleel/nymdrive">Codebase</a></li>
+</ul>
+</li>
+</ul>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="apps-using-network-requesters"><a class="header" href="#apps-using-network-requesters">Apps Using Network Requesters</a></h1>
+<p>These applications utilise custom app logic in the user-facing apps in order to communicate using the mixnet as a transport layer, without having to rely on custom server-side logic. Instead, they utilise existing Nym infrastructure - Network Requesters - now embeded in <code>nym-node</code> running as <code>exit-gateway</code>.</p>
+<p>If you are sending ‘normal’ application traffic, and/or don’t require and custom logic to be happening on the ‘other side’ of the mixnet, this is most likely the best option to take as a developer who wishes to privacy-enhance their application.</p>
+<blockquote>
+<p>Nym will soon be switching from a whitelist-based approach to a blocklist-based approach to filtering traffic. As such, it will soon be even easier for developers to utilise the mixnet, as they will not have to run their own NRs or have to add their domains to the whitelist</p>
+</blockquote>
+<blockquote>
+<p>Nym will soon be switching from a whitelist-based approach to a blocklist-based approach to filtering traffic. As such, it will soon be even easier for developers to utilise the mixnet, as they will not have to run their own NRs or have to add their domains to the whitelist</p>
+</blockquote>
+<!-- I DON't THINK THIS WORKS NOW, NEED RESEARCH AND UPGRADE
+- DarkFi over Nym leverages Nym’s mixnet as a pluggable transport for DarkIRC, their p2p IRC variant. Users can anonymously connect to peers over the network, ensuring secure and private communication within the DarkFi ecosystem. Written in **Rust**.
+  - [Docs](https://darkrenaissance.github.io/darkfi/clients/nym_outbound.html?highlight=nym#3--run)
+  - [Github](https://github.com/darkrenaissance/darkfi/tree/master/doc) 
+-->
+<ul>
+<li>
+<p>MiniBolt is a complete guide to building a Bitcoin &amp; Lightning full node on a personal computer. It has the capacity to run network traffic (transactions and syncing) over the mixnet, so you can privately sync your node and not expose your home IP to the wider world when interacting with the rest of the network!</p>
+<ul>
+<li><a href="https://v2.minibolt.info/bonus-guides/system/nym-mixnet#proxying-bitcoin-core">Docs</a></li>
+<li><a href="https://github.com/minibolt-guide/minibolt">Codebase</a></li>
+</ul>
+</li>
+<li>
+<p>Email over Nym is a set of configuration options to set up a Network Requester to send and recieve emails over Nym, using something like Thunderbird.</p>
+<ul>
+<li><a href="https://github.com/dial0ut/nymstr-email">Codebase</a></li>
+</ul>
+</li>
+</ul>
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/aaf3dca5b">aaf3dca5b</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="browser-only"><a class="header" href="#browser-only">Browser only</a></h1>
+<p>With the Typescript SDK you can run a Nym client in a webworker - meaning you can connect to the mixnet through the browser without having to worry about any other code than your web framework.</p>
+<ul>
+<li>
+<p>Oreowallet have integrated <code>mixFetch</code> into their browser-extension wallet to run transactions through the mixnet.</p>
+<ul>
+<li><a href="https://github.com/oreoslabs/oreowallet-extension/tree/mixFetch">Codebase</a></li>
+</ul>
+</li>
+<li>
+<p><a href="https://notrustverify.ch/">NoTrustVerify</a> have set up an example application using <a href="https://sdk.nymtech.net/examples/mix-fetch"><code>mixFetch</code></a> to fetch crypto prices from CoinGecko over the mixnet.</p>
+<ul>
+<li><a href="https://notrustverify.github.io/mixfetch-examples/">Website</a></li>
+<li><a href="https://github.com/notrustverify/mixfetch-examples">Codebase</a></li>
+</ul>
+</li>
+<li>
+<p>There is a coconut-scheme based Credential Library playground <a href="https://coco-demo.nymtech.net/">here</a>. This is a WASM implementation of our Coconut libraries which generate raw Coconut credentials. Test it to create and re-randomize your own credentials. For more information on what is happening here check out the <a href="https://nymtech.net/docs/coconut.html">Coconut docs</a>.</p>
+</li>
+<li>
+<p>You can find a browser-based ‘hello world’ chat app <a href="https://chat-demo.nymtech.net">here</a>. Either open in two browser windows and send messages to yourself, or share with a friend and send messages to each other through the mixnet.</p>
+</li>
+</ul>
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/7e36595d8">7e36595d8</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="monorepo-examples"><a class="header" href="#monorepo-examples">Monorepo examples</a></h1>
+<p>As well as these examples, there are a bunch of examples for each SDK in the Nym monorepo.</p>
+<ul>
+<li><a href="https://github.com/nymtech/nym/tree/develop/sdk/rust/nym-sdk/examples">Rust SDK examples</a></li>
+<li><a href="https://github.com/nymtech/nym/tree/develop/sdk/typescript/examples">Typescript SDK examples</a></li>
+</ul>
+<footer id="last-change">Last change: 2023-10-31, commit: <a href="https://github.com/nymtech/nym/commit/5d8c5224e">5d8c5224e</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="integration-options"><a class="header" href="#integration-options">Integration Options</a></h1>
+<p>If you’ve already gone through the different options and had a look at the tutorials, you have seen the possibilities available to you for quickly connecting existing application code to another Nym process.</p>
+<p>Below are a resources that will be useful for either beginning to integrate mixnet functionality into existing application code or build a new app using Nym.</p>
+<ul>
+<li>
+<p><strong>We suggest you begin with this <a href="https://sdk.nymtech.net/integrations">integration decision tree</a></strong>. This will give you a better idea of what pieces of software (SDKs, standalone clients, service providers) your integration might involve, and what is currently possible to do with as little custom code as possible.</p>
+</li>
+<li>
+<p>The <a href="integrations/../faq/integrations-faq.html">integrations FAQ</a> has a list of common questions regarding integrating with Nym and Nyx, as well as commonly required links.</p>
+</li>
+</ul>
+<blockquote>
+<p>If you wish to integrate with the Nyx blockchain to use <code>NYM</code> for payments, start with the <a href="integrations/./payment-integration.html">payment integration</a> page.</p>
+</blockquote>
+<footer id="last-change">Last change: 2024-07-10, commit: <a href="https://github.com/nymtech/nym/commit/44cf9b054">44cf9b054</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="integrating-with-nyx-for-payments"><a class="header" href="#integrating-with-nyx-for-payments">Integrating with Nyx for payments</a></h1>
+<p>If you want to integrate with Nym in order to send <code>NYM</code> tokens (for instance, if running a <code>NYM</code> &lt;-&gt; <code>BTC</code> swap application, or using <code>NYM</code> for payments), then you will need to interact with the Nyx blockchain.</p>
+<p>Nyx is the blockchain supporting the Nym network, hosting both the <code>NYM</code> and <code>NYX</code> cryptocurrencies, the CosmWasm smart contracts keeping track of the network, and (coming soon) facilitating zk-Nym credential generation. It is built with the <a href="https://tendermint.com/sdk/">Cosmos SDK</a>.</p>
+<h3 id="interacting-with-the-nyx-blockchain"><a class="header" href="#interacting-with-the-nyx-blockchain">Interacting with the Nyx blockchain</a></h3>
+<p>Check out the integration options in the <a href="integrations/../faq/integrations-faq.html#how-can-i-use-json-rpc-methods-to-interact-with-the-nyx-blockchain">Integration FAQ</a>.</p>
+<h3 id="chain-information-and-rpc-endpoints"><a class="header" href="#chain-information-and-rpc-endpoints">Chain information and RPC endpoints</a></h3>
+<p>You can find most information required for integration in the <a href="https://github.com/cosmos/chain-registry/blob/master/nyx/chain.json">Cosmos Chain Registry</a> and <a href="https://github.com/chainapsis/keplr-chain-registry/blob/main/cosmos/nyx.json">Keplr Chain Registry</a> repositories.</p>
+<h2 id="recommended-setup"><a class="header" href="#recommended-setup">Recommended setup</a></h2>
+<p>We recommend that users wanting to integrate with Nyx for cryptocurrency payments set up their own RPC Node, in order to be able to reliably query the blockchain and send transactions without having to worry about relying on 3rd party validators.</p>
+<p>The guide to setting up an RPC node can be found <a href="https://nymtech.net/docs/nyx/rpc-node.html">here</a>.</p>
+<footer id="last-change">Last change: 2023-09-19, commit: <a href="https://github.com/nymtech/nym/commit/9b8add1da">9b8add1da</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="integrations-faq"><a class="header" href="#integrations-faq">Integrations FAQ</a></h1>
+<p>On this page, you’ll find links and frequently asked questions on how to get started on integrating your project with Nym’s Mixnet and its blockchain, Nyx.</p>
+<h2 id="links"><a class="header" href="#links">Links</a></h2>
+<h3 id="general-info"><a class="header" href="#general-info">General Info</a></h3>
+<ul>
+<li><a href="https://nymtech.net/">Nym Website</a></li>
+<li><a href="https://explorer.nymtech.net/">Nym Mixnet Explorer</a></li>
+<li><a href="https://nym.explorers.guru/">Nyx Block Explorer</a></li>
+</ul>
+<h3 id="codebase-info"><a class="header" href="#codebase-info">Codebase Info</a></h3>
+<ul>
+<li><a href="https://github.com/nymtech/nym/">Nym Platform Monorepo</a></li>
+<li><a href="https://github.com/nymtech/">Nym Project</a></li>
+</ul>
+<h3 id="documentation-info"><a class="header" href="#documentation-info">Documentation Info</a></h3>
+<ul>
+<li><a href="https://nymtech.net/docs/">Documentation</a></li>
+<li>Developer Portal - you are currently viewing the Developer Portal</li>
+</ul>
+<h2 id="wallet-installation"><a class="header" href="#wallet-installation">Wallet Installation</a></h2>
+<p>The Nym wallet can be downloaded <a href="https://nymtech.net/download/">here</a>.</p>
+<p>You can find all the instructions related to setting up your wallet in the <a href="https://nymtech.net/docs/wallet/desktop-wallet.html">docs</a>, as well as instructions on how to build the wallet if there is not a downloadable version built for your operating system.</p>
+<h3 id="what-are-the-machine-hardware-requirements-for-nym-wallet"><a class="header" href="#what-are-the-machine-hardware-requirements-for-nym-wallet">What are the machine hardware requirements for Nym Wallet?</a></h3>
+<p>About 16GB of RAM is recommended for the wallet. However you can expect an average memory usage of ~100MB.</p>
+<h2 id="interacting-with-the-nyx-blockchain-1"><a class="header" href="#interacting-with-the-nyx-blockchain-1">Interacting with the Nyx blockchain</a></h2>
+<h3 id="where-can-i-find-information-on-the-blockchain-such-as-rpc-endpoints"><a class="header" href="#where-can-i-find-information-on-the-blockchain-such-as-rpc-endpoints">Where can I find information on the blockchain, such as RPC endpoints?</a></h3>
+<p>You can find most information required for integration in the <a href="https://github.com/cosmos/chain-registry/blob/master/nyx/chain.json">Cosmos Chain Registry</a> and <a href="https://github.com/chainapsis/keplr-chain-registry/blob/main/cosmos/nyx.json">Keplr Chain Registry</a> repositories.</p>
+<h3 id="how-can-i-use-json-rpc-methods-to-interact-with-the-nyx-blockchain"><a class="header" href="#how-can-i-use-json-rpc-methods-to-interact-with-the-nyx-blockchain">How can I use <code>JSON-RPC</code> methods to interact with the Nyx blockchain?</a></h3>
+<p>There are multiple ways to use <code>JSON-RPC</code> methods to interact with the Nyx blockchain. Which method you use will depend on the type of application you are integrating Nyx interactions into.</p>
+<ol>
+<li>
+<p>The standalone <code>nyxd</code> binary can be used for CLI wallets, interacting with smart contracts via the CLI, setting up RPC nodes, and even running validators. This is a version of the Cosmos Hub’s <code>gaiad</code> binary compiled with Nyx chain configuration, and is written in <code>Go</code>. Instructions on setting up the <code>nyxd</code> binary can be found <a href="https://nymtech.net/docs/nyx/interacting-with-chain.html">here</a>. This is recommended for more complex commands. For full documentation check the <a href="https://hub.cosmos.network/main/hub-overview/overview.html#"><code>gaiad documentation</code></a>.</p>
+</li>
+<li>
+<p><code>CosmJS</code> is a Typescript library allowing for developers to interact with CosmosSDK blockchains from a Javascript or Typescript project. You can find it on Github <a href="https://github.com/cosmos/cosmjs">here</a> and an explainer of its functionality <a href="https://tutorials.cosmos.network/tutorials/7-cosmjs/1-cosmjs-intro.html">in the Cosmos Developer Portal</a>. You can find a list of example apps which use CosmJS <a href="https://codesandbox.io/examples/package/@cosmjs/stargate">here</a>.</p>
+</li>
+<li>
+<p>The <code>Nym-CLI</code> tool, a standalone rust binary which can be built and used according to the <a href="https://nymtech.net/docs/tools/nym-cli.html">docs</a> can be used in much the same way as <code>nyxd</code>. It is a bit simpler to use than the <code>nyxd</code> binary, but is not recommended for complex queries, and not all commands are currently implemented. A list of Nym CLI commands and example usage can be found <a href="https://nymtech.net/docs/tools/nym-cli.html">here</a></p>
+</li>
+</ol>
+<h3 id="how-do-i-generate-an-addressmnemonic-for-users-to-interact-with"><a class="header" href="#how-do-i-generate-an-addressmnemonic-for-users-to-interact-with">How do I generate an address/mnemonic for users to interact with?</a></h3>
+<p><strong>Nyxd</strong></p>
+<p>Use the following command, replacing <code>your_id</code> with the ID you want to use for your keypair:</p>
+<pre><code>./nyxd keys add your_id --chain-id=nyx --gas=auto --gas-adjustment=1.4 --fees=7000unym
+</code></pre>
+<p><strong>Nym-CLI</strong></p>
+<pre><code>./nym-cli account create
+</code></pre>
+<p>Both methods will generate a keypair and log the mnemonic in the console.</p>
+<p><strong>CosmJS</strong></p>
+<p>You can find example code for keypair generation <a href="https://tutorials.cosmos.network/tutorials/7-cosmjs/2-first-steps.html#testnet-preparation">here</a>.</p>
+<h3 id="how-to-get-block-information-like-block-height-block-hash-block-time-as-so-on"><a class="header" href="#how-to-get-block-information-like-block-height-block-hash-block-time-as-so-on">How to get block information like block height, block hash, block time as so on?</a></h3>
+<p><strong>Nyxd</strong></p>
+<p>You would use one of the subcommands returned by this command:</p>
+<pre><code>./nyxd query tx --chain-id=nyx --gas=auto --gas-adjustment=1.4 --fees=7000unym
+</code></pre>
+<p><strong>Nym-CLI</strong></p>
+<pre><code>./nym-cli block current-height
+</code></pre>
+<p><strong>CosmJS</strong></p>
+<p><code>CosmJS</code> documentation can be found <a href="https://cosmos.github.io/cosmjs/">here</a>. We will be working on example code blocks soon.</p>
+<h3 id="how-to-get-accountaddress-balance-to-check-there-is-enough-coins-to-withdraw"><a class="header" href="#how-to-get-accountaddress-balance-to-check-there-is-enough-coins-to-withdraw">How to get account/address balance to check there is enough coins to withdraw?</a></h3>
+<p><strong>Nyxd</strong></p>
+<pre><code>./nyxd query bank balances &lt;address&gt; --chain-id=nyx --gas=auto --gas-adjustment=1.4 --fees=7000unym
+</code></pre>
+<p><strong>Nym-CLI</strong></p>
+<pre><code>./nym-cli account balance
+</code></pre>
+<p><strong>CosmJS</strong></p>
+<p><code>CosmJS</code> documentation can be found <a href="https://cosmos.github.io/cosmjs/">here</a>. We will be working on example code blocks soon.</p>
+<h3 id="how-do-i-transfer-tokens-to-another-address"><a class="header" href="#how-do-i-transfer-tokens-to-another-address">How do I transfer tokens to another address?</a></h3>
+<p><strong>Nyxd</strong></p>
+<pre><code>./nyxd tx bank send [from_key_or_address] [to_address] [amount] --chain-id=nyx --gas=auto --gas-adjustment=1.4 --fees=7000unym
+</code></pre>
+<p><strong>Nym-CLI</strong></p>
+<pre><code>./nym-cli account send TARGET_ADDRESS AMOUNT
+</code></pre>
+<p><strong>CosmJS</strong></p>
+<p><code>CosmJS</code> documentation can be found <a href="https://cosmos.github.io/cosmjs/">here</a>. We will be working on example code blocks soon.</p>
+<h3 id="does-the-address-support-the-inclusion-of-a-memo-or-destinationtag-when-doing-the-transfer"><a class="header" href="#does-the-address-support-the-inclusion-of-a-memo-or-destinationtag-when-doing-the-transfer">Does the address support the inclusion of a <code>memo</code> or <code>destinationTag</code> when doing the transfer?</a></h3>
+<p>Yes, it is supported.</p>
+<h3 id="can-i-use-my-ledger-hardware-wallet-to-interact-with-the-nyx-blockchain"><a class="header" href="#can-i-use-my-ledger-hardware-wallet-to-interact-with-the-nyx-blockchain">Can I use my Ledger hardware wallet to interact with the Nyx blockchain?</a></h3>
+<p>Yes. Follow the instructions in the <a href="https://nymtech.net/docs/nyx/ledger-live.html">Ledger support for Nyx documentation</a>.</p>
+<h3 id="where-can-i-find-network-details-such-as-deployed-smart-contract-addresses"><a class="header" href="#where-can-i-find-network-details-such-as-deployed-smart-contract-addresses">Where can I find network details such as deployed smart contract addresses?</a></h3>
+<p>In the <a href="https://github.com/nymtech/nym/blob/master/common/network-defaults/src/mainnet.rs"><code>network defaults</code></a> file.</p>
+<h2 id="nym-token"><a class="header" href="#nym-token"><code>NYM</code> Token</a></h2>
+<p>The token used to reward mixnet infrastructure operators - <code>NYM</code> - is one of the native tokens of the Nyx blockchain. The other token is <code>NYX</code>.</p>
+<p><code>NYM</code> is used to incentivise the mixnet, whereas <code>NYX</code> is used to secure the Nyx blockchain via Validator staking.</p>
+<blockquote>
+<p>Integration with Nym’s technology stack will most likely involve using <code>NYM</code> if you do need to interact with the Nyx blockchain and transfer tokens.</p>
+</blockquote>
+<h3 id="ive-seen-an-erc20-representation-of-nym-on-ethereum---whats-this-and-how-do-i-use-it"><a class="header" href="#ive-seen-an-erc20-representation-of-nym-on-ethereum---whats-this-and-how-do-i-use-it">I’ve seen an ERC20 representation of <code>NYM</code> on Ethereum - what’s this and how do I use it?</a></h3>
+<p>We use the <a href="https://github.com/Gravity-Bridge">Gravity Bridge</a> blockchain to bridge an ERC20 representation of <code>NYM</code> between the Cosmos ecosystem of IBC-enabled chains and Ethereum mainnet. Gravity Bridge is its own IBC-enabled CosmosSDK chain, which interacts with a smart contract deployed on Ethereum mainnet.</p>
+<blockquote>
+<p>The ERC20 representation of <code>NYM</code> <strong>cannot</strong> be used with the mixnet; only the native Cosmos representation is usable for staking or bonding nodes.</p>
+</blockquote>
+<p>If you need to transfer tokens across the bridge, we recommend users use Cosmostation’s <a href="https://spacestation.zone/">spacestation.zone</a> dApp with Metamask and Keplr.</p>
+<h3 id="what-is-circulating-supply-and-how-to-find-out-the-distribution-amount"><a class="header" href="#what-is-circulating-supply-and-how-to-find-out-the-distribution-amount">What is Circulating Supply and how to find out the distribution amount?</a></h3>
+<p>Circulating supply is the total number of available <code>NYM</code>. <code>NYM</code> is currently present on the IBC-enabled Nyx blockchain, as well as in ERC20 form on Ethereum Mainnet.</p>
+<p>The Validator API endpoints can be found via the <a href="https://validator.nymtech.net/api/swagger/index.html">Swagger Documentation</a>. The following endpoints can be called to retrieve the correct distribution amount and circulating supply within Nym.</p>
+<p>Using this API endpoint returns information about the circulating supply of Nym tokens:</p>
+<pre><code>/circulating-supply
+</code></pre>
+<p>Query Response:</p>
+<pre><code>{
+    "total_supply": {
+        "denom": "unym",
+        "amount": "1000000000000000"
+    },
+    "mixmining_reserve": {
+        "denom": "unym",
+        "amount": "241105338883248"
+    },
+    "vesting_tokens": {
+        "denom": "unym",
+        "amount": "390255200928865"
+    },
+    "circulating_supply": {
+        "denom": "unym",
+        "amount": "368639460187887"
+    }
+}
+</code></pre>
+<ul>
+<li>
+<p><code>total_supply</code>- The total number of NYM tokens that have been created and can exist, including those that are currently in circulation and those that are reserved for various purposes.</p>
+</li>
+<li>
+<p><code>mixmining_reserved</code>- The number of NYM tokens that are reserved for the mixnet miners who help to power the Nym network.</p>
+</li>
+<li>
+<p><code>vesting_tokens</code>- The number of NYM tokens that are subject to vesting, meaning they are gradually released over time to certain stakeholders such as the team, advisors, and early investors.</p>
+</li>
+<li>
+<p><code>circulating_supply</code>- The number of NYM tokens that are currently in circulation and available to be traded on the open market, which is calculated by subtracting the <code>mixmining_reserved</code> and <code>vesting_tokens</code> from the <code>total_supply</code>.</p>
+</li>
+</ul>
+<p>Using this API endpoint returns the current value of the total supply of NYM tokens:</p>
+<pre><code>/circulating-supply/total-supply-value
+</code></pre>
+<p>Query Response:</p>
+<pre><code>1000000000.0
+</code></pre>
+<blockquote>
+<p>The maximum number of <code>NYM</code> tokens that can ever be created is 1 billion.</p>
+</blockquote>
+<p>Using this API endpoint returns the current value of the circulating supply of NYM tokens:</p>
+<pre><code>/circulating-supply/circulating-supply-value
+</code></pre>
+<p>Query Response:</p>
+<pre><code>368639460.187887
+</code></pre>
+<blockquote>
+<p>This refers to the present quantity of <code>NYM</code> tokens that are actively in circulation.</p>
+</blockquote>
+<h2 id="sending-traffic-through-the-nym-mixnet"><a class="header" href="#sending-traffic-through-the-nym-mixnet">Sending traffic through the Nym mixnet</a></h2>
+<h3 id="is-the-mixnet-free-to-use"><a class="header" href="#is-the-mixnet-free-to-use">Is the mixnet free to use?</a></h3>
+<p>For the moment then yes, the mixnet is free to use. There are no limits on the amount of traffic that an app can send through the mixnet.</p>
+<h3 id="do-i-need-to-run-my-own-gateway-to-send-application-traffic-through-the-mixnet"><a class="header" href="#do-i-need-to-run-my-own-gateway-to-send-application-traffic-through-the-mixnet">Do I need to run my own gateway to send application traffic through the mixnet?</a></h3>
+<p>No, although we do recommend that apps that wish to integrate look into running some of their own infrastructure such as gateways in order to assure uptime.</p>
+<footer id="last-change">Last change: 2024-06-12, commit: <a href="https://github.com/nymtech/nym/commit/405d4653d">405d4653d</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="nymvpn-beta"><a class="header" href="#nymvpn-beta">NymVPN beta</a></h1>
+<p><strong>NymVPN</strong> is a client that uses <a href="https://nymtech.net">Nym Mixnet</a> to anonymise all of a user’s internet traffic through either a 5-hop mixnet for a <em>full network privacy</em> or the <em>faster</em> 2-hop decentralised VPN (with some extra features).</p>
+<p><strong>You are invited to take part in the beta testing</strong> of this new application. Register for private testing round at <a href="https://nymvpn.com/en">nymvpn.com</a>, that will grant you access to the <a href="https://nymvpn.com/download">download page</a>. Visit <a href="https://nymvpn.com/en/support">NymVPN Support &amp; FAQ</a> or join the <a href="https://matrix.to/#/#NymVPN:nymtech.chat">NymVPN matrix channel</a> if you have any questions, comments or blockers.</p>
+<p>Checkout the <a href="https://github.com/nymtech/nym-vpn-client/releases">release page</a> for available binaries.</p>
+<p><em>NOTE: NymVPN beta is experimental software for testing purposes only.</em></p>
+<h2 id="nymvpn-overview"><a class="header" href="#nymvpn-overview">NymVPN Overview</a></h2>
+<p>To understand what’s under the hood of NymVPN and the mixnet, we recommend interested developers to begin with <a href="https://nymtech.net/docs/architecture/network-overview.html">Nym network overview</a> and the <a href="https://nymtech.net/docs/architecture/traffic-flow.html">Mixnet traffic flow</a> pages.</p>
+<p>The default setup of NymVPN is to run in 5-hop mode (mixnet):</p>
+<pre><code>                      ┌─►mix──┐  mix     mix
+                      │       │
+            Entry     │       │                   Exit
+client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► Gateway ───► internet
+                              │       │
+                              │       │
+                         mix  └─►mix──┘  mix
+</code></pre>
+<p>Users can switch to 2-hop only mode, which is a faster but less private option. In this mode traffic is only sent between the two gateways, and is not passed through the mixnet. The client than use two wireguard tunnels with the Entry and Exit Gateway nodes, the Exit Gateway one being tunnelled itself through the Entry Gateway tunnel. NymVPN uses Mullvad libraries for wrapping <code>wireguard-go</code> and to setup local routing rules to route all traffic to the TUN virtual network device.</p>
+<footer id="last-change">Last change: 2024-08-20, commit: <a href="https://github.com/nymtech/nym/commit/f3ac17eb9">f3ac17eb9</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="nymvpn-cli-guide"><a class="header" href="#nymvpn-cli-guide">NymVPN CLI Guide</a></h1>
+<div id="admonition-nymvpn-cli-testnet" class="admonition admonish-tip" role="note" aria-labelledby="admonition-nymvpn-cli-testnet-title">
+<div class="admonition-title">
+<div id="admonition-nymvpn-cli-testnet-title">
+<p>NymVPN CLI Testnet</p>
+</div>
+<a class="admonition-anchor-link" href="nymvpn/cli.html#admonition-nymvpn-cli-testnet"></a>
+</div>
+<div>
+<p>If you testing NymVPN CLI and want to try our Sandbox testnet environment, you can visit an explicit guide at <a href="https://nym-vpn-cli.sandbox.nymtech.net/">nym-vpn-cli.sandbox.nymtech.net</a>. This page alco contains an auto generating access token button.</p>
+</div>
+</div>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="nymvpn/cli.html#admonition-info"></a>
+</div>
+<div>
+<p>To download NymVPN desktop version, visit <a href="https://nymvpn.com/en/download">nymvpn.com/en/download</a>.</p>
+<p>NymVPN is an experimental software and it’s for testing purposes only. Anyone can submit a registration to the private alpha round on <a href="https://nymvpn.com/en">nymvpn.com</a>.</p>
+</div>
+</div>
+<h2 id="overview"><a class="header" href="#overview">Overview</a></h2>
+<p>The core binaries consist of:</p>
+<ul>
+<li>
+<p><strong><code>nym-vpn-cli</code></strong>: Basic commandline client for running the vpn. This runs in the foreground.</p>
+</li>
+<li>
+<p><strong><code>nym-vpnd</code></strong>: Daemon implementation of the vpn client that can run in the background and interacted with using <code>nym-vpnc</code>.</p>
+</li>
+<li>
+<p><strong><code>nym-vpnc</code></strong>: The commandline client used to interact with <code>nym-vpnd</code>.</p>
+</li>
+</ul>
+<h2 id="installation-1"><a class="header" href="#installation-1">Installation</a></h2>
+<blockquote>
+<p>Any syntax in <code>&lt;&gt;</code> brackets is a user’s/version unique variable. Exchange with a corresponding name without the <code>&lt;&gt;</code> brackets.</p>
+</blockquote>
+<ol>
+<li>
+<p>Open Github <a href="https://github.com/nymtech/nym-vpn-client/releases">releases page</a> and download the CLI latest binary for your system (labelled as <code>nym-vpn-core</code>)</p>
+</li>
+<li>
+<p>Verify sha hash of your downloaded binary with the one listed on the <a href="https://github.com/nymtech/nym-vpn-client/releases">releases page</a>. You can use a simple <code>shasum</code> command and compare strings (ie with Python) or run in the same directory the following command, exchanging <code>&lt;SHA_STRING&gt;</code> with the one of your binary, like in the example:</p>
+</li>
+</ol>
+<pre><code class="language-sh">echo "&lt;SHA_STRING&gt;" | shasum -a 256 -c
+
+# choose a correct one according to your binary, this is just an example
+# echo "0e4abb461e86b2c168577e0294112a3bacd3a24bf8565b49783bfebd9b530e23  nym-vpn-cli__ubuntu-22.04_amd64.tar.gz" | shasum -a 256 -c
+</code></pre>
+<ol start="3">
+<li>Extract files:</li>
+</ol>
+<pre><code class="language-sh">tar -xvf &lt;BINARY&gt;.tar.gz
+# for example
+# tar -xvf nym-vpn-cli__ubuntu-22.04_x86_64.tar.gz
+</code></pre>
+<h3 id="building-from-source-1"><a class="header" href="#building-from-source-1">Building From Source</a></h3>
+<p>NymVPN CLI can be built from source. This process is recommended for more advanced users as the installation may require different dependencies based on the operating system used.</p>
+<p>Start by installing <a href="https://go.dev/doc/install">Go</a> and <a href="https://rustup.rs/">Rust</a> languages on your system and then follow these steps:</p>
+<ol>
+<li>Clone NymVPN repository:</li>
+</ol>
+<pre><code class="language-sh">git clone https://github.com/nymtech/nym-vpn-client.git
+</code></pre>
+<ol start="2">
+<li>Move to <code>nym-vpn-client</code> directory and compile <code>wireguard</code>:</li>
+</ol>
+<pre><code class="language-sh">cd nym-vpn-client
+
+make build-wireguard
+</code></pre>
+<ol start="3">
+<li>Compile NymVPN CLI</li>
+</ol>
+<pre><code class="language-sh">make build-nym-vpn-core
+</code></pre>
+<p>Now your NymVPN CLI is installed. Navigate to <code>nym-vpn-core/target/release</code> and use the commands the section below to run the client.</p>
+<h2 id="running"><a class="header" href="#running">Running</a></h2>
+<p>If you are running Debian/Ubuntu/PopOS or any other distributio supporting debian packages and systemd, see the <a href="nymvpn/cli.html#debian-package-for-debianubuntupopos">relevant section below</a>.</p>
+<h3 id="daemon"><a class="header" href="#daemon">Daemon</a></h3>
+<p>Start the daemon with</p>
+<pre><code class="language-sh">sudo -E ./nym-vpnd
+</code></pre>
+<p>Then run</p>
+<pre><code class="language-sh">./nym-vpnc status
+./nym-vpnc connect
+./nym-vpnc disconnect
+</code></pre>
+<h3 id="cli"><a class="header" href="#cli">CLI</a></h3>
+<p>An alternative to the daemon is to run the <code>nym-vpn-cli</code> commandline client that runs in the foreground.</p>
+<pre><code class="language-sh">./nym-vpn-cli run
+</code></pre>
+<h2 id="credentials"><a class="header" href="#credentials">Credentials</a></h2>
+<p>NymVPN uses <a href="https://nymtech.net/docs/bandwidth-credentials.html">zkNym bandwidth credentials</a>. Those can be imported as a file or base58 encoded string.</p>
+<pre><code class="language-sh">sudo -E ./nym-vpn-cli import-credential --credential-path &lt;/PATH/TO/freepass.nym&gt;
+sudo -E ./nym-vpn-cli import-credential --credential-data "&lt;STRING&gt;"
+</code></pre>
+<h2 id="debian-package-for-debianubuntupopos"><a class="header" href="#debian-package-for-debianubuntupopos">Debian package for Debian/Ubuntu/PopOS</a></h2>
+<p>For linux platforms using deb packages and systemd, there are also debian packages.</p>
+<pre><code class="language-sh">sudo apt install ./nym-vpnd_-1_amd64.deb ./nym-vpnc_-1_amd64.deb
+
+# In case of error please substitute the correct version
+</code></pre>
+<p>Installing the <code>nym-vpnd</code> deb package starts a <code>nym-vpnd.service</code>. Check that the daemon is running with</p>
+<pre><code class="language-sh">systemctl status nym-vpnd.service
+</code></pre>
+<p>and check its logs with</p>
+<pre><code class="language-sh">sudo journalctl -u nym-vpnd.service -f
+</code></pre>
+<p>To stop the background service</p>
+<pre><code class="language-sh">systemctl stop nym-vpnd.service
+</code></pre>
+<p>It will start again on startup, so disable with</p>
+<pre><code class="language-sh">systemctl disable nym-vpnd.service
+</code></pre>
+<p>Interact with it with <code>nym-vpnc</code></p>
+<pre><code class="language-sh">nym-vpnc status
+nym-vpnc connect
+nym-vpnc disconnect
+</code></pre>
+<h2 id="commands--options"><a class="header" href="#commands--options">Commands &amp; Options</a></h2>
+<div id="admonition-note" class="admonition admonish-note" role="note" aria-labelledby="admonition-note-title">
+<div class="admonition-title">
+<div id="admonition-note-title">
+<p>Note</p>
+</div>
+<a class="admonition-anchor-link" href="nymvpn/cli.html#admonition-note"></a>
+</div>
+<div>
+<p>Nym Exit Gateway functionality was implemented just recently and not all the Gateways are upgraded and ready to handle the VPN connections. If you want to make sure you are connecting to a Gateway with an embedded Network Requester, IP Packet Router and applied Nym exit policy, visit <a href="https://harbourmaster.nymtech.net/">harbourmaster.nymtech.net</a> and search Gateways with all the functionalities enabled.</p>
+</div>
+</div>
+<p>The basic syntax of <code>nym-vpn-cli</code> is:</p>
+<pre><code class="language-sh"># choose only one conditional --argument listed in {brackets}
+sudo ./nym-vpn-cli { --exit-router-address &lt;EXIT_ROUTER_ADDRESS&gt;|--exit-gateway-id &lt;EXIT_GATEWAY_ID&gt;|--exit-gateway-country &lt;EXIT_GATEWAY_COUNTRY&gt; }
+</code></pre>
+<p>To see all the possibilities run with <code>--help</code> flag:</p>
+<pre><code class="language-sh">./nym-vpn-cli --help
+</code></pre>
+<details id="admonition-nym-vpn-cli---help" class="admonition admonish-example" role="note" aria-labelledby="admonition-nym-vpn-cli---help-title">
+<summary class="admonition-title">
+<div id="admonition-nym-vpn-cli---help-title">
+<p>nym-vpn-cli –help</p>
+</div>
+<a class="admonition-anchor-link" href="nymvpn/cli.html#admonition-nym-vpn-cli---help"></a>
+</summary>
+<div>
+<pre><code class="language-sh">Usage: nym-vpn-cli [OPTIONS] &lt;COMMAND&gt;
+
+Commands:
+  run                Run the client
+  import-credential  Import credential
+  help               Print this message or the help of the given subcommand(s)
+
+Options:
+  -c, --config-env-file &lt;CONFIG_ENV_FILE&gt;  Path pointing to an env file describing the network
+      --data-path &lt;DATA_PATH&gt;              Path to the data directory of the mixnet client
+  -h, --help                               Print help
+  -V, --version                            Print version
+</code></pre>
+</div>
+</details>
+<p>You can also run any command with <code>--help</code> flag to see a list of all options associated witht that command, the most important may be <code>run</code> command, like in this example.</p>
+<details id="admonition-nym-vpn-cli-run---help" class="admonition admonish-example" role="note" aria-labelledby="admonition-nym-vpn-cli-run---help-title">
+<summary class="admonition-title">
+<div id="admonition-nym-vpn-cli-run---help-title">
+<p>nym-vpn-cli run –help</p>
+</div>
+<a class="admonition-anchor-link" href="nymvpn/cli.html#admonition-nym-vpn-cli-run---help"></a>
+</summary>
+<div>
+<pre><code class="language-sh">Run the client
+
+Usage: nym-vpn-cli run [OPTIONS]
+
+Options:
+      --entry-gateway-id &lt;ENTRY_GATEWAY_ID&gt;
+          Mixnet public ID of the entry gateway
+      --entry-gateway-country &lt;ENTRY_GATEWAY_COUNTRY&gt;
+          Auto-select entry gateway by country ISO
+      --entry-gateway-low-latency
+          Auto-select entry gateway by latency
+      --exit-router-address &lt;EXIT_ROUTER_ADDRESS&gt;
+          Mixnet recipient address
+      --exit-gateway-id &lt;EXIT_GATEWAY_ID&gt;
+          Mixnet public ID of the exit gateway
+      --exit-gateway-country &lt;EXIT_GATEWAY_COUNTRY&gt;
+          Auto-select exit gateway by country ISO
+      --wireguard-mode
+          Enable the wireguard mode
+      --nym-ipv4 &lt;NYM_IPV4&gt;
+          The IPv4 address of the nym TUN device that wraps IP packets in sphinx packets
+      --nym-ipv6 &lt;NYM_IPV6&gt;
+          The IPv6 address of the nym TUN device that wraps IP packets in sphinx packets
+      --nym-mtu &lt;NYM_MTU&gt;
+          The MTU of the nym TUN device that wraps IP packets in sphinx packets
+      --dns &lt;DNS&gt;
+          The DNS server to use
+      --disable-routing
+          Disable routing all traffic through the nym TUN device. When the flag is set, the nym TUN device will be created, but to route traffic through it you will need to do it manually, e.g. ping -Itun0
+      --enable-two-hop
+          Enable two-hop mixnet traffic. This means that traffic jumps directly from entry gateway to exit gateway
+      --enable-poisson-rate
+          Enable Poisson process rate limiting of outbound traffic
+      --disable-background-cover-traffic
+          Disable constant rate background loop cover traffic
+      --enable-credentials-mode
+          Enable credentials mode
+      --min-mixnode-performance &lt;MIN_MIXNODE_PERFORMANCE&gt;
+          Set the minimum performance level for mixnodes
+  -h, --help
+          Print help
+
+</code></pre>
+</div>
+</details>
+<h2 id="testnet-environment"><a class="header" href="#testnet-environment">Testnet environment</a></h2>
+<p>If you want to run NymVPN CLI in Nym Sandbox environment, there are a few adjustments to be done. You can follow the steps below or follow more explicit guide on <a href="https://nym-vpn-cli.sandbox.nymtech.net">nym-vpn-cli.sandbox.nymtech.net</a>, including the access token auto generation button.</p>
+<ol>
+<li>Create Sandbox environment config file by saving <a href="https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env">this</a> as <code>sandbox.env</code> in the same directory as your NymVPN binaries:</li>
+</ol>
+<pre><code class="language-sh">curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/envs/sandbox.env
+</code></pre>
+<ol start="2">
+<li>
+<p>Check available Gateways at <a href="https://sandbox-nym-api1.nymtech.net/api/v1/gateways">Sandbox API</a> or <a href="https://sandbox-nym-api1.nymtech.net/api/swagger/index.html">Sandbox Swagger page</a></p>
+</li>
+<li>
+<p>Run with a flag <code>-c</code></p>
+</li>
+</ol>
+<pre><code class="language-sh">sudo ./nym-vpn-cli -c &lt;PATH_TO&gt;/sandbox.env &lt;--exit-router-address &lt;EXIT_ROUTER_ADDRESS&gt;|--exit-gateway-id &lt;EXIT_GATEWAY_ID&gt;|--exit-gateway-country &lt;EXIT_GATEWAY_COUNTRY&gt;&gt;
+</code></pre>
+<footer id="last-change">Last change: 2024-08-20, commit: <a href="https://github.com/nymtech/nym/commit/f3ac17eb9">f3ac17eb9</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="archive-page-nymconnect-setup"><a class="header" href="#archive-page-nymconnect-setup">Archive page: NymConnect Setup</a></h1>
+<div id="admonition-warning" class="admonition admonish-warning" role="note" aria-labelledby="admonition-warning-title">
+<div class="admonition-title">
+<div id="admonition-warning-title">
+<p>Warning</p>
+</div>
+<a class="admonition-anchor-link" href="archive/nym-connect.html#admonition-warning"></a>
+</div>
+<div>
+<p>Since the beginning of 2024 NymConnect is no longer maintained. Nym is developing a new client called <a href="https://nymvpn.com">NymVPN</a>, an application routing all users traffic thorugh the mixnet.
+If users want to route their traffic through socks5 we advice to use maintained <a href="archive/../clients/socks5/setup.html">Nym Socks5 Client</a>.</p>
+</div>
+</div>
+<p>In case you want to run deprecated NymConnect, follow these steps:</p>
+<ol>
+<li>Navigate to our <a href="https://github.com/nymtech/nym/releases?q=nym-connect&amp;expanded=true">Github repository</a> and download NymConnect binary</li>
+<li>On Linux and Mac, make executable by opening terminal in the same directory and run:</li>
+</ol>
+<pre><code class="language-sh">chmod +x ./nym-connect_&lt;VERSION&gt;.AppImage
+</code></pre>
+<ol>
+<li>Start the application</li>
+<li>Click on <code>Connect</code> button to initialise the connection with the Mixnet</li>
+<li>Anytime you’ll need to setup Host and Port in your applications, click on <code>IP</code> and <code>Port</code> to copy the values to clipboard</li>
+<li>In case you have problems such as <code>Gateway Issues</code>, try to reconnect or restart the application</li>
+</ol>
+<h2 id="connect-privacy-enhanced-applications-peapps"><a class="header" href="#connect-privacy-enhanced-applications-peapps">Connect Privacy Enhanced Applications (PEApps)</a></h2>
+<p>Here are some examples of applications which will work behind Socks5 proxy (<code>nym-socks5-client</code> or deprecated NymConnect), to enhance users privacy.</p>
+<h3 id="electrum-bitcoin-wallet-via-nymconnect"><a class="header" href="#electrum-bitcoin-wallet-via-nymconnect">Electrum Bitcoin wallet via NymConnect</a></h3>
+<p>To download Electrum visit the <a href="https://electrum.org/#download">official webpage</a>. To connect to the Mixnet follow these steps:</p>
+<ol>
+<li>Start and connect NymConnect (or <a href="archive/../clients/socks5/setup.html"><code>nym-socks5-client</code></a>)</li>
+<li>Start your Electrum Bitcoin wallet</li>
+<li>Go to: <em>Tools</em> -&gt; <em>Network</em> -&gt; <em>Proxy</em></li>
+<li>Set <em>Use proxy</em> to ✅, choose <code>SOCKS5</code> from the drop-down and add (copy-paste) the values from your NymConnect application</li>
+<li>Now your Electrum Bitcoin wallet runs through the Mixnet and it will be connected only if your NymConnect or <code>nym-socks5-client</code> are connected.</li>
+</ol>
+<p><img src="archive/../images/electrum_tutorial/electrum.gif" alt="Electrum Bitcoin wallet setup" /></p>
+<h3 id="monero-wallet-via-nymconnect"><a class="header" href="#monero-wallet-via-nymconnect">Monero wallet via NymConnect</a></h3>
+<p>To download Monero wallet visit <a href="https://www.getmonero.org/downloads/">getmonero.org</a>. To connect to the Mixnet follow these steps:</p>
+<ol>
+<li>Start and connect NymConnect (or <a href="archive/../clients/socks5/setup.html"><code>nym-socks5-client</code></a>)</li>
+<li>Start your Monero wallet</li>
+<li>Go to: <em>Settings</em> -&gt; <em>Interface</em> -&gt; <em>Socks5 proxy</em> -&gt; Add values: IP address <code>127.0.0.1</code>, Port <code>1080</code> (the values copied from NymConnect)</li>
+<li>Now your Monero wallet runs through the Mixnet and it will be connected only if your NymConnect or <code>nym-socks5-client</code> are connected.</li>
+</ol>
+<p><img src="archive/../images/monero_tutorial/monero-gui-NC.gif" alt="Monero wallet setup" /></p>
+<h3 id="matrix-element-via-nymconnect"><a class="header" href="#matrix-element-via-nymconnect">Matrix (Element) via NymConnect</a></h3>
+<p>To download Element (chat client for Matrix) visit <a href="https://element.io/download">element.io</a>. To connect to the Mixnet follow these steps:</p>
+<ol>
+<li>Start and connect NymConnect (or <a href="archive/../clients/socks5/setup.html"><code>nym-socks5-client</code></a>)</li>
+<li>Start <code>element-desktop</code> with <code>--proxy-server</code> argument:</li>
+</ol>
+<p><strong>Linux</strong></p>
+<pre><code class="language-sh">element-desktop --proxy-server=socks5://127.0.0.1:1080
+</code></pre>
+<p><strong>Mac</strong></p>
+<pre><code class="language-sh">open -a Element --args --proxy-server=socks5://127.0.0.1:1080
+</code></pre>
+<p>To make the start of Element over NymConnect simplier, you can add this command to your key-binding shortcuts in your system settings.</p>
+<h3 id="telegram-via-nymconnect"><a class="header" href="#telegram-via-nymconnect">Telegram via NymConnect</a></h3>
+<ol>
+<li>Start and connect NymConnect (or <a href="archive/../clients/socks5/setup.html"><code>nym-socks5-client</code></a>)</li>
+<li>Start your Telegram chat application</li>
+<li>Open the Telegram proxy settings.
+<ul>
+<li>Linux: <em>Settings</em> -&gt; <em>Advanced</em> -&gt; <em>Connection type</em> -&gt; <em>Use custom proxy</em></li>
+<li>MacOS: <em>Settings</em> -&gt; <em>Advanced</em> -&gt; <em>Data &amp; Storage</em> -&gt;  <em>Connection Type</em> -&gt; <em>Use custom Proxy</em></li>
+<li>Windows: <em>Settings</em> -&gt; <em>Data and Storage</em> -&gt; <em>Use proxy</em></li>
+</ul>
+</li>
+<li>Add a proxy with the <em>Add proxy button</em>.</li>
+<li>Select <em>SOCKS5</em> and make sure the port details are the same as those generated by NymConnect. Alternatively, follow this link: <a href="https://t.me/socks?server=127.0.0.1&amp;port=1080">https://t.me/socks?server=127.0.0.1&amp;port=1080</a></li>
+<li><em>Save the proxy settings</em> in Telegram.</li>
+<li>Telegram is now running through the Nym Mixnet and is privacy-enhanced! This allows you to connect from regions which blocked Telegram.</li>
+<li>Note if you remain idle on Telegram for a while you might lose connectivity and your messages might not get through via SOCKS5 proxy. If that happens reconnect your NymConnect and reset the proxy again.</li>
+</ol>
+<p>Follow this <a href="https://youtu.be/quj8H2qeOwY?t=97">video</a> to see the steps on Telegram setup.</p>
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/5096c1e60">5096c1e60</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="code-of-conduct"><a class="header" href="#code-of-conduct">Code of Conduct</a></h1>
+<p>We are committed to providing a friendly, safe and welcoming environment for all, regardless of level of experience, gender identity and expression, sexual orientation, disability, personal appearance, body size, race, ethnicity, age, religion, nationality, or other similar characteristic.</p>
+<p>Please avoid using overtly sexual aliases or other nicknames that might detract from a friendly, safe and welcoming environment for all.</p>
+<p>Please be kind and courteous. There’s no need to be mean or rude.</p>
+<p>Respect that people have differences of opinion and that every design or implementation choice carries a trade-off and numerous costs. There is seldom a right answer.</p>
+<p>Please keep unstructured critique to a minimum. If you have solid ideas you want to experiment with, make a fork and see how it works.</p>
+<p>We will exclude you from interaction if you insult, demean or harass anyone. That is not welcome behaviour. We interpret the term “harassment” as including the definition in the Citizen Code of Conduct; if you have any lack of clarity about what might be included in that concept, please read their definition. In particular, we don’t tolerate behaviour that excludes people in socially marginalized groups.</p>
+<p>Private harassment is also unacceptable. No matter who you are, if you feel you have been or are being harassed or made uncomfortable by a community member, please contact one of the channel ops or any of the Rust moderation team immediately. Whether you’re a regular contributor or a newcomer, we care about making this community a safe place for you and we’ve got your back.</p>
+<p>Likewise any spamming, trolling, flaming, baiting or other attention-stealing behaviour is not welcome.</p>
+<footer id="last-change">Last change: 2023-04-17, commit: <a href="https://github.com/nymtech/nym/commit/3dafe02f0">3dafe02f0</a></footer><div style="break-before: page; page-break-before: always;"></div><h1 id="licensing"><a class="header" href="#licensing">Licensing</a></h1>
+<p>As a general approach, licensing is as follows this pattern:</p>
+<ul>
+<li><p xmlns:cc="http://creativecommons.org/ns#" xmlns:dct="http://purl.org/dc/terms/"><a property="dct:title" rel="cc:attributionURL" href="https://nymtech.net/docs">Nym Documentation</a> by <a rel="cc:attributionURL dct:creator" property="cc:attributionName" href="https://nymtech.net">Nym Technologies</a> is licensed under <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/?ref=chooser-v1" target="_blank" rel="license noopener noreferrer" style="display:inline-block;">CC BY-NC-SA 4.0<img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1"><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/by.svg?ref=chooser-v1"><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/nc.svg?ref=chooser-v1"><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/sa.svg?ref=chooser-v1"></a></p>
+</li>
+<li>
+<p>Nym applications and binaries are <a href="https://www.gnu.org/licenses/">GPL-3.0-only</a></p>
+</li>
+<li>
+<p>Used libraries and different components are <a href="https://www.apache.org/licenses/LICENSE-2.0.html">Apache 2.0</a> or <a href="https://mit-license.org/">MIT</a></p>
+</li>
+</ul>
+<p>For accurate information, please check individual files.</p>
+<footer id="last-change">Last change: 2023-11-29, commit: <a href="https://github.com/nymtech/nym/commit/dafed3ad5">dafed3ad5</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="elasticlunr.min.js"></script>
+        <script src="mark.min.js"></script>
+        <script src="searcher.js"></script>
+
+        <script src="clipboard.min.js"></script>
+        <script src="highlight.js"></script>
+        <script src="book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="./themes/pagetoc.js"></script>
+
+        <script>
+        window.addEventListener('load', function() {
+            window.setTimeout(window.print, 100);
+        });
+        </script>
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,31 @@
+<>
+If you run a `nym-node` for the first time, you will need to specify a few parameters, please read the section [Essential Parameters & Variables](#essential-paramteters--varibles) before you start and make sure that your `nym-node` is up to date with the [latest version](https://github.com/nymtech/nym/releases/).
+
+**Initialise and Run:**
+
+To initialise and run your node, use this command:
+
+```sh
+./nym-node run --mode mixnode --mixnet-bind-address 0.0.0.0:1789 --verloc-bind-address 0.0.0.0:1790 --http-bind-address 0.0.0.0:8080 --public-ips "$(curl -4 https://ifconfig.me)" --accept-operator-terms-and-conditions
+```
+
+**Init only**
+
+Adding `--init-only` option results in `nym-node` initialising a configuration file `config.toml` without running - a good option for an initial node setup. Remember that if you using this flag on a node which already has a config file, this will not over-write the values, unless used with a specified flag `--write-changes` (`-w`) - a good option for introducing changes to your `config.toml` file.
+
+Initialise only with a custom `--id` and `--init-only` command:
+```sh
+./nym-node run --mode mixnode --id <ID> --init-only --mixnet-bind-address 0.0.0.0:1789 --verloc-bind-address 0.0.0.0:1790 --http-bind-address 0.0.0.0:8080 --public-ips "$(curl -4 https://ifconfig.me)" --accept-operator-terms-and-conditions
+```
+
+If you prefer to have a generic local identifier set to `default-nym-node`, skip `--id` option.
+
+**Deny init**
+
+`--deny-init` was introduced as an additional safety for migration from legacy binaries to `nym-node` to prevent operators initialise over existing nodes. For most of the operators, this flag is not needed.
+
+In this example we run the node with custom `--id` without initialising, using `--deny-init` command:
+```sh
+./nym-node run --mode mixnode --id <ID> --deny-init --accept-operator-terms-and-conditions
+```
+</>

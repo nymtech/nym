@@ -1,0 +1,344 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Ledger Live Support - Nym Docs</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Nym technical documentation">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././themes/custom.css">
+        <link rel="stylesheet" href=".././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item affix "><li class="part-title">Architecture</li><li class="chapter-item "><a href="../architecture/network-overview.html"><strong aria-hidden="true">1.</strong> Network Overview</a></li><li class="chapter-item "><a href="../architecture/nym-vs-others.html"><strong aria-hidden="true">2.</strong> Nym vs Other Systems</a></li><li class="chapter-item "><a href="../architecture/traffic-flow.html"><strong aria-hidden="true">3.</strong> Mixnet Traffic Flow</a></li><li class="chapter-item "><a href="../architecture/addressing-system.html"><strong aria-hidden="true">4.</strong> Addressing System</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../binaries/init-and-config.html"><strong aria-hidden="true">5.1.</strong> Binary Initialisation and Configuration</a></li></ol></li><li class="chapter-item "><a href="../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Nodes</li><li class="chapter-item "><a href="../nodes/overview.html"><strong aria-hidden="true">7.</strong> Node Types (Previously Setup Guides)</a></li><li class="chapter-item affix "><li class="part-title">Wallet</li><li class="chapter-item "><a href="../wallet/desktop-wallet.html"><strong aria-hidden="true">8.</strong> Desktop Wallet</a></li><li class="chapter-item "><a href="../wallet/cli-wallet.html"><strong aria-hidden="true">9.</strong> CLI Wallet</a></li><li class="chapter-item affix "><li class="part-title">Explorers</li><li class="chapter-item "><a href="../explorers/mixnet-explorer.html"><strong aria-hidden="true">10.</strong> Mixnet Explorer</a></li><li class="chapter-item affix "><li class="part-title">Nyx Blockchain</li><li class="chapter-item "><a href="../nyx/interacting-with-chain.html"><strong aria-hidden="true">11.</strong> Interacting with Nyx Chain and Smart Contracts</a></li><li class="chapter-item "><a href="../nyx/smart-contracts.html"><strong aria-hidden="true">12.</strong> Smart Contracts</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nyx/mixnet-contract.html"><strong aria-hidden="true">12.1.</strong> Mixnet Contract</a></li><li class="chapter-item "><a href="../nyx/vesting-contract.html"><strong aria-hidden="true">12.2.</strong> Vesting Contract</a></li></ol></li><li class="chapter-item "><a href="../nyx/rpc-node.html"><strong aria-hidden="true">13.</strong> RPC Nodes</a></li><li class="chapter-item expanded "><a href="../nyx/ledger-live.html" class="active"><strong aria-hidden="true">14.</strong> Ledger Live Support</a></li><li class="chapter-item affix "><li class="part-title">Coconut</li><li class="chapter-item "><a href="../coconut.html"><strong aria-hidden="true">15.</strong> Coconut</a></li><li class="chapter-item "><a href="../bandwidth-credentials.html"><strong aria-hidden="true">16.</strong> Bandwidth Credentials</a></li><li class="chapter-item affix "><li class="part-title">Tools</li><li class="chapter-item "><a href="../tools/nym-cli.html"><strong aria-hidden="true">17.</strong> NymCLI</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../coc.html"><strong aria-hidden="true">18.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../licensing.html"><strong aria-hidden="true">19.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/docs/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="">Setup Guides</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Docs</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym/documentation/" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="ledger-live-support"><a class="header" href="#ledger-live-support">Ledger Live Support</a></h1>
+<p>Use the following instructions to interact with the Nyx blockchain - either with deployed smart contracts, or just to send tokens - using your Ledger device to sign transactions.</p>
+<h2 id="prerequisites"><a class="header" href="#prerequisites">Prerequisites</a></h2>
+<ul>
+<li>Download and install <a href="https://www.ledger.com/ledger-live">Ledger Live</a>.</li>
+<li>Compile the <code>nyxd</code> binary as per the instructions <a href="https://nymtech.net/operators/nodes/validator-setup.html#building-the-nym-validator">here</a>. Stop after you can successfully run <code>nyxd</code> and get the helptext in your console output.</li>
+</ul>
+<h2 id="prepare-your-ledger-app"><a class="header" href="#prepare-your-ledger-app">Prepare your Ledger App</a></h2>
+<ul>
+<li>Plug in your Ledger device</li>
+<li>Install the <code>Cosmos (ATOM)</code> app by following the instructions <a href="https://hub.cosmos.network/main/resources/ledger.html">here</a>. This app allows you to interact with <strong>any</strong> Cosmos SDK chain - you can manage your ATOM, OSMOSIS, NYM tokens, etc.</li>
+<li>On the device, navigate to the Cosmos app and open it</li>
+</ul>
+<h2 id="create-a-keypair"><a class="header" href="#create-a-keypair">Create a keypair</a></h2>
+<p>Add a reference to the ledger device on your local machine by running the following command in the same directory as your <code>nyxd</code> binary:</p>
+<pre><code>nyxd keys add ledger_account --ledger 
+</code></pre>
+<h2 id="command-help-with-nyxd"><a class="header" href="#command-help-with-nyxd">Command help with <code>nyxd</code></a></h2>
+<p>More information about each command is available by consulting the help section (<code>--help</code>) at each layer of <code>nyxd</code>’s commands:</p>
+<pre><code># logging top level command help
+nyxd --help
+
+# logging top level command help for transaction commands 
+nyxd tx --help
+
+# logging top level command help for transaction commands utilising the 'bank' module
+nyxd tx bank --help
+</code></pre>
+<h2 id="sending-tokens-between-addresses"><a class="header" href="#sending-tokens-between-addresses">Sending tokens between addresses</a></h2>
+<p>Perform a transaction from the CLI with <code>nyxd</code>, appending the <code>--ledger</code> option to the command.</p>
+<p>As an example, the below command will send 1 <code>NYM</code> from the ledger account to the <code>$DESTINATION_ACCOUNT</code>:</p>
+<pre><code>nyxd tx bank send ledger_account $DESTINATION_ACCOOUNT 1000000unym --ledger --node https://rpc.dev.nymte.ch:443
+</code></pre>
+<blockquote>
+<p>When a command is run, the transaction will appear on the Ledger device and will require physical confirmation from the device before being signed.</p>
+</blockquote>
+<h2 id="nym-specific-transactions"><a class="header" href="#nym-specific-transactions">Nym-specific transactions</a></h2>
+<p>Nym-specific commands and queries, like bonding a mix node or delegating unvested tokens, are available in the <code>wasm</code> module, and follow the following pattern:</p>
+<pre><code># Executing commands
+nyxd tx wasm execute $CONTRACT_ADDRESS $JSON_MSG
+
+# Querying the state of a smart contract 
+nyxd query wasm contract-state smart $CONTRACT_ADDRESS $JSON_MSG
+</code></pre>
+<p>You can find the value of <code>$CONTRACT_ADDRESS</code> in the <a href="https://github.com/nymtech/nym/blob/release/v1.1.7/common/network-defaults/src/mainnet.rs"><code>network defaults</code></a> file.</p>
+<p>The value of <code>$JSON_MSG</code> will be a blog of <code>json</code> formatted as defined for each command and query. You can find these definitions for the mixnet smart contract <a href="https://github.com/nymtech/nym/blob/develop/common/cosmwasm-smart-contracts/mixnet-contract/src/msg.rs">here</a> and for the vesting contract <a href="https://github.com/nymtech/nym/blob/develop/common/cosmwasm-smart-contracts/vesting-contract/src/messages.rs">here</a> under <code>ExecuteMsg</code> and <code>QueryMsg</code>.</p>
+<h3 id="example-command-execution"><a class="header" href="#example-command-execution">Example command execution:</a></h3>
+<h4 id="delegate-to-a-mix-node"><a class="header" href="#delegate-to-a-mix-node">Delegate to a mix node</a></h4>
+<p>You can delegate to a mix node from the CLI using <code>nyxd</code> and signing the transaction with your ledger by filling in the values of this example:</p>
+<pre><code>CONTRACT_ADDRESS=mixnet_contract_address
+
+./nyxd tx wasm execute $CONTRACT_ADDRESS '{"delegate_to_mixnode":{"mix_identity":"MIX_NODE_IDENTITY","amount":{"amount":"100000000000","denom":"unym"}}}' --ledger --from admin --node https://rpc.dev.nymte.ch:443 --gas-prices 0.025unymt --gas auto -b block
+</code></pre>
+<blockquote>
+<p>By replacing the value of <code>CONTRACT_ADDRESS</code> with the address of the vesting contract, you could use the above command to use tokens held in the vesting contract.</p>
+</blockquote>
+<h4 id="query-a-vesting-schedule"><a class="header" href="#query-a-vesting-schedule">Query a vesting schedule</a></h4>
+<p>You can query for (e.g.) seeing the current vesting period of an address by filling in the values of the following:</p>
+<pre><code>CONTRACT_ADDRESS=vesting_contract_address
+
+nyxd query wasm contract-state smart $CONTRACT_ADDRESS '{"get_current_vesting_period"}:{"address": "address_to_query_for"}' --ledger --from admin --node https://rpc.dev.nymte.ch:443 --chain-id qa-net --gas-prices 0.025unymt --gas auto -b block  
+</code></pre>
+<footer id="last-change">Last change: 2023-09-07, commit: <a href="https://github.com/nymtech/nym/documentation//commit/b4ccd16d8">b4ccd16d8</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../nyx/rpc-node.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../coconut.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../nyx/rpc-node.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../coconut.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

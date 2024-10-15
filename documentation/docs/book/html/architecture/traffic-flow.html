@@ -1,0 +1,368 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Mixnet Traffic Flow - Nym Docs</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Nym technical documentation">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././themes/custom.css">
+        <link rel="stylesheet" href=".././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item affix "><li class="part-title">Architecture</li><li class="chapter-item "><a href="../architecture/network-overview.html"><strong aria-hidden="true">1.</strong> Network Overview</a></li><li class="chapter-item "><a href="../architecture/nym-vs-others.html"><strong aria-hidden="true">2.</strong> Nym vs Other Systems</a></li><li class="chapter-item expanded "><a href="../architecture/traffic-flow.html" class="active"><strong aria-hidden="true">3.</strong> Mixnet Traffic Flow</a></li><li class="chapter-item "><a href="../architecture/addressing-system.html"><strong aria-hidden="true">4.</strong> Addressing System</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../binaries/init-and-config.html"><strong aria-hidden="true">5.1.</strong> Binary Initialisation and Configuration</a></li></ol></li><li class="chapter-item "><a href="../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Nodes</li><li class="chapter-item "><a href="../nodes/overview.html"><strong aria-hidden="true">7.</strong> Node Types (Previously Setup Guides)</a></li><li class="chapter-item affix "><li class="part-title">Wallet</li><li class="chapter-item "><a href="../wallet/desktop-wallet.html"><strong aria-hidden="true">8.</strong> Desktop Wallet</a></li><li class="chapter-item "><a href="../wallet/cli-wallet.html"><strong aria-hidden="true">9.</strong> CLI Wallet</a></li><li class="chapter-item affix "><li class="part-title">Explorers</li><li class="chapter-item "><a href="../explorers/mixnet-explorer.html"><strong aria-hidden="true">10.</strong> Mixnet Explorer</a></li><li class="chapter-item affix "><li class="part-title">Nyx Blockchain</li><li class="chapter-item "><a href="../nyx/interacting-with-chain.html"><strong aria-hidden="true">11.</strong> Interacting with Nyx Chain and Smart Contracts</a></li><li class="chapter-item "><a href="../nyx/smart-contracts.html"><strong aria-hidden="true">12.</strong> Smart Contracts</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nyx/mixnet-contract.html"><strong aria-hidden="true">12.1.</strong> Mixnet Contract</a></li><li class="chapter-item "><a href="../nyx/vesting-contract.html"><strong aria-hidden="true">12.2.</strong> Vesting Contract</a></li></ol></li><li class="chapter-item "><a href="../nyx/rpc-node.html"><strong aria-hidden="true">13.</strong> RPC Nodes</a></li><li class="chapter-item "><a href="../nyx/ledger-live.html"><strong aria-hidden="true">14.</strong> Ledger Live Support</a></li><li class="chapter-item affix "><li class="part-title">Coconut</li><li class="chapter-item "><a href="../coconut.html"><strong aria-hidden="true">15.</strong> Coconut</a></li><li class="chapter-item "><a href="../bandwidth-credentials.html"><strong aria-hidden="true">16.</strong> Bandwidth Credentials</a></li><li class="chapter-item affix "><li class="part-title">Tools</li><li class="chapter-item "><a href="../tools/nym-cli.html"><strong aria-hidden="true">17.</strong> NymCLI</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../coc.html"><strong aria-hidden="true">18.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../licensing.html"><strong aria-hidden="true">19.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/docs/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="">Setup Guides</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Docs</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym/documentation/" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="mixnet-traffic-flow"><a class="header" href="#mixnet-traffic-flow">Mixnet Traffic Flow</a></h1>
+<h2 id="technical-motivations"><a class="header" href="#technical-motivations">Technical Motivations</a></h2>
+<p>When you send data across the internet, it can be recorded by a wide range of observers: your ISP, internet infrastructure providers, large tech companies, and governments.</p>
+<p>Even if the content of a network request is encrypted, observers can still see that data was transmitted, its size, frequency of transmission, and gather metadata from unencrypted parts of the data (such as IP routing information). Adversaries may then combine all the leaked information to probabilistically de-anonymize users.</p>
+<p>The Nym mixnet provides very strong security guarantees against this sort of surveillance. It <em>packetises</em> and <em>mixes</em> together IP traffic from many users inside the <em>mixnet</em>.</p>
+<blockquote>
+<p>If you’re into comparisons, the Nym mixnet is conceptually similar to other systems such as Tor, but provides improved protections against end-to-end timing attacks which can de-anonymize users. When Tor was first fielded, in 2002, those kinds of attacks were regarded as science fiction. But the future is now here.</p>
+</blockquote>
+<h2 id="mixnet-traffic-flow-1"><a class="header" href="#mixnet-traffic-flow-1">Mixnet Traffic Flow</a></h2>
+<p>The Nym mixnet re-orders encrypted, indistinguishable <a href="https://cypherpunks.ca/~iang/pubs/Sphinx_Oakland09.pdf">Sphinx</a> packets as they travel through the gateways and mix nodes.</p>
+<p>Traffic to send through the mixnet is broken up into uniformly-sized packets, encrypted in the Sphinx packet format according to the route the packet will take, and sent through the mixnet to be mixed among other real traffic and fake - but identical - ‘dummy traffic’.</p>
+<p>At each ‘hop’ (i.e. as a packet is forwarded from one node in the sequence to another) a layer of decryption is removed from the Sphinx packet, revealing the address of the next hop, and another Sphinx packet. The packet is then held by the node for a variable amount of time, before being forwarded on to the next node in the route.</p>
+<p>Traffic always travels through the nodes of the mixnet like such:</p>
+<pre><code>                                                                               
+       +----------+              +----------+             +----------+                 
+       | Mix Node |&lt;-----------&gt; | Mix Node |&lt;-----------&gt;| Mix Node |                 
+       | Layer 1  |              | Layer 2  |             | Layer 3  |                 
+       +----------+              +----------+             +----------+                 
+            ^                                                   ^                      
+            |                                                   |                      
+            |                                                   |                      
+            v                                                   v                      
+    +--------------+                                   +-----------------+        
+    | Your gateway |                                   | Service gateway |        
+    +--------------+                                   +-----------------+        
+            ^                                                    ^                     
+            |                                                    |                     
+            |                                                    |                     
+            v                                                    v                     
+  +-------------------+                                +-------------------+           
+  | +---------------+ |                                | +---------------+ |           
+  | |  Nym client   | |                                | |  Nym Client   | |           
+  | +---------------+ |                                | +---------------+ |           
+  |         ^         |                                |         ^         |           
+  |         |         |                                |         |         |           
+  |         |         |                                |         |         |           
+  |         v         |                                |         v         |           
+  | +---------------+ |                                | +---------------+ |           
+  | | Your app code | |                                | | Service Code  | |           
+  | +---------------+ |                                | +---------------+ |           
+  +-------------------+                                +-------------------+           
+   Your Local Machine**                               Service Provider Machine**        
+
+
+** note that depending on the technical setup, the Nym client running on these machines may
+be either a seperate process or embedded in the same process as the app code via one of our SDKs. 
+
+</code></pre>
+<p>From your Nym client, your encrypted traffic is sent to:</p>
+<ul>
+<li>the gateway your client has registered with,</li>
+<li>a mix node on layer 1 of the Mixnet,</li>
+<li>a mix node on layer 2 of the Mixnet,</li>
+<li>a mix node on layer 3 of the Mixnet,</li>
+<li>the recipient’s gateway, which forwards it finally to…</li>
+<li>the recipient’s Nym client, which communicates with an application.</li>
+</ul>
+<blockquote>
+<p>If the recipient’s Nym client is offline at the time then the packets will be held by the Gateway their Nym client has registered with until they come online.</p>
+</blockquote>
+<p>Whatever is on the ‘other side’ of the mixnet from your client, all traffic will travel this way through the mixnet. If you are sending traffic to a service external to Nym (such as a chat application’s servers) then your traffic will be sent from the recieving Nym client to an application that will proxy it ‘out’ of the mixnet to these servers, shielding your metadata from them. P2P (peer-to-peer) applications, unlike the majority of apps, might want to keep all of their traffic entirely ‘within’ the mixnet, as they don’t have to necessarily make outbound network requests to application servers. They would simply have their local application code communicate with their Nym clients, and not forward traffic anywhere ‘outside’ of the mixnet.</p>
+<h2 id="acks--package-retransmission"><a class="header" href="#acks--package-retransmission">Acks &amp; Package Retransmission</a></h2>
+<p>Whenever a hop is completed, the receiving node will send back an acknowledgement (‘ack’) so that the sending node knows that the packet was received. If it does not receive an ack after sending, it will resend the packet, as it assumes that the packet was dropped for some reason. This is done under the hood by the binaries themselves, and is never something that developers and node operators have to worry about dealing with themselves.</p>
+<p>Packet retransmission means that if a client sends 100 packets to a gateway, but only receives an acknowledgement (‘ack’) for 95 of them, it will resend those 5 packets to the gateway again, to make sure that all packets are received. All nodes in the mixnet support packet retransmission.</p>
+<pre><code>                                                                                                               
+  +-------------------+                  +-------------------+                                                
+  | +---------------+ |                  |                   | Packet lost in transmission - no ack recieved! 
+  | |  Nym client   | |                  |                   |-----------------?                              
+  | +-------^-------+ |Send 100 packets  |                   |                                                     
+  |         |         |-----------------&gt;|   Gateway your    |  Resend packet    +------------------+     etc...  
+  |         |         |                  |   client is       |------------------&gt;|                  |------------------&gt; 
+  |         |         |                  |   connected to    |                   | Mix node layer 1 |          
+  |         v         | Send 100 acks    |                   |&lt;------------------|                  |         
+  | +---------------+ |&lt;-----------------|                   |   Send ack        +------------------+        
+  | | Your app code | |                  |                   |                                              
+  | +---------------+ |                  |                   |                                             
+  +-------------------+                  +-------------------+                                            
+   Your Local Machine                                                                                    
+
+</code></pre>
+<h2 id="private-replies-using-surbs"><a class="header" href="#private-replies-using-surbs">Private Replies using SURBs</a></h2>
+<p>SURBs (‘Single Use Reply Blocks’) allow apps to reply to other apps anonymously.</p>
+<p>It will often be the case that a client app wants to interact with a service of some kind, or a P2P application on someone else’s machine. It sort of defeats the purpose of the whole system if your client app needs to reveal its own gateway public key and client public key in order to get a response from the service/app.</p>
+<p>Luckily, SURBs allow for anonymous replies. A SURB is a layer encrypted set of Sphinx headers detailing a reply path ending in the original app’s address. SURBs are encrypted by the client, so the recieving service/app can attach its response and send back the resulting Sphinx packet, but it <strong>never has sight of who it is replying to</strong>.</p>
+<p>MultiSURBs were implemented in <code>v1.1.4</code>. Clients, when sending a message to another client, attach a bundle of SURBs which can be used by the receiver to construct large anonymous replies, such as files. If a reply is too large still (i.e. it would use more SURBs than sent with the original message), the receiver will use a SURB to ask the sender for more SURBs.</p>
+<p>What this means in practice is that files can now be sent via anonymous replies!</p>
+<footer id="last-change">Last change: 2023-11-02, commit: <a href="https://github.com/nymtech/nym/documentation//commit/6122817ab">6122817ab</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../architecture/nym-vs-others.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../architecture/addressing-system.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../architecture/nym-vs-others.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../architecture/addressing-system.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

@@ -1,0 +1,540 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Nym API Setup - Nym Operators Guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Everything needed to run Nym Mixnet components">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../favicon.svg">
+        <link rel="shortcut icon" href="../favicon.png">
+        <link rel="stylesheet" href="../css/variables.css">
+        <link rel="stylesheet" href="../css/general.css">
+        <link rel="stylesheet" href="../css/chrome.css">
+        <link rel="stylesheet" href="../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../highlight.css">
+        <link rel="stylesheet" href="../tomorrow-night.css">
+        <link rel="stylesheet" href="../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href=".././themes/custom.css">
+        <link rel="stylesheet" href=".././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href=".././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item "><a href="../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="../changelog.html"><strong aria-hidden="true">2.</strong> Changelog</a></li><li class="chapter-item "><a href="../release-cycle.html"><strong aria-hidden="true">3.</strong> Release Cycle</a></li><li class="chapter-item "><a href="../sandbox.html"><strong aria-hidden="true">4.</strong> Sandbox Testnet</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Operators Guides</li><li class="chapter-item "><a href="../nodes/preliminary-steps.html"><strong aria-hidden="true">7.</strong> Preliminary Steps</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/wallet-preparation.html"><strong aria-hidden="true">7.1.</strong> Nym Wallet Preparation</a></li><li class="chapter-item "><a href="../nodes/vps-setup.html"><strong aria-hidden="true">7.2.</strong> VPS Setup</a></li></ol></li><li class="chapter-item "><a href="../nodes/nym-node.html"><strong aria-hidden="true">8.</strong> Nym Node</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/setup.html"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../nodes/configuration.html"><strong aria-hidden="true">8.2.</strong> Configuration</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/proxy-configuration.html"><strong aria-hidden="true">8.2.1.</strong> WSS & Reversed Proxy</a></li></ol></li><li class="chapter-item "><a href="../nodes/bonding.html"><strong aria-hidden="true">8.3.</strong> Bonding</a></li></ol></li><li class="chapter-item expanded "><a href="../nodes/validator-setup.html"><strong aria-hidden="true">9.</strong> Nyx Validator Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item expanded "><a href="../nodes/nym-api.html" class="active"><strong aria-hidden="true">9.1.</strong> Nym API Setup</a></li><li class="chapter-item "><a href="../nodes/nyx-configuration.html"><strong aria-hidden="true">9.2.</strong> Validator & API Configuration</a></li></ol></li><li class="chapter-item "><a href="../nodes/maintenance.html"><strong aria-hidden="true">10.</strong> Maintenance</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../nodes/manual-upgrade.html"><strong aria-hidden="true">10.1.</strong> Manual Node Upgrade</a></li><li class="chapter-item "><a href="../nodes/nymvisor-upgrade.html"><strong aria-hidden="true">10.2.</strong> Automatic Node Upgrade: Nymvisor Setup and Usage</a></li></ol></li><li class="chapter-item "><a href="../testing/performance.html"><strong aria-hidden="true">11.</strong> Performance Monitoring & Testing</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/gateway-probe.html"><strong aria-hidden="true">11.1.</strong> Gateway Probe</a></li><li class="chapter-item "><a href="../testing/node-api-check.html"><strong aria-hidden="true">11.2.</strong> Node API Check</a></li><li class="chapter-item "><a href="../testing/prometheus-grafana.html"><strong aria-hidden="true">11.3.</strong> Prometheus & Grafana</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../testing/explorenym-scripts.html"><strong aria-hidden="true">11.3.1.</strong> ExploreNYM scripts</a></li></ol></li></ol></li><li class="chapter-item "><li class="part-title">Troubleshooting</li><li class="chapter-item "><a href="../troubleshooting/vps-isp.html"><strong aria-hidden="true">12.</strong> VPS Setup</a></li><li class="chapter-item "><a href="../troubleshooting/nodes.html"><strong aria-hidden="true">13.</strong> Nym Node</a></li><li class="chapter-item "><a href="../troubleshooting/validators.html"><strong aria-hidden="true">14.</strong> Validators</a></li><li class="chapter-item affix "><li class="part-title">Token Economics</li><li class="chapter-item "><a href="../tokenomics/validator-rewards.html"><strong aria-hidden="true">15.</strong> Nyx: Validator Rewards</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="../faq/general-faq.html"><strong aria-hidden="true">16.</strong> General Operators FAQ</a></li><li class="chapter-item "><a href="../faq/nym-nodes-faq.html"><strong aria-hidden="true">17.</strong> Nym Nodes</a></li><li class="chapter-item "><a href="../faq/nyx-faq.html"><strong aria-hidden="true">18.</strong> Nyx & Validators</a></li><li class="chapter-item affix "><li class="part-title">Community & Legal Forum</li><li class="chapter-item "><a href="../legal/exit-gateway.html"><strong aria-hidden="true">19.</strong> Exit Gateway</a></li><li class="chapter-item "><a href="../legal/community-counsel.html"><strong aria-hidden="true">20.</strong> Community Counsel</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/isp-list.html"><strong aria-hidden="true">20.1.</strong> ISP List</a></li><li class="chapter-item "><a href="../legal/jurisdictions.html"><strong aria-hidden="true">20.2.</strong> Jurisdictions</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../legal/swiss.html"><strong aria-hidden="true">20.2.1.</strong> Switzerland</a></li><li class="chapter-item "><a href="../legal/united-states.html"><strong aria-hidden="true">20.2.2.</strong> United States</a></li></ol></li><li class="chapter-item "><a href="../legal/landing-pages.html"><strong aria-hidden="true">20.3.</strong> Landing Pages</a></li></ol></li><li class="chapter-item "><a href="../legal/add-content.html"><strong aria-hidden="true">21.</strong> How to Add Info</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="../archive/archive.html"><strong aria-hidden="true">22.</strong> Why archive?</a></li><li class="chapter-item "><a href="../archive/nodes/setup-guides.html"><strong aria-hidden="true">23.</strong> Mixnet Nodes Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../archive/nodes/initial-steps.html"><strong aria-hidden="true">23.1.</strong> Preliminary Steps</a></li><li class="chapter-item "><a href="../archive/nodes/mix-node-setup.html"><strong aria-hidden="true">23.2.</strong> Mix Node</a></li><li class="chapter-item "><a href="../archive/nodes/gateway-setup.html"><strong aria-hidden="true">23.3.</strong> Gateway</a></li><li class="chapter-item "><a href="../archive/nodes/network-requester-setup.html"><strong aria-hidden="true">23.4.</strong> Network Requester</a></li></ol></li><li class="chapter-item "><a href="../archive/faq/mixnodes-faq.html"><strong aria-hidden="true">24.</strong> FAQ: Mix Nodes</a></li><li class="chapter-item "><a href="../archive/faq/smoosh-faq.html"><strong aria-hidden="true">25.</strong> FAQ: Project Smoosh</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../coc.html"><strong aria-hidden="true">26.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../toc.html"><strong aria-hidden="true">27.</strong> Terms & Conditions</a></li><li class="chapter-item "><a href="../licensing.html"><strong aria-hidden="true">28.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Operators Guide</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="nym-api-setup"><a class="header" href="#nym-api-setup">Nym API Setup</a></h1>
+<blockquote>
+<p>Any syntax in <code>&lt;&gt;</code> brackets is a user’s unique variable. Exchange with a corresponding name without the <code>&lt;&gt;</code> brackets.</p>
+</blockquote>
+<h2 id="what-is-the-nym-api"><a class="header" href="#what-is-the-nym-api">What is the Nym API?</a></h2>
+<p>The Nym API is a binary that will be operated by the Nyx validator set. This binary can be run in several different modes, and has two main bits of functionality:</p>
+<ul>
+<li>network monitoring (calculating the routing score of Mixnet nodes)</li>
+<li>generation and validation of <a href="https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a">zk-nyms</a>, our implementation of the Coconut Selective Disclosure Credential Scheme.</li>
+</ul>
+<p>This is important for both the proper decentralisation of the network uptime calculation and, more pressingly, enabling the NymVPN to utilise privacy preserving payments.</p>
+<p>The process of enabling these different aspects of the system will take time. At the moment, Nym API operators will only have to run the binary in a minimal ‘caching’ mode in order to get used to maintaining an additional process running alongside a full node.</p>
+<div id="admonition-warning" class="admonition admonish-warning" role="note" aria-labelledby="admonition-warning-title">
+<div class="admonition-title">
+<div id="admonition-warning-title">
+<p>Warning</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-warning"></a>
+</div>
+<div>
+<p>It is highly recommended to run <code>nym-api</code> alongside a full node and NOT a validator node, since you will be exposing HTTP port(s) to the Internet. We also observed degradation in p2p and block signing operations when <code>nym-api</code> was run alongside a signing validator.</p>
+</div>
+</div>
+<h3 id="rewards"><a class="header" href="#rewards">Rewards</a></h3>
+<p>Operators of Nym API will be rewarded for performing the extra work of taking part in credential generation. These rewards will be calculated <strong>separately</strong> from rewards for block production.</p>
+<p>Rewards for credential signing will be calculated hourly, with API operators receiving a proportional amount of the reward pool (333NYM per hour / 237,600 NYM per month), proportional to the percentage of credentials they have signed.</p>
+<h3 id="hardware-requirements"><a class="header" href="#hardware-requirements">Hardware Requirements</a></h3>
+<p>The specification mentioned below is for running a full node alongside the nym-api. It is recommended to run <code>nym-api</code> and a full Nyx node on the same machine for optimum performance.</p>
+<p>Bear in mind that credential signing is primarily CPU-bound, so choose the fastest CPU available to you.</p>
+<h4 id="minimum-requirements"><a class="header" href="#minimum-requirements">Minimum Requirements</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>Hardware</th><th>Minimum Specification</th></tr></thead><tbody>
+<tr><td>CPU</td><td>8-cores, 2.8GHz base clock speed or higher</td></tr>
+<tr><td>RAM</td><td>16GB DDR4+</td></tr>
+<tr><td>Disk</td><td>500 GiB+ NVMe SSD</td></tr>
+</tbody></table>
+</div>
+<h4 id="recommended-requirements"><a class="header" href="#recommended-requirements">Recommended Requirements</a></h4>
+<div class="table-wrapper"><table><thead><tr><th>Hardware</th><th>Minimum Specification</th></tr></thead><tbody>
+<tr><td>CPU</td><td>16-cores, 2.8GHz base clock speed or higher</td></tr>
+<tr><td>RAM</td><td>32GB DDR4+</td></tr>
+<tr><td>Disk</td><td>1 TiB+ NVMe SSD</td></tr>
+</tbody></table>
+</div>
+<h3 id="full-node-configuration"><a class="header" href="#full-node-configuration">Full node configuration</a></h3>
+<p>To install a full node from scratch, refer to the <a href="./validator-setup.html">validator setup guide</a> and follow the steps outlined there.
+Additionally, to ensure <code>nym-api</code> works as expected, ensure the configuration is as below:</p>
+<h4 id="ensure-transaction-index-is-turned-on-in-your-configtoml"><a class="header" href="#ensure-transaction-index-is-turned-on-in-your-configtoml">Ensure transaction index is turned on in your <code>config.toml</code>:</a></h4>
+<pre><code>[tx_index]
+
+# Ensure that this is not set to "null". You're free to use any indexer
+
+indexer = "kv"
+</code></pre>
+<h4 id="ensure-pruning-settings-are-manually-configured"><a class="header" href="#ensure-pruning-settings-are-manually-configured">Ensure pruning settings are manually configured</a></h4>
+<p><code>nym-api</code> needs to check validity of user-submitted transactions (in the past) while issuing credentials and as part of double-spend check. Hence, aggressively pruning data will lead to errors with your <code>nym-api</code></p>
+<p>Make sure your pruning settings are configured as below in <code>app.toml</code>:</p>
+<pre><code>pruning = "custom"
+
+# This number is likely to be updated once zk-nym signing goes live
+pruning-keep-recent = "750000"
+pruning-interval = "100"
+</code></pre>
+<p>The example value of <code>100</code> for <code>pruning-interval</code> can be customised as per your requirement.</p>
+<h3 id="credential-generation"><a class="header" href="#credential-generation">Credential Generation</a></h3>
+<p>Validators that take part in the DKG ceremony will become part of the ‘quorum’ generating and verifying zk-nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts <a href="https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d">here</a> and <a href="https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a">here</a> for more on this), and in the future will be expanded into more general usecases such as <a href="https://arxiv.org/abs/2303.08221">offline ecash</a>.</p>
+<p>The DKG ceremony will be used to create a subset of existing validators who run <code>nym-api</code> alongside a Nyx full-node. As outlined above, they will be the ones taking part in the generation and verification of zk-nym credentials. The size of the ‘minimum viable quorum’ is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a validator dropping or going offline.</p>
+<p>We will be releasing more detailed step-by-step documentation for involved validators nearer to the ceremony itself, but at a high level it will involve:</p>
+<ul>
+<li>the deployment and initialisation of <a href="https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group"><code>group</code></a> and <a href="https://github.com/nymtech/nym/tree/develop/contracts/multisig"><code>multisig</code></a> contracts by Nym. Validators that are members of the <code>group</code> contract are the only ones that will be able to take part in the ceremony.</li>
+<li>the deployment and initialisation of an instance of the <a href="https://github.com/nymtech/nym/tree/develop/contracts/coconut-dkg">DKG contract</a> by Nym.</li>
+<li>Validators will update their <code>nym-api</code> configs with the address of the deployed contracts. They will also stop running their API instance in caching only mode, instead switching over run with the <code>--enabled-credentials-mode</code>.</li>
+<li>From the perspective of operators, this is all they have to do. Under the hood, each <code>nym-api</code> instance will then take part in several rounds of key submission, verification, and derivation. This will continue until quorum is acheived.</li>
+</ul>
+<p><strong>We will be communicating individually with members of the existing validator set who have expressed interest in joining the quorum concerning the timing and specifics of the ceremony</strong>.</p>
+<h2 id="current-version"><a class="header" href="#current-version">Current version</a></h2>
+<pre><code>1.1.42
+</code></pre>
+<h2 id="setup-and-usage"><a class="header" href="#setup-and-usage">Setup and Usage</a></h2>
+<h3 id="viewing-command-help"><a class="header" href="#viewing-command-help">Viewing command help</a></h3>
+<p>You can check that your binary is properly compiled with:</p>
+<pre><code>./nym-api --help
+</code></pre>
+<p>Which should return a list of all available commands.</p>
+<details id="admonition-console-output" class="admonition admonish-example" role="note" aria-labelledby="admonition-console-output-title">
+<summary class="admonition-title">
+<div id="admonition-console-output-title">
+<p>Console output</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-console-output"></a>
+</summary>
+<div>
+<pre><code>Usage: nym-api [OPTIONS] &lt;COMMAND&gt;
+
+Commands:
+  init        Initialise a Nym Api instance with persistent config.toml file
+  run         Run the Nym Api with provided configuration optionally overriding set parameters
+  build-info  Show build information of this binary
+  help        Print this message or the help of the given subcommand(s)
+
+Options:
+  -c, --config-env-file &lt;CONFIG_ENV_FILE&gt;
+          Path pointing to an env file that configures the Nym API
+      --no-banner
+          A no-op flag included for consistency with other binaries (and compatibility with nymvisor, oops)
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+</code></pre>
+</div>
+</details>
+<p>You can also check the various arguments required for individual commands with:</p>
+<pre><code>./nym-api &lt;COMMAND&gt; --help
+</code></pre>
+<h3 id="initialising-your-nym-api-instance-in-caching-mode"><a class="header" href="#initialising-your-nym-api-instance-in-caching-mode">Initialising your Nym API Instance in caching mode</a></h3>
+<p>Initialise your API instance with:</p>
+<pre><code>./nym-api init
+</code></pre>
+<p>You can optionally pass a local identifier for this instance with the <code>--id</code> flag. Otherwise the ID of your instance defaults to <code>default</code>.</p>
+<h3 id="enabling-credential-signing-on-your-nym-api-instance"><a class="header" href="#enabling-credential-signing-on-your-nym-api-instance">Enabling credential signing on your Nym API instance</a></h3>
+<p>To engage in the Distributed Key Generation (DKG) ceremony, it’s essential to transition your <code>nym-api</code> instance from its default caching mode to the active credential signing mode. This section guides you through the process of enabling credential signing</p>
+<h4 id="generate-a-new-wallet"><a class="header" href="#generate-a-new-wallet">Generate a new wallet</a></h4>
+<p>Begin by generating a new wallet address specifically for your instance to use in credential signing mode. Utilize the <code>nyxd</code> command-line tool with the following command:</p>
+<pre><code>nyxd keys add signer
+</code></pre>
+<div id="admonition-backup-your-keys" class="admonition admonish-warning" role="note" aria-labelledby="admonition-backup-your-keys-title">
+<div class="admonition-title">
+<div id="admonition-backup-your-keys-title">
+<p>Backup your keys!</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-backup-your-keys"></a>
+</div>
+<div>
+<p>It’s critical to securely back up the mnemonic phrase generated during this process. This mnemonic is your key to recovering the wallet in the future, so store it in a secure, offline location.</p>
+</div>
+</div>
+<h4 id="fund-the-address"><a class="header" href="#fund-the-address">Fund the address</a></h4>
+<p>Next, deposit NYM tokens into the newly created wallet address to ensure it can cover transaction fees incurred during the credential signing process. <code>nym-api</code> will not operate if the wallet’s balance falls below 10 NYM tokens, displaying an error message upon startup.</p>
+<p>We recommand beginning with an initial deposit of 100 NYM tokens and monitoring the balance regularly, topping it up as necessary to maintain operational readiness.</p>
+<h4 id="update-api-configuration"><a class="header" href="#update-api-configuration">Update API configuration</a></h4>
+<p>With your new wallet ready and funded, proceed to update your <code>nym-api</code> configuration to enable credential signing:</p>
+<p>Update your <code>config.toml</code> located in <code>&lt;HOME_DIR&gt;/.nym/nym-api/foo/config/config.toml</code> as below:</p>
+<p>Enable the coconut signer:</p>
+<pre><code>[coconut_signer]
+# Specifies whether coconut signing protocol is enabled in this process.
+enabled = true  # This was previously false
+</code></pre>
+<p>Set your announce address if it is empty. This is the URL you previously configured for your <code>nym-api</code> instance</p>
+<pre><code># This is the address you previously configured for the nym-api
+# Not to be confused with the Cosmos REST API URL
+announce_address = 'https://nym-api.your.tld/'
+</code></pre>
+<p>Finally, input the mnemonic phrase generated during the wallet creation step into the mnemonic field</p>
+<pre><code>mnemonic = '&lt;YOUR_MNEMONIC_HERE&gt;'
+</code></pre>
+<p>After completing these steps, your <code>nym-api</code> instance is configured to participate in credential signing and the DKG ceremony.</p>
+<h3 id="running-your-nym-api-instance"><a class="header" href="#running-your-nym-api-instance">Running your Nym API Instance</a></h3>
+<p>The API binary currently defaults to running in caching mode. You can run your API with:</p>
+<pre><code>./nym-api run --id &lt;YOUR_ID&gt;
+</code></pre>
+<p>By default the API will be trying to query your full node running locally on <code>localhost:26657</code>. If your node is hosted elsewhere, you can specify the RPC location by using the <code>--nyxd-validator </code> flag on <code>run</code>:</p>
+<pre><code>./nym-api run --id &lt;YOUR_ID&gt; --nyxd-validator https://rpc-nym.yourcorp.tld:443
+</code></pre>
+<blockquote>
+<p>You can also change the value of <code>local_validator</code> in the config file found by default in <code>$HOME/.nym/nym-api/&lt;ID&gt;/config/config.toml</code>.</p>
+</blockquote>
+<p>This process is quite noisy, but informative:</p>
+<details id="admonition-console-output-1" class="admonition admonish-example" role="note" aria-labelledby="admonition-console-output-1-title">
+<summary class="admonition-title">
+<div id="admonition-console-output-1-title">
+<p>Console output</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-console-output-1"></a>
+</summary>
+<div>
+<pre><code>Starting nym api...
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch &gt; 🔧 Configured for release.
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; address: 127.0.0.1
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; port: 8000
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; workers: 4
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; max blocking threads: 512
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; ident: Rocket
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; IP header: X-Real-IP
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; limits: bytes = 8KiB, data-form = 2MiB, file = 1MiB, form = 32KiB, json = 1MiB, msgpack = 1MiB, string = 8KiB
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; temp dir: /tmp
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; http/2: true
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; keep-alive: 5s
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; tls: disabled
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; shutdown: ctrlc = true, force = true, signals = [SIGTERM], grace = 2s, mercy = 3s
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; log level: critical
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; cli colors: true
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch    &gt; 📬 Routes:
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_registered_names) GET /v1/names
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_mixnodes) GET /v1/mixnodes
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_gateways) GET /v1/gateways
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_services) GET /v1/services
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /v1/openapi.json
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_full_circulating_supply) GET /v1/circulating-supply
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_current_epoch) GET /v1/epoch/current
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_active_set) GET /v1/mixnodes/active
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_mixnodes_detailed) GET /v1/mixnodes/detailed
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_rewarded_set) GET /v1/mixnodes/rewarded
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_gateways_described) GET /v1/gateways/described
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_interval_reward_params) GET /v1/epoch/reward_params
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_blacklisted_mixnodes) GET /v1/mixnodes/blacklisted
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_blacklisted_gateways) GET /v1/gateways/blacklisted
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_total_supply) GET /v1/circulating-supply/total-supply-value
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_circulating_supply) GET /v1/circulating-supply/circulating-supply-value
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_active_set_detailed) GET /v1/mixnodes/active/detailed
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_rewarded_set_detailed) GET /v1/mixnodes/rewarded/detailed
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /cors/&lt;status&gt;
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /swagger/
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /swagger/index.css
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /swagger/index.html
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /swagger/swagger-ui.css
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /swagger/oauth2-redirect.html
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /swagger/swagger-ui-bundle.js
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /swagger/swagger-ui-config.json
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /swagger/swagger-initializer.js
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; GET /swagger/swagger-ui-standalone-preset.js
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_mixnodes_detailed) GET /v1/status/mixnodes/detailed
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_mixnode_inclusion_probabilities) GET /v1/status/mixnodes/inclusion_probability
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_mixnode_status) GET /v1/status/mixnode/&lt;mix_id&gt;/status
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_active_set_detailed) GET /v1/status/mixnodes/active/detailed
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_rewarded_set_detailed) GET /v1/status/mixnodes/rewarded/detailed
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_mixnode_stake_saturation) GET /v1/status/mixnode/&lt;mix_id&gt;/stake-saturation
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (get_mixnode_inclusion_probability) GET /v1/status/mixnode/&lt;mix_id&gt;/inclusion-probability
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (network_details) GET /v1/network/details
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (nym_contracts) GET /v1/network/nym-contracts
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; (nym_contracts_detailed) GET /v1/network/nym-contracts-detailed
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch    &gt; 📡 Fairings:
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; Validator Cache Stage (ignite)
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; Circulating Supply Cache Stage (ignite)
+ 2023-12-12T14:29:55.800Z INFO  rocket::launch::_ &gt; Shield (liftoff, response, singleton)
+ 2023-12-12T14:29:55.801Z INFO  rocket::launch::_ &gt; CORS (ignite, request, response)
+ 2023-12-12T14:29:55.801Z INFO  rocket::launch::_ &gt; Node Status Cache (ignite)
+ 2023-12-12T14:29:55.801Z INFO  rocket::shield::shield &gt; 🛡️ Shield:
+ 2023-12-12T14:29:55.801Z INFO  rocket::shield::shield::_ &gt; X-Content-Type-Options: nosniff
+ 2023-12-12T14:29:55.801Z INFO  rocket::shield::shield::_ &gt; X-Frame-Options: SAMEORIGIN
+ 2023-12-12T14:29:55.801Z INFO  rocket::shield::shield::_ &gt; Permissions-Policy: interest-cohort=()
+ 2023-12-12T14:29:55.801Z WARN  rocket::launch            &gt; 🚀 Rocket has launched from http://127.0.0.1:8000
+ 2023-12-12T14:29:56.375Z INFO  nym_api::nym_contract_cache::cache::refresher &gt; Updating validator cache. There are 888 mixnodes and 105 gateways
+ 2023-12-12T14:29:56.375Z INFO  nym_api::node_status_api::cache::refresher    &gt; Updating node status cache
+ 2023-12-12T14:29:57.359Z INFO  nym_api::circulating_supply_api::cache        &gt; Updating circulating supply cache
+ 2023-12-12T14:29:57.359Z INFO  nym_api::circulating_supply_api::cache        &gt; the mixmining reserve is now 220198535489690unym
+ 2023-12-12T14:29:57.359Z INFO  nym_api::circulating_supply_api::cache        &gt; the number of tokens still vesting is now 145054386857730unym
+ 2023-12-12T14:29:57.359Z INFO  nym_api::circulating_supply_api::cache        &gt; the circulating supply is now 634747077652580unym
+ 2023-12-12T14:30:00.803Z INFO  nym_api::support::caching::refresher          &gt; node-self-described-data-refresher: refreshing cache state
+ 2023-12-12T14:31:56.290Z INFO  nym_api::nym_contract_cache::cache::refresher &gt; Updating validator cache. There are 888 mixnodes and 105 gateways
+ 2023-12-12T14:31:56.291Z INFO  nym_api::node_status_api::cache::refresher    &gt; Updating node status cache
+</code></pre>
+</div>
+</details>
+<h2 id="automation"><a class="header" href="#automation">Automation</a></h2>
+<p>You will most likely want to automate your validator restarting if your server reboots. Checkout the <a href="./maintenance.html">maintenance page</a> for an example <code>service</code> file.</p>
+<p>You can also use <code>nymvisor</code> to automatically update the <code>nym-api</code> node. The steps to install Nymvisor can be found <a href="nymvisor-upgrade.html">here</a>.</p>
+<h2 id="exposing-web-endpoint-using-https"><a class="header" href="#exposing-web-endpoint-using-https">Exposing web endpoint using HTTPS</a></h2>
+<p>It is recommended to expose the webserver over HTTPS by using a webserver like Nginx. An example configuration for configuring Nginx is listed <a href="maintenance.html#nym-api-configuration">on the maintenance page</a>. If you’re using a custom solution, ensure to allow requests from anywhere by setting a permissive CORS policy.</p>
+<p>For example, it is configured in Nginx using: <code>add_header 'Access-Control-Allow-Origin' '*';</code></p>
+<footer id="last-change">Last change: 2024-04-09, commit: <a href="https://github.com/nymtech/nym/commit/30ffea19a">30ffea19a</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../nodes/validator-setup.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../nodes/nyx-configuration.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../nodes/validator-setup.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../nodes/nyx-configuration.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../elasticlunr.min.js"></script>
+        <script src="../mark.min.js"></script>
+        <script src="../searcher.js"></script>
+
+        <script src="../clipboard.min.js"></script>
+        <script src="../highlight.js"></script>
+        <script src="../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src=".././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

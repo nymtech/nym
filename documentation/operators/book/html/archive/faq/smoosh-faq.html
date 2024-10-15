@@ -1,0 +1,369 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>FAQ: Project Smoosh - Nym Operators Guide</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Everything needed to run Nym Mixnet components">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././themes/custom.css">
+        <link rel="stylesheet" href="../.././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item affix "><li class="part-title">Summary</li><li class="chapter-item "><a href="../../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="../../changelog.html"><strong aria-hidden="true">2.</strong> Changelog</a></li><li class="chapter-item "><a href="../../release-cycle.html"><strong aria-hidden="true">3.</strong> Release Cycle</a></li><li class="chapter-item "><a href="../../sandbox.html"><strong aria-hidden="true">4.</strong> Sandbox Testnet</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="../../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Operators Guides</li><li class="chapter-item "><a href="../../nodes/preliminary-steps.html"><strong aria-hidden="true">7.</strong> Preliminary Steps</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nodes/wallet-preparation.html"><strong aria-hidden="true">7.1.</strong> Nym Wallet Preparation</a></li><li class="chapter-item "><a href="../../nodes/vps-setup.html"><strong aria-hidden="true">7.2.</strong> VPS Setup</a></li></ol></li><li class="chapter-item "><a href="../../nodes/nym-node.html"><strong aria-hidden="true">8.</strong> Nym Node</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nodes/setup.html"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../../nodes/configuration.html"><strong aria-hidden="true">8.2.</strong> Configuration</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nodes/proxy-configuration.html"><strong aria-hidden="true">8.2.1.</strong> WSS & Reversed Proxy</a></li></ol></li><li class="chapter-item "><a href="../../nodes/bonding.html"><strong aria-hidden="true">8.3.</strong> Bonding</a></li></ol></li><li class="chapter-item "><a href="../../nodes/validator-setup.html"><strong aria-hidden="true">9.</strong> Nyx Validator Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nodes/nym-api.html"><strong aria-hidden="true">9.1.</strong> Nym API Setup</a></li><li class="chapter-item "><a href="../../nodes/nyx-configuration.html"><strong aria-hidden="true">9.2.</strong> Validator & API Configuration</a></li></ol></li><li class="chapter-item "><a href="../../nodes/maintenance.html"><strong aria-hidden="true">10.</strong> Maintenance</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nodes/manual-upgrade.html"><strong aria-hidden="true">10.1.</strong> Manual Node Upgrade</a></li><li class="chapter-item "><a href="../../nodes/nymvisor-upgrade.html"><strong aria-hidden="true">10.2.</strong> Automatic Node Upgrade: Nymvisor Setup and Usage</a></li></ol></li><li class="chapter-item "><a href="../../testing/performance.html"><strong aria-hidden="true">11.</strong> Performance Monitoring & Testing</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../testing/gateway-probe.html"><strong aria-hidden="true">11.1.</strong> Gateway Probe</a></li><li class="chapter-item "><a href="../../testing/node-api-check.html"><strong aria-hidden="true">11.2.</strong> Node API Check</a></li><li class="chapter-item "><a href="../../testing/prometheus-grafana.html"><strong aria-hidden="true">11.3.</strong> Prometheus & Grafana</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../testing/explorenym-scripts.html"><strong aria-hidden="true">11.3.1.</strong> ExploreNYM scripts</a></li></ol></li></ol></li><li class="chapter-item "><li class="part-title">Troubleshooting</li><li class="chapter-item "><a href="../../troubleshooting/vps-isp.html"><strong aria-hidden="true">12.</strong> VPS Setup</a></li><li class="chapter-item "><a href="../../troubleshooting/nodes.html"><strong aria-hidden="true">13.</strong> Nym Node</a></li><li class="chapter-item "><a href="../../troubleshooting/validators.html"><strong aria-hidden="true">14.</strong> Validators</a></li><li class="chapter-item affix "><li class="part-title">Token Economics</li><li class="chapter-item "><a href="../../tokenomics/validator-rewards.html"><strong aria-hidden="true">15.</strong> Nyx: Validator Rewards</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="../../faq/general-faq.html"><strong aria-hidden="true">16.</strong> General Operators FAQ</a></li><li class="chapter-item "><a href="../../faq/nym-nodes-faq.html"><strong aria-hidden="true">17.</strong> Nym Nodes</a></li><li class="chapter-item "><a href="../../faq/nyx-faq.html"><strong aria-hidden="true">18.</strong> Nyx & Validators</a></li><li class="chapter-item affix "><li class="part-title">Community & Legal Forum</li><li class="chapter-item "><a href="../../legal/exit-gateway.html"><strong aria-hidden="true">19.</strong> Exit Gateway</a></li><li class="chapter-item "><a href="../../legal/community-counsel.html"><strong aria-hidden="true">20.</strong> Community Counsel</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../legal/isp-list.html"><strong aria-hidden="true">20.1.</strong> ISP List</a></li><li class="chapter-item "><a href="../../legal/jurisdictions.html"><strong aria-hidden="true">20.2.</strong> Jurisdictions</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../legal/swiss.html"><strong aria-hidden="true">20.2.1.</strong> Switzerland</a></li><li class="chapter-item "><a href="../../legal/united-states.html"><strong aria-hidden="true">20.2.2.</strong> United States</a></li></ol></li><li class="chapter-item "><a href="../../legal/landing-pages.html"><strong aria-hidden="true">20.3.</strong> Landing Pages</a></li></ol></li><li class="chapter-item "><a href="../../legal/add-content.html"><strong aria-hidden="true">21.</strong> How to Add Info</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="../../archive/archive.html"><strong aria-hidden="true">22.</strong> Why archive?</a></li><li class="chapter-item "><a href="../../archive/nodes/setup-guides.html"><strong aria-hidden="true">23.</strong> Mixnet Nodes Setup</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../archive/nodes/initial-steps.html"><strong aria-hidden="true">23.1.</strong> Preliminary Steps</a></li><li class="chapter-item "><a href="../../archive/nodes/mix-node-setup.html"><strong aria-hidden="true">23.2.</strong> Mix Node</a></li><li class="chapter-item "><a href="../../archive/nodes/gateway-setup.html"><strong aria-hidden="true">23.3.</strong> Gateway</a></li><li class="chapter-item "><a href="../../archive/nodes/network-requester-setup.html"><strong aria-hidden="true">23.4.</strong> Network Requester</a></li></ol></li><li class="chapter-item "><a href="../../archive/faq/mixnodes-faq.html"><strong aria-hidden="true">24.</strong> FAQ: Mix Nodes</a></li><li class="chapter-item expanded "><a href="../../archive/faq/smoosh-faq.html" class="active"><strong aria-hidden="true">25.</strong> FAQ: Project Smoosh</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../../coc.html"><strong aria-hidden="true">26.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../../toc.html"><strong aria-hidden="true">27.</strong> Terms & Conditions</a></li><li class="chapter-item "><a href="../../licensing.html"><strong aria-hidden="true">28.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Operators Guide</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="project-smoosh---faq"><a class="header" href="#project-smoosh---faq">Project Smoosh - FAQ</a></h1>
+<div id="admonition-warning" class="admonition admonish-warning" role="note" aria-labelledby="admonition-warning-title">
+<div class="admonition-title">
+<div id="admonition-warning-title">
+<p>Warning</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-warning"></a>
+</div>
+<div>
+<p><strong>This is an archived page for backwards compatibility. We have switched to <a href="../../nodes/nym-node.html"><code>nym-node</code> binary</a>, please <a href="../../nodes/setup.html#migrate">migrate</a> your nodes. The content of this page is not updated since April 26th 2024. Eventually this page will be terminated!</strong></p>
+</div>
+</div>
+<blockquote>
+<p>We aim on purpose to make minimal changes to reward scheme and software. We’re just ‘smooshing’ together stuff we already debugged and know works.
+– Harry Halpin,  Nym CEO</p>
+</blockquote>
+<br>
+<p>This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the <a href="mixnodes-faq.html">Mix Nodes FAQ page</a> holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page.</p>
+<p>If any questions are not answered or it’s not clear for you in which stage project Smoosh is right now, please reach out in Node Operators <a href="https://matrix.to/#/#operators:nymtech.chat">Matrix room</a>.</p>
+<h3 id="what-are-the-changes"><a class="header" href="#what-are-the-changes">What are the changes?</a></h3>
+<p>Project Smoosh will have four steps, please follow the table below to track the dynamic progress:</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: left"><strong>Step</strong></th><th style="text-align: left"><strong>Status</strong></th></tr></thead><tbody>
+<tr><td style="text-align: left"><strong>1.</strong> Combine the <code>nym-gateway</code> and <code>nym-network-requester</code> into one binary</td><td style="text-align: left">✅ done</td></tr>
+<tr><td style="text-align: left"><strong>2.</strong> Create <a href="../../legal/exit-gateway.html">Exit Gateway</a>: Take the <code>nym-gateway</code> binary including <code>nym-network-requester</code> combined in #1 and switch from <a href="https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt"><code>allowed.list</code></a> to a new <a href="https://nymtech.net/.wellknown/network-requester/exit-policy.txt">exit policy</a></td><td style="text-align: left">✅ done</td></tr>
+<tr><td style="text-align: left"><strong>3.</strong> Combine all the nodes in the Nym Mixnet into one binary, that is <code>nym-mixnode</code>, <code>nym-gateway</code> (entry and exit) and <code>nym-network-requester</code>.</td><td style="text-align: left">✅ done</td></tr>
+<tr><td style="text-align: left"><strong>4.</strong> Adjust reward scheme to incentivise and reward Exit Gateways as a part of <code>nym-node</code> binary, implementing <a href="https://youtu.be/nLmdsZ1BsQg?t=1717">zkNym credentials</a>.</td><td style="text-align: left">🛠️ in progress</td></tr>
+<tr><td style="text-align: left"><strong>5.</strong> Implement multiple node functionalities into one <code>nym-node</code> connected to one Nyx account.</td><td style="text-align: left">🛠️ in progress</td></tr>
+</tbody></table>
+</div>
+<p>These steps will be staggered over time - period of several months, and will be implemented one by one with enough time to take in feedback and fix bugs in between.
+Generally, the software will be the same, just instead of multiple binaries, there will be one Nym Node (<code>nym-node</code>) binary. Delegations will remain on as they are now, per our token economics (staking, saturation etc)</p>
+<h3 id="what-does-it-mean-for-nym-nodes-operators"><a class="header" href="#what-does-it-mean-for-nym-nodes-operators">What does it mean for Nym nodes operators?</a></h3>
+<p>We are exploring two potential methods for implementing binary functionality in practice and will provide information in advance. The options are:</p>
+<ol>
+<li>
+<p>Make a selection button (command/argument/flag) for operators to choose whether they want their node to provide all or just some of the functions nodes have in the Nym Mixnet. Nodes functioning as Exit Gateways (in that epoch) will then have bigger rewards due to their larger risk exposure and overhead work with the setup.</p>
+</li>
+<li>
+<p>All nodes will be required to have the Exit Gateway functionality. All nodes are rewarded the same as now, and the difference is that a node sometimes (some epochs) may be performing as Exit Gateway sometimes as Mix node or Entry Gateway adjusted according the network demand by an algorithm.</p>
+</li>
+</ol>
+<h3 id="where-can-i-read-more-about-the-exit-gateway-setup"><a class="header" href="#where-can-i-read-more-about-the-exit-gateway-setup">Where can I read more about the Exit Gateway setup?</a></h3>
+<p>We created an <a href="../../legal/exit-gateway.html">entire page</a> about the technical and legal questions around Exit Gateway.</p>
+<h3 id="what-is-the-change-from-allow-list-to-deny-list"><a class="header" href="#what-is-the-change-from-allow-list-to-deny-list">What is the change from allow list to deny list?</a></h3>
+<p>The operators running Gateways would have to “open” their nodes to a wider range of online services, in a similar fashion to Tor exit relays. The main change will be to expand the original short <a href="https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt"><code>allowed.list</code></a> to a more permissive setup. An <a href="https://nymtech.net/.wellknown/network-requester/exit-policy.txt">exit policy</a> will constrain the hosts that the users of the Nym VPN and Mixnet can connect to. This will be done in an effort to protect the operators, as Gateways will act both as SOCKS5 Network Requesters, and exit nodes for IP traffic from Nym VPN and Mixnet clients.</p>
+<h3 id="how-will-the-exit-policy-be-implemented"><a class="header" href="#how-will-the-exit-policy-be-implemented">How will the Exit policy be implemented?</a></h3>
+<p>Follow the dynamic progress of exit policy implementation on Gateways below:</p>
+<div class="table-wrapper"><table><thead><tr><th style="text-align: left"><strong>Step</strong></th><th style="text-align: left"><strong>Status</strong></th></tr></thead><tbody>
+<tr><td style="text-align: left"><strong>1.</strong> By default the <a href="https://nymtech.net/.wellknown/network-requester/exit-policy.txt">exit policy</a> filtering is disabled and the <a href="https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt"><code>allowed.list</code></a> filtering is going to continue be used. This is to prevent operators getting surprised by upgrading their Gateways (or Network Requesters) and suddenly be widely open to the internet. To enable the new exit policy, operators must use <code>--with-exit-policy</code> flag or modify the <code>config.toml</code> file.</td><td style="text-align: left">✅ done</td></tr>
+<tr><td style="text-align: left"><strong>2.</strong> The exit policy is part of the Gateway setup by default. To disable this exit policy, operators must use <code>--disable-exit-policy</code> flag.</td><td style="text-align: left">✅ done</td></tr>
+<tr><td style="text-align: left"><strong>3.</strong> The exit policy is the only option. The <code>allowed.list</code> is completely removed.</td><td style="text-align: left">✅ done</td></tr>
+</tbody></table>
+</div>
+<p>Keep in mind the table above only relates to changes happening on Gateways. For the Project Smoosh progress refer to the <a href="./smoosh-faq.html#what-are-the-changes">table above</a>. Whether Exit Gateway functionality will be optional or mandatory part of every active Nym Node depends on the chosen <a href="./smoosh-faq.html#what-does-it-mean-for-nym-nodes-operators">design</a>.</p>
+<h3 id="can-i-run-a-mix-node-only"><a class="header" href="#can-i-run-a-mix-node-only">Can I run a Mix Node only?</a></h3>
+<p>It depends which <a href="./smoosh-faq.html#what-does-it-mean-for-nym-nodes-operators">design</a> will ultimately be used. In case of the first - yes. In case of the second option, all the nodes will be setup with Exit Gateway functionality turned on.</p>
+<h2 id="token-economics--rewards"><a class="header" href="#token-economics--rewards">Token Economics &amp; Rewards</a></h2>
+<div id="admonition-info" class="admonition admonish-info" role="note" aria-labelledby="admonition-info-title">
+<div class="admonition-title">
+<div id="admonition-info-title">
+<p>Info</p>
+</div>
+<a class="admonition-anchor-link" href="#admonition-info"></a>
+</div>
+<div>
+<p>For any specifics on Nym token economics and Nym Mixnet reward system, please read the <a href="https://nymtech.net/nym-cryptoecon-paper.pdf">Nym token economics paper</a>.</p>
+</div>
+</div>
+<h3 id="what-are-the-incentives-for-the-node-operator"><a class="header" href="#what-are-the-incentives-for-the-node-operator">What are the incentives for the node operator?</a></h3>
+<p>In the original setup there were no incentives to run a <code>nym-network-requester</code> binary. After the transition all the users will buy multiple tickets of zkNyms credentials and use those as <a href="https://arxiv.org/abs/2303.08221">anonymous e-cash</a> to pay for their data traffic (<a href="https://github.com/nymtech/nym/tree/master/nym-api"><code>Nym API</code></a> will do the do cryptographical checks to prevent double-spending). All collected fees get distributed to all active nodes proportionally to their work by the end of each epoch.</p>
+<h3 id="how-does-this-change-the-token-economics"><a class="header" href="#how-does-this-change-the-token-economics">How does this change the token economics?</a></h3>
+<p>The token economics will stay the same as they are, same goes for the reward algorithm.</p>
+<h3 id="how-are-the-rewards-distributed"><a class="header" href="#how-are-the-rewards-distributed">How are the rewards distributed?</a></h3>
+<p>This depends on <a href="./smoosh-faq.html#what-does-it-mean-for-nym-nodes-operators">design</a> chosen. In case of #1, it will look like this:</p>
+<p>As each operator can choose what roles their nodes provide, the nodes which work as open Gateways will have higher rewards because they are the most important to keep up and stable. Besides that the operators of Gateways may be exposed to more complication and possible legal risks.</p>
+<p>The nodes which are initialized to run as Mix Nodes and Gateways will be chosen to be on top of the active set before the ones working only as a Mix Node.</p>
+<p>I case we go with #2, all nodes active in the epoch will be rewarded proportionally according their work.</p>
+<p>In either way, Nym will share all the specifics beforehand.</p>
+<h3 id="how-will-be-the-staking-and-inflation-after-project-smoosh"><a class="header" href="#how-will-be-the-staking-and-inflation-after-project-smoosh">How will be the staking and inflation after project Smoosh?</a></h3>
+<p>Nym will run tests to count how much payment comes from the users of the Mixnet and if that covers the reward payments. If not, we may need to keep inflation on to secure incentives for high quality Gateways in the early stage of the transition.</p>
+<h3 id="when-project-smooth-will-be-launched-it-would-be-the-mixmining-pool-that-will-pay-for-the-gateway-rewards-based-on-amount-of-traffic-routed-"><a class="header" href="#when-project-smooth-will-be-launched-it-would-be-the-mixmining-pool-that-will-pay-for-the-gateway-rewards-based-on-amount-of-traffic-routed-">When project smooth will be launched, it would be the mixmining pool that will pay for the Gateway rewards based on amount of traffic routed ?</a></h3>
+<p>Yes, the same pool. Nym’s aim is to do minimal modifications. The only real modification on the smart contract side will be to get into top X of ‘active set’ operators will need to have open Gateway function enabled.</p>
+<h3 id="what-does-this-mean-for-the-current-delegators"><a class="header" href="#what-does-this-mean-for-the-current-delegators">What does this mean for the current delegators?</a></h3>
+<p>From an operator standpoint, it shall just be a standard Nym upgrade, a new option to run the Gateway software on your node. Delegators should not have to re-delegate.</p>
+<h2 id="legal-questions"><a class="header" href="#legal-questions">Legal Questions</a></h2>
+<h3 id="are-there-any-legal-concerns-for-the-operators"><a class="header" href="#are-there-any-legal-concerns-for-the-operators">Are there any legal concerns for the operators?</a></h3>
+<p>So far the general line is that running a Gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For Mix Nodes, it’s very safe as they have “no idea” what packets they are mixing.</p>
+<p>There are several legal questions and analysis to be made for different jurisdictions. To be able to share resources and findings between the operators themselves we created a <a href="../../legal/exit-gateway.html">Community Legal Forum</a>.</p>
+<footer id="last-change">Last change: 2024-04-26, commit: <a href="https://github.com/nymtech/nym/commit/b93afe775">b93afe775</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../archive/faq/mixnodes-faq.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../../coc.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../archive/faq/mixnodes-faq.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../../coc.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../.././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

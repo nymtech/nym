@@ -1,0 +1,408 @@
+<!DOCTYPE HTML>
+<html lang="en" class="coal" dir="ltr">
+    <head>
+        <!-- Book generated using mdBook -->
+        <meta charset="UTF-8">
+        <title>Using Your Client - Nym Docs</title>
+
+
+        <!-- Custom HTML head -->
+        
+        <meta name="description" content="Nym technical documentation">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="theme-color" content="#ffffff">
+
+        <link rel="icon" href="../../favicon.svg">
+        <link rel="shortcut icon" href="../../favicon.png">
+        <link rel="stylesheet" href="../../css/variables.css">
+        <link rel="stylesheet" href="../../css/general.css">
+        <link rel="stylesheet" href="../../css/chrome.css">
+        <link rel="stylesheet" href="../../css/print.css" media="print">
+
+        <!-- Fonts -->
+        <link rel="stylesheet" href="../../FontAwesome/css/font-awesome.css">
+        <link rel="stylesheet" href="../../fonts/fonts.css">
+
+        <!-- Highlight.js Stylesheets -->
+        <link rel="stylesheet" href="../../highlight.css">
+        <link rel="stylesheet" href="../../tomorrow-night.css">
+        <link rel="stylesheet" href="../../ayu-highlight.css">
+
+        <!-- Custom theme stylesheets -->
+        <link rel="stylesheet" href="../.././themes/custom.css">
+        <link rel="stylesheet" href="../.././themes/mdbook-admonish.css">
+        <link rel="stylesheet" href="../.././themes/pagetoc.css">
+
+<!--        -->
+    </head>
+    <body class="sidebar-visible no-js">
+    <div id="body-container">
+        <!-- Provide site root to javascript -->
+        <script>
+            var path_to_root = "../../";
+            var default_theme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "coal" : "coal";
+        </script>
+
+        <!-- Work around some values being stored in localStorage wrapped in quotes -->
+        <script>
+            try {
+                var theme = localStorage.getItem('mdbook-theme');
+                var sidebar = localStorage.getItem('mdbook-sidebar');
+
+                if (theme.startsWith('"') && theme.endsWith('"')) {
+                    localStorage.setItem('mdbook-theme', theme.slice(1, theme.length - 1));
+                }
+
+                if (sidebar.startsWith('"') && sidebar.endsWith('"')) {
+                    localStorage.setItem('mdbook-sidebar', sidebar.slice(1, sidebar.length - 1));
+                }
+            } catch (e) { }
+        </script>
+
+        <!-- Set the theme before any content is loaded, prevents flash -->
+        <script>
+            var theme;
+            try { theme = localStorage.getItem('mdbook-theme'); } catch(e) { }
+            if (theme === null || theme === undefined) { theme = default_theme; }
+            var html = document.querySelector('html');
+            html.classList.remove('coal')
+            html.classList.add(theme);
+            var body = document.querySelector('body');
+            body.classList.remove('no-js')
+            body.classList.add('js');
+        </script>
+
+        <input type="checkbox" id="sidebar-toggle-anchor" class="hidden">
+
+        <!-- Hide / unhide sidebar before it is displayed -->
+        <script>
+            var body = document.querySelector('body');
+            var sidebar = null;
+            var sidebar_toggle = document.getElementById("sidebar-toggle-anchor");
+            if (document.body.clientWidth >= 1080) {
+                try { sidebar = localStorage.getItem('mdbook-sidebar'); } catch(e) { }
+                sidebar = sidebar || 'visible';
+            } else {
+                sidebar = 'hidden';
+            }
+            sidebar_toggle.checked = sidebar === 'visible';
+            body.classList.remove('sidebar-visible');
+            body.classList.add("sidebar-" + sidebar);
+        </script>
+
+        <nav id="sidebar" class="sidebar" aria-label="Table of contents">
+            <div class="sidebar-scrollbox">
+                <ol class="chapter"><li class="chapter-item "><a href="../../introduction.html"><strong aria-hidden="true">1.</strong> Introduction</a></li><li class="chapter-item "><a href="../../clients-overview.html"><strong aria-hidden="true">2.</strong> Clients Overview - Start Here!</a></li><li class="chapter-item affix "><li class="part-title">SDKs</li><li class="chapter-item "><a href="../../sdk/rust/rust.html"><strong aria-hidden="true">3.</strong> Rust SDK</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../sdk/rust/message-types.html"><strong aria-hidden="true">3.1.</strong> Message Types</a></li><li class="chapter-item "><a href="../../sdk/rust/message-helpers.html"><strong aria-hidden="true">3.2.</strong> Message Helpers</a></li><li class="chapter-item "><a href="../../sdk/rust/troubleshooting.html"><strong aria-hidden="true">3.3.</strong> Troubleshooting</a></li><li class="chapter-item "><a href="../../sdk/rust/examples.html"><strong aria-hidden="true">3.4.</strong> Examples</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../sdk/rust/examples/simple.html"><strong aria-hidden="true">3.4.1.</strong> Simple Send</a></li><li class="chapter-item "><a href="../../sdk/rust/examples/keys.html"><strong aria-hidden="true">3.4.2.</strong> Create and Store Keys</a></li><li class="chapter-item "><a href="../../sdk/rust/examples/storage.html"><strong aria-hidden="true">3.4.3.</strong> Manual Storage</a></li><li class="chapter-item "><a href="../../sdk/rust/examples/surbs.html"><strong aria-hidden="true">3.4.4.</strong> Anonymous Replies</a></li><li class="chapter-item "><a href="../../sdk/rust/examples/custom-network.html"><strong aria-hidden="true">3.4.5.</strong> Use Custom Network Topology</a></li><li class="chapter-item "><a href="../../sdk/rust/examples/socks.html"><strong aria-hidden="true">3.4.6.</strong> Socks Proxy</a></li><li class="chapter-item "><a href="../../sdk/rust/examples/split-send.html"><strong aria-hidden="true">3.4.7.</strong> Split Send and Receive</a></li><li class="chapter-item "><a href="../../sdk/rust/examples/credential.html"><strong aria-hidden="true">3.4.8.</strong> Testnet Bandwidth Cred</a></li><li class="chapter-item "><a href="../../sdk/rust/examples/cargo.html"><strong aria-hidden="true">3.4.9.</strong> Example Cargo file</a></li></ol></li></ol></li><li class="chapter-item "><a href="../../sdk/typescript.html"><strong aria-hidden="true">4.</strong> Typescript SDK</a></li><li class="chapter-item affix "><li class="part-title">Binaries</li><li class="chapter-item "><a href="../../binaries/pre-built-binaries.html"><strong aria-hidden="true">5.</strong> Pre-built Binaries</a></li><li class="chapter-item "><a href="../../binaries/building-nym.html"><strong aria-hidden="true">6.</strong> Building from Source</a></li><li class="chapter-item affix "><li class="part-title">Standalone Clients</li><li class="chapter-item expanded "><a href="../../clients/websocket-client.html"><strong aria-hidden="true">7.</strong> Websocket Client</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../clients/websocket/setup.html"><strong aria-hidden="true">7.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../../clients/websocket/config.html"><strong aria-hidden="true">7.2.</strong> Configuration</a></li><li class="chapter-item expanded "><a href="../../clients/websocket/usage.html" class="active"><strong aria-hidden="true">7.3.</strong> Using Your Client</a></li><li class="chapter-item "><a href="../../clients/websocket/examples.html"><strong aria-hidden="true">7.4.</strong> Examples</a></li></ol></li><li class="chapter-item "><a href="../../clients/socks5-client.html"><strong aria-hidden="true">8.</strong> Socks5 Client</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../clients/socks5/setup.html"><strong aria-hidden="true">8.1.</strong> Setup & Run</a></li><li class="chapter-item "><a href="../../clients/socks5/usage.html"><strong aria-hidden="true">8.2.</strong> Using Your Client</a></li></ol></li><li class="chapter-item "><a href="../../clients/webassembly-client.html"><strong aria-hidden="true">9.</strong> Webassembly Client</a></li><li class="chapter-item affix "><li class="part-title">Tutorials</li><li class="chapter-item "><a href="../../tutorials/coming-soon.html"><strong aria-hidden="true">10.</strong> Stub: Updates Coming Soon!</a></li><li class="chapter-item affix "><li class="part-title">Code Examples</li><li class="chapter-item "><a href="../../examples/custom-services.html"><strong aria-hidden="true">11.</strong> Custom Service Providers</a></li><li class="chapter-item "><a href="../../examples/using-nrs.html"><strong aria-hidden="true">12.</strong> Apps Using Network Requesters</a></li><li class="chapter-item "><a href="../../examples/browser-only.html"><strong aria-hidden="true">13.</strong> Browser only</a></li><li class="chapter-item "><a href="../../examples/monorepo-examples.html"><strong aria-hidden="true">14.</strong> Monorepo examples</a></li><li class="chapter-item affix "><li class="part-title">Integrations</li><li class="chapter-item "><a href="../../integrations/integration-options.html"><strong aria-hidden="true">15.</strong> Integration Options</a></li><li class="chapter-item "><a href="../../integrations/payment-integration.html"><strong aria-hidden="true">16.</strong> Payment Integration</a></li><li class="chapter-item affix "><li class="part-title">FAQ</li><li class="chapter-item "><a href="../../faq/integrations-faq.html"><strong aria-hidden="true">17.</strong> Integrations</a></li><li class="chapter-item affix "><li class="part-title">User Manuals</li><li class="chapter-item "><a href="../../nymvpn/intro.html"><strong aria-hidden="true">18.</strong> NymVPN beta</a><a class="toggle"><div>❱</div></a></li><li><ol class="section"><li class="chapter-item "><a href="../../nymvpn/cli.html"><strong aria-hidden="true">18.1.</strong> CLI</a></li></ol></li><li class="chapter-item "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Archive</li><li class="chapter-item "><a href="../../archive/nym-connect.html"><strong aria-hidden="true">19.</strong> NymConnect Setup</a></li><li class="chapter-item affix "><li class="spacer"></li><li class="chapter-item affix "><li class="part-title">Misc.</li><li class="chapter-item "><a href="../../coc.html"><strong aria-hidden="true">20.</strong> Code of Conduct</a></li><li class="chapter-item "><a href="../../licensing.html"><strong aria-hidden="true">21.</strong> Licensing</a></li><li class="chapter-item affix "><li class="spacer"></li></ol>
+            </div>
+            <div id="sidebar-resize-handle" class="sidebar-resize-handle">
+                <div class="sidebar-resize-indicator"></div>
+            </div>
+        </nav>
+
+        <!-- Track and set sidebar scroll position -->
+        <script>
+            var sidebarScrollbox = document.querySelector('#sidebar .sidebar-scrollbox');
+            sidebarScrollbox.addEventListener('click', function(e) {
+                if (e.target.tagName === 'A') {
+                    sessionStorage.setItem('sidebar-scroll', sidebarScrollbox.scrollTop);
+                }
+            }, { passive: true });
+            var sidebarScrollTop = sessionStorage.getItem('sidebar-scroll');
+            sessionStorage.removeItem('sidebar-scroll');
+            if (sidebarScrollTop) {
+                // preserve sidebar scroll position when navigating via links within sidebar
+                sidebarScrollbox.scrollTop = sidebarScrollTop;
+            } else {
+                // scroll sidebar to current active section when navigating via "next/previous chapter" buttons
+                var activeSection = document.querySelector('#sidebar .active');
+                if (activeSection) {
+                    activeSection.scrollIntoView({ block: 'center' });
+                }
+            }
+        </script>
+
+        <div id="page-wrapper" class="page-wrapper">
+
+            <div class="page">
+                                <div id="menu-bar-hover-placeholder"></div>
+                <div id="menu-bar" class="menu-bar sticky">
+                    <div class="left-buttons">
+                        <label id="sidebar-toggle" class="icon-button" for="sidebar-toggle-anchor" title="Toggle Table of Contents" aria-label="Toggle Table of Contents" aria-controls="sidebar">
+                            <i class="fa fa-bars"></i>
+                        </label>
+
+                        <button id="theme-toggle" class="icon-button" type="button" title="Change theme" aria-label="Change theme" aria-haspopup="true" aria-expanded="false" aria-controls="theme-list">
+                            <i class="fa fa-paint-brush"></i>
+                        </button>
+                        <ul id="theme-list" class="theme-popup" aria-label="Themes" role="menu">
+                            <li role="none"><button role="menuitem" class="theme" id="light">Light</button></li>
+                            <li role="none"><button role="menuitem" class="theme" id="coal">Dark</button></li>
+                        </ul>
+
+                        <!-- CUSTOM -->
+                        <select id="dropdown-menu" class="icon-button">
+                            <option value="https://nymtech.net/docs">Network Docs</option>
+                            <option value="https://nymtech.net/learn/papers">Academic Papers</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/developers">Dev Portal</option>
+                            <option value="https://nymtech.net/developers/sdk/rust/rust.html">Rust SDK</option>
+                            <option value="https://sdk.nymtech.net">Typescript SDK</option>
+                            <option value="">--------</option>
+                            <option value="https://nymtech.net/operators">Operators</option>
+                            <option value="https://nymtech.net/developers/nymvpn/intro.html">NymVPN Testing</option>
+                        </select>
+
+                        <script>
+                            document.getElementById('dropdown-menu').addEventListener('change', function() {
+                                const selected = this.options[this.selectedIndex];
+                                if (selected.value !== '') {
+                                    window.location.href = selected.value;
+                                }
+                            });
+                        </script>
+                        
+                        <!-- END CUSTOM -->
+                    </div>
+
+                    <h1 class="menu-title"> Nym Docs</h1>
+
+                    <div class="right-buttons">
+                            <button id="search-toggle" class="icon-button" type="button" title="Search. (Shortkey: s)" aria-label="Toggle Searchbar" aria-expanded="false" aria-keyshortcuts="S" aria-controls="searchbar">
+                                <i class="fa fa-search"></i>
+                            </button>
+                        <a href="../../print.html" title="Print this book" aria-label="Print this book">
+                            <i id="print-button" class="fa fa-print"></i>
+                        </a>
+                        <a href="https://github.com/nymtech/nym" title="Git repository" aria-label="Git repository">
+                            <i id="git-repository-button" class="fa fa-github"></i>
+                        </a>
+
+                    </div>
+                </div>
+
+                <div id="search-wrapper" class="hidden">
+                    <form id="searchbar-outer" class="searchbar-outer">
+                        <input type="search" id="searchbar" name="searchbar" placeholder="Search this book ..." aria-controls="searchresults-outer" aria-describedby="searchresults-header">
+                    </form>
+                    <div id="searchresults-outer" class="searchresults-outer hidden">
+                        <div id="searchresults-header" class="searchresults-header"></div>
+                        <ul id="searchresults">
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Apply ARIA attributes after the sidebar and the sidebar toggle button are added to the DOM -->
+                <script>
+                    document.getElementById('sidebar-toggle').setAttribute('aria-expanded', sidebar === 'visible');
+                    document.getElementById('sidebar').setAttribute('aria-hidden', sidebar !== 'visible');
+                    Array.from(document.querySelectorAll('#sidebar a')).forEach(function(link) {
+                        link.setAttribute('tabIndex', sidebar === 'visible' ? 0 : -1);
+                    });
+                </script>
+
+                <div id="content" class="content">
+                    <main>
+                        <main>
+                            <div class="sidetoc">
+                                <nav class="pagetoc"></nav>
+                            </div>
+                            <div class="content-wrap">
+
+                        <h1 id="using-your-client"><a class="header" href="#using-your-client">Using Your Client</a></h1>
+<p>The Nym native client exposes a websocket interface that your code connects to. The <strong>default</strong> websocket port is <code>1977</code>, you can override that in the client config if you want.</p>
+<p>Once you have a websocket connection, interacting with the client involves piping messages down the socket and listening for incoming messages.</p>
+<h1 id="message-requests"><a class="header" href="#message-requests">Message Requests</a></h1>
+<p>There are a number of message types that you can send up the websocket as defined <a href="https://github.com/nymtech/nym/blob/develop/clients/native/websocket-requests/src/requests.rs">here</a>:</p>
+<pre><code class="language-rust noplayground">#[derive(Debug)]
+pub enum ClientRequest {
+    /// The simplest message variant where no additional information is attached.
+    /// You're simply sending your `data` to specified `recipient` without any tagging.
+    ///
+    /// Ends up with `NymMessage::Plain` variant
+    Send {
+        recipient: Recipient,
+        message: Vec&lt;u8&gt;,
+        connection_id: Option&lt;u64&gt;,
+    },
+
+    /// Create a message used for a duplex anonymous communication where the recipient
+    /// will never learn of our true identity. This is achieved by carefully sending `reply_surbs`.
+    ///
+    /// Note that if reply_surbs is set to zero then
+    /// this variant requires the client having sent some reply_surbs in the past
+    /// (and thus the recipient also knowing our sender tag).
+    ///
+    /// Ends up with `NymMessage::Repliable` variant
+    SendAnonymous {
+        recipient: Recipient,
+        message: Vec&lt;u8&gt;,
+        reply_surbs: u32,
+        connection_id: Option&lt;u64&gt;,
+    },
+
+    /// Attempt to use our internally received and stored `ReplySurb` to send the message back
+    /// to specified recipient whilst not knowing its full identity (or even gateway).
+    ///
+    /// Ends up with `NymMessage::Reply` variant
+    Reply {
+        sender_tag: AnonymousSenderTag,
+        message: Vec&lt;u8&gt;,
+        connection_id: Option&lt;u64&gt;,
+    },
+
+    SelfAddress,
+
+    ClosedConnection(u64),
+
+    GetLaneQueueLength(u64),
+}</code></pre>
+<h2 id="getting-your-own-address"><a class="header" href="#getting-your-own-address">Getting your own address</a></h2>
+<p>When you start your app, it is best practice to ask the native client to tell you what your own address is (from the generated configuration files <!--add link -->. If you are running a service, you need to do this in order to know what address to give others. In a client-side piece of code you can also use this as a test to make sure your websocket connection is running smoothly. To do this, send:</p>
+<pre><code class="language-json">{
+  "type": "selfAddress"
+}
+</code></pre>
+<p>You’ll receive a response of the format:</p>
+<pre><code class="language-json">{
+  "type": "selfAddress",
+  "address": "your address" // e.g. "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
+}
+</code></pre>
+<p>See <a href="https://github.com/nymtech/nym/blob/93cc281abc2cc951023b51746fa6f2ead1f56c46/clients/native/examples/python-examples/websocket/textsend.py#L16C9-L16C9">here</a> for an example of this being used.</p>
+<blockquote>
+<p>Note that all the pieces of native client example code begin with printing the selfAddress. Examples exist for Rust, Go, Javascript, and Python.</p>
+</blockquote>
+<h2 id="sending-text"><a class="header" href="#sending-text">Sending text</a></h2>
+<p>If you want to send text information through the mixnet, format a message like this one and poke it into the websocket:</p>
+<pre><code class="language-json">{
+  "type": "send",
+  "message": "the message",
+  "recipient": "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
+}
+</code></pre>
+<p>In some applications, e.g. where people are chatting with friends who they know, you might want to include unencrypted reply information in the message field. This provides an easy way for the receiving chat to then turn around and send a reply message:</p>
+<pre><code class="language-json">{
+  "type": "send",
+  "message": {
+    "sender": "198427b63ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm",
+    "chatMessage": "hi julia!"
+  },
+  "recipient": "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm"
+}
+</code></pre>
+<p><strong>If that fits your security model, good. However, will probably be the case that you want to send anonymous replies using Single Use Reply Blocks (SURBs)</strong>.</p>
+<p>You can read more about SURBs <a href="https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs">here</a> but in short they are ways for the receiver of this message to anonymously reply to you - the sender - <strong>without them having to know your client address</strong>.</p>
+<p>Your client will send along a number of <code>replySurbs</code> to the recipient of the message. These are pre-addressed Sphinx packets that the recipient can write to the payload of (i.e. write response data to), but not view the final destination of. If the recipient is unable to fit the response data into the bucket of SURBs sent to it, it will use a SURB to request more SURBs be sent to it from your client.</p>
+<pre><code class="language-json">{
+    "type": "sendAnonymous",
+    "message": "something you want to keep secret",
+    "recipient": "71od3ZAupdCdxeFNg8sdonqfZTnZZy1E86WYKEjxD4kj@FWYoUrnKuXryysptnCZgUYRTauHq4FnEFu2QGn5LZWbm",
+    "replySurbs": 20 // however many reply SURBs to send along with your message
+}
+</code></pre>
+<p>See <a href="#replying-to-surb-messages">‘Replying to SURB Messages’</a> below for an example of how to deal with incoming messages that have SURBs attached.</p>
+<p>Deciding on the amount of SURBs to generate and send along with outgoing messages depends on the expected size of the reply. You might want to send a lot of SURBs in order to make sure you get your response as quickly as possible (but accept the minor additional latency when sending, as your client has to generate and encrypt the packets), or you might just send a few (e.g. 20) and then if your response requires more SURBs, send them along, accepting the additional latency in getting your response.</p>
+<h2 id="sending-binary-data"><a class="header" href="#sending-binary-data">Sending binary data</a></h2>
+<p>You can also send bytes instead of JSON. For that you have to send a binary websocket frame containing a binary encoded
+Nym <a href="https://github.com/nymtech/nym/blob/develop/clients/native/websocket-requests/src/requests.rs#L25"><code>ClientRequest</code></a> containing the same information.</p>
+<blockquote>
+<p>As a response the <code>native-client</code> will send a <code>ServerResponse</code> to be decoded. See <a href="#message-responses">Message Responses</a> below for more.</p>
+</blockquote>
+<p>You can find examples of sending and receiving binary data in the <a href="https://github.com/nymtech/nym/tree/master/clients/native/examples">code examples</a>, and an example project from the Nym community <a href="https://github.com/sgeisler/btcbc-rs/">BTC-BC</a>: Bitcoin transaction transmission via Nym, a client and service provider written in Rust.</p>
+<h2 id="replying-to-surb-messages"><a class="header" href="#replying-to-surb-messages">Replying to SURB messages</a></h2>
+<p>Each bucket of <code>replySURBs</code>, when received as part of an incoming message, has a unique session identifier, which <strong>only identifies the bucket of pre-addressed packets</strong>. This is necessary to make sure that your app is replying to the correct people with the information meant for them in a situation where multiple clients are sending requests to a single service.</p>
+<p>Constructing a reply with SURBs looks something like this (where <code>senderTag</code> was parsed from the incoming message)</p>
+<pre><code class="language-json">{
+    "type": "reply",
+    "message": "reply you also want to keep secret",
+    "senderTag": "the sender tag you parsed from the incoming message"
+}
+</code></pre>
+<h2 id="error-messages"><a class="header" href="#error-messages">Error messages</a></h2>
+<p>Errors from the app’s client, or from the gateway, will be sent down the websocket to your code in the following format:</p>
+<pre><code class="language-json">{
+  "type": "error",
+  "message": "string message"
+}
+</code></pre>
+<h2 id="lanequeuelength"><a class="header" href="#lanequeuelength">LaneQueueLength</a></h2>
+<p>This is currently only used in the <a href="../socks5-client.html">Socks Client</a> to keep track of the number of Sphinx packets waiting to be sent to the mixnet via being slotted amongst cover traffic. As this value becomes larger, the client signals to the application it should slow down the speed with which it writes to the proxy. This is to stop situations arising whereby an app connected to the client appears as if it has sent (e.g.) a bunch of messages and is awaiting a reply, when they in fact have not been sent through the mixnet yet.</p>
+<h1 id="message-responses"><a class="header" href="#message-responses">Message Responses</a></h1>
+<p>Responses to your messages are defined <a href="https://github.com/nymtech/nym/blob/develop/clients/native/websocket-requests/src/responses.rs">here</a>:</p>
+<pre><code class="language-rust noplayground">pub enum ServerResponse {
+    Received(ReconstructedMessage),
+    SelfAddress(Box&lt;Recipient&gt;),
+    LaneQueueLength { lane: u64, queue_length: usize },
+    Error(error::Error),
+}</code></pre>
+<footer id="last-change">Last change: 2024-08-06, commit: <a href="https://github.com/nymtech/nym/commit/aaf3dca5b">aaf3dca5b</a></footer>
+                            </div>
+                        </main>
+                    </main>
+
+                    <nav class="nav-wrapper" aria-label="Page navigation">
+                        <!-- Mobile navigation buttons -->
+                            <a rel="prev" href="../../clients/websocket/config.html" class="mobile-nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                                <i class="fa fa-angle-left"></i>
+                            </a>
+
+                            <a rel="next prefetch" href="../../clients/websocket/examples.html" class="mobile-nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                                <i class="fa fa-angle-right"></i>
+                            </a>
+
+                        <div style="clear: both"></div>
+                    </nav>
+                </div>
+            </div>
+
+            <nav class="nav-wide-wrapper" aria-label="Page navigation">
+                    <a rel="prev" href="../../clients/websocket/config.html" class="nav-chapters previous" title="Previous chapter" aria-label="Previous chapter" aria-keyshortcuts="Left">
+                        <i class="fa fa-angle-left"></i>
+                    </a>
+
+                    <a rel="next prefetch" href="../../clients/websocket/examples.html" class="nav-chapters next" title="Next chapter" aria-label="Next chapter" aria-keyshortcuts="Right">
+                        <i class="fa fa-angle-right"></i>
+                    </a>
+            </nav>
+
+        </div>
+
+        <!-- Livereload script (if served using the cli tool) -->
+        <script>
+            const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsAddress = wsProtocol + "//" + location.host + "/" + "__livereload";
+            const socket = new WebSocket(wsAddress);
+            socket.onmessage = function (event) {
+                if (event.data === "reload") {
+                    socket.close();
+                    location.reload();
+                }
+            };
+
+            window.onbeforeunload = function() {
+                socket.close();
+            }
+        </script>
+
+
+        <script>
+            window.playground_copyable = true;
+        </script>
+
+
+        <script src="../../elasticlunr.min.js"></script>
+        <script src="../../mark.min.js"></script>
+        <script src="../../searcher.js"></script>
+
+        <script src="../../clipboard.min.js"></script>
+        <script src="../../highlight.js"></script>
+        <script src="../../book.js"></script>
+
+        <!-- Custom JS scripts -->
+        <script src="../.././themes/pagetoc.js"></script>
+
+
+
+    </div>
+    </body>
+</html>

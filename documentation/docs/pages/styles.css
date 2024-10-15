@@ -22,8 +22,11 @@ div.nextra-code-block > div {
 }
 
 .nextra-toc {
-  width: 400px !important;
+  width: 370px !important;
   padding-right: 0px;
+  padding-left: 0px;
+  text-align: right;
+  border-left: 1px solid #262626;
 }
 
 /* Code blocks*/

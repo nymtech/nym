@@ -1,0 +1,6 @@
+module.exports = {
+  "required-architecture": "Required Architecture",
+  "messages": "Message Based Paradigm",
+  "message-queue": "Message Queue",
+  "abstractions": "Connection Abstractions"
+};

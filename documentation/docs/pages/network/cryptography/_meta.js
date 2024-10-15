@@ -1,0 +1,5 @@
+module.exports = {
+  "sphinx": "Sphinx",
+  "zk-nym": "Zk-Nym Credentials",
+  "node-to-node": "(Coming soon) Node to Node Communication"
+};

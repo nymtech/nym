@@ -1,0 +1,10 @@
+module.exports = {
+  "development-status": "Development Status",
+  "importing": "Importing",
+  "examples": "Basic Examples",
+  "message-helpers": "Message Helpers",
+  "message-types": "Message Types",
+  "troubleshooting": "Troubleshooting",
+  "ffi": "FFI",
+  "tutorials": "Tutorials (Coming Soon)"
+};

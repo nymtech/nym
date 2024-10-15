@@ -1,0 +1,4 @@
+module.exports = {
+  "manual-upgrade": "Manual Node Upgrade",
+  "nymvisor-upgrade": "Automatic Node Upgrade: Nymvisor"
+};

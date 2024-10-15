@@ -1,0 +1,7 @@
+module.exports = {
+  "hops": "Hops",
+  "acks": "Acks",
+  "addressing-system": "Addressing",
+  "anonymous-replies": "Anonymous Replies",
+  "follow-packet": "(Coming Soon) Follow A Packet"
+};

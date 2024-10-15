@@ -1,0 +1,9 @@
+module.exports = {
+  "simple": "Simple Send",
+  "builders": "Builder Patterns",
+  "custom-topology": "Custom Network Topologies",
+  "split-send": "Concurrent Send & Receive",
+  "socks": "Socks Proxy",
+  "storage": "Manually Handle Storage",
+  "surbs": "Anonymous Replies"
+};

@@ -1,27 +1,35 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import {Accordion, AccordionItem} from "@nextui-org/react";
+
 # Nym API Setup
 
-[//]: # (> The nym-api binary was built in the [building nym]&#40;../binaries/building-nym.md&#41; section. If you haven't yet built Nym and want to run the code, go there first. You can build just the API with `cargo build --release --bin nym-api`.)
+> The nym-api binary was built in the [building nym](../../binaries/building-nym.mdx) section. If you haven't yet built Nym and want to run the code, go there first. You can build just the API with `cargo build --release --bin nym-api`.
 
-> Any syntax in `<>` brackets is a user's unique variable. Exchange with a corresponding name without the `<>` brackets.
+<VarInfo />
 
 ## What is the Nym API?
+
 The Nym API is a binary that will be operated by the Nyx validator set. This binary can be run in several different modes, and has two main bits of functionality:
-* network monitoring (calculating the routing score of Mixnet nodes)
-* generation and validation of [zk-nyms](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a), our implementation of the Coconut Selective Disclosure Credential Scheme.
+
+* Network monitoring (calculating the routing score of Mixnet nodes)
+* Generation and validation of [zk-nyms](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a), our implementation of the Coconut Selective Disclosure Credential Scheme.
 
 This is important for both the proper decentralisation of the network uptime calculation and, more pressingly, enabling the NymVPN to utilise privacy preserving payments.
 
 The process of enabling these different aspects of the system will take time. At the moment, Nym API operators will only have to run the binary in a minimal 'caching' mode in order to get used to maintaining an additional process running alongside a full node.
 
-```admonish warning
+<Callout color="danger" emoji="⚠️">
 It is highly recommended to run `nym-api` alongside a full node and NOT a validator node, since you will be exposing HTTP port(s) to the Internet. We also observed degradation in p2p and block signing operations when `nym-api` was run alongside a signing validator.
-```
+</Callout>
 
 ### Rewards
+
 Operators of Nym API will be rewarded for performing the extra work of taking part in credential generation. These rewards will be calculated **separately** from rewards for block production.
 
 Rewards for credential signing will be calculated hourly, with API operators receiving a proportional amount of the reward pool (333NYM per hour / 237,600 NYM per month), proportional to the percentage of credentials they have signed.
-
 
 ### Hardware Requirements
 
@@ -47,12 +55,15 @@ Bear in mind that credential signing is primarily CPU-bound, so choose the faste
 
 ### Full node configuration
 
-To install a full node from scratch, refer to the [validator setup guide](./validator-setup.md) and follow the steps outlined there.
+To install a full node from scratch, refer to the [validator setup guide](../validator-setup.mdx) and follow the steps outlined there.
+
 Additionally, to ensure `nym-api` works as expected, ensure the configuration is as below:
 
-#### Ensure transaction index is turned on in your `config.toml`:
+<Steps>
 
-```
+1. ###### Ensure transaction index is turned on in your `config.toml`:
+
+```toml
 [tx_index]
 
 # Ensure that this is not set to "null". You're free to use any indexer
@@ -60,13 +71,13 @@ Additionally, to ensure `nym-api` works as expected, ensure the configuration is
 indexer = "kv"
 ```
 
-#### Ensure pruning settings are manually configured
+2. ###### Ensure pruning settings are manually configured
 
 `nym-api` needs to check validity of user-submitted transactions (in the past) while issuing credentials and as part of double-spend check. Hence, aggressively pruning data will lead to errors with your `nym-api`
 
 Make sure your pruning settings are configured as below in `app.toml`:
 
-```
+```toml
 pruning = "custom"
 
 # This number is likely to be updated once zk-nym signing goes live
@@ -76,19 +87,20 @@ pruning-interval = "100"
 
 The example value of `100` for `pruning-interval` can be customised as per your requirement.
 
+</Steps>
 
 ### Credential Generation
-Validators that take part in the DKG ceremony will become part of the 'quorum' generating and verifying zk-nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general usecases such as [offline ecash](https://arxiv.org/abs/2303.08221).
 
-The DKG ceremony will be used to create a subset of existing validators who run `nym-api` alongside a Nyx full-node. As outlined above, they will be the ones taking part in the generation and verification of zk-nym credentials. The size of the 'minimum viable quorum' is 10 - we are aiming for a larger number than this for the initial quorum in order to have some redundancy in the case of a validator dropping or going offline.
+Validators that took part in the DKG ceremony became part of the 'quorum' generating and verifying zk-nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general use-cases such as [offline ecash](https://arxiv.org/abs/2303.08221).
 
-We will be releasing more detailed step-by-step documentation for involved validators nearer to the ceremony itself, but at a high level it will involve:
-* the deployment and initialisation of [`group`](https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group) and [`multisig`](https://github.com/nymtech/nym/tree/develop/contracts/multisig) contracts by Nym. Validators that are members of the `group` contract are the only ones that will be able to take part in the ceremony.
-* the deployment and initialisation of an instance of the [DKG contract](https://github.com/nymtech/nym/tree/develop/contracts/coconut-dkg) by Nym.
-* Validators will update their `nym-api` configs with the address of the deployed contracts. They will also stop running their API instance in caching only mode, instead switching over run with the `--enabled-credentials-mode`.
-* From the perspective of operators, this is all they have to do. Under the hood, each `nym-api` instance will then take part in several rounds of key submission, verification, and derivation. This will continue until quorum is acheived.
+The DKG ceremony was used to create a subset of existing validators who run `nym-api` alongside a Nyx full-node. As outlined above, they are the ones taking part in the generation and verification of zk-nym credentials. The size of the 'minimum viable quorum' is 10 - the intial set taking part in DKG was 17 validators. This is in order to have some redundancy in the case of a validator dropping or going offline.
 
-**We will be communicating individually with members of the existing validator set who have expressed interest in joining the quorum concerning the timing and specifics of the ceremony**.
+DKG ceremony in points:
+
+* The deployment and initialisation of [`group`](https://github.com/nymtech/nym/tree/develop/contracts/multisig/cw4-group) and [`multisig`](https://github.com/nymtech/nym/tree/develop/contracts/multisig) contracts by Nym. Validators that are members of the `group` contract are the only ones that were able to take part in the ceremony.
+* The deployment and initialisation of an instance of the [DKG contract](https://github.com/nymtech/nym/tree/develop/contracts/coconut-dkg) by Nym.
+* Validators updated their `nym-api` configs with the address of the deployed contracts. They  also stopped running their API instance in caching only mode, instead switching over run with the `--enabled-credentials-mode`.
+* From the perspective of validator operators, this is all they had to do. Under the hood, each `nym-api` instance then took part in several rounds of key submission, verification, and derivation. This will continue until quorum is acheived.
 
 ## Current version
 ```
@@ -96,31 +108,32 @@ We will be releasing more detailed step-by-step documentation for involved valid
 ```
 
 ## Setup and Usage
+
 ### Viewing command help
 You can check that your binary is properly compiled with:
 
-```
+```bash
 ./nym-api --help
 ```
 
 Which should return a list of all available commands.
 
-~~~admonish example collapsible=true title="Console output"
+
 ```
 <!-- cmdrun ../../../../target/release/nym-api --help -->
 ```
-~~~
 
 You can also check the various arguments required for individual commands with:
 
-```
+```bash
 ./nym-api <COMMAND> --help
 ```
 
 ### Initialising your Nym API Instance in caching mode
+
 Initialise your API instance with:
 
-```
+```bash
 ./nym-api init
 ```
 
@@ -134,29 +147,29 @@ To engage in the Distributed Key Generation (DKG) ceremony, it's essential to tr
 
 Begin by generating a new wallet address specifically for your instance to use in credential signing mode. Utilize the `nyxd` command-line tool with the following command:
 
-```
+```bash
 nyxd keys add signer
 ```
 
-~~~admonish warning title="Backup your keys!"
+<Callout color="danger" emoji="⚠️">
 It's critical to securely back up the mnemonic phrase generated during this process. This mnemonic is your key to recovering the wallet in the future, so store it in a secure, offline location.
-~~~
+</Callout>
 
 #### Fund the address
 
 Next, deposit NYM tokens into the newly created wallet address to ensure it can cover transaction fees incurred during the credential signing process. `nym-api` will not operate if the wallet's balance falls below 10 NYM tokens, displaying an error message upon startup.
 
-We recommand beginning with an initial deposit of 100 NYM tokens and monitoring the balance regularly, topping it up as necessary to maintain operational readiness.
+We recommend beginning with an initial deposit of 100 NYM tokens and monitoring the balance regularly, topping it up as necessary to maintain operational readiness.
 
 #### Update API configuration
 
 With your new wallet ready and funded, proceed to update your `nym-api` configuration to enable credential signing:
 
-Update your `config.toml` located in `<HOME_DIR>/.nym/nym-api/foo/config/config.toml` as below:
+Update your `config.toml` located in `$HOME/.nym/nym-api/foo/config/config.toml` as below:
 
 Enable the coconut signer:
 
-```
+```toml
 [coconut_signer]
 # Specifies whether coconut signing protocol is enabled in this process.
 enabled = true  # This was previously false
@@ -164,7 +177,7 @@ enabled = true  # This was previously false
 
 Set your announce address if it is empty. This is the URL you previously configured for your `nym-api` instance
 
-```
+```toml
 # This is the address you previously configured for the nym-api
 # Not to be confused with the Cosmos REST API URL
 announce_address = 'https://nym-api.your.tld/'
@@ -172,32 +185,33 @@ announce_address = 'https://nym-api.your.tld/'
 
 Finally, input the mnemonic phrase generated during the wallet creation step into the mnemonic field
 
-```
-mnemonic = '<YOUR_MNEMONIC_HERE>'
+```toml
+mnemonic = '<YOUR_MNEMONIC>'
 ```
 
 After completing these steps, your `nym-api` instance is configured to participate in credential signing and the DKG ceremony.
 
-
 ### Running your Nym API Instance
+
 The API binary currently defaults to running in caching mode. You can run your API with:
 
-```
-./nym-api run --id <YOUR_ID>
+```bash
+./nym-api run --id <ID>
 ```
 
 By default the API will be trying to query your full node running locally on `localhost:26657`. If your node is hosted elsewhere, you can specify the RPC location by using the `--nyxd-validator ` flag on `run`:
 
-```
-./nym-api run --id <YOUR_ID> --nyxd-validator https://rpc-nym.yourcorp.tld:443
+```bash
+./nym-api run --id <ID> --nyxd-validator https://rpc-nym.yourcorp.tld:443
 ```
 
-> You can also change the value of `local_validator` in the config file found by default in `$HOME/.nym/nym-api/<ID>/config/config.toml`.
+<Callout color="info" emoji="ℹ️">
+You can also change the value of `local_validator` in the config file found by default in `$HOME/.nym/nym-api/<ID>/config/config.toml`.
+</Callout>
 
 This process is quite noisy, but informative:
 
-~~~admonish example collapsible=true title="Console output"
-```
+```bash
 Starting nym api...
  2023-12-12T14:29:55.800Z INFO  rocket::launch > 🔧 Configured for release.
  2023-12-12T14:29:55.800Z INFO  rocket::launch::_ > address: 127.0.0.1
@@ -274,14 +288,15 @@ Starting nym api...
  2023-12-12T14:31:56.290Z INFO  nym_api::nym_contract_cache::cache::refresher > Updating validator cache. There are 888 mixnodes and 105 gateways
  2023-12-12T14:31:56.291Z INFO  nym_api::node_status_api::cache::refresher    > Updating node status cache
 ```
-~~~
 
 ## Automation
-You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](./maintenance.md) for an example `service` file.
 
-You can also use `nymvisor` to automatically update the `nym-api` node. The steps to install Nymvisor can be found [here](nymvisor-upgrade.md).
+You will most likely want to automate your validator restarting if your server reboots. Checkout the [maintenance page](../maintenance.mdx) for an example `service` file.
+
+You can also use `nymvisor` to automatically update the `nym-api` node. The steps to install Nymvisor can be found [here](../maintenance/nymvisor-upgrade.mdx).
 
 ## Exposing web endpoint using HTTPS
-It is recommended to expose the webserver over HTTPS by using a webserver like Nginx. An example configuration for configuring Nginx is listed [on the maintenance page](maintenance.md#nym-api-configuration). If you're using a custom solution, ensure to allow requests from anywhere by setting a permissive CORS policy.
+It is recommended to expose the webserver over HTTPS by using a webserver like Nginx. An example configuration for configuring Nginx is listed on [Reverse proxy page](../nym-node/configuration/proxy-configuration.mdx). If you're using a custom solution, ensure to allow requests from anywhere by setting a permissive CORS policy.
 
 For example, it is configured in Nginx using: `add_header 'Access-Control-Allow-Origin' '*';`
+

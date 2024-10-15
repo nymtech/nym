@@ -1,0 +1,394 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import {Accordion, AccordionItem} from "@nextui-org/react";
+import { MyTab } from 'components/generic-tabs.tsx';
+import PortsNymNode from 'components/operators/snippets/ports-nym-node.mdx';
+import PortsValidator from 'components/operators/snippets/ports-validator.mdx'
+
+# Maintenance
+
+<VarInfo />
+
+## Useful commands
+
+* **`--no-banner`**: Adding `--no-banner` startup flag will prevent Nym banner being printed even if run in tty environment.
+
+* **`build-info`**: A `build-info` command prints the build information like commit hash, rust version, binary version just like what command `--version` does. However, you can also specify an `--output=json` flag that will format the whole output as a json, making it an order of magnitude easier to parse.
+
+For example `./target/debug/nym-network-requester --no-banner build-info --output json` will return:
+```json
+{"binary_name":"nym-network-requester","build_timestamp":"2023-07-24T15:38:37.00657Z","build_version":"1.1.23","commit_sha":"c70149400206dce24cf20babb1e64f22202672dd","commit_timestamp":"2023-07-24T14:45:45Z","commit_branch":"feature/simplify-cli-parsing","rustc_version":"1.71.0","rustc_channel":"stable","cargo_profile":"debug"}
+```
+
+## Configure your firewall
+
+Although your `nym-node` or `validator` (denoted as `<NODE>`) is now ready to receive traffic, your server may not be. The following commands will allow you to set up a firewall using `ufw`.
+
+SSH to your server as `root` or become one running `sudo -i` or `su`. If you prefer to administrate your VPS from a user environment, supply the commands with prefix `sudo`.
+
+<Steps>
+
+###### 1. Start with setting up the essential tools on your server.
+
+- Get your system up to date
+```sh
+apt update -y && apt --fix-broken install
+```
+
+- Install dependencies
+```sh
+apt -y install ca-certificates jq curl wget ufw jq tmux pkg-config build-essential libssl-dev git
+```
+
+- Double check ufw is installed correctly
+```sh
+apt install ufw --fix-missing
+```
+
+###### 2. Configure your firewall using Uncomplicated Firewall (UFW)
+
+For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on the server. The following commands will allow you to set up a firewall using `ufw`.
+
+- Check if you have `ufw` installed:
+```sh
+ufw version
+```
+
+- If it's not installed, install with:
+```sh
+apt install ufw -y
+```
+
+- Enable ufw
+```sh
+ufw enable
+```
+
+- Check the status of the firewall
+```sh
+ufw status
+```
+
+###### 3. Open all needed ports to have your firewall for `nym-node` working correctly
+
+<div>
+  <Tabs items={[
+    <code>nym-node</code>,
+    <code>validator</code>,
+    ]} defaultIndex="0">
+    <MyTab><PortsNymNode /></MyTab>
+    <MyTab><PortsValidator /></MyTab>
+  </Tabs>
+</div>
+
+- In case of reverse proxy setup add:
+```sh
+ufw allow 443/tcp
+```
+
+- Re-check the status of the firewall:
+```sh
+ufw status
+```
+
+</Steps>
+
+For more information about your node's port configuration, check the [port reference table](#ports) below.
+
+## Nymvisor Automation with `systemd`
+
+This section contains guide how to setup `systemd` automation for Nymvisor. If you are looking for other chapters, visit these pages: [VPS setup](preliminrary-steps/vps-setup.mdx), advanced terminal tools like [tmux and nohup setup](nym-node/configuration.mdx#vps-setup-and-automation), [`nym-node` automation](nym-node/configuration.mdx#systemd) or [`validator` automation](validator-setup/nyx-configuration#automation).
+
+<Callout color="info" emoji="ℹ️">
+Since you're planning to run your node via a Nymvisor instance, as well as creating a Nymvisor `.service` file, you will also want to **stop any previous node automation process you already have running**.
+</Callout>
+
+<Steps>
+
+###### 1. Create a service file
+
+To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nymvisor.service` and follow the [next steps](#2-following-steps-for-nym-node-running-as-systemd-service).
+
+- Open service file in a text editor
+```sh
+nano /etc/systemd/system/nymvisor.service
+```
+
+- Paste this config file, substitute `<USER>` and `<PATH>` with your correct values and add all flags to run your `nymvisor` to `ExecStart` line instead of `<ARGUMENTS>`:
+
+```ini
+[Unit]
+Description=Nymvisor <VERSION>
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=<USER> # replace this with whatever user you wish
+LimitNOFILE=65536
+ExecStart=<PATH>/nymvisor run --id <ID>
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+- Save config and exit
+
+###### 2. Following steps for `nymvisor` running as `systemd` service
+
+Once your service file is saved follow these steps.
+
+- Reload systemctl to pickup the new unit file:
+```sh
+systemctl daemon-reload
+```
+
+- Enable the newly created service:
+```sh
+systemctl enable nymvisor.service
+```
+
+- Start your Nymvisor instance as a `systemd` service:
+```sh
+service nymvisor start
+```
+
+This will cause your Nymvisor instance to start at system boot time. If you restart your machine, your service will come back up automatically.
+
+###### 3. Useful `systemd` commands for easier management
+
+- You can monitor system logs of your node by running:
+```sh
+journalctl -u nymvisor -f
+```
+
+- Or check service status by running:
+```sh
+systemctl status nymvisor.service
+# for example systemctl status nymvisor.service
+```
+
+- You can also do `service nymvisor stop` or `service nymvisor restart`.
+
+<Callout color="info" emoji="ℹ️">
+Anytime you make any changes to your `systemd` script after you've enabled it, you will need to run:
+```sh
+systemctl daemon-reload
+service nymvisor restart
+```
+
+This lets your operating system know it's ok to reload the service configuration and restarts the node in a graceful way.
+</Callout>
+
+</Steps>
+
+## Backup a node
+
+Anything can happen to the server on which your node is running. To back up your `nym-node` keys and configuration protects the operators against the negative impact of unexpected events. To restart your node on another server, two essential pieces are needed:
+
+1. Node keys to initialise the same node on a new VPS
+2. Access to the bonding Nym account (wallet seeds) to edit the IP on smart contract
+
+Assuming that everyone access their wallets from local machine and does *not* store their seeds on VPS, point 2. should be a given. 
+To backup your `nym-node` keys and configuration in the easiest way possible, copy the entire config directory `.nym` from your VPS to your local desktop, using a special copy command `scp`:
+
+<Callout color="danger" emoji="⚠️">
+Never store your mnemonic seed anywhere online nor do *not* share it with anyone!
+</Callout>
+
+<Steps>
+
+###### 1. Create a directory where you want to store your backup
+```sh
+mkdir -pv <PATH_TO_TARGET_DIRECTORY>
+```
+
+###### 2. Copy configuration folder `.nym` from your VPS to your newly created backup directory
+
+```sh
+scp -r <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes/<ID> <PATH_TO_TARGET_DIRECTORY>
+```
+
+###### 3. Verify the success of the backup
+
+The `scp` command should print logs, an operator can see directly whether it was successful or if it encountered any error. However, double check that all your needed configuration is in the backup target directory.
+
+</Steps>
+
+## Restoring a node
+
+In case your VPS shut down and you have a [backup](#backup-a-node) of your node keys and access to your bonding wallet, you can easily restore your node on another server without losing your delegation.
+
+<Steps>
+
+###### 1. Prepare new VPS
+
+- On VPS: Do all [preliminary steps](preliminary-steps.mdx) needed to run a `nym-node`.
+
+- On VPS: Create a `.nym/nym-nodes` configuration folder:
+```sh
+mkdir -pv ~/.nym/nym-nodes
+```
+
+###### 2. Restore your node configuration
+
+From machine where your node is backed up (usually local desktop): Copy the folder with your node keys and configuration to the newly created folder on your VPS using `scp` command. Make sure to grab the entire `nym-node` configuration folder, which is called after your local `nym-node` identifier (`<ID>`), the `-r` (recursive) flag will take care of all sub-directories and their content:
+```sh
+scp -r <PATH_TO_LOCAL_NODE_CONFIGURATION_FOLDER> <VPS_USER_NAME>@<VPS_HOST_ADDRESS>:~/.nym/nym-nodes/
+```
+
+The `scp` command should print logs, an operator can see directly whether it was successful or if it encountered any error. However, double check that all your needed configuration is in the target directory `.nym/nym-nodes` on your VPS.
+
+
+###### 3. Configure your node on the new VPS
+
+* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP - it's the one under the header `[host]`, called `public_ips = [<PUBLIC_IPS>,]` and add your new location (field `location = <LOCATION>`, formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided). You can see your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
+
+* Try to run the node and see if everything works.
+
+* Setup the [systemd](nym-node/configuration.mdx#systemd) automation (don't forget to add the [terms and conditions flag](nym-node/setup.mdx#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
+
+###### 4. Change the node smart contract info via the wallet interface
+
+Open Nym Wallet, go to *Bonding*, open *Settings* and change *Host* value to the new `nym-node` IP address. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks, returning zero performance.
+
+</Steps>
+
+## Moving a node
+
+In case of a need to move a Nym Node from one machine to another and avoiding to lose the delegation, here are few steps how to do it.
+
+<Steps>
+
+##### 1. Prepare both servers
+
+Assuming both machines are remote VPS.
+
+* Make sure your `~/.ssh/<SSH_KEY>.pub` is in both of the servers `~/.ssh/authorized_keys` file
+* Create a `nym-node` folder in the target VPS. SSH in from your terminal and run:
+
+```sh
+# in case none of the nym configs was created previously
+mkdir ~/.nym
+
+#in case no `nym-node` was initialized previously
+mkdir ~/.nym/nym-nodes
+```
+
+###### 2. Move the node data and keys to the new machine
+
+* Open your **local terminal** (as that one's ssh key is authorized in both of the VPS) and run:
+```sh
+scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:~/.nym/nym-nodes/
+```
+
+###### 3. Open new/target VPS terminal and configure the node
+
+* Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP - it's the one under the header `[host]`, called `public_ips = [<PUBLIC_IPS>,]` and add your new location (field `location = <LOCATION>`, formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided). You can see your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
+
+* Try to run the node and see if everything works.
+
+* Setup the [systemd](nym-node/configuration.mdx#systemd) automation (don't forget to add the [terms and conditions flag](nym-node/setup.mdx#terms--conditions)) to `ExecStart` command, reload the daemon and run the service. If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic by opening your **local terminal** (as that one's ssh key is authorized in both of the VPS) and running:
+```sh
+scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:/etc/systemd/system/nym-node.service <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:/etc/systemd/system/nym-node.service
+```
+
+###### 4. Change the node smart contract info via the wallet interface
+
+* Open Nym Wallet, go to *Bonding*, open *Settings* and change *Host* value to the new `nym-node` IP address. Otherwise the keys will point to the old IP address in the smart contract, and the node will not be able to be connected, and it will fail up-time checks, returning zero performance.
+
+* Make sure to stop the old node.
+
+</Steps>
+
+## Rename Node Local Identifier
+
+Local node identifier, denoted as `<ID>` accross the documentation (not the identity key) is a name chosen by operators which defines where the nodes configuration data will be stored, where the ID determines the path to `~/.nym/nym-nodes/<ID>/`. This ID is never shared on the network.
+
+When running a [`nym-node`](nym-nodes/nym-node.md), a local identifier specified with a flag `--ID <ID>` is no longer necessary. Nodes without a specified ID will be assigned a default ID `default-nym-node`. This streamlines node management, particularly for operators handling multiple nodes via ansible and other automation scripts, as all data is stored at `~/.nym/nym-nodes/default-nym-node`.
+
+If you already operate a `nym-node` and wish to change the local ID to `default-nym-node` or anything else, follow the steps below to do so.
+
+<Callout>
+In the example we use `default-nym-node` as a target `<ID>`, if you prefer to use another name, edit the syntax in the commands accordingly.
+</Callout>
+
+<Steps>
+
+###### 1. Copy the configuration directory to the new one
+
+```sh
+cp -r  ~/.nym/nym-nodes/<ID> ~/.nym/nym-nodes/default-nym-node/
+```
+
+###### 2. Rename all original `<ID>` occurrences in `config.toml` to `default-nym-node`
+
+```sh
+# check occurences of the <SOURCE_ID>
+grep -ir  "<ID>" ~/.nym/nym-nodes/default-nym-node/*
+```
+<Callout color="danger" emoji="⚠️">
+If your node `<ID>` was too generic (like 'gateway' etc) and it occurs elsewhere than just a custom value, **do not use `sed` command but rewrite the values manually using a text editor!**
+</Callout>
+
+- If you are clear with occurrence found above, move on using `sed` command:
+
+```sh
+sed -i -e "s/<ID>/default-nym-node/g" ~/.nym/nym-nodes/default-nym-node/config/config.toml
+```
+
+- If you are not sure and want to play it safe, do it manually by opening `config.toml` and rewriting each occurence of `<ID>`:
+```sh
+nano ~/.nym/nym-nodes/default-nym-node/config/config.toml
+```
+
+###### 3. Validate by rechecking the config file content
+```sh
+# either re-run
+grep -ir  "<ID>" ~/.nym/nym-nodes/default-nym-node/*
+
+# or by reading the config file
+less ~/.nym/nym-nodes/default-nym-node/config/config.toml
+```
+- Pay extra attention to the `hostname` line. In case its value was somehow correlated with the source `<ID>` string you may need to correct it back
+
+###### 4. Reload your [systemd service daemon](nym-node/configuration.mdx#systemd) and restart the service
+
+- If you chosen `default-nym-node` as an ID, you can drop `--id` flag from node running commands, otherwise specify with the new `<ID>`.
+- If automation isn't your thing, simply reboot the node. To automate with `systemd` is highly recommended.
+
+###### 5. Be vareful before removing old config
+
+- If you double-checked that everything works fine, you can consider removing your old config directory
+
+</Steps>
+
+## Ports
+
+All `<NODE>`-specific port configuration can be found in `$HOME/.nym/<NODE>/<YOUR_ID>/config/config.toml`. If you do edit any port configs, remember to restart your client and node processes.
+
+### Nym Node Port Reference
+| Default port | Use                       |
+| ------------ | ------------------------- |
+| `1789`       | Listen for Mixnet traffic |
+| `1790`       | Listen for VerLoc traffic |
+| `8080`       | Metrics http API endpoint |
+| `1789`       | Listen for Mixnet traffic |
+| `9000`       | Listen for Client traffic |
+| `9001`       | WSS                       |
+| `51822/udp`  | WireGuard                 |
+
+### Validator Port Reference
+
+All validator-specific port configuration can be found in `$HOME/.nymd/config/config.toml`. If you do edit any port configs, remember to restart your validator.
+
+| Default port | Use                                  |
+|--------------|--------------------------------------|
+| 1317         | REST API server endpoint             |
+| 26656        | Listen for incoming peer connections |
+| 26660        | Listen for Prometheus connections    |
+

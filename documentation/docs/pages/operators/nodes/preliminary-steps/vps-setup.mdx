@@ -1,6 +1,9 @@
 import { Callout } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
-import { Steps } from 'nextra/components';import { Tabs } from 'nextra/components'
+import { Steps } from 'nextra/components';import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import PortsNymNode from 'components/operators/snippets/ports-nym-node.mdx';
+import PortsValidator from 'components/operators/snippets/ports-validator.mdx'
 
 # VPS Setup & Configuration
 
@@ -66,7 +69,7 @@ Before node or validator setup, the VPS needs to be configured and tested, to ve
 The commands listed in this chapter must be executed with a prefix `sudo` or from a root shell.
 </Callout>
 
-### Install Dependencies
+### Install Dependencies & Configure Firewall
 
 SSH to your server as `root` or become one running `sudo -i` or `su`. If you prefer to administrate your VPS from a user environment, supply the commands with prefix `sudo`.
 
@@ -87,7 +90,7 @@ apt -y install ca-certificates jq curl wget ufw jq tmux pkg-config build-essenti
 apt install ufw --fix-missing
 ```
 
-2. ###### Configure your firewall using Uncomplicated Firewall (UFW)
+###### 2. Configure your firewall using Uncomplicated Firewall (UFW)
 
 For a `nym-node` or Nyx validator to recieve traffic, you need to open ports on the server. The following commands will allow you to set up a firewall using `ufw`.
 
@@ -109,26 +112,20 @@ ufw status
 ```
 
 ###### 3. Open all needed ports to have your firewall for `nym-node` working correctly
-```sh
-ufw allow 22/tcp    # SSH - you're in control of these ports
-ufw allow 80/tcp    # HTTP
-ufw allow 443/tcp   # HTTPS
-ufw allow 1789/tcp  # Nym specific
-ufw allow 1790/tcp  # Nym specific
-ufw allow 8080/tcp  # Nym specific - nym-node-api
-ufw allow 9000/tcp  # Nym Specific - clients port
-ufw allow 9001/tcp  # Nym specific - wss port 
-ufw allow 51822/udp # WireGuard
-```
+
+<div>
+  <Tabs items={[
+    <code>nym-node</code>,
+    <code>validator</code>,
+    ]} defaultIndex="0">
+    <MyTab><PortsNymNode/></MyTab>
+    <MyTab><PortsValidator/></MyTab>
+  </Tabs>
+</div>
 
 - In case of reverse proxy setup add:
 ```sh
 ufw allow 443/tcp
-```
-
-- For validator setup open these ports:
-```sh
-ufw allow 1317,26656,26660,22,80,443/tcp
 ```
 
 - Re-check the status of the firewall:
@@ -182,7 +179,7 @@ If your output is **the same as above**, your node will *not* encounter any `uli
 ###### 2. If either value is `1024`, you must raise the limit
 
 - We recommend doing it via the `systemd` service file. Following the steps in [this guide](../nym-node/configuration.mdx#systemd).
-- You will see there a line setting new `ulimit` threshold. 
+- You will see there a line setting new `ulimit` threshold.
 ```sh
 LimitNOFILE=65536
 ```
@@ -275,4 +272,3 @@ All validator-specific port configuration can be found in `$HOME/.nymd/config/co
 | `1317`         | REST API server endpoint             |
 | `26656`        | Listen for incoming peer connections |
 | `26660`        | Listen for Prometheus connections    |
-

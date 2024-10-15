@@ -295,3 +295,4 @@ This section outlines what happens under the hood with the following commands:
 - checks if `upgrades/<upgrade-name>/$DAEMON_NAME` binary already exists. If it does and `--force` flag was not specified, Nymvisor will terminate the provided upgrade binary is copied to its appropriate location
 - if applicable, new `upgrade-info.json` is created and written to its appropriate location
 - `upgrade-plan.json` is updated with the new upgrade details. If there's an active Nymvisor instance running, this change will be detected to initialise upgrade process
+

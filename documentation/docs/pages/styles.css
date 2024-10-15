@@ -1,6 +1,8 @@
 body {
   --colorPrimary: #fb6e4e;
   --textPrimary: #121726;
+  /* padding: 5px 5px 10px;
+  margin: 0 auto; */
 }
 
 div.nextra-code-block > div {
@@ -11,6 +13,17 @@ div.nextra-code-block > div {
   /* max-height: 350px !important; */
   max-height: none !important;
   scroll-y: auto !important;
+}
+
+/* whole div */
+.nx-mx-auto.nx-flex.nx-max-w-\[90rem\] {
+  max-width: 110rem;
+  padding: 0%;
+}
+
+.nextra-toc {
+  width: 400px !important;
+  padding-right: 0px;
 }
 
 /* Code blocks*/
@@ -31,6 +44,11 @@ div.nextra-code-block > div {
 
 .nextra-sidebar-container {
   border-right: 1px solid #262626;
+  width: 300px !important;
+}
+
+.nextra-sidebar {
+  column-width: 500px;
 }
 
 /* aside ul > li > a:hover{

@@ -14,21 +14,15 @@ const config: DocsThemeConfig = {
     text: Footer,
   },
   darkMode: true,
-  primaryHue: {
-    dark: 30,
-    light: 30,
-  },
-  primarySaturation: 68,
   sidebar: {
     defaultMenuCollapseLevel: 1,
     autoCollapse: true,
-    toggleButton: true,
   },
   navbar: {
     extraContent: <Matrix />,
   },
   toc: {
-    float: false,
+    float: true, // TODO would be nice to set this to false so the TOC is in the left sidebar but this doesn't seem to work with pages that are also the top of directories: fix
   },
   // gitTimestamp: TODO ,
   editLink: {

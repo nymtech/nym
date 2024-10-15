@@ -1,17 +1,30 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import {Accordion, AccordionItem} from "@nextui-org/react";
+
 # Nyx Validator & Nym API Configuration
+
+<VarInfo />
 
 ## Automation
 
 ### Validator `systemd` Automation
 
-To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nymd.service` and follow the steps bellow..
+To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nymd.service` and follow the steps below running all commands with root permissions (root shell or `sudo` prefix).
 
-1. Open text editor
+<Steps>
+
+###### 1. Create an init service file
+
+- Open text editor
+
 ```sh
 nano /etc/systemd/system/nymd.service
 ```
 
-2. Paste this file
+- Paste this file
 ```ini
 [Unit]
 Description=Nyxd
@@ -19,10 +32,10 @@ StartLimitInterval=350
 StartLimitBurst=10
 
 [Service]
-User=<USER>                                                       # change to your user
+User=<USER>                          # change to your user
 Type=simple
-Environment="LD_LIBRARY_PATH=/home/<USER>/<PATH_TO_NYX_BINARIES>" # change to correct path
-ExecStart=/home/<USER>/<PATH_TO_NYX_BINARIES>/nymd start          # change to correct path
+Environment="LD_LIBRARY_PATH=<PATH>" # change to correct path
+ExecStart=<PATH>/nymd start          # change to correct path
 Restart=on-failure
 RestartSec=30
 LimitNOFILE=infinity
@@ -31,34 +44,58 @@ LimitNOFILE=infinity
 WantedBy=multi-user.target
 ```
 
-Proceed to start it with:
+###### 2. Start validator as `systemd` service
 
-```sh
-systemctl daemon-reload # to pickup the new unit file
-systemctl enable nymd   # to enable the service
-systemctl start nymd    # to actually start the service
-journalctl -f -u nymd # to monitor system logs showing the service start
-```
-
-**Note:** if you make any changes to your `systemd` script after you've enabled it, you will need to run:
+- To pick up new unit file, run:
 
 ```sh
 systemctl daemon-reload
 ```
 
-This lets your operating system know it's ok to reload the service configuration. Then restart your `<NODE>`.
+- Enable the service:
+
+```sh
+systemctl enable nymd
+```
+
+- Start the service:
+
+```sh
+systemctl start nymd
+```
+
+- Optionally you can monitor status logs by running:
+```sh
+journalctl -f -u nymd
+```
+
+###### 3. If you make any changes to your `systemd` script after you've enabled it
+
+- You need to run:
+
+```sh
+systemctl daemon-reload
+```
+
+This lets your operating system know it's ok to reload the service configuration. Then restart your validator.
+
+</Steps>
 
 ### Nym API `systemd` Automation
 
 
-To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nym-api.service` and follow the steps bellow..
+To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nym-api.service` and follow the steps below running all commands with root permissions (root shell or `sudo` prefix).
 
-1. Open text editor
+<Steps>
+
+###### 1. Create an init service file
+
+- Open text editor
 ```sh
 nano /etc/systemd/system/nym-api.service
 ```
 
-2. Paste this file
+- Paste this file
 ```ini
 [Unit]
 Description=NymAPI
@@ -66,9 +103,9 @@ StartLimitInterval=350
 StartLimitBurst=10
 
 [Service]
-User=<USER>                                                       # change to your user
+User=<USER>                                # change to your user
 Type=simple
-ExecStart=/home/<USER>/<PATH_TO_BINARY>/nym-api start             # change to correct path
+ExecStart=<PATH>/nym-api start             # change to correct path
 Restart=on-failure
 RestartSec=30
 LimitNOFILE=infinity
@@ -76,13 +113,25 @@ LimitNOFILE=infinity
 [Install]
 WantedBy=multi-user.target
 ```
+###### 2. Start your API as `systemd` service
 
-Proceed to start it with:
-
+- To pick up new unit file, run:
 ```sh
 systemctl daemon-reload  # to pickup the new unit file
+```
+
+- Enable the service:
+```sh
 systemctl enable nym-api # to enable the service
+```
+
+- Start the service:
+```sh
 systemctl start nym-api  # to actually start the service
+```
+
+- Optionally you can monitor status logs by running:
+```sh
 journalctl -f -u nym-api # to monitor system logs showing the service start
 ```
 
@@ -92,7 +141,17 @@ journalctl -f -u nym-api # to monitor system logs showing the service start
 systemctl daemon-reload
 ```
 
-This lets your operating system know it's ok to reload the service configuration. Then restart your `<NODE>`.
+###### 3. If you make any changes to your `systemd` script after you've enabled it
+
+- You need to run:
+
+```sh
+systemctl daemon-reload
+```
+
+This lets your operating system know it's ok to reload the service configuration. Then restart your API.
+
+</Steps>
 
 ## Nym API (previously 'Validator API') endpoints
 
@@ -195,12 +254,12 @@ Followed by:
 
 ```sh
 sudo apt install certbot nginx python3
-certbot --nginx -m <you@yourdomain.com> --agree-tos
+certbot --nginx -m <EMAIL> --agree-tos
 ```
 
-```admonish caution title=""
+<Callout>
 If using a VPS running Ubuntu 20: replace `certbot nginx python3` with `python3-certbot-nginx`
-```
+</Callout>
 
 These commands will get you an https encrypted nginx proxy in front of the various endpoints.
 
@@ -219,8 +278,7 @@ echo 'Metrics URL: http://'$(curl -s ifconfig.me)':26660/metrics'
 
 Your validator's metrics will be available to you at the returned 'Metrics URL'.
 
-~~~admonish example collapsible=true title="Console output"
-```
+```sh
 # HELP go_gc_duration_seconds A summary of the pause duration of garbage collection cycles.
 # TYPE go_gc_duration_seconds summary
 go_gc_duration_seconds{quantile="0"} 6.7969e-05
@@ -255,7 +313,7 @@ go_memstats_gc_cpu_fraction 0.03357798610671518
 # TYPE go_memstats_gc_sys_bytes gauge
 go_memstats_gc_sys_bytes 1.3884192e+07
 ```
-~~~
+
 
 ## Validator port reference
 
@@ -266,3 +324,4 @@ All validator-specific port configuration can be found in `$HOME/.nymd/config/co
 | 1317         | REST API server endpoint             |
 | 26656        | Listen for incoming peer connections |
 | 26660        | Listen for Prometheus connections    |
+

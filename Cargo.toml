@@ -85,6 +85,7 @@ members = [
     "common/socks5-client-core",
     "common/socks5/proxy-helpers",
     "common/socks5/requests",
+    "common/statistics",
     "common/store-cipher",
     "common/task",
     "common/topology",

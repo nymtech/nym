@@ -5219,6 +5219,7 @@ dependencies = [
  "nym-node-http-api",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-statistics-common",
  "nym-task",
  "nym-types",
  "nym-validator-client",
@@ -5232,6 +5233,7 @@ dependencies = [
  "sqlx",
  "subtle-encoding",
  "thiserror",
+ "time",
  "tokio",
  "tokio-stream",
  "tokio-tungstenite",
@@ -6281,6 +6283,15 @@ dependencies = [
  "nym-outfox",
  "sphinx-packet",
  "thiserror",
+]
+
+[[package]]
+name = "nym-statistics-common"
+version = "0.1.0"
+dependencies = [
+ "futures",
+ "nym-sphinx",
+ "time",
 ]
 
 [[package]]

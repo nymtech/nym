@@ -5,6 +5,8 @@ use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender
 use crate::node::client_handling::embedded_clients::LocalEmbeddedClientHandle;
 use dashmap::DashMap;
 use nym_sphinx::DestinationAddressBytes;
+use nym_statistics_common::events;
+use nym_statistics_common::events::StatsEventSender;
 use std::sync::Arc;
 use tracing::warn;
 
@@ -35,6 +37,7 @@ impl ActiveClient {
 #[derive(Clone)]
 pub(crate) struct ActiveClientsStore {
     inner: Arc<DashMap<DestinationAddressBytes, ActiveClient>>,
+    stats_event_sender: StatsEventSender,
 }
 
 #[derive(Clone)]
@@ -48,9 +51,10 @@ pub(crate) struct ClientIncomingChannels {
 
 impl ActiveClientsStore {
     /// Creates new instance of `ActiveClientsStore` to store in-memory handles to all currently connected clients.
-    pub(crate) fn new() -> Self {
+    pub(crate) fn new(stats_event_sender: StatsEventSender) -> Self {
         ActiveClientsStore {
             inner: Arc::new(DashMap::new()),
+            stats_event_sender,
         }
     }
 
@@ -126,6 +130,12 @@ impl ActiveClientsStore {
     /// * `client`: address of the client for which to remove the handle.
     pub(crate) fn disconnect(&self, client: DestinationAddressBytes) {
         self.inner.remove(&client);
+        if let Err(e) = self
+            .stats_event_sender
+            .unbounded_send(events::StatsEvent::new_session_stop(client))
+        {
+            warn!("Failed to send session stop event to collector : {e}")
+        };
     }
 
     /// Insert new client handle into the store.
@@ -147,6 +157,12 @@ impl ActiveClientsStore {
         if self.inner.insert(client, entry).is_some() {
             panic!("inserted a duplicate remote client")
         }
+        if let Err(e) = self
+            .stats_event_sender
+            .unbounded_send(events::StatsEvent::new_session_start(client))
+        {
+            warn!("Failed to send session start event to collector : {e}")
+        };
     }
 
     /// Inserts a handle to the embedded client

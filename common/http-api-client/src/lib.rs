@@ -531,6 +531,19 @@ where
     }
 
     if res.status().is_success() {
+        #[cfg(debug_assertions)]
+        {
+            let text = res.text().await.map_err(|err| {
+                tracing::error!("Couldn't even get response text");
+                err
+            })?;
+            tracing::trace!("Result:\n{:#?}", text);
+
+            return Ok(serde_json::from_str(&text)
+                .map_err(|err| HttpClientError::GenericRequestFailure(err.to_string()))?)
+        }
+
+        #[cfg(not(debug_assertions))]
         Ok(res.json().await?)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)

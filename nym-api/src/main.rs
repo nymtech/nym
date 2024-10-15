@@ -24,7 +24,7 @@ use circulating_supply_api::cache::CirculatingSupplyCache;
 use clap::Parser;
 use ecash::dkg::controller::DkgController;
 use node_status_api::NodeStatusCache;
-use nym_bin_common::logging::setup_logging;
+use nym_bin_common::logging::{setup_logging, setup_tracing_logger};
 use nym_config::defaults::NymNetworkDetails;
 use nym_contract_cache::cache::NymContractCache;
 use nym_sphinx::receiver::SphinxMessageReceiver;
@@ -62,11 +62,16 @@ async fn main() -> Result<(), anyhow::Error> {
     cfg_if::cfg_if! {if #[cfg(feature = "console-subscriber")] {
         // instrument tokio console subscriber needs RUSTFLAGS="--cfg tokio_unstable" at build time
         console_subscriber::init();
+    } else {
+        setup_tracing_logger();
     }}
+
+    // setup_tracing_logger();
+
 
     // std::env::set_var("MALLOC_CONF", "prof:true,lg_prof_interval:28");
 
-    setup_logging();
+    // setup_tracing_logger();
     // TODO rocket: replace with tracing logger once rocket is eliminated from code
 
     info!("Starting nym api...");

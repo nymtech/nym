@@ -52,7 +52,7 @@ mod families_purge {
         pub label: UniqueIndex<'a, FamilyHeadKey, Family>,
     }
 
-    impl<'a> IndexList<Family> for FamilyIndex<'a> {
+    impl IndexList<Family> for FamilyIndex<'_> {
         fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Family>> + '_> {
             let v: Vec<&dyn Index<Family>> = vec![&self.label];
             Box::new(v.into_iter())

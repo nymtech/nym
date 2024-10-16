@@ -24,7 +24,7 @@ pub(crate) struct UnbondedMixnodeIndex<'a> {
     pub(crate) identity_key: MultiIndex<'a, IdentityKey, UnbondedMixnode, NodeId>,
 }
 
-impl<'a> IndexList<UnbondedMixnode> for UnbondedMixnodeIndex<'a> {
+impl IndexList<UnbondedMixnode> for UnbondedMixnodeIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<UnbondedMixnode>> + '_> {
         let v: Vec<&dyn Index<UnbondedMixnode>> = vec![&self.owner, &self.identity_key];
         Box::new(v.into_iter())
@@ -58,7 +58,7 @@ pub(crate) struct MixnodeBondIndex<'a> {
 
 // IndexList is just boilerplate code for fetching a struct's indexes
 // note that from my understanding this will be converted into a macro at some point in the future
-impl<'a> IndexList<MixNodeBond> for MixnodeBondIndex<'a> {
+impl IndexList<MixNodeBond> for MixnodeBondIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<MixNodeBond>> + '_> {
         let v: Vec<&dyn Index<MixNodeBond>> =
             vec![&self.owner, &self.identity_key, &self.sphinx_key];

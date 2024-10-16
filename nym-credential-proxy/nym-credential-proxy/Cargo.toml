@@ -52,7 +52,7 @@ nym-http-api-common = { path = "../../common/http-api-common", features = ["utoi
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 
-nym-credential-proxy-requests = { path = "../vpn-api-requests", features = ["openapi"] }
+nym-credential-proxy-requests = { path = "../nym-credential-proxy-requests", features = ["openapi"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }

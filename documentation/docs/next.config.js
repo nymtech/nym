@@ -159,7 +159,196 @@ const config = {
         permanent: true,
       },
       // dev docs
-      // operators docs TODO
+      {
+        source: "/developers/clients-overview.html",
+        destination: "/developers/clients",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/rust.html",
+        destination: "/developers/rust",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/message-types.html",
+        destination: "/developers/rust/mixnet/message-types",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/message-helpers.html",
+        destination: "/developers/rust/mixnet/message-helpers",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/troubleshooting.html",
+        destination: "/developers/rust/mixnet/troubleshooting",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/examples.html",
+        destination: "/developers/rust/mixnet/examples",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/examples/simple.html",
+        destination: "/developers/rust/mixnet/examples/simple",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/examples/keys.html",
+        destination: "/developers/sdk/rust/examples/keys.html",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/examples/storage.html",
+        destination:
+          "/developers/rust/mixnet/examples/builders/builder-with-storage",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/examples/surbs.html",
+        destination: "/developers/rust/mixnet/examples/surbs",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/examples/custom-network.html",
+        destination: "/developers/rust/mixnet/examples/custom-topology",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/examples/socks.html",
+        destination: "/developers/rust/mixnet/examples/socks",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/examples/split-send.html",
+        destination: "/developers/rust/mixnet/examples/split-send",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/examples/credential.html",
+        destination: "/developers/rust/mixnet",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/rust/examples/cargo.html",
+        destination: "/developers/rust/importing",
+        permanent: true,
+      },
+      {
+        source: "/developers/sdk/typescript.html",
+        destination: "/developers/typescript",
+        permanent: true,
+      },
+      {
+        source: "/developers/binaries/pre-built-binaries.html",
+        destination: "/developers/binaries#pre-built-binaries",
+        permanent: true,
+      },
+      {
+        source: "/developers/binaries/building-nym.html",
+        destination: "/developers/binaries",
+        permanent: true,
+      },
+      {
+        source: "/developers/clients/websocket-client.html",
+        destination: "/developers/clients/websocket",
+        permanent: true,
+      },
+      {
+        source: "/developers/clients/websocket/setup.html",
+        destination: "/developers/clients/websocket/setup",
+        permanent: true,
+      },
+      {
+        source: "/developers/clients/websocket/config.html",
+        destination: "/developers/clients/websocket/config",
+        permanent: true,
+      },
+      {
+        source: "/developers/clients/websocket/usage.html",
+        destination: "/developers/clients/websocket/usage",
+        permanent: true,
+      },
+      {
+        source: "/developers/clients/websocket/examples.html",
+        destination: "/developers/clients/websocket/examples",
+        permanent: true,
+      },
+      {
+        source: "/developers/clients/socks5-client.html",
+        destination: "/developers/clients/socks5",
+        permanent: true,
+      },
+      {
+        source: "/developers/clients/socks5/setup.html",
+        destination: "/developers/clients/socks5#client-setup",
+        permanent: true,
+      },
+      {
+        source: "/developers/clients/socks5/usage.html",
+        destination: "/developers/clients/socks5#using-your-socks5-client",
+        permanent: true,
+      },
+      {
+        source: "/developers/clients/webassembly-client.html",
+        destination: "/developers/clients/webassembly-client",
+        permanent: true,
+      },
+      {
+        source: "/developers/tutorials/coming-soon.html",
+        destination: "/developers/rust#",
+        permanent: true,
+      },
+      {
+        source: "/developers/integrations/integration-options.html",
+        destination: "/developers/integrations",
+        permanent: true,
+      },
+      {
+        source: "/developers/faq/integrations-faq.html",
+        destination: "/developers/integrations",
+        permanent: true,
+      },
+      {
+        source: "/developers/coc.html",
+        destination: "/developers/coc",
+        permanent: true,
+      },
+      {
+        source: "/developers/licensing.html",
+        destination: "/developers/licensing",
+        permanent: true,
+      },
+      {
+        source: "/developers/nymvpn/intro.html",
+        destination: "/developers/archive/nymvpn",
+        permanent: true,
+      },
+      {
+        source: "/developers/nymvpn/cli.html",
+        destination: "/developers/nymvpn/cli",
+        permanent: true,
+      },
+      {
+        source: "/developers/archive/nym-connect.html",
+        destination: "/developers/archive/nym-connect",
+        permanent: true,
+      },
+      // {
+      //   source: "",
+      //   destination: "",
+      //   permanent: true,
+      // },
+      /*
+      TODO
+      /developers/examples/custom-services.html
+      /developers/examples/using-nrs.html
+      /developers/examples/browser-only.html
+      /developers/examples/monorepo-examples.html
+      /developers/integrations/payment-integration.html
+      OPERATORS
+      */
     ];
   },
   images: {

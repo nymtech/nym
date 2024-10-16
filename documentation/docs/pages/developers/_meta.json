@@ -14,5 +14,7 @@
   "---": {
     "type": "separator"
   },
-  "licensing": "Licensing"
+  "archive": "Archive",
+  "licensing": "Licensing",
+  "coc": "Coc"
 }

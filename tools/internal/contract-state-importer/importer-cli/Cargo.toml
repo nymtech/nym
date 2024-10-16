@@ -24,3 +24,6 @@ importer-contract = { path = "../importer-contract" }
 nym-validator-client = { path = "../../../../common/client-libs/validator-client" }
 nym-bin-common = { path = "../../../../common/bin-common", features = ["basic_tracing"] }
 nym-network-defaults = { path = "../../../../common/network-defaults" }
+
+nym-mixnet-contract-common = { path = "../../../../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-vesting-contract-common = { path = "../../../../common/cosmwasm-smart-contracts/vesting-contract" }

@@ -84,32 +84,47 @@ impl From<v3::registration::ClientMac> for v2::registration::ClientMac {
     }
 }
 
-impl From<v3::response::AuthenticatorResponse> for v2::response::AuthenticatorResponse {
-    fn from(authenticator_response: v3::response::AuthenticatorResponse) -> Self {
-        Self {
-            data: authenticator_response.data.into(),
+impl TryFrom<v3::response::AuthenticatorResponse> for v2::response::AuthenticatorResponse {
+    type Error = crate::Error;
+
+    fn try_from(
+        authenticator_response: v3::response::AuthenticatorResponse,
+    ) -> Result<Self, Self::Error> {
+        Ok(Self {
+            data: authenticator_response.data.try_into()?,
             reply_to: authenticator_response.reply_to,
             protocol: authenticator_response.protocol,
-        }
+        })
     }
 }
 
-impl From<v3::response::AuthenticatorResponseData> for v2::response::AuthenticatorResponseData {
-    fn from(authenticator_response_data: v3::response::AuthenticatorResponseData) -> Self {
+impl TryFrom<v3::response::AuthenticatorResponseData> for v2::response::AuthenticatorResponseData {
+    type Error = crate::Error;
+
+    fn try_from(
+        authenticator_response_data: v3::response::AuthenticatorResponseData,
+    ) -> Result<Self, Self::Error> {
         match authenticator_response_data {
             v3::response::AuthenticatorResponseData::PendingRegistration(
                 pending_registration_response,
-            ) => v2::response::AuthenticatorResponseData::PendingRegistration(
-                pending_registration_response.into(),
+            ) => Ok(
+                v2::response::AuthenticatorResponseData::PendingRegistration(
+                    pending_registration_response.into(),
+                ),
             ),
-            v3::response::AuthenticatorResponseData::Registered(registered_response) => {
-                v2::response::AuthenticatorResponseData::Registered(registered_response.into())
-            }
+            v3::response::AuthenticatorResponseData::Registered(registered_response) => Ok(
+                v2::response::AuthenticatorResponseData::Registered(registered_response.into()),
+            ),
             v3::response::AuthenticatorResponseData::RemainingBandwidth(
                 remaining_bandwidth_response,
-            ) => v2::response::AuthenticatorResponseData::RemainingBandwidth(
+            ) => Ok(v2::response::AuthenticatorResponseData::RemainingBandwidth(
                 remaining_bandwidth_response.into(),
-            ),
+            )),
+            v3::response::AuthenticatorResponseData::TopUpBandwidth(_) => {
+                Err(Self::Error::Conversion(
+                    "a v2 request couldn't produce a v3 only type of response".to_string(),
+                ))
+            }
         }
     }
 }

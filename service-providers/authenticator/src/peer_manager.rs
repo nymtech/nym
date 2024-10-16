@@ -4,7 +4,7 @@
 use crate::error::*;
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
 use futures::channel::oneshot;
-use nym_authenticator_requests::v2::registration::{GatewayClient, RemainingBandwidthData};
+use nym_authenticator_requests::latest::registration::{GatewayClient, RemainingBandwidthData};
 use nym_wireguard::{
     peer_controller::{
         AddPeerControlResponse, PeerControlRequest, QueryBandwidthControlResponse,

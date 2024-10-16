@@ -1,7 +1,10 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::registration::{RegistrationData, RegistredData, RemainingBandwidthData};
+use super::{
+    registration::{RegistrationData, RegistredData, RemainingBandwidthData},
+    topup::TopUpBandwidthData,
+};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::addressing::Recipient;
 use serde::{Deserialize, Serialize};
@@ -75,6 +78,25 @@ impl AuthenticatorResponse {
         }
     }
 
+    pub fn new_topup_bandwidth(
+        remaining_bandwidth_data: TopUpBandwidthData,
+        reply_to: Recipient,
+        request_id: u64,
+    ) -> Self {
+        Self {
+            protocol: Protocol {
+                service_provider_type: ServiceProviderType::Authenticator,
+                version: VERSION,
+            },
+            data: AuthenticatorResponseData::TopUpBandwidth(TopUpBandwidthResponse {
+                reply: remaining_bandwidth_data,
+                reply_to,
+                request_id,
+            }),
+            reply_to,
+        }
+    }
+
     pub fn recipient(&self) -> Recipient {
         self.reply_to
     }
@@ -96,6 +118,7 @@ impl AuthenticatorResponse {
             AuthenticatorResponseData::PendingRegistration(response) => Some(response.request_id),
             AuthenticatorResponseData::Registered(response) => Some(response.request_id),
             AuthenticatorResponseData::RemainingBandwidth(response) => Some(response.request_id),
+            AuthenticatorResponseData::TopUpBandwidth(response) => Some(response.request_id),
         }
     }
 }
@@ -105,6 +128,7 @@ pub enum AuthenticatorResponseData {
     PendingRegistration(PendingRegistrationResponse),
     Registered(RegisteredResponse),
     RemainingBandwidth(RemainingBandwidthResponse),
+    TopUpBandwidth(TopUpBandwidthResponse),
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -126,4 +150,11 @@ pub struct RemainingBandwidthResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
     pub reply: Option<RemainingBandwidthData>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct TopUpBandwidthResponse {
+    pub request_id: u64,
+    pub reply_to: Recipient,
+    pub reply: TopUpBandwidthData,
 }

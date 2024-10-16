@@ -146,6 +146,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
         ecash_keypair_wrapper.clone(),
         comm_channel,
         storage.clone(),
+        !config.ecash_signer.enabled,
     )
     .await?;
 

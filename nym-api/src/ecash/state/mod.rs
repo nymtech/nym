@@ -75,6 +75,7 @@ impl EcashState {
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
+        signer_disabled: bool,
     ) -> Result<Self>
     where
         C: LocalClient + Send + Sync + 'static,
@@ -84,13 +85,22 @@ impl EcashState {
 
         Ok(Self {
             global: GlobalEcachState::new(contract_address),
-            local: LocalEcashState::new(key_pair, identity_keypair, double_spending_filter),
+            local: LocalEcashState::new(
+                key_pair,
+                identity_keypair,
+                double_spending_filter,
+                signer_disabled,
+            ),
             aux: AuxiliaryEcashState::new(client, comm_channel, storage),
         })
     }
 
     /// Ensures that this nym-api is one of ecash signers for the current epoch
     pub(crate) async fn ensure_signer(&self) -> Result<()> {
+        if self.local.explicitly_disabled {
+            return Err(EcashError::NotASigner);
+        }
+
         let epoch_id = self.aux.current_epoch().await?;
 
         let is_epoch_signer = self

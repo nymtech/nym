@@ -35,6 +35,7 @@ use nym_config::defaults::NymNetworkDetails;
 use nym_sphinx::receiver::SphinxMessageReceiver;
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::Coin;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info};
@@ -86,6 +87,11 @@ pub(crate) struct Args {
     /// default: None - config value will be used instead
     #[clap(long)]
     pub(crate) monitor_credentials_mode: Option<bool>,
+
+    /// Socket address this api will use for binding its http API.
+    /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
+    #[clap(long)]
+    pub(crate) bind_address: Option<SocketAddr>,
 }
 
 async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHandles> {

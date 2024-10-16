@@ -576,11 +576,15 @@ pub fn migrate(
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    // remove all family-related things
-    crate::queued_migrations::families_purge(deps.branch())?;
+    let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
 
-    // prepare the ground for using nym-nodes rather than standalone mixnodes/gateways
-    migrate_to_nym_nodes_usage(deps.branch(), &msg)?;
+    if !skip_state_updates {
+        // remove all family-related things
+        crate::queued_migrations::families_purge(deps.branch())?;
+
+        // prepare the ground for using nym-nodes rather than standalone mixnodes/gateways
+        migrate_to_nym_nodes_usage(deps.branch(), &msg)?;
+    }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh

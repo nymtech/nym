@@ -161,6 +161,10 @@ impl NetworkManager {
             &format!("127.0.0.1:{verloc_port}"),
             "--entry-bind-address",
             &format!("127.0.0.1:{clients_port}"),
+            "--mixnet-announce-port",
+            &mix_port.to_string(),
+            "--verloc-announce-port",
+            &verloc_port.to_string(),
             "--mnemonic",
             &Zeroizing::new(node.owner.mnemonic.to_string()),
             "--local",
@@ -203,11 +207,7 @@ impl NetworkManager {
 
         ctx.set_pb_message(format!("generating bonding signature for node {id}..."));
 
-        let msg = if is_gateway {
-            node.gateway_bonding_payload()
-        } else {
-            node.mixnode_bonding_payload()
-        };
+        let msg = node.bonding_payload();
 
         let child = Command::new(&ctx.nym_node_binary)
             .args([
@@ -318,28 +318,20 @@ impl NetworkManager {
 
         let owner = ctx.signing_node_owner(node)?;
 
-        let (bonding_fut, typ) = if is_gateway {
-            (
-                owner.bond_gateway(
-                    node.gateway(),
-                    node.bonding_signature(),
-                    node.pledge().into(),
-                    None,
-                ),
-                "gateway",
-            )
+        let typ = if is_gateway {
+            "gateway [as nym-node]"
         } else {
-            (
-                owner.bond_mixnode(
-                    node.mixnode(),
-                    node.cost_params(),
-                    node.bonding_signature(),
-                    node.pledge().into(),
-                    None,
-                ),
-                "mixnode",
-            )
+            "mixnode [as nym-node]"
         };
+
+        let bonding_fut = owner.bond_nymnode(
+            node.bonding_nym_node(),
+            node.cost_params(),
+            node.bonding_signature(),
+            node.pledge().into(),
+            None,
+        );
+
         let res = ctx.async_with_progress(bonding_fut).await?;
         ctx.println(format!(
             "\t{id} ({typ}) bonded in transaction: {}",
@@ -376,6 +368,7 @@ impl NetworkManager {
             style("[4/5]").bold().dim()
         ));
 
+        // this could be batched in a single tx, but that's too much effort for now
         let rewarder = ctx.signing_rewarder()?;
 
         ctx.set_pb_message("starting epoch transition...");
@@ -384,6 +377,16 @@ impl NetworkManager {
 
         ctx.set_pb_message("reconciling (no) epoch events...");
         let fut = rewarder.reconcile_epoch_events(None, None);
+        ctx.async_with_progress(fut).await?;
+
+        ctx.set_pb_message("finally assigning the active set... exit...");
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::ExitGateway,
+                nodes: vec![],
+            },
+            None,
+        );
         ctx.async_with_progress(fut).await?;
 
         ctx.set_pb_message("finally assigning the active set... entry...");

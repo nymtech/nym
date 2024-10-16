@@ -169,6 +169,9 @@ impl Config {
         if let Some(monitor_credentials_mode) = args.monitor_credentials_mode {
             self.network_monitor.debug.disabled_credentials_mode = !monitor_credentials_mode
         }
+        if let Some(http_bind_address) = args.bind_address {
+            self.base.bind_address = http_bind_address
+        }
 
         self
     }

@@ -109,6 +109,7 @@ impl NetworkManager {
     ) -> Result<nym_mixnet_contract_common::MigrateMsg, NetworkManagerError> {
         Ok(nym_mixnet_contract_common::MigrateMsg {
             vesting_contract_address: Some(ctx.network.contracts.vesting.address()?.to_string()),
+            unsafe_skip_state_updates: Some(true),
         })
     }
 

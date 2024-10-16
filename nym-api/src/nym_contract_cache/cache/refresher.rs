@@ -180,9 +180,10 @@ impl NymContractCacheRefresher {
         let contract_info = self.get_nym_contracts_info().await?;
 
         info!(
-            "Updating validator cache. There are {} mixnodes and {} gateways",
+            "Updating validator cache. There are {} [legacy] mixnodes, {} [legacy] gateways and {} nym nodes",
             mixnodes.len(),
             gateways.len(),
+            nym_nodes.len(),
         );
 
         self.cache

@@ -7,7 +7,7 @@ use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
-use nym_topology::{filter::VersionFilterable, gateway, mix};
+use nym_topology::{gateway, mix};
 use nym_validator_client::client::IdentityKeyRef;
 use nym_validator_client::UserAgent;
 use rand::{seq::SliceRandom, Rng};
@@ -94,7 +94,7 @@ pub async fn current_gateways<R: Rng>(
 
     log::debug!("Fetching list of gateways from: {nym_api}");
 
-    let gateways = client.get_basic_gateways(None).await?;
+    let gateways = client.get_all_basic_entry_assigned_nodes(None).await?;
     log::debug!("Found {} gateways", gateways.len());
     log::trace!("Gateways: {:#?}", gateways);
 
@@ -102,17 +102,12 @@ pub async fn current_gateways<R: Rng>(
         .iter()
         .filter_map(|gateway| gateway.try_into().ok())
         .collect::<Vec<gateway::LegacyNode>>();
-    log::debug!("Ater checking validity: {}", valid_gateways.len());
+    log::debug!("After checking validity: {}", valid_gateways.len());
     log::trace!("Valid gateways: {:#?}", valid_gateways);
 
-    // we were always filtering by version so I'm not removing that 'feature'
-    let filtered_gateways = valid_gateways.filter_by_version(env!("CARGO_PKG_VERSION"));
-    log::debug!("After filtering for version: {}", filtered_gateways.len());
-    log::trace!("Filtered gateways: {:#?}", filtered_gateways);
+    log::info!("nym-api reports {} valid gateways", valid_gateways.len());
 
-    log::info!("nym-api reports {} valid gateways", filtered_gateways.len());
-
-    Ok(filtered_gateways)
+    Ok(valid_gateways)
 }
 
 pub async fn current_mixnodes<R: Rng>(
@@ -126,15 +121,13 @@ pub async fn current_mixnodes<R: Rng>(
 
     log::trace!("Fetching list of mixnodes from: {nym_api}");
 
-    let mixnodes = client.get_basic_mixnodes(None).await?;
+    let mixnodes = client.get_basic_active_mixing_assigned_nodes(None).await?;
     let valid_mixnodes = mixnodes
         .iter()
         .filter_map(|mixnode| mixnode.try_into().ok())
         .collect::<Vec<mix::LegacyNode>>();
 
-    // we were always filtering by version so I'm not removing that 'feature'
-    let filtered_mixnodes = valid_mixnodes.filter_by_version(env!("CARGO_PKG_VERSION"));
-    Ok(filtered_mixnodes)
+    Ok(valid_mixnodes)
 }
 
 #[cfg(not(target_arch = "wasm32"))]

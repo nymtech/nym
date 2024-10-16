@@ -91,6 +91,8 @@ impl NetworkManager {
                 "--enable-zk-nym",
                 "--announce-address",
                 info.data.endpoint.as_ref(),
+                "--bind-address",
+                &format!("0.0.0.0:{}", info.data.endpoint.port().unwrap()),
             ])
             .stdin(Stdio::null())
             .stderr(Stdio::null())
@@ -163,11 +165,10 @@ impl NetworkManager {
 
         let mut cmds = Vec::new();
         for signer in &ctx.signers {
-            let port = signer.api_port();
             let id = ctx.signer_id(signer);
 
             cmds.push(format!(
-                "ROCKET_PORT={port} {bin_canon_display} -c {env_canon_display} run --id {id}"
+                "{bin_canon_display} -c {env_canon_display} run --id {id}"
             ));
         }
         Ok(RunCommands(cmds))

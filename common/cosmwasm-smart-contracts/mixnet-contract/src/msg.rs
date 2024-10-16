@@ -830,4 +830,5 @@ pub enum QueryMsg {
 #[cw_serde]
 pub struct MigrateMsg {
     pub vesting_contract_address: Option<String>,
+    pub unsafe_skip_state_updates: Option<bool>,
 }

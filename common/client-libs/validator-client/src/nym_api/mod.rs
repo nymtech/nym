@@ -13,6 +13,7 @@ use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
     AnnotationResponse, LegacyDescribedMixNode, NodePerformanceResponse,
 };
+use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
 pub use nym_api_requests::{
     ecash::{
         models::{
@@ -158,6 +159,88 @@ pub trait NymApiClientExt: ApiClient {
                 "nym-nodes",
                 "gateways",
                 "skimmed",
+            ],
+            &params,
+        )
+        .await
+    }
+
+    /// retrieve basic information for nodes are capable of operating as an entry gateway
+    /// this includes legacy gateways and nym-nodes
+    async fn get_all_basic_entry_assigned_nodes(
+        &self,
+        semver_compatibility: Option<String>,
+        no_legacy: bool,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(arg) = &semver_compatibility {
+            params.push(("semver_compatibility", arg.clone()))
+        }
+
+        if no_legacy {
+            params.push(("no_legacy", "true".to_string()))
+        }
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "unstable",
+                "nym-nodes",
+                "skimmed",
+                "entry-gateways",
+                "all",
+            ],
+            &params,
+        )
+        .await
+    }
+
+    /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
+    /// this includes legacy mixnodes and nym-nodes
+    async fn get_basic_active_mixing_assigned_nodes(
+        &self,
+        semver_compatibility: Option<String>,
+        no_legacy: bool,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(arg) = &semver_compatibility {
+            params.push(("semver_compatibility", arg.clone()))
+        }
+
+        if no_legacy {
+            params.push(("no_legacy", "true".to_string()))
+        }
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "unstable",
+                "nym-nodes",
+                "skimmed",
+                "mixnodes",
+                "active",
             ],
             &params,
         )

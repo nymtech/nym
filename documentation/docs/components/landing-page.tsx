@@ -11,39 +11,42 @@ import operatorGuide from "./images/operator-guide.png";
 export const LandingPage = () => {
   const squares = [
     {
-      text: "Network",
-      description: "The NYM utility token is the native token.",
+      text: "Network Docs",
+      description: "Architecture, crypto systems, and how the Mixnet works",
       href: "/network",
-      icon: networkDocs,
+      icon: developerDocs,
     },
     {
-      text: "Operators",
+      text: "Operator Guides",
       description:
-        "The NYM utility token is the native token of the mixnet. Learn",
+        "Guides and maintenance: if you want to run a node, start here",
 
       href: "/operators",
       icon: operatorGuide,
     },
     {
-      text: "SDKs",
+      text: "Developer Portal",
       description:
-        "The NYM utility token is the native token of the mixnet. Learn",
+        "Conceptual overview, clients, and tools for developers and integrations",
+
+      href: "/developers",
+      icon: networkDocs,
+    },
+    {
+      text: "SDKs",
+      description: "Rust and Typescript SDK docs",
 
       href: "/developers/rust",
       icon: sdkDocs,
-    },
-    {
-      text: "Developers",
-      description:
-        "The NYM utility token is the native token of the mixnet. Learn",
-
-      href: "/developers",
-      icon: developerDocs,
     },
   ];
 
   return (
     <Box maxWidth={1200} margin={"0 auto"}>
+      <Typography variant="h2" mb={6}>
+        Nym Docs
+      </Typography>
+
       <Typography mb={10}>
         Nym is a privacy platform. It provides strong network-level privacy
         against sophisticated end-to-end attackers, and anonymous access control
@@ -51,10 +54,6 @@ export const LandingPage = () => {
         to allow developers to build new applications, or upgrade existing apps,
         with privacy features unavailable in other systems.
       </Typography>
-      <Typography variant="h2" mb={6}>
-        Nym Docs
-      </Typography>
-
       <Grid container border={"1px solid #262626"}>
         {squares.map((square, index) => (
           <Grid

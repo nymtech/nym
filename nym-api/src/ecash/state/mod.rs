@@ -44,6 +44,7 @@ use nym_ecash_double_spending::DoubleSpendingFilter;
 use nym_ecash_time::cred_exp_date;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
+use std::ops::Deref;
 use time::ext::NumericalDuration;
 use time::{Date, Duration, OffsetDateTime};
 use tokio::sync::RwLockReadGuard;
@@ -86,6 +87,29 @@ impl EcashState {
             local: LocalEcashState::new(key_pair, identity_keypair, double_spending_filter),
             aux: AuxiliaryEcashState::new(client, comm_channel, storage),
         })
+    }
+
+    /// Ensures that this nym-api is one of ecash signers for the current epoch
+    pub(crate) async fn ensure_signer(&self) -> Result<()> {
+        let epoch_id = self.aux.current_epoch().await?;
+
+        let is_epoch_signer = self
+            .local
+            .active_signer
+            .get_or_init(epoch_id, || async {
+                let address = self.aux.client.address().await;
+                let ecash_signers = self.aux.comm_channel.ecash_clients(epoch_id).await?;
+
+                // check if any ecash signers for this epoch has the same cosmos address as this api
+                Ok(ecash_signers.iter().any(|c| c.cosmos_address == address))
+            })
+            .await?;
+
+        if !is_epoch_signer.deref() {
+            return Err(EcashError::NotASigner);
+        }
+
+        Ok(())
     }
 
     pub(crate) async fn ecash_signing_key(&self) -> Result<RwLockReadGuard<SecretKeyAuth>> {

@@ -97,6 +97,9 @@ pub(crate) struct LocalEcashState {
     pub(crate) ecash_keypair: KeyPair,
     pub(crate) identity_keypair: identity::KeyPair,
 
+    /// Specifies whether this api is a signer in given epoch
+    pub(crate) active_signer: CachedImmutableEpochItem<bool>,
+
     pub(crate) partial_coin_index_signatures: CachedImmutableEpochItem<IssuedCoinIndicesSignatures>,
     pub(crate) partial_expiration_date_signatures:
         CachedImmutableItems<Date, IssuedExpirationDateSignatures>,
@@ -117,6 +120,7 @@ impl LocalEcashState {
         LocalEcashState {
             ecash_keypair,
             identity_keypair,
+            active_signer: Default::default(),
             partial_coin_index_signatures: Default::default(),
             partial_expiration_date_signatures: Default::default(),
             exported_double_spending_filter: ExportedDoubleSpendingFilter {

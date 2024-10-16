@@ -56,13 +56,16 @@ struct EpochParam {
     ),
     path = "/v1/ecash/epoch-credentials/{epoch}",
     responses(
-        (status = 200, body = EpochCredentialsResponse)
+        (status = 200, body = EpochCredentialsResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn epoch_credentials(
     Path(EpochParam { epoch }): Path<EpochParam>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<EpochCredentialsResponse>> {
+    state.ensure_signer().await?;
+
     let issued = state.aux.storage.get_epoch_credentials(epoch).await?;
 
     let response = if let Some(issued) = issued {
@@ -92,13 +95,16 @@ struct IdParam {
     ),
     path = "/v1/ecash/issued-credential/{id}",
     responses(
-        (status = 200, body = IssuedCredentialResponse)
+        (status = 200, body = IssuedCredentialResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn issued_credential(
     Path(IdParam { id }): Path<IdParam>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<IssuedCredentialResponse>> {
+    state.ensure_signer().await?;
+
     let issued = state.aux.storage.get_issued_credential(id).await?;
 
     let credential = if let Some(issued) = issued {
@@ -116,13 +122,16 @@ async fn issued_credential(
     request_body = CredentialsRequestBody,
     path = "/v1/ecash/issued-credentials",
     responses(
-        (status = 200, body = IssuedCredentialsResponse)
+        (status = 200, body = IssuedCredentialsResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn issued_credentials(
     Json(params): Json<CredentialsRequestBody>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<IssuedCredentialsResponse>> {
+    state.ensure_signer().await?;
+
     if params.pagination.is_some() && !params.credential_ids.is_empty() {
         return Err(EcashError::InvalidQueryArguments.into());
     }

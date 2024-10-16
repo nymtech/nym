@@ -11,9 +11,9 @@ The node stake saturation point, is given by the stake supply, target level of s
 This design ensures the nodes aim to have a same size of stake (reputation) which can be done by delegation staking, as well as it secures a whale prevention and decentralization of staking, as any higher level of delegated NYM than Nsat per node results in worsening reward ratio. On the contrary, the more nodes are bonded in the mixnet, the lower is Nsat. The equilibrium is reached when the staked tokens are delegated equally across the registered nodes and that's our basis for this incentive system.
 
 - Nym mixnet active set - the mixing nodes rewarded - is currently 240 nodes. The selection and reward distribution happens every epoch (60 min) and the criteria for node to be chosen into the active set is:
-```
-ACTIVE_SET_PROBABILITY = NODE_PERFORMANCE ^ 20 * STAKE_SATURATION
-```
+
+> ACTIVE_SET_PROBABILITY = NODE_PERFORMANCE ^ 20 * STAKE_SATURATION
+
 
 <Callout color="info" emoji="ℹ️">
 We are working on a new tokenomics and reward pages. Coming out soon.

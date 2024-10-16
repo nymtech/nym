@@ -376,7 +376,8 @@ impl super::MetricsObj for PacketStatisticsControl {
     }
 
     fn periodic_reset(&mut self) {
-        self.stats = PacketStatistics::default();
+        // // pass - this stats object is not meant to be reset - causes overflowing subtract
+        // self.stats = PacketStatistics::default();
     }
 }
 

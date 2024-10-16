@@ -294,14 +294,15 @@ mod test {
     #[tokio::test]
     async fn test_metrics_controller() {
         let _ = pretty_env_logger::try_init();
+        let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
 
-        log::info!("print me please");
         let (metrics_controller, metrics_sender) = MetricsController::new();
         let m = Arc::new(Mutex::new(metrics_controller));
         let m1 = Arc::clone(&m);
         tokio::spawn(async move {
             let mut mc = m1.lock().await;
             mc.run_with_shutdown(nym_task::TaskClient::dummy()).await;
+            shutdown_tx.send(()).unwrap();
         });
 
         for _ in 0..10 {
@@ -314,10 +315,10 @@ mod test {
             metrics_sender.report(MetricsEvents::APIMetricsEvent(
                 APIMetricsEvent::RealPacketSent(3),
             ));
-            tokio::time::sleep(Duration::from_secs(3)).await;
+            tokio::time::sleep(Duration::from_millis(500)).await;
         }
 
-        // assert_eq!(&m.lock().await.stats.get(&MetricsType::APIStatistics).unwrap().marshall().unwrap(), "PacketStatistics { sent: 3, received: 0 }");
-        m.lock().await.report_all();
+        drop(metrics_sender);
+        shutdown_rx.await.unwrap();
     }
 }

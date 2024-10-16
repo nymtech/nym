@@ -30,14 +30,6 @@ impl APIMetrics {
         (
             format!("packets sent: {}", self.real_packets_sent,),
             String::new(),
-            // format!(
-            //     "packets received: {}, (real: {}, cover: {}, acks: {}, acks for cover: {})",
-            //     self.real_packets_received + self.cover_packets_received,
-            //     self.real_packets_received,
-            //     self.cover_packets_received,
-            //     self.real_acks_received,
-            //     self.cover_acks_received,
-            // ),
         )
     }
 }
@@ -77,15 +69,15 @@ impl super::MetricsObj for APIMetricsControl {
     }
 
     fn handle_event(&mut self, event: MetricsEvents) {
-		match event {
+        match event {
             MetricsEvents::APIMetricsEvent(ev) => self.stats.handle(ev),
             _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
         }
     }
 
-	fn snapshot(&mut self) {
-		// pass
-	}
+    fn snapshot(&mut self) {
+        // pass
+    }
 
     fn periodic_reset(&mut self) {
         self.stats = APIMetrics::default();

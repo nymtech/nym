@@ -95,7 +95,7 @@ pub enum AuthenticatorRequestData {
     Initial(InitMessage),
     Final(Box<FinalMessage>),
     QueryBandwidth(PeerPublicKey),
-    TopUpBandwidth(TopUpMessage),
+    TopUpBandwidth(Box<TopUpMessage>),
 }
 
 #[cfg(test)]

@@ -15,18 +15,17 @@ use nym_authenticator_requests::{
         self,
         registration::{
             FinalMessage, GatewayClient, InitMessage, PendingRegistrations, PrivateIPs,
-            RegistrationData, RegistredData,
+            RegistrationData, RegistredData, RemainingBandwidthData,
         },
         request::{AuthenticatorRequest, AuthenticatorRequestData},
         response::AuthenticatorResponse,
-        topup::TopUpBandwidthData,
     },
 };
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::EcashManager,
     BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
 };
-use nym_credentials_interface::CredentialSpendingData;
+use nym_credentials_interface::{CredentialSpendingData, TicketType};
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::Storage;
@@ -335,9 +334,56 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
-        let bandwidth_data = self.peer_manager.query_bandwidth(peer_public_key).await?;
+        let Some(ecash_verifier) = self.ecash_verifier.clone() else {
+            return Err(AuthenticatorError::UnsupportedOperation);
+        };
+        let client_id = ecash_verifier
+            .storage()
+            .get_wireguard_peer(&peer_public_key.to_string())
+            .await?
+            .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?
+            .client_id
+            .ok_or(AuthenticatorError::OldClient)?;
+        let bandwidth = ecash_verifier
+            .storage()
+            .get_available_bandwidth(client_id)
+            .await?
+            .ok_or(AuthenticatorError::InternalError(
+                "bandwidth entry should have just been created".to_string(),
+            ))?;
+
+        let t_type = credential.payment.t_type;
+        let client_bandwidth = ClientBandwidth::new(bandwidth.into());
+        let mut verifier = CredentialVerifier::new(
+            CredentialSpendingRequest::new(credential),
+            ecash_verifier.clone(),
+            BandwidthStorageManager::new(
+                ecash_verifier.storage().clone(),
+                client_bandwidth,
+                client_id,
+                BandwidthFlushingBehaviourConfig::default(),
+                true,
+            ),
+        );
+        verifier.verify().await?;
+
+        let amount = TicketType::try_from_encoded(t_type)
+            .map_err(|e| {
+                AuthenticatorError::CredentialVerificationError(
+                    nym_credential_verification::Error::UnknownTicketType(e),
+                )
+            })?
+            .to_repr()
+            .bandwidth_value() as i64;
+        let available_bandwidth = ecash_verifier
+            .storage()
+            .increase_bandwidth(client_id, amount)
+            .await?;
+
         Ok(AuthenticatorResponse::new_topup_bandwidth(
-            TopUpBandwidthData {},
+            RemainingBandwidthData {
+                available_bandwidth,
+            },
             reply_to,
             request_id,
         ))

@@ -59,9 +59,12 @@ Initial overhaul
     - [x] remove numbering from sidebar
   - [x] check all links work and fix
 
+- [ ] strip down footer
 - [ ] replace `mdbook-cmdrun` with scripts in `package.json`
+  - [ ] operators
+  - [x] rest
 - [ ] all images to root images dir with subdirs
-- [ ] change mdbook admonishes to nextra admonish
+- [x] change mdbook admonishes to nextra admonish
 
 - [ ] make common links (e.g. github) variables if we require several
 - [x] remove dangling index

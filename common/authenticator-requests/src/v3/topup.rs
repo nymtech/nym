@@ -11,5 +11,8 @@ pub struct TopUpMessage {
     pub pub_key: PeerPublicKey,
 
     /// Ecash credential
-    pub credential: Option<CredentialSpendingData>,
+    pub credential: CredentialSpendingData,
 }
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct TopUpBandwidthData {}

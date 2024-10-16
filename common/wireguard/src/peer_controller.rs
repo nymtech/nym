@@ -8,7 +8,7 @@ use defguard_wireguard_rs::{
 };
 use futures::channel::oneshot;
 use nym_authenticator_requests::{
-    v1::registration::BANDWIDTH_CAP_PER_DAY, v2::registration::RemainingBandwidthData,
+    latest::registration::RemainingBandwidthData, v1::registration::BANDWIDTH_CAP_PER_DAY,
 };
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,

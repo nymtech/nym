@@ -3,7 +3,7 @@
 
 use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
-use crate::node_status_api::models::AxumResult;
+use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
 use axum::{Json, Router};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
@@ -239,17 +239,11 @@ async fn batch_redeem_tickets(
     get,
     path = "/v1/ecash/double-spending-filter-v1",
     responses(
-        (status = 200, body = SpentCredentialsResponse),
-        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 500, body = ErrorResponse, description = "bloomfilters got disabled"),
     )
 )]
 async fn double_spending_filter_v1(
-    state: Arc<EcashState>,
+    _state: Arc<EcashState>,
 ) -> AxumResult<Json<SpentCredentialsResponse>> {
-    state.ensure_signer().await?;
-
-    let spent_credentials_export = state.get_bloomfilter_bytes().await;
-    Ok(Json(SpentCredentialsResponse::new(
-        spent_credentials_export,
-    )))
+    AxumResult::Err(AxumErrorResponse::internal_msg("permanently restricted"))
 }

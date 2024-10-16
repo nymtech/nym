@@ -46,7 +46,7 @@ use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
 use std::ops::Deref;
 use time::ext::NumericalDuration;
-use time::{Date, Duration, OffsetDateTime};
+use time::{Date, OffsetDateTime};
 use tokio::sync::RwLockReadGuard;
 use tracing::{debug, error, info, warn};
 
@@ -863,18 +863,5 @@ impl EcashState {
             .await?;
 
         res
-    }
-
-    pub async fn get_bloomfilter_bytes(&self) -> Vec<u8> {
-        let guard = self.local.exported_double_spending_filter.data.read().await;
-
-        let bytes = guard.bytes.clone();
-
-        // see if it's been > 5min since last export (that value is arbitrary)
-        if guard.last_exported_at + Duration::minutes(5) < OffsetDateTime::now_utc() {
-            self.local.maybe_background_update_exported_bloomfilter();
-        }
-
-        bytes
     }
 }

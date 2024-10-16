@@ -33,6 +33,6 @@ nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-credentials = { path = "../../common/credentials" }
 nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-ecash-time = { path = "../../common/ecash-time", features = ["expiration"] }
-nym-vpn-api-requests = { path = "../vpn-api-requests", default-features = false, features = ["tsify"] }
+nym-credential-proxy-requests = { path = "../vpn-api-requests", default-features = false, features = ["tsify"] }
 wasm-utils = { path = "../../common/wasm/utils" }
 

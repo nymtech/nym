@@ -1,5 +1,5 @@
 [package]
-name = "nym-vpn-api"
+name = "nym-credential-proxy"
 version = "0.1.0"
 authors.workspace = true
 repository.workspace = true
@@ -52,7 +52,7 @@ nym-http-api-common = { path = "../../common/http-api-common", features = ["utoi
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 
-nym-vpn-api-requests = { path = "../vpn-api-requests", features = ["openapi"] }
+nym-credential-proxy-requests = { path = "../vpn-api-requests", features = ["openapi"] }
 
 [dev-dependencies]
 tempfile = { workspace = true }

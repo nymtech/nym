@@ -1,5 +1,11 @@
 {
   "setup": "Setup & Run",
   "configuration": "Configuration",
-  "bonding": "Bonding"
+  "bonding": "Bonding",
+  "bak-setup": {
+	  "display": "hidden"
+  },
+  "snippets": {
+	  "display": "hidden"
+  }
 }

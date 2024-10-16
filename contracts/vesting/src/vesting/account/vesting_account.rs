@@ -14,7 +14,6 @@ impl VestingAccount for Account {
 
     /// See [VestingAccount::locked_coins] for documentation.
     /// Returns 0 in case of underflow. Which is fine, as the amount of pledged and delegated tokens can be larger then vesting_coins due to rewards and vesting periods expiring
-
     // TODO: rename. it's no longer 'locked'... or is it?
     fn locked_coins(
         &self,

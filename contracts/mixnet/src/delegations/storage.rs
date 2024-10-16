@@ -17,7 +17,7 @@ pub(crate) struct DelegationIndex<'a> {
     pub(crate) mixnode: MultiIndex<'a, NodeId, Delegation, PrimaryKey>,
 }
 
-impl<'a> IndexList<Delegation> for DelegationIndex<'a> {
+impl IndexList<Delegation> for DelegationIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Delegation>> + '_> {
         let v: Vec<&dyn Index<Delegation>> = vec![&self.owner, &self.mixnode];
         Box::new(v.into_iter())

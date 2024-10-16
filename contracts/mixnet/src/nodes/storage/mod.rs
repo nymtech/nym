@@ -75,7 +75,7 @@ pub(crate) struct NymNodeBondIndex<'a> {
     pub(crate) identity_key: UniqueIndex<'a, IdentityKey, NymNodeBond>,
 }
 
-impl<'a> IndexList<NymNodeBond> for NymNodeBondIndex<'a> {
+impl IndexList<NymNodeBond> for NymNodeBondIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<NymNodeBond>> + '_> {
         let v: Vec<&dyn Index<NymNodeBond>> = vec![&self.owner, &self.identity_key];
         Box::new(v.into_iter())
@@ -103,7 +103,7 @@ pub(crate) struct UnbondedNymNodeIndex<'a> {
     pub(crate) identity_key: MultiIndex<'a, IdentityKey, UnbondedNymNode, NodeId>,
 }
 
-impl<'a> IndexList<UnbondedNymNode> for UnbondedNymNodeIndex<'a> {
+impl IndexList<UnbondedNymNode> for UnbondedNymNodeIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<UnbondedNymNode>> + '_> {
         let v: Vec<&dyn Index<UnbondedNymNode>> = vec![&self.owner, &self.identity_key];
         Box::new(v.into_iter())

@@ -3,6 +3,9 @@
 
 use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
+use crate::node_status_api::models::AxumResult;
+use crate::support::http::state::AppState;
+use axum::{Json, Router};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationRejection,
@@ -10,31 +13,62 @@ use nym_api_requests::ecash::models::{
 };
 use nym_compact_ecash::identify::IdentifyResult;
 use nym_ecash_time::EcashTime;
-use rocket::serde::json::Json;
-use rocket::State as RocketState;
-use rocket_okapi::openapi;
 use std::collections::HashSet;
 use std::ops::Deref;
+use std::sync::Arc;
 use time::macros::time;
 use time::{OffsetDateTime, Time};
+use tracing::{error, warn};
+
+pub(crate) fn spending_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
+    Router::new()
+        .route(
+            "/verify-ecash-ticket",
+            axum::routing::post({
+                let ecash_state = Arc::clone(&ecash_state);
+                |body| verify_ticket(body, ecash_state)
+            }),
+        )
+        .route(
+            "/batch-redeem-ecash-tickets",
+            axum::routing::post({
+                let ecash_state = Arc::clone(&ecash_state);
+                |body| batch_redeem_tickets(body, ecash_state)
+            }),
+        )
+        .route(
+            "/double-spending-filter-v1",
+            axum::routing::get({
+                let ecash_state = Arc::clone(&ecash_state);
+                || double_spending_filter_v1(ecash_state)
+            }),
+        )
+}
 
 const ONE_AM: Time = time!(1:00);
 
 fn reject_ticket(
     reason: EcashTicketVerificationRejection,
-) -> crate::ecash::error::Result<Json<EcashTicketVerificationResponse>> {
+) -> AxumResult<Json<EcashTicketVerificationResponse>> {
     Ok(Json(EcashTicketVerificationResponse::reject(reason)))
 }
 
 // TODO: optimise it; for now it's just dummy split of the original `verify_offline_credential`
 // introduce bloomfilter checks without touching storage first, etc.
-#[openapi(tag = "Ecash")]
-#[post("/verify-ecash-ticket", data = "<verify_ticket_body>")]
-pub async fn verify_ticket(
+#[utoipa::path(
+    tag = "Ecash",
+    post,
+    request_body = VerifyEcashTicketBody,
+    path = "/v1/ecash/verify-ecash-ticket",
+    responses(
+        (status = 200, body = EcashTicketVerificationResponse)
+    )
+)]
+async fn verify_ticket(
     // TODO in the future: make it send binary data rather than json
-    verify_ticket_body: Json<VerifyEcashTicketBody>,
-    state: &RocketState<EcashState>,
-) -> crate::ecash::error::Result<Json<EcashTicketVerificationResponse>> {
+    Json(verify_ticket_body): Json<VerifyEcashTicketBody>,
+    state: Arc<EcashState>,
+) -> AxumResult<Json<EcashTicketVerificationResponse>> {
     let credential_data = &verify_ticket_body.credential;
     let gateway_cosmos_addr = &verify_ticket_body.gateway_cosmos_addr;
 
@@ -117,26 +151,30 @@ pub async fn verify_ticket(
 }
 
 // // for particular SN returns what gateway has submitted it and whether it has been verified correctly
-// pub async fn credential_status() -> ! {
+// async fn credential_status() -> ! {
 //     todo!()
 // }
 
-#[openapi(tag = "Ecash")]
-#[post(
-    "/batch-redeem-ecash-tickets",
-    data = "<batch_redeem_credentials_body>"
+#[utoipa::path(
+    tag = "Ecash",
+    post,
+    request_body = BatchRedeemTicketsBody,
+    path = "/v1/ecash/batch-redeem-ecash-tickets",
+    responses(
+        (status = 200, body = EcashBatchTicketRedemptionResponse)
+    )
 )]
-pub async fn batch_redeem_tickets(
+async fn batch_redeem_tickets(
     // TODO in the future: make it send binary data rather than json
-    batch_redeem_credentials_body: Json<BatchRedeemTicketsBody>,
-    state: &RocketState<EcashState>,
-) -> crate::ecash::error::Result<Json<EcashBatchTicketRedemptionResponse>> {
+    Json(batch_redeem_credentials_body): Json<BatchRedeemTicketsBody>,
+    state: Arc<EcashState>,
+) -> AxumResult<Json<EcashBatchTicketRedemptionResponse>> {
     // 1. see if that gateway has even submitted any tickets
     let Some(provider_info) = state
         .get_ticket_provider(batch_redeem_credentials_body.gateway_cosmos_addr.as_ref())
         .await?
     else {
-        return Err(EcashError::NotTicketsProvided);
+        return Err(EcashError::NotTicketsProvided.into());
     };
 
     // 2. check if the gateway is not trying to spam the redemption requests
@@ -149,13 +187,14 @@ pub async fn batch_redeem_tickets(
             return Err(EcashError::TooFrequentRedemption {
                 last_redemption,
                 next_allowed,
-            });
+            }
+            .into());
         }
     }
 
     // 3. verify the request digest
     if !batch_redeem_credentials_body.verify_digest() {
-        return Err(EcashError::MismatchedRequestDigest);
+        return Err(EcashError::MismatchedRequestDigest.into());
     }
 
     // 4. verify the associated on-chain proposal (whether it's made by correct sender, has valid messages, etc.)
@@ -164,9 +203,7 @@ pub async fn batch_redeem_tickets(
         .await?;
 
     let proposal_id = batch_redeem_credentials_body.proposal_id;
-    let received = batch_redeem_credentials_body
-        .into_inner()
-        .included_serial_numbers;
+    let received = batch_redeem_credentials_body.included_serial_numbers;
 
     // 5. check if **every** serial number included in the request has been verified by us
     // if we have more than requested, tough luck, they're going to lose them
@@ -177,7 +214,8 @@ pub async fn batch_redeem_tickets(
         if !verified_tickets.contains(sn.deref()) {
             return Err(EcashError::TicketNotVerified {
                 serial_number_bs58: bs58::encode(sn).into_string(),
-            });
+            }
+            .into());
         }
     }
 
@@ -190,11 +228,17 @@ pub async fn batch_redeem_tickets(
 
 // explicitly mark it as v1 in the URL because the response type WILL change;
 // it will probably be compressed bincode or something
-#[openapi(tag = "Ecash")]
-#[get("/double-spending-filter-v1")]
-pub async fn double_spending_filter_v1(
-    state: &RocketState<EcashState>,
-) -> crate::ecash::error::Result<Json<SpentCredentialsResponse>> {
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    path = "/v1/ecash/double-spending-filter-v1",
+    responses(
+        (status = 200, body = SpentCredentialsResponse)
+    )
+)]
+async fn double_spending_filter_v1(
+    state: Arc<EcashState>,
+) -> AxumResult<Json<SpentCredentialsResponse>> {
     let spent_credentials_export = state.get_bloomfilter_bytes().await;
     Ok(Json(SpentCredentialsResponse::new(
         spent_credentials_export,

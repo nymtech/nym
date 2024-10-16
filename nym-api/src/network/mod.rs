@@ -3,12 +3,3 @@
 
 pub(crate) mod handlers;
 pub(crate) mod models;
-// mod routes;
-//
-// pub(crate) fn network_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
-//     openapi_get_routes_spec![
-//         settings: routes::network_details,
-//         routes::nym_contracts,
-//         routes::nym_contracts_detailed
-//     ]
-// }

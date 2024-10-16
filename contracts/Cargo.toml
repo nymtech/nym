@@ -1,7 +1,7 @@
 [workspace]
 resolver = "2"
 members = [
-    "coconut-bandwidth",
+    #    "coconut-bandwidth",
     "coconut-dkg",
     "coconut-test",
     "ecash",

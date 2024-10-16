@@ -1,40 +1,109 @@
 import React from "react";
-import { Ghost, Zap, Code, Soup } from "lucide-react";
+import { Box, Grid, Typography } from "@mui/material";
+import Image from "next/image";
+import Link from "next/link";
+
+import networkDocs from "./images/network-docs.png";
+import developerDocs from "./images/developer-docs.png";
+import sdkDocs from "./images/sdk-docs.png";
+import operatorGuide from "./images/operator-guide.png";
 
 export const LandingPage = () => {
   const squares = [
-    { text: "Network Docs", href: "/network", Icon: Ghost },
     {
-      text: "Developers: Core Concepts, Integration Overview, Tools & Tutorials",
-      href: "/developers",
-      Icon: Zap,
+      text: "Network",
+      description: "The NYM utility token is the native token.",
+      href: "/network",
+      icon: networkDocs,
     },
-    { text: "SDKs", href: "/sdk", Icon: Code },
     {
-      text: "Operators: Setup Guides & Maintenance",
+      text: "Operators",
+      description:
+        "The NYM utility token is the native token of the mixnet. Learn",
+
       href: "/operators",
-      Icon: Soup,
+      icon: operatorGuide,
+    },
+    {
+      text: "SDKs",
+      description:
+        "The NYM utility token is the native token of the mixnet. Learn",
+
+      href: "/developers/rust",
+      icon: sdkDocs,
+    },
+    {
+      text: "Developers",
+      description:
+        "The NYM utility token is the native token of the mixnet. Learn",
+
+      href: "/developers",
+      icon: developerDocs,
     },
   ];
 
   return (
-    <div className="landing-page-container">
-      <p className="landing-page-intro">
+    <Box maxWidth={1200} margin={"0 auto"}>
+      <Typography mb={10}>
         Nym is a privacy platform. It provides strong network-level privacy
         against sophisticated end-to-end attackers, and anonymous access control
         using blinded, re-randomizable, decentralized credentials. Our goal is
         to allow developers to build new applications, or upgrade existing apps,
         with privacy features unavailable in other systems.
-      </p>
+      </Typography>
+      <Typography variant="h2" mb={6}>
+        Nym Docs
+      </Typography>
 
-      <div className="landing-page-grid">
+      <Grid container border={"1px solid #262626"}>
         {squares.map((square, index) => (
-          <a key={index} href={square.href} className="landing-page-square">
-            <square.Icon className="landing-page-icon" />
-            <span className="landing-page-text">{square.text}</span>
-          </a>
+          <Grid
+            item
+            key={index}
+            xs={12}
+            md={6}
+            padding={4}
+            width={"100%"}
+            sx={{
+              borderBottom: {
+                xs: index < 3 ? "1px solid #262626" : "none",
+                md: index === 0 || index === 1 ? "1px solid #262626" : "none",
+              },
+              borderRight: {
+                md: index === 0 || index === 2 ? "1px solid #262626" : "none",
+              },
+            }}
+          >
+            <Link href={square.href} target="_blank" rel="noopener noreferrer">
+              <Box display={"flex"} gap={4} height={"100%"}>
+                <Image
+                  src={square.icon}
+                  alt={square.text}
+                  width={180}
+                  height={134}
+                />
+                <Box
+                  display={"flex"}
+                  flexDirection={"column"}
+                  justifyContent={"space-between"}
+                  flexGrow={1}
+                  height={"100%"}
+                >
+                  <Typography variant="h5" sx={{ fontWeight: 600 }}>
+                    {square.text}
+                  </Typography>
+                  <Typography variant="body1" sx={{ color: "#909195" }}>
+                    {square.description}
+                  </Typography>
+                  <Typography sx={{ color: "#ff6600", fontWeight: 600 }}>
+                    Open
+                  </Typography>
+                </Box>
+              </Box>
+            </Link>
+          </Grid>
         ))}
-      </div>
+      </Grid>
 
       <style jsx>{`
         .landing-page-container {
@@ -85,6 +154,6 @@ export const LandingPage = () => {
           color: #ff6600;
         }
       `}</style>
-    </div>
+    </Box>
   );
 };

@@ -13,6 +13,3 @@ pub struct TopUpMessage {
     /// Ecash credential
     pub credential: CredentialSpendingData,
 }
-
-#[derive(Serialize, Deserialize, Debug, Clone)]
-pub struct TopUpBandwidthData {}

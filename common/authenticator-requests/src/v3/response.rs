@@ -1,10 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::{
-    registration::{RegistrationData, RegistredData, RemainingBandwidthData},
-    topup::TopUpBandwidthData,
-};
+use super::registration::{RegistrationData, RegistredData, RemainingBandwidthData};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::addressing::Recipient;
 use serde::{Deserialize, Serialize};
@@ -79,7 +76,7 @@ impl AuthenticatorResponse {
     }
 
     pub fn new_topup_bandwidth(
-        remaining_bandwidth_data: TopUpBandwidthData,
+        remaining_bandwidth_data: RemainingBandwidthData,
         reply_to: Recipient,
         request_id: u64,
     ) -> Self {
@@ -156,5 +153,5 @@ pub struct RemainingBandwidthResponse {
 pub struct TopUpBandwidthResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
-    pub reply: TopUpBandwidthData,
+    pub reply: RemainingBandwidthData,
 }

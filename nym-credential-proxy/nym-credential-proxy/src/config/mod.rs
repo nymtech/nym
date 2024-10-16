@@ -4,14 +4,14 @@
 use nym_config::{must_get_home, DEFAULT_DATA_DIR, NYM_DIR};
 use std::path::PathBuf;
 
-pub const DEFAULT_NYM_VPN_API_DIR: &str = "nym-vpn-api";
+pub const DEFAULT_NYM_CREDENTIAL_PROXY_DIR: &str = "nym-credential-proxy";
 
-pub const DEFAULT_DB_FILENAME: &str = "nym-vpn-api.sqlite";
+pub const DEFAULT_DB_FILENAME: &str = "nym-credential-proxy.sqlite";
 
 pub fn default_data_directory() -> PathBuf {
     must_get_home()
         .join(NYM_DIR)
-        .join(DEFAULT_NYM_VPN_API_DIR)
+        .join(DEFAULT_NYM_CREDENTIAL_PROXY_DIR)
         .join(DEFAULT_DATA_DIR)
 }
 

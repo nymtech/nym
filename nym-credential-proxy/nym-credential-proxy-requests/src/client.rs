@@ -27,7 +27,7 @@ pub fn new_client(
     Ok(VpnApiClient {
         inner: Client::builder(base_url)?
             .with_user_agent(format!(
-                "nym-vpn-api-requests/{}",
+                "nym-credential-proxy-requests/{}",
                 env!("CARGO_PKG_VERSION")
             ))
             .build()?,

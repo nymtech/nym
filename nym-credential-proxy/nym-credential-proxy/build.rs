@@ -7,7 +7,7 @@ async fn main() {
     use std::env;
 
     let out_dir = env::var("OUT_DIR").unwrap();
-    let database_path = format!("{out_dir}/nym-vpn-api-example.sqlite");
+    let database_path = format!("{out_dir}/nym-credential-proxy-example.sqlite");
 
     let mut conn = SqliteConnection::connect(&format!("sqlite://{database_path}?mode=rwc"))
         .await

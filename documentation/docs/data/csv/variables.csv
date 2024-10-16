@@ -19,3 +19,4 @@
 ,`<ARGUMENTS>`,Replace with all flags used to run the binary with a given command,`--id alice_super_node –accept-operator-terms-and-conditions`                         
 ,`<WELCOME_TEXT>`,Any text you want to show on the landing page            ,"Welcome to Nym Node, operator contact is example@email.me"
 ,`<NYXD_VERSION>`,Version of validator binaries,`v0.43.0`
+,`<ID_KEY>`,"Node public identity key, exposed on the network",`GQvHcg61viyN9brWn1hficjD66Q9TorsLN2CMGJewVfo`

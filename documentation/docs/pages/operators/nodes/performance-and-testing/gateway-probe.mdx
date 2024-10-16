@@ -29,13 +29,17 @@ cd nym-vpn-client/nym-vpn-core
 cargo build --release -p nym-gateway-probe
 ```
 
-## Running the client
+## Running the Client
+
+To list all commands and options run the binary with `--help` command:
 
 ```sh
 ./target/release/nym-gateway-probe --help
 ```
-~~~admonish example collapsible=true title="`nym-gateway-probe --help`"
-```
+
+- Output:
+
+```sh
 Usage: nym-gateway-probe [OPTIONS]
 
 Options:
@@ -46,7 +50,6 @@ Options:
   -V, --version                            Print version
 
 ```
-~~~
 
 To run the client, simply add a flag `--gateway` with a targeted gateway identity key.
 
@@ -55,7 +58,8 @@ To run the client, simply add a flag `--gateway` with a targeted gateway identit
 ```
 
 For any `nym-node --mode exit-gateway` the aim is to have this outcome:
-```sh
+
+```json
 {
   "gateway": "<GATEWAY_IDENTITY_KEY>",
   "outcome": {
@@ -69,11 +73,19 @@ For any `nym-node --mode exit-gateway` the aim is to have this outcome:
       "can_route_ip_external_v4": true,
       "can_route_ip_v6": true,
       "can_route_ip_external_v6": true
+    },
+    "wg": {
+      "can_register": true,
+      "can_handshake": true,
+      "can_resolve_dns": true,
+      "ping_hosts_performance": 1.0,
+      "ping_ips_performance": 1.0
     }
   }
 }
 ```
 
-If your Gateway is blacklisted, the probe will not work.
+**If your Gateway is blacklisted, the probe will not work.**
 
 If you don't provide a `--gateway` flag it will pick a random one to test.
+

@@ -9,6 +9,7 @@ use time::{Date, OffsetDateTime};
 
 use nym_statistics_common::events::SessionEvent;
 
+#[derive(PartialEq)]
 enum SessionType {
     Vpn,
     Mixnet,
@@ -134,7 +135,9 @@ impl SessionStatsHandler {
 
     fn handle_ecash_ticket(&mut self, ticket_type: TicketType, client: DestinationAddressBytes) {
         if let Some(active_session) = self.active_sessions.get_mut(&client) {
-            active_session.set_type(ticket_type);
+            if active_session.typ == SessionType::Unknown {
+                active_session.set_type(ticket_type);
+            }
         }
     }
 

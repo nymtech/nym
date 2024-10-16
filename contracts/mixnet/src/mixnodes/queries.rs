@@ -266,7 +266,7 @@ pub(crate) mod tests {
         #[test]
         fn obeys_limits() {
             let mut test = TestSetup::new();
-            test.add_dummy_mixnodes(1000);
+            test.add_legacy_mixnodes(1000);
             let limit = 2;
 
             let page1 = query_mixnode_bonds_paged(test.deps(), None, Some(limit)).unwrap();
@@ -276,7 +276,7 @@ pub(crate) mod tests {
         #[test]
         fn has_default_limit() {
             let mut test = TestSetup::new();
-            test.add_dummy_mixnodes(1000);
+            test.add_legacy_mixnodes(1000);
 
             // query without explicitly setting a limit
             let page1 = query_mixnode_bonds_paged(test.deps(), None, None).unwrap();
@@ -290,7 +290,7 @@ pub(crate) mod tests {
         #[test]
         fn has_max_limit() {
             let mut test = TestSetup::new();
-            test.add_dummy_mixnodes(1000);
+            test.add_legacy_mixnodes(1000);
 
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;
@@ -353,7 +353,7 @@ pub(crate) mod tests {
         #[test]
         fn obeys_limits() {
             let mut test = TestSetup::new();
-            test.add_dummy_mixnodes(1000);
+            test.add_legacy_mixnodes(1000);
             let limit = 2;
 
             let page1 = query_mixnodes_details_paged(test.deps(), None, Some(limit)).unwrap();
@@ -363,7 +363,7 @@ pub(crate) mod tests {
         #[test]
         fn has_default_limit() {
             let mut test = TestSetup::new();
-            test.add_dummy_mixnodes(1000);
+            test.add_legacy_mixnodes(1000);
 
             // query without explicitly setting a limit
             let page1 = query_mixnodes_details_paged(test.deps(), None, None).unwrap();
@@ -377,7 +377,7 @@ pub(crate) mod tests {
         #[test]
         fn has_max_limit() {
             let mut test = TestSetup::new();
-            test.add_dummy_mixnodes(1000);
+            test.add_legacy_mixnodes(1000);
 
             // query with a crazily high limit in an attempt to use too many resources
             let crazy_limit = 1000;

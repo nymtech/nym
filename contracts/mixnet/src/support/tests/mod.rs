@@ -11,6 +11,7 @@ pub mod test_helpers {
     use crate::contract::{execute, instantiate};
     use crate::delegations::queries::query_node_delegations_paged;
     use crate::delegations::storage as delegations_storage;
+    use crate::delegations::storage::delegations;
     use crate::delegations::transactions::try_delegate_to_node;
     use crate::interval::transactions::{
         perform_pending_epoch_actions, perform_pending_interval_actions, try_begin_epoch_transition,
@@ -31,7 +32,9 @@ pub mod test_helpers {
     use crate::nodes::storage as nymnodes_storage;
     use crate::nodes::storage::helpers::RoleStorageBucket;
     use crate::nodes::storage::rewarded_set::{ACTIVE_ROLES_BUCKET, ROLES, ROLES_METADATA};
-    use crate::nodes::storage::{read_assigned_roles, save_assignment, swap_active_role_bucket};
+    use crate::nodes::storage::{
+        next_nymnode_id_counter, read_assigned_roles, save_assignment, swap_active_role_bucket,
+    };
     use crate::nodes::transactions::{try_add_nym_node, try_remove_nym_node};
     use crate::rewards::helpers::expensive_role_lookup;
     use crate::rewards::queries::{
@@ -52,7 +55,7 @@ pub mod test_helpers {
     use cosmwasm_std::testing::mock_info;
     use cosmwasm_std::testing::MockApi;
     use cosmwasm_std::testing::MockQuerier;
-    use cosmwasm_std::{coin, coins, Addr, BankMsg, CosmosMsg, Storage};
+    use cosmwasm_std::{coin, coins, Addr, Api, BankMsg, CosmosMsg, Storage};
     use cosmwasm_std::{Coin, Order};
     use cosmwasm_std::{Decimal, Empty, MemoryStorage};
     use cosmwasm_std::{Deps, OwnedDeps};
@@ -62,6 +65,7 @@ pub mod test_helpers {
     use mixnet_contract_common::events::{
         may_find_attribute, MixnetEventType, DELEGATES_REWARD_KEY, OPERATOR_REWARD_KEY,
     };
+    use mixnet_contract_common::helpers::compare_decimals;
     use mixnet_contract_common::mixnode::{NodeRewarding, UnbondedMixnode};
     use mixnet_contract_common::nym_node::{RewardedSetMetadata, Role};
     use mixnet_contract_common::pending_events::{PendingEpochEventData, PendingIntervalEventData};
@@ -84,6 +88,8 @@ pub mod test_helpers {
     };
     use nym_crypto::asymmetric::identity;
     use nym_crypto::asymmetric::identity::KeyPair;
+    use rand::distributions::WeightedIndex;
+    use rand::prelude::*;
     use rand_chacha::rand_core::{CryptoRng, RngCore, SeedableRng};
     use rand_chacha::ChaCha20Rng;
     use serde::Serialize;
@@ -133,14 +139,16 @@ pub mod test_helpers {
         }
     }
 
+    #[track_caller]
     pub fn assert_eq_with_leeway(a: Uint128, b: Uint128, leeway: Uint128) {
         if a > b {
-            assert!(a - b <= leeway)
+            assert!(a - b <= leeway, "{} != {}", a, b)
         } else {
-            assert!(b - a <= leeway)
+            assert!(b - a <= leeway, "{} != {}", a, b)
         }
     }
 
+    #[track_caller]
     pub fn assert_decimals(a: Decimal, b: Decimal) {
         let epsilon = Decimal::from_ratio(1u128, 100_000_000u128);
         if a > b {
@@ -178,6 +186,141 @@ pub mod test_helpers {
                 rewarding_validator: mock_info(rewarding_validator_address.as_ref(), &[]),
                 owner: mock_info(owner.as_str(), &[]),
             }
+        }
+
+        pub fn new_complex() -> Self {
+            let mut test = TestSetup::new();
+
+            let mut nodes = Vec::new();
+
+            let problematic_delegator = "n1foomp";
+            let problematic_delegator_twin = "n1bar";
+            let problematic_delegator_alt_twin = "n1whatever";
+
+            let choices = [true, false];
+
+            // every epoch there's a 2% chance of somebody bonding a node
+            let bonding_weights = [2, 98];
+
+            // and 15% of making a delegation
+            let delegation_weights = [15, 85];
+
+            // and 1% of making a VESTED delegation
+            let vested_delegation_weights = [1, 99];
+
+            let bonding_dist = WeightedIndex::new(bonding_weights).unwrap();
+            let delegation_dist = WeightedIndex::new(delegation_weights).unwrap();
+            let vested_delegation_dist = WeightedIndex::new(vested_delegation_weights).unwrap();
+
+            // make sure we have at least a single node at the beginning
+            let owner = test.random_address();
+            let mix_id = test.add_legacy_mixnode(&owner, None);
+            nodes.push(mix_id);
+
+            // create a bunch of nodes and delegations and progress through epochs
+            for epoch_id in 0..1000 {
+                // go through 1000 epochs
+
+                let owner = test.random_address();
+                let min_stake = 100_000_000;
+                // u32 has max value of 4B, which is ~4k nym tokens, which is a realistic amount somebody could bond/delegate
+                let variance = test.rng.next_u32();
+                let stake = Uint128::new(min_stake as u128 + variance as u128);
+
+                if choices[bonding_dist.sample(&mut test.rng)] {
+                    // bond
+                    let mix_id = test.add_legacy_mixnode(&owner, Some(stake));
+                    nodes.push(mix_id);
+                }
+
+                if choices[delegation_dist.sample(&mut test.rng)] {
+                    // uniformly choose a random node to delegate to
+                    let node = nodes.choose(&mut test.rng).unwrap();
+                    test.add_immediate_delegation(&owner, stake, *node)
+                }
+
+                if choices[vested_delegation_dist.sample(&mut test.rng)] {
+                    // uniformly choose a random node to make vested delegation to
+                    let node = nodes.choose(&mut test.rng).unwrap();
+                    test.add_immediate_delegation_with_legal_proxy(&owner, stake, *node)
+                }
+
+                // make sure we cover our edge case of somebody having both liquid and vested delegation towards the same node
+                if epoch_id == 123 {
+                    test.add_immediate_delegation(problematic_delegator, stake, 4);
+                    test.add_immediate_delegation(problematic_delegator_twin, stake, 4);
+                }
+
+                if epoch_id == 666 {
+                    test.add_immediate_delegation_with_legal_proxy(problematic_delegator, stake, 4);
+                    test.add_immediate_delegation_with_legal_proxy(
+                        problematic_delegator_twin,
+                        stake,
+                        4,
+                    );
+                }
+
+                if epoch_id == 234 {
+                    test.add_immediate_delegation(problematic_delegator_alt_twin, stake, 4);
+                }
+
+                if epoch_id == 420 {
+                    test.add_immediate_delegation_with_legal_proxy(
+                        problematic_delegator_alt_twin,
+                        stake,
+                        4,
+                    );
+                }
+
+                test.skip_to_next_epoch_end();
+                // it doesn't matter that they're on the same layer here, we just need to make sure they're rewarded
+                test.force_assign_rewarded_set(vec![RoleAssignment {
+                    role: Role::Layer1,
+                    nodes: nodes.clone(),
+                }]);
+                test.start_epoch_transition();
+
+                // reward each node
+                for node in &nodes {
+                    let performance = test.rng.next_u64() % 100;
+                    let work_factor = test.active_node_work();
+                    test.reward_with_distribution(
+                        *node,
+                        NodeRewardingParameters {
+                            performance: Performance::from_percentage_value(performance).unwrap(),
+                            work_factor,
+                        },
+                    );
+                }
+
+                test.set_epoch_in_progress_state();
+            }
+
+            test
+        }
+
+        #[track_caller]
+        pub fn ensure_delegation_sync(&self, mix_id: NodeId) {
+            let mix_info = self.mix_rewarding(mix_id);
+            let epsilon = "0.001".parse().unwrap();
+
+            let subtotal: Decimal = delegations()
+                .prefix(mix_id)
+                .range(self.deps().storage, None, None, Order::Ascending)
+                .filter_map(|d| {
+                    d.map(|(_, del)| {
+                        let pending_rewards = mix_info.determine_delegation_reward(&del).unwrap();
+                        pending_rewards + del.dec_amount().unwrap()
+                    })
+                    .ok()
+                })
+                .sum();
+
+            compare_decimals(mix_info.delegates, subtotal, Some(epsilon))
+        }
+
+        pub fn random_address(&mut self) -> String {
+            format!("n1foomp{}", self.rng.next_u64())
         }
 
         pub fn deps(&self) -> Deps<'_> {
@@ -324,6 +467,20 @@ pub mod test_helpers {
 
         pub fn owner(&self) -> MessageInfo {
             self.owner.clone()
+        }
+
+        pub fn vesting_contract(&self) -> Addr {
+            mixnet_params_storage::CONTRACT_STATE
+                .load(self.deps().storage)
+                .unwrap()
+                .vesting_contract_address
+        }
+
+        pub fn all_mixnodes(&self) -> Vec<NodeId> {
+            mixnode_bonds()
+                .range(self.deps().storage, None, None, Order::Ascending)
+                .filter_map(|m| m.map(|(_, node)| node.mix_id).ok())
+                .collect::<Vec<_>>()
         }
 
         pub fn coin(&self, amount: u128) -> Coin {
@@ -565,6 +722,70 @@ pub mod test_helpers {
             node_id
         }
 
+        pub fn add_legacy_mixnode_with_proxy_and_keypair(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> (NodeId, identity::KeyPair) {
+            let pledge = self.make_mix_pledge(stake).pop().unwrap();
+
+            let proxy = self.vesting_contract();
+
+            let keypair = identity::KeyPair::new(&mut self.rng);
+            let identity_key = keypair.public_key().to_base58_string();
+            let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut self.rng);
+
+            let mixnode = MixNode {
+                identity_key,
+                sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
+                ..tests::fixtures::mix_node_fixture()
+            };
+
+            let height = self.env.block.height;
+            let storage = self.deps_mut().storage;
+
+            // manually unroll `save_new_mixnode` to allow for proxy usage
+            let mix_id = next_nymnode_id_counter(storage).unwrap();
+
+            let current_epoch = interval_storage::current_interval(storage)
+                .unwrap()
+                .current_epoch_absolute_id();
+
+            let mixnode_rewarding = NodeRewarding::initialise_new(
+                tests::fixtures::node_cost_params_fixture(),
+                &pledge,
+                current_epoch,
+            )
+            .unwrap();
+            let mixnode_bond = MixNodeBond {
+                mix_id,
+                owner: Addr::unchecked(owner),
+                original_pledge: pledge,
+                mix_node: mixnode,
+                proxy: Some(proxy),
+                bonding_height: height,
+                is_unbonding: false,
+            };
+
+            mixnode_bonds()
+                .save(storage, mix_id, &mixnode_bond)
+                .unwrap();
+            rewards_storage::MIXNODE_REWARDING
+                .save(storage, mix_id, &mixnode_rewarding)
+                .unwrap();
+
+            (mix_id, keypair)
+        }
+
+        pub fn add_legacy_mixnode_with_legal_proxy(
+            &mut self,
+            owner: &str,
+            stake: Option<Uint128>,
+        ) -> NodeId {
+            self.add_legacy_mixnode_with_proxy_and_keypair(owner, stake)
+                .0
+        }
+
         pub fn add_rewarded_legacy_mixnode(
             &mut self,
             owner: &str,
@@ -610,7 +831,7 @@ pub mod test_helpers {
             .unwrap();
         }
 
-        pub fn add_dummy_mixnodes(&mut self, n: usize) {
+        pub fn add_legacy_mixnodes(&mut self, n: usize) {
             for i in 0..n {
                 self.add_legacy_mixnode(&format!("owner{i}"), None);
             }
@@ -661,7 +882,7 @@ pub mod test_helpers {
             ed25519_sign_message(msg, key)
         }
 
-        pub fn add_dummy_mixnode_with_keypair(
+        pub fn add_legacy_mixnode_with_keypair(
             &mut self,
             owner: &str,
             stake: Option<Uint128>,
@@ -830,6 +1051,55 @@ pub mod test_helpers {
                 amount,
             )
             .unwrap();
+        }
+
+        pub fn add_immediate_delegation_with_legal_proxy(
+            &mut self,
+            delegator: &str,
+            amount: impl Into<Uint128>,
+            target: NodeId,
+        ) {
+            let denom = rewarding_denom(self.deps().storage).unwrap();
+            let amount = Coin {
+                denom,
+                amount: amount.into(),
+            };
+            let proxy = self.vesting_contract();
+
+            let owner = self.deps.api.addr_validate(delegator).unwrap();
+            let storage_key = Delegation::generate_storage_key(target, &owner, Some(&proxy));
+
+            let mut mix_rewarding = self.mix_rewarding(target);
+
+            let mut stored_delegation_amount = amount;
+
+            if let Some(existing_delegation) = delegations_storage::delegations()
+                .may_load(&self.deps.storage, storage_key.clone())
+                .unwrap()
+            {
+                let og_with_reward = mix_rewarding.undelegate(&existing_delegation).unwrap();
+                stored_delegation_amount.amount += og_with_reward.amount;
+            }
+
+            mix_rewarding
+                .add_base_delegation(stored_delegation_amount.amount)
+                .unwrap();
+
+            let delegation = Delegation {
+                owner,
+                node_id: target,
+                cumulative_reward_ratio: mix_rewarding.total_unit_reward,
+                amount: stored_delegation_amount,
+                height: self.env.block.height,
+                proxy: Some(proxy),
+            };
+
+            delegations_storage::delegations()
+                .save(&mut self.deps.storage, storage_key, &delegation)
+                .unwrap();
+            rewards_storage::MIXNODE_REWARDING
+                .save(&mut self.deps.storage, target, &mix_rewarding)
+                .unwrap();
         }
 
         #[allow(unused)]
@@ -1170,6 +1440,13 @@ pub mod test_helpers {
 
             let res =
                 try_reward_node(self.deps_mut(), env, sender, node_id, rewarding_params).unwrap();
+
+            if rewarding_params.is_zero() {
+                return RewardDistribution {
+                    operator: Decimal::zero(),
+                    delegates: Decimal::zero(),
+                };
+            }
             let operator: Decimal = find_attribute(
                 Some(MixnetEventType::NodeRewarding.to_string()),
                 OPERATOR_REWARD_KEY,
@@ -1286,6 +1563,7 @@ pub mod test_helpers {
         None
     }
 
+    #[track_caller]
     pub fn find_attribute<S: Into<String>>(
         event_type: Option<S>,
         attribute: &str,
@@ -1386,55 +1664,6 @@ pub mod test_helpers {
         perform_pending_interval_actions(deps.branch(), &env, None).unwrap();
     }
 
-    // pub fn mixnode_with_signature(
-    //     mut rng: impl RngCore + CryptoRng,
-    //     deps: Deps<'_>,
-    //     sender: &str,
-    //     stake: Option<Vec<Coin>>,
-    // ) -> (MixNode, MessageSignature, KeyPair) {
-    //     // hehe stupid workaround for bypassing the immutable borrow and removing duplicate code
-    //
-    //     let stake = stake.unwrap_or(good_mixnode_pledge());
-    //
-    //     let keypair = identity::KeyPair::new(&mut rng);
-    //     let identity_key = keypair.public_key().to_base58_string();
-    //     let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng);
-    //
-    //     let mixnode = MixNode {
-    //         identity_key,
-    //         sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
-    //         ..tests::fixtures::mix_node_fixture()
-    //     };
-    //     let msg = mixnode_bonding_sign_payload(deps, sender, None, mixnode.clone(), stake.clone());
-    //     let owner_signature = ed25519_sign_message(msg, keypair.private_key());
-    //
-    //     (mixnode, owner_signature, keypair)
-    // }
-
-    // pub fn gateway_with_signature(
-    //     mut rng: impl RngCore + CryptoRng,
-    //     deps: Deps<'_>,
-    //     sender: &str,
-    //     stake: Option<Vec<Coin>>,
-    // ) -> (Gateway, MessageSignature) {
-    //     let stake = stake.unwrap_or(good_gateway_pledge());
-    //
-    //     let keypair = identity::KeyPair::new(&mut rng);
-    //     let identity_key = keypair.public_key().to_base58_string();
-    //     let legit_sphinx_keys = nym_crypto::asymmetric::encryption::KeyPair::new(&mut rng);
-    //
-    //     let gateway = Gateway {
-    //         identity_key,
-    //         sphinx_key: legit_sphinx_keys.public_key().to_base58_string(),
-    //         ..tests::fixtures::gateway_fixture()
-    //     };
-    //
-    //     let msg = gateway_bonding_sign_payload(deps, sender, None, gateway.clone(), stake.clone());
-    //     let owner_signature = ed25519_sign_message(msg, keypair.private_key());
-    //
-    //     (gateway, owner_signature)
-    // }
-
     pub fn add_dummy_delegations(mut deps: DepsMut<'_>, env: Env, mix_id: NodeId, n: usize) {
         for i in 0..n {
             pending_events::delegate(
@@ -1448,23 +1677,6 @@ pub mod test_helpers {
             .unwrap();
         }
     }
-
-    // pub fn add_dummy_mixnodes(
-    //     mut rng: impl RngCore + CryptoRng,
-    //     mut deps: DepsMut<'_>,
-    //     env: Env,
-    //     n: usize,
-    // ) {
-    //     for i in 0..n {
-    //         add_mixnode(
-    //             &mut rng,
-    //             deps.branch(),
-    //             env.clone(),
-    //             &format!("owner{}", i),
-    //             tests::fixtures::good_mixnode_pledge(),
-    //         );
-    //     }
-    // }
 
     pub fn add_dummy_unbonded_mixnodes(
         mut rng: impl RngCore + CryptoRng,

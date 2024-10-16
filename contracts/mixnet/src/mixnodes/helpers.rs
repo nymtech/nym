@@ -156,28 +156,29 @@ pub(crate) mod tests {
         test: &mut TestSetup,
         stake: Option<Uint128>,
     ) -> Vec<DummyMixnode> {
-        let (mix_id, keypair) = test.add_dummy_mixnode_with_keypair(OWNER_EXISTS, stake);
+        let (mix_id, keypair) = test.add_legacy_mixnode_with_keypair(OWNER_EXISTS, stake);
         let mix_exists = DummyMixnode {
             mix_id,
             owner: Addr::unchecked(OWNER_EXISTS),
             identity: keypair.public_key().to_base58_string(),
         };
 
-        let (mix_id, keypair) = test.add_dummy_mixnode_with_keypair(OWNER_UNBONDING, stake);
+        let (mix_id, keypair) = test.add_legacy_mixnode_with_keypair(OWNER_UNBONDING, stake);
         let mix_unbonding = DummyMixnode {
             mix_id,
             owner: Addr::unchecked(OWNER_UNBONDING),
             identity: keypair.public_key().to_base58_string(),
         };
 
-        let (mix_id, keypair) = test.add_dummy_mixnode_with_keypair(OWNER_UNBONDED, stake);
+        let (mix_id, keypair) = test.add_legacy_mixnode_with_keypair(OWNER_UNBONDED, stake);
         let mix_unbonded = DummyMixnode {
             mix_id,
             owner: Addr::unchecked(OWNER_UNBONDED),
             identity: keypair.public_key().to_base58_string(),
         };
 
-        let (mix_id, keypair) = test.add_dummy_mixnode_with_keypair(OWNER_UNBONDED_LEFTOVER, stake);
+        let (mix_id, keypair) =
+            test.add_legacy_mixnode_with_keypair(OWNER_UNBONDED_LEFTOVER, stake);
         let mix_unbonded_leftover = DummyMixnode {
             mix_id,
             owner: Addr::unchecked(OWNER_UNBONDED_LEFTOVER),

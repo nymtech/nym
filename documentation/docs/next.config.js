@@ -46,7 +46,7 @@ const config = {
       // network docs
       {
         source: "/docs",
-        destination: "/network",
+        destination: "/",
         permanent: true,
       },
       {
@@ -66,17 +66,17 @@ const config = {
       },
       {
         source: "/docs/binaries/pre-built-binaries.html",
-        destination: "/", // TODO whack these in /developers
+        destination: "/developers/binaries#building-from-source",
         permanent: true,
       },
       {
         source: "/docs/binaries/init-and-config.html",
-        destination: "/", // DITTO
+        destination: "/developers/binaries#building-from-source",
         permanent: true,
       },
       {
         source: "/docs/binaries/building-nym.html",
-        destination: "/", // DITTO
+        destination: "/developers/binaries#building-from-source",
         permanent: true,
       },
       {
@@ -86,7 +86,8 @@ const config = {
       },
       {
         source: "/docs/wallet/desktop-wallet.html",
-        destination: "/", // TODO
+        destination:
+          "https://github.com/nymtech/nym/tree/master/nym-wallet#installation-prerequisites---linux--mac",
         permanent: true,
       },
       {
@@ -96,7 +97,8 @@ const config = {
       },
       {
         source: "/docs/explorers/mixnet-explorer.html",
-        destination: "/", // TODO
+        destination:
+          "https://github.com/nymtech/nym/tree/master/explorer#nym-network-explorer",
         permanent: true,
       },
       {
@@ -148,7 +150,7 @@ const config = {
       },
       {
         source: "/docs/coc.html",
-        destination: "/network/coc", // TODO PUT COC FILE IN THERE
+        destination: "/network/coc",
         permanent: true,
       },
       {

@@ -10,6 +10,8 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   data-observatory:
+    depends_on:
+      - postgres
     image: nym-data-observatory:latest
     build:
       context: ../

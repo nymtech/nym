@@ -1,7 +1,7 @@
 import { Tabs } from 'nextra/components';
-import Mixnodes from '../../../pages/operators/nodes/nym-node/snippets/mixnode-run-tab-snippet.mdx';
-import EntryGateway from '../../../pages/operators/nodes/nym-node/snippets/entry-gateway-run-tab-snippet.mdx';
-import ExitGateway from '../../../pages/operators/nodes/nym-node/snippets/exit-gateway-run-tab-snippet.mdx';
+import Mixnodes from 'components/operators/snippets/mixnode-run-tab-snippet.mdx';
+import EntryGateway from 'components/operators/snippets/entry-gateway-run-tab-snippet.mdx';
+import ExitGateway from 'components/operators/snippets/exit-gateway-run-tab-snippet.mdx';
 
 export const RunTabs = () => {
 

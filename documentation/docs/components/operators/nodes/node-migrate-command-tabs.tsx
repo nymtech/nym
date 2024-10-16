@@ -1,6 +1,6 @@
 import { Tabs } from 'nextra/components';
-import Mixnodes from '../../../pages/operators/nodes/nym-node/snippets/mixnode-migrate-tab-snippet.mdx';
-import Gateways from '../../../pages/operators/nodes/nym-node/snippets/gateway-migrate-tab-snippet.mdx'
+import Mixnodes from 'components/operators/snippets/mixnode-migrate-tab-snippet.mdx';
+import Gateways from 'components/operators/snippets/gateway-migrate-tab-snippet.mdx'
 
 export const MigrateTabs = () => {
 

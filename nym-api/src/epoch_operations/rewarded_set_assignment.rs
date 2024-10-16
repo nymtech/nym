@@ -199,11 +199,34 @@ impl EpochAdvancer {
         legacy_gateways: &[LegacyGatewayBondWithId],
         nym_nodes: &[NymNodeDetails],
     ) -> Vec<NodeWithStakeAndPerformance> {
-        let mut with_performance =
-            Vec::with_capacity(legacy_mixnodes.len() + legacy_gateways.len() + nym_nodes.len());
+        let mut with_performance = Vec::new();
+
+        // SAFETY: the cache MUST HAVE been initialised before now
+        let described_cache = self.described_cache.get().await.unwrap();
+
+        let mut no_self_described_mixnodes = 0;
+        let mut not_nym_node_bin_mixnodes = 0;
+
+        let mut no_self_described_gateways = 0;
+        let mut not_nym_node_bin_gateways = 0;
+
+        let mut no_self_described_nym_nodes = 0;
+        let mut not_nym_node_bin_nym_nodes = 0;
 
         for mix in legacy_mixnodes {
+            let node_id = mix.mix_id();
             let total_stake = mix.total_stake();
+
+            let Some(self_described) = described_cache.get_description(&node_id) else {
+                no_self_described_mixnodes += 1;
+                continue;
+            };
+
+            if self_described.build_information.binary_name != "nym-node" {
+                not_nym_node_bin_mixnodes += 1;
+                continue;
+            }
+
             let performance = self
                 .load_mixnode_performance(&interval, mix.mix_id())
                 .await
@@ -221,12 +244,24 @@ impl EpochAdvancer {
             })
         }
         for gateway in legacy_gateways {
+            let node_id = gateway.node_id;
             let total_stake = gateway
                 .bond
                 .pledge_amount
                 .amount
                 .into_base_decimal()
                 .unwrap_or_default();
+
+            let Some(self_described) = described_cache.get_description(&node_id) else {
+                no_self_described_gateways += 1;
+                continue;
+            };
+
+            if self_described.build_information.binary_name != "nym-node" {
+                not_nym_node_bin_gateways += 1;
+                continue;
+            }
+
             let performance = self
                 .load_gateway_performance(&interval, gateway.node_id)
                 .await
@@ -244,22 +279,25 @@ impl EpochAdvancer {
             })
         }
 
-        // SAFETY: the cache MUST HAVE been initialised before now
-        let described_cache = self.described_cache.get().await.unwrap();
-
         for nym_node in nym_nodes {
             let node_id = nym_node.node_id();
             let total_stake = nym_node.total_stake();
+
+            let Some(self_described) = described_cache.get_description(&node_id) else {
+                no_self_described_nym_nodes += 1;
+                continue;
+            };
+
+            if self_described.build_information.binary_name != "nym-node" {
+                not_nym_node_bin_nym_nodes += 1;
+                continue;
+            }
+
             let performance = self
                 .load_any_performance(&interval, nym_node.node_id())
                 .await
                 .performance;
             debug!("nym-node {node_id}: stake: {total_stake}, performance: {performance}",);
-
-            let Some(self_described) = described_cache.get_description(&node_id) else {
-                warn!("we don't have self described information for nym-node {node_id}. it is not going to get considered for rewarded set selection.");
-                continue;
-            };
 
             let mut available_roles = Vec::new();
             if self_described.declared_role.mixnode {
@@ -283,6 +321,44 @@ impl EpochAdvancer {
                 total_stake,
                 performance,
             })
+        }
+
+        if no_self_described_mixnodes != 0
+            || not_nym_node_bin_mixnodes != 0
+            || no_self_described_gateways != 0
+            || not_nym_node_bin_gateways != 0
+            || no_self_described_nym_nodes != 0
+            || not_nym_node_bin_nym_nodes != 0
+        {
+            warn!("not every bonded node is being considered for rewarded set selection")
+        }
+
+        if no_self_described_mixnodes != 0 {
+            warn!("{no_self_described_mixnodes} legacy mixnodes don't expose their self-described API")
+        }
+
+        if not_nym_node_bin_mixnodes != 0 {
+            warn!(
+                "{not_nym_node_bin_mixnodes} legacy mixnodes are not running the 'nym-node' binary"
+            )
+        }
+
+        if no_self_described_gateways != 0 {
+            warn!("{no_self_described_gateways} legacy gateways don't expose their self-described API")
+        }
+
+        if not_nym_node_bin_gateways != 0 {
+            warn!(
+                "{not_nym_node_bin_gateways} legacy gateways are not running the 'nym-node' binary"
+            )
+        }
+
+        if no_self_described_nym_nodes != 0 {
+            warn!("{no_self_described_nym_nodes} nym-nodes don't expose their self-described API")
+        }
+
+        if not_nym_node_bin_nym_nodes != 0 {
+            warn!("{not_nym_node_bin_nym_nodes} migrated nym-nodes are not running the 'nym-node' binary")
         }
 
         with_performance

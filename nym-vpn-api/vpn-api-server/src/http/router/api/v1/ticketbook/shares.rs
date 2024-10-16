@@ -11,12 +11,12 @@ use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::routing::get;
 use axum::Router;
-use nym_http_api_common::OutputParams;
-use nym_validator_client::nym_api::EpochId;
-use nym_vpn_api_requests::api::v1::ticketbook::models::{
+use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     SharesQueryParams, TicketbookWalletSharesResponse,
 };
-use nym_vpn_api_requests::routes::api::v1::ticketbook::shares;
+use nym_credential_proxy_requests::routes::api::v1::ticketbook::shares;
+use nym_http_api_common::OutputParams;
+use nym_validator_client::nym_api::EpochId;
 use tracing::{debug, span, warn, Level};
 use uuid::Uuid;
 

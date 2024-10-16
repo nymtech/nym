@@ -5,7 +5,7 @@ use crate::error::VpnApiError;
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
-use nym_vpn_api_requests::api::v1::ErrorResponse;
+use nym_credential_proxy_requests::api::v1::ErrorResponse;
 use utoipa::ToResponse;
 use uuid::Uuid;
 

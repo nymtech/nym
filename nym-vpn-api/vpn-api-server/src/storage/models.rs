@@ -76,9 +76,11 @@ pub struct MinimalWalletShare {
     pub blinded_signature: Vec<u8>,
 }
 
-impl From<MinimalWalletShare> for nym_vpn_api_requests::api::v1::ticketbook::models::WalletShare {
+impl From<MinimalWalletShare>
+    for nym_credential_proxy_requests::api::v1::ticketbook::models::WalletShare
+{
     fn from(value: MinimalWalletShare) -> Self {
-        nym_vpn_api_requests::api::v1::ticketbook::models::WalletShare {
+        nym_credential_proxy_requests::api::v1::ticketbook::models::WalletShare {
             node_index: value.node_id as u64,
             bs58_encoded_share: bs58::encode(&value.blinded_signature).into_string(),
         }

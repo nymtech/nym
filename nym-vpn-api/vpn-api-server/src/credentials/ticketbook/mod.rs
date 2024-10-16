@@ -4,16 +4,16 @@
 use crate::error::VpnApiError;
 use crate::http::state::ApiState;
 use futures::{stream, StreamExt};
+use nym_credential_proxy_requests::api::v1::ticketbook::models::{
+    TicketbookAsyncRequest, TicketbookObtainQueryParams, TicketbookRequest,
+    TicketbookWalletSharesResponse, WalletShare,
+};
 use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::Base58;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::ecash::BlindSignRequestBody;
 use nym_validator_client::nyxd::contract_traits::EcashSigningClient;
 use nym_validator_client::nyxd::cosmwasm_client::ToSingletonContractData;
-use nym_vpn_api_requests::api::v1::ticketbook::models::{
-    TicketbookAsyncRequest, TicketbookObtainQueryParams, TicketbookRequest,
-    TicketbookWalletSharesResponse, WalletShare,
-};
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::sync::Arc;

@@ -19,6 +19,10 @@ use nym_compact_ecash::scheme::expiration_date_signatures::{
     aggregate_annotated_expiration_signatures, ExpirationDateSignatureShare,
 };
 use nym_compact_ecash::Base58;
+use nym_credential_proxy_requests::api::v1::ticketbook::models::{
+    AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,
+    MasterVerificationKeyResponse,
+};
 use nym_credentials::ecash::utils::{ecash_today, EcashTime};
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
@@ -32,10 +36,6 @@ use nym_validator_client::nyxd::contract_traits::{
 };
 use nym_validator_client::nyxd::{Coin, NyxdClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient, EcashApiClient};
-use nym_vpn_api_requests::api::v1::ticketbook::models::{
-    AggregatedCoinIndicesSignaturesResponse, AggregatedExpirationDateSignaturesResponse,
-    MasterVerificationKeyResponse,
-};
 use std::future::Future;
 use std::ops::Deref;
 use std::sync::Arc;

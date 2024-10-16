@@ -8,6 +8,10 @@ use nym_compact_ecash::{
     aggregate_wallets, issue_verify, withdrawal_request, Base58, BlindedSignature,
     VerificationKeyAuth, WithdrawalRequest,
 };
+use nym_credential_proxy_requests::api::v1::ticketbook::models::{
+    MasterVerificationKeyResponse, PartialVerificationKeysResponse, TicketbookRequest,
+    TicketbookWalletSharesResponse, WalletShare,
+};
 use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
     IssuedTicketBook,
@@ -15,10 +19,6 @@ use nym_credentials::{
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_time::{ecash_default_expiration_date, EcashTime};
-use nym_vpn_api_requests::api::v1::ticketbook::models::{
-    MasterVerificationKeyResponse, PartialVerificationKeysResponse, TicketbookRequest,
-    TicketbookWalletSharesResponse, WalletShare,
-};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use time::Date;

@@ -3,7 +3,7 @@
 
 use crate::http::state::ApiState;
 use axum::Router;
-use nym_vpn_api_requests::routes;
+use nym_credential_proxy_requests::routes;
 
 use crate::http::middleware::auth::AuthLayer;
 pub(crate) use nym_http_api_common::{Output, OutputParams};

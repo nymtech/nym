@@ -4,8 +4,8 @@
 use crate::http::router::api;
 use crate::http::types::RequestError;
 use axum::Router;
-use nym_vpn_api_requests::api as api_requests;
-use nym_vpn_api_requests::routes::api::{v1, v1_absolute};
+use nym_credential_proxy_requests::api as api_requests;
+use nym_credential_proxy_requests::routes::api::{v1, v1_absolute};
 use utoipa::openapi::security::{Http, HttpAuthScheme, SecurityScheme};
 use utoipa::{Modify, OpenApi};
 use utoipa_swagger_ui::SwaggerUi;

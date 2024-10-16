@@ -4,7 +4,7 @@
 use crate::http::middleware::auth::AuthLayer;
 use crate::http::state::ApiState;
 use axum::Router;
-use nym_vpn_api_requests::routes::api::v1;
+use nym_credential_proxy_requests::routes::api::v1;
 
 // pub mod bandwidth_voucher;
 // pub mod freepass;

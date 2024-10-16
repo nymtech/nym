@@ -13,13 +13,13 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_compact_ecash::Base58;
-use nym_http_api_common::{FormattedResponse, OutputParams};
-use nym_vpn_api_requests::api::v1::ticketbook::models::{
+use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     CurrentEpochResponse, DepositResponse, MasterVerificationKeyResponse, PartialVerificationKey,
     PartialVerificationKeysResponse, TicketbookAsyncRequest, TicketbookObtainQueryParams,
     TicketbookRequest, TicketbookWalletSharesAsyncResponse, TicketbookWalletSharesResponse,
 };
-use nym_vpn_api_requests::routes::api::v1::ticketbook;
+use nym_credential_proxy_requests::routes::api::v1::ticketbook;
+use nym_http_api_common::{FormattedResponse, OutputParams};
 use time::OffsetDateTime;
 use tracing::{error, info, span, warn, Level};
 

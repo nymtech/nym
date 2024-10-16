@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::{
-    metrics::{ packet_statistics::PacketStatisticsEvent, MetricsSender},
+    metrics::{packet_statistics::PacketStatisticsEvent, MetricsSender},
     replies::{reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys},
 };
 use crate::spawn_future;
@@ -61,16 +61,12 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
             // received and sent packets due to the sphinx layers being removed by the exit gateway
             // before it reaches the mixnet client.
             self.stats_tx
-                .report(PacketStatisticsEvent::CoverPacketReceived(
-                    fragment_data_size,
-                ).into());
+                .report(PacketStatisticsEvent::CoverPacketReceived(fragment_data_size).into());
             return None;
         }
 
         self.stats_tx
-            .report(PacketStatisticsEvent::RealPacketReceived(
-                fragment_data_size,
-            ).into());
+            .report(PacketStatisticsEvent::RealPacketReceived(fragment_data_size).into());
 
         let fragment = match self.message_receiver.recover_fragment(fragment_data) {
             Err(err) => {

@@ -10,8 +10,8 @@ panic = "abort"
 
 resolver = "2"
 members = [
-    "vpn-api-server",
-    "vpn-api-requests",
+    "nym-credential-proxy",
+    "nym-credential-proxy-requests",
     "vpn-api-lib-wasm"
 ]
 

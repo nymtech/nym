@@ -20,6 +20,7 @@ use nym_authenticator_requests::{
         request::{AuthenticatorRequest, AuthenticatorRequestData},
         response::AuthenticatorResponse,
     },
+    CURRENT_VERSION,
 };
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::EcashManager,
@@ -461,6 +462,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
     }
 
     pub(crate) async fn run(mut self) -> Result<()> {
+        log::info!("Using authenticator version {}", CURRENT_VERSION);
         let mut task_client = self.task_handle.fork("main_loop");
 
         while !task_client.is_shutdown() {
@@ -528,7 +530,6 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
                     .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
                         source: err,
                     })
-                    .map(Into::into)
             } else {
                 Err(AuthenticatorError::InvalidPacketType(request_type))
             }

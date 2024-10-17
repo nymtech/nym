@@ -5631,6 +5631,7 @@ version = "0.1.0"
 dependencies = [
  "dotenvy",
  "log",
+ "regex",
  "schemars",
  "serde",
  "url",

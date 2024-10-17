@@ -9,6 +9,8 @@ use time::{Date, Duration, OffsetDateTime};
 
 use nym_statistics_common::events::SessionEvent;
 
+const FINISHED_SESSIONS_CAP: usize = 1_000_000; //to be on the safe side of memory blowups until persistent storage
+
 #[derive(PartialEq)]
 enum SessionType {
     Vpn,
@@ -132,7 +134,9 @@ impl SessionStatsHandler {
     fn handle_session_stop(&mut self, stop_time: OffsetDateTime, client: DestinationAddressBytes) {
         if let Some(session) = self.active_sessions.remove(&client) {
             if let Some(finished_session) = session.end_at(stop_time) {
-                self.finished_sessions.push(finished_session);
+                if self.finished_sessions.len() < FINISHED_SESSIONS_CAP {
+                    self.finished_sessions.push(finished_session);
+                }
             }
         }
     }

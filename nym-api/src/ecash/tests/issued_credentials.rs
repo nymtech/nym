@@ -53,7 +53,7 @@ async fn epoch_credentials() {
     assert_eq!(parsed_response.total_issued, 2);
     assert_eq!(parsed_response.first_epoch_credential_id, Some(1));
 
-    test_fixture.set_epoch(2);
+    test_fixture.set_epoch(2).await;
 
     let response = test_fixture.axum.get(&route_epoch2).await;
     assert_eq!(response.status_code(), StatusCode::OK);
@@ -115,7 +115,7 @@ async fn issued_credential() {
 
     let cred1 = test_fixture.issue_credential(request1.clone()).await;
 
-    test_fixture.set_epoch(3);
+    test_fixture.set_epoch(3).await;
     let cred2 = test_fixture.issue_credential(request2.clone()).await;
 
     let response = test_fixture.axum.get(&route(1)).await;

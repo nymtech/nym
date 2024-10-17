@@ -131,7 +131,27 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
 
     let mut status_state = ApiStatusState::new();
 
-    // if ecash signer is enabled, add /ecash to server
+    let ecash_contract = nyxd_client
+        .get_ecash_contract_address()
+        .await
+        .context("e-cash contract address is required to setup the nym-api routes")?;
+
+    let comm_channel = QueryCommunicationChannel::new(nyxd_client.clone());
+
+    let encoded_identity = identity_keypair.public_key().to_base58_string();
+    let ecash_state = EcashState::new(
+        ecash_contract,
+        nyxd_client.clone(),
+        identity_keypair,
+        ecash_keypair_wrapper.clone(),
+        comm_channel,
+        storage.clone(),
+        !config.ecash_signer.enabled,
+    )
+    .await?;
+
+    // if ecash signer is enabled, there are additional constraints on the nym-api,
+    // such as having sufficient token balance
     let router = if config.ecash_signer.enabled {
         let cosmos_address = nyxd_client.address().await;
 
@@ -150,27 +170,10 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
             .unwrap_or_default();
         status_state.add_zk_nym_signer(SignerState {
             cosmos_address: cosmos_address.to_string(),
-            identity: identity_keypair.public_key().to_base58_string(),
+            identity: encoded_identity,
             announce_address,
             ecash_keypair: ecash_keypair_wrapper.clone(),
         });
-
-        let ecash_contract = nyxd_client
-            .get_ecash_contract_address()
-            .await
-            .context("e-cash contract address is required to setup the zk-nym signer")?;
-
-        let comm_channel = QueryCommunicationChannel::new(nyxd_client.clone());
-
-        let ecash_state = EcashState::new(
-            ecash_contract,
-            nyxd_client.clone(),
-            identity_keypair,
-            ecash_keypair_wrapper.clone(),
-            comm_channel,
-            storage.clone(),
-        )
-        .await?;
 
         router.nest("/v1/ecash", ecash_routes(Arc::new(ecash_state)))
     } else {

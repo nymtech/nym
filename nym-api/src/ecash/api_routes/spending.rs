@@ -3,7 +3,7 @@
 
 use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
-use crate::node_status_api::models::AxumResult;
+use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
 use axum::{Json, Router};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
@@ -61,7 +61,8 @@ fn reject_ticket(
     request_body = VerifyEcashTicketBody,
     path = "/v1/ecash/verify-ecash-ticket",
     responses(
-        (status = 200, body = EcashTicketVerificationResponse)
+        (status = 200, body = EcashTicketVerificationResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn verify_ticket(
@@ -69,6 +70,8 @@ async fn verify_ticket(
     Json(verify_ticket_body): Json<VerifyEcashTicketBody>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<EcashTicketVerificationResponse>> {
+    state.ensure_signer().await?;
+
     let credential_data = &verify_ticket_body.credential;
     let gateway_cosmos_addr = &verify_ticket_body.gateway_cosmos_addr;
 
@@ -161,7 +164,8 @@ async fn verify_ticket(
     request_body = BatchRedeemTicketsBody,
     path = "/v1/ecash/batch-redeem-ecash-tickets",
     responses(
-        (status = 200, body = EcashBatchTicketRedemptionResponse)
+        (status = 200, body = EcashBatchTicketRedemptionResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn batch_redeem_tickets(
@@ -169,6 +173,8 @@ async fn batch_redeem_tickets(
     Json(batch_redeem_credentials_body): Json<BatchRedeemTicketsBody>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<EcashBatchTicketRedemptionResponse>> {
+    state.ensure_signer().await?;
+
     // 1. see if that gateway has even submitted any tickets
     let Some(provider_info) = state
         .get_ticket_provider(batch_redeem_credentials_body.gateway_cosmos_addr.as_ref())
@@ -233,14 +239,11 @@ async fn batch_redeem_tickets(
     get,
     path = "/v1/ecash/double-spending-filter-v1",
     responses(
-        (status = 200, body = SpentCredentialsResponse)
+        (status = 500, body = ErrorResponse, description = "bloomfilters got disabled"),
     )
 )]
 async fn double_spending_filter_v1(
-    state: Arc<EcashState>,
+    _state: Arc<EcashState>,
 ) -> AxumResult<Json<SpentCredentialsResponse>> {
-    let spent_credentials_export = state.get_bloomfilter_bytes().await;
-    Ok(Json(SpentCredentialsResponse::new(
-        spent_credentials_export,
-    )))
+    AxumResult::Err(AxumErrorResponse::internal_msg("permanently restricted"))
 }

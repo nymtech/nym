@@ -27,6 +27,9 @@ pub enum EcashError {
     #[error(transparent)]
     IOError(#[from] std::io::Error),
 
+    #[error("this operation couldn't be completed as this nym-api is not an active ecash signer")]
+    NotASigner,
+
     #[error("the address of the bandwidth contract hasn't been set")]
     MissingBandwidthContractAddress,
 

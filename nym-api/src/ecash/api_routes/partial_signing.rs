@@ -53,13 +53,17 @@ pub(crate) fn partial_signing_routes(ecash_state: Arc<EcashState>) -> Router<App
     request_body = BlindSignRequestBody,
     path = "/v1/ecash/blind-sign",
     responses(
-        (status = 200, body = BlindedSignatureResponse)
+        (status = 200, body = BlindedSignatureResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+
     )
 )]
 async fn post_blind_sign(
     Json(blind_sign_request_body): Json<BlindSignRequestBody>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<BlindedSignatureResponse>> {
+    state.ensure_signer().await?;
+
     debug!("Received blind sign request");
     trace!("body: {:?}", blind_sign_request_body);
 
@@ -125,13 +129,16 @@ struct ExpirationDateParam {
     ),
     path = "/v1/ecash/partial-expiration-date-signatures/{expiration_date}",
     responses(
-        (status = 200, body = PartialExpirationDateSignatureResponse)
+        (status = 200, body = PartialExpirationDateSignatureResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn partial_expiration_date_signatures(
     Path(ExpirationDateParam { expiration_date }): Path<ExpirationDateParam>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<PartialExpirationDateSignatureResponse>> {
+    state.ensure_signer().await?;
+
     let expiration_date = match expiration_date {
         None => cred_exp_date().ecash_date(),
         Some(raw) => Date::parse(&raw, &rfc_3339_date())
@@ -160,13 +167,16 @@ async fn partial_expiration_date_signatures(
     ),
     path = "/v1/ecash/partial-coin-indices-signatures/{epoch_id}",
     responses(
-        (status = 200, body = PartialExpirationDateSignatureResponse)
+        (status = 200, body = PartialExpirationDateSignatureResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn partial_coin_indices_signatures(
     Path(EpochIdParam { epoch_id }): Path<EpochIdParam>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<PartialCoinIndicesSignatureResponse>> {
+    state.ensure_signer().await?;
+
     // see if we're not in the middle of new dkg
     state.ensure_dkg_not_in_progress().await?;
 

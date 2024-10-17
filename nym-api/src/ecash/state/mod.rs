@@ -44,8 +44,9 @@ use nym_ecash_double_spending::DoubleSpendingFilter;
 use nym_ecash_time::cred_exp_date;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
+use std::ops::Deref;
 use time::ext::NumericalDuration;
-use time::{Date, Duration, OffsetDateTime};
+use time::{Date, OffsetDateTime};
 use tokio::sync::RwLockReadGuard;
 use tracing::{debug, error, info, warn};
 
@@ -74,6 +75,7 @@ impl EcashState {
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
+        signer_disabled: bool,
     ) -> Result<Self>
     where
         C: LocalClient + Send + Sync + 'static,
@@ -83,9 +85,41 @@ impl EcashState {
 
         Ok(Self {
             global: GlobalEcachState::new(contract_address),
-            local: LocalEcashState::new(key_pair, identity_keypair, double_spending_filter),
+            local: LocalEcashState::new(
+                key_pair,
+                identity_keypair,
+                double_spending_filter,
+                signer_disabled,
+            ),
             aux: AuxiliaryEcashState::new(client, comm_channel, storage),
         })
+    }
+
+    /// Ensures that this nym-api is one of ecash signers for the current epoch
+    pub(crate) async fn ensure_signer(&self) -> Result<()> {
+        if self.local.explicitly_disabled {
+            return Err(EcashError::NotASigner);
+        }
+
+        let epoch_id = self.aux.current_epoch().await?;
+
+        let is_epoch_signer = self
+            .local
+            .active_signer
+            .get_or_init(epoch_id, || async {
+                let address = self.aux.client.address().await;
+                let ecash_signers = self.aux.comm_channel.ecash_clients(epoch_id).await?;
+
+                // check if any ecash signers for this epoch has the same cosmos address as this api
+                Ok(ecash_signers.iter().any(|c| c.cosmos_address == address))
+            })
+            .await?;
+
+        if !is_epoch_signer.deref() {
+            return Err(EcashError::NotASigner);
+        }
+
+        Ok(())
     }
 
     pub(crate) async fn ecash_signing_key(&self) -> Result<RwLockReadGuard<SecretKeyAuth>> {
@@ -839,18 +873,5 @@ impl EcashState {
             .await?;
 
         res
-    }
-
-    pub async fn get_bloomfilter_bytes(&self) -> Vec<u8> {
-        let guard = self.local.exported_double_spending_filter.data.read().await;
-
-        let bytes = guard.bytes.clone();
-
-        // see if it's been > 5min since last export (that value is arbitrary)
-        if guard.last_exported_at + Duration::minutes(5) < OffsetDateTime::now_utc() {
-            self.local.maybe_background_update_exported_bloomfilter();
-        }
-
-        bytes
     }
 }

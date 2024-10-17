@@ -1133,16 +1133,21 @@ impl DummyCommunicationChannel {
         }
     }
 
-    pub fn new_single_dummy(aggregated_verification_key: VerificationKeyAuth) -> Self {
+    pub fn new_single_dummy(
+        aggregated_verification_key: VerificationKeyAuth,
+        cosmos_address: AccountId,
+    ) -> Self {
         let client = EcashApiClient {
             api_client: NymApiClient::new("http://localhost:1234".parse().unwrap()),
             verification_key: aggregated_verification_key,
             node_id: 1,
-            cosmos_address: "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l"
-                .parse()
-                .unwrap(),
+            cosmos_address,
         };
         Self::new(vec![client])
+    }
+
+    pub fn clients_arc(&self) -> Arc<RwLock<HashMap<EpochId, Vec<EcashApiClient>>>> {
+        Arc::clone(&self.ecash_clients)
     }
 
     pub fn with_epoch(mut self, current_epoch: Arc<AtomicU64>) -> Self {
@@ -1248,6 +1253,7 @@ struct TestFixture {
     storage: NymApiStorage,
     chain_state: SharedFakeChain,
     epoch: Arc<AtomicU64>,
+    ecash_clients: Arc<RwLock<HashMap<EpochId, Vec<EcashApiClient>>>>,
 
     _tmp_dir: TempDir,
 }
@@ -1273,9 +1279,13 @@ impl TestFixture {
         let coconut_keypair = ttp_keygen(1, 1).unwrap().remove(0);
         let identity = identity::KeyPair::new(&mut rng);
         let epoch = Arc::new(AtomicU64::new(1));
-        let comm_channel =
-            DummyCommunicationChannel::new_single_dummy(coconut_keypair.verification_key().clone())
-                .with_epoch(epoch.clone());
+        let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
+        let comm_channel = DummyCommunicationChannel::new_single_dummy(
+            coconut_keypair.verification_key().clone(),
+            address.clone(),
+        )
+        .with_epoch(epoch.clone());
+        let ecash_clients = comm_channel.clients_arc();
 
         // TODO: it's AWFUL to test with actual storage, we should somehow abstract it away
         let tmp_dir = tempdir().unwrap();
@@ -1293,10 +1303,7 @@ impl TestFixture {
         staged_key_pair.validate();
 
         let chain_state = SharedFakeChain::default();
-        let nyxd_client = DummyClient::new(
-            AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
-            chain_state.clone(),
-        );
+        let nyxd_client = DummyClient::new(address, chain_state.clone());
 
         let ecash_contract = chain_state
             .lock()
@@ -1315,6 +1322,7 @@ impl TestFixture {
             staged_key_pair,
             comm_channel,
             storage.clone(),
+            false,
         )
         .await
         .unwrap();
@@ -1329,12 +1337,20 @@ impl TestFixture {
             storage,
             chain_state,
             epoch,
+            ecash_clients,
             _tmp_dir: tmp_dir,
         }
     }
 
-    fn set_epoch(&self, epoch: u64) {
-        self.epoch.store(epoch, Ordering::Relaxed)
+    async fn set_epoch(&self, epoch: u64) {
+        let current_epoch = self.epoch.load(Ordering::Relaxed);
+        self.epoch.store(epoch, Ordering::Relaxed);
+
+        // copy the same epoch_signers as we had initially
+        let existing = self.ecash_clients.read().await.get(&current_epoch).cloned();
+        if let Some(clients) = existing {
+            self.ecash_clients.write().await.insert(epoch, clients);
+        }
     }
 
     #[allow(dead_code)]
@@ -1455,19 +1471,19 @@ mod credential_tests {
     async fn state_functions() {
         let mut rng = OsRng;
         let identity = identity::KeyPair::new(&mut rng);
+        let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
 
-        let nyxd_client = DummyClient::new(
-            AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
-            Default::default(),
-        );
+        let nyxd_client = DummyClient::new(address.clone(), Default::default());
         let key_pair = ttp_keygen(1, 1).unwrap().remove(0);
         let tmp_dir = tempdir().unwrap();
 
         let storage = NymApiStorage::init(tmp_dir.path().join("storage.db"))
             .await
             .unwrap();
-        let comm_channel =
-            DummyCommunicationChannel::new_single_dummy(key_pair.verification_key().clone());
+        let comm_channel = DummyCommunicationChannel::new_single_dummy(
+            key_pair.verification_key().clone(),
+            address,
+        );
         let staged_key_pair = crate::ecash::keys::KeyPair::new();
         staged_key_pair
             .set(KeyPairWithEpoch {
@@ -1486,6 +1502,7 @@ mod credential_tests {
             staged_key_pair,
             comm_channel,
             storage.clone(),
+            false,
         )
         .await
         .unwrap();

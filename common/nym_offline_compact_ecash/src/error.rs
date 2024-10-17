@@ -16,6 +16,12 @@ pub enum CompactEcashError {
     #[error("empty set for aggregation")]
     AggregationEmptySet,
 
+    #[error("invalid signature shares for aggregation")]
+    InvalidSignatureShare,
+
+    #[error("the signature is an infinity point")]
+    InfinityPoint,
+
     #[error("duplicate indices for aggregation")]
     AggregationDuplicateIndices,
 

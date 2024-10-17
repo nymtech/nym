@@ -1054,9 +1054,9 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "4.5.18"
+version = "4.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0956a43b323ac1afaffc053ed5c4b7c1f1800bacd1683c353aabbb752515dd3"
+checksum = "b97f376d85a664d5837dbae44bf546e6477a679ff6610010f17276f686d867e8"
 dependencies = [
  "clap_builder",
  "clap_derive",
@@ -1064,9 +1064,9 @@ dependencies = [
 
 [[package]]
 name = "clap_builder"
-version = "4.5.18"
+version = "4.5.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4d72166dd41634086d5803a47eb71ae740e61d84709c36f3c34110173db3961b"
+checksum = "19bc80abd44e4bed93ca373a0704ccbd1b710dc5749406201bb018272808dc54"
 dependencies = [
  "anstream",
  "anstyle",
@@ -1076,11 +1076,11 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.5.29"
+version = "4.5.33"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8937760c3f4c60871870b8c3ee5f9b30771f792a7045c48bcbba999d7d6b3b8e"
+checksum = "9646e2e245bf62f45d39a0f3f36f1171ad1ea0d6967fd114bca72cb02a8fcdfb"
 dependencies = [
- "clap 4.5.18",
+ "clap 4.5.20",
 ]
 
 [[package]]
@@ -1089,7 +1089,7 @@ version = "4.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d494102c8ff3951810c72baf96910b980fb065ca5d3101243e6a8dc19747c86b"
 dependencies = [
- "clap 4.5.18",
+ "clap 4.5.20",
  "clap_complete",
 ]
 
@@ -1497,7 +1497,7 @@ dependencies = [
  "anes",
  "cast",
  "ciborium",
- "clap 4.5.18",
+ "clap 4.5.20",
  "criterion-plot",
  "is-terminal",
  "itertools 0.10.5",
@@ -2371,7 +2371,7 @@ name = "explorer-api"
 version = "1.1.40"
 dependencies = [
  "chrono",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dotenvy",
  "humantime-serde",
  "isocountry",
@@ -3356,7 +3356,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bip39",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dirs 5.0.1",
  "importer-contract",
  "nym-bin-common",
@@ -3649,9 +3649,9 @@ checksum = "8eaf4bc02d17cbdd7ff4c7438cafcdf7fb9a4613313ad11b4f8fefe7d3fa0130"
 
 [[package]]
 name = "js-sys"
-version = "0.3.70"
+version = "0.3.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1868808506b929d7b0cfa8f75951347aa71bb21144b7791bae35d9bccfcfe37a"
+checksum = "6a88f1bda2bd75b0452a14784937d796722fdebfe50df998aeb3f0b7603019a9"
 dependencies = [
  "wasm-bindgen",
 ]
@@ -4315,7 +4315,7 @@ dependencies = [
  "bloomfilter",
  "bs58",
  "cfg-if",
- "clap 4.5.18",
+ "clap 4.5.20",
  "console-subscriber",
  "cosmwasm-std",
  "cw-utils",
@@ -4430,7 +4430,7 @@ dependencies = [
  "bincode",
  "bs58",
  "bytes",
- "clap 4.5.18",
+ "clap 4.5.20",
  "defguard_wireguard_rs",
  "fastrand 2.1.1",
  "futures",
@@ -4508,7 +4508,7 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.6.0"
 dependencies = [
- "clap 4.5.18",
+ "clap 4.5.20",
  "clap_complete",
  "clap_complete_fig",
  "const-str",
@@ -4550,7 +4550,7 @@ dependencies = [
  "base64 0.22.1",
  "bip39",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "clap_complete",
  "clap_complete_fig",
  "dotenvy",
@@ -4576,7 +4576,7 @@ dependencies = [
  "bip39",
  "bs58",
  "cfg-if",
- "clap 4.5.18",
+ "clap 4.5.20",
  "colored",
  "comfy-table",
  "cosmrs 0.17.0-pre",
@@ -4628,7 +4628,7 @@ name = "nym-client"
 version = "1.1.41"
 dependencies = [
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dirs 5.0.1",
  "futures",
  "log",
@@ -4668,7 +4668,7 @@ dependencies = [
  "base64 0.22.1",
  "bs58",
  "cfg-if",
- "clap 4.5.18",
+ "clap 4.5.20",
  "comfy-table",
  "futures",
  "gloo-timers",
@@ -5055,7 +5055,7 @@ dependencies = [
  "anyhow",
  "axum 0.7.7",
  "chrono",
- "clap 4.5.18",
+ "clap 4.5.20",
  "nym-bin-common",
  "nym-network-defaults",
  "nym-node-requests",
@@ -5195,7 +5195,7 @@ dependencies = [
  "async-trait",
  "bip39",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "colored",
  "dashmap",
  "defguard_wireguard_rs",
@@ -5402,7 +5402,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "nym-bin-common",
  "nym-credential-storage",
  "nym-id",
@@ -5444,7 +5444,7 @@ dependencies = [
  "bincode",
  "bs58",
  "bytes",
- "clap 4.5.18",
+ "clap 4.5.20",
  "etherparse",
  "futures",
  "log",
@@ -5542,7 +5542,7 @@ dependencies = [
  "anyhow",
  "axum 0.7.7",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "colored",
  "cupid",
  "dirs 5.0.1",
@@ -5643,7 +5643,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.7.7",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dashmap",
  "futures",
  "log",
@@ -5675,7 +5675,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dirs 5.0.1",
  "futures",
  "humantime-serde",
@@ -5727,7 +5727,7 @@ dependencies = [
  "bs58",
  "cargo_metadata 0.18.1",
  "celes",
- "clap 4.5.18",
+ "clap 4.5.20",
  "colored",
  "cupid",
  "humantime-serde",
@@ -5874,7 +5874,7 @@ name = "nym-nr-query"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.18",
+ "clap 4.5.20",
  "log",
  "nym-bin-common",
  "nym-network-defaults",
@@ -6013,7 +6013,7 @@ name = "nym-socks5-client"
 version = "1.1.41"
 dependencies = [
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "log",
  "nym-bin-common",
  "nym-client-core",
@@ -6449,7 +6449,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bip39",
- "clap 4.5.18",
+ "clap 4.5.20",
  "cosmwasm-std",
  "futures",
  "humantime 2.1.0",
@@ -6559,7 +6559,7 @@ version = "0.1.7"
 dependencies = [
  "anyhow",
  "bytes",
- "clap 4.5.18",
+ "clap 4.5.20",
  "dotenvy",
  "flate2",
  "futures",
@@ -6997,18 +6997,18 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
-version = "1.1.5"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b6bf43b791c5b9e34c3d182969b4abb522f9343702850a2e57f460d00d09b4b3"
+checksum = "baf123a161dde1e524adf36f90bc5d8d3462824a9c43553ad07a8183161189ec"
 dependencies = [
  "pin-project-internal",
 ]
 
 [[package]]
 name = "pin-project-internal"
-version = "1.1.5"
+version = "1.1.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2f38a4412a78282e09a2cf38d195ea5420d15ba0602cb375210efbc877243965"
+checksum = "a4502d8515ca9f32f1fb543d987f63d95a14934883db45bdb48060b6b69257f8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -8760,7 +8760,7 @@ name = "ssl-inject"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.18",
+ "clap 4.5.20",
  "hex",
  "tokio",
 ]
@@ -9176,7 +9176,7 @@ dependencies = [
  "anyhow",
  "bip39",
  "bs58",
- "clap 4.5.18",
+ "clap 4.5.20",
  "console",
  "cw-utils",
  "dkg-bypass-contract",
@@ -9991,7 +9991,7 @@ checksum = "21345172d31092fd48c47fd56c53d4ae9e41c4b1f559fb8c38c1ab1685fd919f"
 dependencies = [
  "anyhow",
  "camino",
- "clap 4.5.18",
+ "clap 4.5.20",
  "uniffi_bindgen",
  "uniffi_build",
  "uniffi_core",
@@ -10008,7 +10008,7 @@ dependencies = [
  "askama",
  "camino",
  "cargo_metadata 0.15.4",
- "clap 4.5.18",
+ "clap 4.5.20",
  "fs-err",
  "glob",
  "goblin",
@@ -10346,9 +10346,9 @@ checksum = "b8dad83b4f25e74f184f64c43b150b91efe7647395b42289f38e50566d82855b"
 
 [[package]]
 name = "wasm-bindgen"
-version = "0.2.93"
+version = "0.2.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a82edfc16a6c469f5f44dc7b571814045d60404b55a0ee849f9bcfa2e63dd9b5"
+checksum = "128d1e363af62632b8eb57219c8fd7877144af57558fb2ef0368d0087bddeb2e"
 dependencies = [
  "cfg-if",
  "once_cell",
@@ -10357,9 +10357,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-backend"
-version = "0.2.93"
+version = "0.2.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9de396da306523044d3302746f1208fa71d7532227f15e347e2d93e4145dd77b"
+checksum = "cb6dd4d3ca0ddffd1dd1c9c04f94b868c37ff5fac97c30b97cff2d74fce3a358"
 dependencies = [
  "bumpalo",
  "log",
@@ -10372,9 +10372,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-futures"
-version = "0.4.43"
+version = "0.4.45"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61e9300f63a621e96ed275155c108eb6f843b6a26d053f122ab69724559dc8ed"
+checksum = "cc7ec4f8827a71586374db3e87abdb5a2bb3a15afed140221307c3ec06b1f63b"
 dependencies = [
  "cfg-if",
  "js-sys",
@@ -10384,9 +10384,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro"
-version = "0.2.93"
+version = "0.2.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "585c4c91a46b072c92e908d99cb1dcdf95c5218eeb6f3bf1efa991ee7a68cccf"
+checksum = "e79384be7f8f5a9dd5d7167216f022090cf1f9ec128e6e6a482a2cb5c5422c56"
 dependencies = [
  "quote",
  "wasm-bindgen-macro-support",
@@ -10394,9 +10394,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-macro-support"
-version = "0.2.93"
+version = "0.2.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "afc340c74d9005395cf9dd098506f7f44e38f2b4a21c6aaacf9a105ea5e1e836"
+checksum = "26c6ab57572f7a24a4985830b120de1594465e5d500f24afe89e16b4e833ef68"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -10407,9 +10407,9 @@ dependencies = [
 
 [[package]]
 name = "wasm-bindgen-shared"
-version = "0.2.93"
+version = "0.2.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c62a0a307cb4a311d3a07867860911ca130c3494e8c2719593806c08bc5d0484"
+checksum = "65fc09f10666a9f147042251e0dda9c18f166ff7de300607007e96bdebc1068d"
 
 [[package]]
 name = "wasm-bindgen-test"
@@ -10530,9 +10530,9 @@ dependencies = [
 
 [[package]]
 name = "web-sys"
-version = "0.3.70"
+version = "0.3.72"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "26fdeaafd9bd129f65e7c031593c24d62186301e0c72c8978fa1678be7d532c0"
+checksum = "f6488b90108c040df0fe62fa815cbdee25124641df01814dd7282749234c6112"
 dependencies = [
  "js-sys",
  "wasm-bindgen",

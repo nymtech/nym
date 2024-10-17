@@ -1,8 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::utils::CommonConfigsWrapper;
-use anyhow::bail;
 use clap::ArgGroup;
 use clap::Parser;
 use nym_credential_storage::initialise_persistent_storage;

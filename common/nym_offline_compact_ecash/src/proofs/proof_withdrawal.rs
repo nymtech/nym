@@ -24,12 +24,12 @@ pub struct WithdrawalReqInstance {
 }
 
 // witness: m1, m2, m3, o, o1, o2, o3,
-pub struct WithdrawalReqWitness {
-    pub private_attributes: Vec<Scalar>,
+pub struct WithdrawalReqWitness<'a> {
+    pub private_attributes: Vec<&'a Scalar>,
     // Opening for the joined commitment com
-    pub joined_commitment_opening: Scalar,
+    pub joined_commitment_opening: &'a Scalar,
     // Openings for the pedersen commitments of private attributes
-    pub private_attributes_openings: Vec<Scalar>,
+    pub private_attributes_openings: &'a Vec<Scalar>,
 }
 
 #[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
@@ -93,7 +93,7 @@ impl WithdrawalReqProof {
         let response_opening = produce_response(
             &r_com_opening,
             &challenge,
-            &witness.joined_commitment_opening,
+            witness.joined_commitment_opening,
         );
         let response_openings = produce_responses(
             &r_pedcom_openings,
@@ -103,11 +103,8 @@ impl WithdrawalReqProof {
                 .iter()
                 .collect::<Vec<_>>(),
         );
-        let response_attributes = produce_responses(
-            &r_attributes,
-            &challenge,
-            &witness.private_attributes.iter().collect::<Vec<_>>(),
-        );
+        let response_attributes =
+            produce_responses(&r_attributes, &challenge, &witness.private_attributes);
 
         WithdrawalReqProof {
             challenge,
@@ -212,7 +209,7 @@ mod tests {
         };
         let v = params.random_scalar();
         let t = params.random_scalar();
-        let private_attributes = vec![sk, v, t];
+        let private_attributes = vec![&sk, &v, &t];
 
         let joined_commitment_opening = params.random_scalar();
         let joined_commitment = params.gen1() * joined_commitment_opening
@@ -227,7 +224,7 @@ mod tests {
         let private_attributes_commitments = private_attributes_openings
             .iter()
             .zip(private_attributes.iter())
-            .map(|(o_j, m_j)| params.gen1() * o_j + joined_commitment_hash * m_j)
+            .map(|(o_j, &m_j)| params.gen1() * o_j + joined_commitment_hash * m_j)
             .collect::<Vec<_>>();
 
         let instance = WithdrawalReqInstance {
@@ -239,8 +236,8 @@ mod tests {
 
         let witness = WithdrawalReqWitness {
             private_attributes,
-            joined_commitment_opening,
-            private_attributes_openings,
+            joined_commitment_opening: &joined_commitment_opening,
+            private_attributes_openings: &private_attributes_openings,
         };
         let zk_proof = WithdrawalReqProof::construct(&instance, &witness);
         assert!(zk_proof.verify(&instance))

@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'common/**'
-      - 'nym-vpn-api/**'
+      - 'nym-credential-proxy/**'
       - '.github/workflows/ci-build-vpn-api-wasm.yml'
 
 jobs:
@@ -38,4 +38,4 @@ jobs:
 
       - name: "Build"
         run: make
-        working-directory: nym-vpn-api/vpn-api-lib-wasm
+        working-directory: nym-credential-proxy/vpn-api-lib-wasm

@@ -5,11 +5,11 @@ import { yupResolver } from '@hookform/resolvers/yup/dist/yup';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { CurrencyDenom } from '@nymproject/types';
 import { amountSchema } from './mixnodeValidationSchema';
-import { MixnodeAmount } from '../../../pages/bonding/types';
-import { AppContext } from '../../../context';
-import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from '../../../utils';
-import { TokenPoolSelector } from '../../TokenPoolSelector';
-import { ModalListItem } from '../../Modals/ModalListItem';
+import { MixnodeAmount } from '../../../../pages/bonding/types';
+import { AppContext } from '../../../../context';
+import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from '../../../../utils';
+import { TokenPoolSelector } from '../../../TokenPoolSelector';
+import { ModalListItem } from '../../../Modals/ModalListItem';
 
 const MixnodeAmountForm = ({
   amountData,

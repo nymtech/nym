@@ -5,7 +5,7 @@ import { Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { yupResolver } from '@hookform/resolvers/yup/dist/yup';
 import { mixnodeValidationSchema } from './mixnodeValidationSchema';
-import { MixnodeData } from '../../../pages/bonding/types';
+import { MixnodeData } from '../../../../pages/bonding/types';
 
 const MixnodeInitForm = ({ mixnodeData, onNext }: { mixnodeData: MixnodeData; onNext: (data: any) => void }) => {
   const [showAdvancedOptions, setShowAdvancedOptions] = useState(false);

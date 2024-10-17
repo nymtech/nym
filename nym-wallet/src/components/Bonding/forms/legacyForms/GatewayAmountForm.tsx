@@ -5,9 +5,9 @@ import { yupResolver } from '@hookform/resolvers/yup/dist/yup';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { Box, Stack } from '@mui/material';
 import { amountSchema } from './gatewayValidationSchema';
-import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from '../../../utils';
-import { GatewayAmount } from '../../../pages/bonding/types';
-import { TokenPoolSelector } from '../../TokenPoolSelector';
+import { checkHasEnoughFunds, checkHasEnoughLockedTokens } from '../../../../utils';
+import { GatewayAmount } from '../../../../pages/bonding/types';
+import { TokenPoolSelector } from '../../../TokenPoolSelector';
 
 const GatewayAmountForm = ({
   denom,

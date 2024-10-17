@@ -4,7 +4,7 @@ import { clean } from 'semver';
 import { Checkbox, FormControlLabel, Stack, TextField } from '@mui/material';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { yupResolver } from '@hookform/resolvers/yup/dist/yup';
-import { GatewayData } from '../../../pages/bonding/types';
+import { GatewayData } from '../../../../pages/bonding/types';
 import { gatewayValidationSchema } from './gatewayValidationSchema';
 
 const GatewayInitForm = ({

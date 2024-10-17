@@ -7,8 +7,7 @@ import { yupResolver } from '@hookform/resolvers/yup';
 import { InclusionProbabilityResponse, SelectionChance } from '@nymproject/types';
 import { validationSchema } from './validationSchema';
 import { InfoTooltip } from '../../components';
-import { useCheckOwnership } from '../../hooks/useCheckOwnership';
-import { updateMixnodeCostParams, vestingUpdateMixnodeCostParams } from '../../requests';
+import { updateMixnodeCostParams } from '../../requests';
 import { AppContext } from '../../context';
 import { Console } from '../../utils/console';
 import { attachDefaultOperatingCost, toPercentFloatString } from '../../utils';
@@ -74,7 +73,6 @@ export const SystemVariables = ({
 }) => {
   const [nodeUpdateResponse, setNodeUpdateResponse] = useState<'success' | 'failed'>();
   const { mixnodeDetails } = useContext(AppContext);
-  const { ownership } = useCheckOwnership();
 
   const {
     register,
@@ -104,12 +102,6 @@ export const SystemVariables = ({
     // TODO: this will have to be updated with allowing users to provide their operating cost in the form
     const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(profitMarginPercent));
     await updateMixnodeCostParams(defaultCostParams);
-  };
-
-  const vestingUpdateMixnodeProfitMargin = async (profitMarginPercent: string) => {
-    // TODO: this will have to be updated with allowing users to provide their operating cost in the form
-    const defaultCostParams = await attachDefaultOperatingCost(toPercentFloatString(profitMarginPercent));
-    await vestingUpdateMixnodeCostParams(defaultCostParams);
   };
 
   if (!mixnodeDetails) return null;
@@ -175,12 +167,7 @@ export const SystemVariables = ({
         <Button
           variant="contained"
           color="primary"
-          onClick={handleSubmit((data) =>
-            onSubmit(
-              data.profitMarginPercent,
-              ownership.vestingPledge ? updateMixnodeProfitMargin : vestingUpdateMixnodeProfitMargin,
-            ),
-          )}
+          onClick={handleSubmit((data) => onSubmit(data.profitMarginPercent, updateMixnodeProfitMargin))}
           disableElevation
           endIcon={isSubmitting && <CircularProgress size={20} />}
           disabled={Object.keys(errors).length > 0 || isSubmitting}

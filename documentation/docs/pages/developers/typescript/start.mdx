@@ -20,9 +20,6 @@ const apiResponse = await mixFetch('https://api.example.com', {
 });
 ```
 
-Check the [standard allowed list](https://nymtech.net/.wellknown/network-requester/standard-allowed-list.txt) to see
-if the host you want to `mixFetch` from is whitelisted.
-
 ## Mixnet Client
 After instantiating the [`Mixnet Client`](https://www.npmjs.com/package/@nymproject/sdk), you can use it and send messages to yourself and output them in the console by following these steps:
 ````js
@@ -33,7 +30,7 @@ const main = async () => {
 
   const nymApiUrl = 'https://validator.nymtech.net/api';
 
-  // Show message payload content when received 
+  // Show message payload content when received
   nym.events.subscribeToTextMessageReceivedEvent((e) => {
     console.log('Got a message: ', e.args.payload);
   });
@@ -53,7 +50,7 @@ const main = async () => {
   const payload = 'Hello mixnet';
   const recipient = nym.client.selfAddress();
   nym.client.send({ payload, recipient });
-  
+
 };
 ````
 

@@ -57,9 +57,9 @@ Currently developers can use different packages from the Typescript SDK to run t
 ## Which package should I use?
 
 All packages come in four different variations:
-- **ESM**: For new projects with current tooling. These packages use the ECMAScript Modules (ESM) system. You may need to [configure your bundler](bundling) to handle the packages WASM and web worker components;
+- **ESM**: For new projects with current tooling. These packages use the ECMAScript Modules (ESM) system. You may need to [configure your bundler](./bundling/bundling) to handle the packages WASM and web worker components;
 - **ESM full-fat**: These ESM packages are pre-bundled and include inline WebAssembly and web worker code;
-- **CommonJS**: For older projects that still use CommonJS. All WebAssembly (WASM) and web workers in the package need to be [bundled](bundling) to work correctly;
+- **CommonJS**: For older projects that still use CommonJS. All WebAssembly (WASM) and web workers in the package need to be [bundled](./bundling/bundling) to work correctly;
 - **CommonJS full-fat**: These packages are already pre-bundled and should work in your project without additional configuration;
 
 <Callout type="warning" emoji="🥛">

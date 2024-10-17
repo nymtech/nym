@@ -1,4 +1,4 @@
-# Setup & Run 
+# Setup & Run
 
 ## Viewing command help
 
@@ -7,12 +7,6 @@ You can check that your binaries are properly compiled with:
 ```
 ./nym-client --help
 ```
-
-~~~admonish example collapsible=true title="Console output"
-```
-<!-- cmdrun ../../../../../target/release/nym-client --help -->
-```
-~~~
 
 The two most important commands you will issue to the client are:
 
@@ -35,15 +29,9 @@ Initialising a new client instance can be done with the following command:
 ./nym-client init --id example-client
 ```
 
-~~~admonish example collapsible=true title="Console output"
-```
- <!-- cmdrun ../../../../../target/release/nym-client init --id example-client -->
-```
-~~~
-
 The `--id` in the example above is a local identifier so that you can name your clients; it is **never** transmitted over the network.
 
-There is an optional `--gateway` flag that you can use if you want to use a specific gateway. The supplied argument is the `Identity Key` of the gateway you wish to use, which can be found on the [mainnet Network Explorer](https://explorer.nymtech.net/network-components/gateways) or [Sandbox Testnet Explorer](https://sandbox-explorer.nymtech.net/network-components/gateways) depending on which network you are on.
+There is an optional `--gateway` flag that you can use if you want to use a specific gateway. The supplied argument is the `Identity Key` of the gateway you wish to use, which can be found on the [mixnet explorer](https://explorer.nymtech.net/network-components/gateways). Alternatively, you could use [Harbourmaster](https://harbourmaster.nymtech.net/)
 
 Not passing this argument will randomly select a gateway for your client.
 

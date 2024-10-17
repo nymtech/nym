@@ -47,7 +47,7 @@ At this point, NYM tokens have been deposited into the smart contract controlled
 Once the Requester has received over the threshold number of PSCs they can assemble them into a credential signed by the master key. The Requester never learns this master key (it is a private attribute) but the credential can be verified by the Quroum as being valid by checking for a proof that the credential's private attribute - the value of the master key - is valid.
 
 
-![steps1-2](../../images/zknym/deposit-generate.png)
+![steps1-2](../../../images/zknym/deposit-generate.png)
 
 
 ## Spend zk-nym to Access Mixnet
@@ -55,4 +55,4 @@ Once the Requester has received over the threshold number of PSCs they can assem
 - This zk-nym credit is later presented to the Quorum by the Gateway that collected it, which is used to calculate reward percentages given to Nym Network infrastructure operators by the Quorum, with payouts triggered by their multisig wallet. Both ingress Gateways and the Quorum use spent zk-nym credits when engaging in [double spending protection](./double-spend-prot.md).
 
 
-![step3](../../images/zknym/use-zknym.png)
+![step3](../../../images/zknym/use-zknym.png)

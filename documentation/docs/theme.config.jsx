@@ -5,36 +5,36 @@ import { useConfig } from 'nextra-theme-docs';
 
 
 import { Footer } from "./components/footer";
-import {Matrix} from "./components/matrix-link";
+import { Matrix } from "./components/matrix-link";
 
 const config = {
   logo: <span>Nym Docs</span>,
   project: {
     link: "https://github.com/nymtech/nym",
   },
-  chat: {
-    link: "https://matrix.to/#/#dev:nymtech.chat",
-  },
   docsRepositoryBase:
-    "https://github.com/nymtech/nym/tree/develop/documentation/docs",
-  footer: {
-    text: Footer,
-  },
+    "https://github.com/nymtech/nym/tree/develop/documentation/docs/",
+  // footer: {
+  //   text: Footer,
+  // },
   darkMode: true,
-  nextThemes: {
-    forcedTheme: "dark",
-  },
-  primaryHue: {
-    dark: 30,
-    light: 30,
-  },
   sidebar: {
     defaultMenuCollapseLevel: 1,
     autoCollapse: true,
   },
-  navbar : { 
-    extraContent: <Matrix/>
-}
+  navbar: {
+    extraContent: <Matrix />,
+  },
+  toc: {
+    float: true, // TODO would be nice to set this to false so the TOC is in the left sidebar but this doesn't seem to work with pages that are also the top of directories: fix
+  },
+  // gitTimestamp: TODO ,
+  editLink: {
+    component: null,
+  },
+  feedback: {
+    content: null,
+  },
 };
 
 export default config;

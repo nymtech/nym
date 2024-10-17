@@ -24,7 +24,7 @@ Initial overhaul
     - [x] ~~diagrams~~ (moved to new features)
     - [ ] remove TODO links
 
-- [ ] all licensing pages are the same: make a single component to import
+- [x] all licensing pages are the same: make a single component to import
 
   - [ ] operators
     - [ ] tabs / general condensation of page length
@@ -40,31 +40,34 @@ Initial overhaul
    - [x] ecash
     - [ ] wait on ania's updates
     - [ ] wait on whether we change the language now that we have 4 ticketbooks.. talk to jaya
+    - [ ] bring in notes from Claudia's presentation
 
   - [ ] developers
-    - [ ] overhaul the FAQs and split out into integrations section
-    - [ ] ProxyClient/Server docs: formulate new integrations and docs around this
-    - [ ] integrations: pull all integration stuff from the TS SDK into its own subdir
-    - [ ] rewrite around the idea of using the proxy logic for the moment, in order for ease of integration
-    - [ ] write ovrview for the proxy
+    - [x] overhaul the FAQs and split out into integrations section
+    - [x] ProxyClient/Server docs: formulate new integrations and docs around this
+    - [x] integrations: pull all integration stuff from the TS SDK into its own subdir
+    - [x] rewrite around the idea of using the proxy logic for the moment, in order for ease of integration
+    - [x] write ovrview for the proxy
     - [x] rust sdk - move to its own dir
     - [x] proper code imports - static for the moment, look @ automation in next steps
     - [x] redo cargo file example
-    - [ ] @ top: intro / quickstart / keyconcepts pages
-  - [ ] ts sdk docs
-    - [ ] quick content overhaul
-      - [ ] remove whitelist references: replace with tornull
-      - [ ] general
-    - [ ] remove numbering from sidebar
-  - [ ] check all links work and fix
+    - [x] @ top: intro / quickstart / keyconcepts pages
+  - [x] ts sdk docs
+    - [x] quick content overhaul
+      - [x] remove whitelist references: replace with tornull
+      - [x] general
+    - [x] remove numbering from sidebar
+  - [x] check all links work and fix
 
+- [ ] strip down footer
 - [ ] replace `mdbook-cmdrun` with scripts in `package.json`
+  - [ ] operators
+  - [x] rest
 - [ ] all images to root images dir with subdirs
-- [ ] change mdbook admonishes to nextra admonish
+- [x] change mdbook admonishes to nextra admonish
 
 - [ ] make common links (e.g. github) variables if we require several
 - [x] remove dangling index
-- [ ] bring in notes from Claudia's presentation
 
 Autodocs
 --------

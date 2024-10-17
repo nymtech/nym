@@ -312,6 +312,7 @@ pub fn verify(
 
 #[cfg(test)]
 mod tests {
+    use crate::scheme::issuance::sign;
     use crate::scheme::keygen::keygen;
     use crate::scheme::setup::setup;
 
@@ -354,5 +355,76 @@ mod tests {
             VerifyCredentialRequest::try_from(bytes.as_slice()).unwrap(),
             theta
         );
+    }
+
+    #[test]
+    fn reject_forged_signature_via_linear_combination() {
+        // This test checks if the protocol correctly rejects forged signatures created
+        // by linear combinations of valid signatures. The verification for forged
+        // signatures should fail.
+        let params = Parameters::new(4).unwrap();
+
+        let scalar_2 = Scalar::one() + Scalar::one();
+        let scalar_2_inv = Scalar::invert(&scalar_2).unwrap();
+
+        //#1
+        let a = params.random_scalar();
+        let zero = Scalar::zero();
+        let a_zero = vec![&a, &zero];
+        let zero_a = vec![&zero, &a];
+
+        let validator_keypair = keygen(&params);
+
+        //#2
+        let sig_a_zero = sign(validator_keypair.secret_key(), &a_zero).unwrap();
+        let sig_zero_a = sign(validator_keypair.secret_key(), &zero_a).unwrap();
+
+        assert!(verify(
+            &params,
+            validator_keypair.verification_key(),
+            &a_zero,
+            &sig_a_zero
+        ));
+        assert!(verify(
+            &params,
+            validator_keypair.verification_key(),
+            &zero_a,
+            &sig_zero_a
+        ));
+
+        //#3
+        let h0 = sig_a_zero.0;
+        let h1 = &scalar_2_inv * &sig_a_zero.1 + &scalar_2_inv * &sig_zero_a.1;
+        let forged_signature = Signature(h0, h1);
+        let a_half = a * scalar_2_inv;
+        let new_plaintext = vec![&a_half, &a_half];
+
+        // The forged signature should not pass verification
+        assert!(!verify(
+            &params,
+            validator_keypair.verification_key(),
+            &new_plaintext,
+            &forged_signature
+        ));
+
+        //#4
+        let scalar_3 = Scalar::one() + Scalar::one() + Scalar::one();
+        let scalar_4 = Scalar::one() + Scalar::one() + Scalar::one() + Scalar::one();
+        let scalar_4_inv = Scalar::invert(&scalar_4).unwrap();
+        let scalar_3_over_4 = scalar_3 * scalar_4_inv;
+
+        let h1_2 = &scalar_4_inv * &sig_a_zero.1 + &scalar_3_over_4 * &sig_zero_a.1;
+        let forged_signature_2 = Signature(h0, h1_2);
+        let a_quarter = a * scalar_4_inv;
+        let a_3_over_4 = a * scalar_3_over_4;
+        let new_plaintext_2 = vec![&a_quarter, &a_3_over_4];
+
+        // The second forged signature should also not pass verification
+        assert!(!verify(
+            &params,
+            validator_keypair.verification_key(),
+            &new_plaintext_2,
+            &forged_signature_2
+        ));
     }
 }

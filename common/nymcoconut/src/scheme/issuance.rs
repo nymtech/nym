@@ -452,10 +452,7 @@ pub fn verify_partial_blind_signature(
 }
 
 /// Creates a Coconut Signature under a given secret key on a set of public attributes only.
-pub fn sign(
-    secret_key: &SecretKey,
-    public_attributes: &[&Attribute],
-) -> Result<Signature> {
+pub fn sign(secret_key: &SecretKey, public_attributes: &[&Attribute]) -> Result<Signature> {
     if public_attributes.len() > secret_key.ys.len() {
         return Err(CoconutError::IssuanceMaxAttributes {
             max: secret_key.ys.len(),

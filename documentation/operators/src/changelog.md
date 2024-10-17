@@ -110,9 +110,6 @@ psql -U youruser -d yourdb
 
 - [`nym-node`: don't use bloomfilters for double spending checks](https://github.com/nymtech/nym/pull/4960): this PR disables gateways polling for double spending bloomfilters and also `nym-apis` from providing this data.
 
-### Crypto
-
-
 ### Bugfix
 
 - [Fix `apt install` in `ci-build-upload-binaries.yml`](https://github.com/nymtech/nym/pull/4894)
@@ -129,15 +126,93 @@ psql -U youruser -d yourdb
 
 **Documentation Updates**
 
--  [Update FAQ sphinx size](https://github.com/nymtech/nym/pull/4946): This PR upgrades url to our code base sphinx creation from an outdated branch to develop. 
-- F&F
+- [Update FAQ sphinx size](https://github.com/nymtech/nym/pull/4946): This PR upgrades url to our code base sphinx creation from an outdated branch to develop. 
 
+**Fast & Furious - WireGuard edition**
 
+Nym team started another round of load and speed testing. This time limited to Wireguard mode Gateways to find out any weak spots for needed improvement. The load testing is happening directly on mainnet as it simulates a real user traffic which the network components must be able to handle. We already caught incorrect behavior on Gateway registry and [fixed](https://github.com/nymtech/nym/pull/4885) it in this release. The faster the operators upgrade to thi latest release, the better, as it would allow us to do more precise testing through the nodes without the registry bug and get new specs asap.
 
+Here are the aims of these tests
 
-- DP
-- Mentor team
+1. Understanding of the wireguard network behavior under full load
+    - How many client users can all entry gateways and exit gateways handle simultaneously?
+    - How much sustained IP traffic can a subset of mainnet nodes sustain?
+2. Needed improvements of Nym Node binaries to improve the throughput on mainnet
+3. Measurement of required machine specs
+    - Releasing a new spec requirements
+4. Raw data record
+5. Increase quality of Nym Nodes
 
+Meanwhile we started to research pricing of stronger servers with unlimited bandwidth and higher (and stable) port speed, to arrive to a better understanding of needed rewards and grants to bootstrap the network before NymVPN launch. 
+
+We would like to call out to operators to join the efforts and reach out to us if they know of solid ISPs who offer reliable dedicated services for good price or may even be interested in partnership.
+
+**Delegation Program**
+
+In October we again proceeded with our Delegation Program. 22 nodes didn't meet the program rules and got their delegation removed and 25 nodes from the que received delegation. Below is a complete list. 
+
+~~~admonish example collapsible=true title='List of all delegation changes'
+Delegated:
+```
+Ce6kcPckNfQsga2z645VFQYadtoTjqXrS1YXMTtNNv98
+2XSCWy1vAoJRaYBJXx4KWwjU1cfoS2wNBXVQZvi8Jtdr
+Bu4sUGjJqkje4vSncTH2KgrnojmfESdaYwamC6DbpJGZ
+7TWEw9qQxsc8w4WhPAX6zjZ8vuNBdtP21zUVN8K26RkD
+HejyqervmGTCEwi1JbRBXV5My463336huBn8ZgSpuhc3
+CXcCVGiamYSwgVwaxW3mEkXkZh1sKY2TXnWjjTjxDxzA
+FScLfnKUPv9wSef3R4N2pQ9ft7DiwdivLW1i65Dqfc9L
+2vuZZJjyYN27fvDbhyqeGosewGWaRh6iVsFtqbJoYAR7
+B9QiBsSAx7MRcTpYMs1fu9AFJurAZTPWMispHZXPbaVW
+E3e2a9kXZjQXsKAfvmCf2WqwmVkiGR2LbjCwoadZgEJt
+Dk4fCLM7idHPqfsUucLQtSMtYaYCLhi4T7vwvw88jG3P
+9xZUp4sYWUNJesWy3MPVjh5kTorNqj3RxcFgBmYjV1xV
+HK9QxPpdJfNtNpLJZHTN5M113jeBbFzTkMtPt9eouimx
+ECkzyHfoiNGKyDTtbbH5HDCWa8KMGh92mtGbGHLZ3Y9n
+9jQQV9vQ2mFFXywwVhACCKefjUFpyBoCU6KXNfjAEi45
+6QguhCfnDPKJe8bQXg9myuPB89yYFk6R77vMhLTbipK7
+4hAJJQhLTFve8FZGd28ksjavbch8STMax2rytzKmDPCV
+EZLFq5HGXFKRpxu78nVjf7kuuUaKPLAbezR6mXbZrP6y
+FtAAA5GMxY1Ge9wKYDrQgaSfJEUp4XvBLptBwy3GU8ap
+tUiLPjz5nkPn5ZJT5ZXLPGDcZ3caQsfkMAp1epoAuSQ
+4ScsM6AVowhKTMWaH98NLntKDwbu2ZMEycUk4mZiZppG
+Hb34PTth6CeFziPAAEUMEjJFHWJg1dDex5QxUXKNqRBE
+9ek1PMvLhpbwZe7kTMyCVY5VNqrdSPPoruFPQtbxnZyf
+```
+
+Undelegated due to the use of an outdated binary:
+```
+9UHXFYuMLhuugndt8xCFRydmDPFyEEUHYc72tNANEtHp
+5Y86A7fUX3LYVDDeoujtAiZFudYcHJq6gw8nsp71wN7U
+HYWjn6yL8y7TBPFL9bTgDm6tHgyoEQupgJuBhLLoA5EY
+4JCpbdhiQFKWwhrbkNDbwcwBGZnvU4WQrF2vqQLfmZvW
+2f7JaYmmrMQQMczLX32ogfP7PBHeyPKbAVNjjEsExZVd
+9TW55JrsFhsMoe3Tf8LBR4bPSCX86VXyvioMmCw9tWB
+AyN34XqUi5XxgjmivWG2z6TftkqAFjVV5C9zCbx8Fvp5
+skNS4zNsKdbbUR9wFTJoPdmReW4NdrDEpp8512TNG4f
+DztUnMKM545sdipgqhCsPNhK3YVmBbS2fp9HZgM5Jpw9
+GnLmx1s7g9nH3uLRhGpaXTbQEhCSKB6YenBQWQhthSx9
+GoJjAkH5hpcPYeW7JDUVfHdqgcufjwdhY2PLwBGJV3Ar
+EdHVMTXpLiBbvCUnEoSPQ86pBNY1h9HtL34Q7cpNPWCy
+```
+
+Undelegated due to increased operation costs or profit margin:
+```
+Erw9AQ4UJCgCiAWisUWbFk9Yedm8qvW4YQqmJRrBrE5p
+BVDVtmNbZRgPKU81uBkrgfj5TnhtZqQcPAwxD48jcfMd
+36nmH3kawhAsNA6sxFva2HgTnQHQDbcrRefvWWbmhHvY
+2831fyXRAJ88x1Pd5aW7utw7WH1XkHZEfoWhLk2foLxJ
+AMDS4cib433iRstwP9mWnZ4zPqb6hm6uPF7PpvhSkpYC
+DE9eEeVsuiKeVfwebg5HYsebqRUvxd7LWsT9hQUtVrTQ
+FAKhiQ8nW5sAWAxks1WB8u1MAWsapToCSE3KmF9LuGRQ
+```
+
+Undelegated due to being blacklisted for extensive period
+```
+sjL9n9ymxfWWwkQJxXdsMkdwamXfh3AJ3vCe7rJ8RrT
+E2HAJrHnk56QZDUCkcjc4i4pVEqtyuPYL5bNFYtweQuL
+4PytR3tmodsvqGTKdY47yie8kmrkARQdb5Ht3Ro3ChH4
+```
+~~~
 
 ---
 

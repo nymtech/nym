@@ -38,7 +38,7 @@ pub struct MixingStats {
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct Session {
-    pub duration: u64,
+    pub duration_ms: u64,
     pub typ: String,
 }
 

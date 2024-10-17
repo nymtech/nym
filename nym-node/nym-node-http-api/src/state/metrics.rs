@@ -170,7 +170,7 @@ impl SessionStatsState {
             .sessions
             .clone()
             .into_iter()
-            .map(|(duration, typ)| Session { duration, typ })
+            .map(|(duration_ms, typ)| Session { duration_ms, typ })
             .collect();
         SessionStats {
             update_time: self.update_time.with_time(time!(0:00)).assume_utc(),

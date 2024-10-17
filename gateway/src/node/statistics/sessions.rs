@@ -5,7 +5,7 @@ use nym_credentials_interface::TicketType;
 use nym_node_http_api::state::metrics::SharedSessionStats;
 use nym_sphinx::DestinationAddressBytes;
 use std::collections::{HashMap, HashSet};
-use time::{Date, OffsetDateTime};
+use time::{Date, Duration, OffsetDateTime};
 
 use nym_statistics_common::events::SessionEvent;
 
@@ -38,13 +38,16 @@ impl From<TicketType> for SessionType {
 }
 
 struct FinishedSession {
-    duration: u64, //in milliseconds,
+    duration: Duration,
     typ: SessionType,
 }
 
 impl FinishedSession {
     fn serialize(&self) -> (u64, String) {
-        (self.duration, self.typ.to_string().into())
+        (
+            self.duration.whole_milliseconds() as u64, //we are sure that it fits in a u64, see `fn end_at`
+            self.typ.to_string().into(),
+        )
     }
 }
 
@@ -66,16 +69,17 @@ impl ActiveSession {
     }
 
     fn end_at(self, stop_time: OffsetDateTime) -> Option<FinishedSession> {
-        let session_duration = (stop_time - self.start).whole_milliseconds();
-
-        //this should always happen because it should always be positive and u64::max milliseconds is 500k millenia, but anyway
-        session_duration
-            .try_into()
-            .ok()
-            .map(|duration_u64| FinishedSession {
-                duration: duration_u64,
+        let session_duration = stop_time - self.start;
+        //ensure duration is positive to fit in a u64
+        //u64::max milliseconds is 500k millenia so no overflow issue
+        if session_duration > Duration::ZERO {
+            Some(FinishedSession {
+                duration: session_duration,
                 typ: self.typ,
             })
+        } else {
+            None
+        }
     }
 }
 

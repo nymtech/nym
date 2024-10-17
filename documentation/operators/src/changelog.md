@@ -124,15 +124,21 @@ psql -U youruser -d yourdb
 
 ### Operators Guide, Tooling & Updates
 
-**Documentation Updates**
+#### Documentation Updates
 
 - [Update FAQ sphinx size](https://github.com/nymtech/nym/pull/4946): This PR upgrades url to our code base sphinx creation from an outdated branch to develop. 
 
-**Fast & Furious - WireGuard edition**
+#### Fast & Furious - WireGuard edition
 
-Nym team started another round of load and speed testing. This time limited to Wireguard mode Gateways to find out any weak spots for needed improvement. The load testing is happening directly on mainnet as it simulates a real user traffic which the network components must be able to handle. We already caught incorrect behavior on Gateway registry and [fixed](https://github.com/nymtech/nym/pull/4885) it in this release. The faster the operators upgrade to thi latest release, the better, as it would allow us to do more precise testing through the nodes without the registry bug and get new specs asap.
+Nym team started another round of load and speed testing. This time the tests are limited to Wireguard mode Gateways - to find out any weak spots for needed improvement. The load testing is happening directly on mainnet as it simulates a real user traffic which the network components must be able to handle in order.
 
-Here are the aims of these tests
+Over past week we ran a total of three tests, with 450 clients at most. We've managed to push around 300 GB in total. Around 50% of requests failed. Over the course of those three tests, we did about 5000 requests, and bandwidth per client varies between 50Mb/s and 150Mb/s.
+
+We already caught two bugs and [fixed](https://github.com/nymtech/nym/pull/4885) it in this release. 
+
+**The faster the operators upgrade to this [latest release](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.12-aero), the better**. A that will allow us to do more precise testing through the nodes without the registry bug, leading to more precise specs for `nym-node`.
+
+Here are the aims of these tests:
 
 1. Understanding of the wireguard network behavior under full load
     - How many client users can all entry gateways and exit gateways handle simultaneously?
@@ -145,9 +151,11 @@ Here are the aims of these tests
 
 Meanwhile we started to research pricing of stronger servers with unlimited bandwidth and higher (and stable) port speed, to arrive to a better understanding of needed rewards and grants to bootstrap the network before NymVPN launch. 
 
-We would like to call out to operators to join the efforts and reach out to us if they know of solid ISPs who offer reliable dedicated services for good price or may even be interested in partnership.
+More info about testing and tools for performance monitoring can be found in [this chapter](testing/performance.md).
 
-**Delegation Program**
+> We would like to call out to operators to join the efforts and reach out to us if they know of solid ISPs who offer reliable dedicated services for good price or may even be interested in partnership.
+
+#### Delegation Program
 
 In October we again proceeded with our Delegation Program. 22 nodes didn't meet the program rules and got their delegation removed and 25 nodes from the que received delegation. Below is a complete list. 
 

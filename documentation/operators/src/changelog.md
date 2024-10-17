@@ -2,7 +2,7 @@
 
 This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
-## `v2024.11-aero`
+## `v2024.12-aero`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.12-aero)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.12-aero/CHANGELOG.md)

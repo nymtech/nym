@@ -1,8 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::utils::CommonConfigsWrapper;
-use anyhow::bail;
 use clap::ArgGroup;
 use clap::Parser;
 use nym_credential_storage::initialise_persistent_storage;
@@ -31,7 +29,7 @@ impl FromStr for CredentialDataWrapper {
 pub struct Args {
     /// Config file of the client that is supposed to use the credential.
     #[clap(long)]
-    pub(crate) client_config: PathBuf,
+    pub(crate) credentials_store: PathBuf,
 
     /// Explicitly provide the encoded credential data (as base58)
     #[clap(long, group = "cred_data")]
@@ -70,21 +68,7 @@ impl Args {
 }
 
 pub async fn execute(args: Args) -> anyhow::Result<()> {
-    let loaded = CommonConfigsWrapper::try_load(&args.client_config)?;
-
-    if let Ok(id) = loaded.try_get_id() {
-        println!("loaded config file for client '{id}'");
-    }
-
-    let Ok(credentials_store) = loaded.try_get_credentials_store() else {
-        bail!("the loaded config does not have a credentials store information")
-    };
-
-    println!(
-        "using credentials store at '{}'",
-        credentials_store.display()
-    );
-    let credentials_store = initialise_persistent_storage(credentials_store).await;
+    let credentials_store = initialise_persistent_storage(args.credentials_store.clone()).await;
 
     let version = args.version;
     let standalone = args.standalone;

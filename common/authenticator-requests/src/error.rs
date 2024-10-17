@@ -19,4 +19,7 @@ pub enum Error {
         #[source]
         source: hmac::digest::MacError,
     },
+
+    #[error("conversion: {0}")]
+    Conversion(String),
 }

@@ -84,6 +84,22 @@ impl AuthenticatorRequest {
         )
     }
 
+    pub fn new_topup_request(top_up_message: TopUpMessage, reply_to: Recipient) -> (Self, u64) {
+        let request_id = generate_random();
+        (
+            Self {
+                protocol: Protocol {
+                    service_provider_type: ServiceProviderType::Authenticator,
+                    version: VERSION,
+                },
+                data: AuthenticatorRequestData::TopUpBandwidth(Box::new(top_up_message)),
+                reply_to,
+                request_id,
+            },
+            request_id,
+        )
+    }
+
     pub fn to_bytes(&self) -> Result<Vec<u8>, bincode::Error> {
         use bincode::Options;
         make_bincode_serializer().serialize(self)

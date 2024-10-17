@@ -50,6 +50,17 @@ where
 
 impl Aggregatable for PartialSignature {
     fn aggregate(sigs: &[PartialSignature], indices: Option<&[u64]>) -> Result<Signature> {
+        // Ensure that we have valid signatures
+        if sigs.is_empty() {
+            return Err(CompactEcashError::AggregationEmptySet);
+        }
+
+        // Check each individual signature for point at infinity
+        for sig in sigs {
+            if bool::from(sig.sig1().is_identity()) || bool::from(sig.sig2().is_identity()) {
+                return Err(CompactEcashError::InvalidSignatureShare);
+            }
+        }
         let h = sigs
             .first()
             .ok_or(CompactEcashError::AggregationEmptySet)?
@@ -108,6 +119,11 @@ pub fn aggregate_signatures(
         Ok(res) => res,
         Err(err) => return Err(err),
     };
+
+    // Ensure the aggregated signature is not an infinity point
+    if bool::from(signature.h.is_identity()) || bool::from(signature.s.is_identity()) {
+        return Err(CompactEcashError::InfinityPoint);
+    }
 
     // Verify the signature
     let tmp = attributes

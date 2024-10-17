@@ -22,8 +22,14 @@ pub enum CompactEcashError {
     #[error("aggregation verification error")]
     AggregationVerification,
 
+    #[error("the provided signature is at infinity")]
+    IdentitySignature,
+
     #[error("different element size for aggregation")]
     AggregationSizeMismatch,
+
+    #[error("the provided commitment hash is at infinity")]
+    IdentityCommitmentHash,
 
     #[error("withdrawal request failed to verify")]
     WithdrawalRequestVerification,
@@ -39,9 +45,6 @@ pub enum CompactEcashError {
 
     #[error("issuance verification failed")]
     IssuanceVerification,
-
-    #[error("verification of partial blind signature failed")]
-    PartialBlindSignatureVerification,
 
     #[error("trying to spend more than what's available. Spending : {spending}, available : {remaining}")]
     SpendExceedsAllowance { spending: u64, remaining: u64 },

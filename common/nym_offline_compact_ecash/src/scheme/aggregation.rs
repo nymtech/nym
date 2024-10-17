@@ -108,6 +108,10 @@ pub fn aggregate_signatures(
         Err(err) => return Err(err),
     };
 
+    if bool::from(signature.h.is_identity()) {
+        return Err(CompactEcashError::IdentitySignature);
+    }
+
     // Verify the signature
     let tmp = attributes
         .iter()
@@ -115,9 +119,6 @@ pub fn aggregate_signatures(
         .map(|(attr, beta_i)| beta_i * attr)
         .sum::<G2Projective>();
 
-    if bool::from(signature.h.is_identity()) {
-        return Err(CompactEcashError::AggregationVerification);
-    }
     if !check_bilinear_pairing(
         &signature.h.to_affine(),
         &G2Prepared::from((verification_key.alpha + tmp).to_affine()),

@@ -103,11 +103,11 @@ impl RequestInfo {
 fn compute_private_attribute_commitments(
     params: &GroupParameters,
     joined_commitment_hash: &G1Projective,
-    private_attributes: &[Scalar],
+    private_attributes: &[&Scalar],
 ) -> (Vec<Scalar>, Vec<G1Projective>) {
     let (openings, commitments): (Vec<Scalar>, Vec<G1Projective>) = private_attributes
         .iter()
-        .map(|m_j| {
+        .map(|&m_j| {
             let o_j = params.random_scalar();
             (o_j, params.gen1() * o_j + joined_commitment_hash * m_j)
         })
@@ -125,7 +125,7 @@ fn compute_private_attribute_commitments(
 fn generate_non_identity_h(
     params: &GroupParameters,
     sk_user: &SecretKeyUser,
-    v: Scalar,
+    v: &Scalar,
     expiration_date: Scalar,
     t_type: Scalar,
 ) -> (G1Projective, G1Projective, Scalar) {
@@ -190,10 +190,10 @@ pub fn withdrawal_request(
 
     // Generate a non-identity commitment hash
     let (joined_commitment, joined_commitment_hash, joined_commitment_opening) =
-        generate_non_identity_h(params, sk_user, v, expiration_date, t_type);
+        generate_non_identity_h(params, sk_user, &v, expiration_date, t_type);
 
     // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
-    let private_attributes = vec![sk_user.sk, v];
+    let private_attributes = vec![&sk_user.sk, &v];
     let (private_attributes_openings, private_attributes_commitments) =
         compute_private_attribute_commitments(params, &joined_commitment_hash, &private_attributes);
 
@@ -209,8 +209,8 @@ pub fn withdrawal_request(
 
     let witness = WithdrawalReqWitness {
         private_attributes,
-        joined_commitment_opening,
-        private_attributes_openings: private_attributes_openings.clone(),
+        joined_commitment_opening: &joined_commitment_opening,
+        private_attributes_openings: &private_attributes_openings,
     };
     let zk_proof = WithdrawalReqProof::construct(&instance, &witness);
 
@@ -225,7 +225,7 @@ pub fn withdrawal_request(
         RequestInfo {
             joined_commitment_hash,
             joined_commitment_opening,
-            private_attributes_openings: private_attributes_openings.clone(),
+            private_attributes_openings,
             wallet_secret: v,
             expiration_date,
             t_type,
@@ -260,7 +260,7 @@ pub fn request_verify(
     let t_type = type_scalar(t_type);
 
     if bool::from(req.joined_commitment_hash.is_identity()) {
-        return Err(CompactEcashError::WithdrawalRequestVerification);
+        return Err(CompactEcashError::IdentityCommitmentHash);
     }
 
     let expected_commitment_hash = hash_g1(
@@ -421,7 +421,7 @@ pub fn issue_verify(
         return Err(CompactEcashError::IssuanceVerification);
     }
     if bool::from(blind_signature.h.is_identity()) {
-        return Err(CompactEcashError::IssuanceVerification);
+        return Err(CompactEcashError::IdentitySignature);
     }
 
     // Unblind the blinded signature on the partial signature
@@ -583,7 +583,7 @@ mod tests {
 
         // Generate the commitment and hash
         let (_, joined_commitment_hash, _) =
-            generate_non_identity_h(params, &sk_user, v, expiration_date, t_type);
+            generate_non_identity_h(params, &sk_user, &v, expiration_date, t_type);
 
         // Ensure that the joined_commitment_hash is not the identity element
         assert!(

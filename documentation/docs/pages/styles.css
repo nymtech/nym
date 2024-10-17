@@ -76,23 +76,23 @@ div.nextra-code-block > div {
 }
 
 /* Callouts */
-.nextra-callout {
+/* .nextra-callout {
   background-color: #fb6e4e21 !important;
-}
+} */
 
-.nx-mt-6 .nx-leading-7 > p {
+/* .nx-mt-6 .nx-leading-7 > p {
   color: var(--colorPrimary) !important;
-}
+} */
 
 /* Callout Secondary */
-:is(html .dark\:nx-border-yellow-200\/30) {
+/* :is(html .dark\:nx-border-yellow-200\/30) {
   border-color: transparent !important;
-}
+} */
 
 /* Callout Primary */
-:is(html .dark\:nx-border-blue-200\/30) {
+/* :is(html .dark\:nx-border-blue-200\/30) {
   border-color: var(--colorPrimary) !important;
-}
+} */
 
 /* Chips*/
 .chipContained {

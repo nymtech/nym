@@ -394,7 +394,8 @@ mod tests {
 
         //#3
         let h0 = sig_a_zero.0;
-        let h1 = &scalar_2_inv * &sig_a_zero.1 + &scalar_2_inv * &sig_zero_a.1;
+        // Removed unnecessary references
+        let h1 = scalar_2_inv * sig_a_zero.1 + scalar_2_inv * sig_zero_a.1;
         let forged_signature = Signature(h0, h1);
         let a_half = a * scalar_2_inv;
         let new_plaintext = vec![&a_half, &a_half];
@@ -413,7 +414,8 @@ mod tests {
         let scalar_4_inv = Scalar::invert(&scalar_4).unwrap();
         let scalar_3_over_4 = scalar_3 * scalar_4_inv;
 
-        let h1_2 = &scalar_4_inv * &sig_a_zero.1 + &scalar_3_over_4 * &sig_zero_a.1;
+        // Removed unnecessary references
+        let h1_2 = scalar_4_inv * sig_a_zero.1 + scalar_3_over_4 * sig_zero_a.1;
         let forged_signature_2 = Signature(h0, h1_2);
         let a_quarter = a * scalar_4_inv;
         let a_3_over_4 = a * scalar_3_over_4;
@@ -427,4 +429,5 @@ mod tests {
             &forged_signature_2
         ));
     }
+
 }

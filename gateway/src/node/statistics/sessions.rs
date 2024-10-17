@@ -1,23 +1,98 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_credentials_interface::TicketType;
 use nym_node_http_api::state::metrics::SharedSessionStats;
 use nym_sphinx::DestinationAddressBytes;
 use std::collections::{HashMap, HashSet};
-use time::{Date, OffsetDateTime};
+use time::{Date, Duration, OffsetDateTime};
 
 use nym_statistics_common::events::SessionEvent;
 
-type SessionDuration = u64; //in miliseconds
+const FINISHED_SESSIONS_CAP: usize = 1_000_000; //to be on the safe side of memory blowups until persistent storage
+
+#[derive(PartialEq)]
+enum SessionType {
+    Vpn,
+    Mixnet,
+    Unknown,
+}
+
+impl SessionType {
+    fn to_string(&self) -> &str {
+        match self {
+            Self::Vpn => "vpn",
+            Self::Mixnet => "mixnet",
+            Self::Unknown => "unknown",
+        }
+    }
+}
+
+impl From<TicketType> for SessionType {
+    fn from(value: TicketType) -> Self {
+        match value {
+            TicketType::V1MixnetEntry => Self::Mixnet,
+            TicketType::V1MixnetExit => Self::Mixnet,
+            TicketType::V1WireguardEntry => Self::Vpn,
+            TicketType::V1WireguardExit => Self::Vpn,
+        }
+    }
+}
+
+struct FinishedSession {
+    duration: Duration,
+    typ: SessionType,
+}
+
+impl FinishedSession {
+    fn serialize(&self) -> (u64, String) {
+        (
+            self.duration.whole_milliseconds() as u64, //we are sure that it fits in a u64, see `fn end_at`
+            self.typ.to_string().into(),
+        )
+    }
+}
+
+struct ActiveSession {
+    start: OffsetDateTime,
+    typ: SessionType,
+}
+
+impl ActiveSession {
+    fn new(start_time: OffsetDateTime) -> Self {
+        ActiveSession {
+            start: start_time,
+            typ: SessionType::Unknown,
+        }
+    }
+
+    fn set_type(&mut self, ticket_type: TicketType) {
+        self.typ = ticket_type.into();
+    }
+
+    fn end_at(self, stop_time: OffsetDateTime) -> Option<FinishedSession> {
+        let session_duration = stop_time - self.start;
+        //ensure duration is positive to fit in a u64
+        //u64::max milliseconds is 500k millenia so no overflow issue
+        if session_duration > Duration::ZERO {
+            Some(FinishedSession {
+                duration: session_duration,
+                typ: self.typ,
+            })
+        } else {
+            None
+        }
+    }
+}
 
 pub(crate) struct SessionStatsHandler {
     last_update_day: Date,
 
     shared_session_stats: SharedSessionStats,
-    active_sessions: HashMap<DestinationAddressBytes, OffsetDateTime>,
+    active_sessions: HashMap<DestinationAddressBytes, ActiveSession>,
     unique_users: HashSet<DestinationAddressBytes>,
     sessions_started: u32,
-    finished_sessions: Vec<SessionDuration>,
+    finished_sessions: Vec<FinishedSession>,
 }
 
 impl SessionStatsHandler {
@@ -40,6 +115,10 @@ impl SessionStatsHandler {
             SessionEvent::SessionStop { stop_time, client } => {
                 self.handle_session_stop(stop_time, client);
             }
+            SessionEvent::EcashTicket {
+                ticket_type,
+                client,
+            } => self.handle_ecash_ticket(ticket_type, client),
         }
     }
     fn handle_session_start(
@@ -49,15 +128,23 @@ impl SessionStatsHandler {
     ) {
         self.sessions_started += 1;
         self.unique_users.insert(client);
-        self.active_sessions.insert(client, start_time);
+        self.active_sessions
+            .insert(client, ActiveSession::new(start_time));
     }
     fn handle_session_stop(&mut self, stop_time: OffsetDateTime, client: DestinationAddressBytes) {
-        if let Some(session_start) = self.active_sessions.remove(&client) {
-            let session_duration = (stop_time - session_start).whole_milliseconds();
+        if let Some(session) = self.active_sessions.remove(&client) {
+            if let Some(finished_session) = session.end_at(stop_time) {
+                if self.finished_sessions.len() < FINISHED_SESSIONS_CAP {
+                    self.finished_sessions.push(finished_session);
+                }
+            }
+        }
+    }
 
-            //this should always happen because it should always be positive and u64::max milliseconds is 500k millenia, but anyway
-            if let Ok(duration_u64) = session_duration.try_into() {
-                self.finished_sessions.push(duration_u64);
+    fn handle_ecash_ticket(&mut self, ticket_type: TicketType, client: DestinationAddressBytes) {
+        if let Some(active_session) = self.active_sessions.get_mut(&client) {
+            if active_session.typ == SessionType::Unknown {
+                active_session.set_type(ticket_type);
             }
         }
     }
@@ -71,7 +158,11 @@ impl SessionStatsHandler {
                 shared_state.update_time = self.last_update_day;
                 shared_state.unique_active_users = self.unique_users.len() as u32;
                 shared_state.session_started = self.sessions_started;
-                shared_state.session_durations = self.finished_sessions.clone();
+                shared_state.sessions = self
+                    .finished_sessions
+                    .iter()
+                    .map(|s| s.serialize())
+                    .collect();
             }
             self.reset_stats(update_date);
         }

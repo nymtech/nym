@@ -4,7 +4,7 @@
 use crate::state::AppState;
 use axum::extract::FromRef;
 use nym_node_requests::api::v1::metrics::models::{
-    MixingStats, SessionStats, VerlocResult, VerlocResultData, VerlocStats,
+    MixingStats, Session, SessionStats, VerlocResult, VerlocResultData, VerlocStats,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -154,22 +154,30 @@ impl SharedSessionStats {
     }
 }
 
+type FinishedSessions = Vec<(u64, String)>;
+
 #[derive(Debug, Clone)]
 pub struct SessionStatsState {
     pub update_time: Date,
     pub unique_active_users: u32,
     pub session_started: u32,
-    pub session_durations: Vec<u64>,
+    pub sessions: FinishedSessions,
 }
 
 impl SessionStatsState {
     pub fn as_response(&self) -> SessionStats {
+        let sessions = self
+            .sessions
+            .clone()
+            .into_iter()
+            .map(|(duration_ms, typ)| Session { duration_ms, typ })
+            .collect();
         SessionStats {
             update_time: self.update_time.with_time(time!(0:00)).assume_utc(),
             unique_active_users: self.unique_active_users,
-            session_durations: self.session_durations.clone(),
+            sessions,
             sessions_started: self.session_started,
-            sessions_finished: self.session_durations.len() as u32,
+            sessions_finished: self.sessions.len() as u32,
         }
     }
 }
@@ -180,7 +188,7 @@ impl Default for SessionStatsState {
             update_time: OffsetDateTime::UNIX_EPOCH.date(),
             unique_active_users: 0,
             session_started: 0,
-            session_durations: Default::default(),
+            sessions: Default::default(),
         }
     }
 }

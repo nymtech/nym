@@ -18,6 +18,7 @@ use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
 };
+use nym_credentials_interface::TicketType;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
     ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
@@ -25,6 +26,7 @@ use nym_gateway_requests::{
 };
 use nym_gateway_storage::{error::StorageError, Storage};
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_statistics_common::events;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
@@ -243,6 +245,7 @@ where
             &self.client.shared_keys,
             iv,
         )?;
+        let maybe_ticket_type = TicketType::try_from_encoded(credential.data.payment.t_type);
         let mut verifier = CredentialVerifier::new(
             credential,
             self.inner.shared_state.ecash_verifier.clone(),
@@ -254,6 +257,16 @@ where
             .await
             .inspect_err(|verification_failure| debug!("{verification_failure}"))?;
         trace!("available total bandwidth: {available_total}");
+
+        if let Ok(ticket_type) = maybe_ticket_type {
+            if let Err(e) = self.inner.shared_state.stats_event_sender.unbounded_send(
+                events::StatsEvent::new_ecash_ticket(self.client.address, ticket_type),
+            ) {
+                warn!("Failed to send session stop event to collector : {e}")
+            };
+        } else {
+            error!("Somehow verified a ticket with an unknown ticket type");
+        }
 
         Ok(ServerResponse::Bandwidth { available_total })
     }

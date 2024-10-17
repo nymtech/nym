@@ -37,13 +37,20 @@ pub struct MixingStats {
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct Session {
+    pub duration_ms: u64,
+    pub typ: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct SessionStats {
     #[serde(with = "time::serde::rfc3339")]
     pub update_time: OffsetDateTime,
 
     pub unique_active_users: u32,
 
-    pub session_durations: Vec<u64>,
+    pub sessions: Vec<Session>,
 
     pub sessions_started: u32,
 

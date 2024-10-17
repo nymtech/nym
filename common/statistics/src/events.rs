@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use futures::channel::mpsc;
+use nym_credentials_interface::TicketType;
 use nym_sphinx::DestinationAddressBytes;
 use time::OffsetDateTime;
 
@@ -25,6 +26,16 @@ impl StatsEvent {
             client,
         })
     }
+
+    pub fn new_ecash_ticket(
+        client: DestinationAddressBytes,
+        ticket_type: TicketType,
+    ) -> StatsEvent {
+        StatsEvent::SessionStatsEvent(SessionEvent::EcashTicket {
+            ticket_type,
+            client,
+        })
+    }
 }
 
 pub enum SessionEvent {
@@ -34,6 +45,10 @@ pub enum SessionEvent {
     },
     SessionStop {
         stop_time: OffsetDateTime,
+        client: DestinationAddressBytes,
+    },
+    EcashTicket {
+        ticket_type: TicketType,
         client: DestinationAddressBytes,
     },
 }

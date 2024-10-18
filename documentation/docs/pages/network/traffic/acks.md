@@ -6,7 +6,7 @@ A simplified example: if a client sends 100 packets to a gateway, but only recei
 ```mermaid
 ---
 config:
-  theme: dark
+  theme: neo-dark
   layout: elk
 ---
 sequenceDiagram

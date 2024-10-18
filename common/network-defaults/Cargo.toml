@@ -23,3 +23,6 @@ default = ["env", "network"]
 env = ["dotenvy", "log"]
 network = ["schemars", "serde", "url"]
 utoipa = [ "dep:utoipa" ]
+
+[build-dependencies]
+regex = { workspace = true }

@@ -1,0 +1,24 @@
+import { VarInfo } from 'components/variable-info.tsx'
+
+# Nym Node
+
+
+NYM NODE is a tool for running a node within the Nym network. Nym Nodes containing functionality such as `mixnode`, `entry-gateway` and `exit-gateway` are fundamental components of Nym Mixnet architecture. Nym Nodes are ran by decentralised node operators.
+
+To setup any type of Nym Node, start with either building [Nym's platform](../binaries/building-nym.md) from source or download [pre-compiled binaries](../binaries/pre-built-binaries.md) on the [configured server (VPS)](vps-setup.md) where you want to run the node. Your Nym Node will need to be bonded before it can be run. We recommend most users use the [Nym desktop wallet](wallet-preparation.md) for this.
+
+**Follow [preliminary steps](preliminary-steps.mdx) page before you configure and run a `nym-node`!**
+
+## Steps for Nym Node Operators
+
+Once [VPS and Nym wallet are configured](preliminary-steps.mdx), binaries ready, the operators of `nym-node` need to:
+
+1. **[Setup](nym-nde/setup.mdx) the node**
+
+2. **[Configure](nym-node/configuration.mdx) the node and optionally automation, Wireguard, WSS, reversed proxy ...**
+
+3. **[Run](nym-node/setup.mdx#initialise--run) the node or [the service](nym-node/configuration.md#systemd)**
+
+4. **[Bond](nym-node/bonding.md) the node to the Nym API, using Nym wallet**
+
+Make sure to follow the steps thoroughly, in case you find any point difficult don't hesitate to ask in our [Operators channel](https://matrix.to/#/#operators:nymtech.chat).

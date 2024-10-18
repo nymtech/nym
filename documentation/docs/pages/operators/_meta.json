@@ -2,13 +2,14 @@
   "introduction": "Introduction",
   "changelog": "Changelog",
   "release-cycle": "Release Cycle",
+  "variables": "Variables & Parameters",
   "sandbox": "Sandbox Testnet",
   "binaries": "Binaries",
   "nodes": "Operator Guides",
   "troubleshooting": "Troubleshooting",
   "tokenomics": "Tokenomics",
   "faq": "FAQ",
-  "legal": "Community Legal Forum",
+  "community-counsel": "Community Counsel",
   "---": {
     "type": "separator"
   },

@@ -1,0 +1,23 @@
+import { Steps } from 'nextra/components';
+
+<>
+Migrate your `nym-gateway` to `nym-node --mode entry-gateway` or `--mode exit-gateway` using these commands:
+<Steps>
+###### 1. Move relevant info from `config.toml`
+```sh
+./nym-node migrate --config-file ~/.nym/gateways/<GATEWAY_ID>/config/config.toml gateway
+```
+
+###### 2. Initialise with new `nym-node` config chosing one of the options below:
+
+- as `entry-gateway`:
+```sh
+./nym-node run --id <ID> --mode entry-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname <HOSTNAME> --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <LOCATION> --accept-operator-terms-and-conditions --wireguard-enabled true
+```
+
+- or as `exit-gateway`:
+```sh
+./nym-node run --id <ID> --mode exit-gateway --public-ips "$(curl -4 https://ifconfig.me)" --hostname <HOSTNAME> --http-bind-address 0.0.0.0:8080 --mixnet-bind-address 0.0.0.0:1789 --location <LOCATION> --accept-operator-terms-and-conditions --wireguard-enabled true
+```
+</Steps>
+</>

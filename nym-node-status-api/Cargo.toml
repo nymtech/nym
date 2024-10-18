@@ -16,7 +16,7 @@ rust-version.workspace = true
 anyhow = { workspace = true }
 axum = { workspace = true, features = ["tokio"] }
 chrono = { workspace = true }
-clap = { workspace = true, features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
 cosmwasm-std = { workspace = true }
 envy = { workspace = true }
 futures-util = { workspace = true }
@@ -53,5 +53,10 @@ utoipauto = { workspace = true }
 
 [build-dependencies]
 anyhow = { workspace = true }
-tokio = { workspace = true, features = ["macros" ] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+tokio = { workspace = true, features = ["macros"] }
+sqlx = { workspace = true, features = [
+  "runtime-tokio-rustls",
+  "sqlite",
+  "macros",
+  "migrate",
+] }

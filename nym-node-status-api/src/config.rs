@@ -1,7 +1,8 @@
-use anyhow::anyhow;
 use reqwest::Url;
 use serde::Deserialize;
 use std::time::Duration;
+
+use crate::cli::Cli;
 
 #[derive(Debug, Clone, Deserialize)]
 pub(crate) struct Config {
@@ -17,6 +18,15 @@ pub(crate) struct Config {
 }
 
 impl Config {
+    pub(crate) fn from_args(args: Cli) -> Self {
+        Config {
+            nym_http_cache_ttl: args.nym_http_cache_ttl,
+            http_port: args.http_port,
+            nyxd_addr: args.nyxd_addr,
+            explorer_client_timeout: args.explorer_client_timeout,
+        }
+    }
+
     pub(crate) fn from_env() -> anyhow::Result<Self> {
         envy::from_env::<Self>().map_err(|e| {
             tracing::error!("Failed to load config from env: {e}");
@@ -60,13 +70,4 @@ where
     let s: String = Deserialize::deserialize(deserializer)?;
     let secs: u64 = s.parse().map_err(serde::de::Error::custom)?;
     Ok(Duration::from_secs(secs))
-}
-
-pub(super) fn read_env_var(env_var: &str) -> anyhow::Result<String> {
-    std::env::var(env_var)
-        .map_err(|_| anyhow!("You need to set {}", env_var))
-        .map(|value| {
-            tracing::trace!("{}={}", env_var, value);
-            value
-        })
 }

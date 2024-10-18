@@ -2,8 +2,6 @@ use clap::Parser;
 use nym_network_defaults::setup_env;
 use nym_task::signal::wait_for_signal;
 
-use crate::config::read_env_var;
-
 mod cli;
 mod config;
 mod db;
@@ -19,14 +17,12 @@ async fn main() -> anyhow::Result<()> {
     // if dotenv file is present, load its values
     // otherwise, default to mainnet
     setup_env(args.config_env_file.as_ref());
-    tracing::debug!("{:?}", read_env_var("NETWORK_NAME"));
-    tracing::debug!("{:?}", read_env_var("EXPLORER_API"));
-    tracing::debug!("{:?}", read_env_var("NYM_API"));
 
-    let conf = config::Config::from_env()?;
+    let connection_url = args.connection_url.clone();
+    let conf = config::Config::from_args(args);
     tracing::debug!("Using config:\n{:#?}", conf);
 
-    let storage = db::Storage::init().await?;
+    let storage = db::Storage::init(connection_url).await?;
     let db_pool = storage.pool_owned().await;
     let conf_clone = conf.clone();
     tokio::spawn(async move {

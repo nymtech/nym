@@ -7,8 +7,8 @@ use std::{
 };
 
 use crate::{error::AuthenticatorError, peer_manager::PeerManager};
+use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
-use log::warn;
 use nym_authenticator_requests::{
     v1, v2,
     v3::{
@@ -235,37 +235,45 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             return Err(AuthenticatorError::MacVerificationFailure);
         }
 
+        let peer = Peer::new(Key::new(final_message.gateway_client.pub_key.to_bytes()));
+
         // If gateway does ecash verification and client sends a credential, we do the additional
         // credential verification. Later this will become mandatory.
         if let (Some(ecash_verifier), Some(credential)) = (
             self.ecash_verifier.clone(),
             final_message.credential.clone(),
         ) {
-            let client_id = self
-                .peer_manager
-                .add_peer(&final_message.gateway_client, true)
+            let client_id = ecash_verifier
+                .storage()
+                .insert_wireguard_peer(&peer, true)
                 .await?
                 .ok_or(AuthenticatorError::InternalError(
                     "peer with ticket shouldn't have been used before without a ticket".to_string(),
                 ))?;
-
             if let Err(e) =
-                Self::credential_verification(ecash_verifier, credential, client_id).await
+                Self::credential_verification(ecash_verifier.clone(), credential, client_id).await
             {
-                self.peer_manager
-                    .remove_peer(&final_message.gateway_client)
-                    .await
-                    .inspect_err(|err| {
-                        warn!(
-                            "Could not revert adding peer {} on credential verification {err}",
-                            final_message.gateway_client.pub_key()
-                        )
-                    })?;
+                ecash_verifier
+                    .storage()
+                    .remove_wireguard_peer(&peer.public_key.to_string())
+                    .await?;
+                return Err(e);
+            }
+            let public_key = peer.public_key.to_string();
+            if let Err(e) = self
+                .peer_manager
+                .add_peer(peer, &final_message.gateway_client, Some(client_id))
+                .await
+            {
+                ecash_verifier
+                    .storage()
+                    .remove_wireguard_peer(&public_key)
+                    .await?;
                 return Err(e);
             }
         } else {
             self.peer_manager
-                .add_peer(&final_message.gateway_client, false)
+                .add_peer(peer, &final_message.gateway_client, None)
                 .await?;
         }
         registred_and_free

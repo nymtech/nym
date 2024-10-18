@@ -7,11 +7,7 @@ RUN cargo build --release
 
 FROM ubuntu:24.04
 
-RUN echo "Acquire::http::Pipeline-Depth 0;" > /etc/apt/apt.conf.d/99custom && \
-  echo "Acquire::http::No-Cache true;" >> /etc/apt/apt.conf.d/99custom && \
-  echo "Acquire::BrokenProxy    true;" >> /etc/apt/apt.conf.d/99custom
-
-RUN apt update && apt install -yy curl
+RUN apt update && apt install -yy curl ca-certificates
 
 WORKDIR /nym
 

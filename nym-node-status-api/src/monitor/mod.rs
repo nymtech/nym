@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::cli::Cli;
 use crate::db::models::{
     gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_BLACKLISTED_COUNT,
     GATEWAYS_BONDED_COUNT, GATEWAYS_EXPLORER_COUNT, GATEWAYS_HISTORICAL_COUNT,
@@ -29,7 +29,7 @@ static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5
 
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
-pub(crate) async fn spawn_in_background(db_pool: DbPool, config: Config) -> JoinHandle<()> {
+pub(crate) async fn spawn_in_background(db_pool: DbPool, config: Cli) -> JoinHandle<()> {
     let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
     loop {
@@ -54,7 +54,7 @@ pub(crate) async fn spawn_in_background(db_pool: DbPool, config: Config) -> Join
 async fn run(
     pool: &DbPool,
     network_details: &NymNetworkDetails,
-    config: &Config,
+    config: &Cli,
 ) -> anyhow::Result<()> {
     let default_api_url = network_details
         .endpoints
@@ -70,10 +70,8 @@ async fn run(
 
     let default_explorer_url =
         default_explorer_url.expect("explorer url missing in network config");
-    let explorer_client = ExplorerClient::new_with_timeout(
-        default_explorer_url,
-        config.nym_explorer_client_timeout(),
-    )?;
+    let explorer_client =
+        ExplorerClient::new_with_timeout(default_explorer_url, config.explorer_client_timeout)?;
     let explorer_gateways = explorer_client
         .get_gateways()
         .await
@@ -126,7 +124,7 @@ async fn run(
         .await
         .log_error("get_active_mixnodes")?;
     let delegation_program_members =
-        get_delegation_program_details(network_details, config.nyxd_addr()).await?;
+        get_delegation_program_details(network_details, &config.nyxd_addr).await?;
 
     // keep stats for later
     let count_bonded_mixnodes = mixnodes.len();

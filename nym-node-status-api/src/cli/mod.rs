@@ -9,13 +9,9 @@ fn pretty_build_info_static() -> &'static str {
     PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
 }
 
-#[derive(Parser, Debug)]
+#[derive(Clone, Debug, Parser)]
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
-    /// Path pointing to an env file that configures the Nym API.
-    #[clap(short, long, env = "NYM_NODE_STATUS_API_ENV_FILE")]
-    pub(crate) config_env_file: Option<std::path::PathBuf>,
-
     /// Network name for the network to which we're connecting.
     #[clap(long, env = "NETWORK_NAME")]
     pub(crate) network_name: String,

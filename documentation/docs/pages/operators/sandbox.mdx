@@ -27,7 +27,7 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 - In case you want to save the file elsewhere, change the path in '-o' flag
 
 ###### 2. Run your `nym-node` with an additional flag `-c` or `--config-env-file`
-- Specify a path to `sandbox.env` 
+- Specify a path to `sandbox.env`
 - Add all needed commands and options - for example:
 
 <Tabs items={[<code>mixnode</code>, <code>exit-gateway</code>]}>
@@ -35,7 +35,7 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
   This example is for `nym-node --mode mixnode`.
   ```sh
   ./nym-node --config-env-file <PATH>/sandbox.env run --mode mixnode
-  ```  
+  ```
   </Tabs.Tab>
   <Tabs.Tab>
   This example is for `nym-node --mode exit-gateway`.
@@ -51,7 +51,7 @@ curl -o sandbox.env -L https://raw.githubusercontent.com/nymtech/nym/develop/env
 - Go to [faucet.nymtech.net](https://faucet.nymtech.net) and aquire 101 testnet NYM tokens
 - Follow the steps on the [bonding page](nodes/bonding.mdx)
 
-![](../../images/operators/sandbox.png)
+![](/images/operators/sandbox.png)
 
 </Steps>
 

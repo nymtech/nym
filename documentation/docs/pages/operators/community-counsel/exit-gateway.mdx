@@ -1,19 +1,20 @@
-# Nym Operators Legal Forum: Running Exit Gateway
+import { Tabs } from 'nextra/components';
+import { Callout } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
 
-```admonish info
-The entire content of this page is under [Creative Commons Attribution 4.0 International Public License](https://creativecommons.org/licenses/by/4.0/).
-```
+# Community Counsel: Running Exit Gateway
 
-This page is a part of Nym Community Legal Forum and its content is composed by shared advices in [Node Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) (Matrix chat) as well as though pull requests done by the node operators directly to our [repository](https://github.com/nymtech/nym/tree/develop/documentation/operators/src), reviewed by Nym DevRels.
+
+This page is a part of Nym Community Counsel (before Legal Forum) and its content is composed by shared advices in [Node Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) (Matrix chat) as well as though pull requests done by the node operators directly to our [repository](https://github.com/nymtech/nym/tree/develop/documentation/operators/src), reviewed by Nym DevRels.
 
 This document presents an initiative to further support Nym’s mission of allowing privacy for everyone everywhere. This would be achieved with the support of Nym node operators operating Gateways and opening these to any online service. Such setup needs a **clear policy**, one which will remain the **same for all operators** running Nym nodes. [**Nym exit policy**](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) is a combination of safeguards like (nowadays deprecated) `Tor Null deny list` and `Tor reduced policy` together with changes decided by Nym operators community through the governance (like in this [vote](https://forum.nymtech.net/t/poll-a-new-nym-exit-policy-for-exit-gateways-and-the-nym-mixnet-is-inbound/464)). This policy aims to find a healthy compromise between protecting the operators and NymVPN users against attacks while allowing for as wide experience when accessing the internet through Nym Network. 
 
 
-All the technical changes on the side of Nym nodes - ***Project Smoosh*** - are described in the [FAQ section](../archive/faq/smoosh-faq.md).
-
-```admonish warning
-Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the operator channels ([Element](https://matrix.to/#/#operators:nymtech.chat), [Discord](https://nymtech.net/go/discord), [Telegram](https://t.me/nymchan_help_chat)) to share best practices and experiences.
-```
+<Callout color="danger" emoji="⚠️">
+The following part is for informational purposes only. Nym core team cannot provide comprehensive legal advice across all jurisdictions. Knowledge and experience with the legalities are being built up with the help of our counsel and with you, the community of Nym node operators. We encourage Nym node operators to join the [Node Operator](https://matrix.to/#/#operators:nymtech.chat) and [Operators Legal Forum](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org) channels on Element to share best practices and experiences.
+</Callout>
 
 
 ## Summary
@@ -49,9 +50,9 @@ Previous setup: Running nodes supporting strict SOCKS5 app-based traffic
 
 | **Dimension** | **Pros** | **Cons** |
 | :--- | :--- | :--- |
-| Aspirational |   | - Very limited use cases, not supportive of the “Privacy for everyone everywhere” aspiration<br>- Limited appeal to users, low competitiveness in the market, thus low usage |
+| Aspirational |   | - Very limited use cases, not supportive of the “Privacy for everyone everywhere” aspiration - Limited appeal to users, low competitiveness in the market, thus low usage |
 | Technical | - No changes required in technical setup |   |
-| Operational | - No impact on operators operations (e.g., relationships with VPS providers)<br>- Low overhead<br>- Can be run as an individual |   |
+| Operational | - No impact on operators operations (e.g., relationships with VPS providers) - Low overhead - Can be run as an individual |   |
 | Legal | - Limited legal risks for operators |    |
 | Financial |    | - Low revenues for operators due to limited product traction |
 
@@ -60,9 +61,9 @@ The new setup: Running nodes supporting traffic of any online service (with safe
 
 | **Dimension** | **Pros** | **Cons** |
 | :--- | :--- | :--- |
-| Aspirational | - Higher market appeal of a fully-fledged product able to answer all users’ use cases<br>- Relevance in the market, driving higher usage |   |
+| Aspirational | - Higher market appeal of a fully-fledged product able to answer all users’ use cases - Relevance in the market, driving higher usage |   |
 | Technical | - Very limited changes required in the technical setup (changes in the allow -> denylist) | - Increased monitoring required to detect and prevent abuse (e.g. spam) |
-| Operational |    | - Higher operational overhead, such as dealing with DMCA / abuse complaints, managing the VPS provider questions, or helping the community to maintain the denylist <br>- Administrative overhead if running nodes as a company or an entity |
+| Operational |    | - Higher operational overhead, such as dealing with DMCA / abuse complaints, managing the VPS provider questions, or helping the community to maintain the denylist - Administrative overhead if running nodes as a company or an entity |
 | Legal |   | - Ideally requires to check legal environment with local privacy association or lawyer | Financial | - Higher revenue potential for operators due to the increase in network usage | - If not running VPS with an unlimited bandwidth plan, higher costs due to higher network usage |
 
 ## Exit Gateways: New setup
@@ -78,6 +79,14 @@ As of now we the Gateways will be defaulted to a combination of (nowadays deprec
 For exit relays on ports 80 and 443, the Gateways will exhibit an HTML page resembling the one proposed by [Tor](https://gitlab.torproject.org/tpo/core/tor/-/raw/HEAD/contrib/operator-tools/tor-exit-notice.html). By doing so, the operator will be able to disclose details regarding their Gateway, including the currently configured exit policy, all without the need for direct correspondence with regulatory or law enforcement agencies. It also makes the behavior of Exit Gateways transparent and even computable (a possible feature would be to offer a machine readable form of the notice in JSON or YAML).
 
 We also recommend operators to check the technical advice from [Tor](https://community.torproject.org/relay/setup/exit/).
+
+## Community Counsel & Legal environment of Nym Exit Gateway
+
+The Node Operators Community Counsel pages are divided according [jurisdictions](jurisdictions.mdx). Nym Node operators are invited to add their legal findings or helpful suggestions directly through [pull requests](add-content.mdx). This can be done as a new legal information (or entire new country) to the list of [jurisdictions](jurisdictions.mdx) or in a form of an advice to [Community counsel pages](../community-counsel.mdx), like sharing examples of Exit Gateway [landing pages](landing-pages.md), templates etcetra.
+
+## How to add content
+
+Our aim is to establish a strong community network, sharing legal findings and other suggestions with each other. We would like to encourage all of the current and future operators to do research about the situation in the jurisdiction they operate in as well as solutions to any challenges when running an Exit Gateway and add those through a pull request (PR). Please check out the [steps to make a pull request](add-content.mdx).
 
 ## Tor legal advice
 
@@ -128,14 +137,4 @@ Useful links:
     - [github.com/coldhakca/abuse-templates/blob/master/dmca.template](https://github.com/coldhakca/abuse-templates/blob/master/dmca.template)
 
 
-## Legal environment of Nym Exit Gateway
 
-The Node Operators Legal Forum pages are divided according [jurisdictions](jurisdictions.md). Read below to learn [how to add](add-content.md) findings about your jurisdiction or edit existing info.
-
-## Community Counsel
-
-Nym Node operators are invited to add their legal findings or helpful suggestions directly through [pull requests](add-content.md). This can be done as a new legal information (or entire new country) to the list of [jurisdictions](jurisdictions.md) or in a form of an advice to [Community counsel pages](community-counsel.md), sharing examples of Exit Gateway [landing pages](landing-pages.md), templates etcetra.
-
-## How to add content
-
-Our aim is to establish a strong community network, sharing legal findings and other suggestions with each other. We would like to encourage all of the current and future operators to do research about the situation in the jurisdiction they operate in as well as solutions to any challenges when running an Exit Gateway and add those through a pull request (PR). Please check out the [steps to make a pull request](add-content.md).

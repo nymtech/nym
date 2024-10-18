@@ -73,19 +73,15 @@ You can always use `--help` flag to see the commands or arguments associated wit
 
 Run `./nym-node --help` to see all available commands:
 
-~~~admonish example collapsible=true title="`./nym-node --help` output:"
 ```
 <!-- cmdrun ../../../../target/release/nym-node --help -->
 ```
-~~~
 
 To list all available flags for each command, run `./nym-node <COMMAND> --help` for example `./nym-node run --help`:
 
-~~~admonish example collapsible=true title="`./nym-node run --help` output:"
 ```
 <!-- cmdrun ../../../../target/release/nym-node run --help  -->
 ```
-~~~
 
 <Callout color="danger" emoji="⚠️">
 The Wireguard flags currently have limited functionality. From version `1.1.6` ([`v2024.9-topdeck`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)) wireguard is available and recommended to be switched on for nodes running as Gateways. Keep in mind that this option needs a bit of a special [configuration](configuration.md#wireguard-setup).
@@ -109,9 +105,8 @@ https://<NODE_DOMAIN>/api/v1/auxiliary_details
 http://<NODE_IP_ADDRESS>/api/v1/auxiliary_details
 ```
 
-~~~admonish example collapsible=true title="Example of `/auxiliary_details` query"
 ```sh
-# substitude <NODE_IP_ADDRESS> with a real one
+# substitude <PUBLIC_IP> with a real one
 curl -X 'GET' \
   'http://<NODE_IP_ADDRESS>:8080/api/v1/auxiliary-details' \
   -H 'accept: application/json'
@@ -121,7 +116,6 @@ curl -X 'GET' \
   "accepted_operator_terms_and_conditions": true
 }
 ```
-~~~
 
 ### Commands & Examples
 
@@ -133,29 +127,10 @@ All commands with more options listed below include `--accept-operator-terms-and
 
 #### Essential Parameters & Variables
 
-Running a `nym-node` in a `mixnode` mode requires less configuration than a full `exit-gateway` setup, we recommend operators to still follow through with all documented [configuration](configuration.md). Before you scroll down to syntax examples for the mode of your choice please familiarise yourself with the essential paramters and variables convention we use in the guide.
-
-Substitute any variables in `<>` brackets your own value, without `<>` brackets. Here is a list of important options and variables.
-
-| Flag (Option)                            | Variable                                                                                                   | Description                                                                                                                                                                | Syntax example                                  |
-| :--                                      | :---                                                                                                       | :---                                                                                                                                                                       | :---                                            |
-| `--mode`                                 | `<MODE>`                                                                                                   | A functionality of your `nym-node` in the mixnet - mandatory! Chose from `entry-gateway`, `mixnode` or `exit-gateway`                                                      | `--mode exit-gateway`                           |
-| `--id`                                   | `<ID>`                                                                                                     | A local only `nym-node` identifier, specified by flag `--id`. Not mandatory as it defaults to `default-nym-node` if not specified.                                         | `--id alice_super_node`                         |
-| `-w` or `--write-changes`                | *none*                                                                                                     | Specify whether to write new changes - the values of other flags in the given command - to the config file                                                                 | `--write-changes`                               |
-| `--accept-operator-terms-and-conditions` | *none*                                                                                                     | A flag added explicitly to `nym-node run` command every time, showing that the operator agreed with [T&Cs](#terms--conditions)                                             | `--accept-operator-terms-and-conditions`        |
-| `--public-ips`                           | `<PUBLIC_IPS>`                                                                                             | IPv4 of the `nym-node` server - mandatory! Use this address as a `host` value for bonding.Use this address as a `host` value for bonding.                                  | `--public-ips "$(curl -4 https://ifconfig.me)"` |
-| `--mixnet-bind-address`                  | `<MIXNET_BIND_ADDRESS>`                                                                                    | Address to bind to for listening for mixnet packets - mandatory! Must be on port `1789`!                                                                                   | `--mixnet-bind-address 0.0.0.0:1789`            |
-| `--http-bind-address`                    | `<HTTP_BIND_ADDRESS>`                                                                                      | Socket address this node will use for binding its http API - mandatory! Must be on port `8080`!                                                                            | `--http-bind-address 0.0.0.0:8080`              |
-| `--hostname`                             | `<HOSTNAME>`                                                                                               | Your registered DNS domain, asigned to the VPS with `nym-node`. Use without prefix like `http://` or `https://`                                                            | `exit-gateway1.squad.nsl`                       |
-| `--location`                             | `<LOCATION>`                                                                                               | Loacation of your node. Formats like 'Jamaica',  or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided. | `--location JAM`                                |
-| `--wireguard-private-ip`                 | `<WIREGUARD_PRIVATE_IP>`                                                                                   | Private IP address of the wireguard gateway. This mandatory field is set to a correct default: `10.1.0.1`, operators upgrading from older versions must overwrite it.      | `--wireguard-private-ip 10.1.0.1`               |
-| `--wireguard-enabled`                    | `<WIREGUARD_ENABLED>`                                                                                      | Specifies whether the wireguard service is enabled, possible values: `true` or `false` - `true` is recommended                                                             | `--wireguard-enabled true`                      |
-| `--expose-system-info`                   | `<EXPOSE_SYSTEM_INFO>`                                                                                     | Specify whether basic system information should be exposed. default: `true`, possible values: `true` or `false`                                                            | `--expose-system-info false`                    |
-| `--expose-system-hardware`               | `<EXPOSE_SYSTEM_HARDWARE>`                                                                                 | Specify whether basic system hardware information should be exposed. default: `true`, possible values: `true` or `false`                                                   | `--expose-system-hardware false`                |
-| *not a flag*                             | `<PATH_TO>`                                                                                                | Specify a full path to the given file, directory or binary behind this variable                                                                                            | `/root/src/nym/target/release/`                 |
+Running a `nym-node` in a `mixnode` mode requires less configuration than a full `exit-gateway` setup, we recommend operators to still follow through with all documented [configuration](configuration.md). Before you scroll down to syntax examples for the mode of your choice please familiarise yourself with the essential [paramters and variables](../../variables.mdx) convention we use in the guide.
 
 <Callout>
-To prevent over-flooding of our documentation we cannot provide with every single command syntax as there is a large combination of possibilities. Please use a common sense and the explanation in `--help` option.
+To prevent over-flooding of our documentation we cannot provide with every single command syntax as there is a large combination of possibilities. Please read the [variables and parameters page](../../variables.mdx), use the explanation in `--help` option and common sence.
 </Callout>
 
 

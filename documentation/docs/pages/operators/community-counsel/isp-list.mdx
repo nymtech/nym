@@ -1,8 +1,6 @@
-# Where to host your `nym-node`?
+import { Callout } from 'nextra/components';
 
-```admonish info
-The entire content of this page is under [Creative Commons Attribution 4.0 International Public License](https://creativecommons.org/licenses/by/4.0/).
-```
+# Where to host your `nym-node`?
 
 Inspired by a valuable resource, done by Tor community - [*Good Bad ISPs*](https://community.torproject.org/relay/community-resources/good-bad-isps/), LunarDAO squad initiated a table customised for Nym Exit Gateways operators.
 
@@ -14,12 +12,10 @@ If you came across any legal findings, please share them in our [list of jurisdi
 
 While we trust that Nym node operators are honest, we would like to ask everyone to do your own research.
 
-```admonish caution title=""
-To edit or add information to the ISP list, make changes to the csv file located [here](https://github.com/nymtech/nym/blob/develop/documentation/operators/src/data/isp-sheet.csv) and submit your edits as a pull request according to [this guide](add-content.md).
-```
+<Callout color="danger" emoji="">
+To edit or add information to the ISP list, make changes to the csv file located [here](https://github.com/nymtech/nym/blob/develop/documentation/docs/data/csv/isp-sheet.csv) and submit your edits as a pull request according to [this guide](add-content.mdx).
+</Callout>
 
-```admonish note title=""
-As of now the list is quite short. When it grows, we can divide it according the localities of the listed ISPs.
 ```
-
-<!--cmdrun python3 ../../../scripts/csv2md.py ../data/isp-sheet.csv -s 0 -->
+<!-- cmdrun python3 ../../../scripts/csv2md.py ../data/isp-sheet.csv -s 0 -->
+```

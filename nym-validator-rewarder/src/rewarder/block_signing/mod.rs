@@ -62,6 +62,8 @@ impl EpochSigning {
 
             loop {
                 let mut res = self.nyxd_client.validators(page_request).await?;
+
+                let num_results = res.validators.len();
                 response.append(&mut res.validators);
 
                 let Some(pagination) = res.pagination else {
@@ -70,6 +72,10 @@ impl EpochSigning {
 
                 if pagination.next_key.is_empty() {
                     break;
+                }
+                
+                if num_results == 0 {
+                    break
                 }
 
                 page_request = Some(PageRequest {

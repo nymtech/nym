@@ -122,7 +122,8 @@ New Features
 - [ ] rust playground for clients + examples
 - [ ] network/arch/clients: breakdown of a client path from startup (startup, gateway connection, what keys what auth format etc, auth, message sending, poisson process)
 - [ ] network/concepts/mixing: diagram
-- [ ] network/crypto/sphinx: diagrams
+- [ ] network/crypto/sphinx: diagrams!
 - [ ] network/concepts/surbs: diagram
 - [x] network/traffic: diagram
 - [x] network/traffic/acks: diagram
+- [ ] network/clients: what are all the keys for

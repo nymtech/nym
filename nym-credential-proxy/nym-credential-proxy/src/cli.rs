@@ -32,7 +32,7 @@ pub struct Cli {
     /// default: `8080`
     #[clap(
         long,
-        env = "VPN_API_PORT",
+        env = "NYM_CREDENTIAL_PROXY_PORT",
         default_value = "8080",
         default_value_if("bind_address", ArgPredicate::IsPresent, None)
     )]
@@ -40,18 +40,18 @@ pub struct Cli {
 
     /// Specifies the custom bind address value used for the api server.
     /// default: `0.0.0.0:8080`
-    #[clap(long, env = "VPN_API_BIND_ADDRESS")]
+    #[clap(long, env = "NYM_CREDENTIAL_PROXY_BIND_ADDRESS")]
     pub bind_address: Option<SocketAddr>,
 
     /// Specifies the mnemonic authorised for making deposits for "free pass" ticketbooks
-    #[clap(long, env = "VPN_API_MNEMONIC")]
+    #[clap(long, env = "NYM_CREDENTIAL_PROXY_MNEMONIC")]
     pub mnemonic: bip39::Mnemonic,
 
     /// Bearer token for accessing the http endpoints.
-    #[clap(long, env = "VPN_API_AUTH_TOKEN", alias = "http-bearer-token")]
+    #[clap(long, env = "NYM_CREDENTIAL_PROXY_AUTH_TOKEN", alias = "http-bearer-token")]
     pub(crate) http_auth_token: String,
 
-    #[clap(long, env = "VPN_API_PERSISTENT_STORAGE_STORAGE")]
+    #[clap(long, env = "NYM_CREDENTIAL_PROXY_PERSISTENT_STORAGE_STORAGE")]
     pub(crate) persistent_storage_path: Option<PathBuf>,
 }
 

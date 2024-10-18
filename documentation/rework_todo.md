@@ -39,7 +39,8 @@ Initial overhaul
    - [ ] operators docs (various)
    - [x] ecash
     - [ ] wait on ania's updates
-    - [ ] wait on whether we change the language now that we have 4 ticketbooks.. talk to jaya
+    - [ ] pull back to original language
+    - [ ] change name of nymAPI to credentialProxy
     - [ ] bring in notes from Claudia's presentation
 
   - [ ] developers
@@ -59,29 +60,33 @@ Initial overhaul
     - [x] remove numbering from sidebar
   - [x] check all links work and fix
 
-- [ ] strip down footer
+- [x] strip down footer
 - [ ] replace `mdbook-cmdrun` with scripts in `package.json`
   - [ ] operators
   - [x] rest
 - [ ] all images to root images dir with subdirs
 - [x] change mdbook admonishes to nextra admonish
 
-- [ ] make common links (e.g. github) variables if we require several
+- [x] make common links (e.g. github) variables if we require several
 - [x] remove dangling index
 
 Autodocs
 --------
 - [x] autodocs branch - merge in
-- [ ] work out where `autodocs` sits in CI - call in package.json instead
+- [x] work out where `autodocs` sits in CI - call in package.json instead
 - [ ] `autodocs` pages - incorporate
+  - [ ] operators
+  - [x] developers
 
 CI / deployment
 ---------------
 - [ ] try and get rid of as many random scripts from github CI as possible
 - [ ] redirects on server
-- [ ] QU shall we move to our own server?
+  - [ ] operators
+  - [x] rest
 - [ ] add redirect page + sitemap for old links
-- [ ] new readme
+- [x] new readme
+- [ ] make new ci/cd
 
 For Frontend
 ------------
@@ -90,11 +95,11 @@ For Frontend
   - [x] level selection (sdks, network, developers, operators) in top right
   - [x] make SDKs a dropdown menu to choose between
   - [ ] search in sidebar
-  - [ ] ~~toc @ top of each page, dropdown (default collapsed)~~
+  - [x] ~~toc @ top of each page, dropdown (default collapsed)~~
   - [ ] new colours
   - [ ] links in footer
   - [x] get rid of discord
-  - [ ] link to matrix
+  - [x] link to matrix
 
 New Features
 ------------
@@ -119,5 +124,5 @@ New Features
 - [ ] network/concepts/mixing: diagram
 - [ ] network/crypto/sphinx: diagrams
 - [ ] network/concepts/surbs: diagram
-- [ ] network/traffic: diagram
-- [ ] network/traffic/acks: diagram
+- [x] network/traffic: diagram
+- [x] network/traffic/acks: diagram

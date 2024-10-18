@@ -2,6 +2,231 @@
 
 This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
+## `v2024.12-aero`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.12-aero)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.12-aero/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.md) version `1.1.9`
+
+```sh
+nym-node 
+Binary Name:        nym-node
+Build Timestamp:    2024-10-17T08:57:52.525093253Z
+Build Version:      1.1.9
+Commit SHA:         d75c7eaaaf3bb7350720cf9c7657ce3f7ee6ec2e
+Commit Date:        2024-10-17T08:51:39.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.81.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Features
+
+- [Rust sdk stream abstraction](https://github.com/nymtech/nym/pull/4743): Starting to move this from being standalone binaries (as seen [here](https://github.com/nymtech/nym-zcash-grpc-demo)) into the sdk. EDIT this has sort of expanded a bit to include a few things:
+  - [x] simple example
+  - [x] example doc to `src/tcp_proxy.rs` 
+  - [x] simple echo server in `tools/`
+  - [x] multithread example
+  - [x] example to sdk for using different network
+  - [x] go ffi for proxies
+  
+- [Build(deps): bump `toml` from `0.5.11` to `0.8.14`](https://github.com/nymtech/nym/pull/4805): [`toml`](https://github.com/toml-rs/toml) version update
+~~~admonish example collapsible=true title='Testing steps performed'
+- Ensured that the `cargo.toml` is legible in various places; tested it on `nym-node`, `nym-api` and `nymvisor`.
+- Ensured that updating the cargo.toml file and restarting the given binary continues to behave as normal.
+~~~
+
+- [Use `serde` from workspace](https://github.com/nymtech/nym/pull/4833): cargo autoinherit for `serde` - cargo autoinherit for `bs58` and `vergen` in `cosmwasm-smart-contracts` 
+
+- [Gateway database modifications for different modes](https://github.com/nymtech/nym/pull/4868): As gateway clients will not be solely from the mixnet, we need to split the table that handles shared keys from the client ids that are referenced from other tables. That way, the bandwidth table can be shared between different client types (entry mixnet, entry gateway, exit gateway), using the same `client_id` referencing.
+
+- [Remove the push trigger for `ci-nym-wallet-rust`](https://github.com/nymtech/nym/pull/4869)
+
+- [Chore: remove queued migration for adding explicit admin](https://github.com/nymtech/nym/pull/4871)
+
+- [Allow clients to send stateless gateway requests without prior registration](https://github.com/nymtech/nym/pull/4873): in order to make changes to the registration/authentication procedure we needed a way of extracting protocol information before undergoing the handshake. 
+
+- [Fix sql `serde` with `enum`](https://github.com/nymtech/nym/pull/4875)
+
+- [Few fixes to NNM pre deploy](https://github.com/nymtech/nym/pull/4883)
+
+- [Feature/updated gateway registration](https://github.com/nymtech/nym/pull/4885): This PR introduces support for aes256-gcm-siv shared keys between clients and gateways.
+    - Those changes should be fully backwards compatible. if they're not, there's a bug.
+~~~admonish example collapsible=true title='Testing steps performed'
+- For the following combinations I inited the client, ran the client, stopped the client, and ran the client again:
+- Fresh client on new binary && gateway on old binary
+- Fresh client on old binary && gateway on new binary
+- Fresh client on new binary && gateway new binary 
+- Existing old client on old binary & new gateway 
+~~~
+ 
+- [Build and Push CI](https://github.com/nymtech/nym/pull/4887)
+
+- [Entry wireguard tickets](https://github.com/nymtech/nym/pull/4888): Note: The behaviour of the nodes and vpn client (as a test) has not changed, it still works as it used to. Obtaining ticketbooks also is unchanged
+
+- [Update `nym-vpn` metapackage and replace `nymvpn-x` with `nym-vpn-app`](https://github.com/nymtech/nym/pull/4889): Change dependency from `nymvpn-x` to `nym-vpn-app` to reflect the new package name of the tauri client
+
+- [Update network monitor entry point](https://github.com/nymtech/nym/pull/4893)
+
+- [Remove clippy github PR annotations](https://github.com/nymtech/nym/pull/4896): It eats up CI resources and time to run the clippy annotation checks that likely no one uses anyway. We keep the clippy checks of course.
+
+- [Fix clippy for beta toolchain](https://github.com/nymtech/nym/pull/4897): 
+
+- [Update cargo deny](https://github.com/nymtech/nym/pull/4901): Update to use latest `cargo-deny`. Here are the steps done:
+  - Regenerate `deny.toml`
+  - Backport old settings to `deny.toml`
+  - Explicitly allow GPL-3 only on our own specific crates
+  - Update `deny.toml` for latest changes
+  - Fix `cargo-deny` warnings for duplicate crates
+  - Update `cargo-deny-action` to v2
+
+- [Data Observatory stub](https://github.com/nymtech/nym/pull/4905): You need Postgres up for `sqlx` compile-time checked queries to work
+~~~admonish example collapsible=true title='Try yourself'
+
+- Get [`page_up.sh` script](https://github.com/nymtech/nym/blob/develop/nym-data-observatory/pg_up.sh)
+
+```bash
+./pg_up.sh
+```
+
+Play with the database:
+```bash
+docker exec -it nym-data-observatory-pg /bin/bash
+psql -U youruser -d yourdb
+```
+~~~
+
+- [Proxy ffi](https://github.com/nymtech/nym/pull/4906): Updates Go & CPP FFI with the proxy code from  [\#4743](https://github.com/nymtech/nym/pull/4743)
+
+- [Bump `http-api-client` default timeout to 30 sec](https://github.com/nymtech/nym/pull/4917)
+
+- [Check both version and type in message header](https://github.com/nymtech/nym/pull/4918)
+
+- [Fix argument to `cargo-deny` action](https://github.com/nymtech/nym/pull/4922)
+
+- [Expose error type](https://github.com/nymtech/nym/pull/4924)
+
+- [Make ip-packet-request VERSION pub](https://github.com/nymtech/nym/pull/4925) 
+
+- [Assume offline mode](https://github.com/nymtech/nym/pull/4926)
+
+- [`nym-node`: don't use bloomfilters for double spending checks](https://github.com/nymtech/nym/pull/4960): this PR disables gateways polling for double spending bloomfilters and also `nym-apis` from providing this data.
+
+### Bugfix
+
+- [Fix `apt install` in `ci-build-upload-binaries.yml`](https://github.com/nymtech/nym/pull/4894)
+
+- [Fix missing duplication of modified tables](https://github.com/nymtech/nym/pull/4904)
+
+- [Fix nymvpn.com url in mainnet defaults](https://github.com/nymtech/nym/pull/4920): The old URL (nympvn.net) works since it is redirected to nymvpn.com, but the extra round-trip adds latency to all the API calls the vpn client does. So this PR should help speed things up, in particular when these API calls happen across the mixnet.
+
+- [Fix handle drop](https://github.com/nymtech/nym/pull/4934)
+
+- [Replace unreachable macro with an error return](https://github.com/nymtech/nym/pull/4958)
+
+### Operators Guide, Tooling & Updates
+
+#### Documentation Updates
+
+- [Update FAQ sphinx size](https://github.com/nymtech/nym/pull/4946): This PR upgrades url to our code base sphinx creation from an outdated branch to develop. 
+
+#### Fast & Furious - WireGuard edition
+
+Nym team started another round of load and speed testing. This time the tests are limited to Wireguard mode Gateways - to find out any weak spots for needed improvement. The load testing is happening directly on mainnet as it simulates a real user traffic which the network components must be able to handle in order.
+
+Over past week we ran a total of three tests, with 450 clients at most. We've managed to push around 300 GB in total. Around 50% of requests failed. Over the course of those three tests, we did about 5000 requests, and bandwidth per client varies between 50Mb/s and 150Mb/s.
+
+We already caught two bugs and [fixed](https://github.com/nymtech/nym/pull/4885) it in this release. 
+
+**The faster the operators upgrade to this [latest release](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.12-aero), the better**. A that will allow us to do more precise testing through the nodes without the registry bug, leading to more precise specs for `nym-node`.
+
+Here are the aims of these tests:
+
+1. Understanding of the wireguard network behavior under full load
+    - How many client users can all entry gateways and exit gateways handle simultaneously?
+    - How much sustained IP traffic can a subset of mainnet nodes sustain?
+2. Needed improvements of Nym Node binaries to improve the throughput on mainnet
+3. Measurement of required machine specs
+    - Releasing a new spec requirements
+4. Raw data record
+5. Increase quality of Nym Nodes
+
+Meanwhile we started to research pricing of stronger servers with unlimited bandwidth and higher (and stable) port speed, to arrive to a better understanding of needed rewards and grants to bootstrap the network before NymVPN launch. 
+
+More info about testing and tools for performance monitoring can be found in [this chapter](testing/performance.md).
+
+> We would like to call out to operators to join the efforts and reach out to us if they know of solid ISPs who offer reliable dedicated services for good price or may even be interested in partnership.
+
+#### Delegation Program
+
+In October we again proceeded with our Delegation Program. 22 nodes didn't meet the program rules and got their delegation removed and 25 nodes from the que received delegation. Below is a complete list. 
+
+~~~admonish example collapsible=true title='List of all delegation changes'
+Delegated:
+```
+Ce6kcPckNfQsga2z645VFQYadtoTjqXrS1YXMTtNNv98
+2XSCWy1vAoJRaYBJXx4KWwjU1cfoS2wNBXVQZvi8Jtdr
+Bu4sUGjJqkje4vSncTH2KgrnojmfESdaYwamC6DbpJGZ
+7TWEw9qQxsc8w4WhPAX6zjZ8vuNBdtP21zUVN8K26RkD
+HejyqervmGTCEwi1JbRBXV5My463336huBn8ZgSpuhc3
+CXcCVGiamYSwgVwaxW3mEkXkZh1sKY2TXnWjjTjxDxzA
+FScLfnKUPv9wSef3R4N2pQ9ft7DiwdivLW1i65Dqfc9L
+2vuZZJjyYN27fvDbhyqeGosewGWaRh6iVsFtqbJoYAR7
+B9QiBsSAx7MRcTpYMs1fu9AFJurAZTPWMispHZXPbaVW
+E3e2a9kXZjQXsKAfvmCf2WqwmVkiGR2LbjCwoadZgEJt
+Dk4fCLM7idHPqfsUucLQtSMtYaYCLhi4T7vwvw88jG3P
+9xZUp4sYWUNJesWy3MPVjh5kTorNqj3RxcFgBmYjV1xV
+HK9QxPpdJfNtNpLJZHTN5M113jeBbFzTkMtPt9eouimx
+ECkzyHfoiNGKyDTtbbH5HDCWa8KMGh92mtGbGHLZ3Y9n
+9jQQV9vQ2mFFXywwVhACCKefjUFpyBoCU6KXNfjAEi45
+6QguhCfnDPKJe8bQXg9myuPB89yYFk6R77vMhLTbipK7
+4hAJJQhLTFve8FZGd28ksjavbch8STMax2rytzKmDPCV
+EZLFq5HGXFKRpxu78nVjf7kuuUaKPLAbezR6mXbZrP6y
+FtAAA5GMxY1Ge9wKYDrQgaSfJEUp4XvBLptBwy3GU8ap
+tUiLPjz5nkPn5ZJT5ZXLPGDcZ3caQsfkMAp1epoAuSQ
+4ScsM6AVowhKTMWaH98NLntKDwbu2ZMEycUk4mZiZppG
+Hb34PTth6CeFziPAAEUMEjJFHWJg1dDex5QxUXKNqRBE
+9ek1PMvLhpbwZe7kTMyCVY5VNqrdSPPoruFPQtbxnZyf
+```
+
+Undelegated due to the use of an outdated binary:
+```
+9UHXFYuMLhuugndt8xCFRydmDPFyEEUHYc72tNANEtHp
+5Y86A7fUX3LYVDDeoujtAiZFudYcHJq6gw8nsp71wN7U
+HYWjn6yL8y7TBPFL9bTgDm6tHgyoEQupgJuBhLLoA5EY
+4JCpbdhiQFKWwhrbkNDbwcwBGZnvU4WQrF2vqQLfmZvW
+2f7JaYmmrMQQMczLX32ogfP7PBHeyPKbAVNjjEsExZVd
+9TW55JrsFhsMoe3Tf8LBR4bPSCX86VXyvioMmCw9tWB
+AyN34XqUi5XxgjmivWG2z6TftkqAFjVV5C9zCbx8Fvp5
+skNS4zNsKdbbUR9wFTJoPdmReW4NdrDEpp8512TNG4f
+DztUnMKM545sdipgqhCsPNhK3YVmBbS2fp9HZgM5Jpw9
+GnLmx1s7g9nH3uLRhGpaXTbQEhCSKB6YenBQWQhthSx9
+GoJjAkH5hpcPYeW7JDUVfHdqgcufjwdhY2PLwBGJV3Ar
+EdHVMTXpLiBbvCUnEoSPQ86pBNY1h9HtL34Q7cpNPWCy
+```
+
+Undelegated due to increased operation costs or profit margin:
+```
+Erw9AQ4UJCgCiAWisUWbFk9Yedm8qvW4YQqmJRrBrE5p
+BVDVtmNbZRgPKU81uBkrgfj5TnhtZqQcPAwxD48jcfMd
+36nmH3kawhAsNA6sxFva2HgTnQHQDbcrRefvWWbmhHvY
+2831fyXRAJ88x1Pd5aW7utw7WH1XkHZEfoWhLk2foLxJ
+AMDS4cib433iRstwP9mWnZ4zPqb6hm6uPF7PpvhSkpYC
+DE9eEeVsuiKeVfwebg5HYsebqRUvxd7LWsT9hQUtVrTQ
+FAKhiQ8nW5sAWAxks1WB8u1MAWsapToCSE3KmF9LuGRQ
+```
+
+Undelegated due to being blacklisted for extensive period
+```
+sjL9n9ymxfWWwkQJxXdsMkdwamXfh3AJ3vCe7rJ8RrT
+E2HAJrHnk56QZDUCkcjc4i4pVEqtyuPYL5bNFYtweQuL
+4PytR3tmodsvqGTKdY47yie8kmrkARQdb5Ht3Ro3ChH4
+```
+~~~
+
+---
+
 ## `v2024.11-wedel`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.11-wedel)
@@ -19,7 +244,6 @@ rustc Version:      1.80.1
 rustc Channel:      stable
 cargo Profile:      release
 ```
-
 
 ### Features
 

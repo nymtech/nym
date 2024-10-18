@@ -31,9 +31,15 @@
 - [RPC Nodes](nyx/rpc-node.md)
 - [Ledger Live Support](nyx/ledger-live.md)
 
-# Coconut
-- [Coconut](coconut.md)
-- [Bandwidth Credentials](bandwidth-credentials.md)
+# zkNyms (prev. Coconut)
+- [What are zk-nyms?](zknym/what-are-zknyms.md)
+- [zk-nym Generation & Useage: Overview](zknym/zknym-overview.md)
+  - [Feature: Unlinkability](zknym/unlinkability.md)
+  - [Feature: Double Spend Protection](zknym/double-spend-prot.md)
+  - [Feature: Rerandomisation & Incremental Spend](zknym/rerandomise.md)
+- [Archive](zknym/archive.md)
+  - [Coconut](zknym/coconut.md)
+  - [Bandwidth Credentials](zknym/bandwidth-credentials.md)
 
 # Tools
 - [NymCLI](tools/nym-cli.md)

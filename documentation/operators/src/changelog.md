@@ -58,7 +58,7 @@ cargo Profile:      release
 - Fresh client on new binary && gateway on old binary
 - Fresh client on old binary && gateway on new binary
 - Fresh client on new binary && gateway new binary 
-- Existing old client on old binary && new gateway 
+- Existing old client on old binary & new gateway 
 ~~~
  
 - [Build and Push CI](https://github.com/nymtech/nym/pull/4887)
@@ -73,7 +73,7 @@ cargo Profile:      release
 
 - [Fix clippy for beta toolchain](https://github.com/nymtech/nym/pull/4897): 
 
-- [Update cargo deny](https://github.com/nymtech/nym/pull/4901): Update to use latest `cargo-deny`.
+- [Update cargo deny](https://github.com/nymtech/nym/pull/4901): Update to use latest `cargo-deny`. Here are the steps done:
   - Regenerate `deny.toml`
   - Backport old settings to `deny.toml`
   - Explicitly allow GPL-3 only on our own specific crates
@@ -83,6 +83,9 @@ cargo Profile:      release
 
 - [Data Observatory stub](https://github.com/nymtech/nym/pull/4905): You need Postgres up for `sqlx` compile-time checked queries to work
 ~~~admonish example collapsible=true title='Try yourself'
+
+- Get [`page_up.sh` script](https://github.com/nymtech/nym/blob/develop/nym-data-observatory/pg_up.sh)
+
 ```bash
 ./pg_up.sh
 ```
@@ -116,7 +119,7 @@ psql -U youruser -d yourdb
 
 - [Fix missing duplication of modified tables](https://github.com/nymtech/nym/pull/4904)
 
-- [Fix nymvpn.com url in mainnet defaults](https://github.com/nymtech/nym/pull/4920): The old URL (nympvn.net) works since it is redirected to nymvpn.com, but the extra roundtrip adds latency to all the API calls the vpn client does. So this PR should help speed things up, in particular when these API calls happen across the mixnet.
+- [Fix nymvpn.com url in mainnet defaults](https://github.com/nymtech/nym/pull/4920): The old URL (nympvn.net) works since it is redirected to nymvpn.com, but the extra round-trip adds latency to all the API calls the vpn client does. So this PR should help speed things up, in particular when these API calls happen across the mixnet.
 
 - [Fix handle drop](https://github.com/nymtech/nym/pull/4934)
 

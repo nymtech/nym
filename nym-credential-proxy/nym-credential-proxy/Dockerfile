@@ -26,6 +26,8 @@ RUN cargo build --release
 
 FROM ubuntu:24.04
 
+RUN apt update && apt install -yy curl ca-certificates
+
 WORKDIR /nym
 
 COPY --from=builder /usr/src/nym/nym-credential-proxy/target/release/nym-credential-proxy ./

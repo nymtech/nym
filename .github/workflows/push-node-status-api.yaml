@@ -26,10 +26,10 @@ jobs:
           git config --global user.name "Lawrence Stalder"
 
       - name: Get version from cargo.toml
-        uses: sergeysova/jq-action@v2
+        uses: mikefarah/yq@v4.44.3
         id: get_version
         with:
-          cmd: jq -r '.version' ${{ env.WORKING_DIRECTORY }}/cargo.toml
+          cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
 
       # - name: Check if tag exists
       #   run: |
@@ -51,5 +51,5 @@ jobs:
 
       - name: BuildAndPushImageOnHarbor
         run: |
-          docker build -f nym-network-monitor.dockerfile ${{ env.WORKING_DIRECTORY }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.value }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
+          docker build -f ${{ env.WORKING_DIRECTORY }}.Dockerfile ${{ env.WORKING_DIRECTORY }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.value }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
           docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags

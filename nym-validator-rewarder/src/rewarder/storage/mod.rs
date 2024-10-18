@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::rewarder::{extract_rewarding_results, BlockSigningDetails};
 use crate::{
     error::NymRewarderError,
     rewarder::{
@@ -163,14 +164,77 @@ impl RewarderStorage {
         Ok(())
     }
 
-    pub(crate) async fn save_rewarding_information(
+    pub(crate) async fn save_block_signing_rewarding_information(
         &self,
-        reward: EpochRewards,
+        details: BlockSigningDetails,
         rewarding_result: Result<RewardingResult, NymRewarderError>,
-        // total_spent: Coin,
-        // rewarding_tx: Result<Hash, NymRewarderError>,
     ) -> Result<(), NymRewarderError> {
-        info!("persisting reward details");
+        info!("persisting block signing reward details");
+        let denom = &details.budget.denom;
+
+        let extracted_results = extract_rewarding_results(rewarding_result, denom);
+        let epoch_id = details.epoch.id;
+
+        // general epoch info
+        self.manager
+            .insert_block_signing_rewarding_epoch(
+                details.epoch,
+                details.budget.to_string(),
+                details.results.is_none(),
+            )
+            .await?;
+
+        let Some(results) = details.results else {
+            // no information to save as it's disabled
+            return Ok(());
+        };
+
+        let results = match results {
+            Ok(results) => results,
+            Err(err) => {
+                todo!("actually, what now? why can it even fail? to re-investigate")
+            }
+        };
+
+        self.manager
+            .insert_block_signing_rewarding_details(
+                epoch_id,
+                results.total_voting_power_at_epoch_start,
+                results.blocks,
+                extracted_results.total_spent.to_string(),
+                extracted_results.rewarding_tx,
+                extracted_results.rewarding_err,
+                extracted_results.monitor_only,
+            )
+            .await?;
+
+        for validator in results.validators {
+            let reward_amount = validator.reward_amount(&details.budget).to_string();
+            self.manager
+                .insert_rewarding_epoch_block_signing_reward(
+                    epoch_id,
+                    validator.validator.consensus_address,
+                    validator.operator_account.to_string(),
+                    validator.whitelisted,
+                    reward_amount,
+                    validator.voting_power_at_epoch_start,
+                    validator.voting_power_ratio.to_string(),
+                    validator.signed_blocks,
+                    validator.ratio_signed.to_string(),
+                )
+                .await?;
+        }
+
+        Ok(())
+    }
+
+    /*
+    pub(crate) async fn save_block_signing_rewarding_information(
+        &self,
+        reward: BlockSigningDetails,
+        rewarding_result: Result<RewardingResult, NymRewarderError>,
+    ) -> Result<(), NymRewarderError> {
+        info!("persisting block signing reward details");
         let denom = &reward.total_budget.denom;
 
         let (reward_tx, total_spent, reward_err) = match rewarding_result {
@@ -284,4 +348,5 @@ impl RewarderStorage {
 
         Ok(())
     }
+     */
 }

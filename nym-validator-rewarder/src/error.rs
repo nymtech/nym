@@ -48,6 +48,9 @@ pub enum NymRewarderError {
     #[error("there already exists a config file at: {}. if you want to overwrite its content, use --force flag", path.display())]
     ExistingConfig { path: PathBuf },
 
+    #[error("neither block signing nor ticketbook issuance is enabled")]
+    RewardingModulesDisabled,
+
     // TODO: I think this one should get split into more, explicit, variants
     #[error(transparent)]
     NyxdFailure(#[from] NyxdError),

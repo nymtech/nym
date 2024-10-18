@@ -24,7 +24,8 @@ reward_history = '{{ storage_paths.reward_history }}'
 # Specifies total budget for the epoch
 epoch_budget = '{{ rewarding.epoch_budget }}'
 
-epoch_duration = '{{ rewarding.epoch_duration }}'
+# Duration of block signing epoch.
+block_signing_epoch_duration = '{{ rewarding.epoch_duration }}'
 
 [rewarding.ratios]
 # The percent of the epoch reward being awarded for block signing.

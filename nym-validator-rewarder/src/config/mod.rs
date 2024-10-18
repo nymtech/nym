@@ -27,10 +27,13 @@ mod template;
 const DEFAULT_REWARDER_DIR: &str = "validators-rewarder";
 
 #[allow(clippy::inconsistent_digit_grouping)]
+const DEFAULT_DAILY_REWARDING_BUDGET: u128 = 24000_000000;
+
+#[allow(clippy::inconsistent_digit_grouping)]
 const DEFAULT_MIX_REWARDING_BUDGET: u128 = 1000_000000;
 const DEFAULT_MIX_REWARDING_DENOM: &str = "unym";
 
-const DEFAULT_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
+const DEFAULT_BLOCK_SIGNING_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
 const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(10 * 60);
 const DEFAULT_MONITOR_MIN_VALIDATE: usize = 10;
 const DEFAULT_MONITOR_SAMPLING_RATE: f64 = 0.10;
@@ -79,7 +82,7 @@ pub struct Config {
 
     #[zeroize(skip)]
     #[serde(default)]
-    pub issuance_monitor: IssuanceMonitor,
+    pub ticketbook_issuance: TicketbookIssuance,
 
     #[zeroize(skip)]
     pub nyxd_scraper: NyxdScraper,
@@ -103,7 +106,7 @@ impl Config {
             save_path: None,
             rewarding: Rewarding::default(),
             block_signing: Default::default(),
-            issuance_monitor: IssuanceMonitor::default(),
+            ticketbook_issuance: TicketbookIssuance::default(),
             nyxd_scraper: NyxdScraper {
                 websocket_url,
                 pruning: Default::default(),
@@ -127,7 +130,8 @@ impl Config {
 
     pub fn validate(&self) -> Result<(), NymRewarderError> {
         self.rewarding.ratios.validate()?;
-        self.nyxd_scraper.validate(self.rewarding.epoch_duration)?;
+        self.nyxd_scraper
+            .validate(self.block_signing.epoch_duration)?;
         Ok(())
     }
 
@@ -171,6 +175,37 @@ impl Config {
     pub fn save_to_path<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         save_formatted_config_to_file(self, path)
     }
+
+    pub fn will_attempt_to_send_rewards(&self) -> bool {
+        (self.block_signing.enabled && !self.block_signing.monitor_only)
+            || (self.ticketbook_issuance.enabled && !self.ticketbook_issuance.monitor_only)
+    }
+
+    /// Returns the total rewarding budget for block signing for given epoch
+    pub fn block_signing_epoch_budget(&self) -> Coin {
+        // it doesn't have to be exact to sub micronym precision
+        let daily_block_signing_budget =
+            self.rewarding.daily_budget.amount as f64 * self.rewarding.ratios.block_signing;
+
+        // how many epochs per day are there?
+        let epoch_ratio = self.block_signing.epoch_duration.as_secs_f64() / (24. * 60. * 60.);
+
+        let epoch_budget = (daily_block_signing_budget * epoch_ratio) as u128;
+        Coin::new(epoch_budget, &self.rewarding.daily_budget.denom)
+    }
+
+    /// Returns the total rewarding budget for ticketbook issuance for given day
+    pub fn ticketbook_issuance_daily_budget(&self) -> Coin {
+        // it doesn't have to be exact to sub micronym precision
+        let daily_ticketbook_issuance_budget =
+            self.rewarding.daily_budget.amount as f64 * self.rewarding.ratios.credential_issuance;
+
+        let ticketbook_issuance_budget = daily_ticketbook_issuance_budget as u128;
+        Coin::new(
+            ticketbook_issuance_budget,
+            &self.rewarding.daily_budget.denom,
+        )
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Zeroize, ZeroizeOnDrop)]
@@ -186,12 +221,9 @@ pub struct Base {
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct Rewarding {
-    /// Specifies total budget for the epoch
+    /// Specifies total budget for a 24h period
     #[serde_as(as = "DisplayFromStr")]
-    pub epoch_budget: Coin,
-
-    #[serde(with = "humantime_serde")]
-    pub epoch_duration: Duration,
+    pub daily_budget: Coin,
 
     pub ratios: RewardingRatios,
 }
@@ -199,8 +231,7 @@ pub struct Rewarding {
 impl Default for Rewarding {
     fn default() -> Self {
         Rewarding {
-            epoch_budget: Coin::new(DEFAULT_MIX_REWARDING_BUDGET, DEFAULT_MIX_REWARDING_DENOM),
-            epoch_duration: DEFAULT_EPOCH_DURATION,
+            daily_budget: Coin::new(DEFAULT_DAILY_REWARDING_BUDGET, DEFAULT_MIX_REWARDING_DENOM),
             ratios: RewardingRatios::default(),
         }
     }
@@ -287,6 +318,10 @@ pub struct BlockSigning {
     /// Specifies whether rewards for block signing is enabled.
     pub enabled: bool,
 
+    /// Duration of block signing epoch.
+    #[serde(with = "humantime_serde")]
+    pub epoch_duration: Duration,
+
     /// Specifies whether to only monitor and not send rewards.
     pub monitor_only: bool,
 
@@ -299,6 +334,7 @@ impl Default for BlockSigning {
     fn default() -> Self {
         BlockSigning {
             enabled: true,
+            epoch_duration: DEFAULT_BLOCK_SIGNING_EPOCH_DURATION,
             monitor_only: false,
             whitelist: vec![],
         }
@@ -306,30 +342,30 @@ impl Default for BlockSigning {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct IssuanceMonitor {
+pub struct TicketbookIssuance {
     /// Specifies whether credential issuance monitoring (and associated rewards) are enabled.
     pub enabled: bool,
 
-    #[serde(with = "humantime_serde")]
-    pub run_interval: Duration,
+    /// Specifies whether to only monitor and not send rewards.
+    pub monitor_only: bool,
 
-    /// Defines the minimum number of credentials the monitor will validate
+    /// Defines the minimum number of ticketbooks the monitor will validate
     /// regardless of the sampling rate
     pub min_validate_per_issuer: usize,
 
-    /// The sampling rate of the issued credentials
+    /// The sampling rate of the issued ticketbooks
     pub sampling_rate: f64,
 
     /// List of validators that will receive rewards for credential issuance.
-    /// If not on the list, the validator will be treated as if it hadn't issued a single credential.
+    /// If not on the list, the validator will be treated as if it hadn't issued a single ticketbook.
     pub whitelist: Vec<AccountId>,
 }
 
-impl Default for IssuanceMonitor {
+impl Default for TicketbookIssuance {
     fn default() -> Self {
-        IssuanceMonitor {
+        TicketbookIssuance {
             enabled: false,
-            run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
+            monitor_only: false,
             min_validate_per_issuer: DEFAULT_MONITOR_MIN_VALIDATE,
             sampling_rate: DEFAULT_MONITOR_SAMPLING_RATE,
             whitelist: vec![],

@@ -54,7 +54,7 @@ pub(crate) struct ApiDoc;
 
 #[derive(OpenApi)]
 #[openapi(
-    info(title = "Nym VPN Api"),
+    info(title = "Nym Credential Proxy Api"),
     paths(
         api::v1::ticketbook::obtain_ticketbook_shares,
         api::v1::ticketbook::obtain_ticketbook_shares_async,

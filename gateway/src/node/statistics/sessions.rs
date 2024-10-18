@@ -57,7 +57,7 @@ impl SessionStatsHandler {
             .insert_unique_user(self.last_update_day, client.as_base58_string())
             .await?;
         self.storage
-            .insert_active_sessions(client, ActiveSession::new(start_time))
+            .insert_active_session(client, ActiveSession::new(start_time))
             .await?;
         Ok(())
     }
@@ -70,7 +70,7 @@ impl SessionStatsHandler {
         if let Some(session) = self.storage.get_active_session(client).await? {
             if let Some(finished_session) = session.end_at(stop_time) {
                 self.storage
-                    .insert_finished_sessions(self.last_update_day, finished_session)
+                    .insert_finished_session(self.last_update_day, finished_session)
                     .await?;
             }
         }
@@ -88,26 +88,39 @@ impl SessionStatsHandler {
         Ok(())
     }
 
+    pub(crate) async fn on_start(&mut self) -> Result<(), StatsStorageError> {
+        let yesterday = OffsetDateTime::now_utc().date() - Duration::DAY;
+        //publish yesterday's data if any
+        self.publish_stats(yesterday).await?;
+        //cleanup active sessions
+        self.storage.cleanup_active_sessions().await?;
+        //reset stats
+        self.reset_stats(yesterday).await?;
+        Ok(())
+    }
+
     //update shared state once a day has passed, with data from the previous day
-    pub(crate) async fn update_shared_state(
+    async fn publish_stats(&mut self, stats_date: Date) -> Result<(), StatsStorageError> {
+        let finished_sessions = self.storage.get_finished_sessions(stats_date).await?;
+        let user_count = self.storage.get_unique_users(stats_date).await?;
+        {
+            let mut shared_state = self.shared_session_stats.write().await;
+            shared_state.update_time = stats_date;
+            shared_state.unique_active_users = user_count as u32;
+            shared_state.session_started = self.sessions_started;
+            shared_state.sessions = finished_sessions.iter().map(|s| s.serialize()).collect();
+        }
+
+        Ok(())
+    }
+    pub(crate) async fn maybe_update_shared_state(
         &mut self,
         update_time: OffsetDateTime,
     ) -> Result<(), StatsStorageError> {
         let update_date = update_time.date();
         if update_date != self.last_update_day {
-            let finished_sessions = self
-                .storage
-                .get_finished_sessions(self.last_update_day)
-                .await?;
-            let user_count = self.storage.get_unique_users(self.last_update_day).await?;
-            {
-                let mut shared_state = self.shared_session_stats.write().await;
-                shared_state.update_time = self.last_update_day;
-                shared_state.unique_active_users = user_count as u32;
-                shared_state.session_started = self.sessions_started;
-                shared_state.sessions = finished_sessions.iter().map(|s| s.serialize()).collect();
-            }
-            self.reset_stats(update_date).await?;
+            self.publish_stats(self.last_update_day).await?;
+            self.reset_stats(self.last_update_day).await?;
         }
         Ok(())
     }

@@ -62,14 +62,14 @@ impl PersistentStatsStorage {
     }
 
     //Sessions fn
-    pub async fn insert_finished_sessions(
+    pub async fn insert_finished_session(
         &self,
         date: Date,
         session: FinishedSession,
     ) -> Result<(), StatsStorageError> {
         Ok(self
             .session_manager
-            .insert_finished_sessions(
+            .insert_finished_session(
                 date,
                 session.duration.whole_milliseconds() as i64,
                 session.typ.to_string().into(),
@@ -116,14 +116,14 @@ impl PersistentStatsStorage {
             .await?)
     }
 
-    pub async fn insert_active_sessions(
+    pub async fn insert_active_session(
         &self,
         client_address: DestinationAddressBytes,
         session: ActiveSession,
     ) -> Result<(), StatsStorageError> {
         Ok(self
             .session_manager
-            .insert_active_sessions(
+            .insert_active_session(
                 client_address.as_base58_string(),
                 session.start,
                 session.typ.to_string().into(),
@@ -160,13 +160,17 @@ impl PersistentStatsStorage {
         Ok(self.session_manager.get_active_users().await?)
     }
 
-    pub async fn delete_active_sessions(
+    pub async fn delete_active_session(
         &self,
         client_address: DestinationAddressBytes,
     ) -> Result<(), StatsStorageError> {
         Ok(self
             .session_manager
-            .delete_active_sessions(client_address.as_base58_string())
+            .delete_active_session(client_address.as_base58_string())
             .await?)
+    }
+
+    pub async fn cleanup_active_sessions(&self) -> Result<(), StatsStorageError> {
+        Ok(self.session_manager.cleanup_active_sessions().await?)
     }
 }

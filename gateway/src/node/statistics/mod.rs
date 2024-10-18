@@ -37,15 +37,26 @@ impl GatewayStatisticsCollector {
     }
 
     async fn update_shared_state(&mut self, update_time: OffsetDateTime) {
-        if let Err(e) = self.session_stats.update_shared_state(update_time).await {
-            error!("Failed to update session stats - {e}")
+        if let Err(e) = self
+            .session_stats
+            .maybe_update_shared_state(update_time)
+            .await
+        {
+            error!("Failed to update session stats - {e}");
         }
         //here goes additionnal stats handler update
     }
 
+    async fn on_start(&mut self) {
+        if let Err(e) = self.session_stats.on_start().await {
+            error!("Failed to cleanup session stats handler - {e}");
+        }
+        //here goes additionnal stats handler start cleanup
+    }
+
     pub async fn run(&mut self, mut shutdown: TaskClient) {
+        self.on_start().await;
         let mut update_interval = tokio::time::interval(STATISTICS_UPDATE_TIMER_INTERVAL);
-        //SW TODO : cleanup handlers on start, in case of ungraceful shutdown
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;

@@ -22,7 +22,7 @@ impl SessionManager {
         SessionManager { connection_pool }
     }
 
-    pub(crate) async fn insert_finished_sessions(
+    pub(crate) async fn insert_finished_session(
         &self,
         date: Date,
         duration_ms: i64,
@@ -88,7 +88,7 @@ impl SessionManager {
         Ok(())
     }
 
-    pub(crate) async fn insert_active_sessions(
+    pub(crate) async fn insert_active_session(
         &self,
         client_address_b58: String,
         start_time: OffsetDateTime,
@@ -139,13 +139,20 @@ impl SessionManager {
             .collect())
     }
 
-    pub(crate) async fn delete_active_sessions(&self, client_address_b58: String) -> Result<()> {
+    pub(crate) async fn delete_active_session(&self, client_address_b58: String) -> Result<()> {
         sqlx::query!(
             "DELETE FROM sessions_active WHERE client_address = ?",
             client_address_b58
         )
         .execute(&self.connection_pool)
         .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn cleanup_active_sessions(&self) -> Result<()> {
+        sqlx::query!("DELETE FROM sessions_active")
+            .execute(&self.connection_pool)
+            .await?;
         Ok(())
     }
 }

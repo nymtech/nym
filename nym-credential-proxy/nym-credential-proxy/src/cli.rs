@@ -48,7 +48,11 @@ pub struct Cli {
     pub mnemonic: bip39::Mnemonic,
 
     /// Bearer token for accessing the http endpoints.
-    #[clap(long, env = "NYM_CREDENTIAL_PROXY_AUTH_TOKEN", alias = "http-bearer-token")]
+    #[clap(
+        long,
+        env = "NYM_CREDENTIAL_PROXY_AUTH_TOKEN",
+        alias = "http-bearer-token"
+    )]
     pub(crate) http_auth_token: String,
 
     #[clap(long, env = "NYM_CREDENTIAL_PROXY_PERSISTENT_STORAGE_STORAGE")]

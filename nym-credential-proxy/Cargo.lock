@@ -2321,6 +2321,7 @@ dependencies = [
  "rand",
  "serde",
  "sha2 0.9.9",
+ "subtle 2.6.1",
  "thiserror",
  "zeroize",
 ]

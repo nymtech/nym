@@ -27,7 +27,7 @@ use crate::{error::Error, peer_handle::SharedBandwidthStorageManager};
 pub enum PeerControlRequest {
     AddPeer {
         peer: Peer,
-        ticket_validation: bool,
+        client_id: Option<i64>,
         response_tx: oneshot::Sender<AddPeerControlResponse>,
     },
     RemovePeer {
@@ -46,7 +46,6 @@ pub enum PeerControlRequest {
 
 pub struct AddPeerControlResponse {
     pub success: bool,
-    pub client_id: Option<i64>,
 }
 
 pub struct RemovePeerControlResponse {
@@ -118,13 +117,13 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
     }
 
     // Function that should be used for peer insertion, to handle both storage and kernel interaction
-    pub async fn add_peer(&self, peer: &Peer, with_client_id: bool) -> Result<Option<i64>, Error> {
-        let client_id = self
-            .storage
-            .insert_wireguard_peer(peer, with_client_id)
-            .await?;
-        let ret = self.wg_api.inner.configure_peer(peer);
-        if ret.is_err() {
+    pub async fn add_peer(&self, peer: &Peer, client_id: Option<i64>) -> Result<(), Error> {
+        if client_id.is_none() {
+            self.storage.insert_wireguard_peer(peer, false).await?;
+        }
+        let ret: Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> =
+            self.wg_api.inner.configure_peer(peer);
+        if client_id.is_none() && ret.is_err() {
             // Try to revert the insertion in storage
             if self
                 .storage
@@ -135,8 +134,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                 log::error!("The storage has been corrupted. Wireguard peer {} will persist in storage indefinitely.", peer.public_key);
             }
         }
-        ret?;
-        Ok(client_id)
+        Ok(ret?)
     }
 
     // Function that should be used for peer removal, to handle both storage and kernel interaction
@@ -179,9 +177,9 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
     async fn handle_add_request(
         &mut self,
         peer: &Peer,
-        with_client_id: bool,
-    ) -> Result<Option<i64>, Error> {
-        let client_id = self.add_peer(peer, with_client_id).await?;
+        client_id: Option<i64>,
+    ) -> Result<(), Error> {
+        self.add_peer(peer, client_id).await?;
         let bandwidth_storage_manager =
             Self::generate_bandwidth_manager(self.storage.clone(), &peer.public_key)
                 .await?
@@ -201,7 +199,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                 log::error!("Peer handle shut down ungracefully - {e}");
             }
         });
-        Ok(client_id)
+        Ok(())
     }
 
     async fn handle_query_peer(&self, key: &Key) -> Result<Option<Peer>, Error> {
@@ -260,12 +258,12 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                 }
                 msg = self.request_rx.recv() => {
                     match msg {
-                        Some(PeerControlRequest::AddPeer { peer, ticket_validation, response_tx }) => {
-                            let ret = self.handle_add_request(&peer, ticket_validation).await;
-                            if let Ok(client_id) = ret {
-                                response_tx.send(AddPeerControlResponse { success: true, client_id }).ok();
+                        Some(PeerControlRequest::AddPeer { peer, client_id, response_tx }) => {
+                            let ret = self.handle_add_request(&peer, client_id).await;
+                            if ret.is_ok() {
+                                response_tx.send(AddPeerControlResponse { success: true }).ok();
                             } else {
-                                response_tx.send(AddPeerControlResponse { success: false, client_id: None }).ok();
+                                response_tx.send(AddPeerControlResponse { success: false }).ok();
                             }
                         }
                         Some(PeerControlRequest::RemovePeer { key, response_tx }) => {

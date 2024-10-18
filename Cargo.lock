@@ -6165,7 +6165,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "0.1.0"
+version = "0.1.1-client-timeouts"
 dependencies = [
  "anyhow",
  "axum 0.7.7",

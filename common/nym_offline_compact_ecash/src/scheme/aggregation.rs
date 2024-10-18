@@ -109,6 +109,10 @@ pub fn aggregate_signatures(
         Err(err) => return Err(err),
     };
 
+    if bool::from(signature.h.is_identity()) {
+        return Err(CompactEcashError::IdentitySignature);
+    }
+
     // Verify the signature
     let tmp = attributes
         .iter()

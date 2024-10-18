@@ -104,11 +104,11 @@ impl RequestInfo {
 fn compute_private_attribute_commitments(
     params: &GroupParameters,
     joined_commitment_hash: &G1Projective,
-    private_attributes: &[Scalar],
+    private_attributes: &[&Scalar],
 ) -> (Vec<Scalar>, Vec<G1Projective>) {
     let (openings, commitments): (Vec<Scalar>, Vec<G1Projective>) = private_attributes
         .iter()
-        .map(|m_j| {
+        .map(|&m_j| {
             let o_j = params.random_scalar();
             (o_j, params.gen1() * o_j + joined_commitment_hash * m_j)
         })
@@ -116,7 +116,44 @@ fn compute_private_attribute_commitments(
 
     (openings, commitments)
 }
+/// Generates a non-identity hash of joined commitment.
+///
+/// This function attempts to create a valid joined commitment and hash by
+/// repeatedly generating a random `joined_commitment_opening` and computing
+/// the corresponding `joined_commitment` and `joined_commitment_hash`.
+/// It continues this process until the `joined_commitment_hash` is not the
+/// identity element.
+fn generate_non_identity_h(
+    params: &GroupParameters,
+    sk_user: &SecretKeyUser,
+    v: &Scalar,
+    expiration_date: Scalar,
+    t_type: Scalar,
+) -> (G1Projective, G1Projective, Scalar) {
+    let gamma = params.gammas();
 
+    loop {
+        let joined_commitment_opening = params.random_scalar();
+
+        // Compute joined commitment for all attributes (public and private)
+        let joined_commitment =
+            params.gen1() * joined_commitment_opening + gamma[0] * sk_user.sk + gamma[1] * v;
+
+        // Compute commitment hash h
+        let joined_commitment_hash = hash_g1(
+            (joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes(),
+        );
+
+        // Check if the joined_commitment_hash is not the identity element
+        if !bool::from(joined_commitment_hash.is_identity()) {
+            return (
+                joined_commitment,
+                joined_commitment_hash,
+                joined_commitment_opening,
+            );
+        }
+    }
+}
 /// Generates a withdrawal request for the given user to request a zk-nym credential wallet.
 ///
 /// # Arguments
@@ -149,22 +186,15 @@ pub fn withdrawal_request(
     let params = ecash_group_parameters();
     // Generate random and unique wallet secret
     let v = params.random_scalar();
-    let joined_commitment_opening = params.random_scalar();
-
-    let gamma = params.gammas();
     let expiration_date = date_scalar(expiration_date);
     let t_type = type_scalar(t_type);
 
-    // Compute joined commitment for all attributes (public and private)
-    let joined_commitment =
-        params.gen1() * joined_commitment_opening + gamma[0] * sk_user.sk + gamma[1] * v;
-
-    // Compute commitment hash h
-    let joined_commitment_hash =
-        hash_g1((joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes());
+    // Generate a non-identity commitment hash
+    let (joined_commitment, joined_commitment_hash, joined_commitment_opening) =
+        generate_non_identity_h(params, sk_user, &v, expiration_date, t_type);
 
     // Compute Pedersen commitments for private attributes (wallet secret and user's secret)
-    let private_attributes = vec![sk_user.sk, v];
+    let private_attributes = vec![&sk_user.sk, &v];
     let (private_attributes_openings, private_attributes_commitments) =
         compute_private_attribute_commitments(params, &joined_commitment_hash, &private_attributes);
 
@@ -180,8 +210,8 @@ pub fn withdrawal_request(
 
     let witness = WithdrawalReqWitness {
         private_attributes,
-        joined_commitment_opening,
-        private_attributes_openings: private_attributes_openings.clone(),
+        joined_commitment_opening: &joined_commitment_opening,
+        private_attributes_openings: &private_attributes_openings,
     };
     let zk_proof = WithdrawalReqProof::construct(&instance, &witness);
 
@@ -196,7 +226,7 @@ pub fn withdrawal_request(
         RequestInfo {
             joined_commitment_hash,
             joined_commitment_opening,
-            private_attributes_openings: private_attributes_openings.clone(),
+            private_attributes_openings,
             wallet_secret: v,
             expiration_date,
             t_type,
@@ -229,6 +259,10 @@ pub fn request_verify(
     let gamma = params.gammas();
     let expiration_date = date_scalar(expiration_date);
     let t_type = type_scalar(t_type);
+
+    if bool::from(req.joined_commitment_hash.is_identity()) {
+        return Err(CompactEcashError::IdentityCommitmentHash);
+    }
 
     let expected_commitment_hash = hash_g1(
         (req.joined_commitment + gamma[2] * expiration_date + gamma[3] * t_type).to_bytes(),
@@ -387,6 +421,9 @@ pub fn issue_verify(
     if req_info.joined_commitment_hash != blind_signature.h {
         return Err(CompactEcashError::IssuanceVerification);
     }
+    if bool::from(blind_signature.h.is_identity()) {
+        return Err(CompactEcashError::IdentitySignature);
+    }
 
     // Unblind the blinded signature on the partial signature
     let blinding_removers = vk_auth
@@ -464,7 +501,12 @@ pub fn verify_partial_blind_signature(
     if num_private_attributes + public_attributes.len() > partial_verification_key.beta_g2.len() {
         return false;
     }
-
+    // Note: This check is useful if someone uses the code of those functions
+    // to verify Pointcheval-Sanders signatures in a context different for their use
+    // in zk-nyms
+    if bool::from(blind_sig.h.is_identity()) {
+        return false;
+    }
     // TODO: we're losing some memory here due to extra allocation,
     // but worst-case scenario (given SANE amount of attributes), it's just few kb at most
     let c_neg = blind_sig.c.to_affine().neg();
@@ -519,4 +561,64 @@ pub fn verify_partial_blind_signature(
         .final_exponentiation()
         .is_identity()
         .into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{generate_non_identity_h, verify_partial_blind_signature};
+    use crate::common_types::BlindedSignature;
+    use crate::ecash_group_parameters;
+    use crate::scheme::keygen::{SecretKeyUser, VerificationKeyAuth};
+    use bls12_381::G1Projective;
+
+    #[test]
+    fn test_generate_non_identity_h() {
+        let params = ecash_group_parameters();
+        // Create dummy values for testing
+        let sk_user = SecretKeyUser {
+            sk: params.random_scalar(),
+        };
+        let v = params.random_scalar();
+        let expiration_date = params.random_scalar();
+        let t_type = params.random_scalar();
+
+        // Generate the commitment and hash
+        let (_, joined_commitment_hash, _) =
+            generate_non_identity_h(params, &sk_user, &v, expiration_date, t_type);
+
+        // Ensure that the joined_commitment_hash is not the identity element
+        assert!(
+            !bool::from(joined_commitment_hash.is_identity()),
+            "Joined commitment hash should not be the identity element"
+        );
+    }
+
+    #[test]
+    fn test_verify_partial_blind_signature_blind_sig_identity() {
+        let params = ecash_group_parameters();
+        let private_attribute_commitments = vec![params.gen1() * params.random_scalar()];
+        let public_attributes = vec![];
+        // Create a blinded signature with h being the identity element
+        let blind_sig = BlindedSignature {
+            h: G1Projective::identity(),
+            c: params.gen1() * params.random_scalar(),
+        };
+        // Create a mock partial verification key
+        let partial_verification_key = VerificationKeyAuth {
+            alpha: params.gen2() * params.random_scalar(),
+            beta_g1: vec![params.gen1() * params.random_scalar()],
+            beta_g2: vec![params.gen2() * params.random_scalar()],
+        };
+
+        // Test with identity h, expecting false
+        assert!(
+            !verify_partial_blind_signature(
+                &private_attribute_commitments,
+                &public_attributes,
+                &blind_sig,
+                &partial_verification_key
+            ),
+            "Expected verification to return false for identity h in blind signature"
+        );
+    }
 }

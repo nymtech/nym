@@ -25,6 +25,7 @@ rayon = { workspace = true, optional = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 ff = { workspace = true }
 group = { workspace = true }
+subtle = { workspace = true }
 
 nym-pemstore = { path = "../pemstore" }
 nym-network-defaults = { path = "../network-defaults", default-features = false }

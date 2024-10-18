@@ -350,6 +350,7 @@ prometheus = { version = "0.13.0" }
 bls12_381 = { git = "https://github.com/jstuczyn/bls12_381", default-features = false, branch = "temp/experimental-serdect" }
 group = { version = "0.13.0", default-features = false }
 ff = { version = "0.13.0", default-features = false }
+subtle = "2.5.0"
 
 # cosmwasm-related
 cosmwasm-schema = "=1.4.3"

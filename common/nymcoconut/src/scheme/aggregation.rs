@@ -253,7 +253,7 @@ mod tests {
 
         let sigs = sks
             .iter()
-            .map(|sk| sign(&params, sk, &attributes).unwrap())
+            .map(|sk| sign(sk, &attributes).unwrap())
             .collect::<Vec<_>>();
 
         // aggregating (any) threshold works

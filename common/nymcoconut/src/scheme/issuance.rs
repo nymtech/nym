@@ -452,11 +452,7 @@ pub fn verify_partial_blind_signature(
 }
 
 /// Creates a Coconut Signature under a given secret key on a set of public attributes only.
-pub fn sign(
-    params: &Parameters,
-    secret_key: &SecretKey,
-    public_attributes: &[&Attribute],
-) -> Result<Signature> {
+pub fn sign(secret_key: &SecretKey, public_attributes: &[&Attribute]) -> Result<Signature> {
     if public_attributes.len() > secret_key.ys.len() {
         return Err(CoconutError::IssuanceMaxAttributes {
             max: secret_key.ys.len(),
@@ -464,13 +460,23 @@ pub fn sign(
         });
     }
 
-    // TODO: why in the python implementation this hash onto the curve is present
-    // while it's not used in the paper? the paper uses random exponent instead.
-    // (the python implementation hashes string representation of all attributes onto the curve,
-    // but I think the same can be achieved by just summing the attributes thus avoiding the unnecessary
-    // transformation. If I'm wrong, please correct me.)
-    let attributes_sum = public_attributes.iter().copied().sum::<Scalar>();
-    let h = hash_g1((params.gen1() * attributes_sum).to_bytes());
+    //Serialize the array structure of the public attributes into a byte array
+    let mut serialized_attributes = Vec::new();
+    //Prepend the length of the entire array (in bytes)
+    let array_len = public_attributes.len() as u64;
+    serialized_attributes.extend_from_slice(&array_len.to_le_bytes());
+    //Serialize each attribute with its length
+    for &attribute in public_attributes.iter() {
+        let attr_bytes = attribute.to_bytes();
+        let attr_len = attr_bytes.len() as u64;
+
+        // Prefix the attribute with its length
+        serialized_attributes.extend_from_slice(&attr_len.to_le_bytes());
+        serialized_attributes.extend_from_slice(&attr_bytes);
+    }
+
+    //Hash the resulting byte array to derive the point H
+    let h = hash_g1(serialized_attributes);
 
     // x + m0 * y0 + m1 * y1 + ... mn * yn
     let exponent = secret_key.x

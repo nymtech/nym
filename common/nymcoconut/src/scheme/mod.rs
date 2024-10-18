@@ -436,8 +436,8 @@ mod tests {
 
         let keypair1 = keygen(&params);
         let keypair2 = keygen(&params);
-        let sig1 = sign(&params, keypair1.secret_key(), &attributes).unwrap();
-        let sig2 = sign(&params, keypair2.secret_key(), &attributes).unwrap();
+        let sig1 = sign(keypair1.secret_key(), &attributes).unwrap();
+        let sig2 = sign(keypair2.secret_key(), &attributes).unwrap();
 
         assert!(verify(
             &params,

@@ -25,7 +25,7 @@ impl Config {
     }
 
     fn default_client_timeout() -> Duration {
-        Duration::from_secs(15)
+        Duration::from_secs(30)
     }
 
     fn default_http_port() -> u16 {
@@ -66,7 +66,7 @@ pub(super) fn read_env_var(env_var: &str) -> anyhow::Result<String> {
     std::env::var(env_var)
         .map_err(|_| anyhow!("You need to set {}", env_var))
         .map(|value| {
-            tracing::trace!("{}={}", env_var, value);
+            tracing::debug!("{}={}", env_var, value);
             value
         })
 }

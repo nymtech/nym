@@ -4,9 +4,9 @@ use nym_task::signal::wait_for_signal;
 
 use crate::config::read_env_var;
 
-mod db;
 mod cli;
 mod config;
+mod db;
 mod http;
 mod logging;
 mod monitor;

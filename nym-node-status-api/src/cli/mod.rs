@@ -11,6 +11,7 @@ fn pretty_build_info_static() -> &'static str {
 #[derive(Parser, Debug)]
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
 pub(crate) struct Cli {
+    // TODO dz add cli arguments + env vars
     /// Path pointing to an env file that configures the Nym API.
     #[clap(short, long)]
     pub(crate) config_env_file: Option<std::path::PathBuf>,

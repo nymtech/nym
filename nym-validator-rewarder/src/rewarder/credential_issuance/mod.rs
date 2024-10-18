@@ -12,6 +12,7 @@ use nym_task::TaskClient;
 use nym_validator_client::nyxd::AccountId;
 use tracing::info;
 
+pub mod helpers;
 mod monitor;
 pub mod types;
 
@@ -36,7 +37,7 @@ impl CredentialIssuance {
 
     pub(crate) fn start_monitor(
         &self,
-        monitor_config: config::IssuanceMonitor,
+        monitor_config: config::TicketbookIssuance,
         nyxd_client: NyxdClient,
         task_client: TaskClient,
     ) {
@@ -55,15 +56,16 @@ impl CredentialIssuance {
         &self,
         current_epoch: Epoch,
     ) -> Result<CredentialIssuanceResults, NymRewarderError> {
-        info!(
-            "looking up credential issuers for epoch {} ({} - {})",
-            current_epoch.id,
-            current_epoch.start_rfc3339(),
-            current_epoch.end_rfc3339()
-        );
-
-        let raw_results = self.monitoring_results.finish_epoch().await;
-
-        Ok(raw_results.into())
+        todo!()
+        // info!(
+        //     "looking up credential issuers for epoch {} ({} - {})",
+        //     current_epoch.id,
+        //     current_epoch.start_rfc3339(),
+        //     current_epoch.end_rfc3339()
+        // );
+        //
+        // let raw_results = self.monitoring_results.finish_epoch().await;
+        //
+        // Ok(raw_results.into())
     }
 }

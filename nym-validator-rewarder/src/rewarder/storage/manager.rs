@@ -23,6 +23,27 @@ impl StorageManager {
         .await
     }
 
+    pub(crate) async fn insert_block_signing_rewarding_epoch(
+        &self,
+        epoch: Epoch,
+        block_signing_budget: String,
+        disabled: bool,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO block_signing_rewarding_epoch (id, start_time, end_time, budget, disabled)
+                VALUES (?, ?, ? ,?, ?)
+            "#,
+            epoch.id,
+            epoch.start_time,
+            epoch.end_time,
+            block_signing_budget,
+            disabled
+        ).execute(&self.connection_pool).await?;
+
+        Ok(())
+    }
+
     pub(crate) async fn insert_rewarding_epoch(
         &self,
         epoch: Epoch,
@@ -31,19 +52,56 @@ impl StorageManager {
         rewarding_tx: Option<String>,
         rewarding_error: Option<String>,
     ) -> Result<(), sqlx::Error> {
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO rewarding_epoch (id, start_time, end_time, budget, spent, rewarding_tx, rewarding_error)
+        //         VALUES (?, ?, ? ,?, ?, ?, ?)
+        //     "#,
+        //     epoch.id,
+        //     epoch.start_time,
+        //     epoch.end_time,
+        //     rewarding_budget,
+        //     total_spent: String,
+        //     rewarding_tx,
+        //     rewarding_error
+        // ).execute(&self.connection_pool).await?;
+        //
+        // Ok(())
+    }
+
+    pub(crate) async fn insert_block_signing_rewarding_details(
+        &self,
+        epoch: i64,
+        total_voting_power_at_epoch_start: i64,
+        num_blocks: i64,
+        total_spent: String,
+        rewarding_tx: Option<String>,
+        rewarding_error: Option<String>,
+        monitor_only: bool,
+    ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO rewarding_epoch (id, start_time, end_time, budget, spent, rewarding_tx, rewarding_error)
-                VALUES (?, ?, ? ,?, ?, ?, ?)
+                INSERT INTO block_signing_rewarding_details(
+                    rewarding_epoch_id,
+                    total_voting_power_at_epoch_start,
+                    num_blocks,
+                    spent,
+                    rewarding_tx,
+                    rewarding_error,
+                    monitor_only
+               ) VALUES (?, ?, ?, ?, ?, ?, ?)
             "#,
-            epoch.id,
-            epoch.start_time,
-            epoch.end_time,
-            rewarding_budget,
-            total_spent: String,
+            epoch,
+            total_voting_power_at_epoch_start,
+            num_blocks,
+            total_spent,
             rewarding_tx,
-            rewarding_error
-        ).execute(&self.connection_pool).await?;
+            rewarding_error,
+            monitor_only
+        )
+        .execute(&self.connection_pool)
+        .await?;
 
         Ok(())
     }
@@ -55,18 +113,19 @@ impl StorageManager {
         num_blocks: i64,
         budget: String,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO epoch_block_signing (rewarding_epoch_id, total_voting_power_at_epoch_start, num_blocks, budget)
-                VALUES (?, ?, ?, ?)
-            "#,
-            epoch,
-            total_voting_power_at_epoch_start,
-            num_blocks,
-            budget,
-        ).execute(&self.connection_pool).await?;
-
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO epoch_block_signing (rewarding_epoch_id, total_voting_power_at_epoch_start, num_blocks, budget)
+        //         VALUES (?, ?, ?, ?)
+        //     "#,
+        //     epoch,
+        //     total_voting_power_at_epoch_start,
+        //     num_blocks,
+        //     budget,
+        // ).execute(&self.connection_pool).await?;
+        //
+        // Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -120,27 +179,28 @@ impl StorageManager {
         total_issued_partial_credentials: i64,
         budget: String,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO epoch_credential_issuance (
-                    rewarding_epoch_id,
-                    starting_dkg_epoch, 
-                    ending_dkg_epoch, 
-                    total_issued_partial_credentials,
-                    budget
-                )
-                VALUES (?, ?, ?, ?, ?)
-            "#,
-            epoch,
-            starting_dkg_epoch,
-            ending_dkg_epoch,
-            total_issued_partial_credentials,
-            budget,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO epoch_credential_issuance (
+        //             rewarding_epoch_id,
+        //             starting_dkg_epoch,
+        //             ending_dkg_epoch,
+        //             total_issued_partial_credentials,
+        //             budget
+        //         )
+        //         VALUES (?, ?, ?, ?, ?)
+        //     "#,
+        //     epoch,
+        //     starting_dkg_epoch,
+        //     ending_dkg_epoch,
+        //     total_issued_partial_credentials,
+        //     budget,
+        // )
+        // .execute(&self.connection_pool)
+        // .await?;
+        //
+        // Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -155,32 +215,33 @@ impl StorageManager {
         issued_credentials_share: String,
         validated_issued_credentials: u32,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO credential_issuance_reward (
-                    rewarding_epoch_id,
-                    operator_account,
-                    whitelisted,
-                    amount,
-                    api_endpoint,
-                    issued_partial_credentials,
-                    issued_credentials_share,
-                    validated_issued_credentials
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            "#,
-            epoch,
-            operator_account,
-            whitelisted,
-            amount,
-            api_endpoint,
-            issued_partial_credentials,
-            issued_credentials_share,
-            validated_issued_credentials,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO credential_issuance_reward (
+        //             rewarding_epoch_id,
+        //             operator_account,
+        //             whitelisted,
+        //             amount,
+        //             api_endpoint,
+        //             issued_partial_credentials,
+        //             issued_credentials_share,
+        //             validated_issued_credentials
+        //         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        //     "#,
+        //     epoch,
+        //     operator_account,
+        //     whitelisted,
+        //     amount,
+        //     api_endpoint,
+        //     issued_partial_credentials,
+        //     issued_credentials_share,
+        //     validated_issued_credentials,
+        // )
+        // .execute(&self.connection_pool)
+        // .await?;
+        //
+        // Ok(())
     }
 
     pub(crate) async fn insert_validated_deposit(
@@ -191,25 +252,26 @@ impl StorageManager {
         signed_plaintext: Vec<u8>,
         signature_bs58: String,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO validated_deposit (
-                    operator_identity_bs58,
-                    credential_id,
-                    deposit_id,
-                    signed_plaintext,
-                    signature_bs58
-                ) VALUES (?, ?, ?, ?, ?)
-            "#,
-            operator_identity_bs58,
-            credential_id,
-            deposit_id,
-            signed_plaintext,
-            signature_bs58
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO validated_deposit (
+        //             operator_identity_bs58,
+        //             credential_id,
+        //             deposit_id,
+        //             signed_plaintext,
+        //             signature_bs58
+        //         ) VALUES (?, ?, ?, ?, ?)
+        //     "#,
+        //     operator_identity_bs58,
+        //     credential_id,
+        //     deposit_id,
+        //     signed_plaintext,
+        //     signature_bs58
+        // )
+        // .execute(&self.connection_pool)
+        // .await?;
+        // Ok(())
     }
 
     pub(crate) async fn get_deposit_credential_id(
@@ -217,18 +279,19 @@ impl StorageManager {
         operator_identity_bs58: String,
         deposit_id: DepositId,
     ) -> Result<Option<i64>, sqlx::Error> {
-        Ok(sqlx::query!(
-            r#"
-                SELECT credential_id
-                FROM validated_deposit
-                WHERE operator_identity_bs58 = ? AND deposit_id = ?
-            "#,
-            operator_identity_bs58,
-            deposit_id
-        )
-        .fetch_optional(&self.connection_pool)
-        .await?
-        .map(|record| record.credential_id))
+        todo!()
+        // Ok(sqlx::query!(
+        //     r#"
+        //         SELECT credential_id
+        //         FROM validated_deposit
+        //         WHERE operator_identity_bs58 = ? AND deposit_id = ?
+        //     "#,
+        //     operator_identity_bs58,
+        //     deposit_id
+        // )
+        // .fetch_optional(&self.connection_pool)
+        // .await?
+        // .map(|record| record.credential_id))
     }
 
     pub(crate) async fn insert_double_signing_evidence(
@@ -240,27 +303,28 @@ impl StorageManager {
         signed_plaintext: Vec<u8>,
         signature_bs58: String,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO double_signing_evidence (
-                    operator_identity_bs58,
-                    credential_id,
-                    original_credential_id,
-                    deposit_id,
-                    signed_plaintext,
-                    signature_bs58
-                ) VALUES (?, ?, ?, ?, ?, ?)
-            "#,
-            operator_identity_bs58,
-            credential_id,
-            original_credential_id,
-            deposit_id,
-            signed_plaintext,
-            signature_bs58
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO double_signing_evidence (
+        //             operator_identity_bs58,
+        //             credential_id,
+        //             original_credential_id,
+        //             deposit_id,
+        //             signed_plaintext,
+        //             signature_bs58
+        //         ) VALUES (?, ?, ?, ?, ?, ?)
+        //     "#,
+        //     operator_identity_bs58,
+        //     credential_id,
+        //     original_credential_id,
+        //     deposit_id,
+        //     signed_plaintext,
+        //     signature_bs58
+        // )
+        // .execute(&self.connection_pool)
+        // .await?;
+        // Ok(())
     }
 
     pub(crate) async fn insert_foul_play_evidence(
@@ -272,27 +336,28 @@ impl StorageManager {
         signature_bs58: String,
         failure_message: String,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO issuance_evidence (
-                    operator_account,
-                    operator_identity_bs58,
-                    credential_id,
-                    signed_plaintext,
-                    signature_bs58,
-                    failure_message
-                ) VALUES (?, ?, ?, ?, ?, ?)
-            "#,
-            operator_account,
-            operator_identity_bs58,
-            credential_id,
-            signed_plaintext,
-            signature_bs58,
-            failure_message,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO issuance_evidence (
+        //             operator_account,
+        //             operator_identity_bs58,
+        //             credential_id,
+        //             signed_plaintext,
+        //             signature_bs58,
+        //             failure_message
+        //         ) VALUES (?, ?, ?, ?, ?, ?)
+        //     "#,
+        //     operator_account,
+        //     operator_identity_bs58,
+        //     credential_id,
+        //     signed_plaintext,
+        //     signature_bs58,
+        //     failure_message,
+        // )
+        // .execute(&self.connection_pool)
+        // .await?;
+        // Ok(())
     }
 
     pub(crate) async fn insert_validation_failure_info(
@@ -301,20 +366,21 @@ impl StorageManager {
         operator_identity_bs58: String,
         failure_message: String,
     ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO issuance_validation_failure (
-                    operator_account,
-                    operator_identity_bs58,
-                    failure_message
-                ) VALUES (?, ?, ?)
-            "#,
-            operator_account,
-            operator_identity_bs58,
-            failure_message,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
+        todo!()
+        // sqlx::query!(
+        //     r#"
+        //         INSERT INTO issuance_validation_failure (
+        //             operator_account,
+        //             operator_identity_bs58,
+        //             failure_message
+        //         ) VALUES (?, ?, ?)
+        //     "#,
+        //     operator_account,
+        //     operator_identity_bs58,
+        //     failure_message,
+        // )
+        // .execute(&self.connection_pool)
+        // .await?;
+        // Ok(())
     }
 }

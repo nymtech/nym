@@ -18,30 +18,34 @@ use nym_credentials::ecash::utils::EcashTime;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::TaskClient;
 use nym_validator_client::nym_api::{IssuedTicketbook, IssuedTicketbookBody, NymApiClientExt};
+use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
 use std::cmp::max;
 use tokio::time::interval;
 use tracing::{debug, error, info, instrument, trace};
 
 pub struct CredentialIssuanceMonitor {
+    last_checked_deposit: DepositId,
+
     nyxd_client: NyxdClient,
     monitoring_results: MonitoringResults,
-    config: config::IssuanceMonitor,
+    config: config::TicketbookIssuance,
     storage: RewarderStorage,
 }
 
 impl CredentialIssuanceMonitor {
     pub fn new(
-        config: config::IssuanceMonitor,
+        config: config::TicketbookIssuance,
         nyxd_client: NyxdClient,
         storage: RewarderStorage,
         monitoring_results: MonitoringResults,
     ) -> CredentialIssuanceMonitor {
-        CredentialIssuanceMonitor {
-            config,
-            storage,
-            nyxd_client,
-            monitoring_results,
-        }
+        todo!()
+        // CredentialIssuanceMonitor {
+        //     config,
+        //     storage,
+        //     nyxd_client,
+        //     monitoring_results,
+        // }
     }
 
     fn validate_credential_signature(
@@ -121,7 +125,13 @@ impl CredentialIssuanceMonitor {
         verify_credential(vk, credential)
     }
 
-    #[instrument(skip_all, fields(credential_id = %issued_credential.credential.id, deposit_id = %issued_credential.credential.deposit_id))]
+    #[instrument(
+        skip_all, 
+        fields(
+            credential_id = %issued_credential.credential.id,
+            deposit_id = %issued_credential.credential.deposit_id
+        )
+    )]
     async fn validate_issued_credential(
         &mut self,
         issuer: &CredentialIssuer,
@@ -174,7 +184,15 @@ impl CredentialIssuanceMonitor {
         sampled
     }
 
-    #[instrument(skip(self, issuer, epoch_id), fields(dkg_epoch = epoch_id, issuer = %issuer.operator_account, url = issuer.api_runner), err(Display))]
+    #[instrument(
+        skip(self, issuer, epoch_id),
+        fields(
+            dkg_epoch = epoch_id,
+            issuer = %issuer.operator_account,
+            url = issuer.api_runner
+        ),
+        err(Display)
+    )]
     async fn check_issuer(
         &mut self,
         epoch_id: EpochId,
@@ -239,54 +257,56 @@ impl CredentialIssuanceMonitor {
 
     async fn check_issuers(&mut self) -> Result<(), NymRewarderError> {
         info!("checking credential issuers");
-        let epoch = self.nyxd_client.dkg_epoch().await?;
-        let issuers = self
-            .nyxd_client
-            .get_credential_issuers(epoch.epoch_id)
-            .await?;
-
-        let mut results = Vec::with_capacity(issuers.len());
-
-        for issuer in issuers {
-            // we could parallelize it, but we're running the test so infrequently (relatively speaking)
-            // that doing it sequentially is fine
-            match self.check_issuer(epoch.epoch_id, &issuer).await {
-                Ok(res) => results.push(res),
-                Err(err) => {
-                    let address = &issuer.operator_account;
-                    error!("failed to check credential issuance of {address}: {err}");
-                    self.storage
-                        .insert_issuance_validation_failure_info(&issuer, err.to_string())
-                        .await?;
-                }
-            }
-        }
-
-        self.monitoring_results
-            .append_run_results(epoch.epoch_id as u32, results)
-            .await;
-
-        Ok(())
+        todo!()
+        // let epoch = self.nyxd_client.dkg_epoch().await?;
+        // let issuers = self
+        //     .nyxd_client
+        //     .get_credential_issuers(epoch.epoch_id)
+        //     .await?;
+        //
+        // let mut results = Vec::with_capacity(issuers.len());
+        //
+        // for issuer in issuers {
+        //     // we could parallelize it, but we're running the test so infrequently (relatively speaking)
+        //     // that doing it sequentially is fine
+        //     match self.check_issuer(epoch.epoch_id, &issuer).await {
+        //         Ok(res) => results.push(res),
+        //         Err(err) => {
+        //             let address = &issuer.operator_account;
+        //             error!("failed to check credential issuance of {address}: {err}");
+        //             self.storage
+        //                 .insert_issuance_validation_failure_info(&issuer, err.to_string())
+        //                 .await?;
+        //         }
+        //     }
+        // }
+        //
+        // self.monitoring_results
+        //     .append_run_results(epoch.epoch_id as u32, results)
+        //     .await;
+        //
+        // Ok(())
     }
 
     pub async fn run(&mut self, mut task_client: TaskClient) {
-        info!("starting");
-        let mut run_interval = interval(self.config.run_interval);
-
-        while !task_client.is_shutdown() {
-            tokio::select! {
-                biased;
-                _ = task_client.recv() => {
-                    info!("received shutdown");
-                    break
-                }
-                _ = run_interval.tick() => {
-                    if let Err(err) = self.check_issuers().await {
-                        error!("failed to perform credential issuance check: {err}")
-                    }
-                }
-            }
-        }
+        todo!()
+        // info!("starting");
+        // let mut run_interval = interval(self.config.run_interval);
+        // 
+        // while !task_client.is_shutdown() {
+        //     tokio::select! {
+        //         biased;
+        //         _ = task_client.recv() => {
+        //             info!("received shutdown");
+        //             break
+        //         }
+        //         _ = run_interval.tick() => {
+        //             if let Err(err) = self.check_issuers().await {
+        //                 error!("failed to perform credential issuance check: {err}")
+        //             }
+        //         }
+        //     }
+        // }
     }
 }
 

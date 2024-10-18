@@ -73,9 +73,9 @@ impl EpochSigning {
                 if pagination.next_key.is_empty() {
                     break;
                 }
-                
+
                 if num_results == 0 {
-                    break
+                    break;
                 }
 
                 page_request = Some(PageRequest {

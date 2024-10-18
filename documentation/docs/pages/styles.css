@@ -1,8 +1,6 @@
 body {
-  --colorPrimary: #fb6e4e;
-  --textPrimary: #121726;
-  /* padding: 5px 5px 10px;
-  margin: 0 auto; */
+  --colorPrimary: #fc8469;
+  /* --textPrimary: #121726; */
 }
 
 div.nextra-code-block > div {

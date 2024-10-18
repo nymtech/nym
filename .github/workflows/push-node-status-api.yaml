@@ -1,0 +1,11 @@
+name: Build and upload Node Status API container to harbor.nymte.ch
+
+on:
+  workflow_dispatch:
+
+jobs:
+  my-job:
+    runs-on: arc-ubuntu-22.04
+    steps:
+      - name: my-step
+        run: echo "Hello World!"

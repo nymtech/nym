@@ -25,12 +25,12 @@ use cosmrs::proto::cosmos::tx::signing::v1beta1::SignMode;
 use cosmrs::staking::{MsgDelegate, MsgUndelegate};
 use cosmrs::tx::{self, Msg};
 use cosmrs::{cosmwasm, AccountId, Any, Tx};
-use log::debug;
 use serde::Serialize;
 use sha2::Digest;
 use sha2::Sha256;
 use std::time::SystemTime;
 use tendermint_rpc::endpoint::broadcast;
+use tracing::debug;
 
 fn empty_fee() -> tx::Fee {
     tx::Fee {

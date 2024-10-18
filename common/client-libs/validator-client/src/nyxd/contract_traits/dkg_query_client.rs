@@ -8,9 +8,9 @@ use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmrs::AccountId;
 use cosmwasm_std::Addr;
-use log::trace;
 use nym_coconut_dkg_common::types::{ChunkIndex, NodeIndex, StateAdvanceResponse};
 use serde::Deserialize;
+use tracing::trace;
 
 use nym_coconut_dkg_common::dealer::RegisteredDealerDetails;
 pub use nym_coconut_dkg_common::{

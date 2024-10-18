@@ -121,36 +121,36 @@ async fn test_nyxd_connection(
     {
         Ok(Err(NyxdError::TendermintErrorRpc(e))) => {
             // If we get a tendermint-rpc error, we classify the node as not contactable
-            log::warn!("Checking: nyxd url: {url}: {}: {}", "failed".red(), e);
+            tracing::warn!("Checking: nyxd url: {url}: {}: {}", "failed".red(), e);
             false
         }
         Ok(Err(NyxdError::AbciError { code, log, .. })) => {
             // We accept the mixnet contract not found as ok from a connection standpoint. This happens
             // for example on a pre-launch network.
-            log::debug!(
+            tracing::debug!(
                 "Checking: nyxd url: {url}: {}, but with abci error: {code}: {log}",
                 "success".green()
             );
             code == 18
         }
         Ok(Err(error @ NyxdError::NoContractAddressAvailable(_))) => {
-            log::warn!("Checking: nyxd url: {url}: {}: {error}", "failed".red());
+            tracing::warn!("Checking: nyxd url: {url}: {}: {error}", "failed".red());
             false
         }
         Ok(Err(e)) => {
             // For any other error, we're optimistic and just try anyway.
-            log::warn!(
+            tracing::warn!(
                 "Checking: nyxd_url: {url}: {}, but with error: {e}",
                 "success".green()
             );
             true
         }
         Ok(Ok(_)) => {
-            log::debug!("Checking: nyxd_url: {url}: {}", "success".green());
+            tracing::debug!("Checking: nyxd_url: {url}: {}", "success".green());
             true
         }
         Err(e) => {
-            log::warn!("Checking: nyxd_url: {url}: {}: {e}", "failed".red());
+            tracing::warn!("Checking: nyxd_url: {url}: {}: {e}", "failed".red());
             false
         }
     };
@@ -169,15 +169,15 @@ async fn test_nym_api_connection(
     .await
     {
         Ok(Ok(_)) => {
-            log::debug!("Checking: api_url: {url}: {}", "success".green());
+            tracing::debug!("Checking: api_url: {url}: {}", "success".green());
             true
         }
         Ok(Err(e)) => {
-            log::debug!("Checking: api_url: {url}: {}: {e}", "failed".red());
+            tracing::debug!("Checking: api_url: {url}: {}: {e}", "failed".red());
             false
         }
         Err(e) => {
-            log::debug!("Checking: api_url: {url}: {}: {e}", "failed".red());
+            tracing::debug!("Checking: api_url: {url}: {}: {e}", "failed".red());
             false
         }
     };

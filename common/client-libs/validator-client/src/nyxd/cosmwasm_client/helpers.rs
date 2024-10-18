@@ -7,9 +7,9 @@ use base64::Engine;
 use cosmrs::abci::TxMsgData;
 use cosmrs::cosmwasm::MsgExecuteContractResponse;
 use cosmrs::proto::cosmos::base::query::v1beta1::{PageRequest, PageResponse};
-use log::error;
 use prost::bytes::Bytes;
 use tendermint_rpc::endpoint::broadcast;
+use tracing::error;
 
 pub use cosmrs::abci::MsgResponse;
 

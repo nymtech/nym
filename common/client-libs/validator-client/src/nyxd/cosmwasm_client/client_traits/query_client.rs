@@ -29,9 +29,9 @@ use cosmrs::proto::cosmwasm::wasm::v1::{
 };
 use cosmrs::tendermint::{block, chain, Hash};
 use cosmrs::{AccountId, Coin as CosmosCoin, Tx};
-use log::trace;
 use prost::Message;
 use serde::{Deserialize, Serialize};
+use tracing::trace;
 
 use std::time::Duration;
 use tendermint_rpc::{
@@ -297,7 +297,7 @@ pub trait CosmWasmClient: TendermintRpcClient {
 
         let start = Instant::now();
         loop {
-            log::debug!(
+            tracing::debug!(
                 "Polling for result of including {} in a block...",
                 broadcasted.hash
             );

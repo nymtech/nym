@@ -7,7 +7,9 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log.workspace = true
+# emits `log` records if tracing subscriber hasn't been set
+# https://docs.rs/tracing/latest/tracing/#crate-feature-flags
+tracing = { workspace = true, features = ["log"]}
 nym-explorer-api-requests = { path = "../explorer-api-requests" }
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true

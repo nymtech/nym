@@ -24,7 +24,9 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 nym-http-api-client = { path = "../../../common/http-api-client" }
 thiserror = { workspace = true }
-log = { workspace = true }
+# emits `log` records if tracing subscriber hasn't been set
+# https://docs.rs/tracing/latest/tracing/#crate-feature-flags
+tracing = { workspace = true, features = ["log"]}
 url = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["sync", "time"] }
 time = { workspace = true, features = ["formatting"] }

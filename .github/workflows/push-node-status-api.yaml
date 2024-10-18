@@ -33,23 +33,23 @@ jobs:
 
       - name: Check if tag exists
         run: |
-          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then
-            echo "Tag ${{ steps.get_version.outputs.value }} already exists"
+          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }} >/dev/null 2>&1; then
+            echo "Tag ${{ steps.get_version.outputs.result }} already exists"
           fi
 
       - name: Remove existing tag if exists
         run: |
-          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then
-            git push --delete origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }}
-            git tag -d ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }}
+          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }} >/dev/null 2>&1; then
+            git push --delete origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
+            git tag -d ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
           fi
 
       - name: Create tag
         run: |
-          git tag -a ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }} -m "Version ${{ steps.get_version.outputs.value }}"
-          git push origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }}
+          git tag -a ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }} -m "Version ${{ steps.get_version.outputs.result }}"
+          git push origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
 
       - name: BuildAndPushImageOnHarbor
         run: |
-          docker build -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.value }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
+          docker build -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
           docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags

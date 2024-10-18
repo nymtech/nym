@@ -7,6 +7,7 @@ use nym_crypto::asymmetric::ed25519::PrivateKey;
 use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
 use nym_sdk::mixnet::{self, MixnetClient};
+use nym_sphinx::chunking::monitoring;
 use nym_topology::{HardcodedTopologyProvider, NymTopology};
 use std::fs::File;
 use std::io::Write;
@@ -153,6 +154,9 @@ async fn main() -> Result<()> {
     let args = Args::parse();
 
     setup_env(args.env); // Defaults to mainnet if empty
+
+    // enable monitoring client-side
+    monitoring::enable();
 
     let cancel_token = CancellationToken::new();
     let server_cancel_token = cancel_token.clone();

@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, StreamExt};
 use log::{debug, info};
-use nym_sphinx::chunking::{SentFragment, FRAGMENTS_RECEIVED, FRAGMENTS_SENT};
+use nym_sphinx::chunking::{monitoring, SentFragment};
 use nym_topology::{gateway, mix, NymTopology};
 use nym_types::monitoring::{MonitorMessage, NodeResult};
 use nym_validator_client::nym_api::routes::{API_VERSION, STATUS, SUBMIT_GATEWAY, SUBMIT_NODE};
@@ -115,8 +115,8 @@ impl NetworkAccount {
     }
 
     pub fn empty_buffers() {
-        FRAGMENTS_SENT.clear();
-        FRAGMENTS_RECEIVED.clear();
+        monitoring::FRAGMENTS_SENT.clear();
+        monitoring::FRAGMENTS_RECEIVED.clear();
     }
 
     fn new() -> Self {
@@ -125,7 +125,7 @@ impl NetworkAccount {
             topology,
             ..Default::default()
         };
-        for fragment_set in FRAGMENTS_SENT.iter() {
+        for fragment_set in monitoring::FRAGMENTS_SENT.iter() {
             let sent_fragments = fragment_set
                 .value()
                 .first()
@@ -138,7 +138,7 @@ impl NetworkAccount {
                 sent_fragments
             );
 
-            let recv = FRAGMENTS_RECEIVED.get(fragment_set.key());
+            let recv = monitoring::FRAGMENTS_RECEIVED.get(fragment_set.key());
             let recv_fragments = recv.as_ref().map(|r| r.value().len()).unwrap_or(0);
             debug!(
                 "RECV Fragment set {} has {} fragments",
@@ -170,7 +170,7 @@ impl NetworkAccount {
     }
 
     fn hydrate_all_fragments(&mut self) -> Result<()> {
-        for fragment_set in FRAGMENTS_SENT.iter() {
+        for fragment_set in monitoring::FRAGMENTS_SENT.iter() {
             let fragment_set_id = fragment_set.key();
             for fragment in fragment_set.value() {
                 let route = self.hydrate_route(fragment.clone())?;
@@ -205,7 +205,7 @@ impl NetworkAccount {
     fn find_missing_fragments(&mut self) {
         let mut missing_fragments_map = HashMap::new();
         for fragment_set_id in &self.incomplete_fragment_sets {
-            if let Some(fragment_ref) = FRAGMENTS_RECEIVED.get(fragment_set_id) {
+            if let Some(fragment_ref) = monitoring::FRAGMENTS_RECEIVED.get(fragment_set_id) {
                 if let Some(ref_fragment) = fragment_ref.value().first() {
                     let ref_header = ref_fragment.header();
                     let ref_id_set = (0..ref_header.total_fragments()).collect::<HashSet<u8>>();

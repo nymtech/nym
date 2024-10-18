@@ -225,14 +225,10 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                 .available_bandwidth()
                 .await
         } else {
-            let peer = self
-                .host_information
-                .read()
-                .await
-                .peers
-                .get(key)
-                .ok_or(Error::PeerMismatch)?
-                .clone();
+            let Some(peer) = self.host_information.read().await.peers.get(key).cloned() else {
+                // host information not updated yet
+                return Ok(None);
+            };
             BANDWIDTH_CAP_PER_DAY.saturating_sub((peer.rx_bytes + peer.tx_bytes) as i64)
         };
 

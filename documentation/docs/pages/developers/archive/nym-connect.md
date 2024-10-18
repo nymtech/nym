@@ -33,7 +33,7 @@ To download Electrum visit the [official webpage](https://electrum.org/#download
 4. Set *Use proxy* to ✅, choose `SOCKS5` from the drop-down and add (copy-paste) the values from your NymConnect application
 5. Now your Electrum Bitcoin wallet runs through the Mixnet and it will be connected only if your NymConnect or `nym-socks5-client` are connected.
 
-![Electrum Bitcoin wallet setup](../images/electrum_tutorial/electrum.gif)
+![Electrum Bitcoin wallet setup](/images/developers/electrum.gif)
 
 ### Monero wallet via NymConnect
 
@@ -44,7 +44,6 @@ To download Monero wallet visit [getmonero.org](https://www.getmonero.org/downlo
 3. Go to: *Settings* -> *Interface* -> *Socks5 proxy* -> Add values: IP address `127.0.0.1`, Port `1080` (the values copied from NymConnect)
 5. Now your Monero wallet runs through the Mixnet and it will be connected only if your NymConnect or `nym-socks5-client` are connected.
 
-![Monero wallet setup](../images/monero_tutorial/monero-gui-NC.gif)
 
 ### Matrix (Element) via NymConnect
 

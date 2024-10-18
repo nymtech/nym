@@ -15,7 +15,7 @@ import { Callout } from 'nextra/components'
 
 Generation of zk-nyms involves the following actors / pieces of infrastructure:
 - **Requester needing a zk-nym** for example a single user using the NymVPN app, or  a company purchasing zk-nyms to distribute to their app users, in the instance of an app integrating a Mixnet client via one of the SDKs. The Requester is represented by a Bech32 address on the Nyx blockchain.
-- [NymAPI]() TODO LINK instances working together on signature generation and spent credential validation, referred to as the **NymAPI Quorum**. Members of the Quorum are a subset of the Nyx chain Validator set (other tasks they perform include a multisig used for triggering reward payouts to the Network Infrastructure Node Operators and maintaining the global Bloom Filter for double-spend protection).
+- [NymAPI](../../architecture/nyx/nym-api) instances working together on signature generation and spent credential validation, referred to as the **NymAPI Quorum**. Members of the Quorum are a subset of the Nyx chain Validator set (other tasks they perform include a multisig used for triggering reward payouts to the Network Infrastructure Node Operators and maintaining the global Bloom Filter for double-spend protection).
 - **OrderAPI**: an API creating crypto/fiat to `NYM` swaps and then depositing the NYM tokens in a smart contract managed by the NymAPI Quroum for payment verification. Implementation details of the API will be released in the coming months.
 
 Generation happens in 3 distinct stages:

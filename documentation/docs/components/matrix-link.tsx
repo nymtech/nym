@@ -1,7 +1,7 @@
 import { Box } from "@mui/material";
 import Image from "next/image";
 import Link from "next/link";
-import matrixLogo from "../images/matrix-logo.png";
+import matrixLogo from "../public/images/matrix-logo.png";
 export const Matrix = () => {
   return (
     <Link

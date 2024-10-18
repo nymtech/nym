@@ -1,11 +1,20 @@
 {
+  "index": "Introduction",
   "concepts": "Core Concepts",
-  "integrations": "Integrations",
+  "binaries": "Binaries",
+  "integrations": "Integration Options",
   "clients": "Clients",
   "tools": "Tools",
-  "tutorials": "Tutorials (Coming Soon)",
+  "chain": "Interacting with Nyx",
+  "--": {
+    "type": "separator"
+  },
+  "rust": "Rust SDK",
+  "typescript": "Typescript SDK",
   "---": {
     "type": "separator"
   },
-  "licensing": "Licensing"
+  "archive": "Archive",
+  "licensing": "Licensing",
+  "coc": "Coc"
 }

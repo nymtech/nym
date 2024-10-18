@@ -2,9 +2,8 @@
   "index": "Introduction",
   "concepts": "Core Concepts",
   "architecture": "Architecture",
-  "cryptography": "Crypto",
   "traffic": "Traffic Flow",
-  "rewards": "Rewards",
+  "cryptography": "Crypto",
   "---": {
     "type": "separator"
   },

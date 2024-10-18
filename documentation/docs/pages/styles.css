@@ -1,33 +1,57 @@
 body {
---colorPrimary: #fb6e4e;
---textPrimary: #121726;
+  --colorPrimary: #fb6e4e;
+  --textPrimary: #121726;
+  /* padding: 5px 5px 10px;
+  margin: 0 auto; */
 }
 
-div.nextra-code-block > div  {
-    background:var(--colorPrimary) !important;
+div.nextra-code-block > div {
+  background: var(--colorPrimary) !important;
 }
 
 .nextra-code-block > pre {
-    max-height: 350px !important;
-    scroll-y: auto !important;
+  /* max-height: 350px !important; */
+  max-height: none !important;
+  scroll-y: auto !important;
+}
+
+/* whole div */
+.nx-mx-auto.nx-flex.nx-max-w-\[90rem\] {
+  max-width: 110rem;
+  padding: 0%;
+}
+
+.nextra-toc {
+  width: 370px !important;
+  padding-right: 0px;
+  padding-left: 0px;
+  text-align: right;
+  border-left: 1px solid #262626;
 }
 
 /* Code blocks*/
 .nx-absolute.nx-top-0 {
-    background: var(--colorPrimary) !important;
-    color: var(--textPrimary) !important;
+  background: var(--colorPrimary) !important;
+  color: var(--textPrimary) !important;
 }
 
-
-:is(html[class~=dark] .dark\:nx-bg-primary-300\/10) {
-    background-color: hsl(var(black)100% 77%/.1) !important;
+:is(html[class~="dark"] .dark\:nx-bg-primary-300\/10) {
+  background-color: hsl(var(black) 100% 77%/0.1) !important;
 }
-
 
 /* Sidebar buttons */
-:is(html .dark\:nx-bg-primary-400\/10){
-    background: var(--colorPrimary) !important;
-    color: var(--textPrimary) !important;
+:is(html .dark\:nx-bg-primary-400\/10) {
+  background: var(--colorPrimary) !important;
+  color: var(--textPrimary) !important;
+}
+
+.nextra-sidebar-container {
+  border-right: 1px solid #262626;
+  width: 300px !important;
+}
+
+.nextra-sidebar {
+  column-width: 500px;
 }
 
 /* aside ul > li > a:hover{
@@ -38,71 +62,70 @@ div.nextra-code-block > div  {
     background: #fb6e4e !important;
 } */
 
-
 /* Links*/
 .nx-text-primary-600.nx-underline.nx-decoration-from-font {
-    color: var(--colorPrimary)!important;
+  color: var(--colorPrimary) !important;
 }
 
 .MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineAlways.css-1xr3c94-MuiTypography-root-MuiLink-root {
-    color: var(--colorPrimary) !important;
+  color: var(--colorPrimary) !important;
 }
 
 /* Callouts */
 .nextra-callout {
-    background-color: #fb6e4e21 !important;
+  background-color: #fb6e4e21 !important;
 }
 
 .nx-mt-6 .nx-leading-7 > p {
-    color: var(--colorPrimary)!important;
+  color: var(--colorPrimary) !important;
 }
 
 /* Callout Secondary */
 :is(html .dark\:nx-border-yellow-200\/30) {
-    border-color: transparent !important;
+  border-color: transparent !important;
 }
 
 /* Callout Primary */
 :is(html .dark\:nx-border-blue-200\/30) {
-    border-color: var(--colorPrimary)!important;
+  border-color: var(--colorPrimary) !important;
 }
 
 /* Chips*/
-.chipContained{
-    background-color: var(--colorPrimary) !important;
+.chipContained {
+  background-color: var(--colorPrimary) !important;
 }
 
 /* Buttons */
 .MuiButton-root {
-    color:  var(--colorPrimary) !important;
-    border-color:  var(--colorPrimary) !important;
+  color: var(--colorPrimary) !important;
+  border-color: var(--colorPrimary) !important;
 }
 
 .MuiButton-root:hover {
-    color:  white !important;
-    background-color: var(--colorPrimary) !important;
+  color: white !important;
+  background-color: var(--colorPrimary) !important;
 }
 
 .MuiCircularProgress-root {
-    color: var(--colorPrimary) !important;
+  color: var(--colorPrimary) !important;
 }
 
-.nextra-scrollbar.nx-sticky{
-    color: var(--colorPrimary) !important; 
+.nextra-scrollbar.nx-sticky {
+  color: var(--colorPrimary) !important;
 }
 
 .nx-text-primary-600 {
-    color: var(--colorPrimary) !important;
+  color: var(--colorPrimary) !important;
 }
 
 input:focus-visible {
-    --tw-ring-shadow: var(--colorPrimary) !important;
+  --tw-ring-shadow: var(--colorPrimary) !important;
 }
 
 .Mui-focused > fieldset {
-border-color: var(--colorPrimary) !important;
-} 
+  border-color: var(--colorPrimary) !important;
+}
 
 a.MuiLink-root {
-    color: var(--colorPrimary) !important;
+  color: var(--colorPrimary) !important;
 }

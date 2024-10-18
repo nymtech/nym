@@ -1,5 +1,6 @@
 {
   "required-architecture": "Required Architecture",
   "messages": "Message Based Paradigm",
-  "abstractions": "Connection Abstractions"
+  "message-queue": "Message Queue",
+  "credentials": "Credentials"
 }

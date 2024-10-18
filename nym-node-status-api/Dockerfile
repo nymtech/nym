@@ -7,6 +7,8 @@ RUN cargo build --release
 
 FROM ubuntu:24.04
 
+RUN apt-get update && apt-get install -y ca-certificates
+
 WORKDIR /nym
 
 COPY --from=builder /usr/src/nym/target/release/nym-node-status-api ./

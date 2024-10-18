@@ -17,15 +17,15 @@ pub(crate) struct Cli {
     pub(crate) config_env_file: Option<std::path::PathBuf>,
 
     /// Network name for the network to which we're connecting.
-    #[clap(long, env = "NYM_NODE_STATUS_API_NETWORK_NAME")]
+    #[clap(long, env = "NETWORK_NAME")]
     pub(crate) network_name: String,
 
     /// Explorer api url.
-    #[clap(short, long, env = "NYM_NODE_STATUS_API_EXPLORER_API")]
+    #[clap(short, long, env = "EXPLORER_API")]
     pub(crate) explorer_api: String,
 
     /// Nym api url.
-    #[clap(short, long, env = "NYM_NODE_STATUS_API_NYM_API")]
+    #[clap(short, long, env = "NYM_API")]
     pub(crate) nym_api: String,
 
     /// TTL for the http cache.
@@ -41,7 +41,7 @@ pub(crate) struct Cli {
     pub(crate) http_port: u16,
 
     /// Nyxd address.
-    #[clap(long, env = "NYM_NODE_STATUS_API_NYXD_ADDR")]
+    #[clap(long, env = "NYXD")]
     pub(crate) nyxd_addr: Url,
 
     /// Nym api client timeout.

@@ -464,11 +464,6 @@ const config = {
       /developers/examples/monorepo-examples.html
       /developers/integrations/payment-integration.html
       */
-      // {
-      //   source: "",
-      //   destination: "",
-      //   permanent: true,
-      // },
     ];
   },
   images: {

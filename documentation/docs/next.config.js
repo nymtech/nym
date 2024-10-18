@@ -335,11 +335,127 @@ const config = {
         destination: "/developers/archive/nym-connect",
         permanent: true,
       },
+      // operators:
+      // specific urls that have changed
+      {
+        source: "/operators/nodes/wallet-preparation.html",
+        destination: "/operators/nodes/preliminary-steps/wallet-preparation",
+        permanent: true,
+      },
+      {
+        source: "/operators/nodes/vps-setup.html",
+        destination: "/operators/nodes/preliminary-steps/vps-setup",
+        permanent: true,
+      },
+      {
+        source: "/operators/nodes/proxy-configuration.html",
+        destination:
+          "/operators/nodes/nym-node/configuration/proxy-configuration",
+        permanent: true,
+      },
+      {
+        source: "/operators/nodes/bonding.html",
+        destination: "/operators/nodes/nym-node/bonding",
+        permanent: true,
+      },
+      {
+        source: "/operators/nodes/nym-api.html",
+        destination: "/operators/nodes/validator-setup/nym-api",
+        permanent: true,
+      },
+      {
+        source: "/operators/nodes/nyx-configuration.html",
+        destination: "/operators/nodes/validator-setup/nyx-configuration",
+        permanent: true,
+      },
+      {
+        source: "/operators/nodes/manual-upgrade.html",
+        destination: "/operators/nodes/maintenance/manual-upgrade",
+        permanent: true,
+      },
+      {
+        source: "/operators/nodes/nymvisor-upgrade.html",
+        destination: "/operators/nodes/maintenance/nymvisor-upgrade",
+        permanent: true,
+      },
+      {
+        source: "/operators/testing/performance.html",
+        destination: "/operators/nodes/performance-and-testing",
+        permanent: true,
+      },
+      {
+        source: "/operators/testing/gateway-probe.html",
+        destination: "/operators/nodes/performance-and-testing/gateway-probe",
+        permanent: true,
+      },
+      {
+        source: "/operators/testing/node-api-check.html",
+        destination: "/operators/nodes/performance-and-testing/node-api-check",
+        permanent: true,
+      },
+      {
+        source: "/operators/testing/prometheus-grafana.html",
+        destination:
+          "/operators/nodes/performance-and-testing/prometheus-grafana",
+        permanent: true,
+      },
+      {
+        source: "/operators/testing/explorenym-scripts.html",
+        destination:
+          "/operators/nodes/performance-and-testing/prometheus-grafana/explorenym-scripts",
+        permanent: true,
+      },
+      {
+        source: "/operators/legal/community-counsel.html",
+        destination: "/operators/community-counsel",
+        permanent: true,
+      },
+      {
+        source: "/operators/legal/exit-gateway.html",
+        destination: "/operators/community-counsel/exit-gateway",
+        permanent: true,
+      },
+      {
+        source: "/operators/legal/isp-list.html",
+        destination: "/operators/community-counsel/isp-list",
+        permanent: true,
+      },
+      {
+        source: "/operators/legal/jurisdictions.html",
+        destination: "/operators/community-counsel/jurisdictions",
+        permanent: true,
+      },
+      {
+        source: "/operators/legal/swiss.html",
+        destination: "/operators/community-counsel/jurisdictions/swiss",
+        permanent: true,
+      },
+      {
+        source: "/operators/legal/united-states.html",
+        destination: "/operators/community-counsel/jurisdictions/united-states",
+        permanent: true,
+      },
+      {
+        source: "/operators/legal/landing-pages.html",
+        destination: "/operators/community-counsel/landing-pages",
+        permanent: true,
+      },
+      {
+        source: "/operators/legal/add-content.html",
+        destination: "/operators/community-counsel/add-content",
+        permanent: true,
+      },
       // {
       //   source: "",
       //   destination: "",
       //   permanent: true,
       // },
+      // since the filepaths are mostly the same, we otherwise just match on old URLs that end with .html
+      {
+        source: "/:path*.html",
+        destination: "/:path*",
+        permanent: false,
+      },
       /*
       TODO
       /developers/examples/custom-services.html
@@ -347,8 +463,12 @@ const config = {
       /developers/examples/browser-only.html
       /developers/examples/monorepo-examples.html
       /developers/integrations/payment-integration.html
-      OPERATORS
       */
+      // {
+      //   source: "",
+      //   destination: "",
+      //   permanent: true,
+      // },
     ];
   },
   images: {

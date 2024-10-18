@@ -41,20 +41,12 @@ pub(crate) struct Cli {
     pub(crate) nyxd_addr: Url,
 
     /// Nym api client timeout.
-    #[clap(
-        long,
-        default_value = "15",
-        env = "NYM_NODE_STATUS_API_NYM_API_CLIENT_TIMEOUT"
-    )]
+    #[clap(long, default_value = "15", env = "NYM_API_CLIENT_TIMEOUT")]
     #[arg(value_parser = parse_duration)]
     pub(crate) nym_api_client_timeout: Duration,
 
     /// Explorer api client timeout.
-    #[clap(
-        long,
-        default_value = "15",
-        env = "NYM_NODE_STATUS_API_EXPLORER_CLIENT_TIMEOUT"
-    )]
+    #[clap(long, default_value = "15", env = "EXPLORER_CLIENT_TIMEOUT")]
     #[arg(value_parser = parse_duration)]
     pub(crate) explorer_client_timeout: Duration,
 

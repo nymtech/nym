@@ -77,7 +77,7 @@ async fn run(
         .await
         .log_error("get_gateways")?;
 
-    let api_client = NymApiClient::new(default_api_url);
+    let api_client = NymApiClient::new_with_timeout(default_api_url, config.nym_api_client_timeout);
     let gateways = api_client
         .get_cached_described_gateways()
         .await

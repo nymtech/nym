@@ -56,7 +56,7 @@ impl SessionManager {
         Ok(())
     }
 
-    pub(crate) async fn insert_unique_users(
+    pub(crate) async fn insert_unique_user(
         &self,
         date: Date,
         client_address_b58: String,
@@ -124,12 +124,19 @@ impl SessionManager {
         &self,
         client_address_b58: String,
     ) -> Result<Option<StoredActiveSession>> {
-        let session =
-            sqlx::query_as("SELECT start_time, typ FROM sessions_active WHERE client_address = ?")
-                .bind(client_address_b58)
-                .fetch_optional(&self.connection_pool)
-                .await?;
-        Ok(session)
+        sqlx::query_as("SELECT start_time, typ FROM sessions_active WHERE client_address = ?")
+            .bind(client_address_b58)
+            .fetch_optional(&self.connection_pool)
+            .await
+    }
+
+    pub(crate) async fn get_active_users(&self) -> Result<Vec<String>> {
+        Ok(sqlx::query!("SELECT client_address from sessions_active")
+            .fetch_all(&self.connection_pool)
+            .await?
+            .into_iter()
+            .map(|record| record.client_address)
+            .collect())
     }
 
     pub(crate) async fn delete_active_sessions(&self, client_address_b58: String) -> Result<()> {

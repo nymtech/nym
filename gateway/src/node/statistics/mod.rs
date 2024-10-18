@@ -2,13 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use futures::{channel::mpsc, StreamExt};
+use nym_gateway_stats_storage::PersistentStatsStorage;
 use nym_node_http_api::state::metrics::SharedSessionStats;
 use nym_statistics_common::events::{StatsEvent, StatsEventReceiver, StatsEventSender};
 use nym_task::TaskClient;
 use sessions::SessionStatsHandler;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tracing::trace;
+use tracing::{error, trace, warn};
 
 pub mod sessions;
 
@@ -23,22 +24,28 @@ pub(crate) struct GatewayStatisticsCollector {
 impl GatewayStatisticsCollector {
     pub fn new(
         shared_session_stats: SharedSessionStats,
+        stats_storage: PersistentStatsStorage,
     ) -> (GatewayStatisticsCollector, StatsEventSender) {
         let (stats_event_tx, stats_event_rx) = mpsc::unbounded();
+
+        let session_stats = SessionStatsHandler::new(shared_session_stats, stats_storage);
         let collector = GatewayStatisticsCollector {
             stats_event_rx,
-            session_stats: SessionStatsHandler::new(shared_session_stats),
+            session_stats,
         };
         (collector, stats_event_tx)
     }
 
     async fn update_shared_state(&mut self, update_time: OffsetDateTime) {
-        self.session_stats.update_shared_state(update_time).await;
+        if let Err(e) = self.session_stats.update_shared_state(update_time).await {
+            error!("Failed to update session stats - {e}")
+        }
         //here goes additionnal stats handler update
     }
 
     pub async fn run(&mut self, mut shutdown: TaskClient) {
         let mut update_interval = tokio::time::interval(STATISTICS_UPDATE_TIMER_INTERVAL);
+        //SW TODO : cleanup handlers on start, in case of ungraceful shutdown
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
@@ -53,7 +60,10 @@ impl GatewayStatisticsCollector {
                 Some(stat_event) = self.stats_event_rx.next() => {
                     //dispatching event to proper handler
                     match stat_event {
-                        StatsEvent::SessionStatsEvent(event) => self.session_stats.handle_event(event),
+                        StatsEvent::SessionStatsEvent(event) => {
+                            if let Err(e) = self.session_stats.handle_event(event).await{
+                            warn!("Session event handling error - {e}");
+                        }},
                     }
                 },
 

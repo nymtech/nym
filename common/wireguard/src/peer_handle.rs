@@ -3,6 +3,7 @@
 
 use crate::error::Error;
 use crate::peer_controller::PeerControlRequest;
+use defguard_wireguard_rs::host::Peer;
 use defguard_wireguard_rs::{host::Host, key::Key};
 use futures::channel::oneshot;
 use nym_authenticator_requests::v2::registration::BANDWIDTH_CAP_PER_DAY;
@@ -72,15 +73,11 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         Ok(success)
     }
 
-    async fn active_peer(&mut self, storage_peer: WireguardPeer) -> Result<bool, Error> {
-        let kernel_peer = self
-            .host_information
-            .read()
-            .await
-            .peers
-            .get(&self.public_key)
-            .ok_or(Error::PeerMismatch)?
-            .clone();
+    async fn active_peer(
+        &mut self,
+        storage_peer: WireguardPeer,
+        kernel_peer: Peer,
+    ) -> Result<bool, Error> {
         if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
             let spent_bandwidth = (kernel_peer.rx_bytes + kernel_peer.tx_bytes)
                 .checked_sub(storage_peer.rx_bytes as u64 + storage_peer.tx_bytes as u64)
@@ -112,11 +109,21 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         while !self.task_client.is_shutdown() {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
-                    let Some(peer) = self.storage.get_wireguard_peer(&self.public_key.to_string()).await? else {
+                    let Some(kernel_peer) = self
+                        .host_information
+                        .read()
+                        .await
+                        .peers
+                        .get(&self.public_key)
+                        .cloned() else {
+                            // the host information hasn't beed updated yet
+                            continue;
+                        };
+                    let Some(storage_peer) = self.storage.get_wireguard_peer(&self.public_key.to_string()).await? else {
                         log::debug!("Peer {:?} not in storage anymore, shutting down handle", self.public_key);
                         return Ok(());
                     };
-                    if !self.active_peer(peer).await? {
+                    if !self.active_peer(storage_peer, kernel_peer).await? {
                         log::debug!("Peer {:?} doesn't have bandwidth anymore, shutting down handle", self.public_key);
                         return Ok(());
                     }

@@ -3,9 +3,6 @@
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
-    #[error("peers in wireguard don't match with in-memory ")]
-    PeerMismatch,
-
     #[error("traffic byte data needs to be increasing")]
     InconsistentConsumedBytes,
 

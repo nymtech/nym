@@ -61,6 +61,52 @@ impl NodeWithStakeAndPerformance {
     }
 }
 
+struct IgnoredNodes {
+    typ: &'static str,
+    no_self_described: usize,
+    not_nym_node_binary: usize,
+    no_terms_and_conditions: usize,
+}
+
+impl IgnoredNodes {
+    fn new(typ: &'static str) -> Self {
+        IgnoredNodes {
+            typ,
+            no_self_described: 0,
+            not_nym_node_binary: 0,
+            no_terms_and_conditions: 0,
+        }
+    }
+
+    fn is_empty(&self) -> bool {
+        self.no_self_described == 0
+            && self.not_nym_node_binary == 0
+            && self.no_terms_and_conditions == 0
+    }
+
+    fn maybe_log_summary(&self) {
+        if self.no_self_described != 0 {
+            warn!(
+                "{} {} don't expose their self-described API",
+                self.no_self_described, self.typ
+            )
+        }
+
+        if self.not_nym_node_binary != 0 {
+            warn!(
+                "{} {} are not running the 'nym-node' binary",
+                self.not_nym_node_binary, self.typ
+            )
+        }
+        if self.no_terms_and_conditions != 0 {
+            warn!(
+                "{} {} operators have not accepted the terms and conditions",
+                self.no_terms_and_conditions, self.typ
+            )
+        }
+    }
+}
+
 impl EpochAdvancer {
     fn determine_rewarded_set(
         &self,
@@ -192,7 +238,7 @@ impl EpochAdvancer {
         })
     }
 
-    async fn attach_performance(
+    async fn attach_performance_to_eligible_nodes(
         &self,
         interval: Interval,
         legacy_mixnodes: &[LegacyMixNodeDetailsWithLayer],
@@ -204,26 +250,29 @@ impl EpochAdvancer {
         // SAFETY: the cache MUST HAVE been initialised before now
         let described_cache = self.described_cache.get().await.unwrap();
 
-        let mut no_self_described_mixnodes = 0;
-        let mut not_nym_node_bin_mixnodes = 0;
-
-        let mut no_self_described_gateways = 0;
-        let mut not_nym_node_bin_gateways = 0;
-
-        let mut no_self_described_nym_nodes = 0;
-        let mut not_nym_node_bin_nym_nodes = 0;
+        let mut legacy_mixnodes_info = IgnoredNodes::new("legacy mixnodes");
+        let mut legacy_gateways_info = IgnoredNodes::new("legacy gateways");
+        let mut nym_nodes_info = IgnoredNodes::new("nym nodes");
 
         for mix in legacy_mixnodes {
             let node_id = mix.mix_id();
             let total_stake = mix.total_stake();
 
             let Some(self_described) = described_cache.get_description(&node_id) else {
-                no_self_described_mixnodes += 1;
+                legacy_mixnodes_info.no_self_described += 1;
                 continue;
             };
 
             if self_described.build_information.binary_name != "nym-node" {
-                not_nym_node_bin_mixnodes += 1;
+                legacy_mixnodes_info.not_nym_node_binary += 1;
+                continue;
+            }
+
+            if !self_described
+                .auxiliary_details
+                .accepted_operator_terms_and_conditions
+            {
+                legacy_mixnodes_info.no_terms_and_conditions += 1;
                 continue;
             }
 
@@ -253,12 +302,20 @@ impl EpochAdvancer {
                 .unwrap_or_default();
 
             let Some(self_described) = described_cache.get_description(&node_id) else {
-                no_self_described_gateways += 1;
+                legacy_gateways_info.no_self_described += 1;
                 continue;
             };
 
             if self_described.build_information.binary_name != "nym-node" {
-                not_nym_node_bin_gateways += 1;
+                legacy_gateways_info.not_nym_node_binary += 1;
+                continue;
+            }
+
+            if !self_described
+                .auxiliary_details
+                .accepted_operator_terms_and_conditions
+            {
+                legacy_gateways_info.no_terms_and_conditions += 1;
                 continue;
             }
 
@@ -284,12 +341,20 @@ impl EpochAdvancer {
             let total_stake = nym_node.total_stake();
 
             let Some(self_described) = described_cache.get_description(&node_id) else {
-                no_self_described_nym_nodes += 1;
+                nym_nodes_info.no_self_described += 1;
                 continue;
             };
 
             if self_described.build_information.binary_name != "nym-node" {
-                not_nym_node_bin_nym_nodes += 1;
+                nym_nodes_info.not_nym_node_binary += 1;
+                continue;
+            }
+
+            if !self_described
+                .auxiliary_details
+                .accepted_operator_terms_and_conditions
+            {
+                nym_nodes_info.no_terms_and_conditions += 1;
                 continue;
             }
 
@@ -323,43 +388,16 @@ impl EpochAdvancer {
             })
         }
 
-        if no_self_described_mixnodes != 0
-            || not_nym_node_bin_mixnodes != 0
-            || no_self_described_gateways != 0
-            || not_nym_node_bin_gateways != 0
-            || no_self_described_nym_nodes != 0
-            || not_nym_node_bin_nym_nodes != 0
+        if !legacy_mixnodes_info.is_empty()
+            || !legacy_gateways_info.is_empty()
+            || !nym_nodes_info.is_empty()
         {
             warn!("not every bonded node is being considered for rewarded set selection")
         }
 
-        if no_self_described_mixnodes != 0 {
-            warn!("{no_self_described_mixnodes} legacy mixnodes don't expose their self-described API")
-        }
-
-        if not_nym_node_bin_mixnodes != 0 {
-            warn!(
-                "{not_nym_node_bin_mixnodes} legacy mixnodes are not running the 'nym-node' binary"
-            )
-        }
-
-        if no_self_described_gateways != 0 {
-            warn!("{no_self_described_gateways} legacy gateways don't expose their self-described API")
-        }
-
-        if not_nym_node_bin_gateways != 0 {
-            warn!(
-                "{not_nym_node_bin_gateways} legacy gateways are not running the 'nym-node' binary"
-            )
-        }
-
-        if no_self_described_nym_nodes != 0 {
-            warn!("{no_self_described_nym_nodes} nym-nodes don't expose their self-described API")
-        }
-
-        if not_nym_node_bin_nym_nodes != 0 {
-            warn!("{not_nym_node_bin_nym_nodes} migrated nym-nodes are not running the 'nym-node' binary")
-        }
+        legacy_mixnodes_info.maybe_log_summary();
+        legacy_gateways_info.maybe_log_summary();
+        nym_nodes_info.maybe_log_summary();
 
         with_performance
     }
@@ -382,7 +420,7 @@ impl EpochAdvancer {
 
                 info!("attempting to assign the rewarded set for the upcoming epoch...");
                 let nodes_with_performance = self
-                    .attach_performance(
+                    .attach_performance_to_eligible_nodes(
                         current_interval,
                         legacy_mixnodes,
                         legacy_gateways,

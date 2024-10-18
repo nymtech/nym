@@ -10,7 +10,7 @@ Nym has two main codebases:
 - the [Nym platform](https://github.com/nymtech/nym), written in Rust. This contains all of our code _except_ for the validators.
 - the [Nym validators](https://github.com/nymtech/nyxd), written in Go.
 
-> This page details how to build the main Nym platform code. **If you want to build and run a validator, [go here]() TODO LINK AFTER MERGE instead.**
+> This page details how to build the main Nym platform code. **If you want to build and run a validator, [go here](../operators/nodes/validator-setup) instead.**
 
 ## Prerequisites
 - Debian/Ubuntu: `pkg-config`, `build-essential`, `libssl-dev`, `curl`, `jq`, `git`

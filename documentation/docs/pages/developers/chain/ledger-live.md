@@ -4,7 +4,7 @@ Use the following instructions to interact with the Nyx blockchain - either with
 
 ## Prerequisites
 * Download and install [Ledger Live](https://www.ledger.com/ledger-live).
-* Compile the `nyxd` binary as per the instructions [here]() TODO LINK AFTER MERGE. Stop after you can successfully run `nyxd` and get the helptext in your console output.
+* Compile the `nyxd` binary as per the instructions [here](../../operators/nodes/validator-setup). Stop after you can successfully run `nyxd` and get the helptext in your console output.
 
 ## Prepare your Ledger App
 * Plug in your Ledger device

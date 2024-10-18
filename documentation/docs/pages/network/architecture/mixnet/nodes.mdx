@@ -12,7 +12,7 @@ Although a large proportion of the Nym mixnet's functionality is implemented cli
 
 As outlined on the previous page, the various types of Mixnet nodes - Mix Nodes, Gateways, and Network Requesters - are in the process of being compounded into a single `nym-node` binary which will run performing the features of all three nodes:
 - Acting as the first and last hops for traffic moving through the mixnet - a role fulfilled currently by Gateways.
-- (Once the payment system is turned on) checking client credentials to check for payment via the zk-nym TODO LINK protocol - a role fulfilled currently by Entry Gateways.
+- (Once the payment system is turned on) checking client credentials to check for payment via the [zk-nym scheme](../../cryptography/zk-nym) - a role fulfilled currently by Entry Gateways.
 - Accepting incoming Sphinx packets from other Nym nodes and, using a variable delay, 'mixing' them with other packets (not forwarding on received packets according to FIFO but instead relying on a randomised delay function) - a role currently fulfilled by Mix Nodes.
 - Forwarding packets on to their final destination: the 'receiving' Nym client.
 

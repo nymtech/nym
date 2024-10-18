@@ -16,9 +16,13 @@ readme.workspace = true
 
 [dependencies]
 anyhow = { workspace = true}
-clap = { workspace = true, features = ["cargo", "derive"] }
+clap = { workspace = true, features = ["derive", "env"] }
 nym-bin-common = { path = "../common/bin-common" }
-tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+# release 0.2.4
+nym-gateway-probe = { workspace = true }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread", "process"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
+reqwest = { workspace = true }
+serde_json = { workspace = true }

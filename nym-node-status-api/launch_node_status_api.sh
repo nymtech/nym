@@ -2,8 +2,7 @@
 
 set -e
 
-export RUST_LOG=${RUST_LOG:-debug}
-
+export CONFIG_ENV_FILE="../envs/mainnet.env"
 export NYM_API_CLIENT_TIMEOUT=60
 export EXPLORER_CLIENT_TIMEOUT=60
 #export NYXD=https://rpc.nymtech.net

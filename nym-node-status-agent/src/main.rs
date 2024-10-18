@@ -1,22 +1,35 @@
+use crate::cli::Args;
 use clap::Parser;
-
-use crate::cli::Cli;
+use tracing::level_filters::LevelFilter;
+use tracing_subscriber::{filter::Directive, EnvFilter};
 
 mod cli;
-mod testrun;
+mod probe;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     setup_tracing();
-    let cli = Cli::parse();
+    let args = Args::parse();
 
-    cli.execute().await?;
+    let server_addr = format!("{}:{}", args.server_address, args.server_port);
+    test_ns_api_conn(&server_addr).await?;
+
+    args.execute().await?;
 
     Ok(())
 }
 
-use tracing::level_filters::LevelFilter;
-use tracing_subscriber::{filter::Directive, EnvFilter};
+async fn test_ns_api_conn(server_addr: &str) -> anyhow::Result<()> {
+    reqwest::get(server_addr)
+        .await
+        .map(|res| {
+            tracing::info!(
+                "Testing connection to NS API at {server_addr}: {}",
+                res.status()
+            );
+        })
+        .map_err(|err| anyhow::anyhow!("Couldn't connect to server on {}: {}", server_addr, err))
+}
 
 pub(crate) fn setup_tracing() {
     fn directive_checked(directive: impl Into<String>) -> Directive {

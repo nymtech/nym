@@ -153,6 +153,7 @@ default-members = [
     "nym-api",
     "nym-data-observatory",
     "nym-node",
+    "nym-node-status-api",
     "nym-validator-rewarder",
     "nym-node-status-api",
     "service-providers/authenticator",
@@ -349,6 +350,10 @@ x25519-dalek = "2.0.0"
 zeroize = "1.6.0"
 
 prometheus = { version = "0.13.0" }
+
+# -- internal -- #
+# release 0.2.4
+nym-gateway-probe = { git = "https://github.com/nymtech/nym-vpn-client", rev = "af3d103e" }
 
 # coconut/DKG related
 # unfortunately until https://github.com/zkcrypto/bls12_381/issues/10 is resolved, we have to rely on the fork

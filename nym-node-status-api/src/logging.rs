@@ -22,7 +22,7 @@ pub(crate) fn setup_tracing_logger() {
 
     let mut filter = EnvFilter::builder()
         // if RUST_LOG isn't set, set default level
-        .with_default_directive(LevelFilter::INFO.into())
+        .with_default_directive(LevelFilter::DEBUG.into())
         .from_env_lossy();
     // these crates are more granularly filtered
     let filter_crates = [

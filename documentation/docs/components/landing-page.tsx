@@ -3,10 +3,10 @@ import { Box, Grid, Typography } from "@mui/material";
 import Image from "next/image";
 import Link from "next/link";
 
-import networkDocs from "./images/network-docs.png";
-import developerDocs from "./images/developer-docs.png";
-import sdkDocs from "./images/sdk-docs.png";
-import operatorGuide from "./images/operator-guide.png";
+import networkDocs from "../public/images/landing/network-docs.png";
+import developerDocs from "../public/images/landing/developer-docs.png";
+import sdkDocs from "../public/images/landing/sdk-docs.png";
+import operatorGuide from "../public/images/landing/operator-guide.png";
 
 export const LandingPage = () => {
   const squares = [
@@ -21,7 +21,7 @@ export const LandingPage = () => {
       description:
         "Guides and maintenance: if you want to run a node, start here",
 
-      href: "/operators",
+      href: "/operators/introduction",
       icon: operatorGuide,
     },
     {

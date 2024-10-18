@@ -31,23 +31,23 @@ jobs:
         with:
           cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
 
-      # - name: Check if tag exists
-      #   run: |
-      #     if git rev-parse ${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then
-      #       echo "Tag ${{ steps.get_version.outputs.value }} already exists"
-      #     fi
+      - name: Check if tag exists
+        run: |
+          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then
+            echo "Tag ${{ steps.get_version.outputs.value }} already exists"
+          fi
 
-      # - name: Remove existing tag if exists
-      #   run: |
-      #     if git rev-parse ${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then
-      #       git push --delete origin ${{ steps.get_version.outputs.value }}
-      #       git tag -d ${{ steps.get_version.outputs.value }}
-      #     fi
+      - name: Remove existing tag if exists
+        run: |
+          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then
+            git push --delete origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }}
+            git tag -d ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }}
+          fi
 
-      # - name: Create tag
-      #   run: |
-      #     git tag -a ${{ steps.get_version.outputs.value }} -m "Version ${{ steps.get_version.outputs.value }}"
-      #     git push origin ${{ steps.get_version.outputs.value }}
+      - name: Create tag
+        run: |
+          git tag -a ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }} -m "Version ${{ steps.get_version.outputs.value }}"
+          git push origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.value }}
 
       - name: BuildAndPushImageOnHarbor
         run: |

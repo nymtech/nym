@@ -23,13 +23,13 @@ futures-util = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 nym-bin-common = { path = "../common/bin-common" }
 nym-explorer-client = { path = "../explorer-api/explorer-client" }
-# TODO dz: ref before Nym API client changes. Update to latest develop once new Nym API is live
-nym-network-defaults = { git = "https://github.com/nymtech/nym", rev = "f86e08866" }
-nym-validator-client = { git = "https://github.com/nymtech/nym", rev = "f86e08866" }
+# TODO dz: branch `pre-dir-v2-fork`: before Nym API client breaking changes. Update to latest develop once new Nym API is live
+nym-network-defaults = { git = "https://github.com/nymtech/nym", rev = "6f028b9d58d27b19880b43c5a15db9f1b1939fbd" }
+nym-validator-client = { git = "https://github.com/nymtech/nym", rev = "6f028b9d58d27b19880b43c5a15db9f1b1939fbd" }
 # nym-network-defaults = { path = "../common/network-defaults" }
 # nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-task = { path = "../common/task" }
-nym-node-requests = { git = "https://github.com/nymtech/nym", rev = "f86e08866" }
+nym-node-requests = { git = "https://github.com/nymtech/nym", rev = "6f028b9d58d27b19880b43c5a15db9f1b1939fbd" }
 # nym-node-requests = { path = "../nym-node/nym-node-requests", features = ["openapi"] }
 reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

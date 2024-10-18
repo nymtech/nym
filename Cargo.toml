@@ -305,7 +305,7 @@ serde_yaml = "0.9.25"
 sha2 = "0.10.8"
 si-scale = "0.2.3"
 sphinx-packet = "0.1.1"
-sqlx = "0.6.3"
+sqlx = "0.7.4"
 strum = "0.26"
 subtle-encoding = "0.5"
 syn = "1"
@@ -396,6 +396,12 @@ web-sys = "0.3.70"
 
 
 # Profile settings for individual crates
+
+# Compile-time verified queries do quite a bit of work at compile time. Incremental
+#  actions like cargo check and cargo build can be significantly faster when
+# using an optimized build
+[profile.dev.package.sqlx-macros]
+opt-level = 3
 
 [profile.release.package.nym-socks5-listener]
 strip = true

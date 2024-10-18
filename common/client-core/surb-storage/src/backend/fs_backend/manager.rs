@@ -1,9 +1,12 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::backend::fs_backend::error::StorageError;
-use crate::backend::fs_backend::models::{
-    ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag, StoredSurbSender,
+use crate::backend::fs_backend::{
+    error::StorageError,
+    models::{
+        ReplySurbStorageMetadata, StoredReplyKey, StoredReplySurb, StoredSenderTag,
+        StoredSurbSender,
+    },
 };
 use log::{error, info};
 use sqlx::ConnectOptions;
@@ -27,11 +30,10 @@ impl StorageManager {
             })?;
         }
 
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(fresh);
-
-        opts.disable_statement_logging();
+            .create_if_missing(fresh)
+            .disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(pool) => pool,

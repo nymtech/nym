@@ -43,7 +43,7 @@ pub trait EcashStorageManagerExt {
         credential_id: i64,
     ) -> Result<(), sqlx::Error>;
 
-    /// Attempts to retrieve an issued credential from the data store.    
+    /// Attempts to retrieve an issued credential from the data store.
     ///
     /// # Arguments
     ///
@@ -76,7 +76,7 @@ pub trait EcashStorageManagerExt {
         ticketbook_type_repr: u8,
     ) -> Result<i64, sqlx::Error>;
 
-    /// Attempts to retrieve issued credentials from the data store using provided ids.    
+    /// Attempts to retrieve issued credentials from the data store using provided ids.
     ///
     /// # Arguments
     ///
@@ -86,7 +86,7 @@ pub trait EcashStorageManagerExt {
         credential_ids: Vec<i64>,
     ) -> Result<Vec<IssuedTicketbook>, sqlx::Error>;
 
-    /// Attempts to retrieve issued credentials from the data store using pagination specification.    
+    /// Attempts to retrieve issued credentials from the data store using pagination specification.
     ///
     /// # Arguments
     ///
@@ -260,7 +260,7 @@ impl EcashStorageManagerExt for StorageManager {
 
         sqlx::query!(
             r#"
-                INSERT INTO epoch_credentials 
+                INSERT INTO epoch_credentials
                 (epoch_id, start_id, total_issued)
                 VALUES (?, ?, ?);
             "#,
@@ -306,7 +306,7 @@ impl EcashStorageManagerExt for StorageManager {
             "#,
             epoch_id_downcasted
         )
-        .fetch_optional(&mut tx)
+        .fetch_optional(&mut *tx)
         .await?
         {
             // the entry has existed before -> update it
@@ -314,33 +314,33 @@ impl EcashStorageManagerExt for StorageManager {
                 // no credentials has been issued -> we have to set the `start_id`
                 sqlx::query!(
                     r#"
-                        UPDATE epoch_credentials 
+                        UPDATE epoch_credentials
                         SET total_issued = 1, start_id = ?
                         WHERE epoch_id = ?
                     "#,
                     credential_id,
                     epoch_id_downcasted
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
             } else {
                 // we have issued credentials in this epoch before -> just increment `total_issued`
                 sqlx::query!(
                     r#"
-                        UPDATE epoch_credentials 
-                        SET total_issued = total_issued + 1 
+                        UPDATE epoch_credentials
+                        SET total_issued = total_issued + 1
                         WHERE epoch_id = ?
                     "#,
                     epoch_id_downcasted
                 )
-                .execute(&mut tx)
+                .execute(&mut *tx)
                 .await?;
             }
         } else {
             // the entry has never been created -> probably some race condition; create it instead
             sqlx::query!(
                 r#"
-                    INSERT INTO epoch_credentials 
+                    INSERT INTO epoch_credentials
                     (epoch_id, start_id, total_issued)
                     VALUES (?, ?, ?);
                 "#,
@@ -348,7 +348,7 @@ impl EcashStorageManagerExt for StorageManager {
                 credential_id,
                 1
             )
-            .execute(&mut tx)
+            .execute(&mut *tx)
             .await?;
         }
 
@@ -356,7 +356,7 @@ impl EcashStorageManagerExt for StorageManager {
         tx.commit().await
     }
 
-    /// Attempts to retrieve an issued credential from the data store.    
+    /// Attempts to retrieve an issued credential from the data store.
     ///
     /// # Arguments
     ///
@@ -368,7 +368,7 @@ impl EcashStorageManagerExt for StorageManager {
         sqlx::query_as!(
             IssuedTicketbook,
             r#"
-                SELECT 
+                SELECT
                     id,
                     epoch_id as "epoch_id: u32",
                     deposit_id as "deposit_id: DepositId",
@@ -398,7 +398,7 @@ impl EcashStorageManagerExt for StorageManager {
         sqlx::query_as!(
             IssuedTicketbook,
             r#"
-                SELECT 
+                SELECT
                     id,
                     epoch_id as "epoch_id: u32",
                     deposit_id as "deposit_id: DepositId",
@@ -440,7 +440,7 @@ impl EcashStorageManagerExt for StorageManager {
         Ok(row_id)
     }
 
-    /// Attempts to retrieve issued credentials from the data store using provided ids.    
+    /// Attempts to retrieve issued credentials from the data store using provided ids.
     ///
     /// # Arguments
     ///
@@ -461,7 +461,7 @@ impl EcashStorageManagerExt for StorageManager {
         query.fetch_all(&self.connection_pool).await
     }
 
-    /// Attempts to retrieve issued credentials from the data store using pagination specification.    
+    /// Attempts to retrieve issued credentials from the data store using pagination specification.
     ///
     /// # Arguments
     ///
@@ -475,7 +475,7 @@ impl EcashStorageManagerExt for StorageManager {
         sqlx::query_as!(
             IssuedTicketbook,
             r#"
-                SELECT 
+                SELECT
                     id,
                     epoch_id as "epoch_id: u32",
                     deposit_id as "deposit_id: DepositId",
@@ -564,7 +564,7 @@ impl EcashStorageManagerExt for StorageManager {
                 WHERE gateway_id = ?
                 AND verified_at > ?
                 ORDER BY verified_at ASC
-                LIMIT 65535    
+                LIMIT 65535
             "#,
             provider_id,
             since
@@ -582,7 +582,7 @@ impl EcashStorageManagerExt for StorageManager {
             r#"
                 SELECT serial_number
                 FROM verified_tickets
-                WHERE spending_date = ?    
+                WHERE spending_date = ?
             "#,
             date
         )

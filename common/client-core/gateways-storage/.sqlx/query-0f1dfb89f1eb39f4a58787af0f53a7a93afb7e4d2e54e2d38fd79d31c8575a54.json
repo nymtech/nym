@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                UPDATE remote_gateway_details\n                SET\n                    derived_aes128_ctr_blake3_hmac_keys_bs58 = ?,\n                    derived_aes256_gcm_siv_key = ?\n                WHERE gateway_id_bs58 = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "0f1dfb89f1eb39f4a58787af0f53a7a93afb7e4d2e54e2d38fd79d31c8575a54"
+}

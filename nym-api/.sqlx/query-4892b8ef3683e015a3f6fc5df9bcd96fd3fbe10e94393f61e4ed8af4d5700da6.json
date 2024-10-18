@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT\n                    absolute_epoch_id as \"absolute_epoch_id: u32\",\n                    eligible_mixnodes as \"eligible_mixnodes: u32\"\n                FROM rewarding_report\n                WHERE absolute_epoch_id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "absolute_epoch_id: u32",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "eligible_mixnodes: u32",
+        "ordinal": 1,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "4892b8ef3683e015a3f6fc5df9bcd96fd3fbe10e94393f61e4ed8af4d5700da6"
+}

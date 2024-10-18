@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                        UPDATE epoch_credentials\n                        SET total_issued = total_issued + 1\n                        WHERE epoch_id = ?\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "50f0fdb88474c1cddd70cda9457b62992859d4f585f2efe6c19894ec79ec3cbb"
+}

@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT t1.ticket_id, t2.serial_number\n                    FROM verified_tickets as t1\n                JOIN ticket_data as t2\n                    ON t1.ticket_id = t2.ticket_id\n                JOIN received_ticket as t3\n                    ON t1.ticket_id = t3.id\n\n                ORDER BY t3.received_at ASC\n                LIMIT 65535\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "ticket_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "serial_number",
+        "ordinal": 1,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "af2a80cb05c0bff096e6eb830598fbb8ba0a69e0d7079e4600ff47db786e6642"
+}

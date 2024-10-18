@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO rewarding_report\n                (absolute_epoch_id, eligible_mixnodes)\n                VALUES (?, ?);\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "7276658a125d298043bb2204272bbc68f6bf0e2cee7de52a10c430ea51469589"
+}

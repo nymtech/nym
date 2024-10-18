@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT date as \"date!: Date\", uptime as \"uptime!\"\n                FROM gateway_historical_uptime\n                JOIN gateway_details\n                ON gateway_historical_uptime.gateway_details_id = gateway_details.id\n                WHERE\n                gateway_details.node_id = ?\n                AND\n                gateway_historical_uptime.date = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "date!: Date",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "uptime!",
+        "ordinal": 1,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "9f65b370360ff2e0891fdf89233932212254708fec2973eb4d621179d6b975f4"
+}

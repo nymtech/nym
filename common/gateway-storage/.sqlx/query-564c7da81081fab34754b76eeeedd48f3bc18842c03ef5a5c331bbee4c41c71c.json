@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT * FROM shared_keys WHERE client_address_bs58 = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "client_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "client_address_bs58",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "derived_aes128_ctr_blake3_hmac_keys_bs58",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "derived_aes256_gcm_siv_key",
+        "ordinal": 3,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true
+    ]
+  },
+  "hash": "564c7da81081fab34754b76eeeedd48f3bc18842c03ef5a5c331bbee4c41c71c"
+}

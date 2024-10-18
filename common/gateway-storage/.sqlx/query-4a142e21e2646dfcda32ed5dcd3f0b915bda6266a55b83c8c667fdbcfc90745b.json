@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM verified_tickets WHERE proposal_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "4a142e21e2646dfcda32ed5dcd3f0b915bda6266a55b83c8c667fdbcfc90745b"
+}

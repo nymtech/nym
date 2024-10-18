@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO bloomfilter_parameters(num_hashes, bitmap_size,sip0_key0, sip0_key1, sip1_key0, sip1_key1)\n                VALUES (?, ?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "975fb3c6e38d29f1c9a7d2d67a218bb48f577b228a6053a55b7ac8049993f4f3"
+}

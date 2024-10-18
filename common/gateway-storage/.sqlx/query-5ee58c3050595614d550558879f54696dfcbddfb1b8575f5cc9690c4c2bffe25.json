@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT client_id FROM shared_keys WHERE client_address_bs58 = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "client_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "5ee58c3050595614d550558879f54696dfcbddfb1b8575f5cc9690c4c2bffe25"
+}

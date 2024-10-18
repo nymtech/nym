@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                        INSERT INTO gateway_status (gateway_details_id, reliability, timestamp) VALUES (?, ?, ?);\n                    ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "387504dabdb660afb2890a9686dec225f877ee0e370d81ca65c7ed20c009b0ec"
+}

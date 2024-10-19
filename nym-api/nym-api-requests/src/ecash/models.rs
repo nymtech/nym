@@ -383,7 +383,7 @@ pub struct EpochCredentialsResponse {
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialsResponse {
-    // note: BTreeMap returns ordered results so it's fine to use it with pagination
+    // note: BTreeMap returns ordered results, so it's fine to use it with pagination
     pub credentials: BTreeMap<i64, IssuedTicketbookBody>,
 }
 

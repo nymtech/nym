@@ -73,6 +73,7 @@ impl MemoryEcachTicketbookManager {
 
     pub async fn get_next_unspent_ticketbook_and_update(
         &self,
+        ticketbook_type: String,
         tickets: u32,
     ) -> Option<RetrievedTicketbook> {
         let mut guard = self.inner.write().await;
@@ -81,6 +82,7 @@ impl MemoryEcachTicketbookManager {
             if !t.ticketbook.expired()
                 && t.ticketbook.spent_tickets() + tickets as u64
                     <= t.ticketbook.params_total_tickets()
+                && t.ticketbook.ticketbook_type().to_string() == ticketbook_type
             {
                 t.ticketbook
                     .update_spent_tickets(t.ticketbook.spent_tickets() + tickets as u64);

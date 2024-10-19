@@ -1,26 +1,28 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_describe_cache::query_helpers::query_for_described_data;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::{SharedCache, UninitialisedCache};
 use crate::support::caching::refresher::{CacheItemProvider, CacheRefresher};
 use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
+use async_trait::async_trait;
 use futures::{stream, StreamExt};
-use nym_api_requests::models::{
-    AuthenticatorDetails, IpPacketRouterDetails, NetworkRequesterDetails, NymNodeDescription,
-    WireguardDetails,
-};
-use nym_api_requests::nym_nodes::NodeRole;
-use nym_config::defaults::{mainnet, DEFAULT_NYM_NODE_HTTP_PORT};
-use nym_contracts_common::IdentityKey;
+use nym_api_requests::models::{DescribedNodeType, NymNodeData, NymNodeDescription};
+use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
+use nym_mixnet_contract_common::{LegacyMixLayer, NodeId};
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
+use nym_topology::gateway::GatewayConversionError;
+use nym_topology::mix::MixnodeConversionError;
+use nym_topology::{gateway, mix, NetworkAddress};
 use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::time::Duration;
 use thiserror::Error;
-use time::OffsetDateTime;
+use tracing::{debug, error, info};
 
-// type alias for ease of use
-pub type DescribedNodes = HashMap<IdentityKey, NymNodeDescription>;
+mod query_helpers;
 
 #[derive(Debug, Error)]
 pub enum NodeDescribeCacheError {
@@ -30,30 +32,162 @@ pub enum NodeDescribeCacheError {
         source: UninitialisedCache,
     },
 
-    #[error("gateway {gateway} has provided malformed host information ({host}: {source}")]
+    #[error("node {node_id} has provided malformed host information ({host}: {source}")]
     MalformedHost {
         host: String,
 
-        gateway: IdentityKey,
+        node_id: NodeId,
 
         #[source]
         source: NymNodeApiClientError,
     },
 
-    #[error("gateway '{gateway}' with host '{host}' doesn't seem to expose any of the standard API ports, i.e.: 80, 443 or {}", DEFAULT_NYM_NODE_HTTP_PORT)]
-    NoHttpPortsAvailable { host: String, gateway: IdentityKey },
+    #[error("node {node_id} with host '{host}' doesn't seem to expose its declared http port nor any of the standard API ports, i.e.: 80, 443 or {}", DEFAULT_NYM_NODE_HTTP_PORT)]
+    NoHttpPortsAvailable { host: String, node_id: NodeId },
 
-    #[error("failed to query gateway '{gateway}': {source}")]
+    #[error("failed to query node {node_id}: {source}")]
     ApiFailure {
-        gateway: IdentityKey,
+        node_id: NodeId,
 
         #[source]
         source: NymNodeApiClientError,
     },
 
     // TODO: perhaps include more details here like whether key/signature/payload was malformed
-    #[error("could not verify signed host information for gateway '{gateway}'")]
-    MissignedHostInformation { gateway: IdentityKey },
+    #[error("could not verify signed host information for node {node_id}")]
+    MissignedHostInformation { node_id: NodeId },
+}
+
+// this exists because I've been moving things around quite a lot and now the place that holds the type
+// doesn't have relevant dependencies for proper impl
+pub(crate) trait NodeDescriptionTopologyExt {
+    fn try_to_topology_mix_node(
+        &self,
+        layer: LegacyMixLayer,
+    ) -> Result<mix::LegacyNode, MixnodeConversionError>;
+
+    fn try_to_topology_gateway(&self) -> Result<gateway::LegacyNode, GatewayConversionError>;
+}
+
+impl NodeDescriptionTopologyExt for NymNodeDescription {
+    // TODO: this might have to be moved around
+    fn try_to_topology_mix_node(
+        &self,
+        layer: LegacyMixLayer,
+    ) -> Result<mix::LegacyNode, MixnodeConversionError> {
+        let keys = &self.description.host_information.keys;
+        let ips = &self.description.host_information.ip_address;
+        if ips.is_empty() {
+            return Err(MixnodeConversionError::NoIpAddressesProvided {
+                mixnode: keys.ed25519.to_base58_string(),
+            });
+        }
+
+        let host = match &self.description.host_information.hostname {
+            None => NetworkAddress::IpAddr(ips[0]),
+            Some(hostname) => NetworkAddress::Hostname(hostname.clone()),
+        };
+
+        // get ip from the self-reported values so we wouldn't need to do any hostname resolution
+        // (which doesn't really work in wasm)
+        let mix_host = SocketAddr::new(ips[0], self.description.mix_port());
+
+        Ok(mix::LegacyNode {
+            mix_id: self.node_id,
+            host,
+            mix_host,
+            identity_key: keys.ed25519,
+            sphinx_key: keys.x25519,
+            layer,
+            version: self
+                .description
+                .build_information
+                .build_version
+                .as_str()
+                .into(),
+        })
+    }
+
+    fn try_to_topology_gateway(&self) -> Result<gateway::LegacyNode, GatewayConversionError> {
+        let keys = &self.description.host_information.keys;
+
+        let ips = &self.description.host_information.ip_address;
+        if ips.is_empty() {
+            return Err(GatewayConversionError::NoIpAddressesProvided {
+                gateway: keys.ed25519.to_base58_string(),
+            });
+        }
+
+        let host = match &self.description.host_information.hostname {
+            None => NetworkAddress::IpAddr(ips[0]),
+            Some(hostname) => NetworkAddress::Hostname(hostname.clone()),
+        };
+
+        // get ip from the self-reported values so we wouldn't need to do any hostname resolution
+        // (which doesn't really work in wasm)
+        let mix_host = SocketAddr::new(ips[0], self.description.mix_port());
+
+        Ok(gateway::LegacyNode {
+            node_id: self.node_id,
+            host,
+            mix_host,
+            clients_ws_port: self.description.mixnet_websockets.ws_port,
+            clients_wss_port: self.description.mixnet_websockets.wss_port,
+            identity_key: self.description.host_information.keys.ed25519,
+            sphinx_key: self.description.host_information.keys.x25519,
+            version: self
+                .description
+                .build_information
+                .build_version
+                .as_str()
+                .into(),
+        })
+    }
+}
+
+pub struct DescribedNodes {
+    nodes: HashMap<NodeId, NymNodeDescription>,
+}
+
+impl DescribedNodes {
+    pub fn get_description(&self, node_id: &NodeId) -> Option<&NymNodeData> {
+        self.nodes.get(node_id).map(|n| &n.description)
+    }
+
+    pub fn get_node(&self, node_id: &NodeId) -> Option<&NymNodeDescription> {
+        self.nodes.get(node_id)
+    }
+
+    pub fn all_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
+        self.nodes.values()
+    }
+
+    pub fn all_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
+        self.nodes
+            .values()
+            .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
+    }
+
+    pub fn mixing_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
+        self.nodes
+            .values()
+            .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
+            .filter(|n| n.description.declared_role.mixnode)
+    }
+
+    pub fn entry_capable_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
+        self.nodes
+            .values()
+            .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
+            .filter(|n| n.description.declared_role.entry)
+    }
+
+    pub fn exit_capable_nym_nodes(&self) -> impl Iterator<Item = &NymNodeDescription> {
+        self.nodes
+            .values()
+            .filter(|n| n.contract_node_type == DescribedNodeType::NymNode)
+            .filter(|n| n.description.declared_role.can_operate_exit_gateway())
+    }
 }
 
 pub struct NodeDescriptionProvider {
@@ -79,35 +213,42 @@ impl NodeDescriptionProvider {
 
 async fn try_get_client(
     host: &str,
-    identity_key: &IdentityKey,
-    port: Option<u16>,
+    node_id: NodeId,
+    custom_port: Option<u16>,
 ) -> Result<nym_node_requests::api::Client, NodeDescribeCacheError> {
     // first try the standard port in case the operator didn't put the node behind the proxy,
     // then default https (443)
     // finally default http (80)
     let mut addresses_to_try = vec![
-        format!("http://{host}:{DEFAULT_NYM_NODE_HTTP_PORT}"),
-        format!("http://{host}:8000"),
-        format!("https://{host}"),
-        format!("http://{host}"),
+        format!("http://{host}:{DEFAULT_NYM_NODE_HTTP_PORT}"), // 'standard' nym-node
+        format!("https://{host}"),                             // node behind https proxy (443)
+        format!("http://{host}"),                              // node behind http proxy (80)
     ];
 
-    if let Some(port) = port {
+    // note: I removed 'standard' legacy mixnode port because it should now be automatically pulled via
+    // the 'custom_port' since it should have been present in the contract.
+
+    if let Some(port) = custom_port {
         addresses_to_try.insert(0, format!("http://{host}:{port}"));
     }
 
     for address in addresses_to_try {
         // if provided host was malformed, no point in continuing
-        let client = match nym_node_requests::api::Client::new_url(address, None) {
+        let client = match nym_node_requests::api::Client::builder(address).and_then(|b| {
+            b.with_timeout(Duration::from_secs(5))
+                .with_user_agent("nym-api-describe-cache")
+                .build()
+        }) {
             Ok(client) => client,
             Err(err) => {
                 return Err(NodeDescribeCacheError::MalformedHost {
                     host: host.to_string(),
-                    gateway: identity_key.clone(),
+                    node_id,
                     source: err,
                 });
             }
         };
+
         if let Ok(health) = client.get_health().await {
             if health.status.is_up() {
                 return Ok(client);
@@ -117,149 +258,75 @@ async fn try_get_client(
 
     Err(NodeDescribeCacheError::NoHttpPortsAvailable {
         host: host.to_string(),
-        gateway: identity_key.to_string(),
+        node_id,
     })
 }
 
 async fn try_get_description(
     data: RefreshData,
-) -> Result<(IdentityKey, NymNodeDescription), NodeDescribeCacheError> {
-    let client = try_get_client(&data.host(), &data.identity_key(), data.port()).await?;
+) -> Result<NymNodeDescription, NodeDescribeCacheError> {
+    let client = try_get_client(&data.host, data.node_id, data.port).await?;
 
-    let host_info =
-        client
-            .get_host_information()
-            .await
-            .map_err(|err| NodeDescribeCacheError::ApiFailure {
-                gateway: data.identity_key().to_string(),
-                source: err,
-            })?;
+    let map_query_err = |err| NodeDescribeCacheError::ApiFailure {
+        node_id: data.node_id,
+        source: err,
+    };
+
+    let host_info = client.get_host_information().await.map_err(map_query_err)?;
 
     if !host_info.verify_host_information() {
         return Err(NodeDescribeCacheError::MissignedHostInformation {
-            gateway: data.identity_key().clone(),
+            node_id: data.node_id,
         });
     }
 
-    let build_info =
-        client
-            .get_build_information()
-            .await
-            .map_err(|err| NodeDescribeCacheError::ApiFailure {
-                gateway: data.identity_key().clone(),
-                source: err,
-            })?;
+    let node_info = query_for_described_data(&client, data.node_id).await?;
+    let description = node_info.into_node_description(host_info.data);
 
-    // this can be an old node that hasn't yet exposed this
-    let auxiliary_details = client.get_auxiliary_details().await.inspect_err(|err| {
-        debug!("could not obtain auxiliary details of node {}: {err} is it running an old version?", data.identity_key());
-    }).unwrap_or_default();
-
-    let websockets =
-        client
-            .get_mixnet_websockets()
-            .await
-            .map_err(|err| NodeDescribeCacheError::ApiFailure {
-                gateway: data.identity_key().clone(),
-                source: err,
-            })?;
-
-    let network_requester =
-        if let Ok(nr) = client.get_network_requester().await {
-            let exit_policy = client.get_exit_policy().await.map_err(|err| {
-                NodeDescribeCacheError::ApiFailure {
-                    gateway: data.identity_key().clone(),
-                    source: err,
-                }
-            })?;
-            let uses_nym_exit_policy = exit_policy.upstream_source == mainnet::EXIT_POLICY_URL;
-
-            Some(NetworkRequesterDetails {
-                address: nr.address,
-                uses_exit_policy: exit_policy.enabled && uses_nym_exit_policy,
-            })
-        } else {
-            None
-        };
-
-    let ip_packet_router = if let Ok(ipr) = client.get_ip_packet_router().await {
-        Some(IpPacketRouterDetails {
-            address: ipr.address,
-        })
-    } else {
-        None
-    };
-
-    let authenticator = if let Ok(auth) = client.get_authenticator().await {
-        Some(AuthenticatorDetails {
-            address: auth.address,
-        })
-    } else {
-        None
-    };
-
-    let wireguard = if let Ok(wg) = client.get_wireguard().await {
-        Some(WireguardDetails {
-            port: wg.port,
-            public_key: wg.public_key,
-        })
-    } else {
-        None
-    };
-
-    let description = NymNodeDescription {
-        host_information: host_info.data.into(),
-        last_polled: OffsetDateTime::now_utc().into(),
-        build_information: build_info,
-        network_requester,
-        ip_packet_router,
-        authenticator,
-        wireguard,
-        mixnet_websockets: websockets.into(),
-        auxiliary_details,
-        role: data.role(),
-    };
-
-    Ok((data.identity_key().clone(), description))
+    Ok(NymNodeDescription {
+        node_id: data.node_id,
+        contract_node_type: data.node_type,
+        description,
+    })
 }
 
 struct RefreshData {
     host: String,
-    identity_key: IdentityKey,
-    role: NodeRole,
+    node_id: NodeId,
+    node_type: DescribedNodeType,
+
     port: Option<u16>,
 }
 
 impl RefreshData {
-    pub fn new(host: String, identity_key: IdentityKey, role: NodeRole, port: Option<u16>) -> Self {
+    pub fn new(
+        host: impl Into<String>,
+        node_type: DescribedNodeType,
+        node_id: NodeId,
+        port: Option<u16>,
+    ) -> Self {
         RefreshData {
-            host,
-            identity_key,
-            role,
+            host: host.into(),
+            node_id,
+            node_type,
             port,
         }
     }
 
-    pub fn host(&self) -> String {
-        self.host.clone()
-    }
-
-    pub fn identity_key(&self) -> IdentityKey {
-        self.identity_key.clone()
-    }
-
-    pub fn port(&self) -> Option<u16> {
-        self.port
-    }
-
-    pub fn role(&self) -> NodeRole {
-        self.role.clone()
+    async fn try_refresh(self) -> Option<NymNodeDescription> {
+        match try_get_description(self).await {
+            Ok(description) => Some(description),
+            Err(err) => {
+                debug!("failed to obtain node self-described data: {err}");
+                None
+            }
+        }
     }
 }
 
 #[async_trait]
 impl CacheItemProvider for NodeDescriptionProvider {
-    type Item = HashMap<IdentityKey, NymNodeDescription>;
+    type Item = DescribedNodes;
     type Error = NodeDescribeCacheError;
 
     async fn wait_until_ready(&self) {
@@ -267,58 +334,64 @@ impl CacheItemProvider for NodeDescriptionProvider {
     }
 
     async fn try_refresh(&self) -> Result<Self::Item, Self::Error> {
-        let mut host_id_pairs = self
-            .contract_cache
-            .gateways_all()
-            .await
-            .into_iter()
-            .map(|full| {
-                RefreshData::new(
-                    full.gateway.host,
-                    full.gateway.identity_key,
-                    NodeRole::EntryGateway,
-                    None,
-                )
-            })
-            .collect::<Vec<RefreshData>>();
+        // we need to query:
+        // - legacy mixnodes (because they might already be running nym-nodes, but haven't updated contract info)
+        // - legacy gateways (because they might already be running nym-nodes, but haven't updated contract info)
+        // - nym-nodes
 
-        host_id_pairs.extend(
-            self.contract_cache
-                .mixnodes_all()
-                .await
-                .into_iter()
-                .map(|full| {
-                    RefreshData::new(
-                        full.bond_information.mix_node.host,
-                        full.bond_information.mix_node.identity_key,
-                        NodeRole::Mixnode {
-                            layer: full.bond_information.layer.into(),
-                        },
-                        Some(full.bond_information.mix_node.mix_port),
-                    )
-                })
-                .collect::<Vec<RefreshData>>(),
-        );
+        let mut nodes_to_query = Vec::new();
 
-        if host_id_pairs.is_empty() {
-            return Ok(HashMap::new());
+        match self.contract_cache.all_cached_legacy_mixnodes().await {
+            None => error!("failed to obtain mixnodes information from the cache"),
+            Some(legacy_mixnodes) => {
+                for node in &**legacy_mixnodes {
+                    nodes_to_query.push(RefreshData::new(
+                        &node.bond_information.mix_node.host,
+                        DescribedNodeType::LegacyMixnode,
+                        node.mix_id(),
+                        Some(node.bond_information.mix_node.http_api_port),
+                    ))
+                }
+            }
         }
 
-        let node_description = stream::iter(host_id_pairs.into_iter().map(try_get_description))
-            .buffer_unordered(self.batch_size)
-            .filter_map(|res| async move {
-                match res {
-                    Ok((identity, description)) => Some((identity, description)),
-                    Err(err) => {
-                        debug!("failed to obtain gateway self-described data: {err}");
-                        None
-                    }
+        match self.contract_cache.all_cached_legacy_gateways().await {
+            None => error!("failed to obtain gateways information from the cache"),
+            Some(legacy_gateways) => {
+                for node in &**legacy_gateways {
+                    nodes_to_query.push(RefreshData::new(
+                        &node.bond.gateway.host,
+                        DescribedNodeType::LegacyGateway,
+                        node.node_id,
+                        None,
+                    ))
                 }
-            })
+            }
+        }
+
+        match self.contract_cache.all_cached_nym_nodes().await {
+            None => error!("failed to obtain nym-nodes information from the cache"),
+            Some(nym_nodes) => {
+                for node in &**nym_nodes {
+                    nodes_to_query.push(RefreshData::new(
+                        &node.bond_information.node.host,
+                        DescribedNodeType::NymNode,
+                        node.node_id(),
+                        node.bond_information.node.custom_http_port,
+                    ))
+                }
+            }
+        }
+
+        let nodes = stream::iter(nodes_to_query.into_iter().map(|n| n.try_refresh()))
+            .buffer_unordered(self.batch_size)
+            .filter_map(|x| async move { x.map(|d| (d.node_id, d)) })
             .collect::<HashMap<_, _>>()
             .await;
 
-        Ok(node_description)
+        info!("refreshed self described data for {} nodes", nodes.len());
+
+        Ok(DescribedNodes { nodes })
     }
 }
 
@@ -327,8 +400,6 @@ impl CacheItemProvider for NodeDescriptionProvider {
 pub(crate) fn new_refresher(
     config: &config::TopologyCacher,
     contract_cache: NymContractCache,
-    // hehe. we can't do that yet
-    // network_gateways: SharedCache<Vec<GatewayBond>>,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new(
         Box::new(
@@ -342,8 +413,6 @@ pub(crate) fn new_refresher(
 pub(crate) fn new_refresher_with_initial_value(
     config: &config::TopologyCacher,
     contract_cache: NymContractCache,
-    // hehe. we can't do that yet
-    // network_gateways: SharedCache<Vec<GatewayBond>>,
     initial: SharedCache<DescribedNodes>,
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new_with_initial_value(

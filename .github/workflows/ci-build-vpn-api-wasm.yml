@@ -1,0 +1,41 @@
+name: ci-build-vpn-api-wasm
+
+on:
+  pull_request:
+    paths:
+      - 'common/**'
+      - 'nym-credential-proxy/**'
+      - '.github/workflows/ci-build-vpn-api-wasm.yml'
+
+jobs:
+  wasm:
+    runs-on: arc-ubuntu-22.04
+    env:
+      CARGO_TERM_COLOR: always
+    steps:
+      - name: Check out repository code
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          target: wasm32-unknown-unknown
+          override: true
+          components: rustfmt, clippy
+
+      - name: Install wasm-pack
+        run: curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+
+      - name: Install wasm-opt
+        uses: ./.github/actions/install-wasm-opt
+        with:
+          version: '116'
+
+      - name: Install wasm-bindgen-cli
+        run: cargo install wasm-bindgen-cli
+
+      - name: "Build"
+        run: make
+        working-directory: nym-credential-proxy/vpn-api-lib-wasm

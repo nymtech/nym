@@ -14,7 +14,7 @@ base64 = { workspace = true }
 bs58 = { workspace = true }
 cfg-if = { workspace = true }
 clap = { workspace = true, optional = true }
-comfy-table = { version = "7.1.1", optional = true }
+comfy-table = { workspace = true, optional = true }
 futures = { workspace = true }
 humantime-serde = { workspace = true }
 log = { workspace = true }
@@ -59,19 +59,19 @@ nym-ecash-time = { path = "../ecash-time" }
 
 ### For serving prometheus metrics
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper]
-version = "1"
+workspace = true
 features = ["server", "http1"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.http-body-util]
-version = "0.1"
+workspace = true
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.hyper-util]
-version = "0.1"
+workspace = true
 features = ["tokio"]
 ###
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
-version = "0.1.16"
+workspace = true
 features = ["time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio]
@@ -110,7 +110,7 @@ path = "../wasm/utils"
 features = ["websocket"]
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.time]
-version = "0.3.17"
+workspace = true
 features = ["wasm-bindgen"]
 
 [dev-dependencies]

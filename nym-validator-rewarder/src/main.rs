@@ -14,7 +14,7 @@ use nym_network_defaults::setup_env;
 pub mod cli;
 pub mod config;
 pub mod error;
-mod rewarder;
+pub mod rewarder;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

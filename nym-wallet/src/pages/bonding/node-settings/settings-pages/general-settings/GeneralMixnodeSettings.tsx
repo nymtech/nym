@@ -6,9 +6,8 @@ import { Box, Button, Divider, Grid, Stack, TextField, Typography } from '@mui/m
 import { useTheme } from '@mui/material/styles';
 import { isMixnode } from 'src/types';
 import { simulateUpdateMixnodeConfig, simulateVestingUpdateMixnodeConfig, updateMixnodeConfig } from 'src/requests';
-import { TBondedGateway, TBondedMixnode } from 'src/context/bonding';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
-import { bondedInfoParametersValidationSchema } from 'src/components/Bonding/forms/mixnodeValidationSchema';
+import { bondedInfoParametersValidationSchema } from 'src/components/Bonding/forms/legacyForms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
 import { Alert } from 'src/components/Alert';
 import { vestingUpdateMixnodeConfig } from 'src/requests/vesting';
@@ -17,8 +16,9 @@ import { useGetFee } from 'src/hooks/useGetFee';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { AppContext } from 'src/context';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 
-export const GeneralMixnodeSettings = ({ bondedNode }: { bondedNode: TBondedMixnode | TBondedGateway }) => {
+export const GeneralMixnodeSettings = ({ bondedNode }: { bondedNode: TBondedMixnode }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const { getFee, fee, resetFeeState } = useGetFee();
   const { userBalance } = useContext(AppContext);

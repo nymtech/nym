@@ -2,6 +2,491 @@
 
 This page displays a full list of all the changes during our release cycle from [`v2024.3-eclipse`](https://github.com/nymtech/nym/blob/nym-binaries-v2024.3-eclipse/CHANGELOG.md) onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
+## `v2024.12-aero`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.12-aero)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.12-aero/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.md) version `1.1.9`
+
+```sh
+nym-node 
+Binary Name:        nym-node
+Build Timestamp:    2024-10-17T08:57:52.525093253Z
+Build Version:      1.1.9
+Commit SHA:         d75c7eaaaf3bb7350720cf9c7657ce3f7ee6ec2e
+Commit Date:        2024-10-17T08:51:39.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.81.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Features
+
+- [Rust sdk stream abstraction](https://github.com/nymtech/nym/pull/4743): Starting to move this from being standalone binaries (as seen [here](https://github.com/nymtech/nym-zcash-grpc-demo)) into the sdk. EDIT this has sort of expanded a bit to include a few things:
+  - [x] simple example
+  - [x] example doc to `src/tcp_proxy.rs` 
+  - [x] simple echo server in `tools/`
+  - [x] multithread example
+  - [x] example to sdk for using different network
+  - [x] go ffi for proxies
+  
+- [Build(deps): bump `toml` from `0.5.11` to `0.8.14`](https://github.com/nymtech/nym/pull/4805): [`toml`](https://github.com/toml-rs/toml) version update
+~~~admonish example collapsible=true title='Testing steps performed'
+- Ensured that the `cargo.toml` is legible in various places; tested it on `nym-node`, `nym-api` and `nymvisor`.
+- Ensured that updating the cargo.toml file and restarting the given binary continues to behave as normal.
+~~~
+
+- [Use `serde` from workspace](https://github.com/nymtech/nym/pull/4833): cargo autoinherit for `serde` - cargo autoinherit for `bs58` and `vergen` in `cosmwasm-smart-contracts` 
+
+- [Gateway database modifications for different modes](https://github.com/nymtech/nym/pull/4868): As gateway clients will not be solely from the mixnet, we need to split the table that handles shared keys from the client ids that are referenced from other tables. That way, the bandwidth table can be shared between different client types (entry mixnet, entry gateway, exit gateway), using the same `client_id` referencing.
+
+- [Remove the push trigger for `ci-nym-wallet-rust`](https://github.com/nymtech/nym/pull/4869)
+
+- [Chore: remove queued migration for adding explicit admin](https://github.com/nymtech/nym/pull/4871)
+
+- [Allow clients to send stateless gateway requests without prior registration](https://github.com/nymtech/nym/pull/4873): in order to make changes to the registration/authentication procedure we needed a way of extracting protocol information before undergoing the handshake. 
+
+- [Fix sql `serde` with `enum`](https://github.com/nymtech/nym/pull/4875)
+
+- [Few fixes to NNM pre deploy](https://github.com/nymtech/nym/pull/4883)
+
+- [Feature/updated gateway registration](https://github.com/nymtech/nym/pull/4885): This PR introduces support for aes256-gcm-siv shared keys between clients and gateways.
+    - Those changes should be fully backwards compatible. if they're not, there's a bug.
+~~~admonish example collapsible=true title='Testing steps performed'
+- For the following combinations I inited the client, ran the client, stopped the client, and ran the client again:
+- Fresh client on new binary && gateway on old binary
+- Fresh client on old binary && gateway on new binary
+- Fresh client on new binary && gateway new binary 
+- Existing old client on old binary & new gateway 
+~~~
+ 
+- [Build and Push CI](https://github.com/nymtech/nym/pull/4887)
+
+- [Entry wireguard tickets](https://github.com/nymtech/nym/pull/4888): Note: The behaviour of the nodes and vpn client (as a test) has not changed, it still works as it used to. Obtaining ticketbooks also is unchanged
+
+- [Update `nym-vpn` metapackage and replace `nymvpn-x` with `nym-vpn-app`](https://github.com/nymtech/nym/pull/4889): Change dependency from `nymvpn-x` to `nym-vpn-app` to reflect the new package name of the tauri client
+
+- [Update network monitor entry point](https://github.com/nymtech/nym/pull/4893)
+
+- [Remove clippy github PR annotations](https://github.com/nymtech/nym/pull/4896): It eats up CI resources and time to run the clippy annotation checks that likely no one uses anyway. We keep the clippy checks of course.
+
+- [Fix clippy for beta toolchain](https://github.com/nymtech/nym/pull/4897): 
+
+- [Update cargo deny](https://github.com/nymtech/nym/pull/4901): Update to use latest `cargo-deny`. Here are the steps done:
+  - Regenerate `deny.toml`
+  - Backport old settings to `deny.toml`
+  - Explicitly allow GPL-3 only on our own specific crates
+  - Update `deny.toml` for latest changes
+  - Fix `cargo-deny` warnings for duplicate crates
+  - Update `cargo-deny-action` to v2
+
+- [Data Observatory stub](https://github.com/nymtech/nym/pull/4905): You need Postgres up for `sqlx` compile-time checked queries to work
+~~~admonish example collapsible=true title='Try yourself'
+
+- Get [`page_up.sh` script](https://github.com/nymtech/nym/blob/develop/nym-data-observatory/pg_up.sh)
+
+```bash
+./pg_up.sh
+```
+
+Play with the database:
+```bash
+docker exec -it nym-data-observatory-pg /bin/bash
+psql -U youruser -d yourdb
+```
+~~~
+
+- [Proxy ffi](https://github.com/nymtech/nym/pull/4906): Updates Go & CPP FFI with the proxy code from  [\#4743](https://github.com/nymtech/nym/pull/4743)
+
+- [Bump `http-api-client` default timeout to 30 sec](https://github.com/nymtech/nym/pull/4917)
+
+- [Check both version and type in message header](https://github.com/nymtech/nym/pull/4918)
+
+- [Fix argument to `cargo-deny` action](https://github.com/nymtech/nym/pull/4922)
+
+- [Expose error type](https://github.com/nymtech/nym/pull/4924)
+
+- [Make ip-packet-request VERSION pub](https://github.com/nymtech/nym/pull/4925) 
+
+- [Assume offline mode](https://github.com/nymtech/nym/pull/4926)
+
+- [`nym-node`: don't use bloomfilters for double spending checks](https://github.com/nymtech/nym/pull/4960): this PR disables gateways polling for double spending bloomfilters and also `nym-apis` from providing this data.
+
+### Bugfix
+
+- [Fix `apt install` in `ci-build-upload-binaries.yml`](https://github.com/nymtech/nym/pull/4894)
+
+- [Fix missing duplication of modified tables](https://github.com/nymtech/nym/pull/4904)
+
+- [Fix nymvpn.com url in mainnet defaults](https://github.com/nymtech/nym/pull/4920): The old URL (nympvn.net) works since it is redirected to nymvpn.com, but the extra round-trip adds latency to all the API calls the vpn client does. So this PR should help speed things up, in particular when these API calls happen across the mixnet.
+
+- [Fix handle drop](https://github.com/nymtech/nym/pull/4934)
+
+- [Replace unreachable macro with an error return](https://github.com/nymtech/nym/pull/4958)
+
+### Operators Guide, Tooling & Updates
+
+#### Documentation Updates
+
+- [Update FAQ sphinx size](https://github.com/nymtech/nym/pull/4946): This PR upgrades url to our code base sphinx creation from an outdated branch to develop. 
+
+#### Fast & Furious - WireGuard edition
+
+Nym team started another round of load and speed testing. This time the tests are limited to Wireguard mode Gateways - to find out any weak spots for needed improvement. The load testing is happening directly on mainnet as it simulates a real user traffic which the network components must be able to handle in order.
+
+Over past week we ran a total of three tests, with 450 clients at most. We've managed to push around 300 GB in total. Around 50% of requests failed. Over the course of those three tests, we did about 5000 requests, and bandwidth per client varies between 50Mb/s and 150Mb/s.
+
+We already caught two bugs and [fixed](https://github.com/nymtech/nym/pull/4885) it in this release. 
+
+**The faster the operators upgrade to this [latest release](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.12-aero), the better**. A that will allow us to do more precise testing through the nodes without the registry bug, leading to more precise specs for `nym-node`.
+
+Here are the aims of these tests:
+
+1. Understanding of the wireguard network behavior under full load
+    - How many client users can all entry gateways and exit gateways handle simultaneously?
+    - How much sustained IP traffic can a subset of mainnet nodes sustain?
+2. Needed improvements of Nym Node binaries to improve the throughput on mainnet
+3. Measurement of required machine specs
+    - Releasing a new spec requirements
+4. Raw data record
+5. Increase quality of Nym Nodes
+
+Meanwhile we started to research pricing of stronger servers with unlimited bandwidth and higher (and stable) port speed, to arrive to a better understanding of needed rewards and grants to bootstrap the network before NymVPN launch. 
+
+More info about testing and tools for performance monitoring can be found in [this chapter](testing/performance.md).
+
+> We would like to call out to operators to join the efforts and reach out to us if they know of solid ISPs who offer reliable dedicated services for good price or may even be interested in partnership.
+
+#### Delegation Program
+
+In October we again proceeded with our Delegation Program. 22 nodes didn't meet the program rules and got their delegation removed and 25 nodes from the que received delegation. Below is a complete list. 
+
+~~~admonish example collapsible=true title='List of all delegation changes'
+Delegated:
+```
+Ce6kcPckNfQsga2z645VFQYadtoTjqXrS1YXMTtNNv98
+2XSCWy1vAoJRaYBJXx4KWwjU1cfoS2wNBXVQZvi8Jtdr
+Bu4sUGjJqkje4vSncTH2KgrnojmfESdaYwamC6DbpJGZ
+7TWEw9qQxsc8w4WhPAX6zjZ8vuNBdtP21zUVN8K26RkD
+HejyqervmGTCEwi1JbRBXV5My463336huBn8ZgSpuhc3
+CXcCVGiamYSwgVwaxW3mEkXkZh1sKY2TXnWjjTjxDxzA
+FScLfnKUPv9wSef3R4N2pQ9ft7DiwdivLW1i65Dqfc9L
+2vuZZJjyYN27fvDbhyqeGosewGWaRh6iVsFtqbJoYAR7
+B9QiBsSAx7MRcTpYMs1fu9AFJurAZTPWMispHZXPbaVW
+E3e2a9kXZjQXsKAfvmCf2WqwmVkiGR2LbjCwoadZgEJt
+Dk4fCLM7idHPqfsUucLQtSMtYaYCLhi4T7vwvw88jG3P
+9xZUp4sYWUNJesWy3MPVjh5kTorNqj3RxcFgBmYjV1xV
+HK9QxPpdJfNtNpLJZHTN5M113jeBbFzTkMtPt9eouimx
+ECkzyHfoiNGKyDTtbbH5HDCWa8KMGh92mtGbGHLZ3Y9n
+9jQQV9vQ2mFFXywwVhACCKefjUFpyBoCU6KXNfjAEi45
+6QguhCfnDPKJe8bQXg9myuPB89yYFk6R77vMhLTbipK7
+4hAJJQhLTFve8FZGd28ksjavbch8STMax2rytzKmDPCV
+EZLFq5HGXFKRpxu78nVjf7kuuUaKPLAbezR6mXbZrP6y
+FtAAA5GMxY1Ge9wKYDrQgaSfJEUp4XvBLptBwy3GU8ap
+tUiLPjz5nkPn5ZJT5ZXLPGDcZ3caQsfkMAp1epoAuSQ
+4ScsM6AVowhKTMWaH98NLntKDwbu2ZMEycUk4mZiZppG
+Hb34PTth6CeFziPAAEUMEjJFHWJg1dDex5QxUXKNqRBE
+9ek1PMvLhpbwZe7kTMyCVY5VNqrdSPPoruFPQtbxnZyf
+```
+
+Undelegated due to the use of an outdated binary:
+```
+9UHXFYuMLhuugndt8xCFRydmDPFyEEUHYc72tNANEtHp
+5Y86A7fUX3LYVDDeoujtAiZFudYcHJq6gw8nsp71wN7U
+HYWjn6yL8y7TBPFL9bTgDm6tHgyoEQupgJuBhLLoA5EY
+4JCpbdhiQFKWwhrbkNDbwcwBGZnvU4WQrF2vqQLfmZvW
+2f7JaYmmrMQQMczLX32ogfP7PBHeyPKbAVNjjEsExZVd
+9TW55JrsFhsMoe3Tf8LBR4bPSCX86VXyvioMmCw9tWB
+AyN34XqUi5XxgjmivWG2z6TftkqAFjVV5C9zCbx8Fvp5
+skNS4zNsKdbbUR9wFTJoPdmReW4NdrDEpp8512TNG4f
+DztUnMKM545sdipgqhCsPNhK3YVmBbS2fp9HZgM5Jpw9
+GnLmx1s7g9nH3uLRhGpaXTbQEhCSKB6YenBQWQhthSx9
+GoJjAkH5hpcPYeW7JDUVfHdqgcufjwdhY2PLwBGJV3Ar
+EdHVMTXpLiBbvCUnEoSPQ86pBNY1h9HtL34Q7cpNPWCy
+```
+
+Undelegated due to increased operation costs or profit margin:
+```
+Erw9AQ4UJCgCiAWisUWbFk9Yedm8qvW4YQqmJRrBrE5p
+BVDVtmNbZRgPKU81uBkrgfj5TnhtZqQcPAwxD48jcfMd
+36nmH3kawhAsNA6sxFva2HgTnQHQDbcrRefvWWbmhHvY
+2831fyXRAJ88x1Pd5aW7utw7WH1XkHZEfoWhLk2foLxJ
+AMDS4cib433iRstwP9mWnZ4zPqb6hm6uPF7PpvhSkpYC
+DE9eEeVsuiKeVfwebg5HYsebqRUvxd7LWsT9hQUtVrTQ
+FAKhiQ8nW5sAWAxks1WB8u1MAWsapToCSE3KmF9LuGRQ
+```
+
+Undelegated due to being blacklisted for extensive period
+```
+sjL9n9ymxfWWwkQJxXdsMkdwamXfh3AJ3vCe7rJ8RrT
+E2HAJrHnk56QZDUCkcjc4i4pVEqtyuPYL5bNFYtweQuL
+4PytR3tmodsvqGTKdY47yie8kmrkARQdb5Ht3Ro3ChH4
+```
+~~~
+
+---
+
+## `v2024.11-wedel`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.11-wedel)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.11-wedel/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.md) version `1.1.8`
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2024-09-27T11:02:37.073944654Z
+Build Version:      1.1.8
+Commit SHA:         c3ec970a377adb25d57be5428551fada2ec55128
+Commit Date:        2024-09-26T08:24:53.000000000+02:00
+Commit Branch:      master
+rustc Version:      1.80.1
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Features
+
+- [New Network Monitor](https://github.com/nymtech/nym/pull/4610): Monitors the Nym network by sending itself packages across the mixnet. Network monitor is running two tokio tasks, one manages mixnet clients and another manages monitoring itself. Monitor is designed to be driven externally, via an `HTTP api`. This means that it does not do any monitoring unless driven by something like [`locust`](https://locust.io/). This allows us to tailor the load externally, potentially distributing it across multiple monitors. Includes a dockerised setup for automatically spinning up monitor and driving it with locust.
+    - *Note: NNM is not deployed on mainnet yet!*
+ 
+- [Add get_mixnodes_described to validator_client](https://github.com/nymtech/nym/pull/4725)
+
+- [Remove deprecated mark_as_success and use new disarm](https://github.com/nymtech/nym/pull/4751): Update function name to keep terminology consistent with tokio `CancellationToken DropGuard`.
+
+- [Update peer refresh value](https://github.com/nymtech/nym/pull/4754): `lso` expose the value by moving it to wireguard types, and separate the refresh time to the database sync time, so that more probable and needed actions happen faster (refresh) and more improbable ones don't overload the system (peer suspended or stale)
+~~~admonish example collapsible=true title='Testing steps performed'
+- **Noted** that the constants `DEFAULT_PEER_TIMEOUT` and `DEFAULT_PEER_TIMEOUT_CHECK` have been moved to `common/wireguard-types/src/lib.rs` and are now being used across modules for consistency
+- **Observed** that the `peer_controller.rs` now separates the in-memory updates from the storage sync operations to reduce system load
+- **Identified** that in-memory updates of peer bandwidth usage happen every `DEFAULT_PEER_TIMEOUT_CHECK` (every 5 seconds), while storage updates occur every 5 * `DEFAULT_PEER_TIMEOUT_CHECK` (every 25 seconds)
+ 
+**Checked System Load and Performance:**
+ 
+- **Monitored** system resource usage (CPU, memory, I/O) during the test to assess the impact of the changes
+- **Confirmed** that the separation of in-memory updates and storage syncs resulted in reduced system load, particularly I/O operations, compared to previous versions where storage updates occurred more frequently
+- **Ensured** that the system remained responsive and no performance bottlenecks were introduced
+
+- **Efficiency Improvement:** The separation of in-memory updates and storage syncs effectively reduced unnecessary database writes, improving system efficiency without compromising data accuracy
+~~~
+
+- [Remove duplicate stat count for retransmissions](https://github.com/nymtech/nym/pull/4756)
+
+- [Make gateway latency check generic](https://github.com/nymtech/nym/pull/4759): Replace concrete gateway type with trait in latency check, so we can make use of it in the vpn client.
+~~~admonish example collapsible=true title='Testing steps performed'
+- Initialised new `nym-client` with the `--latency-based-selection` flag and ensured it still works as normal. 
+~~~
+
+- [chore: remove repetitive words](https://github.com/nymtech/nym/pull/4763)
+
+- [Avoid race on ip and registration structures](https://github.com/nymtech/nym/pull/4766): To avoid a state where the ip is being cleared out before the registration is also cleared out, couple the two structures under the same lock, since they are anyway very inter-dependent.
+~~~admonish example collapsible=true title='Testing steps performed'
+1.  - **Checked out** the release/2024.10-wedel branch containing the fix for the race condition on IP and registration structures
+    - **Deployed** the on a controlled test environment to prevent interference
+ 
+2. **Monitored Logs:**
+
+    - **Enabled** debug logging to capture all events
+    - **Monitored** logs in real-time to observe the handling of concurrent registration requests
+    - **Checked** for any error messages, warnings, or indications of race conditions
+ 
+3. **Verified Client Responses:**
+ 
+    - Ensured that all clients received appropriate responses:
+    - Successful registration with assigned IP and registration data
+    - Appropriate error messages if no IPs were available or if other issues occurred
+    - Confirmed that no clients were left in an inconsistent state (e.g., assigned an IP but not fully registered)
+ 
+4. **Validated Normal Operation:**
+    - **Conducted standard registration processes** with individual clients to confirm that regular functionality is unaffected via `nym-vpn-cli`
+    - Ensured that authenticated clients could communicate over the network as expected
+~~~
+
+- [Persist used wireguard private IPs](https://github.com/nymtech/nym/pull/4771)
+
+- [Enable dependabot version upgrades for root rust workspace](https://github.com/nymtech/nym/pull/4778)
+
+- [Fix clippy for `unwrap_or_default`](https://github.com/nymtech/nym/pull/4783): Fix nightly build for [beta toolchain](https://github.com/nymtech/nym/actions/runs/10552082396/job/29230401668)
+
+- [Update dependabot](https://github.com/nymtech/nym/pull/4796): Bump max number of dependabot rust PRs to 10. Add readme entry to workspace package. 
+
+- [Run `cargo-autoinherit` for a few new crates](https://github.com/nymtech/nym/pull/4801): Run cargo-autoinherit for a few new crates - Sort crates list. 
+
+- [Add `axum` server to `nym-api`](https://github.com/nymtech/nym/pull/4803): Summary PR to add axum functionality behind a feature flag `axum`, alongside rocket. 
+
+- [Remove unused wireguard flag from SDK](https://github.com/nymtech/nym/pull/4823)
+
+- [Expose wireguard details on self described endpoint](https://github.com/nymtech/nym/pull/4825) 
+~~~admonish example collapsible=true title='Testing steps performed'
+Wireguard details are now visible at the nym-node endpoint `/api/v1/gateway/client-interfaces` as well as on the nym-api self-described endpoint `/api/v1/gateways/described`, above the existing data displaying mixnet_websocket information. 
+ 
+An example of what will be shown is: 
+```json
+ "wireguard": {
+ "port": 51822,
+ "public_key": "<some public key here>"
+ }
+```
+~~~
+
+- [Revamped ticketbook serialisation and exposed additional cli methods](https://github.com/nymtech/nym/pull/4827): `wip` branch that includes changes needed for `vpn-api` alongside additional `ecash utils`
+~~~admonish example collapsible=true title='Testing steps performed'
+Checked the following commands: 
+```sh
+show-ticket-books # which displays the information about all ticketbooks associated to the client 
+import-ticket-book # which imports a normal ticketbook to the client alongside `--full` flag
+```
+
+On the cli, the following were added: `import-coin-index-signatures`, `import-expiration-date-signatures` and `import-master-verification-key`.
+~~~
+
+- [Run cargo autoinherit following last weeks dependabot updates](https://github.com/nymtech/nym/pull/4831)
+
+- [Remove serde_crate named import](https://github.com/nymtech/nym/pull/4832)
+
+- [Create nym-repo-setup debian package and nym-vpn meta package](https://github.com/nymtech/nym/pull/4837): Create nym-repo-setup debian package that sets up the nymtech debian repo on the system it's installed on. It does 2 things:
+ 
+    1. Copy the keyring to `/usr/share/keyrings/nymtech.gpg`
+    2. Copy the repo spec to `/etc/apt/sources.list.d/nymtech.list`
+    - Also create a meta package `nym-vpn` which only purpose is to depend on the daemon and UI.
+
+~~~admonish example collapsible=true title='Usage'
+1. Install with
+```sh
+sudo dpkg -i ./nym-repo-setup.deb
+```
+2. Once it's installed, it should be possible to install the vpn client with
+```sh
+sudo apt install nym-vpnc
+```
+3. To reemove the repo, use
+```sh
+sudo apt remove nym-repo-setup
+```
+
+NOTE: removing the repo will not remove any installed nym-vpn packages
+~~~
+
+~~~admonish example collapsible=true title='Testing steps performed'
+
+1. **Downloaded** the `nym-repo-setup.deb` package to a Debian-based test system
+ 
+2. **Installed** the repository setup package using the command: 
+```bash
+sudo dpkg -i ./nym-repo-setup.deb
+```
+ 
+3. **Verified** that the GPG keyring was copied to `/usr/share/keyrings/nymtech.gpg`:
+```bash
+ls -l /usr/share/keyrings/nymtech.gpg
+```
+ 
+4. **Checked** that the repository specification was added to `/etc/apt/sources.list.d/nymtech.list`:
+```bash
+cat /etc/apt/sources.list.d/nymtech.list
+```
+ 
+ 5. **Updated** the package list:
+```bash
+sudo apt update
+```
+ 
+6. **Installed** the VPN client meta-package:
+```bash
+sudo apt install nym-vpnc
+```
+
+7. **Confirmed** that the `nym-vpnc` package and its dependencies (daemon and UI) were installed successfully
+
+8. **Tested** the VPN client to ensure it operates as expected
+ 
+9. **Removed** the repository setup package:
+```bash
+sudo apt remove nym-repo-setup
+```
+
+10. **Verified** that the repository specification file `/etc/apt/sources.list.d/nymtech.list` was removed
+ 
+11. **Ensured** that the installed `nym-vpnc` packages remained installed and functional after removing the repo setup package
+~~~
+
+- [Use ecash credential type for bandwidth value](https://github.com/nymtech/nym/pull/4840)
+
+- [Start switching over jobs to arc-ubuntu-20.04](https://github.com/nymtech/nym/pull/4843)
+
+~~~admonish example collapsible=true title='`ci-binary-config-checker`'
+```
+ - ci-build-upload-binaries
+ - ci-build
+ - ci-cargo-deny
+ - ci-contracts-schema
+ - ci-contracts-upload-binaries
+ - ci-contracts
+ - ci-docs
+ - ci-nym-wallet-rust
+ - ci-sdk-wasm
+```
+~~~
+
+- [Move credential verification into common crate](https://github.com/nymtech/nym/pull/4853)
+
+- [Revert runner for `ci-docs`](https://github.com/nymtech/nym/pull/4855)
+
+- [Remove `golang` workaround in `ci-sdk-wasm`](https://github.com/nymtech/nym/pull/4858)
+
+- [Fix linux conditional in `ci-build.yml`](https://github.com/nymtech/nym/pull/4863)
+
+- [Disable push trigger and add missing paths in `ci-build`](https://github.com/nymtech/nym/pull/4864)
+
+- [chore: removed completed queued mixnet migration](https://github.com/nymtech/nym/pull/4865)
+
+- [Bump defguard to github latest version](https://github.com/nymtech/nym/pull/4872)
+
+- [Backport #4894 to fix ci](https://github.com/nymtech/nym/pull/4899)
+
+### Bugfix
+
+- [Fix test failure in ipr request size](https://github.com/nymtech/nym/pull/4844): Nightly build started failing due to a unit test using `now()`, changing the serialized size. Fixed to use a fixed date.
+
+- [Fix clippy for nym-wallet and latest rustc](https://github.com/nymtech/nym/pull/4845)
+
+- [Allow updating globally stored signatures](https://github.com/nymtech/nym/pull/4891)
+
+- [Bugfix/ticketbook false double spending](https://github.com/nymtech/nym/pull/4892)
+~~~admonish example collapsible=true title='Testing steps performed'
+Tested running a client in mixnet mode, with a standard ticketbook, as well as a client using an imported ticketbook. The double spending bug is no longer an issue, bandwidth is consumed properly, and upon consumption of one ticket another ticket is properly obtained. 
+~~~
+
+### Operators Guide, Tooling & Updates
+
+- [WSS setup guide updates](https://github.com/nymtech/nym/commit/05d6652177fb77324f8c38b3d8a547d07e729fec): Operators setting up WSS and reverse proxy on Gateways have now cleaner and simpler guide to configure their VPS. 
+
+- [Updat hostname instruction for WSS](https://github.com/nymtech/nym/commit/7146c4c012ba7012dc74edc8510bbf377dc32fba): Adding a hostname instruction for clarity
+
+## `nym-node` patch from `release/2024.10-caramello`
+
+- [Patch release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.10-caramello-patch)
+
+```sh
+Binary Name:        nym-node
+Build Timestamp:    2024-09-16T15:00:41.019107021Z
+Build Version:      1.1.7
+Commit SHA:         65c8982cab0ff3a1154966e7d61956cb42a065fc
+Commit Date:        2024-09-16T15:59:34.000000000+02:00
+Commit Branch:      HEAD
+rustc Version:      1.81.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+This patch fixes [`v202410-caramello`](#v202410-caramello) release [bug](#known-bugs--undone-features) where one of the used dependencies - [`DefGuard`](https://github.com/DefGuard/defguard/issues/619), was failing.
+
+Updating to this patched version and running `nym-node --mode exit-gateway` with `--wireguard-enabled true` should result in a smooth node start without the `defguard_wireguard` error, occuring to some operators before:
+```sh
+/home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/defguard_wireguard_rs-0.4.2/src/netlink.rs:155: Serialized netlink packet (23240 bytes) larger than maximum size 12288: NetlinkMessage.
+```
+
+This release is a patch only, there are no additional features, everything else stays the same like in the latest release [`v202410-caramello`](#v202410-caramello).
+
 ## `v2024.10-caramello`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.10-caramello)
@@ -118,12 +603,12 @@ The client was removed from the peer list after 3 days of inactivity. Upon re-co
 - [Handle clients with different versions in IPR](https://github.com/nymtech/nym/pull/4723): Allow the IPR to handle clients connecting both using `v6` and `v7`, independently. The motivation is that we want to be able to roll out a API version change gradually for VPN clients without breaking backwards compatibility. The main feature on the new `v7` format that is not yet used, is that it adds signatures for connect/disconnect.
 
 ~~~admonish example collapsible=true title='Testing steps performed'
-Run the same command (using same gateways deployed from this PR) on different versions of the `nym-vpn-cli`. 
+Run the same command (using same gateways deployed from this PR) on different versions of the `nym-vpn-cli`.
 
-Example: 
+Example:
 ```sh
 ~/nym-vpn-core-v0.1.10_macos_universal ❯ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
- 
+
 ~/nym-vpn-core-v0.1.11-dev_macos_universal ❯ sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
 ```
 ~~~
@@ -164,11 +649,11 @@ Example:
 
 - [Feature/vesting purge plus ranged cost params](https://github.com/nymtech/nym/pull/4716): Combines [\#4715](https://github.com/nymtech/nym/pull/4715) and [\#4711](https://github.com/nymtech/nym/pull/4711) into one.
     - Disables all non-essential operations on the vesting contract => you can no longer bond mixnodes/make delegations/etc. (you can still, however, withdraw your vested tokens and so on)
-    - Introduces admin-controlled minimum (and maximum) profit margin and interval operating costs.  
+    - Introduces admin-controlled minimum (and maximum) profit margin and interval operating costs.
     - both contracts have to be migrated **at the same time**. ideally within the same transaction
     - mixnet contract migration is not allowed (and will fail) if there are any pending actions involving vesting tokens, like delegating, increasing pledge, etc
 
-- [Bump braces from `3.0.2` to `3.0.3` in `/nym-wallet/webdriver`](https://github.com/nymtech/nym/pull/4709): Bumps [braces](https://github.com/micromatch/braces) from `3.0.2` to `3.0.3`. 
+- [Bump braces from `3.0.2` to `3.0.3` in `/nym-wallet/webdriver`](https://github.com/nymtech/nym/pull/4709): Bumps [braces](https://github.com/micromatch/braces) from `3.0.2` to `3.0.3`.
 
 ### Bugfix
 
@@ -176,29 +661,29 @@ Example:
 
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Building all binaries is ok
-- Running `cargo fmt` returns no issues 
+- Running `cargo fmt` returns no issues
 ~~~
 
 - [Fix version 1 not having template correspondent initially](https://github.com/nymtech/nym/pull/4733)
 
 ~~~admonish example collapsible=true title='Testing steps performed'
-Tested updating an old `nym-node` version and ensuring it did not throw any errors. 
+Tested updating an old `nym-node` version and ensuring it did not throw any errors.
 ~~~
 
 - [Bugfix/client registration vol2](https://github.com/nymtech/nym/pull/4856)
 
 - [Fix tokio error in `1.39`](https://github.com/nymtech/nym/pull/4730):
     - Bump tokio to `1.39.2`, skipping the issue with `1.39.1`
-    
+
 
 - [Fix (some) feature unification build failures](https://github.com/nymtech/nym/pull/4681): Running a script in the root workspace that builds each crate independently
 
 ~~~admonish example collapsible=true title='The script'
  ```sh
  #!/bin/bash
- 
+
  packages=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[].name')
- 
+
  # Loop through each package and build
  for package in $packages; do
      echo "Building $package"
@@ -211,16 +696,16 @@ Tested updating an old `nym-node` version and ensuring it did not throw any erro
  done
  ```
 ~~~
- 
+
 - [bugfix: make sure DKG parses data out of events if logs are empty](https://github.com/nymtech/nym/pull/4764): This will be the case on post `0.50` chains
 
 - [Fix clippy on rustc beta toolchain](https://github.com/nymtech/nym/pull/4746): Fix clippy warnings for rust beta toolchain
- 
+
 - [Fix clippy for beta toolchain](https://github.com/nymtech/nym/pull/4742): Fix beta toolchain clippy by removing unused module
     - Add `nym-` prefix to `serde-common` crate
     - Remove ignored `default-features = false` attribute for workspace dependency
 
-### Crypto 
+### Crypto
 
 - [Feature Compact Ecash : The One PR](https://github.com/nymtech/nym/pull/4623)
 
@@ -249,7 +734,7 @@ Tested updating an old `nym-node` version and ensuring it did not throw any erro
         - Wireguard registration and complete handshake test, to configure see [tasklist below](#operators-tasks)
         - DNS resolution check, to configure see [tasklist below](#operators-tasks)
         - Wireguard perfomance > 0.75, to configure see [tasklist below](#operators-tasks)
-    
+
 - New [Nym Wallet](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.14) is out!
     - Vesting contract functionalities have been purged, users can only remove tokens from vesting
     - Migrating from `mixnode` or `gateway` smart contracts to a new unifying `nym-node` smart contract will be available soon using Nym desktop wallet, just like you are used to for bonding and node settings. After this migration all `nym-nodes` will be able to receive delegation and rewards. We will share a step by step guide once this migration will be deployed. No action needed now.
@@ -353,7 +838,7 @@ THANK YOU!
 - New `nym-nodes` without a performance 24h history above 50% don't show routing properly on `nym-gateway-probe`, on Nym Harbourmaster the page may appear blank - we are working on a fix.
 - Wireguard works on IPv4 only for the time being, we are working on IPv6 implementation.
 - Harbourmaster *Role* column shows `nym-node --mode exit-gateway` as `EntryGateway`, we are working to fix it.
-- In rare occassions Harbourmaster shows only *"panda"* without the *"smiley"* badge even for nodes, which have T&C's accepted. We are working to fix it. 
+- In rare occassions Harbourmaster shows only *"panda"* without the *"smiley"* badge even for nodes, which have T&C's accepted. We are working to fix it.
 - Sometimes `nym-node` running with `--wireguard-enabled true` gives this error on restart: `Serialized netlink packet .. larger than maximum size ..`
 ```sh
 /home/ubuntu/.cargo/registry/src/index.crates.io-6f17d22bba15001f/defguard_wireguard_rs-0.4.2/src/netlink.rs:155: Serialized netlink packet (23240 bytes) larger than maximum size 12288: NetlinkMessage.
@@ -419,42 +904,42 @@ From what we found out it seems that one of our [dependencies - `DefGuard` - is 
 **Notes:**
 Bandwidth reset to 1GB for all clients at midnight. Logs and reports correctly showed the reset.
 ~~~
-   
+
 ~~~admonish example collapsible=true title='Testing steps performed - Scenario 3: Bandwidth Reset at a Different Time (e.g., Midday)'
 1. Configure the system to reset bandwidth at midday.
 2. Use the client and monitored bandwidth until midday.
 3. Keep the client connected during the reset time.
 4. Verify that bandwidth reset to 1GB live at midday.
- 
+
 **Notes:**
 Bandwidth reset to 1GB at midday while the client was connected. Logs and reports correctly reflected the reset.
 ~~~
 
 * [Handle clients with different versions in IPR](https://github.com/nymtech/nym/pull/4723): Allow the IPR to handle clients connecting both using `v6` and `v7`, independently. The motivation is that we want to be able to roll out an API version change gradually for NymVPN clients without breaking backwards compatibility. The main feature on the new `v7` format that is not yet used, is that it adds signatures for connect/disconnect.
 ~~~admonish example collapsible=true title='Testing steps performed'
-Run the same command (using same gateways deployed from this PR) on different versions of the `nym-vpn-cli`. 
+Run the same command (using same gateways deployed from this PR) on different versions of the `nym-vpn-cli`.
 
-Example: 
+Example:
 ```sh
 sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
- 
+
 sudo -E ./nym-vpn-cli -c ../qa.env run --entry-gateway-id $entry_gateway --exit-gateway-id $exit_gateway --enable-two-hop
 ```
 ~~~
 
 ### Bugfix
 
-* [Feature/merge back](https://github.com/nymtech/nym/pull/4710): Merge back from the release branch the changes that fix the `nym-node` upgrades. 
+* [Feature/merge back](https://github.com/nymtech/nym/pull/4710): Merge back from the release branch the changes that fix the `nym-node` upgrades.
 
-* [Fix version `1.x.x` not having template correspondent initially](https://github.com/nymtech/nym/pull/4733): This should fix the problem of config deserialisation when operators upgrade nodes and skip over multiple versions. 
+* [Fix version `1.x.x` not having template correspondent initially](https://github.com/nymtech/nym/pull/4733): This should fix the problem of config deserialisation when operators upgrade nodes and skip over multiple versions.
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Tested updating an old nym-node version and ensuring it did not throw any errors.
 ~~~
 
-* [chore: fix 1.80 lint issues](https://github.com/nymtech/nym/pull/4731): 
+* [chore: fix 1.80 lint issues](https://github.com/nymtech/nym/pull/4731):
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Building all binaries is ok
-- Running `cargo fmt` returns no issues 
+- Running `cargo fmt` returns no issues
 ~~~
 
 ### Operators Guide updates
@@ -496,7 +981,7 @@ ufw allow 1789/tcp  # Nym specific
 ufw allow 1790/tcp  # Nym specific
 ufw allow 8080/tcp  # Nym specific - nym-node-api
 ufw allow 9000/tcp  # Nym Specific - clients port
-ufw allow 9001/tcp  # Nym specific - wss port 
+ufw allow 9001/tcp  # Nym specific - wss port
 ufw allow 51822/udp # WireGuard
 ```
 
@@ -592,7 +1077,7 @@ For Entry Gateway:
 ```
 ~~~
 
-* [Update Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt): Based on the survey, AMA and following discussions we added several ports to Nym exit policy. The ports voted upon in the [forum governance](https://forum.nymtech.net/t/poll-a-new-nym-exit-policy-for-exit-gateways-and-the-nym-mixnet-is-inbound/464) have not been added yet due to the concerns raised. These ports were unrestricted: 
+* [Update Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt): Based on the survey, AMA and following discussions we added several ports to Nym exit policy. The ports voted upon in the [forum governance](https://forum.nymtech.net/t/poll-a-new-nym-exit-policy-for-exit-gateways-and-the-nym-mixnet-is-inbound/464) have not been added yet due to the concerns raised. These ports were unrestricted:
 
 ~~~admonish example collapsible=true title='Newly opened ports in Nym exit policy'
 ```
@@ -625,7 +1110,7 @@ For Entry Gateway:
 
 * [Create a NymConnect archive page](https://nymtech.net/developers/archive/nym-connect.html), PR [\#4750](https://github.com/nymtech/nym/commit/5096c1e60e203dcf8be934823946e24fda16a9a3): Archive deprecated NymConnect for backward compatibility, show PEApps examples for both NC and maintained `nym-socks5-client`.
 
-* Fix broken URLs and correct redirection. PRs: [\#4745](https://github.com/nymtech/nym/commit/7e36595d8fa7706876880b42df1c998a4b8c1478), [\#4752](https://github.com/nymtech/nym/commit/1db61f800c6884e284c5ab21e7abce3bc6d91d99) [\#4755](https://github.com/nymtech/nym/commit/aaf3dca5b999ad7f19d2ff170078b43c9c4476c2), [\#4737](https://github.com/nymtech/nym/commit/6f669866e92e637772726ad05caa5c5501a830f3) 
+* Fix broken URLs and correct redirection. PRs: [\#4745](https://github.com/nymtech/nym/commit/7e36595d8fa7706876880b42df1c998a4b8c1478), [\#4752](https://github.com/nymtech/nym/commit/1db61f800c6884e284c5ab21e7abce3bc6d91d99) [\#4755](https://github.com/nymtech/nym/commit/aaf3dca5b999ad7f19d2ff170078b43c9c4476c2), [\#4737](https://github.com/nymtech/nym/commit/6f669866e92e637772726ad05caa5c5501a830f3)
 ~~~admonish example collapsible=true title='Testing steps performed'
 - Use [deadlinkchecker.com](https://www.deadlinkchecker.com/website-dead-link-checker.asp) to go over `nymtech.net` and correct all docs URLs
 - Go over search engines and old medium articles and check that all dead URLs re-directing correctly
@@ -706,8 +1191,8 @@ bind_address = '0.0.0.0:9000'
  3. Checked the implementation of the `default_node_role` function to ensure it returns `NodeRole::Inactive`.
  4. Ran the updated code in the sandbox environment.
  5. Monitored the sandbox environment for any issues or errors related to the changes.
- 
- 
+
+
  **Notes (if any):**
  The test was successful. No issues were flagged during the testing in the sandbox environment. The new default value for `NodeRole` ensures backward compatibility without causing disruptions.
 ~~~
@@ -755,7 +1240,7 @@ bind_address = '0.0.0.0:9000'
  6. Validated that no leftover code from the old statistics service provider caused any issues.
  ~~~
 
-* [Remove `UserAgent` constructor since it's weakly typed](https://github.com/nymtech/nym/pull/4689): 
+* [Remove `UserAgent` constructor since it's weakly typed](https://github.com/nymtech/nym/pull/4689):
 ~~~admonish example collapsible=true title='Testing steps performed'
  1. Reviewed the changes in `common/http-api-client/src/user_agent.rs` file.
  2. Verified the removal of the `UserAgent` constructor and ensured that all instances of `UserAgent::new` are updated accordingly.
@@ -763,14 +1248,14 @@ bind_address = '0.0.0.0:9000'
  4. Deployed the updated code across different environments (QA, sandbox, and canary).
  5. Ran tests to ensure that the `UserAgent` struct functions correctly without the constructor.
  ~~~
- 
+
 * [Add mixnodes to self describing api cache](https://github.com/nymtech/nym/pull/4684):
     - Abstracts getting the self describing info a bit
     - Adds mixnodes to the cache refresher as well
     - Adds `role` field to the `NodeDescription` struct, to be able to distinguish between mixnodes and gateways
     - Switched to using `NodeStatusCache` instead of `ContractCache`
 ~~~admonish example collapsible=true title='Testing steps performed'
-Called the new `/mixnodes/described` endpoint as well as the existing `/gateways/described` endpoint and verified that the data returned for each was correct based on the settings that different nodes have when they are setup. 
+Called the new `/mixnodes/described` endpoint as well as the existing `/gateways/described` endpoint and verified that the data returned for each was correct based on the settings that different nodes have when they are setup.
 
 For gateway endpoint, the “role” for now does not differentiate between entry and exit gateways, this will be implemented in the future.
 ~~~
@@ -806,7 +1291,7 @@ For gateway endpoint, the “role” for now does not differentiate between entr
  5. Ran all tests to ensure the removal did not affect the functionality of the project.
  ~~~
 
- 
+
 * [Remove code that refers to removed `nym-network-statistics`](https://github.com/nymtech/nym/pull/4679): Follow up to [\#4678](https://github.com/nymtech/nym/pull/4678) where all code interacting with it is removed.
 ~~~admonish example collapsible=true title='Testing steps performed'
  1. Reviewed the project to identify all references to `nym-network-statistics`.
@@ -823,7 +1308,7 @@ For gateway endpoint, the “role” for now does not differentiate between entr
          - `nym-client`
          - `nym-socks5-client`
          - Standalone `ip-packet-router`
- 
+
 ~~~admonish example collapsible=true title='Testing steps performed'
 Used the nym-vpn-cli to test this, and we can visibly see the `UserAgent`, no issues with the comments mentioned above.
 
@@ -831,7 +1316,7 @@ Example of the user agent sent:
 `nym-client/1.1.36/x86_64-unknown-linux-gnu/e18bb70`
 
 <img width="1435" alt="image" src="https://github.com/nymtech/nym/assets/60836166/5d4cc76f-84e6-45cb-9102-adc2b58a25d9">
- 
+
 Connected with no problems
 ~~~
 

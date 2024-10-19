@@ -46,6 +46,7 @@ impl<T> SignedData<T> {
         let Ok(plaintext) = serde_json::to_string(&self.data) else {
             return false;
         };
+
         let Ok(signature) = identity::Signature::from_base58_string(&self.signature) else {
             return false;
         };
@@ -56,12 +57,7 @@ impl<T> SignedData<T> {
 
 impl SignedHostInformation {
     pub fn verify_host_information(&self) -> bool {
-        let Ok(pub_key) = identity::PublicKey::from_base58_string(&self.keys.ed25519_identity)
-        else {
-            return false;
-        };
-
-        if self.verify(&pub_key) {
+        if self.verify(&self.keys.ed25519_identity) {
             return true;
         }
 
@@ -70,7 +66,7 @@ impl SignedHostInformation {
             data: LegacyHostInformation::from(self.data.clone()),
             signature: self.signature.clone(),
         }
-        .verify(&pub_key)
+        .verify(&self.keys.ed25519_identity)
     }
 }
 
@@ -105,20 +101,36 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
+        let x25519_noise = x25519::KeyPair::new(&mut rng);
 
         let host_info = crate::api::v1::node::models::HostInformation {
             ip_address: vec!["1.1.1.1".parse().unwrap()],
             hostname: Some("foomp.com".to_string()),
             keys: crate::api::v1::node::models::HostKeys {
-                ed25519_identity: ed22519.public_key().to_base58_string(),
-                x25519_sphinx: x25519_sphinx.public_key().to_base58_string(),
-                x25519_noise: "".to_string(),
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                x25519_noise: None,
             },
         };
 
         let signed_info = SignedHostInformation::new(host_info, ed22519.private_key()).unwrap();
         assert!(signed_info.verify(ed22519.public_key()));
-        assert!(signed_info.verify_host_information())
+        assert!(signed_info.verify_host_information());
+
+        let host_info_with_noise = crate::api::v1::node::models::HostInformation {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: crate::api::v1::node::models::HostKeys {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                x25519_noise: Some(*x25519_noise.public_key()),
+            },
+        };
+
+        let signed_info =
+            SignedHostInformation::new(host_info_with_noise, ed22519.private_key()).unwrap();
+        assert!(signed_info.verify(ed22519.public_key()));
+        assert!(signed_info.verify_host_information());
     }
 
     #[test]
@@ -140,9 +152,9 @@ mod tests {
             ip_address: legacy_info.ip_address.clone(),
             hostname: legacy_info.hostname.clone(),
             keys: crate::api::v1::node::models::HostKeys {
-                ed25519_identity: legacy_info.keys.ed25519.clone(),
-                x25519_sphinx: legacy_info.keys.x25519.clone(),
-                x25519_noise: "".to_string(),
+                ed25519_identity: legacy_info.keys.ed25519.parse().unwrap(),
+                x25519_sphinx: legacy_info.keys.x25519.parse().unwrap(),
+                x25519_noise: None,
             },
         };
 

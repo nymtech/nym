@@ -13,14 +13,13 @@ cosmwasm-std = { workspace = true }
 getset = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
-ts-rs = { workspace = true, optional = true }
+serde_json = { workspace = true }
+sha2.workspace = true
 tendermint = { workspace = true }
-time = { workspace = true, features = ["serde", "parsing", "formatting"] }
 thiserror.workspace = true
-rocket = { workspace = true, optional = true }
+time = { workspace = true, features = ["serde", "parsing", "formatting"] }
+ts-rs = { workspace = true, optional = true }
 utoipa.workspace = true
-
-sha2 = "0.10.8"
 
 # for serde on secp256k1 signatures
 ecdsa = { workspace = true, features = ["serde"] }
@@ -33,12 +32,9 @@ nym-ecash-time = { path = "../../common/ecash-time" }
 nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false, features = ["openapi"] }
+nym-network-defaults = { path = "../../common/network-defaults" }
 
-
-[dev-dependencies]
-serde_json.workspace = true
 
 [features]
 default = []
-rocket-traits = ["rocket"]
 generate-ts = ["ts-rs", "nym-mixnet-contract-common/generate-ts"]

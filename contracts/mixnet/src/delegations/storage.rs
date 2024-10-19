@@ -6,18 +6,18 @@ use crate::constants::{
 };
 use cw_storage_plus::{Index, IndexList, IndexedMap, MultiIndex};
 use mixnet_contract_common::delegation::OwnerProxySubKey;
-use mixnet_contract_common::{Addr, Delegation, MixId};
+use mixnet_contract_common::{Addr, Delegation, NodeId};
 
 // It's a composite key on node's id and delegator address
-type PrimaryKey = (MixId, OwnerProxySubKey);
+type PrimaryKey = (NodeId, OwnerProxySubKey);
 
 pub(crate) struct DelegationIndex<'a> {
     pub(crate) owner: MultiIndex<'a, Addr, Delegation, PrimaryKey>,
 
-    pub(crate) mixnode: MultiIndex<'a, MixId, Delegation, PrimaryKey>,
+    pub(crate) mixnode: MultiIndex<'a, NodeId, Delegation, PrimaryKey>,
 }
 
-impl<'a> IndexList<Delegation> for DelegationIndex<'a> {
+impl IndexList<Delegation> for DelegationIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<Delegation>> + '_> {
         let v: Vec<&dyn Index<Delegation>> = vec![&self.owner, &self.mixnode];
         Box::new(v.into_iter())
@@ -32,7 +32,7 @@ pub(crate) fn delegations<'a>() -> IndexedMap<'a, PrimaryKey, Delegation, Delega
             DELEGATION_OWNER_IDX_NAMESPACE,
         ),
         mixnode: MultiIndex::new(
-            |_pk, d| d.mix_id,
+            |_pk, d| d.node_id,
             DELEGATION_PK_NAMESPACE,
             DELEGATION_MIXNODE_IDX_NAMESPACE,
         ),

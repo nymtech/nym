@@ -11,7 +11,6 @@ use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;
 use futures::{Future, Stream};
-use log::{debug, info, trace, warn};
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
@@ -30,6 +29,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
+use tracing::{debug, info, trace, warn};
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
@@ -301,6 +301,10 @@ impl PacketSender {
         // and it wasn't shared with anyone, therefore we're the only one holding reference to it
         // and hence it's impossible to fail to obtain the permit.
         let mut unlocked_client = new_client.lock_client_unchecked();
+
+        // SAFETY: it's fine to use the deprecated method here as we're creating brand new clients each time,
+        // and there's no need to deal with any key upgrades
+        #[allow(deprecated)]
         match tokio::time::timeout(
             gateway_connection_timeout,
             unlocked_client.get_mut_unchecked().authenticate_and_start(),

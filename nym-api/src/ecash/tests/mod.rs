@@ -1,13 +1,24 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ecash;
+use crate::circulating_supply_api::cache::CirculatingSupplyCache;
+use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
 use crate::ecash::storage::EcashStorageExt;
+use crate::network::models::NetworkDetails;
+use crate::node_describe_cache::DescribedNodes;
+use crate::node_status_api::handlers::unstable;
+use crate::node_status_api::NodeStatusCache;
+use crate::nym_contract_cache::cache::NymContractCache;
+use crate::support::caching::cache::SharedCache;
+use crate::support::http::state::AppState;
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
+use axum::Router;
+use axum_test::http::StatusCode;
+use axum_test::TestServer;
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, Binary, BlockInfo, CosmosMsg, Decimal, MessageInfo, WasmMsg,
@@ -31,6 +42,7 @@ use nym_coconut_dkg_common::types::{
 use nym_coconut_dkg_common::verification_key::{ContractVKShare, VerificationKeyShare};
 use nym_compact_ecash::BlindedSignature;
 use nym_compact_ecash::{ttp_keygen, VerificationKeyAuth};
+use nym_config::defaults::NymNetworkDetails;
 use nym_contracts_common::IdentityKey;
 use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::TicketType;
@@ -45,8 +57,6 @@ use nym_validator_client::nyxd::{AccountId, ExecTxResult, Fee, Hash, TxResponse}
 use nym_validator_client::{EcashApiClient, NymApiClient};
 use rand::rngs::OsRng;
 use rand::RngCore;
-use rocket::http::Status;
-use rocket::local::asynchronous::Client;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use std::str::FromStr;
@@ -863,7 +873,7 @@ impl super::client::Client for DummyClient {
             .votes
             .contains_key(&(voter.clone(), proposal_id))
         {
-            todo!("already voted");
+            panic!("unhandled case: already voted");
         }
         chain.multisig_contract.votes.insert(
             (voter.clone(), proposal_id),
@@ -1123,16 +1133,21 @@ impl DummyCommunicationChannel {
         }
     }
 
-    pub fn new_single_dummy(aggregated_verification_key: VerificationKeyAuth) -> Self {
+    pub fn new_single_dummy(
+        aggregated_verification_key: VerificationKeyAuth,
+        cosmos_address: AccountId,
+    ) -> Self {
         let client = EcashApiClient {
             api_client: NymApiClient::new("http://localhost:1234".parse().unwrap()),
             verification_key: aggregated_verification_key,
             node_id: 1,
-            cosmos_address: "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l"
-                .parse()
-                .unwrap(),
+            cosmos_address,
         };
         Self::new(vec![client])
+    }
+
+    pub fn clients_arc(&self) -> Arc<RwLock<HashMap<EpochId, Vec<EcashApiClient>>>> {
+        Arc::clone(&self.ecash_clients)
     }
 
     pub fn with_epoch(mut self, current_epoch: Arc<AtomicU64>) -> Self {
@@ -1234,23 +1249,43 @@ fn dummy_signature() -> identity::Signature {
 }
 
 struct TestFixture {
-    rocket: Client,
+    axum: TestServer,
     storage: NymApiStorage,
     chain_state: SharedFakeChain,
     epoch: Arc<AtomicU64>,
+    ecash_clients: Arc<RwLock<HashMap<EpochId, Vec<EcashApiClient>>>>,
 
     _tmp_dir: TempDir,
 }
 
 impl TestFixture {
+    fn build_app_state(storage: NymApiStorage) -> AppState {
+        AppState {
+            nym_contract_cache: NymContractCache::new(),
+            node_status_cache: NodeStatusCache::new(),
+            circulating_supply_cache: CirculatingSupplyCache::new("unym".to_owned()),
+            storage,
+            described_nodes_cache: SharedCache::<DescribedNodes>::new(),
+            network_details: NetworkDetails::new(
+                "localhost".to_string(),
+                NymNetworkDetails::new_empty(),
+            ),
+            node_info_cache: unstable::NodeInfoCache::default(),
+        }
+    }
+
     async fn new() -> Self {
         let mut rng = crate::ecash::tests::fixtures::test_rng([69u8; 32]);
         let coconut_keypair = ttp_keygen(1, 1).unwrap().remove(0);
         let identity = identity::KeyPair::new(&mut rng);
         let epoch = Arc::new(AtomicU64::new(1));
-        let comm_channel =
-            DummyCommunicationChannel::new_single_dummy(coconut_keypair.verification_key().clone())
-                .with_epoch(epoch.clone());
+        let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
+        let comm_channel = DummyCommunicationChannel::new_single_dummy(
+            coconut_keypair.verification_key().clone(),
+            address.clone(),
+        )
+        .with_epoch(epoch.clone());
+        let ecash_clients = comm_channel.clients_arc();
 
         // TODO: it's AWFUL to test with actual storage, we should somehow abstract it away
         let tmp_dir = tempdir().unwrap();
@@ -1268,10 +1303,7 @@ impl TestFixture {
         staged_key_pair.validate();
 
         let chain_state = SharedFakeChain::default();
-        let nyxd_client = DummyClient::new(
-            AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
-            chain_state.clone(),
-        );
+        let nyxd_client = DummyClient::new(address, chain_state.clone());
 
         let ecash_contract = chain_state
             .lock()
@@ -1283,37 +1315,42 @@ impl TestFixture {
             .parse()
             .unwrap();
 
-        let rocket = rocket::build()
-            .manage(
-                EcashState::new(
-                    ecash_contract,
-                    nyxd_client,
-                    identity,
-                    staged_key_pair,
-                    comm_channel,
-                    storage.clone(),
-                )
-                .await
-                .unwrap(),
-            )
-            .mount(
-                "/v1/ecash",
-                ecash::routes_open_api(&Default::default(), true).0,
-            );
+        let ecash_state = EcashState::new(
+            ecash_contract,
+            nyxd_client,
+            identity,
+            staged_key_pair,
+            comm_channel,
+            storage.clone(),
+            false,
+        )
+        .await
+        .unwrap();
 
         TestFixture {
-            rocket: Client::tracked(rocket)
-                .await
-                .expect("valid rocket instance"),
+            axum: TestServer::new(
+                Router::new()
+                    .nest("/v1/ecash", ecash_routes(Arc::new(ecash_state)))
+                    .with_state(Self::build_app_state(storage.clone())),
+            )
+            .unwrap(),
             storage,
             chain_state,
             epoch,
+            ecash_clients,
             _tmp_dir: tmp_dir,
         }
     }
 
-    fn set_epoch(&self, epoch: u64) {
-        self.epoch.store(epoch, Ordering::Relaxed)
+    async fn set_epoch(&self, epoch: u64) {
+        let current_epoch = self.epoch.load(Ordering::Relaxed);
+        self.epoch.store(epoch, Ordering::Relaxed);
+
+        // copy the same epoch_signers as we had initially
+        let existing = self.ecash_clients.read().await.get(&current_epoch).cloned();
+        if let Some(clients) = existing {
+            self.ecash_clients.write().await.insert(epoch, clients);
+        }
     }
 
     #[allow(dead_code)]
@@ -1351,26 +1388,24 @@ impl TestFixture {
 
     async fn issue_credential(&self, req: BlindSignRequestBody) -> BlindedSignatureResponse {
         let response = self
-            .rocket
-            .post(format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}",))
+            .axum
+            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}",))
             .json(&req)
-            .dispatch()
             .await;
 
-        assert_eq!(response.status(), Status::Ok);
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap()
+        assert_eq!(response.status_code(), StatusCode::OK);
+        response.json()
     }
 
     async fn issued_credential(&self, id: i64) -> Option<IssuedCredentialResponse> {
         let response = self
-            .rocket
-            .get(format!(
+            .axum
+            .get(&format!(
                 "/{API_VERSION}/{ECASH_ROUTES}/issued-credential/{id}"
             ))
-            .dispatch()
             .await;
-        assert_eq!(response.status(), Status::Ok);
-        serde_json::from_str(&response.into_string().await.unwrap()).unwrap()
+        assert_eq!(response.status_code(), StatusCode::OK);
+        response.json()
     }
 
     async fn issued_unchecked(&self, id: i64) -> IssuedTicketbookBody {
@@ -1385,6 +1420,7 @@ impl TestFixture {
 #[cfg(test)]
 mod credential_tests {
     use super::*;
+    use axum::http::StatusCode;
     use nym_compact_ecash::ttp_keygen;
 
     #[tokio::test]
@@ -1416,23 +1452,15 @@ mod credential_tests {
             .unwrap();
 
         let response = test_fixture
-            .rocket
-            .post(format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}",))
+            .axum
+            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}",))
             .json(&request_body)
-            .dispatch()
             .await;
-        assert_eq!(response.status(), Status::Ok);
-        let expected_response = BlindedSignatureResponse::new(sig);
 
-        // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
-        // let blinded_signature_response = response
-        //     .into_json::<BlindedSignatureResponse>()
-        //     .await
-        //     .unwrap();
-        let blinded_signature_response = serde_json::from_str::<BlindedSignatureResponse>(
-            &response.into_string().await.unwrap(),
-        )
-        .unwrap();
+        assert_eq!(response.status_code(), StatusCode::OK);
+        let expected_response = BlindedSignatureResponse::new(sig);
+        let blinded_signature_response = response.json::<BlindedSignatureResponse>();
+
         assert_eq!(
             blinded_signature_response.to_bytes(),
             expected_response.to_bytes()
@@ -1443,19 +1471,19 @@ mod credential_tests {
     async fn state_functions() {
         let mut rng = OsRng;
         let identity = identity::KeyPair::new(&mut rng);
+        let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
 
-        let nyxd_client = DummyClient::new(
-            AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap(),
-            Default::default(),
-        );
+        let nyxd_client = DummyClient::new(address.clone(), Default::default());
         let key_pair = ttp_keygen(1, 1).unwrap().remove(0);
         let tmp_dir = tempdir().unwrap();
 
         let storage = NymApiStorage::init(tmp_dir.path().join("storage.db"))
             .await
             .unwrap();
-        let comm_channel =
-            DummyCommunicationChannel::new_single_dummy(key_pair.verification_key().clone());
+        let comm_channel = DummyCommunicationChannel::new_single_dummy(
+            key_pair.verification_key().clone(),
+            address,
+        );
         let staged_key_pair = crate::ecash::keys::KeyPair::new();
         staged_key_pair
             .set(KeyPairWithEpoch {
@@ -1474,6 +1502,7 @@ mod credential_tests {
             staged_key_pair,
             comm_channel,
             storage.clone(),
+            false,
         )
         .await
         .unwrap();
@@ -1596,19 +1625,13 @@ mod credential_tests {
         let request_body = voucher.create_blind_sign_request_body(&signing_data);
 
         let response = test
-            .rocket
-            .post(format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
+            .axum
+            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
             .json(&request_body)
-            .dispatch()
             .await;
 
-        assert_eq!(response.status(), Status::Ok);
-        // This is a more direct way, but there's a bug which makes it hang https://github.com/SergioBenitez/Rocket/issues/1893
-        // assert!(response.into_json::<BlindedSignatureResponse>().is_some());
-        let blinded_signature_response = serde_json::from_str::<BlindedSignatureResponse>(
-            &response.into_string().await.unwrap(),
-        );
-        assert!(blinded_signature_response.is_ok());
+        assert_eq!(response.status_code(), StatusCode::OK);
+        let _ = response.json::<BlindedSignatureResponse>();
     }
 
     #[test]

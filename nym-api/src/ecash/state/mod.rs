@@ -44,9 +44,11 @@ use nym_ecash_double_spending::DoubleSpendingFilter;
 use nym_ecash_time::cred_exp_date;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
+use std::ops::Deref;
 use time::ext::NumericalDuration;
-use time::{Date, Duration, OffsetDateTime};
+use time::{Date, OffsetDateTime};
 use tokio::sync::RwLockReadGuard;
+use tracing::{debug, error, info, warn};
 
 pub(crate) mod auxiliary;
 pub(crate) mod bloom;
@@ -73,6 +75,7 @@ impl EcashState {
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
+        signer_disabled: bool,
     ) -> Result<Self>
     where
         C: LocalClient + Send + Sync + 'static,
@@ -82,9 +85,41 @@ impl EcashState {
 
         Ok(Self {
             global: GlobalEcachState::new(contract_address),
-            local: LocalEcashState::new(key_pair, identity_keypair, double_spending_filter),
+            local: LocalEcashState::new(
+                key_pair,
+                identity_keypair,
+                double_spending_filter,
+                signer_disabled,
+            ),
             aux: AuxiliaryEcashState::new(client, comm_channel, storage),
         })
+    }
+
+    /// Ensures that this nym-api is one of ecash signers for the current epoch
+    pub(crate) async fn ensure_signer(&self) -> Result<()> {
+        if self.local.explicitly_disabled {
+            return Err(EcashError::NotASigner);
+        }
+
+        let epoch_id = self.aux.current_epoch().await?;
+
+        let is_epoch_signer = self
+            .local
+            .active_signer
+            .get_or_init(epoch_id, || async {
+                let address = self.aux.client.address().await;
+                let ecash_signers = self.aux.comm_channel.ecash_clients(epoch_id).await?;
+
+                // check if any ecash signers for this epoch has the same cosmos address as this api
+                Ok(ecash_signers.iter().any(|c| c.cosmos_address == address))
+            })
+            .await?;
+
+        if !is_epoch_signer.deref() {
+            return Err(EcashError::NotASigner);
+        }
+
+        Ok(())
     }
 
     pub(crate) async fn ecash_signing_key(&self) -> Result<RwLockReadGuard<SecretKeyAuth>> {
@@ -169,7 +204,7 @@ impl EcashState {
                     });
                 }
 
-                log::info!(
+                info!(
                     "attempting to establish master coin index signatures for epoch {epoch_id}..."
                 );
 
@@ -263,7 +298,7 @@ impl EcashState {
                     // because if it was a past epoch we **do** have those keys.
                     // they're just archived
 
-                    log::error!("received partial coin index signature request for an invalid epoch ({epoch_id}). our key was derived for epoch {}", signing_keys.issued_for_epoch);
+                    error!("received partial coin index signature request for an invalid epoch ({epoch_id}). our key was derived for epoch {}", signing_keys.issued_for_epoch);
                     return Err(EcashError::InvalidSigningKeyEpoch {
                         requested: epoch_id,
                         available: signing_keys.issued_for_epoch,
@@ -550,7 +585,7 @@ impl EcashState {
     pub(crate) async fn accept_proposal(&self, proposal_id: u64) -> Result<()> {
         //SW NOTE: What to do if this fails
         if let Err(err) = self.aux.client.vote_proposal(proposal_id, true, None).await {
-            log::debug!("failed to vote on proposal {proposal_id}: {err}");
+            debug!("failed to vote on proposal {proposal_id}: {err}");
         }
 
         Ok(())
@@ -755,7 +790,7 @@ impl EcashState {
             // sanity check because this should NEVER happen,
             // but when it inevitably does, we don't want to crash
             if spending_date != yesterday {
-                log::error!("attempted to insert a ticket with spending date of {spending_date} while it's {today} today!!");
+                error!("attempted to insert a ticket with spending date of {spending_date} while it's {today} today!!");
             }
 
             // this shouldn't be happening too often, so it's fine to interact with the storage
@@ -771,7 +806,7 @@ impl EcashState {
             return Ok(guard.insert_global_only(serial_number));
         }
 
-        log::info!("we need to advance our bloomfilter");
+        info!("we need to advance our bloomfilter");
         let previous_bitmap = guard.export_today_bitmap();
 
         // archive the BF for today's date
@@ -838,18 +873,5 @@ impl EcashState {
             .await?;
 
         res
-    }
-
-    pub async fn get_bloomfilter_bytes(&self) -> Vec<u8> {
-        let guard = self.local.exported_double_spending_filter.data.read().await;
-
-        let bytes = guard.bytes.clone();
-
-        // see if it's been > 5min since last export (that value is arbitrary)
-        if guard.last_exported_at + Duration::minutes(5) < OffsetDateTime::now_utc() {
-            self.local.maybe_background_update_exported_bloomfilter();
-        }
-
-        bytes
     }
 }

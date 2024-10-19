@@ -1,27 +1,69 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::ecash::api_routes::helpers::EpochIdParam;
 use crate::ecash::error::EcashError;
 use crate::ecash::helpers::blind_sign;
 use crate::ecash::state::EcashState;
+use crate::node_status_api::models::AxumResult;
+use crate::support::http::state::AppState;
+use axum::extract::Path;
+use axum::{Json, Router};
 use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
     PartialExpirationDateSignatureResponse,
 };
 use nym_ecash_time::{cred_exp_date, EcashTime};
 use nym_validator_client::nym_api::rfc_3339_date;
-use rocket::serde::json::Json;
-use rocket::State as RocketState;
-use rocket_okapi::openapi;
+use serde::Deserialize;
 use std::ops::Deref;
+use std::sync::Arc;
 use time::Date;
+use tracing::{debug, trace};
+use utoipa::IntoParams;
 
-#[openapi(tag = "Ecash")]
-#[post("/blind-sign", data = "<blind_sign_request_body>")]
-pub async fn post_blind_sign(
-    blind_sign_request_body: Json<BlindSignRequestBody>,
-    state: &RocketState<EcashState>,
-) -> crate::ecash::error::Result<Json<BlindedSignatureResponse>> {
+pub(crate) fn partial_signing_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
+    Router::new()
+        .route(
+            "/blind-sign",
+            axum::routing::post({
+                let ecash_state = Arc::clone(&ecash_state);
+                |body| post_blind_sign(body, ecash_state)
+            }),
+        )
+        .route(
+            "/partial-expiration-date-signatures:expiration_date",
+            axum::routing::get({
+                let ecash_state = Arc::clone(&ecash_state);
+                |expiration_date| partial_expiration_date_signatures(expiration_date, ecash_state)
+            }),
+        )
+        .route(
+            "/partial-coin-indices-signatures:epoch_id",
+            axum::routing::get({
+                let ecash_state = Arc::clone(&ecash_state);
+                |epoch_id| partial_coin_indices_signatures(epoch_id, ecash_state)
+            }),
+        )
+}
+
+#[utoipa::path(
+    tag = "Ecash",
+    post,
+    request_body = BlindSignRequestBody,
+    path = "/v1/ecash/blind-sign",
+    responses(
+        (status = 200, body = BlindedSignatureResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+
+    )
+)]
+async fn post_blind_sign(
+    Json(blind_sign_request_body): Json<BlindSignRequestBody>,
+    state: Arc<EcashState>,
+) -> AxumResult<Json<BlindedSignatureResponse>> {
+    state.ensure_signer().await?;
+
     debug!("Received blind sign request");
     trace!("body: {:?}", blind_sign_request_body);
 
@@ -31,7 +73,7 @@ pub async fn post_blind_sign(
 
     // basic check of expiration date validity
     if blind_sign_request_body.expiration_date > cred_exp_date().ecash_date() {
-        return Err(EcashError::ExpirationDateTooLate);
+        return Err(EcashError::ExpirationDateTooLate.into());
     }
 
     // see if we're not in the middle of new dkg
@@ -62,24 +104,41 @@ pub async fn post_blind_sign(
 
     // produce the partial signature
     debug!("producing the partial credential");
-    let blinded_signature = blind_sign(blind_sign_request_body.deref(), signing_key.deref())?;
+    let blinded_signature = blind_sign(&blind_sign_request_body, signing_key.deref())?;
 
     // store the information locally
     debug!("storing the issued credential in the database");
     state
-        .store_issued_credential(blind_sign_request_body.into_inner(), &blinded_signature)
+        .store_issued_credential(blind_sign_request_body, &blinded_signature)
         .await?;
 
     // finally return the credential to the client
     Ok(Json(BlindedSignatureResponse { blinded_signature }))
 }
 
-#[openapi(tag = "Ecash")]
-#[get("/partial-expiration-date-signatures?<expiration_date>")]
-pub async fn partial_expiration_date_signatures(
+#[derive(Deserialize, IntoParams)]
+struct ExpirationDateParam {
     expiration_date: Option<String>,
-    state: &RocketState<EcashState>,
-) -> crate::ecash::error::Result<Json<PartialExpirationDateSignatureResponse>> {
+}
+
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    params(
+        ExpirationDateParam
+    ),
+    path = "/v1/ecash/partial-expiration-date-signatures/{expiration_date}",
+    responses(
+        (status = 200, body = PartialExpirationDateSignatureResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+    )
+)]
+async fn partial_expiration_date_signatures(
+    Path(ExpirationDateParam { expiration_date }): Path<ExpirationDateParam>,
+    state: Arc<EcashState>,
+) -> AxumResult<Json<PartialExpirationDateSignatureResponse>> {
+    state.ensure_signer().await?;
+
     let expiration_date = match expiration_date {
         None => cred_exp_date().ecash_date(),
         Some(raw) => Date::parse(&raw, &rfc_3339_date())
@@ -100,12 +159,24 @@ pub async fn partial_expiration_date_signatures(
     }))
 }
 
-#[openapi(tag = "Ecash")]
-#[get("/partial-coin-indices-signatures?<epoch_id>")]
-pub async fn partial_coin_indices_signatures(
-    epoch_id: Option<u64>,
-    state: &RocketState<EcashState>,
-) -> crate::ecash::error::Result<Json<PartialCoinIndicesSignatureResponse>> {
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    params(
+        EpochIdParam
+    ),
+    path = "/v1/ecash/partial-coin-indices-signatures/{epoch_id}",
+    responses(
+        (status = 200, body = PartialExpirationDateSignatureResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+    )
+)]
+async fn partial_coin_indices_signatures(
+    Path(EpochIdParam { epoch_id }): Path<EpochIdParam>,
+    state: Arc<EcashState>,
+) -> AxumResult<Json<PartialCoinIndicesSignatureResponse>> {
+    state.ensure_signer().await?;
+
     // see if we're not in the middle of new dkg
     state.ensure_dkg_not_in_progress().await?;
 

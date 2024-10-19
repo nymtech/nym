@@ -1,7 +1,10 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{EpochEventId, EpochState, IdentityKey, MixId, OperatingCostRange, ProfitMarginRange};
+use crate::nym_node::Role;
+use crate::{
+    EpochEventId, EpochState, IntervalEventId, NodeId, OperatingCostRange, ProfitMarginRange,
+};
 use contracts_common::signing::verifier::ApiVerifierError;
 use contracts_common::Percent;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
@@ -34,6 +37,16 @@ pub enum MixnetContractError {
     #[error("Not enough funds sent for node pledge. (received {received}, minimum {minimum})")]
     InsufficientPledge { received: Coin, minimum: Coin },
 
+    #[error(
+        "the provided value for node host is too long. it must not be longer than 255 characters"
+    )]
+    HostTooLong,
+
+    #[error(
+        "the provided node identity public key is not a correctly encoded base58 slice of 32 bytes"
+    )]
+    InvalidPubKey,
+
     #[error("Attempted to reduce node pledge ({current}{denom} - {decrease_by}{denom}) below the minimum amount: {minimum}{denom}")]
     InvalidPledgeReduction {
         current: Uint128,
@@ -45,11 +58,19 @@ pub enum MixnetContractError {
     #[error("A pledge change is already pending in this epoch. The event id: {pending_event_id}")]
     PendingPledgeChange { pending_event_id: EpochEventId },
 
+    #[error(
+        "A cost params change is already pending in this epoch. The event id: {pending_event_id}"
+    )]
+    PendingParamsChange { pending_event_id: IntervalEventId },
+
     #[error("Not enough funds sent for node delegation. (received {received}, minimum {minimum})")]
     InsufficientDelegation { received: Coin, minimum: Coin },
 
+    #[error("Node ({node_id}) does not exist")]
+    NymNodeBondNotFound { node_id: NodeId },
+
     #[error("Mixnode ({mix_id}) does not exist")]
-    MixNodeBondNotFound { mix_id: MixId },
+    MixNodeBondNotFound { mix_id: NodeId },
 
     #[error("{owner} does not seem to own any mixnodes")]
     NoAssociatedMixNodeBond { owner: Addr },
@@ -57,11 +78,17 @@ pub enum MixnetContractError {
     #[error("{owner} does not seem to own any gateways")]
     NoAssociatedGatewayBond { owner: Addr },
 
+    #[error("{owner} does not seem to own any nodes")]
+    NoAssociatedNodeBond { owner: Addr },
+
     #[error("This address has already bonded a mixnode")]
     AlreadyOwnsMixnode,
 
     #[error("This address has already bonded a gateway")]
     AlreadyOwnsGateway,
+
+    #[error("This address has already bonded a nym-node")]
+    AlreadyOwnsNymNode,
 
     #[error("Gateway with this identity already exists. Its owner is {owner}")]
     DuplicateGateway { owner: Addr },
@@ -103,32 +130,35 @@ pub enum MixnetContractError {
         epoch_end: i64,
     },
 
-    #[error("Mixnode {mix_id} has already been rewarded during the current rewarding epoch ({absolute_epoch_id})")]
-    MixnodeAlreadyRewarded {
-        mix_id: MixId,
+    #[error("attempted to reward a gateway node - this has not been fully integrated yet")]
+    GatewayRewarding,
+
+    #[error("node {node_id} has already been rewarded during the current rewarding epoch ({absolute_epoch_id})")]
+    NodeAlreadyRewarded {
+        node_id: NodeId,
         absolute_epoch_id: u32,
     },
 
-    #[error("Mixnode {mix_id} hasn't been selected to the rewarding set in this epoch ({absolute_epoch_id})")]
-    MixnodeNotInRewardedSet {
-        mix_id: MixId,
-        absolute_epoch_id: u32,
-    },
+    #[error("node {node_id} hasn't been assigned the role of {role} for this epoch")]
+    IncorrectEpochRole { node_id: NodeId, role: Role },
 
     #[error("Mixnode {mix_id} is currently in the process of unbonding")]
-    MixnodeIsUnbonding { mix_id: MixId },
+    MixnodeIsUnbonding { mix_id: NodeId },
+
+    #[error("Node {node_id} is currently in the process of unbonding")]
+    NodeIsUnbonding { node_id: NodeId },
 
     #[error("Mixnode {mix_id} has already unbonded")]
-    MixnodeHasUnbonded { mix_id: MixId },
+    MixnodeHasUnbonded { mix_id: NodeId },
 
     #[error("The contract has ended up in a state that was deemed impossible: {comment}")]
     InconsistentState { comment: String },
 
     #[error(
-        "Could not find any delegation information associated with mixnode {mix_id} for {address} (proxy: {proxy:?})"
+        "Could not find any delegation information associated with node {node_id} for {address} (proxy: {proxy:?})"
     )]
-    NoMixnodeDelegationFound {
-        mix_id: MixId,
+    NodeDelegationNotFound {
+        node_id: NodeId,
         address: String,
         proxy: Option<String>,
     },
@@ -136,62 +166,17 @@ pub enum MixnetContractError {
     #[error("Provided message to update rewarding params did not contain any updates")]
     EmptyParamsChangeMsg,
 
-    #[error("Provided active set size is bigger than the rewarded set")]
+    #[error("one of the roles in the new active set is empty")]
+    EmptyRoleAssignment,
+
+    #[error("the number of mixnodes in the rewarded set is not divisible by the number of mix-layers (3)")]
+    UnevenLayerAssignment,
+
+    #[error("provided active set is bigger than the rewarded set")]
     InvalidActiveSetSize,
-
-    #[error("Provided rewarded set size is smaller than the active set")]
-    InvalidRewardedSetSize,
-
-    #[error("Provided active set size is zero")]
-    ZeroActiveSet,
-
-    #[error("Provided rewarded set size is zero")]
-    ZeroRewardedSet,
-
-    #[error("Received unexpected value for the active set. Got: {received}, expected: {expected}")]
-    UnexpectedActiveSetSize { received: u32, expected: u32 },
-
-    #[error("Received unexpected value for the rewarded set. Got: {received}, expected at most: {expected}")]
-    UnexpectedRewardedSetSize { received: u32, expected: u32 },
-
-    #[error("Mixnode {mix_id} appears multiple times in the provided rewarded set update!")]
-    DuplicateRewardedSetNode { mix_id: MixId },
-
-    #[error("Family with head {head} does not exist!")]
-    FamilyDoesNotExist { head: String },
-
-    #[error("Family with label {label} does not exist!")]
-    FamilyLabelDoesNotExist { label: String },
-
-    #[error("Family with label '{0}' already exists")]
-    FamilyWithLabelExists(String),
 
     #[error("Invalid layer expected 1, 2 or 3, got {0}")]
     InvalidLayer(u8),
-
-    #[error("Head already has a family")]
-    FamilyCanHaveOnlyOne,
-
-    #[error("Already member of family {0}")]
-    AlreadyMemberOfFamily(String),
-
-    #[error("Can't join own family, family head {head}, member {member}")]
-    CantJoinOwnFamily {
-        head: IdentityKey,
-        member: IdentityKey,
-    },
-
-    #[error("Can't leave own family, family head {head}, member {member}")]
-    CantLeaveOwnFamily {
-        head: IdentityKey,
-        member: IdentityKey,
-    },
-
-    #[error("{member} is not a member of family {head}")]
-    NotAMember {
-        head: IdentityKey,
-        member: IdentityKey,
-    },
 
     #[error("Feature is not yet implemented")]
     NotImplemented,
@@ -219,12 +204,27 @@ pub enum MixnetContractError {
 
     #[error("attempted to reward mixnode out of order. Attempted to reward {attempted_to_reward} while last rewarded was {last_rewarded}.")]
     RewardingOutOfOrder {
-        last_rewarded: MixId,
-        attempted_to_reward: MixId,
+        last_rewarded: NodeId,
+        attempted_to_reward: NodeId,
     },
 
     #[error("the epoch is currently not in the 'event reconciliation' state. (the state is {current_state})")]
     EpochNotInEventReconciliationState { current_state: EpochState },
+
+    #[error(
+        "the epoch is currently not in the 'role assignment' state. (the state is {current_state})"
+    )]
+    EpochNotInRoleAssignmentState { current_state: EpochState },
+
+    #[error("unexpected role assignment. got: {got} while expected: {expected}")]
+    UnexpectedRoleAssignment { expected: Role, got: Role },
+
+    #[error("attempted to assign an invalid number of nodes for a role of {role}. got {assigned}, but the maximum allowed is {allowed}")]
+    IllegalRoleCount {
+        role: Role,
+        assigned: u32,
+        allowed: u32,
+    },
 
     #[error("the epoch is currently not in the 'epoch advancement' state. (the state is {current_state})")]
     EpochNotInAdvancementState { current_state: EpochState },
@@ -258,6 +258,17 @@ pub enum MixnetContractError {
         provided: Uint128,
         range: OperatingCostRange,
     },
+
+    #[error(
+        "currently it's not possible to migrate nodes bonded with vesting tokens into a nym-node. please perform vesting->liquid migration first."
+    )]
+    VestingNodeMigration,
+
+    #[error("value {got} does not correspond to any known node role")]
+    UnknownRoleRepresentation { got: u8 },
+
+    #[error("the total work for this epoch seems to be bigger than 1.0!")]
+    TotalWorkAboveOne,
 }
 
 impl MixnetContractError {

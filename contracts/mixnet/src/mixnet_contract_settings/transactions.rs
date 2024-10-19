@@ -75,7 +75,6 @@ pub(crate) fn try_update_contract_settings(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::constants::{INITIAL_GATEWAY_PLEDGE_AMOUNT, INITIAL_MIXNODE_PLEDGE_AMOUNT};
     use crate::mixnet_contract_settings::queries::query_rewarding_validator_address;
     use crate::mixnet_contract_settings::storage::rewarding_denom;
     use crate::support::tests::test_helpers;
@@ -84,7 +83,7 @@ pub mod tests {
     use cw_controllers::AdminError::NotAdmin;
 
     #[test]
-    fn update_contract_rewarding_validtor_address() {
+    fn update_contract_rewarding_validator_address() {
         let mut deps = test_helpers::init_contract();
 
         let info = mock_info("not-the-creator", &[]);
@@ -129,14 +128,10 @@ pub mod tests {
         let denom = rewarding_denom(deps.as_ref().storage).unwrap();
 
         let new_params = ContractStateParams {
-            minimum_mixnode_delegation: None,
-            minimum_mixnode_pledge: Coin {
+            minimum_delegation: None,
+            minimum_pledge: Coin {
                 denom: denom.clone(),
-                amount: INITIAL_MIXNODE_PLEDGE_AMOUNT,
-            },
-            minimum_gateway_pledge: Coin {
-                denom,
-                amount: INITIAL_GATEWAY_PLEDGE_AMOUNT + Uint128::new(1234),
+                amount: Uint128::new(12345),
             },
             profit_margin: Default::default(),
             interval_operating_cost: Default::default(),

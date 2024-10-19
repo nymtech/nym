@@ -1,259 +1,290 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use chrono::{Timelike, Utc};
-use defguard_wireguard_rs::{host::Peer, key::Key, WireguardInterfaceApi};
+use defguard_wireguard_rs::{
+    host::{Host, Peer},
+    key::Key,
+    WireguardInterfaceApi,
+};
+use futures::channel::oneshot;
+use nym_authenticator_requests::{
+    latest::registration::RemainingBandwidthData, v1::registration::BANDWIDTH_CAP_PER_DAY,
+};
+use nym_credential_verification::{
+    bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
+    ClientBandwidth,
+};
 use nym_gateway_storage::Storage;
-use nym_wireguard_types::registration::{RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY};
-use nym_wireguard_types::{DEFAULT_PEER_TIMEOUT, DEFAULT_PEER_TIMEOUT_CHECK};
-use std::time::SystemTime;
+use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::{collections::HashMap, sync::Arc};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
-use crate::error::Error;
+use crate::peer_handle::PeerHandle;
 use crate::WgApiWrapper;
+use crate::{error::Error, peer_handle::SharedBandwidthStorageManager};
 
 pub enum PeerControlRequest {
-    AddPeer(Peer),
-    RemovePeer(Key),
-    QueryPeer(Key),
-    QueryBandwidth(Key),
-}
-
-pub enum PeerControlResponse {
     AddPeer {
-        success: bool,
+        peer: Peer,
+        client_id: Option<i64>,
+        response_tx: oneshot::Sender<AddPeerControlResponse>,
     },
     RemovePeer {
-        success: bool,
+        key: Key,
+        response_tx: oneshot::Sender<RemovePeerControlResponse>,
     },
     QueryPeer {
-        success: bool,
-        peer: Option<Peer>,
+        key: Key,
+        response_tx: oneshot::Sender<QueryPeerControlResponse>,
     },
     QueryBandwidth {
-        bandwidth_data: Option<RemainingBandwidthData>,
+        key: Key,
+        response_tx: oneshot::Sender<QueryBandwidthControlResponse>,
     },
 }
 
-pub struct PeerController<St: Storage> {
-    storage: St,
-    request_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
-    response_tx: mpsc::UnboundedSender<PeerControlResponse>,
-    wg_api: Arc<WgApiWrapper>,
-    timeout_check_interval: IntervalStream,
-    active_peers: HashMap<Key, Peer>,
-    suspended_peers: HashMap<Key, Peer>,
-    last_seen_bandwidth: HashMap<Key, u64>,
-    timeout_count: u8,
+pub struct AddPeerControlResponse {
+    pub success: bool,
 }
 
-impl<St: Storage> PeerController<St> {
+pub struct RemovePeerControlResponse {
+    pub success: bool,
+}
+
+pub struct QueryPeerControlResponse {
+    pub success: bool,
+    pub peer: Option<Peer>,
+}
+
+pub struct QueryBandwidthControlResponse {
+    pub success: bool,
+    pub bandwidth_data: Option<RemainingBandwidthData>,
+}
+
+pub struct PeerController<St: Storage + Clone + 'static> {
+    storage: St,
+    // used to receive commands from individual handles too
+    request_tx: mpsc::Sender<PeerControlRequest>,
+    request_rx: mpsc::Receiver<PeerControlRequest>,
+    wg_api: Arc<WgApiWrapper>,
+    host_information: Arc<RwLock<Host>>,
+    bw_storage_managers: HashMap<Key, Option<SharedBandwidthStorageManager<St>>>,
+    timeout_check_interval: IntervalStream,
+    task_client: nym_task::TaskClient,
+}
+
+impl<St: Storage + Clone + 'static> PeerController<St> {
     pub fn new(
         storage: St,
         wg_api: Arc<WgApiWrapper>,
-        peers: Vec<Peer>,
-        suspended_peers: Vec<Peer>,
-        request_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
-        response_tx: mpsc::UnboundedSender<PeerControlResponse>,
+        initial_host_information: Host,
+        bw_storage_managers: HashMap<Key, Option<SharedBandwidthStorageManager<St>>>,
+        request_tx: mpsc::Sender<PeerControlRequest>,
+        request_rx: mpsc::Receiver<PeerControlRequest>,
+        task_client: nym_task::TaskClient,
     ) -> Self {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
-        let active_peers: HashMap<Key, Peer> = peers
-            .into_iter()
-            .map(|peer| (peer.public_key.clone(), peer))
-            .collect();
-        let suspended_peers: HashMap<Key, Peer> = suspended_peers
-            .into_iter()
-            .map(|peer| (peer.public_key.clone(), peer))
-            .collect();
-        let last_seen_bandwidth = active_peers
-            .iter()
-            .map(|(k, p)| (k.clone(), p.rx_bytes + p.tx_bytes))
-            .chain(suspended_peers.keys().map(|k| (k.clone(), 0)))
-            .collect();
+        let host_information = Arc::new(RwLock::new(initial_host_information));
+        for (public_key, bandwidth_storage_manager) in bw_storage_managers.iter() {
+            let mut handle = PeerHandle::new(
+                storage.clone(),
+                public_key.clone(),
+                host_information.clone(),
+                bandwidth_storage_manager.clone(),
+                request_tx.clone(),
+                &task_client,
+            );
+            tokio::spawn(async move {
+                if let Err(e) = handle.run().await {
+                    log::error!("Peer handle shut down ungracefully - {e}");
+                }
+            });
+        }
 
         PeerController {
             storage,
             wg_api,
+            host_information,
+            bw_storage_managers,
+            request_tx,
             request_rx,
-            response_tx,
             timeout_check_interval,
-            active_peers,
-            suspended_peers,
-            last_seen_bandwidth,
-            timeout_count: 0,
+            task_client,
         }
     }
 
-    async fn check_stale_peer(
-        &self,
-        peer: &Peer,
-        current_timestamp: SystemTime,
-    ) -> Result<bool, Error> {
-        if let Some(timestamp) = peer.last_handshake {
-            if let Ok(duration_since_handshake) = current_timestamp.duration_since(timestamp) {
-                if duration_since_handshake > DEFAULT_PEER_TIMEOUT {
-                    self.storage
-                        .remove_wireguard_peer(&peer.public_key.to_string())
-                        .await?;
-                    self.wg_api.inner.remove_peer(&peer.public_key)?;
-                    return Ok(true);
-                }
-            }
-        }
-
-        Ok(false)
-    }
-
-    async fn check_suspend_peer(&mut self, peer: &Peer) -> Result<(), Error> {
-        let prev_peer = self
-            .active_peers
-            .get(&peer.public_key)
-            .ok_or(Error::PeerMismatch)?;
-        let data_usage =
-            (peer.rx_bytes + peer.tx_bytes).saturating_sub(prev_peer.rx_bytes + prev_peer.tx_bytes);
-        if data_usage > BANDWIDTH_CAP_PER_DAY {
-            self.storage.insert_wireguard_peer(peer, true).await?;
-            self.wg_api.inner.remove_peer(&peer.public_key)?;
-            self.active_peers
-                .remove_entry(&peer.public_key)
-                .ok_or(Error::PeerMismatch)?;
-            self.suspended_peers
-                .insert(peer.public_key.clone(), peer.clone());
-        } else {
-            // Update peer stored data
+    // Function that should be used for peer insertion, to handle both storage and kernel interaction
+    pub async fn add_peer(&self, peer: &Peer, client_id: Option<i64>) -> Result<(), Error> {
+        if client_id.is_none() {
             self.storage.insert_wireguard_peer(peer, false).await?;
         }
-        Ok(())
-    }
-
-    async fn check_peers(&mut self) -> Result<(), Error> {
-        // Add 10 seconds to cover edge cases. At worst, we give ten free seconds worth of bandwidth
-        // by resetting the bandwidth twice
-        let reset = Utc::now().num_seconds_from_midnight() as u64
-            <= DEFAULT_PEER_TIMEOUT_CHECK.as_secs() + 10;
-
-        if reset {
-            for (_, peer) in self.suspended_peers.drain() {
-                self.wg_api.inner.configure_peer(&peer)?;
-            }
-        }
-        let host = self.wg_api.inner.read_interface_data()?;
-        self.last_seen_bandwidth = host
-            .peers
-            .iter()
-            .map(|(key, peer)| (key.clone(), peer.rx_bytes + peer.tx_bytes))
-            .collect();
-
-        // Do in-memory updates of bandwidth every DEFAULT_PEER_TIMEOUT_CHECK
-        // and storage updates every 5 * DEFAULT_PEER_TIMEOUT_CHECK, because in-memory
-        // is more important for client query preciseness
-        self.timeout_count = self.timeout_count % 5 + 1;
-        if !reset && self.timeout_count < 5 {
-            return Ok(());
-        }
-
-        if reset {
-            self.active_peers = host.peers;
-            for peer in self.active_peers.values() {
-                self.storage.insert_wireguard_peer(peer, false).await?;
-            }
-        } else {
-            let peers = self
+        let ret: Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> =
+            self.wg_api.inner.configure_peer(peer);
+        if client_id.is_none() && ret.is_err() {
+            // Try to revert the insertion in storage
+            if self
                 .storage
-                .get_all_wireguard_peers()
-                .await?
-                .into_iter()
-                .map(Peer::try_from)
-                .collect::<Result<Vec<_>, _>>()?;
-            let current_timestamp = SystemTime::now();
-            for peer in peers {
-                if !self.check_stale_peer(&peer, current_timestamp).await? {
-                    self.check_suspend_peer(&peer).await?;
-                }
+                .remove_wireguard_peer(&peer.public_key.to_string())
+                .await
+                .is_err()
+            {
+                log::error!("The storage has been corrupted. Wireguard peer {} will persist in storage indefinitely.", peer.public_key);
             }
         }
+        Ok(ret?)
+    }
 
+    // Function that should be used for peer removal, to handle both storage and kernel interaction
+    pub async fn remove_peer(&mut self, key: &Key) -> Result<(), Error> {
+        self.storage.remove_wireguard_peer(&key.to_string()).await?;
+        self.bw_storage_managers.remove(key);
+        let ret = self.wg_api.inner.remove_peer(key);
+        if ret.is_err() {
+            log::error!("Wireguard peer could not be removed from wireguard kernel module. Process should be restarted so that the interface is reset.");
+        }
+        Ok(ret?)
+    }
+
+    pub async fn generate_bandwidth_manager(
+        storage: St,
+        public_key: &Key,
+    ) -> Result<Option<BandwidthStorageManager<St>>, Error> {
+        if let Some(client_id) = storage
+            .get_wireguard_peer(&public_key.to_string())
+            .await?
+            .ok_or(Error::MissingClientBandwidthEntry)?
+            .client_id
+        {
+            let bandwidth = storage
+                .get_available_bandwidth(client_id)
+                .await?
+                .ok_or(Error::MissingClientBandwidthEntry)?;
+            Ok(Some(BandwidthStorageManager::new(
+                storage,
+                ClientBandwidth::new(bandwidth.into()),
+                client_id,
+                BandwidthFlushingBehaviourConfig::default(),
+                true,
+            )))
+        } else {
+            Ok(None)
+        }
+    }
+
+    async fn handle_add_request(
+        &mut self,
+        peer: &Peer,
+        client_id: Option<i64>,
+    ) -> Result<(), Error> {
+        self.add_peer(peer, client_id).await?;
+        let bandwidth_storage_manager =
+            Self::generate_bandwidth_manager(self.storage.clone(), &peer.public_key)
+                .await?
+                .map(|bw_m| Arc::new(RwLock::new(bw_m)));
+        let mut handle = PeerHandle::new(
+            self.storage.clone(),
+            peer.public_key.clone(),
+            self.host_information.clone(),
+            bandwidth_storage_manager.clone(),
+            self.request_tx.clone(),
+            &self.task_client,
+        );
+        self.bw_storage_managers
+            .insert(peer.public_key.clone(), bandwidth_storage_manager);
+        tokio::spawn(async move {
+            if let Err(e) = handle.run().await {
+                log::error!("Peer handle shut down ungracefully - {e}");
+            }
+        });
         Ok(())
     }
 
-    pub async fn run(&mut self, mut task_client: nym_task::TaskClient) {
+    async fn handle_query_peer(&self, key: &Key) -> Result<Option<Peer>, Error> {
+        Ok(self
+            .storage
+            .get_wireguard_peer(&key.to_string())
+            .await?
+            .map(Peer::try_from)
+            .transpose()?)
+    }
+
+    async fn handle_query_bandwidth(
+        &self,
+        key: &Key,
+    ) -> Result<Option<RemainingBandwidthData>, Error> {
+        let Some(bandwidth_storage_manager) = self.bw_storage_managers.get(key) else {
+            return Ok(None);
+        };
+        let available_bandwidth = if let Some(bandwidth_storage_manager) = bandwidth_storage_manager
+        {
+            bandwidth_storage_manager
+                .read()
+                .await
+                .available_bandwidth()
+                .await
+        } else {
+            let peer = self
+                .host_information
+                .read()
+                .await
+                .peers
+                .get(key)
+                .ok_or(Error::PeerMismatch)?
+                .clone();
+            BANDWIDTH_CAP_PER_DAY.saturating_sub((peer.rx_bytes + peer.tx_bytes) as i64)
+        };
+
+        Ok(Some(RemainingBandwidthData {
+            available_bandwidth,
+        }))
+    }
+
+    pub async fn run(&mut self) {
         loop {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
-                    if let Err(e) = self.check_peers().await {
-                        log::error!("Error while periodically checking peers: {:?}", e);
-                    }
+                    let Ok(host) = self.wg_api.inner.read_interface_data() else {
+                        log::error!("Can't read wireguard kernel data");
+                        continue;
+                    };
+                    *self.host_information.write().await = host;
                 }
-                _ = task_client.recv() => {
+                _ = self.task_client.recv() => {
                     log::trace!("PeerController handler: Received shutdown");
                     break;
                 }
                 msg = self.request_rx.recv() => {
                     match msg {
-                        Some(PeerControlRequest::AddPeer(peer)) => {
-                            if let Err(e) = self.storage.insert_wireguard_peer(&peer, false).await {
-                                log::error!("Could not insert peer into storage: {:?}", e);
-                                self.response_tx.send(PeerControlResponse::AddPeer { success: false }).ok();
-                                continue;
+                        Some(PeerControlRequest::AddPeer { peer, client_id, response_tx }) => {
+                            let ret = self.handle_add_request(&peer, client_id).await;
+                            if ret.is_ok() {
+                                response_tx.send(AddPeerControlResponse { success: true }).ok();
+                            } else {
+                                response_tx.send(AddPeerControlResponse { success: false }).ok();
                             }
-                            let success = if let Err(e) = self.wg_api.inner.configure_peer(&peer) {
-                                log::error!("Could not configure peer: {:?}", e);
-                                false
-                            } else {
-                                self.last_seen_bandwidth.insert(peer.public_key.clone(), peer.rx_bytes + peer.tx_bytes);
-                                self.active_peers.insert(peer.public_key.clone(), peer);
-                                true
-                            };
-                            self.response_tx.send(PeerControlResponse::AddPeer { success }).ok();
                         }
-                        Some(PeerControlRequest::RemovePeer(peer_pubkey)) => {
-                            if let Err(e) = self.storage.remove_wireguard_peer(&peer_pubkey.to_string()).await {
-                                log::error!("Could not remove peer from storage: {:?}", e);
-                                self.response_tx.send(PeerControlResponse::RemovePeer { success: false }).ok();
-                                continue;
+                        Some(PeerControlRequest::RemovePeer { key, response_tx }) => {
+                            let success = self.remove_peer(&key).await.is_ok();
+                            response_tx.send(RemovePeerControlResponse { success }).ok();
+                        }
+                        Some(PeerControlRequest::QueryPeer { key, response_tx }) => {
+                            let ret = self.handle_query_peer(&key).await;
+                            if let Ok(peer) = ret {
+                                response_tx.send(QueryPeerControlResponse { success: true, peer }).ok();
+                            } else {
+                                response_tx.send(QueryPeerControlResponse { success: false, peer: None }).ok();
                             }
-                            let success = if let Err(e) = self.wg_api.inner.remove_peer(&peer_pubkey) {
-                                log::error!("Could not remove peer: {:?}", e);
-                                false
-                            } else {
-                                self.active_peers.remove(&peer_pubkey);
-                                self.suspended_peers.remove(&peer_pubkey);
-                                true
-                            };
-                            self.response_tx.send(PeerControlResponse::RemovePeer { success }).ok();
                         }
-                        Some(PeerControlRequest::QueryPeer(peer_pubkey)) => {
-                            let (success, peer) = match self.storage.get_wireguard_peer(&peer_pubkey.to_string()).await {
-                                Err(e) => {
-                                    log::error!("Could not query peer storage {e}");
-                                    (false, None)
-                                },
-                                Ok(None) => (true, None),
-                                Ok(Some(storage_peer)) => {
-                                    match Peer::try_from(storage_peer) {
-                                        Ok(peer) => (true, Some(peer)),
-                                        Err(e) => {
-                                            log::error!("Could not parse storage peer {e}");
-                                            (false, None)
-                                        }
-                                    }
-                                },
-                            };
-                            self.response_tx.send(PeerControlResponse::QueryPeer { success, peer }).ok();
-                        }
-                        Some(PeerControlRequest::QueryBandwidth(peer_pubkey)) => {
-                            let msg = if self.suspended_peers.contains_key(&peer_pubkey) {
-                                PeerControlResponse::QueryBandwidth { bandwidth_data: Some(RemainingBandwidthData{ available_bandwidth: 0, suspended: true }) }
-                            } else if let Some(&consumed_bandwidth) = self.last_seen_bandwidth.get(&peer_pubkey) {
-                                PeerControlResponse::QueryBandwidth { bandwidth_data: Some(RemainingBandwidthData{ available_bandwidth: BANDWIDTH_CAP_PER_DAY - consumed_bandwidth, suspended: false })}
+                        Some(PeerControlRequest::QueryBandwidth { key, response_tx }) => {
+                            let ret = self.handle_query_bandwidth(&key).await;
+                            if let Ok(bandwidth_data) = ret {
+                                response_tx.send(QueryBandwidthControlResponse { success: true, bandwidth_data }).ok();
                             } else {
-                                PeerControlResponse::QueryBandwidth { bandwidth_data: None }
-                            };
-                            self.response_tx.send(msg).ok();
+                                response_tx.send(QueryBandwidthControlResponse { success: false, bandwidth_data: None }).ok();
+                            }
                         }
                         None => {
                             log::trace!("PeerController [main loop]: stopping since channel closed");

@@ -2,13 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{filter, NetworkAddress, NodeVersion};
+use nym_api_requests::nym_nodes::{NodeRole, SkimmedNode};
 use nym_crypto::asymmetric::{encryption, identity};
-pub use nym_mixnet_contract_common::Layer;
-use nym_mixnet_contract_common::{MixId, MixNodeBond};
+pub use nym_mixnet_contract_common::LegacyMixLayer;
+use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
-
-use nym_api_requests::nym_nodes::{NodeRole, SkimmedNode};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::fmt::Formatter;
@@ -42,26 +41,24 @@ pub enum MixnodeConversionError {
 }
 
 #[derive(Clone)]
-pub struct Node {
-    pub mix_id: MixId,
+pub struct LegacyNode {
+    pub mix_id: NodeId,
     pub host: NetworkAddress,
     // we're keeping this as separate resolved field since we do not want to be resolving the potential
     // hostname every time we want to construct a path via this node
     pub mix_host: SocketAddr,
     pub identity_key: identity::PublicKey,
     pub sphinx_key: encryption::PublicKey, // TODO: or nymsphinx::PublicKey? both are x25519
-    pub layer: Layer,
+    pub layer: LegacyMixLayer,
 
     // to be removed:
     pub version: NodeVersion,
-    pub owner: Option<String>,
 }
 
-impl std::fmt::Debug for Node {
+impl std::fmt::Debug for LegacyNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("mix::Node")
             .field("mix_id", &self.mix_id)
-            .field("owner", &self.owner)
             .field("host", &self.host)
             .field("mix_host", &self.mix_host)
             .field("identity_key", &self.identity_key.to_base58_string())
@@ -72,7 +69,7 @@ impl std::fmt::Debug for Node {
     }
 }
 
-impl Node {
+impl LegacyNode {
     pub fn parse_host(raw: &str) -> Result<NetworkAddress, MixnodeConversionError> {
         // safety: this conversion is infallible
         // (but we retain result return type for legacy reasons)
@@ -92,15 +89,15 @@ impl Node {
     }
 }
 
-impl filter::Versioned for Node {
+impl filter::Versioned for LegacyNode {
     fn version(&self) -> String {
         // TODO: return semver instead
         self.version.to_string()
     }
 }
 
-impl<'a> From<&'a Node> for SphinxNode {
-    fn from(node: &'a Node) -> Self {
+impl<'a> From<&'a LegacyNode> for SphinxNode {
+    fn from(node: &'a LegacyNode) -> Self {
         let node_address_bytes = NymNodeRoutingAddress::from(node.mix_host)
             .try_into()
             .unwrap();
@@ -109,40 +106,17 @@ impl<'a> From<&'a Node> for SphinxNode {
     }
 }
 
-impl<'a> TryFrom<&'a MixNodeBond> for Node {
-    type Error = MixnodeConversionError;
-
-    fn try_from(bond: &'a MixNodeBond) -> Result<Self, Self::Error> {
-        let host = Self::parse_host(&bond.mix_node.host)?;
-
-        // try to completely resolve the host in the mix situation to avoid doing it every
-        // single time we want to construct a path
-        let mix_host = Self::extract_mix_host(&host, bond.mix_node.mix_port)?;
-
-        Ok(Node {
-            mix_id: bond.mix_id,
-            owner: Some(bond.owner.as_str().to_owned()),
-            host,
-            mix_host,
-            identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
-            sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
-            layer: bond.layer,
-            version: bond.mix_node.version.as_str().into(),
-        })
-    }
-}
-
-impl<'a> TryFrom<&'a SkimmedNode> for Node {
+impl<'a> TryFrom<&'a SkimmedNode> for LegacyNode {
     type Error = MixnodeConversionError;
 
     fn try_from(value: &'a SkimmedNode) -> Result<Self, Self::Error> {
         if value.ip_addresses.is_empty() {
             return Err(MixnodeConversionError::NoIpAddressesProvided {
-                mixnode: value.ed25519_identity_pubkey.clone(),
+                mixnode: value.ed25519_identity_pubkey.to_base58_string(),
             });
         }
 
-        let layer = match value.role {
+        let layer = match value.epoch_role {
             NodeRole::Mixnode { layer } => layer
                 .try_into()
                 .map_err(|_| MixnodeConversionError::InvalidLayer)?,
@@ -155,23 +129,14 @@ impl<'a> TryFrom<&'a SkimmedNode> for Node {
 
         let host = NetworkAddress::IpAddr(*ip);
 
-        Ok(Node {
+        Ok(LegacyNode {
             mix_id: value.node_id,
             host,
             mix_host: SocketAddr::new(*ip, value.mix_port),
-            identity_key: value.ed25519_identity_pubkey.parse()?,
-            sphinx_key: value.x25519_sphinx_pubkey.parse()?,
+            identity_key: value.ed25519_identity_pubkey,
+            sphinx_key: value.x25519_sphinx_pubkey,
             layer,
-            owner: None,
             version: NodeVersion::Unknown,
         })
-    }
-}
-
-impl TryFrom<MixNodeBond> for Node {
-    type Error = MixnodeConversionError;
-
-    fn try_from(bond: MixNodeBond) -> Result<Self, Self::Error> {
-        Node::try_from(&bond)
     }
 }

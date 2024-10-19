@@ -6,6 +6,15 @@ import (
 	"time"
 )
 
+/*
+Flow showing:
+  - setting up Nym client logging
+  - creating an ephemeral Nym client (no key storage / persistent address - this will come in a future iteration)
+  - getting its [Nym address](https://nymtech.net/docs/clients/addressing-system.html)
+  - using that address to send a message to yourself via the Mixnet
+  - listen for and parse the incoming message for the `sender_tag` used for [anonymous replies with SURBs]	(https://nymtech.net/docs/architecture/traffic-flow.html#private-replies-using-surbs)
+  - send a reply to yourself using SURBs
+*/
 func main() {
 
 	// initialise Nym client logging - this is quite verbose but very informative

@@ -5,7 +5,7 @@ use crate::nyxd;
 use crate::nyxd::coin::Coin;
 use crate::nyxd::cosmwasm_client::helpers::{create_pagination, next_page_key};
 use crate::nyxd::cosmwasm_client::types::{
-    Account, CodeDetails, Contract, ContractCodeId, SequenceResponse, SimulateResponse,
+    Account, CodeDetails, Contract, ContractCodeId, Model, SequenceResponse, SimulateResponse,
 };
 use crate::nyxd::error::NyxdError;
 use crate::nyxd::Query;
@@ -21,11 +21,11 @@ use cosmrs::proto::cosmos::tx::v1beta1::{
     SimulateRequest, SimulateResponse as ProtoSimulateResponse,
 };
 use cosmrs::proto::cosmwasm::wasm::v1::{
-    QueryCodeRequest, QueryCodeResponse, QueryCodesRequest, QueryCodesResponse,
-    QueryContractHistoryRequest, QueryContractHistoryResponse, QueryContractInfoRequest,
-    QueryContractInfoResponse, QueryContractsByCodeRequest, QueryContractsByCodeResponse,
-    QueryRawContractStateRequest, QueryRawContractStateResponse, QuerySmartContractStateRequest,
-    QuerySmartContractStateResponse,
+    QueryAllContractStateRequest, QueryAllContractStateResponse, QueryCodeRequest,
+    QueryCodeResponse, QueryCodesRequest, QueryCodesResponse, QueryContractHistoryRequest,
+    QueryContractHistoryResponse, QueryContractInfoRequest, QueryContractInfoResponse,
+    QueryContractsByCodeRequest, QueryContractsByCodeResponse, QueryRawContractStateRequest,
+    QueryRawContractStateResponse, QuerySmartContractStateRequest, QuerySmartContractStateResponse,
 };
 use cosmrs::tendermint::{block, chain, Hash};
 use cosmrs::{AccountId, Coin as CosmosCoin, Tx};
@@ -218,17 +218,19 @@ pub trait CosmWasmClient: TendermintRpcClient {
 
         loop {
             let mut res = self
-                .tx_search(query.clone(), false, page, 100, Order::Ascending)
+                .tx_search(query.clone(), false, page, per_page, Order::Ascending)
                 .await?;
 
-            results.append(&mut res.txs);
             // sanity check for if tendermint's maximum per_page was modified -
             // we don't want to accidentally be stuck in an infinite loop
-            if res.total_count == 0 || res.txs.is_empty() {
+            let early_break = res.total_count == 0 || res.txs.is_empty();
+            results.append(&mut res.txs);
+
+            if early_break {
                 break;
             }
 
-            if res.total_count >= per_page {
+            if res.total_count > results.len() as u32 {
                 page += 1
             } else {
                 break;
@@ -440,6 +442,38 @@ pub trait CosmWasmClient: TendermintRpcClient {
             .into_iter()
             .map(TryFrom::try_from)
             .collect::<Result<_, _>>()?)
+    }
+
+    async fn query_all_contract_state(&self, address: &AccountId) -> Result<Vec<Model>, NyxdError> {
+        let path = Some("/cosmwasm.wasm.v1.Query/AllContractState".to_owned());
+
+        let mut models = Vec::new();
+        let mut pagination = None;
+
+        loop {
+            let req = QueryAllContractStateRequest {
+                address: address.to_string(),
+                pagination,
+            };
+
+            let mut res = self
+                .make_abci_query::<_, QueryAllContractStateResponse>(path.clone(), req)
+                .await?;
+
+            let empty_response = res.models.is_empty();
+            models.append(&mut res.models);
+
+            if empty_response {
+                break;
+            }
+            if let Some(next_key) = next_page_key(res.pagination) {
+                pagination = Some(create_pagination(next_key))
+            } else {
+                break;
+            }
+        }
+
+        Ok(models.into_iter().map(Into::into).collect())
     }
 
     async fn query_contract_raw(

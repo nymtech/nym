@@ -5,6 +5,8 @@
 #![warn(clippy::unwrap_used)]
 
 use async_trait::async_trait;
+use nym_crypto::asymmetric::identity;
+use nym_gateway_requests::SharedSymmetricKey;
 use std::error::Error;
 
 pub mod backend;
@@ -18,7 +20,6 @@ pub use error::BadGateway;
 
 #[cfg(all(not(target_arch = "wasm32"), feature = "fs-gateways-storage"))]
 pub use backend::fs_backend::{error::StorageError, OnDiskGatewaysDetails};
-use nym_crypto::asymmetric::identity;
 
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
@@ -59,6 +60,12 @@ pub trait GatewaysDetailsStore {
     async fn store_gateway_details(
         &self,
         details: &GatewayRegistration,
+    ) -> Result<(), Self::StorageError>;
+
+    async fn upgrade_stored_remote_gateway_key(
+        &self,
+        gateway_id: identity::PublicKey,
+        updated_key: &SharedSymmetricKey,
     ) -> Result<(), Self::StorageError>;
 
     /// Remove given gateway details from the underlying store.

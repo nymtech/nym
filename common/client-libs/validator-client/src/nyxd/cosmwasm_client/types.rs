@@ -27,12 +27,33 @@ use cosmrs::vesting::{
 };
 use cosmrs::{AccountId, Any, Coin as CosmosCoin};
 use prost::Message;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
 pub use cosmrs::abci::GasInfo;
 pub use cosmrs::abci::MsgResponse;
 
 pub type ContractCodeId = u64;
+
+// yet another thing to put in cosmrs
+#[derive(Serialize, Deserialize)]
+pub struct Model {
+    #[serde(with = "nym_serde_helpers::hex")]
+    pub key: Vec<u8>,
+
+    #[serde(with = "nym_serde_helpers::base64")]
+    pub value: Vec<u8>,
+}
+
+// follow the cosmwasm serialisation format, i.e. hex for key and base64 for value
+
+impl From<cosmrs::proto::cosmwasm::wasm::v1::Model> for Model {
+    fn from(model: cosmrs::proto::cosmwasm::wasm::v1::Model) -> Self {
+        Model {
+            key: model.key,
+            value: model.value,
+        }
+    }
+}
 
 #[derive(Serialize)]
 pub struct EmptyMsg {}

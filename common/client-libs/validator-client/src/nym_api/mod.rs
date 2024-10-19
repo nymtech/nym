@@ -10,8 +10,10 @@ use nym_api_requests::ecash::models::{
     VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
-use nym_api_requests::models::DescribedMixNode;
-use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
+use nym_api_requests::models::{
+    AnnotationResponse, LegacyDescribedMixNode, NodePerformanceResponse,
+};
+use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
 pub use nym_api_requests::{
     ecash::{
         models::{
@@ -23,19 +25,20 @@ pub use nym_api_requests::{
         VerifyEcashCredentialBody,
     },
     models::{
-        ComputeRewardEstParam, DescribedGateway, GatewayBondAnnotated, GatewayCoreStatusResponse,
+        ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
         GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
-        MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
-        MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
-        StakeSaturationResponse, UptimeResponse,
+        LegacyDescribedGateway, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
+        MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
+        RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
     },
+    nym_nodes::{CachedNodesResponse, SkimmedNode},
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_contracts_common::IdentityKey;
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, MixId};
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId};
 use time::format_description::BorrowedFormatItem;
 use time::Date;
 
@@ -100,7 +103,7 @@ pub trait NymApiClientExt: ApiClient {
             .await
     }
 
-    async fn get_gateways_described(&self) -> Result<Vec<DescribedGateway>, NymAPIError> {
+    async fn get_gateways_described(&self) -> Result<Vec<LegacyDescribedGateway>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::GATEWAYS, routes::DESCRIBED],
             NO_PARAMS,
@@ -108,7 +111,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn get_mixnodes_described(&self) -> Result<Vec<DescribedMixNode>, NymAPIError> {
+    async fn get_mixnodes_described(&self) -> Result<Vec<LegacyDescribedMixNode>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::DESCRIBED],
             NO_PARAMS,
@@ -162,6 +165,88 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    /// retrieve basic information for nodes are capable of operating as an entry gateway
+    /// this includes legacy gateways and nym-nodes
+    async fn get_all_basic_entry_assigned_nodes(
+        &self,
+        semver_compatibility: Option<String>,
+        no_legacy: bool,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(arg) = &semver_compatibility {
+            params.push(("semver_compatibility", arg.clone()))
+        }
+
+        if no_legacy {
+            params.push(("no_legacy", "true".to_string()))
+        }
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "unstable",
+                "nym-nodes",
+                "skimmed",
+                "entry-gateways",
+                "all",
+            ],
+            &params,
+        )
+        .await
+    }
+
+    /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
+    /// this includes legacy mixnodes and nym-nodes
+    async fn get_basic_active_mixing_assigned_nodes(
+        &self,
+        semver_compatibility: Option<String>,
+        no_legacy: bool,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(arg) = &semver_compatibility {
+            params.push(("semver_compatibility", arg.clone()))
+        }
+
+        if no_legacy {
+            params.push(("no_legacy", "true".to_string()))
+        }
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "unstable",
+                "nym-nodes",
+                "skimmed",
+                "mixnodes",
+                "active",
+            ],
+            &params,
+        )
+        .await
+    }
+
     async fn get_active_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::ACTIVE],
@@ -194,7 +279,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_report(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeStatusReportResponse, NymAPIError> {
         self.get_json(
             &[
@@ -228,7 +313,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_history(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeUptimeHistoryResponse, NymAPIError> {
         self.get_json(
             &[
@@ -309,7 +394,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_core_status_count(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         since: Option<i64>,
     ) -> Result<MixnodeCoreStatusResponse, NymAPIError> {
         if let Some(since) = since {
@@ -341,7 +426,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_status(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeStatusResponse, NymAPIError> {
         self.get_json(
             &[
@@ -358,7 +443,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_reward_estimation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<RewardEstimationResponse, NymAPIError> {
         self.get_json(
             &[
@@ -375,7 +460,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn compute_mixnode_reward_estimation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         request_body: &ComputeRewardEstParam,
     ) -> Result<RewardEstimationResponse, NymAPIError> {
         self.post_json(
@@ -394,7 +479,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_stake_saturation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<StakeSaturationResponse, NymAPIError> {
         self.get_json(
             &[
@@ -411,7 +496,7 @@ pub trait NymApiClientExt: ApiClient {
 
     async fn get_mixnode_inclusion_probability(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<InclusionProbabilityResponse, NymAPIError> {
         self.get_json(
             &[
@@ -426,7 +511,23 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn get_mixnode_avg_uptime(&self, mix_id: MixId) -> Result<UptimeResponse, NymAPIError> {
+    async fn get_current_node_performance(
+        &self,
+        node_id: NodeId,
+    ) -> Result<NodePerformanceResponse, NymAPIError> {
+        self.get_json_from(format!("/v1/nym-nodes/performance/{node_id}"))
+            .await
+    }
+
+    async fn get_node_annotation(
+        &self,
+        node_id: NodeId,
+    ) -> Result<AnnotationResponse, NymAPIError> {
+        self.get_json_from(format!("/v1/nym-nodes/annotation/{node_id}"))
+            .await
+    }
+
+    async fn get_mixnode_avg_uptime(&self, mix_id: NodeId) -> Result<UptimeResponse, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
@@ -440,7 +541,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn get_mixnodes_blacklisted(&self) -> Result<Vec<MixId>, NymAPIError> {
+    async fn get_mixnodes_blacklisted(&self) -> Result<Vec<NodeId>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::BLACKLISTED],
             NO_PARAMS,

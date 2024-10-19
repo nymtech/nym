@@ -188,6 +188,15 @@ pub(crate) struct MixnetArgs {
     )]
     pub(crate) mixnet_bind_address: Option<SocketAddr>,
 
+    /// If applicable, custom port announced in the self-described API that other clients and nodes
+    /// will use.
+    /// Useful when the node is behind a proxy.
+    #[clap(
+        long,
+        env = NYMNODE_MIXNET_ANNOUNCE_PORT_ARG
+    )]
+    pub(crate) mixnet_announce_port: Option<u16>,
+
     /// Addresses to nym APIs from which the node gets the view of the network.
     #[clap(
         long,
@@ -222,6 +231,9 @@ impl MixnetArgs {
     pub(crate) fn override_config_section(self, mut section: config::Mixnet) -> config::Mixnet {
         if let Some(bind_address) = self.mixnet_bind_address {
             section.bind_address = bind_address
+        }
+        if let Some(mixnet_announce_port) = self.mixnet_announce_port {
+            section.announce_port = Some(mixnet_announce_port)
         }
         if let Some(nym_api_urls) = self.nym_api_urls {
             section.nym_api_urls = nym_api_urls
@@ -321,6 +333,15 @@ pub(crate) struct MixnodeArgs {
         env = NYMNODE_VERLOC_BIND_ADDRESS_ARG
     )]
     pub(crate) verloc_bind_address: Option<SocketAddr>,
+
+    /// If applicable, custom port announced in the self-described API that other clients and nodes
+    /// will use.
+    /// Useful when the node is behind a proxy.
+    #[clap(
+        long,
+        env = NYMNODE_VERLOC_ANNOUNCE_PORT_ARG
+    )]
+    pub(crate) verloc_announce_port: Option<u16>,
 }
 
 impl MixnodeArgs {
@@ -335,6 +356,9 @@ impl MixnodeArgs {
     ) -> config::MixnodeConfig {
         if let Some(bind_address) = self.verloc_bind_address {
             section.verloc.bind_address = bind_address
+        }
+        if let Some(announce_port) = self.verloc_announce_port {
+            section.verloc.announce_port = Some(announce_port)
         }
         section
     }

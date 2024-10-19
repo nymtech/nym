@@ -11,8 +11,10 @@ use crate::network_monitor::monitor::receiver::{
 use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
+use crate::node_describe_cache::DescribedNodes;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
+use crate::support::caching::cache::SharedCache;
 use crate::support::{config, nyxd};
 use futures::channel::mpsc;
 use nym_bandwidth_controller::BandwidthController;
@@ -23,6 +25,7 @@ use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskManager;
 use std::sync::Arc;
+use tracing::info;
 
 pub(crate) mod gateways_reader;
 pub(crate) mod monitor;
@@ -33,7 +36,8 @@ pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) fn setup<'a>(
     config: &'a config::NetworkMonitor,
-    nym_contract_cache_state: &NymContractCache,
+    nym_contract_cache: &NymContractCache,
+    described_cache: SharedCache<DescribedNodes>,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
 ) -> NetworkMonitorBuilder<'a> {
@@ -41,7 +45,8 @@ pub(crate) fn setup<'a>(
         config,
         nyxd_client,
         storage.to_owned(),
-        nym_contract_cache_state.to_owned(),
+        nym_contract_cache.clone(),
+        described_cache,
     )
 }
 
@@ -49,7 +54,8 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
     config: &'a config::NetworkMonitor,
     nyxd_client: nyxd::Client,
     node_status_storage: NymApiStorage,
-    validator_cache: NymContractCache,
+    contract_cache: NymContractCache,
+    described_cache: SharedCache<DescribedNodes>,
 }
 
 impl<'a> NetworkMonitorBuilder<'a> {
@@ -57,13 +63,15 @@ impl<'a> NetworkMonitorBuilder<'a> {
         config: &'a config::NetworkMonitor,
         nyxd_client: nyxd::Client,
         node_status_storage: NymApiStorage,
-        validator_cache: NymContractCache,
+        contract_cache: NymContractCache,
+        described_cache: SharedCache<DescribedNodes>,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
             nyxd_client,
             node_status_storage,
-            validator_cache,
+            contract_cache,
+            described_cache,
         }
     }
 
@@ -84,7 +92,8 @@ impl<'a> NetworkMonitorBuilder<'a> {
             mpsc::unbounded();
 
         let packet_preparer = new_packet_preparer(
-            self.validator_cache,
+            self.contract_cache,
+            self.described_cache,
             self.config.debug.per_node_test_packets,
             Arc::clone(&ack_key),
             *identity_keypair.public_key(),
@@ -158,14 +167,16 @@ impl<R: MessageReceiver + Send + 'static> NetworkMonitorRunnables<R> {
 }
 
 fn new_packet_preparer(
-    validator_cache: NymContractCache,
+    contract_cache: NymContractCache,
+    described_cache: SharedCache<DescribedNodes>,
     per_node_test_packets: usize,
     ack_key: Arc<AckKey>,
     self_public_identity: identity::PublicKey,
     self_public_encryption: encryption::PublicKey,
 ) -> PacketPreparer {
     PacketPreparer::new(
-        validator_cache,
+        contract_cache,
+        described_cache,
         per_node_test_packets,
         ack_key,
         self_public_identity,
@@ -218,12 +229,19 @@ fn new_packet_receiver(
 // TODO: 2) how do we make it non-async as other 'start' methods?
 pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
     config: &config::NetworkMonitor,
-    nym_contract_cache_state: &NymContractCache,
+    nym_contract_cache: &NymContractCache,
+    described_cache: SharedCache<DescribedNodes>,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
     shutdown: &TaskManager,
 ) {
-    let monitor_builder = setup(config, nym_contract_cache_state, storage, nyxd_client);
+    let monitor_builder = setup(
+        config,
+        nym_contract_cache,
+        described_cache,
+        storage,
+        nyxd_client,
+    );
     info!("Starting network monitor...");
     let runnables: NetworkMonitorRunnables<R> = monitor_builder.build().await;
     runnables.spawn_tasks(shutdown);

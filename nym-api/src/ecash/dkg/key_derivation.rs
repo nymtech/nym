@@ -8,7 +8,6 @@ use crate::ecash::dkg::state::key_derivation::{DealerRejectionReason, Derivation
 use crate::ecash::error::EcashError;
 use crate::ecash::keys::KeyPairWithEpoch;
 use cosmwasm_std::Addr;
-use log::debug;
 use nym_coconut_dkg_common::event_attributes::DKG_PROPOSAL_ID;
 use nym_coconut_dkg_common::types::{DealingIndex, EpochId, NodeIndex};
 use nym_compact_ecash::scheme::keygen::SecretKeyAuth;
@@ -25,6 +24,8 @@ use rand::{CryptoRng, RngCore};
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use thiserror::Error;
+use tracing::debug;
+use tracing::{error, info, warn};
 
 #[derive(Debug, Error)]
 pub enum KeyDerivationError {

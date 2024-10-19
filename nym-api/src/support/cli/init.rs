@@ -4,6 +4,7 @@
 use crate::support::config::default_config_filepath;
 use crate::support::config::helpers::initialise_new;
 use anyhow::bail;
+use std::net::SocketAddr;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {
@@ -51,6 +52,11 @@ pub(crate) struct Args {
     /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
     #[clap(long, requires = "enable_monitor")]
     pub(crate) monitor_credentials_mode: bool,
+
+    /// Socket address this api will use for binding its http API.
+    /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
+    #[clap(long)]
+    pub(crate) bind_address: Option<SocketAddr>,
     // #[clap(short, long, default_value_t = OutputFormat::default())]
     // output: OutputFormat,
 }

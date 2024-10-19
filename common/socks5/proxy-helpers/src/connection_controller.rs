@@ -10,9 +10,11 @@ use nym_task::connections::{ConnectionCommand, ConnectionCommandSender};
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
 
-/// A generic message produced after reading from a socket/connection. It includes data that was
-/// actually read alongside boolean indicating whether the connection got closed so that
-/// remote could act accordingly.
+/// A generic message produced after reading from a socket/connection.
+///
+/// A generic message produced after reading from a socket/connection that includes data that was
+/// actually read alongside boolean indicating whether the connection got closed so that remote
+/// could act accordingly.
 #[derive(Debug)]
 pub struct ConnectionMessage {
     pub payload: Vec<u8>,
@@ -20,6 +22,7 @@ pub struct ConnectionMessage {
 }
 
 /// Channel responsible for sending data that was received from mix network into particular connection.
+///
 /// Data includes the actual payload that is to be written onto the connection
 /// alongside boolean indicating whether the remote connection was closed after producing this message,
 /// so that the local connection should also shut down.

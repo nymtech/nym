@@ -18,7 +18,9 @@ pub use user_agent::UserAgent;
 
 mod user_agent;
 
-pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10);
+// The timeout is relatively high as we are often making requests over the mixnet, where latency is
+// high and chatty protocols take a while to complete.
+pub const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30);
 
 pub type PathSegments<'a> = &'a [&'a str];
 pub type Params<'a, K, V> = &'a [(K, V)];

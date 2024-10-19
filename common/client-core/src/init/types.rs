@@ -11,14 +11,13 @@ use nym_client_core_gateways_storage::{
 };
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::client::InitGatewayClient;
-use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_topology::gateway;
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::nyxd::AccountId;
 use serde::Serialize;
 use std::fmt::Display;
-use std::str::FromStr;
 use std::sync::Arc;
 use time::OffsetDateTime;
 use url::Url;
@@ -39,7 +38,7 @@ pub enum SelectedGateway {
 
 impl SelectedGateway {
     pub fn from_topology_node(
-        node: gateway::Node,
+        node: gateway::LegacyNode,
         must_use_tls: bool,
     ) -> Result<Self, ClientCoreError> {
         let gateway_listener = if must_use_tls {
@@ -51,20 +50,6 @@ impl SelectedGateway {
             node.clients_address()
         };
 
-        let gateway_owner_address = node
-            .owner
-            .as_ref()
-            .map(|raw_owner| {
-                AccountId::from_str(raw_owner).map_err(|source| {
-                    ClientCoreError::MalformedGatewayOwnerAccountAddress {
-                        gateway_id: node.identity_key.to_base58_string(),
-                        raw_owner: raw_owner.clone(),
-                        err: source.to_string(),
-                    }
-                })
-            })
-            .transpose()?;
-
         let gateway_listener =
             Url::parse(&gateway_listener).map_err(|source| ClientCoreError::MalformedListener {
                 gateway_id: node.identity_key.to_base58_string(),
@@ -74,7 +59,7 @@ impl SelectedGateway {
 
         Ok(SelectedGateway::Remote {
             gateway_id: node.identity_key,
-            gateway_owner_address,
+            gateway_owner_address: None,
             gateway_listener,
         })
     }
@@ -104,7 +89,7 @@ impl SelectedGateway {
 /// - shared keys derived between ourselves and the node
 /// - an authenticated handle of an ephemeral handle created for the purposes of registration
 pub struct RegistrationResult {
-    pub shared_keys: Arc<SharedKeys>,
+    pub shared_keys: Arc<SharedGatewayKey>,
     pub authenticated_ephemeral_client: InitGatewayClient,
 }
 
@@ -215,7 +200,7 @@ pub enum GatewaySetup {
         specification: GatewaySelectionSpecification,
 
         // TODO: seems to be a bit inefficient to pass them by value
-        available_gateways: Vec<gateway::Node>,
+        available_gateways: Vec<gateway::LegacyNode>,
     },
 
     ReuseConnection {

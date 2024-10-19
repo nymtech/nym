@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.1.7"
+version = "1.1.8"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

@@ -64,6 +64,8 @@ fn generate_lagrangian_coefficients_at_x(
     Ok(res)
 }
 
+/// Lagrange interpolation at x.
+///
 /// Performs a Lagrange interpolation at specified x for a polynomial defined by set of coordinates
 /// (x, f(x)), where x is a `Scalar` and f(x) is a generic type that can be obtained by evaluating `f` at `x`.
 /// It can be used for Scalars, G1 and G2 points.
@@ -85,6 +87,8 @@ where
         .sum())
 }
 
+/// Lagrange interpolation at the origin.
+///
 /// Performs a Lagrange interpolation at the origin for a polynomial defined by set of coordinates
 /// (x, f(x)), where x is a `Scalar` and f(x) is a generic type that can be obtained by evaluating `f` at `x`.
 /// It can be used for Scalars, G1 and G2 points.

@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::NymApiStorageError;
-use nym_mixnet_contract_common::{EpochState, MixId};
+use nym_mixnet_contract_common::nym_node::Role;
+use nym_mixnet_contract_common::{EpochState, NodeId};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::ValidatorClientError;
@@ -23,7 +24,10 @@ pub enum RewardingError {
     },
 
     #[error("it seems the current epoch is in mid-rewarding state (last rewarded is {last_rewarded}). With our current nym-api this shouldn't have been possible. Manual intervention is required.")]
-    MidMixRewarding { last_rewarded: MixId },
+    MidNodeRewarding { last_rewarded: NodeId },
+
+    #[error("it seems the current epoch is in mid-role assignment state (next role to assign is {next}). With our current nym-api this shouldn't have been possible. Manual intervention is required.")]
+    MidRoleAssignment { next: Role },
 
     // #[error("There were no mixnodes to reward (network is dead)")]
     // NoMixnodesToReward,
@@ -42,11 +46,15 @@ pub enum RewardingError {
         #[from]
         source: std::num::TryFromIntError,
     },
+
     #[error("{source}")]
     WeightedError {
         #[from]
         source: rand::distributions::WeightedError,
     },
+
+    #[error("could not obtain the current interval rewarding parameters")]
+    RewardingParamsRetrievalFailure,
 
     #[error("{0}")]
     GenericError(#[from] anyhow::Error),

@@ -4,7 +4,7 @@
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_topology::provider_trait::{async_trait, TopologyProvider};
-use nym_topology::{nym_topology_from_detailed, NymTopology};
+use nym_topology::{nym_topology_from_basic_info, NymTopology};
 use url::Url;
 
 struct MyTopologyProvider {
@@ -21,23 +21,25 @@ impl MyTopologyProvider {
     async fn get_topology(&self) -> NymTopology {
         let mixnodes = self
             .validator_client
-            .get_cached_active_mixnodes()
+            .get_basic_active_mixing_assigned_nodes(None)
             .await
             .unwrap();
 
-        // in our topology provider only use mixnodes that have mix_id divisible by 3
-        // and have more than 100k nym (i.e. 100'000'000'000 unym) in stake
+        // in our topology provider only use mixnodes that have node_id divisible by 3
+        // and has exactly 100 performance score
         // why? because this is just an example to showcase arbitrary uses and capabilities of this trait
         let filtered_mixnodes = mixnodes
             .into_iter()
-            .filter(|mix| {
-                mix.mix_id() % 3 == 0 && mix.total_stake() > "100000000000".parse().unwrap()
-            })
+            .filter(|mix| mix.node_id % 3 == 0 && mix.performance.is_hundred())
             .collect::<Vec<_>>();
 
-        let gateways = self.validator_client.get_cached_gateways().await.unwrap();
+        let gateways = self
+            .validator_client
+            .get_all_basic_entry_assigned_nodes(None)
+            .await
+            .unwrap();
 
-        nym_topology_from_detailed(filtered_mixnodes, gateways)
+        nym_topology_from_basic_info(&filtered_mixnodes, &gateways)
     }
 }
 

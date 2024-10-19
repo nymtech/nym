@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO custom_gateway_details(gateway_id_bs58, data) \n                VALUES (?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "b059bc3688b6b7f83f47048db9897720fd4e6f3211bf74030a9638f7bf6738e4"
+}

@@ -4,11 +4,12 @@
 use crate::state::AppState;
 use axum::extract::FromRef;
 use nym_node_requests::api::v1::metrics::models::{
-    MixingStats, VerlocResult, VerlocResultData, VerlocStats,
+    MixingStats, Session, SessionStats, VerlocResult, VerlocResultData, VerlocStats,
 };
 use std::collections::HashMap;
 use std::sync::Arc;
-use time::OffsetDateTime;
+use time::macros::time;
+use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 
 pub use nym_node_requests::api::v1::metrics::models::{VerlocMeasurement, VerlocNodeResult};
@@ -132,11 +133,73 @@ impl VerlocStatsState {
     }
 }
 
+#[derive(Clone, Debug, Default)]
+pub struct SharedSessionStats {
+    inner: Arc<RwLock<SessionStatsState>>,
+}
+
+impl SharedSessionStats {
+    pub fn new() -> SharedSessionStats {
+        SharedSessionStats {
+            inner: Arc::new(RwLock::new(Default::default())),
+        }
+    }
+
+    pub async fn read(&self) -> RwLockReadGuard<'_, SessionStatsState> {
+        self.inner.read().await
+    }
+
+    pub async fn write(&self) -> RwLockWriteGuard<'_, SessionStatsState> {
+        self.inner.write().await
+    }
+}
+
+type FinishedSessions = Vec<(u64, String)>;
+
+#[derive(Debug, Clone)]
+pub struct SessionStatsState {
+    pub update_time: Date,
+    pub unique_active_users: u32,
+    pub session_started: u32,
+    pub sessions: FinishedSessions,
+}
+
+impl SessionStatsState {
+    pub fn as_response(&self) -> SessionStats {
+        let sessions = self
+            .sessions
+            .clone()
+            .into_iter()
+            .map(|(duration_ms, typ)| Session { duration_ms, typ })
+            .collect();
+        SessionStats {
+            update_time: self.update_time.with_time(time!(0:00)).assume_utc(),
+            unique_active_users: self.unique_active_users,
+            sessions,
+            sessions_started: self.session_started,
+            sessions_finished: self.sessions.len() as u32,
+        }
+    }
+}
+
+impl Default for SessionStatsState {
+    fn default() -> Self {
+        SessionStatsState {
+            update_time: OffsetDateTime::UNIX_EPOCH.date(),
+            unique_active_users: 0,
+            session_started: 0,
+            sessions: Default::default(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Default)]
 pub struct MetricsAppState {
     pub(crate) prometheus_access_token: Option<String>,
 
     pub(crate) mixing_stats: SharedMixingStats,
+
+    pub(crate) session_stats: SharedSessionStats,
 
     pub(crate) verloc: SharedVerlocStats,
 }

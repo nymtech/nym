@@ -1,0 +1,25 @@
+services:
+  postgres:
+    image: postgres:13
+    container_name: nym-data-observatory-pg
+    environment:
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  data-observatory:
+    depends_on:
+      - postgres
+    image: nym-data-observatory:latest
+    build:
+      context: ../
+      dockerfile: nym-data-observatory/Dockerfile
+    container_name: nym-data-observatory
+    environment:
+      NYM_DATA_OBSERVATORY_CONNECTION_URL: "postgres://postgres:password@postgres:5432"
+      NYM_DATA_OBSERVATORY_HTTP_PORT: 8000
+
+volumes:
+  pgdata:

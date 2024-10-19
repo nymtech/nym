@@ -55,9 +55,10 @@ pub fn lion_transform_decrypt(message: &mut [u8], key: &[u8]) -> Result<(), Outf
     lion_transform(message, key, [3, 2, 1])
 }
 
-/// The core of the lion transform function, that takes a message and a key,
-/// and applies the all-or-nothing transform. The key schedule represents the
-/// values of the 3 subkeys used by the 3 phases of the transform.
+/// The core of the lion transform function.
+///
+/// Takes a message and a key, and applies the all-or-nothing transform. The key schedule
+/// represents the values of the 3 subkeys used by the 3 phases of the transform.
 ///
 /// The `key` must be 32 bytes, and the `message` >= 48.
 ///

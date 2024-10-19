@@ -1,10 +1,14 @@
-import { DecCoin, Gateway, MixNode, MixNodeCostParams, PledgeData } from '@nymproject/types';
+import { DecCoin, Gateway, MixNode, NodeCostParams, NymNode, PledgeData } from '@nymproject/types';
 import { Fee } from '@nymproject/types/dist/types/rust/Fee';
-import { TBondedGateway, TBondedMixnode } from 'src/context';
+import { TBondedNode } from 'src/context';
+import { TBondedGateway } from 'src/requests/gatewayDetails';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 
 export enum EnumNodeType {
   mixnode = 'mixnode',
   gateway = 'gateway',
+  nymnode = 'nymnode',
 }
 
 export type TNodeOwnership = {
@@ -26,6 +30,17 @@ export type TDelegation = {
   pending?: TPendingDelegation;
 };
 
+export type TBondNymNodeArgs = TNymNodeSignatureArgs & {
+  msgSignature: string;
+  fee?: Fee;
+};
+
+export type TNymNodeSignatureArgs = {
+  nymNode: NymNode;
+  costParams: NodeCostParams;
+  pledge: DecCoin;
+};
+
 export type TBondGatewayArgs = {
   gateway: Gateway;
   pledge: DecCoin;
@@ -35,7 +50,7 @@ export type TBondGatewayArgs = {
 
 export type TBondMixNodeArgs = {
   mixnode: MixNode;
-  costParams: MixNodeCostParams;
+  costParams: NodeCostParams;
   pledge: DecCoin;
   msgSignature: string;
   fee?: Fee;
@@ -43,7 +58,7 @@ export type TBondMixNodeArgs = {
 
 export type TBondMixnodeSignatureArgs = {
   mixnode: MixNode;
-  costParams: MixNodeCostParams;
+  costParams: NodeCostParams;
   pledge: DecCoin;
   tokenPool: 'balance' | 'locked';
 };
@@ -69,6 +84,11 @@ export type TNodeDescription = {
   location: string;
 };
 
+export type TNodeConfigUpdateArgs = {
+  host: string;
+  custom_http_port: number;
+};
+
 export type TDelegateArgs = {
   identity: string;
   amount: DecCoin;
@@ -90,7 +110,15 @@ export type TGatewayReport = {
   most_recent: number;
 };
 
-export const isMixnode = (node: TBondedMixnode | TBondedGateway): node is TBondedMixnode =>
-  (node as TBondedMixnode).profitMargin !== undefined;
+export type TNodeRole = 'entry' | 'exit' | 'layer1' | 'layer2' | 'layer3' | 'standby';
 
-export const isGateway = (node: TBondedMixnode | TBondedGateway): node is TBondedGateway => !isMixnode(node);
+export type MixnodeSaturationResponse = {
+  saturation: string;
+  uncapped_saturation: string;
+};
+
+export const isMixnode = (node: TBondedNode): node is TBondedMixnode => (node as TBondedMixnode).mixId !== undefined;
+
+export const isGateway = (node: TBondedNode): node is TBondedGateway => (node as TBondedGateway).location !== undefined;
+
+export const isNymNode = (node: TBondedNode): node is TBondedNymNode => !isMixnode(node) && !isGateway(node);

@@ -102,6 +102,7 @@ impl TopologyRefresher {
             .current_topology()
             .await
             .ok_or(NymTopologyError::EmptyNetworkTopology)?;
+
         if !topology.gateway_exists(gateway) {
             return Err(NymTopologyError::NonExistentGatewayError {
                 identity_key: gateway.to_base58_string(),

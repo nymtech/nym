@@ -13,6 +13,7 @@ use nym_compact_ecash::{
 use rand::{CryptoRng, RngCore};
 use std::collections::HashMap;
 use thiserror::Error;
+use tracing::{debug, error, info, warn};
 
 fn vote_matches(voted_yes: bool, chain_vote: Vote) -> bool {
     if voted_yes && chain_vote == Vote::Yes {

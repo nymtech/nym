@@ -6,6 +6,7 @@ use crate::error::Result;
 use crate::helpers::{g1_tuple_to_bytes, recover_g1_tuple};
 use bls12_381::{G1Projective, Scalar};
 use serde::{Deserialize, Serialize};
+use subtle::Choice;
 
 pub type SignerIndex = u64;
 
@@ -57,6 +58,11 @@ impl Signature {
     pub fn from_bytes(bytes: &[u8]) -> Result<Self> {
         let (h, s) = recover_g1_tuple::<Self>(bytes)?;
         Ok(Signature { h, s })
+    }
+
+    /// Checks whether any of the group elements of the signature is an identity element located at infinity
+    pub fn is_at_infinity(&self) -> Choice {
+        self.s.is_identity() | self.h.is_identity()
     }
 }
 

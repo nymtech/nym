@@ -3,7 +3,7 @@
 
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_topology::mix::Layer;
+use nym_topology::mix::LegacyMixLayer;
 use nym_topology::{mix, NymTopology};
 use std::collections::BTreeMap;
 
@@ -19,9 +19,8 @@ async fn main() {
     let mut mixnodes = BTreeMap::new();
     mixnodes.insert(
         1,
-        vec![mix::Node {
+        vec![mix::LegacyNode {
             mix_id: 63,
-            owner: None,
             host: "172.105.92.48".parse().unwrap(),
             mix_host: "172.105.92.48:1789".parse().unwrap(),
             identity_key: "GLdR2NRVZBiCoCbv4fNqt9wUJZAnNjGXHkx3TjVAUzrK"
@@ -30,15 +29,14 @@ async fn main() {
             sphinx_key: "CBmYewWf43iarBq349KhbfYMc9ys2ebXWd4Vp4CLQ5Rq"
                 .parse()
                 .unwrap(),
-            layer: Layer::One,
+            layer: LegacyMixLayer::One,
             version: "1.1.0".into(),
         }],
     );
     mixnodes.insert(
         2,
-        vec![mix::Node {
+        vec![mix::LegacyNode {
             mix_id: 23,
-            owner: None,
             host: "178.79.143.65".parse().unwrap(),
             mix_host: "178.79.143.65:1789".parse().unwrap(),
             identity_key: "4Yr4qmEHd9sgsuQ83191FR2hD88RfsbMmB4tzhhZWriz"
@@ -47,15 +45,14 @@ async fn main() {
             sphinx_key: "8ndjk5oZ6HxUZNScLJJ7hk39XtUqGexdKgW7hSX6kpWG"
                 .parse()
                 .unwrap(),
-            layer: Layer::Two,
+            layer: LegacyMixLayer::Two,
             version: "1.1.0".into(),
         }],
     );
     mixnodes.insert(
         3,
-        vec![mix::Node {
+        vec![mix::LegacyNode {
             mix_id: 66,
-            owner: None,
             host: "139.162.247.97".parse().unwrap(),
             mix_host: "139.162.247.97:1789".parse().unwrap(),
             identity_key: "66UngapebhJRni3Nj52EW1qcNsWYiuonjkWJzHFsmyYY"
@@ -64,7 +61,7 @@ async fn main() {
             sphinx_key: "7KyZh8Z8KxuVunqytAJ2eXFuZkCS7BLTZSzujHJZsGa2"
                 .parse()
                 .unwrap(),
-            layer: Layer::Three,
+            layer: LegacyMixLayer::Three,
             version: "1.1.0".into(),
         }],
     );

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO global_expiration_date_signatures(expiration_date, epoch_id, serialised_signatures) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "5ce6e1f02b4018fe587ae15bba8a2e051c87d6d9bdd228a2ab0604d4ab6d252c"
+}

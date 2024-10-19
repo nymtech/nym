@@ -3,10 +3,9 @@ import type { DecCoin } from '@nymproject/types/src/types/rust/DecCoin';
 import type { TauriOperatingCostRange } from './OperatingCostRange';
 import type { TauriProfitMarginRange } from './ProfitMarginRange';
 
-export interface TauriContractStateParams {
-  minimum_mixnode_pledge: DecCoin;
-  minimum_gateway_pledge: DecCoin;
-  minimum_mixnode_delegation: DecCoin | null;
+export type TauriContractStateParams = {
+  minimum_pledge: DecCoin;
+  minimum_delegation: DecCoin | null;
   operating_cost: TauriOperatingCostRange;
   profit_margin: TauriProfitMarginRange;
-}
+};

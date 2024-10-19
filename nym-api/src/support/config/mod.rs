@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::config::persistence::{
-    CoconutSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths, NymApiPaths,
+    EcashSignerPaths, NetworkMonitorPaths, NodeStatusAPIPaths, NymApiPaths,
 };
 use crate::support::config::r#override::OverrideConfig;
 use crate::support::config::template::CONFIG_TEMPLATE;
@@ -19,6 +19,7 @@ use std::io;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
+use tracing::debug;
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -106,7 +107,8 @@ pub struct Config {
 
     pub rewarding: Rewarding,
 
-    pub coconut_signer: CoconutSigner,
+    #[serde(alias = "coconut_signer")]
+    pub ecash_signer: EcashSigner,
 }
 
 impl NymConfigTemplate for Config {
@@ -125,7 +127,7 @@ impl Config {
             topology_cacher: Default::default(),
             circulating_supply_cacher: Default::default(),
             rewarding: Default::default(),
-            coconut_signer: CoconutSigner::new_default(id.as_ref()),
+            ecash_signer: EcashSigner::new_default(id.as_ref()),
         }
     }
 
@@ -136,7 +138,7 @@ impl Config {
             bail!("can't enable rewarding without providing a mnemonic")
         }
 
-        if !can_sign && self.coconut_signer.enabled {
+        if !can_sign && self.ecash_signer.enabled {
             bail!("can't enable coconut signer without providing a mnemonic")
         }
 
@@ -159,13 +161,16 @@ impl Config {
             self.base.mnemonic = Some(mnemonic)
         }
         if let Some(enable_zk_nym) = args.enable_zk_nym {
-            self.coconut_signer.enabled = enable_zk_nym
+            self.ecash_signer.enabled = enable_zk_nym
         }
         if let Some(announce_address) = args.announce_address {
-            self.coconut_signer.announce_address = Some(announce_address)
+            self.ecash_signer.announce_address = Some(announce_address)
         }
         if let Some(monitor_credentials_mode) = args.monitor_credentials_mode {
             self.network_monitor.debug.disabled_credentials_mode = !monitor_credentials_mode
+        }
+        if let Some(http_bind_address) = args.bind_address {
+            self.base.bind_address = http_bind_address
         }
 
         self
@@ -226,13 +231,12 @@ impl Config {
     }
 }
 
-// TODO rocket: when axum becomes the main server, change its bind addr default here
 fn default_http_socket_addr() -> SocketAddr {
     cfg_if::cfg_if! {
         if #[cfg(debug_assertions)] {
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8081)
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::LOCALHOST), 8080)
         } else {
-            SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 8081)
+            SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), 8080)
         }
     }
 }
@@ -518,25 +522,25 @@ impl Default for RewardingDebug {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct CoconutSigner {
+pub struct EcashSigner {
     /// Specifies whether rewarding service is enabled in this process.
     pub enabled: bool,
 
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub announce_address: Option<Url>,
 
-    pub storage_paths: CoconutSignerPaths,
+    pub storage_paths: EcashSignerPaths,
 
     #[serde(default)]
-    pub debug: CoconutSignerDebug,
+    pub debug: EcashSignerDebug,
 }
 
-impl CoconutSigner {
+impl EcashSigner {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
-        CoconutSigner {
+        EcashSigner {
             enabled: false,
             announce_address: None,
-            storage_paths: CoconutSignerPaths::new_default(id),
+            storage_paths: EcashSignerPaths::new_default(id),
             debug: Default::default(),
         }
     }
@@ -544,15 +548,15 @@ impl CoconutSigner {
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(default)]
-pub struct CoconutSignerDebug {
+pub struct EcashSignerDebug {
     /// Duration of the interval for polling the dkg contract.
     #[serde(with = "humantime_serde")]
     pub dkg_contract_polling_rate: Duration,
 }
 
-impl Default for CoconutSignerDebug {
+impl Default for EcashSignerDebug {
     fn default() -> Self {
-        CoconutSignerDebug {
+        EcashSignerDebug {
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
         }
     }

@@ -7,7 +7,7 @@ use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
-use nym_topology::{filter::VersionFilterable, gateway, mix};
+use nym_topology::{gateway, mix};
 use nym_validator_client::client::IdentityKeyRef;
 use nym_validator_client::UserAgent;
 use rand::{seq::SliceRandom, Rng};
@@ -53,7 +53,7 @@ pub trait ConnectableGateway {
     fn is_wss(&self) -> bool;
 }
 
-impl ConnectableGateway for gateway::Node {
+impl ConnectableGateway for gateway::LegacyNode {
     fn identity(&self) -> &identity::PublicKey {
         self.identity()
     }
@@ -82,7 +82,7 @@ pub async fn current_gateways<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
-) -> Result<Vec<gateway::Node>, ClientCoreError> {
+) -> Result<Vec<gateway::LegacyNode>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
@@ -94,31 +94,26 @@ pub async fn current_gateways<R: Rng>(
 
     log::debug!("Fetching list of gateways from: {nym_api}");
 
-    let gateways = client.get_cached_described_gateways().await?;
+    let gateways = client.get_all_basic_entry_assigned_nodes(None).await?;
     log::debug!("Found {} gateways", gateways.len());
     log::trace!("Gateways: {:#?}", gateways);
 
     let valid_gateways = gateways
-        .into_iter()
+        .iter()
         .filter_map(|gateway| gateway.try_into().ok())
-        .collect::<Vec<gateway::Node>>();
-    log::debug!("Ater checking validity: {}", valid_gateways.len());
+        .collect::<Vec<gateway::LegacyNode>>();
+    log::debug!("After checking validity: {}", valid_gateways.len());
     log::trace!("Valid gateways: {:#?}", valid_gateways);
 
-    // we were always filtering by version so I'm not removing that 'feature'
-    let filtered_gateways = valid_gateways.filter_by_version(env!("CARGO_PKG_VERSION"));
-    log::debug!("After filtering for version: {}", filtered_gateways.len());
-    log::trace!("Filtered gateways: {:#?}", filtered_gateways);
+    log::info!("nym-api reports {} valid gateways", valid_gateways.len());
 
-    log::info!("nym-api reports {} valid gateways", filtered_gateways.len());
-
-    Ok(filtered_gateways)
+    Ok(valid_gateways)
 }
 
 pub async fn current_mixnodes<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
-) -> Result<Vec<mix::Node>, ClientCoreError> {
+) -> Result<Vec<mix::LegacyNode>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
@@ -126,15 +121,13 @@ pub async fn current_mixnodes<R: Rng>(
 
     log::trace!("Fetching list of mixnodes from: {nym_api}");
 
-    let mixnodes = client.get_cached_mixnodes().await?;
+    let mixnodes = client.get_basic_active_mixing_assigned_nodes(None).await?;
     let valid_mixnodes = mixnodes
-        .into_iter()
-        .filter_map(|mixnode| (&mixnode.bond_information).try_into().ok())
-        .collect::<Vec<mix::Node>>();
+        .iter()
+        .filter_map(|mixnode| mixnode.try_into().ok())
+        .collect::<Vec<mix::LegacyNode>>();
 
-    // we were always filtering by version so I'm not removing that 'feature'
-    let filtered_mixnodes = valid_mixnodes.filter_by_version(env!("CARGO_PKG_VERSION"));
-    Ok(filtered_mixnodes)
+    Ok(valid_mixnodes)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -273,9 +266,9 @@ fn filter_by_tls<G: ConnectableGateway>(
 
 pub(super) fn uniformly_random_gateway<R: Rng>(
     rng: &mut R,
-    gateways: &[gateway::Node],
+    gateways: &[gateway::LegacyNode],
     must_use_tls: bool,
-) -> Result<gateway::Node, ClientCoreError> {
+) -> Result<gateway::LegacyNode, ClientCoreError> {
     filter_by_tls(gateways, must_use_tls)?
         .choose(rng)
         .ok_or(ClientCoreError::NoGatewaysOnNetwork)
@@ -284,9 +277,9 @@ pub(super) fn uniformly_random_gateway<R: Rng>(
 
 pub(super) fn get_specified_gateway(
     gateway_identity: IdentityKeyRef,
-    gateways: &[gateway::Node],
+    gateways: &[gateway::LegacyNode],
     must_use_tls: bool,
-) -> Result<gateway::Node, ClientCoreError> {
+) -> Result<gateway::LegacyNode, ClientCoreError> {
     log::debug!("Requesting specified gateway: {}", gateway_identity);
     let user_gateway = identity::PublicKey::from_base58_string(gateway_identity)
         .map_err(ClientCoreError::UnableToCreatePublicKeyFromGatewayId)?;
@@ -320,7 +313,7 @@ pub(super) async fn register_with_gateway(
             source: err,
         }
     })?;
-    let shared_keys = gateway_client
+    let auth_response = gateway_client
         .perform_initial_authentication()
         .await
         .map_err(|err| {
@@ -330,8 +323,17 @@ pub(super) async fn register_with_gateway(
                 source: err,
             }
         })?;
+
+    // this should NEVER happen, if it did, it means the function was misused,
+    // because for any fresh **registration**, the derived key is always up to date
+    if auth_response.requires_key_upgrade {
+        return Err(ClientCoreError::UnexpectedKeyUpgrade {
+            gateway_id: gateway_id.to_base58_string(),
+        });
+    }
+
     Ok(RegistrationResult {
-        shared_keys,
+        shared_keys: auth_response.initial_shared_key,
         authenticated_ephemeral_client: gateway_client,
     })
 }

@@ -20,6 +20,7 @@ nym-coconut-bandwidth-contract-common = { path = "../../cosmwasm-smart-contracts
 nym-ecash-contract-common = { path = "../../cosmwasm-smart-contracts/ecash-contract" }
 nym-multisig-contract-common = { path = "../../cosmwasm-smart-contracts/multisig-contract" }
 nym-group-contract-common = { path = "../../cosmwasm-smart-contracts/group-contract" }
+nym-serde-helpers = { path = "../../serde-helpers", features = ["hex", "base64"] }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 nym-http-api-client = { path = "../../../common/http-api-client" }

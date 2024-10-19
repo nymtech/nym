@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM shared_keys WHERE client_address_bs58 = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "4642e5d93b4bb38b980d02c4cec2569ee16c78e2a71d9bab04b64314aedf4ac0"
+}

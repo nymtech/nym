@@ -67,10 +67,12 @@ pub async fn current_network_topology_async(
     };
 
     let api_client = NymApiClient::new(url);
-    let mixnodes = api_client.get_cached_active_mixnodes().await?;
-    let gateways = api_client.get_cached_gateways().await?;
+    let mixnodes = api_client
+        .get_basic_active_mixing_assigned_nodes(None)
+        .await?;
+    let gateways = api_client.get_all_basic_entry_assigned_nodes(None).await?;
 
-    Ok(NymTopology::from_detailed(mixnodes, gateways).into())
+    Ok(NymTopology::from_basic(&mixnodes, &gateways).into())
 }
 
 #[wasm_bindgen(js_name = "currentNetworkTopology")]
@@ -88,7 +90,7 @@ pub async fn setup_gateway_wasm(
     client_store: &ClientStorage,
     force_tls: bool,
     chosen_gateway: Option<IdentityKey>,
-    gateways: &[gateway::Node],
+    gateways: &[gateway::LegacyNode],
 ) -> Result<InitialisationResult, WasmCoreError> {
     // TODO: so much optimization and extra features could be added here, but that's for the future
 

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO responses\n                (joke_id, joke, date_created)\n                VALUES\n                ($1, $2, $3)\n            ON CONFLICT(joke_id) DO UPDATE SET\n            joke=excluded.joke,\n            date_created=excluded.date_created;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Varchar",
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "249faa11b88b749f50342bb5c9cc41d20896db543eed74a6f320c041bcbb723d"
+}

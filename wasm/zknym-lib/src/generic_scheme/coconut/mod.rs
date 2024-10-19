@@ -96,17 +96,14 @@ pub fn ttp_keygen(
 pub fn sign_simple(
     attributes: Vec<String>,
     keys: &KeyPairWrapper,
-    parameters: Option<ParametersWrapper>,
 ) -> Result<CredentialWrapper, ZkNymError> {
-    let params = get_params(&parameters);
-
     let public_attributes = attributes
         .into_iter()
         .map(hash_to_scalar)
         .collect::<Vec<_>>();
     let attributes_ref = public_attributes.iter().collect::<Vec<_>>();
 
-    nym_coconut::sign(params, keys.secret_key(), &attributes_ref)
+    nym_coconut::sign(keys.secret_key(), &attributes_ref)
         .map(Into::into)
         .map_err(Into::into)
 }

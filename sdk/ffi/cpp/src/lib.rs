@@ -1,7 +1,8 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
-
-use nym_ffi_shared;
+// TODO REMOVE when you're working on new CPP branch
+#![allow(clippy::all)]
+// use nym_ffi_shared;
 use std::ffi::{c_char, c_int, CStr, CString};
 
 use nym_sphinx_anonymous_replies::requests::AnonymousSenderTag;

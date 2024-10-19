@@ -85,17 +85,18 @@ impl Storage for EphemeralStorage {
         Ok(())
     }
 
-    /// Tries to retrieve one of the stored ticketbook,
+    /// Tries to retrieve one of the stored ticketbook for the specified type,
     /// that has not yet expired and has required number of unspent tickets.
     /// it immediately updated the on-disk number of used tickets so that another task
     /// could obtain their own tickets at the same time
     async fn get_next_unspent_usable_ticketbook(
         &self,
+        ticketbook_type: String,
         tickets: u32,
     ) -> Result<Option<RetrievedTicketbook>, Self::StorageError> {
         Ok(self
             .storage_manager
-            .get_next_unspent_ticketbook_and_update(tickets)
+            .get_next_unspent_ticketbook_and_update(ticketbook_type, tickets)
             .await)
     }
 

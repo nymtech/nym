@@ -49,7 +49,13 @@ pub trait MixnetClientStorage {
     type CredentialStore: CredentialStorage;
     type GatewaysDetailsStore: GatewaysDetailsStore;
 
-    fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore);
+    fn into_runtime_stores(
+        self,
+    ) -> (
+        Self::ReplyStore,
+        Self::CredentialStore,
+        Self::GatewaysDetailsStore,
+    );
 
     fn key_store(&self) -> &Self::KeyStore;
     fn reply_store(&self) -> &Self::ReplyStore;
@@ -77,8 +83,18 @@ impl MixnetClientStorage for Ephemeral {
     type CredentialStore = EphemeralCredentialStorage;
     type GatewaysDetailsStore = InMemGatewaysDetails;
 
-    fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
-        (self.reply_store, self.credential_store)
+    fn into_runtime_stores(
+        self,
+    ) -> (
+        Self::ReplyStore,
+        Self::CredentialStore,
+        Self::GatewaysDetailsStore,
+    ) {
+        (
+            self.reply_store,
+            self.credential_store,
+            self.gateway_details_store,
+        )
     }
 
     fn key_store(&self) -> &Self::KeyStore {
@@ -168,8 +184,18 @@ impl MixnetClientStorage for OnDiskPersistent {
     type CredentialStore = PersistentCredentialStorage;
     type GatewaysDetailsStore = OnDiskGatewaysDetails;
 
-    fn into_runtime_stores(self) -> (Self::ReplyStore, Self::CredentialStore) {
-        (self.reply_store, self.credential_store)
+    fn into_runtime_stores(
+        self,
+    ) -> (
+        Self::ReplyStore,
+        Self::CredentialStore,
+        Self::GatewaysDetailsStore,
+    ) {
+        (
+            self.reply_store,
+            self.credential_store,
+            self.gateway_details_store,
+        )
     }
 
     fn key_store(&self) -> &Self::KeyStore {

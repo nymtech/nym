@@ -11,18 +11,20 @@ license.workspace = true
 # TODO: (for this and other crates), similarly to 'tokio', import only required "futures" modules rather than
 # the entire crate
 futures = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 si-scale = { workspace = true }
 time.workspace = true
+zeroize.workspace = true
 
 # internal
 nym-bandwidth-controller = { path = "../../bandwidth-controller" }
 nym-credentials = { path = "../../credentials" }
 nym-credential-storage = { path = "../../credential-storage" }
+nym-credentials-interface = { path = "../../credentials-interface" }
 nym-crypto = { path = "../../crypto" }
 nym-gateway-requests = { path = "../../gateway-requests" }
 nym-network-defaults = { path = "../../network-defaults" }
@@ -43,7 +45,7 @@ workspace = true
 features = ["macros", "rt", "net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-stream]
-version = "0.1.16"
+workspace = true
 features = ["net", "sync", "time"]
 
 [target."cfg(not(target_arch = \"wasm32\"))".dependencies.tokio-tungstenite]

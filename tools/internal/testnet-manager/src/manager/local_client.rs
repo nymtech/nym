@@ -113,7 +113,7 @@ impl NetworkManager {
                         if let Some(node) = gateways
                             .nodes
                             .iter()
-                            .find(|gw| &gw.ed25519_identity_pubkey == identity)
+                            .find(|gw| &gw.ed25519_identity_pubkey.to_base58_string() == identity)
                         {
                             return SocketAddr::new(
                                 node.ip_addresses[0],

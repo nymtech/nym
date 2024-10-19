@@ -9,12 +9,12 @@ repository = { workspace = true }
 
 [dependencies]
 rand = { workspace = true }
-serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
+serde = { workspace = true, features = ["derive"], optional = true }
 generic-array = { workspace = true, optional = true, features = ["serde"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true }
 
-nym-crypto = { path = "../../crypto", features = ["symmetric", "rand"] }
+nym-crypto = { path = "../../crypto", features = ["stream_cipher", "rand"] }
 nym-pemstore = { path = "../../pemstore" }
 nym-sphinx-addressing = { path = "../addressing" }
 nym-sphinx-params = { path = "../params" }

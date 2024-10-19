@@ -11,7 +11,7 @@ use models::{
     VerifiedTicket, WireguardPeer,
 };
 use nym_credentials_interface::ClientTicket;
-use nym_gateway_requests::registration::handshake::SharedKeys;
+use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::DestinationAddressBytes;
 use shared_keys::SharedKeysManager;
 use sqlx::ConnectOptions;
@@ -42,11 +42,13 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `client_address`: base58-encoded address of the client
-    /// * `shared_keys`: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
+    /// * `shared_keys`:
+    ///     - legacy: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
+    ///     - current: shared AES256-GCM-SIV keys
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedKeys,
+        shared_keys: &SharedGatewayKey,
     ) -> Result<i64, StorageError>;
 
     /// Tries to retrieve shared keys stored for the particular client.
@@ -225,12 +227,14 @@ pub trait Storage: Send + Sync {
     /// # Arguments
     ///
     /// * `peer`: wireguard peer data to be stored
-    /// * `suspended`: if peer exists, but it's currently suspended
+    /// * `with_client_id`: if the peer should have a corresponding client_id
+    ///   (created with entry wireguard ticket) or live without one (or with an
+    ///   exiting one), for temporary backwards compatibility.
     async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
-        suspended: bool,
-    ) -> Result<(), StorageError>;
+        with_client_id: bool,
+    ) -> Result<Option<i64>, StorageError>;
 
     /// Tries to retrieve available bandwidth for the particular peer.
     ///
@@ -282,13 +286,12 @@ impl PersistentStorage {
 
         // TODO: we can inject here more stuff based on our gateway global config
         // struct. Maybe different pool size or timeout intervals?
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
+            .create_if_missing(true)
+            .disable_statement_logging();
 
         // TODO: do we want auto_vacuum ?
-
-        opts.disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,
@@ -330,17 +333,27 @@ impl Storage for PersistentStorage {
     async fn insert_shared_keys(
         &self,
         client_address: DestinationAddressBytes,
-        shared_keys: &SharedKeys,
+        shared_keys: &SharedGatewayKey,
     ) -> Result<i64, StorageError> {
-        let client_id = self
-            .client_manager
-            .insert_client(ClientType::EntryMixnet)
-            .await?;
+        let client_address_bs58 = client_address.as_base58_string();
+        let client_id = match self
+            .shared_key_manager
+            .client_id(&client_address_bs58)
+            .await
+        {
+            Ok(client_id) => client_id,
+            _ => {
+                self.client_manager
+                    .insert_client(ClientType::EntryMixnet)
+                    .await?
+            }
+        };
         self.shared_key_manager
             .insert_shared_keys(
                 client_id,
-                client_address.as_base58_string(),
-                shared_keys.to_base58_string(),
+                client_address_bs58,
+                shared_keys.aes128_ctr_hmac_bs58().as_deref(),
+                shared_keys.aes256_gcm_siv().as_deref(),
             )
             .await?;
         Ok(client_id)
@@ -637,12 +650,30 @@ impl Storage for PersistentStorage {
     async fn insert_wireguard_peer(
         &self,
         peer: &defguard_wireguard_rs::host::Peer,
-        suspended: bool,
-    ) -> Result<(), StorageError> {
+        with_client_id: bool,
+    ) -> Result<Option<i64>, StorageError> {
+        let client_id = match self
+            .wireguard_peer_manager
+            .retrieve_peer(&peer.public_key.to_string())
+            .await?
+        {
+            Some(peer) => peer.client_id,
+            _ => {
+                if with_client_id {
+                    Some(
+                        self.client_manager
+                            .insert_client(ClientType::EntryWireguard)
+                            .await?,
+                    )
+                } else {
+                    None
+                }
+            }
+        };
         let mut peer = WireguardPeer::from(peer.clone());
-        peer.suspended = suspended;
+        peer.client_id = client_id;
         self.wireguard_peer_manager.insert_peer(&peer).await?;
-        Ok(())
+        Ok(client_id)
     }
 
     async fn get_wireguard_peer(

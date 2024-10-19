@@ -1,9 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use semver::SemVerError;
 pub use semver::Version;
 
+/// Checks if the version is minor version compatible.
+///
 /// Checks whether given `version` is compatible with a given semantic version requirement `req`
 /// according to major-minor semver rules. The semantic version requirement can be passed as a full,
 /// concrete version number, because that's what we'll have in our Cargo.toml files (e.g. 0.3.2).
@@ -22,7 +23,7 @@ pub fn is_minor_version_compatible(version: &str, req: &str) -> bool {
     expected_version.major == req_version.major && expected_version.minor == req_version.minor
 }
 
-pub fn parse_version(raw_version: &str) -> Result<Version, SemVerError> {
+pub fn parse_version(raw_version: &str) -> Result<Version, semver::Error> {
     Version::parse(raw_version)
 }
 

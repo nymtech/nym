@@ -25,8 +25,8 @@ use nym_node::config::{
 };
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use nym_node_http_api::api::api_requests;
-use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
-use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
+use nym_node_http_api::api::api_requests::v1::node::models::{AnnouncePorts, NodeDescription};
+use nym_node_http_api::state::metrics::{SharedMixingStats, SharedSessionStats, SharedVerlocStats};
 use nym_node_http_api::state::AppState;
 use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
@@ -37,7 +37,7 @@ use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc;
 use tracing::{debug, error, info, trace};
 use zeroize::Zeroizing;
 
@@ -67,6 +67,7 @@ impl MixnodeData {
 pub struct EntryGatewayData {
     mnemonic: Zeroizing<bip39::Mnemonic>,
     client_storage: nym_gateway::node::PersistentStorage,
+    sessions_stats: SharedSessionStats,
 }
 
 impl EntryGatewayData {
@@ -93,6 +94,7 @@ impl EntryGatewayData {
             )
             .await
             .map_err(nym_gateway::GatewayError::from)?,
+            sessions_stats: SharedSessionStats::new(),
         })
     }
 }
@@ -274,7 +276,7 @@ impl ExitGatewayData {
 
 pub struct WireguardData {
     inner: WireguardGatewayData,
-    peer_rx: UnboundedReceiver<PeerControlRequest>,
+    peer_rx: mpsc::Receiver<PeerControlRequest>,
 }
 
 impl WireguardData {
@@ -522,6 +524,7 @@ impl NymNode {
             x25519_wireguard_key: self.x25519_wireguard_key().to_base58_string(),
             exit_network_requester_address: self.exit_network_requester_address().to_string(),
             exit_ip_packet_router_address: self.exit_ip_packet_router_address().to_string(),
+            exit_authenticator_address: self.exit_authenticator_address().to_string(),
         }
     }
 
@@ -580,6 +583,7 @@ impl NymNode {
         );
         entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
+        entry_gateway.set_session_stats(self.entry_gateway.sessions_stats.clone());
         if self.config.wireguard.enabled {
             entry_gateway.set_wireguard_data(self.wireguard.into());
         }
@@ -631,6 +635,10 @@ impl NymNode {
 
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
             location: self.config.host.location,
+            announce_ports: AnnouncePorts {
+                verloc_port: self.config.mixnode.verloc.announce_port,
+                mix_port: self.config.mixnet.announce_port,
+            },
             accepted_operator_terms_and_conditions: self.accepted_operator_terms_and_conditions,
         };
 
@@ -723,6 +731,7 @@ impl NymNode {
 
         let app_state = AppState::new()
             .with_mixing_stats(self.mixnode.mixing_stats.clone())
+            .with_sessions_stats(self.entry_gateway.sessions_stats.clone())
             .with_verloc_stats(self.verloc_stats.clone())
             .with_metrics_key(self.config.http.access_token.clone());
 

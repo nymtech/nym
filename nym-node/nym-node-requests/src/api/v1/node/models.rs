@@ -2,6 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use celes::Country;
+use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
+use nym_crypto::asymmetric::x25519::{
+    self,
+    serde_helpers::{bs58_x25519_pubkey, option_bs58_x25519_pubkey},
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::net::IpAddr;
@@ -18,7 +23,28 @@ pub struct NodeRoles {
     pub ip_packet_router_enabled: bool,
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+impl NodeRoles {
+    pub fn can_operate_mixnode(&self) -> bool {
+        self.mixnode_enabled
+    }
+
+    pub fn can_operate_entry_gateway(&self) -> bool {
+        self.gateway_enabled
+    }
+
+    pub fn can_operate_exit_gateway(&self) -> bool {
+        self.gateway_enabled && self.network_requester_enabled && self.ip_packet_router_enabled
+    }
+}
+
+#[derive(Clone, Copy, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct AnnouncePorts {
+    pub verloc_port: Option<u16>,
+    pub mix_port: Option<u16>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct HostInformation {
     /// Ip address(es) of this host, such as `1.1.1.1`.
@@ -50,28 +76,34 @@ impl From<HostInformation> for LegacyHostInformation {
     }
 }
 
-#[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct HostKeys {
     /// Base58-encoded ed25519 public key of this node. Currently, it corresponds to either mixnode's or gateway's identity.
     #[serde(alias = "ed25519")]
-    pub ed25519_identity: String,
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[schemars(with = "String")]
+    pub ed25519_identity: ed25519::PublicKey,
 
     /// Base58-encoded x25519 public key of this node used for sphinx/outfox packet creation.
     /// Currently, it corresponds to either mixnode's or gateway's key.
     #[serde(alias = "x25519")]
-    pub x25519_sphinx: String,
+    #[serde(with = "bs58_x25519_pubkey")]
+    #[schemars(with = "String")]
+    pub x25519_sphinx: x25519::PublicKey,
 
     /// Base58-encoded x25519 public key of this node used for the noise protocol.
     #[serde(default)]
-    pub x25519_noise: String,
+    #[serde(with = "option_bs58_x25519_pubkey")]
+    #[schemars(with = "Option<String>")]
+    pub x25519_noise: Option<x25519::PublicKey>,
 }
 
 impl From<HostKeys> for LegacyHostKeys {
     fn from(value: HostKeys) -> Self {
         LegacyHostKeys {
-            ed25519: value.ed25519_identity,
-            x25519: value.x25519_sphinx,
+            ed25519: value.ed25519_identity.to_base58_string(),
+            x25519: value.x25519_sphinx.to_base58_string(),
         }
     }
 }
@@ -174,6 +206,9 @@ pub struct AuxiliaryDetails {
     #[schemars(with = "Option<String>")]
     #[schemars(length(equal = 2))]
     pub location: Option<Country>,
+
+    #[serde(default)]
+    pub announce_ports: AnnouncePorts,
 
     /// Specifies whether this node operator has agreed to the terms and conditions
     /// as defined at <https://nymtech.net/terms-and-conditions/operators/v1.0.0>

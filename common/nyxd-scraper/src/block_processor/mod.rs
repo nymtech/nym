@@ -10,6 +10,7 @@ use crate::rpc_client::RpcClient;
 use crate::storage::{persist_block, ScraperStorage};
 use crate::PruningOptions;
 use futures::StreamExt;
+use std::cmp::max;
 use std::collections::{BTreeMap, HashSet, VecDeque};
 use std::ops::{Add, Range};
 use std::sync::Arc;
@@ -99,7 +100,15 @@ impl BlockProcessor {
         })
     }
 
-    async fn process_block(&mut self, block: BlockToProcess) -> Result<(), ScraperError> {
+    pub fn with_pruning(mut self, pruning_options: PruningOptions) -> Self {
+        self.pruning_options = pruning_options;
+        self
+    }
+
+    pub(super) async fn process_block(
+        &mut self,
+        block: BlockToProcess,
+    ) -> Result<(), ScraperError> {
         info!("processing block at height {}", block.height);
 
         let full_info = self.rpc_client.try_get_full_details(block).await?;
@@ -167,6 +176,10 @@ impl BlockProcessor {
 
     pub fn set_msg_modules(&mut self, modules: Vec<Box<dyn MsgModule + Send>>) {
         self.msg_modules = modules;
+    }
+
+    pub(super) fn last_process_height(&self) -> u32 {
+        self.last_processed_height
     }
 
     async fn maybe_request_missing_blocks(&mut self) -> Result<(), ScraperError> {
@@ -254,6 +267,7 @@ impl BlockProcessor {
         }
 
         if to_prune == 0 {
+            self.last_pruned_height = self.last_processed_height;
             return Ok(());
         }
 
@@ -353,7 +367,14 @@ impl BlockProcessor {
         self.maybe_prune_storage().await?;
 
         let latest_block = self.rpc_client.current_block_height().await? as u32;
+
         if latest_block > self.last_processed_height && self.last_processed_height != 0 {
+            // in case we were offline for a while,
+            // make sure we don't request blocks we'd have to prune anyway
+            let keep_recent = self.pruning_options.strategy_keep_recent();
+            let last_to_keep = latest_block - keep_recent;
+            self.last_processed_height = max(self.last_processed_height, last_to_keep);
+
             let request_range = self.last_processed_height + 1..latest_block + 1;
             info!("we need to request {request_range:?} to resync");
             self.request_missing_blocks(request_range).await?;

@@ -187,16 +187,6 @@ pub enum ClientCoreError {
         source: Ed25519RecoveryError,
     },
 
-    #[error("the account owner of gateway {gateway_id} ({raw_owner}) is malformed: {err}")]
-    MalformedGatewayOwnerAccountAddress {
-        gateway_id: String,
-
-        raw_owner: String,
-
-        // just use the string formatting as opposed to underlying type to avoid having to import cosmrs
-        err: String,
-    },
-
     #[error(
         "the listening address of gateway {gateway_id} ({raw_listener}) is malformed: {source}"
     )]
@@ -214,6 +204,11 @@ pub enum ClientCoreError {
 
     #[error("this client has already registered with gateway {gateway_id}")]
     AlreadyRegistered { gateway_id: String },
+
+    #[error(
+        "fresh registration with gateway {gateway_id} somehow requires an additional key upgrade!"
+    )]
+    UnexpectedKeyUpgrade { gateway_id: String },
 }
 
 /// Set of messages that the client can send to listeners via the task manager

@@ -103,6 +103,11 @@ impl Signature {
         commitment_hash: &G1Projective,
     ) -> Result<()> {
         // Verify the commitment hash
+        if bool::from(self.0.is_identity()) {
+            return Err(CoconutError::Verification(
+                "Commitment hash should not be an identity point".to_string(),
+            ));
+        }
         if !(commitment_hash == &self.0) {
             return Err(CoconutError::Verification(
                 "Verification of commitment hash from signature failed".to_string(),
@@ -431,8 +436,8 @@ mod tests {
 
         let keypair1 = keygen(&params);
         let keypair2 = keygen(&params);
-        let sig1 = sign(&params, keypair1.secret_key(), &attributes).unwrap();
-        let sig2 = sign(&params, keypair2.secret_key(), &attributes).unwrap();
+        let sig1 = sign(keypair1.secret_key(), &attributes).unwrap();
+        let sig2 = sign(keypair2.secret_key(), &attributes).unwrap();
 
         assert!(verify(
             &params,

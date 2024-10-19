@@ -11,6 +11,7 @@ use cw_utils::Threshold;
 use indicatif::HumanDuration;
 use nym_coconut_dkg_common::types::TimeConfiguration;
 use nym_config::defaults::NymNetworkDetails;
+use nym_mixnet_contract_common::reward_params::RewardedSetParams;
 use nym_mixnet_contract_common::{Decimal, InitialRewardingParams, Percent};
 use nym_validator_client::nyxd::cosmwasm_client::types::InstantiateOptions;
 use nym_validator_client::nyxd::Config;
@@ -108,6 +109,7 @@ impl NetworkManager {
     ) -> Result<nym_mixnet_contract_common::MigrateMsg, NetworkManagerError> {
         Ok(nym_mixnet_contract_common::MigrateMsg {
             vesting_contract_address: Some(ctx.network.contracts.vesting.address()?.to_string()),
+            unsafe_skip_state_updates: Some(true),
         })
     }
 
@@ -151,8 +153,12 @@ impl NetworkManager {
                 sybil_resistance: Percent::from_percentage_value(30).unwrap(),
                 active_set_work_factor: Decimal::from_atomics(10u32, 0).unwrap(),
                 interval_pool_emission: Percent::from_percentage_value(2).unwrap(),
-                rewarded_set_size: 240,
-                active_set_size: 240,
+                rewarded_set_params: RewardedSetParams {
+                    entry_gateways: 70,
+                    exit_gateways: 50,
+                    mixnodes: 120,
+                    standby: 0,
+                },
             },
             profit_margin: Default::default(),
             interval_operating_cost: Default::default(),

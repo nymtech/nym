@@ -2,8 +2,8 @@
 import type { DecCoin } from './DecCoin';
 import type { DelegationWithEverything } from './DelegationWithEverything';
 
-export interface DelegationsSummaryResponse {
+export type DelegationsSummaryResponse = {
   delegations: Array<DelegationWithEverything>;
   total_delegations: DecCoin;
   total_rewards: DecCoin;
-}
+};

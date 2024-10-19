@@ -9,10 +9,15 @@ use comfy_table::Table;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
+use nym_credentials_interface::TicketType;
 use std::path::PathBuf;
 
 #[derive(Debug, Parser)]
 pub struct Args {
+    /// Specify which type of ticketbook
+    #[clap(long, default_value_t = TicketType::V1MixnetEntry)]
+    pub(crate) ticketbook_type: TicketType,
+
     /// Specify the index of the ticket to retrieve from the ticketbook.
     /// By default, the current unspent value is used.
     #[clap(long, group = "output")]
@@ -62,7 +67,7 @@ pub async fn execute(args: Args) -> anyhow::Result<()> {
 
     let persistent_storage = initialise_persistent_storage(&credentials_store).await;
     let Some(mut next_ticketbook) = persistent_storage
-        .get_next_unspent_usable_ticketbook(0)
+        .get_next_unspent_usable_ticketbook(args.ticketbook_type.to_string(), 0)
         .await?
     else {
         bail!(

@@ -4,15 +4,10 @@
 use crate::ecash;
 use nym_bin_common::bin_info;
 use nym_bin_common::build_information::BinaryBuildInformation;
-use okapi::openapi3::OpenApi;
-use rocket::Route;
-use rocket_okapi::openapi_get_routes_spec;
-use rocket_okapi::settings::OpenApiSettings;
+
 use tokio::time::Instant;
 
-#[cfg(feature = "axum")]
 pub(crate) mod handlers;
-pub(crate) mod routes;
 
 pub(crate) struct ApiStatusState {
     startup_time: Instant,
@@ -28,7 +23,7 @@ pub(crate) struct SignerState {
 
     pub announce_address: String,
 
-    pub(crate) coconut_keypair: ecash::keys::KeyPair,
+    pub(crate) ecash_keypair: ecash::keys::KeyPair,
 }
 
 impl ApiStatusState {
@@ -43,13 +38,4 @@ impl ApiStatusState {
     pub fn add_zk_nym_signer(&mut self, signer_information: SignerState) {
         self.signer_information = Some(signer_information)
     }
-}
-
-pub(crate) fn api_status_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
-    openapi_get_routes_spec![
-        settings:
-        routes::health,
-        routes::build_information,
-        routes::signer_information
-    ]
 }

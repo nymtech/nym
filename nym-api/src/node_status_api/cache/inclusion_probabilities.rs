@@ -1,12 +1,13 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use nym_api_requests::legacy::LegacyMixNodeDetailsWithLayer;
 use nym_api_requests::models::InclusionProbability;
 use nym_contracts_common::truncate_decimal;
-use nym_mixnet_contract_common::{MixId, MixNodeDetails, RewardingParams};
+use nym_mixnet_contract_common::{NodeId, RewardingParams};
 use serde::Serialize;
 use std::time::Duration;
-use tap::TapFallible;
+use tracing::error;
 
 const MAX_SIMULATION_SAMPLES: u64 = 5000;
 const MAX_SIMULATION_TIME_SEC: u64 = 15;
@@ -22,13 +23,13 @@ pub(crate) struct InclusionProbabilities {
 
 impl InclusionProbabilities {
     pub(crate) fn compute(
-        mixnodes: &[MixNodeDetails],
+        mixnodes: &[LegacyMixNodeDetailsWithLayer],
         params: RewardingParams,
     ) -> Option<InclusionProbabilities> {
         compute_inclusion_probabilities(mixnodes, params)
     }
 
-    pub(crate) fn node(&self, mix_id: MixId) -> Option<&InclusionProbability> {
+    pub(crate) fn node(&self, mix_id: NodeId) -> Option<&InclusionProbability> {
         self.inclusion_probabilities
             .iter()
             .find(|x| x.mix_id == mix_id)
@@ -36,11 +37,11 @@ impl InclusionProbabilities {
 }
 
 fn compute_inclusion_probabilities(
-    mixnodes: &[MixNodeDetails],
+    mixnodes: &[LegacyMixNodeDetailsWithLayer],
     params: RewardingParams,
 ) -> Option<InclusionProbabilities> {
-    let active_set_size = params.active_set_size;
-    let standby_set_size = params.rewarded_set_size - active_set_size;
+    let active_set_size = params.active_set_size();
+    let standby_set_size = params.rewarded_set.standby;
 
     // Unzip list of total bonds into ids and bonds.
     // We need to go through this zip/unzip procedure to make sure we have matching identities
@@ -57,7 +58,7 @@ fn compute_inclusion_probabilities(
         Duration::from_secs(MAX_SIMULATION_TIME_SEC),
         &mut rng,
     )
-    .tap_err(|err| error!("{err}"))
+    .inspect_err(|err| error!("{err}"))
     .ok()?;
 
     Some(InclusionProbabilities {
@@ -69,7 +70,9 @@ fn compute_inclusion_probabilities(
     })
 }
 
-fn unzip_into_mixnode_ids_and_total_bonds(mixnodes: &[MixNodeDetails]) -> (Vec<MixId>, Vec<u128>) {
+fn unzip_into_mixnode_ids_and_total_bonds(
+    mixnodes: &[LegacyMixNodeDetailsWithLayer],
+) -> (Vec<NodeId>, Vec<u128>) {
     mixnodes
         .iter()
         .map(|m| (m.mix_id(), truncate_decimal(m.total_stake()).u128()))
@@ -77,7 +80,7 @@ fn unzip_into_mixnode_ids_and_total_bonds(mixnodes: &[MixNodeDetails]) -> (Vec<M
 }
 
 fn zip_ids_together_with_results(
-    ids: &[MixId],
+    ids: &[NodeId],
     results: &nym_inclusion_probability::SelectionProbability,
 ) -> Vec<InclusionProbability> {
     ids.iter()

@@ -17,11 +17,11 @@ use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
     PartialExpirationDateSignatureResponse, VerificationKeyResponse,
 };
-use nym_api_requests::models::{DescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     RewardEstimationResponse, StakeSaturationResponse,
 };
+use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_http_api_client::UserAgent;
@@ -31,7 +31,7 @@ use url::Url;
 
 pub use crate::nym_api::NymApiClientExt;
 pub use nym_mixnet_contract_common::{
-    mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, MixId,
+    mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId,
 };
 
 // re-export the type to not break existing imports
@@ -283,6 +283,7 @@ impl NymApiClient {
         self.nym_api.change_base_url(new_endpoint);
     }
 
+    #[deprecated(note = "use get_basic_active_mixing_assigned_nodes instead")]
     pub async fn get_basic_mixnodes(
         &self,
         semver_compatibility: Option<String>,
@@ -294,6 +295,7 @@ impl NymApiClient {
             .nodes)
     }
 
+    #[deprecated(note = "use get_all_basic_entry_assigned_nodes instead")]
     pub async fn get_basic_gateways(
         &self,
         semver_compatibility: Option<String>,
@@ -303,6 +305,70 @@ impl NymApiClient {
             .get_basic_gateways(semver_compatibility)
             .await?
             .nodes)
+    }
+
+    /// retrieve basic information for nodes are capable of operating as an entry gateway
+    /// this includes legacy gateways and nym-nodes
+    pub async fn get_all_basic_entry_assigned_nodes(
+        &self,
+        semver_compatibility: Option<String>,
+    ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut nodes = Vec::new();
+
+        loop {
+            let mut res = self
+                .nym_api
+                .get_all_basic_entry_assigned_nodes(
+                    semver_compatibility.clone(),
+                    false,
+                    Some(page),
+                    None,
+                )
+                .await?;
+
+            nodes.append(&mut res.nodes.data);
+            if nodes.len() < res.nodes.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(nodes)
+    }
+
+    /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
+    /// this includes legacy mixnodes and nym-nodes
+    pub async fn get_basic_active_mixing_assigned_nodes(
+        &self,
+        semver_compatibility: Option<String>,
+    ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut nodes = Vec::new();
+
+        loop {
+            let mut res = self
+                .nym_api
+                .get_basic_active_mixing_assigned_nodes(
+                    semver_compatibility.clone(),
+                    false,
+                    Some(page),
+                    None,
+                )
+                .await?;
+
+            nodes.append(&mut res.nodes.data);
+            if nodes.len() < res.nodes.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(nodes)
     }
 
     pub async fn get_cached_active_mixnodes(
@@ -327,7 +393,7 @@ impl NymApiClient {
 
     pub async fn get_cached_described_gateways(
         &self,
-    ) -> Result<Vec<DescribedGateway>, ValidatorClientError> {
+    ) -> Result<Vec<LegacyDescribedGateway>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways_described().await?)
     }
 
@@ -344,7 +410,7 @@ impl NymApiClient {
 
     pub async fn get_mixnode_core_status_count(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         since: Option<i64>,
     ) -> Result<MixnodeCoreStatusResponse, ValidatorClientError> {
         Ok(self
@@ -355,21 +421,21 @@ impl NymApiClient {
 
     pub async fn get_mixnode_status(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeStatusResponse, ValidatorClientError> {
         Ok(self.nym_api.get_mixnode_status(mix_id).await?)
     }
 
     pub async fn get_mixnode_reward_estimation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<RewardEstimationResponse, ValidatorClientError> {
         Ok(self.nym_api.get_mixnode_reward_estimation(mix_id).await?)
     }
 
     pub async fn get_mixnode_stake_saturation(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<StakeSaturationResponse, ValidatorClientError> {
         Ok(self.nym_api.get_mixnode_stake_saturation(mix_id).await?)
     }

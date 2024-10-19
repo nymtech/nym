@@ -1,21 +1,23 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_status_api::handlers::MixIdParam;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::helpers::PaginationRequest;
+use crate::support::http::state::AppState;
 use crate::support::storage::NymApiStorage;
-use crate::v2::AxumAppState;
 use axum::extract::{Path, Query, State};
 use axum::Json;
 use nym_api_requests::models::{
     GatewayTestResultResponse, MixnodeTestResultResponse, PartialTestResult, TestNode, TestRoute,
 };
 use nym_api_requests::pagination::Pagination;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::NodeId;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tracing::{error, trace};
 
 pub type DbId = i64;
 
@@ -103,7 +105,7 @@ const MAX_TEST_RESULTS_PAGE_SIZE: u32 = 100;
 const DEFAULT_TEST_RESULTS_PAGE_SIZE: u32 = 50;
 
 async fn _mixnode_test_results(
-    mix_id: MixId,
+    mix_id: NodeId,
     page: u32,
     per_page: u32,
     info_cache: &NodeInfoCache,
@@ -161,10 +163,21 @@ async fn _mixnode_test_results(
     })
 }
 
+#[utoipa::path(
+    tag = "UNSTABLE - DO **NOT** USE",
+    get,
+    params(
+        MixIdParam, PaginationRequest
+    ),
+    path = "/v1/status/mixnodes/unstable/{mix_id}/test-results",
+    responses(
+        (status = 200, body = MixnodeTestResultResponse)
+    )
+)]
 pub async fn mixnode_test_results(
-    Path(mix_id): Path<MixId>,
+    Path(mix_id): Path<NodeId>,
     Query(pagination): Query<PaginationRequest>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<MixnodeTestResultResponse>> {
     let page = pagination.page.unwrap_or_default();
     let per_page = min(
@@ -249,10 +262,21 @@ async fn _gateway_test_results(
     })
 }
 
+#[utoipa::path(
+    tag = "UNSTABLE - DO **NOT** USE",
+    get,
+    params(
+        PaginationRequest
+    ),
+    path = "/v1/status/gateways/unstable/{identity}/test-results",
+    responses(
+        (status = 200, body = GatewayTestResultResponse)
+    )
+)]
 pub async fn gateway_test_results(
     Path(gateway_identity): Path<String>,
     Query(pagination): Query<PaginationRequest>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<GatewayTestResultResponse>> {
     let page = pagination.page.unwrap_or_default();
     let per_page = min(

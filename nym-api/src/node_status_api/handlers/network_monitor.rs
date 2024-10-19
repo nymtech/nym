@@ -4,13 +4,13 @@
 use crate::node_status_api::handlers::MixIdParam;
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
-    _gateway_uptime_history, _get_gateway_avg_uptime, _get_gateways_detailed,
-    _get_gateways_detailed_unfiltered, _get_mixnode_avg_uptime, _get_mixnode_reward_estimation,
-    _get_mixnodes_detailed_unfiltered, _mixnode_core_status_count, _mixnode_report,
-    _mixnode_uptime_history,
+    _gateway_uptime_history, _get_gateway_avg_uptime, _get_legacy_gateways_detailed,
+    _get_legacy_gateways_detailed_unfiltered, _get_mixnode_avg_uptime,
+    _get_mixnode_reward_estimation, _get_mixnodes_detailed_unfiltered, _mixnode_core_status_count,
+    _mixnode_report, _mixnode_uptime_history,
 };
 use crate::node_status_api::models::AxumResult;
-use crate::v2::AxumAppState;
+use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
 use axum::Json;
 use axum::Router;
@@ -25,7 +25,9 @@ use utoipa::IntoParams;
 
 use super::unstable;
 
-pub(super) fn network_monitor_routes() -> Router<AxumAppState> {
+// we want to mark the routes as deprecated in swagger, but still expose them
+#[allow(deprecated)]
+pub(super) fn network_monitor_routes() -> Router<AppState> {
     Router::new()
         .nest(
             "/gateway/:identity",
@@ -92,9 +94,10 @@ pub(super) fn network_monitor_routes() -> Router<AxumAppState> {
         (status = 200, body = GatewayStatusReportResponse)
     )
 )]
+#[deprecated]
 async fn gateway_report(
     Path(identity): Path<String>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<GatewayStatusReportResponse>> {
     Ok(Json(
         _gateway_report(state.node_status_cache(), &identity).await?,
@@ -109,12 +112,13 @@ async fn gateway_report(
         (status = 200, body = GatewayUptimeHistoryResponse)
     )
 )]
+#[deprecated]
 async fn gateway_uptime_history(
     Path(identity): Path<String>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<GatewayUptimeHistoryResponse>> {
     Ok(Json(
-        _gateway_uptime_history(state.storage(), &identity).await?,
+        _gateway_uptime_history(state.storage(), state.nym_contract_cache(), &identity).await?,
     ))
 }
 
@@ -135,10 +139,11 @@ struct SinceQueryParams {
         (status = 200, body = GatewayCoreStatusResponse)
     )
 )]
+#[deprecated]
 async fn gateway_core_status_count(
     Path(identity): Path<String>,
     Query(SinceQueryParams { since }): Query<SinceQueryParams>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<GatewayCoreStatusResponse>> {
     Ok(Json(
         _gateway_core_status_count(state.storage(), &identity, since).await?,
@@ -153,9 +158,10 @@ async fn gateway_core_status_count(
         (status = 200, body = GatewayUptimeResponse)
     )
 )]
+#[deprecated]
 async fn get_gateway_avg_uptime(
     Path(identity): Path<String>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<GatewayUptimeResponse>> {
     Ok(Json(
         _get_gateway_avg_uptime(state.node_status_cache(), &identity).await?,
@@ -173,9 +179,10 @@ async fn get_gateway_avg_uptime(
         (status = 200, body = MixnodeStatusReportResponse)
     )
 )]
+#[deprecated]
 async fn mixnode_report(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<MixnodeStatusReportResponse>> {
     Ok(Json(
         _mixnode_report(state.node_status_cache(), mix_id).await?,
@@ -193,12 +200,13 @@ async fn mixnode_report(
         (status = 200, body = MixnodeUptimeHistoryResponse)
     )
 )]
+#[deprecated]
 async fn mixnode_uptime_history(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<MixnodeUptimeHistoryResponse>> {
     Ok(Json(
-        _mixnode_uptime_history(state.storage(), mix_id).await?,
+        _mixnode_uptime_history(state.storage(), state.nym_contract_cache(), mix_id).await?,
     ))
 }
 
@@ -213,10 +221,11 @@ async fn mixnode_uptime_history(
         (status = 200, body = MixnodeCoreStatusResponse)
     )
 )]
+#[deprecated]
 async fn mixnode_core_status_count(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
     Query(SinceQueryParams { since }): Query<SinceQueryParams>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<MixnodeCoreStatusResponse>> {
     Ok(Json(
         _mixnode_core_status_count(state.storage(), mix_id, since).await?,
@@ -234,9 +243,10 @@ async fn mixnode_core_status_count(
         (status = 200, body = RewardEstimationResponse)
     )
 )]
+#[deprecated]
 async fn get_mixnode_reward_estimation(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<RewardEstimationResponse>> {
     Ok(Json(
         _get_mixnode_reward_estimation(
@@ -260,9 +270,10 @@ async fn get_mixnode_reward_estimation(
         (status = 200, body = RewardEstimationResponse)
     )
 )]
+#[deprecated]
 async fn compute_mixnode_reward_estimation(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
     Json(user_reward_param): Json<ComputeRewardEstParam>,
 ) -> AxumResult<Json<RewardEstimationResponse>> {
     Ok(Json(
@@ -287,9 +298,10 @@ async fn compute_mixnode_reward_estimation(
         (status = 200, body = UptimeResponse)
     )
 )]
+#[deprecated]
 async fn get_mixnode_avg_uptime(
     Path(MixIdParam { mix_id }): Path<MixIdParam>,
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> AxumResult<Json<UptimeResponse>> {
     Ok(Json(
         _get_mixnode_avg_uptime(state.node_status_cache(), mix_id).await?,
@@ -304,8 +316,9 @@ async fn get_mixnode_avg_uptime(
         (status = 200, body = MixNodeBondAnnotated)
     )
 )]
+#[deprecated]
 pub async fn get_mixnodes_detailed_unfiltered(
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> Json<Vec<MixNodeBondAnnotated>> {
     Json(_get_mixnodes_detailed_unfiltered(state.node_status_cache()).await)
 }
@@ -318,10 +331,11 @@ pub async fn get_mixnodes_detailed_unfiltered(
         (status = 200, body = GatewayBondAnnotated)
     )
 )]
+#[deprecated]
 pub async fn get_gateways_detailed(
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> Json<Vec<GatewayBondAnnotated>> {
-    Json(_get_gateways_detailed(state.node_status_cache()).await)
+    Json(_get_legacy_gateways_detailed(state.node_status_cache()).await)
 }
 
 #[utoipa::path(
@@ -332,8 +346,9 @@ pub async fn get_gateways_detailed(
         (status = 200, body = GatewayBondAnnotated)
     )
 )]
+#[deprecated]
 pub async fn get_gateways_detailed_unfiltered(
-    State(state): State<AxumAppState>,
+    State(state): State<AppState>,
 ) -> Json<Vec<GatewayBondAnnotated>> {
-    Json(_get_gateways_detailed_unfiltered(state.node_status_cache()).await)
+    Json(_get_legacy_gateways_detailed_unfiltered(state.node_status_cache()).await)
 }

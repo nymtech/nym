@@ -18,15 +18,18 @@ use nym_credential_verification::CredentialVerifier;
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ClientBandwidth,
 };
+use nym_credentials_interface::TicketType;
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
-    ClientControlRequest, GatewayRequestsError, SimpleGatewayRequestsError,
+    ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
+    SimpleGatewayRequestsError,
 };
 use nym_gateway_storage::{error::StorageError, Storage};
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_statistics_common::events;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::EcashApiError;
-use rand::{CryptoRng, Rng};
+use rand::{random, CryptoRng, Rng};
 use std::{process, time::Duration};
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncWrite};
@@ -43,8 +46,20 @@ pub enum RequestHandlingError {
     )]
     MissingClientBandwidthEntry { client_address: String },
 
+    #[error("received a binary request of an unknown type")]
+    UnknownBinaryRequest,
+
+    #[error("received a text request of an unknown type")]
+    UnknownTextRequest,
+
+    #[error("received an encrypted text request of an unknown type")]
+    UnknownEncryptedTextRequest,
+
     #[error("Provided binary request was malformed - {0}")]
     InvalidBinaryRequest(#[from] GatewayRequestsError),
+
+    #[error("failed to decrypt provided text request")]
+    InvalidEncryptedTextRequest,
 
     #[error("Provided binary request was malformed - {0}")]
     InvalidTextRequest(<ClientControlRequest as TryFrom<String>>::Error),
@@ -112,6 +127,12 @@ impl IntoWSMessage for Result<ServerResponse, RequestHandlingError> {
             Ok(response) => response.into(),
             Err(err) => err.into_error_message(),
         }
+    }
+}
+
+impl IntoWSMessage for ServerResponse {
+    fn into_ws_message(self) -> Message {
+        self.into()
     }
 }
 
@@ -217,24 +238,35 @@ where
         enc_credential: Vec<u8>,
         iv: Vec<u8>,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        // TODO: change it into a span field instead once we move to tracing
-        debug!(
-            "handling e-cash bandwidth request from {}",
-            self.client.address
-        );
+        debug!("handling e-cash bandwidth request");
 
         let credential = ClientControlRequest::try_from_enc_ecash_credential(
             enc_credential,
             &self.client.shared_keys,
             iv,
         )?;
+        let maybe_ticket_type = TicketType::try_from_encoded(credential.data.payment.t_type);
         let mut verifier = CredentialVerifier::new(
             credential,
             self.inner.shared_state.ecash_verifier.clone(),
             self.bandwidth_storage_manager.clone(),
         );
 
-        let available_total = verifier.verify().await?;
+        let available_total = verifier
+            .verify()
+            .await
+            .inspect_err(|verification_failure| debug!("{verification_failure}"))?;
+        trace!("available total bandwidth: {available_total}");
+
+        if let Ok(ticket_type) = maybe_ticket_type {
+            if let Err(e) = self.inner.shared_state.stats_event_sender.unbounded_send(
+                events::StatsEvent::new_ecash_ticket(self.client.address, ticket_type),
+            ) {
+                warn!("Failed to send session stop event to collector : {e}")
+            };
+        } else {
+            error!("Somehow verified a ticket with an unknown ticket type");
+        }
 
         Ok(ServerResponse::Bandwidth { available_total })
     }
@@ -280,11 +312,58 @@ where
             }
             Ok(request) => match request {
                 // currently only a single type exists
-                BinaryRequest::ForwardSphinx(mix_packet) => self
-                    .handle_forward_sphinx(mix_packet)
-                    .await
-                    .into_ws_message(),
+                BinaryRequest::ForwardSphinx { packet } => {
+                    self.handle_forward_sphinx(packet).await.into_ws_message()
+                }
+                _ => RequestHandlingError::UnknownBinaryRequest.into_error_message(),
             },
+        }
+    }
+
+    async fn handle_key_upgrade(
+        &mut self,
+        hkdf_salt: Vec<u8>,
+        client_key_digest: Vec<u8>,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        if !self.client.shared_keys.is_legacy() {
+            return Ok(ServerResponse::new_error(
+                "the connection is already using an aes256-gcm-siv key",
+            ));
+        }
+        let legacy_key = self.client.shared_keys.unwrap_legacy();
+        let Some(upgraded_key) = legacy_key.upgrade_verify(&hkdf_salt, &client_key_digest) else {
+            return Ok(ServerResponse::new_error(
+                "failed to derive matching aes256-gcm-siv key",
+            ));
+        };
+
+        let updated_key = upgraded_key.into();
+        self.inner
+            .shared_state
+            .storage
+            .insert_shared_keys(self.client.address, &updated_key)
+            .await?;
+
+        // swap the in-memory key
+        self.client.shared_keys = updated_key;
+        Ok(SensitiveServerResponse::KeyUpgradeAck {}.encrypt(&self.client.shared_keys)?)
+    }
+
+    async fn handle_encrypted_text_request(
+        &mut self,
+        ciphertext: Vec<u8>,
+        nonce: Vec<u8>,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        let Ok(req) = ClientRequest::decrypt(&ciphertext, &nonce, &self.client.shared_keys) else {
+            return Err(RequestHandlingError::InvalidEncryptedTextRequest);
+        };
+
+        match req {
+            ClientRequest::UpgradeKey {
+                hkdf_salt,
+                derived_key_digest,
+            } => self.handle_key_upgrade(hkdf_salt, derived_key_digest).await,
+            _ => Err(RequestHandlingError::UnknownEncryptedTextRequest),
         }
     }
 
@@ -297,40 +376,64 @@ where
     /// * `raw_request`: raw message to handle.
     async fn handle_text(&mut self, raw_request: String) -> Message {
         trace!("text request");
-        match ClientControlRequest::try_from(raw_request) {
-            Err(e) => RequestHandlingError::InvalidTextRequest(e).into_error_message(),
-            Ok(request) => match request {
-                ClientControlRequest::EcashCredential { enc_credential, iv } => self
-                    .handle_ecash_bandwidth(enc_credential, iv)
-                    .await
-                    .into_ws_message(),
-                ClientControlRequest::BandwidthCredential { .. } => {
-                    RequestHandlingError::IllegalRequest {
-                        additional_context: "coconut credential are not longer supported".into(),
-                    }
-                    .into_error_message()
-                }
-                ClientControlRequest::BandwidthCredentialV2 { .. } => {
-                    RequestHandlingError::IllegalRequest {
-                        additional_context: "coconut credential are not longer supported".into(),
-                    }
-                    .into_error_message()
-                }
-                ClientControlRequest::ClaimFreeTestnetBandwidth => self
-                    .bandwidth_storage_manager
-                    .handle_claim_testnet_bandwidth()
-                    .await
-                    .map_err(|e| e.into())
-                    .into_ws_message(),
-                other => RequestHandlingError::IllegalRequest {
+
+        let request = match ClientControlRequest::try_from(raw_request) {
+            Ok(req) => {
+                debug!("received request of type {}", req.name());
+                req
+            }
+            Err(err) => {
+                debug!("request was malformed: {err}");
+                return RequestHandlingError::InvalidTextRequest(err).into_error_message();
+            }
+        };
+
+        match request {
+            ClientControlRequest::EncryptedRequest { ciphertext, nonce } => {
+                self.handle_encrypted_text_request(ciphertext, nonce).await
+            }
+            ClientControlRequest::EcashCredential { enc_credential, iv } => {
+                self.handle_ecash_bandwidth(enc_credential, iv).await
+            }
+            ClientControlRequest::BandwidthCredential { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: "coconut credential are not longer supported".into(),
+                })
+            }
+            ClientControlRequest::BandwidthCredentialV2 { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: "coconut credential are not longer supported".into(),
+                })
+            }
+            ClientControlRequest::ClaimFreeTestnetBandwidth => self
+                .bandwidth_storage_manager
+                .handle_claim_testnet_bandwidth()
+                .await
+                .map_err(|e| e.into()),
+            ClientControlRequest::SupportedProtocol { .. } => {
+                Ok(self.inner.handle_supported_protocol_request())
+            }
+            other @ ClientControlRequest::Authenticate { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
                     additional_context: format!(
                         "received illegal message of type {} in an authenticated client",
                         other.name()
                     ),
-                }
-                .into_error_message(),
-            },
+                })
+            }
+            other @ ClientControlRequest::RegisterHandshakeInitRequest { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: format!(
+                        "received illegal message of type {} in an authenticated client",
+                        other.name()
+                    ),
+                })
+            }
+            _ => Err(RequestHandlingError::UnknownTextRequest),
         }
+        .inspect(|res| debug!(response = ?res, "success"))
+        .inspect_err(|err| debug!(error = %err, "failure"))
+        .into_ws_message()
     }
 
     /// Handles pong message received from the client.
@@ -364,12 +467,13 @@ where
     /// # Arguments
     ///
     /// * `raw_request`: raw received websocket message.
+    #[instrument(level = "debug", skip_all,
+        fields(
+            client = %self.client.address.as_base58_string()
+        )
+    )]
     async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
-        // TODO: this should be added via tracing
-        debug!(
-            "handling request from {}",
-            self.client.address.as_base58_string()
-        );
+        trace!("new request");
 
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
         // them and let's test that claim. If that's not the case, just copy code from
@@ -390,8 +494,8 @@ where
     where
         S: AsyncRead + AsyncWrite + Unpin,
     {
-        let tag: u64 = rand::thread_rng().gen();
-        debug!("Got request to ping our connection: {}", tag);
+        let tag: u64 = random();
+        debug!("got request to ping our connection: {tag}");
         self.inner
             .send_websocket_message(Message::Ping(tag.to_be_bytes().to_vec()))
             .await?;

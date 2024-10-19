@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::cli::{init, run};
+use std::net::SocketAddr;
 
 // Configuration that can be overridden.
 pub(crate) struct OverrideConfig {
@@ -26,6 +27,10 @@ pub(crate) struct OverrideConfig {
 
     /// Set this nym api to work in a enabled credentials that would attempt to use gateway with the bandwidth credential requirement
     pub(crate) monitor_credentials_mode: Option<bool>,
+
+    /// Socket address this api will use for binding its http API.
+    /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
+    pub(crate) bind_address: Option<SocketAddr>,
 }
 
 impl From<init::Args> for OverrideConfig {
@@ -38,6 +43,7 @@ impl From<init::Args> for OverrideConfig {
             enable_zk_nym: Some(args.enable_zk_nym),
             announce_address: args.announce_address,
             monitor_credentials_mode: Some(args.monitor_credentials_mode),
+            bind_address: args.bind_address,
         }
     }
 }
@@ -52,6 +58,7 @@ impl From<run::Args> for OverrideConfig {
             enable_zk_nym: args.enable_zk_nym,
             announce_address: args.announce_address,
             monitor_credentials_mode: args.monitor_credentials_mode,
+            bind_address: args.bind_address,
         }
     }
 }

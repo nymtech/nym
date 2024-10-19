@@ -1,9 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use log::{error, trace, warn};
 use nym_sphinx::addressing::nodes::MAX_NODE_ADDRESS_UNPADDED_LEN;
 use nym_sphinx::params::PacketSize;
+use tracing::{error, trace, warn};
 
 pub trait GatewayPacketRouter {
     type Error: std::error::Error;

@@ -14,7 +14,9 @@ pub const DEFAULT_NODE_STATUS_API_DATABASE_FILENAME: &str = "db.sqlite";
 pub const DEFAULT_DKG_PERSISTENT_STATE_FILENAME: &str = "dkg_persistent_state.json";
 pub const DEFAULT_DKG_DECRYPTION_KEY_FILENAME: &str = "dkg_decryption_key.pem";
 pub const DEFAULT_DKG_PUBLIC_KEY_WITH_PROOF_FILENAME: &str = "dkg_public_key_with_proof.pem";
-pub const DEFAULT_COCONUT_KEY_FILENAME: &str = "coconut.pem";
+
+// don't want to be changing the defaults in case something breaks..., but it should be called ecash.pem instead
+pub const DEFAULT_ECASH_KEY_FILENAME: &str = "coconut.pem";
 
 pub const DEFAULT_PRIVATE_IDENTITY_KEY_FILENAME: &str = "private_identity.pem";
 pub const DEFAULT_PUBLIC_IDENTITY_KEY_FILENAME: &str = "public_identity.pem";
@@ -73,12 +75,13 @@ impl NodeStatusAPIPaths {
 }
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize)]
-pub struct CoconutSignerPaths {
+pub struct EcashSignerPaths {
     /// Path to a JSON file where state is persisted between different stages of DKG.
     pub dkg_persistent_state_path: PathBuf,
 
     /// Path to the coconut key.
-    pub coconut_key_path: PathBuf,
+    #[serde(alias = "coconut_key_path")]
+    pub ecash_key_path: PathBuf,
 
     /// Path to the dkg dealer decryption key.
     pub decryption_key_path: PathBuf,
@@ -87,13 +90,13 @@ pub struct CoconutSignerPaths {
     pub public_key_with_proof_path: PathBuf,
 }
 
-impl CoconutSignerPaths {
+impl EcashSignerPaths {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         let data_dir = default_data_directory(id);
 
-        CoconutSignerPaths {
+        EcashSignerPaths {
             dkg_persistent_state_path: data_dir.join(DEFAULT_DKG_PERSISTENT_STATE_FILENAME),
-            coconut_key_path: data_dir.join(DEFAULT_COCONUT_KEY_FILENAME),
+            ecash_key_path: data_dir.join(DEFAULT_ECASH_KEY_FILENAME),
             decryption_key_path: data_dir.join(DEFAULT_DKG_DECRYPTION_KEY_FILENAME),
             public_key_with_proof_path: data_dir.join(DEFAULT_DKG_PUBLIC_KEY_WITH_PROOF_FILENAME),
         }

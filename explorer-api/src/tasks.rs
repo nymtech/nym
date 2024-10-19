@@ -28,13 +28,12 @@ impl ExplorerApiTasks {
         F: FnOnce(&'a QueryHttpRpcValidatorClient) -> Fut,
         Fut: Future<Output = Result<Vec<MixNodeBondAnnotated>, ValidatorClientError>>,
     {
-        let bonds = match f(&self.state.inner.validator_client.0).await {
-            Ok(result) => result,
-            Err(err) => {
+        let bonds = f(&self.state.inner.validator_client.0)
+            .await
+            .unwrap_or_else(|err| {
                 error!("Unable to retrieve mixnode bonds: {err}");
                 vec![]
-            }
-        };
+            });
 
         info!("Fetched {} mixnode bonds", bonds.len());
         bonds

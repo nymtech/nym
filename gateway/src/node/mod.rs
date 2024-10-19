@@ -22,12 +22,15 @@ use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
+use nym_node_http_api::state::metrics::SharedSessionStats;
+use nym_statistics_common::events::{self, StatsEventSender};
 use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
+use statistics::GatewayStatisticsCollector;
 use std::net::SocketAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -36,6 +39,7 @@ use tracing::*;
 pub(crate) mod client_handling;
 pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
+pub(crate) mod statistics;
 
 pub use nym_gateway_storage::{PersistentStorage, Storage};
 
@@ -147,6 +151,8 @@ pub struct Gateway<St = PersistentStorage> {
 
     wireguard_data: Option<nym_wireguard::WireguardData>,
 
+    session_stats: Option<SharedSessionStats>,
+
     run_http_server: bool,
     task_client: Option<TaskClient>,
 }
@@ -168,6 +174,7 @@ impl<St> Gateway<St> {
             ip_packet_router_opts,
             authenticator_opts: None,
             wireguard_data: None,
+            session_stats: None,
             run_http_server: true,
             task_client: None,
         })
@@ -191,6 +198,7 @@ impl<St> Gateway<St> {
             sphinx_keypair,
             storage,
             wireguard_data: None,
+            session_stats: None,
             run_http_server: true,
             task_client: None,
         }
@@ -202,6 +210,10 @@ impl<St> Gateway<St> {
 
     pub fn set_task_client(&mut self, task_client: TaskClient) {
         self.task_client = Some(task_client)
+    }
+
+    pub fn set_session_stats(&mut self, session_stats: SharedSessionStats) {
+        self.session_stats = Some(session_stats);
     }
 
     pub fn set_wireguard_data(&mut self, wireguard_data: nym_wireguard::WireguardData) {
@@ -246,6 +258,7 @@ impl<St> Gateway<St> {
         &mut self,
         forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
+        ecash_verifier: Arc<EcashManager<St>>,
     ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>>
     where
         St: Storage + Clone + 'static,
@@ -256,7 +269,6 @@ impl<St> Gateway<St> {
             .ok_or(GatewayError::UnspecifiedAuthenticatorConfig)?;
         let (router_tx, mut router_rx) = oneshot::channel();
         let (auth_mix_sender, auth_mix_receiver) = mpsc::unbounded();
-        let (peer_response_tx, peer_response_rx) = tokio::sync::mpsc::unbounded_channel();
         let router_shutdown = shutdown.fork("message_router");
         let transceiver = LocalGateway::new(
             *self.identity_keypair.public_key(),
@@ -286,8 +298,8 @@ impl<St> Gateway<St> {
                 opts.config.clone(),
                 wireguard_data.inner.clone(),
                 used_private_network_ips,
-                peer_response_rx,
             )
+            .with_ecash_verifier(ecash_verifier)
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_shutdown(shutdown.fork("authenticator"))
             .with_wait_for_gateway(true)
@@ -322,7 +334,6 @@ impl<St> Gateway<St> {
                 all_peers,
                 shutdown,
                 wireguard_data,
-                peer_response_tx,
             )
             .await?;
 
@@ -342,6 +353,7 @@ impl<St> Gateway<St> {
         &self,
         _forwarding_channel: MixForwardingSender,
         _shutdown: TaskClient,
+        _ecash_verifier: Arc<EcashManager<St>>,
     ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
         todo!("Authenticator is currently only supported on Linux");
     }
@@ -352,6 +364,7 @@ impl<St> Gateway<St> {
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
         ecash_verifier: Arc<EcashManager<St>>,
+        stats_event_sender: StatsEventSender,
     ) where
         St: Storage + Send + Sync + Clone + 'static,
     {
@@ -368,6 +381,7 @@ impl<St> Gateway<St> {
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
             bandwidth_cfg: (&self.config).into(),
+            stats_event_sender,
         };
 
         websocket::Listener::new(listening_address, shared_state).start(
@@ -391,6 +405,19 @@ impl<St> Gateway<St> {
 
         tokio::spawn(async move { packet_forwarder.run().await });
         packet_sender
+    }
+
+    fn start_stats_collector(
+        &self,
+        shared_session_stats: SharedSessionStats,
+        shutdown: TaskClient,
+    ) -> events::StatsEventSender {
+        info!("Starting gateway stats collector...");
+
+        let (mut stats_collector, stats_event_sender) =
+            GatewayStatisticsCollector::new(shared_session_stats);
+        tokio::spawn(async move { stats_collector.run(shutdown).await });
+        stats_event_sender
     }
 
     // TODO: rethink the logic in this function...
@@ -599,6 +626,11 @@ impl<St> Gateway<St> {
                 return Err(GatewayError::InsufficientNodeBalance { account, balance });
             }
         }
+        let shared_session_stats = self.session_stats.take().unwrap_or_default();
+        let stats_event_sender = self.start_stats_collector(
+            shared_session_stats,
+            shutdown.fork("statistics::GatewayStatisticsCollector"),
+        );
 
         let handler_config = CredentialHandlerConfig {
             revocation_bandwidth_penalty: self
@@ -616,18 +648,20 @@ impl<St> Gateway<St> {
                 .maximum_time_between_redemption,
         };
 
-        let ecash_manager = EcashManager::new(
-            handler_config,
-            nyxd_client,
-            self.identity_keypair.public_key().to_bytes(),
-            shutdown.fork("EcashVerifier"),
-            self.storage.clone(),
-        )
-        .await?;
+        let ecash_verifier = Arc::new(
+            EcashManager::new(
+                handler_config,
+                nyxd_client,
+                self.identity_keypair.public_key().to_bytes(),
+                shutdown.fork("EcashVerifier"),
+                self.storage.clone(),
+            )
+            .await?,
+        );
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.fork("PacketForwarder"));
 
-        let active_clients_store = ActiveClientsStore::new();
+        let active_clients_store = ActiveClientsStore::new(stats_event_sender.clone());
         self.start_mix_socket_listener(
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
@@ -638,7 +672,8 @@ impl<St> Gateway<St> {
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
             shutdown.fork("websocket::Listener"),
-            Arc::new(ecash_manager),
+            ecash_verifier.clone(),
+            stats_event_sender.clone(),
         );
 
         let nr_request_filter = if self.config.network_requester.enabled {
@@ -670,7 +705,11 @@ impl<St> Gateway<St> {
 
         let _wg_api = if self.wireguard_data.is_some() {
             let embedded_auth = self
-                .start_authenticator(mix_forwarding_channel, shutdown.fork("authenticator"))
+                .start_authenticator(
+                    mix_forwarding_channel,
+                    shutdown.fork("authenticator"),
+                    ecash_verifier,
+                )
                 .await
                 .map_err(|source| GatewayError::AuthenticatorStartError { source })?;
             active_clients_store.insert_embedded(embedded_auth.handle);

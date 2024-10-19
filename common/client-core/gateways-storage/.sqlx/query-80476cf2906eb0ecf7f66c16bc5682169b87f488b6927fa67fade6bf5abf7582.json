@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE active_gateway SET active_gateway_id_bs58 = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "80476cf2906eb0ecf7f66c16bc5682169b87f488b6927fa67fade6bf5abf7582"
+}

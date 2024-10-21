@@ -16,9 +16,9 @@ const config: DocsThemeConfig = {
   },
   docsRepositoryBase:
     "https://github.com/nymtech/nym/tree/develop/documentation/docs/",
-  // footer: {
-  //   text: Footer,
-  // },
+  footer: {
+    text: Footer,
+  },
   darkMode: true,
   sidebar: {
     defaultMenuCollapseLevel: 1,

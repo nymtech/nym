@@ -24,7 +24,7 @@ You can use Nymvisor to automate the upgrades of the following binaries:
 * `nym-client`
 * `nym-socks5-client`
 
-<Callout color="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 Nymvisor is an early and experimental software. Users should use it at their own risk.
 </Callout>
 
@@ -298,7 +298,7 @@ This section outlines what happens under the hood with the following commands:
 - Saves the Nymvisor instance's config file to `$NYMVISOR_CONFIG_PATH` and creates the full directory structure for the file
 - Outputs (to `stdout`) the full configuration used
 
-<Callout color="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 `nymvisor init` is specifically for initializing Nymvisor, and should **not** be confused with a daemon's `init` command - such as `nym-socks5-client init` (e.g. `nymvisor run init`).
 </Callout>
 

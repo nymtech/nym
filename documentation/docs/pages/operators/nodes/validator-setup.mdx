@@ -13,7 +13,7 @@ import {Accordion, AccordionItem} from "@nextui-org/react";
 
 The validator is a Go application which implements it's functionalities using [Cosmos SDK](https://v1.cosmos.network/sdk). The underlying state-replication engine is powered by [CometBFT](https://cometbft.com/), where the consensus mechanism is based on the [Tendermint Consensus Algorithm](https://arxiv.org/abs/1807.04938). Finally, a [CosmWasm](https://cosmwasm.com) smart contract module controls crucial mixnet functionalities like decentralised directory service, node bonding, and delegated mixnet staking.
 
-<Callout color="info" emoji="ℹ️">
+<Callout type="info" emoji="ℹ️">
 We are currently running mainnet with a closed set of reputable validators. To ensure decentralisation of Nyx chain, we are working on a mechanism to onboard new validators to the network. To join the waitlist, please drop an email to `validators [at] nymtech.net` with details of your setup, experience and any other relevent information
 </Callout>
 
@@ -222,7 +222,7 @@ nyxd init <ID> --chain-id=nyx
 nyxd init <ID> --chain-id=sandbox
 ```
 
-<Callout color="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 `init` generates `priv_validator_key.json` and `node_key.json`.
 
 If you have already set up a validator on a network, **make sure to back up the key located at**
@@ -331,7 +331,7 @@ File at /path/to/genesis.json is a valid genesis file
 
 ### Setting up nyxd as full node (non-signing)
 
-<Callout color="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 Skip this section if you're planning to run a validator node to join network consensus. To ensure security & maximum availability of validators, do not expose additional services to the Internet
 </Callout>
 
@@ -412,7 +412,7 @@ You can then restart `nyxd` - it should start syncing from a block > 2000000.
 
 ### Joining Consensus
 
-<Callout color="info" emoji="ℹ️">
+<Callout type="info" emoji="ℹ️">
 You can skip this section if you are planning to run a full-node. This step will make your node a signing validator which joins network consensus
 </Callout>
 

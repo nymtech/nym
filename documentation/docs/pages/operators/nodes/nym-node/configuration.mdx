@@ -132,7 +132,7 @@ RestartSec=30
 WantedBy=multi-user.target
 ```
 
-<Callout color="info" emoji="ℹ️">
+<Callout type="info" emoji="ℹ️">
 [Accepting T&Cs](setup.md#terms--conditions) is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. If you use systemd automation, add the flag to your service file's `ExecStart` line.
 </Callout>
 
@@ -183,7 +183,7 @@ systemctl status nym-node.service
 
 - You can also do `service <NODE> stop` or `service <NODE> restart`.
 
-<Callout color="info" emoji="ℹ️">
+<Callout type="info" emoji="ℹ️">
 Anytime you make any changes to your `systemd` script after you've enabled it, you will need to run:
 ```sh
 systemctl daemon-reload
@@ -213,7 +213,7 @@ However, most of the time the packets sent through the Mixnet are IPv4 based. Th
 If you preparing to run a `nym-node` with all modes enabled in the future, this setup is required.
 </Callout>
 
-<Callout color="info" emoji="ℹ️">
+<Callout type="info" emoji="ℹ️">
 For everyone participating in Delegation Program or Service Grant program, this setup is a requirement!
 </Callout>
 
@@ -240,7 +240,7 @@ curl -6 https://ipv6.icanhazip.com
 telnet -6 ipv6.telnetmyip.com
 ```
 
-<Callout color="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 Make sure to keep your IPv4 address enabled while setting up IPv6, as the majority of routing goes through that one!
 </Callout>
 
@@ -272,7 +272,7 @@ chmod +x network_tunnel_manager.sh && \
 
 - **If you setting up a new node and not upgrading an existing one, keep it running and [bond](bonding.mdx) your node now**. Then come back here and follow the rest of the configuration.
 
-<Callout color="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 **Run the following steps as root or with `sudo` prefix!**
 </Callout>
 

@@ -8,7 +8,7 @@ use std::{
 
 use crate::{error::AuthenticatorError, peer_manager::PeerManager};
 use futures::StreamExt;
-use log::warn;
+use log::{error, warn};
 use nym_authenticator_requests::v2::{
     self,
     registration::{
@@ -333,6 +333,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
         let request = match deserialize_request(&reconstructed) {
             Err(AuthenticatorError::InvalidPacketVersion(version)) => {
+                warn!("[DBG-TEMP]: failed to deserialize request - wrong packet version");
                 return self.on_version_mismatch(version, &reconstructed);
             }
             req => req,
@@ -340,14 +341,17 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
         match request.data {
             AuthenticatorRequestData::Initial(init_msg) => {
+                warn!("[DBG-TEMP]: received 'init_msg' - {init_msg:?}");
                 self.on_initial_request(init_msg, request.request_id, request.reply_to)
                     .await
             }
             AuthenticatorRequestData::Final(final_msg) => {
+                warn!("[DBG-TEMP]: received 'final_msg': {final_msg:?}");
                 self.on_final_request(*final_msg, request.request_id, request.reply_to)
                     .await
             }
             AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
+                warn!("[DBG-TEMP]: received 'query_bandwidth_msg' for {peer_public_key}");
                 self.on_query_bandwidth_request(
                     peer_public_key,
                     request.request_id,
@@ -401,6 +405,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                     if let Some(msg) = msg {
                         match self.on_reconstructed_message(msg).await {
                             Ok(response) => {
+                                warn!("[DBG-TEMP]: produced the following response: {response:?}");
                                 if let Err(err) = self.handle_response(response).await {
                                     log::error!("Mixnet listener failed to handle response: {err}");
                                 }

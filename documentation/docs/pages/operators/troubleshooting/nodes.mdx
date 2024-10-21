@@ -248,7 +248,7 @@ If you are still unable to see your node on the dashboard, or your node is decla
 - You did not configure your router firewall while running the node from your local machine behind NAT, or you are lacking IPv6 support
 - Your Mix Node is not running at all, it has either exited / panicked or you closed the session without making the node persistent. Check out the [instructions](../nodes/nym-node/configuration.mdx#automating-your-node-with-tmux-and-systemd).
 
-<Callout color="danger" emoji="">
+<Callout type="danger" emoji="">
 Your Nym Node **must speak both IPv4 and IPv6** in order to cooperate with other nodes and route traffic. This is a common reason behind many errors we are seeing among node operators, so check with your provider that your VPS is able to do this!
 </Callout>
 
@@ -286,7 +286,7 @@ If your connection doesn't work make sure to follow [VPS IPv6 setup](../nodes/ny
 
 #### Incorrect bonding information
 
-<Callout color="danger" emoji="⚠️">
+<Callout type="danger" emoji="⚠️">
 All delegated stake will be lost when un-bonding! However the Nym Node must be operational in the first place for the delegation to have any effect.
 </Callout>
 

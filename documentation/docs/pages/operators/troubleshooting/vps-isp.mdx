@@ -10,7 +10,7 @@ import { MyTab } from 'components/generic-tabs.tsx';
 
 ## IPv6 troubleshooting
 
-<Callout color="info" emoji="ℹ️">
+<Callout type="info" emoji="ℹ️">
 To monitor connectivity of your Exit Gateway, use results of probe testing displayed in [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net).
 </Callout>
 
@@ -72,7 +72,7 @@ post-up /sbin/ip -r route add default via <YOUR_IPV6_GATEWAY>
 ```
 Last two lines are particularly important as they enable IPv6 routing. You can find YOUR_IPV6_GATEWAY using your server's control panel. There is no single way to find the gateway, so please access your control panel to find yours or open a support ticket. Here is an example of how it looks on [OVH](https://help.ovhcloud.com/csm/en-ie-vps-configuring-ipv6?id=kb_article_view&sysparm_article=KB0047567).
 
-<Callout color="danger" emoji="⚠️">
+<Callout type="danger" emoji="⚠️">
 Be extra careful editing this file since you may lock yourself out of the server. If it happens, you can always access the server via the hoster's VNC panel.
 </Callout>
 
@@ -110,7 +110,7 @@ It's up to you as a node operator to ensure that your public and private IPs mat
 
 Running a `nym-node` as a standalone process or wrapped in a service can produce gigabytes of logs. Eventually your operation can malfunction due to the logs chewing up too much disk space or memory. Below are two scripts that can help you clean this up.
 
-<Callout color="danger" emoji="⚠️">
+<Callout type="danger" emoji="⚠️">
 `rm` is a powerful tool, without an easy way of revoking. If you need to extract or backup anything, do it now. Make sure you understand what you removing before you execute these commands.
 </Callout>
 

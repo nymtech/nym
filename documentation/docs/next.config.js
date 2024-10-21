@@ -445,17 +445,104 @@ const config = {
         destination: "/operators/community-counsel/add-content",
         permanent: true,
       },
-      // {
-      //   source: "",
-      //   destination: "",
-      //   permanent: true,
-      // },
       // since the filepaths are mostly the same, we otherwise just match on old URLs that end with .html
       {
         source: "/:path*.html",
         destination: "/:path*",
         permanent: false,
       },
+      // TODO these need to go in the config of the existing deployed ts sdk docs to redirect from there
+      //      these assume source basePath = sdk.nymtech.net
+      // {
+      //   source: "/intro",
+      //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/overview",
+      //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/overview",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/integrations",
+      //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/integrations",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/installation",
+      //  destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/installation",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/start",
+      //  destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/start",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/examples/mix-fetch",
+      //  destination: "https://www.<TODO_EDIT_DESTINATION_BASE>developers/typescript/examples/mix-fetch",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/examples/mixnet",
+      //  destination: "https://www.<TODO_EDIT_DESTINATION_BASE>//developers/typescript/examples/mixnet",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/examples/nym-smart-contracts",
+      //  destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/examples/nym-smart-contracts",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/examples/cosmos-kit",
+      //  destination: "https://www.<TODO_EDIT_DESTINATION_BASE>//developers/typescript/examples/cosmos-kit",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/playground/mixfetch",
+      //  destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/playground/mixfetch",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/playground/traffic",
+      //  destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/playground/traffic",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/playground/mixnodes",
+      //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/playground/mixnodes",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/playground/wallet",
+      //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/typescript/playground/wallet",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/playground/cosmos-kit",
+      //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/playground/cosmos-kit",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/bundling/bundling",
+      //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/bundling/bundling",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/bundling/esbuild",
+      //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/bundling/esbuild",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/bundling/webpack",
+      //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/bundling/webpack",
+      //   permanent: true,
+      // },
+      // {
+      //   source: "/FAQ/general",
+      //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/FAQ",
+      //   permanent: true,
+      // },
       /*
       TODO
       /developers/examples/custom-services.html

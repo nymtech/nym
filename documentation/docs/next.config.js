@@ -335,6 +335,36 @@ const config = {
         destination: "/developers/archive/nym-connect",
         permanent: true,
       },
+      {
+        source: "/developers/examples/custom-services.html",
+        destination: "/developers/rust/mixnet/other-examples#services",
+        permanent: true,
+      },
+      {
+        source: "/developers/examples/browser-only.html",
+        destination: "/developers/rust/mixnet/other-examples#browser-only",
+        permanent: true,
+      },
+      {
+        source: "/developers/examples/using-nrs.html",
+        destination: "/developers/rust/mixnet/other-examples",
+        permanent: true,
+      },
+      {
+        source: "/developers/examples/monorepo-examples.html",
+        destination: "/developers/rust/mixnet/other-examples",
+        permanent: true,
+      },
+      {
+        source: "/developers/integrations",
+        destination: "/developers/integrations/payment-integration.html",
+        permanent: true,
+      },
+      // {
+      //   source: "",
+      //   destination: "",
+      //   permanent: true,
+      // },
       // operators:
       // specific urls that have changed
       {
@@ -541,19 +571,6 @@ const config = {
       // {
       //   source: "/FAQ/general",
       //   destination: "https://www.<TODO_EDIT_DESTINATION_BASE>/developers/typescript/FAQ",
-      //   permanent: true,
-      // },
-      /*
-      TODO
-      /developers/examples/custom-services.html
-      /developers/examples/using-nrs.html
-      /developers/examples/browser-only.html
-      /developers/examples/monorepo-examples.html
-      /developers/integrations/payment-integration.html
-      */
-      // {
-      //   source: "",
-      //   destination: "",
       //   permanent: true,
       // },
     ];

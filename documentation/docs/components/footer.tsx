@@ -11,7 +11,7 @@ const links = [
   ["Telegram", "https://nymtech.net/go/telegram"],
 ];
 export const Footer = () => (
-  <Stack spacing={2}>
+  <Stack direction="row" spacing={2}>
     {links.map((link) => (
       <a key={link[1]} href={link[1]}>
         {link[0]}

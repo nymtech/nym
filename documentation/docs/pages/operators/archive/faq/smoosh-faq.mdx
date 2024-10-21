@@ -1,13 +1,14 @@
+import { Callout } from 'nextra/components';
+
 # Project Smoosh - FAQ
 
-```admonish warning
-**This is an archived page for backwards compatibility. We have switched to [`nym-node` binary](../../nodes/nym-node.md), please [migrate](../../nodes/setup.md#migrate) your nodes. The content of this page is not updated since April 26th 2024. Eventually this page will be terminated!**
-```
+<Callout type="warning" emoji="⚠️">
+**This is an archived page for backwards compatibility. We have switched to [`nym-node` binary](../../nodes/nym-node.mdx), please [migrate](../../nodes/nym-node/setup.mdx#migrate) your nodes. The content of this page is not updated since April 26th 2024. Eventually this page will be terminated!**
+</Callout>
 
 > We aim on purpose to make minimal changes to reward scheme and software. We're just 'smooshing' together stuff we already debugged and know works.
 > -- Harry Halpin,  Nym CEO
 
-<br>
 
 This page refer to the changes which are planned to take place over Q3 and Q4 2023. As this is a transition period in the beginning (Q3 2023) the [Mix Nodes FAQ page](mixnodes-faq.md) holds more answers to the current setup as project Smoosh refers to the eventual setup. As project Smoosh gets progressively implemented the answers on this page will become to be more relevant to the current state and eventually this FAQ page will be merged with the still relevant parts of the main Mix Nodes FAQ page.
 
@@ -55,17 +56,17 @@ Follow the dynamic progress of exit policy implementation on Gateways below:
 | **2.** The exit policy is part of the Gateway setup by default. To disable this exit policy, operators must use `--disable-exit-policy` flag. | ✅ done |
 | **3.** The exit policy is the only option. The `allowed.list` is completely removed. | ✅ done |
 
-Keep in mind the table above only relates to changes happening on Gateways. For the Project Smoosh progress refer to the [table above](./smoosh-faq.md#what-are-the-changes). Whether Exit Gateway functionality will be optional or mandatory part of every active Nym Node depends on the chosen [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators).
+Keep in mind the table above only relates to changes happening on Gateways. For the Project Smoosh progress refer to the [table above](#what-are-the-changes). Whether Exit Gateway functionality will be optional or mandatory part of every active Nym Node depends on the chosen [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators).
 
 ### Can I run a Mix Node only?
 
-It depends which [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators) will ultimately be used. In case of the first - yes. In case of the second option, all the nodes will be setup with Exit Gateway functionality turned on.
+It depends which [design](#what-does-it-mean-for-nym-nodes-operators) will ultimately be used. In case of the first - yes. In case of the second option, all the nodes will be setup with Exit Gateway functionality turned on.
 
 ## Token Economics & Rewards
 
-```admonish info
+<Callout type="info" emoji="ℹ️">
 For any specifics on Nym token economics and Nym Mixnet reward system, please read the [Nym token economics paper](https://nymtech.net/nym-cryptoecon-paper.pdf).
-```
+</Callout>
 
 ### What are the incentives for the node operator?
 
@@ -77,7 +78,7 @@ The token economics will stay the same as they are, same goes for the reward alg
 
 ### How are the rewards distributed?
 
-This depends on [design](./smoosh-faq.md#what-does-it-mean-for-nym-nodes-operators) chosen. In case of \#1, it will look like this:
+This depends on [design](#what-does-it-mean-for-nym-nodes-operators) chosen. In case of \#1, it will look like this:
 
 As each operator can choose what roles their nodes provide, the nodes which work as open Gateways will have higher rewards because they are the most important to keep up and stable. Besides that the operators of Gateways may be exposed to more complication and possible legal risks.
 
@@ -105,4 +106,4 @@ From an operator standpoint, it shall just be a standard Nym upgrade, a new opti
 
 So far the general line is that running a Gateway is not illegal (unless you are in Iran, China, and a few other places) and due to encryption/mixing less risky than running a normal VPN node. For Mix Nodes, it's very safe as they have "no idea" what packets they are mixing.
 
-There are several legal questions and analysis to be made for different jurisdictions. To be able to share resources and findings between the operators themselves we created a [Community Legal Forum](../../legal/exit-gateway.md).
+There are several legal questions and analysis to be made for different jurisdictions. To be able to share resources and findings between the operators themselves we created a [Community Legal Forum](../../community-counsel/exit-gateway.mdx).

@@ -67,7 +67,7 @@ https://<HOSTNAME>/api/v1/swagger/#/
 
 There are a few changes from the individual binaries used in the past. For example by default `run` command does `init` function as well, local node `--id` will be set by default unless specified otherwise etcetera.
 
-<Callout color="info" emoji="ℹ️">
+<Callout type="info" emoji="ℹ️">
 You can always use `--help` flag to see the commands or arguments associated with a given command.
 </Callout>
 
@@ -83,13 +83,13 @@ To list all available flags for each command, run `./nym-node <COMMAND> --help` 
 <!-- cmdrun ../../../../target/release/nym-node run --help  -->
 ```
 
-<Callout color="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 The Wireguard flags currently have limited functionality. From version `1.1.6` ([`v2024.9-topdeck`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)) wireguard is available and recommended to be switched on for nodes running as Gateways. Keep in mind that this option needs a bit of a special [configuration](configuration.md#wireguard-setup).
 </Callout>
 
 ### Terms & Conditions
 
-<Callout color="info" emoji="ℹ️">
+<Callout type="info" emoji="ℹ️">
 From `nym-node` version `1.1.3` onward is required to accept [**Operators Terms & Conditions**]({{toc_page}}) in order to be part of the active set. Make sure to read them before you add the flag.
 </Callout>
 
@@ -121,7 +121,7 @@ curl -X 'GET' \
 
 **`nym-node` introduces a default human readible ID (local only) `default-nym-node`, which is used if there is not an explicit custom `--id <ID>` specified. All configuration is stored in `~/.nym/nym-nodes/default-nym-node/config/config.toml` or `~/.nym/nym-nodes/<ID>/config/config.toml` respectively.**
 
-<Callout color="info" emoji="ℹ️">
+<Callout type="info" emoji="ℹ️">
 All commands with more options listed below include `--accept-operator-terms-and-conditions` flag, read [Terms & Conditions](#terms--conditions) chapter above before executing these commands.
 </Callout>
 
@@ -158,7 +158,7 @@ In such case, you can `run` a node to initalise it or try if everything works, b
 
 ### Migrate
 
-<Callout color="danger">
+<Callout type="warning">
 Migration is a must for all deprecated nodes (`nym-mixnode`, `nym-gateway`). For backward compatibility we created an [archive section](../archive/nodes/setup-guides.md) with all the guides for individual binaries. However, the binaries from version 1.1.35 (`nym-gateway`) and 1.1.37 (`nym-mixnode`) onwards will no longer have `init` command.
 
 **Nym cannot promise 100% serialisation for operators migrating from long outdated versions to the newest ones. If you are about to migrate, start with  [`nym-node v1.1.0`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.3-eclipse) and keep upgrading version by version all the way to the latest one.**

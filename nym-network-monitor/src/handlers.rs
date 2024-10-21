@@ -6,7 +6,7 @@ use axum::{
 use futures::StreamExt;
 use log::{debug, error, warn};
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_sphinx::chunking::{ReceivedFragment, SentFragment, FRAGMENTS_RECEIVED, FRAGMENTS_SENT};
+use nym_sphinx::chunking::{monitoring, ReceivedFragment, SentFragment};
 use petgraph::{dot::Dot, Graph};
 use rand::{distributions::Alphanumeric, seq::SliceRandom, Rng};
 use serde::Serialize;
@@ -113,7 +113,7 @@ pub async fn graph_handler() -> Result<String, StatusCode> {
 )]
 pub async fn sent_handler() -> Json<FragmentsSent> {
     Json(FragmentsSent(
-        (*FRAGMENTS_SENT)
+        (*monitoring::FRAGMENTS_SENT)
             .clone()
             .into_iter()
             .collect::<HashMap<_, _>>(),
@@ -129,7 +129,7 @@ pub async fn sent_handler() -> Json<FragmentsSent> {
 )]
 pub async fn recv_handler() -> Json<FragmentsReceived> {
     Json(FragmentsReceived(
-        (*FRAGMENTS_RECEIVED)
+        (*monitoring::FRAGMENTS_RECEIVED)
             .clone()
             .into_iter()
             .collect::<HashMap<_, _>>(),

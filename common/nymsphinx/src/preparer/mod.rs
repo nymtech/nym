@@ -12,7 +12,6 @@ use nym_sphinx_addressing::clients::Recipient;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
-use nym_sphinx_chunking::fragment_sent;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
 use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
@@ -21,6 +20,7 @@ use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 
+use nym_sphinx_chunking::monitoring;
 use std::time::Duration;
 
 pub(crate) mod payload;
@@ -206,7 +206,7 @@ pub trait FragmentPreparer {
 
         let destination = packet_recipient.gateway();
         let hops = mix_hops.unwrap_or(self.num_mix_hops());
-        fragment_sent(&fragment, self.nonce(), *destination, hops);
+        monitoring::fragment_sent(&fragment, self.nonce(), *destination, hops);
 
         let non_reply_overhead = encryption::PUBLIC_KEY_SIZE;
         let expected_plaintext = match packet_type {

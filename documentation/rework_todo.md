@@ -81,12 +81,13 @@ Autodocs
 CI / deployment
 ---------------
 - [ ] try and get rid of as many random scripts from github CI as possible
-- [ ] redirects on server
-  - [ ] operators
+- [x] redirects
+  - [x] operators
   - [x] rest
-- [ ] add redirect page + sitemap for old links
+- ~~[ ] add redirect page + sitemap for old links~~
 - [x] new readme
 - [ ] make new ci/cd
+- [ ] add redirects to existing sdk.nymtech.net domain (drafted in next.config.js)
 
 For Frontend
 ------------

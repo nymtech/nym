@@ -13,7 +13,7 @@ div.nextra-code-block > div {
   scroll-y: auto !important;
 }
 
-/* whole div */
+/* set width entire div */
 .nx-mx-auto.nx-flex.nx-max-w-\[90rem\] {
   max-width: 110rem;
   padding: 0%;
@@ -70,6 +70,7 @@ div.nextra-code-block > div {
 }
 
 /* Callouts */
+/*
 .nextra-callout {
   background-color: #fb6e4e21 !important;
 }
@@ -77,16 +78,21 @@ div.nextra-code-block > div {
 .nx-mt-6 .nx-leading-7 > p {
   color: var(--colorPrimary) !important;
 }
+*/
 
 /* Callout Secondary */
+/*
 :is(html .dark\:nx-border-yellow-200\/30) {
   border-color: transparent !important;
 }
+*/
 
 /* Callout Primary */
+/*
 :is(html .dark\:nx-border-blue-200\/30) {
   border-color: var(--colorPrimary) !important;
 }
+*/
 
 /* Chips*/
 .chipContained {

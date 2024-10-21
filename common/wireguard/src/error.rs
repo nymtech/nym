@@ -17,4 +17,7 @@ pub enum Error {
 
     #[error("{0}")]
     GatewayStorage(#[from] nym_gateway_storage::error::StorageError),
+
+    #[error("{0}")]
+    SystemTime(#[from] std::time::SystemTimeError),
 }

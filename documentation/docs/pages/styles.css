@@ -7,6 +7,10 @@ div.nextra-code-block > div {
   background: var(--colorPrimary) !important;
 }
 
+footer {
+  text-align: center;
+}
+
 .nextra-code-block > pre {
   /* max-height: 350px !important; */
   max-height: none !important;

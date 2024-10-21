@@ -152,10 +152,8 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
     ) -> AuthenticatorHandleResult {
         let remote_public = init_message.pub_key;
         let nonce: u64 = fastrand::u64(..);
-        if let Some(registration_data) = self
-            .registred_and_free
-            .read()
-            .await
+        let mut registred_and_free = self.registred_and_free.write().await;
+        if let Some(registration_data) = registred_and_free
             .registration_in_progres
             .get(&remote_public)
         {
@@ -184,7 +182,6 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             ));
         }
 
-        let mut registred_and_free = self.registred_and_free.write().await;
         let private_ip_ref = registred_and_free
             .free_private_network_ips
             .iter_mut()

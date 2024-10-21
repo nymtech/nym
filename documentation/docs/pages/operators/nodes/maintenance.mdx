@@ -107,7 +107,7 @@ Anything can happen to the server on which your node is running. To back up your
 Assuming that everyone access their wallets from local machine and does *not* store their seeds on VPS, point 2. should be a given. 
 To backup your `nym-node` keys and configuration in the easiest way possible, copy the entire config directory `.nym` from your VPS to your local desktop, using a special copy command `scp`:
 
-<Callout type="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 Never store your mnemonic seed anywhere online nor do *not* share it with anyone!
 </Callout>
 
@@ -242,7 +242,7 @@ cp -r  ~/.nym/nym-nodes/<ID> ~/.nym/nym-nodes/default-nym-node/
 # check occurences of the <SOURCE_ID>
 grep -ir  "<ID>" ~/.nym/nym-nodes/default-nym-node/*
 ```
-<Callout type="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 If your node `<ID>` was too generic (like 'gateway' etc) and it occurs elsewhere than just a custom value, **do not use `sed` command but rewrite the values manually using a text editor!**
 </Callout>
 

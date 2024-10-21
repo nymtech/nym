@@ -83,7 +83,7 @@ To list all available flags for each command, run `./nym-node <COMMAND> --help` 
 <!-- cmdrun ../../../../target/release/nym-node run --help  -->
 ```
 
-<Callout type="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 The Wireguard flags currently have limited functionality. From version `1.1.6` ([`v2024.9-topdeck`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)) wireguard is available and recommended to be switched on for nodes running as Gateways. Keep in mind that this option needs a bit of a special [configuration](configuration.md#wireguard-setup).
 </Callout>
 
@@ -158,7 +158,7 @@ In such case, you can `run` a node to initalise it or try if everything works, b
 
 ### Migrate
 
-<Callout type="danger">
+<Callout type="warning">
 Migration is a must for all deprecated nodes (`nym-mixnode`, `nym-gateway`). For backward compatibility we created an [archive section](../archive/nodes/setup-guides.md) with all the guides for individual binaries. However, the binaries from version 1.1.35 (`nym-gateway`) and 1.1.37 (`nym-mixnode`) onwards will no longer have `init` command.
 
 **Nym cannot promise 100% serialisation for operators migrating from long outdated versions to the newest ones. If you are about to migrate, start with  [`nym-node v1.1.0`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.3-eclipse) and keep upgrading version by version all the way to the latest one.**

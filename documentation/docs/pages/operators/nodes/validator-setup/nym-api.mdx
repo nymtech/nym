@@ -21,7 +21,7 @@ This is important for both the proper decentralisation of the network uptime cal
 
 The process of enabling these different aspects of the system will take time. At the moment, Nym API operators will only have to run the binary in a minimal 'caching' mode in order to get used to maintaining an additional process running alongside a full node.
 
-<Callout type="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 It is highly recommended to run `nym-api` alongside a full node and NOT a validator node, since you will be exposing HTTP port(s) to the Internet. We also observed degradation in p2p and block signing operations when `nym-api` was run alongside a signing validator.
 </Callout>
 
@@ -151,7 +151,7 @@ Begin by generating a new wallet address specifically for your instance to use i
 nyxd keys add signer
 ```
 
-<Callout type="danger" emoji="⚠️">
+<Callout type="warning" emoji="⚠️">
 It's critical to securely back up the mnemonic phrase generated during this process. This mnemonic is your key to recovering the wallet in the future, so store it in a secure, offline location.
 </Callout>
 

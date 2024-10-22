@@ -8,7 +8,7 @@ pub(crate) fn routes() -> Router<AppState> {
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
-async fn submit(State(state): State<AppState>, body: String) -> HttpResult<StatusCode> {
+async fn submit(State(_state): State<AppState>, body: String) -> HttpResult<StatusCode> {
     tracing::debug!(
         "Agent submitted probe results. Total length: {}",
         body.len(),

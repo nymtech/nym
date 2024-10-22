@@ -1,3 +1,6 @@
 data/
 enter_db.sh
 nym-gateway-probe
+nym-node-status-api
+*.sqlite
+*.sqlite-journal

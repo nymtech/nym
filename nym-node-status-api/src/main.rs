@@ -9,7 +9,7 @@ mod monitor;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    logging::setup_tracing_logger();
+    logging::setup_tracing_logger()?;
 
     let args = cli::Cli::parse();
 

@@ -83,7 +83,9 @@ impl ExplorerClient {
         } else if response.status() == StatusCode::NOT_FOUND {
             Err(ExplorerApiError::NotFound)
         } else {
-            Err(ExplorerApiError::RequestFailure(response.text().await?))
+            let status = response.status();
+            let err_msg = format!("{}: {}", response.text().await?, status);
+            Err(ExplorerApiError::RequestFailure(err_msg))
         }
     }
 

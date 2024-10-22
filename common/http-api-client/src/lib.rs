@@ -540,7 +540,7 @@ where
             tracing::trace!("Result:\n{:#?}", text);
 
             return Ok(serde_json::from_str(&text)
-                .map_err(|err| HttpClientError::GenericRequestFailure(err.to_string()))?)
+                .map_err(|err| HttpClientError::GenericRequestFailure(err.to_string()))?);
         }
 
         #[cfg(not(debug_assertions))]

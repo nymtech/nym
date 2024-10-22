@@ -2,16 +2,37 @@
 
 set -e
 
-export CONFIG_ENV_FILE="../envs/mainnet.env"
+export RUST_LOG=${RUST_LOG:-debug}
+
 export NYM_API_CLIENT_TIMEOUT=60
 export EXPLORER_CLIENT_TIMEOUT=60
-#export NYXD=https://rpc.nymtech.net
-#export NYM_API=https://validator.nymtech.net/api/
-#export EXPLORER_API=https://explorer.nymtech.net/api/
-#export NETWORK_NAME=mainnet
 
-#cargo run --package nym-node-status-api --release -- --connection-url "sqlite://node-status-api.sqlite?mode=rwc"
+export ENVIRONMENT="mainnet.env"
 
-cd ..
-docker build -t node-status-api -f nym-node-status-api/Dockerfile .
-docker run --env-file envs/mainnet.env -e NYM_NODE_STATUS_API_CONNECTION_URL="sqlite://node-status-api.sqlite?mode=rwc" node-status-api
+function run_bare() {
+    # export necessary env vars
+    set -a
+    source ../envs/$ENVIRONMENT
+    set +a
+    export RUST_LOG=debug
+
+    cargo run --package nym-node-status-api -- --connection-url "sqlite://node-status-api.sqlite?mode=rwc"
+}
+
+function run_docker() {
+    cargo build --package nym-node-status-api --release
+    cp ../target/release/nym-node-status-api .
+
+    cd ..
+    docker build -t node-status-api -f nym-node-status-api/Dockerfile.dev .
+    docker run --env-file envs/${ENVIRONMENT} \
+        -e EXPLORER_CLIENT_TIMEOUT=$EXPLORER_CLIENT_TIMEOUT \
+        -e NYM_API_CLIENT_TIMEOUT=$NYM_API_CLIENT_TIMEOUT \
+        -e NYM_NODE_STATUS_API_CONNECTION_URL="sqlite://node-status-api.sqlite?mode=rwc" \
+        -e RUST_LOG=${RUST_LOG} node-status-api
+
+}
+
+# run_bare
+
+run_docker

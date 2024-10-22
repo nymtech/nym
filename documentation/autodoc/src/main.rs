@@ -5,6 +5,8 @@ use std::process::{Command, Output};
 use std::{fs, vec};
 
 const WRITE_PATH: &str = "./autodoc-generated-markdown/";
+const COMMAND_PATH: &str = "./autodoc-generated-markdown/commands/";
+
 
 fn main() -> io::Result<()> {
     env_logger::init();
@@ -207,7 +209,7 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
             }
             let mut file = File::create(format!(
                 "{}/{}-{}.md",
-                WRITE_PATH,
+                COMMAND_PATH,
                 last_word.unwrap(),
                 subcommand
             ))?;
@@ -226,7 +228,7 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
             }
             let mut help_file = File::create(format!(
                 "{}/{}-{}-help.md",
-                WRITE_PATH,
+                COMMAND_PATH,
                 last_word.unwrap(),
                 subcommand
             ))?;

@@ -4,6 +4,80 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.12-aero] (2024-10-17)
+
+- nym-node: don't use bloomfilters for double spending checks ([#4960])
+- bugfix: replace unreachable macro with an error return ([#4958])
+- [DOCs:/operators]: Update FAQ sphinx size ([#4946])
+- [DOCs/operators]: Release notes v2024.11-wedel ([#4939])
+- Fix handle drop ([#4934])
+- Assume offline mode ([#4926])
+- Make ip-packet-request VERSION pub ([#4925])
+- Expose error type ([#4924])
+- Fix argument to cargo-deny action ([#4922])
+- Fix nymvpn.com url in mainnet defaults ([#4920])
+- Check both version and type in message header ([#4918])
+- Bump http-api-client default timeout to 30 sec ([#4917])
+- Max/proxy ffi ([#4906])
+- Data Observatory stub ([#4905])
+- Fix missing duplication of modified tables ([#4904])
+- Update cargo deny ([#4901])
+- docs: add hostname instructions for wss ([#4900])
+- build(deps): bump the patch-updates group across 1 directory with 9 updates ([#4898])
+- Fix clippy for beta toolchain ([#4897])
+- Remove clippy github PR annotations ([#4896])
+- Fix apt install in ci-build-upload-binaries.yml ([#4894])
+- Update network monitor entrypoint ([#4893])
+- Update nym-vpn metapackage and replace nymvpn-x with nym-vpn-app ([#4889])
+- Entry wireguard tickets ([#4888])
+- Build and Push CI ([#4887])
+- Feature/updated gateway registration ([#4885])
+- Few fixes to NNM pre deploy ([#4883])
+- Fix sql serde with enum ([#4875])
+- allow clients to send stateless gateway requests without prior registration ([#4873])
+- chore: remove queued migration for adding explicit admin ([#4871])
+- Gateway database modifications for different modes ([#4868])
+- build(deps): bump strum from 0.25.0 to 0.26.3 ([#4848])
+- Use serde from workspace ([#4833])
+- build(deps): bump toml from 0.5.11 to 0.8.14 ([#4805])
+- Max/rust sdk stream abstraction ([#4743])
+
+[#4960]: https://github.com/nymtech/nym/pull/4960
+[#4958]: https://github.com/nymtech/nym/pull/4958
+[#4946]: https://github.com/nymtech/nym/pull/4946
+[#4939]: https://github.com/nymtech/nym/pull/4939
+[#4934]: https://github.com/nymtech/nym/pull/4934
+[#4926]: https://github.com/nymtech/nym/pull/4926
+[#4925]: https://github.com/nymtech/nym/pull/4925
+[#4924]: https://github.com/nymtech/nym/pull/4924
+[#4922]: https://github.com/nymtech/nym/pull/4922
+[#4920]: https://github.com/nymtech/nym/pull/4920
+[#4918]: https://github.com/nymtech/nym/pull/4918
+[#4917]: https://github.com/nymtech/nym/pull/4917
+[#4906]: https://github.com/nymtech/nym/pull/4906
+[#4905]: https://github.com/nymtech/nym/pull/4905
+[#4904]: https://github.com/nymtech/nym/pull/4904
+[#4901]: https://github.com/nymtech/nym/pull/4901
+[#4900]: https://github.com/nymtech/nym/pull/4900
+[#4898]: https://github.com/nymtech/nym/pull/4898
+[#4897]: https://github.com/nymtech/nym/pull/4897
+[#4896]: https://github.com/nymtech/nym/pull/4896
+[#4894]: https://github.com/nymtech/nym/pull/4894
+[#4893]: https://github.com/nymtech/nym/pull/4893
+[#4889]: https://github.com/nymtech/nym/pull/4889
+[#4888]: https://github.com/nymtech/nym/pull/4888
+[#4887]: https://github.com/nymtech/nym/pull/4887
+[#4885]: https://github.com/nymtech/nym/pull/4885
+[#4883]: https://github.com/nymtech/nym/pull/4883
+[#4875]: https://github.com/nymtech/nym/pull/4875
+[#4873]: https://github.com/nymtech/nym/pull/4873
+[#4871]: https://github.com/nymtech/nym/pull/4871
+[#4868]: https://github.com/nymtech/nym/pull/4868
+[#4848]: https://github.com/nymtech/nym/pull/4848
+[#4833]: https://github.com/nymtech/nym/pull/4833
+[#4805]: https://github.com/nymtech/nym/pull/4805
+[#4743]: https://github.com/nymtech/nym/pull/4743
+
 ## [2024.11-wedel] (2024-09-23)
 
 - Backport #4894 to fix ci ([#4899])

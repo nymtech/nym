@@ -7,6 +7,7 @@ use std::{
 };
 
 use crate::{error::AuthenticatorError, peer_manager::PeerManager};
+use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
 use nym_authenticator_requests::{
@@ -235,7 +236,9 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             return Err(AuthenticatorError::MacVerificationFailure);
         }
 
-        let peer = Peer::new(Key::new(final_message.gateway_client.pub_key.to_bytes()));
+        let mut peer = Peer::new(Key::new(final_message.gateway_client.pub_key.to_bytes()));
+        peer.allowed_ips
+            .push(IpAddrMask::new(final_message.gateway_client.private_ip, 32));
 
         // If gateway does ecash verification and client sends a credential, we do the additional
         // credential verification. Later this will become mandatory.
@@ -260,11 +263,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 return Err(e);
             }
             let public_key = peer.public_key.to_string();
-            if let Err(e) = self
-                .peer_manager
-                .add_peer(peer, &final_message.gateway_client, Some(client_id))
-                .await
-            {
+            if let Err(e) = self.peer_manager.add_peer(peer, Some(client_id)).await {
                 ecash_verifier
                     .storage()
                     .remove_wireguard_peer(&public_key)
@@ -272,9 +271,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 return Err(e);
             }
         } else {
-            self.peer_manager
-                .add_peer(peer, &final_message.gateway_client, None)
-                .await?;
+            self.peer_manager.add_peer(peer, None).await?;
         }
         registred_and_free
             .registration_in_progres

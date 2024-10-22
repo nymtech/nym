@@ -20,6 +20,8 @@ services:
     environment:
       NYM_DATA_OBSERVATORY_CONNECTION_URL: "postgres://postgres:password@postgres:5432"
       NYM_DATA_OBSERVATORY_HTTP_PORT: 8000
+    env_file:
+      - ../envs/qa.env
 
 volumes:
   pgdata:

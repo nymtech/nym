@@ -20,7 +20,7 @@ struct Args {
 
     /// DB connection url
     #[arg(short, long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_URL")]
-    connection_url: Option<String>,
+    connection_url: String,
 }
 
 #[tokio::main]

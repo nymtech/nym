@@ -84,12 +84,13 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
                 .ok_or(Error::InconsistentConsumedBytes)?
                 .try_into()
                 .map_err(|_| Error::InconsistentConsumedBytes)?;
-            if bandwidth_manager
-                .write()
-                .await
-                .try_use_bandwidth(spent_bandwidth)
-                .await
-                .is_err()
+            if spent_bandwidth > 0
+                && bandwidth_manager
+                    .write()
+                    .await
+                    .try_use_bandwidth(spent_bandwidth)
+                    .await
+                    .is_err()
             {
                 let success = self.remove_peer().await?;
                 return Ok(!success);

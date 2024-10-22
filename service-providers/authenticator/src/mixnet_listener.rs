@@ -122,10 +122,17 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                     reg.gateway_data.private_ip
                 )))?;
 
-            let timestamp = ip.ok_or(AuthenticatorError::InternalDataCorruption(
-                "timestamp should be set".to_string(),
-            ))?;
-            let duration = SystemTime::now().duration_since(timestamp).map_err(|_| {
+            let Some(timestamp) = ip else {
+                registred_and_free
+                    .registration_in_progres
+                    .remove(&reg.gateway_data.pub_key());
+                log::debug!(
+                    "Removed stale registration of {}",
+                    reg.gateway_data.pub_key()
+                );
+                continue;
+            };
+            let duration = SystemTime::now().duration_since(*timestamp).map_err(|_| {
                 AuthenticatorError::InternalDataCorruption(
                     "set timestamp shouldn't have been set in the future".to_string(),
                 )
@@ -152,10 +159,8 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
     ) -> AuthenticatorHandleResult {
         let remote_public = init_message.pub_key;
         let nonce: u64 = fastrand::u64(..);
-        if let Some(registration_data) = self
-            .registred_and_free
-            .read()
-            .await
+        let mut registred_and_free = self.registred_and_free.write().await;
+        if let Some(registration_data) = registred_and_free
             .registration_in_progres
             .get(&remote_public)
         {
@@ -184,7 +189,6 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             ));
         }
 
-        let mut registred_and_free = self.registred_and_free.write().await;
         let private_ip_ref = registred_and_free
             .free_private_network_ips
             .iter_mut()
@@ -293,10 +297,6 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         credential: CredentialSpendingData,
         client_id: i64,
     ) -> Result<i64> {
-        ecash_verifier
-            .storage()
-            .create_bandwidth_entry(client_id)
-            .await?;
         let bandwidth = ecash_verifier
             .storage()
             .get_available_bandwidth(client_id)

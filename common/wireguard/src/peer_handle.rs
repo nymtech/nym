@@ -3,6 +3,7 @@
 
 use crate::error::Error;
 use crate::peer_controller::PeerControlRequest;
+use defguard_wireguard_rs::host::Peer;
 use defguard_wireguard_rs::{host::Host, key::Key};
 use futures::channel::oneshot;
 use nym_authenticator_requests::v2::registration::BANDWIDTH_CAP_PER_DAY;
@@ -12,10 +13,12 @@ use nym_gateway_storage::Storage;
 use nym_task::TaskClient;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::sync::Arc;
+use std::time::{Duration, SystemTime};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
 pub(crate) type SharedBandwidthStorageManager<St> = Arc<RwLock<BandwidthStorageManager<St>>>;
+const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60 * 24); // 24 hours
 
 pub struct PeerHandle<St> {
     storage: St,
@@ -25,6 +28,7 @@ pub struct PeerHandle<St> {
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
     task_client: TaskClient,
+    startup_timestamp: SystemTime,
 }
 
 impl<St: Storage + Clone + 'static> PeerHandle<St> {
@@ -39,7 +43,8 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
-        let task_client = task_client.fork(format!("peer{public_key}"));
+        let mut task_client = task_client.fork(format!("peer-{public_key}"));
+        task_client.disarm();
         PeerHandle {
             storage,
             public_key,
@@ -48,14 +53,11 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
             request_tx,
             timeout_check_interval,
             task_client,
+            startup_timestamp: SystemTime::now(),
         }
     }
 
-    async fn remove_depleted_peer(&self) -> Result<bool, Error> {
-        log::debug!(
-            "Peer {} doesn't have bandwidth anymore, removing it",
-            self.public_key.to_string()
-        );
+    async fn remove_peer(&self) -> Result<bool, Error> {
         let (response_tx, response_rx) = oneshot::channel();
         self.request_tx
             .send(PeerControlRequest::RemovePeer {
@@ -71,15 +73,11 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         Ok(success)
     }
 
-    async fn active_peer(&mut self, storage_peer: WireguardPeer) -> Result<bool, Error> {
-        let kernel_peer = self
-            .host_information
-            .read()
-            .await
-            .peers
-            .get(&self.public_key)
-            .ok_or(Error::PeerMismatch)?
-            .clone();
+    async fn active_peer(
+        &mut self,
+        storage_peer: WireguardPeer,
+        kernel_peer: Peer,
+    ) -> Result<bool, Error> {
         if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
             let spent_bandwidth = (kernel_peer.rx_bytes + kernel_peer.tx_bytes)
                 .checked_sub(storage_peer.rx_bytes as u64 + storage_peer.tx_bytes as u64)
@@ -93,13 +91,25 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
                 .await
                 .is_err()
             {
-                let success = self.remove_depleted_peer().await?;
+                let success = self.remove_peer().await?;
                 return Ok(!success);
             }
         } else {
+            if SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER {
+                log::debug!(
+                    "Peer {} has been present for 24 hours, removing it",
+                    self.public_key.to_string()
+                );
+                let success = self.remove_peer().await?;
+                return Ok(!success);
+            }
             let spent_bandwidth = kernel_peer.rx_bytes + kernel_peer.tx_bytes;
             if spent_bandwidth >= BANDWIDTH_CAP_PER_DAY {
-                let success = self.remove_depleted_peer().await?;
+                log::debug!(
+                    "Peer {} doesn't have bandwidth anymore, removing it",
+                    self.public_key.to_string()
+                );
+                let success = self.remove_peer().await?;
                 return Ok(!success);
             }
         }
@@ -111,11 +121,21 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         while !self.task_client.is_shutdown() {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
-                    let Some(peer) = self.storage.get_wireguard_peer(&self.public_key.to_string()).await? else {
+                    let Some(kernel_peer) = self
+                        .host_information
+                        .read()
+                        .await
+                        .peers
+                        .get(&self.public_key)
+                        .cloned() else {
+                            // the host information hasn't beed updated yet
+                            continue;
+                        };
+                    let Some(storage_peer) = self.storage.get_wireguard_peer(&self.public_key.to_string()).await? else {
                         log::debug!("Peer {:?} not in storage anymore, shutting down handle", self.public_key);
                         return Ok(());
                     };
-                    if !self.active_peer(peer).await? {
+                    if !self.active_peer(storage_peer, kernel_peer).await? {
                         log::debug!("Peer {:?} doesn't have bandwidth anymore, shutting down handle", self.public_key);
                         return Ok(());
                     }

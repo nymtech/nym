@@ -73,6 +73,9 @@ pub(crate) enum InitialAuthenticationError {
     #[error("Only 'Register' or 'Authenticate' requests are allowed")]
     InvalidRequest,
 
+    #[error("received a Message of type {typ} which was not expected in this context")]
+    UnexpectedMessageType { typ: String },
+
     #[error("Experienced connection error: {0}")]
     ConnectionError(#[from] WsError),
 
@@ -861,9 +864,27 @@ where
             Message::Binary(_) => {
                 return Err(InitialAuthenticationError::BinaryRequestWithoutAuthentication);
             }
-            _ => unreachable!(
-                "the underlying tunsgenite stream should be handling other message types"
-            ),
+            other => {
+                if other.is_ping() {
+                    debug!("unexpected ping message!");
+                    return Err(InitialAuthenticationError::UnexpectedMessageType {
+                        typ: "ping".to_string(),
+                    });
+                } else if other.is_pong() {
+                    debug!("unexpected pong message!");
+                    return Err(InitialAuthenticationError::UnexpectedMessageType {
+                        typ: "pong".to_string(),
+                    });
+                } else if other.is_close() {
+                    debug!("unexpected close message!");
+                    return Err(InitialAuthenticationError::UnexpectedMessageType {
+                        typ: "close".to_string(),
+                    });
+                }
+
+                // at this point this is definitely unreachable, but just in case, let's not panic...
+                return Err(InitialAuthenticationError::InvalidRequest);
+            }
         };
 
         text.parse()

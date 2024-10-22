@@ -53,18 +53,6 @@ impl<S: Storage + Clone + 'static> CredentialVerifier<S> {
         Ok(())
     }
 
-    async fn check_bloomfilter(&self, serial_number: &Vec<u8>) -> Result<()> {
-        trace!("checking the bloomfilter...");
-
-        let spent = self.ecash_verifier.check_double_spend(serial_number).await;
-
-        if spent {
-            trace!("the credential has already been spent before at some gateway before (bloomfilter failure)");
-            return Err(Error::BandwidthCredentialAlreadySpent);
-        }
-        Ok(())
-    }
-
     async fn check_local_db_for_double_spending(&self, serial_number: &[u8]) -> Result<()> {
         trace!("checking local db for double spending...");
 
@@ -128,7 +116,6 @@ impl<S: Storage + Clone + 'static> CredentialVerifier<S> {
         }
 
         self.check_credential_spending_date(spend_date.ecash_date())?;
-        self.check_bloomfilter(&serial_number).await?;
         self.check_local_db_for_double_spending(&serial_number)
             .await?;
 

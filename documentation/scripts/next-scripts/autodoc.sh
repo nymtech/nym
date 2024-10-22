@@ -1,24 +1,28 @@
 #!/bin/bash
 
+# this script is run by the `generate:commands` script in docs/package.json
+
 set -o errexit
 set -o nounset
 set -o pipefail
 
-# this is run by the `generate:commands` script in docs/package.json
-cd ../autodoc && cargo run --release &&
+# make sure we have all the binaries built
+cd ../../ && cargo build --release &&
 
-mv autodoc-generated-markdown/nym-cli-commands.md ../docs/pages/developers/tools/nym-cli/commands.mdx &&
-mv autodoc-generated-markdown/nym-client-commands.md ../docs/pages/developers/clients/websocket/commands.mdx &&
-mv autodoc-generated-markdown/nym-socks5-client-commands.md ../docs/pages/developers/clients/socks5/commands.mdx &&
+  # run autodoc script
+  cd documentation/autodoc/ && cargo run --release &&
+  mv autodoc-generated-markdown/nym-cli-commands.md ../docs/pages/developers/tools/nym-cli/commands.mdx &&
+  mv autodoc-generated-markdown/nym-client-commands.md ../docs/pages/developers/clients/websocket/commands.mdx &&
+  mv autodoc-generated-markdown/nym-socks5-client-commands.md ../docs/pages/developers/clients/socks5/commands.mdx &&
 
-# commit files to git: needed for remote deployment from branch
-if ! git diff --quiet -- "../docs/pages/developers/tools" "../docs/pages/developers/clients/websocket" "../docs/pages/developers/clients/socks5"; then
+  # commit files to git: needed for remote deployment from branch
+  if ! git diff --quiet -- "../docs/pages/developers/tools" "../docs/pages/developers/clients/websocket" "../docs/pages/developers/clients/socks5"; then
     printf "commiting changes"
     git add ../docs/pages/developers/
     git commit -m "auto commit generated command files"
     git push origin HEAD
-else
+  else
     printf "nothing to commit"
-fi
+  fi
 
 cd ../docs

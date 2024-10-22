@@ -19,10 +19,10 @@ pub enum TicketTypeRepr {
 }
 
 impl TicketTypeRepr {
-    pub const WIREGUARD_ENTRY_TICKET_SIZE: u64 = 512 * 1024 * 1024; // 512 MB
-    pub const WIREGUARD_EXIT_TICKET_SIZE: u64 = 512 * 1024 * 1024; // 512 MB
-    pub const MIXNET_ENTRY_TICKET_SIZE: u64 = 128 * 1024 * 1024; // 128 MB
-    pub const MIXNET_EXIT_TICKET_SIZE: u64 = 128 * 1024 * 1024; // 128 MB
+    pub const WIREGUARD_ENTRY_TICKET_SIZE: u64 = 500 * 1000 * 1000; // 500 MB
+    pub const WIREGUARD_EXIT_TICKET_SIZE: u64 = 500 * 1000 * 1000; // 500 MB
+    pub const MIXNET_ENTRY_TICKET_SIZE: u64 = 200 * 1000 * 1000; // 200 MB
+    pub const MIXNET_EXIT_TICKET_SIZE: u64 = 100 * 1000 * 1000; // 100 MB
 
     /// How much bandwidth (in bytes) one ticket can grant
     pub const fn bandwidth_value(&self) -> u64 {

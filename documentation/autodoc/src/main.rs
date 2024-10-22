@@ -136,7 +136,10 @@ fn main() -> io::Result<()> {
         write_output_to_file(&mut file, output)?;
 
         for subcommand in subcommands {
+            // single file
             execute_command(&mut file, main_command, subcommand, None)?;
+            // file per command
+            execute_command_own_file(main_command, subcommand)?;
         }
     }
 
@@ -180,6 +183,90 @@ fn main() -> io::Result<()> {
 fn get_last_word_from_filepath(filepath: &str) -> Option<&str> {
     let parts: Vec<&str> = filepath.split('/').collect();
     parts.last().copied()
+}
+
+fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<()> {
+    // this check is basically checking for the rare commands (rn just one) that start a process with no params
+    // perhaps if this list grows we could just add a timeout and shunt the running and writing
+    // into a thread with a timeout or something but for right now its fine / thats overkill
+    if get_last_word_from_filepath(main_command).unwrap() == "nym-node" && subcommand == "run"
+        || get_last_word_from_filepath(main_command).unwrap() == "nym-api" && subcommand == "run"
+        || get_last_word_from_filepath(main_command).unwrap() == "nymvisor" && subcommand == "run"
+    {
+        info!("SKIPPING {} {}", main_command, subcommand);
+    } else {
+        let last_word = get_last_word_from_filepath(main_command);
+        let output = Command::new(main_command).arg(subcommand).output()?;
+        if !output.stdout.is_empty() {
+            info!("creating own file for {} {}", main_command, subcommand,);
+            if !fs::metadata(WRITE_PATH)
+                .map(|metadata| metadata.is_dir())
+                .unwrap_or(false)
+            {
+                fs::create_dir_all(WRITE_PATH)?;
+            }
+            let mut file = File::create(format!(
+                "{}/{}-{}.md",
+                WRITE_PATH,
+                last_word.unwrap(),
+                subcommand
+            ))?;
+            write_output_to_file(&mut file, output)?;
+
+            // execute help
+            info!(
+                "creating own file for {} {} --help",
+                main_command, subcommand,
+            );
+            if !fs::metadata(WRITE_PATH)
+                .map(|metadata| metadata.is_dir())
+                .unwrap_or(false)
+            {
+                fs::create_dir_all(WRITE_PATH)?;
+            }
+            let mut help_file = File::create(format!(
+                "{}/{}-{}-help.md",
+                WRITE_PATH,
+                last_word.unwrap(),
+                subcommand
+            ))?;
+
+            let output = Command::new(main_command)
+                .arg(subcommand)
+                .arg("--help")
+                .output()?;
+            if !output.stdout.is_empty() {
+                write_output_to_file(&mut help_file, output)?;
+            } else {
+                debug!("empty stdout - nothing to write");
+            }
+        } else {
+            info!(
+                "creating own file for {} {} --help",
+                main_command, subcommand,
+            );
+            if !fs::metadata(WRITE_PATH)
+                .map(|metadata| metadata.is_dir())
+                .unwrap_or(false)
+            {
+                fs::create_dir_all(WRITE_PATH)?;
+            }
+            let mut help_file = File::create(format!(
+                "{}/{}-{}-help.md",
+                WRITE_PATH,
+                last_word.unwrap(),
+                subcommand
+            ))?;
+
+            let output = Command::new(main_command)
+                .arg(subcommand)
+                .arg("--help")
+                .output()?;
+            write_output_to_file(&mut help_file, output)?;
+            debug!("empty stdout - nothing to write");
+        }
+    }
+    Ok(())
 }
 
 fn execute_command(

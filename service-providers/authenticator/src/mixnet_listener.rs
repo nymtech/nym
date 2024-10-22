@@ -122,10 +122,17 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                     reg.gateway_data.private_ip
                 )))?;
 
-            let timestamp = ip.ok_or(AuthenticatorError::InternalDataCorruption(
-                "timestamp should be set".to_string(),
-            ))?;
-            let duration = SystemTime::now().duration_since(timestamp).map_err(|_| {
+            let Some(timestamp) = ip else {
+                registred_and_free
+                    .registration_in_progres
+                    .remove(&reg.gateway_data.pub_key());
+                log::debug!(
+                    "Removed stale registration of {}",
+                    reg.gateway_data.pub_key()
+                );
+                continue;
+            };
+            let duration = SystemTime::now().duration_since(*timestamp).map_err(|_| {
                 AuthenticatorError::InternalDataCorruption(
                     "set timestamp shouldn't have been set in the future".to_string(),
                 )

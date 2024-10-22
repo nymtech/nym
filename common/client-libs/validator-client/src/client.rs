@@ -19,7 +19,7 @@ use nym_api_requests::ecash::{
 };
 use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse,
+    NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
 };
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::SkimmedNode;
@@ -320,7 +320,7 @@ impl NymApiClient {
         loop {
             let mut res = self
                 .nym_api
-                .get_all_basic_entry_assigned_nodes(
+                .get_basic_entry_assigned_nodes(
                     semver_compatibility.clone(),
                     false,
                     Some(page),
@@ -395,6 +395,27 @@ impl NymApiClient {
         &self,
     ) -> Result<Vec<LegacyDescribedGateway>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways_described().await?)
+    }
+
+    pub async fn get_all_described_nodes(
+        &self,
+    ) -> Result<Vec<NymNodeDescription>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut descriptions = Vec::new();
+
+        loop {
+            let mut res = self.nym_api.get_nodes_described(Some(page), None).await?;
+
+            descriptions.append(&mut res.data);
+            if descriptions.len() < res.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(descriptions)
     }
 
     pub async fn get_gateway_core_status_count(

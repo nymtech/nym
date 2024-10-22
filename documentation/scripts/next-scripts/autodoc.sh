@@ -14,6 +14,7 @@ cd ../../ && cargo build --release &&
   mv autodoc-generated-markdown/nym-cli-commands.md ../docs/pages/developers/tools/nym-cli/commands.mdx &&
   mv autodoc-generated-markdown/nym-client-commands.md ../docs/pages/developers/clients/websocket/commands.mdx &&
   mv autodoc-generated-markdown/nym-socks5-client-commands.md ../docs/pages/developers/clients/socks5/commands.mdx &&
+  mv autodoc-generated-markdown/commands/* ../docs/components/outputs/command-outputs/ &&
 
   # commit files to git: needed for remote deployment from branch
   if ! git diff --quiet -- "../docs/pages/developers/tools" "../docs/pages/developers/clients/websocket" "../docs/pages/developers/clients/socks5"; then

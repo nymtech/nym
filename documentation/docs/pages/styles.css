@@ -133,3 +133,15 @@ input:focus-visible {
 a.MuiLink-root {
   color: var(--colorPrimary) !important;
 }
+
+.MuiPaper-root.MuiAccordion-root {
+  border-radius: 8px;
+}
+
+/* //TODO: customise light and dark mode */
+
+/* @media (prefers-color-scheme: dark) {
+  .MuiPaper-root.MuiAccordion-root {
+    background-color: red;
+  }
+} */

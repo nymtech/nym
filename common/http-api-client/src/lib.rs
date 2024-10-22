@@ -230,7 +230,25 @@ impl Client {
 
         #[cfg(not(target_arch = "wasm32"))]
         {
-            Ok(self.reqwest_client.get(url).send().await?)
+            Ok(self.reqwest_client.get(url).send().await.map_err(|err| {
+                if err.is_connect() {
+                    HttpClientError::GenericRequestFailure("Failed to connect".to_string())
+                } else if err.is_redirect() {
+                    HttpClientError::GenericRequestFailure("Redirect error".to_string())
+                } else if err.is_timeout() {
+                    HttpClientError::GenericRequestFailure("Timed out".to_string())
+                } else if err.is_body() {
+                    HttpClientError::GenericRequestFailure(
+                        "problem with request/response body".to_string(),
+                    )
+                } else if err.is_decode() {
+                    HttpClientError::GenericRequestFailure("Failed to decode body".to_string())
+                } else if err.is_request() {
+                    HttpClientError::GenericRequestFailure("Invalid request".to_string())
+                } else {
+                    err.into()
+                }
+            })?)
         }
     }
 

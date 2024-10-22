@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::*;
-use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
+use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::channel::oneshot;
 use nym_authenticator_requests::latest::registration::{GatewayClient, RemainingBandwidthData};
 use nym_wireguard::{
@@ -24,15 +24,8 @@ impl PeerManager {
             wireguard_gateway_data,
         }
     }
-    pub async fn add_peer(
-        &mut self,
-        mut peer: Peer,
-        client: &GatewayClient,
-        client_id: Option<i64>,
-    ) -> Result<()> {
+    pub async fn add_peer(&mut self, peer: Peer, client_id: Option<i64>) -> Result<()> {
         let (response_tx, response_rx) = oneshot::channel();
-        peer.allowed_ips
-            .push(IpAddrMask::new(client.private_ip, 32));
         let msg = PeerControlRequest::AddPeer {
             peer,
             client_id,

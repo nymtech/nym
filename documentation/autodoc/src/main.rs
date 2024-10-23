@@ -205,7 +205,7 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
                 .map(|metadata| metadata.is_dir())
                 .unwrap_or(false)
             {
-                fs::create_dir_all(WRITE_PATH)?;
+                fs::create_dir_all(COMMAND_PATH)?;
             }
             let mut file = File::create(format!(
                 "{}/{}-{}.md",
@@ -220,11 +220,11 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
                 "creating own file for {} {} --help",
                 main_command, subcommand,
             );
-            if !fs::metadata(WRITE_PATH)
+            if !fs::metadata(COMMAND_PATH)
                 .map(|metadata| metadata.is_dir())
                 .unwrap_or(false)
             {
-                fs::create_dir_all(WRITE_PATH)?;
+                fs::create_dir_all(COMMAND_PATH)?;
             }
             let mut help_file = File::create(format!(
                 "{}/{}-{}-help.md",
@@ -247,15 +247,15 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
                 "creating own file for {} {} --help",
                 main_command, subcommand,
             );
-            if !fs::metadata(WRITE_PATH)
+            if !fs::metadata(COMMAND_PATH)
                 .map(|metadata| metadata.is_dir())
                 .unwrap_or(false)
             {
-                fs::create_dir_all(WRITE_PATH)?;
+                fs::create_dir_all(COMMAND_PATH)?;
             }
             let mut help_file = File::create(format!(
                 "{}/{}-{}-help.md",
-                WRITE_PATH,
+                COMMAND_PATH,
                 last_word.unwrap(),
                 subcommand
             ))?;

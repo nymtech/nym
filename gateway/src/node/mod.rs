@@ -286,7 +286,7 @@ impl<St> Gateway<St> {
             forwarding_channel,
             router_tx,
         );
-        let all_peers = self.storage.get_all_wireguard_peers().await?;
+        let all_peers = self.client_storage.get_all_wireguard_peers().await?;
         let used_private_network_ips = all_peers
             .iter()
             .cloned()
@@ -341,7 +341,7 @@ impl<St> Gateway<St> {
                 .start_with_shutdown(router_shutdown);
 
             let wg_api = nym_wireguard::start_wireguard(
-                self.storage.clone(),
+                self.client_storage.clone(),
                 all_peers,
                 shutdown,
                 wireguard_data,

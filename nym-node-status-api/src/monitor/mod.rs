@@ -94,14 +94,16 @@ async fn run(
         .log_error("get_cached_mixnodes")?;
     tracing::debug!("Fetched {} mixnodes", mixnodes.len());
 
-    // TODO dz can we calculate blacklisted GWs from their performance?
-    // where do we get their performance?
-    let gateways_blacklisted = api_client
-        .nym_api
-        .get_gateways_blacklisted()
-        .await
-        .map(|vec| vec.into_iter().collect::<HashSet<_>>())
-        .log_error("get_gateways_blacklisted")?;
+    let gateways_blacklisted = skimmed_gateways
+        .iter()
+        .filter_map(|gw| {
+            if gw.performance.round_to_integer() <= 50 {
+                Some(gw.ed25519_identity_pubkey.to_owned())
+            } else {
+                None
+            }
+        })
+        .collect::<HashSet<_>>();
 
     // Cached mixnodes don't include blacklisted nodes
     // We need that to calculate the total locked tokens later

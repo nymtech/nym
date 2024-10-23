@@ -426,7 +426,7 @@ impl<St> Gateway<St> {
         info!("Starting gateway stats collector...");
 
         let (mut stats_collector, stats_event_sender) =
-            GatewayStatisticsCollector::new(shared_session_stats);
+            GatewayStatisticsCollector::new(shared_session_stats, self.stats_storage.clone());
         tokio::spawn(async move { stats_collector.run(shutdown).await });
         stats_event_sender
     }

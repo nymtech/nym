@@ -94,14 +94,14 @@ impl PersistentStatsStorage {
             .await?)
     }
 
-    pub async fn insert_unique_users(
+    pub async fn insert_unique_user(
         &self,
         date: Date,
-        client_address: DestinationAddressBytes,
+        client_address_bs58: String,
     ) -> Result<(), StatsStorageError> {
         Ok(self
             .session_manager
-            .insert_unique_users(date, client_address.as_base58_string())
+            .insert_unique_user(date, client_address_bs58)
             .await?)
     }
 
@@ -154,6 +154,10 @@ impl PersistentStatsStorage {
             .get_active_session(client_address.as_base58_string())
             .await?
             .map(Into::into))
+    }
+
+    pub async fn get_active_users(&self) -> Result<Vec<String>, StatsStorageError> {
+        Ok(self.session_manager.get_active_users().await?)
     }
 
     pub async fn delete_active_sessions(

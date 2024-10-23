@@ -14,8 +14,9 @@ import {
 
 
 
-export const AccordionTemplate = ({ name, children }) => (
-
+export const AccordionTemplate = ({ name, children }) => {
+return (
+<div>
   <Accordion>
     <AccordionSummary
             expandIcon={<ExpandMoreIcon />}
@@ -26,10 +27,10 @@ export const AccordionTemplate = ({ name, children }) => (
             <strong>{name}</strong>
     </AccordionSummary>
     <AccordionDetails>
-     <div>
-       {children}
-     </div>
+      {children}
     </AccordionDetails>
   </Accordion>
-);
+</div>
+  )
+};
 

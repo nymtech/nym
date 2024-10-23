@@ -303,14 +303,10 @@ Usage: nym-cli ecash [OPTIONS]
        nym-cli ecash <COMMAND>
 
 Commands:
-  issue-ticket-book                  
-  recover-ticket-book                
-  import-ticket-book                 
-  generate-ticket                    
-  import-coin-index-signatures       
-  import-expiration-date-signatures  
-  import-master-verification-key     
-  help                               Print this message or the help of the given subcommand(s)
+  issue-ticket-book    
+  recover-ticket-book  
+  import-ticket-book   
+  help                 Print this message or the help of the given subcommand(s)
 
 Options:
       --mnemonic <MNEMONIC>
@@ -331,7 +327,7 @@ Options:
 
 ### `ecash issue-ticket-book`
 ```sh
-Usage: nym-cli ecash issue-ticket-book [OPTIONS] <--client-config <CLIENT_CONFIG>|--output-file <OUTPUT_FILE>>
+Usage: nym-cli ecash issue-ticket-book [OPTIONS] --client-config <CLIENT_CONFIG>
 
 Options:
       --mnemonic <MNEMONIC>
@@ -344,24 +340,12 @@ Options:
           Config file of the client that is supposed to use the credential
       --nyxd-url <NYXD_URL>
           Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
-      --output-file <OUTPUT_FILE>
-          Output file for the ticketbook
-      --bs58-output
-          Specifies whether the output file should use binary or bs58 encoded data
       --nym-api-url <NYM_API_URL>
           Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
-      --include-expiration-date-signatures
-          Specifies whether the file output should contain expiration date signatures
       --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
           Overrides the mixnet contract address provided either as an environment variable or in a config file
-      --include-coin-index-signatures
-          Specifies whether the file output should contain coin index signatures
       --vesting-contract-address <VESTING_CONTRACT_ADDRESS>
           Overrides the vesting contract address provided either as an environment variable or in a config file
-      --include-master-verification-key
-          Specifies whether the file output should contain master verification key
-      --bs58-encoded-client-secret <BS58_ENCODED_CLIENT_SECRET>
-          Secret value that's used for deriving underlying ecash keypair
   -h, --help
           Print help
 ```
@@ -391,7 +375,7 @@ Options:
 
 ### `ecash import-ticket-book`
 ```sh
-Usage: nym-cli ecash import-ticket-book [OPTIONS] --client-config <CLIENT_CONFIG> <--credential-data <CREDENTIAL_DATA>|--credential-path <CREDENTIAL_PATH>> <--standalone|--full>
+Usage: nym-cli ecash import-ticket-book [OPTIONS] --client-config <CLIENT_CONFIG> <--credential-data <CREDENTIAL_DATA>|--credential-path <CREDENTIAL_PATH>>
 
 Options:
       --client-config <CLIENT_CONFIG>
@@ -408,10 +392,6 @@ Options:
           Overrides the nyxd URL provided either as an environment variable NYXD_VALIDATOR or in a config file
       --nym-api-url <NYM_API_URL>
           Overrides the validator API URL provided either as an environment variable API_VALIDATOR or in a config file
-      --standalone
-          Specifies whether we're attempting to import a standalone ticketbook (i.e. serialised `IssuedTicketBook`)
-      --full
-          Specifies whether we're attempting to import full ticketboot (i.e. one that **might** contain required global signatures; that is serialised `ImportableTicketBook`)
       --mixnet-contract-address <MIXNET_CONTRACT_ADDRESS>
           Overrides the mixnet contract address provided either as an environment variable or in a config file
       --vesting-contract-address <VESTING_CONTRACT_ADDRESS>

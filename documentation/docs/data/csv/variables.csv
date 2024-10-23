@@ -15,8 +15,8 @@
 *not a flag*                             ,`<PATH_TO>`                                                                                                ,"Specify a full path to the given file, directory or binary behind this variable                                                                                            ",`/root/src/nym/target/release/`                 
 `--announce-wss-port`,`<ANNOUNCE_WSS_PORT>`,"Port listening to Web Secure Socket, default and recommended `9001`",`9001`
 `--landing-page-assets-path`,`<LANDING_PAGE_ASSETS_PATH>`,A sub-directory located at `/var/www/<HOSTNAME>` containing html configuration files,`/var/www/exit-gateway1.squad.nsl` 
-,`<BINARY> `,A name of a binary,`nym-node`
-,`<ARGUMENTS>`,Replace with all flags used to run the binary with a given command,`--id alice_super_node –accept-operator-terms-and-conditions`                         
-,`<WELCOME_TEXT>`,Any text you want to show on the landing page            ,"Welcome to Nym Node, operator contact is example@email.me"
-,`<NYXD_VERSION>`,Version of validator binaries,`v0.43.0`
-,`<ID_KEY>`,"Node public identity key, exposed on the network",`GQvHcg61viyN9brWn1hficjD66Q9TorsLN2CMGJewVfo`
+*not a flag*                             ,`<BINARY> `,A name of a binary,`nym-node`
+*not a flag*                             ,`<ARGUMENTS>`,Replace with all flags used to run the binary with a given command,`--id alice_super_node –accept-operator-terms-and-conditions`                         
+*not a flag*                             ,`<WELCOME_TEXT>`,Any text you want to show on the landing page            ,"Welcome to Nym Node, operator contact is example@email.me"
+*not a flag*                             ,`<NYXD_VERSION>`,Version of validator binaries,`v0.43.0`
+*not a flag*                             ,`<ID_KEY>`,"Node public identity key, exposed on the network",`GQvHcg61viyN9brWn1hficjD66Q9TorsLN2CMGJewVfo`

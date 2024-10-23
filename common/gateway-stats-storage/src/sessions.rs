@@ -82,9 +82,12 @@ impl SessionManager {
     }
 
     pub(crate) async fn delete_unique_users(&self, before_date: Date) -> Result<()> {
-        sqlx::query!("DELETE FROM sessions_finished WHERE day <= ? ", before_date)
-            .execute(&self.connection_pool)
-            .await?;
+        sqlx::query!(
+            "DELETE FROM sessions_unique_users WHERE day <= ? ",
+            before_date
+        )
+        .execute(&self.connection_pool)
+        .await?;
         Ok(())
     }
 

@@ -5258,6 +5258,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-gateway-stats-storage",
  "nym-gateway-storage",
  "nym-ip-packet-router",
  "nym-mixnet-client",
@@ -5351,6 +5352,20 @@ dependencies = [
  "tungstenite 0.20.1",
  "wasmtimer",
  "zeroize",
+]
+
+[[package]]
+name = "nym-gateway-stats-storage"
+version = "0.1.0"
+dependencies = [
+ "log",
+ "nym-credentials-interface",
+ "nym-sphinx",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

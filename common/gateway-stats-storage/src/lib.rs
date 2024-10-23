@@ -105,8 +105,8 @@ impl PersistentStatsStorage {
             .await?)
     }
 
-    pub async fn get_unique_users(&self, date: Date) -> Result<i32, StatsStorageError> {
-        Ok(self.session_manager.get_unique_users(date).await?)
+    pub async fn get_unique_users_count(&self, date: Date) -> Result<i32, StatsStorageError> {
+        Ok(self.session_manager.get_unique_users_count(date).await?)
     }
 
     pub async fn delete_unique_users(&self, before_date: Date) -> Result<(), StatsStorageError> {
@@ -154,6 +154,16 @@ impl PersistentStatsStorage {
             .get_active_session(client_address.as_base58_string())
             .await?
             .map(Into::into))
+    }
+
+    pub async fn get_all_active_sessions(&self) -> Result<Vec<ActiveSession>, StatsStorageError> {
+        Ok(self
+            .session_manager
+            .get_all_active_sessions()
+            .await?
+            .into_iter()
+            .map(Into::into)
+            .collect())
     }
 
     pub async fn get_started_sessions_count(

@@ -71,7 +71,7 @@ impl SessionManager {
         Ok(())
     }
 
-    pub(crate) async fn get_unique_users(&self, date: Date) -> Result<i32> {
+    pub(crate) async fn get_unique_users_count(&self, date: Date) -> Result<i32> {
         Ok(sqlx::query!(
             "SELECT COUNT(*) as count FROM sessions_unique_users WHERE day = ?",
             date
@@ -130,6 +130,12 @@ impl SessionManager {
         sqlx::query_as("SELECT start_time, typ FROM sessions_active WHERE client_address = ?")
             .bind(client_address_b58)
             .fetch_optional(&self.connection_pool)
+            .await
+    }
+
+    pub(crate) async fn get_all_active_sessions(&self) -> Result<Vec<StoredActiveSession>> {
+        sqlx::query_as("SELECT start_time, typ FROM sessions_active")
+            .fetch_all(&self.connection_pool)
             .await
     }
 

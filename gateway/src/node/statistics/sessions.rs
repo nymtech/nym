@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_credentials_interface::TicketType;
+use nym_gateway_stats_storage::models::FinishedSession;
 use nym_gateway_stats_storage::PersistentStatsStorage;
 use nym_gateway_stats_storage::{error::StatsStorageError, models::ActiveSession};
 use nym_node_http_api::state::metrics::SharedSessionStats;
@@ -90,8 +91,20 @@ impl SessionStatsHandler {
         let yesterday = OffsetDateTime::now_utc().date() - Duration::DAY;
         //publish yesterday's data if any
         self.publish_stats(yesterday).await?;
+        //store "active" sessions as duration 0
+        for active_session in self.storage.get_all_active_sessions().await? {
+            self.storage
+                .insert_finished_session(
+                    self.current_day,
+                    FinishedSession {
+                        duration: Duration::ZERO,
+                        typ: active_session.typ,
+                    },
+                )
+                .await?
+        }
         //cleanup active sessions
-        self.storage.cleanup_active_sessions().await?; //store them with duration 0
+        self.storage.cleanup_active_sessions().await?;
 
         //delete old entries
         self.delete_old_stats(yesterday - Duration::DAY).await?;
@@ -101,7 +114,7 @@ impl SessionStatsHandler {
     //update shared state once a day has passed, with data from the previous day
     async fn publish_stats(&mut self, stats_date: Date) -> Result<(), StatsStorageError> {
         let finished_sessions = self.storage.get_finished_sessions(stats_date).await?;
-        let user_count = self.storage.get_unique_users(stats_date).await?;
+        let user_count = self.storage.get_unique_users_count(stats_date).await?;
         let session_started = self.storage.get_started_sessions_count(stats_date).await? as u32;
         {
             let mut shared_state = self.shared_session_stats.write().await;

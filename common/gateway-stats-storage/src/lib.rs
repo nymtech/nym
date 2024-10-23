@@ -156,6 +156,16 @@ impl PersistentStatsStorage {
             .map(Into::into))
     }
 
+    pub async fn get_started_sessions_count(
+        &self,
+        start_date: Date,
+    ) -> Result<i32, StatsStorageError> {
+        Ok(self
+            .session_manager
+            .get_started_sessions_count(start_date)
+            .await?)
+    }
+
     pub async fn get_active_users(&self) -> Result<Vec<String>, StatsStorageError> {
         Ok(self.session_manager.get_active_users().await?)
     }

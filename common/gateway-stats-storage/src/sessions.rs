@@ -130,6 +130,16 @@ impl SessionManager {
             .await
     }
 
+    pub(crate) async fn get_started_sessions_count(&self, start_date: Date) -> Result<i32> {
+        Ok(sqlx::query!(
+            "SELECT COUNT(*) as count FROM sessions_active WHERE date(start_time) = ?",
+            start_date
+        )
+        .fetch_one(&self.connection_pool)
+        .await?
+        .count)
+    }
+
     pub(crate) async fn get_active_users(&self) -> Result<Vec<String>> {
         Ok(sqlx::query!("SELECT client_address from sessions_active")
             .fetch_all(&self.connection_pool)

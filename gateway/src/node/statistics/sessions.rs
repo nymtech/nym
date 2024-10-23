@@ -15,7 +15,6 @@ pub(crate) struct SessionStatsHandler {
     current_day: Date,
 
     shared_session_stats: SharedSessionStats,
-    sessions_started: u32,
 }
 
 impl SessionStatsHandler {
@@ -24,7 +23,6 @@ impl SessionStatsHandler {
             storage,
             current_day: OffsetDateTime::now_utc().date(),
             shared_session_stats,
-            sessions_started: 0,
         }
     }
 
@@ -52,7 +50,6 @@ impl SessionStatsHandler {
         start_time: OffsetDateTime,
         client: DestinationAddressBytes,
     ) -> Result<(), StatsStorageError> {
-        self.sessions_started += 1;
         self.storage
             .insert_unique_user(self.current_day, client.as_base58_string())
             .await?;
@@ -94,9 +91,10 @@ impl SessionStatsHandler {
         //publish yesterday's data if any
         self.publish_stats(yesterday).await?;
         //cleanup active sessions
-        self.storage.cleanup_active_sessions().await?;
-        //reset stats
-        self.reset_stats(yesterday).await?;
+        self.storage.cleanup_active_sessions().await?; //store them with duration 0
+
+        //delete old entries
+        self.delete_old_stats(yesterday - Duration::DAY).await?;
         Ok(())
     }
 
@@ -104,11 +102,12 @@ impl SessionStatsHandler {
     async fn publish_stats(&mut self, stats_date: Date) -> Result<(), StatsStorageError> {
         let finished_sessions = self.storage.get_finished_sessions(stats_date).await?;
         let user_count = self.storage.get_unique_users(stats_date).await?;
+        let session_started = self.storage.get_started_sessions_count(stats_date).await? as u32;
         {
             let mut shared_state = self.shared_session_stats.write().await;
             shared_state.update_time = stats_date;
             shared_state.unique_active_users = user_count as u32;
-            shared_state.session_started = self.sessions_started;
+            shared_state.session_started = session_started;
             shared_state.sessions = finished_sessions.iter().map(|s| s.serialize()).collect();
         }
 
@@ -121,7 +120,9 @@ impl SessionStatsHandler {
         let update_date = update_time.date();
         if update_date != self.current_day {
             self.publish_stats(self.current_day).await?;
-            self.reset_stats(self.current_day).await?;
+            self.delete_old_stats(self.current_day - Duration::DAY)
+                .await?;
+            self.reset_stats(update_date).await?;
             self.current_day = update_date;
         }
         Ok(())
@@ -130,18 +131,16 @@ impl SessionStatsHandler {
     async fn reset_stats(&mut self, reset_day: Date) -> Result<(), StatsStorageError> {
         //active users reset
         let new_active_users = self.storage.get_active_users().await?;
-        self.storage
-            .delete_unique_users(reset_day - Duration::DAY)
-            .await?;
         for user in new_active_users {
             self.storage.insert_unique_user(reset_day, user).await?;
         }
 
-        //finished session reset
-        self.storage
-            .delete_finished_sessions(reset_day - Duration::DAY)
-            .await?;
-        self.sessions_started = 0;
+        Ok(())
+    }
+
+    async fn delete_old_stats(&mut self, delete_before: Date) -> Result<(), StatsStorageError> {
+        self.storage.delete_finished_sessions(delete_before).await?;
+        self.storage.delete_unique_users(delete_before).await?;
         Ok(())
     }
 }

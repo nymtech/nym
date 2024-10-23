@@ -12,7 +12,7 @@ use nym_statistics_common::events::SessionEvent;
 
 pub(crate) struct SessionStatsHandler {
     storage: PersistentStatsStorage,
-    last_update_day: Date,
+    current_day: Date,
 
     shared_session_stats: SharedSessionStats,
     sessions_started: u32,
@@ -22,7 +22,7 @@ impl SessionStatsHandler {
     pub fn new(shared_session_stats: SharedSessionStats, storage: PersistentStatsStorage) -> Self {
         SessionStatsHandler {
             storage,
-            last_update_day: OffsetDateTime::now_utc().date(),
+            current_day: OffsetDateTime::now_utc().date(),
             shared_session_stats,
             sessions_started: 0,
         }
@@ -54,7 +54,7 @@ impl SessionStatsHandler {
     ) -> Result<(), StatsStorageError> {
         self.sessions_started += 1;
         self.storage
-            .insert_unique_user(self.last_update_day, client.as_base58_string())
+            .insert_unique_user(self.current_day, client.as_base58_string())
             .await?;
         self.storage
             .insert_active_session(client, ActiveSession::new(start_time))
@@ -70,8 +70,9 @@ impl SessionStatsHandler {
         if let Some(session) = self.storage.get_active_session(client).await? {
             if let Some(finished_session) = session.end_at(stop_time) {
                 self.storage
-                    .insert_finished_session(self.last_update_day, finished_session)
+                    .insert_finished_session(self.current_day, finished_session)
                     .await?;
+                self.storage.delete_active_session(client).await?;
             }
         }
         Ok(())
@@ -118,16 +119,15 @@ impl SessionStatsHandler {
         update_time: OffsetDateTime,
     ) -> Result<(), StatsStorageError> {
         let update_date = update_time.date();
-        if update_date != self.last_update_day {
-            self.publish_stats(self.last_update_day).await?;
-            self.reset_stats(self.last_update_day).await?;
+        if update_date != self.current_day {
+            self.publish_stats(self.current_day).await?;
+            self.reset_stats(self.current_day).await?;
+            self.current_day = update_date;
         }
         Ok(())
     }
 
     async fn reset_stats(&mut self, reset_day: Date) -> Result<(), StatsStorageError> {
-        self.last_update_day = reset_day;
-
         //active users reset
         let new_active_users = self.storage.get_active_users().await?;
         self.storage

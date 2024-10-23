@@ -4,6 +4,7 @@ use crate::{
 };
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
+use strum_macros::{EnumString, FromRepr};
 use utoipa::ToSchema;
 
 pub(crate) struct GatewayRecord {
@@ -297,4 +298,36 @@ pub(crate) mod gateway {
         pub(crate) count: i32,
         pub(crate) last_updated_utc: String,
     }
+}
+
+#[derive(Debug, Clone)]
+pub struct TestRunDto {
+    pub id: i64,
+    pub gateway_id: i64,
+    pub status: i64,
+    pub timestamp_utc: i64,
+    pub ip_address: String,
+    pub log: String,
+}
+
+#[derive(Debug, Clone, strum_macros::Display, EnumString, FromRepr, PartialEq)]
+#[repr(u8)]
+pub(crate) enum TestRunStatus {
+    Complete = 2,
+    InProgress = 1,
+    Pending = 0,
+}
+
+#[derive(Debug, Clone)]
+pub struct GatewayIdentityDto {
+    pub gateway_identity_key: String,
+    pub bonded: bool,
+}
+
+#[derive(Debug, Clone)]
+pub struct GatewayInfoDto {
+    pub id: i64,
+    pub gateway_identity_key: String,
+    pub self_described: Option<String>,
+    pub explorer_pretty_bond: Option<String>,
 }

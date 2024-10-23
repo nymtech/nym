@@ -66,7 +66,9 @@ impl Args {
 
 #[instrument(level = "debug", skip(probe_outcome))]
 async fn submit_results(server_addr: &str, probe_outcome: String) -> anyhow::Result<()> {
-    let target_url = format!("{}/internal/testruns", server_addr);
+    // TODO dz get this when registering with NSAPI
+    let testrun_id = 1u32;
+    let target_url = format!("{}/internal/testruns/{}", server_addr, testrun_id);
     let client = reqwest::Client::new();
     let res = client
         .post(target_url)

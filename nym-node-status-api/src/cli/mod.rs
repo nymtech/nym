@@ -51,8 +51,8 @@ pub(crate) struct Cli {
     pub(crate) explorer_client_timeout: Duration,
 
     /// Connection url for the database.
-    #[clap(long, env = "NYM_NODE_STATUS_API_CONNECTION_URL")]
-    pub(crate) connection_url: String,
+    #[clap(long, env = "DATABASE_URL")]
+    pub(crate) database_url: String,
 }
 
 fn parse_duration(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {

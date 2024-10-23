@@ -36,6 +36,8 @@ reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 serde_json_path = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread"] }

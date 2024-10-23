@@ -1,21 +1,45 @@
-use axum::{extract::State, Router};
+use axum::{
+    extract::{Path, State},
+    Router,
+};
 use reqwest::StatusCode;
 
-use crate::http::{error::HttpResult, state::AppState};
+use crate::{
+    db,
+    http::{
+        error::{HttpError, HttpResult},
+        state::AppState,
+    },
+};
 
 pub(crate) fn routes() -> Router<AppState> {
-    Router::new().route("/", axum::routing::post(submit))
+    Router::new().route("/{testrun_id}", axum::routing::post(submit))
 }
 
+// TODO dz accept testrun_id as query parameter
 #[tracing::instrument(level = "debug", skip_all)]
-async fn submit(State(_state): State<AppState>, body: String) -> HttpResult<StatusCode> {
+async fn submit(
+    Path(testrun_id): Path<u32>,
+    State(state): State<AppState>,
+    body: String,
+) -> HttpResult<StatusCode> {
     tracing::debug!(
-        "Agent submitted probe results. Total length: {}",
+        "Agent submitted testrun {}. Total length: {}",
+        testrun_id,
         body.len(),
     );
     // TODO dz store testrun results
 
-    // let db = state.db_pool();
+    let db = state.db_pool();
+    let _conn = db
+        .acquire()
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    // let testruns =
+
+    // db::queries::testruns::update_status(conn, task_id, status)
+
     // let res = state.cache().get_gateway_list(db).await;
     // let res: Vec<GatewaySkinny> = res
     //     .iter()

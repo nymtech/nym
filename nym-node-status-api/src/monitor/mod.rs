@@ -21,14 +21,17 @@ use std::collections::HashSet;
 use std::str::FromStr;
 use tokio::task::JoinHandle;
 use tokio::time::Duration;
+use tracing::instrument;
 
+// TODO dz should be configurable
 const REFRESH_DELAY: Duration = Duration::from_secs(60 * 5);
-const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(15);
+const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 
 static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
 
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
+#[instrument(level = "debug", name = "data_monitor", skip_all)]
 pub(crate) async fn spawn_in_background(db_pool: DbPool, config: Cli) -> JoinHandle<()> {
     let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
@@ -40,6 +43,7 @@ pub(crate) async fn spawn_in_background(db_pool: DbPool, config: Cli) -> JoinHan
                 "Monitor run failed: {e}, retrying in {}s...",
                 FAILURE_RETRY_DELAY.as_secs()
             );
+            // TODO dz implement some sort of backoff
             tokio::time::sleep(FAILURE_RETRY_DELAY).await;
         } else {
             tracing::info!(
@@ -68,6 +72,7 @@ async fn run(
             .expect("rust sdk mainnet default explorer url not parseable")
     });
 
+    // TODO dz replace explorer api with ipinfo.io
     let default_explorer_url =
         default_explorer_url.expect("explorer url missing in network config");
     let explorer_client =

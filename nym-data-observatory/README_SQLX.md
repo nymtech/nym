@@ -78,6 +78,7 @@ warning: no queries found; do you have the `offline` feature enabled
 ### Possible solutions
 
 - does your `sqlx-cli` version match `sqlx` version from `Cargo.toml`?
+  + `cargo install -f sqlx-cli --version <specific version>`
 - do you have `offline` cargo feature enabled?
 - make sure to `cargo clean` after these updates
 

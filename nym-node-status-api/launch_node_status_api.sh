@@ -16,7 +16,8 @@ function run_bare() {
     set +a
     export RUST_LOG=debug
 
-    cargo run --package nym-node-status-api -- --connection-url "sqlite://node-status-api.sqlite?mode=rwc"
+    # --conection-url is provided in build.rs
+    cargo run --package nym-node-status-api
 }
 
 function run_docker() {
@@ -28,7 +29,7 @@ function run_docker() {
     docker run --env-file envs/${ENVIRONMENT} \
         -e EXPLORER_CLIENT_TIMEOUT=$EXPLORER_CLIENT_TIMEOUT \
         -e NYM_API_CLIENT_TIMEOUT=$NYM_API_CLIENT_TIMEOUT \
-        -e NYM_NODE_STATUS_API_CONNECTION_URL="sqlite://node-status-api.sqlite?mode=rwc" \
+        -e DATABASE_URL="sqlite://node-status-api.sqlite?mode=rwc" \
         -e RUST_LOG=${RUST_LOG} node-status-api
 
 }

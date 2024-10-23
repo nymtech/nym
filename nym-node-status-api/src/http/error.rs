@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 pub(crate) type HttpResult<T> = Result<T, HttpError>;
 
 pub(crate) struct HttpError {
@@ -11,6 +13,11 @@ impl HttpError {
             message,
             status: axum::http::StatusCode::BAD_REQUEST,
         }
+    }
+
+    pub(crate) fn internal_with_logging(msg: impl Display) -> Self {
+        tracing::error!("{}", msg.to_string());
+        Self::internal()
     }
 
     pub(crate) fn internal() -> Self {

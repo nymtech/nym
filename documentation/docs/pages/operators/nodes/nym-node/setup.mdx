@@ -1,15 +1,9 @@
-{/*
-import { MyTab } from '../../../../components/operators/nodes/node-run-command-tabs'
-import Mixnode from './snippets/mixnode-run-tab-snippet.mdx';
-import EntryGateway from './snippets/entry-gateway-run-tab-snippet.mdx';
-import ExitGateway from './snippets/exit-gateway-run-tab-snippet.mdx';
-import Mixnode from './snippets/mixnode-run-tab-snippet.mdx';
-*/}
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
-import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tabs'
+import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tabs';
+import BuildInfo from 'components/outputs/command-outputs/nym-node-build-info.md'
 
 # Nym Node Setup & Run
 
@@ -17,9 +11,7 @@ This documentation page provides a guide on how to set up and run a [NYM NODE](n
 
 ## Current version
 
-```
-<!-- cmdrun ../../../../target/release/nym-node --version -->
-```
+<BuildInfo />
 
 ## Summary
 

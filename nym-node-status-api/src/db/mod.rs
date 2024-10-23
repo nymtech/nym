@@ -9,7 +9,7 @@ static MIGRATOR: Migrator = sqlx::migrate!("./migrations");
 
 pub(crate) type DbPool = SqlitePool;
 
-pub(crate) struct Storage {
+pub struct Storage {
     pool: DbPool,
 }
 

@@ -11,18 +11,18 @@ fn pretty_build_info_static() -> &'static str {
 
 #[derive(Clone, Debug, Parser)]
 #[clap(author = "Nymtech", version, long_version = pretty_build_info_static(), about)]
-pub(crate) struct Cli {
+pub struct Cli {
     /// Network name for the network to which we're connecting.
     #[clap(long, env = "NETWORK_NAME")]
-    pub(crate) network_name: String,
+    pub network_name: String,
 
     /// Explorer api url.
     #[clap(short, long, env = "EXPLORER_API")]
-    pub(crate) explorer_api: String,
+    pub explorer_api: String,
 
     /// Nym api url.
     #[clap(short, long, env = "NYM_API")]
-    pub(crate) nym_api: String,
+    pub nym_api: String,
 
     /// TTL for the http cache.
     #[clap(
@@ -30,29 +30,29 @@ pub(crate) struct Cli {
         default_value_t = 30,
         env = "NYM_NODE_STATUS_API_NYM_HTTP_CACHE_TTL"
     )]
-    pub(crate) nym_http_cache_ttl: u64,
+    pub nym_http_cache_ttl: u64,
 
     /// HTTP port on which to run node status api.
     #[clap(long, default_value_t = 8000, env = "NYM_NODE_STATUS_API_HTTP_PORT")]
-    pub(crate) http_port: u16,
+    pub http_port: u16,
 
     /// Nyxd address.
     #[clap(long, env = "NYXD")]
-    pub(crate) nyxd_addr: Url,
+    pub nyxd_addr: Url,
 
     /// Nym api client timeout.
     #[clap(long, default_value = "15", env = "NYM_API_CLIENT_TIMEOUT")]
     #[arg(value_parser = parse_duration)]
-    pub(crate) nym_api_client_timeout: Duration,
+    pub nym_api_client_timeout: Duration,
 
     /// Explorer api client timeout.
     #[clap(long, default_value = "15", env = "EXPLORER_CLIENT_TIMEOUT")]
     #[arg(value_parser = parse_duration)]
-    pub(crate) explorer_client_timeout: Duration,
+    pub explorer_client_timeout: Duration,
 
     /// Connection url for the database.
     #[clap(long, env = "DATABASE_URL")]
-    pub(crate) database_url: String,
+    pub database_url: String,
 }
 
 fn parse_duration(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {

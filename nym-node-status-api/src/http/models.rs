@@ -2,6 +2,8 @@ use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
+use crate::db::models::TestRunDto;
+
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Gateway {
     pub gateway_identity_key: String,
@@ -71,4 +73,22 @@ pub(crate) struct SummaryHistory {
     pub date: String,
     pub value_json: serde_json::Value,
     pub timestamp_utc: String,
+}
+
+
+
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TestrunAssignment {
+    /// has nothing to do with GW identity key. This is PK from `gateways` table
+    pub gateway_pk_id: i64,
+    pub testrun_id: i64,
+}
+
+impl From<TestRunDto> for TestrunAssignment {
+    fn from(value: TestRunDto) -> Self {
+        Self {
+            gateway_pk_id: value.gateway_id,
+            testrun_id: value.id,
+        }
+    }
 }

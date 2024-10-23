@@ -1,12 +1,8 @@
 use clap::Parser;
+use nym_node_status_api::{cli, db, http, monitor, testruns};
 use nym_task::signal::wait_for_signal;
 
-mod cli;
-mod db;
-mod http;
 mod logging;
-mod monitor;
-mod testruns;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -21,7 +17,13 @@ async fn main() -> anyhow::Result<()> {
     let db_pool = storage.pool_owned();
     let args_clone = args.clone();
     tokio::spawn(async move {
-        monitor::spawn_in_background(db_pool, args_clone).await;
+        monitor::spawn_in_background(
+            db_pool,
+            args_clone.explorer_client_timeout,
+            args_clone.nym_api_client_timeout,
+            &args_clone.nyxd_addr,
+        )
+        .await;
         tracing::info!("Started monitor task");
     });
     testruns::spawn(storage.pool_owned()).await;

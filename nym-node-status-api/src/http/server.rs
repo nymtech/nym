@@ -10,7 +10,7 @@ use crate::{
 
 /// Return handles that allow for graceful shutdown of server + awaiting its
 /// background tokio task
-pub(crate) async fn start_http_api(
+pub async fn start_http_api(
     db_pool: DbPool,
     http_port: u16,
     nym_http_cache_ttl: u64,
@@ -43,14 +43,14 @@ fn start_server(server: HttpServer) -> ShutdownHandles {
     }
 }
 
-pub(crate) struct ShutdownHandles {
+pub struct ShutdownHandles {
     server_handle: JoinHandle<std::io::Result<()>>,
     shutdown_button: CancellationToken,
 }
 
 impl ShutdownHandles {
     /// Send graceful shutdown signal to server and wait for server task to complete
-    pub(crate) async fn shutdown(self) -> anyhow::Result<()> {
+    pub async fn shutdown(self) -> anyhow::Result<()> {
         self.shutdown_button.cancel();
 
         match self.server_handle.await {

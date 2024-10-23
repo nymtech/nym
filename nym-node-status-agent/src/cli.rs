@@ -64,6 +64,33 @@ impl Args {
     }
 }
 
+// TODO dz this is a duplicate from nym node status api: create a common type
+// in nym-bin-common then reuse it in both of these crates intead of duplicating it
+#[derive(Debug, Clone, Deserialize, Serialize)]
+pub struct TestrunAssignment {
+    /// has nothing to do with GW identity key. This is PK from `gateways` table
+    pub gateway_pk_id: i64,
+    pub testrun_id: i64,
+}
+
+#[instrument(level = "debug", skip_all)]
+async fn request_testrun(server_addr: &str) -> anyhow::Result<()> {
+    let target_url = format!("{}/internal/testruns", server_addr);
+    let client = reqwest::Client::new();
+    let res = client
+        .get(target_url)
+        .send()
+        .await
+        .and_then(|response| response.error_for_status())?;
+    let assignment: TestrunAssignment = res.json().await.map_err(|err| {
+        tracing::error!("err");
+        err
+    })?;
+
+    tracing::debug!("Received testrun assignment: {:?}", assignment);
+    Ok(())
+}
+
 #[instrument(level = "debug", skip(probe_outcome))]
 async fn submit_results(server_addr: &str, probe_outcome: String) -> anyhow::Result<()> {
     // TODO dz get this when registering with NSAPI

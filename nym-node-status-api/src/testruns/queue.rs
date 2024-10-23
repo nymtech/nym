@@ -1,5 +1,4 @@
 use crate::db::models::{GatewayInfoDto, TestRunDto, TestRunStatus};
-use crate::db::DbPool;
 use crate::testruns::models::TestRun;
 use anyhow::anyhow;
 use chrono::DateTime;
@@ -39,7 +38,7 @@ pub(crate) async fn try_queue_testrun(
         .iter()
         .find(|g| g.gateway_identity_key == identity_key);
 
-        // TODO dz if let Some() = gateway.first() ...
+    // TODO dz if let Some() = gateway.first() ...
     if gateway.is_none() {
         return Err(anyhow!("Unknown gateway {identity_key}"));
     }

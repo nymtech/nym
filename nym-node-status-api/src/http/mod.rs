@@ -4,7 +4,7 @@ pub(crate) mod api;
 pub(crate) mod api_docs;
 pub(crate) mod error;
 pub(crate) mod models;
-pub(crate) mod server;
+pub mod server;
 pub(crate) mod state;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]

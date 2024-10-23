@@ -34,6 +34,6 @@ function run_docker() {
 
 }
 
-# run_bare
+run_bare
 
-run_docker
+# run_docker

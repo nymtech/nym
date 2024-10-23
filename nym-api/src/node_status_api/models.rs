@@ -437,7 +437,7 @@ pub enum NymApiStorageError {
     GatewayNotFound { identity: String },
 
     // I don't think we want to expose errors to the user about what really happened
-    #[error("experienced internal database error")]
+    #[error("experienced internal database error: {0}")]
     InternalDatabaseError(#[from] sqlx::Error),
 
     // the same is true here (also note that the message is subtly different so we would be able to distinguish them)

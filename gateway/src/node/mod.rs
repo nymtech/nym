@@ -12,7 +12,9 @@ use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
+use crate::node::helpers::{
+    initialise_main_storage, initialise_stats_storage, load_network_requester_config,
+};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use futures::channel::{mpsc, oneshot};
 use nym_credential_verification::ecash::{
@@ -41,6 +43,7 @@ pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 
+pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{PersistentStorage, Storage};
 
 // TODO: should this struct live here?
@@ -96,6 +99,8 @@ pub async fn create_gateway(
 
     let storage = initialise_main_storage(&config).await?;
 
+    let stats_storage = initialise_stats_storage(&config).await?;
+
     let nr_opts = network_requester_config.map(|config| LocalNetworkRequesterOpts {
         config: config.clone(),
         custom_mixnet_path: custom_mixnet.clone(),
@@ -106,7 +111,7 @@ pub async fn create_gateway(
         custom_mixnet_path: custom_mixnet.clone(),
     });
 
-    Gateway::new(config, nr_opts, ip_opts, storage)
+    Gateway::new(config, nr_opts, ip_opts, storage, stats_storage)
 }
 
 #[derive(Debug, Clone)]
@@ -147,7 +152,9 @@ pub struct Gateway<St = PersistentStorage> {
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
 
-    storage: St,
+    client_storage: St,
+
+    stats_storage: PersistentStatsStorage,
 
     wireguard_data: Option<nym_wireguard::WireguardData>,
 
@@ -163,10 +170,12 @@ impl<St> Gateway<St> {
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
         ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
-        storage: St,
+        client_storage: St,
+        stats_storage: PersistentStatsStorage,
     ) -> Result<Self, GatewayError> {
         Ok(Gateway {
-            storage,
+            client_storage,
+            stats_storage,
             identity_keypair: Arc::new(load_identity_keys(&config)?),
             sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
@@ -179,7 +188,7 @@ impl<St> Gateway<St> {
             task_client: None,
         })
     }
-
+    #[allow(clippy::too_many_arguments)]
     pub fn new_loaded(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
@@ -187,7 +196,8 @@ impl<St> Gateway<St> {
         authenticator_opts: Option<LocalAuthenticatorOpts>,
         identity_keypair: Arc<identity::KeyPair>,
         sphinx_keypair: Arc<encryption::KeyPair>,
-        storage: St,
+        client_storage: St,
+        stats_storage: PersistentStatsStorage,
     ) -> Self {
         Gateway {
             config,
@@ -196,7 +206,8 @@ impl<St> Gateway<St> {
             authenticator_opts,
             identity_keypair,
             sphinx_keypair,
-            storage,
+            client_storage,
+            stats_storage,
             wireguard_data: None,
             session_stats: None,
             run_http_server: true,
@@ -240,7 +251,7 @@ impl<St> Gateway<St> {
 
         let connection_handler = ConnectionHandler::new(
             packet_processor,
-            self.storage.clone(),
+            self.client_storage.clone(),
             ack_sender,
             active_clients_store,
         );
@@ -377,7 +388,7 @@ impl<St> Gateway<St> {
 
         let shared_state = websocket::CommonHandlerState {
             ecash_verifier,
-            storage: self.storage.clone(),
+            storage: self.client_storage.clone(),
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
             bandwidth_cfg: (&self.config).into(),
@@ -654,7 +665,7 @@ impl<St> Gateway<St> {
                 nyxd_client,
                 self.identity_keypair.public_key().to_bytes(),
                 shutdown.fork("EcashVerifier"),
-                self.storage.clone(),
+                self.client_storage.clone(),
             )
             .await?,
         );

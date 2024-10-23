@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use nym_authenticator::error::AuthenticatorError;
+use nym_gateway_stats_storage::error::StatsStorageError;
 use nym_gateway_storage::error::StorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
@@ -113,6 +114,12 @@ pub enum GatewayError {
     StorageError {
         #[from]
         source: StorageError,
+    },
+
+    #[error("stats storage failure: {source}")]
+    StatsStorageError {
+        #[from]
+        source: StatsStorageError,
     },
 
     #[error("Path to network requester configuration file hasn't been specified. Perhaps try to run `setup-network-requester`?")]

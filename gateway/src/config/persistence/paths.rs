@@ -12,6 +12,7 @@ pub const DEFAULT_PRIVATE_SPHINX_KEY_FILENAME: &str = "private_sphinx.pem";
 pub const DEFAULT_PUBLIC_SPHINX_KEY_FILENAME: &str = "public_sphinx.pem";
 
 pub const DEFAULT_CLIENTS_STORAGE_FILENAME: &str = "db.sqlite";
+pub const DEFAULT_STATS_STORAGE_FILENAME: &str = "stats.sqlite";
 
 pub const DEFAULT_NETWORK_REQUESTER_CONFIG_FILENAME: &str = "network_requester_config.toml";
 pub const DEFAULT_NETWORK_REQUESTER_DATA_DIR: &str = "network-requester-data";
@@ -39,6 +40,10 @@ pub struct GatewayPaths {
     #[serde(alias = "persistent_storage")]
     pub clients_storage: PathBuf,
 
+    /// Path to sqlite database containing all persistent stats data.
+    #[serde(alias = "persistent_stats_storage")]
+    pub stats_storage: PathBuf,
+
     /// Path to the configuration of the embedded network requester.
     #[serde(deserialize_with = "de_maybe_stringified")]
     pub network_requester_config: Option<PathBuf>,
@@ -54,7 +59,9 @@ impl GatewayPaths {
     pub fn new_default<P: AsRef<Path>>(id: P) -> Self {
         GatewayPaths {
             keys: KeysPaths::new_default(id.as_ref()),
-            clients_storage: default_data_directory(id).join(DEFAULT_CLIENTS_STORAGE_FILENAME),
+            clients_storage: default_data_directory(id.as_ref())
+                .join(DEFAULT_CLIENTS_STORAGE_FILENAME),
+            stats_storage: default_data_directory(id).join(DEFAULT_STATS_STORAGE_FILENAME),
             // node_description: default_config_filepath(id).join(DEFAULT_DESCRIPTION_FILENAME),
             network_requester_config: None,
             ip_packet_router_config: None,
@@ -70,6 +77,7 @@ impl GatewayPaths {
                 public_sphinx_key_file: Default::default(),
             },
             clients_storage: Default::default(),
+            stats_storage: Default::default(),
             network_requester_config: None,
             ip_packet_router_config: None,
         }

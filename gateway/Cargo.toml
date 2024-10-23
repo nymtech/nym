@@ -69,6 +69,7 @@ nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-credential-verification = { path = "../common/credential-verification" }
 nym-crypto = { path = "../common/crypto" }
 nym-gateway-storage = { path = "../common/gateway-storage" }
+nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
 nym-gateway-requests = { path = "../common/gateway-requests" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-mixnode-common = { path = "../common/mixnode-common" }

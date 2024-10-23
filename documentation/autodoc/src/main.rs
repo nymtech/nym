@@ -7,7 +7,6 @@ use std::{fs, vec};
 const WRITE_PATH: &str = "./autodoc-generated-markdown/";
 const COMMAND_PATH: &str = "./autodoc-generated-markdown/commands/";
 
-
 fn main() -> io::Result<()> {
     env_logger::init();
 
@@ -205,11 +204,7 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
                 .map(|metadata| metadata.is_dir())
                 .unwrap_or(false)
             {
-<<<<<<< HEAD
                 fs::create_dir_all(COMMAND_PATH)?;
-=======
-                fs::create_dir_all(WRITE_PATH)?;
->>>>>>> 276d4318beecdd8eb3a870e4bd6ecbe3edb2f9b0
             }
             let mut file = File::create(format!(
                 "{}/{}-{}.md",
@@ -224,19 +219,11 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
                 "creating own file for {} {} --help",
                 main_command, subcommand,
             );
-<<<<<<< HEAD
             if !fs::metadata(COMMAND_PATH)
                 .map(|metadata| metadata.is_dir())
                 .unwrap_or(false)
             {
                 fs::create_dir_all(COMMAND_PATH)?;
-=======
-            if !fs::metadata(WRITE_PATH)
-                .map(|metadata| metadata.is_dir())
-                .unwrap_or(false)
-            {
-                fs::create_dir_all(WRITE_PATH)?;
->>>>>>> 276d4318beecdd8eb3a870e4bd6ecbe3edb2f9b0
             }
             let mut help_file = File::create(format!(
                 "{}/{}-{}-help.md",
@@ -259,7 +246,6 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
                 "creating own file for {} {} --help",
                 main_command, subcommand,
             );
-<<<<<<< HEAD
             if !fs::metadata(COMMAND_PATH)
                 .map(|metadata| metadata.is_dir())
                 .unwrap_or(false)
@@ -269,17 +255,6 @@ fn execute_command_own_file(main_command: &str, subcommand: &str) -> io::Result<
             let mut help_file = File::create(format!(
                 "{}/{}-{}-help.md",
                 COMMAND_PATH,
-=======
-            if !fs::metadata(WRITE_PATH)
-                .map(|metadata| metadata.is_dir())
-                .unwrap_or(false)
-            {
-                fs::create_dir_all(WRITE_PATH)?;
-            }
-            let mut help_file = File::create(format!(
-                "{}/{}-{}-help.md",
-                WRITE_PATH,
->>>>>>> 276d4318beecdd8eb3a870e4bd6ecbe3edb2f9b0
                 last_word.unwrap(),
                 subcommand
             ))?;

@@ -5,8 +5,8 @@ use crate::rewarder::{extract_rewarding_results, BlockSigningDetails};
 use crate::{
     error::NymRewarderError,
     rewarder::{
-        credential_issuance::types::CredentialIssuer, epoch::Epoch,
-        storage::manager::StorageManager, EpochRewards, RewardingResult,
+        epoch::Epoch, storage::manager::StorageManager,
+        ticketbook_issuance::types::CredentialIssuer, EpochRewards, RewardingResult,
     },
 };
 use nym_validator_client::{
@@ -55,10 +55,13 @@ impl RewarderStorage {
         Ok(storage)
     }
 
-    pub(crate) async fn load_last_rewarding_epoch(
+    pub(crate) async fn load_last_block_signing_rewarding_epoch(
         &self,
     ) -> Result<Option<Epoch>, NymRewarderError> {
-        Ok(self.manager.load_last_rewarding_epoch().await?)
+        Ok(self
+            .manager
+            .load_last_block_signing_rewarding_epoch()
+            .await?)
     }
 
     async fn insert_failed_rewarding_epoch_block_signing(

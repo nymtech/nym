@@ -4,7 +4,7 @@
  */
 
 
--- explicitly mark end of "old" combined rewarding
+-- explicitly mark end of "old" combined rewarding with the `_v1` suffix
 -- (as a result, we have to recreate bunch of tables due to foreign key constraints)
 ALTER TABLE rewarding_epoch RENAME TO combined_rewarding_epoch_v1;
 ALTER TABLE epoch_block_signing RENAME TO epoch_block_signing_v1;
@@ -16,10 +16,10 @@ CREATE TABLE block_signing_rewarding_epoch
     id          INTEGER NOT NULL PRIMARY KEY,
     start_time  TIMESTAMP WITHOUT TIME ZONE NOT NULL,
     end_time    TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    
+
     -- rewarding budget allocated to this block signing rewarding epoch
     budget      TEXT NOT NULL,
-    
+
     -- indicates whether block signing rewarding/monitoring module is disabled
     disabled    BOOLEAN NOT NULL
 );
@@ -42,7 +42,7 @@ CREATE TABLE block_signing_rewarding_details
 
     -- if unsuccessful, the error indicating why the rewards were not sent out
     rewarding_error                   TEXT,
-    
+
     -- indicates whether this instance is running in 'monitor only' mode where it's not expected to be sending any transactions
     monitor_only                      BOOLEAN NOT NULL
 );

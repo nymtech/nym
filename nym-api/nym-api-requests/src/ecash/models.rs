@@ -372,6 +372,27 @@ impl SpentCredentialsResponse {
     }
 }
 
+pub type DepositId = u32;
+
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedCredentialsForResponse {
+    #[schemars(with = "String")]
+    #[serde(with = "crate::helpers::date_serde")]
+    pub expiration: Date,
+    pub deposits: Vec<DepositId>,
+    pub merkle_root: [u8; 32],
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedCredentialsChallengeResponse {
+    pub partial_credentials: BTreeMap<DepositId, IssuedTicketbookBody>,
+    // TODO:
+    pub merkle_proof: (),
+}
+
+#[deprecated]
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct EpochCredentialsResponse {
@@ -380,6 +401,7 @@ pub struct EpochCredentialsResponse {
     pub total_issued: u32,
 }
 
+#[deprecated]
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialsResponse {

@@ -5,11 +5,11 @@ use crate::config::Config;
 use crate::error::{InsufficientBalance, NymRewarderError};
 use crate::rewarder::block_signing::types::EpochSigningResults;
 use crate::rewarder::block_signing::EpochSigning;
-use crate::rewarder::credential_issuance::helpers::end_of_day_ticker;
-use crate::rewarder::credential_issuance::types::CredentialIssuanceResults;
-use crate::rewarder::credential_issuance::CredentialIssuance;
 use crate::rewarder::nyxd_client::NyxdClient;
 use crate::rewarder::storage::RewarderStorage;
+use crate::rewarder::ticketbook_issuance::helpers::end_of_day_ticker;
+use crate::rewarder::ticketbook_issuance::types::TicketbookIssuanceResults;
+use crate::rewarder::ticketbook_issuance::TicketbookIssuance;
 use futures::future::{Fuse, FusedFuture, OptionFuture};
 use futures::FutureExt;
 use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
@@ -25,12 +25,12 @@ use tokio::time::{interval_at, Instant};
 use tracing::{error, info, instrument, warn};
 
 mod block_signing;
-mod credential_issuance;
 mod epoch;
 mod helpers;
 mod nyxd_client;
 mod storage;
 mod tasks;
+mod ticketbook_issuance;
 
 pub(crate) use crate::rewarder::epoch::Epoch;
 
@@ -78,7 +78,7 @@ pub fn extract_rewarding_results(
 pub struct EpochRewards {
     pub epoch: Epoch,
     pub signing: Result<Option<EpochSigningResults>, NymRewarderError>,
-    pub credentials: Result<Option<CredentialIssuanceResults>, NymRewarderError>,
+    pub credentials: Result<Option<TicketbookIssuanceResults>, NymRewarderError>,
 
     #[deprecated]
     pub total_budget: Coin,
@@ -114,7 +114,7 @@ impl BlockSigningDetails {
 
 pub struct TicketbookIssuanceDetails {
     pub date: Date,
-    pub results: Result<Option<CredentialIssuanceResults>, NymRewarderError>,
+    pub results: Option<Result<TicketbookIssuanceResults, NymRewarderError>>,
     pub budget: Coin,
 }
 
@@ -164,7 +164,7 @@ pub struct Rewarder {
     storage: RewarderStorage,
     nyxd_client: NyxdClient,
     epoch_signing: Option<EpochSigning>,
-    credential_issuance: Option<CredentialIssuance>,
+    ticketbook_issuance: Option<TicketbookIssuance>,
 }
 
 impl Rewarder {
@@ -174,80 +174,83 @@ impl Rewarder {
             return Err(NymRewarderError::RewardingModulesDisabled);
         }
 
-        // let nyxd_client = NyxdClient::new(&config)?;
-        // let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
-        // let current_epoch = if let Some(last_epoch) = storage.load_last_rewarding_epoch().await? {
-        //     last_epoch.next()
-        // } else {
-        //     Epoch::first(config.rewarding.block_signing_epoch_duration)?
-        // };
-        //
-        // let epoch_signing = if config.block_signing.enabled {
-        //     let whitelist = config.block_signing.whitelist.clone();
-        //     if whitelist.is_empty() {
-        //         return Err(NymRewarderError::EmptyBlockSigningWhitelist);
-        //     }
-        //
-        //     if config.block_signing.monitor_only {
-        //         info!("the block signing rewarding is running in monitor only mode");
-        //     }
-        //
-        //     let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
-        //
-        //     Some(EpochSigning {
-        //         nyxd_scraper,
-        //         nyxd_client: nyxd_client.clone(),
-        //         whitelist,
-        //     })
-        // } else {
-        //     None
-        // };
-        //
-        // let credential_issuance = if config.ticketbook_issuance.enabled {
-        //     let whitelist = &config.ticketbook_issuance.whitelist;
-        //     if whitelist.is_empty() {
-        //         return Err(NymRewarderError::EmptyCredentialIssuanceWhitelist);
-        //     }
-        //
-        //     Some(
-        //         CredentialIssuance::new(current_epoch, storage.clone(), &nyxd_client, whitelist)
-        //             .await?,
-        //     )
-        // } else {
-        //     None
-        // };
-        //
-        // if config.ticketbook_issuance.enabled
-        //     || (config.block_signing.enabled && !config.block_signing.monitor_only)
-        // {
-        //     let balance = nyxd_client
-        //         .balance(&config.rewarding.daily_budget.denom)
-        //         .await?;
-        //     let minimum = Coin::new(
-        //         config.rewarding.daily_budget.amount * 100,
-        //         &config.rewarding.daily_budget.denom,
-        //     );
-        //
-        //     if balance.amount < minimum.amount {
-        //         return Err(NymRewarderError::InsufficientRewarderBalance(Box::new(
-        //             InsufficientBalance {
-        //                 epoch_budget: config.rewarding.daily_budget.clone(),
-        //                 balance,
-        //                 minimum,
-        //             },
-        //         )));
-        //     }
-        // }
-        //
-        // Ok(Rewarder {
-        //     current_epoch,
-        //     credential_issuance,
-        //     epoch_signing,
-        //     nyxd_client,
-        //     storage,
-        //     config,
-        // })
-        todo!()
+        let nyxd_client = NyxdClient::new(&config)?;
+        let storage = RewarderStorage::init(&config.storage_paths.reward_history).await?;
+        let current_block_signing_epoch =
+            if let Some(last_epoch) = storage.load_last_block_signing_rewarding_epoch().await? {
+                last_epoch.next()
+            } else {
+                Epoch::first(config.block_signing.epoch_duration)?
+            };
+
+        let epoch_signing = if config.block_signing.enabled {
+            let whitelist = config.block_signing.whitelist.clone();
+            if whitelist.is_empty() {
+                return Err(NymRewarderError::EmptyBlockSigningWhitelist);
+            }
+
+            if config.block_signing.monitor_only {
+                info!("the block signing rewarding is running in monitor only mode");
+            }
+
+            let nyxd_scraper = NyxdScraper::new(config.scraper_config()).await?;
+
+            Some(EpochSigning {
+                nyxd_scraper,
+                nyxd_client: nyxd_client.clone(),
+                whitelist,
+            })
+        } else {
+            None
+        };
+
+        let credential_issuance = if config.ticketbook_issuance.enabled {
+            let whitelist = &config.ticketbook_issuance.whitelist;
+            if whitelist.is_empty() {
+                return Err(NymRewarderError::EmptyTicketbookIssuanceWhitelist);
+            }
+
+            Some(
+                TicketbookIssuance::new(
+                    current_block_signing_epoch,
+                    storage.clone(),
+                    &nyxd_client,
+                    whitelist,
+                )
+                .await?,
+            )
+        } else {
+            None
+        };
+
+        if config.will_attempt_to_send_rewards() {
+            let balance = nyxd_client
+                .balance(&config.rewarding.daily_budget.denom)
+                .await?;
+            let minimum = Coin::new(
+                config.rewarding.daily_budget.amount * 7,
+                &config.rewarding.daily_budget.denom,
+            );
+
+            if balance.amount < minimum.amount {
+                return Err(NymRewarderError::InsufficientRewarderBalance(Box::new(
+                    InsufficientBalance {
+                        daily_budget: config.rewarding.daily_budget.clone(),
+                        balance,
+                        minimum,
+                    },
+                )));
+            }
+        }
+
+        Ok(Rewarder {
+            ticketbook_issuance: credential_issuance,
+            epoch_signing,
+            nyxd_client,
+            storage,
+            config,
+            current_block_signing_epoch,
+        })
     }
 
     #[instrument(skip(self))]
@@ -272,9 +275,9 @@ impl Rewarder {
     #[instrument(skip(self))]
     async fn calculate_credential_rewards(
         &mut self,
-    ) -> Result<Option<CredentialIssuanceResults>, NymRewarderError> {
+    ) -> Result<Option<TicketbookIssuanceResults>, NymRewarderError> {
         info!("calculating reward shares");
-        if let Some(credential_issuance) = &mut self.credential_issuance {
+        if let Some(credential_issuance) = &mut self.ticketbook_issuance {
             Some(
                 credential_issuance
                     .get_issued_credentials_results(self.current_block_signing_epoch)
@@ -287,7 +290,7 @@ impl Rewarder {
     }
 
     #[instrument(skip(self))]
-    async fn send_rewards(
+    async fn send_block_signing_rewards(
         &self,
         amounts: Vec<(AccountId, Vec<Coin>)>,
     ) -> Result<Option<Hash>, NymRewarderError> {
@@ -302,10 +305,12 @@ impl Rewarder {
         }
 
         info!("sending rewards");
-        self.nyxd_client
-            .send_rewards(self.current_block_signing_epoch, amounts)
-            .await
-            .map(Some)
+        warn!("here be tx sending");
+        Ok(Some(Hash::Sha256([0u8; 32])))
+        // self.nyxd_client
+        //     .send_rewards(self.current_block_signing_epoch, amounts)
+        //     .await
+        //     .map(Some)
     }
 
     async fn calculate_and_send_block_signing_epoch_rewards(
@@ -318,12 +323,19 @@ impl Rewarder {
             &self.config.rewarding.daily_budget.denom,
         );
 
-        let rewarding_tx = self.send_rewards(rewarding_amounts).await?;
+        let rewarding_tx = self.send_block_signing_rewards(rewarding_amounts).await?;
 
         Ok(RewardingResult {
             total_spent,
             rewarding_tx,
         })
+    }
+
+    async fn calculate_and_send_ticketbook_issuance_rewards(
+        &mut self,
+        issued_ticketbooks: &TicketbookIssuanceDetails,
+    ) -> Result<RewardingResult, NymRewarderError> {
+        todo!()
     }
 
     #[deprecated]
@@ -354,7 +366,7 @@ impl Rewarder {
         let rewarding_result = self
             .calculate_and_send_block_signing_epoch_rewards(&details)
             .await
-            .inspect_err(|err| error!("failed to determine and send epoch_rewards: {err}"));
+            .inspect_err(|err| error!("failed to determine and send block signing rewards: {err}"));
 
         if let Err(err) = self
             .storage
@@ -367,12 +379,42 @@ impl Rewarder {
         self.current_block_signing_epoch = self.current_block_signing_epoch.next();
     }
 
+    #[instrument(skip(self))]
+    async fn ticketbook_issuance_details(&mut self, yesterday: Date) -> TicketbookIssuanceDetails {
+        info!("calculating reward shares");
+        let results = if let Some(ticketbook_issuance) = &mut self.ticketbook_issuance {
+            Some(
+                ticketbook_issuance
+                    .get_issued_ticketbooks_results(yesterday)
+                    .await,
+            )
+        } else {
+            None
+        };
+        TicketbookIssuanceDetails {
+            date: yesterday,
+            results,
+            budget: self.config.ticketbook_issuance_daily_budget(),
+        }
+    }
+
     async fn handle_next_ticketbook_issuance_day(&mut self) {
         // sanity check to make sure it's actually after midnight
         let today = ecash_today();
         assert_eq!(today.hour(), 0);
 
-        let today = today.ecash_date();
+        // safety: this software is not run in 1 AD...
+        #[allow(clippy::unwrap_used)]
+        let yesterday = today.ecash_date().previous_day().unwrap();
+
+        let details = self.ticketbook_issuance_details(yesterday).await;
+
+        let rewarding_result = self
+            .calculate_and_send_ticketbook_issuance_rewards(&details)
+            .await
+            .inspect_err(|err| {
+                error!("failed to determine and send ticketbook issuance rewards: {err}")
+            });
 
         todo!()
     }
@@ -433,11 +475,11 @@ impl Rewarder {
         &self,
         task_manager: &mut TaskManager,
     ) -> Result<impl FusedFuture, NymRewarderError> {
-        if let Some(ref credential_issuance) = self.credential_issuance {
+        if let Some(ref credential_issuance) = self.ticketbook_issuance {
             credential_issuance.start_monitor(
                 self.config.ticketbook_issuance.clone(),
                 self.nyxd_client.clone(),
-                task_manager.subscribe(),
+                task_manager.subscribe_named("credential-monitor"),
             );
         }
 
@@ -461,8 +503,9 @@ impl Rewarder {
     ) {
         let until_end = self.current_block_signing_epoch.until_end();
         info!(
-            "the initial block signing epoch (id: {}) will finish in {} secs",
+            "the initial block signing epoch (id: {}) will finish on {} ({} secs remaining)",
             self.current_block_signing_epoch.id,
+            self.current_block_signing_epoch.end_rfc3339(),
             until_end.as_secs()
         );
         // runs as often as specified in the config. by default every 1h

@@ -919,11 +919,13 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    #[instrument(level = "debug", skip(self))]
+    #[deprecated]
     async fn epoch_credentials(
         &self,
         dkg_epoch: EpochId,
     ) -> Result<EpochCredentialsResponse, NymAPIError> {
+        let unused = "";
+
         self.get_json(
             &[
                 routes::API_VERSION,
@@ -936,11 +938,14 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[deprecated]
     #[instrument(level = "debug", skip(self))]
     async fn issued_credential(
         &self,
         credential_id: i64,
     ) -> Result<IssuedCredentialResponse, NymAPIError> {
+        let unused = "";
+
         self.get_json(
             &[
                 routes::API_VERSION,
@@ -953,11 +958,12 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    #[instrument(level = "debug", skip(self))]
+    #[deprecated]
     async fn issued_credentials(
         &self,
         credential_ids: Vec<i64>,
     ) -> Result<IssuedCredentialsResponse, NymAPIError> {
+        let unused = "";
         self.post_json(
             &[
                 routes::API_VERSION,

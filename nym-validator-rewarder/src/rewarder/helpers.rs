@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymRewarderError;
-use crate::rewarder::credential_issuance::types::CredentialIssuer;
+use crate::rewarder::ticketbook_issuance::types::CredentialIssuer;
 use nym_validator_client::nym_api;
 use nym_validator_client::nyxd::{AccountId, PublicKey};
 use nyxd_scraper::constants::{BECH32_CONSENSUS_ADDRESS_PREFIX, BECH32_PREFIX};

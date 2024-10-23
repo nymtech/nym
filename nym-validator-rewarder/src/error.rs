@@ -162,7 +162,7 @@ pub enum NymRewarderError {
         on_chain: String,
     },
 
-    #[error("the current rewarder balance is insufficient to start the process. The epoch budget is: {} while we currently have {}. (the minimum is set to {})", .0.epoch_budget, .0.balance, .0.minimum)]
+    #[error("the current rewarder balance is insufficient to start the process. The daily budget is: {} while we currently have {}. (the minimum is set to {})", .0.daily_budget, .0.balance, .0.minimum)]
     InsufficientRewarderBalance(Box<InsufficientBalance>),
 
     #[error("the scraper websocket endpoint hasn't been provided")]
@@ -171,8 +171,8 @@ pub enum NymRewarderError {
     #[error("block signing rewarding is enabled, but the validator whitelist is empty")]
     EmptyBlockSigningWhitelist,
 
-    #[error("credential issuance rewarding is enabled, but the validator whitelist is empty")]
-    EmptyCredentialIssuanceWhitelist,
+    #[error("ticketbook issuance rewarding is enabled, but the validator whitelist is empty")]
+    EmptyTicketbookIssuanceWhitelist,
 
     #[error("there were no validators to reward in this epoch")]
     NoValidatorsToReward,
@@ -189,7 +189,7 @@ pub enum NymRewarderError {
 
 #[derive(Debug)]
 pub struct InsufficientBalance {
-    pub epoch_budget: Coin,
+    pub daily_budget: Coin,
     pub balance: Coin,
     pub minimum: Coin,
 }

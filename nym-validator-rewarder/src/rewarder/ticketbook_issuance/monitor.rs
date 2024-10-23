@@ -3,12 +3,12 @@
 
 use crate::config;
 use crate::error::NymRewarderError;
-use crate::rewarder::credential_issuance::types::{
-    CredentialIssuer, MonitoringResults, RawOperatorResult,
-};
 use crate::rewarder::helpers::api_client;
 use crate::rewarder::nyxd_client::NyxdClient;
 use crate::rewarder::storage::RewarderStorage;
+use crate::rewarder::ticketbook_issuance::types::{
+    CredentialIssuer, MonitoringResults, RawOperatorResult,
+};
 use bip39::rand::prelude::SliceRandom;
 use bip39::rand::thread_rng;
 use nym_coconut_dkg_common::types::EpochId;
@@ -66,6 +66,7 @@ impl CredentialIssuanceMonitor {
         }
     }
 
+    #[deprecated(note = "redundant if we use merkle tree?")]
     async fn check_deposit_reuse(
         &mut self,
         issuer_identity: &str,
@@ -126,7 +127,7 @@ impl CredentialIssuanceMonitor {
     }
 
     #[instrument(
-        skip_all, 
+        skip_all,
         fields(
             credential_id = %issued_credential.credential.id,
             deposit_id = %issued_credential.credential.deposit_id
@@ -148,6 +149,8 @@ impl CredentialIssuanceMonitor {
         if already_checked {
             return Ok(());
         }
+
+        let unused = "validate deposits in mem cache";
 
         // check the correctness of the deposit itself
         self.validate_deposit(issued_credential).await?;
@@ -198,7 +201,6 @@ impl CredentialIssuanceMonitor {
         epoch_id: EpochId,
         issuer: &CredentialIssuer,
     ) -> Result<RawOperatorResult, NymRewarderError> {
-        info!("checking the issuer's credentials...");
         debug!("checking the issuer's credentials...");
 
         let api_client = api_client(issuer)?;
@@ -292,7 +294,7 @@ impl CredentialIssuanceMonitor {
         todo!()
         // info!("starting");
         // let mut run_interval = interval(self.config.run_interval);
-        // 
+        //
         // while !task_client.is_shutdown() {
         //     tokio::select! {
         //         biased;

@@ -23,6 +23,7 @@ use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
 
 pub(crate) mod manager;
 pub(crate) mod models;
+pub(crate) mod runtime_migrations;
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]

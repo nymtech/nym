@@ -140,7 +140,7 @@ members = [
     "tools/internal/testnet-manager/dkg-bypass-contract",
     "tools/echo-server",
     "tools/internal/contract-state-importer/importer-cli",
-    "tools/internal/contract-state-importer/importer-contract",
+    "tools/internal/contract-state-importer/importer-contract", "common/ticketbooks-merkle",
 ]
 
 default-members = [
@@ -265,6 +265,7 @@ ledger-transport = "0.10.0"
 ledger-transport-hid = "0.10.0"
 log = "0.4"
 maxminddb = "0.23.0"
+rs_merkle = "1.4.2"
 mime = "0.3.17"
 nix = "0.27.1"
 notify = "5.1.0"

@@ -186,9 +186,18 @@ impl NymEcashContract<'_> {
         &self,
         ctx: QueryCtx,
     ) -> Result<LatestDepositResponse, EcashContractError> {
-        let latest_id = self.deposits.latest_deposit(ctx.deps.storage)?;
+        let Some(latest_id) = self.deposits.latest_deposit(ctx.deps.storage)? else {
+            return Ok(LatestDepositResponse::default());
+        };
 
-        todo!()
+        let maybe_deposit = self.deposits.try_load_by_id(ctx.deps.storage, latest_id)?;
+
+        Ok(LatestDepositResponse {
+            deposit: maybe_deposit.map(|deposit| DepositData {
+                id: latest_id,
+                deposit,
+            }),
+        })
     }
 
     #[msg(query)]

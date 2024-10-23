@@ -1,0 +1,26 @@
+[package]
+name = "ticketbooks-merkle"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+sha2 = { workspace = true }
+rs_merkle = { workspace = true }
+schemars = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+time = { workspace = true }
+
+nym-credentials-interface = { path = "../credentials-interface" }
+nym-serde-helpers = { path = "../serde-helpers", features = ["date", "base64", "hex"] }
+
+[dev-dependencies]
+rand_chacha = { workspace = true }
+rand = { workspace = true }
+serde_json = { workspace = true }

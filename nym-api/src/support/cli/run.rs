@@ -24,8 +24,8 @@ use crate::support::config::Config;
 use crate::support::http::state::{AppState, ShutdownHandles, TASK_MANAGER_TIMEOUT_S};
 use crate::support::http::RouterBuilder;
 use crate::support::nyxd;
+use crate::support::storage::runtime_migrations::m001_directory_services_v2_1::migrate_to_directory_services_v2_1;
 use crate::support::storage::NymApiStorage;
-use crate::v3_migration::migrate_v3_database;
 use crate::{
     circulating_supply_api, ecash, epoch_operations, network_monitor, node_describe_cache,
     node_status_api, nym_contract_cache,
@@ -115,7 +115,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     let storage = NymApiStorage::init(&config.node_status_api.storage_paths.database_path).await?;
 
     // try to perform any needed migrations of the storage
-    migrate_v3_database(&storage, &nyxd_client).await?;
+    migrate_to_directory_services_v2_1(&storage, &nyxd_client).await?;
 
     let identity_keypair = config.base.storage_paths.load_identity()?;
     let identity_public_key = *identity_keypair.public_key();

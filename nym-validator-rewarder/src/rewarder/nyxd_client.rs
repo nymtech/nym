@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::error::NymRewarderError;
-use crate::rewarder::credential_issuance::types::{addr_to_account_id, CredentialIssuer};
+use crate::rewarder::ticketbook_issuance::types::{addr_to_account_id, CredentialIssuer};
 use nym_coconut_dkg_common::types::Epoch;
 use nym_compact_ecash::{Base58, VerificationKeyAuth};
 use nym_crypto::asymmetric::ed25519;
@@ -22,6 +22,7 @@ use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
+use time::OffsetDateTime;
 use tokio::sync::RwLock;
 
 #[derive(Clone)]
@@ -129,5 +130,16 @@ impl NyxdClient {
         let res = self.inner.read().await.get_deposit(deposit_id).await?;
         res.deposit
             .ok_or(NymRewarderError::DepositNotFound { deposit_id })
+    }
+
+    pub(crate) async fn latest_deposit_id(&self) -> Result<Option<DepositId>, NymRewarderError> {
+        todo!()
+    }
+
+    pub(crate) async fn deposit_timestamp(
+        &self,
+        deposit_id: DepositId,
+    ) -> Result<OffsetDateTime, NymRewarderError> {
+        todo!()
     }
 }

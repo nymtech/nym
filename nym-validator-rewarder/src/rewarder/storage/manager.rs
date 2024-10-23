@@ -10,11 +10,13 @@ pub(crate) struct StorageManager {
 }
 
 impl StorageManager {
-    pub(crate) async fn load_last_rewarding_epoch(&self) -> Result<Option<Epoch>, sqlx::Error> {
+    pub(crate) async fn load_last_block_signing_rewarding_epoch(
+        &self,
+    ) -> Result<Option<Epoch>, sqlx::Error> {
         sqlx::query_as(
             r#"
                     SELECT id, start_time, end_time
-                    FROM rewarding_epoch
+                    FROM block_signing_rewarding_epoch
                     ORDER BY id DESC
                     LIMIT 1
                 "#,

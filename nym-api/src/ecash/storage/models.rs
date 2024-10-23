@@ -88,6 +88,9 @@ pub struct IssuedTicketbook {
     pub expiration_date: Date,
 
     pub ticketbook_type_repr: u8,
+
+    // hash on the ticketbook and the deposit
+    pub commitment: Vec<u8>,
 }
 
 #[derive(FromRow)]

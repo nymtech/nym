@@ -48,6 +48,12 @@ impl Deposit {
 }
 
 #[cw_serde]
+#[derive(Default)]
+pub struct LatestDepositResponse {
+    pub deposit: Option<DepositData>,
+}
+
+#[cw_serde]
 pub struct DepositResponse {
     pub id: DepositId,
 

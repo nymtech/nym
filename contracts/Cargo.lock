@@ -1219,6 +1219,7 @@ dependencies = [
 name = "nym-ecash"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "bs58 0.4.0",
  "cosmwasm-schema",
  "cosmwasm-std",

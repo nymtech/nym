@@ -36,6 +36,7 @@ nym-multisig-contract-common = { path = "../../common/cosmwasm-smart-contracts/m
 nym-network-defaults = { path = "../../common/network-defaults", default-features = false }
 
 [dev-dependencies]
+anyhow = { workspace = true }
 sylvia = { workspace = true, features = ["mt"] }
 nym-crypto = { path = "../../common/crypto", features = ["rand", "asymmetric"] }
 rand_chacha = "0.3"

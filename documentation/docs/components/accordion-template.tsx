@@ -23,7 +23,7 @@ export const AccordionTemplate = ({ name, children }) => (
             id="panel1-header"
             aria-label="<code>nym-node --help</code> command output"
           >
-            {name}
+            <strong>{name}</strong>
     </AccordionSummary>
     <AccordionDetails>
      <div>

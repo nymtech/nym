@@ -5,32 +5,18 @@ import { VarInfo } from 'components/variable-info.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 
-export const Name1 = () => (
+export const TestingSteps = () => (
   <div>
-    <code>nym-node</code> binary testing output
+    Testing steps performed
   </div>
 );
 
-<AccordionTemplate name= {<Name1 />} >
-### Header 3 test
-- point
-- point
+export const TryYourself = () => (
+  <div>
+    Try yourself
+  </div>
+);
 
-**bold text pointing to `nym-node` version**
-```sh
-nym-node 
-Binary Name:        nym-node
-Build Timestamp:    2024-10-17T08:57:52.525093253Z
-Build Version:      1.1.9
-Commit SHA:         d75c7eaaaf3bb7350720cf9c7657ce3f7ee6ec2e
-Commit Date:        2024-10-17T08:51:39.000000000+02:00
-Commit Branch:      HEAD
-rustc Version:      1.81.0
-rustc Channel:      stable
-cargo Profile:      release
-```
-*If all went fine this should be italic in collapsible*
-</AccordionTemplate>
 
 # Changelog
 
@@ -66,10 +52,11 @@ cargo Profile:      release
   - [x] go ffi for proxies
   
 - [Build(deps): bump `toml` from `0.5.11` to `0.8.14`](https://github.com/nymtech/nym/pull/4805): [`toml`](https://github.com/toml-rs/toml) version update
-~~~admonish example collapsible=true title='Testing steps performed'
+
+<AccordionTemplate name={<TestingSteps/>}>
 - Ensured that the `cargo.toml` is legible in various places; tested it on `nym-node`, `nym-api` and `nymvisor`.
 - Ensured that updating the cargo.toml file and restarting the given binary continues to behave as normal.
-~~~
+</AccordionTemplate>
 
 - [Use `serde` from workspace](https://github.com/nymtech/nym/pull/4833): cargo autoinherit for `serde` - cargo autoinherit for `bs58` and `vergen` in `cosmwasm-smart-contracts` 
 
@@ -87,13 +74,14 @@ cargo Profile:      release
 
 - [Feature/updated gateway registration](https://github.com/nymtech/nym/pull/4885): This PR introduces support for aes256-gcm-siv shared keys between clients and gateways.
     - Those changes should be fully backwards compatible. if they're not, there's a bug.
-~~~admonish example collapsible=true title='Testing steps performed'
+
+<AccordionTemplate name={<TestingSteps/>}>
 - For the following combinations I inited the client, ran the client, stopped the client, and ran the client again:
 - Fresh client on new binary && gateway on old binary
 - Fresh client on old binary && gateway on new binary
 - Fresh client on new binary && gateway new binary 
 - Existing old client on old binary & new gateway 
-~~~
+</AccordionTemplate>
  
 - [Build and Push CI](https://github.com/nymtech/nym/pull/4887)
 
@@ -116,7 +104,8 @@ cargo Profile:      release
   - Update `cargo-deny-action` to v2
 
 - [Data Observatory stub](https://github.com/nymtech/nym/pull/4905): You need Postgres up for `sqlx` compile-time checked queries to work
-~~~admonish example collapsible=true title='Try yourself'
+
+<AccordionTemplate name={<TryYourself/>}>
 
 - Get [`page_up.sh` script](https://github.com/nymtech/nym/blob/develop/nym-data-observatory/pg_up.sh)
 
@@ -124,12 +113,12 @@ cargo Profile:      release
 ./pg_up.sh
 ```
 
-Play with the database:
+- Play with the database:
 ```bash
 docker exec -it nym-data-observatory-pg /bin/bash
 psql -U youruser -d yourdb
 ```
-~~~
+</AccordionTemplate>
 
 - [Proxy ffi](https://github.com/nymtech/nym/pull/4906): Updates Go & CPP FFI with the proxy code from  [\#4743](https://github.com/nymtech/nym/pull/4743)
 
@@ -196,7 +185,7 @@ More info about testing and tools for performance monitoring can be found in [th
 
 In October we again proceeded with our Delegation Program. 22 nodes didn't meet the program rules and got their delegation removed and 25 nodes from the que received delegation. Below is a complete list. 
 
-~~~admonish example collapsible=true title='List of all delegation changes'
+<AccordionTemplate name="List of all delegation changes">
 Delegated:
 ```
 Ce6kcPckNfQsga2z645VFQYadtoTjqXrS1YXMTtNNv98
@@ -257,7 +246,7 @@ sjL9n9ymxfWWwkQJxXdsMkdwamXfh3AJ3vCe7rJ8RrT
 E2HAJrHnk56QZDUCkcjc4i4pVEqtyuPYL5bNFYtweQuL
 4PytR3tmodsvqGTKdY47yie8kmrkARQdb5Ht3Ro3ChH4
 ```
-~~~
+</ AccordionTemplate>
 
 ---
 

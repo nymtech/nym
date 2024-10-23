@@ -530,7 +530,12 @@ where
     }
 
     if res.status().is_success() {
-        Ok(res.json().await?)
+        let plaintext = res.text().await?;
+
+        serde_json::from_str::<T>(&plaintext).map_err(|err| {
+            tracing::warn!("Couldn't deserialize\n{:#?}", &plaintext);
+            HttpClientError::GenericRequestFailure(err.to_string())
+        })
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)
     } else {

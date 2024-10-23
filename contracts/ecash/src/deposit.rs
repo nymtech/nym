@@ -19,6 +19,15 @@ impl<'a> DepositStorage<'a> {
         }
     }
 
+    pub fn latest_deposit(
+        &self,
+        storage: &dyn Storage,
+    ) -> Result<Option<DepositId>, EcashContractError> {
+        self.deposit_id_counter
+            .may_load(storage)
+            .map_err(Into::into)
+    }
+
     fn next_id(&self, store: &mut dyn Storage) -> Result<DepositId, EcashContractError> {
         let id: DepositId = self.deposit_id_counter.may_load(store)?.unwrap_or_default();
         let next_id = id + 1;
@@ -106,6 +115,29 @@ mod tests {
     use crate::support::tests::test_rng;
     use cosmwasm_std::testing::mock_dependencies;
     use nym_crypto::asymmetric::ed25519;
+
+    #[test]
+    fn getting_latest_deposit() -> anyhow::Result<()> {
+        let mut deps = mock_dependencies();
+        let storage = DepositStorage::new();
+
+        // it's `None` for fresh storage
+        let first = storage.latest_deposit(deps.as_ref().storage)?;
+        assert!(first.is_none());
+
+        let _ = storage.next_id(deps.as_mut().storage)?;
+
+        // is correctly incremented for each subsequent id
+        let second = storage.latest_deposit(deps.as_ref().storage)?;
+        assert_eq!(second, Some(1));
+
+        let _ = storage.next_id(deps.as_mut().storage)?;
+
+        let third = storage.latest_deposit(deps.as_ref().storage)?;
+        assert_eq!(third, Some(2));
+
+        Ok(())
+    }
 
     #[test]
     fn iterating_over_deposits() {

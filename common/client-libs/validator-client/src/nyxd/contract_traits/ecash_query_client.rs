@@ -13,6 +13,7 @@ use serde::Deserialize;
 pub use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, PagedBlacklistedAccountResponse,
 };
+use nym_ecash_contract_common::deposit::LatestDepositResponse;
 pub use nym_ecash_contract_common::deposit::{
     Deposit, DepositData, DepositId, DepositResponse, PagedDepositsResponse,
 };
@@ -48,6 +49,11 @@ pub trait EcashQueryClient {
 
     async fn get_deposit(&self, deposit_id: u32) -> Result<DepositResponse, NyxdError> {
         self.query_ecash_contract(EcashQueryMsg::GetDeposit { deposit_id })
+            .await
+    }
+
+    async fn get_latest_deposit(&self) -> Result<LatestDepositResponse, NyxdError> {
+        self.query_ecash_contract(EcashQueryMsg::GetLatestDeposit {})
             .await
     }
 
@@ -98,7 +104,6 @@ where
 mod tests {
     use super::*;
     use crate::nyxd::contract_traits::tests::IgnoreValue;
-    use nym_ecash_contract_common::msg::QueryMsg;
 
     // it's enough that this compiles and clippy is happy about it
     #[allow(dead_code)]
@@ -110,14 +115,17 @@ mod tests {
             EcashQueryMsg::GetBlacklistedAccount { public_key } => {
                 client.get_blacklisted_account(public_key).ignore()
             }
-            QueryMsg::GetBlacklistPaged { limit, start_after } => {
+            EcashQueryMsg::GetBlacklistPaged { limit, start_after } => {
                 client.get_blacklist_paged(start_after, limit).ignore()
             }
-            QueryMsg::GetDeposit { deposit_id } => client.get_deposit(deposit_id).ignore(),
-            QueryMsg::GetDepositsPaged { limit, start_after } => {
+            EcashQueryMsg::GetDeposit { deposit_id } => client.get_deposit(deposit_id).ignore(),
+            EcashQueryMsg::GetDepositsPaged { limit, start_after } => {
                 client.get_deposits_paged(start_after, limit).ignore()
             }
-            QueryMsg::GetRequiredDepositAmount {} => client.get_required_deposit_amount().ignore(),
+            EcashQueryMsg::GetRequiredDepositAmount {} => {
+                client.get_required_deposit_amount().ignore()
+            }
+            EcashQueryMsg::GetLatestDeposit {} => client.get_latest_deposit().ignore(),
         };
     }
 }

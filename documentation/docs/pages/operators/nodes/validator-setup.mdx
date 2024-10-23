@@ -2,7 +2,7 @@ import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
-import {Accordion, AccordionItem} from "@nextui-org/react";
+import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Validators
 
@@ -100,7 +100,8 @@ At this point, you will have a copy of the `nyxd` binary in your `build/` direct
 ```
 
 You should see a similar help menu printed to you:
-
+<br />
+<AccordionTemplate name="Console output">
 ```sh
 Nyx Daemon (server)
 
@@ -136,6 +137,7 @@ Flags:
 
 Use "nyxd [command] --help" for more information about a command.
 ```
+</AccordionTemplate>
 
 ### Linking `nyxd` to `libwasmvm.so`
 
@@ -169,6 +171,8 @@ nyxd
 
 - This should return the regular help menu:
 
+<br />
+<AccordionTemplate name="Console output">
 ```sh
 Nyx Daemon (server)
 
@@ -204,6 +208,7 @@ Flags:
 
 Use "nyxd [command] --help" for more information about a command.
 ```
+</AccordionTemplate>
 
 ## Initialising your validator
 

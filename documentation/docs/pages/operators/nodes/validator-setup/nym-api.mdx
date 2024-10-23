@@ -5,6 +5,7 @@ import { Steps } from 'nextra/components';
 import {Accordion, AccordionItem} from "@nextui-org/react";
 import ApiBuildInfo from 'components/outputs/command-outputs/nym-api-build-info.md';
 import NymApiHelp from 'components/outputs/command-outputs/nym-api-help.md';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Nym API Setup
 
@@ -209,6 +210,8 @@ You can also change the value of `local_validator` in the config file found by d
 
 This process is quite noisy, but informative:
 
+<br />
+<AccordionTemplate name="Console output">
 ```bash
 Starting nym api...
  2023-12-12T14:29:55.800Z INFO  rocket::launch > 🔧 Configured for release.
@@ -286,6 +289,7 @@ Starting nym api...
  2023-12-12T14:31:56.290Z INFO  nym_api::nym_contract_cache::cache::refresher > Updating validator cache. There are 888 mixnodes and 105 gateways
  2023-12-12T14:31:56.291Z INFO  nym_api::node_status_api::cache::refresher    > Updating node status cache
 ```
+</AccordionTemplate>
 
 ## Automation
 

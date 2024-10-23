@@ -2,6 +2,16 @@ import { Tabs } from 'nextra/components';
 import { Callout } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
+import NymvisorBuildInfo from 'components/outputs/command-outputs/nymvisor-build-info.md';
+import NymvisorHelp from 'components/outputs/command-outputs/nymvisor-help.md';
+import NymvisorInitDaemon from 'components/outputs/command-outputs/nymvisor-init-daemon.md';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+
+export const NymvisorInitD = () => (
+  <div>
+  </div>
+);
 
 # Automatic Node Upgrade: Nymvisor Setup & Usage
 
@@ -29,9 +39,8 @@ Nymvisor is an early and experimental software. Users should use it at their own
 </Callout>
 
 ## Current version
-```
-<!-- cmdrun ../../../../target/release/nymvisor --version | grep "Build Version" | cut -b 21-26  -->
-```
+
+<NymvisorBuildInfo />
 
 ## Preliminary steps
 
@@ -53,9 +62,7 @@ You can check that your binaries are properly compiled with:
 
 Which should return a list of all available commands.
 
-```
-<!-- cmdrun ../../../../target/release/nymvisor --help -->
-```
+<NymvisorHelp />
 
 You can also check the various arguments required for individual commands with:
 
@@ -75,10 +82,6 @@ Initialise your Nymvisor instance with the following command. You must initialis
 
 Where the value of `--daemon-home` might be `~/.nym/nym-nodes/default-nym-node` and `<PATH>` might be `/home/sakine/nym/target/release/nym-node`, or wherever your node binary is located.
 
-```
-<!-- cmdrun ../../../../target/release/nymvisor init --daemon-home ~/.nym/nym-nodes/default-nym-node ../../../../target/release/nym-node | tail -20 -->
-```
-
 By default this will create config files at `~/.nym/nymvisors/instances/nym-node-default/config/config.toml` as shown in the console output above. For config options look at the different `--flags` available, or the [environment variables](#environment-variables) section below.
 
 ### Running your Nymvisor Instance
@@ -89,12 +92,8 @@ The interface to the `nymvisor run <ARGS>` command is quite simple. Any argument
 
 `run` Nymvisor and start your node via the following command. Make sure to stop any existing node before running this command.
 
-```
+```sh
 ./nymvisor run run --id <ID>
-```
-
-```
-<!-- cmdrun ../../../../target/release/nymvisor run run --id default-nym-node -->
 ```
 
 Nymvisor will now manage your node process (for an in-depth overview of this command check the [in-depth command information](./nymvisor-upgrade.md#commands-in-depth) below). It will periodically poll [this endpoint](https://nymtech.net/.wellknown/nym-node/upgrade-info.json) (replace `nym-node` with whatever node you may actually be running via Nymvisor) and check for a new `version` of the binary it is watching. If this exists, it will then, using the information proceed with these steps:

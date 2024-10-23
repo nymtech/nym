@@ -4,6 +4,8 @@ import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
 import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tabs';
 import BuildInfo from 'components/outputs/command-outputs/nym-node-build-info.md';
+import NymNodeHelp from 'components/outputs/command-outputs/nym-node-help.md';
+import NymNodeRunHelp from 'components/outputs/command-outputs/nym-node-run-help.md';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Nym Node Setup & Run
@@ -66,15 +68,13 @@ You can always use `--help` flag to see the commands or arguments associated wit
 
 Run `./nym-node --help` to see all available commands:
 
-```
-<!-- cmdrun ../../../../target/release/nym-node --help -->
-```
+<NymNodeHelp />
 
 To list all available flags for each command, run `./nym-node <COMMAND> --help` for example `./nym-node run --help`:
 
-```
-<!-- cmdrun ../../../../target/release/nym-node run --help  -->
-```
+<AccordionTemplate name="Command output">
+<NymNodeRunHelp />
+</AccordionTemplate>
 
 <Callout type="warning" emoji="⚠️">
 The Wireguard flags currently have limited functionality. From version `1.1.6` ([`v2024.9-topdeck`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)) wireguard is available and recommended to be switched on for nodes running as Gateways. Keep in mind that this option needs a bit of a special [configuration](configuration.md#wireguard-setup).

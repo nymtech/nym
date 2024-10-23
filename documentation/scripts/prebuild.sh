@@ -25,5 +25,12 @@ echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nym-n
 echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nym-node-help.md &&
 echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nym-node-run-help.md &&
 ./nym-node run --help >> ../../documentation/docs/components/outputs/command-outputs/nym-node-run-help.md &&
-echo '```' > ../../documentation/docs/components/outputs/command-outputs/nym-node-run-help.md &&
+echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nym-node-run-help.md &&
+echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nymvisor-help.md &&
+./nymvisor --help >> ../../documentation/docs/components/outputs/command-outputs/nymvisor-help.md &&
+echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nymvisor-help.md &&
+echo '```sh' > ../../documentation/docs/components/outputs/command-outputs/nym-api-help.md &&
+./nym-api --help >> ../../documentation/docs/components/outputs/command-outputs/nym-api-help.md &&
+echo '```' >> ../../documentation/docs/components/outputs/command-outputs/nym-api-help.md &&
+
 echo "prebuild finished"

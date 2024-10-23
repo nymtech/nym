@@ -3,6 +3,8 @@ import { Tabs } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
 import {Accordion, AccordionItem} from "@nextui-org/react";
+import ApiBuildInfo from 'components/outputs/command-outputs/nym-api-build-info.md';
+import NymApiHelp from 'components/outputs/command-outputs/nym-api-help.md';
 
 # Nym API Setup
 
@@ -103,9 +105,8 @@ DKG ceremony in points:
 * From the perspective of validator operators, this is all they had to do. Under the hood, each `nym-api` instance then took part in several rounds of key submission, verification, and derivation. This will continue until quorum is acheived.
 
 ## Current version
-```
-<!-- cmdrun ../../../../target/release/nym-api --version | grep "Build Version" | cut -b 21-26  -->
-```
+
+<ApiBuildInfo />
 
 ## Setup and Usage
 
@@ -118,10 +119,7 @@ You can check that your binary is properly compiled with:
 
 Which should return a list of all available commands.
 
-
-```
-<!-- cmdrun ../../../../target/release/nym-api --help -->
-```
+<NymApiHelp />
 
 You can also check the various arguments required for individual commands with:
 

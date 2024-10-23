@@ -1069,7 +1069,7 @@ pub async fn try_upgrade_config_v4<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV4>,
 ) -> Result<Config, NymNodeError> {
-    tracing::debug!("Updating from 1.1.4");
+    tracing::debug!("Updating from 1.1.5");
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
     } else {

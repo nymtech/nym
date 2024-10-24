@@ -31,8 +31,16 @@ pub mod option_bs58_x25519_pubkey {
     pub fn deserialize<'de, D: Deserializer<'de>>(
         deserializer: D,
     ) -> Result<Option<PublicKey>, D::Error> {
-        let s = Option::<String>::deserialize(deserializer)?;
-        s.map(|s| PublicKey::from_base58_string(&s).map_err(serde::de::Error::custom))
-            .transpose()
+        match Option::<String>::deserialize(deserializer)? {
+            None => Ok(None),
+            Some(s) => {
+                if s.is_empty() {
+                    Ok(None)
+                } else {
+                    Some(PublicKey::from_base58_string(&s).map_err(serde::de::Error::custom))
+                        .transpose()
+                }
+            }
+        }
     }
 }

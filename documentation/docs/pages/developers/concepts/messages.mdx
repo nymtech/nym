@@ -1,0 +1,30 @@
+# Message-based Paradigm
+
+For the moment, Mixnet clients work assuming they will be piped atomic messages looking something like this:
+
+```
+MixnetMessage {
+  Message: Message_Bytes,
+  To: Nym_Address,
+  Attached_SURBS: Number_Of_Surbs
+}
+```
+
+That the client will then encrypt as Sphinx packets and send through the Mixnet.
+
+Likewise, they assume that once they have received and decrypted a Sphinx packet, they will kick back a reconstructed message to the rest of your app logic that look something like:
+
+```
+ReconstructedMessage {
+  Message: Message_Bytes,
+  From: SURB_Sender_Tag
+}
+```
+
+This is obviously quite different to e.g. simply being able to read/write from a stream returned from a function call to create a TCP connection, but there are several approaches that developers can take to dealing with this right now.
+
+## Message Abstractions
+- Rust/Go (and soon C++) developers can use the `TcpProxy` [stream abstraction](../rust/tcpproxy).
+- Developers who are using Typescript/Javascript can also avoid having to deal directly with messages via using [MixFetch](../typescript/examples/mix-fetch).
+- As can developers who are bundling and running the standalone [socks5 client](../clients/socks5) using some form of init script.
+- There is a seperate pair of binaries which other developers can use to run as a persistent secondary proxy process built using the `TcpProxy` abstraction. These simply expose a `localhost` socket port to pipe traffic to and from in the same way as you would a TCP connection and can be found [here](https://github.com/nymtech/standalone-tcp-proxies).

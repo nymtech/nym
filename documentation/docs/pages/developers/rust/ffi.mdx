@@ -1,0 +1,60 @@
+import { Callout } from 'nextra/components'
+
+# FFI Bindings
+
+<Callout type="info" emoji="ℹ️">
+  We are working on the intitial versions of the FFI code to allow developers to experiment and get feedback. Please get in touch if you think the FFI bindings are lacking certain functionality.
+</Callout>
+
+We currently have FFI bindings for Go and C/C++. See the table below to check the coverage of functionality we expect devs would like to see.
+
+The [`nym/sdk/ffi`](https://github.com/nymtech/nym/tree/master/sdk/ffi) directory has the following structure:
+
+```
+ffi
+├── cpp
+├── go
+├── README.md
+└── shared
+```
+
+The main functionality of exposed functions will be imported from `sdk/ffi/shared` into `sdk/ffi/<LANGUAGE>` in order to cut down on code duplication, and so that the imported bindings can be language-specific with regards to types and any `unsafe` code that is required, as well as allowing for the use of language-specific FFI libraries in the future (e.g. we are using `uniffi-bindgen-go` for Go, and at the moment have custom C/C++ bindings, which we might in the future replace with `cxx`).
+
+Furthermore, the `shared/` code makes sure that client access is thread-safe, and that client actions happen in blocking threads on the Rust side of the FFI boundary.
+
+### Mixnet Module
+This is the basic mixnet component of the SDK, exposing client functionality with which people can build custom interfaces with the Mixnet. These functions are exposed to both Go and C/C++ via the `sdk/ffi/shared/` crate.
+
+| `shared/lib.rs` function                                      | Rust Function                                                           |
+| ------------------------------------------------------------- | ----------------------------------------------------------------------- |
+| `init_ephemeral_internal()`                                   | `MixnetClient::connect_new()`                                           |
+| `init_default_storage_internal(config_dir: PathBuf)`          | `MixnetClientBuilder::new_with_default_storage(config_dir)`             |
+| `get_self_address_internal()`                                 | `MixnetClient.nym_address()`                                            |
+| `send_message_internal(recipient: Recipient, message: &str)`  | `MixnetClient.send_plain_message(recipient, message)`                   |
+| `reply_internal(recipient: AnonymousSenderTag, message: &str)`| `MixnetClient.send_reply(recipient, message)`                           |
+
+
+> We have also implemented `listen_for_incoming_internal()` which is a wrapper around the Mixnet client's `wait_for_messages()`. This is a helper method for listening out for and handling incoming messages.
+
+#### Currently Unsupported Functionality
+At the time of writing the following functionality is not exposed to the shared FFI library:
+- `split_sender()`: the ability to [split a client into sender and receiver](./mixnet/examples/split-send) for concurrent send/receive.
+- The use of [custom network topologies](./mixnet/examples/custom-topology).
+- `Socks5::new()`: creation and use of the [socks5/4a/4 proxy client](./mixnet/examples/socks).
+
+### TcpProxy Module
+A connection abstraction which exposes a local TCP socket which developers are able to interact with basically as expected, being able to read/write to/from a bytestream, without really having to take into account the workings of the Mixnet/Sphinx/the [message-based](../concepts/messages) format of the underlying client.
+
+<Callout type="info" emoji="ℹ️">
+  At the time of writing this functionality is **only** exposed to Go. C/C++ bindings will follow in the future in a larger update to the C FFI.
+</Callout>
+
+
+| `shared/lib.rs` function                                                                                                                | Rust Function                                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| `proxy_client_new_internal(server_address: Recipient, listen_address: &str, listen_port: &str, close_timeout: u64, env: Option<String>)`| `NymProxyClient::new(server_address, listen_address, listen_port, close_timeout, env)`|
+| `proxy_client_new_defaults_internal(server_address, env)`                                                                               | `NymProxyClient::new_with_defaults(server_address, env)`                              |
+| `proxy_client_run_internal()`                                                                                                           | `NymProxyClient.run()`                                                                |
+| `proxy_server_new_internal(upstream_address: &str, config_dir: &str, env: Option<String>)`                                              | `NymProxyServer::new(upstream_address, config_dir, env)`                              |
+| `proxy_server_run_internal()`                                                                                                           | `NymProxyServer.run_with_shutdown()`                                                  |
+| `proxy_server_address_internal()`                                                                                                       | `NymProxyServer.nym_address()`                                                        |

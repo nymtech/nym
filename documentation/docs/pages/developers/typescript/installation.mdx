@@ -1,0 +1,57 @@
+import { Callout } from 'nextra/components'
+
+# Overview
+
+The different modules in the Typescript SDK allow developers to start building browser-based applications quickly. Simply import the SDK module of your choice – depending on the component from the Nym architecture you want to use – into your code via NPM, as you would any other TypeScript library.
+
+<Callout type="info" emoji="ℹ️">
+    Other than the `Contract Clients`, SDK modules come in four different flavours (ESM, CJS and full-fat for ESM and CJS).
+    This documentation focuses on examples using the `full-fat` versions.
+</Callout>
+
+#### Install all
+
+```bash
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing @nymproject/sdk-full-fat @nymproject/mix-fetch-full-fat
+```
+
+## MixFetch
+#### Overview
+MixFetch is a drop-in replacement for [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) that sends HTTP requests through the Nym mixnet. It does this by grabbing the same arguments as traditional fetch and constructing a SOCKS5 request that will be made to the destination host on the Internet via an Exit Gateway.
+
+#### Installation: MixFetch package
+In order to fetch data through mixFetch you'll need to use the [`MixFetch package`](https://www.npmjs.com/package/@nymproject/mix-fetch).
+
+First install the package and its dependencies:
+
+```bash
+npm install @nymproject/mix-fetch-full-fat
+```
+
+## Mixnet
+#### Installation: Mixnet Client
+In order to send or receive traffic over the mixnet, you'll need to use the [`Mixnet Client`](https://www.npmjs.com/package/@nymproject/sdk).
+
+First install the package and its dependencies:
+
+```bash
+npm install @nymproject/sdk-full-fat
+```
+
+## Nym Smart Contracts
+#### Overview
+The Nyx blockchain is a general-purpose CosmWasm-enabled smart contract platform, and the home of the smart contracts which keep track of the mixnet, amongst others.
+Further information about the chain can be found on the [Nyx blockchain explorer](https://nym.explorers.guru/).
+
+Using the [Nym mixnet smart contract clients](../../network/architecture/nyx/smart-contracts), you will be able to query contract states or execute methods when providing a signing key.
+
+*You can learn about our different methods to interact with the chain [here](../chain)*.
+
+#### Installation: Contract Clients
+In order to query or execute on any of the Nym smart contracts, you'll need to use the [`Contract Clients`](https://www.npmjs.com/package/@nymproject/contract-clients), which contains read-only query and signing clients for all Nyx's smart contracts.
+
+First install the package and its dependencies from Cosmos Stargate:
+
+```bash
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate @cosmjs/proto-signing
+```

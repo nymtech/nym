@@ -1,0 +1,14 @@
+import { Callout } from 'nextra/components'
+
+# Nym API
+
+<Callout type="info" emoji="ℹ️">
+  The Nym API setup and maintenance guide has moved to the [Operator Guides book](../../../operators/nodes/validator-setup/nym-api).
+</Callout>
+
+The Nym API is a binary that will be operated by the Nyx validator set. This binary can be run in several different modes, and has two main bits of functionality:
+
+* Network monitoring (calculating the routing score of Mixnet nodes)
+* Generation and validation of [zk-nyms](../../cryptography/zk-nym/zk-nym-overview), a combination of the Coconut Selective Disclosure Credential and Offline Ecash schemes.
+
+This is important for both the proper decentralisation of the network uptime calculation and, more pressingly, enabling the NymVPN to utilise privacy preserving payments.

@@ -1,0 +1,161 @@
+import { Callout } from 'nextra/components';
+
+# `mixFetch`
+
+An easy way to secure parts or all of your web app is to replace calls to [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) with `mixFetch`:
+
+MixFetch works the same as vanilla `fetch` as it's a proxied wrapper around the original function.
+Sounds great, are there any catches? Well, there are a few (for now):
+
+- CA certificates in `mixFetch` are periodically updated, so if you get a certificate error, the root certificate you need might not be valid. If that's the case, [send a PR](https://github.com/nymtech/nym/pulls) if you need changes to the Certificates.
+
+- If you are using `mixFetch` in a web app with HTTPS you will need to use a gateway that has Secure Websockets to avoid getting a [mixed content](https://developer.mozilla.org/en-US/docs/Web/Security/Mixed_content) error.
+
+- For now, `mixfetch` doesn't work with SURBS, although this will change in the future.
+
+- For now, `mixFetch` cannot deal with concurrent requests with the same base URL.
+
+Read [this article](https://blog.nymtech.net/mixfetch-like-the-fetch-api-but-via-the-mixnet-82acfd435c62) to learn more.
+
+<Callout type="info" emoji="ℹ️">
+  Right now Gateways are not required to run a Secure Websocket (WSS) listener, so only a subset of nodes running in Gateway mode have configured their nodes to do so.
+
+For the moment you have to select a Gateway that has WSS enabled and Network Requester from [Harbourmaster Gateways for mixFetch list](https://harbourmaster.nymtech.net/).
+
+```
+curl -X 'GET' \
+'https://validator.nymtech.net/api/v1/gateways/described' \
+-H 'accept: application/json'
+```
+
+</Callout>
+
+```ts
+// For mainnet
+import type { SetupMixFetchOps } from '@nymproject/mix-fetch';
+
+const mixFetchOptions: SetupMixFetchOps = {
+  preferredGateway: '6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B', // with WSS
+  preferredNetworkRequester:
+    '8rRGWy54oC8drFL9DepMegBt2DLrsqQwCoHMXt9nsnTo.2XjCPVbb4FpQ9hNRcXwb9mTzEAVVk1zf1tcch3wdtNEA@6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B',
+  mixFetchOverride: {
+    requestTimeoutMs: 60_000,
+  },
+  forceTls: true, // force WSS
+  extra: {},
+};
+```
+
+##### Environment Setup
+
+Begin by creating a directory and configuring your application environment:
+
+```bash
+npm create vite@latest
+```
+
+During the environment setup, choose React and subsequently opt for Typescript if you want your application to function smoothly following this tutorial. Next, navigate to your application directory and run the following commands:
+
+```bash
+cd < YOUR_APP >
+npm i
+npm run dev
+```
+
+##### Installation
+
+Install the required package:
+
+```bash
+npm install @nymproject/mix-fetch-full-fat
+```
+
+##### Imports
+
+In the `src` folder, open the `App.tsx` file and delete all the code.
+
+Import the client in your app:
+
+```js
+import { mixFetch } from '@nymproject/mix-fetch-full-fat';
+```
+
+##### Example: using the `mixFetch` client:
+
+`Get` and `Post` outputs will be observable from your console.
+
+```ts
+import './App.css';
+import { mixFetch, SetupMixFetchOps } from '@nymproject/mix-fetch-full-fat';
+import React from 'react';
+
+const mixFetchOptions: SetupMixFetchOps = {
+  preferredGateway: '6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B', // with WSS
+  preferredNetworkRequester:
+    '8rRGWy54oC8drFL9DepMegBt2DLrsqQwCoHMXt9nsnTo.2XjCPVbb4FpQ9hNRcXwb9mTzEAVVk1zf1tcch3wdtNEA@6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B',
+  mixFetchOverride: {
+    requestTimeoutMs: 60_000,
+  },
+  forceTls: true, // force WSS
+  extra: {},
+};
+
+export function HttpGET() {
+  const [html, setHtml] = React.useState('');
+  async function get() {
+    //Make sure the URL is whitelisted (see 'standard allowed list') otherwise you will get a network requester filter check error
+    const response = await mixFetch('https://nymtech.net/favicon.svg', { mode: 'unsafe-ignore-cors' }, mixFetchOptions);
+    const text = await response.text();
+    console.log('response was', text);
+    setHtml(html);
+  }
+
+  return (
+    <>
+      <button
+        onClick={() => {
+          get();
+        }}
+      >
+        Get
+      </button>
+    </>
+  );
+}
+
+export function HttpPOST() {
+  async function post() {
+    //Make sure the URL is whitelisted (see 'standard allowed list') otherwise you will get a network requester filter check error
+    const apiResponse = await mixFetch(
+      'https://httpbin.org/post',
+      {
+        method: 'POST',
+        body: JSON.stringify({ foo: 'bar' }),
+        headers: { 'Content-Type': 'application/json' },
+      },
+      mixFetchOptions,
+    );
+    console.log(apiResponse);
+  }
+  return (
+    <>
+      <button
+        onClick={() => {
+          post();
+        }}
+      >
+        Post
+      </button>
+    </>
+  );
+}
+
+export default function App() {
+  return (
+    <>
+      <HttpGET />
+      <HttpPOST />
+    </>
+  );
+}
+```

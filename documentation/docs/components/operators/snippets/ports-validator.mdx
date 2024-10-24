@@ -1,0 +1,10 @@
+Open the needed ports for `validator` by running these commands:
+
+```sh
+ufw allow 1317		# REST API server endpoint
+ufw allow 26656		# Listen for incoming peer connections
+ufw allow 26660		# Listen for Prometheus connections
+ufw allow 22		# SSH port
+ufw allow 80		# http port
+ufw allow 443/tcp	# https port
+```

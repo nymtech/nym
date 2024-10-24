@@ -1,0 +1,78 @@
+import { Callout } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+
+# Building from Source
+
+> Nym runs on Mac OS X, Linux, and Windows. All nodes **except the Desktop Wallet and NymConnect** on Windows should be considered experimental - it works fine if you're an app developer but isn't recommended for running nodes.
+
+## Building Nym
+
+Nym has two main codebases:
+
+- the [Nym platform](https://github.com/nymtech/nym), written in Rust. This contains all of our code _except_ for the validators.
+- the [Nym validators](https://github.com/nymtech/nyxd), written in Go.
+
+> This page details how to build the main Nym platform code. **If you want to build and run a validator, [go here](../nodes/validator-setup.md) instead.**
+
+## Prerequisites
+
+- Debian/Ubuntu: `pkg-config`, `build-essential`, `libssl-dev`, `curl`, `jq`, `git`
+
+```sh
+apt install pkg-config build-essential libssl-dev curl jq git
+```
+
+- Arch/Manjaro: `base-devel`
+
+```sh
+pacman -S base-devel
+```
+
+- Mac OS X: `pkg-config` , `brew`, `openss1`, `protobuf`, `curl`, `git`
+Running the following the script installs Homebrew and the above dependencies:
+
+```sh
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+```
+
+- `Rust & cargo >= {{minimum_rust_version}}`
+
+We recommend using the [Rust shell script installer](https://www.rust-lang.org/tools/install). Installing cargo from your package manager (e.g. `apt`) is not recommended as the packaged versions are usually too old.
+
+If you really don't want to use the shell script installer, the [Rust installation docs](https://forge.rust-lang.org/infra/other-installation-methods.html) contain instructions for many platforms.
+
+## Download and Build Nym Binaries
+
+<Callout type="warning" emoji="⚠️">
+You cannot build from GitHub's .zip or .tar.gz archive files on the releases page - the Nym build scripts automatically include the current git commit hash in the built binary during compilation, so the build will fail if you use the archive code (which isn't a Git repository). Check the code out from github using `git clone` instead.
+</Callout>
+
+The following commands will compile binaries into the `nym/target/release` directory:
+
+```sh
+rustup update
+git clone https://github.com/nymtech/nym.git
+cd nym
+
+git reset --hard # in case you made any changes on your branch
+git pull # in case you've checked it out before
+
+git checkout master # master branch has the latest release version: `develop` will most likely be incompatible with deployed public networks
+
+cargo build --release # build your binaries with **mainnet** configuration
+```
+
+Quite a bit of stuff gets built. The key working parts are:
+
+* [Nym Node](../nodes/nym-node/nym-node.mdx): `nym-node`
+* [Validator](../nodes/validator-setup.mdx)
+* [websocket client](https://nymtech.net/developers/clients/websocket-client.html): `nym-client`
+* [socks5 client](https://nymtech.net/developers/clients/socks5-client.html): `nym-socks5-client`
+* [webassembly client](https://nymtech.net/developers/clients/webassembly-client.html): `webassembly-client`
+* [nym-cli tool](https://nymtech.net/docs/tools/nym-cli.html): `nym-cli`
+* [nym-api](../nodes/validator-setup/nym-api.mdx): `nym-api`
+* [nymvisor](../nodes/maintenance/nymvisor-upgrade.mdx): `nymvisor`
+
+The repository also contains Typescript applications which aren't built in this process. These can be built by following the instructions on their respective docs pages.
+* [Nym Wallet](https://nymtech.net/docs/wallet/desktop-wallet.html)
+* [Network Explorer UI](https://nymtech.net/docs/explorers/mixnet-explorer.html)

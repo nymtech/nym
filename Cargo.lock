@@ -5358,7 +5358,6 @@ dependencies = [
 name = "nym-gateway-stats-storage"
 version = "0.1.0"
 dependencies = [
- "log",
  "nym-credentials-interface",
  "nym-sphinx",
  "sqlx",

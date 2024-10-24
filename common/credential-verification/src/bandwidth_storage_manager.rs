@@ -40,6 +40,10 @@ impl<S: Storage + Clone + 'static> BandwidthStorageManager<S> {
         }
     }
 
+    pub async fn available_bandwidth(&self) -> i64 {
+        self.client_bandwidth.available().await
+    }
+
     async fn sync_expiration(&mut self) -> Result<()> {
         self.storage
             .set_expiration(self.client_id, self.client_bandwidth.expiration().await)

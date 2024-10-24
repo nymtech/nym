@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
-use nym_gateway_requests::registration::handshake::shared_key::SharedKeyConversionError;
+use nym_gateway_requests::shared_key::SharedKeyConversionError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -35,6 +35,9 @@ pub enum BadGateway {
         #[source]
         source: SharedKeyConversionError,
     },
+
+    #[error("could not find any valid shared keys for gateway {gateway_id}")]
+    MissingSharedKey { gateway_id: String },
 
     #[error(
         "the listening address of gateway {gateway_id} ({raw_listener}) is malformed: {source}"

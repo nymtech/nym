@@ -1,0 +1,55 @@
+name: Build and upload Network monitor container to harbor.nymte.ch
+on:
+  workflow_dispatch:
+
+env:
+  WORKING_DIRECTORY: "."
+  CONTAINER_NAME: "network-monitor"
+
+jobs:
+  build-container:
+    runs-on: arc-ubuntu-22.04-dind
+    steps:
+      - name: Login to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: harbor.nymte.ch
+          username: ${{ secrets.HARBOR_ROBOT_USERNAME }}
+          password: ${{ secrets.HARBOR_ROBOT_SECRET }}
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure git identity
+        run: |
+          git config --global user.email "lawrence@nymtech.net"
+          git config --global user.name "Lawrence Stalder"
+
+      - name: Get version from package.json
+        uses: sergeysova/jq-action@v2
+        id: get_version
+        with:
+          cmd: jq -r '.version' ${{ env.WORKING_DIRECTORY }}/package.json
+
+      - name: Check if tag exists
+        run: |
+          if git rev-parse ${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then
+            echo "Tag ${{ steps.get_version.outputs.value }} already exists"
+          fi
+
+      - name: Remove existing tag if exists
+        run: |
+          if git rev-parse ${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then
+            git push --delete origin ${{ steps.get_version.outputs.value }}
+            git tag -d ${{ steps.get_version.outputs.value }}
+          fi
+
+      - name: Create tag
+        run: |
+          git tag -a ${{ steps.get_version.outputs.value }} -m "Version ${{ steps.get_version.outputs.value }}"
+          git push origin ${{ steps.get_version.outputs.value }}
+
+      - name: BuildAndPushImageOnHarbor
+        run: |
+          docker build -f nym-network-monitor.dockerfile ${{ env.WORKING_DIRECTORY }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.value }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
+          docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags

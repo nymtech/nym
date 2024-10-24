@@ -3,7 +3,7 @@
 
 use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
-use crate::node_status_api::models::AxumResult;
+use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::v2::AxumAppState;
 use axum::{Json, Router};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
@@ -236,10 +236,7 @@ async fn batch_redeem_tickets(
     )
 )]
 async fn double_spending_filter_v1(
-    state: Arc<EcashState>,
+    _state: Arc<EcashState>,
 ) -> AxumResult<Json<SpentCredentialsResponse>> {
-    let spent_credentials_export = state.get_bloomfilter_bytes().await;
-    Ok(Json(SpentCredentialsResponse::new(
-        spent_credentials_export,
-    )))
+    AxumResult::Err(AxumErrorResponse::internal_msg("permanently restricted"))
 }

@@ -20,7 +20,8 @@ use nym_credential_verification::{
 };
 use nym_gateway_requests::{
     types::{BinaryRequest, ServerResponse},
-    ClientControlRequest, GatewayRequestsError, SimpleGatewayRequestsError,
+    ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
+    SimpleGatewayRequestsError,
 };
 use nym_gateway_storage::{error::StorageError, Storage};
 use nym_sphinx::forwarding::packet::MixPacket;
@@ -43,8 +44,20 @@ pub enum RequestHandlingError {
     )]
     MissingClientBandwidthEntry { client_address: String },
 
+    #[error("received a binary request of an unknown type")]
+    UnknownBinaryRequest,
+
+    #[error("received a text request of an unknown type")]
+    UnknownTextRequest,
+
+    #[error("received an encrypted text request of an unknown type")]
+    UnknownEncryptedTextRequest,
+
     #[error("Provided binary request was malformed - {0}")]
     InvalidBinaryRequest(#[from] GatewayRequestsError),
+
+    #[error("failed to decrypt provided text request")]
+    InvalidEncryptedTextRequest,
 
     #[error("Provided binary request was malformed - {0}")]
     InvalidTextRequest(<ClientControlRequest as TryFrom<String>>::Error),
@@ -112,6 +125,12 @@ impl IntoWSMessage for Result<ServerResponse, RequestHandlingError> {
             Ok(response) => response.into(),
             Err(err) => err.into_error_message(),
         }
+    }
+}
+
+impl IntoWSMessage for ServerResponse {
+    fn into_ws_message(self) -> Message {
+        self.into()
     }
 }
 
@@ -280,11 +299,58 @@ where
             }
             Ok(request) => match request {
                 // currently only a single type exists
-                BinaryRequest::ForwardSphinx(mix_packet) => self
-                    .handle_forward_sphinx(mix_packet)
-                    .await
-                    .into_ws_message(),
+                BinaryRequest::ForwardSphinx { packet } => {
+                    self.handle_forward_sphinx(packet).await.into_ws_message()
+                }
+                _ => RequestHandlingError::UnknownBinaryRequest.into_error_message(),
             },
+        }
+    }
+
+    async fn handle_key_upgrade(
+        &mut self,
+        hkdf_salt: Vec<u8>,
+        client_key_digest: Vec<u8>,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        if !self.client.shared_keys.is_legacy() {
+            return Ok(ServerResponse::new_error(
+                "the connection is already using an aes256-gcm-siv key",
+            ));
+        }
+        let legacy_key = self.client.shared_keys.unwrap_legacy();
+        let Some(upgraded_key) = legacy_key.upgrade_verify(&hkdf_salt, &client_key_digest) else {
+            return Ok(ServerResponse::new_error(
+                "failed to derive matching aes256-gcm-siv key",
+            ));
+        };
+
+        let updated_key = upgraded_key.into();
+        self.inner
+            .shared_state
+            .storage
+            .insert_shared_keys(self.client.address, &updated_key)
+            .await?;
+
+        // swap the in-memory key
+        self.client.shared_keys = updated_key;
+        Ok(SensitiveServerResponse::KeyUpgradeAck {}.encrypt(&self.client.shared_keys)?)
+    }
+
+    async fn handle_encrypted_text_request(
+        &mut self,
+        ciphertext: Vec<u8>,
+        nonce: Vec<u8>,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        let Ok(req) = ClientRequest::decrypt(&ciphertext, &nonce, &self.client.shared_keys) else {
+            return Err(RequestHandlingError::InvalidEncryptedTextRequest);
+        };
+
+        match req {
+            ClientRequest::UpgradeKey {
+                hkdf_salt,
+                derived_key_digest,
+            } => self.handle_key_upgrade(hkdf_salt, derived_key_digest).await,
+            _ => Err(RequestHandlingError::UnknownEncryptedTextRequest),
         }
     }
 
@@ -310,11 +376,18 @@ where
         };
 
         match request {
+            ClientControlRequest::EncryptedRequest { ciphertext, nonce } => {
+                self.handle_encrypted_text_request(ciphertext, nonce).await
+            }
             ClientControlRequest::EcashCredential { enc_credential, iv } => {
                 self.handle_ecash_bandwidth(enc_credential, iv).await
             }
-            ClientControlRequest::BandwidthCredential { .. }
-            | ClientControlRequest::BandwidthCredentialV2 { .. } => {
+            ClientControlRequest::BandwidthCredential { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: "coconut credential are not longer supported".into(),
+                })
+            }
+            ClientControlRequest::BandwidthCredentialV2 { .. } => {
                 Err(RequestHandlingError::IllegalRequest {
                     additional_context: "coconut credential are not longer supported".into(),
                 })
@@ -324,12 +397,26 @@ where
                 .handle_claim_testnet_bandwidth()
                 .await
                 .map_err(|e| e.into()),
-            other => Err(RequestHandlingError::IllegalRequest {
-                additional_context: format!(
-                    "received illegal message of type {} in an authenticated client",
-                    other.name()
-                ),
-            }),
+            ClientControlRequest::SupportedProtocol { .. } => {
+                Ok(self.inner.handle_supported_protocol_request())
+            }
+            other @ ClientControlRequest::Authenticate { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: format!(
+                        "received illegal message of type {} in an authenticated client",
+                        other.name()
+                    ),
+                })
+            }
+            other @ ClientControlRequest::RegisterHandshakeInitRequest { .. } => {
+                Err(RequestHandlingError::IllegalRequest {
+                    additional_context: format!(
+                        "received illegal message of type {} in an authenticated client",
+                        other.name()
+                    ),
+                })
+            }
+            _ => Err(RequestHandlingError::UnknownTextRequest),
         }
         .inspect(|res| debug!(response = ?res, "success"))
         .inspect_err(|err| debug!(error = %err, "failure"))

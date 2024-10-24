@@ -16,17 +16,21 @@ bincode = { workspace = true }
 chrono = { workspace = true }
 dashmap = { workspace = true }
 defguard_wireguard_rs = { workspace = true }
+futures = { workspace = true }
 # The latest version on crates.io at the time of writing this (6.0.0) has a
 # version mismatch with x25519-dalek/curve25519-dalek that is resolved in the
 # latest commit. So pick that for now.
 x25519-dalek = { workspace = true }
 ip_network = { workspace = true }
 log.workspace = true
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
+tokio-stream = { workspace = true }
+
+nym-authenticator-requests = { path = "../authenticator-requests" }
+nym-credential-verification = { path = "../credential-verification" }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-gateway-storage = { path = "../gateway-storage" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }
-thiserror = { workspace = true }
-tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
-tokio-stream = { workspace = true }

@@ -81,6 +81,7 @@ members = [
     "common/nyxd-scraper",
     "common/pemstore",
     "common/serde-helpers",
+    "common/service-provider-requests-common",
     "common/socks5-client-core",
     "common/socks5/proxy-helpers",
     "common/socks5/requests",
@@ -102,6 +103,9 @@ members = [
     "mixnode",
     "sdk/lib/socks5-listener",
     "sdk/rust/nym-sdk",
+    "sdk/ffi/shared",
+    "sdk/ffi/go",
+    "sdk/ffi/cpp",
     "service-providers/authenticator",
     "service-providers/common",
     "service-providers/ip-packet-router",
@@ -110,11 +114,13 @@ members = [
     "nym-api",
     "nym-browser-extension/storage",
     "nym-api/nym-api-requests",
+    "nym-data-observatory",
     "nym-node",
     "nym-node/nym-node-http-api",
     "nym-node/nym-node-requests",
     "nym-outfox",
     "nym-validator-rewarder",
+    "tools/echo-server",
     "tools/internal/ssl-inject",
     # "tools/internal/sdk-version-bump",
     "tools/internal/testnet-manager",
@@ -129,6 +135,9 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
+    "tools/internal/testnet-manager",
+    "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/echo-server",
 ]
 
 default-members = [
@@ -138,6 +147,7 @@ default-members = [
     "gateway",
     "mixnode",
     "nym-api",
+    "nym-data-observatory",
     "nym-node",
     "nym-validator-rewarder",
     "service-providers/authenticator",
@@ -152,7 +162,6 @@ exclude = [
     "nym-wallet",
     "nym-vpn/ui/src-tauri",
     "cpu-cycles",
-    "sdk/ffi/cpp",
 ]
 
 [workspace.package]
@@ -169,7 +178,9 @@ readme = "README.md"
 addr = "0.15.6"
 aes = "0.8.1"
 aes-gcm = "0.10.1"
-anyhow = "1.0.87"
+aes-gcm-siv = "0.11.1"
+aead = "0.5.2"
+anyhow = "1.0.89"
 argon2 = "0.5.0"
 async-trait = "0.1.82"
 axum = "0.7.5"
@@ -198,7 +209,7 @@ clap = "4.5.17"
 clap_complete = "4.5"
 clap_complete_fig = "4.5"
 colored = "2.0"
-comfy-table = "6.0.0"
+comfy-table = "7.1.1"
 console = "0.15.8"
 console-subscriber = "0.1.1"
 console_error_panic_hook = "0.1"
@@ -225,7 +236,7 @@ flate2 = "1.0.33"
 futures = "0.3.28"
 generic-array = "0.14.7"
 getrandom = "0.2.10"
-getset = "0.1.1"
+getset = "0.1.3"
 handlebars = "3.5.5"
 headers = "0.4.0"
 hex = "0.4.3"
@@ -233,10 +244,12 @@ hex-literal = "0.3.3"
 hkdf = "0.12.3"
 hmac = "0.12.1"
 http = "1"
+http-body-util = "0.1"
 httpcodec = "0.2.3"
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
-hyper = "1.3.1"
+hyper = "1.4.1"
+hyper-util = "0.1"
 indicatif = "0.17.8"
 inquire = "0.6.2"
 ip_network = "0.4.1"
@@ -275,7 +288,7 @@ reqwest = { version = "0.12.4", default-features = false }
 rocket = "0.5.0"
 rocket_cors = "0.6.0"
 rocket_okapi = "0.8.0"
-safer-ffi = "0.1.12"
+safer-ffi = "0.1.13"
 schemars = "0.8.21"
 semver = "1.0.23"
 serde = "1.0.210"
@@ -289,10 +302,10 @@ sha2 = "0.10.8"
 si-scale = "0.2.3"
 sphinx-packet = "0.1.1"
 sqlx = "0.6.3"
-strum = "0.25"
+strum = "0.26"
 subtle-encoding = "0.5"
 syn = "1"
-sysinfo = "0.30.12"
+sysinfo = "0.30.13"
 tap = "1.0.1"
 tar = "0.4.41"
 tempfile = "3.5.0"
@@ -301,6 +314,7 @@ time = "0.3.30"
 tokio = "1.39"
 tokio-stream = "0.1.16"
 tokio-test = "0.4.4"
+tokio-tun = "0.11.5"
 tokio-tungstenite = { version = "0.20.1" }
 tokio-util = "0.7.12"
 toml = "0.8.14"
@@ -314,7 +328,6 @@ ts-rs = "7.0.0"
 tungstenite = { version = "0.20.1", default-features = false }
 url = "2.5"
 utoipa = "4.2"
-utoipa-rapidoc = "4.0"
 utoipa-swagger-ui = "7.1"
 utoipauto = "0.1"
 uuid = "*"
@@ -335,7 +348,6 @@ group = { version = "0.13.0", default-features = false }
 ff = { version = "0.13.0", default-features = false }
 
 # cosmwasm-related
-cosmwasm-derive = "=1.4.3"
 cosmwasm-schema = "=1.4.3"
 cosmwasm-std = "=1.4.3"
 # use 0.5.0 as that's the version used by cosmwasm-std 1.4.3

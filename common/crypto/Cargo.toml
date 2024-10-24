@@ -8,7 +8,9 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
+aes-gcm-siv = { workspace = true, optional = true }
 aes = { workspace = true, optional = true }
+aead = { workspace = true, optional = true }
 bs58 = { workspace = true }
 blake3 = { workspace = true, features = ["traits-preview"], optional = true }
 ctr = { workspace = true, optional = true }
@@ -21,7 +23,7 @@ x25519-dalek = { workspace = true, features = ["static_secrets"], optional = tru
 ed25519-dalek = { workspace = true, features = ["rand_core"], optional = true }
 rand = { workspace = true, optional = true }
 serde_bytes = { workspace = true, optional = true }
-serde = { version = "1.0", optional = true, default-features = false, features = ["derive"] }
+serde = { workspace = true, features = ["derive"], optional = true }
 subtle-encoding = { workspace = true, features = ["bech32-preview"] }
 thiserror = { workspace = true }
 zeroize = { workspace = true, optional = true, features = ["zeroize_derive"] }
@@ -35,9 +37,10 @@ rand_chacha = { workspace = true }
 
 [features]
 default = ["sphinx"]
+aead = ["dep:aead", "aead/std", "aes-gcm-siv", "generic-array"]
 serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
 asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize"]
 hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array"]
-symmetric = ["aes", "ctr", "cipher", "generic-array"]
+stream_cipher = ["aes", "ctr", "cipher", "generic-array"]
 sphinx = ["nym-sphinx-types/sphinx"]
 outfox = ["nym-sphinx-types/outfox"]

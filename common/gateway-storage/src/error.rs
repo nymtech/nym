@@ -11,6 +11,9 @@ pub enum StorageError {
     #[error("Failed to perform database migration: {0}")]
     MigrationError(#[from] sqlx::migrate::MigrateError),
 
+    #[error("could not find any valid shared keys for under id {id}")]
+    MissingSharedKey { id: i64 },
+
     #[error("Somehow stored data is incorrect: {0}")]
     DataCorruption(String),
 

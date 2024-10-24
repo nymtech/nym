@@ -2,24 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_sdk::TaskClient;
-use nym_wireguard::peer_controller::{PeerControlRequest, PeerControlResponse};
+use nym_wireguard::peer_controller::{
+    AddPeerControlResponse, PeerControlRequest, QueryBandwidthControlResponse,
+    QueryPeerControlResponse, RemovePeerControlResponse,
+};
 use tokio::sync::mpsc;
 
 pub struct DummyHandler {
-    peer_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
-    response_tx: mpsc::UnboundedSender<PeerControlResponse>,
+    peer_rx: mpsc::Receiver<PeerControlRequest>,
     task_client: TaskClient,
 }
 
 impl DummyHandler {
-    pub fn new(
-        peer_rx: mpsc::UnboundedReceiver<PeerControlRequest>,
-        response_tx: mpsc::UnboundedSender<PeerControlResponse>,
-        task_client: TaskClient,
-    ) -> Self {
+    pub fn new(peer_rx: mpsc::Receiver<PeerControlRequest>, task_client: TaskClient) -> Self {
         DummyHandler {
             peer_rx,
-            response_tx,
             task_client,
         }
     }
@@ -30,21 +27,21 @@ impl DummyHandler {
                 msg = self.peer_rx.recv() => {
                     if let Some(msg) = msg {
                         match msg {
-                            PeerControlRequest::AddPeer(peer) => {
-                                log::info!("[DUMMY] Adding peer {:?}", peer);
-                                self.response_tx.send(PeerControlResponse::AddPeer { success: true }).ok();
+                            PeerControlRequest::AddPeer { peer, ticket_validation, response_tx } => {
+                                log::info!("[DUMMY] Adding peer {:?} with ticket validation {}", peer, ticket_validation);
+                                response_tx.send(AddPeerControlResponse { success: true, client_id: None }).ok();
                             }
-                            PeerControlRequest::RemovePeer(key) => {
+                            PeerControlRequest::RemovePeer { key, response_tx } => {
                                 log::info!("[DUMMY] Removing peer {:?}", key);
-                                self.response_tx.send(PeerControlResponse::RemovePeer { success: true }).ok();
+                                response_tx.send(RemovePeerControlResponse { success: true }).ok();
                             }
-                            PeerControlRequest::QueryPeer(key) => {
+                            PeerControlRequest::QueryPeer{key, response_tx} => {
                                 log::info!("[DUMMY] Querying peer {:?}", key);
-                                self.response_tx.send(PeerControlResponse::QueryPeer { success: false, peer: None }).ok();
+                                response_tx.send(QueryPeerControlResponse { success: true, peer: None }).ok();
                             }
-                            PeerControlRequest::QueryBandwidth(key) => {
+                            PeerControlRequest::QueryBandwidth{key, response_tx} => {
                                 log::info!("[DUMMY] Querying bandwidth for peer {:?}", key);
-                                self.response_tx.send(PeerControlResponse::QueryBandwidth { bandwidth_data: None }).ok();
+                                response_tx.send(QueryBandwidthControlResponse { success: true, bandwidth_data: None }).ok();
                             }
                         }
                     } else {

@@ -37,7 +37,7 @@ use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
 use std::sync::Arc;
-use tokio::sync::mpsc::UnboundedReceiver;
+use tokio::sync::mpsc;
 use tracing::{debug, error, info, trace};
 use zeroize::Zeroizing;
 
@@ -274,7 +274,7 @@ impl ExitGatewayData {
 
 pub struct WireguardData {
     inner: WireguardGatewayData,
-    peer_rx: UnboundedReceiver<PeerControlRequest>,
+    peer_rx: mpsc::Receiver<PeerControlRequest>,
 }
 
 impl WireguardData {

@@ -1,8 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::registration::{RegistrationData, RegistredData, RemainingBandwidthData};
 use nym_sphinx::addressing::Recipient;
-use nym_wireguard_types::registration::{RegistrationData, RegistredData, RemainingBandwidthData};
 use serde::{Deserialize, Serialize};
 
 use crate::make_bincode_serializer;

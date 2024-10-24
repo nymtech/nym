@@ -20,12 +20,12 @@ impl SharedKeysManager {
 
     pub(crate) async fn client_id(&self, client_address_bs58: &str) -> Result<i64, sqlx::Error> {
         let client_id = sqlx::query!(
-            "SELECT id FROM shared_keys WHERE client_address_bs58 = ?",
+            "SELECT client_id FROM shared_keys WHERE client_address_bs58 = ?",
             client_address_bs58
         )
         .fetch_one(&self.connection_pool)
         .await?
-        .id;
+        .client_id;
         Ok(client_id)
     }
 
@@ -34,26 +34,38 @@ impl SharedKeysManager {
     ///
     /// # Arguments
     ///
-    /// * `shared_keys`: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
+    /// * `client_id`: The client id for which the shared keys are stored
+    /// * `client_address_bs58`: base58-encoded address of the client
+    /// * `derived_aes128_ctr_blake3_hmac_keys_bs58`: shared encryption (AES128CTR) and mac (hmac-blake3) derived shared keys to store.
     pub(crate) async fn insert_shared_keys(
         &self,
+        client_id: i64,
         client_address_bs58: String,
-        derived_aes128_ctr_blake3_hmac_keys_bs58: String,
-    ) -> Result<i64, sqlx::Error> {
+        derived_aes128_ctr_blake3_hmac_keys_bs58: Option<&String>,
+        derived_aes256_gcm_siv_key: Option<&Vec<u8>>,
+    ) -> Result<(), sqlx::Error> {
         // https://stackoverflow.com/a/20310838
         // we don't want to be using `INSERT OR REPLACE INTO` due to the foreign key on `available_bandwidth` if the entry already exists
         sqlx::query!(
             r#"
-                INSERT OR IGNORE INTO shared_keys(client_address_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58) VALUES (?, ?);
-                UPDATE shared_keys SET derived_aes128_ctr_blake3_hmac_keys_bs58 = ? WHERE client_address_bs58 = ?
+                INSERT OR IGNORE INTO shared_keys(client_id, client_address_bs58, derived_aes128_ctr_blake3_hmac_keys_bs58, derived_aes256_gcm_siv_key) VALUES (?, ?, ?, ?);
+
+                UPDATE shared_keys
+                SET
+                    derived_aes128_ctr_blake3_hmac_keys_bs58 = ?,
+                    derived_aes256_gcm_siv_key = ?
+                WHERE client_address_bs58 = ?
             "#,
+            client_id,
             client_address_bs58,
             derived_aes128_ctr_blake3_hmac_keys_bs58,
+            derived_aes256_gcm_siv_key,
             derived_aes128_ctr_blake3_hmac_keys_bs58,
+            derived_aes256_gcm_siv_key,
             client_address_bs58,
         ).execute(&self.connection_pool).await?;
 
-        self.client_id(&client_address_bs58).await
+        Ok(())
     }
 
     /// Tries to retrieve shared keys stored for the particular client.

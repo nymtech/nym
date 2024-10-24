@@ -9,7 +9,7 @@ license = { workspace = true }
 repository = { workspace = true }
 
 [dependencies]
-bs58 = "0.5.1"
+bs58 = { workspace = true }
 cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-controllers = { workspace = true }

@@ -40,11 +40,24 @@ zeroize = { workspace = true }
 
 futures = { workspace = true }
 log = { workspace = true }
-rand = { workspace = true }
+rand = { workspace = true, features = ["small_rng"] }
 tap = { workspace = true }
 thiserror = { workspace = true }
 url = { workspace = true }
-toml = "0.5.10"
+toml = { workspace = true }
+
+# tcpproxy dependencies
+anyhow.workspace = true
+dashmap.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tokio-util.workspace = true
+uuid = { version = "1", features = ["v4", "serde"] }
+bincode = "1.0"
+serde = { version = "1", features = ["derive"] }
+tracing.workspace = true
+tracing-subscriber = "0.3"
+dirs.workspace = true
 
 [dev-dependencies]
 anyhow = { workspace = true }

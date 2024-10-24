@@ -3,82 +3,74 @@
 
 use crate::error::*;
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
+use futures::channel::oneshot;
+use nym_authenticator_requests::v2::registration::{GatewayClient, RemainingBandwidthData};
 use nym_wireguard::{
-    peer_controller::{PeerControlRequest, PeerControlResponse},
+    peer_controller::{
+        AddPeerControlResponse, PeerControlRequest, QueryBandwidthControlResponse,
+        QueryPeerControlResponse, RemovePeerControlResponse,
+    },
     WireguardGatewayData,
 };
-use nym_wireguard_types::{registration::RemainingBandwidthData, GatewayClient, PeerPublicKey};
-use tokio::sync::mpsc::UnboundedReceiver;
+use nym_wireguard_types::PeerPublicKey;
 
 pub struct PeerManager {
     pub(crate) wireguard_gateway_data: WireguardGatewayData,
-
-    pub(crate) response_rx: UnboundedReceiver<PeerControlResponse>,
 }
 
 impl PeerManager {
-    pub fn new(
-        wireguard_gateway_data: WireguardGatewayData,
-        response_rx: UnboundedReceiver<PeerControlResponse>,
-    ) -> Self {
+    pub fn new(wireguard_gateway_data: WireguardGatewayData) -> Self {
         PeerManager {
             wireguard_gateway_data,
-            response_rx,
         }
     }
-    pub async fn add_peer(&mut self, client: &GatewayClient) -> Result<()> {
+    pub async fn add_peer(
+        &mut self,
+        client: &GatewayClient,
+        ticket_validation: bool,
+    ) -> Result<Option<i64>> {
         let mut peer = Peer::new(Key::new(client.pub_key.to_bytes()));
+        let (response_tx, response_rx) = oneshot::channel();
         peer.allowed_ips
             .push(IpAddrMask::new(client.private_ip, 32));
-        let msg = PeerControlRequest::AddPeer(peer);
+        let msg = PeerControlRequest::AddPeer {
+            peer,
+            ticket_validation,
+            response_tx,
+        };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
+            .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let PeerControlResponse::AddPeer { success } =
-            self.response_rx
-                .recv()
-                .await
-                .ok_or(AuthenticatorError::InternalError(
-                    "no response for add peer".to_string(),
-                ))?
-        else {
-            return Err(AuthenticatorError::InternalError(
-                "unexpected response type".to_string(),
-            ));
-        };
+        let AddPeerControlResponse { success, client_id } = response_rx.await.map_err(|_| {
+            AuthenticatorError::InternalError("no response for add peer".to_string())
+        })?;
         if !success {
             return Err(AuthenticatorError::InternalError(
                 "adding peer could not be performed".to_string(),
             ));
         }
-        Ok(())
+        Ok(client_id)
     }
 
-    pub async fn _remove_peer(&mut self, client: &GatewayClient) -> Result<()> {
+    pub async fn remove_peer(&mut self, client: &GatewayClient) -> Result<()> {
         let key = Key::new(client.pub_key().to_bytes());
-        let msg = PeerControlRequest::RemovePeer(key);
+        let (response_tx, response_rx) = oneshot::channel();
+        let msg = PeerControlRequest::RemovePeer { key, response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
+            .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let PeerControlResponse::RemovePeer { success } =
-            self.response_rx
-                .recv()
-                .await
-                .ok_or(AuthenticatorError::InternalError(
-                    "no response for add peer".to_string(),
-                ))?
-        else {
-            return Err(AuthenticatorError::InternalError(
-                "unexpected response type".to_string(),
-            ));
-        };
+        let RemovePeerControlResponse { success } = response_rx.await.map_err(|_| {
+            AuthenticatorError::InternalError("no response for add peer".to_string())
+        })?;
         if !success {
             return Err(AuthenticatorError::InternalError(
-                "adding peer could not be performed".to_string(),
+                "removing peer could not be performed".to_string(),
             ));
         }
         Ok(())
@@ -86,24 +78,17 @@ impl PeerManager {
 
     pub async fn query_peer(&mut self, public_key: PeerPublicKey) -> Result<Option<Peer>> {
         let key = Key::new(public_key.to_bytes());
-        let msg = PeerControlRequest::QueryPeer(key);
+        let (response_tx, response_rx) = oneshot::channel();
+        let msg = PeerControlRequest::QueryPeer { key, response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
+            .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let PeerControlResponse::QueryPeer { success, peer } = self
-            .response_rx
-            .recv()
-            .await
-            .ok_or(AuthenticatorError::InternalError(
-                "no response for query peer".to_string(),
-            ))?
-        else {
-            return Err(AuthenticatorError::InternalError(
-                "unexpected response type".to_string(),
-            ));
-        };
+        let QueryPeerControlResponse { success, peer } = response_rx.await.map_err(|_| {
+            AuthenticatorError::InternalError("no response for query peer".to_string())
+        })?;
         if !success {
             return Err(AuthenticatorError::InternalError(
                 "querying peer could not be performed".to_string(),
@@ -117,24 +102,25 @@ impl PeerManager {
         peer_public_key: PeerPublicKey,
     ) -> Result<Option<RemainingBandwidthData>> {
         let key = Key::new(peer_public_key.to_bytes());
-        let msg = PeerControlRequest::QueryBandwidth(key);
+        let (response_tx, response_rx) = oneshot::channel();
+        let msg = PeerControlRequest::QueryBandwidth { key, response_tx };
         self.wireguard_gateway_data
             .peer_tx()
             .send(msg)
+            .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let PeerControlResponse::QueryBandwidth { bandwidth_data } = self
-            .response_rx
-            .recv()
+        let QueryBandwidthControlResponse {
+            success,
+            bandwidth_data,
+        } = response_rx
             .await
-            .ok_or(AuthenticatorError::InternalError(
-                "no response for query".to_string(),
-            ))?
-        else {
+            .map_err(|_| AuthenticatorError::InternalError("no response for query".to_string()))?;
+        if !success {
             return Err(AuthenticatorError::InternalError(
-                "unexpected response type".to_string(),
+                "querying bandwidth could not be performed".to_string(),
             ));
-        };
+        }
         Ok(bandwidth_data)
     }
 }

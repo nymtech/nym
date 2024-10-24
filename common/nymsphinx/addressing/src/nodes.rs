@@ -12,6 +12,8 @@ use thiserror::Error;
 pub type NodeIdentity = identity::PublicKey;
 pub const NODE_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
 
+/// Encodoing and decoding node routing information.
+///
 /// This module is responsible for encoding and decoding node routing information, so that
 /// they could be later put into an appropriate field in a sphinx header.
 /// Currently, that routing information is an IP address, but in principle it can be anything

@@ -3,9 +3,18 @@
 ## Building from source
 
 You will need to have the Rust WASM toolchain installed. Please [follow the instructions here](https://rustwasm.github.io/docs/book/game-of-life/setup.html)
-to install `wasm-pack`.
+to install `wasm-pack`. Make sure you also have `wasm-opt` installed, in case it was not installed with `wasm-pack`.
 
 Make sure you have either Node 16 LTS or Node 18 LTS installed and are using it to do the build.
+
+From the **root of the monorepo** (aka `home/path/to/nym/`) run:
+
+```
+yarn dev:on
+yarn build:wasm
+```
+
+Then `cd` here.
 
 Change the monorepo settings to include the examples directory:
 
@@ -19,7 +28,6 @@ to:
   "workspaces": [
     "sdk/typescript/**",
 ```
-
 
 Run these commands to build the SDK from `sdk/typescript/packages/sdk`:
 

@@ -246,6 +246,7 @@ impl<St> Gateway<St> {
         &mut self,
         forwarding_channel: MixForwardingSender,
         shutdown: TaskClient,
+        ecash_verifier: Arc<EcashManager<St>>,
     ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>>
     where
         St: Storage + Clone + 'static,
@@ -256,7 +257,6 @@ impl<St> Gateway<St> {
             .ok_or(GatewayError::UnspecifiedAuthenticatorConfig)?;
         let (router_tx, mut router_rx) = oneshot::channel();
         let (auth_mix_sender, auth_mix_receiver) = mpsc::unbounded();
-        let (peer_response_tx, peer_response_rx) = tokio::sync::mpsc::unbounded_channel();
         let router_shutdown = shutdown.fork("message_router");
         let transceiver = LocalGateway::new(
             *self.identity_keypair.public_key(),
@@ -286,8 +286,8 @@ impl<St> Gateway<St> {
                 opts.config.clone(),
                 wireguard_data.inner.clone(),
                 used_private_network_ips,
-                peer_response_rx,
             )
+            .with_ecash_verifier(ecash_verifier)
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_shutdown(shutdown.fork("authenticator"))
             .with_wait_for_gateway(true)
@@ -322,7 +322,6 @@ impl<St> Gateway<St> {
                 all_peers,
                 shutdown,
                 wireguard_data,
-                peer_response_tx,
             )
             .await?;
 
@@ -342,6 +341,7 @@ impl<St> Gateway<St> {
         &self,
         _forwarding_channel: MixForwardingSender,
         _shutdown: TaskClient,
+        _ecash_verifier: Arc<EcashManager<St>>,
     ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
         todo!("Authenticator is currently only supported on Linux");
     }
@@ -616,14 +616,16 @@ impl<St> Gateway<St> {
                 .maximum_time_between_redemption,
         };
 
-        let ecash_manager = EcashManager::new(
-            handler_config,
-            nyxd_client,
-            self.identity_keypair.public_key().to_bytes(),
-            shutdown.fork("EcashVerifier"),
-            self.storage.clone(),
-        )
-        .await?;
+        let ecash_verifier = Arc::new(
+            EcashManager::new(
+                handler_config,
+                nyxd_client,
+                self.identity_keypair.public_key().to_bytes(),
+                shutdown.fork("EcashVerifier"),
+                self.storage.clone(),
+            )
+            .await?,
+        );
 
         let mix_forwarding_channel = self.start_packet_forwarder(shutdown.fork("PacketForwarder"));
 
@@ -638,7 +640,7 @@ impl<St> Gateway<St> {
             mix_forwarding_channel.clone(),
             active_clients_store.clone(),
             shutdown.fork("websocket::Listener"),
-            Arc::new(ecash_manager),
+            ecash_verifier.clone(),
         );
 
         let nr_request_filter = if self.config.network_requester.enabled {
@@ -670,7 +672,11 @@ impl<St> Gateway<St> {
 
         let _wg_api = if self.wireguard_data.is_some() {
             let embedded_auth = self
-                .start_authenticator(mix_forwarding_channel, shutdown.fork("authenticator"))
+                .start_authenticator(
+                    mix_forwarding_channel,
+                    shutdown.fork("authenticator"),
+                    ecash_verifier,
+                )
                 .await
                 .map_err(|source| GatewayError::AuthenticatorStartError { source })?;
             active_clients_store.insert_embedded(embedded_auth.handle);

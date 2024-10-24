@@ -320,6 +320,8 @@ impl<'a> TryFrom<&'a nym_contracts_common::dealings::ContractSafeBytes> for Deal
     }
 }
 
+/// Try to recover the verification keys from the provided dealings.
+///
 /// Attempt to run the `VkCombine` algorithm to obtain the public master verification key, `VK`
 /// alongside shares of the verification key, `shvk_{1}`, `shvk_{2}`, ... `svhk_{n}`, where n is the number of receivers.
 ///

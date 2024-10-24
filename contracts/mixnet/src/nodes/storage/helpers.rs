@@ -52,8 +52,8 @@ pub(crate) fn save_assignment(
 
     // update metadata
     let mut metadata = ROLES_METADATA.load(storage, inactive)?;
-    let last = assignment.nodes.last().copied().unwrap_or_default();
-    metadata.set_highest_id(last, assignment.role);
+    let highest_id = assignment.nodes.iter().max().copied().unwrap_or_default();
+    metadata.set_highest_id(highest_id, assignment.role);
     metadata.set_role_count(assignment.role, assignment.nodes.len() as u32);
     if assignment.is_final_assignment() {
         metadata.fully_assigned = true
@@ -140,6 +140,7 @@ pub(crate) fn initialise_storage(storage: &mut dyn Storage) -> Result<(), Mixnet
 mod tests {
     use super::*;
     use crate::support::tests::test_helpers;
+    use crate::support::tests::test_helpers::TestSetup;
 
     #[test]
     fn next_id() {
@@ -148,5 +149,34 @@ mod tests {
         for i in 1u32..1000 {
             assert_eq!(i, next_nymnode_id_counter(deps.as_mut().storage).unwrap());
         }
+    }
+
+    #[test]
+    fn assigning_role_uses_highest_id_even_if_not_sorted() {
+        let mut test = TestSetup::new();
+        let deps = test.deps_mut();
+
+        let sorted = RoleAssignment {
+            role: Role::EntryGateway,
+            nodes: vec![1, 2, 3],
+        };
+
+        let unsorted = RoleAssignment {
+            role: Role::Layer1,
+            nodes: vec![8, 5, 4],
+        };
+
+        save_assignment(deps.storage, sorted).unwrap();
+        save_assignment(deps.storage, unsorted).unwrap();
+
+        let storage = deps.as_ref().storage;
+
+        let active_bucket = ACTIVE_ROLES_BUCKET.load(storage).unwrap();
+        let inactive = active_bucket.other() as u8;
+        let metadata = ROLES_METADATA.load(storage, inactive).unwrap();
+
+        assert_eq!(metadata.entry_gateway_metadata.highest_id, 3);
+        assert_eq!(metadata.layer1_metadata.highest_id, 8);
+        assert_eq!(metadata.highest_rewarded_id(), 8)
     }
 }

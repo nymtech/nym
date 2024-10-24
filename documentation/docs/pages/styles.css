@@ -137,3 +137,8 @@ input:focus-visible {
 a.MuiLink-root {
   color: var(--colorPrimary) !important;
 }
+
+
+.MuiPaper-root.MuiAccordion-root {
+  border-radius: 8px;
+}

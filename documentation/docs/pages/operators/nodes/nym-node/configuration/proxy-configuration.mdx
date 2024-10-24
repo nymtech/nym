@@ -1,7 +1,14 @@
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
-import { Steps } from 'nextra/components'
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+
+export const IndexPage = () => (
+<>
+  An example template for <code>index.html</code> page
+</>
+);
 
 # Reverse Proxy & Web Secure Socket
 
@@ -60,6 +67,8 @@ mkdir -p /var/www/<HOSTNAME>
 
 - Use your own html code (check this [markdown to html tool](https://markdowntohtml.com/)) or copy the template below to a new file called `index.html` located in `/var/www/<HOSTNAME>` directory.
 
+
+<AccordionTemplate name={<IndexPage/>}>
 ```html
 <!DOCTYPE html>
 <html lang="en-US">
@@ -276,6 +285,7 @@ specified IP:port combination. Please be considerate when using these options.</
 </body>
 </html>
 ```
+</AccordionTemplate>
 
 ###### 3. If you used the template above - before you save and close the file, make sure to edit the text, especially the information in these points:
 
@@ -394,7 +404,7 @@ nano /etc/nginx/sites-available/<HOSTNAME>
 ```
 - Paste the text below to the editor and change `<HOSTNAME>` occurrences to your domain name:
 
-```
+```ini
 server {
     listen 80;
     listen [::]:80;
@@ -552,7 +562,7 @@ nano /etc/nginx/sites-available/wss-config-nym
 ```
 - Paste the block below. Don't forget to insert your correct values.
 
-```bash
+```ini
 #############################################################
 # EXCHANGE ALL <HOSTNAME> & <ANNOUNCE_WSS_PORT> VARIABLES ! #
 #############################################################

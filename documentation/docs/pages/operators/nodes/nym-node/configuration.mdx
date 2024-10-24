@@ -1,7 +1,27 @@
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
-import { Steps } from 'nextra/components'
+import { Steps } from 'nextra/components';
+import { AccordionTemplate } from 'components/accordion-template.tsx'
+
+export const ManagerIPOutput = () => (
+  <div>
+    Correct <code>./network_tunnel_manager.sh fetch_and_display_ipv6</code> output
+  </div>
+);
+
+export const ManagerTablesOutput = () => (
+  <div>
+    Correct <code>./network_tunnel_manager.sh check_nymtun_iptables</code> output
+  </div>
+);
+
+export const ShowTun = () => (
+  <div>
+    Correct <code>ip addr show nymtun0</code> output
+  </div>
+);
+
 
 
 # Nym Node Configuration
@@ -220,7 +240,8 @@ For everyone participating in Delegation Program or Service Grant program, this 
 ### Quick IPv6 Check
 
 You can always check IPv6 address and connectivity by using some of these methods:
-
+<br />
+<AccordionTemplate name="Testing IPv6 methods">
 ```sh
 # locally listed IPv6 addresses
 ip -6 addr
@@ -239,6 +260,7 @@ curl -6 https://ipv6.icanhazip.com
 # using telnet
 telnet -6 ipv6.telnetmyip.com
 ```
+</AccordionTemplate>
 
 <Callout type="warning" emoji="⚠️">
 Make sure to keep your IPv4 address enabled while setting up IPv6, as the majority of routing goes through that one!
@@ -292,13 +314,14 @@ chmod +x network_tunnel_manager.sh && \
 ```sh
 ./network_tunnel_manager.sh fetch_and_display_ipv6
 ```
-
+<br />
+<AccordionTemplate name={<ManagerTablesOutput/>}>
 ```sh
-# EXPECTED OUTPUT
 iptables-persistent is already installed.
 Using IPv6 address: 2001:db8:a160::1/112 #the address will be different for you
 operation fetch_ipv6_address_nym_tun completed successfully.
 ```
+</AccordionTemplate>
 
 ###### 4. Check Nymtun IP tables:
 
@@ -309,8 +332,9 @@ operation fetch_ipv6_address_nym_tun completed successfully.
 - If there's no process running it wouldn't return anything.
 - In case you see `nymtun0` but not active, this is probably because you are setting up a new (never bonded) node and not upgrading an existing one.
 
+<br />
+<AccordionTemplate name={<ManagerIPOutput/>}>
 ```sh
-# EXPECTED OUTPUT
 iptables-persistent is already installed.
 network Device: eth0
 ---------------------------------------
@@ -337,6 +361,7 @@ Chain FORWARD (policy DROP 0 packets, 0 bytes)
     0     0 ACCEPT     all      nymtun0 eth0    ::/0                 ::/0
 operation check_nymtun_iptables completed successfully.
 ```
+</AccordionTemplate>
 
 ###### 5. Apply rules for wireguad routing
 
@@ -356,8 +381,9 @@ operation check_nymtun_iptables completed successfully.
 ip addr show nymtun0
 ```
 
+<br />
+<AccordionTemplate name={<ShowTun/>}>
 ```sh
-# EXPECTED OUTPUT
 # your addresses will be different
 8: nymtun0: <POINTOPOINT,MULTICAST,NOARP,UP,LOWER_UP> mtu 1420 qdisc fq_codel state UNKNOWN group default qlen 500
     link/none
@@ -368,6 +394,7 @@ ip addr show nymtun0
     inet6 fe80::ad08:d167:5700:8c7c/64 scope link stable-privacy
        valid_lft forever preferred_lft forever`
 ```
+</AccordionTemplate>
 
 - Validate your IPv6 and IPv4 networking by running a joke test via Mixnet:
 ```sh

@@ -3,6 +3,8 @@ import { Callout } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
 import { Steps } from 'nextra/components';
 import { MyTab } from 'components/generic-tabs.tsx';
+import NodeApiCheckHelp from 'components/outputs/command-outputs/node-api-check-help.md';
+import NodeApiCheckQueryHelp from 'components/outputs/command-outputs/node-api-check-query-help.md'
 
 # Node API Check
 
@@ -120,21 +122,21 @@ Now you are ready to check your node.
 ./node_api_check.py --help
 ```
 
-- Output:
-```python
-<!--cmdrun cd ../../../../scripts && python ./node_api_check.py --help-->
-```
+- Command Output:
+
+<NodeApiCheckHelp />
 
 #### `query_stats`
 
-When you want to see all the options connected to any command, add a `--help` flag after the command of your choice, like in this example:
+When you want to see all the options connected to any command, add a `--help` flag after the command of your choice. Command `query_stats` is the most useful one of this program.
+
 ```sh
 ./node_api_check query_stats --help
 ```
 
-```python
-<!--cmdrun cd ../../../../scripts && python ./node_api_check.py query_stats --help-->
-```
+- Command output:
+
+<NodeApiCheckQueryHelp/ >
 
 The most common usage may be `./node_api_check.py query_stats <ID_KEY>` where `<ID_KEY>` is required, substitute it with node Identity Key.
 

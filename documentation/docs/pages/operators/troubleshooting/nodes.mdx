@@ -32,7 +32,7 @@ We have scripts which automatically include the Git commit hash and Git tag in t
 What to do?
 
 * Follow the instructions in the Binaries section to [build nym from source](../binaries/building-nym.mdx) or [download precompiled binaries](../binaries/pre-build-binaries.mdx)
-* To upgrade, follow the [upgrade instructions](../nodes/maintenance/manual-upgrade/mdx)
+* To upgrade, follow the [upgrade instructions](../nodes/maintenance/manual-upgrade.mdx)
 
 ## General Node Config
 
@@ -104,9 +104,9 @@ First of all check the 'Mixnodes' section of either of the Nym Network Explorers
 * [Mainnet](https://explorer.nymtech.net/)
 * [Sandbox testnet](https://sandbox-explorer.nymtech.net/)
 
-You can also check [Nym Harbourmaster](https://harbourmaster.nymtech.net) which now also includes mixnode mode. 
+You can also check [Nym Harbourmaster](https://harbourmaster.nymtech.net) which now also includes mixnode mode.
 
-There are a few community explorers as well. 
+There are a few community explorers as well.
 
 * [ExploreNYM](https://explorenym.net/)
 * [Mixplorer](https://mixplorer.xyz/)
@@ -319,7 +319,7 @@ Let your Gateway run and follow these steps:
 
 <Steps>
 
-###### 1. Check if your [firewall configuration](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall) 
+###### 1. Check if your [firewall configuration](../nodes/preliminary-steps/vps-setup.mdx#configure-your-firewall)
 
 - If `ufw` is active and if the necessary ports are open / allowed, including the ones for Swagger page and Reversed proxy/WSS if this is your case.
 
@@ -365,7 +365,7 @@ If your logs show that your Node has `cover down: 0.00` that means that the embe
 
 ###### 6. [Check out if your `syslog`s](vps-isp.mdx#pruning-logs) aren't eating all your disk space and prune them
 
-###### 7. When all problems are addressed: Restart the node service 
+###### 7. When all problems are addressed: Restart the node service
 
 Don't forget `systemctl daemon-reload`) and wait until your node gets above 50% of performance (average of last 24h) - this will likely take 24-48 hours. During this time your node is tested by `nym-api` and every positive response picks up your routing score.
 

@@ -228,14 +228,24 @@ impl EpochAdvancer {
             )
         }
 
-        Ok(RewardedSet {
+        let mut rewarded_set = RewardedSet {
             entry_gateways: entry_gateways.into_iter().collect(),
             exit_gateways: exit_gateways.into_iter().collect(),
             layer1,
             layer2,
             layer3,
             standby,
-        })
+        };
+
+        // make sure to sort the rewarded set values
+        rewarded_set.entry_gateways.sort();
+        rewarded_set.exit_gateways.sort();
+        rewarded_set.layer1.sort();
+        rewarded_set.layer2.sort();
+        rewarded_set.layer3.sort();
+        rewarded_set.standby.sort();
+
+        Ok(rewarded_set)
     }
 
     async fn attach_performance_to_eligible_nodes(

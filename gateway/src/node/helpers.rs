@@ -5,6 +5,7 @@ use crate::config::Config;
 use crate::error::GatewayError;
 
 use nym_crypto::asymmetric::encryption;
+use nym_gateway_stats_storage::PersistentStatsStorage;
 use nym_gateway_storage::PersistentStorage;
 use nym_pemstore::traits::PemStorableKeyPair;
 use nym_pemstore::KeyPairPath;
@@ -72,6 +73,14 @@ pub(crate) async fn initialise_main_storage(
     let retrieval_limit = config.debug.message_retrieval_limit;
 
     Ok(PersistentStorage::init(path, retrieval_limit).await?)
+}
+
+pub(crate) async fn initialise_stats_storage(
+    config: &Config,
+) -> Result<PersistentStatsStorage, GatewayError> {
+    let path = &config.storage_paths.stats_storage;
+
+    Ok(PersistentStatsStorage::init(path).await?)
 }
 
 pub fn load_keypair<T: PemStorableKeyPair>(

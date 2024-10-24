@@ -10,7 +10,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 # Nym Node Setup & Run
 
-This documentation page provides a guide on how to set up and run a [NYM NODE](nym-node.md), along with explanations of available flags, commands, and examples.
+This documentation page provides a guide on how to set up and run a [NYM NODE](../nym-node.mdx), along with explanations of available flags, commands, and examples.
 
 ## Current version
 
@@ -152,7 +152,7 @@ In such case, you can `run` a node to initalise it or try if everything works, b
 ### Migrate
 
 <Callout type="warning">
-Migration is a must for all deprecated nodes (`nym-mixnode`, `nym-gateway`). For backward compatibility we created an [archive section](../archive/nodes/setup-guides.md) with all the guides for individual binaries. However, the binaries from version 1.1.35 (`nym-gateway`) and 1.1.37 (`nym-mixnode`) onwards will no longer have `init` command.
+Migration is a must for all deprecated nodes (`nym-mixnode`, `nym-gateway`). These binaries from version 1.1.35 (`nym-gateway`) and 1.1.37 (`nym-mixnode`) onwards will no longer have `init` command and `nym-node` is the only binary to use for `gateway` or `mixnode` fucntionalities.
 
 **Nym cannot promise 100% serialisation for operators migrating from long outdated versions to the newest ones. If you are about to migrate, start with  [`nym-node v1.1.0`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.3-eclipse) and keep upgrading version by version all the way to the latest one.**
 </Callout>
@@ -169,4 +169,4 @@ Make sure to use `--deny-init` flag to prevent initialisation of a new node.
 
 If there are any problems checkout the troubleshooting section or report an issue.
 
-Follow up with [configuration](configuration.md) page for automation, reversed proxy setup and other tweaks, then head straight to [bonding](bonding.md) page to finalise your setup.
+Follow up with [configuration](configuration.mdx) page for automation, reversed proxy setup and other tweaks, then head straight to [bonding](bonding.mdx) page to finalise your setup.

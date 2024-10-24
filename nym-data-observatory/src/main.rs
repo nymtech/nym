@@ -55,6 +55,7 @@ async fn main() -> anyhow::Result<()> {
         args.connection_port,
         args.connection_db
     );
+
     let storage = db::Storage::init(connection_url).await?;
     let db_pool = storage.pool_owned().await;
     tokio::spawn(async move {

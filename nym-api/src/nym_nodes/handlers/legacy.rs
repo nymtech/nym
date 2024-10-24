@@ -49,7 +49,7 @@ async fn get_gateways_described(
             .into_iter()
             .map(|bond| LegacyDescribedGateway {
                 self_described: self_descriptions.get_description(&bond.node_id).cloned(),
-                bond,
+                bond: bond.bond,
             })
             .collect(),
     )

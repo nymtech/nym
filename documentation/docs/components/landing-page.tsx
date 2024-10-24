@@ -1,5 +1,8 @@
 import React from "react";
 import { Box, Grid, Typography } from "@mui/material";
+import useMediaQuery from "@mui/material/useMediaQuery";
+import { useTheme } from "@mui/material/styles";
+
 import Image from "next/image";
 import Link from "next/link";
 
@@ -7,8 +10,13 @@ import networkDocs from "./images/network-docs.png";
 import developerDocs from "./images/developer-docs.png";
 import sdkDocs from "./images/sdk-docs.png";
 import operatorGuide from "./images/operator-guide.png";
+import { t } from "nextra/dist/types-c8e621b7";
 
 export const LandingPage = () => {
+  const theme = useTheme();
+  const isTablet = useMediaQuery(theme.breakpoints.up("md"));
+  const isDesktop = useMediaQuery(theme.breakpoints.up("xl"));
+
   const squares = [
     {
       text: "Network Docs",
@@ -41,6 +49,10 @@ export const LandingPage = () => {
     },
   ];
 
+  const shortenDescription = (description: string) => {
+    return description.slice(0, 18) + "...";
+  };
+
   return (
     <Box maxWidth={1200} margin={"0 auto"}>
       <Typography variant="h2" mb={6}>
@@ -60,7 +72,7 @@ export const LandingPage = () => {
             item
             key={index}
             xs={12}
-            md={6}
+            lg={6}
             padding={4}
             width={"100%"}
             sx={{
@@ -92,8 +104,11 @@ export const LandingPage = () => {
                     {square.text}
                   </Typography>
                   <Typography variant="body1" sx={{ color: "#909195" }}>
-                    {square.description}
+                    {isTablet && !isDesktop
+                      ? shortenDescription(square.description)
+                      : square.description}
                   </Typography>
+
                   <Typography sx={{ color: "#ff6600", fontWeight: 600 }}>
                     Open
                   </Typography>
@@ -103,56 +118,6 @@ export const LandingPage = () => {
           </Grid>
         ))}
       </Grid>
-
-      <style jsx>{`
-        .landing-page-container {
-          max-width: 1200px;
-          margin: 0 auto;
-          padding: 2rem 1rem;
-        }
-        .landing-page-intro {
-          font-size: 1.125rem;
-          margin-bottom: 2rem;
-        }
-        .landing-page-grid {
-          display: grid;
-          grid-template-columns: repeat(2, 1fr);
-          gap: 2rem;
-          max-width: 36rem;
-          margin: 0 auto;
-        }
-        .landing-page-square {
-          background-color: #000000;
-          color: white;
-          padding: 1rem;
-          border-radius: 0.5rem;
-          text-align: center;
-          cursor: pointer;
-          text-decoration: none;
-          transition: box-shadow 0.3s ease;
-          aspect-ratio: 1 / 1;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          border: 3px solid #ff6600;
-          box-shadow: 0 0 10px #ff6600;
-        }
-        .landing-page-square:hover {
-          box-shadow: 0 0 20px #ff6600;
-        }
-        .landing-page-icon {
-          width: 12.5rem;
-          height: 12.5rem;
-          margin-bottom: 0.75rem;
-          color: #ff6600;
-        }
-        .landing-page-text {
-          font-size: 0.875rem;
-          font-weight: 600;
-          color: #ff6600;
-        }
-      `}</style>
     </Box>
   );
 };

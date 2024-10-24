@@ -22,30 +22,12 @@ Since SSL certificates can only be issued for a domain name and not an IP addres
 
 <VarInfo />
 
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-| Variable              | Description                                                                                 | Syntax example                                            |
-| :-------------------- | :------------------------------------------------------------------------------------------ | :-------------------------------------------------------- |
-| `<HOSTNAME>`          | Your registered DNS domain, asigned to the VPS with `nym-node`                              | exit-gateway1.squad.nsl                                   |
-| `<WSS_PORT>`          | Port listening to WSS, default is `9001`                                                    | 9001                                                      |
-| `<YOUR_WELCOME_TEXT>` | Any text you want to show on the landing page                                               | Welcome to Nym Node, operator contact is example@email.me |
-| `<LANDING_PAGE_PATH>` | A sub-directory located at `/var/www/<HOSTNAME>` containing html configuration files        | `/var/www/exit-gateway1.squad.nsl`                        |
-| `<ID>`                | A local only `nym-node` identifier, specified by flag `--id`, default is `default-nym-node` | alice_super_node                                          |
-| `<PATH_TO>`           | Specify a full path to the given file, directory or binary behind this variable             | `/root/src/nym/target/release/`                           |
-=======
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
 <Callout type="warning" emoji="⚠️">
 The commands in this setup need to be run with root permission. Either add a prefix `sudo` or execute them from a root shell.
 </Callout>
 
 ## Reverse Proxy Setup
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-
-```admonish info
-This guide was created by a Nym node operator, [Avril 14th](https://avril14th.org) as a part of [Nym Operators Community Counsel](../legal/community-counsel.md), edited by Nym.
-```
-=======
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
 The following snippet needs  be modified as described below according to the public identity that you may want to show on this public notice, i.e. your graphics and your email.
 It would allow you to serve it as a landing page resembling the one proposed by [Tor](https://gitlab.torproject.org/tpo/core/tor/-/raw/HEAD/contrib/operator-tools/tor-exit-notice.html) but with all the changes needed to adhere to the Nym's operators case.
@@ -333,37 +315,24 @@ Now your html page is configured.
 ### `nym-node` Configuration
 
 When done with the customization, you'll need to make sure your `nym-node` uploads the file and reference to it. This is done by opening your node configuration file located at `~/.nym/nym-nodes/<ID>/config/config.toml` and changing the value of the line `landing_page_assets_path` on the `[http]` section:
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-```
-landing_page_assets_path = '<LANDING_PAGE_PATH>'
-=======
 ```toml
 landing_page_assets_path = '<LANDING_PAGE_ASSETS_PATH>'
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 ```
 
 ### Reverse Proxy Configuration
 
 You may set up a [reverse proxy](https://www.nginx.com/resources/glossary/reverse-proxy-server) in order to serve this landing page with proper SSL and DNS management, i.e. to resolve it to `https://<HOSTNAME>`.
 
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-**Configure Nginx**
-=======
 <Steps>
 
 ###### 1. Configure Nginx and firewall
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
 - Install `nginx`:
 ```sh
 sudo apt install nginx
 ```
 
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-1. Setup firewall with `ufw`. `ufw` has three profile pre-configured for `nginx`, we will need the first one for `nym-node`:
-=======
 - Setup firewall with `ufw`. `ufw` has three profile pre-configured for `nginx`, we will need the first one for `nym-node`:
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
   - `Nginx Full`: This profile opens both port 80 (normal, unencrypted web traffic) and port 443 (TLS/SSL encrypted traffic)
   - `Nginx HTTP`: This profile opens only port 80 (normal, unencrypted web traffic)
@@ -379,11 +348,7 @@ ufw status
 ufw reload
 ```
 
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-3. Disable the default Nginx landing page
-=======
 - Disable the default Nginx landing page
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
 ```
 systemctl status nginx
@@ -391,14 +356,9 @@ unlink /etc/nginx/sites-enabled/default
 systemctl restart nginx
 ```
 
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-4. Add your endpoint configuration to Nginx by creating file:
-
-=======
 ###### 2. Add your endpoint configuration to Nginx by creating a config file
 
 - Open file in a text editor
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 ```sh
 nano /etc/nginx/sites-available/<HOSTNAME>
 ```
@@ -420,29 +380,18 @@ server {
     }
 }
 ```
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-This guide assumes that the HTTP port used by you is `8080`. Adjust the configuration accordingly if you have defined
-a custom port for your `nym-node` HTTP connections
-
-5. Activate the configuration by creating a symlink to `/etc/nginx/sites-enabled`:
-=======
 - Note: This guide assumes that the HTTP port used by you is `8080` (recommended default) . Adjust the configuration accordingly if you have defined
 a custom port for your `nym-node` HTTP connections
 
 ###### 3. Activate and test Nginx configuration
 
 - Create a symlink to `/etc/nginx/sites-enabled`:
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
 ```sh
 ln -s /etc/nginx/sites-available/<HOSTNAME> /etc/nginx/sites-enabled
 ```
 
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-6. Test your configuration syntax:
-=======
 - Test your configuration syntax:
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
 ```sh
 nginx -t
@@ -450,11 +399,7 @@ nginx -t
 
 Nginx must report that the config is "ok" and the test was successful.
 
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-7. Restart `nginx`:
-=======
 - Restart `nginx`:
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
 ```sh
 systemctl restart nginx
@@ -469,19 +414,10 @@ certbot --nginx --non-interactive --agree-tos --redirect -m <YOUR_EMAIL_ADDRESS>
 
 - Restart your `nym-node` or if you're running your `nym-node` as a [`systemd` service](../configuration.mdx#systemd), restart your service:
 ```sh
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-systemctl daemon-reload && systemctl restart nym-node
-```
-
-9. Check for the page being served reading the service logs
-```sh
-journalctl -u  nym-node.service | grep 8080
-=======
 systemctl daemon-reload && service nym-node restart
 ```
 
 ###### 5. Verify that your page is working
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
 - Check for the page being served reading the service logs
 ```sh
@@ -501,27 +437,14 @@ Now your `nginx` should be configured, up and running. Test it by inserting your
 This section assumes that you have already configured a reverse proxy and have set it up to work over https. If not, head over to [the reverse proxy section](#reverse-proxy-configuration) to configure it.
 
 We strongly recommend node operators to configure secure web sockets on their nodes. This will provide clients a more secure way to connect to your node.
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-
-You can read more about *Secure Socket Layer* (SSL) in [here](https://www.geeksforgeeks.org/secure-socket-layer-ssl/).
-=======
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
 You can read more about *Secure Socket Layer* (SSL) in [here](https://www.geeksforgeeks.org/secure-socket-layer-ssl/).
 
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-Remember that there may be some unique variables and customization depending on the way your reverse proxy is setup which you may have to adjust when configuring WSS to ensure correct functionality
-
-```admonish tip
-To see description of used variables (noted in `<>` brackets), scroll to the top of this page, chapter [*Variables Explanation*](#variables-explanation).
-```
-=======
 Remember that there may be some unique variables and customization depending on the way your reverse proxy is setup which you may have to adjust when configuring WSS to ensure correct functionality.
 
 <Callout>
 To see description of used variables (noted in `<>` brackets), visit [Variables & Paramteres](https://nymtech.net/docs/operators/variables.html) page.
 </Callout>
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
 #### Firewall configuration
 
@@ -537,20 +460,6 @@ ufw allow <WSS_PORT>/tcp
 #### WSS configuration
 
 This section assumes that you have already configured a reverse proxy and have set it up to work over https. If not, head over to [the reverse proxy section](#reverse-proxy) to configure it.
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-
-1. Create a new Nginx configuration file called `/etc/nginx/sites-available/wss-config-nym` and paste the block below. Don't forget to insert your correct values.
-
-~~~admonish example collapsible=true title="Site configuration `/etc/nginx/sites-available/wss-config-nym`"
-```bash
-#####################################################
-# EXCHANGE ALL <HOSTNAME> & <WSS_PORT> VARIABLES ! #
-####################################################
-
-server {
-    listen <WSS_PORT> ssl http2;
-    listen [::]:<WSS_PORT> ssl http2;
-=======
 
 <Steps>
 
@@ -570,7 +479,6 @@ nano /etc/nginx/sites-available/wss-config-nym
 server {
     listen <ANNOUNCE_WSS_PORT> ssl http2;
     listen [::]:<ANNOUNCE_WSS_PORT> ssl http2;
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 
     server_name <HOSTNAME>;
 
@@ -607,13 +515,9 @@ server {
 }
 ```
 
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-4. Activate the configuration by creating a symlink to `/etc/nginx/sites-enabled`:
-=======
 ###### 2. Activate and test Nginx WSS configuration
 
 - Create a symlink to `/etc/nginx/sites-enabled`:
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 ```sh
 ln -s /etc/nginx/sites-available/wss-config-nym /etc/nginx/sites-enabled
 ```
@@ -626,33 +530,6 @@ nginx -t
 ###### 3. Restart `nginx`
 ```sh
 systemctl restart nginx
-<<<<<<< HEAD:documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.md
-
-```
-
-7. Finally, configure your `nym-node` to announce the port and hostname you have setup.
-
-This is done by opening your node configuration file located at `~/.nym/nym-nodes/<ID>/config/config.toml` and changing the following values :
-
--  `announce_wss_port` in the `[entry_gateway]` section:
-
-```
-announce_wss_port =  <WSS_PORT>
-
-# example
-# announce_wss_port = 9001
-```
-
-- `hostname` in the `[host]` section:
-
-```
-hostname = '<HOSTNAME>'
-```
-
-8. Restart your `nym-node` :
-```sh
-systemctl restart nym-node
-=======
 ```
 
 ###### 4. Finally, configure your `nym-node` to announce the port and hostname of your WSS and restart the node
@@ -674,7 +551,6 @@ hostname = '<HOSTNAME>'
 
 # example
 # hostname = 'exit-gateway1.squad.nsl'
->>>>>>> 937be101d ([DOCs]: Operators rework to next.js (#4930)):documentation/docs/pages/operators/nodes/nym-node/configuration/proxy-configuration.mdx
 ```
 
 - Restart your `nym-node`
@@ -700,3 +576,4 @@ wscat -c wss://<HOSTNAME>:<WSS_PORT>
 ```
 
 - Check Swagger API of your node using the hostname: `https://<HOSTNAME>/api/v1/swagger/#/`
+

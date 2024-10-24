@@ -19,7 +19,7 @@ bs58.workspace = true
 cfg-if = { workspace = true }
 colored.workspace = true
 clap = { workspace = true, features = ["derive", "env"] }
-dotenv.workspace = true
+dotenvy.workspace = true
 futures.workspace = true
 humantime.workspace = true
 rand.workspace = true

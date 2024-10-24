@@ -240,7 +240,6 @@ defguard_wireguard_rs = { git = "https://github.com/DefGuard/wireguard-rs.git", 
 digest = "0.10.7"
 dirs = "5.0"
 doc-comment = "0.3"
-dotenv = "0.15.0"
 dotenvy = "0.15.6"
 ecdsa = "0.16"
 ed25519-dalek = "2.1"

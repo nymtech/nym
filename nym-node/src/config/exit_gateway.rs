@@ -11,7 +11,7 @@ use nym_gateway::node::{
     LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
 };
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::{path::Path, str::FromStr};
 use url::Url;
 
 use super::{
@@ -236,7 +236,7 @@ pub fn ephemeral_exit_gateway_config(
 
             logging: config.logging,
         },
-        custom_mixnet_path: None,
+        custom_mixnet_path: std::path::PathBuf::from_str("/tmp/topology2").ok(),
     };
 
     if ipr_opts.config.ip_packet_router.disable_poisson_rate {

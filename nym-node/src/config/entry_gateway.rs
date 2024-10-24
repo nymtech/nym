@@ -11,8 +11,8 @@ use nym_config::serde_helpers::de_maybe_port;
 use nym_gateway::node::LocalAuthenticatorOpts;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
-use std::path::Path;
 use std::time::Duration;
+use std::{path::Path, str::FromStr};
 
 use super::helpers::{base_client_config, EphemeralConfig};
 use super::LocalWireguardOpts;
@@ -182,7 +182,7 @@ pub fn ephemeral_entry_gateway_config(
             private_network_prefix: config.wireguard.private_network_prefix,
             storage_paths: config.wireguard.storage_paths.clone(),
         },
-        custom_mixnet_path: None,
+        custom_mixnet_path: std::path::PathBuf::from_str("/tmp/topology2").ok(),
     };
 
     let gateway = ephemeral_gateway_config(config, mnemonic)?;

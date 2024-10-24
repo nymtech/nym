@@ -19,33 +19,33 @@ members = [
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
-    "common/authenticator-requests",
     "common/async-file-watcher",
+    "common/authenticator-requests",
     "common/bandwidth-controller",
     "common/bin-common",
     "common/client-core",
     "common/client-core/config-types",
-    "common/client-core/surb-storage",
     "common/client-core/gateways-storage",
+    "common/client-core/surb-storage",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
     "common/commands",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
-    "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
+    "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/multisig-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
     "common/country-group",
     "common/credential-storage",
-    "common/credentials",
     "common/credential-utils",
-    "common/credentials-interface",
     "common/credential-verification",
+    "common/credentials",
+    "common/credentials-interface",
     "common/crypto",
     "common/dkg",
     "common/ecash-double-spending",
@@ -63,10 +63,10 @@ members = [
     "common/network-defaults",
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
-    "common/nymcoconut",
-    "common/nym_offline_compact_ecash",
     "common/nym-id",
     "common/nym-metrics",
+    "common/nym_offline_compact_ecash",
+    "common/nymcoconut",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
@@ -102,11 +102,11 @@ members = [
     "gateway",
     "integrations/bity",
     "mixnode",
+    "sdk/ffi/cpp",
+    "sdk/ffi/go",
+    "sdk/ffi/shared",
     "sdk/lib/socks5-listener",
     "sdk/rust/nym-sdk",
-    "sdk/ffi/shared",
-    "sdk/ffi/go",
-    "sdk/ffi/cpp",
     "service-providers/authenticator",
     "service-providers/common",
     "service-providers/ip-packet-router",
@@ -139,11 +139,11 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
-    "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
     "tools/echo-server",
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
+    "tools/internal/testnet-manager",
+    "tools/internal/testnet-manager/dkg-bypass-contract",
 ]
 
 default-members = [
@@ -153,6 +153,7 @@ default-members = [
     "gateway",
     "mixnode",
     "nym-api",
+    "nym-credential-proxy/nym-credential-proxy",
     "nym-data-observatory",
     "nym-node",
     "nym-validator-rewarder",
@@ -194,11 +195,8 @@ axum-extra = "0.9.4"
 base64 = "0.22.1"
 bincode = "1.3.3"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
-
-# can we unify those?
-bit-vec = "0.7.0"
+bit-vec = "0.7.0" # can we unify those?
 bitvec = "1.0.0"
-
 blake3 = "1.5.4"
 bloomfilter = "1.0.14"
 bs58 = "0.5.1"

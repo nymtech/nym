@@ -1,8 +1,0 @@
-{
-  "extends": [
-    "@nymproject/eslint-config-react-typescript"
-  ],
-  "parserOptions": {
-    "project": "./tsconfig.eslint.json"
-  }
-}

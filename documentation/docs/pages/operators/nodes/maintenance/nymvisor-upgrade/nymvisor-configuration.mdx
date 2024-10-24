@@ -10,7 +10,7 @@ import { Steps } from 'nextra/components';
 
 ## Nymvisor Automation with `systemd`
 
-This section contains guide how to setup `systemd` automation for Nymvisor. If you are looking for other chapters, visit these pages: [VPS setup](../preliminrary-steps/vps-setup.mdx), advanced terminal tools like [tmux and nohup setup](../nym-node/configuration.mdx#vps-setup-and-automation), [`nym-node` automation](../nym-node/configuration.mdx#systemd) or [`validator` automation](../validator-setup/nyx-configuration#automation).
+This section contains guide how to setup `systemd` automation for Nymvisor. If you are looking for other chapters, visit these pages: [VPS setup](../../../preliminrary-steps/vps-setup.mdx), advanced terminal tools like [tmux and nohup setup](../../nym-node/configuration.mdx#vps-setup-and-automation), [`nym-node` automation](../../nym-node/configuration.mdx#systemd) or [`validator` automation](../../validator-setup/nyx-configuration#automation).
 
 <Callout type="info" emoji="ℹ️">
 Since you're planning to run your node via a Nymvisor instance, as well as creating a Nymvisor `.service` file, you will also want to **stop any previous node automation process you already have running**.
@@ -96,4 +96,3 @@ service nymvisor restart
 This lets your operating system know it's ok to reload the service configuration and restarts the node in a graceful way.
 
 </Steps>
-

@@ -6,6 +6,8 @@
   "author": "Nym Technologies SA",
   "scripts": {
     "generate:commands": "../scripts/next-scripts/autodoc.sh",
+    "prebuild": "../scripts/prebuild.sh",
+    "predev": "../scripts/prebuild.sh",
     "build": "next build",
     "dev": " next dev",
     "lint": "next lint",

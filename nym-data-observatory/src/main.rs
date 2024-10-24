@@ -19,23 +19,23 @@ struct Args {
     env_file: Option<String>,
 
     /// DB connection username
-    #[arg(short, long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_USERNAME")]
+    #[arg(long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_USERNAME")]
     connection_username: String,
 
     /// DB connection password
-    #[arg(short, long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_PASSWORD")]
+    #[arg(long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_PASSWORD")]
     connection_password: String,
 
     /// DB connection host
-    #[arg(short, long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_HOST")]
+    #[arg(long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_HOST")]
     connection_host: String,
 
     /// DB connection port
-    #[arg(short, long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_PORT")]
+    #[arg(long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_PORT")]
     connection_port: String,
 
     /// DB connection database name
-    #[arg(short, long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_DB")]
+    #[arg(long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_DB")]
     connection_db: String,
 }
 

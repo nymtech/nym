@@ -35,6 +35,9 @@ pub enum HttpClientError<E: Display = String> {
         source: reqwest::Error,
     },
 
+    #[error("failed to deserialise received response: {source}")]
+    ResponseDeserialisationFailure { source: serde_json::Error },
+
     #[error("provided url is malformed: {source}")]
     MalformedUrl {
         #[from]
@@ -526,7 +529,11 @@ where
     }
 
     if res.status().is_success() {
-        Ok(res.json().await?)
+        let text = res.text().await?;
+        match serde_json::from_str(&text) {
+            Ok(res) => Ok(res),
+            Err(source) => Err(HttpClientError::ResponseDeserialisationFailure { source }),
+        }
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)
     } else {

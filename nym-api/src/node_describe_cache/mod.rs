@@ -145,6 +145,7 @@ impl NodeDescriptionTopologyExt for NymNodeDescription {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct DescribedNodes {
     nodes: HashMap<NodeId, NymNodeDescription>,
 }
@@ -290,6 +291,7 @@ async fn try_get_description(
     })
 }
 
+#[derive(Debug)]
 struct RefreshData {
     host: String,
     node_id: NodeId,

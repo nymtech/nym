@@ -1,8 +1,3 @@
 ```sh
-Node type: Mixnode
-Identity Key: C5TWY8iG83RJ7m6r21R85m71Kj1iCzFFos6zhzmsqTLj
-Sphinx Key: DWVweeMH1F5PkmJEPmzDMyLLYYhJWhyqyVdWueiisVnL
-Host: YOU NEED TO FILL THIS FIELD MANUALLY
-Version: 1.1.6+nymnode
-
+[2m2024-10-23T14:58:44.317540Z[0m [31mERROR[0m [2mnym-node/src/config/upgrade_helpers.rs[0m[2m:[0m[2m16[0m[2m:[0m Failed to finish upgrade - failed to load config file using path '/home/m/.nym/nym-nodes/default-nym-node/config/config.toml'. detailed message: No such file or directory (os error 2)
 ```

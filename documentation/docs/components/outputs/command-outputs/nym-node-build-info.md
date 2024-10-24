@@ -1,12 +1,12 @@
 ```sh
 
 Binary Name:        nym-node
-Build Timestamp:    2024-10-23T11:43:18.688448470Z
+Build Timestamp:    2024-10-23T14:56:21.738216843Z
 Build Version:      1.1.6
-Commit SHA:         a0f6c3721ebffa54081af20b5f4b6fee653ba8ca
-Commit Date:        2024-10-23T13:36:38.000000000+02:00
-Commit Branch:      serinko/new-operators/command-outputs
-rustc Version:      1.80.1
+Commit SHA:         7bfd7efe844be83cf5637cad11cf7cd44411026a
+Commit Date:        2024-10-23T16:53:29.000000000+02:00
+Commit Branch:      max/new-docs-framework
+rustc Version:      1.80.0
 rustc Channel:      stable
 cargo Profile:      release
 

@@ -173,7 +173,7 @@ impl NymContractCacheRefresher {
                     layer,
                 },
                 rewarding_details: detail.rewarding_details,
-                pending_changes: detail.pending_changes,
+                pending_changes: detail.pending_changes.into(),
             })
         }
 

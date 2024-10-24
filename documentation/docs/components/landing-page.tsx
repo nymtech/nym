@@ -73,7 +73,7 @@ export const LandingPage = () => {
             key={index}
             xs={12}
             lg={6}
-            padding={4}
+            padding={{ xs: 3, xl: 4 }}
             width={"100%"}
             sx={{
               borderBottom: {
@@ -86,7 +86,7 @@ export const LandingPage = () => {
             }}
           >
             <Link href={square.href} target="_blank" rel="noopener noreferrer">
-              <Box display={"flex"} gap={4} height={"100%"}>
+              <Box display={"flex"} gap={{ xs: 3, xl: 4 }} height={"100%"}>
                 <Image
                   src={square.icon}
                   alt={square.text}

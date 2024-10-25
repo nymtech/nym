@@ -1,10 +1,10 @@
 use std::fs::File;
 use std::path::Path;
 
-use chrono::{DateTime, Utc};
 use log::info;
 use nym_mixnet_contract_common::NodeId;
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 
 use crate::client::ThreadsafeValidatorClient;
 use crate::geo_ip::location::ThreadsafeGeoIp;
@@ -49,7 +49,7 @@ pub struct ExplorerApiStateOnDisk {
     pub(crate) country_node_distribution: CountryNodesDistribution,
     pub(crate) mixnode_location_cache: MixnodeLocationCache,
     pub(crate) gateway_location_cache: GatewayLocationCache,
-    pub(crate) as_at: DateTime<Utc>,
+    pub(crate) as_at: OffsetDateTime,
 }
 
 #[derive(Clone)]
@@ -117,7 +117,7 @@ impl ExplorerApiStateContext {
             country_node_distribution: self.inner.country_node_distribution.get_all().await,
             mixnode_location_cache: self.inner.mixnodes.get_locations().await,
             gateway_location_cache: self.inner.gateways.get_locations().await,
-            as_at: Utc::now(),
+            as_at: OffsetDateTime::now_utc(),
         };
         serde_json::to_writer(file, &state).expect("error writing state to disk");
         info!("Saved file to '{:?}'", json_file_path.canonicalize());

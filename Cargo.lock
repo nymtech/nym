@@ -999,10 +999,8 @@ checksum = "a21f936df1771bf62b77f047b726c4625ff2e8aa607c01ec06e5a05bd8463401"
 dependencies = [
  "android-tzdata",
  "iana-time-zone",
- "js-sys",
  "num-traits",
  "serde",
- "wasm-bindgen",
  "windows-targets 0.52.5",
 ]
 
@@ -2366,7 +2364,6 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 name = "explorer-api"
 version = "1.1.41"
 dependencies = [
- "chrono",
  "clap 4.5.20",
  "dotenvy",
  "humantime-serde",
@@ -2394,6 +2391,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "time",
  "tokio",
 ]
 
@@ -5099,7 +5097,6 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "axum 0.7.7",
- "chrono",
  "clap 4.5.20",
  "nym-bin-common",
  "nym-network-defaults",
@@ -5108,6 +5105,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
+ "time",
  "tokio",
  "tokio-util",
  "tower-http",
@@ -6564,7 +6562,6 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "bincode",
- "chrono",
  "dashmap",
  "defguard_wireguard_rs",
  "futures",
@@ -6578,6 +6575,7 @@ dependencies = [
  "nym-task",
  "nym-wireguard-types",
  "thiserror",
+ "time",
  "tokio",
  "tokio-stream",
  "x25519-dalek",

@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use time::OffsetDateTime;
 use utoipa::ToSchema;
 
 use crate::background_task::Response;
@@ -16,7 +17,7 @@ impl From<Response> for JokeDto {
             joke_id: value.joke_id,
             joke: value.joke,
             // casting not smart, can implicitly panic, don't do this in prod
-            date_created: chrono::offset::Utc::now().timestamp() as i32,
+            date_created: OffsetDateTime::now_utc().unix_timestamp() as i32,
         }
     }
 }

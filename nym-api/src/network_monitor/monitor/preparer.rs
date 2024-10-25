@@ -59,10 +59,10 @@ pub(crate) struct PreparedPackets {
     pub(super) packets: Vec<GatewayPackets>,
 
     /// Vector containing list of public keys and owners of all nodes mixnodes being tested.
-    pub(super) tested_mixnodes: Vec<TestableNode>,
+    pub(super) mixnodes_under_test: Vec<TestableNode>,
 
     /// Vector containing list of public keys and owners of all gateways being tested.
-    pub(super) tested_gateways: Vec<TestableNode>,
+    pub(super) gateways_under_test: Vec<TestableNode>,
 
     /// All mixnodes that failed to get parsed correctly or were not version compatible.
     /// They will be marked to the validator as being down for the test.
@@ -533,30 +533,41 @@ impl PacketPreparer {
         let mixing_nym_nodes = descriptions.mixing_nym_nodes();
         let gateway_capable_nym_nodes = descriptions.entry_capable_nym_nodes();
 
-        let (mixnodes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(mixnodes);
-        let (gateways, invalid_gateways) = self.filter_outdated_and_malformed_gateways(gateways);
+        let (mut mixnodes_to_test_details, invalid_mixnodes) =
+            self.filter_outdated_and_malformed_mixnodes(mixnodes);
+        let (mut gateways_to_test_details, invalid_gateways) =
+            self.filter_outdated_and_malformed_gateways(gateways);
 
-        let mut tested_mixnodes = mixnodes.iter().map(|node| node.into()).collect::<Vec<_>>();
-        let mut tested_gateways = gateways.iter().map(|node| node.into()).collect::<Vec<_>>();
+        // summary of nodes that got tested
+        let mut mixnodes_under_test = mixnodes_to_test_details
+            .iter()
+            .map(|node| node.into())
+            .collect::<Vec<_>>();
+        let mut gateways_under_test = gateways_to_test_details
+            .iter()
+            .map(|node| node.into())
+            .collect::<Vec<_>>();
 
         // try to add nym-nodes into the fold
         if let Some(rewarded_set) = rewarded_set {
             let mut rng = thread_rng();
             for mix in mixing_nym_nodes {
                 if let Some(parsed) = self.nym_node_to_legacy_mix(&mut rng, &rewarded_set, mix) {
-                    tested_mixnodes.push(TestableNode::from(&parsed));
+                    mixnodes_under_test.push(TestableNode::from(&parsed));
+                    mixnodes_to_test_details.push(parsed);
                 }
             }
         }
 
         for gateway in gateway_capable_nym_nodes {
             if let Some(parsed) = self.nym_node_to_legacy_gateway(gateway) {
-                tested_gateways.push((&parsed, gateway.node_id).into())
+                gateways_under_test.push((&parsed, gateway.node_id).into());
+                gateways_to_test_details.push((parsed, gateway.node_id));
             }
         }
 
         let packets_to_create = (test_routes.len() * self.per_node_test_packets)
-            * (tested_mixnodes.len() + tested_gateways.len());
+            * (mixnodes_under_test.len() + gateways_under_test.len());
         info!("Need to create {} mix packets", packets_to_create);
 
         let mut all_gateway_packets = HashMap::new();
@@ -578,7 +589,7 @@ impl PacketPreparer {
             #[allow(clippy::unwrap_used)]
             let mixnode_test_packets = mix_tester
                 .mixnodes_test_packets(
-                    &mixnodes,
+                    &mixnodes_to_test_details,
                     route_ext,
                     self.per_node_test_packets as u32,
                     None,
@@ -592,7 +603,7 @@ impl PacketPreparer {
             gateway_packets.push_packets(mix_packets);
 
             // and generate test packets for gateways (note the variable recipient)
-            for (gateway, node_id) in &gateways {
+            for (gateway, node_id) in &gateways_to_test_details {
                 let recipient = self.create_packet_sender(gateway);
                 let gateway_identity = gateway.identity_key;
                 let gateway_address = gateway.clients_address();
@@ -628,8 +639,8 @@ impl PacketPreparer {
 
         PreparedPackets {
             packets,
-            tested_mixnodes,
-            tested_gateways,
+            mixnodes_under_test,
+            gateways_under_test,
             invalid_mixnodes,
             invalid_gateways,
         }

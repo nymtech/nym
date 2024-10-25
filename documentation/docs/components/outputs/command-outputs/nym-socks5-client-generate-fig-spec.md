@@ -281,45 +281,290 @@ const completion: Fig.Spec = {
       ],
     },
     {
-      name: "import-credential",
-      description: "Import a pre-generated credential",
+      name: "ecash",
+      description: "Ecash-related functionalities",
+      subcommands: [
+        {
+          name: "show-ticket-books",
+          description: "Display information associated with the imported ticketbooks,",
+          options: [
+            {
+              name: "--id",
+              description: "Id of client that is going to display the ticketbook information",
+              isRepeatable: true,
+              args: {
+                name: "id",
+              },
+            },
+            {
+              name: ["-o", "--output"],
+              isRepeatable: true,
+              args: {
+                name: "output",
+                isOptional: true,
+                suggestions: [
+                  "text",
+                  "json",
+                ],
+              },
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+        },
+        {
+          name: "import-ticket-book",
+          description: "Import a pre-generated ticketbook",
+          options: [
+            {
+              name: "--id",
+              description: "Id of client that is going to import the credential",
+              isRepeatable: true,
+              args: {
+                name: "id",
+              },
+            },
+            {
+              name: "--credential-data",
+              description: "Explicitly provide the encoded credential data (as base58)",
+              isRepeatable: true,
+              args: {
+                name: "credential_data",
+                isOptional: true,
+              },
+            },
+            {
+              name: "--credential-path",
+              description: "Specifies the path to file containing binary credential data",
+              isRepeatable: true,
+              args: {
+                name: "credential_path",
+                isOptional: true,
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--version",
+              hidden: true,
+              isRepeatable: true,
+              args: {
+                name: "version",
+                isOptional: true,
+              },
+            },
+            {
+              name: "--standalone",
+              description: "Specifies whether we're attempting to import a standalone ticketbook (i.e. serialised `IssuedTicketBook`)",
+            },
+            {
+              name: "--full",
+              description: "Specifies whether we're attempting to import full ticketboot (i.e. one that **might** contain required global signatures; that is serialised `ImportableTicketBook`)",
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+        },
+        {
+          name: "import-coin-index-signatures",
+          description: "Import coin index signatures needed for ticketbooks",
+          options: [
+            {
+              name: "--id",
+              description: "Id of client that is going to import the signatures",
+              isRepeatable: true,
+              args: {
+                name: "id",
+              },
+            },
+            {
+              name: "--client-config",
+              description: "Config file of the client that is supposed to use the signatures",
+              isRepeatable: true,
+              args: {
+                name: "client_config",
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--signatures-data",
+              description: "Explicitly provide the encoded signatures data (as base58)",
+              isRepeatable: true,
+              args: {
+                name: "signatures_data",
+                isOptional: true,
+              },
+            },
+            {
+              name: "--signatures-path",
+              description: "Specifies the path to file containing binary signatures data",
+              isRepeatable: true,
+              args: {
+                name: "signatures_path",
+                isOptional: true,
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--version",
+              hidden: true,
+              isRepeatable: true,
+              args: {
+                name: "version",
+                isOptional: true,
+              },
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+        },
+        {
+          name: "import-expiration-date-signatures",
+          description: "Import expiration date signatures needed for ticketbooks",
+          options: [
+            {
+              name: "--id",
+              description: "Id of client that is going to import the signatures",
+              isRepeatable: true,
+              args: {
+                name: "id",
+              },
+            },
+            {
+              name: "--client-config",
+              description: "Config file of the client that is supposed to use the signatures",
+              isRepeatable: true,
+              args: {
+                name: "client_config",
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--signatures-data",
+              description: "Explicitly provide the encoded signatures data (as base58)",
+              isRepeatable: true,
+              args: {
+                name: "signatures_data",
+                isOptional: true,
+              },
+            },
+            {
+              name: "--signatures-path",
+              description: "Specifies the path to file containing binary signatures data",
+              isRepeatable: true,
+              args: {
+                name: "signatures_path",
+                isOptional: true,
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--version",
+              hidden: true,
+              isRepeatable: true,
+              args: {
+                name: "version",
+                isOptional: true,
+              },
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+        },
+        {
+          name: "import-master-verification-key",
+          description: "Import master verification key needed for ticketbooks",
+          options: [
+            {
+              name: "--id",
+              description: "Id of client that is going to import the key",
+              isRepeatable: true,
+              args: {
+                name: "id",
+              },
+            },
+            {
+              name: "--client-config",
+              description: "Config file of the client that is supposed to use the key",
+              isRepeatable: true,
+              args: {
+                name: "client_config",
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--key-data",
+              description: "Explicitly provide the encoded key data (as base58)",
+              isRepeatable: true,
+              args: {
+                name: "key_data",
+                isOptional: true,
+              },
+            },
+            {
+              name: "--key-path",
+              description: "Specifies the path to file containing binary key data",
+              isRepeatable: true,
+              args: {
+                name: "key_path",
+                isOptional: true,
+                template: "filepaths",
+              },
+            },
+            {
+              name: "--version",
+              hidden: true,
+              isRepeatable: true,
+              args: {
+                name: "version",
+                isOptional: true,
+              },
+            },
+            {
+              name: ["-h", "--help"],
+              description: "Print help",
+            },
+          ],
+        },
+        {
+          name: "help",
+          description: "Print this message or the help of the given subcommand(s)",
+          subcommands: [
+            {
+              name: "show-ticket-books",
+              description: "Display information associated with the imported ticketbooks,",
+            },
+            {
+              name: "import-ticket-book",
+              description: "Import a pre-generated ticketbook",
+            },
+            {
+              name: "import-coin-index-signatures",
+              description: "Import coin index signatures needed for ticketbooks",
+            },
+            {
+              name: "import-expiration-date-signatures",
+              description: "Import expiration date signatures needed for ticketbooks",
+            },
+            {
+              name: "import-master-verification-key",
+              description: "Import master verification key needed for ticketbooks",
+            },
+            {
+              name: "help",
+              description: "Print this message or the help of the given subcommand(s)",
+            },
+          ],
+        },
+      ],
       options: [
-        {
-          name: "--id",
-          description: "Id of client that is going to import the credential",
-          isRepeatable: true,
-          args: {
-            name: "id",
-          },
-        },
-        {
-          name: "--credential-data",
-          description: "Explicitly provide the encoded credential data (as base58)",
-          isRepeatable: true,
-          args: {
-            name: "credential_data",
-            isOptional: true,
-          },
-        },
-        {
-          name: "--credential-path",
-          description: "Specifies the path to file containing binary credential data",
-          isRepeatable: true,
-          args: {
-            name: "credential_path",
-            isOptional: true,
-            template: "filepaths",
-          },
-        },
-        {
-          name: "--version",
-          hidden: true,
-          isRepeatable: true,
-          args: {
-            name: "version",
-            isOptional: true,
-          },
-        },
         {
           name: ["-h", "--help"],
           description: "Print help",
@@ -457,36 +702,6 @@ const completion: Fig.Spec = {
       ],
     },
     {
-      name: "show-ticketbooks",
-      description: "Display information associated with the imported ticketbooks,",
-      options: [
-        {
-          name: "--id",
-          description: "Id of client that is going to display the ticketbook information",
-          isRepeatable: true,
-          args: {
-            name: "id",
-          },
-        },
-        {
-          name: ["-o", "--output"],
-          isRepeatable: true,
-          args: {
-            name: "output",
-            isOptional: true,
-            suggestions: [
-              "text",
-              "json",
-            ],
-          },
-        },
-        {
-          name: ["-h", "--help"],
-          description: "Print help",
-        },
-      ],
-    },
-    {
       name: "build-info",
       description: "Show build information of this binary",
       options: [
@@ -551,8 +766,30 @@ const completion: Fig.Spec = {
           description: "Run the Nym client with provided configuration client optionally overriding set parameters",
         },
         {
-          name: "import-credential",
-          description: "Import a pre-generated credential",
+          name: "ecash",
+          description: "Ecash-related functionalities",
+          subcommands: [
+            {
+              name: "show-ticket-books",
+              description: "Display information associated with the imported ticketbooks,",
+            },
+            {
+              name: "import-ticket-book",
+              description: "Import a pre-generated ticketbook",
+            },
+            {
+              name: "import-coin-index-signatures",
+              description: "Import coin index signatures needed for ticketbooks",
+            },
+            {
+              name: "import-expiration-date-signatures",
+              description: "Import expiration date signatures needed for ticketbooks",
+            },
+            {
+              name: "import-master-verification-key",
+              description: "Import master verification key needed for ticketbooks",
+            },
+          ],
         },
         {
           name: "list-gateways",
@@ -565,10 +802,6 @@ const completion: Fig.Spec = {
         {
           name: "switch-gateway",
           description: "Change the currently active gateway. Note that you must have already registered with the new gateway!",
-        },
-        {
-          name: "show-ticketbooks",
-          description: "Display information associated with the imported ticketbooks,",
         },
         {
           name: "build-info",

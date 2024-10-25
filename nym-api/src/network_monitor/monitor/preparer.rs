@@ -25,7 +25,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace};
 
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
@@ -151,34 +151,38 @@ impl PacketPreparer {
         self.contract_cache.wait_for_initial_values().await;
         self.described_cache.naive_wait_for_initial_values().await;
 
+        let described_nodes = self
+            .described_cache
+            .get()
+            .await
+            .expect("the self-describe cache should have been initialised!");
+
         // now wait for at least `minimum_full_routes` mixnodes per layer and `minimum_full_routes` gateway to be online
         info!("Waiting for minimal topology to be online");
         let initialisation_backoff = Duration::from_secs(30);
         loop {
             let gateways = self.contract_cache.legacy_gateways_all().await;
             let mixnodes = self.contract_cache.legacy_mixnodes_all_basic().await;
+            let nym_nodes = self.contract_cache.nym_nodes().await;
 
-            if gateways.len() < minimum_full_routes {
-                self.topology_wait_backoff(initialisation_backoff).await;
-                continue;
-            }
+            let mut gateways_count = gateways.len();
+            let mut mixnodes_count = mixnodes.len();
 
-            let mut layer1_count = 0;
-            let mut layer2_count = 0;
-            let mut layer3_count = 0;
-
-            for mix in mixnodes {
-                match mix.layer {
-                    LegacyMixLayer::One => layer1_count += 1,
-                    LegacyMixLayer::Two => layer2_count += 1,
-                    LegacyMixLayer::Three => layer3_count += 1,
+            for nym_node in nym_nodes {
+                if let Some(described) = described_nodes.get_description(&nym_node.node_id()) {
+                    if described.declared_role.mixnode {
+                        mixnodes_count += 1;
+                    } else if described.declared_role.entry {
+                        gateways_count += 1;
+                    }
                 }
             }
 
-            if layer1_count >= minimum_full_routes
-                && layer2_count >= minimum_full_routes
-                && layer3_count >= minimum_full_routes
-            {
+            debug!(
+                "we have {mixnodes_count} possible mixnodes and {gateways_count} possible gateways"
+            );
+
+            if gateways_count >= minimum_full_routes && mixnodes_count * 3 >= minimum_full_routes {
                 break;
             }
 

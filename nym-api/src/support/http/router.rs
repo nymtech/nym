@@ -52,7 +52,7 @@ impl RouterBuilder {
             .merge(SwaggerUi::new("/swagger").url("/api-docs/openapi.json", ApiDoc::openapi()))
             .route("/", get(|| async { Redirect::to("/swagger") }))
             .nest(
-                "/v1",
+                "/api/v1",
                 Router::new()
                     // unfortunately some routes didn't use correct prefix and were attached to the root
                     .merge(nym_contract_cache_routes())

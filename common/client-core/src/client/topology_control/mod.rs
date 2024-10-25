@@ -20,7 +20,7 @@ pub mod geo_aware_provider;
 pub mod nym_api_provider;
 
 pub use geo_aware_provider::GeoAwareTopologyProvider;
-pub use nym_api_provider::NymApiTopologyProvider;
+pub use nym_api_provider::{Config as NymApiTopologyProviderConfig, NymApiTopologyProvider};
 pub use nym_topology::provider_trait::TopologyProvider;
 
 // TODO: move it to config later

@@ -12,7 +12,10 @@ pub mod tcp_proxy;
 pub use error::{Error, Result};
 pub use nym_client_core::client::{
     mix_traffic::transceiver::*,
-    topology_control::{GeoAwareTopologyProvider, NymApiTopologyProvider, TopologyProvider},
+    topology_control::{
+        GeoAwareTopologyProvider, NymApiTopologyProvider, NymApiTopologyProviderConfig,
+        TopologyProvider,
+    },
 };
 pub use nym_network_defaults::{
     ChainDetails, DenomDetails, DenomDetailsOwned, NymContracts, NymNetworkDetails,

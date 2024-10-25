@@ -3,16 +3,18 @@
 
 use crate::config::Config;
 use crate::error::GatewayError;
-use nym_sdk::NymApiTopologyProvider;
-
+use async_trait::async_trait;
 use nym_crypto::asymmetric::encryption;
 use nym_gateway_storage::PersistentStorage;
 use nym_pemstore::traits::PemStorableKeyPair;
 use nym_pemstore::KeyPairPath;
-
-use async_trait::async_trait;
+use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 use nym_topology::{gateway, NymTopology, TopologyProvider};
 use std::path::Path;
+use std::sync::Arc;
+use tokio::sync::Mutex;
+use tracing::debug;
+use url::Url;
 
 pub async fn load_network_requester_config<P: AsRef<Path>>(
     id: &str,
@@ -97,7 +99,35 @@ pub(crate) fn load_sphinx_keys(config: &Config) -> Result<encryption::KeyPair, G
     load_keypair(sphinx_paths, "gateway sphinx")
 }
 
+#[derive(Clone)]
 pub struct GatewayTopologyProvider {
+    inner: Arc<Mutex<GatewayTopologyProviderInner>>,
+}
+
+impl GatewayTopologyProvider {
+    pub fn new(
+        gateway_node: gateway::LegacyNode,
+        user_agent: UserAgent,
+        nym_api_url: Vec<Url>,
+    ) -> GatewayTopologyProvider {
+        GatewayTopologyProvider {
+            inner: Arc::new(Mutex::new(GatewayTopologyProviderInner {
+                inner: NymApiTopologyProvider::new(
+                    NymApiTopologyProviderConfig {
+                        min_mixnode_performance: 50,
+                        min_gateway_performance: 0,
+                    },
+                    nym_api_url,
+                    env!("CARGO_PKG_VERSION").to_string(),
+                    Some(user_agent),
+                ),
+                gateway_node,
+            })),
+        }
+    }
+}
+
+struct GatewayTopologyProviderInner {
     inner: NymApiTopologyProvider,
     gateway_node: gateway::LegacyNode,
 }
@@ -105,11 +135,16 @@ pub struct GatewayTopologyProvider {
 #[async_trait]
 impl TopologyProvider for GatewayTopologyProvider {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
-        match self.inner.get_new_topology().await {
+        let mut guard = self.inner.lock().await;
+        match guard.inner.get_new_topology().await {
             None => None,
             Some(mut base) => {
-                if !base.gateway_exists(&self.gateway_node.identity_key) {
-                    base.insert_gateway(self.gateway_node.clone());
+                if !base.gateway_exists(&guard.gateway_node.identity_key) {
+                    debug!(
+                        "{} didn't exist in topology. inserting it.",
+                        guard.gateway_node.identity_key
+                    );
+                    base.insert_gateway(guard.gateway_node.clone());
                 }
                 Some(base)
             }

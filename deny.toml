@@ -188,6 +188,7 @@ deny = [
     # is a direct dependency of the otherwise banned crate
     #{ crate = "ansi_term@0.11.0", wrappers = ["this-crate-directly-depends-on-ansi_term"] },
     { name = "openssl" },
+    { name = "chrono" },
 ]
 
 # List of features to allow/deny

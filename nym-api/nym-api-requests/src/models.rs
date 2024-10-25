@@ -286,7 +286,7 @@ impl MixNodeBondAnnotated {
                 .sphinx_key
                 .parse()
                 .map_err(|_| MalformedNodeBond::InvalidX25519Key)?,
-            epoch_role: role,
+            role,
             supported_roles: DeclaredRoles {
                 mixnode: true,
                 entry: false,
@@ -345,7 +345,7 @@ impl GatewayBondAnnotated {
                 .sphinx_key
                 .parse()
                 .map_err(|_| MalformedNodeBond::InvalidX25519Key)?,
-            epoch_role: role,
+            role,
             supported_roles: DeclaredRoles {
                 mixnode: false,
                 entry: true,
@@ -827,7 +827,7 @@ impl NymNodeDescription {
             // we can't use the declared roles, we have to take whatever was provided in the contract.
             // why? say this node COULD operate as an exit, but it might be the case the contract decided
             // to assign it an ENTRY role only. we have to use that one instead.
-            epoch_role: role,
+            role,
             supported_roles: self.description.declared_role,
             entry,
             performance,

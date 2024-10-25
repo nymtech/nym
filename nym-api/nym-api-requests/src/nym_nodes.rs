@@ -141,8 +141,8 @@ pub struct SkimmedNode {
     #[schemars(with = "String")]
     pub x25519_sphinx_pubkey: x25519::PublicKey,
 
-    #[serde(alias = "role")]
-    pub epoch_role: NodeRole,
+    #[serde(alias = "epoch_role")]
+    pub role: NodeRole,
 
     // needed for the purposes of sending appropriate test packets
     #[serde(default)]
@@ -157,7 +157,7 @@ pub struct SkimmedNode {
 
 impl SkimmedNode {
     pub fn get_mix_layer(&self) -> Option<u8> {
-        match self.epoch_role {
+        match self.role {
             NodeRole::Mixnode { layer } => Some(layer),
             _ => None,
         }

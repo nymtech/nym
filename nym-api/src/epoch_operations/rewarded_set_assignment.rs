@@ -169,7 +169,7 @@ impl EpochAdvancer {
         let standby_eligible = all_choices
             .iter()
             .filter(|node| {
-                exit_gateways.contains(&node.0.node_id)
+                !exit_gateways.contains(&node.0.node_id)
                     && !entry_gateways.contains(&node.0.node_id)
                     && !mixnodes.contains(&node.0.node_id)
             })

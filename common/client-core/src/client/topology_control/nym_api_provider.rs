@@ -29,7 +29,7 @@ impl Default for Config {
     }
 }
 
-pub(crate) struct NymApiTopologyProvider {
+pub struct NymApiTopologyProvider {
     config: Config,
 
     validator_client: nym_validator_client::client::NymApiClient,

@@ -3,12 +3,15 @@
 
 use crate::config::Config;
 use crate::error::GatewayError;
+use nym_sdk::NymApiTopologyProvider;
 
 use nym_crypto::asymmetric::encryption;
 use nym_gateway_storage::PersistentStorage;
 use nym_pemstore::traits::PemStorableKeyPair;
 use nym_pemstore::KeyPairPath;
 
+use async_trait::async_trait;
+use nym_topology::{gateway, NymTopology, TopologyProvider};
 use std::path::Path;
 
 pub async fn load_network_requester_config<P: AsRef<Path>>(
@@ -92,4 +95,24 @@ pub(crate) fn load_sphinx_keys(config: &Config) -> Result<encryption::KeyPair, G
         config.storage_paths.keys.public_encryption_key(),
     );
     load_keypair(sphinx_paths, "gateway sphinx")
+}
+
+pub struct GatewayTopologyProvider {
+    inner: NymApiTopologyProvider,
+    gateway_node: gateway::LegacyNode,
+}
+
+#[async_trait]
+impl TopologyProvider for GatewayTopologyProvider {
+    async fn get_new_topology(&mut self) -> Option<NymTopology> {
+        match self.inner.get_new_topology().await {
+            None => None,
+            Some(mut base) => {
+                if !base.gateway_exists(&self.gateway_node.identity_key) {
+                    base.insert_gateway(self.gateway_node.clone());
+                }
+                Some(base)
+            }
+        }
+    }
 }

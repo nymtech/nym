@@ -25,13 +25,15 @@ use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilte
 use nym_node_http_api::state::metrics::SharedSessionStats;
 use nym_statistics_common::events::{self, StatsEventSender};
 use nym_task::{TaskClient, TaskHandle, TaskManager};
+use nym_topology::NetworkAddress;
 use nym_types::gateway::GatewayNodeDetailsResponse;
+use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use statistics::GatewayStatisticsCollector;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::*;
@@ -223,6 +225,31 @@ impl<St> Gateway<St> {
     pub async fn node_details(&self) -> Result<GatewayNodeDetailsResponse, GatewayError> {
         // TODO: this is doing redundant key loads, but I guess that's fine for now
         crate::helpers::node_details(&self.config).await
+    }
+
+    fn as_topology_node(&self) -> nym_topology::gateway::LegacyNode {
+        let ip = self
+            .config
+            .host
+            .public_ips
+            .first()
+            .copied()
+            .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST));
+        let mix_host = SocketAddr::new(ip, self.config.gateway.mix_port);
+
+        nym_topology::gateway::LegacyNode {
+            // those fields are irrelevant for the purposes of routing so it's fine if they're inaccurate.
+            // the only thing that matters is the identity key (and maybe version)
+            node_id: NodeId::MAX,
+            mix_host,
+            host: NetworkAddress::IpAddr(ip),
+            clients_ws_port: self.config.gateway.clients_port,
+            clients_wss_port: self.config.gateway.clients_wss_port,
+            sphinx_key: *self.sphinx_keypair.public_key(),
+
+            identity_key: *self.identity_keypair.public_key(),
+            version: env!("CARGO_PKG_VERSION").into(),
+        }
     }
 
     fn start_mix_socket_listener(

@@ -286,6 +286,10 @@ impl NymTopology {
         self.get_gateway(gateway_identity).is_some()
     }
 
+    pub fn insert_gateway(&mut self, gateway: gateway::LegacyNode) {
+        self.gateways.push(gateway)
+    }
+
     pub fn set_gateways(&mut self, gateways: Vec<gateway::LegacyNode>) {
         self.gateways = gateways
     }

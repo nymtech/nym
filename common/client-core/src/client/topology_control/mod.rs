@@ -6,7 +6,6 @@ pub(crate) use accessor::{TopologyAccessor, TopologyReadPermit};
 use futures::StreamExt;
 use log::*;
 use nym_sphinx::addressing::nodes::NodeIdentity;
-use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::NymTopologyError;
 use std::time::Duration;
 
@@ -18,7 +17,11 @@ use wasmtimer::tokio::sleep;
 
 mod accessor;
 pub mod geo_aware_provider;
-pub(crate) mod nym_api_provider;
+pub mod nym_api_provider;
+
+pub use geo_aware_provider::GeoAwareTopologyProvider;
+pub use nym_api_provider::NymApiTopologyProvider;
+pub use nym_topology::provider_trait::TopologyProvider;
 
 // TODO: move it to config later
 const MAX_FAILURE_COUNT: usize = 10;

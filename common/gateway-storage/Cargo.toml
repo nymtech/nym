@@ -19,7 +19,6 @@ sqlx = { workspace = true, features = [
     "macros",
     "migrate",
     "time",
-    "chrono"
 ] }
 time = { workspace = true }
 thiserror = { workspace = true }

@@ -10,9 +10,8 @@ use crate::storage::manager::{
 };
 use crate::storage::models::{CommitSignature, Validator};
 use sqlx::types::time::OffsetDateTime;
-use sqlx::{ConnectOptions, Sqlite, Transaction};
-use std::fmt::Debug;
-use std::path::Path;
+use sqlx::{ConnectOptions, Postgres, Transaction};
+use std::str::FromStr;
 use tendermint::block::{Commit, CommitSig};
 use tendermint::Block;
 use tendermint_rpc::endpoint::validators;
@@ -23,7 +22,7 @@ mod helpers;
 mod manager;
 pub mod models;
 
-pub type StorageTransaction = Transaction<'static, Sqlite>;
+pub type StorageTransaction = Transaction<'static, Postgres>;
 
 #[derive(Clone)]
 pub struct ScraperStorage {
@@ -45,19 +44,18 @@ pub(crate) fn log_db_operation_time(op_name: &str, start_time: Instant) {
 
 impl ScraperStorage {
     #[instrument]
-    pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, ScraperError> {
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
-            .filename(database_path)
-            .create_if_missing(true);
+    pub async fn init(database_url: &str) -> Result<Self, ScraperError> {
+        let mut opts = sqlx::postgres::PgConnectOptions::from_str(database_url)
+            .map_err(|err| ScraperError::InternalDatabaseError(err))?;
 
         // TODO: do we want auto_vacuum ?
 
         opts.disable_statement_logging();
 
-        let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
+        let connection_pool = match sqlx::PgPool::connect_with(opts).await {
             Ok(db) => db,
             Err(err) => {
-                error!("Failed to connect to SQLx database: {err}");
+                error!("Failed to connect to PostgreSQL database: {err}");
                 return Err(err.into());
             }
         };
@@ -154,7 +152,7 @@ impl ScraperStorage {
         consensus_address: &str,
         start_height: i64,
         end_height: i64,
-    ) -> Result<i32, ScraperError> {
+    ) -> Result<i64, ScraperError> {
         Ok(self
             .manager
             .get_signed_between(consensus_address, start_height, end_height)
@@ -166,7 +164,7 @@ impl ScraperStorage {
         consensus_address: &str,
         start_time: OffsetDateTime,
         end_time: OffsetDateTime,
-    ) -> Result<i32, ScraperError> {
+    ) -> Result<i64, ScraperError> {
         let Some(block_start) = self.get_first_block_height_after(start_time).await? else {
             return Ok(0);
         };

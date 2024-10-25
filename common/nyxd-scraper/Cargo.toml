@@ -14,12 +14,13 @@ license.workspace = true
 async-trait.workspace = true
 const_format = { workspace = true }
 cosmrs.workspace = true
+chrono = {workspace = true}
 eyre = { workspace = true }
 futures.workspace = true
 humantime = { workspace = true }
 sha2 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "time"] }
 tendermint.workspace = true
 tendermint-rpc = { workspace = true, features = ["websocket-client", "http-client"] }
 thiserror.workspace = true
@@ -36,5 +37,5 @@ url.workspace = true
 
 
 [build-dependencies]
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

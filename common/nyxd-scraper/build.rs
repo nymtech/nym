@@ -1,28 +1,41 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
-
 #[tokio::main]
 async fn main() {
-    use sqlx::{Connection, SqliteConnection};
-    use std::env;
+    use sqlx::{Connection, Executor, PgConnection};
 
-    let out_dir = env::var("OUT_DIR").unwrap();
-    let database_path = format!("{out_dir}/scraper-example.sqlite");
+    const POSTGRES_USER: &str = "nym";
+    const POSTGRES_PASSWORD: &str = "password123";
+    const POSTGRES_DB: &str = "nyxd_scraper";
 
-    let mut conn = SqliteConnection::connect(&format!("sqlite://{database_path}?mode=rwc"))
+    let admin_url = format!(
+        "postgres://{}:{}@localhost:5432/postgres",
+        POSTGRES_USER, POSTGRES_PASSWORD
+    );
+    // Connect to postgres to create test database
+    let database_url =
+        format!("postgres://{POSTGRES_USER}:{POSTGRES_PASSWORD}@localhost:5432/{POSTGRES_DB}");
+
+    let mut conn = PgConnection::connect(&admin_url)
         .await
-        .expect("Failed to create SQLx database connection");
+        .expect("Failed to connect to Postgres");
 
+    conn.execute(format!(r#"DROP DATABASE IF EXISTS {}"#, POSTGRES_DB).as_str())
+        .await
+        .expect("Failed to drop test database");
+
+    conn.execute(format!(r#"CREATE DATABASE {}"#, POSTGRES_DB).as_str())
+        .await
+        .expect("Failed to create test database");
+
+    let mut test_conn = PgConnection::connect(&database_url)
+        .await
+        .expect("Failed to connect to test database");
+
+    // Run migrations
     sqlx::migrate!("./sql_migrations")
-        .run(&mut conn)
+        .run(&mut test_conn)
         .await
         .expect("Failed to perform SQLx migrations");
 
-    #[cfg(target_family = "unix")]
-    println!("cargo:rustc-env=DATABASE_URL=sqlite://{}", &database_path);
-
-    #[cfg(target_family = "windows")]
-    // for some strange reason we need to add a leading `/` to the windows path even though it's
-    // not a valid windows path... but hey, it works...
-    println!("cargo:rustc-env=DATABASE_URL=sqlite:///{}", &database_path);
+    // Set the database URL as an environment variable
+    println!("cargo:rustc-env=DATABASE_URL={}", database_url);
 }

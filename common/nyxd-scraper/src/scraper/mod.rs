@@ -129,7 +129,8 @@ impl NyxdScraper {
 
     pub async fn new(config: Config) -> Result<Self, ScraperError> {
         config.pruning_options.validate()?;
-        let storage = ScraperStorage::init(&config.database_path).await?;
+        let storage =
+            ScraperStorage::init(&config.database_path.to_str().unwrap_or_default()).await?;
         let rpc_client = RpcClient::new(&config.rpc_url)?;
 
         Ok(NyxdScraper {

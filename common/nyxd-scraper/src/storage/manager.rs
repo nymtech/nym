@@ -4,18 +4,18 @@
 use crate::storage::log_db_operation_time;
 use crate::storage::models::{CommitSignature, Validator};
 use sqlx::types::time::OffsetDateTime;
-use sqlx::{Executor, Sqlite};
+use sqlx::{Executor, Postgres};
 use tokio::time::Instant;
 use tracing::{instrument, trace};
 
 #[derive(Clone)]
 pub(crate) struct StorageManager {
-    pub(crate) connection_pool: sqlx::SqlitePool,
+    pub(crate) connection_pool: sqlx::PgPool,
 }
 
 impl StorageManager {
     pub(crate) async fn set_initial_metadata(&self) -> Result<(), sqlx::Error> {
-        if sqlx::query("SELECT * from metadata")
+        if sqlx::query::<Postgres>("SELECT * from metadata")
             .fetch_optional(&self.connection_pool)
             .await?
             .is_none()
@@ -44,7 +44,7 @@ impl StorageManager {
         log_db_operation_time("get_lowest_block", start);
 
         if let Some(row) = maybe_record {
-            Ok(row.height)
+            Ok(Some(row.height))
         } else {
             Ok(None)
         }
@@ -61,7 +61,7 @@ impl StorageManager {
             r#"
                 SELECT height
                 FROM block
-                WHERE timestamp > ?
+                WHERE timestamp > $1
                 ORDER BY timestamp
                 LIMIT 1
             "#,
@@ -72,7 +72,7 @@ impl StorageManager {
         log_db_operation_time("get_first_block_height_after", start);
 
         if let Some(row) = maybe_record {
-            Ok(row.height)
+            Ok(Some(row.height))
         } else {
             Ok(None)
         }
@@ -89,7 +89,7 @@ impl StorageManager {
             r#"
                 SELECT height
                 FROM block
-                WHERE timestamp < ?
+                WHERE timestamp < $1
                 ORDER BY timestamp DESC
                 LIMIT 1
             "#,
@@ -100,7 +100,7 @@ impl StorageManager {
         log_db_operation_time("get_last_block_height_before", start);
 
         if let Some(row) = maybe_record {
-            Ok(row.height)
+            Ok(Some(row.height))
         } else {
             Ok(None)
         }
@@ -111,7 +111,7 @@ impl StorageManager {
         consensus_address: &str,
         start_height: i64,
         end_height: i64,
-    ) -> Result<i32, sqlx::Error> {
+    ) -> Result<i64, sqlx::Error> {
         trace!("get_signed_between");
         let start = Instant::now();
 
@@ -119,9 +119,9 @@ impl StorageManager {
             r#"
                 SELECT COUNT(*) as count FROM pre_commit
                 WHERE 
-                    validator_address == ?
-                    AND height >= ? 
-                    AND height <= ?
+                    validator_address = $1
+                    AND height >= $2
+                    AND height <= $3
             "#,
             consensus_address,
             start_height,
@@ -132,7 +132,7 @@ impl StorageManager {
         .count;
         log_db_operation_time("get_signed_between", start);
 
-        Ok(count)
+        Ok(count.expect("Could not find the count"))
     }
 
     pub(crate) async fn get_precommit(
@@ -146,8 +146,8 @@ impl StorageManager {
         let res = sqlx::query_as(
             r#"
                 SELECT * FROM pre_commit
-                WHERE validator_address = ? 
-                AND height = ?
+                WHERE validator_address = $1
+                AND height = $2
             "#,
         )
         .bind(consensus_address)
@@ -172,7 +172,7 @@ impl StorageManager {
                 SELECT * FROM validator 
                 WHERE EXISTS (
                     SELECT 1 FROM pre_commit
-                    WHERE height == ?
+                    WHERE height = $1
                     AND pre_commit.validator_address = validator.consensus_address
                 )
             "#,
@@ -248,7 +248,7 @@ pub(crate) async fn insert_validator<'a, E>(
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("insert_validator");
     let start = Instant::now();
@@ -256,8 +256,8 @@ where
     sqlx::query!(
         r#"
             INSERT INTO validator (consensus_address, consensus_pubkey)
-            VALUES (?, ?)
-            ON CONFLICT DO NOTHING
+            VALUES ($1, $2)
+            ON CONFLICT (consensus_address) DO NOTHING
         "#,
         consensus_address,
         consensus_pubkey
@@ -280,7 +280,7 @@ pub(crate) async fn insert_block<'a, E>(
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("insert_block");
     let start = Instant::now();
@@ -288,12 +288,12 @@ where
     sqlx::query!(
         r#"
             INSERT INTO block (height, hash, num_txs, total_gas, proposer_address, timestamp)
-            VALUES (?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT DO NOTHING
         "#,
         height,
         hash,
-        num_txs,
+        num_txs as i32,
         total_gas,
         proposer_address,
         timestamp
@@ -315,7 +315,7 @@ pub(crate) async fn insert_precommit<'a, E>(
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("insert_precommit");
     let start = Instant::now();
@@ -323,7 +323,7 @@ where
     sqlx::query!(
         r#"
             INSERT INTO pre_commit (validator_address, height, timestamp, voting_power, proposer_priority)
-            VALUES (?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5)
             ON CONFLICT (validator_address, timestamp) DO NOTHING
         "#,
         validator_address,
@@ -354,7 +354,7 @@ pub(crate) async fn insert_transaction<'a, E>(
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("insert_transaction");
     let start = Instant::now();
@@ -362,7 +362,7 @@ where
     sqlx::query!(
         r#"
             INSERT INTO "transaction" (hash, height, "index", success, num_messages, memo, gas_wanted, gas_used, raw_log)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
                ON CONFLICT (hash) DO UPDATE
                SET height = excluded.height,
                "index" = excluded."index",
@@ -375,9 +375,9 @@ where
         "#,
             hash,
             height,
-            index,
+            index as i32,
             success,
-            messages,
+            messages as i32,
             memo,
             gas_wanted,
             gas_used,
@@ -399,7 +399,7 @@ pub(crate) async fn insert_message<'a, E>(
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("insert_message");
     let start = Instant::now();
@@ -407,7 +407,7 @@ where
     sqlx::query!(
         r#"
             INSERT INTO message (transaction_hash, "index", type, height)
-            VALUES (?, ?, ?, ?)
+            VALUES ($1, $2, $3, $4)
             ON CONFLICT (transaction_hash, "index") DO UPDATE
                 SET height = excluded.height,
                 type = excluded.type
@@ -430,13 +430,13 @@ pub(crate) async fn update_last_processed<'a, E>(
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("update_last_processed");
     let start = Instant::now();
 
     sqlx::query!(
-        "UPDATE metadata SET last_processed_height = MAX(last_processed_height, ?)",
+        "UPDATE metadata SET last_processed_height = GREATEST(last_processed_height, $1)",
         height
     )
     .execute(executor)
@@ -449,12 +449,12 @@ where
 #[instrument(skip(executor))]
 pub(crate) async fn update_last_pruned<'a, E>(height: i64, executor: E) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("update_last_pruned");
     let start = Instant::now();
 
-    sqlx::query!("UPDATE pruning SET last_pruned_height = ?", height)
+    sqlx::query!("UPDATE pruning SET last_pruned_height = $1", height)
         .execute(executor)
         .await?;
     log_db_operation_time("update_last_pruned", start);
@@ -464,12 +464,12 @@ where
 
 pub(crate) async fn prune_blocks<'a, E>(oldest_to_keep: i64, executor: E) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("prune_blocks");
     let start = Instant::now();
 
-    sqlx::query!("DELETE FROM block WHERE height < ?", oldest_to_keep)
+    sqlx::query!("DELETE FROM block WHERE height < $1", oldest_to_keep)
         .execute(executor)
         .await?;
     log_db_operation_time("prune_blocks", start);
@@ -482,12 +482,12 @@ pub(crate) async fn prune_pre_commits<'a, E>(
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("prune_pre_commits");
     let start = Instant::now();
 
-    sqlx::query!("DELETE FROM pre_commit WHERE height < ?", oldest_to_keep)
+    sqlx::query!("DELETE FROM pre_commit WHERE height < $1", oldest_to_keep)
         .execute(executor)
         .await?;
     log_db_operation_time("prune_pre_commits", start);
@@ -500,13 +500,13 @@ pub(crate) async fn prune_transactions<'a, E>(
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("prune_transactions");
     let start = Instant::now();
 
     sqlx::query!(
-        "DELETE FROM \"transaction\" WHERE height < ?",
+        "DELETE FROM \"transaction\" WHERE height < $1",
         oldest_to_keep
     )
     .execute(executor)
@@ -521,12 +521,12 @@ pub(crate) async fn prune_messages<'a, E>(
     executor: E,
 ) -> Result<(), sqlx::Error>
 where
-    E: Executor<'a, Database = Sqlite>,
+    E: Executor<'a, Database = Postgres>,
 {
     trace!("prune_messages");
     let start = Instant::now();
 
-    sqlx::query!("DELETE FROM message WHERE height < ?", oldest_to_keep)
+    sqlx::query!("DELETE FROM message WHERE height < $1", oldest_to_keep)
         .execute(executor)
         .await?;
     log_db_operation_time("prune_messages", start);

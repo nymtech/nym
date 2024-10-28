@@ -79,7 +79,7 @@ Run the associated daemon with the preconfigured settings
 Usage: nymvisor run [DAEMON_ARGS]...
 
 Arguments:
-  [DAEMON_ARGS]...
+  [DAEMON_ARGS]...  
 
 Options:
   -h, --help  Print help
@@ -99,12 +99,12 @@ Example output:
 ```sh
 
 Binary Name:        nymvisor
-Build Timestamp:    2024-10-23T14:56:21.738216843Z
-Build Version:      0.1.5
-Commit SHA:         7bfd7efe844be83cf5637cad11cf7cd44411026a
-Commit Date:        2024-10-23T16:53:29.000000000+02:00
+Build Timestamp:    2024-10-28T14:59:34.976373289Z
+Build Version:      0.1.8
+Commit SHA:         a7bb87d396c75a6984d9b1385e4ae3a6a7ed586d
+Commit Date:        2024-10-28T11:55:17.000000000+01:00
 Commit Branch:      max/new-docs-framework
-rustc Version:      1.80.0
+rustc Version:      1.80.1
 rustc Channel:      stable
 cargo Profile:      release
 

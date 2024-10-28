@@ -166,7 +166,7 @@ impl ThreadSafeNymNodesCache {
                 continue;
             };
 
-            if description.description.declared_role.entry {
+            if description.description.declared_role.mixnode {
                 let location = location_guard.get(node_id);
                 let bond = &native_nymnode.bond_information;
 

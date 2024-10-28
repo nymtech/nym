@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 pub(crate) type HttpResult<T> = Result<T, HttpError>;
 
 pub(crate) struct HttpError {
@@ -13,10 +15,22 @@ impl HttpError {
         }
     }
 
+    pub(crate) fn internal_with_logging(msg: impl Display) -> Self {
+        tracing::error!("{}", msg.to_string());
+        Self::internal()
+    }
+
     pub(crate) fn internal() -> Self {
         Self {
             message: serde_json::json!({"message": "Internal server error"}).to_string(),
             status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+        }
+    }
+
+    pub(crate) fn not_found(msg: impl Display) -> Self {
+        Self {
+            message: serde_json::json!({"message": msg.to_string()}).to_string(),
+            status: axum::http::StatusCode::NOT_FOUND,
         }
     }
 }

@@ -41,26 +41,34 @@ pub(crate) struct Cli {
     pub(crate) nyxd_addr: Url,
 
     /// Nym api client timeout.
-    #[clap(
-        long,
-        default_value = "15",
-        env = "NYM_NODE_STATUS_API_NYM_API_CLIENT_TIMEOUT"
-    )]
+    #[clap(long, default_value = "15", env = "NYM_API_CLIENT_TIMEOUT")]
     #[arg(value_parser = parse_duration)]
     pub(crate) nym_api_client_timeout: Duration,
 
     /// Explorer api client timeout.
-    #[clap(
-        long,
-        default_value = "15",
-        env = "NYM_NODE_STATUS_API_EXPLORER_CLIENT_TIMEOUT"
-    )]
+    #[clap(long, default_value = "15", env = "EXPLORER_CLIENT_TIMEOUT")]
     #[arg(value_parser = parse_duration)]
     pub(crate) explorer_client_timeout: Duration,
 
     /// Connection url for the database.
-    #[clap(long, env = "NYM_NODE_STATUS_API_CONNECTION_URL")]
-    pub(crate) connection_url: String,
+    #[clap(long, env = "DATABASE_URL")]
+    pub(crate) database_url: String,
+
+    #[clap(
+        long,
+        default_value = "600",
+        env = "NODE_STATUS_API_MONITOR_REFRESH_INTERVAL"
+    )]
+    #[arg(value_parser = parse_duration)]
+    pub(crate) monitor_refresh_interval: Duration,
+
+    #[clap(
+        long,
+        default_value = "600",
+        env = "NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL"
+    )]
+    #[arg(value_parser = parse_duration)]
+    pub(crate) testruns_refresh_interval: Duration,
 }
 
 fn parse_duration(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {

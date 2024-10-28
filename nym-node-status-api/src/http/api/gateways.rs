@@ -16,7 +16,7 @@ pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(gateways))
         .route("/skinny", axum::routing::get(gateways_skinny))
-        .route("/skinny/:identity_key", axum::routing::get(get_gateway))
+        .route("/:identity_key", axum::routing::get(get_gateway))
 }
 
 #[utoipa::path(

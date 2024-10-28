@@ -8,7 +8,7 @@ use utoipauto::utoipauto;
 #[utoipauto(paths = "./nym-node-status-api/src")]
 #[derive(OpenApi)]
 #[openapi(
-    info(title = "Nym API"),
+    info(title = "Node Status API"),
     tags(),
     components(schemas(nym_node_requests::api::v1::node::models::NodeDescription,))
 )]

@@ -61,6 +61,7 @@ members = [
     "common/ip-packet-requests",
     "common/ledger",
     "common/mixnode-common",
+    "common/models",
     "common/network-defaults",
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
@@ -121,6 +122,7 @@ members = [
     "nym-node/nym-node-http-api",
     "nym-node/nym-node-requests",
     "nym-node-status-api",
+    "nym-node-status-agent",
     "nym-outfox",
     "nym-validator-rewarder",
     "tools/echo-server",
@@ -148,12 +150,14 @@ members = [
 default-members = [
     "clients/native",
     "clients/socks5",
+    "common/models",
     "explorer-api",
     "gateway",
     "mixnode",
     "nym-api",
     "nym-data-observatory",
     "nym-node",
+    "nym-node-status-api",
     "nym-validator-rewarder",
     "nym-node-status-api",
     "service-providers/authenticator",
@@ -314,6 +318,7 @@ si-scale = "0.2.3"
 sphinx-packet = "0.1.1"
 sqlx = "0.7.4"
 strum = "0.26"
+strum_macros = "0.26"
 subtle-encoding = "0.5"
 syn = "1"
 sysinfo = "0.30.13"

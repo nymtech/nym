@@ -98,3 +98,15 @@ CREATE TABLE
     FOREIGN KEY (mix_id) REFERENCES mixnodes (mix_id),
     UNIQUE (mix_id, date_utc) -- This constraint automatically creates an index
   );
+
+
+CREATE TABLE testruns
+(
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  gateway_id    INTEGER,
+  status        INTEGER NOT NULL, -- 0=pending, 1=in-progress, 2=complete
+  timestamp_utc INTEGER NOT NULL,
+  ip_address    VARCHAR NOT NULL,
+  log           VARCHAR NOT NULL,
+  FOREIGN KEY (gateway_id) REFERENCES gateways (id)
+);

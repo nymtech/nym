@@ -35,7 +35,10 @@ impl RouterBuilder {
                     .nest("/mixnodes", mixnodes::routes())
                     .nest("/services", services::routes())
                     .nest("/summary", summary::routes()),
-                // .nest("/testruns", testruns::_routes()),
+            )
+            .nest(
+                "/internal",
+                Router::new().nest("/testruns", testruns::routes()),
             );
 
         Self {

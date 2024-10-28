@@ -1,4 +1,3 @@
-use crate::cli::Cli;
 use crate::db::models::{
     gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_BLACKLISTED_COUNT,
     GATEWAYS_BONDED_COUNT, GATEWAYS_EXPLORER_COUNT, GATEWAYS_HISTORICAL_COUNT,
@@ -19,34 +18,50 @@ use nym_validator_client::NymApiClient;
 use reqwest::Url;
 use std::collections::HashSet;
 use std::str::FromStr;
-use tokio::task::JoinHandle;
 use tokio::time::Duration;
+use tracing::instrument;
 
-const REFRESH_DELAY: Duration = Duration::from_secs(60 * 5);
-const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(15);
+// TODO dz should be configurable
+const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 
 static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
 
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
-pub(crate) async fn spawn_in_background(db_pool: DbPool, config: Cli) -> JoinHandle<()> {
+#[instrument(level = "debug", name = "data_monitor", skip_all)]
+pub(crate) async fn spawn_in_background(
+    db_pool: DbPool,
+    explorer_client_timeout: Duration,
+    nym_api_client_timeout: Duration,
+    nyxd_addr: &Url,
+    refresh_interval: Duration,
+) {
     let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
     loop {
         tracing::info!("Refreshing node info...");
 
-        if let Err(e) = run(&db_pool, &network_defaults, &config).await {
+        if let Err(e) = run(
+            &db_pool,
+            &network_defaults,
+            explorer_client_timeout,
+            nym_api_client_timeout,
+            nyxd_addr,
+        )
+        .await
+        {
             tracing::error!(
                 "Monitor run failed: {e}, retrying in {}s...",
                 FAILURE_RETRY_DELAY.as_secs()
             );
+            // TODO dz implement some sort of backoff
             tokio::time::sleep(FAILURE_RETRY_DELAY).await;
         } else {
             tracing::info!(
                 "Info successfully collected, sleeping for {}s...",
-                REFRESH_DELAY.as_secs()
+                refresh_interval.as_secs()
             );
-            tokio::time::sleep(REFRESH_DELAY).await;
+            tokio::time::sleep(refresh_interval).await;
         }
     }
 }
@@ -54,7 +69,9 @@ pub(crate) async fn spawn_in_background(db_pool: DbPool, config: Cli) -> JoinHan
 async fn run(
     pool: &DbPool,
     network_details: &NymNetworkDetails,
-    config: &Cli,
+    explorer_client_timeout: Duration,
+    nym_api_client_timeout: Duration,
+    nyxd_addr: &Url,
 ) -> anyhow::Result<()> {
     let default_api_url = network_details
         .endpoints
@@ -68,19 +85,17 @@ async fn run(
             .expect("rust sdk mainnet default explorer url not parseable")
     });
 
+    // TODO dz replace explorer api with ipinfo.io
     let default_explorer_url =
         default_explorer_url.expect("explorer url missing in network config");
     let explorer_client =
-        ExplorerClient::new_with_timeout(default_explorer_url, config.explorer_client_timeout)?;
+        ExplorerClient::new_with_timeout(default_explorer_url, explorer_client_timeout)?;
     let explorer_gateways = explorer_client
         .get_gateways()
         .await
         .log_error("get_gateways")?;
-    tracing::debug!("6");
 
-    let api_client =
-    // TODO dz introduce timeout ?
-        NymApiClient::new(default_api_url);
+    let api_client = NymApiClient::new_with_timeout(default_api_url, nym_api_client_timeout);
     let gateways = api_client
         .get_cached_described_gateways()
         .await
@@ -97,14 +112,16 @@ async fn run(
         .log_error("get_cached_mixnodes")?;
     tracing::debug!("Fetched {} mixnodes", mixnodes.len());
 
-    // TODO dz can we calculate blacklisted GWs from their performance?
-    // where do we get their performance?
-    let gateways_blacklisted = api_client
-        .nym_api
-        .get_gateways_blacklisted()
-        .await
-        .map(|vec| vec.into_iter().collect::<HashSet<_>>())
-        .log_error("get_gateways_blacklisted")?;
+    let gateways_blacklisted = skimmed_gateways
+        .iter()
+        .filter_map(|gw| {
+            if gw.performance.round_to_integer() <= 50 {
+                Some(gw.ed25519_identity_pubkey.to_owned())
+            } else {
+                None
+            }
+        })
+        .collect::<HashSet<_>>();
 
     // Cached mixnodes don't include blacklisted nodes
     // We need that to calculate the total locked tokens later
@@ -124,7 +141,7 @@ async fn run(
         .await
         .log_error("get_active_mixnodes")?;
     let delegation_program_members =
-        get_delegation_program_details(network_details, &config.nyxd_addr).await?;
+        get_delegation_program_details(network_details, nyxd_addr).await?;
 
     // keep stats for later
     let count_bonded_mixnodes = mixnodes.len();

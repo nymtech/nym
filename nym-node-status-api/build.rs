@@ -1,5 +1,7 @@
 use anyhow::{anyhow, Result};
 use sqlx::{Connection, SqliteConnection};
+use std::fs::Permissions;
+use std::os::unix::fs::PermissionsExt;
 use tokio::{fs::File, io::AsyncWriteExt};
 
 const SQLITE_DB_FILENAME: &str = "nym-node-status-api.sqlite";
@@ -41,6 +43,9 @@ async fn write_db_path_to_file(out_dir: &str, db_filename: &str) -> anyhow::Resu
     let mut file = File::create("enter_db.sh").await?;
     let _ = file.write(b"#!/bin/bash\n").await?;
     file.write_all(format!("sqlite3 {}/{}", out_dir, db_filename).as_bytes())
+        .await?;
+
+    file.set_permissions(Permissions::from_mode(0o755))
         .await
         .map_err(From::from)
 }

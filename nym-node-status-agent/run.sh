@@ -16,7 +16,7 @@ function copy_gw_probe() {
     pushd $gateway_probe_src
     cargo build --release --package nym-gateway-probe
     cp target/release/nym-gateway-probe "$crate_root"
-    $NYM_GATEWAY_PROBE --version
+    $crate_root/nym-gateway-probe --version
     popd
 }
 

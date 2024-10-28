@@ -26,11 +26,12 @@ async fn main() -> anyhow::Result<()> {
             args_clone.explorer_client_timeout,
             args_clone.nym_api_client_timeout,
             &args_clone.nyxd_addr,
+            args_clone.monitor_refresh_interval,
         )
         .await;
         tracing::info!("Started monitor task");
     });
-    testruns::spawn(storage.pool_owned()).await;
+    testruns::spawn(storage.pool_owned(), args.testruns_refresh_interval).await;
 
     let shutdown_handles = http::server::start_http_api(
         storage.pool_owned(),

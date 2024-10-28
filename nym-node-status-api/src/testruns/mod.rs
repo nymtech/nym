@@ -8,10 +8,7 @@ pub(crate) mod models;
 mod queue;
 pub(crate) use queue::now_utc;
 
-// TODO dz should be configurable
-const REFRESH_DELAY: Duration = Duration::from_secs(60 * 5);
-
-pub(crate) async fn spawn(pool: DbPool) {
+pub(crate) async fn spawn(pool: DbPool, refresh_interval: Duration) {
     tokio::spawn(async move {
         loop {
             tracing::info!("Spawning testruns...");
@@ -19,8 +16,8 @@ pub(crate) async fn spawn(pool: DbPool) {
             if let Err(e) = run(&pool).await {
                 tracing::error!("Cron job failed: {}", e);
             }
-            tracing::debug!("Sleeping for {}s...", REFRESH_DELAY.as_secs());
-            tokio::time::sleep(REFRESH_DELAY).await;
+            tracing::debug!("Sleeping for {}s...", refresh_interval.as_secs());
+            tokio::time::sleep(refresh_interval).await;
         }
     });
 }
@@ -73,7 +70,7 @@ async fn run(pool: &DbPool) -> anyhow::Result<()> {
             testruns_created += 1;
         }
     }
-    tracing::debug!("Queued {} testruns", testruns_created);
+    tracing::debug!("{} testruns queued in total", testruns_created);
 
     Ok(())
 }

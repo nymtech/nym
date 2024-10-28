@@ -53,6 +53,22 @@ pub(crate) struct Cli {
     /// Connection url for the database.
     #[clap(long, env = "DATABASE_URL")]
     pub(crate) database_url: String,
+
+    #[clap(
+        long,
+        default_value = "600",
+        env = "NODE_STATUS_API_MONITOR_REFRESH_INTERVAL"
+    )]
+    #[arg(value_parser = parse_duration)]
+    pub(crate) monitor_refresh_interval: Duration,
+
+    #[clap(
+        long,
+        default_value = "600",
+        env = "NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL"
+    )]
+    #[arg(value_parser = parse_duration)]
+    pub(crate) testruns_refresh_interval: Duration,
 }
 
 fn parse_duration(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {

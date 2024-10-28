@@ -22,7 +22,6 @@ use tokio::time::Duration;
 use tracing::instrument;
 
 // TODO dz should be configurable
-const REFRESH_DELAY: Duration = Duration::from_secs(60 * 5);
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 
 static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5lw";
@@ -35,6 +34,7 @@ pub(crate) async fn spawn_in_background(
     explorer_client_timeout: Duration,
     nym_api_client_timeout: Duration,
     nyxd_addr: &Url,
+    refresh_interval: Duration,
 ) {
     let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
@@ -59,9 +59,9 @@ pub(crate) async fn spawn_in_background(
         } else {
             tracing::info!(
                 "Info successfully collected, sleeping for {}s...",
-                REFRESH_DELAY.as_secs()
+                refresh_interval.as_secs()
             );
-            tokio::time::sleep(REFRESH_DELAY).await;
+            tokio::time::sleep(refresh_interval).await;
         }
     }
 }

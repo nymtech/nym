@@ -24,21 +24,21 @@ use utoipa::IntoParams;
 pub(crate) fn aggregation_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
     Router::new()
         .route(
-            "/master-verification-key:epoch_id",
+            "/master-verification-key/:epoch_id",
             axum::routing::get({
                 let ecash_state = Arc::clone(&ecash_state);
                 |epoch_id| master_verification_key(epoch_id, ecash_state)
             }),
         )
         .route(
-            "/aggregated-expiration-date-signatures:expiration_date",
+            "/aggregated-expiration-date-signatures/:expiration_date",
             axum::routing::get({
                 let ecash_state = Arc::clone(&ecash_state);
                 |expiration_date| expiration_date_signatures(expiration_date, ecash_state)
             }),
         )
         .route(
-            "/aggregated-coin-indices-signatures:epoch_id",
+            "/aggregated-coin-indices-signatures/:epoch_id",
             axum::routing::get({
                 let ecash_state = Arc::clone(&ecash_state);
                 |epoch_id| coin_indices_signatures(epoch_id, ecash_state)

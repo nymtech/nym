@@ -20,6 +20,7 @@ use time::macros::time;
 use time::{OffsetDateTime, Time};
 use tracing::{error, warn};
 
+#[allow(deprecated)]
 pub(crate) fn spending_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
     Router::new()
         .route(
@@ -242,6 +243,7 @@ async fn batch_redeem_tickets(
         (status = 500, body = ErrorResponse, description = "bloomfilters got disabled"),
     )
 )]
+#[deprecated]
 async fn double_spending_filter_v1(
     _state: Arc<EcashState>,
 ) -> AxumResult<Json<SpentCredentialsResponse>> {

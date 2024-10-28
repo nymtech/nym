@@ -7,7 +7,6 @@ export const MigrateTabs = () => {
     <div>
       <Tabs
         items={[<code>nym-mixnode</code>, <code>nym-gateway</code>]}
-        //defaultIndex="1"
         defaultIndex={1}
       >
         <Tabs.Tab>

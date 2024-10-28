@@ -28,6 +28,7 @@ pub(crate) fn routes() -> Router<AppState> {
 #[tracing::instrument(level = "debug", skip_all)]
 async fn request_testrun(State(state): State<AppState>) -> HttpResult<Json<TestrunAssignment>> {
     // TODO dz log agent's key
+    // TODO dz log agent's network probe version
     tracing::debug!("Agent X requested testrun");
 
     let db = state.db_pool();

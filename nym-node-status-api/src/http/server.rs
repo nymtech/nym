@@ -22,7 +22,7 @@ pub(crate) async fn start_http_api(
 
     // TODO dz do we need this to be configurable?
     let bind_addr = format!("0.0.0.0:{}", http_port);
-    tracing::info!("Binding server to {}", bind_addr);
+    tracing::info!("Binding server to {bind_addr}");
     let server = router.build_server(bind_addr).await?;
 
     Ok(start_server(server))

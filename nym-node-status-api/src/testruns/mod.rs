@@ -12,11 +12,7 @@ pub(crate) use queue::{now_utc, now_utc_as_rfc3339};
 const REFRESH_DELAY: Duration = Duration::from_secs(60 * 5);
 
 pub(crate) async fn spawn(pool: DbPool) {
-    let pool = pool.clone();
     tokio::spawn(async move {
-        // TODO dz delay for the first run, remove before merge
-        tokio::time::sleep(Duration::from_secs(90)).await;
-
         loop {
             tracing::info!("Spawning testruns...");
 

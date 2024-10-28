@@ -1,6 +1,7 @@
 use tracing::level_filters::LevelFilter;
 use tracing_subscriber::{filter::Directive, EnvFilter};
 
+// TODO dz you can get the tracing-subscriber via basic-tracing feature on nym-bin-common
 pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {
     fn directive_checked(directive: impl Into<String>) -> anyhow::Result<Directive> {
         directive.into().parse().map_err(From::from)

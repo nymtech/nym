@@ -2,6 +2,7 @@ use crate::{
     db::models::{TestRunDto, TestRunStatus},
     testruns::now_utc,
 };
+use anyhow::Context;
 use futures_util::TryStreamExt;
 use nym_bin_common::models::ns_api::TestrunAssignment;
 use serde::Deserialize;
@@ -50,13 +51,7 @@ pub(crate) async fn get_testrun_by_id(
     )
     .fetch_one(&mut *conn)
     .await
-    .map_err(|err| {
-        anyhow::anyhow!(
-            "Couldn't retrieve testrun {}: {}",
-            testrun_id,
-            err.to_string()
-        )
-    })
+    .context(format!("Couldn't retrieve testrun {testrun_id}"))
 }
 
 pub(crate) async fn get_oldest_testrun_and_make_it_pending(

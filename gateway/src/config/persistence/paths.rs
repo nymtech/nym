@@ -41,7 +41,6 @@ pub struct GatewayPaths {
     pub clients_storage: PathBuf,
 
     /// Path to sqlite database containing all persistent stats data.
-    #[serde(alias = "persistent_stats_storage")]
     pub stats_storage: PathBuf,
 
     /// Path to the configuration of the embedded network requester.

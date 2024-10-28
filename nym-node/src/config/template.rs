@@ -185,7 +185,7 @@ announce_wss_port = {{#if entry_gateway.announce_wss_port }} {{ entry_gateway.an
 # derived shared keys, available client bandwidths and wireguard peers.
 clients_storage = '{{ entry_gateway.storage_paths.clients_storage }}'
 
-#Path to sqlite database containing all persistent stats data.
+# Path to sqlite database containing all persistent stats data.
 stats_storage = '{{ entry_gateway.storage_paths.stats_storage }}'
 
 # Path to file containing cosmos account mnemonic used for zk-nym redemption.
@@ -240,7 +240,7 @@ upstream_exit_policy_url = '{{ exit_gateway.upstream_exit_policy_url }}'
 # derived shared keys, available client bandwidths and wireguard peers.
 clients_storage = '{{ exit_gateway.storage_paths.clients_storage }}'
 
-#Path to sqlite database containing all persistent stats data.
+# Path to sqlite database containing all persistent stats data.
 stats_storage = '{{ exit_gateway.storage_paths.stats_storage }}'
 
 

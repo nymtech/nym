@@ -31,7 +31,6 @@ nym-validator-client = { git = "https://github.com/nymtech/nym", branch = "pre-d
 nym-task = { path = "../common/task" }
 nym-node-requests = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork" }
 # nym-node-requests = { path = "../nym-node/nym-node-requests", features = ["openapi"] }
-nym-gateway-probe = { workspace = true }
 regex = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

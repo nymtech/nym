@@ -36,7 +36,7 @@ pub(crate) async fn spawn_in_background(
     explorer_client_timeout: Duration,
     nym_api_client_timeout: Duration,
     nyxd_addr: &Url,
-) -> JoinHandle<()> {
+) {
     let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
     loop {

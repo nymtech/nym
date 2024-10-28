@@ -44,7 +44,7 @@ async fn request_testrun(State(state): State<AppState>) -> HttpResult<Json<Testr
                     "🏃‍ Assigned testrun row_id {} to agent X",
                     &testrun.testrun_id
                 );
-                Ok(Json(testrun.into()))
+                Ok(Json(testrun))
             } else {
                 Err(HttpError::not_found("No testruns available"))
             }

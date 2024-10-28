@@ -4,8 +4,17 @@
 #![allow(dead_code)]
 
 use crate::{config::*, error::KeyIOFailure};
-use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
-use nym_config::serde_helpers::de_maybe_port;
+use entry_gateway::{Debug as EntryGatewayConfigDebug, ZkNymTicketHandlerDebug};
+use exit_gateway::{
+    Debug as ExitGatewayConfigDebug, IpPacketRouter, IpPacketRouterDebug, NetworkRequester,
+    NetworkRequesterDebug,
+};
+use mixnode::{Verloc, VerlocDebug};
+use nym_client_core_config_types::{
+    disk_persistence::{ClientKeysPaths, CommonClientPaths},
+    DebugConfig as ClientDebugConfig,
+};
+use nym_config::{defaults::TICKETBOOK_VALIDITY_DAYS, serde_helpers::de_maybe_port};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_requester::{
     set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
@@ -13,22 +22,21 @@ use nym_network_requester::{
 };
 use nym_pemstore::{store_key, store_keypair};
 use nym_sphinx_acknowledgements::AckKey;
-use old_configs::old_config_v4::*;
 use persistence::*;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct WireguardPathsV3 {
+pub struct WireguardPathsV4 {
     pub private_diffie_hellman_key_file: PathBuf,
     pub public_diffie_hellman_key_file: PathBuf,
 }
 
-impl WireguardPathsV3 {
+impl WireguardPathsV4 {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
         let data_dir = data_dir.as_ref();
-        WireguardPathsV3 {
+        WireguardPathsV4 {
             private_diffie_hellman_key_file: data_dir
                 .join(persistence::DEFAULT_X25519_WG_DH_KEY_FILENAME),
             public_diffie_hellman_key_file: data_dir
@@ -46,7 +54,7 @@ impl WireguardPathsV3 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct WireguardV3 {
+pub struct WireguardV4 {
     /// Specifies whether the wireguard service is enabled on this node.
     pub enabled: bool,
 
@@ -67,13 +75,13 @@ pub struct WireguardV3 {
     pub private_network_prefix: u8,
 
     /// Paths for wireguard keys, client registries, etc.
-    pub storage_paths: WireguardPathsV3,
+    pub storage_paths: WireguardPathsV4,
 }
 
 // a temporary solution until all "types" are run at the same time
 #[derive(Debug, Default, Serialize, Deserialize, ValueEnum, Clone, Copy)]
 #[serde(rename_all = "snake_case")]
-pub enum NodeModeV3 {
+pub enum NodeModeV4 {
     #[default]
     #[clap(alias = "mix")]
     Mixnode,
@@ -85,12 +93,12 @@ pub enum NodeModeV3 {
     ExitGateway,
 }
 
-impl From<NodeModeV3> for NodeModeV4 {
-    fn from(config: NodeModeV3) -> Self {
+impl From<NodeModeV4> for NodeMode {
+    fn from(config: NodeModeV4) -> Self {
         match config {
-            NodeModeV3::Mixnode => NodeModeV4::Mixnode,
-            NodeModeV3::EntryGateway => NodeModeV4::EntryGateway,
-            NodeModeV3::ExitGateway => NodeModeV4::ExitGateway,
+            NodeModeV4::Mixnode => NodeMode::Mixnode,
+            NodeModeV4::EntryGateway => NodeMode::EntryGateway,
+            NodeModeV4::ExitGateway => NodeMode::ExitGateway,
         }
     }
 }
@@ -99,7 +107,7 @@ impl From<NodeModeV3> for NodeModeV4 {
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct HostV3 {
+pub struct HostV4 {
     /// Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
     /// If no values are provided, when this node gets included in the network,
     /// its ip addresses will be populated by whatever value is resolved by associated nym-api.
@@ -118,7 +126,7 @@ pub struct HostV3 {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct MixnetDebugV3 {
+pub struct MixnetDebugV4 {
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
     #[serde(with = "humantime_serde")]
@@ -140,16 +148,16 @@ pub struct MixnetDebugV3 {
     pub unsafe_disable_noise: bool,
 }
 
-impl MixnetDebugV3 {
+impl MixnetDebugV4 {
     const DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF: Duration = Duration::from_millis(10_000);
     const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_millis(300_000);
     const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
     const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 }
 
-impl Default for MixnetDebugV3 {
+impl Default for MixnetDebugV4 {
     fn default() -> Self {
-        MixnetDebugV3 {
+        MixnetDebugV4 {
             packet_forwarding_initial_backoff: Self::DEFAULT_PACKET_FORWARDING_INITIAL_BACKOFF,
             packet_forwarding_maximum_backoff: Self::DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF,
             initial_connection_timeout: Self::DEFAULT_INITIAL_CONNECTION_TIMEOUT,
@@ -160,7 +168,7 @@ impl Default for MixnetDebugV3 {
     }
 }
 
-impl Default for MixnetV3 {
+impl Default for MixnetV4 {
     fn default() -> Self {
         // SAFETY:
         // our hardcoded values should always be valid
@@ -179,8 +187,9 @@ impl Default for MixnetV3 {
             vec![mainnet::NYXD_URL.parse().expect("Invalid default nyxd URL")]
         };
 
-        MixnetV3 {
+        MixnetV4 {
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_MIXNET_PORT),
+            announce_port: None,
             nym_api_urls,
             nyxd_urls,
             debug: Default::default(),
@@ -191,10 +200,16 @@ impl Default for MixnetV3 {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct MixnetV3 {
+pub struct MixnetV4 {
     /// Address this node will bind to for listening for mixnet packets
     /// default: `0.0.0.0:1789`
     pub bind_address: SocketAddr,
+
+    /// If applicable, custom port announced in the self-described API that other clients and nodes
+    /// will use.
+    /// Useful when the node is behind a proxy.
+    #[serde(deserialize_with = "de_maybe_port")]
+    pub announce_port: Option<u16>,
 
     /// Addresses to nym APIs from which the node gets the view of the network.
     pub nym_api_urls: Vec<Url>,
@@ -203,12 +218,12 @@ pub struct MixnetV3 {
     pub nyxd_urls: Vec<Url>,
 
     #[serde(default)]
-    pub debug: MixnetDebugV3,
+    pub debug: MixnetDebugV4,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct KeysPathsV3 {
+pub struct KeysPathsV4 {
     /// Path to file containing ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -228,11 +243,11 @@ pub struct KeysPathsV3 {
     pub public_x25519_noise_key_file: PathBuf,
 }
 
-impl KeysPathsV3 {
+impl KeysPathsV4 {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
         let data_dir = data_dir.as_ref();
 
-        KeysPathsV3 {
+        KeysPathsV4 {
             private_ed25519_identity_key_file: data_dir
                 .join(DEFAULT_ED25519_PRIVATE_IDENTITY_KEY_FILENAME),
             public_ed25519_identity_key_file: data_dir
@@ -269,8 +284,8 @@ impl KeysPathsV3 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct NymNodePathsV3 {
-    pub keys: KeysPathsV3,
+pub struct NymNodePathsV4 {
+    pub keys: KeysPathsV4,
 
     /// Path to a file containing basic node description: human-readable name, website, details, etc.
     pub description: PathBuf,
@@ -279,7 +294,7 @@ pub struct NymNodePathsV3 {
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
 #[serde(deny_unknown_fields)]
-pub struct HttpV3 {
+pub struct HttpV4 {
     /// Socket address this node will use for binding its http API.
     /// default: `0.0.0.0:8080`
     pub bind_address: SocketAddr,
@@ -308,9 +323,9 @@ pub struct HttpV3 {
     pub expose_crypto_hardware: bool,
 }
 
-impl Default for HttpV3 {
+impl Default for HttpV4 {
     fn default() -> Self {
-        HttpV3 {
+        HttpV4 {
             bind_address: SocketAddr::new(inaddr_any(), DEFAULT_HTTP_PORT),
             landing_page_assets_path: None,
             access_token: None,
@@ -323,11 +338,11 @@ impl Default for HttpV3 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixnodePathsV3 {}
+pub struct MixnodePathsV4 {}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct DebugV3 {
+pub struct DebugV4 {
     /// Delay between each subsequent node statistics being logged to the console
     #[serde(with = "humantime_serde")]
     pub node_stats_logging_delay: Duration,
@@ -339,7 +354,7 @@ pub struct DebugV3 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct VerlocDebugV3 {
+pub struct VerlocDebugV4 {
     /// Specifies number of echo packets sent to each node during a measurement run.
     pub packets_per_node: usize,
 
@@ -370,16 +385,19 @@ pub struct VerlocDebugV3 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct VerlocV3 {
+pub struct VerlocV4 {
     /// Socket address this node will use for binding its verloc API.
     /// default: `0.0.0.0:1790`
     pub bind_address: SocketAddr,
 
+    #[serde(deserialize_with = "de_maybe_port")]
+    pub announce_port: Option<u16>,
+
     #[serde(default)]
-    pub debug: VerlocDebugV3,
+    pub debug: VerlocDebugV4,
 }
 
-impl VerlocDebugV3 {
+impl VerlocDebugV4 {
     const DEFAULT_PACKETS_PER_NODE: usize = 100;
     const DEFAULT_CONNECTION_TIMEOUT: Duration = Duration::from_millis(5000);
     const DEFAULT_PACKET_TIMEOUT: Duration = Duration::from_millis(1500);
@@ -389,9 +407,9 @@ impl VerlocDebugV3 {
     const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
 }
 
-impl Default for VerlocDebugV3 {
+impl Default for VerlocDebugV4 {
     fn default() -> Self {
-        VerlocDebugV3 {
+        VerlocDebugV4 {
             packets_per_node: Self::DEFAULT_PACKETS_PER_NODE,
             connection_timeout: Self::DEFAULT_CONNECTION_TIMEOUT,
             packet_timeout: Self::DEFAULT_PACKET_TIMEOUT,
@@ -405,23 +423,23 @@ impl Default for VerlocDebugV3 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixnodeConfigV3 {
-    pub storage_paths: MixnodePathsV3,
+pub struct MixnodeConfigV4 {
+    pub storage_paths: MixnodePathsV4,
 
-    pub verloc: VerlocV3,
+    pub verloc: VerlocV4,
 
     #[serde(default)]
-    pub debug: DebugV3,
+    pub debug: DebugV4,
 }
 
-impl DebugV3 {
+impl DebugV4 {
     const DEFAULT_NODE_STATS_LOGGING_DELAY: Duration = Duration::from_millis(60_000);
     const DEFAULT_NODE_STATS_UPDATING_DELAY: Duration = Duration::from_millis(30_000);
 }
 
-impl Default for DebugV3 {
+impl Default for DebugV4 {
     fn default() -> Self {
-        DebugV3 {
+        DebugV4 {
             node_stats_logging_delay: Self::DEFAULT_NODE_STATS_LOGGING_DELAY,
             node_stats_updating_delay: Self::DEFAULT_NODE_STATS_UPDATING_DELAY,
         }
@@ -430,7 +448,7 @@ impl Default for DebugV3 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct EntryGatewayPathsV3 {
+pub struct EntryGatewayPathsV4 {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys and available client bandwidths.
     pub clients_storage: PathBuf,
@@ -438,32 +456,100 @@ pub struct EntryGatewayPathsV3 {
     /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
     pub cosmos_mnemonic: PathBuf,
 
-    pub authenticator: AuthenticatorPathsV3,
+    pub authenticator: AuthenticatorPathsV4,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(deny_unknown_fields)]
-pub struct EntryGatewayConfigDebugV3 {
-    /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
-    pub message_retrieval_limit: i64,
+#[serde(default)]
+pub struct ZkNymTicketHandlerDebugV4 {
+    /// Specifies the multiplier for revoking a malformed/double-spent ticket
+    /// (if it has to go all the way to the nym-api for verification)
+    /// e.g. if one ticket grants 100Mb and `revocation_bandwidth_penalty` is set to 1.5,
+    /// the client will lose 150Mb
+    pub revocation_bandwidth_penalty: f32,
+
+    /// Specifies the interval for attempting to resolve any failed, pending operations,
+    /// such as ticket verification or redemption.
+    #[serde(with = "humantime_serde")]
+    pub pending_poller: Duration,
+
+    pub minimum_api_quorum: f32,
+
+    /// Specifies the minimum number of tickets this gateway will attempt to redeem.
+    pub minimum_redemption_tickets: usize,
+
+    /// Specifies the maximum time between two subsequent tickets redemptions.
+    /// That's required as nym-apis will purge all ticket information for tickets older than maximum validity.
+    #[serde(with = "humantime_serde")]
+    pub maximum_time_between_redemption: Duration,
 }
 
-impl EntryGatewayConfigDebugV3 {
-    const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+impl ZkNymTicketHandlerDebugV4 {
+    pub const DEFAULT_REVOCATION_BANDWIDTH_PENALTY: f32 = 10.0;
+    pub const DEFAULT_PENDING_POLLER: Duration = Duration::from_secs(300);
+    pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.8;
+    pub const DEFAULT_MINIMUM_REDEMPTION_TICKETS: usize = 100;
+
+    // use min(4/5 of max validity, validity - 1), but making sure it's no greater than 1 day
+    // ASSUMPTION: our validity period is AT LEAST 2 days
+    //
+    // this could have been a constant, but it's more readable as a function
+    pub const fn default_maximum_time_between_redemption() -> Duration {
+        let desired_secs = TICKETBOOK_VALIDITY_DAYS * (86400 * 4) / 5;
+        let desired_secs_alt = (TICKETBOOK_VALIDITY_DAYS - 1) * 86400;
+
+        // can't use `min` in const context
+        let target_secs = if desired_secs < desired_secs_alt {
+            desired_secs
+        } else {
+            desired_secs_alt
+        };
+
+        assert!(
+            target_secs > 86400,
+            "the maximum time between redemption can't be lower than 1 day!"
+        );
+        Duration::from_secs(target_secs as u64)
+    }
 }
 
-impl Default for EntryGatewayConfigDebugV3 {
+impl Default for ZkNymTicketHandlerDebugV4 {
     fn default() -> Self {
-        EntryGatewayConfigDebugV3 {
-            message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+        ZkNymTicketHandlerDebugV4 {
+            revocation_bandwidth_penalty: Self::DEFAULT_REVOCATION_BANDWIDTH_PENALTY,
+            pending_poller: Self::DEFAULT_PENDING_POLLER,
+            minimum_api_quorum: Self::DEFAULT_MINIMUM_API_QUORUM,
+            minimum_redemption_tickets: Self::DEFAULT_MINIMUM_REDEMPTION_TICKETS,
+            maximum_time_between_redemption: Self::default_maximum_time_between_redemption(),
         }
     }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct EntryGatewayConfigV3 {
-    pub storage_paths: EntryGatewayPathsV3,
+pub struct EntryGatewayConfigDebugV4 {
+    /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
+    pub message_retrieval_limit: i64,
+    pub zk_nym_tickets: ZkNymTicketHandlerDebugV4,
+}
+
+impl EntryGatewayConfigDebugV4 {
+    const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+}
+
+impl Default for EntryGatewayConfigDebugV4 {
+    fn default() -> Self {
+        EntryGatewayConfigDebugV4 {
+            message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            zk_nym_tickets: Default::default(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct EntryGatewayConfigV4 {
+    pub storage_paths: EntryGatewayPathsV4,
 
     /// Indicates whether this gateway is accepting only coconut credentials for accessing the mixnet
     /// or if it also accepts non-paying clients
@@ -485,12 +571,12 @@ pub struct EntryGatewayConfigV3 {
     pub announce_wss_port: Option<u16>,
 
     #[serde(default)]
-    pub debug: EntryGatewayConfigDebugV3,
+    pub debug: EntryGatewayConfigDebugV4,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct NetworkRequesterPathsV3 {
+pub struct NetworkRequesterPathsV4 {
     /// Path to file containing network requester ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -520,7 +606,7 @@ pub struct NetworkRequesterPathsV3 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct IpPacketRouterPathsV3 {
+pub struct IpPacketRouterPathsV4 {
     /// Path to file containing ip packet router ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -550,7 +636,7 @@ pub struct IpPacketRouterPathsV3 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct AuthenticatorPathsV3 {
+pub struct AuthenticatorPathsV4 {
     /// Path to file containing authenticator ed25519 identity private key.
     pub private_ed25519_identity_key_file: PathBuf,
 
@@ -578,10 +664,10 @@ pub struct AuthenticatorPathsV3 {
     // it's possible we might have to add credential storage here for return tickets
 }
 
-impl AuthenticatorPathsV3 {
+impl AuthenticatorPathsV4 {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
         let data_dir = data_dir.as_ref();
-        AuthenticatorPathsV3 {
+        AuthenticatorPathsV4 {
             private_ed25519_identity_key_file: data_dir
                 .join(DEFAULT_ED25519_AUTH_PRIVATE_IDENTITY_KEY_FILENAME),
             public_ed25519_identity_key_file: data_dir
@@ -593,6 +679,23 @@ impl AuthenticatorPathsV3 {
             ack_key_file: data_dir.join(DEFAULT_AUTH_ACK_KEY_FILENAME),
             reply_surb_database: data_dir.join(DEFAULT_AUTH_REPLY_SURB_DB_FILENAME),
             gateway_registrations: data_dir.join(DEFAULT_AUTH_GATEWAYS_DB_FILENAME),
+        }
+    }
+
+    pub fn to_common_client_paths(&self) -> CommonClientPaths {
+        CommonClientPaths {
+            keys: ClientKeysPaths {
+                private_identity_key_file: self.private_ed25519_identity_key_file.clone(),
+                public_identity_key_file: self.public_ed25519_identity_key_file.clone(),
+                private_encryption_key_file: self.private_x25519_diffie_hellman_key_file.clone(),
+                public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
+                ack_key_file: self.ack_key_file.clone(),
+            },
+            gateway_registrations: self.gateway_registrations.clone(),
+
+            // not needed for embedded providers
+            credentials_database: Default::default(),
+            reply_surb_database: self.reply_surb_database.clone(),
         }
     }
 
@@ -613,23 +716,25 @@ impl AuthenticatorPathsV3 {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ExitGatewayPathsV3 {
-    pub network_requester: NetworkRequesterPathsV3,
+pub struct ExitGatewayPathsV4 {
+    pub clients_storage: PathBuf,
 
-    pub ip_packet_router: IpPacketRouterPathsV3,
+    pub network_requester: NetworkRequesterPathsV4,
 
-    pub authenticator: AuthenticatorPathsV3,
+    pub ip_packet_router: IpPacketRouterPathsV4,
+
+    pub authenticator: AuthenticatorPathsV4,
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-pub struct AuthenticatorV3 {
+pub struct AuthenticatorV4 {
     #[serde(default)]
-    pub debug: AuthenticatorDebugV3,
+    pub debug: AuthenticatorDebugV4,
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct AuthenticatorDebugV3 {
+pub struct AuthenticatorDebugV4 {
     /// Specifies whether authenticator service is enabled in this process.
     /// This is only here for debugging purposes as exit gateway should always run
     /// the authenticator.
@@ -645,9 +750,9 @@ pub struct AuthenticatorDebugV3 {
     pub client_debug: ClientDebugConfig,
 }
 
-impl Default for AuthenticatorDebugV3 {
+impl Default for AuthenticatorDebugV4 {
     fn default() -> Self {
-        AuthenticatorDebugV3 {
+        AuthenticatorDebugV4 {
             enabled: true,
             disable_poisson_rate: true,
             client_debug: Default::default(),
@@ -656,9 +761,9 @@ impl Default for AuthenticatorDebugV3 {
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for AuthenticatorV3 {
+impl Default for AuthenticatorV4 {
     fn default() -> Self {
-        AuthenticatorV3 {
+        AuthenticatorV4 {
             debug: Default::default(),
         }
     }
@@ -666,7 +771,7 @@ impl Default for AuthenticatorV3 {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default)]
-pub struct IpPacketRouterDebugV3 {
+pub struct IpPacketRouterDebugV4 {
     /// Specifies whether ip packet routing service is enabled in this process.
     /// This is only here for debugging purposes as exit gateway should always run **both**
     /// network requester and an ip packet router.
@@ -682,9 +787,9 @@ pub struct IpPacketRouterDebugV3 {
     pub client_debug: ClientDebugConfig,
 }
 
-impl Default for IpPacketRouterDebugV3 {
+impl Default for IpPacketRouterDebugV4 {
     fn default() -> Self {
-        IpPacketRouterDebugV3 {
+        IpPacketRouterDebugV4 {
             enabled: true,
             disable_poisson_rate: true,
             client_debug: Default::default(),
@@ -693,22 +798,22 @@ impl Default for IpPacketRouterDebugV3 {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-pub struct IpPacketRouterV3 {
+pub struct IpPacketRouterV4 {
     #[serde(default)]
-    pub debug: IpPacketRouterDebugV3,
+    pub debug: IpPacketRouterDebugV4,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for IpPacketRouterV3 {
+impl Default for IpPacketRouterV4 {
     fn default() -> Self {
-        IpPacketRouterV3 {
+        IpPacketRouterV4 {
             debug: Default::default(),
         }
     }
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-pub struct NetworkRequesterDebugV3 {
+pub struct NetworkRequesterDebugV4 {
     /// Specifies whether network requester service is enabled in this process.
     /// This is only here for debugging purposes as exit gateway should always run **both**
     /// network requester and an ip packet router.
@@ -724,9 +829,9 @@ pub struct NetworkRequesterDebugV3 {
     pub client_debug: ClientDebugConfig,
 }
 
-impl Default for NetworkRequesterDebugV3 {
+impl Default for NetworkRequesterDebugV4 {
     fn default() -> Self {
-        NetworkRequesterDebugV3 {
+        NetworkRequesterDebugV4 {
             enabled: true,
             disable_poisson_rate: true,
             client_debug: Default::default(),
@@ -735,15 +840,15 @@ impl Default for NetworkRequesterDebugV3 {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-pub struct NetworkRequesterV3 {
+pub struct NetworkRequesterV4 {
     #[serde(default)]
-    pub debug: NetworkRequesterDebugV3,
+    pub debug: NetworkRequesterDebugV4,
 }
 
 #[allow(clippy::derivable_impls)]
-impl Default for NetworkRequesterV3 {
+impl Default for NetworkRequesterV4 {
     fn default() -> Self {
-        NetworkRequesterV3 {
+        NetworkRequesterV4 {
             debug: Default::default(),
         }
     }
@@ -751,8 +856,27 @@ impl Default for NetworkRequesterV3 {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ExitGatewayConfigV3 {
-    pub storage_paths: ExitGatewayPathsV3,
+pub struct ExitGatewayDebugV4 {
+    /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
+    pub message_retrieval_limit: i64,
+}
+
+impl ExitGatewayDebugV4 {
+    const DEFAULT_MESSAGE_RETRIEVAL_LIMIT: i64 = 100;
+}
+
+impl Default for ExitGatewayDebugV4 {
+    fn default() -> Self {
+        ExitGatewayDebugV4 {
+            message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ExitGatewayConfigV4 {
+    pub storage_paths: ExitGatewayPathsV4,
 
     /// specifies whether this exit node should run in 'open-proxy' mode
     /// and thus would attempt to resolve **ANY** request it receives.
@@ -761,20 +885,23 @@ pub struct ExitGatewayConfigV3 {
     /// Specifies the url for an upstream source of the exit policy used by this node.
     pub upstream_exit_policy_url: Url,
 
-    pub network_requester: NetworkRequesterV3,
+    pub network_requester: NetworkRequesterV4,
 
-    pub ip_packet_router: IpPacketRouterV3,
+    pub ip_packet_router: IpPacketRouterV4,
+
+    #[serde(default)]
+    pub debug: ExitGatewayDebugV4,
 }
 
 #[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct LoggingSettingsV3 {
+pub struct LoggingSettingsV4 {
     // well, we need to implement something here at some point...
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
-pub struct ConfigV3 {
+pub struct ConfigV4 {
     // additional metadata holding on-disk location of this config file
     #[serde(skip)]
     pub(crate) save_path: Option<PathBuf>,
@@ -784,39 +911,39 @@ pub struct ConfigV3 {
 
     /// Current mode of this nym-node.
     /// Expect this field to be changed in the future to allow running the node in multiple modes (i.e. mixnode + gateway)
-    pub mode: NodeModeV3,
+    pub mode: NodeModeV4,
 
-    pub host: HostV3,
+    pub host: HostV4,
 
-    pub mixnet: MixnetV3,
+    pub mixnet: MixnetV4,
 
     /// Storage paths to persistent nym-node data, such as its long term keys.
-    pub storage_paths: NymNodePathsV3,
+    pub storage_paths: NymNodePathsV4,
 
     #[serde(default)]
-    pub http: HttpV3,
+    pub http: HttpV4,
 
-    pub wireguard: WireguardV3,
+    pub wireguard: WireguardV4,
 
-    pub mixnode: MixnodeConfigV3,
+    pub mixnode: MixnodeConfigV4,
 
-    pub entry_gateway: EntryGatewayConfigV3,
+    pub entry_gateway: EntryGatewayConfigV4,
 
-    pub exit_gateway: ExitGatewayConfigV3,
+    pub exit_gateway: ExitGatewayConfigV4,
 
-    pub authenticator: AuthenticatorV3,
+    pub authenticator: AuthenticatorV4,
 
     #[serde(default)]
-    pub logging: LoggingSettingsV3,
+    pub logging: LoggingSettingsV4,
 }
 
-impl NymConfigTemplate for ConfigV3 {
+impl NymConfigTemplate for ConfigV4 {
     fn template(&self) -> &'static str {
         CONFIG_TEMPLATE
     }
 }
 
-impl ConfigV3 {
+impl ConfigV4 {
     pub fn save(&self) -> Result<(), NymNodeError> {
         let save_location = self.save_location();
         debug!(
@@ -884,7 +1011,7 @@ impl ConfigV3 {
     // simple wrapper that reads config file and assigns path location
     fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
         let path = path.as_ref();
-        let mut loaded: ConfigV3 =
+        let mut loaded: ConfigV4 =
             read_config_from_toml_file(path).map_err(|source| NymNodeError::ConfigLoadFailure {
                 path: path.to_path_buf(),
                 source,
@@ -938,42 +1065,50 @@ pub async fn initialise(
     Ok(())
 }
 
-pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
+pub async fn try_upgrade_config_v4<P: AsRef<Path>>(
     path: P,
-    prev_config: Option<ConfigV3>,
-) -> Result<ConfigV4, NymNodeError> {
-    tracing::debug!("Updating from 1.1.4");
+    prev_config: Option<ConfigV4>,
+) -> Result<Config, NymNodeError> {
+    tracing::debug!("Updating from 1.1.5");
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
     } else {
-        ConfigV3::read_from_path(&path)?
+        ConfigV4::read_from_path(&path)?
     };
 
     let exit_gateway_paths = ExitGatewayPaths::new(
         old_cfg
             .exit_gateway
             .storage_paths
-            .network_requester
-            .public_ed25519_identity_key_file
+            .clients_storage
             .parent()
             .ok_or(NymNodeError::DataDirDerivationFailure)?,
     );
 
-    let cfg = ConfigV4 {
+    let entry_gateway_paths = EntryGatewayPaths::new(
+        old_cfg
+            .entry_gateway
+            .storage_paths
+            .clients_storage
+            .parent()
+            .ok_or(NymNodeError::DataDirDerivationFailure)?,
+    );
+
+    let cfg = Config {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
         mode: old_cfg.mode.into(),
-        host: HostV4 {
+        host: Host {
             public_ips: old_cfg.host.public_ips,
             hostname: old_cfg.host.hostname,
             location: old_cfg.host.location,
         },
-        mixnet: MixnetV4 {
+        mixnet: Mixnet {
             bind_address: old_cfg.mixnet.bind_address,
-            announce_port: None,
+            announce_port: old_cfg.mixnet.announce_port,
             nym_api_urls: old_cfg.mixnet.nym_api_urls,
             nyxd_urls: old_cfg.mixnet.nyxd_urls,
-            debug: MixnetDebugV4 {
+            debug: MixnetDebug {
                 packet_forwarding_initial_backoff: old_cfg
                     .mixnet
                     .debug
@@ -987,8 +1122,8 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                 unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
             },
         },
-        storage_paths: NymNodePathsV4 {
-            keys: KeysPathsV4 {
+        storage_paths: NymNodePaths {
+            keys: KeysPaths {
                 private_ed25519_identity_key_file: old_cfg
                     .storage_paths
                     .keys
@@ -1016,7 +1151,7 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             },
             description: old_cfg.storage_paths.description,
         },
-        http: HttpV4 {
+        http: Http {
             bind_address: old_cfg.http.bind_address,
             landing_page_assets_path: old_cfg.http.landing_page_assets_path,
             access_token: old_cfg.http.access_token,
@@ -1024,13 +1159,13 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             expose_system_hardware: old_cfg.http.expose_system_hardware,
             expose_crypto_hardware: old_cfg.http.expose_crypto_hardware,
         },
-        wireguard: WireguardV4 {
+        wireguard: Wireguard {
             enabled: old_cfg.wireguard.enabled,
             bind_address: old_cfg.wireguard.bind_address,
             private_ip: old_cfg.wireguard.private_ip,
             announced_port: old_cfg.wireguard.announced_port,
             private_network_prefix: old_cfg.wireguard.private_network_prefix,
-            storage_paths: WireguardPathsV4 {
+            storage_paths: WireguardPaths {
                 private_diffie_hellman_key_file: old_cfg
                     .wireguard
                     .storage_paths
@@ -1041,12 +1176,12 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                     .public_diffie_hellman_key_file,
             },
         },
-        mixnode: MixnodeConfigV4 {
-            storage_paths: MixnodePathsV4 {},
-            verloc: VerlocV4 {
+        mixnode: MixnodeConfig {
+            storage_paths: MixnodePaths {},
+            verloc: Verloc {
                 bind_address: old_cfg.mixnode.verloc.bind_address,
-                announce_port: None,
-                debug: VerlocDebugV4 {
+                announce_port: old_cfg.mixnode.verloc.announce_port,
+                debug: VerlocDebug {
                     packets_per_node: old_cfg.mixnode.verloc.debug.packets_per_node,
                     connection_timeout: old_cfg.mixnode.verloc.debug.connection_timeout,
                     packet_timeout: old_cfg.mixnode.verloc.debug.packet_timeout,
@@ -1056,16 +1191,17 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                     retry_timeout: old_cfg.mixnode.verloc.debug.retry_timeout,
                 },
             },
-            debug: DebugV4 {
+            debug: mixnode::Debug {
                 node_stats_logging_delay: old_cfg.mixnode.debug.node_stats_logging_delay,
                 node_stats_updating_delay: old_cfg.mixnode.debug.node_stats_updating_delay,
             },
         },
-        entry_gateway: EntryGatewayConfigV4 {
-            storage_paths: EntryGatewayPathsV4 {
+        entry_gateway: EntryGatewayConfig {
+            storage_paths: EntryGatewayPaths {
                 clients_storage: old_cfg.entry_gateway.storage_paths.clients_storage,
+                stats_storage: entry_gateway_paths.stats_storage,
                 cosmos_mnemonic: old_cfg.entry_gateway.storage_paths.cosmos_mnemonic,
-                authenticator: AuthenticatorPathsV4 {
+                authenticator: AuthenticatorPaths {
                     private_ed25519_identity_key_file: old_cfg
                         .entry_gateway
                         .storage_paths
@@ -1107,16 +1243,38 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             bind_address: old_cfg.entry_gateway.bind_address,
             announce_ws_port: old_cfg.entry_gateway.announce_ws_port,
             announce_wss_port: old_cfg.entry_gateway.announce_wss_port,
-            debug: EntryGatewayConfigDebugV4 {
+            debug: EntryGatewayConfigDebug {
                 message_retrieval_limit: old_cfg.entry_gateway.debug.message_retrieval_limit,
-                // \/ ADDED
-                zk_nym_tickets: Default::default(),
+                zk_nym_tickets: ZkNymTicketHandlerDebug {
+                    revocation_bandwidth_penalty: old_cfg
+                        .entry_gateway
+                        .debug
+                        .zk_nym_tickets
+                        .revocation_bandwidth_penalty,
+                    pending_poller: old_cfg.entry_gateway.debug.zk_nym_tickets.pending_poller,
+                    minimum_api_quorum: old_cfg
+                        .entry_gateway
+                        .debug
+                        .zk_nym_tickets
+                        .minimum_api_quorum,
+                    minimum_redemption_tickets: old_cfg
+                        .entry_gateway
+                        .debug
+                        .zk_nym_tickets
+                        .minimum_redemption_tickets,
+                    maximum_time_between_redemption: old_cfg
+                        .entry_gateway
+                        .debug
+                        .zk_nym_tickets
+                        .maximum_time_between_redemption,
+                },
             },
         },
-        exit_gateway: ExitGatewayConfigV4 {
-            storage_paths: ExitGatewayPathsV4 {
-                clients_storage: exit_gateway_paths.clients_storage,
-                network_requester: NetworkRequesterPathsV4 {
+        exit_gateway: ExitGatewayConfig {
+            storage_paths: ExitGatewayPaths {
+                clients_storage: old_cfg.exit_gateway.storage_paths.clients_storage,
+                stats_storage: exit_gateway_paths.stats_storage,
+                network_requester: NetworkRequesterPaths {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -1153,7 +1311,7 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                         .network_requester
                         .gateway_registrations,
                 },
-                ip_packet_router: IpPacketRouterPathsV4 {
+                ip_packet_router: IpPacketRouterPaths {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -1190,7 +1348,7 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                         .ip_packet_router
                         .gateway_registrations,
                 },
-                authenticator: AuthenticatorPathsV4 {
+                authenticator: AuthenticatorPaths {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -1230,8 +1388,8 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             },
             open_proxy: old_cfg.exit_gateway.open_proxy,
             upstream_exit_policy_url: old_cfg.exit_gateway.upstream_exit_policy_url,
-            network_requester: NetworkRequesterV4 {
-                debug: NetworkRequesterDebugV4 {
+            network_requester: NetworkRequester {
+                debug: NetworkRequesterDebug {
                     enabled: old_cfg.exit_gateway.network_requester.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .exit_gateway
@@ -1241,8 +1399,8 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                     client_debug: old_cfg.exit_gateway.network_requester.debug.client_debug,
                 },
             },
-            ip_packet_router: IpPacketRouterV4 {
-                debug: IpPacketRouterDebugV4 {
+            ip_packet_router: IpPacketRouter {
+                debug: IpPacketRouterDebug {
                     enabled: old_cfg.exit_gateway.ip_packet_router.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .exit_gateway
@@ -1252,10 +1410,12 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                     client_debug: old_cfg.exit_gateway.ip_packet_router.debug.client_debug,
                 },
             },
-            debug: Default::default(),
+            debug: ExitGatewayConfigDebug {
+                message_retrieval_limit: old_cfg.exit_gateway.debug.message_retrieval_limit,
+            },
         },
         authenticator: Default::default(),
-        logging: LoggingSettingsV4 {},
+        logging: LoggingSettings {},
     };
 
     Ok(cfg)

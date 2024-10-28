@@ -54,6 +54,7 @@ members = [
     "common/exit-policy",
     "common/gateway-requests",
     "common/gateway-storage",
+    "common/gateway-stats-storage",
     "common/http-api-client",
     "common/http-api-common",
     "common/inclusion-probability",

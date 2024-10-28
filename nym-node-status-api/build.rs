@@ -8,7 +8,7 @@ const SQLITE_DB_FILENAME: &str = "nym-node-status-api.sqlite";
 
 /// If you need to re-run migrations or reset the db, just run
 /// cargo clean -p nym-node-status-api
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let out_dir = read_env_var("OUT_DIR")?;
     let database_path = format!("sqlite://{}/{}?mode=rwc", out_dir, SQLITE_DB_FILENAME);

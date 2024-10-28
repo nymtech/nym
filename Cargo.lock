@@ -5004,6 +5004,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-common-models"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "nym-compact-ecash"
 version = "0.1.0"
 dependencies = [
@@ -6196,6 +6203,7 @@ dependencies = [
  "anyhow",
  "clap 4.5.20",
  "nym-bin-common 0.6.0",
+ "nym-common-models",
  "reqwest 0.12.4",
  "serde_json",
  "tokio",
@@ -6217,6 +6225,7 @@ dependencies = [
  "futures-util",
  "moka",
  "nym-bin-common 0.6.0",
+ "nym-common-models",
  "nym-explorer-client",
  "nym-network-defaults 0.1.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",
  "nym-node-requests 0.1.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",

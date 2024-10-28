@@ -60,6 +60,7 @@ members = [
     "common/ip-packet-requests",
     "common/ledger",
     "common/mixnode-common",
+    "common/models",
     "common/network-defaults",
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
@@ -147,6 +148,7 @@ members = [
 default-members = [
     "clients/native",
     "clients/socks5",
+    "common/models",
     "explorer-api",
     "gateway",
     "mixnode",

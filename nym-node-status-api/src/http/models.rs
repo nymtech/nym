@@ -3,7 +3,7 @@ use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-pub(crate) use nym_bin_common::models::ns_api::TestrunAssignment;
+pub(crate) use nym_common_models::ns_api::TestrunAssignment;
 
 #[derive(Debug, Clone, Serialize, Deserialize, ToSchema)]
 pub struct Gateway {

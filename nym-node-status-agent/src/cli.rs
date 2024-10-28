@@ -1,6 +1,6 @@
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
-use nym_bin_common::models::ns_api::TestrunAssignment;
+use nym_common_models::ns_api::TestrunAssignment;
 use std::sync::OnceLock;
 use tracing::instrument;
 

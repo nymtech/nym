@@ -1,9 +1,9 @@
+use crate::http::models::TestrunAssignment;
 use crate::{
     db::models::{TestRunDto, TestRunStatus},
     testruns::now_utc,
 };
 use anyhow::Context;
-use nym_bin_common::models::ns_api::TestrunAssignment;
 use sqlx::{pool::PoolConnection, Sqlite};
 
 pub(crate) async fn get_testrun_by_id(

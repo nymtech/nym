@@ -10,6 +10,3 @@ pub mod completions;
 
 #[cfg(feature = "output_format")]
 pub mod output_format;
-
-#[cfg(feature = "models")]
-pub mod models;

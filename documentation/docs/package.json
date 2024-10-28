@@ -7,7 +7,7 @@
   "scripts": {
     "generate:commands": "../scripts/next-scripts/autodoc.sh",
     "generate:tables": "../scripts/next-scripts/python-prebuild.sh",
-    "predev": "../scripts/prebuild.sh",
+    "predev": "../scripts/next-scripts/python-prebuild.sh",
     "build": "next build",
     "dev": " next dev",
     "lint": "next lint",

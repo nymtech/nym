@@ -22,6 +22,8 @@ pub(crate) fn save_new_nymnode(
     pledge: Coin,
 ) -> Result<NodeId, MixnetContractError> {
     let node_id = next_nymnode_id_counter(storage)?;
+    let current_epoch = interval_storage::current_interval(storage)?.current_epoch_absolute_id();
+
     save_new_nymnode_with_id(
         storage,
         node_id,
@@ -30,11 +32,13 @@ pub(crate) fn save_new_nymnode(
         cost_params,
         owner,
         pledge,
+        current_epoch,
     )?;
 
     Ok(node_id)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn save_new_nymnode_with_id(
     storage: &mut dyn Storage,
     node_id: NodeId,
@@ -43,10 +47,9 @@ pub(crate) fn save_new_nymnode_with_id(
     cost_params: NodeCostParams,
     owner: Addr,
     pledge: Coin,
+    last_rewarding_epoch: u32,
 ) -> Result<(), MixnetContractError> {
-    let current_epoch = interval_storage::current_interval(storage)?.current_epoch_absolute_id();
-
-    let node_rewarding = NodeRewarding::initialise_new(cost_params, &pledge, current_epoch)?;
+    let node_rewarding = NodeRewarding::initialise_new(cost_params, &pledge, last_rewarding_epoch)?;
     let node_bond = NymNodeBond::new(node_id, owner, pledge, node, bonding_height);
 
     // save node bond data

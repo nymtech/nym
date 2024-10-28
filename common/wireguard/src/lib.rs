@@ -110,7 +110,7 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
-        address: wireguard_data.inner.config().private_ip.to_string(),
+        address: wireguard_data.inner.config().private_ipv4.to_string(),
         port: wireguard_data.inner.config().announced_port as u32,
         peers,
         mtu: None,
@@ -119,14 +119,18 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
 
     // Use a dummy peer to create routing rule for the entire network space
     let mut catch_all_peer = Peer::new(Key::new([0; 32]));
-    let network = IpNetwork::new_truncate(
-        wireguard_data.inner.config().private_ip,
+    let network_v4 = IpNetwork::new_truncate(
+        wireguard_data.inner.config().private_ipv4,
         wireguard_data.inner.config().private_network_prefix,
     )?;
-    catch_all_peer.set_allowed_ips(vec![IpAddrMask::new(
-        network.network_address(),
-        network.netmask(),
-    )]);
+    let network_v6 = IpNetwork::new_truncate(
+        wireguard_data.inner.config().private_ipv6,
+        wireguard_data.inner.config().private_network_prefix,
+    )?;
+    catch_all_peer.set_allowed_ips(vec![
+        IpAddrMask::new(network_v4.network_address(), network_v4.netmask()),
+        IpAddrMask::new(network_v6.network_address(), network_v6.netmask()),
+    ]);
     wg_api.configure_peer_routing(&[catch_all_peer])?;
 
     let host = wg_api.read_interface_data()?;

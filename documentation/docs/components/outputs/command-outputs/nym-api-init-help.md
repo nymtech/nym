@@ -1,5 +1,5 @@
 ```sh
-[2m2024-10-25T14:06:15.560076Z[0m [32m INFO[0m [2mnym-api/src/main.rs[0m[2m:[0m[2m41[0m[2m:[0m Starting nym api...
+[2m2024-10-28T10:00:35.050738Z[0m [32m INFO[0m [2mnym-api/src/main.rs[0m[2m:[0m[2m41[0m[2m:[0m Starting nym api...
 Initialise a Nym Api instance with persistent config.toml file
 
 Usage: nym-api init [OPTIONS]

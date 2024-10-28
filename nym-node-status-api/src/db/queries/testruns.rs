@@ -3,33 +3,8 @@ use crate::{
     testruns::now_utc,
 };
 use anyhow::Context;
-use futures_util::TryStreamExt;
 use nym_bin_common::models::ns_api::TestrunAssignment;
-use serde::Deserialize;
 use sqlx::{pool::PoolConnection, Sqlite};
-
-pub(crate) async fn get_testruns(conn: PoolConnection<Sqlite>) -> anyhow::Result<Vec<TestRunDto>> {
-    // TODO dz accept mut reference, repeat in all similar functions
-    let mut conn = conn;
-    let testruns = sqlx::query_as!(
-        TestRunDto,
-        r#"SELECT
-            id as "id!",
-            gateway_id as "gateway_id!",
-            status as "status!",
-            timestamp_utc as "timestamp_utc!",
-            ip_address as "ip_address!",
-            log as "log!"
-         FROM testruns
-         WHERE status = 0
-         ORDER BY timestamp_utc"#
-    )
-    .fetch(&mut *conn)
-    .try_collect::<Vec<_>>()
-    .await?;
-
-    Ok(testruns)
-}
 
 pub(crate) async fn get_testrun_by_id(
     conn: &mut PoolConnection<Sqlite>,

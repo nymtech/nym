@@ -6,7 +6,7 @@ use tracing::instrument;
 
 pub(crate) mod models;
 mod queue;
-pub(crate) use queue::{now_utc, now_utc_as_rfc3339};
+pub(crate) use queue::now_utc;
 
 // TODO dz should be configurable
 const REFRESH_DELAY: Duration = Duration::from_secs(60 * 5);

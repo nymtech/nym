@@ -324,6 +324,7 @@ pub struct GatewayIdentityDto {
     pub bonded: bool,
 }
 
+#[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
 #[derive(Debug, Clone)]
 pub struct GatewayInfoDto {
     pub id: i64,

@@ -18,7 +18,6 @@ use nym_validator_client::NymApiClient;
 use reqwest::Url;
 use std::collections::HashSet;
 use std::str::FromStr;
-use tokio::task::JoinHandle;
 use tokio::time::Duration;
 use tracing::instrument;
 

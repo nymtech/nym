@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)] // it's not dead code but clippy doesn't detect usage in sqlx macros
 #[derive(Debug, Clone)]
 pub struct GatewayIdentityDto {
     pub gateway_identity_key: String,

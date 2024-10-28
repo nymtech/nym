@@ -19,6 +19,7 @@ pub mod ecash;
 mod init;
 mod list_gateways;
 mod peer_handler;
+mod request;
 mod run;
 mod sign;
 mod switch_gateway;
@@ -68,6 +69,9 @@ pub(crate) enum Commands {
     /// Run the authenticator with the provided configuration and optionally override
     /// parameters.
     Run(run::Run),
+
+    /// Make a dummy request to a running authenticator
+    Request(request::Request),
 
     /// Ecash-related functionalities
     Ecash(Ecash),
@@ -127,6 +131,7 @@ pub(crate) async fn execute(args: Cli) -> Result<(), AuthenticatorError> {
     match args.command {
         Commands::Init(m) => init::execute(m).await?,
         Commands::Run(m) => run::execute(&m).await?,
+        Commands::Request(r) => request::execute(&r).await?,
         Commands::Ecash(ecash) => ecash.execute().await?,
         Commands::ListGateways(args) => list_gateways::execute(args).await?,
         Commands::AddGateway(args) => add_gateway::execute(args).await?,

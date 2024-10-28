@@ -11,7 +11,7 @@ use crate::{config::BaseClientConfig, error::AuthenticatorError};
 // This is NOT in the SDK since we don't want to expose any of the client-core config types.
 // We could however consider moving it to a crate in common in the future.
 // TODO: refactor this function and its arguments
-pub(crate) async fn create_mixnet_client(
+pub async fn create_mixnet_client(
     config: &BaseClientConfig,
     shutdown: TaskClient,
     custom_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,

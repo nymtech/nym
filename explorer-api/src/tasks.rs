@@ -1,16 +1,16 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_mixnet_contract_common::GatewayBond;
+use crate::mix_nodes::CACHE_REFRESH_RATE;
+use crate::state::ExplorerApiStateContext;
+use nym_mixnet_contract_common::{GatewayBond, NymNodeDetails};
 use nym_task::TaskClient;
-use nym_validator_client::models::MixNodeBondAnnotated;
+use nym_validator_client::models::{MixNodeBondAnnotated, NymNodeDescription};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{Paging, TendermintRpcClient, ValidatorResponse};
 use nym_validator_client::{QueryHttpRpcValidatorClient, ValidatorClientError};
 use std::future::Future;
-
-use crate::mix_nodes::CACHE_REFRESH_RATE;
-use crate::state::ExplorerApiStateContext;
+use tokio::time::MissedTickBehavior;
 
 pub(crate) struct ExplorerApiTasks {
     state: ExplorerApiStateContext,
@@ -37,6 +37,28 @@ impl ExplorerApiTasks {
 
         info!("Fetched {} mixnode bonds", bonds.len());
         bonds
+    }
+
+    async fn retrieve_bonded_nymnodes(&self) -> Result<Vec<NymNodeDetails>, ValidatorClientError> {
+        info!("About to retrieve all nymnode bonds...");
+        self.state
+            .inner
+            .validator_client
+            .0
+            .get_all_cached_bonded_nym_nodes()
+            .await
+    }
+
+    async fn retrieve_node_descriptions(
+        &self,
+    ) -> Result<Vec<NymNodeDescription>, ValidatorClientError> {
+        info!("About to retrieve node descriptions...");
+        self.state
+            .inner
+            .validator_client
+            .0
+            .get_all_cached_described_nodes()
+            .await
     }
 
     async fn retrieve_all_mixnodes(&self) -> Vec<MixNodeBondAnnotated> {
@@ -130,10 +152,33 @@ impl ExplorerApiTasks {
         }
     }
 
+    async fn update_nymnodes_cache(&self) {
+        let nym_node_bonds = self.retrieve_bonded_nymnodes().await.unwrap_or_else(|err| {
+            error!("failed to retrieve nym node bonds: {err}");
+            Vec::new()
+        });
+
+        let all_descriptions = self
+            .retrieve_node_descriptions()
+            .await
+            .unwrap_or_else(|err| {
+                error!("failed to retrieve node descriptions: {err}");
+                Vec::new()
+            });
+
+        self.state
+            .inner
+            .nymnodes
+            .update_cache(nym_node_bonds, all_descriptions)
+            .await
+    }
+
     pub(crate) fn start(mut self) {
         info!("Spawning mix nodes task runner...");
         tokio::spawn(async move {
             let mut interval_timer = tokio::time::interval(CACHE_REFRESH_RATE);
+            interval_timer.set_missed_tick_behavior(MissedTickBehavior::Skip);
+
             while !self.shutdown.is_shutdown() {
                 tokio::select! {
                     _ = interval_timer.tick() => {
@@ -147,6 +192,10 @@ impl ExplorerApiTasks {
 
                         info!("Updating mix node cache...");
                         self.update_mixnode_cache().await;
+
+                        info!("Updating nymnode cache...");
+                        self.update_nymnodes_cache().await;
+                        info!("Done");
                     }
                     _ = self.shutdown.recv() => {
                         trace!("Listener: Received shutdown");

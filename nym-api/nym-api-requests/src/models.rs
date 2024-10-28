@@ -138,6 +138,48 @@ pub struct NodePerformance {
     pub last_24h: Performance,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Hash, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export, export_to = "ts-packages/types/src/types/rust/DisplayRole.ts")
+)]
+pub enum DisplayRole {
+    EntryGateway,
+    Layer1,
+    Layer2,
+    Layer3,
+    ExitGateway,
+    Standby,
+}
+
+impl From<Role> for DisplayRole {
+    fn from(role: Role) -> Self {
+        match role {
+            Role::EntryGateway => DisplayRole::EntryGateway,
+            Role::Layer1 => DisplayRole::Layer1,
+            Role::Layer2 => DisplayRole::Layer2,
+            Role::Layer3 => DisplayRole::Layer3,
+            Role::ExitGateway => DisplayRole::ExitGateway,
+            Role::Standby => DisplayRole::Standby,
+        }
+    }
+}
+
+impl From<DisplayRole> for Role {
+    fn from(role: DisplayRole) -> Self {
+        match role {
+            DisplayRole::EntryGateway => Role::EntryGateway,
+            DisplayRole::Layer1 => Role::Layer1,
+            DisplayRole::Layer2 => Role::Layer2,
+            DisplayRole::Layer3 => Role::Layer3,
+            DisplayRole::ExitGateway => Role::ExitGateway,
+            DisplayRole::Standby => Role::Standby,
+        }
+    }
+}
+
 // imo for now there's no point in exposing more than that,
 // nym-api shouldn't be calculating apy or stake saturation for you.
 // it should just return its own metrics (performance) and then you can do with it as you wish
@@ -153,7 +195,7 @@ pub struct NodePerformance {
 pub struct NodeAnnotation {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub last_24h_performance: Performance,
-    pub current_role: Option<Role>,
+    pub current_role: Option<DisplayRole>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]

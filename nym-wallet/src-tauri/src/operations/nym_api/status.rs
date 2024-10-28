@@ -4,13 +4,12 @@
 use crate::api_client;
 use crate::error::BackendError;
 use crate::state::WalletState;
-use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::{
     reward_params::Performance, Coin, IdentityKeyRef, NodeId, Percent,
 };
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{
-    AnnotationResponse, ComputeRewardEstParam, GatewayCoreStatusResponse,
+    AnnotationResponse, ComputeRewardEstParam, DisplayRole, GatewayCoreStatusResponse,
     GatewayStatusReportResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
     MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse,
 };
@@ -110,7 +109,7 @@ pub async fn mixnode_inclusion_probability(
 pub async fn get_nymnode_role(
     node_id: NodeId,
     state: tauri::State<'_, WalletState>,
-) -> Result<Option<Role>, BackendError> {
+) -> Result<Option<DisplayRole>, BackendError> {
     let annotation = get_nymnode_annotation(node_id, state).await?;
     Ok(annotation.annotation.and_then(|n| n.current_role))
 }

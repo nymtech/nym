@@ -26,6 +26,13 @@ impl HttpError {
             status: axum::http::StatusCode::INTERNAL_SERVER_ERROR,
         }
     }
+
+    pub(crate) fn not_found(msg: impl Display) -> Self {
+        Self {
+            message: serde_json::json!({"message": msg.to_string()}).to_string(),
+            status: axum::http::StatusCode::NOT_FOUND,
+        }
+    }
 }
 
 impl axum::response::IntoResponse for HttpError {

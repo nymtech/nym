@@ -6,6 +6,7 @@ use tracing::instrument;
 
 pub(crate) mod models;
 mod queue;
+pub(crate) use queue::{now_utc, now_utc_as_rfc3339};
 
 // TODO dz should be configurable
 const REFRESH_DELAY: Duration = Duration::from_secs(60 * 5);
@@ -14,7 +15,8 @@ pub(crate) async fn spawn(pool: DbPool) {
     let pool = pool.clone();
     tokio::spawn(async move {
         // TODO dz delay for the first run, remove before merge
-        tokio::time::sleep(Duration::from_secs(15)).await;
+        tokio::time::sleep(Duration::from_secs(90)).await;
+
         loop {
             tracing::info!("Spawning testruns...");
 
@@ -27,6 +29,9 @@ pub(crate) async fn spawn(pool: DbPool) {
     });
 }
 
+// TODO dz make number of max agents configurable
+
+// TODO dz periodically clean up stale pending testruns
 #[instrument(level = "debug", name = "testrun_queue", skip_all)]
 async fn run(pool: &DbPool) -> anyhow::Result<()> {
     if pool.is_closed() {
@@ -47,6 +52,8 @@ async fn run(pool: &DbPool) -> anyhow::Result<()> {
     .fetch(&mut *conn)
     .try_collect::<Vec<_>>()
     .await?;
+
+    // TODO dz this filtering could be done in SQL
     let gateways: Vec<GatewayIdentityDto> = gateways.into_iter().filter(|g| g.bonded).collect();
 
     tracing::debug!("Trying to queue {} testruns", gateways.len());
@@ -59,6 +66,7 @@ async fn run(pool: &DbPool) -> anyhow::Result<()> {
             "127.0.0.1".to_string(),
         )
         .await
+        // TODO dz measure how many were actually inserted and how many were skipped
         {
             tracing::debug!(
                 "Skipping test for identity {} with error {}",

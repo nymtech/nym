@@ -9,7 +9,7 @@ impl GwProbe {
         Self { path: probe_path }
     }
 
-    pub(crate) async fn print_version(&self) -> String {
+    pub(crate) async fn version(&self) -> String {
         let mut command = tokio::process::Command::new(&self.path);
         command.stdout(std::process::Stdio::piped());
         command.arg("--version");

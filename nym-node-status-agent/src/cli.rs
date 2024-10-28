@@ -1,5 +1,6 @@
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
+use nym_bin_common::models::ns_api::TestrunAssignment;
 use std::sync::OnceLock;
 use tracing::instrument;
 
@@ -48,27 +49,53 @@ impl Args {
     }
 
     async fn run_probe(&self, probe_path: &str, gateway_id: &Option<String>) -> anyhow::Result<()> {
+        let server_address = format!("{}:{}", &self.server_address, self.server_port);
+
         let probe = GwProbe::new(probe_path.to_string());
 
-        let version = probe.print_version().await;
+        let version = probe.version().await;
         tracing::info!("Probe version:\n{}", version);
 
-        // TODO dz register to get a task with NSAPI
+        let testrun = request_testrun(&server_address).await?;
 
         let log = probe.run_and_get_log(gateway_id);
 
-        let server_address = format!("{}:{}", &self.server_address, self.server_port);
-        submit_results(&server_address, log).await?;
+        submit_results(&server_address, testrun.testrun_id, log).await?;
 
         Ok(())
     }
 }
 
+const URL_BASE: &str = "internal/testruns";
+
+#[instrument(level = "debug", skip_all)]
+async fn request_testrun(server_addr: &str) -> anyhow::Result<TestrunAssignment> {
+    let target_url = format!("{}/{}", server_addr, URL_BASE);
+    let client = reqwest::Client::new();
+    let res = client
+        .get(target_url)
+        .send()
+        .await
+        .and_then(|response| response.error_for_status())?;
+    res.json()
+        .await
+        .map(|testrun| {
+            tracing::info!("Received testrun assignment: {:?}", testrun);
+            testrun
+        })
+        .map_err(|err| {
+            tracing::error!("err");
+            err.into()
+        })
+}
+
 #[instrument(level = "debug", skip(probe_outcome))]
-async fn submit_results(server_addr: &str, probe_outcome: String) -> anyhow::Result<()> {
-    // TODO dz get this when registering with NSAPI
-    let testrun_id = 1u32;
-    let target_url = format!("{}/internal/testruns/{}", server_addr, testrun_id);
+async fn submit_results(
+    server_addr: &str,
+    testrun_id: i64,
+    probe_outcome: String,
+) -> anyhow::Result<()> {
+    let target_url = format!("{}/{}/{}", server_addr, URL_BASE, testrun_id);
     let client = reqwest::Client::new();
     let res = client
         .post(target_url)

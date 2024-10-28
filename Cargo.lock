@@ -7205,6 +7205,7 @@ dependencies = [
  "nym-node-requests 0.1.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",
  "nym-task 0.1.0",
  "nym-validator-client 0.1.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",
+ "regex",
  "reqwest 0.12.4",
  "serde",
  "serde_json",

@@ -17,7 +17,7 @@ readme.workspace = true
 [dependencies]
 anyhow = { workspace = true}
 clap = { workspace = true, features = ["derive", "env"] }
-nym-bin-common = { path = "../common/bin-common" }
+nym-bin-common = { path = "../common/bin-common", features = ["models"]}
 # release 0.2.4
 nym-gateway-probe = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "process"] }

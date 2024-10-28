@@ -21,7 +21,7 @@ cosmwasm-std = { workspace = true }
 envy = { workspace = true }
 futures-util = { workspace = true }
 moka = { workspace = true, features = ["future"] }
-nym-bin-common = { path = "../common/bin-common" }
+nym-bin-common = { path = "../common/bin-common", features = ["models"]}
 nym-explorer-client = { path = "../explorer-api/explorer-client" }
 # TODO dz: before Nym API client breaking changes. Update to latest develop once new Nym API is live
 nym-network-defaults = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork" }
@@ -32,6 +32,7 @@ nym-task = { path = "../common/task" }
 nym-node-requests = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork" }
 # nym-node-requests = { path = "../nym-node/nym-node-requests", features = ["openapi"] }
 nym-gateway-probe = { workspace = true }
+regex = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }

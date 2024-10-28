@@ -1,4 +1,3 @@
-use crate::cli::Cli;
 use crate::db::models::{
     gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_BLACKLISTED_COUNT,
     GATEWAYS_BONDED_COUNT, GATEWAYS_EXPLORER_COUNT, GATEWAYS_HISTORICAL_COUNT,
@@ -32,13 +31,26 @@ static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5
 // TODO dz: query many NYM APIs:
 // multiple instances running directory cache, ask sachin
 #[instrument(level = "debug", name = "data_monitor", skip_all)]
-pub(crate) async fn spawn_in_background(db_pool: DbPool, config: Cli) -> JoinHandle<()> {
+pub(crate) async fn spawn_in_background(
+    db_pool: DbPool,
+    explorer_client_timeout: Duration,
+    nym_api_client_timeout: Duration,
+    nyxd_addr: &Url,
+) -> JoinHandle<()> {
     let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
     loop {
         tracing::info!("Refreshing node info...");
 
-        if let Err(e) = run(&db_pool, &network_defaults, &config).await {
+        if let Err(e) = run(
+            &db_pool,
+            &network_defaults,
+            explorer_client_timeout,
+            nym_api_client_timeout,
+            nyxd_addr,
+        )
+        .await
+        {
             tracing::error!(
                 "Monitor run failed: {e}, retrying in {}s...",
                 FAILURE_RETRY_DELAY.as_secs()
@@ -58,7 +70,9 @@ pub(crate) async fn spawn_in_background(db_pool: DbPool, config: Cli) -> JoinHan
 async fn run(
     pool: &DbPool,
     network_details: &NymNetworkDetails,
-    config: &Cli,
+    explorer_client_timeout: Duration,
+    nym_api_client_timeout: Duration,
+    nyxd_addr: &Url,
 ) -> anyhow::Result<()> {
     let default_api_url = network_details
         .endpoints
@@ -76,13 +90,13 @@ async fn run(
     let default_explorer_url =
         default_explorer_url.expect("explorer url missing in network config");
     let explorer_client =
-        ExplorerClient::new_with_timeout(default_explorer_url, config.explorer_client_timeout)?;
+        ExplorerClient::new_with_timeout(default_explorer_url, explorer_client_timeout)?;
     let explorer_gateways = explorer_client
         .get_gateways()
         .await
         .log_error("get_gateways")?;
 
-    let api_client = NymApiClient::new_with_timeout(default_api_url, config.nym_api_client_timeout);
+    let api_client = NymApiClient::new_with_timeout(default_api_url, nym_api_client_timeout);
     let gateways = api_client
         .get_cached_described_gateways()
         .await
@@ -128,7 +142,7 @@ async fn run(
         .await
         .log_error("get_active_mixnodes")?;
     let delegation_program_members =
-        get_delegation_program_details(network_details, &config.nyxd_addr).await?;
+        get_delegation_program_details(network_details, nyxd_addr).await?;
 
     // keep stats for later
     let count_bonded_mixnodes = mixnodes.len();

@@ -43,6 +43,7 @@ use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId, NymNodeDetails};
 use time::format_description::BorrowedFormatItem;
 use time::Date;
+use tracing::instrument;
 
 pub mod error;
 pub mod routes;
@@ -67,12 +68,14 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
         self.get_json(&[routes::API_VERSION, routes::MIXNODES], NO_PARAMS)
             .await
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnodes_detailed(&self) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
         self.get_json(
             &[
@@ -87,6 +90,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_gateways_detailed(&self) -> Result<Vec<GatewayBondAnnotated>, NymAPIError> {
         self.get_json(
             &[
@@ -101,6 +105,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnodes_detailed_unfiltered(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
@@ -117,12 +122,14 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_gateways(&self) -> Result<Vec<GatewayBond>, NymAPIError> {
         self.get_json(&[routes::API_VERSION, routes::GATEWAYS], NO_PARAMS)
             .await
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_gateways_described(&self) -> Result<Vec<LegacyDescribedGateway>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::GATEWAYS, routes::DESCRIBED],
@@ -132,6 +139,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnodes_described(&self) -> Result<Vec<LegacyDescribedMixNode>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::DESCRIBED],
@@ -140,6 +148,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[tracing::instrument(level = "debug", skip_all)]
     async fn get_nodes_described(
         &self,
         page: Option<u32>,
@@ -159,6 +168,7 @@ pub trait NymApiClientExt: ApiClient {
             .await
     }
 
+    #[tracing::instrument(level = "debug", skip_all)]
     async fn get_nym_nodes(
         &self,
         page: Option<u32>,
@@ -179,6 +189,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[tracing::instrument(level = "debug", skip_all)]
     async fn get_basic_mixnodes(
         &self,
         semver_compatibility: Option<String>,
@@ -203,6 +214,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_basic_gateways(
         &self,
         semver_compatibility: Option<String>,
@@ -228,6 +240,7 @@ pub trait NymApiClientExt: ApiClient {
 
     /// retrieve basic information for nodes are capable of operating as an entry gateway
     /// this includes legacy gateways and nym-nodes
+    #[instrument(level = "debug", skip(self))]
     async fn get_basic_entry_assigned_nodes(
         &self,
         semver_compatibility: Option<String>,
@@ -269,6 +282,7 @@ pub trait NymApiClientExt: ApiClient {
 
     /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
     /// this includes legacy mixnodes and nym-nodes
+    #[instrument(level = "debug", skip(self))]
     async fn get_basic_active_mixing_assigned_nodes(
         &self,
         semver_compatibility: Option<String>,
@@ -310,6 +324,7 @@ pub trait NymApiClientExt: ApiClient {
 
     /// retrieve basic information for nodes that got assigned 'mixing' node in this epoch
     /// this includes legacy mixnodes and nym-nodes
+    #[instrument(level = "debug", skip(self))]
     async fn get_basic_mixing_capable_nodes(
         &self,
         semver_compatibility: Option<String>,
@@ -348,6 +363,7 @@ pub trait NymApiClientExt: ApiClient {
         )
         .await
     }
+    #[instrument(level = "debug", skip(self))]
 
     async fn get_basic_nodes(
         &self,
@@ -382,6 +398,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_active_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::ACTIVE],
@@ -391,6 +408,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_active_mixnodes_detailed(&self) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
         self.get_json(
             &[
@@ -406,6 +424,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_rewarded_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::REWARDED],
@@ -415,6 +434,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnode_report(
         &self,
         mix_id: NodeId,
@@ -433,6 +453,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_gateway_report(
         &self,
         identity: IdentityKeyRef<'_>,
@@ -451,6 +472,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnode_history(
         &self,
         mix_id: NodeId,
@@ -469,6 +491,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_gateway_history(
         &self,
         identity: IdentityKeyRef<'_>,
@@ -487,6 +510,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_rewarded_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
@@ -504,6 +528,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_gateway_core_status_count(
         &self,
         identity: IdentityKeyRef<'_>,
@@ -536,6 +561,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnode_core_status_count(
         &self,
         mix_id: NodeId,
@@ -569,6 +595,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnode_status(
         &self,
         mix_id: NodeId,
@@ -587,6 +614,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnode_reward_estimation(
         &self,
         mix_id: NodeId,
@@ -605,6 +633,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn compute_mixnode_reward_estimation(
         &self,
         mix_id: NodeId,
@@ -625,6 +654,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnode_stake_saturation(
         &self,
         mix_id: NodeId,
@@ -643,6 +673,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnode_inclusion_probability(
         &self,
         mix_id: NodeId,
@@ -660,6 +691,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn get_current_node_performance(
         &self,
         node_id: NodeId,
@@ -692,6 +724,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnodes_blacklisted(&self) -> Result<Vec<NodeId>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::BLACKLISTED],
@@ -701,6 +734,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_gateways_blacklisted(&self) -> Result<Vec<IdentityKey>, NymAPIError> {
         self.get_json(
             &[routes::API_VERSION, routes::GATEWAYS, routes::BLACKLISTED],
@@ -709,6 +743,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self, request_body))]
     async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
@@ -725,6 +760,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self, request_body))]
     async fn verify_ecash_ticket(
         &self,
         request_body: &VerifyEcashTicketBody,
@@ -741,6 +777,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self, request_body))]
     async fn batch_redeem_ecash_tickets(
         &self,
         request_body: &BatchRedeemTicketsBody,
@@ -758,6 +795,7 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn double_spending_filter_v1(&self) -> Result<SpentCredentialsResponse, NymAPIError> {
         self.get_json(
             &[
@@ -770,6 +808,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn partial_expiration_date_signatures(
         &self,
         expiration_date: Option<Date>,
@@ -793,6 +832,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn partial_coin_indices_signatures(
         &self,
         epoch_id: Option<EpochId>,
@@ -813,6 +853,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn global_expiration_date_signatures(
         &self,
         expiration_date: Option<Date>,
@@ -836,6 +877,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn global_coin_indices_signatures(
         &self,
         epoch_id: Option<EpochId>,
@@ -856,6 +898,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn master_verification_key(
         &self,
         epoch_id: Option<EpochId>,
@@ -875,6 +918,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn epoch_credentials(
         &self,
         dkg_epoch: EpochId,
@@ -891,6 +935,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn issued_credential(
         &self,
         credential_id: i64,
@@ -907,6 +952,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn issued_credentials(
         &self,
         credential_ids: Vec<i64>,

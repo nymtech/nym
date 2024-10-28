@@ -32,14 +32,14 @@ pub(crate) fn partial_signing_routes(ecash_state: Arc<EcashState>) -> Router<App
             }),
         )
         .route(
-            "/partial-expiration-date-signatures/:expiration_date",
+            "/partial-expiration-date-signatures",
             axum::routing::get({
                 let ecash_state = Arc::clone(&ecash_state);
                 |expiration_date| partial_expiration_date_signatures(expiration_date, ecash_state)
             }),
         )
         .route(
-            "/partial-coin-indices-signatures/:epoch_id",
+            "/partial-coin-indices-signatures",
             axum::routing::get({
                 let ecash_state = Arc::clone(&ecash_state);
                 |epoch_id| partial_coin_indices_signatures(epoch_id, ecash_state)
@@ -127,7 +127,7 @@ struct ExpirationDateParam {
     params(
         ExpirationDateParam
     ),
-    path = "/v1/ecash/partial-expiration-date-signatures/{expiration_date}",
+    path = "/v1/ecash/partial-expiration-date-signatures",
     responses(
         (status = 200, body = PartialExpirationDateSignatureResponse),
         (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
@@ -165,7 +165,7 @@ async fn partial_expiration_date_signatures(
     params(
         EpochIdParam
     ),
-    path = "/v1/ecash/partial-coin-indices-signatures/{epoch_id}",
+    path = "/v1/ecash/partial-coin-indices-signatures",
     responses(
         (status = 200, body = PartialExpirationDateSignatureResponse),
         (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),

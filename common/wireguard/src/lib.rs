@@ -10,12 +10,11 @@ use defguard_wireguard_rs::WGApi;
 #[cfg(target_os = "linux")]
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
 use nym_crypto::asymmetric::encryption::KeyPair;
+use nym_network_defaults::constants::WG_TUN_BASE_NAME;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
-
-const WG_TUN_NAME: &str = "nymwg";
 
 pub(crate) mod error;
 pub mod peer_controller;
@@ -93,7 +92,7 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
     use std::collections::HashMap;
     use tokio::sync::RwLock;
 
-    let ifname = String::from(WG_TUN_NAME);
+    let ifname = String::from(WG_TUN_BASE_NAME);
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(all_peers.len());
     let peers = all_peers

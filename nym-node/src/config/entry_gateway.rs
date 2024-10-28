@@ -181,7 +181,8 @@ pub fn ephemeral_entry_gateway_config(
         config: super::Wireguard {
             enabled: config.wireguard.enabled,
             bind_address: config.wireguard.bind_address,
-            private_ip: config.wireguard.private_ip,
+            private_ipv4: config.wireguard.private_ipv4,
+            private_ipv6: config.wireguard.private_ipv6,
             announced_port: config.wireguard.announced_port,
             private_network_prefix: config.wireguard.private_network_prefix,
             storage_paths: config.wireguard.storage_paths.clone(),

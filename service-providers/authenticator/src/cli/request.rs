@@ -6,14 +6,14 @@ use crate::cli::{override_config, OverrideConfig};
 use crate::cli::{try_load_current_config, version_check};
 use clap::{Args, Subcommand};
 use nym_authenticator_requests::latest::{
-    registration::{ClientMac, FinalMessage, GatewayClient, InitMessage},
+    registration::{ClientMac, FinalMessage, GatewayClient, InitMessage, IpPair},
     request::{AuthenticatorRequest, AuthenticatorRequestData},
 };
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 use nym_sdk::mixnet::{MixnetMessageSender, Recipient, TransmissionLane};
 use nym_task::TaskHandle;
 use nym_wireguard_types::PeerPublicKey;
-use std::net::IpAddr;
+use std::net::{Ipv4Addr, Ipv6Addr};
 use std::str::FromStr;
 use std::time::Duration;
 use tokio::time::sleep;
@@ -55,7 +55,8 @@ pub(crate) struct Initial {
 #[derive(Args, Clone, Debug)]
 pub(crate) struct Final {
     pub_key: String,
-    private_ip: String,
+    private_ipv4: String,
+    private_ipv6: String,
     mac: String,
 }
 
@@ -75,7 +76,10 @@ impl TryFrom<RequestType> for AuthenticatorRequestData {
             RequestType::Final(req) => AuthenticatorRequestData::Final(Box::new(FinalMessage {
                 gateway_client: GatewayClient {
                     pub_key: PeerPublicKey::from_str(&req.pub_key)?,
-                    private_ip: IpAddr::from_str(&req.private_ip)?,
+                    private_ips: IpPair::new(
+                        Ipv4Addr::from_str(&req.private_ipv4)?,
+                        Ipv6Addr::from_str(&req.private_ipv6)?,
+                    ),
                     mac: ClientMac::from_str(&req.mac)?,
                 },
                 credential: None,

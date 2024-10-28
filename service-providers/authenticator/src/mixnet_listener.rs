@@ -11,17 +11,15 @@ use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
 use nym_authenticator_requests::{
-    v1, v2,
-    v3::{
-        self,
+    latest::{
         registration::{
-            FinalMessage, GatewayClient, InitMessage, PendingRegistrations, PrivateIPs,
+            FinalMessage, GatewayClient, InitMessage, IpPair, PendingRegistrations, PrivateIPs,
             RegistrationData, RegistredData, RemainingBandwidthData,
         },
         request::{AuthenticatorRequest, AuthenticatorRequestData},
         response::AuthenticatorResponse,
     },
-    CURRENT_VERSION,
+    v1, v2, v3, v4, CURRENT_VERSION,
 };
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::EcashManager,
@@ -116,10 +114,10 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         for reg in registred_values {
             let ip = registred_and_free
                 .free_private_network_ips
-                .get_mut(&reg.gateway_data.private_ip)
+                .get_mut(&reg.gateway_data.private_ips)
                 .ok_or(AuthenticatorError::InternalDataCorruption(format!(
-                    "IP {} should be present",
-                    reg.gateway_data.private_ip
+                    "IPs {} should be present",
+                    reg.gateway_data.private_ips
                 )))?;
 
             let Some(timestamp) = ip else {
@@ -173,15 +171,29 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
         let peer = self.peer_manager.query_peer(remote_public).await?;
         if let Some(peer) = peer {
-            let Some(allowed_ip) = peer.allowed_ips.first() else {
+            let private_ipv4 = peer
+                .allowed_ips
+                .iter()
+                .find_map(|ip_mask| match ip_mask.ip {
+                    std::net::IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
+                    _ => None,
+                });
+            let private_ipv6 = peer
+                .allowed_ips
+                .iter()
+                .find_map(|ip_mask| match ip_mask.ip {
+                    std::net::IpAddr::V6(ipv6_addr) => Some(ipv6_addr),
+                    _ => None,
+                });
+            let (Some(allowed_ipv4), Some(allowed_ipv6)) = (private_ipv4, private_ipv6) else {
                 return Err(AuthenticatorError::InternalError(
-                    "private ip list should not be empty".to_string(),
+                    "there should be one private IP pair in the list".to_string(),
                 ));
             };
             return Ok(AuthenticatorResponse::new_registered(
                 RegistredData {
                     pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
-                    private_ip: allowed_ip.ip,
+                    private_ips: IpPair::new(allowed_ipv4, allowed_ipv6),
                     wg_port: self.config.authenticator.announced_port,
                 },
                 reply_to,
@@ -241,8 +253,14 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         }
 
         let mut peer = Peer::new(Key::new(final_message.gateway_client.pub_key.to_bytes()));
-        peer.allowed_ips
-            .push(IpAddrMask::new(final_message.gateway_client.private_ip, 32));
+        peer.allowed_ips.push(IpAddrMask::new(
+            final_message.gateway_client.private_ips.ipv4.into(),
+            32,
+        ));
+        peer.allowed_ips.push(IpAddrMask::new(
+            final_message.gateway_client.private_ips.ipv6.into(),
+            32,
+        ));
 
         // If gateway does ecash verification and client sends a credential, we do the additional
         // credential verification. Later this will become mandatory.
@@ -284,7 +302,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         Ok(AuthenticatorResponse::new_registered(
             RegistredData {
                 pub_key: registration_data.gateway_data.pub_key,
-                private_ip: registration_data.gateway_data.private_ip,
+                private_ips: registration_data.gateway_data.private_ips,
                 wg_port: registration_data.wg_port,
             },
             reply_to,
@@ -521,6 +539,7 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
         [1, _] => v1::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
             .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
             .map(Into::<v2::request::AuthenticatorRequest>::into)
+            .map(Into::<v3::request::AuthenticatorRequest>::into)
             .map(Into::into),
         [2, request_type] => {
             if request_type == ServiceProviderType::Authenticator as u8 {
@@ -528,6 +547,7 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
                     .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
                         source: err,
                     })
+                    .map(Into::<v3::request::AuthenticatorRequest>::into)
                     .map(Into::into)
             } else {
                 Err(AuthenticatorError::InvalidPacketType(request_type))
@@ -536,6 +556,17 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
         [3, request_type] => {
             if request_type == ServiceProviderType::Authenticator as u8 {
                 v3::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+                    .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
+                        source: err,
+                    })
+                    .map(Into::into)
+            } else {
+                Err(AuthenticatorError::InvalidPacketType(request_type))
+            }
+        }
+        [4, request_type] => {
+            if request_type == ServiceProviderType::Authenticator as u8 {
+                v4::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
                     .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
                         source: err,
                     })

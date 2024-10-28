@@ -149,11 +149,11 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
         let now = SystemTime::now();
         let free_private_network_ips = private_ip_network
             .iter()
-            .map(|ip| {
+            .map(|ip: IpAddr| {
                 if used_private_network_ips.contains(&ip) {
-                    (ip, Some(now))
+                    (ip.into(), Some(now))
                 } else {
-                    (ip, None)
+                    (ip.into(), None)
                 }
             })
             .collect();

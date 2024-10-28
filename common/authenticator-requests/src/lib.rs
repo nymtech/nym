@@ -9,9 +9,9 @@ pub mod v4;
 mod error;
 
 pub use error::Error;
-pub use v3 as latest;
+pub use v4 as latest;
 
-pub const CURRENT_VERSION: u8 = 3;
+pub const CURRENT_VERSION: u8 = 4;
 
 fn make_bincode_serializer() -> impl bincode::Options {
     use bincode::Options;

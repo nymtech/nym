@@ -30,13 +30,12 @@ jobs:
           command: build
           args: --workspace --release
 
-      - name: Install
+      - name: Install project dependencies
         run: pnpm i
-      - name: Build
+      - name: Build project
         run: pnpm run build
-      #  todo
-      # - name: move static to /dist/
-      #   run: ./build_all_to_dist.sh
+      - name: Move files to /dist/
+        run: ./scripts/move-to-dist.sh
 
       - name: Create Vercel project file
         uses: mobiledevops/secret-to-file-action@v1

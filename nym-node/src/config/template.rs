@@ -123,7 +123,11 @@ bind_address = '{{ wireguard.bind_address }}'
 
 # Private IP address of the wireguard gateway.
 # default: `10.1.0.1`
-private_ip = '{{ wireguard.private_ip }}'
+private_ipv4 = '{{ wireguard.private_ipv4 }}'
+
+# Private IP address of the wireguard gateway.
+# default: `2001:db8:a160:1::1`
+private_ipv6 = '{{ wireguard.private_ipv6 }}'
 
 # Port announced to external clients wishing to connect to the wireguard interface.
 # Useful in the instances where the node is behind a proxy.

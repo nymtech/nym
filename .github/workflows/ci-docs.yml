@@ -3,7 +3,7 @@ name: ci-docs
 on:
   workflow_dispatch:
   push:
-    branches-ignore: master
+    branches-ignore: [master]
     paths:
       - "documentation/docs/**"
       - ".github/workflows/ci-docs.yml"

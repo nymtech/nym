@@ -13,8 +13,8 @@ use crate::ecash::state::helpers::{
     ensure_sane_expiration_date, prepare_partial_bloomfilter_builder, query_all_threshold_apis,
     try_rebuild_bloomfilter,
 };
-use crate::ecash::state::local::LocalEcashState;
-use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider};
+use crate::ecash::state::local::{DailyMerkleTree, LocalEcashState};
+use crate::ecash::storage::models::{IssuedHash, SerialNumberWrapper, TicketProvider};
 use crate::ecash::storage::EcashStorageExt;
 use crate::support::storage::NymApiStorage;
 use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
@@ -30,7 +30,7 @@ use nym_compact_ecash::scheme::expiration_date_signatures::{
     aggregate_annotated_expiration_signatures, ExpirationDateSignatureShare,
 };
 use nym_compact_ecash::{
-    constants, scheme::expiration_date_signatures::sign_expiration_date, BlindedSignature,
+    constants, scheme::expiration_date_signatures::sign_expiration_date, BlindedSignature, Bytable,
     SecretKeyAuth, VerificationKeyAuth,
 };
 use nym_config::defaults::BloomfilterParameters;
@@ -42,6 +42,7 @@ use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
 use nym_ecash_double_spending::DoubleSpendingFilter;
 use nym_ecash_time::cred_exp_date;
+use nym_ticketbooks_merkle::IssuedTicketbook;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
 use std::ops::Deref;
@@ -619,43 +620,41 @@ impl EcashState {
     //     });
     // }
 
-    pub(crate) async fn sign_and_store_credential(
+    pub(crate) async fn hash_and_store_credential(
         &self,
         current_epoch: EpochId,
         request_body: BlindSignRequestBody,
         blinded_signature: &BlindedSignature,
-    ) -> Result<i64> {
-        let encoded_commitments = request_body.encode_commitments();
+    ) -> Result<[u8; 32]> {
+        let joined_encoded_private_attributes_commitments = request_body.encode_join_commitments();
 
-        let plaintext = issued_credential_plaintext(
-            current_epoch as u32,
-            request_body.deposit_id,
-            blinded_signature,
-            &encoded_commitments,
-            request_body.expiration_date,
-            request_body.ticketbook_type,
-        );
-
-        let signature = self.local.identity_keypair.private_key().sign(plaintext);
+        let issued = IssuedTicketbook {
+            deposit_id: request_body.deposit_id,
+            epoch_id: current_epoch,
+            blinded_partial_credential: blinded_signature.to_byte_vec(),
+            joined_encoded_private_attributes_commitments,
+            expiration_date: request_body.expiration_date,
+            ticketbook_type: request_body.ticketbook_type,
+        };
+        let merkle_hash = issued.hash_to_merkle_leaf();
 
         // note: we have a UNIQUE constraint on the deposit_id column of the credential
         // and so if the api is processing request for the same deposit at the same time,
         // only one of them will be successfully inserted to the database
-        let credential_id = self
-            .aux
+        self.aux
             .storage
             .store_issued_credential(
-                current_epoch as u32,
                 request_body.deposit_id,
-                blinded_signature,
-                signature,
-                encoded_commitments,
-                request_body.expiration_date,
-                request_body.ticketbook_type,
+                current_epoch as u32,
+                &issued.blinded_partial_credential,
+                &issued.joined_encoded_private_attributes_commitments,
+                issued.expiration_date,
+                issued.ticketbook_type,
+                merkle_hash,
             )
             .await?;
 
-        Ok(credential_id)
+        Ok(merkle_hash)
     }
 
     pub async fn store_issued_credential(
@@ -664,18 +663,39 @@ impl EcashState {
         blinded_signature: &BlindedSignature,
     ) -> Result<()> {
         let current_epoch = self.aux.current_epoch().await?;
+        let expiration = request_body.expiration_date;
+        let deposit_id = request_body.deposit_id;
 
-        // note: we have a UNIQUE constraint on the tx_hash column of the credential
-        // and so if the api is processing request for the same hash at the same time,
+        // note: there's a primary key constraint on the deposit_id
+        // and so if the api is processing request for the same deposit at the same time,
         // only one of them will be successfully inserted to the database
-        let credential_id = self
-            .sign_and_store_credential(current_epoch, request_body, blinded_signature)
+        let merkle_leaf_hash = self
+            .hash_and_store_credential(current_epoch, request_body, blinded_signature)
             .await?;
-        self.aux
-            .storage
-            .update_epoch_credentials_entry(current_epoch, credential_id)
-            .await?;
-        debug!("the stored credential has id {credential_id}");
+
+        // check if the entry for this expiration date is empty. if so, it might imply we have crashed/shutdown
+        // and not have the full data in memory
+        if self.local.is_merkle_empty(expiration).await {
+            let mut write_guard = self.local.issued_merkle_trees.write().await;
+
+            // double check if it's still empty in case another task has already grabbed the write lock and performed the update
+            let still_empty = write_guard.get(&expiration).is_none();
+            if still_empty {
+                // the order actually does not matter since we're building the tree back from scratch
+                let mut issued_hashes = self.aux.storage.get_issued_hashes(expiration).await?;
+                issued_hashes.push(IssuedHash::new(deposit_id, merkle_leaf_hash));
+
+                write_guard.insert(expiration, DailyMerkleTree::new(issued_hashes));
+                return Ok(());
+            }
+        }
+
+        self.local
+            .insert_issued_ticketbook(expiration, deposit_id, merkle_leaf_hash)
+            .await;
+
+        // TODO:
+        // toss a coin to check if we should clean memory of old merkle trees
 
         Ok(())
     }

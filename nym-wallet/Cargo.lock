@@ -3093,6 +3093,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-node-requests",
  "nym-serde-helpers",
+ "nym-ticketbooks-merkle",
  "schemars",
  "serde",
  "serde_json",
@@ -3387,6 +3388,19 @@ dependencies = [
  "serde_json",
  "thiserror",
  "zeroize",
+]
+
+[[package]]
+name = "nym-ticketbooks-merkle"
+version = "0.1.0"
+dependencies = [
+ "nym-credentials-interface",
+ "nym-serde-helpers",
+ "rs_merkle",
+ "schemars",
+ "serde",
+ "sha2 0.10.8",
+ "time",
 ]
 
 [[package]]
@@ -4541,6 +4555,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd124222d17ad93a644ed9d011a40f4fb64aa54275c08cc216524a9ea82fb09f"
 dependencies = [
  "digest 0.10.7",
+]
+
+[[package]]
+name = "rs_merkle"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b241d2e59b74ef9e98d94c78c47623d04c8392abaf82014dfd372a16041128f"
+dependencies = [
+ "sha2 0.10.8",
 ]
 
 [[package]]

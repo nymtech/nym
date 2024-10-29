@@ -118,6 +118,7 @@ nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-types = { path = "../common/types" }
 nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
 nym-serde-helpers = { path = "../common/serde-helpers", features = ["date"] }
+nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
 
 [features]
 no-reward = []

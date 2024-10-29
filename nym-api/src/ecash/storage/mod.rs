@@ -8,7 +8,8 @@ use crate::ecash::storage::helpers::{
 };
 use crate::ecash::storage::manager::EcashStorageManagerExt;
 use crate::ecash::storage::models::{
-    join_attributes, EpochCredentials, IssuedTicketbook, SerialNumberWrapper, TicketProvider,
+    join_attributes, EpochCredentials, IssuedHash, IssuedTicketbook, SerialNumberWrapper,
+    TicketProvider,
 };
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
@@ -91,17 +92,22 @@ pub trait EcashStorageExt {
         deposit_id: DepositId,
     ) -> Result<Option<IssuedTicketbook>, NymApiStorageError>;
 
+    async fn get_issued_hashes(
+        &self,
+        expiration_date: Date,
+    ) -> Result<Vec<IssuedHash>, NymApiStorageError>;
+
     #[allow(clippy::too_many_arguments)]
     async fn store_issued_credential(
         &self,
-        epoch_id: u32,
         deposit_id: DepositId,
-        partial_credential: &BlindedSignature,
-        signature: identity::Signature,
-        private_commitments: Vec<Vec<u8>>,
+        dkg_epoch_id: u32,
+        blinded_partial_credential: &[u8],
+        joined_private_commitments: &[u8],
         expiration_date: Date,
         ticketbook_type: TicketType,
-    ) -> Result<i64, NymApiStorageError>;
+        merkle_leaf: [u8; 32],
+    ) -> Result<(), NymApiStorageError>;
 
     async fn get_issued_credentials(
         &self,
@@ -327,27 +333,34 @@ impl EcashStorageExt for NymApiStorage {
             .await?)
     }
 
+    async fn get_issued_hashes(
+        &self,
+        expiration_date: Date,
+    ) -> Result<Vec<IssuedHash>, NymApiStorageError> {
+        Ok(self.manager.get_issued_hashes(expiration_date).await?)
+    }
+
     #[allow(clippy::too_many_arguments)]
     async fn store_issued_credential(
         &self,
-        epoch_id: u32,
         deposit_id: DepositId,
-        partial_credential: &BlindedSignature,
-        signature: identity::Signature,
-        private_commitments: Vec<Vec<u8>>,
+        dkg_epoch_id: u32,
+        blinded_partial_credential: &[u8],
+        joined_private_commitments: &[u8],
         expiration_date: Date,
         ticketbook_type: TicketType,
-    ) -> Result<i64, NymApiStorageError> {
+        merkle_leaf: [u8; 32],
+    ) -> Result<(), NymApiStorageError> {
         Ok(self
             .manager
             .store_issued_ticketbook(
-                epoch_id,
                 deposit_id,
-                &partial_credential.to_bytes(),
-                &signature.to_bytes(),
-                &join_attributes(private_commitments),
+                dkg_epoch_id,
+                blinded_partial_credential,
+                joined_private_commitments,
                 expiration_date,
                 ticketbook_type.encode(),
+                &merkle_leaf,
             )
             .await?)
     }

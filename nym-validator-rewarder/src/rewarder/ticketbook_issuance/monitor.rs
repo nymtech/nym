@@ -385,7 +385,7 @@ mod tests {
             request.ticketbook_type.encode(),
         )?;
 
-        let commitments = request.encode_commitments();
+        let commitments = request.encode_join_commitments();
 
         let issued = IssuedTicketbook {
             id: 0,

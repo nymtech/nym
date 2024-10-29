@@ -4399,6 +4399,7 @@ dependencies = [
  "nym-serde-helpers",
  "nym-sphinx",
  "nym-task",
+ "nym-ticketbooks-merkle",
  "nym-topology",
  "nym-types",
  "nym-validator-client",
@@ -4445,6 +4446,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-node-requests",
  "nym-serde-helpers",
+ "nym-ticketbooks-merkle",
  "schemars",
  "serde",
  "serde_json",
@@ -6369,6 +6371,22 @@ dependencies = [
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasmtimer",
+]
+
+[[package]]
+name = "nym-ticketbooks-merkle"
+version = "0.1.0"
+dependencies = [
+ "nym-credentials-interface",
+ "nym-serde-helpers",
+ "rand",
+ "rand_chacha",
+ "rs_merkle",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "time",
 ]
 
 [[package]]
@@ -9401,22 +9419,6 @@ dependencies = [
  "log",
  "ordered-float",
  "threadpool",
-]
-
-[[package]]
-name = "ticketbooks-merkle"
-version = "0.1.0"
-dependencies = [
- "nym-credentials-interface",
- "nym-serde-helpers",
- "rand",
- "rand_chacha",
- "rs_merkle",
- "schemars",
- "serde",
- "serde_json",
- "sha2 0.10.8",
- "time",
 ]
 
 [[package]]

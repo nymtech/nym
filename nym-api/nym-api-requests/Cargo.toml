@@ -33,7 +33,7 @@ nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false, features = ["openapi"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
-
+nym-ticketbooks-merkle = { path = "../../common/ticketbooks-merkle" }
 
 [features]
 default = []

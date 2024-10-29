@@ -13,6 +13,7 @@ use nym_credentials_interface::{
     VerificationKeyAuth, WithdrawalRequest,
 };
 use nym_crypto::asymmetric::identity;
+use nym_ticketbooks_merkle::IssuedTicketbooksFullMerkleProof;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
@@ -147,11 +148,11 @@ impl BlindSignRequestBody {
         }
     }
 
-    pub fn encode_commitments(&self) -> Vec<Vec<u8>> {
+    pub fn encode_join_commitments(&self) -> Vec<u8> {
         self.inner_sign_request
             .get_private_attributes_commitments()
             .iter()
-            .map(|c| c.to_byte_vec())
+            .flat_map(|c| c.to_byte_vec())
             .collect()
     }
 }
@@ -384,12 +385,11 @@ pub struct IssuedCredentialsForResponse {
     pub merkle_root: [u8; 32],
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedCredentialsChallengeResponse {
     pub partial_credentials: BTreeMap<DepositId, IssuedTicketbookBody>,
-    // TODO:
-    pub merkle_proof: (),
+    pub merkle_proof: IssuedTicketbooksFullMerkleProof,
 }
 
 #[deprecated]

@@ -1,5 +1,5 @@
 ```sh
-[2m2024-10-29T09:39:18.351483Z[0m [32m INFO[0m [2mnym-api/src/main.rs[0m[2m:[0m[2m41[0m[2m:[0m Starting nym api...
+[2m2024-10-29T09:51:53.363364Z[0m [32m INFO[0m [2mnym-api/src/main.rs[0m[2m:[0m[2m41[0m[2m:[0m Starting nym api...
 Usage: nym-api [OPTIONS] <COMMAND>
 
 Commands:

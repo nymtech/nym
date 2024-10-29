@@ -239,7 +239,7 @@ impl NRServiceProviderBuilder {
         // Connect to the mixnet
         let mixnet_client = create_mixnet_client(
             &self.config.base,
-            shutdown.get_handle().named("nym_sdk::MixnetClient"),
+            shutdown.get_handle().named("nym_sdk::MixnetClient[NR]"),
             self.custom_gateway_transceiver,
             self.custom_topology_provider,
             self.wait_for_gateway,

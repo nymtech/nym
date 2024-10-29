@@ -18,6 +18,8 @@ use crate::gateways::models::ThreadsafeGatewayCache;
 use crate::mix_node::models::ThreadsafeMixNodeCache;
 use crate::mix_nodes::location::MixnodeLocationCache;
 use crate::mix_nodes::models::ThreadsafeMixNodesCache;
+use crate::nym_nodes::location::NymNodeLocationCache;
+use crate::nym_nodes::models::ThreadSafeNymNodesCache;
 use crate::ping::models::ThreadsafePingCache;
 use crate::validators::models::ThreadsafeValidatorCache;
 
@@ -30,6 +32,7 @@ pub struct ExplorerApiState {
     pub(crate) gateways: ThreadsafeGatewayCache,
     pub(crate) mixnode: ThreadsafeMixNodeCache,
     pub(crate) mixnodes: ThreadsafeMixNodesCache,
+    pub(crate) nymnodes: ThreadSafeNymNodesCache,
     pub(crate) ping: ThreadsafePingCache,
     pub(crate) validators: ThreadsafeValidatorCache,
     pub(crate) geo_ip: ThreadsafeGeoIp,
@@ -49,6 +52,7 @@ pub struct ExplorerApiStateOnDisk {
     pub(crate) country_node_distribution: CountryNodesDistribution,
     pub(crate) mixnode_location_cache: MixnodeLocationCache,
     pub(crate) gateway_location_cache: GatewayLocationCache,
+    pub(crate) nymnode_location_cache: NymNodeLocationCache,
     pub(crate) as_at: DateTime<Utc>,
 }
 
@@ -85,6 +89,9 @@ impl ExplorerApiStateContext {
                 mixnodes: ThreadsafeMixNodesCache::new_with_location_cache(
                     state.mixnode_location_cache,
                 ),
+                nymnodes: ThreadSafeNymNodesCache::new_with_location_cache(
+                    state.nymnode_location_cache,
+                ),
                 ping: ThreadsafePingCache::new(),
                 validators: ThreadsafeValidatorCache::new(),
                 validator_client: ThreadsafeValidatorClient::new(),
@@ -101,6 +108,7 @@ impl ExplorerApiStateContext {
                 gateways: ThreadsafeGatewayCache::new(),
                 mixnode: ThreadsafeMixNodeCache::new(),
                 mixnodes: ThreadsafeMixNodesCache::new(),
+                nymnodes: ThreadSafeNymNodesCache::new(),
                 ping: ThreadsafePingCache::new(),
                 validators: ThreadsafeValidatorCache::new(),
                 validator_client: ThreadsafeValidatorClient::new(),
@@ -117,6 +125,7 @@ impl ExplorerApiStateContext {
             country_node_distribution: self.inner.country_node_distribution.get_all().await,
             mixnode_location_cache: self.inner.mixnodes.get_locations().await,
             gateway_location_cache: self.inner.gateways.get_locations().await,
+            nymnode_location_cache: self.inner.nymnodes.get_locations().await,
             as_at: Utc::now(),
         };
         serde_json::to_writer(file, &state).expect("error writing state to disk");

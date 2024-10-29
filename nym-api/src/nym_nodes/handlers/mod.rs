@@ -9,7 +9,7 @@ use axum::routing::get;
 use axum::{Json, Router};
 use nym_api_requests::models::{
     AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NoiseDetails,
-    NymNodeData, PerformanceHistoryResponse, UptimeHistoryResponse,
+    NymNodeDescription, PerformanceHistoryResponse, UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;
@@ -125,32 +125,27 @@ async fn get_bonded_nodes(
     path = "/described",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = PaginatedResponse<NymNodeData>)
+        (status = 200, body = PaginatedResponse<NymNodeDescription>)
     ),
     params(PaginationRequest)
 )]
 async fn get_described_nodes(
     State(state): State<AppState>,
     Query(pagination): Query<PaginationRequest>,
-) -> AxumResult<Json<PaginatedResponse<NymNodeData>>> {
+) -> AxumResult<Json<PaginatedResponse<NymNodeDescription>>> {
     // TODO: implement it
     let _ = pagination;
 
     let cache = state.described_nodes_cache.get().await?;
-    let descriptions = cache.all_nodes();
-
-    let data = descriptions
-        .map(|n| &n.description)
-        .cloned()
-        .collect::<Vec<_>>();
+    let descriptions = cache.all_nodes().cloned().collect::<Vec<_>>();
 
     Ok(Json(PaginatedResponse {
         pagination: Pagination {
-            total: data.len(),
+            total: descriptions.len(),
             page: 0,
-            size: data.len(),
+            size: descriptions.len(),
         },
-        data,
+        data: descriptions,
     }))
 }
 

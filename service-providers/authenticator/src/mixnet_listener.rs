@@ -297,6 +297,10 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         credential: CredentialSpendingData,
         client_id: i64,
     ) -> Result<i64> {
+        ecash_verifier
+            .storage()
+            .create_bandwidth_entry(client_id)
+            .await?;
         let bandwidth = ecash_verifier
             .storage()
             .get_available_bandwidth(client_id)

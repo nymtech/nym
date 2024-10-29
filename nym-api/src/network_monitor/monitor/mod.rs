@@ -274,8 +274,8 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         info!("Received {}/{} packets", total_received, total_sent);
 
         let summary = self.summary_producer.produce_summary(
-            prepared_packets.tested_mixnodes,
-            prepared_packets.tested_gateways,
+            prepared_packets.mixnodes_under_test,
+            prepared_packets.gateways_under_test,
             received,
             prepared_packets.invalid_mixnodes,
             prepared_packets.invalid_gateways,

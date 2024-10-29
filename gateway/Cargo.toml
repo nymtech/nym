@@ -77,9 +77,11 @@ nym-network-defaults = { path = "../common/network-defaults" }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-node-http-api = { path = "../nym-node/nym-node-http-api" }
 nym-pemstore = { path = "../common/pemstore" }
+nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-statistics-common = { path = "../common/statistics" }
 nym-task = { path = "../common/task" }
+nym-topology = { path = "../common/topology" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }

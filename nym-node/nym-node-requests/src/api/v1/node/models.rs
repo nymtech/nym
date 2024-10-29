@@ -60,14 +60,31 @@ pub struct HostInformation {
 }
 
 #[derive(Serialize)]
+pub struct LegacyHostInformationV2 {
+    pub ip_address: Vec<IpAddr>,
+    pub hostname: Option<String>,
+    pub keys: LegacyHostKeysV2,
+}
+
+#[derive(Serialize)]
 pub struct LegacyHostInformation {
     pub ip_address: Vec<IpAddr>,
     pub hostname: Option<String>,
     pub keys: LegacyHostKeys,
 }
 
-impl From<HostInformation> for LegacyHostInformation {
+impl From<HostInformation> for LegacyHostInformationV2 {
     fn from(value: HostInformation) -> Self {
+        LegacyHostInformationV2 {
+            ip_address: value.ip_address,
+            hostname: value.hostname,
+            keys: value.keys.into(),
+        }
+    }
+}
+
+impl From<LegacyHostInformationV2> for LegacyHostInformation {
+    fn from(value: LegacyHostInformationV2) -> Self {
         LegacyHostInformation {
             ip_address: value.ip_address,
             hostname: value.hostname,
@@ -99,19 +116,39 @@ pub struct HostKeys {
     pub x25519_noise: Option<x25519::PublicKey>,
 }
 
-impl From<HostKeys> for LegacyHostKeys {
-    fn from(value: HostKeys) -> Self {
-        LegacyHostKeys {
-            ed25519: value.ed25519_identity.to_base58_string(),
-            x25519: value.x25519_sphinx.to_base58_string(),
-        }
-    }
+#[derive(Serialize)]
+pub struct LegacyHostKeysV2 {
+    pub ed25519_identity: String,
+    pub x25519_sphinx: String,
+    pub x25519_noise: String,
 }
 
 #[derive(Serialize)]
 pub struct LegacyHostKeys {
     pub ed25519: String,
     pub x25519: String,
+}
+
+impl From<HostKeys> for LegacyHostKeysV2 {
+    fn from(value: HostKeys) -> Self {
+        LegacyHostKeysV2 {
+            ed25519_identity: value.ed25519_identity.to_base58_string(),
+            x25519_sphinx: value.x25519_sphinx.to_base58_string(),
+            x25519_noise: value
+                .x25519_noise
+                .map(|k| k.to_base58_string())
+                .unwrap_or_default(),
+        }
+    }
+}
+
+impl From<LegacyHostKeysV2> for LegacyHostKeys {
+    fn from(value: LegacyHostKeysV2) -> Self {
+        LegacyHostKeys {
+            ed25519: value.ed25519_identity,
+            x25519: value.x25519_sphinx,
+        }
+    }
 }
 
 #[derive(Clone, Default, Debug, Serialize, Deserialize, JsonSchema)]

@@ -3,3 +3,5 @@
 This module exposes the `TcpProxyClient` and the `TcpProxyServer` which can be used to proxy traffic through the Mixnet in a way that is more familiar to developers than the methods exposed by the [`Mixnet` module](./mixnet).
 
 Both `Client` and `Server` are intended to be initialised and then run in a background thread, exposing a configurable `localhost` socket which developers can read/write/stream to without having to worry about the [message-based](../concepts/messages) nature of sending and receiving traffic to/from the Mixnet.
+
+> Non-Rust/Go developers who want to experiment with this module can start with the [standalone binaries](../tools/standalone-tcpproxy).

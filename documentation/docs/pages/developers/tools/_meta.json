@@ -1,4 +1,5 @@
 {
   "nym-cli": "Nym-cli",
-  "echo-server": "Echo Server"
+  "echo-server": "Echo Server",
+  "standalone-tcpproxy": "TcpProxy Binaries (Standalone)"
 }

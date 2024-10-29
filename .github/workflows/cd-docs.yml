@@ -17,6 +17,8 @@ jobs:
       - name: Install rsync
         run: sudo apt-get install rsync
       - uses: rlespinasse/github-slug-action@v3.x
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4.0.0
       - uses: actions/setup-node@v4
         with:
           node-version: 20

@@ -7,7 +7,7 @@ use crate::ecash::helpers::{
 };
 use crate::ecash::keys::KeyPair;
 use crate::ecash::storage::models::IssuedHash;
-use nym_api_requests::ecash::models::DepositId;
+use nym_api_requests::ecash::models::{CommitedDeposit, DepositId};
 use nym_config::defaults::BloomfilterParameters;
 use nym_crypto::asymmetric::identity;
 use nym_ecash_double_spending::DoubleSpendingFilter;
@@ -118,8 +118,14 @@ impl DailyMerkleTree {
         self.merkle_tree.root()
     }
 
-    pub(crate) fn deposits(&self) -> Vec<DepositId> {
-        self.inserted_leaves.keys().copied().collect()
+    pub(crate) fn deposits(&self) -> Vec<CommitedDeposit> {
+        self.inserted_leaves
+            .iter()
+            .map(|(&deposit_id, leaf)| CommitedDeposit {
+                deposit_id,
+                merkle_index: leaf.index,
+            })
+            .collect()
     }
 
     fn rebuild_without_history(&mut self) {

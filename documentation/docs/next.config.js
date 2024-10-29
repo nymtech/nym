@@ -39,7 +39,6 @@ nextra.webpack = (config, options) => {
 
 const config = {
   ...nextra,
-  output: "standalone",
   async redirects() {
     return [
       // network docs

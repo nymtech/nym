@@ -2440,7 +2440,7 @@ dependencies = [
  "maxminddb",
  "nym-bin-common 0.6.0",
  "nym-contracts-common 0.5.0",
- "nym-explorer-api-requests",
+ "nym-explorer-api-requests 0.1.0",
  "nym-mixnet-contract-common 0.6.0",
  "nym-network-defaults 0.1.0",
  "nym-task",
@@ -4587,6 +4587,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-api-requests"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "bs58",
+ "cosmrs 0.17.0-pre",
+ "cosmwasm-std",
+ "ecdsa",
+ "getset",
+ "nym-compact-ecash 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-credentials-interface 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-crypto 0.4.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-ecash-time 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-mixnet-contract-common 0.6.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-network-defaults 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-node-requests 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-serde-helpers 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "tendermint 0.37.0",
+ "thiserror",
+ "time",
+ "utoipa",
+]
+
+[[package]]
 name = "nym-async-file-watcher"
 version = "0.1.0"
 dependencies = [
@@ -4705,6 +4733,21 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.6.0"
 source = "git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork#8d68cf88dac1adf1f68726a9b6e0740f8cddcf32"
+dependencies = [
+ "const-str",
+ "log",
+ "pretty_env_logger",
+ "schemars",
+ "semver 1.0.23",
+ "serde",
+ "utoipa",
+ "vergen",
+]
+
+[[package]]
+name = "nym-bin-common"
+version = "0.6.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
 dependencies = [
  "const-str",
  "log",
@@ -4876,7 +4919,7 @@ dependencies = [
  "nym-credentials-interface 0.1.0",
  "nym-crypto 0.4.0",
  "nym-ecash-time 0.1.0",
- "nym-explorer-client",
+ "nym-explorer-client 0.1.0",
  "nym-gateway-client",
  "nym-gateway-requests",
  "nym-id",
@@ -5116,6 +5159,29 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-compact-ecash"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "bincode",
+ "bls12_381",
+ "bs58",
+ "cfg-if",
+ "digest 0.9.0",
+ "ff",
+ "group",
+ "itertools 0.13.0",
+ "nym-network-defaults 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-pemstore 0.3.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "rand",
+ "serde",
+ "sha2 0.9.9",
+ "subtle 2.5.0",
+ "thiserror",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-config"
 version = "0.1.0"
 dependencies = [
@@ -5143,6 +5209,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-config"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "dirs",
+ "handlebars",
+ "log",
+ "nym-network-defaults 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "serde",
+ "toml 0.8.14",
+ "url",
+]
+
+[[package]]
 name = "nym-contracts-common"
 version = "0.5.0"
 dependencies = [
@@ -5161,6 +5241,21 @@ dependencies = [
 name = "nym-contracts-common"
 version = "0.5.0"
 source = "git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork#8d68cf88dac1adf1f68726a9b6e0740f8cddcf32"
+dependencies = [
+ "bs58",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-storage-plus",
+ "schemars",
+ "serde",
+ "thiserror",
+ "vergen",
+]
+
+[[package]]
+name = "nym-contracts-common"
+version = "0.5.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
 dependencies = [
  "bs58",
  "cosmwasm-schema",
@@ -5378,6 +5473,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-credentials-interface"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "bls12_381",
+ "nym-compact-ecash 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-ecash-time 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-network-defaults 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "rand",
+ "serde",
+ "strum 0.26.3",
+ "thiserror",
+ "time",
+]
+
+[[package]]
 name = "nym-crypto"
 version = "0.4.0"
 dependencies = [
@@ -5414,6 +5525,23 @@ dependencies = [
  "ed25519-dalek",
  "nym-pemstore 0.3.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",
  "nym-sphinx-types 0.2.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",
+ "serde",
+ "serde_bytes",
+ "subtle-encoding",
+ "thiserror",
+ "x25519-dalek",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-crypto"
+version = "0.4.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "bs58",
+ "ed25519-dalek",
+ "nym-pemstore 0.3.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-sphinx-types 0.2.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
  "serde",
  "serde_bytes",
  "subtle-encoding",
@@ -5524,6 +5652,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ecash-time"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "time",
+]
+
+[[package]]
 name = "nym-execute"
 version = "0.1.0"
 dependencies = [
@@ -5556,6 +5692,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-exit-policy"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tracing",
+ "utoipa",
+]
+
+[[package]]
 name = "nym-explorer-api-requests"
 version = "0.1.0"
 dependencies = [
@@ -5568,15 +5716,40 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-explorer-api-requests"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "nym-api-requests 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-contracts-common 0.5.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-mixnet-contract-common 0.6.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "nym-explorer-client"
 version = "0.1.0"
 dependencies = [
- "nym-explorer-api-requests",
+ "nym-explorer-api-requests 0.1.0",
  "reqwest 0.12.4",
  "serde",
  "thiserror",
  "tokio",
  "tracing",
+ "url",
+]
+
+[[package]]
+name = "nym-explorer-client"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "log",
+ "nym-explorer-api-requests 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "reqwest 0.12.4",
+ "serde",
+ "thiserror",
  "url",
 ]
 
@@ -6010,6 +6183,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-mixnet-contract-common"
+version = "0.6.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "bs58",
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-storage-plus",
+ "humantime-serde",
+ "log",
+ "nym-contracts-common 0.5.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "schemars",
+ "serde",
+ "serde-json-wasm",
+ "serde_repr",
+ "thiserror",
+ "time",
+]
+
+[[package]]
 name = "nym-mixnode"
 version = "1.1.37"
 dependencies = [
@@ -6131,6 +6325,19 @@ dependencies = [
 name = "nym-network-defaults"
 version = "0.1.0"
 source = "git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork#8d68cf88dac1adf1f68726a9b6e0740f8cddcf32"
+dependencies = [
+ "dotenvy",
+ "log",
+ "schemars",
+ "serde",
+ "url",
+ "utoipa",
+]
+
+[[package]]
+name = "nym-network-defaults"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
 dependencies = [
  "dotenvy",
  "log",
@@ -6346,6 +6553,27 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-node-requests"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "base64 0.22.1",
+ "celes",
+ "humantime 2.1.0",
+ "humantime-serde",
+ "nym-bin-common 0.6.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-crypto 0.4.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-exit-policy 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-wireguard-types 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "schemars",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+ "utoipa",
+]
+
+[[package]]
 name = "nym-node-status-agent"
 version = "0.1.0"
 dependencies = [
@@ -6363,7 +6591,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "anyhow",
  "axum 0.7.7",
@@ -6375,7 +6603,7 @@ dependencies = [
  "moka",
  "nym-bin-common 0.6.0",
  "nym-common-models",
- "nym-explorer-client",
+ "nym-explorer-client 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
  "nym-network-defaults 0.1.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",
  "nym-node-requests 0.1.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",
  "nym-task",
@@ -6509,6 +6737,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-pemstore"
+version = "0.3.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "pem",
+]
+
+[[package]]
 name = "nym-sdk"
 version = "0.1.0"
 dependencies = [
@@ -6577,6 +6813,17 @@ dependencies = [
 name = "nym-serde-helpers"
 version = "0.1.0"
 source = "git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork#8d68cf88dac1adf1f68726a9b6e0740f8cddcf32"
+dependencies = [
+ "base64 0.22.1",
+ "bs58",
+ "serde",
+ "time",
+]
+
+[[package]]
+name = "nym-serde-helpers"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
 dependencies = [
  "base64 0.22.1",
  "bs58",
@@ -6892,6 +7139,15 @@ dependencies = [
 name = "nym-sphinx-types"
 version = "0.2.0"
 source = "git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork#8d68cf88dac1adf1f68726a9b6e0740f8cddcf32"
+dependencies = [
+ "sphinx-packet",
+ "thiserror",
+]
+
+[[package]]
+name = "nym-sphinx-types"
+version = "0.2.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
 dependencies = [
  "sphinx-packet",
  "thiserror",
@@ -7258,6 +7514,20 @@ dependencies = [
  "log",
  "nym-config 0.1.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",
  "nym-network-defaults 0.1.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",
+ "serde",
+ "thiserror",
+ "x25519-dalek",
+]
+
+[[package]]
+name = "nym-wireguard-types"
+version = "0.1.0"
+source = "git+https://github.com/nymtech/nym?branch=release/2024.13-magura#317f7fffa986dff856e5b980b15872620bc052f0"
+dependencies = [
+ "base64 0.22.1",
+ "log",
+ "nym-config 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
+ "nym-network-defaults 0.1.0 (git+https://github.com/nymtech/nym?branch=release/2024.13-magura)",
  "serde",
  "thiserror",
  "x25519-dalek",

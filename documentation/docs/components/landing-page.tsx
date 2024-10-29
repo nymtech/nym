@@ -103,10 +103,18 @@ export const LandingPage = () => {
                   <Typography variant="h5" sx={{ fontWeight: 600 }}>
                     {square.text}
                   </Typography>
-                  <Typography variant="body1" sx={{ color: "#909195" }}>
-                    {isTablet && !isDesktop
-                      ? shortenDescription(square.description)
-                      : square.description}
+
+                  <Typography
+                    variant="body1"
+                    sx={{
+                      color: "#909195",
+                      display: {
+                        lg: "none",
+                        xl: "block",
+                      },
+                    }}
+                  >
+                    {square.description}
                   </Typography>
 
                   <Typography sx={{ color: "#ff6600", fontWeight: 600 }}>

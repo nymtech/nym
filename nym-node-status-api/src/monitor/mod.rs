@@ -91,7 +91,7 @@ async fn run(
     let explorer_client =
         ExplorerClient::new_with_timeout(default_explorer_url, explorer_client_timeout)?;
     let explorer_gateways = explorer_client
-        .get_gateways()
+        .unstable_get_gateways()
         .await
         .log_error("get_gateways")?;
 

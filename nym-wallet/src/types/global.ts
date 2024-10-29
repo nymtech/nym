@@ -110,7 +110,7 @@ export type TGatewayReport = {
   most_recent: number;
 };
 
-export type TNodeRole = 'entry' | 'exit' | 'layer1' | 'layer2' | 'layer3' | 'standby';
+export type TNodeRole = 'entryGateway' | 'exitGateway' | 'layer1' | 'layer2' | 'layer3' | 'standby';
 
 export type MixnodeSaturationResponse = {
   saturation: string;

@@ -116,7 +116,7 @@ impl<'a> TryFrom<&'a SkimmedNode> for LegacyNode {
             });
         }
 
-        let layer = match value.epoch_role {
+        let layer = match value.role {
             NodeRole::Mixnode { layer } => layer
                 .try_into()
                 .map_err(|_| MixnodeConversionError::InvalidLayer)?,

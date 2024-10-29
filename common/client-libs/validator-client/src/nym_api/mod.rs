@@ -11,9 +11,10 @@ use nym_api_requests::ecash::models::{
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
-    AnnotationResponse, LegacyDescribedMixNode, NodePerformanceResponse,
+    AnnotationResponse, LegacyDescribedMixNode, NodePerformanceResponse, NymNodeDescription,
 };
 use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
+use nym_api_requests::pagination::PaginatedResponse;
 pub use nym_api_requests::{
     ecash::{
         models::{
@@ -38,7 +39,7 @@ use nym_contracts_common::IdentityKey;
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId};
+use nym_mixnet_contract_common::{GatewayBond, IdentityKeyRef, NodeId, NymNodeDetails};
 use time::format_description::BorrowedFormatItem;
 use time::Date;
 use tracing::instrument;
@@ -127,6 +128,44 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    async fn get_nodes_described(
+        &self,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedResponse<NymNodeDescription>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(&[routes::API_VERSION, "nym-nodes", "described"], &params)
+            .await
+    }
+
+    async fn get_nym_nodes(
+        &self,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedResponse<NymNodeDetails>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(&[routes::API_VERSION, "nym-nodes", "bonded"], &params)
+            .await
+    }
+
     #[tracing::instrument(level = "debug", skip_all)]
     async fn get_basic_mixnodes(
         &self,
@@ -178,7 +217,7 @@ pub trait NymApiClientExt: ApiClient {
     /// retrieve basic information for nodes are capable of operating as an entry gateway
     /// this includes legacy gateways and nym-nodes
     #[instrument(level = "debug", skip(self))]
-    async fn get_all_basic_entry_assigned_nodes(
+    async fn get_basic_entry_assigned_nodes(
         &self,
         semver_compatibility: Option<String>,
         no_legacy: bool,

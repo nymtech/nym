@@ -17,6 +17,7 @@ use crate::{
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::{Addr, Coin, Decimal, StdResult, Uint128};
 use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use serde_repr::{Deserialize_repr, Serialize_repr};
 
 /// Full details associated with given mixnode.
@@ -647,12 +648,37 @@ impl From<LegacyMixLayer> for u8 {
         export_to = "ts-packages/types/src/types/rust/PendingMixnodeChanges.ts"
     )
 )]
-#[cw_serde]
-#[derive(Default, Copy)]
+// note: we had to remove `#[cw_serde]` as it enforces `#[serde(deny_unknown_fields)]` which we do not want
+// with the addition of  .cost_params_change field
+#[derive(
+    ::cosmwasm_schema::serde::Serialize,
+    ::cosmwasm_schema::serde::Deserialize,
+    ::std::clone::Clone,
+    ::std::fmt::Debug,
+    ::std::cmp::PartialEq,
+    ::cosmwasm_schema::schemars::JsonSchema,
+    Default,
+    Copy,
+)]
+#[schemars(crate = "::cosmwasm_schema::schemars")]
 pub struct PendingMixNodeChanges {
     pub pledge_change: Option<EpochEventId>,
+
     #[serde(default)]
     pub cost_params_change: Option<IntervalEventId>,
+}
+
+#[derive(Default, Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct LegacyPendingMixNodeChanges {
+    pub pledge_change: Option<EpochEventId>,
+}
+
+impl From<PendingMixNodeChanges> for LegacyPendingMixNodeChanges {
+    fn from(value: PendingMixNodeChanges) -> Self {
+        LegacyPendingMixNodeChanges {
+            pledge_change: value.pledge_change,
+        }
+    }
 }
 
 impl PendingMixNodeChanges {

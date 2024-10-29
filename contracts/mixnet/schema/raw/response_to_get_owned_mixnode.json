@@ -319,8 +319,7 @@
           "format": "uint32",
           "minimum": 0.0
         }
-      },
-      "additionalProperties": false
+      }
     },
     "Percent": {
       "description": "Percent represents a value between 0 and 100% (i.e. between 0.0 and 1.0)",

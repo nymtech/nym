@@ -421,6 +421,7 @@ pub struct Mixnet {
     /// will use.
     /// Useful when the node is behind a proxy.
     #[serde(deserialize_with = "de_maybe_port")]
+    #[serde(default)]
     pub announce_port: Option<u16>,
 
     /// Addresses to nym APIs from which the node gets the view of the network.

@@ -210,6 +210,7 @@ impl ResolvedNodeDescribedInfo {
     }
 }
 
+#[derive(Debug)]
 pub(crate) struct UnwrappedResolvedNodeDescribedInfo {
     pub(crate) build_info: BinaryBuildInformationOwned,
     pub(crate) roles: DeclaredRoles,

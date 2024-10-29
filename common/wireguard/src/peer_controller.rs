@@ -158,10 +158,13 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
             .ok_or(Error::MissingClientBandwidthEntry)?
             .client_id
         {
-            storage.create_bandwidth_entry(client_id).await?;
+            let bandwidth = storage
+                .get_available_bandwidth(client_id)
+                .await?
+                .ok_or(Error::MissingClientBandwidthEntry)?;
             Ok(Some(BandwidthStorageManager::new(
                 storage,
-                ClientBandwidth::new(Default::default()),
+                ClientBandwidth::new(bandwidth.into()),
                 client_id,
                 BandwidthFlushingBehaviourConfig::default(),
                 true,

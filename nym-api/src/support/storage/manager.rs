@@ -119,9 +119,8 @@ impl StorageManager {
         start_ts_secs: i64,
         end_ts_secs: i64,
     ) -> Result<Vec<AvgGatewayReliability>, sqlx::Error> {
-        // we can't use `query_as!` macro because we don't apply all required table changes during sqlx migrations.
-        // some (like v3 directory) happens at runtime
-        let result = sqlx::query_as(
+        let result = sqlx::query_as!(
+            AvgGatewayReliability,
             r#"
             SELECT
                 d.node_id as "node_id: NodeId",
@@ -135,9 +134,9 @@ impl StorageManager {
                 timestamp <= ?
             GROUP BY 1
             "#,
+            start_ts_secs,
+            end_ts_secs
         )
-        .bind(start_ts_secs)
-        .bind(end_ts_secs)
         .fetch_all(&self.connection_pool)
         .await?;
         Ok(result)

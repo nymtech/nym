@@ -19,7 +19,7 @@ use nym_api_requests::ecash::{
 };
 use nym_api_requests::models::{
     GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
-    RewardEstimationResponse, StakeSaturationResponse,
+    NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
 };
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::SkimmedNode;
@@ -30,10 +30,10 @@ use time::Date;
 use url::Url;
 
 pub use crate::nym_api::NymApiClientExt;
+use nym_mixnet_contract_common::NymNodeDetails;
 pub use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId,
 };
-
 // re-export the type to not break existing imports
 pub use crate::coconut::EcashApiClient;
 
@@ -106,7 +106,9 @@ impl Config {
 
 pub struct Client<C, S = NoSigner> {
     // ideally they would have been read-only, but unfortunately rust doesn't have such features
+    // #[deprecated(note = "please use `nym_api_client` instead")]
     pub nym_api: nym_api::Client,
+    // pub nym_api_client: NymApiClient,
     pub nyxd: NyxdClient<C, S>,
 }
 
@@ -243,6 +245,50 @@ impl<C, S> Client<C, S> {
         Ok(self.nym_api.get_gateways().await?)
     }
 
+    // TODO: combine with NymApiClient...
+    pub async fn get_all_cached_described_nodes(
+        &self,
+    ) -> Result<Vec<NymNodeDescription>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut descriptions = Vec::new();
+
+        loop {
+            let mut res = self.nym_api.get_nodes_described(Some(page), None).await?;
+
+            descriptions.append(&mut res.data);
+            if descriptions.len() < res.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(descriptions)
+    }
+
+    // TODO: combine with NymApiClient...
+    pub async fn get_all_cached_bonded_nym_nodes(
+        &self,
+    ) -> Result<Vec<NymNodeDetails>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut bonds = Vec::new();
+
+        loop {
+            let mut res = self.nym_api.get_nym_nodes(Some(page), None).await?;
+
+            bonds.append(&mut res.data);
+            if bonds.len() < res.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(bonds)
+    }
+
     pub async fn blind_sign(
         &self,
         request_body: &BlindSignRequestBody,
@@ -327,7 +373,7 @@ impl NymApiClient {
         loop {
             let mut res = self
                 .nym_api
-                .get_all_basic_entry_assigned_nodes(
+                .get_basic_entry_assigned_nodes(
                     semver_compatibility.clone(),
                     false,
                     Some(page),
@@ -402,6 +448,48 @@ impl NymApiClient {
         &self,
     ) -> Result<Vec<LegacyDescribedGateway>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways_described().await?)
+    }
+
+    pub async fn get_all_described_nodes(
+        &self,
+    ) -> Result<Vec<NymNodeDescription>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut descriptions = Vec::new();
+
+        loop {
+            let mut res = self.nym_api.get_nodes_described(Some(page), None).await?;
+
+            descriptions.append(&mut res.data);
+            if descriptions.len() < res.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(descriptions)
+    }
+
+    pub async fn get_all_bonded_nym_nodes(
+        &self,
+    ) -> Result<Vec<NymNodeDetails>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut bonds = Vec::new();
+
+        loop {
+            let mut res = self.nym_api.get_nym_nodes(Some(page), None).await?;
+
+            bonds.append(&mut res.data);
+            if bonds.len() < res.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(bonds)
     }
 
     pub async fn get_gateway_core_status_count(

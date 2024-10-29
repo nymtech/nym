@@ -13,6 +13,8 @@ pub use nym_explorer_api_requests::{
 
 // Paths
 const API_VERSION: &str = "v1";
+const TMP: &str = "tmp";
+const UNSTABLE: &str = "unstable";
 const MIXNODES: &str = "mix-nodes";
 const GATEWAYS: &str = "gateways";
 
@@ -95,6 +97,13 @@ impl ExplorerClient {
 
     pub async fn get_gateways(&self) -> Result<Vec<PrettyDetailedGatewayBond>, ExplorerApiError> {
         self.query_explorer_api(&[API_VERSION, GATEWAYS]).await
+    }
+
+    pub async fn unstable_get_gateways(
+        &self,
+    ) -> Result<Vec<PrettyDetailedGatewayBond>, ExplorerApiError> {
+        self.query_explorer_api(&[API_VERSION, TMP, UNSTABLE, GATEWAYS])
+            .await
     }
 }
 

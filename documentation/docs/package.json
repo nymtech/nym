@@ -1,7 +1,7 @@
 {
   "name": "Nym Docs",
-  "version": "1.5",
-  "description": "Nym Docs",
+  "version": "2.0",
+  "description": "Nym documentation for developers and node operators",
   "license": "Apache-2.0",
   "author": "Nym Technologies SA",
   "scripts": {

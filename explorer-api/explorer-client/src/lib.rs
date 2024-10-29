@@ -55,6 +55,12 @@ impl ExplorerClient {
         Ok(Self { client, url })
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn new_with_timeout(url: url::Url, timeout: Duration) -> Result<Self, ExplorerApiError> {
+        let client = reqwest::Client::builder().timeout(timeout).build()?;
+        Ok(Self { client, url })
+    }
+
     async fn send_get_request(
         &self,
         paths: &[&str],

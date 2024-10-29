@@ -377,11 +377,18 @@ pub type DepositId = u32;
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
+pub struct CommitedDeposit {
+    pub deposit_id: DepositId,
+    pub merkle_index: usize,
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksForResponse {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     pub expiration: Date,
-    pub deposits: Vec<DepositId>,
+    pub deposits: Vec<CommitedDeposit>,
     pub merkle_root: Option<[u8; 32]>,
 }
 

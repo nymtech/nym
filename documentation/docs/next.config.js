@@ -39,8 +39,7 @@ nextra.webpack = (config, options) => {
 
 const config = {
   ...nextra,
-  // output: 'export', // static HTML files, has problems with Vercel
-  // rewrites: undefined,
+  output: "standalone",
   async redirects() {
     return [
       // network docs

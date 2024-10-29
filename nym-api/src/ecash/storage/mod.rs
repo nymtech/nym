@@ -24,6 +24,7 @@ use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::DepositId;
+use nym_ticketbooks_merkle::MerkleLeaf;
 use nym_validator_client::nyxd::AccountId;
 use time::{Date, OffsetDateTime};
 use tracing::info;
@@ -98,7 +99,7 @@ pub trait EcashStorageExt {
     ) -> Result<Vec<IssuedHash>, NymApiStorageError>;
 
     #[allow(clippy::too_many_arguments)]
-    async fn store_issued_credential(
+    async fn store_issued_ticketbook(
         &self,
         deposit_id: DepositId,
         dkg_epoch_id: u32,
@@ -106,7 +107,7 @@ pub trait EcashStorageExt {
         joined_private_commitments: &[u8],
         expiration_date: Date,
         ticketbook_type: TicketType,
-        merkle_leaf: [u8; 32],
+        merkle_leaf: MerkleLeaf,
     ) -> Result<(), NymApiStorageError>;
 
     async fn get_issued_credentials(
@@ -341,7 +342,7 @@ impl EcashStorageExt for NymApiStorage {
     }
 
     #[allow(clippy::too_many_arguments)]
-    async fn store_issued_credential(
+    async fn store_issued_ticketbook(
         &self,
         deposit_id: DepositId,
         dkg_epoch_id: u32,
@@ -349,7 +350,7 @@ impl EcashStorageExt for NymApiStorage {
         joined_private_commitments: &[u8],
         expiration_date: Date,
         ticketbook_type: TicketType,
-        merkle_leaf: [u8; 32],
+        merkle_leaf: MerkleLeaf,
     ) -> Result<(), NymApiStorageError> {
         Ok(self
             .manager
@@ -360,7 +361,8 @@ impl EcashStorageExt for NymApiStorage {
                 joined_private_commitments,
                 expiration_date,
                 ticketbook_type.encode(),
-                &merkle_leaf,
+                &merkle_leaf.hash,
+                merkle_leaf.index as u32,
             )
             .await?)
     }

@@ -81,6 +81,7 @@ pub trait EcashStorageManagerExt {
         expiration_date: Date,
         ticketbook_type_repr: u8,
         merkle_leaf: &[u8],
+        merkle_index: u32,
     ) -> Result<(), sqlx::Error>;
 
     /// Attempts to retrieve issued credentials from the data store using provided ids.
@@ -437,7 +438,8 @@ impl EcashStorageManagerExt for StorageManager {
     ) -> Result<Vec<IssuedHash>, sqlx::Error> {
         Ok(sqlx::query!(
             r#"
-                SELECT deposit_id as "deposit_id: DepositId", merkle_leaf FROM issued_ticketbook WHERE expiration_date = ?
+                SELECT deposit_id as "deposit_id: DepositId", merkle_leaf, merkle_index as "merkle_index: u32"
+                FROM issued_ticketbook WHERE expiration_date = ?
             "#,
             expiration_date
         )
@@ -447,6 +449,7 @@ impl EcashStorageManagerExt for StorageManager {
         .filter_map(|r| r.merkle_leaf.try_into().inspect_err(|_| error!("possible database corruption: one of the stored merkle leaves is not a valid 32byte hash")).ok().map(|merkle_leaf| IssuedHash {
             deposit_id: r.deposit_id,
             merkle_leaf,
+            merkle_index: r.merkle_index as usize,
         }))
         .collect())
     }
@@ -461,6 +464,7 @@ impl EcashStorageManagerExt for StorageManager {
         expiration_date: Date,
         ticketbook_type_repr: u8,
         merkle_leaf: &[u8],
+        merkle_index: u32,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
@@ -471,8 +475,9 @@ impl EcashStorageManagerExt for StorageManager {
                     joined_private_commitments,
                     expiration_date,
                     ticketbook_type_repr,
-                    merkle_leaf
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    merkle_leaf,
+                    merkle_index
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             "#,
             deposit_id,
             dkg_epoch_id,
@@ -480,7 +485,8 @@ impl EcashStorageManagerExt for StorageManager {
             joined_private_commitments,
             expiration_date,
             ticketbook_type_repr,
-            merkle_leaf
+            merkle_leaf,
+            merkle_index
         )
         .execute(&self.connection_pool)
         .await?;

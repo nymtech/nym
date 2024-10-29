@@ -18,7 +18,10 @@ CREATE TABLE issued_ticketbook
     ticketbook_type_repr       INTEGER NOT NULL,
 
     -- hash on the whole data as in what has been inserted into the merkle tree
-    merkle_leaf                BLOB    NOT NULL
+    merkle_leaf                BLOB    NOT NULL,
+
+    -- index of the leaf under which the data has been inserted
+    merkle_index               INTEGER NOT NULL
 );
 
 -- helper index for getting tickets issued with particular expiration date for easier proof construction

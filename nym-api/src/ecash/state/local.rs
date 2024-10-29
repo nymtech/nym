@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::ecash::error::EcashError;
 use crate::ecash::helpers::{
     CachedImmutableEpochItem, CachedImmutableItems, IssuedCoinIndicesSignatures,
     IssuedExpirationDateSignatures,
@@ -11,8 +12,8 @@ use nym_api_requests::ecash::models::{CommitedDeposit, DepositId};
 use nym_config::defaults::BloomfilterParameters;
 use nym_crypto::asymmetric::identity;
 use nym_ecash_double_spending::DoubleSpendingFilter;
-use nym_ticketbooks_merkle::{IssuedTicketbooksMerkleTree, MerkleLeaf};
-use std::collections::HashMap;
+use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksMerkleTree, MerkleLeaf};
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use time::Date;
 use tokio::sync::RwLock;
@@ -91,22 +92,36 @@ pub(crate) struct DailyMerkleTree {
 
 impl DailyMerkleTree {
     pub(crate) fn new(initial_leaves: Vec<IssuedHash>) -> Self {
-        let hashes = initial_leaves
+        let mut leaves: HashMap<_, _> = initial_leaves
+            .into_iter()
+            .map(|l| (l.merkle_index, l))
+            .collect();
+
+        let mut sorted_leaves = Vec::new();
+        for i in 0..leaves.len() {
+            if let Some(next_leaf) = leaves.remove(&i) {
+                sorted_leaves.push(next_leaf);
+            } else {
+                let lost = leaves.len() - i + 1;
+                error!("failed to produce consistent merkle tree. there was no leaf with index {i}. at least {lost} leaves got lost")
+            }
+        }
+
+        let hashes = sorted_leaves
             .iter()
             .map(|i| i.merkle_leaf)
             .collect::<Vec<_>>();
 
         DailyMerkleTree {
             merkle_tree: IssuedTicketbooksMerkleTree::rebuild(&hashes),
-            inserted_leaves: initial_leaves
+            inserted_leaves: sorted_leaves
                 .into_iter()
-                .enumerate()
-                .map(|(index, i)| {
+                .map(|leaf| {
                     (
-                        i.deposit_id,
+                        leaf.deposit_id,
                         MerkleLeaf {
-                            index,
-                            hash: i.merkle_leaf.to_vec(),
+                            hash: leaf.merkle_leaf.to_vec(),
+                            index: leaf.merkle_index,
                         },
                     )
                 })
@@ -138,16 +153,25 @@ impl DailyMerkleTree {
         self.merkle_tree = new_tree;
     }
 
-    pub(crate) fn insert(&mut self, deposit_id: DepositId, leaf: [u8; 32]) {
-        let inserted = self.merkle_tree.insert_leaf(leaf);
+    pub(crate) fn insert(&mut self, issued: &IssuedTicketbook) -> MerkleLeaf {
+        let inserted = self.merkle_tree.insert(issued);
 
+        self.inserted_leaves
+            .insert(issued.deposit_id, inserted.leaf.clone());
+        inserted.leaf
+    }
+
+    pub(crate) fn rollback(&mut self, deposit_id: DepositId) {
+        self.merkle_tree.rollback();
+        self.inserted_leaves.remove(&deposit_id);
+    }
+
+    pub(crate) fn maybe_rebuild(&mut self) {
         // every 1000 leaves, rebuild the tree to purge the history
         // (I wish the API of the library allowed to do it without having to go through those extra steps...)
-        if inserted.leaf.index != 0 && inserted.leaf.index % 1000 == 0 {
+        if !self.inserted_leaves.is_empty() && self.inserted_leaves.len() % 1000 == 0 {
             self.rebuild_without_history();
         }
-
-        self.inserted_leaves.insert(deposit_id, inserted.leaf);
     }
 }
 
@@ -196,27 +220,6 @@ impl LocalEcashState {
             .await
             .get(&expiration_date)
             .is_none()
-    }
-
-    pub(crate) async fn insert_issued_ticketbook(
-        &self,
-        expiration_date: Date,
-        deposit_id: DepositId,
-        leaf_hash: [u8; 32],
-    ) {
-        match self
-            .issued_merkle_trees
-            .write()
-            .await
-            .get_mut(&expiration_date)
-        {
-            Some(tree) => tree.insert(deposit_id, leaf_hash),
-            None => {
-                // that's a serious issue because it means we might be producing invalid merkle tree
-                // and thus be producing invalid proofs and as a result accused of cheating the rewarding
-                error!("CRITICAL: the merkle tree for {expiration_date} does not exist!");
-            }
-        }
     }
 
     pub(crate) async fn remove_old_merkle_trees(&self, current_expiration: Date) {

@@ -20,7 +20,8 @@ futures.workspace = true
 humantime = { workspace = true }
 sha2 = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "time"] }
+serde_json = {workspace = true}
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "macros", "migrate", "time", "json"] }
 tendermint.workspace = true
 tendermint-rpc = { workspace = true, features = ["websocket-client", "http-client"] }
 thiserror.workspace = true

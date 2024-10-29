@@ -339,6 +339,7 @@ async fn persist_txs(
             chain_tx.index as i64,
             chain_tx.tx_result.code.is_ok(),
             chain_tx.tx.body.messages.len() as i64,
+            chain_tx.tx.body.messages.clone(),
             chain_tx.tx.body.memo.clone(),
             chain_tx.tx_result.gas_wanted,
             chain_tx.tx_result.gas_used,
@@ -372,3 +373,4 @@ async fn persist_messages(
 
     Ok(())
 }
+    

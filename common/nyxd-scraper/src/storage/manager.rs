@@ -1,6 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::vec;
+
 use crate::storage::log_db_operation_time;
 use crate::storage::models::{CommitSignature, Validator};
 use sqlx::types::time::OffsetDateTime;
@@ -346,7 +348,8 @@ pub(crate) async fn insert_transaction<'a, E>(
     height: i64,
     index: i64,
     success: bool,
-    messages: i64,
+    message_len: i64,
+    messages: Vec<cosmrs::Any>,
     memo: String,
     gas_wanted: i64,
     gas_used: i64,
@@ -361,13 +364,14 @@ where
 
     sqlx::query!(
         r#"
-            INSERT INTO "transaction" (hash, height, "index", success, num_messages, memo, gas_wanted, gas_used, raw_log)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO "transaction" (hash, height, "index", success, num_messages, messages, memo, gas_wanted, gas_used, raw_log)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
                ON CONFLICT (hash) DO UPDATE
                SET height = excluded.height,
                "index" = excluded."index",
                success = excluded.success,
                num_messages = excluded.num_messages,
+               messages = excluded.messages
                memo = excluded.memo,
                gas_wanted = excluded.gas_wanted,
                gas_used = excluded.gas_used,
@@ -378,6 +382,7 @@ where
             index as i32,
             success,
             messages as i32,
+            messages,
             memo,
             gas_wanted,
             gas_used,

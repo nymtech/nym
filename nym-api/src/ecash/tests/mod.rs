@@ -1435,7 +1435,7 @@ mod credential_tests {
         test_fixture.add_deposit(&voucher);
 
         let sig = blinded_signature_fixture();
-        let commitments = request_body.encode_commitments();
+        let commitments = request_body.encode_join_commitments();
         let expiration_date = request_body.expiration_date;
         test_fixture
             .storage
@@ -1514,7 +1514,7 @@ mod credential_tests {
         let signing_data = voucher.prepare_for_signing();
         let request_body = voucher.create_blind_sign_request_body(&signing_data);
 
-        let commitments = request_body.encode_commitments();
+        let commitments = request_body.encode_join_commitments();
         let expiration_date = request_body.expiration_date;
         let sig = blinded_signature_fixture();
         storage

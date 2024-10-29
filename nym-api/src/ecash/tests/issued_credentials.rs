@@ -138,7 +138,7 @@ async fn issued_credential() {
     );
 
     assert_eq!(
-        request1.encode_commitments(),
+        request1.encode_join_commitments(),
         issued1.credential.encoded_private_attributes_commitments
     );
     assert_eq!(
@@ -155,7 +155,7 @@ async fn issued_credential() {
     );
 
     assert_eq!(
-        request2.encode_commitments(),
+        request2.encode_join_commitments(),
         issued2.credential.encoded_private_attributes_commitments
     );
     assert_eq!(

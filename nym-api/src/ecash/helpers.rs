@@ -137,4 +137,8 @@ where
         #[allow(clippy::unwrap_used)]
         Ok(RwLockReadGuard::map(guard, |map| map.get(&key).unwrap()))
     }
+
+    pub(crate) async fn remove(&self, key: K) {
+        self.inner.write().await.remove(&key);
+    }
 }

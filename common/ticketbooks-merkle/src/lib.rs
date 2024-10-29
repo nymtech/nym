@@ -19,13 +19,6 @@ pub type DepositId = u32;
 pub type DKGEpochId = u64;
 
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
-pub struct EncodedCommitmentWrapper(
-    #[schemars(with = "String")]
-    #[serde(with = "nym_serde_helpers::base64")]
-    pub Vec<u8>,
-);
-
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbook {
     pub deposit_id: DepositId,
@@ -36,7 +29,10 @@ pub struct IssuedTicketbook {
     #[serde(with = "nym_serde_helpers::base64")]
     pub blinded_partial_credential: Vec<u8>,
 
-    pub encoded_private_attributes_commitments: Vec<EncodedCommitmentWrapper>,
+    // concatenated bytes for the commitments to the private attributes
+    #[schemars(with = "String")]
+    #[serde(with = "nym_serde_helpers::base64")]
+    pub joined_encoded_private_attributes_commitments: Vec<u8>,
 
     #[schemars(with = "String")]
     #[serde(with = "nym_serde_helpers::date")]
@@ -52,9 +48,7 @@ impl IssuedTicketbook {
         hasher.update(self.deposit_id.to_be_bytes());
         hasher.update(self.epoch_id.to_be_bytes());
         hasher.update(&self.blinded_partial_credential);
-        for cm in &self.encoded_private_attributes_commitments {
-            hasher.update(&cm.0)
-        }
+        hasher.update(&self.joined_encoded_private_attributes_commitments);
         hasher.update(self.expiration_date.to_julian_day().to_be_bytes());
         hasher.update(self.ticketbook_type.encode().to_be_bytes());
 
@@ -95,17 +89,25 @@ impl IssuedTicketbooksMerkleTree {
         }
     }
 
-    #[allow(clippy::unwrap_used)]
+    pub fn all_leaves(&self) -> Option<Vec<[u8; 32]>> {
+        self.inner.leaves()
+    }
+
     pub fn insert(&mut self, issued: &IssuedTicketbook) -> InsertedMerkleLeaf {
         let hash = issued.hash_to_merkle_leaf();
+        self.insert_leaf(hash)
+    }
+
+    #[allow(clippy::unwrap_used)]
+    pub fn insert_leaf(&mut self, leaf_hash: [u8; 32]) -> InsertedMerkleLeaf {
         let leaves = self.inner.leaves_len();
-        self.inner.insert(hash).commit();
+        self.inner.insert(leaf_hash).commit();
 
         InsertedMerkleLeaf {
             // SAFETY: after inserting at least a single node, the root will always be available
             new_root: self.inner.root().unwrap().to_vec(),
             leaf: MerkleLeaf {
-                hash: hash.to_vec(),
+                hash: leaf_hash.to_vec(),
                 index: leaves,
             },
         }
@@ -221,18 +223,14 @@ mod tests {
         let mut blinded_partial_credential = vec![0u8; 42];
         rng.fill_bytes(&mut blinded_partial_credential);
 
-        let mut encoded_private_attributes_commitments = Vec::new();
-        for _ in 0..3 {
-            let mut cm = vec![0u8; 32];
-            rng.fill_bytes(&mut cm);
-            encoded_private_attributes_commitments.push(EncodedCommitmentWrapper(cm));
-        }
+        let mut joined_encoded_private_attributes_commitments = vec![0u8; 48 * 3];
+        rng.fill_bytes(&mut joined_encoded_private_attributes_commitments);
 
         IssuedTicketbook {
             deposit_id: rng.next_u32(),
             epoch_id: rng.next_u64(),
             blinded_partial_credential,
-            encoded_private_attributes_commitments,
+            joined_encoded_private_attributes_commitments,
             expiration_date: ecash_today().date(),
             ticketbook_type: TicketType::V1MixnetEntry,
         }

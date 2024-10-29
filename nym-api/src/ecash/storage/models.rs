@@ -71,6 +71,21 @@ pub struct VerifiedTicket {
     pub(crate) gateway_id: i64,
 }
 
+pub struct IssuedHash {
+    pub deposit_id: DepositId,
+    pub merkle_leaf: [u8; 32],
+}
+
+impl IssuedHash {
+    pub fn new(deposit_id: DepositId, merkle_leaf: [u8; 32]) -> Self {
+        IssuedHash {
+            deposit_id,
+            merkle_leaf,
+        }
+    }
+}
+
+#[deprecated]
 #[derive(FromRow)]
 pub struct IssuedTicketbook {
     pub id: i64,
@@ -82,15 +97,29 @@ pub struct IssuedTicketbook {
     /// signature on the issued credential (and the attributes)
     pub signature: Vec<u8>,
 
-    // i.e. "'attr1','attr2',..."
+    pub joined_private_commitments: Vec<u8>,
+
+    pub expiration_date: Date,
+
+    pub ticketbook_type_repr: u8,
+}
+
+#[derive(FromRow)]
+pub struct RawIssuedTicketbook {
+    pub deposit_id: DepositId,
+
+    pub dkg_epoch_id: u32,
+
+    pub blinded_partial_credential: Vec<u8>,
+
     pub joined_private_commitments: Vec<u8>,
 
     pub expiration_date: Date,
 
     pub ticketbook_type_repr: u8,
 
-    // hash on the ticketbook and the deposit
-    pub commitment: Vec<u8>,
+    /// hash on the whole data as in what has been inserted into the merkle tree
+    pub merkle_leaf: Vec<u8>,
 }
 
 #[derive(FromRow)]

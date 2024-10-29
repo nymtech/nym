@@ -11,6 +11,7 @@ use axum::extract::Path;
 use axum::{Json, Router};
 use nym_api_requests::ecash::models::{
     EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
+    IssuedTicketbooksChallengeBody, IssuedTicketbooksChallengeResponse,
     IssuedTicketbooksForResponse,
 };
 use nym_api_requests::ecash::CredentialsRequestBody;
@@ -80,7 +81,31 @@ async fn issued_ticketbooks_for(
 ) -> AxumResult<Json<IssuedTicketbooksForResponse>> {
     state.ensure_signer().await?;
 
-    Ok(Json(state.get_issued_ticketbooks(expiration_date).await?))
+    Ok(Json(
+        state
+            .get_issued_ticketbooks_deposits_on(expiration_date)
+            .await?,
+    ))
+}
+
+#[utoipa::path(
+    tag = "Ecash",
+    post,
+    request_body = IssuedTicketbooksChallengeBody,
+    path = "/issued-ticketbooks",
+    context_path = "/v1/ecash",
+    responses(
+        (status = 200, body = IssuedTicketbooksChallengeResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+    )
+)]
+async fn issued_ticketbooks_challenge(
+    Json(challenge): Json<IssuedTicketbooksChallengeBody>,
+    state: Arc<EcashState>,
+) -> AxumResult<Json<IssuedTicketbooksChallengeResponse>> {
+    state.ensure_signer().await?;
+
+    Ok(Json(state.get_issued_ticketbooks(challenge).await?))
 }
 
 #[derive(Deserialize, IntoParams)]

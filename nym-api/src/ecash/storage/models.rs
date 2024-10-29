@@ -74,13 +74,15 @@ pub struct VerifiedTicket {
 pub struct IssuedHash {
     pub deposit_id: DepositId,
     pub merkle_leaf: [u8; 32],
+    pub merkle_index: usize,
 }
 
 impl IssuedHash {
-    pub fn new(deposit_id: DepositId, merkle_leaf: [u8; 32]) -> Self {
+    pub fn new(deposit_id: DepositId, merkle_leaf: [u8; 32], merkle_index: usize) -> Self {
         IssuedHash {
             deposit_id,
             merkle_leaf,
+            merkle_index,
         }
     }
 }

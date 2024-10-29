@@ -113,6 +113,10 @@ impl IssuedTicketbooksMerkleTree {
         }
     }
 
+    pub fn rollback(&mut self) {
+        self.inner.rollback();
+    }
+
     pub fn root(&self) -> Option<[u8; 32]> {
         self.inner.root()
     }

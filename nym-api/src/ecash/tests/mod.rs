@@ -1439,7 +1439,7 @@ mod credential_tests {
         let expiration_date = request_body.expiration_date;
         test_fixture
             .storage
-            .store_issued_credential(
+            .store_issued_ticketbook(
                 42,
                 deposit_id,
                 &sig,
@@ -1518,7 +1518,7 @@ mod credential_tests {
         let expiration_date = request_body.expiration_date;
         let sig = blinded_signature_fixture();
         storage
-            .store_issued_credential(
+            .store_issued_ticketbook(
                 42,
                 deposit_id,
                 &sig,
@@ -1552,7 +1552,7 @@ mod credential_tests {
 
         // Check that the new payload is not stored if there was already something signed for tx_hash
         let storage_err = storage
-            .store_issued_credential(
+            .store_issued_ticketbook(
                 42,
                 deposit_id,
                 &blinded_signature,
@@ -1568,7 +1568,7 @@ mod credential_tests {
         let deposit_id = 69;
 
         storage
-            .store_issued_credential(
+            .store_issued_ticketbook(
                 42,
                 deposit_id,
                 &blinded_signature,

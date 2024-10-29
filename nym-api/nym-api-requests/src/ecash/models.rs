@@ -17,7 +17,7 @@ use nym_ticketbooks_merkle::IssuedTicketbooksFullMerkleProof;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
 use thiserror::Error;
 use time::Date;
@@ -274,6 +274,7 @@ pub struct Pagination<T> {
     pub limit: Option<u32>,
 }
 
+#[deprecated]
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct CredentialsRequestBody {
@@ -387,15 +388,24 @@ pub struct CommitedDeposit {
 pub struct IssuedTicketbooksForResponse {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
-    pub expiration: Date,
+    pub expiration_date: Date,
     pub deposits: Vec<CommitedDeposit>,
     pub merkle_root: Option<[u8; 32]>,
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedCredentialsChallengeResponse {
-    pub partial_credentials: BTreeMap<DepositId, IssuedTicketbookBody>,
+pub struct IssuedTicketbooksChallengeBody {
+    #[schemars(with = "String")]
+    #[serde(with = "crate::helpers::date_serde")]
+    pub expiration_date: Date,
+    pub deposits: Vec<DepositId>,
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksChallengeResponse {
+    pub partial_credentials: HashMap<DepositId, IssuedTicketbookBody>,
     pub merkle_proof: IssuedTicketbooksFullMerkleProof,
 }
 

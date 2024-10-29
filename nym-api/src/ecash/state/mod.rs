@@ -21,7 +21,10 @@ use crate::support::storage::NymApiStorage;
 use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
 use cw3::Status;
 use nym_api_requests::ecash::helpers::issued_credential_plaintext;
-use nym_api_requests::ecash::models::{BatchRedeemTicketsBody, IssuedTicketbooksForResponse};
+use nym_api_requests::ecash::models::{
+    BatchRedeemTicketsBody, IssuedTicketbooksChallengeBody, IssuedTicketbooksChallengeResponse,
+    IssuedTicketbooksForResponse,
+};
 use nym_api_requests::ecash::BlindSignRequestBody;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::coin_indices_signatures::{
@@ -43,14 +46,15 @@ use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
 use nym_ecash_double_spending::DoubleSpendingFilter;
 use nym_ecash_time::{cred_exp_date, ecash_today_date};
-use nym_ticketbooks_merkle::IssuedTicketbook;
+use nym_ticketbooks_merkle::{IssuedTicketbook, MerkleLeaf};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
+use std::collections::HashMap;
 use std::ops::Deref;
 use std::time::Duration;
 use time::ext::NumericalDuration;
 use time::{Date, OffsetDateTime};
-use tokio::sync::RwLockReadGuard;
+use tokio::sync::{RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, error, info, warn};
 
 pub(crate) mod auxiliary;
@@ -641,41 +645,58 @@ impl EcashState {
     //     });
     // }
 
-    pub(crate) async fn hash_and_store_credential(
+    pub(crate) async fn persist_issued(
         &self,
         current_epoch: EpochId,
-        request_body: BlindSignRequestBody,
-        blinded_signature: &BlindedSignature,
-    ) -> Result<[u8; 32]> {
-        let joined_encoded_private_attributes_commitments = request_body.encode_join_commitments();
-
-        let issued = IssuedTicketbook {
-            deposit_id: request_body.deposit_id,
-            epoch_id: current_epoch,
-            blinded_partial_credential: blinded_signature.to_byte_vec(),
-            joined_encoded_private_attributes_commitments,
-            expiration_date: request_body.expiration_date,
-            ticketbook_type: request_body.ticketbook_type,
-        };
-        let merkle_hash = issued.hash_to_merkle_leaf();
-
+        issued: &IssuedTicketbook,
+        merkle_leaf: MerkleLeaf,
+    ) -> Result<()> {
         // note: we have a UNIQUE constraint on the deposit_id column of the credential
         // and so if the api is processing request for the same deposit at the same time,
         // only one of them will be successfully inserted to the database
         self.aux
             .storage
-            .store_issued_credential(
-                request_body.deposit_id,
+            .store_issued_ticketbook(
+                issued.deposit_id,
                 current_epoch as u32,
                 &issued.blinded_partial_credential,
                 &issued.joined_encoded_private_attributes_commitments,
                 issued.expiration_date,
                 issued.ticketbook_type,
-                merkle_hash,
+                merkle_leaf,
             )
             .await?;
+        Ok(())
+    }
 
-        Ok(merkle_hash)
+    async fn get_updated_merkle_read(
+        &self,
+        expiration_date: Date,
+    ) -> Result<RwLockReadGuard<DailyMerkleTree>> {
+        let write_guard = self.get_updated_full_write(expiration_date).await?;
+
+        // SAFETY: the entry was either not empty or we just inserted data in there, whilst never dropping the lock
+        // thus it MUST exist
+        #[allow(clippy::unwrap_used)]
+        Ok(RwLockWriteGuard::downgrade_map(write_guard, |map| {
+            map.get(&expiration_date).unwrap()
+        }))
+    }
+
+    async fn get_updated_full_write(
+        &self,
+        expiration_date: Date,
+    ) -> Result<RwLockWriteGuard<HashMap<Date, DailyMerkleTree>>> {
+        let mut write_guard = self.local.issued_merkle_trees.write().await;
+
+        // double check if it's still empty in case another task has already grabbed the write lock and performed the update
+        let still_empty = write_guard.get(&expiration_date).is_none();
+        if still_empty {
+            // the order actually does not matter since we're building the tree back from scratch
+            let issued_hashes = self.aux.storage.get_issued_hashes(expiration_date).await?;
+            write_guard.insert(expiration_date, DailyMerkleTree::new(issued_hashes));
+        }
+        Ok(write_guard)
     }
 
     pub async fn store_issued_ticketbook(
@@ -687,33 +708,36 @@ impl EcashState {
         let expiration = request_body.expiration_date;
         let deposit_id = request_body.deposit_id;
 
+        let joined_encoded_private_attributes_commitments = request_body.encode_join_commitments();
+        let issued = IssuedTicketbook {
+            deposit_id: request_body.deposit_id,
+            epoch_id: current_epoch,
+            blinded_partial_credential: blinded_signature.to_byte_vec(),
+            joined_encoded_private_attributes_commitments,
+            expiration_date: request_body.expiration_date,
+            ticketbook_type: request_body.ticketbook_type,
+        };
+
+        let mut map = self.get_updated_full_write(expiration).await?;
+        // SAFETY: get_updated_full_write inserted relevant entry to the map, and we never dropped the lock
+        #[allow(clippy::unwrap_used)]
+        let merkle_entry = map.get_mut(&expiration).unwrap();
+
+        // insert the ticketbook into the merkle tree
+        let inserted_leaf = merkle_entry.insert(&issued);
+
         // note: there's a primary key constraint on the deposit_id
         // and so if the api is processing request for the same deposit at the same time,
         // only one of them will be successfully inserted to the database
-        let merkle_leaf_hash = self
-            .hash_and_store_credential(current_epoch, request_body, blinded_signature)
-            .await?;
-
-        // check if the entry for this expiration date is empty. if so, it might imply we have crashed/shutdown
-        // and not have the full data in memory
-        if self.local.is_merkle_empty(expiration).await {
-            let mut write_guard = self.local.issued_merkle_trees.write().await;
-
-            // double check if it's still empty in case another task has already grabbed the write lock and performed the update
-            let still_empty = write_guard.get(&expiration).is_none();
-            if still_empty {
-                // the order actually does not matter since we're building the tree back from scratch
-                let mut issued_hashes = self.aux.storage.get_issued_hashes(expiration).await?;
-                issued_hashes.push(IssuedHash::new(deposit_id, merkle_leaf_hash));
-
-                write_guard.insert(expiration, DailyMerkleTree::new(issued_hashes));
-                return Ok(());
-            }
+        if let Err(err) = self
+            .persist_issued(current_epoch, &issued, inserted_leaf)
+            .await
+        {
+            // if we failed to insert it into the db, rollback the tree. there was most likely clash on the deposit
+            warn!("failed to persist ticketbook corresponding to deposit {deposit_id}: {err}");
+            merkle_entry.rollback(deposit_id);
+            return Err(err);
         }
-
-        self.local
-            .insert_issued_ticketbook(expiration, deposit_id, merkle_leaf_hash)
-            .await;
 
         // TODO:
         let unused = "";
@@ -723,6 +747,18 @@ impl EcashState {
     }
 
     pub async fn get_issued_ticketbooks(
+        &self,
+        challenge: IssuedTicketbooksChallengeBody,
+    ) -> Result<IssuedTicketbooksChallengeResponse> {
+        let today = ecash_today_date();
+        if challenge.expiration_date < today - self.config.issued_ticketbooks_retention_period {
+            return Err(EcashError::ExpirationDateTooEarly);
+        }
+
+        todo!()
+    }
+
+    pub async fn get_issued_ticketbooks_deposits_on(
         &self,
         expiration: Date,
     ) -> Result<IssuedTicketbooksForResponse> {
@@ -734,23 +770,10 @@ impl EcashState {
         // check if the entry for this expiration date is empty. if so, it might imply we have crashed/shutdown
         // and not have the full data in memory
         if self.local.is_merkle_empty(expiration).await {
-            let mut write_guard = self.local.issued_merkle_trees.write().await;
+            let entry = self.get_updated_merkle_read(expiration).await?;
 
-            // double check if it's still empty in case another task has already grabbed the write lock and performed the update
-            let still_empty = write_guard.get(&expiration).is_none();
-
-            if still_empty {
-                // the order actually does not matter since we're building the tree back from scratch
-                let issued_hashes = self.aux.storage.get_issued_hashes(expiration).await?;
-                write_guard.insert(expiration, DailyMerkleTree::new(issued_hashes));
-            }
-
-            // SAFETY: the entry was either not empty or we just inserted data in there, whilst never dropping write
-            // permit thus it MUST exist
-            #[allow(clippy::unwrap_used)]
-            let entry = write_guard.get(&expiration).unwrap();
             return Ok(IssuedTicketbooksForResponse {
-                expiration,
+                expiration_date: expiration,
                 deposits: entry.deposits(),
                 merkle_root: entry.merkle_root(),
             });
@@ -764,7 +787,7 @@ impl EcashState {
         };
 
         Ok(IssuedTicketbooksForResponse {
-            expiration,
+            expiration_date: expiration,
             deposits: entry.deposits(),
             merkle_root: entry.merkle_root(),
         })

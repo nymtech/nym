@@ -12,7 +12,7 @@ nym-sdk = { path = "../../rust/nym-sdk/" }
 nym-bin-common = { path = "../../../common/bin-common" }
 nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-replies" }
 # static var macro
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 # error handling
 anyhow = "1.0.90"
 # base58 en/decoding

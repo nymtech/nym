@@ -4,11 +4,8 @@
 use crate::location::{LocationCache, LocationCacheItem};
 use crate::nym_nodes::location::NymNodeLocationCache;
 use crate::nym_nodes::CACHE_ENTRY_TTL;
-use nym_explorer_api_requests::{
-    Location, MixnodeStatus, PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond,
-};
-use nym_mixnet_contract_common::{Gateway, LegacyMixLayer, MixNode, NodeId, NymNodeDetails};
-use nym_network_defaults::DEFAULT_HTTP_API_LISTENING_PORT;
+use nym_explorer_api_requests::{Location, PrettyDetailedGatewayBond};
+use nym_mixnet_contract_common::{Gateway, NodeId, NymNodeDetails};
 use nym_validator_client::models::NymNodeDescription;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -153,73 +150,5 @@ impl ThreadSafeNymNodesCache {
         }
 
         pretty_gateways
-    }
-
-    pub(crate) async fn pretty_mixnodes(&self) -> Vec<PrettyDetailedMixNodeBond> {
-        let nodes_guard = self.nymnodes.read().await;
-        let location_guard = self.locations.read().await;
-
-        let mut pretty_mixnodes = vec![];
-
-        for (node_id, native_nymnode) in &nodes_guard.bonded_nym_nodes {
-            let Some(description) = nodes_guard.described_nodes.get(node_id) else {
-                continue;
-            };
-
-            if description.description.declared_role.mixnode {
-                let location = location_guard.get(node_id);
-                let bond = &native_nymnode.bond_information;
-
-                pretty_mixnodes.push(PrettyDetailedMixNodeBond {
-                    mix_id: *node_id,
-                    pledge_amount: bond.original_pledge.clone(),
-                    total_delegation: Default::default(),
-                    owner: bond.owner.clone(),
-                    layer: LegacyMixLayer::One,
-                    mix_node: MixNode {
-                        host: bond.node.host.clone(),
-                        mix_port: description.description.mix_port(),
-                        verloc_port: description.description.verloc_port(),
-                        http_api_port: bond
-                            .node
-                            .custom_http_port
-                            .unwrap_or(DEFAULT_HTTP_API_LISTENING_PORT),
-                        sphinx_key: description
-                            .description
-                            .host_information
-                            .keys
-                            .x25519
-                            .to_base58_string(),
-                        identity_key: bond.node.identity_key.clone(),
-                        version: description
-                            .description
-                            .build_information
-                            .build_version
-                            .clone(),
-                    },
-                    stake_saturation: 0.0,
-                    uncapped_saturation: 0.0,
-                    avg_uptime: 0,
-                    node_performance: Default::default(),
-                    estimated_operator_apy: 0.0,
-                    estimated_delegators_apy: 0.0,
-                    operating_cost: native_nymnode
-                        .rewarding_details
-                        .cost_params
-                        .interval_operating_cost
-                        .clone(),
-                    profit_margin_percent: native_nymnode
-                        .rewarding_details
-                        .cost_params
-                        .profit_margin_percent,
-                    family_id: None,
-                    location: location.and_then(|l| l.location.clone()),
-                    status: MixnodeStatus::Inactive,
-                    blacklisted: true,
-                })
-            }
-        }
-
-        pretty_mixnodes
     }
 }

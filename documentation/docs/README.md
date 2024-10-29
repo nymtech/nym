@@ -38,12 +38,13 @@ pnpm run build
 * If you wish to add to the documentation please create a PR against this repo, with a `patch` against `develop`.
 
 ## Scripts
-* `generate:commands`: generates command output files for clients and binaries. This script runs the `autodoc` rust binary, moves the files to their required places, and then if there is an update, commits them to git. We commit the files as our remote deployments pull from a git repo.
+* `generate:commands`: generates command output files for clients and binaries. This script runs the `autodoc` rust binary, moves the files to their required places, and then if there is an update, commits them to git. We commit the files as our remote deployments pull from a git repo. **Only run this script on branches where you want to push e.g. the build info of a binary to production docs**; it will build the monorepo binaries and use their command output for the produced markdown files.
 * `generate:tables`: generates various information tables containing some repo-wide variables and information about ISPs.
-
 
 ### Autodoc
 `autodoc` is a script that generates markdown files containing commands and their output (both command and `--help` output). For the moment the binaries and their commands are manually configured in the script.
+
+> **Only run this script on branches where you want to push e.g. the build info of a binary to production docs**; it will build the monorepo binaries and use their command output for the produced markdown files.
 
 ## CI/CD
 TODO

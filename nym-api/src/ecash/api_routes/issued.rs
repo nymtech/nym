@@ -11,35 +11,76 @@ use axum::extract::Path;
 use axum::{Json, Router};
 use nym_api_requests::ecash::models::{
     EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
+    IssuedTicketbooksForResponse,
 };
 use nym_api_requests::ecash::CredentialsRequestBody;
-use serde::Deserialize;
+use schemars::JsonSchema;
+use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use utoipa::IntoParams;
+use time::Date;
+use utoipa::{IntoParams, ToSchema};
 
 pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
-    Router::new()
-        .route(
-            "/epoch-credentials/:epoch",
-            axum::routing::get({
-                let ecash_state = Arc::clone(&ecash_state);
-                |epoch| epoch_credentials(epoch, ecash_state)
-            }),
-        )
-        .route(
-            "/issued-credential/:id",
-            axum::routing::get({
-                let ecash_state = Arc::clone(&ecash_state);
-                |id| issued_credential(id, ecash_state)
-            }),
-        )
-        .route(
-            "/issued-credentials",
-            axum::routing::post({
-                let ecash_state = Arc::clone(&ecash_state);
-                |body| issued_credentials(body, ecash_state)
-            }),
-        )
+    Router::new().route(
+        "issued-ticketbooks-for/:expiration_date",
+        axum::routing::get({
+            let ecash_state = Arc::clone(&ecash_state);
+            |expiration_date| issued_ticketbooks_for(expiration_date, ecash_state)
+        }),
+    )
+    // .route(
+    //     "/epoch-credentials/:epoch",
+    //     axum::routing::get({
+    //         let ecash_state = Arc::clone(&ecash_state);
+    //         |epoch| epoch_credentials(epoch, ecash_state)
+    //     }),
+    // )
+    // .route(
+    //     "/issued-credential/:id",
+    //     axum::routing::get({
+    //         let ecash_state = Arc::clone(&ecash_state);
+    //         |id| issued_credential(id, ecash_state)
+    //     }),
+    // )
+    // .route(
+    //     "/issued-credentials",
+    //     axum::routing::post({
+    //         let ecash_state = Arc::clone(&ecash_state);
+    //         |body| issued_credentials(body, ecash_state)
+    //     }),
+    // )
+}
+
+#[derive(Debug, Serialize, Deserialize, Copy, Clone, IntoParams, ToSchema, JsonSchema)]
+#[into_params(parameter_in = Path)]
+#[serde(rename_all = "kebab-case")]
+pub(crate) struct ExpirationDatePathParam {
+    #[schema(value_type = String, example = "1970-01-01")]
+    #[schemars(with = "String")]
+    #[serde(with = "nym_serde_helpers::date")]
+    pub(crate) expiration_date: Date,
+}
+
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    params(
+        ExpirationDatePathParam
+    ),
+    path = "/issued-ticketbooks-for/{expiration_date}",
+    context_path = "/v1/ecash",
+    responses(
+        (status = 200, body = IssuedTicketbooksForResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+    )
+)]
+async fn issued_ticketbooks_for(
+    Path(ExpirationDatePathParam { expiration_date }): Path<ExpirationDatePathParam>,
+    state: Arc<EcashState>,
+) -> AxumResult<Json<IssuedTicketbooksForResponse>> {
+    state.ensure_signer().await?;
+
+    Ok(Json(state.get_issued_ticketbooks(expiration_date).await?))
 }
 
 #[derive(Deserialize, IntoParams)]

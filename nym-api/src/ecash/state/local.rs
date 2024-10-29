@@ -114,6 +114,14 @@ impl DailyMerkleTree {
         }
     }
 
+    pub(crate) fn merkle_root(&self) -> Option<[u8; 32]> {
+        self.merkle_tree.root()
+    }
+
+    pub(crate) fn deposits(&self) -> Vec<DepositId> {
+        self.inserted_leaves.keys().copied().collect()
+    }
+
     fn rebuild_without_history(&mut self) {
         let new_tree = if let Some(raw_leaves) = self.merkle_tree.all_leaves() {
             IssuedTicketbooksMerkleTree::rebuild(&raw_leaves)

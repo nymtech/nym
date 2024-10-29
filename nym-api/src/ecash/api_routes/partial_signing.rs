@@ -109,7 +109,7 @@ async fn post_blind_sign(
     // store the information locally
     debug!("storing the issued credential in the database");
     state
-        .store_issued_credential(blind_sign_request_body, &blinded_signature)
+        .store_issued_ticketbook(blind_sign_request_body, &blinded_signature)
         .await?;
 
     // finally return the credential to the client

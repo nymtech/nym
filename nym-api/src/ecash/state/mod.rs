@@ -16,11 +16,12 @@ use crate::ecash::state::helpers::{
 use crate::ecash::state::local::{DailyMerkleTree, LocalEcashState};
 use crate::ecash::storage::models::{IssuedHash, SerialNumberWrapper, TicketProvider};
 use crate::ecash::storage::EcashStorageExt;
+use crate::support::config::Config;
 use crate::support::storage::NymApiStorage;
 use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
 use cw3::Status;
 use nym_api_requests::ecash::helpers::issued_credential_plaintext;
-use nym_api_requests::ecash::models::BatchRedeemTicketsBody;
+use nym_api_requests::ecash::models::{BatchRedeemTicketsBody, IssuedTicketbooksForResponse};
 use nym_api_requests::ecash::BlindSignRequestBody;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::coin_indices_signatures::{
@@ -41,11 +42,12 @@ use nym_ecash_contract_common::deposit::{Deposit, DepositId};
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
 use nym_ecash_double_spending::DoubleSpendingFilter;
-use nym_ecash_time::cred_exp_date;
+use nym_ecash_time::{cred_exp_date, ecash_today_date};
 use nym_ticketbooks_merkle::IssuedTicketbook;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
 use std::ops::Deref;
+use std::time::Duration;
 use time::ext::NumericalDuration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::RwLockReadGuard;
@@ -57,7 +59,25 @@ pub(crate) mod global;
 mod helpers;
 pub(crate) mod local;
 
+pub struct EcashStateConfig {
+    pub(crate) issued_ticketbooks_retention_period: Duration,
+}
+
+impl EcashStateConfig {
+    pub(crate) fn new(global_config: &Config) -> Self {
+        EcashStateConfig {
+            issued_ticketbooks_retention_period: global_config
+                .ecash_signer
+                .debug
+                .issued_ticketbooks_retention_period,
+        }
+    }
+}
+
 pub struct EcashState {
+    // additional global config parameters
+    pub(crate) config: EcashStateConfig,
+
     // state global to the system, like aggregated keys, addresses, etc.
     pub(crate) global: GlobalEcachState,
 
@@ -70,13 +90,13 @@ pub struct EcashState {
 
 impl EcashState {
     pub(crate) async fn new<C, D>(
+        global_config: &Config,
         contract_address: AccountId,
         client: C,
         identity_keypair: identity::KeyPair,
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
-        signer_disabled: bool,
     ) -> Result<Self>
     where
         C: LocalClient + Send + Sync + 'static,
@@ -85,12 +105,13 @@ impl EcashState {
         let double_spending_filter = try_rebuild_bloomfilter(&storage).await?;
 
         Ok(Self {
+            config: EcashStateConfig::new(global_config),
             global: GlobalEcachState::new(contract_address),
             local: LocalEcashState::new(
                 key_pair,
                 identity_keypair,
                 double_spending_filter,
-                signer_disabled,
+                !global_config.ecash_signer.enabled,
             ),
             aux: AuxiliaryEcashState::new(client, comm_channel, storage),
         })
@@ -657,7 +678,7 @@ impl EcashState {
         Ok(merkle_hash)
     }
 
-    pub async fn store_issued_credential(
+    pub async fn store_issued_ticketbook(
         &self,
         request_body: BlindSignRequestBody,
         blinded_signature: &BlindedSignature,
@@ -695,9 +716,58 @@ impl EcashState {
             .await;
 
         // TODO:
+        let unused = "";
         // toss a coin to check if we should clean memory of old merkle trees
 
         Ok(())
+    }
+
+    pub async fn get_issued_ticketbooks(
+        &self,
+        expiration: Date,
+    ) -> Result<IssuedTicketbooksForResponse> {
+        let today = ecash_today_date();
+        if expiration < today - self.config.issued_ticketbooks_retention_period {
+            return Err(EcashError::ExpirationDateTooEarly);
+        }
+
+        // check if the entry for this expiration date is empty. if so, it might imply we have crashed/shutdown
+        // and not have the full data in memory
+        if self.local.is_merkle_empty(expiration).await {
+            let mut write_guard = self.local.issued_merkle_trees.write().await;
+
+            // double check if it's still empty in case another task has already grabbed the write lock and performed the update
+            let still_empty = write_guard.get(&expiration).is_none();
+
+            if still_empty {
+                // the order actually does not matter since we're building the tree back from scratch
+                let issued_hashes = self.aux.storage.get_issued_hashes(expiration).await?;
+                write_guard.insert(expiration, DailyMerkleTree::new(issued_hashes));
+            }
+
+            // SAFETY: the entry was either not empty or we just inserted data in there, whilst never dropping write
+            // permit thus it MUST exist
+            #[allow(clippy::unwrap_used)]
+            let entry = write_guard.get(&expiration).unwrap();
+            return Ok(IssuedTicketbooksForResponse {
+                expiration,
+                deposits: entry.deposits(),
+                merkle_root: entry.merkle_root(),
+            });
+        }
+
+        // I can imagine this could happen under very rare edge case when the function is called just as the retention period expired
+        let guard = self.local.issued_merkle_trees.read().await;
+        let Some(entry) = guard.get(&expiration) else {
+            warn!("it seems our merkle tree has just expired!");
+            return Err(EcashError::ExpirationDateTooEarly);
+        };
+
+        Ok(IssuedTicketbooksForResponse {
+            expiration,
+            deposits: entry.deposits(),
+            merkle_root: entry.merkle_root(),
+        })
     }
 
     pub async fn store_verified_ticket(
@@ -710,6 +780,8 @@ impl EcashState {
             .store_verified_ticket(ticket_data, gateway_addr)
             .await
             .map_err(Into::into)
+
+        // TODO UNIMPLEMENTED: we should probably also be removing old tickets here
     }
 
     pub async fn get_ticket_provider(

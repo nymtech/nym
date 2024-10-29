@@ -140,13 +140,13 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
 
     let encoded_identity = identity_keypair.public_key().to_base58_string();
     let ecash_state = EcashState::new(
+        config,
         ecash_contract,
         nyxd_client.clone(),
         identity_keypair,
         ecash_keypair_wrapper.clone(),
         comm_channel,
         storage.clone(),
-        !config.ecash_signer.enabled,
     )
     .await?;
 

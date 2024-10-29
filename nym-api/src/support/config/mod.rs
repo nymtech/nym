@@ -58,6 +58,10 @@ const DEFAULT_CIRCULATING_SUPPLY_CACHE_INTERVAL: Duration = Duration::from_secs(
 pub(crate) const DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL: Duration = Duration::from_secs(4500);
 pub(crate) const DEFAULT_NODE_DESCRIBE_BATCH_SIZE: usize = 50;
 
+// keep them for 2 extra days beyond the specified expiration date
+pub(crate) const DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION: Duration =
+    Duration::from_secs(2 * 24 * 60 * 60);
+
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
 const DEFAULT_MIN_GATEWAY_RELIABILITY: u8 = 20;
@@ -552,12 +556,17 @@ pub struct EcashSignerDebug {
     /// Duration of the interval for polling the dkg contract.
     #[serde(with = "humantime_serde")]
     pub dkg_contract_polling_rate: Duration,
+
+    /// Specifies how long should the issued ticketbooks be kept (beyond the specified expiration date)
+    #[serde(with = "humantime_serde")]
+    pub issued_ticketbooks_retention_period: Duration,
 }
 
 impl Default for EcashSignerDebug {
     fn default() -> Self {
         EcashSignerDebug {
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
+            issued_ticketbooks_retention_period: DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION,
         }
     }
 }

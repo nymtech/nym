@@ -305,7 +305,7 @@ impl WireguardArgs {
         }
 
         if let Some(private_network_prefix) = self.wireguard_private_network_prefix {
-            section.private_network_prefix = private_network_prefix
+            section.private_network_prefix_v4 = private_network_prefix
         }
 
         section

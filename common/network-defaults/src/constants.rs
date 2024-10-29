@@ -53,8 +53,8 @@ pub mod wireguard {
     pub const WG_TUN_BASE_NAME: &str = "nymwg";
     pub const WG_TUN_DEVICE_ADDRESS: &str = "10.1.0.1";
     pub const WG_TUN_DEVICE_IP_ADDRESS_V4: Ipv4Addr = Ipv4Addr::new(10, 1, 0, 1);
-    pub const WG_TUN_DEVICE_NETMASK_V4: Ipv4Addr = Ipv4Addr::new(255, 255, 0, 0);
+    pub const WG_TUN_DEVICE_NETMASK_V4: u8 = 16;
     pub const WG_TUN_DEVICE_IP_ADDRESS_V6: Ipv6Addr =
         Ipv6Addr::new(0x2001, 0xdb8, 0xa160, 1, 0, 0, 0, 0x1); // 2001:db8:a160:1::1
-    pub const WG_TUN_DEVICE_NETMASK: &str = "255.255.255.0";
+    pub const WG_TUN_DEVICE_NETMASK_V6: u8 = 112;
 }

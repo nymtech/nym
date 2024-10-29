@@ -8,7 +8,10 @@ use nym_config::{
     must_get_home, save_formatted_config_to_file, NymConfigTemplate, OptionalSet,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
-use nym_network_defaults::{WG_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6};
+use nym_network_defaults::{
+    WG_PORT, WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6, WG_TUN_DEVICE_NETMASK_V4,
+    WG_TUN_DEVICE_NETMASK_V6,
+};
 use nym_service_providers_common::DEFAULT_SERVICE_PROVIDERS_DIR;
 pub use persistence::AuthenticatorPaths;
 use serde::{Deserialize, Serialize};
@@ -202,9 +205,13 @@ pub struct Authenticator {
     /// Useful in the instances where the node is behind a proxy.
     pub announced_port: u16,
 
-    /// The prefix denoting the maximum number of the clients that can be connected via Wireguard.
-    /// The maximum value for IPv4 is 32 and for IPv6 is 128
-    pub private_network_prefix: u8,
+    /// The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.
+    /// The maximum value for IPv4 is 32
+    pub private_network_prefix_v4: u8,
+
+    /// The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv6.
+    /// The maximum value for IPv6 is 128
+    pub private_network_prefix_v6: u8,
 }
 
 impl Default for Authenticator {
@@ -214,7 +221,8 @@ impl Default for Authenticator {
             private_ipv4: WG_TUN_DEVICE_IP_ADDRESS_V4,
             private_ipv6: WG_TUN_DEVICE_IP_ADDRESS_V6,
             announced_port: WG_PORT,
-            private_network_prefix: 16,
+            private_network_prefix_v4: WG_TUN_DEVICE_NETMASK_V4,
+            private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
         }
     }
 }
@@ -226,7 +234,8 @@ impl From<Authenticator> for nym_wireguard_types::Config {
             private_ipv4: value.private_ipv4,
             private_ipv6: value.private_ipv6,
             announced_port: value.announced_port,
-            private_network_prefix: value.private_network_prefix,
+            private_network_prefix_v4: value.private_network_prefix_v4,
+            private_network_prefix_v6: value.private_network_prefix_v6,
         }
     }
 }

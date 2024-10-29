@@ -144,7 +144,7 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
             std::collections::BTreeSet::from_iter(self.used_private_network_ips.iter());
         let private_ip_network = IpNetwork::new(
             self.config.authenticator.private_ipv4.into(),
-            self.config.authenticator.private_network_prefix,
+            self.config.authenticator.private_network_prefix_v4,
         )?;
         let now = SystemTime::now();
         let free_private_network_ips = private_ip_network

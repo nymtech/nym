@@ -1156,7 +1156,8 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
             private_ipv4,
             private_ipv6,
             announced_port: old_cfg.wireguard.announced_port,
-            private_network_prefix: old_cfg.wireguard.private_network_prefix,
+            private_network_prefix_v4: old_cfg.wireguard.private_network_prefix,
+            private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
             storage_paths: WireguardPaths {
                 private_diffie_hellman_key_file: old_cfg
                     .wireguard

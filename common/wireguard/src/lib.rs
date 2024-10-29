@@ -116,16 +116,30 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
         mtu: None,
     };
     wg_api.configure_interface(&interface_config)?;
+    std::process::Command::new("ip")
+        .args([
+            "-6",
+            "addr",
+            "add",
+            &format!(
+                "{}/{}",
+                wireguard_data.inner.config().private_ipv6,
+                wireguard_data.inner.config().private_network_prefix_v6
+            ),
+            "dev",
+            (&ifname),
+        ])
+        .output()?;
 
     // Use a dummy peer to create routing rule for the entire network space
     let mut catch_all_peer = Peer::new(Key::new([0; 32]));
     let network_v4 = IpNetwork::new_truncate(
         wireguard_data.inner.config().private_ipv4,
-        wireguard_data.inner.config().private_network_prefix,
+        wireguard_data.inner.config().private_network_prefix_v4,
     )?;
     let network_v6 = IpNetwork::new_truncate(
         wireguard_data.inner.config().private_ipv6,
-        wireguard_data.inner.config().private_network_prefix,
+        wireguard_data.inner.config().private_network_prefix_v6,
     )?;
     catch_all_peer.set_allowed_ips(vec![
         IpAddrMask::new(network_v4.network_address(), network_v4.netmask()),

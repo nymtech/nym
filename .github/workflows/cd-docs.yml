@@ -42,7 +42,7 @@ jobs:
       - name: Build project
         run: pnpm run build
       - name: Move files to /dist/
-        run: ./scripts/move-to-dist.sh
+        run: ../scripts/move-to-dist.sh
 
       - name: Create Vercel project file
         uses: mobiledevops/secret-to-file-action@v1

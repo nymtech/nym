@@ -4,6 +4,7 @@
 use crate::state::ExplorerApiStateContext;
 use log::{info, warn};
 use nym_explorer_api_requests::Location;
+use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_task::TaskClient;
 
 pub(crate) struct GeoLocateTask {
@@ -25,6 +26,7 @@ impl GeoLocateTask {
                     _ = interval_timer.tick() => {
                         self.locate_mix_nodes().await;
                         self.locate_gateways().await;
+                        self.locate_nym_nodes().await;
                     }
                     _ = self.shutdown.recv() => {
                         trace!("Listener: Received shutdown");
@@ -107,6 +109,83 @@ impl GeoLocateTask {
         }
 
         trace!("All mix nodes located");
+    }
+
+    async fn locate_nym_nodes(&mut self) {
+        // I'm unwrapping to the default value to get rid of an extra indentation level from the `if let Some(...) = ...`
+        // If the value is None, we'll unwrap to an empty hashmap and the `values()` loop won't do any work anyway
+        let nym_nodes = self.state.inner.nymnodes.get_bonded_nymnodes().await;
+
+        let geo_ip = self.state.inner.geo_ip.0.clone();
+
+        for (i, cache_item) in nym_nodes.values().enumerate() {
+            if self
+                .state
+                .inner
+                .nymnodes
+                .is_location_valid(cache_item.node_id())
+                .await
+            {
+                // when the cached location is valid, don't locate and continue to next mix node
+                continue;
+            }
+
+            let bonded_host = &cache_item.bond_information.node.host;
+
+            match geo_ip.query(
+                bonded_host,
+                Some(
+                    cache_item
+                        .bond_information
+                        .node
+                        .custom_http_port
+                        .unwrap_or(DEFAULT_NYM_NODE_HTTP_PORT),
+                ),
+            ) {
+                Ok(opt) => match opt {
+                    Some(location) => {
+                        let location: Location = location.into();
+
+                        trace!(
+                            "{} mix nodes already located. host {} is located in {:#?}",
+                            i,
+                            bonded_host,
+                            location.three_letter_iso_country_code,
+                        );
+
+                        if i > 0 && (i % 100) == 0 {
+                            info!("Located {} nym-nodes...", i + 1,);
+                        }
+
+                        self.state
+                            .inner
+                            .nymnodes
+                            .set_location(cache_item.node_id(), Some(location))
+                            .await;
+
+                        // one node has been located, so return out of the loop
+                        return;
+                    }
+                    None => {
+                        warn!("❌ Location for {bonded_host} not found.");
+                        self.state
+                            .inner
+                            .nymnodes
+                            .set_location(cache_item.node_id(), None)
+                            .await;
+                    }
+                },
+                Err(_e) => {
+                    // warn!(
+                    //     "❌ Oh no! Location for {} failed. Error: {:#?}",
+                    //     cache_item.mix_node().host,
+                    //     e
+                    // );
+                }
+            };
+        }
+
+        trace!("All nym-nodes nodes located");
     }
 
     async fn locate_gateways(&mut self) {

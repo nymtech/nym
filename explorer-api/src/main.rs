@@ -22,6 +22,7 @@ mod http;
 mod location;
 mod mix_node;
 pub(crate) mod mix_nodes;
+mod nym_nodes;
 mod overview;
 mod ping;
 pub(crate) mod service_providers;

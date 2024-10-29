@@ -11,7 +11,7 @@ jobs:
       - name: Install Dependencies (Linux)
         run: sudo apt-get update && sudo apt-get install -y build-essential curl wget libssl-dev libudev-dev squashfs-tools protobuf-compiler git python3 && sudo apt-get update --fix-missing
       - name: Install pip3
-        run: sudo apt install -y python3-pip  
+        run: sudo apt install -y python3-pip
       - name: Install Python3 modules
         run: sudo pip3 install pandas tabulate
       - name: Install rsync
@@ -19,7 +19,7 @@ jobs:
       - uses: rlespinasse/github-slug-action@v3.x
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: 20
       - name: Install Rust stable
         uses: actions-rs/toolchain@v1
         with:
@@ -29,33 +29,14 @@ jobs:
         with:
           command: build
           args: --workspace --release
-      - name: Install mdbook and plugins
-        run: cd documentation && ./install_mdbook_deps.sh
-      - name: Remove existing Nym config directory (`~/.nym/`)
-        run: cd documentation && ./remove_existing_config.sh
-        continue-on-error: false
-# This is the original flow
-#      - name: Build all projects in documentation/ & move to ~/dist/docs/
-#        run: cd documentation && ./build_all_to_dist.sh
 
-# This is a workaround replacement which builds on the last working commit b332a6b55668f60988e36961f3f62a794ba82ddb and then on current branch
-      - name: Save current branch to ~/current_branch
-        run: git rev-parse --abbrev-ref HEAD > ~/current_branch
-      - name: Git pull, reset & switch to b332a6b55668f60988e36961f3f62a794ba82ddb
-        run: git pull && git reset --hard && git checkout b332a6b55668f60988e36961f3f62a794ba82ddb
-      - name: Build all projects in documentation/ & move to ~/dist/docs/ from b332a6b55668f60988e36961f3f62a794ba82ddb
-        run: cd documentation && ./build_all_to_dist.sh
-
-      - name: Switch to current branch
-        run: git checkout $echo "$(cat ~/current_branch)"
-      - name: Build all projects in documentation/ & move to ~/dist/docs/ on current branch
-        run: cd documentation && ./build_all_to_dist.sh && rm ~/current_branch
-
-# End of replacemet
-
-      - name: Post process
-        run: cd documentation && ./post_process.sh
-        continue-on-error: false
+      - name: Install
+        run: pnpm i
+      - name: Build
+        run: pnpm run build
+      #  todo
+      # - name: move static to /dist/
+      #   run: ./build_all_to_dist.sh
 
       - name: Create Vercel project file
         uses: mobiledevops/secret-to-file-action@v1

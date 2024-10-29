@@ -25,4 +25,4 @@ COPY --from=builder /usr/src/nym/target/release/nym-node-status-agent ./
 COPY --from=builder /usr/src/nym-vpn-client/nym-vpn-core/target/release/nym-gateway-probe ./
 
 ENV NODE_STATUS_AGENT_PROBE_PATH=/nym/nym-gateway-probe
-ENTRYPOINT [ "/nym/nym-node-status-agent" ]
+ENTRYPOINT [ "/nym/nym-node-status-agent", "run-probe" ]

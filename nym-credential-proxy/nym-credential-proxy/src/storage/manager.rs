@@ -40,7 +40,7 @@ impl SqliteStorageManager {
         sqlx::query_as!(
             MinimalWalletShare,
             r#"
-                SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date
+                SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date as "expiration_date!: Date"
                 FROM partial_blinded_wallet as t1
                 JOIN ticketbook_deposit as t2
                     on t1.corresponding_deposit = t2.deposit_id
@@ -79,10 +79,11 @@ impl SqliteStorageManager {
         device_id: &str,
         credential_id: &str,
     ) -> Result<Vec<MinimalWalletShare>, sqlx::Error> {
+        // https://docs.rs/sqlx/latest/sqlx/macro.query.html#force-a-differentcustom-type
         sqlx::query_as!(
             MinimalWalletShare,
             r#"
-                SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date
+                SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date as "expiration_date!: Date"
                 FROM partial_blinded_wallet as t1
                 JOIN ticketbook_deposit as t2
                     on t1.corresponding_deposit = t2.deposit_id

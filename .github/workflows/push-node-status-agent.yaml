@@ -3,9 +3,54 @@ name: Build and upload Node Status agent container to harbor.nymte.ch
 on:
   workflow_dispatch:
 
+env:
+  WORKING_DIRECTORY: "nym-node-status-agent"
+  CONTAINER_NAME: "node-status-agent"
+
 jobs:
-  my-job:
-    runs-on: arc-ubuntu-22.04
+  build-container:
+    runs-on: arc-ubuntu-22.04-dind
     steps:
-      - name: my-step
-        run: echo "Hello World!"
+      - name: Login to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: harbor.nymte.ch
+          username: ${{ secrets.HARBOR_ROBOT_USERNAME }}
+          password: ${{ secrets.HARBOR_ROBOT_SECRET }}
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure git identity
+        run: |
+          git config --global user.email "lawrence@nymtech.net"
+          git config --global user.name "Lawrence Stalder"
+
+      - name: Get version from cargo.toml
+        uses: mikefarah/yq@v4.44.3
+        id: get_version
+        with:
+          cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
+
+      - name: Check if tag exists
+        run: |
+          if git rev-parse ${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then
+            echo "Tag ${{ steps.get_version.outputs.value }} already exists"
+          fi
+
+      - name: Remove existing tag if exists
+        run: |
+          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }} >/dev/null 2>&1; then
+            git push --delete origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
+            git tag -d ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
+          fi
+
+      - name: Create tag
+        run: |
+          git tag -a ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }} -m "Version ${{ steps.get_version.outputs.result }}"
+          git push origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}
+
+      - name: BuildAndPushImageOnHarbor
+        run: |
+          docker build -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
+          docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags

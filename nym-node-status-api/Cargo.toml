@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "0.1.0"
+version = "0.1.2"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -23,7 +23,8 @@ futures-util = { workspace = true }
 moka = { workspace = true, features = ["future"] }
 nym-bin-common = { path = "../common/bin-common", features = ["models"]}
 nym-common-models = { path = "../common/models" }
-nym-explorer-client = { path = "../explorer-api/explorer-client" }
+# nym-explorer-client = { path = "../explorer-api/explorer-client" }
+nym-explorer-client = { git = "https://github.com/nymtech/nym", branch = "release/2024.13-magura" }
 # TODO dz: before Nym API client breaking changes. Update to latest develop once new Nym API is live
 nym-network-defaults = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork" }
 nym-validator-client = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork" }

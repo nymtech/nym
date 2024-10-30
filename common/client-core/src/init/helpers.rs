@@ -121,7 +121,9 @@ pub async fn current_mixnodes<R: Rng>(
 
     log::trace!("Fetching list of mixnodes from: {nym_api}");
 
-    let mixnodes = client.get_basic_active_mixing_assigned_nodes(None).await?;
+    let mixnodes = client
+        .get_all_basic_active_mixing_assigned_nodes(None)
+        .await?;
     let valid_mixnodes = mixnodes
         .iter()
         .filter_map(|mixnode| mixnode.try_into().ok())

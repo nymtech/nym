@@ -298,6 +298,38 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    async fn get_basic_nodes(
+        &self,
+        semver_compatibility: Option<String>,
+        no_legacy: bool,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(arg) = &semver_compatibility {
+            params.push(("semver_compatibility", arg.clone()))
+        }
+
+        if no_legacy {
+            params.push(("no_legacy", "true".to_string()))
+        }
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(
+            &[routes::API_VERSION, "unstable", "nym-nodes", "skimmed"],
+            &params,
+        )
+        .await
+    }
+
     #[instrument(level = "debug", skip(self))]
     async fn get_active_mixnodes(&self) -> Result<Vec<MixNodeDetails>, NymAPIError> {
         self.get_json(

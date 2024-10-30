@@ -99,7 +99,7 @@ impl NymApiTopologyProvider {
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
         let mixnodes = match self
             .validator_client
-            .get_basic_active_mixing_assigned_nodes(Some(self.client_version.clone()))
+            .get_all_basic_active_mixing_assigned_nodes(Some(self.client_version.clone()))
             .await
         {
             Err(err) => {

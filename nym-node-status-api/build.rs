@@ -11,7 +11,7 @@ const SQLITE_DB_FILENAME: &str = "nym-node-status-api.sqlite";
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let out_dir = read_env_var("OUT_DIR")?;
-    let database_path = format!("sqlite://{}/{}?mode=rwc", out_dir, SQLITE_DB_FILENAME);
+    let database_path = format!("{}/{}?mode=rwc", out_dir, SQLITE_DB_FILENAME);
 
     write_db_path_to_file(&out_dir, SQLITE_DB_FILENAME).await?;
     let mut conn = SqliteConnection::connect(&database_path).await?;

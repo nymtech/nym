@@ -2,7 +2,7 @@ CREATE TABLE gateways
 (
   id                      INTEGER PRIMARY KEY AUTOINCREMENT,
   gateway_identity_key    VARCHAR NOT NULL UNIQUE,
-  self_described          VARCHAR,
+  self_described          VARCHAR NOT NULL,
   explorer_pretty_bond    VARCHAR,
   last_probe_result       VARCHAR,
   last_probe_log          VARCHAR,

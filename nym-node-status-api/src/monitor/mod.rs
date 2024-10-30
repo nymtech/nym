@@ -334,8 +334,7 @@ fn prepare_gateway_data(
             identity_key: identity_key.to_owned(),
             bonded,
             blacklisted,
-            // TODO dz shouldn't be an option
-            self_described: Some(self_described),
+            self_described,
             explorer_pretty_bond,
             last_updated_utc,
             performance,

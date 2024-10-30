@@ -21,6 +21,7 @@ import {
   migrateLegacyMixnode as migrateLegacyMixnodeReq,
   migrateLegacyGateway as migrateLegacyGatewayReq,
   bondNymNode,
+  updateNymNodeConfig as updateNymNodeConfigReq,
 } from '../requests';
 
 export type TBondedNode = TBondedMixnode | TBondedGateway | TBondedNymNode;
@@ -34,6 +35,10 @@ export type TBondingContext = {
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   bond: (args: TBondNymNodeArgs) => Promise<TransactionExecuteResult | undefined>;
   updateBondAmount: (data: TUpdateBondArgs) => Promise<TransactionExecuteResult | undefined>;
+  updateNymNodeConfig: (data: {
+    host: string;
+    custom_http_port: number | null;
+  }) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   generateNymNodeMsgPayload: (data: TNymNodeSignatureArgs) => Promise<string | undefined>;
   migrateVestedMixnode: () => Promise<TransactionExecuteResult | undefined>;
@@ -50,6 +55,9 @@ export const BondingContext = createContext<TBondingContext>({
     throw new Error('Not implemented');
   },
   updateBondAmount: async () => {
+    throw new Error('Not implemented');
+  },
+  updateNymNodeConfig: async () => {
     throw new Error('Not implemented');
   },
   redeemRewards: async () => {
@@ -134,6 +142,23 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     } catch (e) {
       Console.warn(e);
       setError(`an error occurred: ${e as string}`);
+    } finally {
+      setIsLoading(false);
+    }
+    return tx;
+  };
+
+  const updateNymNodeConfig = async (data: { host: string; custom_http_port: number | null }) => {
+    let tx;
+    setIsLoading(true);
+    try {
+      tx = await updateNymNodeConfigReq(data);
+      if (clientDetails?.client_address) {
+        await getNodeDetails(clientDetails?.client_address);
+      }
+    } catch (e) {
+      Console.warn(e);
+      setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);
     }
@@ -225,6 +250,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       refresh,
       redeemRewards,
       updateBondAmount,
+      updateNymNodeConfig,
       generateNymNodeMsgPayload,
       migrateVestedMixnode,
       migrateLegacyNode,

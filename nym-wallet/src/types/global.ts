@@ -86,7 +86,7 @@ export type TNodeDescription = {
 
 export type TNodeConfigUpdateArgs = {
   host: string;
-  custom_http_port: number;
+  custom_http_port: number | null;
 };
 
 export type TDelegateArgs = {

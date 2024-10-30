@@ -9,7 +9,7 @@ impl From<v3::request::AuthenticatorRequest> for v4::request::AuthenticatorReque
     fn from(authenticator_request: v3::request::AuthenticatorRequest) -> Self {
         Self {
             protocol: Protocol {
-                version: 2,
+                version: 4,
                 service_provider_type: ServiceProviderType::Authenticator,
             },
             data: authenticator_request.data.into(),

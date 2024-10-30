@@ -3,6 +3,7 @@
 
 use super::packet_statistics_control::PacketStatisticsReporter;
 use super::received_buffer::ReceivedBufferMessage;
+use super::statistics::{StatisticsControl, StatisticsReporter};
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
@@ -184,6 +185,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<TaskClient>,
     user_agent: Option<UserAgent>,
+    stats_reporting_address: Option<Recipient>,
 
     setup_method: GatewaySetup,
 }
@@ -207,6 +209,7 @@ where
             custom_gateway_transceiver: None,
             shutdown: None,
             user_agent: None,
+            stats_reporting_address: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
         }
     }
@@ -247,6 +250,12 @@ where
     #[must_use]
     pub fn with_user_agent(mut self, user_agent: UserAgent) -> Self {
         self.user_agent = Some(user_agent);
+        self
+    }
+
+    #[must_use]
+    pub fn with_statistics_reporting(mut self, address: Recipient) -> Self {
+        self.stats_reporting_address = Some(address);
         self
     }
 
@@ -824,6 +833,16 @@ where
             );
         }
 
+        let stats_reporter = match self.stats_reporting_address {
+            Some(reporting_address) => {
+                let (stats_control, stats_reporter) =
+                    StatisticsControl::new(reporting_address, input_sender.clone());
+                stats_control.start_with_shutdown(shutdown.fork("statistics_control"));
+                Some(stats_reporter)
+            }
+            None => None,
+        };
+
         debug!("Core client startup finished!");
         debug!("The address of this client is: {self_address}");
 
@@ -847,6 +866,7 @@ where
                 topology_accessor: shared_topology_accessor,
                 gateway_connection: GatewayConnection { gateway_ws_fd },
             },
+            stats_reporter,
             task_handle: shutdown,
         })
     }
@@ -858,6 +878,7 @@ pub struct BaseClient {
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,
+    pub stats_reporter: Option<StatisticsReporter>,
 
     pub task_handle: TaskHandle,
 }

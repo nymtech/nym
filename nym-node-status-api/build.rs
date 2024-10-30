@@ -25,17 +25,11 @@ async fn main() -> Result<()> {
     // not a valid windows path... but hey, it works...
     println!("cargo::rustc-env=DATABASE_URL=sqlite:///{}", &database_path);
 
-    rerun_if_changed();
     Ok(())
 }
 
 fn read_env_var(var: &str) -> Result<String> {
     std::env::var(var).map_err(|_| anyhow!("You need to set {} env var", var))
-}
-
-fn rerun_if_changed() {
-    println!("cargo::rerun-if-changed=migrations");
-    println!("cargo::rerun-if-changed=src/db/queries");
 }
 
 /// use `./enter_db.sh` to inspect DB

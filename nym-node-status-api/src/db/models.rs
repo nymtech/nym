@@ -315,7 +315,7 @@ pub struct TestRunDto {
 pub(crate) enum TestRunStatus {
     Complete = 2,
     InProgress = 1,
-    Pending = 0,
+    Queued = 0,
 }
 
 #[derive(Debug, Clone)]

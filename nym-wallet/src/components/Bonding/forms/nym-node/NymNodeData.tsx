@@ -3,7 +3,6 @@ import * as yup from 'yup';
 import { Stack, TextField, FormControlLabel, Checkbox } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { TBondNymNodeArgs } from 'src/types';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { isValidHostname, validateRawPort } from 'src/utils';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';

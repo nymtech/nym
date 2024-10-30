@@ -101,10 +101,11 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
   };
 
   const bond = async (data: TBondNymNodeArgs) => {
+    let tx;
     setIsLoading(true);
 
     try {
-      const tx = await bondNymNode({
+      tx = await bondNymNode({
         ...data,
         costParams: {
           ...data.costParams,
@@ -114,13 +115,13 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       if (clientDetails?.client_address) {
         await getNodeDetails(clientDetails?.client_address);
       }
-      return tx;
     } catch (e) {
       Console.warn(e);
       setError(`an error occurred: ${e as string}`);
     } finally {
       setIsLoading(false);
     }
+    return tx;
   };
 
   const unbond = async (fee?: FeeDetails) => {

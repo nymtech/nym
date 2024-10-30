@@ -2,14 +2,13 @@ import React, { useContext, useEffect } from 'react';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { Signature } from 'src/pages/bonding/types';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { AppContext } from 'src/context';
+import { TBondNymNodeArgs } from 'src/types';
 import FormContextProvider, { useFormContext } from '../forms/nym-node/FormContext';
 import NymNodeData from '../forms/nym-node/NymNodeData';
 import NymNodeAmount from '../forms/nym-node/NymNodeAmount';
 import NymNodeSignature from '../forms/nym-node/NymNodeSignature';
-import { TBondNymNodeArgs } from 'src/types';
 
 export const BondNymNodeModal = ({
   onClose,

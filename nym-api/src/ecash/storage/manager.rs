@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::storage::models::{
-    EpochCredentials, IssuedHash, IssuedTicketbook, RawExpirationDateSignatures,
-    SerialNumberWrapper, StoredBloomfilterParams, TicketProvider, VerifiedTicket,
+    EpochCredentials, IssuedHash, IssuedTicketbookDeprecated, RawExpirationDateSignatures,
+    RawIssuedTicketbook, SerialNumberWrapper, StoredBloomfilterParams, TicketProvider,
+    VerifiedTicket,
 };
 use crate::support::storage::manager::StorageManager;
 use async_trait::async_trait;
@@ -52,7 +53,7 @@ pub trait EcashStorageManagerExt {
     async fn get_issued_credential(
         &self,
         credential_id: i64,
-    ) -> Result<Option<IssuedTicketbook>, sqlx::Error>;
+    ) -> Result<Option<IssuedTicketbookDeprecated>, sqlx::Error>;
 
     /// Attempts to retrieve an issued credential from the data store.
     ///
@@ -62,7 +63,7 @@ pub trait EcashStorageManagerExt {
     async fn get_issued_bandwidth_credential_by_deposit_id(
         &self,
         deposit_id: DepositId,
-    ) -> Result<Option<IssuedTicketbook>, sqlx::Error>;
+    ) -> Result<Option<IssuedTicketbookDeprecated>, sqlx::Error>;
 
     /// Get the hashes of all issued ticketbooks with the particular expiration date
     async fn get_issued_hashes(
@@ -84,15 +85,15 @@ pub trait EcashStorageManagerExt {
         merkle_index: u32,
     ) -> Result<(), sqlx::Error>;
 
-    /// Attempts to retrieve issued credentials from the data store using provided ids.
+    /// Attempts to retrieve issued ticketbooks from the data store using associated deposits.
     ///
     /// # Arguments
     ///
-    /// * `credential_ids`: (database) ids of the issued credentials
+    /// * `deposit_ids`: deposits used for obtaining underlying ticketbook
     async fn get_issued_ticketbooks(
         &self,
-        credential_ids: Vec<i64>,
-    ) -> Result<Vec<IssuedTicketbook>, sqlx::Error>;
+        deposits: &[DepositId],
+    ) -> Result<Vec<RawIssuedTicketbook>, sqlx::Error>;
 
     /// Attempts to retrieve issued credentials from the data store using pagination specification.
     ///
@@ -104,7 +105,7 @@ pub trait EcashStorageManagerExt {
         &self,
         start_after: i64,
         limit: u32,
-    ) -> Result<Vec<IssuedTicketbook>, sqlx::Error>;
+    ) -> Result<Vec<IssuedTicketbookDeprecated>, sqlx::Error>;
 
     async fn insert_ticket_provider(&self, gateway_address: &str) -> Result<i64, sqlx::Error>;
 
@@ -377,7 +378,7 @@ impl EcashStorageManagerExt for StorageManager {
     async fn get_issued_credential(
         &self,
         credential_id: i64,
-    ) -> Result<Option<IssuedTicketbook>, sqlx::Error> {
+    ) -> Result<Option<IssuedTicketbookDeprecated>, sqlx::Error> {
         todo!()
         // sqlx::query_as!(
         //     IssuedTicketbook,
@@ -408,7 +409,7 @@ impl EcashStorageManagerExt for StorageManager {
     async fn get_issued_bandwidth_credential_by_deposit_id(
         &self,
         deposit_id: DepositId,
-    ) -> Result<Option<IssuedTicketbook>, sqlx::Error> {
+    ) -> Result<Option<IssuedTicketbookDeprecated>, sqlx::Error> {
         todo!()
         // sqlx::query_as!(
         //     IssuedTicketbook,
@@ -494,22 +495,22 @@ impl EcashStorageManagerExt for StorageManager {
         Ok(())
     }
 
-    /// Attempts to retrieve issued credentials from the data store using provided ids.
+    /// Attempts to retrieve issued ticketbooks from the data store using associated deposits.
     ///
     /// # Arguments
     ///
-    /// * `credential_ids`: (database) ids of the issued credentials
+    /// * `deposit_ids`: deposits used for obtaining underlying ticketbook
     async fn get_issued_ticketbooks(
         &self,
-        credential_ids: Vec<i64>,
-    ) -> Result<Vec<IssuedTicketbook>, sqlx::Error> {
+        deposits: &[DepositId],
+    ) -> Result<Vec<RawIssuedTicketbook>, sqlx::Error> {
         // that sucks : (
         // https://stackoverflow.com/a/70032524
-        let params = format!("?{}", ", ?".repeat(credential_ids.len() - 1));
-        let query_str = format!("SELECT * FROM issued_ticketbook WHERE id IN ( {params} )");
+        let params = format!("?{}", ", ?".repeat(deposits.len() - 1));
+        let query_str = format!("SELECT * FROM issued_ticketbook WHERE deposit_id IN ( {params} )");
         let mut query = sqlx::query_as(&query_str);
-        for id in credential_ids {
-            query = query.bind(id)
+        for deposit_id in deposits {
+            query = query.bind(deposit_id)
         }
 
         query.fetch_all(&self.connection_pool).await
@@ -525,7 +526,7 @@ impl EcashStorageManagerExt for StorageManager {
         &self,
         start_after: i64,
         limit: u32,
-    ) -> Result<Vec<IssuedTicketbook>, sqlx::Error> {
+    ) -> Result<Vec<IssuedTicketbookDeprecated>, sqlx::Error> {
         todo!()
         // sqlx::query_as!(
         //     IssuedTicketbook,

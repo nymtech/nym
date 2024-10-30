@@ -23,7 +23,8 @@ use cw3::Status;
 use nym_api_requests::ecash::helpers::issued_credential_plaintext;
 use nym_api_requests::ecash::models::{
     BatchRedeemTicketsBody, IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
-    IssuedTicketbooksForResponse,
+    IssuedTicketbooksChallengeResponseBody, IssuedTicketbooksForResponse,
+    IssuedTicketbooksForResponseBody,
 };
 use nym_api_requests::ecash::BlindSignRequestBody;
 use nym_coconut_dkg_common::types::EpochId;
@@ -771,7 +772,7 @@ impl EcashState {
     pub async fn get_issued_ticketbooks(
         &self,
         challenge: IssuedTicketbooksChallengeRequest,
-    ) -> Result<IssuedTicketbooksChallengeResponse> {
+    ) -> Result<IssuedTicketbooksChallengeResponseBody> {
         let today = ecash_today_date();
         if challenge.expiration_date < today - self.config.issued_ticketbooks_retention_period {
             return Err(EcashError::ExpirationDateTooEarly);
@@ -781,13 +782,27 @@ impl EcashState {
             .get_merkle_proof(challenge.expiration_date, &challenge.deposits)
             .await?;
 
-        todo!()
+        let partial_ticketbooks = self
+            .aux
+            .storage
+            .get_issued_ticketbooks(challenge.deposits)
+            .await?;
+
+        let partial_ticketbooks = partial_ticketbooks
+            .into_iter()
+            .map(|t| (t.deposit_id, t))
+            .collect();
+
+        Ok(IssuedTicketbooksChallengeResponseBody {
+            partial_ticketbooks,
+            merkle_proof,
+        })
     }
 
     pub async fn get_issued_ticketbooks_deposits_on(
         &self,
         expiration: Date,
-    ) -> Result<IssuedTicketbooksForResponse> {
+    ) -> Result<IssuedTicketbooksForResponseBody> {
         let today = ecash_today_date();
         if expiration < today - self.config.issued_ticketbooks_retention_period {
             return Err(EcashError::ExpirationDateTooEarly);
@@ -798,7 +813,7 @@ impl EcashState {
         if self.local.is_merkle_empty(expiration).await {
             let entry = self.get_updated_merkle_read(expiration).await?;
 
-            return Ok(IssuedTicketbooksForResponse {
+            return Ok(IssuedTicketbooksForResponseBody {
                 expiration_date: expiration,
                 deposits: entry.deposits(),
                 merkle_root: entry.merkle_root(),
@@ -812,7 +827,7 @@ impl EcashState {
             return Err(EcashError::ExpirationDateTooEarly);
         };
 
-        Ok(IssuedTicketbooksForResponse {
+        Ok(IssuedTicketbooksForResponseBody {
             expiration_date: expiration,
             deposits: entry.deposits(),
             merkle_root: entry.merkle_root(),

@@ -460,8 +460,9 @@ impl From<sqlx::Error> for NymApiStorageError {
 
 impl NymApiStorageError {
     pub fn database_inconsistency<S: Into<String>>(reason: S) -> NymApiStorageError {
-        NymApiStorageError::DatabaseInconsistency {
-            reason: reason.into(),
-        }
+        let reason = reason.into();
+        error!("experienced database inconsistency: {reason}");
+
+        NymApiStorageError::DatabaseInconsistency { reason }
     }
 }

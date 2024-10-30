@@ -13,6 +13,7 @@ use nym_config::defaults::BloomfilterParameters;
 use nym_credentials_interface::TicketType;
 use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::DepositId;
+use nym_ticketbooks_merkle::IssuedTicketbook;
 use sqlx::FromRow;
 use std::ops::Deref;
 use time::{Date, OffsetDateTime};
@@ -89,7 +90,7 @@ impl IssuedHash {
 
 #[deprecated]
 #[derive(FromRow)]
-pub struct IssuedTicketbook {
+pub struct IssuedTicketbookDeprecated {
     pub id: i64,
     pub epoch_id: u32,
     pub deposit_id: DepositId,
@@ -122,6 +123,24 @@ pub struct RawIssuedTicketbook {
 
     /// hash on the whole data as in what has been inserted into the merkle tree
     pub merkle_leaf: Vec<u8>,
+
+    /// index of the leaf under which the data has been inserted
+    pub merkle_index: u32,
+}
+
+impl TryFrom<RawIssuedTicketbook> for IssuedTicketbook {
+    type Error = NymApiStorageError;
+    fn try_from(raw: RawIssuedTicketbook) -> Result<Self, Self::Error> {
+        Ok(IssuedTicketbook {
+            deposit_id: raw.deposit_id,
+            epoch_id: raw.dkg_epoch_id as u64,
+            blinded_partial_credential: raw.blinded_partial_credential,
+            joined_encoded_private_attributes_commitments: raw.joined_private_commitments,
+            expiration_date: raw.expiration_date,
+            ticketbook_type: TicketType::try_from_encoded(raw.ticketbook_type_repr)
+                .map_err(|err| NymApiStorageError::database_inconsistency(err.to_string()))?,
+        })
+    }
 }
 
 #[derive(FromRow)]
@@ -177,10 +196,10 @@ impl<'a> TryFrom<&'a StoredBloomfilterParams> for BloomfilterParameters {
     }
 }
 
-impl TryFrom<IssuedTicketbook> for ApiIssuedCredentialInner {
+impl TryFrom<IssuedTicketbookDeprecated> for ApiIssuedCredentialInner {
     type Error = EcashError;
 
-    fn try_from(value: IssuedTicketbook) -> Result<Self, Self::Error> {
+    fn try_from(value: IssuedTicketbookDeprecated) -> Result<Self, Self::Error> {
         Ok(ApiIssuedCredentialInner {
             credential: ApiIssuedCredential {
                 id: value.id,
@@ -200,20 +219,20 @@ impl TryFrom<IssuedTicketbook> for ApiIssuedCredentialInner {
     }
 }
 
-impl TryFrom<IssuedTicketbook> for BlindedSignatureResponse {
+impl TryFrom<IssuedTicketbookDeprecated> for BlindedSignatureResponse {
     type Error = EcashError;
 
-    fn try_from(value: IssuedTicketbook) -> Result<Self, Self::Error> {
+    fn try_from(value: IssuedTicketbookDeprecated) -> Result<Self, Self::Error> {
         Ok(BlindedSignatureResponse {
             blinded_signature: BlindedSignature::from_bytes(&value.partial_credential)?,
         })
     }
 }
 
-impl TryFrom<IssuedTicketbook> for BlindedSignature {
+impl TryFrom<IssuedTicketbookDeprecated> for BlindedSignature {
     type Error = EcashError;
 
-    fn try_from(value: IssuedTicketbook) -> Result<Self, Self::Error> {
+    fn try_from(value: IssuedTicketbookDeprecated) -> Result<Self, Self::Error> {
         Ok(BlindedSignature::from_bytes(&value.partial_credential)?)
     }
 }

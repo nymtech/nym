@@ -1,0 +1,98 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n            gw.gateway_identity_key as \"gateway_identity_key!\",\n            gw.bonded as \"bonded: bool\",\n            gw.blacklisted as \"blacklisted: bool\",\n            gw.performance as \"performance!\",\n        gw.self_described as \"self_described?\",\n            gw.explorer_pretty_bond as \"explorer_pretty_bond?\",\n            gw.last_probe_result as \"last_probe_result?\",\n            gw.last_probe_log as \"last_probe_log?\",\n            gw.last_testrun_utc as \"last_testrun_utc?\",\n            gw.last_updated_utc as \"last_updated_utc!\",\n            COALESCE(gd.moniker, \"NA\") as \"moniker!\",\n            COALESCE(gd.website, \"NA\") as \"website!\",\n            COALESCE(gd.security_contact, \"NA\") as \"security_contact!\",\n            COALESCE(gd.details, \"NA\") as \"details!\"\n         FROM gateways gw\n         LEFT JOIN gateway_description gd\n         ON gw.gateway_identity_key = gd.gateway_identity_key\n         ORDER BY gw.gateway_identity_key",
+  "describe": {
+    "columns": [
+      {
+        "name": "gateway_identity_key!",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "bonded: bool",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "blacklisted: bool",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "performance!",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "self_described?",
+        "ordinal": 4,
+        "type_info": "Text"
+      },
+      {
+        "name": "explorer_pretty_bond?",
+        "ordinal": 5,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_probe_result?",
+        "ordinal": 6,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_probe_log?",
+        "ordinal": 7,
+        "type_info": "Text"
+      },
+      {
+        "name": "last_testrun_utc?",
+        "ordinal": 8,
+        "type_info": "Int64"
+      },
+      {
+        "name": "last_updated_utc!",
+        "ordinal": 9,
+        "type_info": "Int64"
+      },
+      {
+        "name": "moniker!",
+        "ordinal": 10,
+        "type_info": "Text"
+      },
+      {
+        "name": "website!",
+        "ordinal": 11,
+        "type_info": "Text"
+      },
+      {
+        "name": "security_contact!",
+        "ordinal": 12,
+        "type_info": "Text"
+      },
+      {
+        "name": "details!",
+        "ordinal": 13,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "71a455c705f9c25d3843ff2fb8629d1320a5eb10797cdb5a435455d22c6aeac1"
+}

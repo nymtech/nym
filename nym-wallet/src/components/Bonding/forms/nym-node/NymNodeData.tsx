@@ -1,18 +1,12 @@
 import React from 'react';
+import * as yup from 'yup';
 import { Stack, TextField, FormControlLabel, Checkbox } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
-import { TBondNymNodeArgs } from 'src/types';
 import { yupResolver } from '@hookform/resolvers/yup';
-import * as yup from 'yup';
 import { isValidHostname, validateRawPort } from 'src/utils';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
-
-const defaultNymNodeValues: TBondNymNodeArgs['nymNode'] = {
-  identity_key: 'H6rXWgsW89QsVyaNSS3qBe9zZFLhBS6Gn3YRkGFSoFW9',
-  custom_http_port: 1,
-  host: '1.1.1.1',
-};
+import { useFormContext } from './FormContext';
 
 const yupValidationSchema = yup.object().shape({
   identity_key: yup.string().required('Identity key is required'),
@@ -24,8 +18,13 @@ const yupValidationSchema = yup.object().shape({
 
   custom_http_port: yup
     .number()
-    .required('A custom http port is required')
-    .test('valid-http', 'A valid http port is required', (value) => (value ? validateRawPort(value) : false)),
+    .nullable()
+    .test('valid-http', 'A valid http port is required', (value) => {
+      if (value === null) {
+        return true;
+      }
+      return value ? validateRawPort(value) : false;
+    }),
 });
 
 type NymNodeDataProps = {
@@ -36,6 +35,7 @@ type NymNodeDataProps = {
 };
 
 const NymNodeData = ({ onClose, onNext, step }: NymNodeDataProps) => {
+  const { setNymNodeData, nymNodeData } = useFormContext();
   const {
     formState: { errors },
     register,
@@ -43,14 +43,17 @@ const NymNodeData = ({ onClose, onNext, step }: NymNodeDataProps) => {
     handleSubmit,
   } = useForm({
     mode: 'all',
-    defaultValues: defaultNymNodeValues,
+    defaultValues: nymNodeData,
     resolver: yupResolver(yupValidationSchema),
   });
 
   const [showAdvancedOptions, setShowAdvancedOptions] = React.useState(false);
 
   const handleNext = async () => {
-    handleSubmit(onNext)();
+    handleSubmit((args) => {
+      setNymNodeData(args);
+      onNext();
+    })();
   };
 
   return (
@@ -69,7 +72,7 @@ const NymNodeData = ({ onClose, onNext, step }: NymNodeDataProps) => {
           required
           fullWidth
           label="Identity Key"
-          initialValue={defaultNymNodeValues.identity_key}
+          initialValue={nymNodeData.identity_key}
           errorText={errors.identity_key?.message?.toString()}
           onChanged={(value) => setValue('identity_key', value, { shouldValidate: true })}
           showTickOnValid={false}

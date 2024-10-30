@@ -2,15 +2,15 @@ import React, { createContext, useContext, useMemo, useState } from 'react';
 import { CurrencyDenom } from '@nymproject/types';
 import { TBondNymNodeArgs, TBondMixNodeArgs } from 'src/types';
 
-const defaultNymNodeValues: TBondNymNodeArgs['nymNode'] = {
+const defaultNymNodeValues: TBondNymNodeArgs['nymnode'] = {
   identity_key: 'H6rXWgsW89QsVyaNSS3qBe9zZFLhBS6Gn3YRkGFSoFW9',
-  custom_http_port: 1,
+  custom_http_port: null,
   host: '1.1.1.1',
 };
 
 const defaultCostParams = (denom: CurrencyDenom): TBondNymNodeArgs['costParams'] => ({
   interval_operating_cost: { amount: '40', denom },
-  profit_margin_percent: '10',
+  profit_margin_percent: '40',
 });
 
 const defaultAmount = (denom: CurrencyDenom): TBondMixNodeArgs['pledge'] => ({
@@ -21,14 +21,14 @@ const defaultAmount = (denom: CurrencyDenom): TBondMixNodeArgs['pledge'] => ({
 interface FormContextType {
   step: 1 | 2 | 3 | 4;
   setStep: React.Dispatch<React.SetStateAction<1 | 2 | 3 | 4>>;
-  nymNodeData: TBondNymNodeArgs['nymNode'];
-  setNymNodeData: React.Dispatch<React.SetStateAction<TBondNymNodeArgs['nymNode']>>;
+  nymNodeData: TBondNymNodeArgs['nymnode'];
+  setNymNodeData: React.Dispatch<React.SetStateAction<TBondNymNodeArgs['nymnode']>>;
   costParams: TBondNymNodeArgs['costParams'];
   setCostParams: React.Dispatch<React.SetStateAction<TBondNymNodeArgs['costParams']>>;
   amountData: TBondMixNodeArgs['pledge'];
   setAmountData: React.Dispatch<React.SetStateAction<TBondMixNodeArgs['pledge']>>;
-  signature?: string;
-  setSignature: React.Dispatch<React.SetStateAction<string | undefined>>;
+  signature: string;
+  setSignature: React.Dispatch<React.SetStateAction<string>>;
   onError: (e: string) => void;
 }
 
@@ -41,9 +41,8 @@ const FormContext = createContext<FormContextType>({
   setCostParams: () => {},
   amountData: defaultAmount('nym'),
   setAmountData: () => {},
-  signature: undefined,
+  signature: '',
   setSignature: () => {},
-
   onError: () => {},
 });
 
@@ -52,10 +51,10 @@ const FormContextProvider = ({ children }: { children: React.ReactNode }) => {
   const denom = 'nym';
 
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [nymNodeData, setNymNodeData] = useState<TBondNymNodeArgs['nymNode']>(defaultNymNodeValues);
+  const [nymNodeData, setNymNodeData] = useState<TBondNymNodeArgs['nymnode']>(defaultNymNodeValues);
   const [costParams, setCostParams] = useState<TBondNymNodeArgs['costParams']>(defaultCostParams(denom));
   const [amountData, setAmountData] = useState<TBondNymNodeArgs['pledge']>(defaultAmount(denom));
-  const [signature, setSignature] = useState<string>();
+  const [signature, setSignature] = useState('');
 
   const onError = (e: string) => {
     console.error(e);

@@ -1,10 +1,9 @@
 import * as React from 'react';
 import { useEffect } from 'react';
 import { Typography } from '@mui/material';
+import { TBondedNode } from 'src/context';
 import { useGetFee } from 'src/hooks/useGetFee';
 import { isGateway, isMixnode } from 'src/types';
-import { TBondedGateway } from 'src/requests/gatewayDetails';
-import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { ModalFee } from '../../Modals/ModalFee';
 import { ModalListItem } from '../../Modals/ModalListItem';
 import { SimpleModal } from '../../Modals/SimpleModal';
@@ -16,7 +15,7 @@ import {
 } from '../../../requests';
 
 interface Props {
-  node: TBondedMixnode | TBondedGateway;
+  node: TBondedNode;
   onConfirm: () => Promise<void>;
   onClose: () => void;
   onError: (e: string) => void;

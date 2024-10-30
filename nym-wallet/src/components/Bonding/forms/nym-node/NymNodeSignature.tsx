@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import * as yup from 'yup';
 import { Stack, TextField, Typography } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { CopyToClipboard } from 'src/components/CopyToClipboard';
@@ -7,9 +8,11 @@ import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { useBondingContext } from 'src/context';
 import { TBondNymNodeArgs } from 'src/types';
 import { Signature } from 'src/pages/bonding/types';
+import { yupResolver } from '@hookform/resolvers/yup';
+import { useFormContext } from './FormContext';
 
 const NymNodeSignature = ({
-  nymNode,
+  nymnode,
   pledge,
   costParams,
   step,
@@ -17,27 +20,38 @@ const NymNodeSignature = ({
   onClose,
   onBack,
 }: {
-  nymNode: TBondNymNodeArgs['nymNode'];
+  nymnode: TBondNymNodeArgs['nymnode'];
   pledge: TBondNymNodeArgs['pledge'];
   costParams: TBondNymNodeArgs['costParams'];
   step: number;
-  onNext: (data: Signature) => void;
+  onNext: () => void;
   onClose: () => void;
   onBack: () => void;
 }) => {
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>();
   const { generateNymNodeMsgPayload } = useBondingContext();
+  const { signature, setSignature } = useFormContext();
+
+  const yupValidationSchema = yup.object().shape({
+    signature: yup.string().required('Signature is required'),
+  });
 
   const {
     register,
     formState: { errors },
-  } = useForm<Signature>();
+    handleSubmit,
+  } = useForm<Signature>({
+    defaultValues: {
+      signature,
+    },
+    resolver: yupResolver(yupValidationSchema),
+  });
 
   const generateMessage = async () => {
     try {
       const msg = await generateNymNodeMsgPayload({
-        nymNode,
+        nymnode,
         pledge,
         costParams,
       });
@@ -53,10 +67,10 @@ const NymNodeSignature = ({
 
   useEffect(() => {
     generateMessage();
-  }, [nymNode, pledge, costParams]);
+  }, []);
 
-  const onSubmit = async (data: Signature) => {
-    onNext(data);
+  const handleNext = async () => {
+    handleSubmit(onNext)();
   };
 
   if (error) {
@@ -66,11 +80,7 @@ const NymNodeSignature = ({
   return (
     <SimpleModal
       open
-      onOk={() =>
-        onSubmit({
-          signature: 'signature',
-        })
-      }
+      onOk={handleNext}
       onClose={onClose}
       header="Bond Nym Node"
       subHeader={`Step ${step}/3`}
@@ -95,10 +105,13 @@ const NymNodeSignature = ({
         </Stack>
         <TextField
           {...register('signature')}
+          onChange={(e) => setSignature(e.target.value)}
           id="outlined-multiline-static"
           name="signature"
           rows={3}
           placeholder="Paste Signature"
+          helperText={errors.signature?.message}
+          error={Boolean(errors.signature)}
           multiline
           fullWidth
           required

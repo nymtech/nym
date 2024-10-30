@@ -10,6 +10,7 @@ use defguard_wireguard_rs::WGApi;
 #[cfg(target_os = "linux")]
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
 use nym_crypto::asymmetric::encryption::KeyPair;
+#[cfg(target_os = "linux")]
 use nym_network_defaults::constants::WG_TUN_BASE_NAME;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;

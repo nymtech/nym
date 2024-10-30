@@ -1,12 +1,14 @@
+use crate::db::DbPool;
 use crate::http::models::TestrunAssignment;
 use crate::{
     db::models::{TestRunDto, TestRunStatus},
     testruns::now_utc,
 };
 use anyhow::Context;
+use chrono::Duration;
 use sqlx::{pool::PoolConnection, Sqlite};
 
-pub(crate) async fn get_testrun_by_id(
+pub(crate) async fn get_in_progress_testrun_by_id(
     conn: &mut PoolConnection<Sqlite>,
     testrun_id: i64,
 ) -> anyhow::Result<TestRunDto> {
@@ -20,20 +22,56 @@ pub(crate) async fn get_testrun_by_id(
             ip_address as "ip_address!",
             log as "log!"
          FROM testruns
-         WHERE id = ?
+         WHERE
+            id = ?
+         AND
+            status = ?
          ORDER BY timestamp_utc"#,
-        testrun_id
+        testrun_id,
+        TestRunStatus::InProgress as i64,
     )
     .fetch_one(conn.as_mut())
     .await
     .context(format!("Couldn't retrieve testrun {testrun_id}"))
 }
 
+pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> anyhow::Result<u64> {
+    let mut conn = db.acquire().await?;
+    let previous_run = now_utc() - age;
+    let cutoff_timestamp = previous_run.timestamp();
+
+    let res = sqlx::query!(
+        r#"UPDATE
+            testruns
+        SET
+            status = ?
+        WHERE
+            status = ?
+        AND
+            timestamp_utc < ?
+            "#,
+        TestRunStatus::Queued as i64,
+        TestRunStatus::InProgress as i64,
+        cutoff_timestamp
+    )
+    .execute(conn.as_mut())
+    .await?;
+
+    let stale_testruns = res.rows_affected();
+    if stale_testruns > 0 {
+        tracing::debug!(
+            "Refreshed {} stale testruns, scheduled before {} but not yet finished",
+            stale_testruns,
+            previous_run
+        );
+    }
+
+    Ok(stale_testruns)
+}
+
 pub(crate) async fn get_oldest_testrun_and_make_it_pending(
-    // TODO dz accept mut reference, repeat in all similar functions
-    conn: PoolConnection<Sqlite>,
+    conn: &mut PoolConnection<Sqlite>,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
-    let mut conn = conn;
     let assignment = sqlx::query_as!(
         TestrunAssignment,
         r#"UPDATE testruns
@@ -51,9 +89,9 @@ pub(crate) async fn get_oldest_testrun_and_make_it_pending(
             gateway_id as "gateway_pk_id!"
             "#,
         TestRunStatus::InProgress as i64,
-        TestRunStatus::Pending as i64,
+        TestRunStatus::Queued as i64,
     )
-    .fetch_optional(&mut *conn)
+    .fetch_optional(conn.as_mut())
     .await?;
 
     Ok(assignment)

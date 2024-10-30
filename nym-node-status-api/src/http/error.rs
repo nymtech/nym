@@ -8,9 +8,9 @@ pub(crate) struct HttpError {
 }
 
 impl HttpError {
-    pub(crate) fn invalid_input(message: String) -> Self {
+    pub(crate) fn invalid_input(msg: impl Display) -> Self {
         Self {
-            message,
+            message: serde_json::json!({"message": msg.to_string()}).to_string(),
             status: axum::http::StatusCode::BAD_REQUEST,
         }
     }
@@ -27,6 +27,12 @@ impl HttpError {
         }
     }
 
+    pub(crate) fn no_available_testruns() -> Self {
+        Self {
+            message: serde_json::json!({"message": "No available testruns"}).to_string(),
+            status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
+        }
+    }
     pub(crate) fn not_found(msg: impl Display) -> Self {
         Self {
             message: serde_json::json!({"message": msg.to_string()}).to_string(),

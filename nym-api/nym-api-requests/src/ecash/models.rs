@@ -13,7 +13,7 @@ use nym_credentials_interface::{
     VerificationKeyAuth, WithdrawalRequest,
 };
 use nym_crypto::asymmetric::identity;
-use nym_ticketbooks_merkle::IssuedTicketbooksFullMerkleProof;
+use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
@@ -385,7 +385,7 @@ pub struct CommitedDeposit {
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbooksForResponse {
+pub struct IssuedTicketbooksForResponseBody {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     pub expiration_date: Date,
@@ -393,9 +393,25 @@ pub struct IssuedTicketbooksForResponse {
     pub merkle_root: Option<[u8; 32]>,
 }
 
+impl IssuedTicketbooksForResponseBody {
+    pub fn plaintext(&self) -> Vec<u8> {
+        todo!()
+    }
+}
+
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksForResponse {
+    pub body: IssuedTicketbooksForResponseBody,
+
+    /// Signature on the body    
+    #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    pub signature: identity::Signature,
+}
+
 #[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbooksChallengeBody {
+pub struct IssuedTicketbooksChallengeRequest {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     pub expiration_date: Date,
@@ -404,9 +420,24 @@ pub struct IssuedTicketbooksChallengeBody {
 
 #[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbooksChallengeResponse {
-    pub partial_credentials: HashMap<DepositId, IssuedTicketbookBody>,
+pub struct IssuedTicketbooksChallengeResponseBody {
+    pub partial_credentials: HashMap<DepositId, IssuedTicketbook>,
     pub merkle_proof: IssuedTicketbooksFullMerkleProof,
+}
+
+impl IssuedTicketbooksForResponse {
+    pub fn plaintext(&self) -> Vec<u8> {
+        todo!()
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksChallengeResponse {
+    pub body: IssuedTicketbooksChallengeResponseBody,
+
+    #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    pub signature: identity::Signature,
 }
 
 #[deprecated]
@@ -432,17 +463,19 @@ pub struct IssuedCredentialResponse {
     pub credential: Option<IssuedTicketbookBody>,
 }
 
+#[deprecated]
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbookBody {
-    pub credential: IssuedTicketbook,
+    pub credential: IssuedTicketbookDeprecated,
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub signature: identity::Signature,
 }
 
+#[deprecated]
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbook {
+pub struct IssuedTicketbookDeprecated {
     pub id: i64,
     pub epoch_id: u32,
     pub deposit_id: u32,
@@ -462,7 +495,7 @@ pub struct IssuedTicketbook {
     pub ticketbook_type: TicketType,
 }
 
-impl IssuedTicketbook {
+impl IssuedTicketbookDeprecated {
     // this method doesn't have to be reversible so just naively concatenate everything
     pub fn signable_plaintext(&self) -> Vec<u8> {
         issued_credential_plaintext(

@@ -212,6 +212,12 @@ pub enum EcashError {
 
     #[error(transparent)]
     UnknownTicketBookType(#[from] UnknownTicketType),
+
+    #[error("could not find issued ticketbook associated with deposit {deposit_id}")]
+    UnavailableTicketbook { deposit_id: DepositId },
+
+    #[error("could not generate merkle proof for the provided deposits")]
+    MerkleProofGenerationFailure,
 }
 
 // impl<'r, 'o: 'r> Responder<'r, 'o> for EcashError {

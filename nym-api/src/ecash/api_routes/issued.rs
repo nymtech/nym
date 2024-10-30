@@ -11,7 +11,7 @@ use axum::extract::Path;
 use axum::{Json, Router};
 use nym_api_requests::ecash::models::{
     EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
-    IssuedTicketbooksChallengeBody, IssuedTicketbooksChallengeResponse,
+    IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
     IssuedTicketbooksForResponse,
 };
 use nym_api_requests::ecash::CredentialsRequestBody;
@@ -100,7 +100,7 @@ async fn issued_ticketbooks_for(
     )
 )]
 async fn issued_ticketbooks_challenge(
-    Json(challenge): Json<IssuedTicketbooksChallengeBody>,
+    Json(challenge): Json<IssuedTicketbooksChallengeRequest>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<IssuedTicketbooksChallengeResponse>> {
     state.ensure_signer().await?;

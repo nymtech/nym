@@ -12,7 +12,9 @@ use nym_api_requests::ecash::models::{CommitedDeposit, DepositId};
 use nym_config::defaults::BloomfilterParameters;
 use nym_crypto::asymmetric::identity;
 use nym_ecash_double_spending::DoubleSpendingFilter;
-use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksMerkleTree, MerkleLeaf};
+use nym_ticketbooks_merkle::{
+    IssuedTicketbook, IssuedTicketbooksFullMerkleProof, IssuedTicketbooksMerkleTree, MerkleLeaf,
+};
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use time::Date;
@@ -127,6 +129,23 @@ impl DailyMerkleTree {
                 })
                 .collect(),
         }
+    }
+
+    pub(crate) fn proof(
+        &self,
+        deposits: &[DepositId],
+    ) -> Result<IssuedTicketbooksFullMerkleProof, EcashError> {
+        let mut indices = Vec::with_capacity(deposits.len());
+        for &deposit_id in deposits {
+            let Some(leaf) = self.inserted_leaves.get(&deposit_id) else {
+                return Err(EcashError::UnavailableTicketbook { deposit_id });
+            };
+            indices.push(leaf.index);
+        }
+
+        self.merkle_tree
+            .generate_proof(&indices)
+            .ok_or(EcashError::MerkleProofGenerationFailure)
     }
 
     pub(crate) fn merkle_root(&self) -> Option<[u8; 32]> {

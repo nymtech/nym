@@ -259,7 +259,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         ));
         peer.allowed_ips.push(IpAddrMask::new(
             final_message.gateway_client.private_ips.ipv6.into(),
-            32,
+            128,
         ));
 
         // If gateway does ecash verification and client sends a credential, we do the additional

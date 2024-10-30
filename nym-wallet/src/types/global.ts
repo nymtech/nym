@@ -36,7 +36,7 @@ export type TBondNymNodeArgs = TNymNodeSignatureArgs & {
 };
 
 export type TNymNodeSignatureArgs = {
-  nymNode: NymNode;
+  nymnode: NymNode;
   costParams: NodeCostParams;
   pledge: DecCoin;
 };

@@ -20,7 +20,7 @@ pub use nym_api_requests::{
     ecash::{
         models::{
             EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
-            IssuedTicketbook, IssuedTicketbookBody, SpentCredentialsResponse,
+            IssuedTicketbookBody, IssuedTicketbookDeprecated, SpentCredentialsResponse,
         },
         BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
         PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,

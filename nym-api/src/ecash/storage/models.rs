@@ -4,8 +4,8 @@
 use crate::ecash::error::EcashError;
 use crate::node_status_api::models::NymApiStorageError;
 use nym_api_requests::ecash::models::{
-    EpochCredentialsResponse, IssuedTicketbook as ApiIssuedCredential,
-    IssuedTicketbookBody as ApiIssuedCredentialInner,
+    EpochCredentialsResponse, IssuedTicketbookBody as ApiIssuedCredentialInner,
+    IssuedTicketbookDeprecated as ApiIssuedCredential,
 };
 use nym_api_requests::ecash::BlindedSignatureResponse;
 use nym_compact_ecash::BlindedSignature;

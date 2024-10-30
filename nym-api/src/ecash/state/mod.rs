@@ -22,7 +22,7 @@ use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
 use cw3::Status;
 use nym_api_requests::ecash::helpers::issued_credential_plaintext;
 use nym_api_requests::ecash::models::{
-    BatchRedeemTicketsBody, IssuedTicketbooksChallengeBody, IssuedTicketbooksChallengeResponse,
+    BatchRedeemTicketsBody, IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
     IssuedTicketbooksForResponse,
 };
 use nym_api_requests::ecash::BlindSignRequestBody;
@@ -46,7 +46,7 @@ use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
 use nym_ecash_double_spending::DoubleSpendingFilter;
 use nym_ecash_time::{cred_exp_date, ecash_today_date};
-use nym_ticketbooks_merkle::{IssuedTicketbook, MerkleLeaf};
+use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof, MerkleLeaf};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
 use std::collections::HashMap;
@@ -746,14 +746,40 @@ impl EcashState {
         Ok(())
     }
 
+    async fn get_merkle_proof(
+        &self,
+        expiration_date: Date,
+        deposits: &[DepositId],
+    ) -> Result<IssuedTicketbooksFullMerkleProof> {
+        // check if the entry for this expiration date is empty. if so, it might imply we have crashed/shutdown
+        // and not have the full data in memory
+        if self.local.is_merkle_empty(expiration_date).await {
+            let entry = self.get_updated_merkle_read(expiration_date).await?;
+
+            return entry.proof(deposits);
+        }
+
+        // I can imagine this could happen under very rare edge case when the function is called just as the retention period expired
+        let guard = self.local.issued_merkle_trees.read().await;
+        let Some(entry) = guard.get(&expiration_date) else {
+            warn!("it seems our merkle tree has just expired!");
+            return Err(EcashError::ExpirationDateTooEarly);
+        };
+        entry.proof(deposits)
+    }
+
     pub async fn get_issued_ticketbooks(
         &self,
-        challenge: IssuedTicketbooksChallengeBody,
+        challenge: IssuedTicketbooksChallengeRequest,
     ) -> Result<IssuedTicketbooksChallengeResponse> {
         let today = ecash_today_date();
         if challenge.expiration_date < today - self.config.issued_ticketbooks_retention_period {
             return Err(EcashError::ExpirationDateTooEarly);
         }
+
+        let merkle_proof = self
+            .get_merkle_proof(challenge.expiration_date, &challenge.deposits)
+            .await?;
 
         todo!()
     }

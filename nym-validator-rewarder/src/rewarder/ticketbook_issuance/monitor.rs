@@ -17,7 +17,9 @@ use nym_compact_ecash::{date_scalar, type_scalar, Bytable, G1Projective, Verific
 use nym_credentials::ecash::utils::EcashTime;
 use nym_crypto::asymmetric::ed25519;
 use nym_task::TaskClient;
-use nym_validator_client::nym_api::{IssuedTicketbook, IssuedTicketbookBody, NymApiClientExt};
+use nym_validator_client::nym_api::{
+    IssuedTicketbookBody, IssuedTicketbookDeprecated, NymApiClientExt,
+};
 use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
 use std::cmp::max;
 use tokio::time::interval;
@@ -121,7 +123,7 @@ impl CredentialIssuanceMonitor {
     fn verify_credential(
         &self,
         vk: &VerificationKeyAuth,
-        credential: &IssuedTicketbook,
+        credential: &IssuedTicketbookDeprecated,
     ) -> Result<(), NymRewarderError> {
         verify_credential(vk, credential)
     }
@@ -314,7 +316,7 @@ impl CredentialIssuanceMonitor {
 
 fn verify_credential(
     vk: &VerificationKeyAuth,
-    credential: &IssuedTicketbook,
+    credential: &IssuedTicketbookDeprecated,
 ) -> Result<(), NymRewarderError> {
     let public_attributes = [
         date_scalar(credential.expiration_date.ecash_unix_timestamp()),
@@ -387,7 +389,7 @@ mod tests {
 
         let commitments = request.encode_join_commitments();
 
-        let issued = IssuedTicketbook {
+        let issued = IssuedTicketbookDeprecated {
             id: 0,
             epoch_id: 0,
             deposit_id,

@@ -54,6 +54,22 @@ impl IssuedTicketbook {
 
         hasher.finalize().into()
     }
+
+    pub fn signable_plaintext(&self) -> Vec<u8> {
+        self.deposit_id
+            .to_be_bytes()
+            .into_iter()
+            .chain(self.epoch_id.to_be_bytes())
+            .chain(self.blinded_partial_credential.iter().copied())
+            .chain(
+                self.joined_encoded_private_attributes_commitments
+                    .iter()
+                    .copied(),
+            )
+            .chain(self.expiration_date.to_julian_day().to_be_bytes())
+            .chain(self.ticketbook_type.encode().to_be_bytes())
+            .collect()
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

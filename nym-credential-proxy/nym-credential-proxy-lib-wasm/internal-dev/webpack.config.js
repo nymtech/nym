@@ -22,7 +22,7 @@ module.exports = {
       patterns: [
         "index.html",
         {
-          from: "../../../dist/wasm/nym-vpn-api-lib-wasm/*.(js|wasm)",
+          from: "../../../dist/wasm/nym-credential-proxy-lib-wasm/*.(js|wasm)",
           to: "[name][ext]"
         }
       ]

@@ -118,7 +118,7 @@ members = [
     "nym-browser-extension/storage",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-credential-proxy/nym-credential-proxy-requests",
-    "nym-credential-proxy/vpn-api-lib-wasm",
+    "nym-credential-proxy/nym-credential-proxy-lib-wasm",
     "nym-data-observatory",
     "nym-network-monitor",
     "nym-node",

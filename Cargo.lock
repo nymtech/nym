@@ -5242,6 +5242,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-credential-proxy-lib-wasm"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "getrandom",
+ "js-sys",
+ "nym-bin-common 0.6.0",
+ "nym-compact-ecash 0.1.0",
+ "nym-credential-proxy-requests",
+ "nym-credentials",
+ "nym-credentials-interface 0.1.0",
+ "nym-crypto 0.4.0",
+ "nym-ecash-time 0.1.0",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "serde_json",
+ "thiserror",
+ "time",
+ "tsify",
+ "wasm-bindgen",
+ "wasm-utils",
+ "zeroize",
+]
+
+[[package]]
 name = "nym-credential-proxy-requests"
 version = "0.1.0"
 dependencies = [
@@ -7163,31 +7188,6 @@ dependencies = [
  "nym-mixnet-contract-common 0.6.0 (git+https://github.com/nymtech/nym?branch=pre-dir-v2-fork)",
  "serde",
  "thiserror",
-]
-
-[[package]]
-name = "nym-vpn-api-lib-wasm"
-version = "0.1.0"
-dependencies = [
- "bs58",
- "getrandom",
- "js-sys",
- "nym-bin-common 0.6.0",
- "nym-compact-ecash 0.1.0",
- "nym-credential-proxy-requests",
- "nym-credentials",
- "nym-credentials-interface 0.1.0",
- "nym-crypto 0.4.0",
- "nym-ecash-time 0.1.0",
- "serde",
- "serde-wasm-bindgen 0.6.5",
- "serde_json",
- "thiserror",
- "time",
- "tsify",
- "wasm-bindgen",
- "wasm-utils",
- "zeroize",
 ]
 
 [[package]]

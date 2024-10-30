@@ -21,7 +21,7 @@
     "rust",
     "webpack"
   ],
-  "author": "Dave Hrycyszyn <futurechimp@users.noreply.github.com>",
+  "author": "Nym Technologies SA <contact@nymtech.net>",
   "license": "Apache-2.0",
   "bugs": {
     "url": "https://github.com/nymtech/nym/issues"
@@ -35,6 +35,6 @@
     "webpack-dev-server": "^4.7.4"
   },
   "dependencies": {
-    "@nymproject/nym-vpn-api-lib-wasm": "file:../../../dist/wasm/nym-vpn-api-lib-wasm"
+    "@nymproject/nym-credential-proxy-lib-wasm": "file:../../../dist/wasm/nym-credential-proxy-lib-wasm"
   }
 }

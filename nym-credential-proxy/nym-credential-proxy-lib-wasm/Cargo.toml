@@ -1,5 +1,5 @@
 [package]
-name = "nym-vpn-api-lib-wasm"
+name = "nym-credential-proxy-lib-wasm"
 version = "0.1.0"
 authors.workspace = true
 repository.workspace = true

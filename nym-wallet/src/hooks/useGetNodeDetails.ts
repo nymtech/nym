@@ -63,6 +63,7 @@ const useGetNodeDetails = (clientAddress?: string, network?: string) => {
     bondedNode,
     isLoading,
     isError,
+    getNodeDetails,
   };
 };
 

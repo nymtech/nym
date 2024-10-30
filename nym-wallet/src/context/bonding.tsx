@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
 import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
-import { isGateway, isMixnode, TUpdateBondArgs, isNymNode, TNymNodeSignatureArgs } from 'src/types';
+import { isGateway, isMixnode, TUpdateBondArgs, isNymNode, TNymNodeSignatureArgs, TBondNymNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import useGetNodeDetails from 'src/hooks/useGetNodeDetails';
 import { TBondedNymNode } from 'src/requests/nymNodeDetails';
@@ -20,6 +20,7 @@ import {
   migrateVestedMixnode as tauriMigrateVestedMixnode,
   migrateLegacyMixnode as migrateLegacyMixnodeReq,
   migrateLegacyGateway as migrateLegacyGatewayReq,
+  bondNymNode,
 } from '../requests';
 
 export type TBondedNode = TBondedMixnode | TBondedGateway | TBondedNymNode;
@@ -31,6 +32,7 @@ export type TBondingContext = {
   isVestingAccount: boolean;
   refresh: () => void;
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
+  bond: (args: TBondNymNodeArgs) => Promise<TransactionExecuteResult | undefined>;
   updateBondAmount: (data: TUpdateBondArgs) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   generateNymNodeMsgPayload: (data: TNymNodeSignatureArgs) => Promise<string | undefined>;
@@ -41,6 +43,9 @@ export type TBondingContext = {
 export const BondingContext = createContext<TBondingContext>({
   isLoading: true,
   refresh: async () => undefined,
+  bond: async () => {
+    throw new Error('Not implemented');
+  },
   unbond: async () => {
     throw new Error('Not implemented');
   },
@@ -70,7 +75,11 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
 
   const { userBalance, clientDetails, network } = useContext(AppContext);
 
-  const { bondedNode, isLoading: isBondedNodeLoading } = useGetNodeDetails(clientDetails?.client_address, network);
+  const {
+    bondedNode,
+    isLoading: isBondedNodeLoading,
+    getNodeDetails,
+  } = useGetNodeDetails(clientDetails?.client_address, network);
 
   useEffect(() => {
     userBalance.fetchBalance();
@@ -89,6 +98,29 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
 
   const refresh = () => {
     resetState();
+  };
+
+  const bond = async (data: TBondNymNodeArgs) => {
+    setIsLoading(true);
+
+    try {
+      const tx = await bondNymNode({
+        ...data,
+        costParams: {
+          ...data.costParams,
+          profit_margin_percent: toPercentFloatString(data.costParams.profit_margin_percent),
+        },
+      });
+      if (clientDetails?.client_address) {
+        await getNodeDetails(clientDetails?.client_address);
+      }
+      return tx;
+    } catch (e) {
+      Console.warn(e);
+      setError(`an error occurred: ${e as string}`);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const unbond = async (fee?: FeeDetails) => {
@@ -143,7 +175,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
 
     try {
       const message = await generateNymNodeMsgPayloadReq({
-        nymNode: data.nymNode,
+        nymnode: data.nymnode,
         pledge: data.pledge,
         costParams: {
           ...data.costParams,
@@ -187,6 +219,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       isLoading: isLoading || isBondedNodeLoading,
       error,
       bondedNode,
+      bond,
       unbond,
       refresh,
       redeemRewards,

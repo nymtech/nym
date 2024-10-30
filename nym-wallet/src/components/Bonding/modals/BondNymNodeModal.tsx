@@ -9,11 +9,18 @@ import FormContextProvider, { useFormContext } from '../forms/nym-node/FormConte
 import NymNodeData from '../forms/nym-node/NymNodeData';
 import NymNodeAmount from '../forms/nym-node/NymNodeAmount';
 import NymNodeSignature from '../forms/nym-node/NymNodeSignature';
+import { TBondNymNodeArgs } from 'src/types';
 
-export const BondNymNodeModal = ({ onClose }: { onClose: () => void }) => {
+export const BondNymNodeModal = ({
+  onClose,
+  onBond,
+}: {
+  onClose: () => void;
+  onBond: (data: TBondNymNodeArgs) => Promise<void>;
+}) => {
   const { fee, resetFeeState, feeError } = useGetFee();
   const { userBalance } = useContext(AppContext);
-  const { setStep, step, onError, setSignature, amountData, costParams, nymNodeData } = useFormContext();
+  const { setStep, step, onError, signature, amountData, costParams, nymNodeData } = useFormContext();
 
   useEffect(() => {
     if (feeError) {
@@ -21,12 +28,17 @@ export const BondNymNodeModal = ({ onClose }: { onClose: () => void }) => {
     }
   }, [feeError]);
 
-  const handleUpdateMixnodeData = async () => {
+  const handleUpdateNymnodeData = async () => {
     setStep(2);
   };
 
-  const handleUpdateSignature = async (data: Signature) => {
-    setSignature(data.signature);
+  const handleBond = async () => {
+    onBond({
+      nymnode: nymNodeData,
+      pledge: amountData,
+      costParams,
+      msgSignature: signature,
+    });
   };
 
   const handleConfirm = async () => {};
@@ -51,7 +63,7 @@ export const BondNymNodeModal = ({ onClose }: { onClose: () => void }) => {
   }
 
   if (step === 1) {
-    return <NymNodeData onClose={onClose} onBack={onClose} onNext={handleUpdateMixnodeData} step={step} />;
+    return <NymNodeData onClose={onClose} onBack={onClose} onNext={handleUpdateNymnodeData} step={step} />;
   }
 
   if (step === 2) {
@@ -61,10 +73,10 @@ export const BondNymNodeModal = ({ onClose }: { onClose: () => void }) => {
   if (step === 3) {
     return (
       <NymNodeSignature
-        nymNode={nymNodeData}
+        nymnode={nymNodeData}
         pledge={amountData}
         costParams={costParams}
-        onNext={handleUpdateSignature}
+        onNext={handleBond}
         onClose={onClose}
         onBack={() => setStep(2)}
         step={step}
@@ -75,14 +87,22 @@ export const BondNymNodeModal = ({ onClose }: { onClose: () => void }) => {
   return null;
 };
 
-export const BondNymNodeModalWithState = ({ open, onClose }: { open: boolean; onClose: () => void }) => {
+export const BondNymNode = ({
+  open,
+  onClose,
+  onBond,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onBond: (data: TBondNymNodeArgs) => Promise<void>;
+}) => {
   if (!open) {
     return null;
   }
 
   return (
     <FormContextProvider>
-      <BondNymNodeModal onClose={onClose} />
+      <BondNymNodeModal onClose={onClose} onBond={onBond} />
     </FormContextProvider>
   );
 };

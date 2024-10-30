@@ -133,6 +133,14 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
+  const bond = async (): Promise<TransactionExecuteResult> => {
+    setIsLoading(true);
+    await mockSleep(SLEEP_MS);
+    setBondedData(bondedMixnodeMock);
+    setIsLoading(false);
+    return TxResultMock;
+  };
+
   const unbond = async (): Promise<TransactionExecuteResult> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
@@ -189,6 +197,7 @@ export const MockBondingContextProvider = ({
       error,
       bondMixnode,
       bondGateway,
+      bond,
       unbond,
       refresh,
       redeemRewards,

@@ -14,9 +14,10 @@ import {
   simulateVestingUnbondGateway,
   simulateVestingUnbondMixnode,
 } from '../../../requests';
+import { TBondedNode } from 'src/context';
 
 interface Props {
-  node: TBondedMixnode | TBondedGateway;
+  node: TBondedNode;
   onConfirm: () => Promise<void>;
   onClose: () => void;
   onError: (e: string) => void;

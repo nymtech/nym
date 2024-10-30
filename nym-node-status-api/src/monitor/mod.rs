@@ -72,7 +72,7 @@ async fn run(
     pool: &DbPool,
     network_details: &NymNetworkDetails,
     explorer_client_timeout: Duration,
-    _nym_api_client_timeout: Duration,
+    nym_api_client_timeout: Duration,
     nyxd_addr: &Url,
 ) -> anyhow::Result<()> {
     let default_api_url = network_details
@@ -97,8 +97,7 @@ async fn run(
         .await
         .log_error("unstable_get_gateways")?;
 
-    // TODO dz with timeout?
-    let api_client = NymApiClient::new(default_api_url);
+    let api_client = NymApiClient::new_with_timeout(default_api_url, nym_api_client_timeout);
 
     let all_nodes = api_client
         .get_all_described_nodes()

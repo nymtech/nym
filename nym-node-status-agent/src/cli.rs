@@ -97,6 +97,7 @@ async fn submit_results(
 ) -> anyhow::Result<()> {
     let target_url = format!("{}/{}/{}", server_addr, URL_BASE, testrun_id);
     let client = reqwest::Client::new();
+
     let res = client
         .post(target_url)
         .body(probe_outcome)

@@ -4,7 +4,7 @@
 
 [package]
 name = "nym-node-status-agent"
-version = "0.1.3"
+version = "0.1.4"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

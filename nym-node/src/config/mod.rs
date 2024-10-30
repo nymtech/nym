@@ -522,7 +522,7 @@ pub struct Wireguard {
     pub private_ipv4: Ipv4Addr,
 
     /// Private IPv6 address of the wireguard gateway.
-    /// default: `2001:db8:a160:1::1`
+    /// default: `fc01::1`
     pub private_ipv6: Ipv6Addr,
 
     /// Port announced to external clients wishing to connect to the wireguard interface.

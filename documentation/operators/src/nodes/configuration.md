@@ -276,7 +276,7 @@ Run the following steps as root or with `sudo` prefix!
 ~~~admonish example collapsible=true title="Correct `./network_tunnel_manager.sh fetch_and_display_ipv6` output:"
 ```sh
 iptables-persistent is already installed.
-Using IPv6 address: 2001:db8:a160::1/112 #the address will be different for you
+Using IPv6 address: fc00::1/112 #the address will be different for you
 operation fetch_ipv6_address_nym_tun completed successfully.
 ```
 ~~~
@@ -352,7 +352,7 @@ ip addr show nymtun0
     link/none
     inet 10.0.0.1/16 scope global nymtun0
        valid_lft forever preferred_lft forever
-    inet6 2001:db8:a160::1/112 scope global
+    inet6 fc00::1/112 scope global
        valid_lft forever preferred_lft forever
     inet6 fe80::ad08:d167:5700:8c7c/64 scope link stable-privacy
        valid_lft forever preferred_lft forever`

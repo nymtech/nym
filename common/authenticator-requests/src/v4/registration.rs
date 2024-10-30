@@ -250,10 +250,7 @@ mod tests {
         let client = GatewayClient::new(
             client_key_pair.private_key(),
             x25519_dalek::PublicKey::from(gateway_key_pair.public_key().to_bytes()),
-            IpPair::new(
-                "10.0.0.42".parse().unwrap(),
-                "2001:db8:a160:1::42".parse().unwrap(),
-            ),
+            IpPair::new("10.0.0.42".parse().unwrap(), "fc00::42".parse().unwrap()),
             nonce,
         );
         assert!(client.verify(gateway_key_pair.private_key(), nonce).is_ok())

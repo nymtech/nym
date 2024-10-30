@@ -852,6 +852,10 @@ impl NymNodeDescription {
         }
     }
 
+    pub fn ed25519_identity_key(&self) -> ed25519::PublicKey {
+        self.description.host_information.keys.ed25519
+    }
+
     pub fn to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
         let keys = &self.description.host_information.keys;
         let entry = if self.description.declared_role.entry {

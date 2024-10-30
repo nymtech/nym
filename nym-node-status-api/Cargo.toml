@@ -15,6 +15,7 @@ rust-version.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 axum = { workspace = true, features = ["tokio", "macros"] }
+# TODO dz try to use time instead of chrono ?
 chrono = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
 cosmwasm-std = { workspace = true }
@@ -26,12 +27,12 @@ nym-common-models = { path = "../common/models" }
 # nym-explorer-client = { path = "../explorer-api/explorer-client" }
 nym-explorer-client = { git = "https://github.com/nymtech/nym", branch = "release/2024.13-magura" }
 # TODO dz: before Nym API client breaking changes. Update to latest develop once new Nym API is live
-nym-network-defaults = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork" }
-nym-validator-client = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork" }
+nym-network-defaults = { git = "https://github.com/nymtech/nym", branch = "release/2024.13-magura" }
+nym-validator-client = { git = "https://github.com/nymtech/nym", branch = "release/2024.13-magura" }
 # nym-network-defaults = { path = "../common/network-defaults" }
 # nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-task = { path = "../common/task" }
-nym-node-requests = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork" }
+nym-node-requests = { git = "https://github.com/nymtech/nym", branch = "release/2024.13-magura" }
 # nym-node-requests = { path = "../nym-node/nym-node-requests", features = ["openapi"] }
 regex = { workspace = true }
 reqwest = { workspace = true }

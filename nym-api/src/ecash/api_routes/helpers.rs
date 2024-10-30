@@ -2,13 +2,13 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::ecash::error::Result;
-use crate::ecash::storage::models::IssuedTicketbook;
+use crate::ecash::storage::models::IssuedTicketbookDeprecated;
 use nym_api_requests::ecash::models::IssuedCredentialsResponse;
 use nym_api_requests::ecash::models::IssuedTicketbookBody;
 use std::collections::BTreeMap;
 
 pub(crate) fn build_credentials_response(
-    raw: Vec<IssuedTicketbook>,
+    raw: Vec<IssuedTicketbookDeprecated>,
 ) -> Result<IssuedCredentialsResponse> {
     let mut credentials = BTreeMap::new();
 

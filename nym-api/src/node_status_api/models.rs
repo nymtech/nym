@@ -16,6 +16,7 @@ use nym_serde_helpers::date::DATE_FORMAT;
 use reqwest::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use sqlx::Error;
 use std::fmt::Display;
 use thiserror::Error;
 use time::{Date, OffsetDateTime};
@@ -438,7 +439,7 @@ pub enum NymApiStorageError {
 
     // I don't think we want to expose errors to the user about what really happened
     #[error("experienced internal database error")]
-    InternalDatabaseError(#[from] sqlx::Error),
+    InternalDatabaseError(sqlx::Error),
 
     // the same is true here (also note that the message is subtly different so we would be able to distinguish them)
     #[error("experienced internal storage error")]
@@ -449,10 +450,18 @@ pub enum NymApiStorageError {
     StartupMigrationFailure(#[from] sqlx::migrate::MigrateError),
 }
 
+impl From<sqlx::Error> for NymApiStorageError {
+    fn from(err: Error) -> Self {
+        error!("experienced database failure: {err}");
+        NymApiStorageError::InternalDatabaseError(err)
+    }
+}
+
 impl NymApiStorageError {
     pub fn database_inconsistency<S: Into<String>>(reason: S) -> NymApiStorageError {
-        NymApiStorageError::DatabaseInconsistency {
-            reason: reason.into(),
-        }
+        let reason = reason.into();
+        error!("experienced database inconsistency: {reason}");
+
+        NymApiStorageError::DatabaseInconsistency { reason }
     }
 }

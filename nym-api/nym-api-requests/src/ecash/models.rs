@@ -12,7 +12,7 @@ use nym_credentials_interface::{
     BlindedSignature, CompactEcashError, CredentialSpendingData, PublicKeyUser,
     VerificationKeyAuth, WithdrawalRequest,
 };
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::{ed25519, identity};
 use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -395,7 +395,15 @@ pub struct IssuedTicketbooksForResponseBody {
 
 impl IssuedTicketbooksForResponseBody {
     pub fn plaintext(&self) -> Vec<u8> {
-        todo!()
+        #[allow(clippy::unwrap_used)]
+        serde_json::to_vec(self).unwrap()
+    }
+
+    pub fn sign(self, key: &ed25519::PrivateKey) -> IssuedTicketbooksForResponse {
+        IssuedTicketbooksForResponse {
+            signature: key.sign(self.plaintext()),
+            body: self,
+        }
     }
 }
 
@@ -407,6 +415,14 @@ pub struct IssuedTicketbooksForResponse {
     /// Signature on the body    
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub signature: identity::Signature,
+}
+
+impl IssuedTicketbooksForResponse {
+    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool {
+        pub_key
+            .verify(self.body.plaintext(), &self.signature)
+            .is_ok()
+    }
 }
 
 #[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -421,13 +437,21 @@ pub struct IssuedTicketbooksChallengeRequest {
 #[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksChallengeResponseBody {
-    pub partial_credentials: HashMap<DepositId, IssuedTicketbook>,
+    pub partial_ticketbooks: BTreeMap<DepositId, IssuedTicketbook>,
     pub merkle_proof: IssuedTicketbooksFullMerkleProof,
 }
 
-impl IssuedTicketbooksForResponse {
+impl IssuedTicketbooksChallengeResponseBody {
     pub fn plaintext(&self) -> Vec<u8> {
-        todo!()
+        #[allow(clippy::unwrap_used)]
+        serde_json::to_vec(self).unwrap()
+    }
+
+    pub fn sign(self, key: &ed25519::PrivateKey) -> IssuedTicketbooksChallengeResponse {
+        IssuedTicketbooksChallengeResponse {
+            signature: key.sign(self.plaintext()),
+            body: self,
+        }
     }
 }
 
@@ -438,6 +462,14 @@ pub struct IssuedTicketbooksChallengeResponse {
 
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub signature: identity::Signature,
+}
+
+impl IssuedTicketbooksChallengeResponse {
+    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool {
+        pub_key
+            .verify(self.body.plaintext(), &self.signature)
+            .is_ok()
+    }
 }
 
 #[deprecated]

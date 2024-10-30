@@ -42,18 +42,10 @@ async fn request_testrun(State(state): State<AppState>) -> HttpResult<Json<Testr
     return match db::queries::testruns::get_oldest_testrun_and_make_it_pending(&mut conn).await {
         Ok(res) => {
             if let Some(testrun) = res {
-                let gw_identity =
-                    db::queries::select_gateway_identity(&mut conn, testrun.gateway_pk_id)
-                        .await
-                        .map_err(|_| {
-                            // should never happen:
-                            HttpError::internal_with_logging("No gateway found for testrun")
-                        })?;
-                // TODO dz consider adding a column to testruns table with agent's public key
                 tracing::debug!(
                     "🏃‍ Assigned testrun row_id {} gateway {} to agent",
                     &testrun.testrun_id,
-                    gw_identity
+                    testrun.gateway_identity_key
                 );
                 Ok(Json(testrun))
             } else {

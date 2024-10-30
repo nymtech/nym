@@ -72,8 +72,8 @@ pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> an
 pub(crate) async fn get_oldest_testrun_and_make_it_pending(
     conn: &mut PoolConnection<Sqlite>,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
-    let assignment = sqlx::query_as!(
-        TestrunAssignment,
+    // find & mark as "In progress" in the same transaction to avoid race conditions
+    let returning = sqlx::query!(
         r#"UPDATE testruns
             SET status = ?
             WHERE rowid =
@@ -85,8 +85,8 @@ pub(crate) async fn get_oldest_testrun_and_make_it_pending(
             LIMIT 1
         )
         RETURNING
-            id as "testrun_id!",
-            gateway_id as "gateway_pk_id!"
+            id as "id!",
+            gateway_id
             "#,
         TestRunStatus::InProgress as i64,
         TestRunStatus::Queued as i64,
@@ -94,7 +94,27 @@ pub(crate) async fn get_oldest_testrun_and_make_it_pending(
     .fetch_optional(conn.as_mut())
     .await?;
 
-    Ok(assignment)
+    if let Some(testrun) = returning {
+        let gw_identity = sqlx::query!(
+            r#"
+                SELECT
+                    id,
+                    gateway_identity_key
+                FROM gateways
+                WHERE id = ?
+                LIMIT 1"#,
+            testrun.gateway_id
+        )
+        .fetch_one(conn.as_mut())
+        .await?;
+
+        return Ok(Some(TestrunAssignment {
+            testrun_id: testrun.id,
+            gateway_identity_key: gw_identity.gateway_identity_key,
+        }));
+    } else {
+        return Ok(None);
+    }
 }
 
 pub(crate) async fn update_testrun_status(

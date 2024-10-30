@@ -11,10 +11,12 @@ pub(crate) use queue::now_utc;
 pub(crate) async fn spawn(pool: DbPool, refresh_interval: Duration) {
     tokio::spawn(async move {
         loop {
-            tracing::info!("Spawning testruns...");
+            if let Err(e) = refresh_stale_testruns(&pool, refresh_interval).await {
+                tracing::error!("{e}");
+            }
 
             if let Err(e) = run(&pool).await {
-                tracing::error!("Cron job failed: {}", e);
+                tracing::error!("Assigning testruns failed: {}", e);
             }
             tracing::debug!("Sleeping for {}s...", refresh_interval.as_secs());
             tokio::time::sleep(refresh_interval).await;
@@ -24,9 +26,9 @@ pub(crate) async fn spawn(pool: DbPool, refresh_interval: Duration) {
 
 // TODO dz make number of max agents configurable
 
-// TODO dz periodically clean up stale pending testruns
 #[instrument(level = "debug", name = "testrun_queue", skip_all)]
 async fn run(pool: &DbPool) -> anyhow::Result<()> {
+    tracing::info!("Spawning testruns...");
     if pool.is_closed() {
         tracing::debug!("DB pool closed, returning early");
         return Ok(());
@@ -71,6 +73,14 @@ async fn run(pool: &DbPool) -> anyhow::Result<()> {
         }
     }
     tracing::debug!("{} testruns queued in total", testruns_created);
+
+    Ok(())
+}
+
+#[instrument(level = "debug", skip_all)]
+async fn refresh_stale_testruns(pool: &DbPool, refresh_interval: Duration) -> anyhow::Result<()> {
+    let chrono_duration = chrono::Duration::from_std(refresh_interval)?;
+    crate::db::queries::testruns::update_testruns_older_than(pool, chrono_duration).await?;
 
     Ok(())
 }

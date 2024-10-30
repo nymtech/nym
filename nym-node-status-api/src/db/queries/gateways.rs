@@ -7,7 +7,27 @@ use crate::{
 };
 use futures_util::TryStreamExt;
 use nym_validator_client::models::DescribedGateway;
+use sqlx::{pool::PoolConnection, Sqlite};
 use tracing::error;
+
+pub(crate) async fn select_gateway_identity(
+    conn: &mut PoolConnection<Sqlite>,
+    gateway_pk: i64,
+) -> anyhow::Result<String> {
+    let record = sqlx::query!(
+        r#"SELECT
+            gateway_identity_key
+        FROM
+            gateways
+        WHERE
+            id = ?"#,
+        gateway_pk
+    )
+    .fetch_one(conn.as_mut())
+    .await?;
+
+    Ok(record.gateway_identity_key)
+}
 
 pub(crate) async fn insert_gateways(
     pool: &DbPool,

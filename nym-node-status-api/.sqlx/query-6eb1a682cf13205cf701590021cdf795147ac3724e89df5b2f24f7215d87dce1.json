@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO mixnodes\n                (mix_id, identity_key, bonded, total_stake,\n                    host, http_api_port, blacklisted, full_details,\n                    self_described, last_updated_utc, is_dp_delegatee)\n                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n                ON CONFLICT(mix_id) DO UPDATE SET\n                bonded=excluded.bonded,\n                total_stake=excluded.total_stake, host=excluded.host,\n                http_api_port=excluded.http_api_port,blacklisted=excluded.blacklisted,\n                full_details=excluded.full_details,self_described=excluded.self_described,\n                last_updated_utc=excluded.last_updated_utc,\n                is_dp_delegatee = excluded.is_dp_delegatee;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 11
+    },
+    "nullable": []
+  },
+  "hash": "6eb1a682cf13205cf701590021cdf795147ac3724e89df5b2f24f7215d87dce1"
+}

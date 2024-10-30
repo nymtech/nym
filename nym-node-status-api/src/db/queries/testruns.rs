@@ -108,12 +108,12 @@ pub(crate) async fn get_oldest_testrun_and_make_it_pending(
         .fetch_one(conn.as_mut())
         .await?;
 
-        return Ok(Some(TestrunAssignment {
+        Ok(Some(TestrunAssignment {
             testrun_id: testrun.id,
             gateway_identity_key: gw_identity.gateway_identity_key,
-        }));
+        }))
     } else {
-        return Ok(None);
+        Ok(None)
     }
 }
 

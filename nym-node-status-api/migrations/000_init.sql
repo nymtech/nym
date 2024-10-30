@@ -103,7 +103,7 @@ CREATE TABLE
 CREATE TABLE testruns
 (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  gateway_id    INTEGER,
+  gateway_id    INTEGER NOT NULL,
   status        INTEGER NOT NULL, -- 0=pending, 1=in-progress, 2=complete
   timestamp_utc INTEGER NOT NULL,
   ip_address    VARCHAR NOT NULL,

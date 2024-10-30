@@ -300,6 +300,7 @@ pub(crate) mod gateway {
     }
 }
 
+#[allow(dead_code)] // not dead code, this is SQL data model
 #[derive(Debug, Clone)]
 pub struct TestRunDto {
     pub id: i64,

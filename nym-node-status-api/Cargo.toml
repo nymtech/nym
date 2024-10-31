@@ -1,0 +1,62 @@
+# Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "nym-node-status-api"
+version = "0.1.5"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+axum = { workspace = true, features = ["tokio", "macros"] }
+chrono = { workspace = true }
+clap = { workspace = true, features = ["cargo", "derive", "env", "string"] }
+cosmwasm-std = { workspace = true }
+envy = { workspace = true }
+futures-util = { workspace = true }
+moka = { workspace = true, features = ["future"] }
+nym-bin-common = { path = "../common/bin-common", features = ["models"]}
+nym-common-models = { path = "../common/models" }
+nym-explorer-client = { path = "../explorer-api/explorer-client" }
+nym-network-defaults = { path = "../common/network-defaults" }
+nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-task = { path = "../common/task" }
+nym-node-requests = { path = "../nym-node/nym-node-requests", features = ["openapi"] }
+regex = { workspace = true }
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+serde_json_path = { workspace = true }
+strum = { workspace = true }
+strum_macros = { workspace = true }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread"] }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing-log = { workspace = true }
+tower-http = { workspace = true, features = ["cors", "trace"] }
+utoipa = { workspace = true, features = ["axum_extras", "time"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+# TODO dz `cargo update async-trait`
+# for automatic schema detection, which was merged, but not released yet
+# https://github.com/ProbablyClem/utoipauto/pull/38
+# utoipauto = { git = "https://github.com/ProbablyClem/utoipauto", rev = "eb04cba" }
+utoipauto = { workspace = true }
+
+[build-dependencies]
+anyhow = { workspace = true }
+tokio = { workspace = true, features = ["macros"] }
+sqlx = { workspace = true, features = [
+  "runtime-tokio-rustls",
+  "sqlite",
+  "macros",
+  "migrate",
+] }

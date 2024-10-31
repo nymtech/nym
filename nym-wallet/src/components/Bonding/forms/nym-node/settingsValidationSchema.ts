@@ -19,10 +19,10 @@ const settingsValidationSchema = Yup.object().shape({
       return numberVal;
     })
     .test('valid-http', 'A valid http port is required', (value) => {
-      if (value === null || value === undefined) {
+      if (value === null) {
         return true;
       }
-      return value ? validateRawPort(+value) : false;
+      return value ? validateRawPort(value) : false;
     }),
 });
 

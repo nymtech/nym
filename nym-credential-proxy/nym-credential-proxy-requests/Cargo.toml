@@ -22,12 +22,12 @@ reqwest = { workspace = true, features = ["json"] }
 wasm-bindgen = { workspace = true, optional = true }
 
 ## openapi:
-utoipa = { workspace = true, optional = true }
+utoipa = { workspace = true, optional = true, features = ["uuid"] }
 
 nym-credentials = { path = "../../common/credentials" }
 nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-http-api-common = { path = "../../common/http-api-common", optional = true }
-nym-http-api-client = { path = "../../common/http-api-client"  }
+nym-http-api-client = { path = "../../common/http-api-client" }
 nym-serde-helpers = { path = "../../common/serde-helpers", features = ["bs58"] }
 
 [target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]

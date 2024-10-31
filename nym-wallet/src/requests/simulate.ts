@@ -28,14 +28,14 @@ export const simulateUpdateMixnodeConfig = async (update: MixNodeConfigUpdate) =
 export const simulateUpdateGatewayConfig = async (update: GatewayConfigUpdate) =>
   invokeWrapper<FeeDetails>('simulate_update_gateway_config', { update });
 
-export const simulateDelegateToMixnode = async (args: { mixId: number; amount: DecCoin }) =>
-  invokeWrapper<FeeDetails>('simulate_delegate_to_mixnode', args);
+export const simulateDelegateToNode = async (args: { nodeId: number; amount: DecCoin }) =>
+  invokeWrapper<FeeDetails>('simulate_delegate_to_node', args);
 
-export const simulateUndelegateFromMixnode = async (mixId: number) =>
-  invokeWrapper<FeeDetails>('simulate_undelegate_from_mixnode', { mixId });
+export const simulateUndelegateFromNode = async (nodeId: number) =>
+  invokeWrapper<FeeDetails>('simulate_undelegate_from_node', { nodeId });
 
-export const simulateClaimDelegatorReward = async (mixId: number) =>
-  invokeWrapper<FeeDetails>('simulate_claim_delegator_reward', { mixId });
+export const simulateClaimDelegatorReward = async (nodeId: number) =>
+  invokeWrapper<FeeDetails>('simulate_claim_delegator_reward', { nodeId });
 
 export const simulateVestingClaimDelegatorReward = async (mixId: number) =>
   invokeWrapper<FeeDetails>('simulate_vesting_claim_delegator_reward', { mixId });

@@ -5,7 +5,7 @@ import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField'
 import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
 import { Console } from 'src/utils/console';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { simulateDelegateToMixnode, simulateVestingDelegateToMixnode, tryConvertIdentityToMixId } from 'src/requests';
+import { simulateDelegateToNode, simulateVestingDelegateToMixnode, tryConvertIdentityToMixId } from 'src/requests';
 import { debounce } from 'lodash';
 import { AppContext } from 'src/context';
 import { SimpleModal } from '../Modals/SimpleModal';
@@ -152,7 +152,7 @@ export const DelegateModal: FCWithChildren<{
     }
 
     if (tokenPool === 'balance') {
-      getFee(simulateDelegateToMixnode, { mixId: id, amount: value });
+      getFee(simulateDelegateToNode, { nodeId: id, amount: value });
     }
 
     if (tokenPool === 'locked') {

@@ -7,33 +7,26 @@ use crate::ecash::storage::helpers::{
     serialise_coin_index_signatures, serialise_expiration_date_signatures,
 };
 use crate::ecash::storage::manager::EcashStorageManagerExt;
-use crate::ecash::storage::models::{
-    join_attributes, EpochCredentials, IssuedHash, IssuedTicketbookDeprecated, SerialNumberWrapper,
-    TicketProvider,
-};
+use crate::ecash::storage::models::{IssuedHash, SerialNumberWrapper, TicketProvider};
 use crate::node_status_api::models::NymApiStorageError;
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
-use nym_api_requests::ecash::models::Pagination;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
-use nym_compact_ecash::BlindedSignature;
-use nym_compact_ecash::VerificationKeyAuth;
+use nym_compact_ecash::{BlindedSignature, VerificationKeyAuth};
 use nym_config::defaults::BloomfilterParameters;
 use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::TicketType;
-use nym_crypto::asymmetric::identity;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_ticketbooks_merkle::{IssuedTicketbook, MerkleLeaf};
 use nym_validator_client::nyxd::AccountId;
+use std::collections::HashSet;
 use time::{Date, OffsetDateTime};
-use tracing::info;
+use tracing::{info, warn};
 
 mod helpers;
 pub(crate) mod manager;
 pub(crate) mod models;
-
-const DEFAULT_CREDENTIALS_PAGE_LIMIT: u32 = 100;
 
 #[async_trait]
 pub trait EcashStorageExt {
@@ -66,32 +59,10 @@ pub trait EcashStorageExt {
     async fn remove_expired_verified_tickets(&self, cutoff: Date)
         -> Result<(), NymApiStorageError>;
 
-    async fn get_epoch_credentials(
-        &self,
-        epoch_id: EpochId,
-    ) -> Result<Option<EpochCredentials>, NymApiStorageError>;
-
-    #[allow(dead_code)]
-    async fn create_epoch_credentials_entry(
-        &self,
-        epoch_id: EpochId,
-    ) -> Result<(), NymApiStorageError>;
-
-    async fn update_epoch_credentials_entry(
-        &self,
-        epoch_id: EpochId,
-        credential_id: i64,
-    ) -> Result<(), NymApiStorageError>;
-
-    async fn get_issued_credential(
-        &self,
-        credential_id: i64,
-    ) -> Result<Option<IssuedTicketbookDeprecated>, NymApiStorageError>;
-
-    async fn get_issued_bandwidth_credential_by_deposit_id(
+    async fn get_issued_partial_signature(
         &self,
         deposit_id: DepositId,
-    ) -> Result<Option<IssuedTicketbookDeprecated>, NymApiStorageError>;
+    ) -> Result<Option<BlindedSignature>, NymApiStorageError>;
 
     async fn get_issued_hashes(
         &self,
@@ -110,24 +81,16 @@ pub trait EcashStorageExt {
         merkle_leaf: MerkleLeaf,
     ) -> Result<(), NymApiStorageError>;
 
+    async fn remove_old_issued_ticketbooks(
+        &self,
+        cutoff_expiration_date: Date,
+    ) -> Result<(), NymApiStorageError>;
+
     async fn get_issued_ticketbooks(
         &self,
         deposits: Vec<DepositId>,
     ) -> Result<Vec<IssuedTicketbook>, NymApiStorageError>;
 
-    async fn get_issued_credentials_paged(
-        &self,
-        pagination: Pagination<i64>,
-    ) -> Result<Vec<IssuedTicketbookDeprecated>, NymApiStorageError>;
-    //
-    // async fn insert_credential(
-    //     &self,
-    //     credential: &CredentialSpendingData,
-    //     serial_number_bs58: String,
-    //     gateway_addr: &AccountId,
-    //     proposal_id: u64,
-    // ) -> Result<(), NymApiStorageError>;
-    //
     async fn get_credential_data(
         &self,
         serial_number: &[u8],
@@ -289,49 +252,22 @@ impl EcashStorageExt for NymApiStorage {
         Ok(self.manager.remove_expired_verified_tickets(cutoff).await?)
     }
 
-    async fn get_epoch_credentials(
-        &self,
-        epoch_id: EpochId,
-    ) -> Result<Option<EpochCredentials>, NymApiStorageError> {
-        Ok(self.manager.get_epoch_credentials(epoch_id).await?)
-    }
-
-    async fn create_epoch_credentials_entry(
-        &self,
-        epoch_id: EpochId,
-    ) -> Result<(), NymApiStorageError> {
-        Ok(self
-            .manager
-            .create_epoch_credentials_entry(epoch_id)
-            .await?)
-    }
-
-    async fn update_epoch_credentials_entry(
-        &self,
-        epoch_id: EpochId,
-        credential_id: i64,
-    ) -> Result<(), NymApiStorageError> {
-        Ok(self
-            .manager
-            .update_epoch_credentials_entry(epoch_id, credential_id)
-            .await?)
-    }
-
-    async fn get_issued_credential(
-        &self,
-        credential_id: i64,
-    ) -> Result<Option<IssuedTicketbookDeprecated>, NymApiStorageError> {
-        Ok(self.manager.get_issued_credential(credential_id).await?)
-    }
-
-    async fn get_issued_bandwidth_credential_by_deposit_id(
+    async fn get_issued_partial_signature(
         &self,
         deposit_id: DepositId,
-    ) -> Result<Option<IssuedTicketbookDeprecated>, NymApiStorageError> {
-        Ok(self
+    ) -> Result<Option<BlindedSignature>, NymApiStorageError> {
+        let Some(raw) = self
             .manager
-            .get_issued_bandwidth_credential_by_deposit_id(deposit_id)
-            .await?)
+            .get_issued_partial_signature(deposit_id)
+            .await?
+        else {
+            return Ok(None);
+        };
+        Ok(Some(BlindedSignature::from_bytes(&raw).map_err(|err| {
+            NymApiStorageError::database_inconsistency(format!(
+                "failed to recover stored partial signature: {err}"
+            ))
+        })?))
     }
 
     async fn get_issued_hashes(
@@ -367,57 +303,35 @@ impl EcashStorageExt for NymApiStorage {
             .await?)
     }
 
+    async fn remove_old_issued_ticketbooks(
+        &self,
+        cutoff_expiration_date: Date,
+    ) -> Result<(), NymApiStorageError> {
+        Ok(self
+            .manager
+            .remove_old_issued_ticketbooks(cutoff_expiration_date)
+            .await?)
+    }
+
     async fn get_issued_ticketbooks(
         &self,
         deposits: Vec<DepositId>,
     ) -> Result<Vec<IssuedTicketbook>, NymApiStorageError> {
         let raw = self.manager.get_issued_ticketbooks(&deposits).await?;
         if raw.len() != deposits.len() {
-            todo!()
+            warn!("failed to get ticketbooks for all requested deposits. requested {} but only got {}", raw.len(), deposits.len());
+            let available: HashSet<_> = raw.iter().map(|t| t.deposit_id).collect();
+            let mut missing = Vec::new();
+            for requested in deposits {
+                if !available.contains(&requested) {
+                    warn!("the storage is missing ticketbook for deposit {requested}");
+                    missing.push(requested);
+                }
+            }
+            return Err(NymApiStorageError::UnavailableTicketbooks { deposits: missing });
         }
         raw.into_iter().map(TryInto::try_into).collect()
     }
-
-    async fn get_issued_credentials_paged(
-        &self,
-        pagination: Pagination<i64>,
-    ) -> Result<Vec<IssuedTicketbookDeprecated>, NymApiStorageError> {
-        // rows start at 1
-        let start_after = pagination.last_key.unwrap_or(0);
-        let limit = match pagination.limit {
-            Some(v) => {
-                if v == 0 || v > DEFAULT_CREDENTIALS_PAGE_LIMIT {
-                    DEFAULT_CREDENTIALS_PAGE_LIMIT
-                } else {
-                    v
-                }
-            }
-            None => DEFAULT_CREDENTIALS_PAGE_LIMIT,
-        };
-
-        Ok(self
-            .manager
-            .get_issued_ticketbooks_paged(start_after, limit)
-            .await?)
-    }
-
-    // async fn insert_credential(
-    //     &self,
-    //     credential: &CredentialSpendingData,
-    //     serial_number_bs58: String,
-    //     gateway_addr: &AccountId,
-    //     proposal_id: u64,
-    // ) -> Result<(), NymApiStorageError> {
-    //     self.manager
-    //         .insert_credential(
-    //             credential.to_bs58(),
-    //             serial_number_bs58,
-    //             gateway_addr.to_string(),
-    //             proposal_id as i64,
-    //         )
-    //         .await
-    //         .map_err(|err| err.into())
-    // }
 
     async fn get_credential_data(
         &self,

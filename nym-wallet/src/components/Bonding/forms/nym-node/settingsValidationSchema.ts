@@ -9,6 +9,15 @@ const settingsValidationSchema = Yup.object().shape({
 
   custom_http_port: Yup.number()
     .nullable()
+    .transform((numberVal, stringVal) => {
+      if (stringVal === '') {
+        return null;
+      }
+      if (!Number(stringVal)) {
+        return stringVal;
+      }
+      return numberVal;
+    })
     .test('valid-http', 'A valid http port is required', (value) => {
       if (value === null) {
         return true;

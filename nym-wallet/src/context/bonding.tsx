@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/naming-convention */
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { FeeDetails, TransactionExecuteResult } from '@nymproject/types';
+import { FeeDetails, NodeConfigUpdate, TransactionExecuteResult } from '@nymproject/types';
 import { isGateway, isMixnode, TUpdateBondArgs, isNymNode, TNymNodeSignatureArgs, TBondNymNodeArgs } from 'src/types';
 import { Console } from 'src/utils/console';
 import useGetNodeDetails from 'src/hooks/useGetNodeDetails';
@@ -35,10 +35,7 @@ export type TBondingContext = {
   unbond: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   bond: (args: TBondNymNodeArgs) => Promise<TransactionExecuteResult | undefined>;
   updateBondAmount: (data: TUpdateBondArgs) => Promise<TransactionExecuteResult | undefined>;
-  updateNymNodeConfig: (data: {
-    host: string;
-    custom_http_port: number | null;
-  }) => Promise<TransactionExecuteResult | undefined>;
+  updateNymNodeConfig: (data: NodeConfigUpdate) => Promise<TransactionExecuteResult | undefined>;
   redeemRewards: (fee?: FeeDetails) => Promise<TransactionExecuteResult | undefined>;
   generateNymNodeMsgPayload: (data: TNymNodeSignatureArgs) => Promise<string | undefined>;
   migrateVestedMixnode: () => Promise<TransactionExecuteResult | undefined>;
@@ -148,7 +145,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     return tx;
   };
 
-  const updateNymNodeConfig = async (data: { host: string; custom_http_port: number | null }) => {
+  const updateNymNodeConfig = async (data: NodeConfigUpdate) => {
     let tx;
     setIsLoading(true);
     try {

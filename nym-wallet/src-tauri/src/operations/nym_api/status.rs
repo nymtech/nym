@@ -14,6 +14,8 @@ use nym_validator_client::models::{
     MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse,
 };
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn mixnode_core_node_status(
     mix_id: NodeId,
@@ -25,6 +27,8 @@ pub async fn mixnode_core_node_status(
         .await?)
 }
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn gateway_core_node_status(
     identity: IdentityKeyRef<'_>,
@@ -36,6 +40,8 @@ pub async fn gateway_core_node_status(
         .await?)
 }
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn gateway_report(
     identity: IdentityKeyRef<'_>,
@@ -44,6 +50,8 @@ pub async fn gateway_report(
     Ok(api_client!(state).get_gateway_report(identity).await?)
 }
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn mixnode_status(
     mix_id: NodeId,
@@ -52,6 +60,8 @@ pub async fn mixnode_status(
     Ok(api_client!(state).get_mixnode_status(mix_id).await?)
 }
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn mixnode_reward_estimation(
     mix_id: NodeId,
@@ -62,6 +72,8 @@ pub async fn mixnode_reward_estimation(
         .await?)
 }
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn compute_mixnode_reward_estimation(
     mix_id: u32,
@@ -85,6 +97,8 @@ pub async fn compute_mixnode_reward_estimation(
         .await?)
 }
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn mixnode_stake_saturation(
     mix_id: NodeId,
@@ -95,6 +109,8 @@ pub async fn mixnode_stake_saturation(
         .await?)
 }
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn mixnode_inclusion_probability(
     mix_id: NodeId,

@@ -17,6 +17,8 @@ pub(crate) struct ExplorerApiTasks {
     shutdown: TaskClient,
 }
 
+// allow usage of deprecated methods here as we actually want to be explicitly querying for legacy data
+#[allow(deprecated)]
 impl ExplorerApiTasks {
     pub(crate) fn new(state: ExplorerApiStateContext, shutdown: TaskClient) -> Self {
         ExplorerApiTasks { state, shutdown }

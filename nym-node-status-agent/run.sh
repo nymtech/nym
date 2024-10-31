@@ -2,7 +2,11 @@
 
 set -eu
 
-export RUST_LOG=${RUST_LOG:-debug}
+environment="qa"
+
+source ../envs/${environment}.env
+
+export RUST_LOG="debug"
 
 crate_root=$(dirname $(realpath "$0"))
 gateway_probe_src=$(dirname $(dirname "$crate_root"))/nym-vpn-client/nym-vpn-core
@@ -14,6 +18,8 @@ export NODE_STATUS_AGENT_PROBE_PATH="$crate_root/nym-gateway-probe"
 # build & copy over GW probe
 function copy_gw_probe() {
     pushd $gateway_probe_src
+    git switch main
+    git pull
     cargo build --release --package nym-gateway-probe
     cp target/release/nym-gateway-probe "$crate_root"
     $crate_root/nym-gateway-probe --version
@@ -30,8 +36,8 @@ function swarm() {
 
     build_agent
 
-    for ((i=1; i<=$workers; i++)); do
-        ../target/release/nym-node-status-agent run-probe  &
+    for ((i = 1; i <= $workers; i++)); do
+        ../target/release/nym-node-status-agent run-probe &
     done
 
     wait
@@ -44,6 +50,6 @@ export NODE_STATUS_AGENT_SERVER_PORT="8000"
 
 copy_gw_probe
 
-swarm 30
+swarm 8
 
 # cargo run -- run-probe

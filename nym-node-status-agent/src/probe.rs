@@ -40,6 +40,12 @@ impl GwProbe {
         match command.spawn() {
             Ok(child) => {
                 if let Ok(output) = child.wait_with_output() {
+                    if !output.status.success() {
+                        let out = String::from_utf8_lossy(&output.stdout);
+                        let err = String::from_utf8_lossy(&output.stderr);
+                        tracing::error!("Probe exited with {:?}:\n{}\n{}", output.status, out, err);
+                    }
+
                     return String::from_utf8(output.stdout)
                         .unwrap_or("Unable to get log from test run".to_string());
                 }

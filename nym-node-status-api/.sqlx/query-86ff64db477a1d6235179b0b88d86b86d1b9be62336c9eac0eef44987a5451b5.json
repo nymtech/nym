@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT count(id) FROM gateways",
+  "describe": {
+    "columns": [
+      {
+        "name": "count(id)",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "86ff64db477a1d6235179b0b88d86b86d1b9be62336c9eac0eef44987a5451b5"
+}

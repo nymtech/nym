@@ -2,7 +2,7 @@ CREATE TABLE gateways
 (
   id                      INTEGER PRIMARY KEY AUTOINCREMENT,
   gateway_identity_key    VARCHAR NOT NULL UNIQUE,
-  self_described          VARCHAR,
+  self_described          VARCHAR NOT NULL,
   explorer_pretty_bond    VARCHAR,
   last_probe_result       VARCHAR,
   last_probe_log          VARCHAR,
@@ -103,7 +103,7 @@ CREATE TABLE
 CREATE TABLE testruns
 (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  gateway_id    INTEGER,
+  gateway_id    INTEGER NOT NULL,
   status        INTEGER NOT NULL, -- 0=pending, 1=in-progress, 2=complete
   timestamp_utc INTEGER NOT NULL,
   ip_address    VARCHAR NOT NULL,

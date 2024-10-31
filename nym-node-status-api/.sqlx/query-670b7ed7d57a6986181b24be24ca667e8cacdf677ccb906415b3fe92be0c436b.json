@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT count(id) FROM mixnodes",
+  "describe": {
+    "columns": [
+      {
+        "name": "count(id)",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "670b7ed7d57a6986181b24be24ca667e8cacdf677ccb906415b3fe92be0c436b"
+}

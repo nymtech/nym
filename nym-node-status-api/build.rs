@@ -11,7 +11,7 @@ const SQLITE_DB_FILENAME: &str = "nym-node-status-api.sqlite";
 #[tokio::main(flavor = "current_thread")]
 async fn main() -> Result<()> {
     let out_dir = read_env_var("OUT_DIR")?;
-    let database_path = format!("sqlite://{}/{}?mode=rwc", out_dir, SQLITE_DB_FILENAME);
+    let database_path = format!("{}/{}?mode=rwc", out_dir, SQLITE_DB_FILENAME);
 
     write_db_path_to_file(&out_dir, SQLITE_DB_FILENAME).await?;
     let mut conn = SqliteConnection::connect(&database_path).await?;
@@ -25,17 +25,11 @@ async fn main() -> Result<()> {
     // not a valid windows path... but hey, it works...
     println!("cargo::rustc-env=DATABASE_URL=sqlite:///{}", &database_path);
 
-    rerun_if_changed();
     Ok(())
 }
 
 fn read_env_var(var: &str) -> Result<String> {
     std::env::var(var).map_err(|_| anyhow!("You need to set {} env var", var))
-}
-
-fn rerun_if_changed() {
-    println!("cargo::rerun-if-changed=migrations");
-    println!("cargo::rerun-if-changed=src/db/queries");
 }
 
 /// use `./enter_db.sh` to inspect DB

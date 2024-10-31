@@ -6,8 +6,9 @@ export RUST_LOG=${RUST_LOG:-debug}
 
 export NYM_API_CLIENT_TIMEOUT=60
 export EXPLORER_CLIENT_TIMEOUT=60
+export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=60
 
-export ENVIRONMENT="mainnet.env"
+export ENVIRONMENT="qa.env"
 
 function run_bare() {
     # export necessary env vars

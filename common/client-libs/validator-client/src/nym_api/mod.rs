@@ -7,7 +7,8 @@ use async_trait::async_trait;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    VerifyEcashTicketBody,
+    IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
+    IssuedTicketbooksForResponse, VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
@@ -16,11 +17,7 @@ use nym_api_requests::models::{
 use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
 pub use nym_api_requests::{
     ecash::{
-        models::{
-            EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
-            IssuedTicketbookBody, IssuedTicketbookDeprecated, SpentCredentialsResponse,
-        },
-        BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
+        models::SpentCredentialsResponse, BlindSignRequestBody, BlindedSignatureResponse,
         PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
         VerifyEcashCredentialBody,
     },
@@ -35,6 +32,7 @@ pub use nym_api_requests::{
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_contracts_common::IdentityKey;
+use nym_ecash_contract_common::deposit::DepositId;
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
@@ -715,67 +713,44 @@ pub trait NymApiClientExt: ApiClient {
             &[
                 routes::API_VERSION,
                 routes::ECASH_ROUTES,
-                routes::ecash::MASTER_VERIFICATION_KEY,
+                ecash::MASTER_VERIFICATION_KEY,
             ],
             &params,
         )
         .await
     }
 
-    #[deprecated]
-    async fn epoch_credentials(
+    async fn issued_ticketbooks_for(
         &self,
-        dkg_epoch: EpochId,
-    ) -> Result<EpochCredentialsResponse, NymAPIError> {
-        let unused = "";
-
+        expiration_date: Date,
+    ) -> Result<IssuedTicketbooksForResponse, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
                 routes::ECASH_ROUTES,
-                routes::ECASH_EPOCH_CREDENTIALS,
-                &dkg_epoch.to_string(),
+                routes::ECASH_ISSUED_TICKETBOOKS_FOR,
+                &expiration_date.to_string(),
             ],
             NO_PARAMS,
         )
         .await
     }
 
-    #[deprecated]
-    async fn issued_credential(
+    async fn issued_ticketbooks_challenge(
         &self,
-        credential_id: i64,
-    ) -> Result<IssuedCredentialResponse, NymAPIError> {
-        let unused = "";
-
-        self.get_json(
-            &[
-                routes::API_VERSION,
-                routes::ECASH_ROUTES,
-                routes::ECASH_ISSUED_CREDENTIAL,
-                &credential_id.to_string(),
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[deprecated]
-    async fn issued_credentials(
-        &self,
-        credential_ids: Vec<i64>,
-    ) -> Result<IssuedCredentialsResponse, NymAPIError> {
-        let unused = "";
+        expiration_date: Date,
+        deposits: Vec<DepositId>,
+    ) -> Result<IssuedTicketbooksChallengeResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
                 routes::ECASH_ROUTES,
-                routes::ECASH_ISSUED_CREDENTIALS,
+                routes::ECASH_ISSUED_TICKETBOOKS_CHALLENGE,
             ],
             NO_PARAMS,
-            &CredentialsRequestBody {
-                credential_ids,
-                pagination: None,
+            &IssuedTicketbooksChallengeRequest {
+                expiration_date,
+                deposits,
             },
         )
         .await

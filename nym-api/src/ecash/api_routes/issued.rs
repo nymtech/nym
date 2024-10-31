@@ -1,20 +1,15 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::ecash::api_routes::helpers::build_credentials_response;
-use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
-use crate::ecash::storage::EcashStorageExt;
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
 use axum::extract::Path;
 use axum::{Json, Router};
 use nym_api_requests::ecash::models::{
-    EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
     IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
     IssuedTicketbooksForResponse,
 };
-use nym_api_requests::ecash::CredentialsRequestBody;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -80,7 +75,7 @@ async fn issued_ticketbooks_for(
     tag = "Ecash",
     post,
     request_body = IssuedTicketbooksChallengeBody,
-    path = "/issued-ticketbooks",
+    path = "/issued-ticketbooks-challenge",
     context_path = "/v1/ecash",
     responses(
         (status = 200, body = IssuedTicketbooksChallengeResponse),

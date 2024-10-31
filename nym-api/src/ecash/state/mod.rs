@@ -14,17 +14,15 @@ use crate::ecash::state::helpers::{
     try_rebuild_bloomfilter,
 };
 use crate::ecash::state::local::{DailyMerkleTree, LocalEcashState};
-use crate::ecash::storage::models::{IssuedHash, SerialNumberWrapper, TicketProvider};
+use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider};
 use crate::ecash::storage::EcashStorageExt;
 use crate::support::config::Config;
 use crate::support::storage::NymApiStorage;
 use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
 use cw3::Status;
-use nym_api_requests::ecash::helpers::issued_credential_plaintext;
 use nym_api_requests::ecash::models::{
-    BatchRedeemTicketsBody, IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
-    IssuedTicketbooksChallengeResponseBody, IssuedTicketbooksForResponse,
-    IssuedTicketbooksForResponseBody,
+    BatchRedeemTicketsBody, IssuedTicketbooksChallengeRequest,
+    IssuedTicketbooksChallengeResponseBody, IssuedTicketbooksForResponseBody,
 };
 use nym_api_requests::ecash::BlindSignRequestBody;
 use nym_coconut_dkg_common::types::EpochId;
@@ -50,12 +48,12 @@ use nym_ecash_time::{cred_exp_date, ecash_today_date};
 use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof, MerkleLeaf};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
+use rand::{thread_rng, RngCore};
 use std::collections::HashMap;
 use std::ops::Deref;
-use std::time::Duration;
 use time::ext::NumericalDuration;
 use time::{Date, OffsetDateTime};
-use tokio::sync::{RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard};
+use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, error, info, warn};
 
 pub(crate) mod auxiliary;
@@ -65,16 +63,23 @@ mod helpers;
 pub(crate) mod local;
 
 pub struct EcashStateConfig {
-    pub(crate) issued_ticketbooks_retention_period: Duration,
+    pub(crate) issued_ticketbooks_retention_period_days: u32,
+}
+
+impl EcashStateConfig {
+    pub(crate) fn ticketbook_retention_cutoff(&self) -> Date {
+        ecash_today_date()
+            - time::Duration::days(self.issued_ticketbooks_retention_period_days as i64)
+    }
 }
 
 impl EcashStateConfig {
     pub(crate) fn new(global_config: &Config) -> Self {
         EcashStateConfig {
-            issued_ticketbooks_retention_period: global_config
+            issued_ticketbooks_retention_period_days: global_config
                 .ecash_signer
                 .debug
-                .issued_ticketbooks_retention_period,
+                .issued_ticketbooks_retention_period_days,
         }
     }
 }
@@ -482,12 +487,11 @@ impl EcashState {
     /// Check if this nym-api has already issued a credential for the provided deposit id.
     /// If so, return it.
     pub async fn already_issued(&self, deposit_id: DepositId) -> Result<Option<BlindedSignature>> {
-        self.aux
+        Ok(self
+            .aux
             .storage
-            .get_issued_bandwidth_credential_by_deposit_id(deposit_id)
-            .await?
-            .map(|cred| cred.try_into())
-            .transpose()
+            .get_issued_partial_signature(deposit_id)
+            .await?)
     }
 
     pub async fn get_deposit(&self, deposit_id: DepositId) -> Result<Deposit> {
@@ -740,9 +744,33 @@ impl EcashState {
             return Err(err);
         }
 
-        // TODO:
-        let unused = "";
+        // if we managed to insert it into db, check if we might want to purge the tree history,
+        // since we will no longer have to roll it back
+        merkle_entry.maybe_rebuild();
+
         // toss a coin to check if we should clean memory of old merkle trees
+        if thread_rng().next_u32() % 10000 == 0 {
+            let mut values_to_clean = Vec::new();
+            let cutoff = self.config.ticketbook_retention_cutoff();
+            info!("attempting to remove old issued ticketbooks. the cutoff is set to {cutoff}");
+
+            for date in map.keys() {
+                if date < &cutoff {
+                    values_to_clean.push(*date)
+                }
+            }
+
+            for date in values_to_clean {
+                // remove the in-memory merkle tree
+                map.remove(&date);
+            }
+
+            // remove data from the storage
+            self.aux
+                .storage
+                .remove_old_issued_ticketbooks(cutoff)
+                .await?;
+        }
 
         Ok(())
     }
@@ -773,8 +801,7 @@ impl EcashState {
         &self,
         challenge: IssuedTicketbooksChallengeRequest,
     ) -> Result<IssuedTicketbooksChallengeResponseBody> {
-        let today = ecash_today_date();
-        if challenge.expiration_date < today - self.config.issued_ticketbooks_retention_period {
+        if challenge.expiration_date < self.config.ticketbook_retention_cutoff() {
             return Err(EcashError::ExpirationDateTooEarly);
         }
 
@@ -803,8 +830,7 @@ impl EcashState {
         &self,
         expiration: Date,
     ) -> Result<IssuedTicketbooksForResponseBody> {
-        let today = ecash_today_date();
-        if expiration < today - self.config.issued_ticketbooks_retention_period {
+        if expiration < self.config.ticketbook_retention_cutoff() {
             return Err(EcashError::ExpirationDateTooEarly);
         }
 

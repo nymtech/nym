@@ -15,7 +15,7 @@ use nym_ecash_double_spending::DoubleSpendingFilter;
 use nym_ticketbooks_merkle::{
     IssuedTicketbook, IssuedTicketbooksFullMerkleProof, IssuedTicketbooksMerkleTree, MerkleLeaf,
 };
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 use time::Date;
 use tokio::sync::RwLock;
@@ -239,9 +239,5 @@ impl LocalEcashState {
             .await
             .get(&expiration_date)
             .is_none()
-    }
-
-    pub(crate) async fn remove_old_merkle_trees(&self, current_expiration: Date) {
-        todo!("we probably need to keep them for few days (alongside the actual db data) in case rewarder is running behind")
     }
 }

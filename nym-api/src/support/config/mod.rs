@@ -59,8 +59,7 @@ pub(crate) const DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL: Duration = Duration::from
 pub(crate) const DEFAULT_NODE_DESCRIBE_BATCH_SIZE: usize = 50;
 
 // keep them for 2 extra days beyond the specified expiration date
-pub(crate) const DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION: Duration =
-    Duration::from_secs(2 * 24 * 60 * 60);
+pub(crate) const DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION_DAYS: u32 = 2;
 
 const DEFAULT_MONITOR_THRESHOLD: u8 = 60;
 const DEFAULT_MIN_MIXNODE_RELIABILITY: u8 = 50;
@@ -558,15 +557,14 @@ pub struct EcashSignerDebug {
     pub dkg_contract_polling_rate: Duration,
 
     /// Specifies how long should the issued ticketbooks be kept (beyond the specified expiration date)
-    #[serde(with = "humantime_serde")]
-    pub issued_ticketbooks_retention_period: Duration,
+    pub issued_ticketbooks_retention_period_days: u32,
 }
 
 impl Default for EcashSignerDebug {
     fn default() -> Self {
         EcashSignerDebug {
             dkg_contract_polling_rate: DEFAULT_DKG_CONTRACT_POLLING_RATE,
-            issued_ticketbooks_retention_period: DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION,
+            issued_ticketbooks_retention_period_days: DEFAULT_MAX_ISSUED_TICKETBOOKS_RETENTION_DAYS,
         }
     }
 }

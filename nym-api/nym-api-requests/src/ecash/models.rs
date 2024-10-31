@@ -1,7 +1,6 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ecash::helpers::issued_credential_plaintext;
 use crate::helpers::PlaceholderJsonSchemaImpl;
 use cosmrs::AccountId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
@@ -17,13 +16,13 @@ use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof}
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::ops::Deref;
 use thiserror::Error;
 use time::Date;
 use utoipa::ToSchema;
 
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]
 pub struct VerifyEcashTicketBody {
     /// The cryptographic material required for spending the underlying credential.
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
@@ -34,7 +33,7 @@ pub struct VerifyEcashTicketBody {
     pub gateway_cosmos_addr: AccountId,
 }
 
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]
 pub struct VerifyEcashCredentialBody {
     /// The cryptographic material required for spending the underlying credential.
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
@@ -106,7 +105,7 @@ pub enum EcashTicketVerificationRejection {
 }
 
 //  All strings are base58 encoded representations of structs
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema, ToSchema)]
 pub struct BlindSignRequestBody {
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub inner_sign_request: WithdrawalRequest,
@@ -188,7 +187,7 @@ impl BlindedSignatureResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct MasterVerificationKeyResponse {
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub key: VerificationKeyAuth,
@@ -272,17 +271,6 @@ pub struct Pagination<T> {
     /// limit is the total number of results to be returned in the result page.
     /// If left empty it will default to a value to be set by each app.
     pub limit: Option<u32>,
-}
-
-#[deprecated]
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct CredentialsRequestBody {
-    /// Explicit ids of the credentials to retrieve. Note: it can't be set alongside pagination.
-    pub credential_ids: Vec<i64>,
-
-    /// Pagination settings for retrieving credentials. Note: it can't be set alongside explicit ids.
-    pub pagination: Option<Pagination<i64>>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -469,75 +457,6 @@ impl IssuedTicketbooksChallengeResponse {
         pub_key
             .verify(self.body.plaintext(), &self.signature)
             .is_ok()
-    }
-}
-
-#[deprecated]
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct EpochCredentialsResponse {
-    pub epoch_id: u64,
-    pub first_epoch_credential_id: Option<i64>,
-    pub total_issued: u32,
-}
-
-#[deprecated]
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct IssuedCredentialsResponse {
-    // note: BTreeMap returns ordered results, so it's fine to use it with pagination
-    pub credentials: BTreeMap<i64, IssuedTicketbookBody>,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct IssuedCredentialResponse {
-    pub credential: Option<IssuedTicketbookBody>,
-}
-
-#[deprecated]
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbookBody {
-    pub credential: IssuedTicketbookDeprecated,
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
-    pub signature: identity::Signature,
-}
-
-#[deprecated]
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbookDeprecated {
-    pub id: i64,
-    pub epoch_id: u32,
-    pub deposit_id: u32,
-
-    // NOTE: if we find creation of this guy takes too long,
-    // change `BlindedSignature` to `BlindedSignatureBytes`
-    // so that nym-api wouldn't need to parse the value out of its storage
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
-    pub blinded_partial_credential: BlindedSignature,
-    pub encoded_private_attributes_commitments: Vec<Vec<u8>>,
-
-    #[schemars(with = "String")]
-    #[serde(with = "crate::helpers::date_serde")]
-    pub expiration_date: Date,
-
-    #[schemars(with = "String")]
-    pub ticketbook_type: TicketType,
-}
-
-impl IssuedTicketbookDeprecated {
-    // this method doesn't have to be reversible so just naively concatenate everything
-    pub fn signable_plaintext(&self) -> Vec<u8> {
-        issued_credential_plaintext(
-            self.epoch_id,
-            self.deposit_id,
-            &self.blinded_partial_credential,
-            &self.encoded_private_attributes_commitments,
-            self.expiration_date,
-            self.ticketbook_type,
-        )
     }
 }
 

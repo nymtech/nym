@@ -15,9 +15,7 @@ use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITL
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::AccountId;
-use std::num::ParseIntError;
 use thiserror::Error;
-use time::error::ComponentRange;
 use time::OffsetDateTime;
 
 pub type Result<T, E = EcashError> = std::result::Result<T, E>;
@@ -30,24 +28,6 @@ pub enum EcashError {
     #[error("this operation couldn't be completed as this nym-api is not an active ecash signer")]
     NotASigner,
 
-    #[error("the address of the bandwidth contract hasn't been set")]
-    MissingBandwidthContractAddress,
-
-    #[error("the current bandwidth contract does not have any admin address set")]
-    MissingBandwidthContractAdmin,
-
-    #[error("failed to derive the admin account from the provided public key: {formatted_source}")]
-    AdminAccountDerivationFailure { formatted_source: String },
-
-    #[error("only secp256k1 keys are supported for free pass issuance")]
-    UnsupportedNonSecp256k1Key,
-
-    #[error("failed to parse the free pass expiry date: {source}")]
-    ExpiryDateParsingFailure {
-        #[source]
-        source: ParseIntError,
-    },
-
     #[error("the provided expiration date is too late")]
     ExpirationDateTooLate,
 
@@ -56,22 +36,6 @@ pub enum EcashError {
 
     #[error("the provided expiration date is malformed")]
     MalformedExpirationDate { raw: String },
-
-    #[error("failed to parse expiry timestamp into proper datetime: {source}")]
-    InvalidExpiryDate {
-        unix_timestamp: i64,
-        #[source]
-        source: ComponentRange,
-    },
-
-    #[error("the received bandwidth voucher did not contain deposit value")]
-    MissingBandwidthValue,
-
-    #[error("failed to parse the bandwidth voucher value: {source}")]
-    VoucherValueParsingFailure {
-        #[source]
-        source: ParseIntError,
-    },
 
     #[error("coconut api query failure: {0}")]
     CoconutApiError(#[from] EcashApiError),
@@ -85,13 +49,6 @@ pub enum EcashError {
     #[error("could not parse X25519 data: {0}")]
     X25519ParseError(#[from] KeyRecoveryError),
 
-    #[error("could not get transaction details for '{tx_hash}': {source}")]
-    TxRetrievalFailure {
-        tx_hash: String,
-        #[source]
-        source: NyxdError,
-    },
-
     #[error("nyxd error: {0}")]
     NyxdError(#[from] NyxdError),
 
@@ -104,12 +61,6 @@ pub enum EcashError {
     #[error("Account linked to this public key has been blacklisted")]
     BlacklistedAccount,
 
-    #[error("could not find a deposit event in the transaction provided")]
-    DepositEventNotFound,
-
-    #[error("could not find the deposit info in the event")]
-    DepositInfoNotFound,
-
     #[error("signature didn't verify correctly")]
     SignatureVerificationError(#[from] SignatureError),
 
@@ -118,9 +69,6 @@ pub enum EcashError {
 
     #[error("credentials error: {0}")]
     CredentialsError(#[from] nym_credentials::error::Error),
-
-    #[error("incorrect credential proposal description: {reason}")]
-    IncorrectProposal { reason: String },
 
     #[error("DKG error: {0}")]
     DkgError(#[from] DkgError),
@@ -133,16 +81,6 @@ pub enum EcashError {
 
     #[error("DKG has not finished yet in order to derive the coconut key")]
     KeyPairNotDerivedYet,
-
-    #[error("the coconut keypair is corrupted")]
-    CorruptedCoconutKeyPair,
-
-    #[error("there was a problem with the proposal id: {reason}")]
-    ProposalIdError { reason: String },
-
-    // I guess we should make this one a bit more detailed
-    #[error("the provided query arguments were invalid")]
-    InvalidQueryArguments,
 
     #[error("the internal dkg state for epoch {epoch_id} is missing - we might have joined mid exchange")]
     MissingDkgState { epoch_id: EpochId },
@@ -177,9 +115,6 @@ pub enum EcashError {
 
     #[error("the provided request digest does not match the hash of attached serial numbers")]
     MismatchedRequestDigest,
-
-    #[error("the on chain proposal digest does not match the attached request digest")]
-    MismatchedOnChainDigest,
 
     #[error("one of the attached tickets {serial_number_bs58} has not been verified before")]
     TicketNotVerified { serial_number_bs58: String },

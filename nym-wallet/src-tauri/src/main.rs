@@ -115,7 +115,7 @@ fn main() {
             utils::owns_mixnode,
             utils::owns_nym_node,
             utils::get_env,
-            utils::try_convert_pubkey_to_mix_id,
+            utils::try_convert_pubkey_to_node_id,
             utils::default_mixnode_cost_params,
             nym_api::status::compute_mixnode_reward_estimation,
             nym_api::status::gateway_core_node_status,

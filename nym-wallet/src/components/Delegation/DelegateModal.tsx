@@ -5,7 +5,7 @@ import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField'
 import { CurrencyDenom, FeeDetails, DecCoin, decimalToFloatApproximation } from '@nymproject/types';
 import { Console } from 'src/utils/console';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { simulateDelegateToNode, simulateVestingDelegateToMixnode, tryConvertIdentityToMixId } from 'src/requests';
+import { simulateDelegateToNode, simulateVestingDelegateToMixnode, tryConvertIdentityToNodeId } from 'src/requests';
 import { debounce } from 'lodash';
 import { AppContext } from 'src/context';
 import { SimpleModal } from '../Modals/SimpleModal';
@@ -187,16 +187,16 @@ export const DelegateModal: FCWithChildren<{
       }
       let res;
       try {
-        res = await tryConvertIdentityToMixId(idKey);
+        res = await tryConvertIdentityToNodeId(idKey);
       } catch (e) {
-        Console.warn(`failed to resolve mix_id for "${idKey}": ${e}`);
+        Console.warn(`failed to resolve node_id for "${idKey}": ${e}`);
         return;
       }
       if (res) {
         setMixId(res);
         setMixIdError(undefined);
       } else {
-        setMixIdError('Mixnode with this identity does not seem to be currently bonded');
+        setMixIdError('Node with this identity does not seem to be currently bonded');
       }
     }, 500),
     [],

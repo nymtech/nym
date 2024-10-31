@@ -41,8 +41,10 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
       const NymNodeConfigParams = {
         host,
         custom_http_port,
+        restore_default_http_port: custom_http_port === null,
       };
       await updateNymNodeConfig(NymNodeConfigParams);
+
       setOpenConfirmationModal(true);
     } catch (error) {
       Console.error(error);

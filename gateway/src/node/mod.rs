@@ -622,7 +622,7 @@ impl<St> Gateway<St> {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
         let validator_client = self.random_api_client()?;
-        let existing_nodes = match validator_client.get_cached_gateways().await {
+        let existing_nodes = match validator_client.get_all_basic_nodes(None).await {
             Ok(nodes) => nodes,
             Err(err) => {
                 error!("failed to grab initial network gateways - {err}\n Please try to startup again in few minutes");
@@ -630,9 +630,9 @@ impl<St> Gateway<St> {
             }
         };
 
-        Ok(existing_nodes.iter().any(|node| {
-            node.gateway.identity_key == self.identity_keypair.public_key().to_base58_string()
-        }))
+        Ok(existing_nodes
+            .iter()
+            .any(|node| &node.ed25519_identity_pubkey == self.identity_keypair.public_key()))
     }
 
     pub async fn run(mut self) -> Result<(), GatewayError>

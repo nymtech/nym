@@ -8,6 +8,9 @@ use nym_contracts_common::truncate_decimal;
 use nym_mixnet_contract_common::NodeId;
 use nym_validator_client::client::NymApiClientExt;
 
+// use deprecated method as hopefully this whole API will be sunset soon-enough...
+// and we're only getting info for legacy node so the relevant data should still exist
+#[allow(deprecated)]
 pub(crate) async fn retrieve_mixnode_econ_stats(
     client: &ThreadsafeValidatorClient,
     mix_id: NodeId,

@@ -40,6 +40,7 @@ pub struct TicketbookRequest {
     /// you **MUST** provide a valid value otherwise blacklisting won't work
     #[schemars(with = "String")]
     #[serde(with = "bs58_ecash")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub ecash_pubkey: PublicKeyUser,
 
     // needs to be explicit in case user creates request at 23:59:59.999, but it reaches vpn-api at 00:00:00.001
@@ -48,6 +49,7 @@ pub struct TicketbookRequest {
     pub expiration_date: Date,
 
     #[schemars(with = "String")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub ticketbook_type: TicketType,
 
     pub is_freepass_request: bool,

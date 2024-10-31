@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n            id as \"id!\",\n            date as \"date!\",\n            timestamp_utc as \"timestamp_utc!\",\n            value_json as \"value_json!\"\n         FROM summary_history\n         ORDER BY date DESC\n         LIMIT 30",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "date!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "timestamp_utc!",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "value_json!",
+        "ordinal": 3,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "7600823da7ce80b8ffda933608603a2752e28df775d1af8fd943a5fc8d7dc00d"
+}

@@ -1,0 +1,43 @@
+version: "2"
+
+services:
+  remark:
+    # remove the next line in case you want to use this Docker Compose file separately
+    # as otherwise it would complain for absence of Dockerfile
+    build: .
+    image: umputun/remark42:latest
+    container_name: "remark42"
+    hostname: "remark42"
+    restart: always
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+    # uncomment to expose directly (no proxy)
+    ports:
+     - "8081:8080"
+     - "443:8443"
+
+    environment:
+      - REMARK_URL=http://localhost:8081
+      - SECRET=secret-key
+      - AUTH_ANON=true 
+      - SITE=remark42
+      # - DEBUG=true
+      # - AUTH_GOOGLE_CID
+      # - AUTH_GOOGLE_CSEC
+      # - AUTH_GITHUB_CID
+      # - AUTH_GITHUB_CSEC
+      # - AUTH_FACEBOOK_CID
+      # - AUTH_FACEBOOK_CSEC
+      # - AUTH_DISQUS_CID
+      # - AUTH_DISQUS_CSEC
+      # Enable it only for the initial comment import or for manual backups.
+      # Do not leave the server running with the ADMIN_PASSWD set if you don't have an intention
+      # to keep creating backups manually!
+      - ADMIN_PASSWD=password
+    volumes:
+      - ./var:/srv/var

@@ -10,33 +10,10 @@
 
 use std::{collections::HashMap, time::Duration};
 
-// Metrics server
-use futures::future::{FusedFuture, OptionFuture};
-use futures::FutureExt;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use http_body_util::Full;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::body::Bytes;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::server::conn::http1;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::service::service_fn;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::{Request, Response};
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper_util::rt::TokioIo;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use std::convert::Infallible;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-#[cfg(feature = "metrics-server")]
-use std::net::SocketAddr;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use tokio::net::TcpListener;
-
 use crate::spawn_future;
 
-pub(crate) mod api_statistics;
 pub(crate) mod gateway_conn_statistics;
+pub(crate) mod nym_api_statistics;
 pub(crate) mod packet_statistics;
 
 // Time interval between reporting packet statistics
@@ -48,21 +25,21 @@ const SNAPSHOT_INTERVAL_MS: u64 = 500;
 pub(crate) enum MetricsType {
     PacketStatistics,
     GatewayMetrics,
-    APIMetrics,
+    NymApiMetrics,
 }
 
 pub(crate) enum MetricsEvents {
-    PacketStatisticsEvent(packet_statistics::PacketStatisticsEvent),
-    GatewayMetricsEvent(gateway_conn_statistics::GatewayMetricsEvent),
-    APIMetricsEvent(api_statistics::APIMetricsEvent),
+    PacketStatistics(packet_statistics::PacketStatisticsEvent),
+    GatewayConn(gateway_conn_statistics::GatewayMetricsEvent),
+    NymApi(nym_api_statistics::NymApiMetricsEvent),
 }
 
 impl MetricsEvents {
     pub(crate) fn metrics_type(&self) -> MetricsType {
         match self {
-            MetricsEvents::PacketStatisticsEvent(_) => MetricsType::PacketStatistics,
-            MetricsEvents::GatewayMetricsEvent(_) => MetricsType::GatewayMetrics,
-            MetricsEvents::APIMetricsEvent(_) => MetricsType::APIMetrics,
+            MetricsEvents::PacketStatistics(_) => MetricsType::PacketStatistics,
+            MetricsEvents::GatewayConn(_) => MetricsType::GatewayMetrics,
+            MetricsEvents::NymApi(_) => MetricsType::NymApiMetrics,
         }
     }
 }
@@ -139,8 +116,8 @@ impl MetricsController {
             Box::new(gateway_conn_statistics::GatewayMetricsControl::new()),
         );
         stats.insert(
-            MetricsType::APIMetrics,
-            Box::new(api_statistics::APIMetricsControl::new()),
+            MetricsType::NymApiMetrics,
+            Box::new(nym_api_statistics::NymApiMetricsControl::new()),
         );
 
         let metrics_sender = MetricsSender::new(stats_tx);
@@ -156,44 +133,7 @@ impl MetricsController {
         let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
         let mut snapshot_interval = tokio::time::interval(snapshot_interval);
 
-        cfg_if::cfg_if! {
-            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
-                log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
-                let listener: Option<WasmEmpty> = None;
-            } else if #[cfg(feature = "metrics-server")] {
-                let mut metrics_port = 18000;
-                let listener: Option<TcpListener>;
-                loop {
-                    let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
-                    match TcpListener::bind(addr).await {
-                        Ok(l) => {
-                            log::info!("###############################");
-                            log::info!("Metrics endpoint is at: {:?}", l.local_addr());
-                            log::info!("###############################");
-                            listener = Some(l);
-                            break;
-                        },
-                        Err(err) => {
-                            log::warn!("Failed to bind metrics server: {:?}", err);
-                            metrics_port += 1;
-                        }
-                    };
-                }
-            } else {
-                log::info!("Metrics server is disabled!");
-                let listener: Option<TcpListener> = None;
-            }
-        }
-
         loop {
-            // it seems at some point tokio changed its select precondition evaluation,
-            // and it's no longer checked before the future is evaluated.
-            let accept_future: OptionFuture<_> = listener
-                .as_ref()
-                .map(|l| l.accept())
-                .map(FutureExt::fuse)
-                .into();
-
             tokio::select! {
                 stats_event = self.stats_rx.recv() => match stats_event {
                     Some(stats_event) => {
@@ -208,30 +148,8 @@ impl MetricsController {
                         break;
                     }
                 },
-                // conditional will disable the branch if we're in wasm32-unknown-unknown
-                // use `_` to calm down clippy when running for wasm
-                _result = accept_future, if !accept_future.is_terminated() => {
-                    cfg_if::cfg_if! {
-                        if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
-                            if let Some(Ok((stream, _))) = _result {
-                                let io = TokioIo::new(stream);
-
-                                tokio::task::spawn(async move {
-                                    if let Err(err) = http1::Builder::new()
-                                        .serve_connection(io, service_fn(serve_metrics))
-                                        .await
-                                    {
-                                        log::warn!("Error serving connection: {:?}", err);
-                                    }
-                                });
-                            } else {
-                                log::warn!("Error accepting connection");
-                            }
-                        }
-                    }
-                }
                 _ = snapshot_interval.tick() => {
-                    for (_type, stats) in &mut self.stats {
+                    for stats in self.stats.values_mut() {
                         stats.snapshot();
                     }
                 }
@@ -248,7 +166,7 @@ impl MetricsController {
     }
 
     pub(crate) fn report_all(&mut self) {
-        for (_type, stats) in &mut self.stats {
+        for stats in self.stats.values_mut() {
             match stats.marshall() {
                 Ok(metrics) => log::info!(" {:?}: {:?}", stats.type_identity(), metrics),
                 Err(err) => log::error!("{:?}: marshall metrics: {:?}", stats.type_identity(), err),
@@ -264,31 +182,14 @@ impl MetricsController {
     }
 }
 
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-async fn serve_metrics(
-    _: Request<hyper::body::Incoming>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
-    use nym_metrics::metrics;
-
-    Ok(Response::new(Full::new(Bytes::from(metrics!()))))
-}
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-struct WasmEmpty;
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-impl WasmEmpty {
-    async fn accept(&self) {}
-}
-
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
     use tokio::sync::Mutex;
 
     use super::*;
-    use crate::client::metrics::api_statistics::APIMetricsEvent;
     use crate::client::metrics::gateway_conn_statistics::GatewayMetricsEvent;
+    use crate::client::metrics::nym_api_statistics::NymApiMetricsEvent;
     use crate::client::metrics::packet_statistics::PacketStatisticsEvent;
 
     #[tokio::test]
@@ -306,15 +207,13 @@ mod test {
         });
 
         for _ in 0..10 {
-            metrics_sender.report(MetricsEvents::PacketStatisticsEvent(
+            metrics_sender.report(MetricsEvents::PacketStatistics(
                 PacketStatisticsEvent::RealPacketSent(1),
             ));
-            metrics_sender.report(MetricsEvents::GatewayMetricsEvent(
+            metrics_sender.report(MetricsEvents::GatewayConn(
                 GatewayMetricsEvent::RealPacketSent(2),
             ));
-            metrics_sender.report(MetricsEvents::APIMetricsEvent(
-                APIMetricsEvent::RealPacketSent(3),
-            ));
+            metrics_sender.report(MetricsEvents::NymApi(NymApiMetricsEvent::RealPacketSent(3)));
             tokio::time::sleep(Duration::from_millis(500)).await;
         }
 

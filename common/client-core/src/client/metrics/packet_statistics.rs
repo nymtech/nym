@@ -329,9 +329,9 @@ pub(crate) enum PacketStatisticsEvent {
     AdditionalReplySurbRequestQueued,
 }
 
-impl Into<MetricsEvents> for PacketStatisticsEvent {
-    fn into(self) -> MetricsEvents {
-        MetricsEvents::PacketStatisticsEvent(self)
+impl From<PacketStatisticsEvent> for MetricsEvents {
+    fn from(event: PacketStatisticsEvent) -> MetricsEvents {
+        MetricsEvents::PacketStatistics(event)
     }
 }
 
@@ -365,7 +365,7 @@ impl super::MetricsObj for PacketStatisticsControl {
 
     fn handle_event(&mut self, event: MetricsEvents) {
         match event {
-            MetricsEvents::PacketStatisticsEvent(ev) => self.stats.handle(ev),
+            MetricsEvents::PacketStatistics(ev) => self.stats.handle(ev),
             _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
         }
     }

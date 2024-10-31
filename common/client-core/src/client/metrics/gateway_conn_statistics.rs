@@ -34,9 +34,9 @@ impl GatewayMetrics {
     }
 }
 
-impl Into<MetricsEvents> for GatewayMetricsEvent {
-    fn into(self) -> MetricsEvents {
-        MetricsEvents::GatewayMetricsEvent(self)
+impl From<GatewayMetricsEvent> for MetricsEvents {
+    fn from(event: GatewayMetricsEvent) -> MetricsEvents {
+        MetricsEvents::GatewayConn(event)
     }
 }
 
@@ -70,7 +70,7 @@ impl super::MetricsObj for GatewayMetricsControl {
 
     fn handle_event(&mut self, event: MetricsEvents) {
         match event {
-            MetricsEvents::GatewayMetricsEvent(ev) => self.stats.handle(ev),
+            MetricsEvents::GatewayConn(ev) => self.stats.handle(ev),
             _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
         }
     }

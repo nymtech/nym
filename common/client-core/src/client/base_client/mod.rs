@@ -719,6 +719,9 @@ where
             self.user_agent.clone(),
         );
 
+        let metrics_reporter =
+            Self::start_packet_statistics_control(shutdown.fork("packet_statistics_control"));
+
         // needs to be started as the first thing to block if required waiting for the gateway
         Self::start_topology_refresher(
             topology_provider,
@@ -729,9 +732,6 @@ where
             shutdown.fork("topology_refresher"),
         )
         .await?;
-
-        let metrics_reporter =
-            Self::start_packet_statistics_control(shutdown.fork("packet_statistics_control"));
 
         let gateway_packet_router = PacketRouter::new(
             ack_sender,

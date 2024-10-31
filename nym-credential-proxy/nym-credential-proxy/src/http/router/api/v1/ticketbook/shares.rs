@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::VpnApiError;
-use crate::http::helpers::random_uuid;
+use crate::http::helpers::{db_failure, random_uuid};
 use crate::http::router::api::v1::ticketbook::FormattedTicketbookWalletSharesResponse;
 use crate::http::state::ApiState;
 use crate::http::types::RequestError;
@@ -17,7 +17,7 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
 use nym_credential_proxy_requests::routes::api::v1::ticketbook::shares;
 use nym_http_api_common::OutputParams;
 use nym_validator_client::nym_api::EpochId;
-use tracing::{debug, span, warn, Level};
+use tracing::{debug, span, Level};
 use uuid::Uuid;
 
 async fn shares_to_response(
@@ -112,7 +112,26 @@ pub(crate) async fn query_for_shares_by_id(
     {
         Ok(shares) => {
             if shares.is_empty() {
-                debug!("not found");
+                debug!("shares not found");
+
+                // check for explicit error
+                match state
+                    .storage()
+                    .load_shares_error_by_shares_id(share_id)
+                    .await
+                {
+                    Ok(maybe_error_message) => {
+                        if let Some(error_message) = maybe_error_message {
+                            return Err(RequestError::new_with_uuid(
+                                format!("failed to obtain wallet shares: {error_message} - share_id = {share_id}"),
+                                uuid,
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                            ));
+                        }
+                    }
+                    Err(err) => return db_failure(err, uuid),
+                }
+
                 return Err(RequestError::new_with_uuid(
                     format!("not found - share_id = {share_id}"),
                     uuid,
@@ -121,14 +140,7 @@ pub(crate) async fn query_for_shares_by_id(
             }
             shares
         }
-        Err(err) => {
-            warn!("db failure: {err}");
-            return Err(RequestError::new_with_uuid(
-                format!("oh no, something went wrong {err}"),
-                uuid,
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ));
-        }
+        Err(err) => return db_failure(err, uuid),
     };
 
     shares_to_response(state, uuid, shares, params).await
@@ -174,7 +186,26 @@ pub(crate) async fn query_for_shares_by_device_id_and_credential_id(
     {
         Ok(shares) => {
             if shares.is_empty() {
-                debug!("not found");
+                debug!("shares not found");
+
+                // check for explicit error
+                match state
+                    .storage()
+                    .load_shares_error_by_device_and_credential_id(&device_id, &credential_id)
+                    .await
+                {
+                    Ok(maybe_error_message) => {
+                        if let Some(error_message) = maybe_error_message {
+                            return Err(RequestError::new_with_uuid(
+                                format!("failed to obtain wallet shares: {error_message} - device_id = {device_id}, credential_id = {credential_id}"),
+                                uuid,
+                                StatusCode::INTERNAL_SERVER_ERROR,
+                            ));
+                        }
+                    }
+                    Err(err) => return db_failure(err, uuid),
+                }
+
                 return Err(RequestError::new_with_uuid(
                     format!("not found - device_id = {device_id}, credential_id = {credential_id}"),
                     uuid,
@@ -183,14 +214,7 @@ pub(crate) async fn query_for_shares_by_device_id_and_credential_id(
             }
             shares
         }
-        Err(err) => {
-            warn!("db failure: {err}");
-            return Err(RequestError::new_with_uuid(
-                format!("oh no, something went wrong {err}"),
-                uuid,
-                StatusCode::INTERNAL_SERVER_ERROR,
-            ));
-        }
+        Err(err) => return db_failure(err, uuid),
     };
 
     shares_to_response(state, uuid, shares, params).await

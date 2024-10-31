@@ -54,6 +54,23 @@ impl SqliteStorageManager {
         .await
     }
 
+    pub(crate) async fn load_shares_error_by_device_by_shares_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<String>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"
+                SELECT error_message
+                FROM blinded_shares
+                WHERE id = ?;
+            "#,
+            id,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?
+        .error_message)
+    }
+
     pub(crate) async fn load_blinded_shares_status_by_device_and_credential_id(
         &self,
         device_id: &str,
@@ -100,6 +117,25 @@ impl SqliteStorageManager {
         )
         .fetch_all(&self.connection_pool)
         .await
+    }
+
+    pub(crate) async fn load_shares_error_by_device_and_credential_id(
+        &self,
+        device_id: &str,
+        credential_id: &str,
+    ) -> Result<Option<String>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"
+                SELECT error_message
+                FROM blinded_shares
+                WHERE device_id = ? AND credential_id = ?;
+            "#,
+            device_id,
+            credential_id
+        )
+        .fetch_one(&self.connection_pool)
+        .await?
+        .error_message)
     }
 
     pub(crate) async fn insert_new_pending_async_shares_request(

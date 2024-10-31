@@ -83,6 +83,16 @@ impl VpnApiStorage {
             .await?)
     }
 
+    pub(crate) async fn load_shares_error_by_shares_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<String>, VpnApiError> {
+        Ok(self
+            .storage_manager
+            .load_shares_error_by_device_by_shares_id(id)
+            .await?)
+    }
+
     #[allow(dead_code)]
     pub(crate) async fn load_blinded_shares_status_by_device_and_credential_id(
         &self,
@@ -103,6 +113,17 @@ impl VpnApiStorage {
         Ok(self
             .storage_manager
             .load_wallet_shares_by_device_and_credential_id(device_id, credential_id)
+            .await?)
+    }
+
+    pub(crate) async fn load_shares_error_by_device_and_credential_id(
+        &self,
+        device_id: &str,
+        credential_id: &str,
+    ) -> Result<Option<String>, VpnApiError> {
+        Ok(self
+            .storage_manager
+            .load_shares_error_by_device_and_credential_id(device_id, credential_id)
             .await?)
     }
 

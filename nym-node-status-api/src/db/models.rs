@@ -11,7 +11,7 @@ pub(crate) struct GatewayRecord {
     pub(crate) identity_key: String,
     pub(crate) bonded: bool,
     pub(crate) blacklisted: bool,
-    pub(crate) self_described: Option<String>,
+    pub(crate) self_described: String,
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_updated_utc: i64,
     pub(crate) performance: u8,
@@ -300,6 +300,7 @@ pub(crate) mod gateway {
     }
 }
 
+#[allow(dead_code)] // not dead code, this is SQL data model
 #[derive(Debug, Clone)]
 pub struct TestRunDto {
     pub id: i64,
@@ -315,7 +316,7 @@ pub struct TestRunDto {
 pub(crate) enum TestRunStatus {
     Complete = 2,
     InProgress = 1,
-    Pending = 0,
+    Queued = 0,
 }
 
 #[derive(Debug, Clone)]

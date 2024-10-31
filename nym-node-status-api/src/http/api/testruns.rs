@@ -1,3 +1,4 @@
+use axum::extract::DefaultBodyLimit;
 use axum::Json;
 use axum::{
     extract::{Path, State},
@@ -23,31 +24,32 @@ pub(crate) fn routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(request_testrun))
         .route("/:testrun_id", axum::routing::post(submit_testrun))
+        .layer(DefaultBodyLimit::max(1024 * 1024 * 5))
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
 async fn request_testrun(State(state): State<AppState>) -> HttpResult<Json<TestrunAssignment>> {
     // TODO dz log agent's key
     // TODO dz log agent's network probe version
-    tracing::debug!("Agent X requested testrun");
+    tracing::debug!("Agent requested testrun");
 
     let db = state.db_pool();
-    let conn = db
+    let mut conn = db
         .acquire()
         .await
         .map_err(HttpError::internal_with_logging)?;
 
-    return match db::queries::testruns::get_oldest_testrun_and_make_it_pending(conn).await {
+    return match db::queries::testruns::get_oldest_testrun_and_make_it_pending(&mut conn).await {
         Ok(res) => {
             if let Some(testrun) = res {
-                // TODO dz consider adding a column to testruns table with agent's public key
                 tracing::debug!(
-                    "🏃‍ Assigned testrun row_id {} to agent X",
-                    &testrun.testrun_id
+                    "🏃‍ Assigned testrun row_id {} gateway {} to agent",
+                    &testrun.testrun_id,
+                    testrun.gateway_identity_key
                 );
                 Ok(Json(testrun))
             } else {
-                Err(HttpError::not_found("No testruns available"))
+                Err(HttpError::no_available_testruns())
             }
         }
         Err(err) => Err(HttpError::internal_with_logging(err)),
@@ -61,25 +63,32 @@ async fn submit_testrun(
     State(state): State<AppState>,
     body: String,
 ) -> HttpResult<StatusCode> {
-    tracing::debug!(
-        "Agent submitted testrun {}. Total length: {}",
-        testrun_id,
-        body.len(),
-    );
-    // TODO dz store testrun results
-
     let db = state.db_pool();
     let mut conn = db
         .acquire()
         .await
         .map_err(HttpError::internal_with_logging)?;
 
-    let testrun = queries::testruns::get_testrun_by_id(&mut conn, testrun_id)
+    let testrun = queries::testruns::get_in_progress_testrun_by_id(&mut conn, testrun_id)
         .await
         .map_err(|e| {
             tracing::error!("{e}");
             HttpError::not_found(testrun_id)
         })?;
+
+    let gw_identity = db::queries::select_gateway_identity(&mut conn, testrun.gateway_id)
+        .await
+        .map_err(|_| {
+            // should never happen:
+            HttpError::internal_with_logging("No gateway found for testrun")
+        })?;
+    tracing::debug!(
+        "Agent submitted testrun {} for gateway {} ({} bytes)",
+        testrun_id,
+        gw_identity,
+        body.len(),
+    );
+
     // TODO dz this should be part of a single transaction: commit after everything is done
     queries::testruns::update_testrun_status(&mut conn, testrun_id, TestRunStatus::Complete)
         .await
@@ -99,7 +108,7 @@ async fn submit_testrun(
     tracing::info!(
         "✅ Testrun row_id {} for gateway {} complete",
         testrun.id,
-        testrun.gateway_id
+        gw_identity
     );
 
     Ok(StatusCode::CREATED)

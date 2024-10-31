@@ -31,24 +31,19 @@ pub(crate) enum Command {
         /// path of binary to run
         #[arg(long, env = "NODE_STATUS_AGENT_PROBE_PATH")]
         probe_path: String,
-        #[arg(short, long, env = "NODE_STATUS_AGENT_GATEWAY_ID")]
-        gateway_id: Option<String>,
     },
 }
 
 impl Args {
     pub(crate) async fn execute(&self) -> anyhow::Result<()> {
         match &self.command {
-            Command::RunProbe {
-                probe_path,
-                gateway_id,
-            } => self.run_probe(probe_path, gateway_id).await?,
+            Command::RunProbe { probe_path } => self.run_probe(probe_path).await?,
         }
 
         Ok(())
     }
 
-    async fn run_probe(&self, probe_path: &str, gateway_id: &Option<String>) -> anyhow::Result<()> {
+    async fn run_probe(&self, probe_path: &str) -> anyhow::Result<()> {
         let server_address = format!("{}:{}", &self.server_address, self.server_port);
 
         let probe = GwProbe::new(probe_path.to_string());
@@ -58,7 +53,7 @@ impl Args {
 
         let testrun = request_testrun(&server_address).await?;
 
-        let log = probe.run_and_get_log(gateway_id);
+        let log = probe.run_and_get_log(&Some(testrun.gateway_identity_key));
 
         submit_results(&server_address, testrun.testrun_id, log).await?;
 
@@ -97,6 +92,7 @@ async fn submit_results(
 ) -> anyhow::Result<()> {
     let target_url = format!("{}/{}/{}", server_addr, URL_BASE, testrun_id);
     let client = reqwest::Client::new();
+
     let res = client
         .post(target_url)
         .body(probe_outcome)

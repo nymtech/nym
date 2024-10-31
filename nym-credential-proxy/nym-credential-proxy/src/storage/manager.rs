@@ -82,7 +82,11 @@ impl SqliteStorageManager {
         sqlx::query_as!(
             MinimalWalletShare,
             r#"
-                SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date
+                SELECT 
+                    t1.node_id as "node_id!",
+                    t1.blinded_signature as "blinded_signature!",
+                    t1.epoch_id as "epoch_id!",
+                    t1.expiration_date as "expiration_date!"
                 FROM partial_blinded_wallet as t1
                 JOIN ticketbook_deposit as t2
                     on t1.corresponding_deposit = t2.deposit_id

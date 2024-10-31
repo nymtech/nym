@@ -3,7 +3,7 @@ import { CurrencyDenom } from '@nymproject/types';
 import { TBondNymNodeArgs, TBondMixNodeArgs } from 'src/types';
 
 const defaultNymNodeValues: TBondNymNodeArgs['nymnode'] = {
-  identity_key: 'H6rXWgsW89QsVyaNSS3qBe9zZFLhBS6Gn3YRkGFSoFW9',
+  identity_key: '',
   custom_http_port: null,
   host: '1.1.1.1',
 };

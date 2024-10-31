@@ -1,31 +1,12 @@
 import React from 'react';
-import * as yup from 'yup';
+import * as Yup from 'yup';
 import { Stack, TextField, FormControlLabel, Checkbox } from '@mui/material';
 import { useForm } from 'react-hook-form';
 import { IdentityKeyFormField } from '@nymproject/react/mixnodes/IdentityKeyFormField';
 import { yupResolver } from '@hookform/resolvers/yup';
-import { isValidHostname, validateRawPort } from 'src/utils';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { useFormContext } from './FormContext';
-
-const yupValidationSchema = yup.object().shape({
-  identity_key: yup.string().required('Identity key is required'),
-  host: yup
-    .string()
-    .required('A host is required')
-    .test('no-whitespace', 'Host cannot contain whitespace', (value) => !/\s/.test(value || ''))
-    .test('valid-host', 'A valid host is required', (value) => (value ? isValidHostname(value) : false)),
-
-  custom_http_port: yup
-    .number()
-    .nullable()
-    .test('valid-http', 'A valid http port is required', (value) => {
-      if (value === null) {
-        return true;
-      }
-      return value ? validateRawPort(value) : false;
-    }),
-});
+import { settingsValidationSchema } from './settingsValidationSchema';
 
 type NymNodeDataProps = {
   onClose: () => void;
@@ -33,6 +14,11 @@ type NymNodeDataProps = {
   onNext: () => Promise<void>;
   step: number;
 };
+
+const validationSchema = Yup.object().shape({
+  identity_key: Yup.string().required('Identity key is required'),
+  ...settingsValidationSchema.fields,
+});
 
 const NymNodeData = ({ onClose, onNext, step }: NymNodeDataProps) => {
   const { setNymNodeData, nymNodeData } = useFormContext();
@@ -44,7 +30,7 @@ const NymNodeData = ({ onClose, onNext, step }: NymNodeDataProps) => {
   } = useForm({
     mode: 'all',
     defaultValues: nymNodeData,
-    resolver: yupResolver(yupValidationSchema),
+    resolver: yupResolver(validationSchema),
   });
 
   const [showAdvancedOptions, setShowAdvancedOptions] = React.useState(false);

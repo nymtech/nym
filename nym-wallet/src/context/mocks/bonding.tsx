@@ -149,6 +149,14 @@ export const MockBondingContextProvider = ({
     return TxResultMock;
   };
 
+  const updateNymNodeConfig = async (): Promise<TransactionExecuteResult> => {
+    setIsLoading(true);
+    await mockSleep(SLEEP_MS);
+    triggerStateUpdate();
+    setIsLoading(false);
+    return TxResultMock;
+  };
+
   const redeemRewards = async (): Promise<TransactionExecuteResult | undefined> => {
     setIsLoading(true);
     await mockSleep(SLEEP_MS);
@@ -212,6 +220,7 @@ export const MockBondingContextProvider = ({
       isVestingAccount: false,
       migrateVestedMixnode: async () => undefined,
       migrateLegacyNode: async () => undefined,
+      updateNymNodeConfig,
     }),
     [isLoading, error, bondedMixnode, bondedGateway, trigger, fee],
   );

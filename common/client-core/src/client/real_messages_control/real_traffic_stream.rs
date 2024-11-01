@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use self::sending_delay_controller::SendingDelayController;
-use crate::client::metrics::{packet_statistics::PacketStatisticsEvent, MetricsSender};
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
+use crate::client::statistics::{packet_statistics::PacketStatisticsEvent, ClientStatisticsSender};
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
 use crate::config;
@@ -116,7 +116,7 @@ where
     lane_queue_lengths: LaneQueueLengths,
 
     /// Channel used for sending metrics events (specifically `PacketStatistics` events) to the metrics tracker.
-    stats_tx: MetricsSender,
+    stats_tx: ClientStatisticsSender,
 }
 
 #[derive(Debug)]
@@ -175,7 +175,7 @@ where
         topology_access: TopologyAccessor,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        stats_tx: MetricsSender,
+        stats_tx: ClientStatisticsSender,
     ) -> Self {
         OutQueueControl {
             config,

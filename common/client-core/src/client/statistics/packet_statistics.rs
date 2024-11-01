@@ -1,4 +1,4 @@
-use super::MetricsEvents;
+use super::StatsEvents;
 use std::{
     collections::VecDeque,
     time::{Duration, Instant},
@@ -329,9 +329,9 @@ pub(crate) enum PacketStatisticsEvent {
     AdditionalReplySurbRequestQueued,
 }
 
-impl From<PacketStatisticsEvent> for MetricsEvents {
-    fn from(event: PacketStatisticsEvent) -> MetricsEvents {
-        MetricsEvents::PacketStatistics(event)
+impl From<PacketStatisticsEvent> for StatsEvents {
+    fn from(event: PacketStatisticsEvent) -> StatsEvents {
+        StatsEvents::PacketStatistics(event)
     }
 }
 
@@ -347,7 +347,7 @@ pub(crate) struct PacketStatisticsControl {
     rates: VecDeque<(Instant, PacketRates)>,
 }
 
-impl super::MetricsObj for PacketStatisticsControl {
+impl super::StatsObj for PacketStatisticsControl {
     fn new() -> Self
     where
         Self: Sized,
@@ -359,13 +359,13 @@ impl super::MetricsObj for PacketStatisticsControl {
         }
     }
 
-    fn type_identity(&self) -> super::MetricsType {
-        super::MetricsType::PacketStatistics
+    fn type_identity(&self) -> super::StatsType {
+        super::StatsType::Packets
     }
 
-    fn handle_event(&mut self, event: MetricsEvents) {
+    fn handle_event(&mut self, event: StatsEvents) {
         match event {
-            MetricsEvents::PacketStatistics(ev) => self.stats.handle(ev),
+            StatsEvents::PacketStatistics(ev) => self.stats.handle(ev),
             _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
         }
     }
@@ -381,7 +381,7 @@ impl super::MetricsObj for PacketStatisticsControl {
     }
 }
 
-impl super::MetricsReporter for PacketStatisticsControl {
+impl super::StatisticsReporter for PacketStatisticsControl {
     fn marshall(&self) -> std::io::Result<String> {
         self.report_rates();
         self.check_for_notable_events();

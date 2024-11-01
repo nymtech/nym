@@ -8,9 +8,9 @@ use self::{
     sent_notification_listener::SentNotificationListener,
 };
 use crate::client::inbound_messages::InputMessageReceiver;
-use crate::client::metrics::MetricsSender;
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::ReplyControllerSender;
+use crate::client::statistics::ClientStatisticsSender;
 use crate::spawn_future;
 use action_controller::AckActionReceiver;
 use futures::channel::mpsc;
@@ -209,7 +209,7 @@ where
         connectors: AcknowledgementControllerConnectors,
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
-        stats_tx: MetricsSender,
+        stats_tx: ClientStatisticsSender,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 

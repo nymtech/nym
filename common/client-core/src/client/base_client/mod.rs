@@ -1,9 +1,8 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::metrics::{MetricsController, MetricsSender};
 use super::received_buffer::ReceivedBufferMessage;
-use super::statistics::StatisticsControl;
+use super::statistics::{ClientStatisticsSender, StatisticsControl};
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
@@ -282,7 +281,7 @@ where
         self_address: Recipient,
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
-        stats_tx: MetricsSender,
+        stats_tx: ClientStatisticsSender,
         shutdown: TaskClient,
     ) {
         info!("Starting loop cover traffic stream...");
@@ -315,7 +314,7 @@ where
         client_connection_rx: ConnectionCommandReceiver,
         shutdown: TaskClient,
         packet_type: PacketType,
-        stats_tx: MetricsSender,
+        stats_tx: ClientStatisticsSender,
     ) {
         info!("Starting real traffic stream...");
 
@@ -344,7 +343,7 @@ where
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         shutdown: TaskClient,
-        metrics_reporter: MetricsSender,
+        metrics_reporter: ClientStatisticsSender,
     ) {
         info!("Starting received messages buffer controller...");
         let controller: ReceivedMessagesBufferController<SphinxMessageReceiver> =
@@ -595,9 +594,9 @@ where
         Ok(())
     }
 
-    fn start_packet_statistics_control(shutdown: TaskClient) -> MetricsSender {
+    fn start_packet_statistics_control(shutdown: TaskClient) -> ClientStatisticsSender {
         info!("Starting packet statistics control...");
-        let (metrics_controller, metrics_reporter) = MetricsController::new();
+        let (metrics_controller, metrics_reporter) = StatisticsControl::new();
         metrics_controller.start_with_shutdown(shutdown);
         metrics_reporter
     }

@@ -2,22 +2,22 @@
 //!
 //! Metrics collected by the client while establishing and maintaining connections to the gateway.
 
-use super::MetricsEvents;
+use super::StatsEvents;
 use std::collections::VecDeque;
 
 use nym_metrics::{inc, inc_by};
 
 #[derive(Default, Debug, Clone)]
-struct GatewayMetrics {
+struct GatewayStats {
     // Sent
     real_packets_sent: u64,
     real_packets_sent_size: usize,
 }
 
-impl GatewayMetrics {
-    fn handle(&mut self, event: GatewayMetricsEvent) {
+impl GatewayStats {
+    fn handle(&mut self, event: GatewayStatsEvent) {
         match event {
-            GatewayMetricsEvent::RealPacketSent(packet_size) => {
+            GatewayStatsEvent::RealPacketSent(packet_size) => {
                 self.real_packets_sent += 1;
                 self.real_packets_sent_size += packet_size;
                 inc!("real_packets_sent");
@@ -34,43 +34,43 @@ impl GatewayMetrics {
     }
 }
 
-impl From<GatewayMetricsEvent> for MetricsEvents {
-    fn from(event: GatewayMetricsEvent) -> MetricsEvents {
-        MetricsEvents::GatewayConn(event)
+impl From<GatewayStatsEvent> for StatsEvents {
+    fn from(event: GatewayStatsEvent) -> StatsEvents {
+        StatsEvents::GatewayConn(event)
     }
 }
 
 #[derive(Debug)]
-pub(crate) enum GatewayMetricsEvent {
+pub(crate) enum GatewayStatsEvent {
     // The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
     RealPacketSent(usize),
 }
 
-pub(crate) struct GatewayMetricsControl {
+pub(crate) struct GatewayStatsControl {
     // Keep track of packet statistics over time
-    stats: GatewayMetrics,
+    stats: GatewayStats,
 
     failures: VecDeque<()>, // TODO
 }
 
-impl super::MetricsObj for GatewayMetricsControl {
+impl super::StatsObj for GatewayStatsControl {
     fn new() -> Self
     where
         Self: Sized,
     {
         Self {
-            stats: GatewayMetrics::default(),
+            stats: GatewayStats::default(),
             failures: VecDeque::new(),
         }
     }
 
-    fn type_identity(&self) -> super::MetricsType {
-        super::MetricsType::GatewayMetrics
+    fn type_identity(&self) -> super::StatsType {
+        super::StatsType::Gateway
     }
 
-    fn handle_event(&mut self, event: MetricsEvents) {
+    fn handle_event(&mut self, event: StatsEvents) {
         match event {
-            MetricsEvents::GatewayConn(ev) => self.stats.handle(ev),
+            StatsEvents::GatewayConn(ev) => self.stats.handle(ev),
             _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
         }
     }
@@ -80,11 +80,11 @@ impl super::MetricsObj for GatewayMetricsControl {
     }
 
     fn periodic_reset(&mut self) {
-        self.stats = GatewayMetrics::default();
+        self.stats = GatewayStats::default();
     }
 }
 
-impl super::MetricsReporter for GatewayMetricsControl {
+impl super::StatisticsReporter for GatewayStatsControl {
     fn marshall(&self) -> std::io::Result<String> {
         self.check_for_notable_events();
         self.report_counters();
@@ -92,7 +92,7 @@ impl super::MetricsReporter for GatewayMetricsControl {
     }
 }
 
-impl GatewayMetricsControl {
+impl GatewayStatsControl {
     fn report_counters(&self) {
         log::trace!("packet statistics: {:?}", &self.stats);
         let (summary_sent, summary_recv) = self.stats.summary();

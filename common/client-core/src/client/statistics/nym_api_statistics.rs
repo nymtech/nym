@@ -2,22 +2,22 @@
 //!
 //! Metrics collected by the client while attempting to pull config from the API.
 
-use super::MetricsEvents;
+use super::StatsEvents;
 use std::collections::VecDeque;
 
 use nym_metrics::{inc, inc_by};
 
 #[derive(Default, Debug, Clone)]
-struct NymApiMetrics {
+struct NymApiStats {
     // Sent
     real_packets_sent: u64,
     real_packets_sent_size: usize,
 }
 
-impl NymApiMetrics {
-    fn handle(&mut self, event: NymApiMetricsEvent) {
+impl NymApiStats {
+    fn handle(&mut self, event: NymApiStatsEvent) {
         match event {
-            NymApiMetricsEvent::RealPacketSent(packet_size) => {
+            NymApiStatsEvent::RealPacketSent(packet_size) => {
                 self.real_packets_sent += 1;
                 self.real_packets_sent_size += packet_size;
                 inc!("real_packets_sent");
@@ -35,42 +35,42 @@ impl NymApiMetrics {
 }
 
 #[derive(Debug)]
-pub(crate) enum NymApiMetricsEvent {
+pub(crate) enum NymApiStatsEvent {
     // The real packets sent. Recall that acks are sent by the Api, so it's not included here.
     RealPacketSent(usize),
 }
 
-impl From<NymApiMetricsEvent> for MetricsEvents {
-    fn from(event: NymApiMetricsEvent) -> MetricsEvents {
-        MetricsEvents::NymApi(event)
+impl From<NymApiStatsEvent> for StatsEvents {
+    fn from(event: NymApiStatsEvent) -> StatsEvents {
+        StatsEvents::NymApi(event)
     }
 }
 
-pub(crate) struct NymApiMetricsControl {
+pub(crate) struct NymApiStatsControl {
     // Keep track of packet statistics over time
-    stats: NymApiMetrics,
+    stats: NymApiStats,
 
     failures: VecDeque<()>, // TODO
 }
 
-impl super::MetricsObj for NymApiMetricsControl {
+impl super::StatsObj for NymApiStatsControl {
     fn new() -> Self
     where
         Self: Sized,
     {
         Self {
-            stats: NymApiMetrics::default(),
+            stats: NymApiStats::default(),
             failures: VecDeque::new(),
         }
     }
 
-    fn type_identity(&self) -> super::MetricsType {
-        super::MetricsType::NymApiMetrics
+    fn type_identity(&self) -> super::StatsType {
+        super::StatsType::NymApi
     }
 
-    fn handle_event(&mut self, event: MetricsEvents) {
+    fn handle_event(&mut self, event: StatsEvents) {
         match event {
-            MetricsEvents::NymApi(ev) => self.stats.handle(ev),
+            StatsEvents::NymApi(ev) => self.stats.handle(ev),
             _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
         }
     }
@@ -80,11 +80,11 @@ impl super::MetricsObj for NymApiMetricsControl {
     }
 
     fn periodic_reset(&mut self) {
-        self.stats = NymApiMetrics::default();
+        self.stats = NymApiStats::default();
     }
 }
 
-impl super::MetricsReporter for NymApiMetricsControl {
+impl super::StatisticsReporter for NymApiStatsControl {
     fn marshall(&self) -> std::io::Result<String> {
         self.check_for_notable_events();
         self.report_counters();
@@ -92,7 +92,7 @@ impl super::MetricsReporter for NymApiMetricsControl {
     }
 }
 
-impl NymApiMetricsControl {
+impl NymApiStatsControl {
     fn report_counters(&self) {
         log::trace!("packet statistics: {:?}", &self.stats);
         let (summary_sent, summary_recv) = self.stats.summary();

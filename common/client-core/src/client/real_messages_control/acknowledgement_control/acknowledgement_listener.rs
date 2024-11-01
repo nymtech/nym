@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::action_controller::{AckActionSender, Action};
-use crate::client::metrics::{packet_statistics::PacketStatisticsEvent, MetricsSender};
+use crate::client::statistics::{packet_statistics::PacketStatisticsEvent, ClientStatisticsSender};
 
 use futures::StreamExt;
 use log::*;
@@ -19,7 +19,7 @@ pub(super) struct AcknowledgementListener {
     ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
     action_sender: AckActionSender,
-    stats_tx: MetricsSender,
+    stats_tx: ClientStatisticsSender,
 }
 
 impl AcknowledgementListener {
@@ -27,7 +27,7 @@ impl AcknowledgementListener {
         ack_key: Arc<AckKey>,
         ack_receiver: AcknowledgementReceiver,
         action_sender: AckActionSender,
-        stats_tx: MetricsSender,
+        stats_tx: ClientStatisticsSender,
     ) -> Self {
         AcknowledgementListener {
             ack_key,

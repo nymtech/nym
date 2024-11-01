@@ -1,8 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::metrics::{packet_statistics::PacketStatisticsEvent, MetricsSender};
 use crate::client::mix_traffic::BatchMixMessageSender;
+use crate::client::statistics::{packet_statistics::PacketStatisticsEvent, ClientStatisticsSender};
 use crate::client::topology_control::TopologyAccessor;
 use crate::{config, spawn_future};
 use futures::task::{Context, Poll};
@@ -63,7 +63,7 @@ where
 
     packet_type: PacketType,
 
-    stats_tx: MetricsSender,
+    stats_tx: ClientStatisticsSender,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -109,7 +109,7 @@ impl LoopCoverTrafficStream<OsRng> {
         topology_access: TopologyAccessor,
         traffic_config: config::Traffic,
         cover_config: config::CoverTraffic,
-        stats_tx: MetricsSender,
+        stats_tx: ClientStatisticsSender,
     ) -> Self {
         let rng = OsRng;
 

@@ -39,12 +39,14 @@ nextra.webpack = (config, options) => {
 
 const config = {
   ...nextra,
+  basePath: "/docs",
   async redirects() {
     return [
       // network docs
       {
-        source: "/docs",
-        destination: "/",
+        source: "/",
+        destination: "/docs",
+        basePath: false,
         permanent: true,
       },
       {
@@ -479,11 +481,7 @@ const config = {
         destination: "/:path*",
         permanent: false,
       },
-      {
-        source: "/docs/:path*",
-        destination: "/:path*",
-        permanent: false,
-      },
+
       // TODO these need to go in the config of the existing deployed ts sdk docs to redirect from there
       //      these assume source basePath = sdk.nymtech.net
       // {

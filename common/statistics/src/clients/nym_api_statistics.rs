@@ -1,23 +1,23 @@
-//! # Gateway Connection statistics
+//! # API Connection statistics
 //!
-//! Metrics collected by the client while establishing and maintaining connections to the gateway.
+//! Metrics collected by the client while attempting to pull config from the API.
 
-use super::StatsEvents;
+use super::ClientStatsEvents;
 use std::collections::VecDeque;
 
 use nym_metrics::{inc, inc_by};
 
 #[derive(Default, Debug, Clone)]
-struct GatewayStats {
+struct NymApiStats {
     // Sent
     real_packets_sent: u64,
     real_packets_sent_size: usize,
 }
 
-impl GatewayStats {
-    fn handle(&mut self, event: GatewayStatsEvent) {
+impl NymApiStats {
+    fn handle(&mut self, event: NymApiStatsEvent) {
         match event {
-            GatewayStatsEvent::RealPacketSent(packet_size) => {
+            NymApiStatsEvent::RealPacketSent(packet_size) => {
                 self.real_packets_sent += 1;
                 self.real_packets_sent_size += packet_size;
                 inc!("real_packets_sent");
@@ -34,43 +34,46 @@ impl GatewayStats {
     }
 }
 
-impl From<GatewayStatsEvent> for StatsEvents {
-    fn from(event: GatewayStatsEvent) -> StatsEvents {
-        StatsEvents::GatewayConn(event)
-    }
-}
-
+/// Event space for Nym API statistics tracking
 #[derive(Debug)]
-pub(crate) enum GatewayStatsEvent {
-    // The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
+pub enum NymApiStatsEvent {
+    /// The real packets sent. Recall that acks are sent by the Api, so it's not included here.
     RealPacketSent(usize),
 }
 
-pub(crate) struct GatewayStatsControl {
-    // Keep track of packet statistics over time
-    stats: GatewayStats,
+impl From<NymApiStatsEvent> for ClientStatsEvents {
+    fn from(event: NymApiStatsEvent) -> ClientStatsEvents {
+        ClientStatsEvents::NymApi(event)
+    }
+}
 
+/// Nym API statistics tracking object
+pub struct NymApiStatsControl {
+    // Keep track of packet statistics over time
+    stats: NymApiStats,
+
+    /// API connection failure statistics
     failures: VecDeque<()>, // TODO
 }
 
-impl super::StatsObj for GatewayStatsControl {
+impl super::ClientStatsObj for NymApiStatsControl {
     fn new() -> Self
     where
         Self: Sized,
     {
         Self {
-            stats: GatewayStats::default(),
+            stats: NymApiStats::default(),
             failures: VecDeque::new(),
         }
     }
 
-    fn type_identity(&self) -> super::StatsType {
-        super::StatsType::Gateway
+    fn type_identity(&self) -> super::ClientStatsType {
+        super::ClientStatsType::NymApi
     }
 
-    fn handle_event(&mut self, event: StatsEvents) {
+    fn handle_event(&mut self, event: ClientStatsEvents) {
         match event {
-            StatsEvents::GatewayConn(ev) => self.stats.handle(ev),
+            ClientStatsEvents::NymApi(ev) => self.stats.handle(ev),
             _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
         }
     }
@@ -80,11 +83,11 @@ impl super::StatsObj for GatewayStatsControl {
     }
 
     fn periodic_reset(&mut self) {
-        self.stats = GatewayStats::default();
+        self.stats = NymApiStats::default();
     }
 }
 
-impl super::StatisticsReporter for GatewayStatsControl {
+impl super::StatisticsReporter for NymApiStatsControl {
     fn marshall(&self) -> std::io::Result<String> {
         self.check_for_notable_events();
         self.report_counters();
@@ -92,7 +95,7 @@ impl super::StatisticsReporter for GatewayStatsControl {
     }
 }
 
-impl GatewayStatsControl {
+impl NymApiStatsControl {
     fn report_counters(&self) {
         log::trace!("packet statistics: {:?}", &self.stats);
         let (summary_sent, summary_recv) = self.stats.summary();

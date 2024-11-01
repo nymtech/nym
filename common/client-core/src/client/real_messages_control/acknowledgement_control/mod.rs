@@ -10,7 +10,6 @@ use self::{
 use crate::client::inbound_messages::InputMessageReceiver;
 use crate::client::real_messages_control::message_handler::MessageHandler;
 use crate::client::replies::reply_controller::ReplyControllerSender;
-use crate::client::statistics::ClientStatisticsSender;
 use crate::spawn_future;
 use action_controller::AckActionReceiver;
 use futures::channel::mpsc;
@@ -24,6 +23,7 @@ use nym_sphinx::{
     chunking::fragment::{Fragment, FragmentIdentifier},
     Delay as SphinxDelay,
 };
+use nym_statistics_common::clients::ClientStatsSender;
 use rand::{CryptoRng, Rng};
 use std::{
     sync::{Arc, Weak},
@@ -209,7 +209,7 @@ where
         connectors: AcknowledgementControllerConnectors,
         message_handler: MessageHandler<R>,
         reply_controller_sender: ReplyControllerSender,
-        stats_tx: ClientStatisticsSender,
+        stats_tx: ClientStatsSender,
     ) -> Self {
         let (retransmission_tx, retransmission_rx) = mpsc::unbounded();
 

@@ -4,7 +4,6 @@
 use self::sending_delay_controller::SendingDelayController;
 use crate::client::mix_traffic::BatchMixMessageSender;
 use crate::client::real_messages_control::acknowledgement_control::SentPacketNotificationSender;
-use crate::client::statistics::{packet_statistics::PacketStatisticsEvent, ClientStatisticsSender};
 use crate::client::topology_control::TopologyAccessor;
 use crate::client::transmission_buffer::TransmissionBuffer;
 use crate::config;
@@ -19,6 +18,7 @@ use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::preparer::PreparedFragment;
 use nym_sphinx::utils::sample_poisson_duration;
+use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
 use nym_task::connections::{
     ConnectionCommand, ConnectionCommandReceiver, ConnectionId, LaneQueueLengths, TransmissionLane,
 };
@@ -116,7 +116,7 @@ where
     lane_queue_lengths: LaneQueueLengths,
 
     /// Channel used for sending metrics events (specifically `PacketStatistics` events) to the metrics tracker.
-    stats_tx: ClientStatisticsSender,
+    stats_tx: ClientStatsSender,
 }
 
 #[derive(Debug)]
@@ -175,7 +175,7 @@ where
         topology_access: TopologyAccessor,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        stats_tx: ClientStatisticsSender,
+        stats_tx: ClientStatsSender,
     ) -> Self {
         OutQueueControl {
             config,

@@ -10,6 +10,6 @@ pub mod mix_traffic;
 pub mod real_messages_control;
 pub mod received_buffer;
 pub mod replies;
-pub mod statistics;
+pub mod statistics_control;
 pub mod topology_control;
 pub(crate) mod transmission_buffer;

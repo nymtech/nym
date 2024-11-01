@@ -35,7 +35,7 @@ use crate::client::replies::reply_controller;
 use crate::config;
 pub(crate) use acknowledgement_control::{AckActionSender, Action};
 
-use super::statistics::ClientStatisticsSender;
+use nym_statistics_common::clients::ClientStatsSender;
 
 pub(crate) mod acknowledgement_control;
 pub(crate) mod message_handler;
@@ -145,7 +145,7 @@ impl RealMessagesController<OsRng> {
         reply_controller_receiver: ReplyControllerReceiver,
         lane_queue_lengths: LaneQueueLengths,
         client_connection_rx: ConnectionCommandReceiver,
-        stats_tx: ClientStatisticsSender,
+        stats_tx: ClientStatsSender,
     ) -> Self {
         let rng = OsRng;
 

@@ -1,4 +1,4 @@
-use super::StatsEvents;
+use super::ClientStatsEvents;
 use std::{
     collections::VecDeque,
     time::{Duration, Instant},
@@ -302,40 +302,45 @@ impl PacketRates {
     }
 }
 
+/// Event Space used for counting the Packet types used in a connection.
 #[derive(Debug)]
-pub(crate) enum PacketStatisticsEvent {
-    // The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
+pub enum PacketStatisticsEvent {
+    /// The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
     RealPacketSent(usize),
-    // The cover packets sent
+    /// The cover packets sent
     CoverPacketSent(usize),
 
-    // Real packets received
+    /// Real packets received
     RealPacketReceived(usize),
-    // Cover packets received
+    /// Cover packets received
     CoverPacketReceived(usize),
 
-    // Ack of any type received. This is mostly used as a consistency check, and should be the sum
-    // of real and cover acks received.
+    /// Ack of any type received. This is mostly used as a consistency check, and should be the sum
+    /// of real and cover acks received.
     AckReceived(usize),
-    // Out of the total acks received, this is the subset of those that were real
+    /// Out of the total acks received, this is the subset of those that were real
     RealAckReceived(usize),
-    // Out of the total acks received, this is the subset of those that were for cover traffic
+    /// Out of the total acks received, this is the subset of those that were for cover traffic
     CoverAckReceived(usize),
 
-    // Types of packets queued
+    /// Types of packets queued
     RealPacketQueued,
+    /// Types of packets queued
     RetransmissionQueued,
+    /// Types of packets queued
     ReplySurbRequestQueued,
+    /// Types of packets queued
     AdditionalReplySurbRequestQueued,
 }
 
-impl From<PacketStatisticsEvent> for StatsEvents {
-    fn from(event: PacketStatisticsEvent) -> StatsEvents {
-        StatsEvents::PacketStatistics(event)
+impl From<PacketStatisticsEvent> for ClientStatsEvents {
+    fn from(event: PacketStatisticsEvent) -> ClientStatsEvents {
+        ClientStatsEvents::PacketStatistics(event)
     }
 }
 
-pub(crate) struct PacketStatisticsControl {
+/// Statistics tracking for Packet based I/O
+pub struct PacketStatisticsControl {
     // Keep track of packet statistics over time
     stats: PacketStatistics,
 
@@ -347,7 +352,7 @@ pub(crate) struct PacketStatisticsControl {
     rates: VecDeque<(Instant, PacketRates)>,
 }
 
-impl super::StatsObj for PacketStatisticsControl {
+impl super::ClientStatsObj for PacketStatisticsControl {
     fn new() -> Self
     where
         Self: Sized,
@@ -359,13 +364,13 @@ impl super::StatsObj for PacketStatisticsControl {
         }
     }
 
-    fn type_identity(&self) -> super::StatsType {
-        super::StatsType::Packets
+    fn type_identity(&self) -> super::ClientStatsType {
+        super::ClientStatsType::Packets
     }
 
-    fn handle_event(&mut self, event: StatsEvents) {
+    fn handle_event(&mut self, event: ClientStatsEvents) {
         match event {
-            StatsEvents::PacketStatistics(ev) => self.stats.handle(ev),
+            ClientStatsEvents::PacketStatistics(ev) => self.stats.handle(ev),
             _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
         }
     }

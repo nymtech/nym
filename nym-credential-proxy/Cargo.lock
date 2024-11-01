@@ -2382,7 +2382,7 @@ dependencies = [
 
 [[package]]
 name = "nym-credential-proxy"
-version = "0.1.1"
+version = "0.1.3"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -2691,7 +2691,6 @@ dependencies = [
  "flate2",
  "futures",
  "itertools 0.13.0",
- "log",
  "nym-api-requests",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
@@ -2715,6 +2714,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
+ "tracing",
  "url",
  "wasmtimer",
  "zeroize",
@@ -3791,9 +3791,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.128"
+version = "1.0.132"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6ff5456707a1de34e7e37f2a6fd3d3f808c318259cbd01ab6377795054b483d8"
+checksum = "d726bfaff4b320266d395898905d0eba0345aae23b54aee3a737e260fd46db03"
 dependencies = [
  "itoa",
  "memchr",
@@ -4917,6 +4917,7 @@ dependencies = [
  "quote",
  "regex",
  "syn 2.0.79",
+ "uuid",
 ]
 
 [[package]]

@@ -10,7 +10,7 @@ use schemars::schema::Schema;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::{Deref, DerefMut};
-use time::Date;
+use time::{Date, OffsetDateTime};
 
 #[cfg(feature = "query-types")]
 use nym_http_api_common::Output;
@@ -236,22 +236,28 @@ pub struct TicketbookWalletSharesAsyncResponse {
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct BlindedWalletSharesResponse {
+pub struct WebhookTicketbookWalletShares {
     pub id: i64,
     pub status: String,
     pub device_id: String,
     pub credential_id: String,
     pub data: Option<TicketbookWalletSharesResponse>,
     pub error_message: Option<String>,
-    pub created: String,
-    pub updated: String,
+
+    #[schemars(with = "String")]
+    #[serde(with = "time::serde::rfc3339")]
+    pub created: OffsetDateTime,
+
+    #[schemars(with = "String")]
+    #[serde(with = "time::serde::rfc3339")]
+    pub updated: OffsetDateTime,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 #[serde(rename_all = "camelCase")]
-pub struct WebhookBlindedSharesResponse {
-    pub blinded_shares: BlindedWalletSharesResponse,
+pub struct WebhookTicketbookWalletSharesRequest {
+    pub ticketbook_wallet_shares: WebhookTicketbookWalletShares,
     pub secret: String,
 }
 

@@ -126,7 +126,7 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
         address: wireguard_data.inner.config().private_ip.to_string(),
         port: wireguard_data.inner.config().announced_port as u32,
-        peers: peers,
+        peers,
         mtu: None,
     };
     wg_api.configure_interface(&interface_config)?;

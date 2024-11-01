@@ -1,0 +1,8 @@
+FROM ubuntu:22.04
+
+RUN apt-get update && apt-get install -y ca-certificates
+
+WORKDIR /nym
+
+COPY nym-node-status-api/nym-node-status-api ./
+ENTRYPOINT [ "/nym/nym-node-status-api" ]

@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 use std::fmt::Display;
 use std::time::Duration;
 use thiserror::Error;
-use tracing::warn;
+use tracing::{instrument, warn};
 use url::Url;
 
 pub use reqwest::IntoUrl;
@@ -205,6 +205,7 @@ impl Client {
         self.reqwest_client.get(url)
     }
 
+    #[instrument(level = "debug", skip_all, fields(path=?path))]
     async fn send_get_request<K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -215,6 +216,7 @@ impl Client {
         V: AsRef<str>,
         E: Display,
     {
+        tracing::trace!("Sending GET request");
         let url = sanitize_url(&self.base_url, path, params);
 
         #[cfg(target_arch = "wasm32")]
@@ -280,6 +282,7 @@ impl Client {
         }
     }
 
+    #[instrument(level = "debug", skip_all)]
     pub async fn get_json<T, K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -515,12 +518,14 @@ pub fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
     url
 }
 
+#[tracing::instrument(level = "debug", skip_all)]
 pub async fn parse_response<T, E>(res: Response, allow_empty: bool) -> Result<T, HttpClientError<E>>
 where
     T: DeserializeOwned,
     E: DeserializeOwned + Display,
 {
     let status = res.status();
+    tracing::debug!("Status: {} (success: {})", &status, status.is_success());
 
     if !allow_empty {
         if let Some(0) = res.content_length() {
@@ -529,11 +534,19 @@ where
     }
 
     if res.status().is_success() {
-        let text = res.text().await?;
-        match serde_json::from_str(&text) {
-            Ok(res) => Ok(res),
-            Err(source) => Err(HttpClientError::ResponseDeserialisationFailure { source }),
+        #[cfg(debug_assertions)]
+        {
+            let text = res.text().await.inspect_err(|err| {
+                tracing::error!("Couldn't even get response text: {err}");
+            })?;
+            tracing::trace!("Result:\n{:#?}", text);
+
+            serde_json::from_str(&text)
+                .map_err(|err| HttpClientError::GenericRequestFailure(err.to_string()))
         }
+
+        #[cfg(not(debug_assertions))]
+        Ok(res.json().await?)
     } else if res.status() == StatusCode::NOT_FOUND {
         Err(HttpClientError::NotFound)
     } else {

@@ -1,10 +1,11 @@
-name: Build and upload Node Status API container to harbor.nymte.ch
+name: Build and upload Node Status agent container to harbor.nymte.ch
+
 on:
   workflow_dispatch:
 
 env:
-  WORKING_DIRECTORY: "nym-node-status-api"
-  CONTAINER_NAME: "node-status-api"
+  WORKING_DIRECTORY: "nym-node-status-agent"
+  CONTAINER_NAME: "node-status-agent"
 
 jobs:
   build-container:
@@ -33,8 +34,8 @@ jobs:
 
       - name: Check if tag exists
         run: |
-          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }} >/dev/null 2>&1; then
-            echo "Tag ${{ steps.get_version.outputs.result }} already exists"
+          if git rev-parse ${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then
+            echo "Tag ${{ steps.get_version.outputs.value }} already exists"
           fi
 
       - name: Remove existing tag if exists

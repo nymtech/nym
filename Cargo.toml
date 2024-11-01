@@ -60,6 +60,7 @@ members = [
     "common/ip-packet-requests",
     "common/ledger",
     "common/mixnode-common",
+    "common/models",
     "common/network-defaults",
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
@@ -119,6 +120,8 @@ members = [
     "nym-node",
     "nym-node/nym-node-http-api",
     "nym-node/nym-node-requests",
+    "nym-node-status-api",
+    "nym-node-status-agent",
     "nym-outfox",
     "nym-validator-rewarder",
     "tools/echo-server",
@@ -146,13 +149,16 @@ members = [
 default-members = [
     "clients/native",
     "clients/socks5",
+    "common/models",
     "explorer-api",
     "gateway",
     "mixnode",
     "nym-api",
     "nym-data-observatory",
     "nym-node",
+    "nym-node-status-api",
     "nym-validator-rewarder",
+    "nym-node-status-api",
     "service-providers/authenticator",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -234,10 +240,12 @@ dotenvy = "0.15.6"
 ecdsa = "0.16"
 ed25519-dalek = "2.1"
 etherparse = "0.13.0"
+envy = "0.4"
 eyre = "0.6.9"
 fastrand = "2.1.1"
 flate2 = "1.0.34"
 futures = "0.3.28"
+futures-util = "0.3"
 generic-array = "0.14.7"
 getrandom = "0.2.10"
 getset = "0.1.3"
@@ -267,6 +275,7 @@ ledger-transport-hid = "0.10.0"
 log = "0.4"
 maxminddb = "0.23.0"
 mime = "0.3.17"
+moka = { version = "0.12", features = ["future"] }
 nix = "0.27.1"
 notify = "5.1.0"
 okapi = "0.7.0"
@@ -299,7 +308,8 @@ semver = "1.0.23"
 serde = "1.0.210"
 serde_bytes = "0.11.15"
 serde_derive = "1.0"
-serde_json = "1.0.128"
+serde_json = "1.0.132"
+serde_json_path = "0.6.7"
 serde_repr = "0.1"
 serde_with = "3.9.0"
 serde_yaml = "0.9.25"
@@ -308,6 +318,7 @@ si-scale = "0.2.3"
 sphinx-packet = "0.1.1"
 sqlx = "0.7.4"
 strum = "0.26"
+strum_macros = "0.26"
 subtle-encoding = "0.5"
 syn = "1"
 sysinfo = "0.30.13"
@@ -329,6 +340,7 @@ tracing = "0.1.37"
 tracing-opentelemetry = "0.19.0"
 tracing-subscriber = "0.3.16"
 tracing-tree = "0.2.2"
+tracing-log = "0.2"
 ts-rs = "10.0.0"
 tungstenite = { version = "0.20.1", default-features = false }
 url = "2.5"

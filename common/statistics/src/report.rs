@@ -7,6 +7,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
 
+/// Report object containing both data to be reported and client / device context. We take extra care not to overcapture context information.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClientStatsReport {
     last_update_time: OffsetDateTime,
@@ -42,4 +43,18 @@ impl TryFrom<Vec<u8>> for ClientStatsReport {
             .map_err(|err| StatsError::ReportBytesDeserialization(err.to_string()))?;
         Ok(serde_json::from_str(&report_str)?)
     }
+}
+
+impl StatisticsReporter for ClientStatsReport {
+    fn marshall(&self) -> std::io::Result<String> {
+        serde_json::to_string(self)
+            .map_err(|e| std::io::Error::other(format!("serialization error: {e:?}")))
+    }
+}
+
+/// This trait represents objects that can be reported by the metrics controller and
+/// provides the function by which they will be called to report their metrics.
+pub trait StatisticsReporter {
+    /// Marshall the metrics into a string and write them to the provided formatter.
+    fn marshall(&self) -> std::io::Result<String>;
 }

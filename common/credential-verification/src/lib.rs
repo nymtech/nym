@@ -6,7 +6,7 @@ use std::sync::Arc;
 use time::{Date, OffsetDateTime};
 use tracing::*;
 
-use nym_credentials::ecash::utils::{ecash_today, EcashTime};
+use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
 use nym_credentials_interface::{Bandwidth, ClientTicket, TicketType};
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::Storage;
@@ -131,7 +131,7 @@ impl<S: Storage + Clone + 'static> CredentialVerifier<S> {
         let bandwidth = Bandwidth::ticket_amount(credential_type.into());
 
         self.bandwidth_storage_manager
-            .increase_bandwidth(bandwidth, spend_date)
+            .increase_bandwidth(bandwidth, cred_exp_date())
             .await?;
 
         Ok(self

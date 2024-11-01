@@ -4,6 +4,7 @@
 use super::helpers::must_get_gateway_bond_by_owner;
 use super::storage;
 use crate::constants::default_node_costs;
+use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::helpers::save_new_nymnode_with_id;
 use crate::nodes::transactions::add_nym_node_inner;
@@ -115,6 +116,10 @@ pub fn try_migrate_to_nymnode(
             comment: "legacy gateway did not have a pre-assigned node id".to_string(),
         })?;
 
+    let current_epoch =
+        interval_storage::current_interval(deps.storage)?.current_epoch_absolute_id();
+    let previous_epoch = current_epoch.saturating_sub(1);
+
     // create nym-node entry
     // for gateways it's quite straightforward as there are no delegations or rewards to worry about
     save_new_nymnode_with_id(
@@ -125,6 +130,7 @@ pub fn try_migrate_to_nymnode(
         cost_params,
         info.sender.clone(),
         gateway_bond.pledge_amount,
+        previous_epoch,
     )?;
 
     storage::PREASSIGNED_LEGACY_IDS.remove(deps.storage, gateway_identity.clone());

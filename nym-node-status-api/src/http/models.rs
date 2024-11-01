@@ -1,4 +1,3 @@
-use crate::db::models::TestRunDto;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
@@ -74,13 +73,4 @@ pub(crate) struct SummaryHistory {
     pub date: String,
     pub value_json: serde_json::Value,
     pub timestamp_utc: String,
-}
-
-impl From<TestRunDto> for TestrunAssignment {
-    fn from(value: TestRunDto) -> Self {
-        Self {
-            gateway_pk_id: value.gateway_id,
-            testrun_id: value.id,
-        }
-    }
 }

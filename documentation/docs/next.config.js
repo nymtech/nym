@@ -479,6 +479,11 @@ const config = {
         destination: "/:path*",
         permanent: false,
       },
+      {
+        source: "/docs/:path*",
+        destination: "/:path*",
+        permanent: false,
+      },
       // TODO these need to go in the config of the existing deployed ts sdk docs to redirect from there
       //      these assume source basePath = sdk.nymtech.net
       // {
@@ -579,7 +584,7 @@ const config = {
   transpilePackages: ["@nymproject/contract-clients"],
 };
 
-module.exports = config,
+(module.exports = config),
   {
     basePath: "/docs",
-};
+  };

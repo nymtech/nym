@@ -584,7 +584,4 @@ const config = {
   transpilePackages: ["@nymproject/contract-clients"],
 };
 
-(module.exports = config),
-  {
-    basePath: "/docs",
-  };
+module.exports = config;

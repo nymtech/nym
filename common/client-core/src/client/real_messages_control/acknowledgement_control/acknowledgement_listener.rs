@@ -1,9 +1,9 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
-
 use super::action_controller::{AckActionSender, Action};
+use crate::client::metrics::{packet_statistics::PacketStatisticsEvent, MetricsSender};
+
 use futures::StreamExt;
 use log::*;
 use nym_gateway_client::AcknowledgementReceiver;
@@ -19,7 +19,7 @@ pub(super) struct AcknowledgementListener {
     ack_key: Arc<AckKey>,
     ack_receiver: AcknowledgementReceiver,
     action_sender: AckActionSender,
-    stats_tx: PacketStatisticsReporter,
+    stats_tx: MetricsSender,
 }
 
 impl AcknowledgementListener {
@@ -27,7 +27,7 @@ impl AcknowledgementListener {
         ack_key: Arc<AckKey>,
         ack_receiver: AcknowledgementReceiver,
         action_sender: AckActionSender,
-        stats_tx: PacketStatisticsReporter,
+        stats_tx: MetricsSender,
     ) -> Self {
         AcknowledgementListener {
             ack_key,
@@ -40,7 +40,7 @@ impl AcknowledgementListener {
     async fn on_ack(&mut self, ack_content: Vec<u8>) {
         trace!("Received an ack");
         self.stats_tx
-            .report(PacketStatisticsEvent::AckReceived(ack_content.len()));
+            .report(PacketStatisticsEvent::AckReceived(ack_content.len()).into());
 
         let frag_id = match recover_identifier(&self.ack_key, &ack_content)
             .map(FragmentIdentifier::try_from_bytes)
@@ -57,13 +57,13 @@ impl AcknowledgementListener {
         if frag_id == COVER_FRAG_ID {
             trace!("Received an ack for a cover message - no need to do anything");
             self.stats_tx
-                .report(PacketStatisticsEvent::CoverAckReceived(ack_content.len()));
+                .report(PacketStatisticsEvent::CoverAckReceived(ack_content.len()).into());
             return;
         }
 
         trace!("Received {} from the mix network", frag_id);
         self.stats_tx
-            .report(PacketStatisticsEvent::RealAckReceived(ack_content.len()));
+            .report(PacketStatisticsEvent::RealAckReceived(ack_content.len()).into());
         self.action_sender
             .unbounded_send(Action::new_remove(frag_id))
             .unwrap();

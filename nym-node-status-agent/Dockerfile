@@ -15,6 +15,15 @@ COPY ./ /usr/src/nym
 WORKDIR /usr/src/nym/nym-node-status-agent
 RUN cargo build --release
 
+#-------------------------------------------------------------------
+# The following environment variables are required at runtime:
+#
+# NODE_STATUS_AGENT_SERVER_ADDRESS
+# NODE_STATUS_AGENT_SERVER_PORT
+#
+# see https://github.com/nymtech/nym/blob/develop/nym-node-status-agent/src/cli.rs for details
+#-------------------------------------------------------------------
+
 FROM ubuntu:24.04
 
 RUN apt-get update && apt-get install -y ca-certificates

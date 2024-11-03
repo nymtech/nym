@@ -58,7 +58,7 @@ export const LandingPage = () => {
   };
 
   return (
-    <Box maxWidth={1200} margin={"0 auto"}>
+    <Box margin={"0 auto"}>
       <Typography variant="h2" mb={6}>
         Nym Docs
       </Typography>
@@ -82,7 +82,7 @@ export const LandingPage = () => {
             sx={{
               borderBottom: {
                 xs: index < 3 ? "1px solid #262626" : "none",
-                md: index === 0 || index === 1 ? "1px solid #262626" : "none",
+                lg: index === 0 || index === 1 ? "1px solid #262626" : "none",
               },
               borderRight: {
                 md: index === 0 || index === 2 ? "1px solid #262626" : "none",
@@ -100,7 +100,7 @@ export const LandingPage = () => {
                 <Image
                   src={square.icon}
                   alt={square.text}
-                  width={isDesktop ? 180 : isTablet ? 120 : 180}
+                  width={isDesktop ? 180 : isTablet ? 140 : 180}
                   height={isDesktop ? 134 : isTablet ? 90 : 134}
                 />
                 <Box

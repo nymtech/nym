@@ -90,17 +90,24 @@ export const LandingPage = () => {
             }}
           >
             <Link href={square.href} target="_blank" rel="noopener noreferrer">
-              <Box display={"flex"} gap={{ xs: 3, xl: 4 }} height={"100%"}>
+              <Box
+                display={"flex"}
+                gap={{ xs: 3, xl: 4 }}
+                height={"100%"}
+                flexDirection={{ xs: "column", sm: "row" }}
+                alignItems={{ xs: "center" }}
+              >
                 <Image
                   src={square.icon}
                   alt={square.text}
-                  width={180}
-                  height={134}
+                  width={isDesktop ? 180 : isTablet ? 120 : 180}
+                  height={isDesktop ? 134 : isTablet ? 90 : 134}
                 />
                 <Box
                   display={"flex"}
                   flexDirection={"column"}
                   justifyContent={"space-between"}
+                  alignItems={{ xs: "center", sm: "flex-start" }}
                   flexGrow={1}
                   height={"100%"}
                 >
@@ -110,6 +117,7 @@ export const LandingPage = () => {
 
                   <Typography
                     variant="body1"
+                    textAlign={{ xs: "center", sm: "left" }}
                     sx={{
                       color: "#909195",
                       display: {

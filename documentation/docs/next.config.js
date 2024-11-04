@@ -50,6 +50,11 @@ const config = {
         permanent: true,
       },
       {
+        source: "/operators",
+        destination: "/docs/operators",
+        permanent: true,
+      },
+      {
         source: "/docs/architecture/nym-vs-others.html",
         destination: "/network/architecture/nym-vs-others",
         permanent: true,

@@ -55,6 +55,11 @@ const config = {
         permanent: true,
       },
       {
+        source: "/developers",
+        destination: "/developers/index",
+        permanent: true,
+      },
+      {
         source: "/docs/architecture/nym-vs-others.html",
         destination: "/network/architecture/nym-vs-others",
         permanent: true,

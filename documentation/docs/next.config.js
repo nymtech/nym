@@ -51,12 +51,12 @@ const config = {
       // },
       {
         source: "/operators",
-        destination: "/operators/introduction",
+        destination: "/operators/introduction", // test if
         permanent: true,
       },
       {
         source: "/developers",
-        destination: "/developers/index",
+        destination: "/docs/developers/index",
         permanent: true,
       },
       {

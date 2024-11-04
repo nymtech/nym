@@ -51,7 +51,7 @@ const config = {
       },
       {
         source: "/operators",
-        destination: "/docs/operators/introduction",
+        destination: "/operators/introduction",
         permanent: true,
       },
       {

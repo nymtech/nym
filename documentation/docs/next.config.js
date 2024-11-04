@@ -497,7 +497,6 @@ const config = {
         basePath: false,
         permanent: true,
       },
-
       // TODO these need to go in the config of the existing deployed ts sdk docs to redirect from there
       //      these assume source basePath = sdk.nymtech.net
       // {

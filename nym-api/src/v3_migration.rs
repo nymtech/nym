@@ -30,10 +30,6 @@ pub async fn migrate_v3_database(
     let contract_gateways = nyxd_client.get_gateways().await?;
     let nym_nodes = nyxd_client.get_nymnodes().await?;
 
-    if preassigned_ids.len() != contract_gateways.len() {
-        bail!("CONTRACT DATA CORRUPTION: THE NUMBER OF PREASSIGNED GATEWAY IDS IS DIFFERENT THAN THE NUMBER OF GATEWAYS")
-    }
-
     // assign node_id to every gateway
     let all_known = storage.get_all_known_gateways().await?;
     for gateway in all_known {

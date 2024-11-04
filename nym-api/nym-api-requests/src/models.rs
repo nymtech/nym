@@ -16,7 +16,7 @@ use nym_crypto::asymmetric::x25519::{
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
-use nym_mixnet_contract_common::{IdentityKey, Interval, MixNode, NodeId, Percent};
+use nym_mixnet_contract_common::{GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent};
 use nym_network_defaults::{DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT};
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::Wireguard;
@@ -138,6 +138,48 @@ pub struct NodePerformance {
     pub last_24h: Performance,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Hash, JsonSchema)]
+#[serde(rename_all = "camelCase")]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export, export_to = "ts-packages/types/src/types/rust/DisplayRole.ts")
+)]
+pub enum DisplayRole {
+    EntryGateway,
+    Layer1,
+    Layer2,
+    Layer3,
+    ExitGateway,
+    Standby,
+}
+
+impl From<Role> for DisplayRole {
+    fn from(role: Role) -> Self {
+        match role {
+            Role::EntryGateway => DisplayRole::EntryGateway,
+            Role::Layer1 => DisplayRole::Layer1,
+            Role::Layer2 => DisplayRole::Layer2,
+            Role::Layer3 => DisplayRole::Layer3,
+            Role::ExitGateway => DisplayRole::ExitGateway,
+            Role::Standby => DisplayRole::Standby,
+        }
+    }
+}
+
+impl From<DisplayRole> for Role {
+    fn from(role: DisplayRole) -> Self {
+        match role {
+            DisplayRole::EntryGateway => Role::EntryGateway,
+            DisplayRole::Layer1 => Role::Layer1,
+            DisplayRole::Layer2 => Role::Layer2,
+            DisplayRole::Layer3 => Role::Layer3,
+            DisplayRole::ExitGateway => Role::ExitGateway,
+            DisplayRole::Standby => Role::Standby,
+        }
+    }
+}
+
 // imo for now there's no point in exposing more than that,
 // nym-api shouldn't be calculating apy or stake saturation for you.
 // it should just return its own metrics (performance) and then you can do with it as you wish
@@ -153,7 +195,7 @@ pub struct NodePerformance {
 pub struct NodeAnnotation {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub last_24h_performance: Performance,
-    pub current_role: Option<Role>,
+    pub current_role: Option<DisplayRole>,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -286,7 +328,7 @@ impl MixNodeBondAnnotated {
                 .sphinx_key
                 .parse()
                 .map_err(|_| MalformedNodeBond::InvalidX25519Key)?,
-            epoch_role: role,
+            role,
             supported_roles: DeclaredRoles {
                 mixnode: true,
                 entry: false,
@@ -345,7 +387,7 @@ impl GatewayBondAnnotated {
                 .sphinx_key
                 .parse()
                 .map_err(|_| MalformedNodeBond::InvalidX25519Key)?,
-            epoch_role: role,
+            role,
             supported_roles: DeclaredRoles {
                 mixnode: false,
                 entry: true,
@@ -810,6 +852,10 @@ impl NymNodeDescription {
         }
     }
 
+    pub fn ed25519_identity_key(&self) -> ed25519::PublicKey {
+        self.description.host_information.keys.ed25519
+    }
+
     pub fn to_skimmed_node(&self, role: NodeRole, performance: Performance) -> SkimmedNode {
         let keys = &self.description.host_information.keys;
         let entry = if self.description.declared_role.entry {
@@ -827,7 +873,7 @@ impl NymNodeDescription {
             // we can't use the declared roles, we have to take whatever was provided in the contract.
             // why? say this node COULD operate as an exit, but it might be the case the contract decided
             // to assign it an ENTRY role only. we have to use that one instead.
-            epoch_role: role,
+            role,
             supported_roles: self.description.declared_role,
             entry,
             performance,
@@ -935,14 +981,14 @@ impl NymNodeData {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct LegacyDescribedGateway {
-    pub bond: LegacyGatewayBondWithId,
+    pub bond: GatewayBond,
     pub self_described: Option<NymNodeData>,
 }
 
 impl From<LegacyGatewayBondWithId> for LegacyDescribedGateway {
     fn from(bond: LegacyGatewayBondWithId) -> Self {
         LegacyDescribedGateway {
-            bond,
+            bond: bond.bond,
             self_described: None,
         }
     }

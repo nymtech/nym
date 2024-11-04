@@ -24,21 +24,21 @@ use utoipa::IntoParams;
 pub(crate) fn aggregation_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
     Router::new()
         .route(
-            "/master-verification-key:epoch_id",
+            "/master-verification-key",
             axum::routing::get({
                 let ecash_state = Arc::clone(&ecash_state);
                 |epoch_id| master_verification_key(epoch_id, ecash_state)
             }),
         )
         .route(
-            "/aggregated-expiration-date-signatures:expiration_date",
+            "/aggregated-expiration-date-signatures",
             axum::routing::get({
                 let ecash_state = Arc::clone(&ecash_state);
                 |expiration_date| expiration_date_signatures(expiration_date, ecash_state)
             }),
         )
         .route(
-            "/aggregated-coin-indices-signatures:epoch_id",
+            "/aggregated-coin-indices-signatures",
             axum::routing::get({
                 let ecash_state = Arc::clone(&ecash_state);
                 |epoch_id| coin_indices_signatures(epoch_id, ecash_state)
@@ -52,7 +52,7 @@ pub(crate) fn aggregation_routes(ecash_state: Arc<EcashState>) -> Router<AppStat
     params(
         EpochIdParam
     ),
-    path = "/v1/ecash/master-verification-key/{epoch_id}",
+    path = "/v1/ecash/master-verification-key",
     responses(
         (status = 200, body = VerificationKeyResponse)
     )
@@ -83,7 +83,7 @@ struct ExpirationDateParam {
     params(
         ExpirationDateParam
     ),
-    path = "/v1/ecash/aggregated-expiration-date-signatures/{epoch_id}",
+    path = "/v1/ecash/aggregated-expiration-date-signatures",
     responses(
         (status = 200, body = AggregatedExpirationDateSignatureResponse)
     )
@@ -120,7 +120,7 @@ async fn expiration_date_signatures(
     params(
         EpochIdParam
     ),
-    path = "/v1/ecash/aggregated-coin-indices-signatures/{epoch_id}",
+    path = "/v1/ecash/aggregated-coin-indices-signatures",
     responses(
         (status = 200, body = AggregatedCoinIndicesSignatureResponse)
     )

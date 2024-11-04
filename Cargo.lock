@@ -318,8 +318,19 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "81953c529336010edd6d8e358f886d9581267795c61b19475b71314bffa46d35"
 dependencies = [
  "concurrent-queue",
- "event-listener",
+ "event-listener 2.5.3",
  "futures-core",
+]
+
+[[package]]
+name = "async-lock"
+version = "3.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ff6e472cdea888a4bd64f342f09b3f50e1886d32afe8df3d663c01140b811b18"
+dependencies = [
+ "event-listener 5.3.1",
+ "event-listener-strategy",
+ "pin-project-lite",
 ]
 
 [[package]]
@@ -463,6 +474,7 @@ checksum = "504e3947307ac8326a5437504c517c4b56716c9d98fac0028c2acc7ca47d70ae"
 dependencies = [
  "async-trait",
  "axum-core 0.4.5",
+ "axum-macros",
  "bytes",
  "futures-util",
  "http 1.1.0",
@@ -487,6 +499,17 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "axum-client-ip"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9eefda7e2b27e1bda4d6fa8a06b50803b8793769045918bc37ad062d48a6efac"
+dependencies = [
+ "axum 0.7.7",
+ "forwarded-header-value",
+ "serde",
 ]
 
 [[package]]
@@ -548,6 +571,17 @@ dependencies = [
  "tower-layer",
  "tower-service",
  "tracing",
+]
+
+[[package]]
+name = "axum-macros"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "57d123550fa8d071b7255cb0cc04dc302baa6c8c4a79f55701552684d8399bce"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.82",
 ]
 
 [[package]]
@@ -2339,6 +2373,15 @@ dependencies = [
  "env_filter",
  "humantime 2.1.0",
  "log",
+ ]
+
+[[package]]
+name = "envy"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3f47e0157f2cb54f5ae1bd371b30a2ae4311e1c028f575cd4e81de7353215965"
+dependencies = [
+ "serde",
 ]
 
 [[package]]
@@ -2382,6 +2425,27 @@ name = "event-listener"
 version = "2.5.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
+
+[[package]]
+name = "event-listener"
+version = "5.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6032be9bd27023a771701cc49f9f053c751055f71efb2e0ae5c15809093675ba"
+dependencies = [
+ "concurrent-queue",
+ "parking",
+ "pin-project-lite",
+]
+
+[[package]]
+name = "event-listener-strategy"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f214dc438f977e6d4e3500aaa277f5ad94ca83fbbd9b1a15713ce2344ccc5a1"
+dependencies = [
+ "event-listener 5.3.1",
+ "pin-project-lite",
+]
 
 [[package]]
 name = "explorer-api"
@@ -2582,7 +2646,7 @@ checksum = "55ac459de2512911e4b674ce33cf20befaba382d05b62b008afc1c8b57cbf181"
 dependencies = [
  "futures-core",
  "futures-sink",
- "spin 0.9.8",
+ "spin",
 ]
 
 [[package]]
@@ -2605,6 +2669,16 @@ name = "forward_ref"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8cbd1169bd7b4a0a20d92b9af7a7e0422888bd38a6f5ec29c1fd8c1558a272e"
+
+[[package]]
+name = "forwarded-header-value"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8835f84f38484cc86f110a805655697908257fb9a7af005234060891557198e9"
+dependencies = [
+ "nonempty",
+ "thiserror",
+]
 
 [[package]]
 name = "fs-err"
@@ -3593,7 +3667,7 @@ dependencies = [
  "crossbeam-utils",
  "curl",
  "curl-sys",
- "event-listener",
+ "event-listener 2.5.3",
  "futures-lite",
  "http 0.2.12",
  "log",
@@ -3723,11 +3797,11 @@ dependencies = [
 
 [[package]]
 name = "lazy_static"
-version = "1.4.0"
+version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+checksum = "bbd2bcb4c963f2ddae06a2efc7e9f3591312473c50c6685e1f298068316e66fe"
 dependencies = [
- "spin 0.5.2",
+ "spin",
 ]
 
 [[package]]
@@ -4076,6 +4150,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "moka"
+version = "0.12.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "32cf62eb4dd975d2dde76432fb1075c49e3ee2331cf36f1f8fd4b66550d32b6f"
+dependencies = [
+ "async-lock",
+ "async-trait",
+ "crossbeam-channel",
+ "crossbeam-epoch",
+ "crossbeam-utils",
+ "event-listener 5.3.1",
+ "futures-util",
+ "once_cell",
+ "parking_lot",
+ "quanta",
+ "rustc_version 0.4.0",
+ "smallvec",
+ "tagptr",
+ "thiserror",
+ "triomphe",
+ "uuid",
+]
+
+[[package]]
 name = "multer"
 version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4089,7 +4187,7 @@ dependencies = [
  "log",
  "memchr",
  "mime",
- "spin 0.9.8",
+ "spin",
  "tokio",
  "tokio-util",
  "version_check",
@@ -4218,6 +4316,12 @@ dependencies = [
  "memchr",
  "minimal-lexical",
 ]
+
+[[package]]
+name = "nonempty"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e9e591e719385e6ebaeb5ce5d3887f7d5676fceca6411d1925ccc95745f3d6f7"
 
 [[package]]
 name = "notify"
@@ -4915,6 +5019,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-common-models"
+version = "0.1.0"
+dependencies = [
+ "serde",
+]
+
+[[package]]
 name = "nym-compact-ecash"
 version = "0.1.0"
 dependencies = [
@@ -4986,6 +5097,75 @@ dependencies = [
  "nym-sdk",
  "nym-sphinx-anonymous-replies",
  "tokio",
+]
+
+[[package]]
+name = "nym-credential-proxy"
+version = "0.1.1"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "axum 0.7.7",
+ "bip39",
+ "bs58",
+ "cfg-if",
+ "clap 4.5.20",
+ "colored",
+ "dotenvy",
+ "futures",
+ "humantime 2.1.0",
+ "nym-bin-common",
+ "nym-compact-ecash",
+ "nym-config",
+ "nym-credential-proxy-requests",
+ "nym-credentials",
+ "nym-credentials-interface",
+ "nym-crypto",
+ "nym-http-api-common",
+ "nym-network-defaults",
+ "nym-validator-client",
+ "rand",
+ "reqwest 0.12.4",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "strum 0.26.3",
+ "strum_macros 0.26.4",
+ "tempfile",
+ "thiserror",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tower 0.4.13",
+ "tower-http",
+ "tracing",
+ "url",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "uuid",
+ "zeroize",
+]
+
+[[package]]
+name = "nym-credential-proxy-requests"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "nym-credentials",
+ "nym-credentials-interface",
+ "nym-http-api-client",
+ "nym-http-api-common",
+ "nym-serde-helpers",
+ "reqwest 0.12.4",
+ "schemars",
+ "serde",
+ "serde_json",
+ "time",
+ "tsify",
+ "utoipa",
+ "uuid",
+ "wasm-bindgen",
+ "wasmtimer",
 ]
 
 [[package]]
@@ -5229,12 +5409,12 @@ dependencies = [
 name = "nym-explorer-client"
 version = "0.1.0"
 dependencies = [
- "log",
  "nym-explorer-api-requests",
  "reqwest 0.12.4",
  "serde",
  "thiserror",
  "tokio",
+ "tracing",
  "url",
 ]
 
@@ -5279,6 +5459,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-gateway-stats-storage",
  "nym-gateway-storage",
  "nym-ip-packet-router",
  "nym-mixnet-client",
@@ -5287,9 +5468,11 @@ dependencies = [
  "nym-network-requester",
  "nym-node-http-api",
  "nym-pemstore",
+ "nym-sdk",
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
+ "nym-topology",
  "nym-types",
  "nym-validator-client",
  "nym-wireguard",
@@ -5375,6 +5558,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-gateway-stats-storage"
+version = "0.1.0"
+dependencies = [
+ "nym-credentials-interface",
+ "nym-sphinx",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "nym-gateway-storage"
 version = "0.1.0"
 dependencies = [
@@ -5440,6 +5636,7 @@ name = "nym-http-api-common"
 version = "0.1.0"
 dependencies = [
  "axum 0.7.7",
+ "axum-client-ip",
  "bytes",
  "colored",
  "mime",
@@ -5883,6 +6080,61 @@ dependencies = [
  "time",
  "tokio",
  "utoipa",
+]
+
+[[package]]
+name = "nym-node-status-agent"
+version = "0.1.4"
+dependencies = [
+ "anyhow",
+ "clap 4.5.20",
+ "nym-bin-common",
+ "nym-common-models",
+ "reqwest 0.12.4",
+ "serde_json",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
+name = "nym-node-status-api"
+version = "0.1.5"
+dependencies = [
+ "anyhow",
+ "axum 0.7.7",
+ "chrono",
+ "clap 4.5.20",
+ "cosmwasm-std",
+ "envy",
+ "futures-util",
+ "moka",
+ "nym-bin-common",
+ "nym-common-models",
+ "nym-explorer-client",
+ "nym-network-defaults",
+ "nym-node-requests",
+ "nym-task",
+ "nym-validator-client",
+ "regex",
+ "reqwest 0.12.4",
+ "serde",
+ "serde_json",
+ "serde_json_path",
+ "sqlx",
+ "strum 0.26.3",
+ "strum_macros 0.26.4",
+ "thiserror",
+ "tokio",
+ "tokio-util",
+ "tower-http",
+ "tracing",
+ "tracing-log 0.2.0",
+ "tracing-subscriber",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "utoipauto",
 ]
 
 [[package]]
@@ -6479,7 +6731,6 @@ dependencies = [
  "flate2",
  "futures",
  "itertools 0.13.0",
- "log",
  "nym-api-requests",
  "nym-coconut-bandwidth-contract-common",
  "nym-coconut-dkg-common",
@@ -6503,6 +6754,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
+ "tracing",
  "ts-rs",
  "url",
  "wasmtimer",
@@ -6558,6 +6810,31 @@ dependencies = [
  "serde",
  "thiserror",
  "ts-rs",
+]
+
+[[package]]
+name = "nym-vpn-api-lib-wasm"
+version = "0.1.0"
+dependencies = [
+ "bs58",
+ "getrandom",
+ "js-sys",
+ "nym-bin-common",
+ "nym-compact-ecash",
+ "nym-credential-proxy-requests",
+ "nym-credentials",
+ "nym-credentials-interface",
+ "nym-crypto",
+ "nym-ecash-time",
+ "serde",
+ "serde-wasm-bindgen 0.6.5",
+ "serde_json",
+ "thiserror",
+ "time",
+ "tsify",
+ "wasm-bindgen",
+ "wasm-utils",
+ "zeroize",
 ]
 
 [[package]]
@@ -6696,9 +6973,9 @@ dependencies = [
 
 [[package]]
 name = "once_cell"
-version = "1.19.0"
+version = "1.20.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fdb12b2476b595f9358c5161aa467c2438859caa136dec86c26fdd2efe17b92"
+checksum = "1261fe7e33c73b354eab43b1273a57c8f967d0391e80353e51f764ac02cf6775"
 
 [[package]]
 name = "oneshot-uniffi"
@@ -7413,6 +7690,21 @@ dependencies = [
 ]
 
 [[package]]
+name = "quanta"
+version = "0.12.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8e5167a477619228a0b284fac2674e3c388cba90631d7b7de620e6f1fcd08da5"
+dependencies = [
+ "crossbeam-utils",
+ "libc",
+ "once_cell",
+ "raw-cpuid",
+ "wasi",
+ "web-sys",
+ "winapi",
+]
+
+[[package]]
 name = "quick-error"
 version = "1.2.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7501,6 +7793,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "cf2890aaef0aa82719a50e808de264f9484b74b442e1a3a0e5ee38243ac40bdb"
 dependencies = [
  "rand_core 0.6.4",
+]
+
+[[package]]
+name = "raw-cpuid"
+version = "11.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1ab240315c661615f2ee9f0f2cd32d5a7343a84d5ebcccb99d46e6637565e7b0"
+dependencies = [
+ "bitflags 2.5.0",
 ]
 
 [[package]]
@@ -7732,7 +8033,7 @@ dependencies = [
  "cfg-if",
  "getrandom",
  "libc",
- "spin 0.9.8",
+ "spin",
  "untrusted",
  "windows-sys 0.52.0",
 ]
@@ -8150,6 +8451,7 @@ dependencies = [
  "schemars_derive",
  "serde",
  "serde_json",
+ "uuid",
 ]
 
 [[package]]
@@ -8360,6 +8662,59 @@ dependencies = [
  "memchr",
  "ryu",
  "serde",
+]
+
+[[package]]
+name = "serde_json_path"
+version = "0.6.7"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0bc0207b6351893eafa1e39aa9aea452abb6425ca7b02dd64faf29109e7a33ba"
+dependencies = [
+ "inventory",
+ "nom",
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_json_path_core",
+ "serde_json_path_macros",
+ "thiserror",
+]
+
+[[package]]
+name = "serde_json_path_core"
+version = "0.1.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a3d64fe53ce1aaa31bea2b2b46d3b6ab6a37e61854bedcbd9f174e188f3f7d79"
+dependencies = [
+ "inventory",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "thiserror",
+]
+
+[[package]]
+name = "serde_json_path_macros"
+version = "0.1.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2a31e8177a443fd3e94917f12946ae7891dfb656e6d4c5e79b8c5d202fbcb723"
+dependencies = [
+ "inventory",
+ "once_cell",
+ "serde_json_path_core",
+ "serde_json_path_macros_internal",
+]
+
+[[package]]
+name = "serde_json_path_macros_internal"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "75dde5a1d2ed78dfc411fc45592f72d3694436524d3353683ecb3d22009731dc"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.82",
 ]
 
 [[package]]
@@ -8666,12 +9021,6 @@ dependencies = [
 
 [[package]]
 name = "spin"
-version = "0.5.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
-
-[[package]]
-name = "spin"
 version = "0.9.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6980e8d7511241f8acf4aebddbb1ff938df5eebe98691418c4468d0b72a96a67"
@@ -8726,7 +9075,7 @@ dependencies = [
  "crc",
  "crossbeam-queue",
  "either",
- "event-listener",
+ "event-listener 2.5.3",
  "futures-channel",
  "futures-core",
  "futures-intrusive",
@@ -9135,6 +9484,12 @@ dependencies = [
  "core-foundation-sys",
  "libc",
 ]
+
+[[package]]
+name = "tagptr"
+version = "0.2.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7b2093cf4c8eb1e67749a6762251bc9cd836b6fc171623bd0a9d324d37af2417"
 
 [[package]]
 name = "tap"
@@ -9907,6 +10262,12 @@ dependencies = [
  "quote",
  "syn 1.0.109",
 ]
+
+[[package]]
+name = "triomphe"
+version = "0.1.11"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "859eb650cfee7434994602c3a68b25d77ad9e68c8a6cd491616ef86661382eb3"
 
 [[package]]
 name = "try-lock"

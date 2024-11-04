@@ -1,18 +1,18 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use axum::extract::{ConnectInfo, Request};
+use axum::extract::Request;
 use axum::http::header::{HOST, USER_AGENT};
 use axum::http::HeaderValue;
 use axum::middleware::Next;
 use axum::response::IntoResponse;
+use axum_client_ip::InsecureClientIp;
 use colored::Colorize;
-use std::net::SocketAddr;
 use std::time::Instant;
 use tracing::info;
 
 pub async fn logger(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
+    InsecureClientIp(addr): InsecureClientIp,
     request: Request,
     next: Next,
 ) -> impl IntoResponse {

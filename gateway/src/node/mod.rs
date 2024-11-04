@@ -12,9 +12,13 @@ use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::helpers::{initialise_main_storage, load_network_requester_config};
+use crate::node::helpers::{
+    initialise_main_storage, initialise_stats_storage, load_network_requester_config,
+    GatewayTopologyProvider,
+};
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use futures::channel::{mpsc, oneshot};
+use nym_bin_common::bin_info;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
@@ -25,13 +29,15 @@ use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilte
 use nym_node_http_api::state::metrics::SharedSessionStats;
 use nym_statistics_common::events::{self, StatsEventSender};
 use nym_task::{TaskClient, TaskHandle, TaskManager};
+use nym_topology::NetworkAddress;
 use nym_types::gateway::GatewayNodeDetailsResponse;
+use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use statistics::GatewayStatisticsCollector;
-use std::net::SocketAddr;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::sync::Arc;
 use tracing::*;
@@ -41,6 +47,7 @@ pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 
+pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{PersistentStorage, Storage};
 
 // TODO: should this struct live here?
@@ -96,6 +103,8 @@ pub async fn create_gateway(
 
     let storage = initialise_main_storage(&config).await?;
 
+    let stats_storage = initialise_stats_storage(&config).await?;
+
     let nr_opts = network_requester_config.map(|config| LocalNetworkRequesterOpts {
         config: config.clone(),
         custom_mixnet_path: custom_mixnet.clone(),
@@ -106,7 +115,7 @@ pub async fn create_gateway(
         custom_mixnet_path: custom_mixnet.clone(),
     });
 
-    Gateway::new(config, nr_opts, ip_opts, storage)
+    Gateway::new(config, nr_opts, ip_opts, storage, stats_storage)
 }
 
 #[derive(Debug, Clone)]
@@ -147,7 +156,9 @@ pub struct Gateway<St = PersistentStorage> {
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
 
-    storage: St,
+    client_storage: St,
+
+    stats_storage: PersistentStatsStorage,
 
     wireguard_data: Option<nym_wireguard::WireguardData>,
 
@@ -163,10 +174,12 @@ impl<St> Gateway<St> {
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
         ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
-        storage: St,
+        client_storage: St,
+        stats_storage: PersistentStatsStorage,
     ) -> Result<Self, GatewayError> {
         Ok(Gateway {
-            storage,
+            client_storage,
+            stats_storage,
             identity_keypair: Arc::new(load_identity_keys(&config)?),
             sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
             config,
@@ -179,7 +192,7 @@ impl<St> Gateway<St> {
             task_client: None,
         })
     }
-
+    #[allow(clippy::too_many_arguments)]
     pub fn new_loaded(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
@@ -187,7 +200,8 @@ impl<St> Gateway<St> {
         authenticator_opts: Option<LocalAuthenticatorOpts>,
         identity_keypair: Arc<identity::KeyPair>,
         sphinx_keypair: Arc<encryption::KeyPair>,
-        storage: St,
+        client_storage: St,
+        stats_storage: PersistentStatsStorage,
     ) -> Self {
         Gateway {
             config,
@@ -196,7 +210,8 @@ impl<St> Gateway<St> {
             authenticator_opts,
             identity_keypair,
             sphinx_keypair,
-            storage,
+            client_storage,
+            stats_storage,
             wireguard_data: None,
             session_stats: None,
             run_http_server: true,
@@ -225,6 +240,39 @@ impl<St> Gateway<St> {
         crate::helpers::node_details(&self.config).await
     }
 
+    fn gateway_topology_provider(&self) -> GatewayTopologyProvider {
+        GatewayTopologyProvider::new(
+            self.as_topology_node(),
+            bin_info!().into(),
+            self.config.gateway.nym_api_urls.clone(),
+        )
+    }
+
+    fn as_topology_node(&self) -> nym_topology::gateway::LegacyNode {
+        let ip = self
+            .config
+            .host
+            .public_ips
+            .first()
+            .copied()
+            .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST));
+        let mix_host = SocketAddr::new(ip, self.config.gateway.mix_port);
+
+        nym_topology::gateway::LegacyNode {
+            // those fields are irrelevant for the purposes of routing so it's fine if they're inaccurate.
+            // the only thing that matters is the identity key (and maybe version)
+            node_id: NodeId::MAX,
+            mix_host,
+            host: NetworkAddress::IpAddr(ip),
+            clients_ws_port: self.config.gateway.clients_port,
+            clients_wss_port: self.config.gateway.clients_wss_port,
+            sphinx_key: *self.sphinx_keypair.public_key(),
+
+            identity_key: *self.identity_keypair.public_key(),
+            version: env!("CARGO_PKG_VERSION").into(),
+        }
+    }
+
     fn start_mix_socket_listener(
         &self,
         ack_sender: MixForwardingSender,
@@ -240,7 +288,7 @@ impl<St> Gateway<St> {
 
         let connection_handler = ConnectionHandler::new(
             packet_processor,
-            self.storage.clone(),
+            self.client_storage.clone(),
             ack_sender,
             active_clients_store,
         );
@@ -257,6 +305,7 @@ impl<St> Gateway<St> {
     async fn start_authenticator(
         &mut self,
         forwarding_channel: MixForwardingSender,
+        topology_provider: GatewayTopologyProvider,
         shutdown: TaskClient,
         ecash_verifier: Arc<EcashManager<St>>,
     ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>>
@@ -275,7 +324,7 @@ impl<St> Gateway<St> {
             forwarding_channel,
             router_tx,
         );
-        let all_peers = self.storage.get_all_wireguard_peers().await?;
+        let all_peers = self.client_storage.get_all_wireguard_peers().await?;
         let used_private_network_ips = all_peers
             .iter()
             .cloned()
@@ -304,6 +353,7 @@ impl<St> Gateway<St> {
             .with_shutdown(shutdown.fork("authenticator"))
             .with_wait_for_gateway(true)
             .with_minimum_gateway_performance(0)
+            .with_custom_topology_provider(Box::new(topology_provider))
             .with_on_start(on_start_tx);
 
             if let Some(custom_mixnet) = &opts.custom_mixnet_path {
@@ -330,7 +380,7 @@ impl<St> Gateway<St> {
                 .start_with_shutdown(router_shutdown);
 
             let wg_api = nym_wireguard::start_wireguard(
-                self.storage.clone(),
+                self.client_storage.clone(),
                 all_peers,
                 shutdown,
                 wireguard_data,
@@ -352,6 +402,7 @@ impl<St> Gateway<St> {
     async fn start_authenticator(
         &self,
         _forwarding_channel: MixForwardingSender,
+        _topology_provider: GatewayTopologyProvider,
         _shutdown: TaskClient,
         _ecash_verifier: Arc<EcashManager<St>>,
     ) -> Result<StartedAuthenticator, Box<dyn std::error::Error + Send + Sync>> {
@@ -377,7 +428,7 @@ impl<St> Gateway<St> {
 
         let shared_state = websocket::CommonHandlerState {
             ecash_verifier,
-            storage: self.storage.clone(),
+            storage: self.client_storage.clone(),
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
             bandwidth_cfg: (&self.config).into(),
@@ -415,7 +466,7 @@ impl<St> Gateway<St> {
         info!("Starting gateway stats collector...");
 
         let (mut stats_collector, stats_event_sender) =
-            GatewayStatisticsCollector::new(shared_session_stats);
+            GatewayStatisticsCollector::new(shared_session_stats, self.stats_storage.clone());
         tokio::spawn(async move { stats_collector.run(shutdown).await });
         stats_event_sender
     }
@@ -424,6 +475,7 @@ impl<St> Gateway<St> {
     async fn start_network_requester(
         &self,
         forwarding_channel: MixForwardingSender,
+        topology_provider: GatewayTopologyProvider,
         shutdown: TaskClient,
     ) -> Result<StartedNetworkRequester, GatewayError> {
         info!("Starting network requester...");
@@ -451,6 +503,7 @@ impl<St> Gateway<St> {
             .with_custom_gateway_transceiver(Box::new(transceiver))
             .with_wait_for_gateway(true)
             .with_minimum_gateway_performance(0)
+            .with_custom_topology_provider(Box::new(topology_provider))
             .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &nr_opts.custom_mixnet_path {
@@ -488,6 +541,7 @@ impl<St> Gateway<St> {
     async fn start_ip_packet_router(
         &self,
         forwarding_channel: MixForwardingSender,
+        topology_provider: GatewayTopologyProvider,
         shutdown: TaskClient,
     ) -> Result<LocalEmbeddedClientHandle, GatewayError> {
         info!("Starting IP packet provider...");
@@ -516,6 +570,7 @@ impl<St> Gateway<St> {
                 .with_custom_gateway_transceiver(Box::new(transceiver))
                 .with_wait_for_gateway(true)
                 .with_minimum_gateway_performance(0)
+                .with_custom_topology_provider(Box::new(topology_provider))
                 .with_on_start(on_start_tx);
 
         if let Some(custom_mixnet) = &ip_opts.custom_mixnet_path {
@@ -632,6 +687,8 @@ impl<St> Gateway<St> {
             shutdown.fork("statistics::GatewayStatisticsCollector"),
         );
 
+        let topology_provider = self.gateway_topology_provider();
+
         let handler_config = CredentialHandlerConfig {
             revocation_bandwidth_penalty: self
                 .config
@@ -654,7 +711,7 @@ impl<St> Gateway<St> {
                 nyxd_client,
                 self.identity_keypair.public_key().to_bytes(),
                 shutdown.fork("EcashVerifier"),
-                self.storage.clone(),
+                self.client_storage.clone(),
             )
             .await?,
         );
@@ -680,6 +737,7 @@ impl<St> Gateway<St> {
             let embedded_nr = self
                 .start_network_requester(
                     mix_forwarding_channel.clone(),
+                    topology_provider.clone(),
                     shutdown.fork("NetworkRequester"),
                 )
                 .await?;
@@ -695,6 +753,7 @@ impl<St> Gateway<St> {
             let embedded_ip_sp = self
                 .start_ip_packet_router(
                     mix_forwarding_channel.clone(),
+                    topology_provider.clone(),
                     shutdown.fork("ip_service_provider"),
                 )
                 .await?;
@@ -707,6 +766,7 @@ impl<St> Gateway<St> {
             let embedded_auth = self
                 .start_authenticator(
                     mix_forwarding_channel,
+                    topology_provider,
                     shutdown.fork("authenticator"),
                     ecash_verifier,
                 )

@@ -4,13 +4,7 @@
 #![allow(dead_code)]
 
 use crate::{config::*, error::KeyIOFailure};
-use entry_gateway::Debug as EntryGatewayConfigDebug;
-use exit_gateway::{IpPacketRouter, IpPacketRouterDebug, NetworkRequester, NetworkRequesterDebug};
-use mixnode::{Verloc, VerlocDebug};
-use nym_client_core_config_types::{
-    disk_persistence::{ClientKeysPaths, CommonClientPaths},
-    DebugConfig as ClientDebugConfig,
-};
+use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::serde_helpers::de_maybe_port;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_requester::{
@@ -19,6 +13,7 @@ use nym_network_requester::{
 };
 use nym_pemstore::{store_key, store_keypair};
 use nym_sphinx_acknowledgements::AckKey;
+use old_configs::old_config_v4::*;
 use persistence::*;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
@@ -90,12 +85,12 @@ pub enum NodeModeV3 {
     ExitGateway,
 }
 
-impl From<NodeModeV3> for NodeMode {
+impl From<NodeModeV3> for NodeModeV4 {
     fn from(config: NodeModeV3) -> Self {
         match config {
-            NodeModeV3::Mixnode => NodeMode::Mixnode,
-            NodeModeV3::EntryGateway => NodeMode::EntryGateway,
-            NodeModeV3::ExitGateway => NodeMode::ExitGateway,
+            NodeModeV3::Mixnode => NodeModeV4::Mixnode,
+            NodeModeV3::EntryGateway => NodeModeV4::EntryGateway,
+            NodeModeV3::ExitGateway => NodeModeV4::ExitGateway,
         }
     }
 }
@@ -601,23 +596,6 @@ impl AuthenticatorPathsV3 {
         }
     }
 
-    pub fn to_common_client_paths(&self) -> CommonClientPaths {
-        CommonClientPaths {
-            keys: ClientKeysPaths {
-                private_identity_key_file: self.private_ed25519_identity_key_file.clone(),
-                public_identity_key_file: self.public_ed25519_identity_key_file.clone(),
-                private_encryption_key_file: self.private_x25519_diffie_hellman_key_file.clone(),
-                public_encryption_key_file: self.public_x25519_diffie_hellman_key_file.clone(),
-                ack_key_file: self.ack_key_file.clone(),
-            },
-            gateway_registrations: self.gateway_registrations.clone(),
-
-            // not needed for embedded providers
-            credentials_database: Default::default(),
-            reply_surb_database: self.reply_surb_database.clone(),
-        }
-    }
-
     pub fn ed25519_identity_storage_paths(&self) -> nym_pemstore::KeyPairPath {
         nym_pemstore::KeyPairPath::new(
             &self.private_ed25519_identity_key_file,
@@ -963,7 +941,7 @@ pub async fn initialise(
 pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV3>,
-) -> Result<Config, NymNodeError> {
+) -> Result<ConfigV4, NymNodeError> {
     tracing::debug!("Updating from 1.1.4");
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
@@ -981,21 +959,21 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             .ok_or(NymNodeError::DataDirDerivationFailure)?,
     );
 
-    let cfg = Config {
+    let cfg = ConfigV4 {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
         mode: old_cfg.mode.into(),
-        host: Host {
+        host: HostV4 {
             public_ips: old_cfg.host.public_ips,
             hostname: old_cfg.host.hostname,
             location: old_cfg.host.location,
         },
-        mixnet: Mixnet {
+        mixnet: MixnetV4 {
             bind_address: old_cfg.mixnet.bind_address,
             announce_port: None,
             nym_api_urls: old_cfg.mixnet.nym_api_urls,
             nyxd_urls: old_cfg.mixnet.nyxd_urls,
-            debug: MixnetDebug {
+            debug: MixnetDebugV4 {
                 packet_forwarding_initial_backoff: old_cfg
                     .mixnet
                     .debug
@@ -1009,8 +987,8 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                 unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
             },
         },
-        storage_paths: NymNodePaths {
-            keys: KeysPaths {
+        storage_paths: NymNodePathsV4 {
+            keys: KeysPathsV4 {
                 private_ed25519_identity_key_file: old_cfg
                     .storage_paths
                     .keys
@@ -1038,7 +1016,7 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             },
             description: old_cfg.storage_paths.description,
         },
-        http: Http {
+        http: HttpV4 {
             bind_address: old_cfg.http.bind_address,
             landing_page_assets_path: old_cfg.http.landing_page_assets_path,
             access_token: old_cfg.http.access_token,
@@ -1046,13 +1024,13 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             expose_system_hardware: old_cfg.http.expose_system_hardware,
             expose_crypto_hardware: old_cfg.http.expose_crypto_hardware,
         },
-        wireguard: Wireguard {
+        wireguard: WireguardV4 {
             enabled: old_cfg.wireguard.enabled,
             bind_address: old_cfg.wireguard.bind_address,
             private_ip: old_cfg.wireguard.private_ip,
             announced_port: old_cfg.wireguard.announced_port,
             private_network_prefix: old_cfg.wireguard.private_network_prefix,
-            storage_paths: WireguardPaths {
+            storage_paths: WireguardPathsV4 {
                 private_diffie_hellman_key_file: old_cfg
                     .wireguard
                     .storage_paths
@@ -1063,12 +1041,12 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                     .public_diffie_hellman_key_file,
             },
         },
-        mixnode: MixnodeConfig {
-            storage_paths: MixnodePaths {},
-            verloc: Verloc {
+        mixnode: MixnodeConfigV4 {
+            storage_paths: MixnodePathsV4 {},
+            verloc: VerlocV4 {
                 bind_address: old_cfg.mixnode.verloc.bind_address,
                 announce_port: None,
-                debug: VerlocDebug {
+                debug: VerlocDebugV4 {
                     packets_per_node: old_cfg.mixnode.verloc.debug.packets_per_node,
                     connection_timeout: old_cfg.mixnode.verloc.debug.connection_timeout,
                     packet_timeout: old_cfg.mixnode.verloc.debug.packet_timeout,
@@ -1078,16 +1056,16 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                     retry_timeout: old_cfg.mixnode.verloc.debug.retry_timeout,
                 },
             },
-            debug: mixnode::Debug {
+            debug: DebugV4 {
                 node_stats_logging_delay: old_cfg.mixnode.debug.node_stats_logging_delay,
                 node_stats_updating_delay: old_cfg.mixnode.debug.node_stats_updating_delay,
             },
         },
-        entry_gateway: EntryGatewayConfig {
-            storage_paths: EntryGatewayPaths {
+        entry_gateway: EntryGatewayConfigV4 {
+            storage_paths: EntryGatewayPathsV4 {
                 clients_storage: old_cfg.entry_gateway.storage_paths.clients_storage,
                 cosmos_mnemonic: old_cfg.entry_gateway.storage_paths.cosmos_mnemonic,
-                authenticator: AuthenticatorPaths {
+                authenticator: AuthenticatorPathsV4 {
                     private_ed25519_identity_key_file: old_cfg
                         .entry_gateway
                         .storage_paths
@@ -1129,16 +1107,16 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             bind_address: old_cfg.entry_gateway.bind_address,
             announce_ws_port: old_cfg.entry_gateway.announce_ws_port,
             announce_wss_port: old_cfg.entry_gateway.announce_wss_port,
-            debug: EntryGatewayConfigDebug {
+            debug: EntryGatewayConfigDebugV4 {
                 message_retrieval_limit: old_cfg.entry_gateway.debug.message_retrieval_limit,
                 // \/ ADDED
                 zk_nym_tickets: Default::default(),
             },
         },
-        exit_gateway: ExitGatewayConfig {
-            storage_paths: ExitGatewayPaths {
+        exit_gateway: ExitGatewayConfigV4 {
+            storage_paths: ExitGatewayPathsV4 {
                 clients_storage: exit_gateway_paths.clients_storage,
-                network_requester: NetworkRequesterPaths {
+                network_requester: NetworkRequesterPathsV4 {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -1175,7 +1153,7 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                         .network_requester
                         .gateway_registrations,
                 },
-                ip_packet_router: IpPacketRouterPaths {
+                ip_packet_router: IpPacketRouterPathsV4 {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -1212,7 +1190,7 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                         .ip_packet_router
                         .gateway_registrations,
                 },
-                authenticator: AuthenticatorPaths {
+                authenticator: AuthenticatorPathsV4 {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -1252,8 +1230,8 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             },
             open_proxy: old_cfg.exit_gateway.open_proxy,
             upstream_exit_policy_url: old_cfg.exit_gateway.upstream_exit_policy_url,
-            network_requester: NetworkRequester {
-                debug: NetworkRequesterDebug {
+            network_requester: NetworkRequesterV4 {
+                debug: NetworkRequesterDebugV4 {
                     enabled: old_cfg.exit_gateway.network_requester.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .exit_gateway
@@ -1263,8 +1241,8 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
                     client_debug: old_cfg.exit_gateway.network_requester.debug.client_debug,
                 },
             },
-            ip_packet_router: IpPacketRouter {
-                debug: IpPacketRouterDebug {
+            ip_packet_router: IpPacketRouterV4 {
+                debug: IpPacketRouterDebugV4 {
                     enabled: old_cfg.exit_gateway.ip_packet_router.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .exit_gateway
@@ -1277,7 +1255,7 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
             debug: Default::default(),
         },
         authenticator: Default::default(),
-        logging: LoggingSettings {},
+        logging: LoggingSettingsV4 {},
     };
 
     Ok(cfg)

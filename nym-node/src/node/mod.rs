@@ -67,6 +67,7 @@ impl MixnodeData {
 pub struct EntryGatewayData {
     mnemonic: Zeroizing<bip39::Mnemonic>,
     client_storage: nym_gateway::node::PersistentStorage,
+    stats_storage: nym_gateway::node::PersistentStatsStorage,
     sessions_stats: SharedSessionStats,
 }
 
@@ -94,6 +95,11 @@ impl EntryGatewayData {
             )
             .await
             .map_err(nym_gateway::GatewayError::from)?,
+            stats_storage: nym_gateway::node::PersistentStatsStorage::init(
+                &config.storage_paths.stats_storage,
+            )
+            .await
+            .map_err(nym_gateway::GatewayError::from)?,
             sessions_stats: SharedSessionStats::new(),
         })
     }
@@ -114,6 +120,7 @@ pub struct ExitGatewayData {
     auth_x25519: x25519::PublicKey,
 
     client_storage: nym_gateway::node::PersistentStorage,
+    stats_storage: nym_gateway::node::PersistentStatsStorage,
 }
 
 impl ExitGatewayData {
@@ -262,6 +269,11 @@ impl ExitGatewayData {
         .await
         .map_err(nym_gateway::GatewayError::from)?;
 
+        let stats_storage =
+            nym_gateway::node::PersistentStatsStorage::init(&config.storage_paths.stats_storage)
+                .await
+                .map_err(nym_gateway::GatewayError::from)?;
+
         Ok(ExitGatewayData {
             nr_ed25519,
             nr_x25519,
@@ -270,6 +282,7 @@ impl ExitGatewayData {
             auth_ed25519,
             auth_x25519,
             client_storage,
+            stats_storage,
         })
     }
 }
@@ -580,6 +593,7 @@ impl NymNode {
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
             self.entry_gateway.client_storage.clone(),
+            self.entry_gateway.stats_storage.clone(),
         );
         entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
@@ -610,6 +624,7 @@ impl NymNode {
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
             self.exit_gateway.client_storage.clone(),
+            self.exit_gateway.stats_storage.clone(),
         );
         exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);

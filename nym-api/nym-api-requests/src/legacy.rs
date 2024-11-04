@@ -2,10 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use cosmwasm_std::Decimal;
-use nym_mixnet_contract_common::mixnode::PendingMixNodeChanges;
-use nym_mixnet_contract_common::{
-    GatewayBond, LegacyMixLayer, MixNodeBond, MixNodeDetails, NodeId, NodeRewarding,
-};
+use nym_mixnet_contract_common::mixnode::LegacyPendingMixNodeChanges;
+use nym_mixnet_contract_common::{GatewayBond, LegacyMixLayer, MixNodeBond, NodeId, NodeRewarding};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::ops::Deref;
@@ -64,7 +62,7 @@ pub struct LegacyMixNodeDetailsWithLayer {
 
     /// Adjustments to the mixnode that are ought to happen during future epoch transitions.
     #[serde(default)]
-    pub pending_changes: PendingMixNodeChanges,
+    pub pending_changes: LegacyPendingMixNodeChanges,
 }
 
 impl LegacyMixNodeDetailsWithLayer {
@@ -78,15 +76,5 @@ impl LegacyMixNodeDetailsWithLayer {
 
     pub fn is_unbonding(&self) -> bool {
         self.bond_information.is_unbonding
-    }
-}
-
-impl From<LegacyMixNodeDetailsWithLayer> for MixNodeDetails {
-    fn from(value: LegacyMixNodeDetailsWithLayer) -> Self {
-        MixNodeDetails {
-            bond_information: value.bond_information.into(),
-            rewarding_details: value.rewarding_details,
-            pending_changes: value.pending_changes,
-        }
     }
 }

@@ -25,7 +25,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::{self, Display, Formatter};
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace};
 
 const DEFAULT_AVERAGE_PACKET_DELAY: Duration = Duration::from_millis(200);
 const DEFAULT_AVERAGE_ACK_DELAY: Duration = Duration::from_millis(200);
@@ -59,10 +59,10 @@ pub(crate) struct PreparedPackets {
     pub(super) packets: Vec<GatewayPackets>,
 
     /// Vector containing list of public keys and owners of all nodes mixnodes being tested.
-    pub(super) tested_mixnodes: Vec<TestableNode>,
+    pub(super) mixnodes_under_test: Vec<TestableNode>,
 
     /// Vector containing list of public keys and owners of all gateways being tested.
-    pub(super) tested_gateways: Vec<TestableNode>,
+    pub(super) gateways_under_test: Vec<TestableNode>,
 
     /// All mixnodes that failed to get parsed correctly or were not version compatible.
     /// They will be marked to the validator as being down for the test.
@@ -151,34 +151,38 @@ impl PacketPreparer {
         self.contract_cache.wait_for_initial_values().await;
         self.described_cache.naive_wait_for_initial_values().await;
 
+        let described_nodes = self
+            .described_cache
+            .get()
+            .await
+            .expect("the self-describe cache should have been initialised!");
+
         // now wait for at least `minimum_full_routes` mixnodes per layer and `minimum_full_routes` gateway to be online
         info!("Waiting for minimal topology to be online");
         let initialisation_backoff = Duration::from_secs(30);
         loop {
             let gateways = self.contract_cache.legacy_gateways_all().await;
             let mixnodes = self.contract_cache.legacy_mixnodes_all_basic().await;
+            let nym_nodes = self.contract_cache.nym_nodes().await;
 
-            if gateways.len() < minimum_full_routes {
-                self.topology_wait_backoff(initialisation_backoff).await;
-                continue;
-            }
+            let mut gateways_count = gateways.len();
+            let mut mixnodes_count = mixnodes.len();
 
-            let mut layer1_count = 0;
-            let mut layer2_count = 0;
-            let mut layer3_count = 0;
-
-            for mix in mixnodes {
-                match mix.layer {
-                    LegacyMixLayer::One => layer1_count += 1,
-                    LegacyMixLayer::Two => layer2_count += 1,
-                    LegacyMixLayer::Three => layer3_count += 1,
+            for nym_node in nym_nodes {
+                if let Some(described) = described_nodes.get_description(&nym_node.node_id()) {
+                    if described.declared_role.mixnode {
+                        mixnodes_count += 1;
+                    } else if described.declared_role.entry {
+                        gateways_count += 1;
+                    }
                 }
             }
 
-            if layer1_count >= minimum_full_routes
-                && layer2_count >= minimum_full_routes
-                && layer3_count >= minimum_full_routes
-            {
+            debug!(
+                "we have {mixnodes_count} possible mixnodes and {gateways_count} possible gateways"
+            );
+
+            if gateways_count >= minimum_full_routes && mixnodes_count * 3 >= minimum_full_routes {
                 break;
             }
 
@@ -529,30 +533,41 @@ impl PacketPreparer {
         let mixing_nym_nodes = descriptions.mixing_nym_nodes();
         let gateway_capable_nym_nodes = descriptions.entry_capable_nym_nodes();
 
-        let (mixnodes, invalid_mixnodes) = self.filter_outdated_and_malformed_mixnodes(mixnodes);
-        let (gateways, invalid_gateways) = self.filter_outdated_and_malformed_gateways(gateways);
+        let (mut mixnodes_to_test_details, invalid_mixnodes) =
+            self.filter_outdated_and_malformed_mixnodes(mixnodes);
+        let (mut gateways_to_test_details, invalid_gateways) =
+            self.filter_outdated_and_malformed_gateways(gateways);
 
-        let mut tested_mixnodes = mixnodes.iter().map(|node| node.into()).collect::<Vec<_>>();
-        let mut tested_gateways = gateways.iter().map(|node| node.into()).collect::<Vec<_>>();
+        // summary of nodes that got tested
+        let mut mixnodes_under_test = mixnodes_to_test_details
+            .iter()
+            .map(|node| node.into())
+            .collect::<Vec<_>>();
+        let mut gateways_under_test = gateways_to_test_details
+            .iter()
+            .map(|node| node.into())
+            .collect::<Vec<_>>();
 
         // try to add nym-nodes into the fold
         if let Some(rewarded_set) = rewarded_set {
             let mut rng = thread_rng();
             for mix in mixing_nym_nodes {
                 if let Some(parsed) = self.nym_node_to_legacy_mix(&mut rng, &rewarded_set, mix) {
-                    tested_mixnodes.push(TestableNode::from(&parsed));
+                    mixnodes_under_test.push(TestableNode::from(&parsed));
+                    mixnodes_to_test_details.push(parsed);
                 }
             }
         }
 
         for gateway in gateway_capable_nym_nodes {
             if let Some(parsed) = self.nym_node_to_legacy_gateway(gateway) {
-                tested_gateways.push((&parsed, gateway.node_id).into())
+                gateways_under_test.push((&parsed, gateway.node_id).into());
+                gateways_to_test_details.push((parsed, gateway.node_id));
             }
         }
 
         let packets_to_create = (test_routes.len() * self.per_node_test_packets)
-            * (tested_mixnodes.len() + tested_gateways.len());
+            * (mixnodes_under_test.len() + gateways_under_test.len());
         info!("Need to create {} mix packets", packets_to_create);
 
         let mut all_gateway_packets = HashMap::new();
@@ -574,7 +589,7 @@ impl PacketPreparer {
             #[allow(clippy::unwrap_used)]
             let mixnode_test_packets = mix_tester
                 .mixnodes_test_packets(
-                    &mixnodes,
+                    &mixnodes_to_test_details,
                     route_ext,
                     self.per_node_test_packets as u32,
                     None,
@@ -588,7 +603,7 @@ impl PacketPreparer {
             gateway_packets.push_packets(mix_packets);
 
             // and generate test packets for gateways (note the variable recipient)
-            for (gateway, node_id) in &gateways {
+            for (gateway, node_id) in &gateways_to_test_details {
                 let recipient = self.create_packet_sender(gateway);
                 let gateway_identity = gateway.identity_key;
                 let gateway_address = gateway.clients_address();
@@ -624,8 +639,8 @@ impl PacketPreparer {
 
         PreparedPackets {
             packets,
-            tested_mixnodes,
-            tested_gateways,
+            mixnodes_under_test,
+            gateways_under_test,
             invalid_mixnodes,
             invalid_gateways,
         }

@@ -1,0 +1,34 @@
+[package]
+name = "nym-gateway-stats-storage"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+sqlx = { workspace = true, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+    "time",
+] }
+time = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+
+nym-sphinx = { path = "../nymsphinx" }
+nym-credentials-interface = { path = "../credentials-interface" }
+
+
+[build-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+sqlx = { workspace = true, features = [
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
+] }

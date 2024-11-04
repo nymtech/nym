@@ -19,33 +19,33 @@ members = [
     "clients/native",
     "clients/native/websocket-requests",
     "clients/socks5",
-    "common/authenticator-requests",
     "common/async-file-watcher",
+    "common/authenticator-requests",
     "common/bandwidth-controller",
     "common/bin-common",
     "common/client-core",
     "common/client-core/config-types",
-    "common/client-core/surb-storage",
     "common/client-core/gateways-storage",
+    "common/client-core/surb-storage",
     "common/client-libs/gateway-client",
     "common/client-libs/mixnet-client",
     "common/client-libs/validator-client",
     "common/commands",
     "common/config",
     "common/cosmwasm-smart-contracts/coconut-bandwidth-contract",
-    "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/coconut-dkg",
     "common/cosmwasm-smart-contracts/contracts-common",
+    "common/cosmwasm-smart-contracts/ecash-contract",
     "common/cosmwasm-smart-contracts/group-contract",
     "common/cosmwasm-smart-contracts/mixnet-contract",
     "common/cosmwasm-smart-contracts/multisig-contract",
     "common/cosmwasm-smart-contracts/vesting-contract",
     "common/country-group",
     "common/credential-storage",
-    "common/credentials",
     "common/credential-utils",
-    "common/credentials-interface",
     "common/credential-verification",
+    "common/credentials",
+    "common/credentials-interface",
     "common/crypto",
     "common/dkg",
     "common/ecash-double-spending",
@@ -54,19 +54,21 @@ members = [
     "common/exit-policy",
     "common/gateway-requests",
     "common/gateway-storage",
+    "common/gateway-stats-storage",
     "common/http-api-client",
     "common/http-api-common",
     "common/inclusion-probability",
     "common/ip-packet-requests",
     "common/ledger",
     "common/mixnode-common",
+    "common/models",
     "common/network-defaults",
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
-    "common/nymcoconut",
-    "common/nym_offline_compact_ecash",
     "common/nym-id",
     "common/nym-metrics",
+    "common/nym_offline_compact_ecash",
+    "common/nymcoconut",
     "common/nymsphinx",
     "common/nymsphinx/acknowledgements",
     "common/nymsphinx/addressing",
@@ -103,23 +105,28 @@ members = [
     "gateway",
     "integrations/bity",
     "mixnode",
+    "sdk/ffi/cpp",
+    "sdk/ffi/go",
+    "sdk/ffi/shared",
     "sdk/lib/socks5-listener",
     "sdk/rust/nym-sdk",
-    "sdk/ffi/shared",
-    "sdk/ffi/go",
-    "sdk/ffi/cpp",
     "service-providers/authenticator",
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
-    "nym-network-monitor",
     "nym-api",
-    "nym-browser-extension/storage",
     "nym-api/nym-api-requests",
+    "nym-browser-extension/storage",
+    "nym-credential-proxy/nym-credential-proxy",
+    "nym-credential-proxy/nym-credential-proxy-requests",
+    "nym-credential-proxy/vpn-api-lib-wasm",
     "nym-data-observatory",
+    "nym-network-monitor",
     "nym-node",
     "nym-node/nym-node-http-api",
     "nym-node/nym-node-requests",
+    "nym-node-status-api",
+    "nym-node-status-agent",
     "nym-outfox",
     "nym-validator-rewarder",
     "tools/echo-server",
@@ -137,23 +144,27 @@ members = [
     "wasm/mix-fetch",
     "wasm/node-tester",
     "wasm/zknym-lib",
-    "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
     "tools/echo-server",
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
+    "tools/internal/testnet-manager",
+    "tools/internal/testnet-manager/dkg-bypass-contract",
 ]
 
 default-members = [
     "clients/native",
     "clients/socks5",
+    "common/models",
     "explorer-api",
     "gateway",
     "mixnode",
     "nym-api",
+    "nym-credential-proxy/nym-credential-proxy",
     "nym-data-observatory",
     "nym-node",
+    "nym-node-status-api",
     "nym-validator-rewarder",
+    "nym-node-status-api",
     "service-providers/authenticator",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -187,16 +198,14 @@ aead = "0.5.2"
 anyhow = "1.0.90"
 argon2 = "0.5.0"
 async-trait = "0.1.83"
+axum-client-ip = "0.6.1"
 axum = "0.7.5"
 axum-extra = "0.9.4"
 base64 = "0.22.1"
 bincode = "1.3.3"
 bip39 = { version = "2.0.0", features = ["zeroize"] }
-
-# can we unify those?
-bit-vec = "0.7.0"
+bit-vec = "0.7.0" # can we unify those?
 bitvec = "1.0.0"
-
 blake3 = "1.5.4"
 bloomfilter = "1.0.14"
 bs58 = "0.5.1"
@@ -234,10 +243,12 @@ dotenvy = "0.15.6"
 ecdsa = "0.16"
 ed25519-dalek = "2.1"
 etherparse = "0.13.0"
+envy = "0.4"
 eyre = "0.6.9"
 fastrand = "2.1.1"
 flate2 = "1.0.34"
 futures = "0.3.28"
+futures-util = "0.3"
 generic-array = "0.14.7"
 getrandom = "0.2.10"
 getset = "0.1.3"
@@ -261,16 +272,17 @@ ipnetwork = "0.20"
 isocountry = "0.3.2"
 itertools = "0.13.0"
 k256 = "0.13"
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 ledger-transport = "0.10.0"
 ledger-transport-hid = "0.10.0"
 log = "0.4"
 maxminddb = "0.23.0"
 mime = "0.3.17"
+moka = { version = "0.12", features = ["future"] }
 nix = "0.27.1"
 notify = "5.1.0"
 okapi = "0.7.0"
-once_cell = "1.7.2"
+once_cell = "1.20.2"
 opentelemetry = "0.19.0"
 opentelemetry-jaeger = "0.18.0"
 parking_lot = "0.12.3"
@@ -300,6 +312,7 @@ serde = "1.0.211"
 serde_bytes = "0.11.15"
 serde_derive = "1.0"
 serde_json = "1.0.132"
+serde_json_path = "0.6.7"
 serde_repr = "0.1"
 serde_with = "3.9.0"
 serde_yaml = "0.9.25"
@@ -308,6 +321,7 @@ si-scale = "0.2.3"
 sphinx-packet = "0.1.1"
 sqlx = "0.7.4"
 strum = "0.26"
+strum_macros = "0.26"
 subtle-encoding = "0.5"
 syn = "1"
 sysinfo = "0.30.13"
@@ -329,6 +343,7 @@ tracing = "0.1.37"
 tracing-opentelemetry = "0.19.0"
 tracing-subscriber = "0.3.16"
 tracing-tree = "0.2.2"
+tracing-log = "0.2"
 ts-rs = "10.0.0"
 tungstenite = { version = "0.20.1", default-features = false }
 url = "2.5"
@@ -394,7 +409,6 @@ wasm-bindgen = "0.2.95"
 wasm-bindgen-futures = "0.4.45"
 wasmtimer = "0.2.0"
 web-sys = "0.3.72"
-
 
 # Profile settings for individual crates
 

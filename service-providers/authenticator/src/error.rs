@@ -88,6 +88,18 @@ pub enum AuthenticatorError {
 
     #[error("storage should have the requested bandwidht entry")]
     MissingClientBandwidthEntry,
+
+    #[error("{0}")]
+    PublicKey(#[from] nym_wireguard_types::Error),
+
+    #[error("{0}")]
+    IpAddr(#[from] std::net::AddrParseError),
+
+    #[error("{0}")]
+    AuthenticatorRequests(#[from] nym_authenticator_requests::Error),
+
+    #[error("{0}")]
+    RecipientFormatting(#[from] nym_sdk::mixnet::RecipientFormattingError),
 }
 
 pub type Result<T> = std::result::Result<T, AuthenticatorError>;

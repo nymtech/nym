@@ -49,25 +49,30 @@ const config = {
       //   basePath: false,
       //   permanent: true,
       // },
-      {
+{
         source: "/operators",
-        destination: "/operators/introduction", // test if
+        destination: "docs/operators/introduction", // test if
         permanent: true,
+        basePath : false,
       },
+
       {
         source: "/developers",
-        destination: "/docs/developers/index",
+        destination: "/developers/index", // testing difference
         permanent: true,
+        basePath : false,
       },
       {
         source: "/docs/architecture/nym-vs-others.html",
-        destination: "/network/architecture/nym-vs-others",
+        destination: "/docs/network/architecture/nym-vs-others", // testing difference
         permanent: true,
+        basePath : false,
       },
       {
         source: "/docs/architecture/traffic-flow.html",
-        destination: "/network/traffic",
+        destination: "/network/traffic", // testing difference
         permanent: true,
+        basePath : false,
       },
       {
         source: "/docs/architecture/addressing-system.html",

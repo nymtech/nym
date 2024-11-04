@@ -36,6 +36,8 @@ pub mod ecash {
 }
 
 pub const STATUS_ROUTES: &str = "status";
+pub const API_STATUS_ROUTES: &str = "api-status";
+pub const HEALTH: &str = "health";
 pub const MIXNODE: &str = "mixnode";
 pub const GATEWAY: &str = "gateway";
 pub const NYM_NODES: &str = "nym-nodes";

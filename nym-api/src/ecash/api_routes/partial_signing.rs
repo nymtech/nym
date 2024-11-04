@@ -7,7 +7,7 @@ use crate::ecash::helpers::blind_sign;
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
-use axum::extract::Path;
+use axum::extract::Query;
 use axum::{Json, Router};
 use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
@@ -134,7 +134,7 @@ struct ExpirationDateParam {
     )
 )]
 async fn partial_expiration_date_signatures(
-    Path(ExpirationDateParam { expiration_date }): Path<ExpirationDateParam>,
+    Query(ExpirationDateParam { expiration_date }): Query<ExpirationDateParam>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<PartialExpirationDateSignatureResponse>> {
     state.ensure_signer().await?;
@@ -172,7 +172,7 @@ async fn partial_expiration_date_signatures(
     )
 )]
 async fn partial_coin_indices_signatures(
-    Path(EpochIdParam { epoch_id }): Path<EpochIdParam>,
+    Query(EpochIdParam { epoch_id }): Query<EpochIdParam>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<PartialCoinIndicesSignatureResponse>> {
     state.ensure_signer().await?;

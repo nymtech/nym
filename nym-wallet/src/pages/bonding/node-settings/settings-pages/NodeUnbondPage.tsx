@@ -7,7 +7,6 @@ import { isMixnode, isNymNode } from 'src/types';
 
 interface Props {
   bondedNode: TBondedNode;
-
   onConfirm: () => Promise<void>;
   onError: (e: string) => void;
 }
@@ -71,7 +70,7 @@ export const NodeUnbondPage = ({ bondedNode, onConfirm, onError }: Props) => {
           </Stack>
         </Grid>
       </Grid>
-      {isConfirmed && !isNymNode(bondedNode) && (
+      {isConfirmed && (
         <UnbondModal
           node={bondedNode}
           onConfirm={async () => {

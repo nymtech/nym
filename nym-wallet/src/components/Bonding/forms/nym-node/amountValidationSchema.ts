@@ -5,8 +5,8 @@ import { isLessThan, isGreaterThan, validateAmount } from 'src/utils';
 const operatingCostAndPmValidation = (params?: TauriContractStateParams) => {
   const defaultParams = {
     profit_margin_percent: {
-      minimum: parseFloat(params?.profit_margin.minimum || '0%'),
-      maximum: parseFloat(params?.profit_margin.maximum || '100%'),
+      minimum: parseFloat(params?.profit_margin.minimum || '20%'),
+      maximum: parseFloat(params?.profit_margin.maximum || '50%'),
     },
 
     interval_operating_cost: {

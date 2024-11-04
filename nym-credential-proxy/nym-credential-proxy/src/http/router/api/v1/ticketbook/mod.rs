@@ -192,6 +192,7 @@ pub(crate) async fn obtain_ticketbook_shares_async(
         }
         Ok(pending) => pending,
     };
+    let id = pending.id;
 
     // 3. try to spawn a new task attempting to resolve the request
     if state
@@ -201,6 +202,7 @@ pub(crate) async fn obtain_ticketbook_shares_async(
             requested_on,
             payload,
             params,
+            pending,
         ))
         .is_none()
     {
@@ -213,10 +215,7 @@ pub(crate) async fn obtain_ticketbook_shares_async(
     }
 
     // 4. in the meantime, return the id to the user
-    Ok(output.to_response(TicketbookWalletSharesAsyncResponse {
-        id: pending.id,
-        uuid,
-    }))
+    Ok(output.to_response(TicketbookWalletSharesAsyncResponse { id, uuid }))
 }
 
 /// Obtain the current value of the bandwidth voucher deposit

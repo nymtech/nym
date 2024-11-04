@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymRewarderError;
-use crate::rewarder::ticketbook_issuance::types::CredentialIssuer;
-use nym_validator_client::nym_api;
 use nym_validator_client::nyxd::{AccountId, PublicKey};
 use nyxd_scraper::constants::{BECH32_CONSENSUS_ADDRESS_PREFIX, BECH32_PREFIX};
 use sha2::{Digest, Sha256};
@@ -32,19 +30,4 @@ pub(crate) fn operator_account_to_owner_account(
             source,
         }
     })
-}
-
-pub(crate) fn api_client(issuer: &CredentialIssuer) -> Result<nym_api::Client, NymRewarderError> {
-    let url = match issuer.api_runner.parse() {
-        Ok(url) => url,
-        Err(source) => {
-            return Err(NymRewarderError::MalformedApiUrl {
-                raw: issuer.api_runner.clone(),
-                runner_account: issuer.operator_account.clone(),
-                source,
-            })
-        }
-    };
-
-    Ok(nym_api::Client::new(url, None))
 }

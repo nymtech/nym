@@ -10,15 +10,13 @@ use crate::rewarder::storage::RewarderStorage;
 use crate::rewarder::ticketbook_issuance::helpers::end_of_day_ticker;
 use crate::rewarder::ticketbook_issuance::types::TicketbookIssuanceResults;
 use crate::rewarder::ticketbook_issuance::TicketbookIssuance;
-use futures::future::{Fuse, FusedFuture, OptionFuture};
+use futures::future::{FusedFuture, OptionFuture};
 use futures::FutureExt;
 use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
-use std::future::Future;
 use std::ops::Add;
-use std::pin::Pin;
 use time::Date;
 use tokio::pin;
 use tokio::time::{interval_at, Instant};
@@ -30,7 +28,7 @@ mod helpers;
 mod nyxd_client;
 mod storage;
 mod tasks;
-mod ticketbook_issuance;
+pub(crate) mod ticketbook_issuance;
 
 pub(crate) use crate::rewarder::epoch::Epoch;
 
@@ -74,18 +72,6 @@ pub fn extract_rewarding_results(
     }
 }
 
-#[deprecated]
-pub struct EpochRewards {
-    pub epoch: Epoch,
-    pub signing: Result<Option<EpochSigningResults>, NymRewarderError>,
-    pub credentials: Result<Option<TicketbookIssuanceResults>, NymRewarderError>,
-
-    #[deprecated]
-    pub total_budget: Coin,
-    pub signing_budget: Coin,
-    pub credentials_budget: Coin,
-}
-
 pub struct BlockSigningDetails {
     pub epoch: Epoch,
     pub results: Option<Result<EpochSigningResults, NymRewarderError>>,
@@ -113,38 +99,26 @@ impl BlockSigningDetails {
 }
 
 pub struct TicketbookIssuanceDetails {
-    pub date: Date,
+    pub expiration_date: Date,
     pub results: Option<Result<TicketbookIssuanceResults, NymRewarderError>>,
-    pub budget: Coin,
+    pub total_budget: Coin,
+    pub whitelist_size: usize,
+    pub per_operator_budget: Coin,
 }
 
-impl EpochRewards {
-    pub fn amounts(&self) -> Result<Vec<(AccountId, Vec<Coin>)>, NymRewarderError> {
+impl TicketbookIssuanceDetails {
+    pub fn rewarding_amounts(&self) -> Result<Vec<(AccountId, Vec<Coin>)>, NymRewarderError> {
         let mut amounts = Vec::new();
 
-        match &self.signing {
-            Ok(Some(signing)) => {
-                for (account, signing_amount) in signing.rewarding_amounts(&self.signing_budget) {
-                    if signing_amount[0].amount != 0 {
-                        amounts.push((account, signing_amount))
+        match &self.results {
+            Some(Ok(issuance)) => {
+                for (account, issuance_amount) in issuance.rewarding_amounts(&self.total_budget) {
+                    if issuance_amount[0].amount != 0 {
+                        amounts.push((account, issuance_amount))
                     }
                 }
             }
-            Err(err) => error!("failed to determine rewards for block signing: {err}"),
-            _ => (),
-        }
-
-        match &self.credentials {
-            Ok(Some(credentials)) => {
-                for (account, credential_amount) in
-                    credentials.rewarding_amounts(&self.credentials_budget)
-                {
-                    if credential_amount[0].amount != 0 {
-                        amounts.push((account, credential_amount))
-                    }
-                }
-            }
-            Err(err) => error!("failed to determine rewards for credential issuance: {err}"),
+            Some(Err(err)) => error!("failed to determine rewards for ticketbook issuance: {err}"),
             _ => (),
         }
 
@@ -160,6 +134,7 @@ pub fn total_spent(amounts: &[(AccountId, Vec<Coin>)], denom: &str) -> Coin {
 pub struct Rewarder {
     config: Config,
     current_block_signing_epoch: Epoch,
+    last_processed_issuance_date: Date,
 
     storage: RewarderStorage,
     nyxd_client: NyxdClient,
@@ -182,6 +157,16 @@ impl Rewarder {
             } else {
                 Epoch::first(config.block_signing.epoch_duration)?
             };
+
+        let last_processed_issuance_date = if let Some(last_processed) = storage
+            .load_last_ticketbook_issuance_expiration_date()
+            .await?
+        {
+            last_processed
+        } else {
+            #[allow(clippy::unwrap_used)]
+            ecash_today_date().previous_day().unwrap()
+        };
 
         let epoch_signing = if config.block_signing.enabled {
             let whitelist = config.block_signing.whitelist.clone();
@@ -210,15 +195,12 @@ impl Rewarder {
                 return Err(NymRewarderError::EmptyTicketbookIssuanceWhitelist);
             }
 
-            Some(
-                TicketbookIssuance::new(
-                    current_block_signing_epoch,
-                    storage.clone(),
-                    &nyxd_client,
-                    whitelist,
-                )
-                .await?,
-            )
+            Some(TicketbookIssuance::new(
+                config.verification_config(),
+                storage.clone(),
+                &nyxd_client,
+                whitelist,
+            ))
         } else {
             None
         };
@@ -250,6 +232,7 @@ impl Rewarder {
             storage,
             config,
             current_block_signing_epoch,
+            last_processed_issuance_date,
         })
     }
 
@@ -273,23 +256,6 @@ impl Rewarder {
     }
 
     #[instrument(skip(self))]
-    async fn calculate_credential_rewards(
-        &mut self,
-    ) -> Result<Option<TicketbookIssuanceResults>, NymRewarderError> {
-        info!("calculating reward shares");
-        if let Some(credential_issuance) = &mut self.ticketbook_issuance {
-            Some(
-                credential_issuance
-                    .get_issued_credentials_results(self.current_block_signing_epoch)
-                    .await,
-            )
-        } else {
-            None
-        }
-        .transpose()
-    }
-
-    #[instrument(skip(self))]
     async fn send_block_signing_rewards(
         &self,
         amounts: Vec<(AccountId, Vec<Coin>)>,
@@ -305,12 +271,46 @@ impl Rewarder {
         }
 
         info!("sending rewards");
-        warn!("here be tx sending");
-        Ok(Some(Hash::Sha256([0u8; 32])))
-        // self.nyxd_client
-        //     .send_rewards(self.current_block_signing_epoch, amounts)
-        //     .await
-        //     .map(Some)
+        // warn!("here be tx sending");
+        // Ok(Some(Hash::Sha256([0u8; 32])))
+
+        self.nyxd_client
+            .send_rewards(
+                format!("sending rewards for {}", self.last_processed_issuance_date),
+                amounts,
+            )
+            .await
+            .map(Some)
+    }
+
+    #[instrument(skip(self))]
+    async fn send_ticketbook_issuance_rewards(
+        &self,
+        amounts: Vec<(AccountId, Vec<Coin>)>,
+    ) -> Result<Option<Hash>, NymRewarderError> {
+        if self.config.ticketbook_issuance.monitor_only {
+            info!("skipping sending rewards, monitoring mode only");
+            return Ok(None);
+        }
+
+        if amounts.is_empty() {
+            warn!("no rewards to send");
+            return Err(NymRewarderError::NoSignersToReward);
+        }
+
+        info!("sending rewards");
+        // warn!("here be tx sending");
+        // Ok(Some(Hash::Sha256([0u8; 32])))
+        self.nyxd_client
+            .send_rewards(
+                format!(
+                    "sending rewards issuing ticketbooks with expiration on {}",
+                    self.last_processed_issuance_date
+                ),
+                amounts,
+            )
+            .await
+            .map(Some)
     }
 
     async fn calculate_and_send_block_signing_epoch_rewards(
@@ -318,10 +318,8 @@ impl Rewarder {
         signed_blocks: &BlockSigningDetails,
     ) -> Result<RewardingResult, NymRewarderError> {
         let rewarding_amounts = signed_blocks.rewarding_amounts()?;
-        let total_spent = total_spent(
-            &rewarding_amounts,
-            &self.config.rewarding.daily_budget.denom,
-        );
+        let denom = &self.config.rewarding.daily_budget.denom;
+        let total_spent = total_spent(&rewarding_amounts, denom);
 
         let rewarding_tx = self.send_block_signing_rewards(rewarding_amounts).await?;
 
@@ -335,27 +333,18 @@ impl Rewarder {
         &mut self,
         issued_ticketbooks: &TicketbookIssuanceDetails,
     ) -> Result<RewardingResult, NymRewarderError> {
-        todo!()
-    }
+        let rewarding_amounts = issued_ticketbooks.rewarding_amounts()?;
+        let denom = &self.config.rewarding.daily_budget.denom;
+        let total_spent = total_spent(&rewarding_amounts, denom);
 
-    #[deprecated]
-    async fn determine_epoch_rewards(&mut self) -> EpochRewards {
-        todo!()
-        // let epoch_budget = self.config.rewarding.daily_budget.clone();
-        // let signing_budget = self.config.block_signing_epoch_budget();
-        // let credentials_budget = self.config.ticketbook_issuance_daily_budget();
-        //
-        // let signing_rewards = self.calculate_block_signing_rewards().await;
-        // let credential_rewards = self.calculate_credential_rewards().await;
-        //
-        // EpochRewards {
-        //     epoch: self.current_block_signing_epoch,
-        //     signing: signing_rewards,
-        //     credentials: credential_rewards,
-        //     total_budget: epoch_budget.clone(),
-        //     signing_budget,
-        //     credentials_budget,
-        // }
+        let rewarding_tx = self
+            .send_ticketbook_issuance_rewards(rewarding_amounts)
+            .await?;
+
+        Ok(RewardingResult {
+            total_spent,
+            rewarding_tx,
+        })
     }
 
     async fn handle_block_signing_epoch_end(&mut self) {
@@ -392,9 +381,11 @@ impl Rewarder {
             None
         };
         TicketbookIssuanceDetails {
-            date: yesterday,
+            expiration_date: yesterday,
             results,
-            budget: self.config.ticketbook_issuance_daily_budget(),
+            total_budget: self.config.ticketbook_issuance_daily_budget(),
+            whitelist_size: self.config.ticketbook_issuance.whitelist.len(),
+            per_operator_budget: self.config.ticketbook_per_operator_daily_budget(),
         }
     }
 
@@ -407,6 +398,12 @@ impl Rewarder {
         #[allow(clippy::unwrap_used)]
         let yesterday = today.ecash_date().previous_day().unwrap();
 
+        // in case we crashed or something
+        if self.last_processed_issuance_date >= yesterday {
+            info!("we have already processed issuance for expiration at {yesterday}");
+            return;
+        }
+
         let details = self.ticketbook_issuance_details(yesterday).await;
 
         let rewarding_result = self
@@ -416,7 +413,15 @@ impl Rewarder {
                 error!("failed to determine and send ticketbook issuance rewards: {err}")
             });
 
-        todo!()
+        if let Err(err) = self
+            .storage
+            .save_ticketbook_issuance_rewarding_information(details, rewarding_result)
+            .await
+        {
+            error!("failed to persist rewarding information: {err}")
+        }
+
+        self.last_processed_issuance_date = yesterday;
     }
 
     async fn ensure_has_epoch_blocks(&self) -> Result<(), NymRewarderError> {
@@ -471,18 +476,7 @@ impl Rewarder {
         Ok(())
     }
 
-    async fn setup_tasks(
-        &self,
-        task_manager: &mut TaskManager,
-    ) -> Result<impl FusedFuture, NymRewarderError> {
-        if let Some(ref credential_issuance) = self.ticketbook_issuance {
-            credential_issuance.start_monitor(
-                self.config.ticketbook_issuance.clone(),
-                self.nyxd_client.clone(),
-                task_manager.subscribe_named("credential-monitor"),
-            );
-        }
-
+    async fn setup_tasks(&self) -> Result<impl FusedFuture, NymRewarderError> {
         let scraper_cancellation: OptionFuture<_> =
             if let Some(epoch_signing) = &self.epoch_signing {
                 let cancellation_token = epoch_signing.nyxd_scraper.cancel_token();
@@ -548,8 +542,8 @@ impl Rewarder {
         info!("Starting nym validators rewarder");
 
         // setup shutdowns
-        let mut task_manager = TaskManager::new(5);
-        let scraper_cancellation = self.setup_tasks(&mut task_manager).await?;
+        let task_manager = TaskManager::new(5);
+        let scraper_cancellation = self.setup_tasks().await?;
 
         if let Err(err) = self.startup_resync().await {
             error!("failed to perform startup sync: {err}");

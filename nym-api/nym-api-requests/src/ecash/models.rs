@@ -5,7 +5,8 @@ use crate::helpers::PlaceholderJsonSchemaImpl;
 use cosmrs::AccountId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
-use nym_compact_ecash::Bytable;
+use nym_compact_ecash::utils::try_deserialize_g1_projective;
+use nym_compact_ecash::{Bytable, G1Projective};
 use nym_credentials_interface::TicketType;
 use nym_credentials_interface::{
     BlindedSignature, CompactEcashError, CredentialSpendingData, PublicKeyUser,
@@ -153,6 +154,29 @@ impl BlindSignRequestBody {
             .iter()
             .flat_map(|c| c.to_byte_vec())
             .collect()
+    }
+
+    pub fn try_decode_joined_commitments(
+        joined: &[u8],
+    ) -> Result<Vec<G1Projective>, CompactEcashError> {
+        if joined.len() % 48 != 0 {
+            // that's not the most ideal error variant, but creating dedicated error type would have been an overkill
+            return Err(CompactEcashError::DeserializationLengthMismatch {
+                type_name: "joined commitments".to_string(),
+                expected: (joined.len() / 48) * 48,
+                actual: joined.len(),
+            });
+        };
+        let mut commitments = Vec::new();
+
+        for chunk in joined.chunks_exact(48) {
+            //SAFETY : we're taking chunks of 48 bytes
+            #[allow(clippy::unwrap_used)]
+            let bytes: &[u8; 48] = chunk.try_into().unwrap();
+            commitments.push(try_deserialize_g1_projective(bytes)?);
+        }
+
+        Ok(commitments)
     }
 }
 
@@ -422,9 +446,13 @@ pub struct IssuedTicketbooksChallengeRequest {
     pub deposits: Vec<DepositId>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksChallengeResponseBody {
+    #[schemars(with = "String")]
+    #[serde(with = "crate::helpers::date_serde")]
+    pub expiration_date: Date,
+
     pub partial_ticketbooks: BTreeMap<DepositId, IssuedTicketbook>,
     pub merkle_proof: IssuedTicketbooksFullMerkleProof,
 }
@@ -441,9 +469,24 @@ impl IssuedTicketbooksChallengeResponseBody {
             body: self,
         }
     }
+
+    // helpers so that library consumers wouldn't need to import all the required dependencies
+    pub fn try_get_partial_credential(
+        issued: &IssuedTicketbook,
+    ) -> Result<BlindedSignature, CompactEcashError> {
+        BlindedSignature::from_bytes(&issued.blinded_partial_credential)
+    }
+
+    pub fn try_get_private_attributes_commitments(
+        issued: &IssuedTicketbook,
+    ) -> Result<Vec<G1Projective>, CompactEcashError> {
+        BlindSignRequestBody::try_decode_joined_commitments(
+            &issued.joined_encoded_private_attributes_commitments,
+        )
+    }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Clone)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksChallengeResponse {
     pub body: IssuedTicketbooksChallengeResponseBody,
@@ -463,6 +506,16 @@ impl IssuedTicketbooksChallengeResponse {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_compact_ecash::scheme::keygen::KeyPairUser;
+    use nym_compact_ecash::withdrawal_request;
+    use nym_ecash_time::{ecash_today_date, EcashTime};
+    use rand_chacha::rand_core::SeedableRng;
+    use rand_chacha::ChaCha20Rng;
+
+    pub fn test_rng() -> ChaCha20Rng {
+        let dummy_seed = [42u8; 32];
+        ChaCha20Rng::from_seed(dummy_seed)
+    }
 
     // had some issues with `Date` and serde...
     // so might as well leave this unit test in case we do something to the helper
@@ -483,5 +536,49 @@ mod tests {
 
         let de: BatchRedeemTicketsBody = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(req, de);
+    }
+
+    #[test]
+    fn decoding_attribute_commitments() {
+        let mut rng = test_rng();
+        let mut keys = ed25519::KeyPair::new(&mut rng);
+        let dummy_sig = keys.private_key().sign("foomp");
+        let dummy_keypair = KeyPairUser::new();
+        let date = ecash_today_date();
+        let typ = TicketType::V1MixnetEntry;
+
+        let (inner, _) = withdrawal_request(
+            dummy_keypair.secret_key(),
+            date.ecash_unix_timestamp(),
+            typ.encode(),
+        )
+        .unwrap();
+
+        let dummy = BlindSignRequestBody {
+            inner_sign_request: inner,
+            deposit_id: 42,
+            signature: dummy_sig,
+            ecash_pubkey: dummy_keypair.public_key(),
+            expiration_date: date,
+            ticketbook_type: typ,
+        };
+
+        let good = dummy.encode_join_commitments();
+        let recovered = BlindSignRequestBody::try_decode_joined_commitments(&good).unwrap();
+        assert_eq!(
+            recovered,
+            dummy
+                .inner_sign_request
+                .get_private_attributes_commitments()
+        );
+
+        let mut bad1 = good.clone();
+        let mut bad2 = good.clone();
+        bad1.push(42);
+        bad2.pop().unwrap();
+
+        assert!(BlindSignRequestBody::try_decode_joined_commitments(&bad1).is_err());
+        assert!(BlindSignRequestBody::try_decode_joined_commitments(&bad2).is_err());
+        assert!(BlindSignRequestBody::try_decode_joined_commitments(&[]).is_err());
     }
 }

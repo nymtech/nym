@@ -1,20 +1,15 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::rewarder::{extract_rewarding_results, BlockSigningDetails};
+use crate::rewarder::{extract_rewarding_results, BlockSigningDetails, TicketbookIssuanceDetails};
 use crate::{
     error::NymRewarderError,
-    rewarder::{
-        epoch::Epoch, storage::manager::StorageManager,
-        ticketbook_issuance::types::CredentialIssuer, EpochRewards, RewardingResult,
-    },
+    rewarder::{epoch::Epoch, storage::manager::StorageManager, RewardingResult},
 };
-use nym_validator_client::{
-    nym_api::IssuedTicketbookBody,
-    nyxd::{contract_traits::ecash_query_client::DepositId, Coin},
-};
+use nym_contracts_common::types::NaiveFloat;
 use sqlx::ConnectOptions;
 use std::{fmt::Debug, path::Path};
+use time::{Date, OffsetDateTime};
 use tracing::{error, info, instrument};
 
 mod manager;
@@ -64,107 +59,19 @@ impl RewarderStorage {
             .await?)
     }
 
-    async fn insert_failed_rewarding_epoch_block_signing(
+    pub(crate) async fn load_last_ticketbook_issuance_expiration_date(
         &self,
-        epoch: i64,
-        budget: &Coin,
-    ) -> Result<(), NymRewarderError> {
+    ) -> Result<Option<Date>, NymRewarderError> {
         Ok(self
             .manager
-            .insert_rewarding_epoch_block_signing(epoch, -1, -1, budget.to_string())
+            .load_last_ticketbook_issuance_expiration_date()
             .await?)
     }
 
-    async fn insert_failed_rewarding_epoch_credential_issuance(
+    pub(crate) async fn load_banned_ticketbook_issuers(
         &self,
-        epoch: i64,
-        budget: &Coin,
-    ) -> Result<(), NymRewarderError> {
-        Ok(self
-            .manager
-            .insert_rewarding_epoch_credential_issuance(epoch, -1, -1, -1, budget.to_string())
-            .await?)
-    }
-
-    pub(crate) async fn get_deposit_credential_id(
-        &self,
-        operator_identity_bs58: String,
-        deposit_id: DepositId,
-    ) -> Result<Option<i64>, NymRewarderError> {
-        Ok(self
-            .manager
-            .get_deposit_credential_id(operator_identity_bs58, deposit_id)
-            .await?)
-    }
-
-    pub(crate) async fn insert_validated_deposit(
-        &self,
-        operator_identity_bs58: String,
-        credential_info: &IssuedTicketbookBody,
-    ) -> Result<(), NymRewarderError> {
-        self.manager
-            .insert_validated_deposit(
-                operator_identity_bs58,
-                credential_info.credential.id,
-                credential_info.credential.deposit_id,
-                credential_info.credential.signable_plaintext(),
-                credential_info.signature.to_base58_string(),
-            )
-            .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn insert_double_signing_evidence(
-        &self,
-        operator_identity_bs58: String,
-        original_credential_id: i64,
-        credential_info: &IssuedTicketbookBody,
-    ) -> Result<(), NymRewarderError> {
-        self.manager
-            .insert_double_signing_evidence(
-                operator_identity_bs58,
-                credential_info.credential.id,
-                original_credential_id,
-                credential_info.credential.deposit_id,
-                credential_info.credential.signable_plaintext(),
-                credential_info.signature.to_base58_string(),
-            )
-            .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn insert_issuance_foul_play_evidence(
-        &self,
-        issuer: &CredentialIssuer,
-        credential_info: &IssuedTicketbookBody,
-        error_message: String,
-    ) -> Result<(), NymRewarderError> {
-        self.manager
-            .insert_foul_play_evidence(
-                issuer.operator_account.to_string(),
-                issuer.public_key.to_base58_string(),
-                credential_info.credential.id,
-                credential_info.credential.signable_plaintext(),
-                credential_info.signature.to_base58_string(),
-                error_message,
-            )
-            .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn insert_issuance_validation_failure_info(
-        &self,
-        issuer: &CredentialIssuer,
-        error_message: String,
-    ) -> Result<(), NymRewarderError> {
-        self.manager
-            .insert_validation_failure_info(
-                issuer.operator_account.to_string(),
-                issuer.public_key.to_base58_string(),
-                error_message,
-            )
-            .await?;
-        Ok(())
+    ) -> Result<Vec<String>, NymRewarderError> {
+        Ok(self.manager.load_banned_ticketbook_issuers().await?)
     }
 
     pub(crate) async fn save_block_signing_rewarding_information(
@@ -195,7 +102,28 @@ impl RewarderStorage {
         let results = match results {
             Ok(results) => results,
             Err(err) => {
-                todo!("actually, what now? why can it even fail? to re-investigate")
+                // we didn't manage to calculate or send rewards for anyone.
+                // save the failure information and continue
+                if extracted_results.total_spent.amount != 0 {
+                    error!(
+                        "BROKEN INVARIANT: failed to send rewards yet we spent a non-zero amount!"
+                    );
+                    error!("the rewards weren't sent because of: {err}");
+                    return Ok(());
+                }
+
+                self.manager
+                    .insert_block_signing_rewarding_details(
+                        epoch_id,
+                        -1,
+                        -1,
+                        extracted_results.total_spent.to_string(),
+                        None,
+                        Some(err.to_string()),
+                        extracted_results.monitor_only,
+                    )
+                    .await?;
+                return Ok(());
             }
         };
 
@@ -214,7 +142,7 @@ impl RewarderStorage {
         for validator in results.validators {
             let reward_amount = validator.reward_amount(&details.budget).to_string();
             self.manager
-                .insert_rewarding_epoch_block_signing_reward(
+                .insert_block_signing_reward(
                     epoch_id,
                     validator.validator.consensus_address,
                     validator.operator_account.to_string(),
@@ -231,125 +159,103 @@ impl RewarderStorage {
         Ok(())
     }
 
-    /*
-    pub(crate) async fn save_block_signing_rewarding_information(
+    pub(crate) async fn save_ticketbook_issuance_rewarding_information(
         &self,
-        reward: BlockSigningDetails,
+        details: TicketbookIssuanceDetails,
         rewarding_result: Result<RewardingResult, NymRewarderError>,
     ) -> Result<(), NymRewarderError> {
-        info!("persisting block signing reward details");
-        let denom = &reward.total_budget.denom;
+        info!("persisting ticketbook issuance reward details");
+        let denom = &details.total_budget.denom;
 
-        let (reward_tx, total_spent, reward_err) = match rewarding_result {
-            Ok(res) => (Some(res.rewarding_tx.to_string()), res.total_spent, None),
-            Err(err) => (None, Coin::new(0, denom), Some(err.to_string())),
+        let extracted_results = extract_rewarding_results(rewarding_result, denom);
+        let expiration_date = details.expiration_date;
+
+        // general info for the epoch as marked by the ticketbook expiration date
+        self.manager
+            .insert_ticketbook_issuance_epoch(
+                details.expiration_date,
+                details.total_budget.to_string(),
+                details.whitelist_size as u32,
+                details.per_operator_budget.to_string(),
+                details.results.is_none(),
+            )
+            .await?;
+
+        let Some(results) = details.results else {
+            // no information to save as it's disabled
+            return Ok(());
         };
 
-        let epoch_id = reward.epoch.id;
+        let results = match results {
+            Ok(results) => results,
+            Err(err) => {
+                // we didn't manage to calculate or send rewards for anyone.
+                // save the failure information and continue
+                if extracted_results.total_spent.amount != 0 {
+                    error!(
+                        "BROKEN INVARIANT: failed to send rewards yet we spent a non-zero amount!"
+                    );
+                    error!("the rewards weren't sent because of: {err}");
+                    return Ok(());
+                }
 
-        // general epoch info
+                self.manager
+                    .insert_ticketbook_issuance_rewarding_details(
+                        expiration_date,
+                        -1,
+                        extracted_results.total_spent.to_string(),
+                        None,
+                        Some(err.to_string()),
+                        extracted_results.monitor_only,
+                    )
+                    .await?;
+                return Ok(());
+            }
+        };
+
         self.manager
-            .insert_rewarding_epoch(
-                reward.epoch,
-                reward.total_budget.to_string(),
-                total_spent.to_string(),
-                reward_tx,
-                reward_err,
+            .insert_ticketbook_issuance_rewarding_details(
+                expiration_date,
+                results.approximate_deposits as i64,
+                extracted_results.total_spent.to_string(),
+                extracted_results.rewarding_tx,
+                extracted_results.rewarding_err,
+                extracted_results.monitor_only,
             )
             .await?;
 
-        // block signing info
-        if let Ok(block_signing) = reward.signing {
+        for issuer in results.api_runners {
+            let reward_amount = issuer
+                .reward_amount(&details.per_operator_budget)
+                .to_string();
             self.manager
-                .insert_rewarding_epoch_block_signing(
-                    epoch_id,
-                    block_signing
-                        .as_ref()
-                        .map(|s| s.total_voting_power_at_epoch_start)
-                        .unwrap_or_default(),
-                    block_signing.as_ref().map(|s| s.blocks).unwrap_or_default(),
-                    reward.signing_budget.to_string(),
-                )
-                .await?;
-            if let Some(signing) = block_signing {
-                for validator in signing.validators {
-                    let reward_amount = validator.reward_amount(&reward.signing_budget).to_string();
-                    self.manager
-                        .insert_rewarding_epoch_block_signing_reward(
-                            epoch_id,
-                            validator.validator.consensus_address,
-                            validator.operator_account.to_string(),
-                            validator.whitelisted,
-                            reward_amount,
-                            validator.voting_power_at_epoch_start,
-                            validator.voting_power_ratio.to_string(),
-                            validator.signed_blocks,
-                            validator.ratio_signed.to_string(),
-                        )
-                        .await?;
-                }
-            }
-        } else {
-            self.insert_failed_rewarding_epoch_block_signing(epoch_id, &reward.signing_budget)
-                .await?;
-        }
-
-        // credential info
-        if let Ok(credential_issuance) = reward.credentials {
-            // safety: we must have at least a single value here
-            #[allow(clippy::unwrap_used)]
-            let dkg_epoch_start = credential_issuance
-                .as_ref()
-                .and_then(|c| c.dkg_epochs.first().copied())
-                .unwrap_or_default() as i64;
-            #[allow(clippy::unwrap_used)]
-            let dkg_epoch_end = credential_issuance
-                .as_ref()
-                .and_then(|c| c.dkg_epochs.last().copied())
-                .unwrap_or_default() as i64;
-
-            self.manager
-                .insert_rewarding_epoch_credential_issuance(
-                    epoch_id,
-                    dkg_epoch_start,
-                    dkg_epoch_end,
-                    credential_issuance
-                        .as_ref()
-                        .map(|c| c.total_issued_partial_credentials)
-                        .unwrap_or_default() as i64,
-                    reward.credentials_budget.to_string(),
+                .insert_ticketbook_issuance_reward(
+                    expiration_date,
+                    issuer.api_runner.clone(),
+                    issuer.runner_account.to_string(),
+                    issuer.whitelisted,
+                    issuer.pre_banned || issuer.issuer_ban.is_some(),
+                    reward_amount,
+                    issuer.issued_ticketbooks,
+                    issuer.issued_ratio.naive_to_f64() as f32,
+                    issuer.skipped_verification,
+                    issuer.subsample_size,
                 )
                 .await?;
 
-            if let Some(credentials) = credential_issuance {
-                for api_runner in credentials.api_runners {
-                    let reward_amount = api_runner
-                        .reward_amount(&reward.credentials_budget)
-                        .to_string();
-
-                    self.manager
-                        .insert_rewarding_epoch_credential_issuance_reward(
-                            epoch_id,
-                            api_runner.runner_account.to_string(),
-                            api_runner.whitelisted,
-                            reward_amount,
-                            api_runner.api_runner,
-                            api_runner.issued_credentials,
-                            api_runner.issued_ratio.to_string(),
-                            api_runner.validated_credentials,
-                        )
-                        .await?;
-                }
+            if let Some(cheating) = issuer.issuer_ban {
+                self.manager
+                    .insert_banned_ticketbook_issuer(
+                        issuer.api_runner,
+                        issuer.runner_account.to_string(),
+                        OffsetDateTime::now_utc(),
+                        expiration_date,
+                        cheating.reason,
+                        cheating.serialised_evidence,
+                    )
+                    .await?;
             }
-        } else {
-            self.insert_failed_rewarding_epoch_credential_issuance(
-                epoch_id,
-                &reward.credentials_budget,
-            )
-            .await?;
         }
-
         Ok(())
     }
-     */
 }

@@ -5,6 +5,8 @@ use crate::config::persistence::paths::ValidatorRewarderPaths;
 use crate::config::r#override::ConfigOverride;
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymRewarderError;
+use crate::rewarder::ticketbook_issuance;
+use cosmwasm_std::{Decimal, Uint128};
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
@@ -29,14 +31,14 @@ const DEFAULT_REWARDER_DIR: &str = "validators-rewarder";
 #[allow(clippy::inconsistent_digit_grouping)]
 const DEFAULT_DAILY_REWARDING_BUDGET: u128 = 24000_000000;
 
-#[allow(clippy::inconsistent_digit_grouping)]
-const DEFAULT_MIX_REWARDING_BUDGET: u128 = 1000_000000;
-const DEFAULT_MIX_REWARDING_DENOM: &str = "unym";
+// #[allow(clippy::inconsistent_digit_grouping)]
+// const DEFAULT_MIX_REWARDING_BUDGET: u128 = 1000_000000;
+const DEFAULT_REWARDING_DENOM: &str = "unym";
 
 const DEFAULT_BLOCK_SIGNING_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
-const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(10 * 60);
-const DEFAULT_MONITOR_MIN_VALIDATE: usize = 10;
-const DEFAULT_MONITOR_SAMPLING_RATE: f64 = 0.10;
+const DEFAULT_TICKETBOOK_ISSUANCE_MIN_VALIDATE: usize = 10;
+const DEFAULT_TICKETBOOK_ISSUANCE_SAMPLING_RATE: f64 = 0.10;
+const DEFAULT_TICKETBOOK_ISSUANCE_FULL_VERIFICATION_RATIO: f64 = 0.60;
 
 // 'worst' case scenario
 pub const TYPICAL_BLOCK_TIME: f32 = 5.;
@@ -128,6 +130,14 @@ impl Config {
         }
     }
 
+    pub fn verification_config(&self) -> ticketbook_issuance::VerificationConfig {
+        ticketbook_issuance::VerificationConfig {
+            min_validate_per_issuer: self.ticketbook_issuance.min_validate_per_issuer,
+            sampling_rate: self.ticketbook_issuance.sampling_rate,
+            full_verification_ratio: self.ticketbook_issuance.full_verification_ratio,
+        }
+    }
+
     pub fn validate(&self) -> Result<(), NymRewarderError> {
         self.rewarding.ratios.validate()?;
         self.nyxd_scraper
@@ -206,6 +216,20 @@ impl Config {
             &self.rewarding.daily_budget.denom,
         )
     }
+
+    /// Returns the total rewarding budget for ticketbook issuance for an individual operator for given day
+    pub fn ticketbook_per_operator_daily_budget(&self) -> Coin {
+        let total_budget = self.ticketbook_issuance_daily_budget();
+
+        let amount = if self.ticketbook_issuance.whitelist.is_empty() {
+            Uint128::zero()
+        } else {
+            Uint128::new(total_budget.amount)
+                * Decimal::from_ratio(1u32, self.ticketbook_issuance.whitelist.len() as u64)
+        };
+
+        Coin::new(amount.u128(), &total_budget.denom)
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Zeroize, ZeroizeOnDrop)]
@@ -231,7 +255,7 @@ pub struct Rewarding {
 impl Default for Rewarding {
     fn default() -> Self {
         Rewarding {
-            daily_budget: Coin::new(DEFAULT_DAILY_REWARDING_BUDGET, DEFAULT_MIX_REWARDING_DENOM),
+            daily_budget: Coin::new(DEFAULT_DAILY_REWARDING_BUDGET, DEFAULT_REWARDING_DENOM),
             ratios: RewardingRatios::default(),
         }
     }
@@ -356,6 +380,9 @@ pub struct TicketbookIssuance {
     /// The sampling rate of the issued ticketbooks
     pub sampling_rate: f64,
 
+    /// Ratio of issuers that will undergo full verification as opposed to being let through.
+    pub full_verification_ratio: f64,
+
     /// List of validators that will receive rewards for credential issuance.
     /// If not on the list, the validator will be treated as if it hadn't issued a single ticketbook.
     pub whitelist: Vec<AccountId>,
@@ -366,8 +393,9 @@ impl Default for TicketbookIssuance {
         TicketbookIssuance {
             enabled: false,
             monitor_only: false,
-            min_validate_per_issuer: DEFAULT_MONITOR_MIN_VALIDATE,
-            sampling_rate: DEFAULT_MONITOR_SAMPLING_RATE,
+            min_validate_per_issuer: DEFAULT_TICKETBOOK_ISSUANCE_MIN_VALIDATE,
+            sampling_rate: DEFAULT_TICKETBOOK_ISSUANCE_SAMPLING_RATE,
+            full_verification_ratio: DEFAULT_TICKETBOOK_ISSUANCE_FULL_VERIFICATION_RATIO,
             whitelist: vec![],
         }
     }

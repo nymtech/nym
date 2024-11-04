@@ -49,8 +49,14 @@ const config = {
       //   basePath: false,
       //   permanent: true,
       // },
-{
+      {
         source: "/operators",
+        destination: "docs/operators/introduction",
+        permanent: true,
+        basePath : false,
+      },
+      {
+        source: "/docs/operators",
         destination: "docs/operators/introduction",
         permanent: true,
         basePath : false,
@@ -58,7 +64,7 @@ const config = {
 
       {
         source: "/developers",
-        destination: "/docs/developers/index",
+        destination: "/docs/developers",
         permanent: true,
         basePath : false,
       },

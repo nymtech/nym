@@ -3,7 +3,7 @@ use crate::deprecated::DelegationEvent;
 use crate::error::TypesError;
 use crate::mixnode::NodeCostParams;
 use cosmwasm_std::Decimal;
-use nym_mixnet_contract_common::{Delegation as MixnetContractDelegation, NodeId};
+use nym_mixnet_contract_common::{Delegation as MixnetContractDelegation, NodeId, NodeRewarding};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -68,6 +68,14 @@ pub struct DelegationWithEverything {
     // DEPRECATED, IF POSSIBLE TRY TO DISCONTINUE USE OF IT!
     pub pending_events: Vec<DelegationEvent>,
     pub mixnode_is_unbonding: Option<bool>,
+}
+
+pub struct NodeInformation {
+    pub owner: String,
+    pub mix_id: NodeId,
+    pub node_identity: String,
+    pub rewarding_details: NodeRewarding,
+    pub is_unbonding: bool,
 }
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]

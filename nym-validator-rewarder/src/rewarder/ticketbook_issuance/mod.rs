@@ -1,88 +1,63 @@
-// Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config;
 use crate::error::NymRewarderError;
-use crate::rewarder::epoch::Epoch;
 use crate::rewarder::nyxd_client::NyxdClient;
 use crate::rewarder::storage::RewarderStorage;
-use crate::rewarder::ticketbook_issuance::monitor::CredentialIssuanceMonitor;
-use crate::rewarder::ticketbook_issuance::types::{MonitoringResults, TicketbookIssuanceResults};
-use nym_task::TaskClient;
+use crate::rewarder::ticketbook_issuance::types::TicketbookIssuanceResults;
+use crate::rewarder::ticketbook_issuance::verifier::TicketbookIssuanceVerifier;
 use nym_validator_client::nyxd::AccountId;
 use time::Date;
-use tracing::info;
+use tracing::{debug, info};
+
+pub(crate) use crate::rewarder::ticketbook_issuance::verifier::VerificationConfig;
 
 pub mod helpers;
-mod monitor;
+// mod monitor;
 pub mod types;
+pub mod verifier;
 
 pub struct TicketbookIssuance {
+    pub(crate) config: VerificationConfig,
     pub(crate) nyxd_client: NyxdClient,
 
-    // monitoring_results: MonitoringResults,
     pub(crate) storage: RewarderStorage,
+    pub(crate) whitelist: Vec<AccountId>,
 }
 
 impl TicketbookIssuance {
-    pub(crate) async fn new(
-        epoch: Epoch,
+    pub(crate) fn new(
+        config: VerificationConfig,
         storage: RewarderStorage,
         nyxd_client: &NyxdClient,
         whitelist: &[AccountId],
-    ) -> Result<Self, NymRewarderError> {
-        todo!()
-        // Ok(TicketbookIssuance {
-        //     // monitoring_results: MonitoringResults::new_initial(epoch, nyxd_client, whitelist)
-        //     //     .await?,
-        //     storage,
-        // })
-    }
-
-    // no more background monitoring
-    #[deprecated]
-    pub(crate) fn start_monitor(
-        &self,
-        monitor_config: config::TicketbookIssuance,
-        nyxd_client: NyxdClient,
-        mut task_client: TaskClient,
-    ) {
-        task_client.disarm();
-
-        // let monitoring_results = self.monitoring_results.clone();
-        // let mut monitor = CredentialIssuanceMonitor::new(
-        //     monitor_config,
-        //     nyxd_client,
-        //     self.storage.clone(),
-        //     monitoring_results,
-        // );
-        //
-        // tokio::spawn(async move { monitor.run(task_client).await });
-    }
-
-    pub(crate) async fn get_issued_credentials_results(
-        &self,
-        current_epoch: Epoch,
-    ) -> Result<TicketbookIssuanceResults, NymRewarderError> {
-        todo!()
-        // info!(
-        //     "looking up credential issuers for epoch {} ({} - {})",
-        //     current_epoch.id,
-        //     current_epoch.start_rfc3339(),
-        //     current_epoch.end_rfc3339()
-        // );
-        //
-        // let raw_results = self.monitoring_results.finish_epoch().await;
-        //
-        // Ok(raw_results.into())
+    ) -> Self {
+        TicketbookIssuance {
+            config,
+            nyxd_client: nyxd_client.clone(),
+            storage,
+            whitelist: whitelist.to_vec(),
+        }
     }
 
     pub(crate) async fn get_issued_ticketbooks_results(
         &self,
-        date: Date,
+        expiration_date: Date,
     ) -> Result<TicketbookIssuanceResults, NymRewarderError> {
-        info!("checking for all issued ticketbooks on {date}");
-        // let ecash_contract = self.nyxd_client.
-        todo!()
+        info!("checking for all issued ticketbooks on {expiration_date}");
+
+        // 1. get all ecash issuers
+        let issuers = self.nyxd_client.get_current_ticketbook_issuers().await?;
+        debug!("retrieved {} ticketbook issuers", issuers.len());
+
+        // 2. load all banned issuers to skip them completely
+        let banned = self.storage.load_banned_ticketbook_issuers().await?;
+        debug!("retrieved {} banned ticketbook issuers", banned.len());
+
+        let mut verifier =
+            TicketbookIssuanceVerifier::new(self.config, &self.whitelist, banned, expiration_date);
+
+        // 3. go around and check the specified issuers
+        verifier.check_issuers(issuers).await
     }
 }

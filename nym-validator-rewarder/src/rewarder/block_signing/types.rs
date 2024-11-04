@@ -138,18 +138,19 @@ impl EpochSigningResults {
     }
 
     pub fn rewarding_amounts(&self, budget: &Coin) -> Vec<(AccountId, Vec<Coin>)> {
-        self.validators
-            .iter()
-            .inspect(|v| {
-                info!(
-                    "validator {} will receive {} at address {} for block signing work (whitelisted: {})",
+        let mut amounts = Vec::with_capacity(self.validators.len());
+
+        for v in &self.validators {
+            let amount = v.reward_amount(budget);
+            info!(
+                    "validator {} will receive {amount} at address {} for block signing work (whitelisted: {})",
                     v.moniker(),
-                    v.reward_amount(budget),
                     v.operator_account,
                     v.whitelisted
                 );
-            })
-            .map(|v| (v.operator_account.clone(), vec![v.reward_amount(budget)]))
-            .collect()
+            amounts.push((v.operator_account.clone(), vec![amount]))
+        }
+
+        amounts
     }
 }

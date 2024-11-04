@@ -4447,6 +4447,7 @@ dependencies = [
  "nym-node-requests",
  "nym-serde-helpers",
  "nym-ticketbooks-merkle",
+ "rand_chacha",
  "schemars",
  "serde",
  "serde_json",
@@ -6508,7 +6509,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-rewarder"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bip39",
@@ -6522,16 +6523,21 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-contracts-common",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-time",
  "nym-network-defaults",
+ "nym-serde-helpers",
  "nym-task",
+ "nym-ticketbooks-merkle",
  "nym-validator-client",
  "nyxd-scraper",
+ "rand",
  "rand_chacha",
  "serde",
+ "serde_json",
  "serde_with",
  "sha2 0.10.8",
  "sqlx",

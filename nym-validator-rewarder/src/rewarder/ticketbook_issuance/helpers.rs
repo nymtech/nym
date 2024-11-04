@@ -18,7 +18,10 @@ pub fn end_of_day_ticker() -> Interval {
     let until_next_day: Duration = (next_day - now).try_into().unwrap();
 
     interval_at(
-        Instant::now().add(until_next_day),
+        // add extra 2h to account for leeway with issuance at the beginning of a day
+        Instant::now()
+            .add(until_next_day)
+            .add(Duration::from_secs(2 * 60 * 60)),
         Duration::from_secs(24 * 60 * 60),
     )
 }

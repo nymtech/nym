@@ -1,6 +1,6 @@
 [package]
 name = "nym-validator-rewarder"
-version = "0.1.0"
+version = "0.2.0"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -16,6 +16,7 @@ bip39 = { workspace = true, features = ["zeroize"] }
 cosmwasm-std.workspace = true
 clap = { workspace = true, features = ["cargo"] }
 futures.workspace = true
+rand.workspace = true
 serde = { workspace = true, features = ["derive"] }
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate", "time"] }
 thiserror.workspace = true
@@ -24,7 +25,7 @@ tracing.workspace = true
 time.workspace = true
 url.workspace = true
 zeroize.workspace = true
-
+serde_json.workspace = true
 serde_with = { workspace = true }
 sha2 = { workspace = true }
 humantime = { workspace = true }
@@ -34,6 +35,7 @@ humantime-serde.workspace = true
 nym-bin-common = { path = "../common/bin-common", features = ["output_format", "basic_tracing"] }
 nym-config = { path = "../common/config" }
 nym-ecash-time = { path = "../common/ecash-time" }
+nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
 nym-compact-ecash = { path = "../common/nym_offline_compact_ecash" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric"] }
 nym-credentials = { path = "../common/credentials" }
@@ -43,6 +45,8 @@ nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-coconut-dkg-common = { path = "../common/cosmwasm-smart-contracts/coconut-dkg" }
 nym-coconut-bandwidth-contract-common = { path = "../common/cosmwasm-smart-contracts/coconut-bandwidth-contract" }
 nyxd-scraper = { path = "../common/nyxd-scraper" }
+nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
+nym-serde-helpers = { path = "../common/serde-helpers", features = ["base64"] }
 
 [build-dependencies]
 sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "macros", "migrate"] }

@@ -8,22 +8,20 @@ use nym_coconut_dkg_common::types::Epoch;
 use nym_compact_ecash::{Base58, VerificationKeyAuth};
 use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::nyxd::contract_traits::ecash_query_client::{Deposit, DepositId};
-use nym_validator_client::nyxd::contract_traits::{
-    DkgQueryClient, EcashQueryClient, PagedDkgQueryClient,
-};
+use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, PagedDkgQueryClient};
 use nym_validator_client::nyxd::module_traits::staking::{
     QueryHistoricalInfoResponse, QueryValidatorsResponse,
 };
 use nym_validator_client::nyxd::{
     AccountId, Coin, CosmWasmClient, Hash, PageRequest, StakingQueryClient,
 };
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient, NymApiClient};
 use std::collections::HashMap;
 use std::ops::Deref;
 use std::sync::Arc;
-use time::OffsetDateTime;
 use tokio::sync::RwLock;
+use tracing::warn;
+use url::Url;
 
 #[derive(Clone)]
 pub struct NyxdClient {
@@ -60,13 +58,13 @@ impl NyxdClient {
 
     pub(crate) async fn send_rewards(
         &self,
-        epoch: crate::rewarder::Epoch,
+        memo: impl Into<String> + Send + 'static,
         amounts: Vec<(AccountId, Vec<Coin>)>,
     ) -> Result<Hash, NymRewarderError> {
         self.inner
             .write()
             .await
-            .send_multiple(amounts, format!("sending rewards for {epoch:?}"), None)
+            .send_multiple(amounts, memo, None)
             .await
             .map(|res| res.hash)
             .map_err(Into::into)
@@ -91,55 +89,57 @@ impl NyxdClient {
         Ok(self.inner.read().await.get_current_epoch().await?)
     }
 
-    pub(crate) async fn get_credential_issuers(
+    pub(crate) async fn get_current_ticketbook_issuers(
         &self,
-        dkg_epoch: u64,
     ) -> Result<Vec<CredentialIssuer>, NymRewarderError> {
+        let current_dkg_epoch = self.dkg_epoch().await?;
         let guard = self.inner.read().await;
         let mut dealers_map = HashMap::new();
         let dealers = guard.get_all_current_dealers().await?;
         for dealer in dealers {
             dealers_map.insert(dealer.address.to_string(), dealer);
         }
-        let vk_shares = guard.get_all_verification_key_shares(dkg_epoch).await?;
+        let vk_shares = guard
+            .get_all_verification_key_shares(current_dkg_epoch.epoch_id)
+            .await?;
 
         let mut issuers = Vec::with_capacity(vk_shares.len());
         for share in vk_shares {
             if let Some(info) = dealers_map.remove(&share.owner.to_string()) {
-                issuers.push(CredentialIssuer {
-                    public_key: ed25519::PublicKey::from_base58_string(&info.ed25519_identity)?,
-                    operator_account: addr_to_account_id(share.owner),
-                    api_runner: share.announce_address,
-                    verification_key: VerificationKeyAuth::try_from_bs58(share.share).map_err(
-                        |source| NymRewarderError::MalformedPartialVerificationKey {
+                if !share.verified {
+                    warn!("share of {} was not verified", info.address);
+                    continue;
+                }
+                // information in the contract MUST BE correct for everyone - it is not we shouldn't reward anyone until it's resolved
+                let verification_key =
+                    VerificationKeyAuth::try_from_bs58(share.share).map_err(|source| {
+                        NymRewarderError::MalformedPartialVerificationKey {
                             runner: info.address.to_string(),
                             source,
-                        },
-                    )?,
+                        }
+                    })?;
+
+                let Ok(api_address) = Url::parse(&share.announce_address) else {
+                    warn!("{} provided invalid api url", info.address);
+                    continue;
+                };
+
+                let Ok(public_key) = ed25519::PublicKey::from_base58_string(&info.ed25519_identity)
+                else {
+                    warn!("{} provided invalid ed25519 identity", info.address);
+                    continue;
+                };
+
+                issuers.push(CredentialIssuer {
+                    public_key,
+                    operator_account: addr_to_account_id(share.owner),
+                    api_client: NymApiClient::new(api_address),
+                    verification_key,
+                    node_id: info.assigned_index,
                 })
             }
         }
 
         Ok(issuers)
-    }
-
-    pub(crate) async fn get_deposit_details(
-        &self,
-        deposit_id: DepositId,
-    ) -> Result<Deposit, NymRewarderError> {
-        let res = self.inner.read().await.get_deposit(deposit_id).await?;
-        res.deposit
-            .ok_or(NymRewarderError::DepositNotFound { deposit_id })
-    }
-
-    pub(crate) async fn latest_deposit_id(&self) -> Result<Option<DepositId>, NymRewarderError> {
-        todo!()
-    }
-
-    pub(crate) async fn deposit_timestamp(
-        &self,
-        deposit_id: DepositId,
-    ) -> Result<OffsetDateTime, NymRewarderError> {
-        todo!()
     }
 }

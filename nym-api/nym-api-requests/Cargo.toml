@@ -35,6 +35,11 @@ nym-node-requests = { path = "../../nym-node/nym-node-requests", default-feature
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-ticketbooks-merkle = { path = "../../common/ticketbooks-merkle" }
 
+[dev-dependencies]
+rand_chacha = { workspace = true }
+nym-crypto = { path = "../../common/crypto", features = ["rand"] }
+
+
 [features]
 default = []
 generate-ts = ["ts-rs", "nym-mixnet-contract-common/generate-ts"]

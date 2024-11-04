@@ -6,22 +6,25 @@
 
 -- explicitly mark end of "old" combined rewarding with the `_v1` suffix
 -- (as a result, we have to recreate bunch of tables due to foreign key constraints)
-ALTER TABLE rewarding_epoch RENAME TO combined_rewarding_epoch_v1;
-ALTER TABLE epoch_block_signing RENAME TO epoch_block_signing_v1;
-ALTER TABLE block_signing_reward RENAME TO block_signing_reward_v1;
+ALTER TABLE rewarding_epoch
+    RENAME TO combined_rewarding_epoch_v1;
+ALTER TABLE epoch_block_signing
+    RENAME TO epoch_block_signing_v1;
+ALTER TABLE block_signing_reward
+    RENAME TO block_signing_reward_v1;
 
 
 CREATE TABLE block_signing_rewarding_epoch
 (
-    id          INTEGER NOT NULL PRIMARY KEY,
-    start_time  TIMESTAMP WITHOUT TIME ZONE NOT NULL,
-    end_time    TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    id         INTEGER                     NOT NULL PRIMARY KEY,
+    start_time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    end_time   TIMESTAMP WITHOUT TIME ZONE NOT NULL,
 
     -- rewarding budget allocated to this block signing rewarding epoch
-    budget      TEXT NOT NULL,
+    budget     TEXT                        NOT NULL,
 
     -- indicates whether block signing rewarding/monitoring module is disabled
-    disabled    BOOLEAN NOT NULL
+    disabled   BOOLEAN                     NOT NULL
 );
 
 CREATE TABLE block_signing_rewarding_details
@@ -35,7 +38,7 @@ CREATE TABLE block_signing_rewarding_details
     num_blocks                        INTEGER NOT NULL,
 
     -- the actual amount spent (decreased by missing blocks, etc.)
-    spent                             TEXT NOT NULL,
+    spent                             TEXT    NOT NULL,
 
     -- if successful, the transaction hash of the rewarding transaction
     rewarding_tx                      TEXT,
@@ -72,25 +75,67 @@ DROP TABLE double_signing_evidence;
 DROP TABLE issuance_evidence;
 DROP TABLE issuance_validation_failure;
 
--- each issuance rewarding is happening daily based on credentials/deposits issued on particular day
-CREATE TABLE ticketbook_issuance_epoch (
-    date                DATE            NOT NULL UNIQUE PRIMARY KEY,
-    first_deposit_id    INTEGER,
-    last_deposit_id     INTEGER,
-    budget              TEXT            NOT NULL,
-    spent               TEXT            NOT NULL,
-    rewarding_tx        TEXT,
-    rewarding_error     TEXT
+
+
+CREATE TABLE ticketbook_issuance_epoch
+(
+    expiration_date     DATE    NOT NULL PRIMARY KEY,
+
+    -- rewarding budget allocated to this ticketbook issuance epoch
+    total_budget        TEXT    NOT NULL,
+
+    whitelist_size      INTEGER NOT NULL,
+
+    -- rewarding budget allocated for a single operator based on total budget and whitelist size
+    budget_per_operator TEXT    NOT NULL,
+
+    -- indicates whether block signing rewarding/monitoring module is disabled
+    disabled            BOOLEAN NOT NULL
 );
 
-CREATE TABLE ticketbook_issuance_reward (
-    date                        DATE    NOT NULL REFERENCES ticketbook_issuance_epoch(date),
-    operator_account            TEXT    NOT NULL,
-    amount                      TEXT    NOT NULL,
-    whitelisted                 BOOLEAN NOT NULL,
+CREATE TABLE ticketbook_issuance_rewarding_details
+(
+    ticketbook_expiration_date DATE    NOT NULL REFERENCES ticketbook_issuance_epoch (expiration_date),
+
+    -- approximate numbers of total deposits made with the particular expiration date
+    approximate_deposits       INTEGER NOT NULL,
+
+    -- the actual amount spent (decreased by not issuing every available ticketbook, etc. it's not expected everyone will ever get 100%)
+    spent                      TEXT    NOT NULL,
+
+    -- if successful, the transaction hash of the rewarding transaction
+    rewarding_tx               TEXT,
+
+    -- if unsuccessful, the error indicating why the rewards were not sent out
+    rewarding_error            TEXT,
+
+    -- indicates whether this instance is running in 'monitor only' mode where it's not expected to be sending any transactions
+    monitor_only               BOOLEAN NOT NULL
+);
+
+
+CREATE TABLE ticketbook_issuance_reward
+(
+    ticketbook_expiration_date  DATE    NOT NULL REFERENCES ticketbook_issuance_epoch (expiration_date),
     api_endpoint                TEXT    NOT NULL,
+    operator_account            TEXT    NOT NULL,
+    whitelisted                 BOOLEAN NOT NULL,
+    banned                      BOOLEAN NOT NULL,
+    amount                      TEXT    NOT NULL,
     issued_partial_ticketbooks  INTEGER NOT NULL,
     share_of_issued_ticketbooks FLOAT   NOT NULL,
+    skipped_verification        BOOLEAN NOT NULL,
+    subsample_size              INTEGER NOT NULL,
 
-    UNIQUE (date, operator_account)
+    UNIQUE (ticketbook_expiration_date, operator_account)
 );
+
+CREATE TABLE banned_ticketbook_issuer
+(
+    operator_account                      TEXT PRIMARY KEY            NOT NULL,
+    api_endpoint                          TEXT                        NOT NULL,
+    banned_on                             TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    associated_ticketbook_expiration_date DATE                        NOT NULL REFERENCES ticketbook_issuance_epoch (expiration_date),
+    reason                                TEXT                        NOT NULL,
+    evidence                              BLOB                        NOT NULL
+)

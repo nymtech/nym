@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+pub use crate::nym_api::NymApiClientExt;
 use crate::nyxd::{self, NyxdClient};
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 use crate::signing::signer::{NoSigner, OfflineSigner};
@@ -11,7 +12,8 @@ use crate::{
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    SpentCredentialsResponse, VerifyEcashTicketBody,
+    IssuedTicketbooksChallengeResponse, IssuedTicketbooksForResponse, SpentCredentialsResponse,
+    VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
@@ -24,15 +26,14 @@ use nym_api_requests::models::{
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_coconut_dkg_common::types::EpochId;
+use nym_ecash_contract_common::deposit::DepositId;
 use nym_http_api_client::UserAgent;
-use nym_network_defaults::NymNetworkDetails;
-use time::Date;
-use url::Url;
-
-pub use crate::nym_api::NymApiClientExt;
 pub use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId,
 };
+use nym_network_defaults::NymNetworkDetails;
+use time::Date;
+use url::Url;
 
 // re-export the type to not break existing imports
 pub use crate::coconut::EcashApiClient;
@@ -515,5 +516,23 @@ impl NymApiClient {
         epoch_id: Option<EpochId>,
     ) -> Result<VerificationKeyResponse, ValidatorClientError> {
         Ok(self.nym_api.master_verification_key(epoch_id).await?)
+    }
+
+    pub async fn issued_ticketbooks_for(
+        &self,
+        expiration_date: Date,
+    ) -> Result<IssuedTicketbooksForResponse, ValidatorClientError> {
+        Ok(self.nym_api.issued_ticketbooks_for(expiration_date).await?)
+    }
+
+    pub async fn issued_ticketbooks_challenge(
+        &self,
+        expiration_date: Date,
+        deposits: Vec<DepositId>,
+    ) -> Result<IssuedTicketbooksChallengeResponse, ValidatorClientError> {
+        Ok(self
+            .nym_api
+            .issued_ticketbooks_challenge(expiration_date, deposits)
+            .await?)
     }
 }

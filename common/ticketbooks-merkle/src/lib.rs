@@ -176,9 +176,28 @@ pub struct IssuedTicketbooksFullMerkleProof {
     root: Vec<u8>,
 }
 
+impl Clone for IssuedTicketbooksFullMerkleProof {
+    fn clone(&self) -> Self {
+        IssuedTicketbooksFullMerkleProof {
+            inner_proof: MerkleProof::new(self.inner_proof.proof_hashes().to_vec()),
+            included_leaves: self.included_leaves.clone(),
+            total_leaves: self.total_leaves,
+            root: self.root.clone(),
+        }
+    }
+}
+
 impl IssuedTicketbooksFullMerkleProof {
-    pub fn contains_leaf(&self, hash: [u8; 32]) -> bool {
+    pub fn contains_leaf_hash(&self, hash: [u8; 32]) -> bool {
         self.included_leaves.iter().any(|m| m.hash == hash)
+    }
+
+    pub fn contains_full_leaf(&self, leaf: &MerkleLeaf) -> bool {
+        self.included_leaves.iter().any(|m| m == leaf)
+    }
+
+    pub fn total_leaves(&self) -> usize {
+        self.total_leaves
     }
 
     pub fn verify(&self, expected_root: [u8; 32]) -> bool {
@@ -294,7 +313,7 @@ mod tests {
             let proof = tree.generate_proof(&[i]).unwrap();
             assert!(proof.verify(tree.root().unwrap()));
             assert_eq!(proof.total_leaves, i + 1);
-            assert!(proof.contains_leaf(expected_hash));
+            assert!(proof.contains_leaf_hash(expected_hash));
         }
 
         // proof for multiple nodes
@@ -303,7 +322,7 @@ mod tests {
         let big_proof = tree.generate_proof(&indices).unwrap();
         for &index in &indices {
             let leaf_hash = all_leaves.get(index).unwrap();
-            assert!(big_proof.contains_leaf(*leaf_hash));
+            assert!(big_proof.contains_leaf_hash(*leaf_hash));
         }
 
         assert!(big_proof.verify(tree.root().unwrap()))

@@ -138,9 +138,8 @@ pub trait NaiveFloat {
     where
         Self: Sized;
 }
-
 #[cfg(not(target_arch = "wasm32"))]
-impl NaiveFloat for Percent {
+impl NaiveFloat for Decimal {
     fn naive_to_f64(&self) -> f64 {
         use cosmwasm_std::Fraction;
 
@@ -181,7 +180,21 @@ impl NaiveFloat for Percent {
         }
 
         let (n, d) = to_rational(val);
-        Percent::new(Decimal::from_ratio(n, d))
+        Ok(Decimal::from_ratio(n, d))
+    }
+}
+
+#[cfg(not(target_arch = "wasm32"))]
+impl NaiveFloat for Percent {
+    fn naive_to_f64(&self) -> f64 {
+        self.0.naive_to_f64()
+    }
+
+    fn naive_try_from_f64(val: f64) -> Result<Self, ContractsCommonError>
+    where
+        Self: Sized,
+    {
+        Percent::new(Decimal::naive_try_from_f64(val)?)
     }
 }
 

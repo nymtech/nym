@@ -177,6 +177,9 @@ pub enum NymRewarderError {
     #[error("there were no validators to reward in this epoch")]
     NoValidatorsToReward,
 
+    #[error("there were no ticketbook signers to reward in this epoch")]
+    NoSignersToReward,
+
     #[error("the current pruning strategy is set to 'everything' - we won't have any block data for rewarding")]
     EverythingPruningStrategy,
 

@@ -696,16 +696,32 @@ pub trait NymApiClientExt: ApiClient {
         &self,
         node_id: NodeId,
     ) -> Result<NodePerformanceResponse, NymAPIError> {
-        self.get_json_from(format!("/v1/nym-nodes/performance/{node_id}"))
-            .await
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "nym-nodes",
+                "performance",
+                &node_id.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
     }
 
     async fn get_node_annotation(
         &self,
         node_id: NodeId,
     ) -> Result<AnnotationResponse, NymAPIError> {
-        self.get_json_from(format!("/v1/nym-nodes/annotation/{node_id}"))
-            .await
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "nym-nodes",
+                "annotation",
+                &node_id.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
     }
 
     #[deprecated]

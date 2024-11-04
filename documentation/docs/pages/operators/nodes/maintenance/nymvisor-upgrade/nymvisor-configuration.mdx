@@ -1,0 +1,98 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+
+
+# Nymvisor Configuration
+
+<VarInfo />
+
+## Nymvisor Automation with `systemd`
+
+This section contains guide how to setup `systemd` automation for Nymvisor. If you are looking for other chapters, visit these pages: [VPS setup](../../../preliminrary-steps/vps-setup.mdx), advanced terminal tools like [tmux and nohup setup](../../nym-node/configuration.mdx#vps-setup-and-automation), [`nym-node` automation](../../nym-node/configuration.mdx#systemd) or [`validator` automation](../../validator-setup/nyx-configuration#automation).
+
+<Callout type="info" emoji="ℹ️">
+Since you're planning to run your node via a Nymvisor instance, as well as creating a Nymvisor `.service` file, you will also want to **stop any previous node automation process you already have running**.
+</Callout>
+
+SSH to your server as `root` or become one running `sudo -i` or `su`. If you prefer to administrate your VPS from a user environment, supply the commands with prefix `sudo`.
+
+<Steps>
+
+###### 1. Create a service file
+
+To automate with `systemd` use this init service file by saving it as `/etc/systemd/system/nymvisor.service` and follow the [next steps](#2-following-steps-for-nym-node-running-as-systemd-service).
+
+- Open service file in a text editor
+```sh
+nano /etc/systemd/system/nymvisor.service
+```
+
+- Paste this config file, substitute `<USER>` and `<PATH>` with your correct values and add all flags to run your `nymvisor` to `ExecStart` line instead of `<ARGUMENTS>`:
+
+```ini
+[Unit]
+Description=Nymvisor <VERSION>
+StartLimitInterval=350
+StartLimitBurst=10
+
+[Service]
+User=<USER> # replace this with whatever user you wish
+LimitNOFILE=65536
+ExecStart=<PATH>/nymvisor run <ARGUMENTS>
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
+```
+
+- Save config and exit
+
+###### 2. Following steps for `nymvisor` running as `systemd` service
+
+Once your service file is saved follow these steps.
+
+- Reload systemctl to pickup the new unit file:
+```sh
+systemctl daemon-reload
+```
+
+- Enable the newly created service:
+```sh
+systemctl enable nymvisor.service
+```
+
+- Start your Nymvisor instance as a `systemd` service:
+```sh
+service nymvisor start
+```
+
+This will cause your Nymvisor instance to start at system boot time. If you restart your machine, your service will come back up automatically.
+
+###### 3. Useful `systemd` commands for easier management
+
+- You can monitor system logs of your node by running:
+```sh
+journalctl -u nymvisor -f
+```
+
+- Or check service status by running:
+```sh
+systemctl status nymvisor.service
+# for example systemctl status nymvisor.service
+```
+
+- You can also do `service nymvisor stop` or `service nymvisor restart`.
+
+###### 4. Anytime you make any changes to your `systemd` script after you've enabled it, you will need to run:
+```sh
+systemctl daemon-reload
+service nymvisor restart
+```
+
+This lets your operating system know it's ok to reload the service configuration and restarts the node in a graceful way.
+
+</Steps>

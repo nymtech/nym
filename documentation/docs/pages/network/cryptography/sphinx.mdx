@@ -1,0 +1,15 @@
+# Sphinx Packet Format
+
+> Sphinx is a cryptographic message format used to relay anonymized messages within a mix network. It is more compact than any comparable scheme, and supports a full set of security features: indistinguish- able replies, hiding the path length and relay position, as well as providing unlinkability for each leg of the
+message’s journey over the network.
+>
+> [Sphinx: A Compact and Provably Secure Mix Format](https://cypherpunks.ca/~iang/pubs/Sphinx_Oakland09.pdf) abstract
+
+[Sphinx](https://cypherpunks.ca/~iang/pubs/Sphinx_Oakland09.pdf) is the packet format used to multiply encrypt all messages sent by Nym clients through the Mixnet. All Sphinx packets constructed by clients have a payload of 2048 bytes.
+
+Some notable features:
+- Clients derive a shared secret key with each node that the Sphinx packet will be sent between using their public encryption key and the nodes' public keys, assuring that only the information pertinent to each node - the address headers of the following hop - can be decrypted, with the payload being encrypted using the keys of the receiving client.
+- In order to avoid dishonest nodes injecting false payload information en-route to the receiving client, [HMACs](https://en.wikipedia.org/wiki/HMAC) are present at each layer of the Sphinx packet so nodes can verify that the packet contents have not been changed.
+- Payloads are padded in order to remain a fixed length. This is pertinent as it means that nodes do not know which hop in the packet's route they are.
+
+> You can find a detailed explanation of Sphinx packet construction and verification written by Elle Mouton [here](https://ellemouton.com/posts/sphinx/) (Sphinx is also used by the Lightning Network, amongst others).

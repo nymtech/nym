@@ -43,12 +43,12 @@ const config = {
   async redirects() {
     return [
       // network docs
-      {
-        source: "/",
-        destination: "/docs",
-        basePath: false,
-        permanent: true,
-      },
+      // {
+      //   source: "/",
+      //   destination: "/docs",
+      //   basePath: false,
+      //   permanent: true,
+      // },
       {
         source: "/operators",
         destination: "/operators/introduction",
@@ -486,10 +486,16 @@ const config = {
         permanent: true,
       },
       // since the filepaths are mostly the same, we otherwise just match on old URLs that end with .html
+      // {
+      //   source: "/:path*.html",
+      //   destination: "/:path*",
+      //   permanent: false,
+      // },
       {
-        source: "/:path*.html",
-        destination: "/:path*",
-        permanent: false,
+        source: "/",
+        destination: "/docs",
+        basePath: false,
+        permanent: true,
       },
 
       // TODO these need to go in the config of the existing deployed ts sdk docs to redirect from there

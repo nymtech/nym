@@ -56,7 +56,7 @@ const config = {
       },
       {
         source: "/docs/architecture/nym-vs-others.html",
-        destination: "/network/architecture/nym-vs-others",
+        destination: "/docs/network/architecture/nym-vs-others",
         permanent: true,
       },
       {

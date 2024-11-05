@@ -747,34 +747,34 @@ impl NymNode {
 
     async fn try_refresh_remote_nym_api_cache(&self) {
         info!("attempting to request described cache request from nym-api...");
-        let Some(nym_api_url) = self.config.mixnet.nym_api_urls.get(0) else {
+        if self.config.mixnet.nym_api_urls.is_empty() {
             warn!("no nym-api urls available");
             return;
-        };
+        }
 
-        // let client = NymApiClient::new_with_user_agent(nym_api_url.clone(), bin_info_owned!());
-        let client = NymApiClient::new_with_user_agent(
-            "http://localhost:8081".parse().unwrap(),
-            bin_info_owned!(),
-        );
+        for nym_api in &self.config.mixnet.nym_api_urls {
+            info!("trying {nym_api}...");
+            let client = NymApiClient::new_with_user_agent(nym_api.clone(), bin_info_owned!());
 
-        let request = NodeRefreshBody::new(self.ed25519_identity_keys.private_key());
-        match timeout(
-            Duration::from_secs(10),
-            client.nym_api.force_refresh_describe_cache(&request),
-        )
-        .await
-        {
-            Ok(Ok(_)) => {
-                info!("managed to refresh own self-described data cache")
-            }
-            Ok(Err(request_failure)) => {
-                warn!("failed to resolve the refresh request: {request_failure}")
-            }
-            Err(_timeout) => {
-                warn!("timed out while attempting to resolve the request. the cache might be stale")
-            }
-        };
+            // make new request every time in case previous one takes longer and invalidates the signature
+            let request = NodeRefreshBody::new(self.ed25519_identity_keys.private_key());
+            match timeout(
+                Duration::from_secs(10),
+                client.nym_api.force_refresh_describe_cache(&request),
+            )
+            .await
+            {
+                Ok(Ok(_)) => {
+                    info!("managed to refresh own self-described data cache")
+                }
+                Ok(Err(request_failure)) => {
+                    warn!("failed to resolve the refresh request: {request_failure}")
+                }
+                Err(_timeout) => {
+                    warn!("timed out while attempting to resolve the request. the cache might be stale")
+                }
+            };
+        }
     }
 
     pub(crate) async fn run(self) -> Result<(), NymNodeError> {

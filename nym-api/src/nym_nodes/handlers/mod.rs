@@ -66,13 +66,13 @@ async fn refresh_described(
         )));
     };
 
-    // if !request_body.verify_signature() {
-    //     return Err(AxumErrorResponse::unauthorised("invalid request signature"));
-    // }
-    //
-    // if request_body.is_stale() {
-    //     return Err(AxumErrorResponse::bad_request("the request is stale"));
-    // }
+    if !request_body.verify_signature() {
+        return Err(AxumErrorResponse::unauthorised("invalid request signature"));
+    }
+
+    if request_body.is_stale() {
+        return Err(AxumErrorResponse::bad_request("the request is stale"));
+    }
 
     let node_id = refresh_data.node_id();
     if let Some(last) = state.forced_refresh.last_refreshed(node_id).await {

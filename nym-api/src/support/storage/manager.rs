@@ -983,7 +983,8 @@ impl StorageManager {
         since: i64,
         until: i64,
     ) -> Result<Vec<ActiveGateway>, sqlx::Error> {
-        sqlx::query_as(
+        sqlx::query_as!(
+            ActiveGateway,
             r#"
                 SELECT DISTINCT identity, node_id as "node_id: NodeId", id
                     FROM gateway_details
@@ -993,9 +994,9 @@ impl StorageManager {
                         SELECT 1 FROM gateway_status WHERE timestamp > ? AND timestamp < ?
                     )
             "#,
+            since,
+            until
         )
-        .bind(since)
-        .bind(until)
         .fetch_all(&self.connection_pool)
         .await
     }

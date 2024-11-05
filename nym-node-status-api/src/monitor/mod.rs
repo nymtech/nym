@@ -12,9 +12,7 @@ use cosmwasm_std::Decimal;
 use nym_explorer_client::{ExplorerClient, PrettyDetailedGatewayBond};
 use nym_network_defaults::NymNetworkDetails;
 use nym_validator_client::client::NymApiClientExt;
-use nym_validator_client::models::{
-    LegacyDescribedMixNode, MixNodeBondAnnotated, NymNodeDescription,
-};
+use nym_validator_client::models::{DescribedGateway, DescribedMixNode, MixNodeBondAnnotated};
 use nym_validator_client::nym_nodes::SkimmedNode;
 use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::{AccountId, NyxdClient};
@@ -95,52 +93,28 @@ async fn run(
     let explorer_client =
         ExplorerClient::new_with_timeout(default_explorer_url, explorer_client_timeout)?;
     let explorer_gateways = explorer_client
-        .unstable_get_gateways()
+        .get_gateways()
         .await
-        .log_error("unstable_get_gateways")?;
+        .log_error("get_gateways")?;
 
     let api_client = NymApiClient::new_with_timeout(default_api_url, nym_api_client_timeout);
 
-    let all_nodes = api_client
-        .get_all_described_nodes()
+    let gateways = api_client
+        .get_cached_described_gateways()
         .await
-        .log_error("get_all_described_nodes")?;
-    tracing::debug!("Fetched {} total nodes", all_nodes.len());
+        .log_error("get_cached_described_gateways")?;
+    tracing::debug!("Fetched {} gateways", gateways.len());
 
-    let gateways = all_nodes
-        .iter()
-        .filter(|node| node.description.declared_role.entry)
-        .collect::<Vec<_>>();
-    tracing::debug!("Of those, {} gateways", gateways.len());
-    for gw in gateways.iter() {
-        tracing::debug!("{}", gw.ed25519_identity_key().to_base58_string());
-    }
-
-    let mixnodes = all_nodes
-        .iter()
-        .filter(|node| node.description.declared_role.mixnode)
-        .collect::<Vec<_>>();
-    tracing::debug!("Of those, {} mixnodes", mixnodes.len());
-
-    log_gw_in_explorer_not_api(explorer_gateways.as_slice(), gateways.as_slice());
-
-    let all_skimmed_nodes = api_client
-        .get_all_basic_nodes(None)
+    let skimmed_gateways = api_client
+        .get_basic_gateways(None)
         .await
-        .log_error("get_all_basic_nodes")?;
+        .log_error("get_basic_gateways")?;
 
-    let mixnodes = api_client
-        .get_cached_mixnodes()
-        .await
-        .log_error("get_cached_mixnodes")?;
-    tracing::debug!("Fetched {} mixnodes", mixnodes.len());
-
-    // let gateways_blacklisted = gateways.iter().filter(|gw|gw.)
-    let gateways_blacklisted = all_skimmed_nodes
+    let gateways_blacklisted = skimmed_gateways
         .iter()
-        .filter_map(|node| {
-            if node.performance.round_to_integer() <= 50 && node.supported_roles.entry {
-                Some(node.ed25519_identity_pubkey.to_base58_string())
+        .filter_map(|gw| {
+            if gw.performance.round_to_integer() <= 50 {
+                Some(gw.ed25519_identity_pubkey.to_owned())
             } else {
                 None
             }
@@ -177,7 +151,7 @@ async fn run(
         &gateways,
         &gateways_blacklisted,
         explorer_gateways,
-        all_skimmed_nodes,
+        skimmed_gateways,
     )?;
     queries::insert_gateways(pool, gateway_records)
         .await
@@ -189,8 +163,8 @@ async fn run(
     let count_gateways_blacklisted = gateways
         .iter()
         .filter(|gw| {
-            let gw_identity = gw.ed25519_identity_key().to_base58_string();
-            gateways_blacklisted.contains(&gw_identity)
+            let gw_identity = gw.bond.identity();
+            gateways_blacklisted.contains(gw_identity)
         })
         .count();
 
@@ -301,7 +275,7 @@ async fn run(
 }
 
 fn prepare_gateway_data(
-    gateways: &[&NymNodeDescription],
+    gateways: &[DescribedGateway],
     gateways_blacklisted: &HashSet<String>,
     explorer_gateways: Vec<PrettyDetailedGatewayBond>,
     skimmed_gateways: Vec<SkimmedNode>,
@@ -309,25 +283,24 @@ fn prepare_gateway_data(
     let mut gateway_records = Vec::new();
 
     for gateway in gateways {
-        let identity_key = gateway.ed25519_identity_key().to_base58_string();
+        let identity_key = gateway.bond.identity();
         let bonded = true;
         let last_updated_utc = chrono::offset::Utc::now().timestamp();
-        let blacklisted = gateways_blacklisted.contains(&identity_key);
+        let blacklisted = gateways_blacklisted.contains(identity_key);
 
-        let self_described = serde_json::to_string(&gateway.description)?;
+        let self_described = gateway
+            .self_described
+            .as_ref()
+            .and_then(|v| serde_json::to_string(&v).ok());
 
         let explorer_pretty_bond = explorer_gateways
             .iter()
-            .find(|g| g.gateway.identity_key.eq(&identity_key));
+            .find(|g| g.gateway.identity_key.eq(identity_key));
         let explorer_pretty_bond = explorer_pretty_bond.and_then(|g| serde_json::to_string(g).ok());
 
         let performance = skimmed_gateways
             .iter()
-            .find(|g| {
-                g.ed25519_identity_pubkey
-                    .to_base58_string()
-                    .eq(&identity_key)
-            })
+            .find(|g| g.ed25519_identity_pubkey.eq(identity_key))
             .map(|g| g.performance)
             .unwrap_or_default()
             .round_to_integer();
@@ -348,7 +321,7 @@ fn prepare_gateway_data(
 
 fn prepare_mixnode_data(
     mixnodes: &[MixNodeBondAnnotated],
-    mixnodes_described: Vec<LegacyDescribedMixNode>,
+    mixnodes_described: Vec<DescribedMixNode>,
     delegation_program_members: Vec<u32>,
 ) -> anyhow::Result<Vec<MixnodeRecord>> {
     let mut mixnode_records = Vec::new();
@@ -387,28 +360,6 @@ fn prepare_mixnode_data(
     }
 
     Ok(mixnode_records)
-}
-
-fn log_gw_in_explorer_not_api(
-    explorer: &[PrettyDetailedGatewayBond],
-    api_gateways: &[&NymNodeDescription],
-) {
-    let api_gateways = api_gateways
-        .iter()
-        .map(|gw| gw.ed25519_identity_key().to_base58_string())
-        .collect::<HashSet<_>>();
-    let explorer_only = explorer
-        .iter()
-        .filter(|gw| !api_gateways.contains(&gw.gateway.identity_key.to_string()))
-        .collect::<Vec<_>>();
-
-    tracing::debug!(
-        "Gateways listed by explorer but not by Nym API: {}",
-        explorer_only.len()
-    );
-    for gw in explorer_only.iter() {
-        tracing::debug!("{}", gw.gateway.identity_key.to_string());
-    }
 }
 
 // TODO dz is there a common monorepo place this can be put?
@@ -470,7 +421,7 @@ async fn get_delegation_program_details(
 
     let mix_ids: Vec<u32> = delegations
         .iter()
-        .map(|delegation| delegation.node_id)
+        .map(|delegation| delegation.mix_id)
         .collect();
 
     Ok(mix_ids)

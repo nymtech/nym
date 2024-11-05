@@ -11,7 +11,7 @@ pub(crate) struct GatewayRecord {
     pub(crate) identity_key: String,
     pub(crate) bonded: bool,
     pub(crate) blacklisted: bool,
-    pub(crate) self_described: String,
+    pub(crate) self_described: Option<String>,
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_updated_utc: i64,
     pub(crate) performance: u8,

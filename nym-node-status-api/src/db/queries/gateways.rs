@@ -6,7 +6,7 @@ use crate::{
     http::models::Gateway,
 };
 use futures_util::TryStreamExt;
-use nym_validator_client::models::NymNodeDescription;
+use nym_validator_client::models::DescribedGateway;
 use sqlx::{pool::PoolConnection, Sqlite};
 use tracing::error;
 
@@ -88,13 +88,13 @@ where
 /// Ensure all gateways that are set as bonded, are still bonded
 pub(crate) async fn ensure_gateways_still_bonded(
     pool: &DbPool,
-    gateways: &[&NymNodeDescription],
+    gateways: &[DescribedGateway],
 ) -> anyhow::Result<usize> {
     let bonded_gateways_rows = get_all_bonded_gateways_row_ids_by_status(pool, true).await?;
     let unbonded_gateways_rows = bonded_gateways_rows.iter().filter(|v| {
         !gateways
             .iter()
-            .any(|bonded| *bonded.ed25519_identity_key().to_base58_string() == v.identity_key)
+            .any(|bonded| *bonded.bond.identity() == v.identity_key)
     });
 
     let recently_unbonded_gateways = unbonded_gateways_rows.to_owned().count();

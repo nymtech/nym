@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node-status-api"
-version = "0.1.6"
+version = "0.1.5-aero-fork"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -24,10 +24,14 @@ moka = { workspace = true, features = ["future"] }
 nym-bin-common = { path = "../common/bin-common", features = ["models"]}
 nym-common-models = { path = "../common/models" }
 nym-explorer-client = { path = "../explorer-api/explorer-client" }
-nym-network-defaults = { path = "../common/network-defaults" }
-nym-validator-client = { path = "../common/client-libs/validator-client" }
+# TODO temporary for this fork
+# nym-network-defaults = { path = "../common/network-defaults" }
+# nym-validator-client = { path = "../common/client-libs/validator-client" }
+nym-network-defaults = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork" }
+nym-validator-client = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork" }
 nym-task = { path = "../common/task" }
-nym-node-requests = { path = "../nym-node/nym-node-requests", features = ["openapi"] }
+# nym-node-requests = { path = "../nym-node/nym-node-requests", features = ["openapi"] }
+nym-node-requests = { git = "https://github.com/nymtech/nym", branch = "pre-dir-v2-fork", features = ["openapi"] }
 regex = { workspace = true }
 reqwest = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

@@ -66,6 +66,7 @@ pub struct BlockProcessor {
     msg_modules: Vec<Box<dyn MsgModule + Send>>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl BlockProcessor {
     pub async fn new(
         pruning_options: PruningOptions,

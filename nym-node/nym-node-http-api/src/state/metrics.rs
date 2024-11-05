@@ -159,7 +159,8 @@ type FinishedSessions = Vec<(u64, String)>;
 #[derive(Debug, Clone)]
 pub struct SessionStatsState {
     pub update_time: Date,
-    pub unique_active_users: u32,
+    pub unique_active_users_count: u32,
+    pub unique_active_users_hashes: Vec<String>,
     pub session_started: u32,
     pub sessions: FinishedSessions,
 }
@@ -174,7 +175,8 @@ impl SessionStatsState {
             .collect();
         SessionStats {
             update_time: self.update_time.with_time(time!(0:00)).assume_utc(),
-            unique_active_users: self.unique_active_users,
+            unique_active_users: self.unique_active_users_count,
+            unique_active_users_hashes: self.unique_active_users_hashes.clone(),
             sessions,
             sessions_started: self.session_started,
             sessions_finished: self.sessions.len() as u32,
@@ -186,7 +188,8 @@ impl Default for SessionStatsState {
     fn default() -> Self {
         SessionStatsState {
             update_time: OffsetDateTime::UNIX_EPOCH.date(),
-            unique_active_users: 0,
+            unique_active_users_count: 0,
+            unique_active_users_hashes: Default::default(),
             session_started: 0,
             sessions: Default::default(),
         }

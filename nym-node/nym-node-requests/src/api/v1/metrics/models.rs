@@ -50,6 +50,8 @@ pub struct SessionStats {
 
     pub unique_active_users: u32,
 
+    pub unique_active_users_hashes: Vec<String>,
+
     pub sessions: Vec<Session>,
 
     pub sessions_started: u32,

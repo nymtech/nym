@@ -7,6 +7,7 @@ use nym_gateway_stats_storage::PersistentStatsStorage;
 use nym_gateway_stats_storage::{error::StatsStorageError, models::ActiveSession};
 use nym_node_http_api::state::metrics::SharedSessionStats;
 use nym_sphinx::DestinationAddressBytes;
+use sha2::{Digest, Sha256};
 use time::{Date, Duration, OffsetDateTime};
 
 use nym_statistics_common::events::SessionEvent;
@@ -114,12 +115,17 @@ impl SessionStatsHandler {
     //update shared state once a day has passed, with data from the previous day
     async fn publish_stats(&mut self, stats_date: Date) -> Result<(), StatsStorageError> {
         let finished_sessions = self.storage.get_finished_sessions(stats_date).await?;
-        let user_count = self.storage.get_unique_users_count(stats_date).await?;
+        let unique_users = self.storage.get_unique_users(stats_date).await?;
+        let unique_users_hash = unique_users
+            .into_iter()
+            .map(|address| format!("{:x}", Sha256::digest(address)))
+            .collect::<Vec<_>>();
         let session_started = self.storage.get_started_sessions_count(stats_date).await? as u32;
         {
             let mut shared_state = self.shared_session_stats.write().await;
             shared_state.update_time = stats_date;
-            shared_state.unique_active_users = user_count as u32;
+            shared_state.unique_active_users_count = unique_users_hash.len() as u32;
+            shared_state.unique_active_users_hashes = unique_users_hash;
             shared_state.session_started = session_started;
             shared_state.sessions = finished_sessions.iter().map(|s| s.serialize()).collect();
         }

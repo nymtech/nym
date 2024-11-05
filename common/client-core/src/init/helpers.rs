@@ -7,7 +7,7 @@ use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
-use nym_topology::{gateway, mix};
+use nym_topology::gateway;
 use nym_validator_client::client::IdentityKeyRef;
 use nym_validator_client::UserAgent;
 use rand::{seq::SliceRandom, Rng};
@@ -94,7 +94,9 @@ pub async fn current_gateways<R: Rng>(
 
     log::debug!("Fetching list of gateways from: {nym_api}");
 
-    let gateways = client.get_all_basic_entry_assigned_nodes(None).await?;
+    // let gateways = client.get_all_basic_entry_assigned_nodes(None).await?;
+    #[allow(deprecated)]
+    let gateways = client.get_cached_described_gateways().await?;
     log::debug!("Found {} gateways", gateways.len());
     log::trace!("Gateways: {:#?}", gateways);
 
@@ -110,27 +112,28 @@ pub async fn current_gateways<R: Rng>(
     Ok(valid_gateways)
 }
 
-pub async fn current_mixnodes<R: Rng>(
-    rng: &mut R,
-    nym_apis: &[Url],
-) -> Result<Vec<mix::LegacyNode>, ClientCoreError> {
-    let nym_api = nym_apis
-        .choose(rng)
-        .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
-    let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
-
-    log::trace!("Fetching list of mixnodes from: {nym_api}");
-
-    let mixnodes = client
-        .get_all_basic_active_mixing_assigned_nodes(None)
-        .await?;
-    let valid_mixnodes = mixnodes
-        .iter()
-        .filter_map(|mixnode| mixnode.try_into().ok())
-        .collect::<Vec<mix::LegacyNode>>();
-
-    Ok(valid_mixnodes)
-}
+//pub async fn current_mixnodes<R: Rng>(
+//    rng: &mut R,
+//    nym_apis: &[Url],
+//) -> Result<Vec<mix::LegacyNode>, ClientCoreError> {
+//    let nym_api = nym_apis
+//        .choose(rng)
+//        .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
+//    let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
+//
+//    log::trace!("Fetching list of mixnodes from: {nym_api}");
+//
+//    //let mixnodes = client
+//    //    .get_all_basic_active_mixing_assigned_nodes(None)
+//    //    .await?;
+//    let mixnodes = client.get_cached_mixnodes().await?;
+//    let valid_mixnodes = mixnodes
+//        .iter()
+//        .filter_map(|mixnode| (&mixnode.bond_information).try_into().ok())
+//        .collect::<Vec<mix::LegacyNode>>();
+//
+//    Ok(valid_mixnodes)
+//}
 
 #[cfg(not(target_arch = "wasm32"))]
 async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {

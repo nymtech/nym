@@ -2,8 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::{filter, NetworkAddress, NodeVersion};
+use nym_api_requests::models::LegacyDescribedGateway;
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::{encryption, identity};
+use nym_mixnet_contract_common::GatewayBond;
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::{NodeIdentity, NymNodeRoutingAddress};
 use nym_sphinx_types::Node as SphinxNode;
@@ -176,6 +178,86 @@ impl<'a> TryFrom<&'a SkimmedNode> for LegacyNode {
             identity_key: value.ed25519_identity_pubkey,
             sphinx_key: value.x25519_sphinx_pubkey,
             version: NodeVersion::Unknown,
+        })
+    }
+}
+
+impl<'a> TryFrom<&'a GatewayBond> for LegacyNode {
+    type Error = GatewayConversionError;
+
+    fn try_from(bond: &'a GatewayBond) -> Result<Self, Self::Error> {
+        let host = Self::parse_host(&bond.gateway.host)?;
+
+        // try to completely resolve the host in the mix situation to avoid doing it every
+        // single time we want to construct a path
+        let mix_host = Self::extract_mix_host(&host, bond.gateway.mix_port)?;
+
+        Ok(LegacyNode {
+            // owner: Some(bond.owner.as_str().to_owned()),
+            node_id: 0,
+            host,
+            mix_host,
+            clients_ws_port: bond.gateway.clients_port,
+            clients_wss_port: None,
+            identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)?,
+            sphinx_key: encryption::PublicKey::from_base58_string(&bond.gateway.sphinx_key)?,
+            version: bond.gateway.version.as_str().into(),
+        })
+    }
+}
+
+impl TryFrom<GatewayBond> for LegacyNode {
+    type Error = GatewayConversionError;
+
+    fn try_from(bond: GatewayBond) -> Result<Self, Self::Error> {
+        LegacyNode::try_from(&bond)
+    }
+}
+
+impl<'a> TryFrom<&'a LegacyDescribedGateway> for LegacyNode {
+    type Error = GatewayConversionError;
+
+    fn try_from(value: &'a LegacyDescribedGateway) -> Result<Self, Self::Error> {
+        let Some(ref self_described) = value.self_described else {
+            return (&value.bond).try_into();
+        };
+
+        let ips = &self_described.host_information.ip_address;
+        if ips.is_empty() {
+            return Err(GatewayConversionError::NoIpAddressesProvided {
+                gateway: value.bond.gateway.identity_key.clone(),
+            });
+        }
+
+        let host = match &self_described.host_information.hostname {
+            None => NetworkAddress::IpAddr(ips[0]),
+            Some(hostname) => NetworkAddress::Hostname(hostname.clone()),
+        };
+
+        // get ip from the self-reported values so we wouldn't need to do any hostname resolution
+        // (which doesn't really work in wasm)
+        let mix_host = SocketAddr::new(ips[0], value.bond.gateway.mix_port);
+
+        Ok(LegacyNode {
+            // owner: Some(value.bond.owner.as_str().to_owned()),
+            node_id: 0,
+            host,
+            mix_host,
+            clients_ws_port: self_described.mixnet_websockets.ws_port,
+            clients_wss_port: self_described.mixnet_websockets.wss_port,
+            //identity_key: identity::PublicKey::from_base58_string(
+            //    &self_described.host_information.keys.ed25519,
+            //)?,
+            identity_key: self_described.host_information.keys.ed25519,
+            //sphinx_key: encryption::PublicKey::from_base58_string(
+            //    &self_described.host_information.keys.x25519,
+            //)?,
+            sphinx_key: self_described.host_information.keys.x25519,
+            version: self_described
+                .build_information
+                .build_version
+                .as_str()
+                .into(),
         })
     }
 }

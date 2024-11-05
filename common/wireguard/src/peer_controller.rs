@@ -7,8 +7,8 @@ use defguard_wireguard_rs::{
     WireguardInterfaceApi,
 };
 use futures::channel::oneshot;
-use nym_authenticator_requests::{
-    latest::registration::RemainingBandwidthData, v1::registration::BANDWIDTH_CAP_PER_DAY,
+use nym_authenticator_requests::latest::registration::{
+    RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY,
 };
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
@@ -230,7 +230,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                 // host information not updated yet
                 return Ok(None);
             };
-            BANDWIDTH_CAP_PER_DAY.saturating_sub((peer.rx_bytes + peer.tx_bytes) as i64)
+            BANDWIDTH_CAP_PER_DAY.saturating_sub(peer.rx_bytes + peer.tx_bytes) as i64
         };
 
         Ok(Some(RemainingBandwidthData {

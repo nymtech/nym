@@ -292,7 +292,7 @@ export const Bonding = () => {
         />
       )}
 
-      {showModal === 'redeem' && bondedNode && isMixnode(bondedNode) && (
+      {showModal === 'redeem' && bondedNode && isNymNode(bondedNode) && (
         <RedeemRewardsModal
           node={bondedNode}
           onClose={() => setShowModal(undefined)}

@@ -34,6 +34,8 @@ pub struct Config {
     pub database_path: PathBuf,
 
     pub pruning_options: PruningOptions,
+
+    pub store_precommits: bool,
 }
 
 pub struct NyxdScraperBuilder {
@@ -62,6 +64,7 @@ impl NyxdScraperBuilder {
         );
         let mut block_processor = BlockProcessor::new(
             scraper.config.pruning_options,
+            scraper.config.store_precommits,
             scraper.cancel_token.clone(),
             scraper.startup_sync.clone(),
             processing_rx,
@@ -277,6 +280,7 @@ impl NyxdScraper {
     ) -> Result<BlockProcessor, ScraperError> {
         BlockProcessor::new(
             self.config.pruning_options,
+            self.config.store_precommits,
             self.cancel_token.clone(),
             self.startup_sync.clone(),
             processing_rx,

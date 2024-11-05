@@ -44,6 +44,7 @@ impl PendingSync {
 
 pub struct BlockProcessor {
     pruning_options: PruningOptions,
+    store_precommits: bool,
     cancel: CancellationToken,
     synced: Arc<Notify>,
     last_processed_height: u32,
@@ -68,6 +69,7 @@ pub struct BlockProcessor {
 impl BlockProcessor {
     pub async fn new(
         pruning_options: PruningOptions,
+        store_precommits: bool,
         cancel: CancellationToken,
         synced: Arc<Notify>,
         incoming: UnboundedReceiver<BlockToProcess>,
@@ -83,6 +85,7 @@ impl BlockProcessor {
 
         Ok(BlockProcessor {
             pruning_options,
+            store_precommits,
             cancel,
             synced,
             last_processed_height,
@@ -128,7 +131,7 @@ impl BlockProcessor {
         // we won't end up with a corrupted storage.
         let mut tx = self.storage.begin_processing_tx().await?;
 
-        persist_block(&full_info, &mut tx).await?;
+        persist_block(&full_info, &mut tx, self.store_precommits).await?;
 
         // let the modules do whatever they want
         // the ones wanting the full block:

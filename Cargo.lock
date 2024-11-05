@@ -5980,7 +5980,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "clap 4.5.18",
@@ -5996,7 +5996,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "0.1.5"
+version = "0.1.6"
 dependencies = [
  "anyhow",
  "axum 0.7.7",

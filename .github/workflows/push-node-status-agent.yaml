@@ -41,7 +41,7 @@ jobs:
         run: |
           GATEWAY_PROBE_GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }}
           GIT_REF_SLUG="${GATEWAY_PROBE_GIT_REF//\//-}"
-          echo "git_ref=$(GIT_REF_SLUG)\n" >> $GITHUB_OUTPUT
+          echo "git_ref=${GIT_REF_SLUG}\n" >> $GITHUB_OUTPUT
 
       - name: Remove existing tag if exists
         run: |
@@ -57,5 +57,5 @@ jobs:
 
       - name: BuildAndPushImageOnHarbor
         run: |
-          docker build --build-arg GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }} -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.git_ref }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
+          docker build --build-arg GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }} -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.git_ref }}
           docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags

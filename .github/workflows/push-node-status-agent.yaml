@@ -41,7 +41,7 @@ jobs:
         run: |
           GATEWAY_PROBE_GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }}
           GIT_REF_SLUG="${GATEWAY_PROBE_GIT_REF//\//-}"
-          echo "git_ref=${GIT_REF_SLUG}\n" >> $GITHUB_OUTPUT
+          echo "git_ref=${GIT_REF_SLUG}" >> $GITHUB_OUTPUT
 
       - name: Remove existing tag if exists
         run: |
@@ -52,7 +52,7 @@ jobs:
 
       - name: Create tag
         run: |
-          git tag -a ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }} -m "Version ${{ steps.get_version.outputs.result }}-${{ github.event.inputs.gateway_probe_git_ref }}"
+          git tag -a ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }} -m "Version ${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}"
           git push origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}
 
       - name: BuildAndPushImageOnHarbor

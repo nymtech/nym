@@ -6,7 +6,7 @@ use crate::peer_controller::PeerControlRequest;
 use defguard_wireguard_rs::host::Peer;
 use defguard_wireguard_rs::{host::Host, key::Key};
 use futures::channel::oneshot;
-use nym_authenticator_requests::v2::registration::BANDWIDTH_CAP_PER_DAY;
+use nym_authenticator_requests::latest::registration::BANDWIDTH_CAP_PER_DAY;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_gateway_storage::models::WireguardPeer;
 use nym_gateway_storage::Storage;
@@ -18,7 +18,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
 pub(crate) type SharedBandwidthStorageManager<St> = Arc<RwLock<BandwidthStorageManager<St>>>;
-const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60 * 24); // 24 hours
+const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60 * 24 * 30); // 30 days
 
 pub struct PeerHandle<St> {
     storage: St,
@@ -98,7 +98,7 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         } else {
             if SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER {
                 log::debug!(
-                    "Peer {} has been present for 24 hours, removing it",
+                    "Peer {} has been present for 30 days, removing it",
                     self.public_key.to_string()
                 );
                 let success = self.remove_peer().await?;

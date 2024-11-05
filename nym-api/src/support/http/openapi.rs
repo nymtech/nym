@@ -20,6 +20,7 @@ use utoipauto::utoipauto;
         models::CirculatingSupplyResponse,
         models::CoinSchema,
         nym_mixnet_contract_common::Interval,
+        nym_api_requests::models::NodeRefreshBody,
         nym_api_requests::models::GatewayStatusReportResponse,
         nym_api_requests::models::GatewayUptimeHistoryResponse,
         nym_api_requests::models::GatewayCoreStatusResponse,

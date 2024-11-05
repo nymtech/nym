@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::unix_epoch;
+use crate::helpers::PlaceholderJsonSchemaImpl;
 use crate::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
@@ -1141,6 +1142,49 @@ pub struct NoiseDetails {
     pub mixnet_port: u16,
 
     pub ip_addresses: Vec<IpAddr>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct NodeRefreshBody {
+    #[schema(value_type = u32)]
+    pub node_id: NodeId,
+
+    // a poor man's nonce
+    pub request_timestamp: i64,
+
+    #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    pub signature: ed25519::Signature,
+}
+
+impl NodeRefreshBody {
+    pub fn plaintext(&self) -> Vec<u8> {
+        self.node_id
+            .to_be_bytes()
+            .into_iter()
+            .chain(self.request_timestamp.to_be_bytes())
+            .collect()
+    }
+
+    pub fn verify_signature(&self, public_key: &ed25519::PublicKey) -> bool {
+        public_key.verify(self.plaintext(), &self.signature).is_ok()
+    }
+
+    pub fn is_stale(&self) -> bool {
+        let Ok(encoded) = OffsetDateTime::from_unix_timestamp(self.request_timestamp) else {
+            return false;
+        };
+        let now = OffsetDateTime::now_utc();
+
+        if encoded > now {
+            return false;
+        }
+
+        if (encoded + Duration::from_secs(30)) < now {
+            return false;
+        }
+
+        true
+    }
 }
 
 #[cfg(test)]

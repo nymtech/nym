@@ -9,9 +9,10 @@ use crate::support::config;
 use crate::support::config::DEFAULT_NODE_DESCRIBE_BATCH_SIZE;
 use async_trait::async_trait;
 use futures::{stream, StreamExt};
+use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_api_requests::models::{DescribedNodeType, NymNodeData, NymNodeDescription};
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
-use nym_mixnet_contract_common::{LegacyMixLayer, NodeId};
+use nym_mixnet_contract_common::{LegacyMixLayer, NodeId, NymNodeDetails};
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
 use nym_topology::gateway::GatewayConversionError;
 use nym_topology::mix::MixnodeConversionError;
@@ -151,6 +152,10 @@ pub struct DescribedNodes {
 }
 
 impl DescribedNodes {
+    pub fn force_update(&mut self, node: NymNodeDescription) {
+        self.nodes.insert(node.node_id, node);
+    }
+
     pub fn get_description(&self, node_id: &NodeId) -> Option<&NymNodeData> {
         self.nodes.get(node_id).map(|n| &n.description)
     }
@@ -292,12 +297,45 @@ async fn try_get_description(
 }
 
 #[derive(Debug)]
-struct RefreshData {
+pub(crate) struct RefreshData {
     host: String,
     node_id: NodeId,
     node_type: DescribedNodeType,
 
     port: Option<u16>,
+}
+
+impl<'a> From<&'a LegacyMixNodeDetailsWithLayer> for RefreshData {
+    fn from(node: &'a LegacyMixNodeDetailsWithLayer) -> Self {
+        RefreshData::new(
+            &node.bond_information.mix_node.host,
+            DescribedNodeType::LegacyMixnode,
+            node.mix_id(),
+            Some(node.bond_information.mix_node.http_api_port),
+        )
+    }
+}
+
+impl<'a> From<&'a LegacyGatewayBondWithId> for RefreshData {
+    fn from(node: &'a LegacyGatewayBondWithId) -> Self {
+        RefreshData::new(
+            &node.bond.gateway.host,
+            DescribedNodeType::LegacyGateway,
+            node.node_id,
+            None,
+        )
+    }
+}
+
+impl<'a> From<&'a NymNodeDetails> for RefreshData {
+    fn from(node: &'a NymNodeDetails) -> Self {
+        RefreshData::new(
+            &node.bond_information.node.host,
+            DescribedNodeType::NymNode,
+            node.node_id(),
+            node.bond_information.node.custom_http_port,
+        )
+    }
 }
 
 impl RefreshData {
@@ -315,7 +353,7 @@ impl RefreshData {
         }
     }
 
-    async fn try_refresh(self) -> Option<NymNodeDescription> {
+    pub(crate) async fn try_refresh(self) -> Option<NymNodeDescription> {
         match try_get_description(self).await {
             Ok(description) => Some(description),
             Err(err) => {
@@ -341,18 +379,13 @@ impl CacheItemProvider for NodeDescriptionProvider {
         // - legacy gateways (because they might already be running nym-nodes, but haven't updated contract info)
         // - nym-nodes
 
-        let mut nodes_to_query = Vec::new();
+        let mut nodes_to_query: Vec<RefreshData> = Vec::new();
 
         match self.contract_cache.all_cached_legacy_mixnodes().await {
             None => error!("failed to obtain mixnodes information from the cache"),
             Some(legacy_mixnodes) => {
                 for node in &**legacy_mixnodes {
-                    nodes_to_query.push(RefreshData::new(
-                        &node.bond_information.mix_node.host,
-                        DescribedNodeType::LegacyMixnode,
-                        node.mix_id(),
-                        Some(node.bond_information.mix_node.http_api_port),
-                    ))
+                    nodes_to_query.push(node.into())
                 }
             }
         }
@@ -361,12 +394,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
             None => error!("failed to obtain gateways information from the cache"),
             Some(legacy_gateways) => {
                 for node in &**legacy_gateways {
-                    nodes_to_query.push(RefreshData::new(
-                        &node.bond.gateway.host,
-                        DescribedNodeType::LegacyGateway,
-                        node.node_id,
-                        None,
-                    ))
+                    nodes_to_query.push(node.into())
                 }
             }
         }
@@ -375,12 +403,7 @@ impl CacheItemProvider for NodeDescriptionProvider {
             None => error!("failed to obtain nym-nodes information from the cache"),
             Some(nym_nodes) => {
                 for node in &**nym_nodes {
-                    nodes_to_query.push(RefreshData::new(
-                        &node.bond_information.node.host,
-                        DescribedNodeType::NymNode,
-                        node.node_id(),
-                        node.bond_information.node.custom_http_port,
-                    ))
+                    nodes_to_query.push(node.into())
                 }
             }
         }

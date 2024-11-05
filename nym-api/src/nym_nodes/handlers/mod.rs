@@ -5,11 +5,12 @@ use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::helpers::{NodeIdParam, PaginationRequest};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
-use axum::routing::get;
+use axum::http::StatusCode;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_api_requests::models::{
-    AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NoiseDetails,
-    NymNodeDescription, PerformanceHistoryResponse, UptimeHistoryResponse,
+    AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NodeRefreshBody,
+    NoiseDetails, NymNodeDescription, PerformanceHistoryResponse, UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;
@@ -17,7 +18,8 @@ use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NymNodeDetails;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use time::Date;
+use std::time::Duration;
+use time::{Date, OffsetDateTime};
 use utoipa::{IntoParams, ToSchema};
 
 pub(crate) mod legacy;
@@ -25,6 +27,7 @@ pub(crate) mod unstable;
 
 pub(crate) fn nym_node_routes() -> Router<AppState> {
     Router::new()
+        .route("/refresh-described", post(refresh_described))
         .route("/noise", get(nodes_noise))
         .route("/bonded", get(get_bonded_nodes))
         .route("/described", get(get_described_nodes))
@@ -40,6 +43,62 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
         )
         // to make it compatible with all the explorers that were used to using 0-100 values
         .route("/uptime-history/:node_id", get(get_node_uptime_history))
+}
+
+#[utoipa::path(
+    tag = "Nym Nodes",
+    post,
+    request_body = NodeRefreshBody,
+    path = "/refresh-described",
+    context_path = "/v1/nym-nodes",
+)]
+async fn refresh_described(
+    State(state): State<AppState>,
+    Json(request_body): Json<NodeRefreshBody>,
+) -> StatusCode {
+    let Some(refresh_data) = state
+        .nym_contract_cache()
+        .get_public_key_with_refresh_data(request_body.node_id)
+        .await
+    else {
+        return StatusCode::NOT_FOUND;
+    };
+
+    if !request_body.verify_signature(&refresh_data.pubkey) {
+        return StatusCode::UNAUTHORIZED;
+    }
+
+    if request_body.is_stale() {
+        return StatusCode::BAD_REQUEST;
+    }
+
+    if let Some(last) = state
+        .forced_refresh
+        .last_refreshed(request_body.node_id)
+        .await
+    {
+        // max 1 refresh a minute
+        let minute_ago = OffsetDateTime::now_utc() - Duration::from_secs(60);
+        if last > minute_ago {
+            return StatusCode::BAD_REQUEST;
+        }
+    }
+    // to make sure you can't ddos the endpoint while a request is in progress
+    state
+        .forced_refresh
+        .set_last_refreshed(request_body.node_id)
+        .await;
+
+    if let Some(updated_data) = refresh_data.refresh_data.try_refresh().await {
+        let Ok(mut describe_cache) = state.described_nodes_cache.write().await else {
+            return StatusCode::SERVICE_UNAVAILABLE;
+        };
+        describe_cache.get_mut().force_update(updated_data)
+    } else {
+        return StatusCode::UNPROCESSABLE_ENTITY;
+    }
+
+    StatusCode::OK
 }
 
 #[utoipa::path(

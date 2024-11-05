@@ -1261,6 +1261,7 @@ struct TestFixture {
 impl TestFixture {
     fn build_app_state(storage: NymApiStorage) -> AppState {
         AppState {
+            forced_refresh: Default::default(),
             nym_contract_cache: NymContractCache::new(),
             node_status_cache: NodeStatusCache::new(),
             circulating_supply_cache: CirculatingSupplyCache::new("unym".to_owned()),

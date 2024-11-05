@@ -1,6 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node_describe_cache::RefreshData;
 use crate::nym_contract_cache::cache::data::CachedContractsInfo;
 use crate::support::caching::Cache;
 use data::ValidatorCacheData;
@@ -8,6 +9,7 @@ use nym_api_requests::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
 use nym_api_requests::models::MixnodeStatus;
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{Interval, NodeId, NymNodeDetails, RewardedSet, RewardingParams};
 use std::{
     collections::HashSet,
@@ -27,6 +29,11 @@ pub(crate) mod refresher;
 pub(crate) use self::data::CachedRewardedSet;
 
 const CACHE_TIMEOUT_MS: u64 = 100;
+
+pub(crate) struct RefreshDataWithKey {
+    pub(crate) pubkey: ed25519::PublicKey,
+    pub(crate) refresh_data: RefreshData,
+}
 
 #[derive(Clone)]
 pub struct NymContractCache {
@@ -350,6 +357,46 @@ impl NymContractCache {
 
     pub async fn mixnode_status(&self, mix_id: NodeId) -> MixnodeStatus {
         self.legacy_mixnode_details(mix_id).await.1
+    }
+
+    pub async fn get_public_key_with_refresh_data(
+        &self,
+        node_id: NodeId,
+    ) -> Option<RefreshDataWithKey> {
+        if !self.initialised() {
+            return None;
+        }
+
+        let inner = self.inner.read().await;
+
+        // 1. check nymnodes
+        if let Some(nym_node) = inner.nym_nodes.iter().find(|n| n.node_id() == node_id) {
+            let pubkey = nym_node.bond_information.identity().parse().ok()?;
+            return Some(RefreshDataWithKey {
+                pubkey,
+                refresh_data: nym_node.into(),
+            });
+        }
+
+        // 2. check legacy mixnodes
+        if let Some(mixnode) = inner.legacy_mixnodes.iter().find(|n| n.mix_id() == node_id) {
+            let pubkey = mixnode.bond_information.identity().parse().ok()?;
+            return Some(RefreshDataWithKey {
+                pubkey,
+                refresh_data: mixnode.into(),
+            });
+        }
+
+        // 3. check legacy gateways
+        if let Some(gateway) = inner.legacy_gateways.iter().find(|n| n.node_id == node_id) {
+            let pubkey = gateway.identity().parse().ok()?;
+            return Some(RefreshDataWithKey {
+                pubkey,
+                refresh_data: gateway.into(),
+            });
+        }
+
+        None
     }
 
     pub fn initialised(&self) -> bool {

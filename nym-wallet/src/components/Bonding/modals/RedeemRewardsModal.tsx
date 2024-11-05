@@ -4,7 +4,6 @@ import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { ModalFee } from 'src/components/Modals/ModalFee';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { simulateClaimOperatorReward, simulateVestingClaimOperatorReward } from 'src/requests';
 import { AppContext } from 'src/context';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { Box } from '@mui/material';
@@ -21,7 +20,7 @@ export const RedeemRewardsModal = ({
   onError: (err: string) => void;
   onClose: () => void;
 }) => {
-  const { fee, getFee, isFeeLoading, feeError } = useGetFee();
+  const { fee, isFeeLoading, feeError } = useGetFee();
   const { userBalance } = useContext(AppContext);
 
   useEffect(() => {

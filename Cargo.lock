@@ -6064,7 +6064,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-agent"
-version = "0.1.4"
+version = "0.1.5"
 dependencies = [
  "anyhow",
  "clap 4.5.20",

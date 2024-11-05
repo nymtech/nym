@@ -10,7 +10,7 @@ use nym_sphinx::DestinationAddressBytes;
 use sha2::{Digest, Sha256};
 use time::{Date, Duration, OffsetDateTime};
 
-use nym_statistics_common::events::SessionEvent;
+use nym_statistics_common::gateways::SessionEvent;
 
 pub(crate) struct SessionStatsHandler {
     storage: PersistentStatsStorage,

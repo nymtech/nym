@@ -27,7 +27,7 @@ use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
 use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
 use nym_node_http_api::state::metrics::SharedSessionStats;
-use nym_statistics_common::events::{self, StatsEventSender};
+use nym_statistics_common::gateways::{self, GatewayStatsReporter};
 use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_topology::NetworkAddress;
 use nym_types::gateway::GatewayNodeDetailsResponse;
@@ -415,7 +415,7 @@ impl<St> Gateway<St> {
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
         ecash_verifier: Arc<EcashManager<St>>,
-        stats_event_sender: StatsEventSender,
+        stats_event_reporter: GatewayStatsReporter,
     ) where
         St: Storage + Send + Sync + Clone + 'static,
     {
@@ -432,7 +432,7 @@ impl<St> Gateway<St> {
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
             bandwidth_cfg: (&self.config).into(),
-            stats_event_sender,
+            stats_event_reporter,
         };
 
         websocket::Listener::new(listening_address, shared_state).start(
@@ -462,7 +462,7 @@ impl<St> Gateway<St> {
         &self,
         shared_session_stats: SharedSessionStats,
         shutdown: TaskClient,
-    ) -> events::StatsEventSender {
+    ) -> gateways::GatewayStatsReporter {
         info!("Starting gateway stats collector...");
 
         let (mut stats_collector, stats_event_sender) =

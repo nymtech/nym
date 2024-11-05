@@ -36,19 +36,26 @@ jobs:
         with:
           cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
 
+      - name: cleanup-gateway-probe-ref
+        id: cleanup_gateway_probe_ref
+        run: |
+          GATEWAY_PROBE_GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }}
+          GIT_REF_SLUG="${GATEWAY_PROBE_GIT_REF//\//-}"
+          echo "git_ref=$(GIT_REF_SLUG)\n" >> $GITHUB_OUTPUT
+
       - name: Remove existing tag if exists
         run: |
-          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ github.event.inputs.gateway_probe_git_ref }} >/dev/null 2>&1; then
-            git push --delete origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ github.event.inputs.gateway_probe_git_ref }}
-            git tag -d ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ github.event.inputs.gateway_probe_git_ref }}
+          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.git_ref }} >/dev/null 2>&1; then
+            git push --delete origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.git_ref }}
+            git tag -d ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.git_ref }}
           fi
 
       - name: Create tag
         run: |
-          git tag -a ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ github.event.inputs.gateway_probe_git_ref }} -m "Version ${{ steps.get_version.outputs.result }}-${{ github.event.inputs.gateway_probe_git_ref }}"
-          git push origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ github.event.inputs.gateway_probe_git_ref }}
+          git tag -a ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.git_ref }} -m "Version ${{ steps.get_version.outputs.result }}-${{ github.event.inputs.gateway_probe_git_ref }}"
+          git push origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.git_ref }}
 
       - name: BuildAndPushImageOnHarbor
         run: |
-          docker build --build-arg GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }} -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }}-${{ github.event.inputs.gateway_probe_git_ref }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
+          docker build --build-arg GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }} -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.git_ref }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
           docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags

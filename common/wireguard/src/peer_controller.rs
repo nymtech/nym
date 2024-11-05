@@ -230,7 +230,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                 // host information not updated yet
                 return Ok(None);
             };
-            BANDWIDTH_CAP_PER_DAY.saturating_sub((peer.rx_bytes + peer.tx_bytes) as i64)
+            BANDWIDTH_CAP_PER_DAY.saturating_sub(peer.rx_bytes + peer.tx_bytes) as i64
         };
 
         Ok(Some(RemainingBandwidthData {

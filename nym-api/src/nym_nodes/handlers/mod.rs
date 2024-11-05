@@ -5,7 +5,6 @@ use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::helpers::{NodeIdParam, PaginationRequest};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
-use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_api_requests::models::{
@@ -55,21 +54,24 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
 async fn refresh_described(
     State(state): State<AppState>,
     Json(request_body): Json<NodeRefreshBody>,
-) -> StatusCode {
+) -> AxumResult<Json<()>> {
     let Some(refresh_data) = state
         .nym_contract_cache()
         .get_public_key_with_refresh_data(request_body.node_id)
         .await
     else {
-        return StatusCode::NOT_FOUND;
+        return Err(AxumErrorResponse::not_found(format!(
+            "node with id {} does not seem to exist",
+            request_body.node_id
+        )));
     };
 
     if !request_body.verify_signature(&refresh_data.pubkey) {
-        return StatusCode::UNAUTHORIZED;
+        return Err(AxumErrorResponse::unauthorised("invalid request signature"));
     }
 
     if request_body.is_stale() {
-        return StatusCode::BAD_REQUEST;
+        return Err(AxumErrorResponse::bad_request("the request is stale"));
     }
 
     if let Some(last) = state
@@ -80,7 +82,9 @@ async fn refresh_described(
         // max 1 refresh a minute
         let minute_ago = OffsetDateTime::now_utc() - Duration::from_secs(60);
         if last > minute_ago {
-            return StatusCode::BAD_REQUEST;
+            return Err(AxumErrorResponse::too_many(
+                "already refreshed node in the last minute",
+            ));
         }
     }
     // to make sure you can't ddos the endpoint while a request is in progress
@@ -91,14 +95,16 @@ async fn refresh_described(
 
     if let Some(updated_data) = refresh_data.refresh_data.try_refresh().await {
         let Ok(mut describe_cache) = state.described_nodes_cache.write().await else {
-            return StatusCode::SERVICE_UNAVAILABLE;
+            return Err(AxumErrorResponse::service_unavailable());
         };
         describe_cache.get_mut().force_update(updated_data)
     } else {
-        return StatusCode::UNPROCESSABLE_ENTITY;
+        return Err(AxumErrorResponse::unprocessable_entity(
+            "failed to refresh node description",
+        ));
     }
 
-    StatusCode::OK
+    Ok(Json(()))
 }
 
 #[utoipa::path(

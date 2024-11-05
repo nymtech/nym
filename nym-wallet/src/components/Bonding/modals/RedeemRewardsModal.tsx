@@ -8,7 +8,7 @@ import { simulateClaimOperatorReward, simulateVestingClaimOperatorReward } from 
 import { AppContext } from 'src/context';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { Box } from '@mui/material';
-import { TBondedMixnode } from 'src/requests/mixnodeDetails';
+import { TBondedNymNode } from 'src/requests/nymNodeDetails';
 
 export const RedeemRewardsModal = ({
   node,
@@ -16,7 +16,7 @@ export const RedeemRewardsModal = ({
   onError,
   onClose,
 }: {
-  node: TBondedMixnode;
+  node: TBondedNymNode;
   onConfirm: (fee?: FeeDetails) => Promise<void>;
   onError: (err: string) => void;
   onClose: () => void;
@@ -27,11 +27,6 @@ export const RedeemRewardsModal = ({
   useEffect(() => {
     if (feeError) onError(feeError);
   }, [feeError]);
-
-  useEffect(() => {
-    if (node.proxy) getFee(simulateVestingClaimOperatorReward, {});
-    else getFee(simulateClaimOperatorReward, {});
-  }, []);
 
   const handleOnOK = async () => onConfirm(fee);
 

@@ -25,12 +25,12 @@ use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_http_api_client::UserAgent;
+use nym_mixnet_contract_common::NymNodeDetails;
 use nym_network_defaults::NymNetworkDetails;
 use time::Date;
 use url::Url;
 
 pub use crate::nym_api::NymApiClientExt;
-use nym_mixnet_contract_common::NymNodeDetails;
 pub use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId,
 };
@@ -330,10 +330,10 @@ impl NymApiClient {
         NymApiClient { nym_api }
     }
 
-    pub fn new_with_user_agent(api_url: Url, user_agent: UserAgent) -> Self {
+    pub fn new_with_user_agent(api_url: Url, user_agent: impl Into<UserAgent>) -> Self {
         let nym_api = nym_api::Client::builder::<_, ValidatorClientError>(api_url)
             .expect("invalid api url")
-            .with_user_agent(user_agent)
+            .with_user_agent(user_agent.into())
             .build::<ValidatorClientError>()
             .expect("failed to build nym api client");
 

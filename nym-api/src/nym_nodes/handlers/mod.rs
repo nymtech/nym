@@ -57,28 +57,25 @@ async fn refresh_described(
 ) -> AxumResult<Json<()>> {
     let Some(refresh_data) = state
         .nym_contract_cache()
-        .get_public_key_with_refresh_data(request_body.node_id)
+        .get_node_refresh_data(request_body.node_identity)
         .await
     else {
         return Err(AxumErrorResponse::not_found(format!(
-            "node with id {} does not seem to exist",
-            request_body.node_id
+            "node with identity {} does not seem to exist",
+            request_body.node_identity
         )));
     };
 
-    if !request_body.verify_signature(&refresh_data.pubkey) {
-        return Err(AxumErrorResponse::unauthorised("invalid request signature"));
-    }
+    // if !request_body.verify_signature() {
+    //     return Err(AxumErrorResponse::unauthorised("invalid request signature"));
+    // }
+    //
+    // if request_body.is_stale() {
+    //     return Err(AxumErrorResponse::bad_request("the request is stale"));
+    // }
 
-    if request_body.is_stale() {
-        return Err(AxumErrorResponse::bad_request("the request is stale"));
-    }
-
-    if let Some(last) = state
-        .forced_refresh
-        .last_refreshed(request_body.node_id)
-        .await
-    {
+    let node_id = refresh_data.node_id();
+    if let Some(last) = state.forced_refresh.last_refreshed(node_id).await {
         // max 1 refresh a minute
         let minute_ago = OffsetDateTime::now_utc() - Duration::from_secs(60);
         if last > minute_ago {
@@ -88,12 +85,9 @@ async fn refresh_described(
         }
     }
     // to make sure you can't ddos the endpoint while a request is in progress
-    state
-        .forced_refresh
-        .set_last_refreshed(request_body.node_id)
-        .await;
+    state.forced_refresh.set_last_refreshed(node_id).await;
 
-    if let Some(updated_data) = refresh_data.refresh_data.try_refresh().await {
+    if let Some(updated_data) = refresh_data.try_refresh().await {
         let Ok(mut describe_cache) = state.described_nodes_cache.write().await else {
             return Err(AxumErrorResponse::service_unavailable());
         };

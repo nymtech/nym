@@ -32,13 +32,18 @@ use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{TaskClient, TaskManager};
+use nym_validator_client::client::NymApiClientExt;
+use nym_validator_client::models::NodeRefreshBody;
+use nym_validator_client::NymApiClient;
 use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, trace};
+use tokio::time::timeout;
+use tracing::{debug, error, info, trace, warn};
 use zeroize::Zeroizing;
 
 use self::helpers::load_x25519_wireguard_keypair;
@@ -740,6 +745,38 @@ impl NymNode {
             .await?)
     }
 
+    async fn try_refresh_remote_nym_api_cache(&self) {
+        info!("attempting to request described cache request from nym-api...");
+        let Some(nym_api_url) = self.config.mixnet.nym_api_urls.get(0) else {
+            warn!("no nym-api urls available");
+            return;
+        };
+
+        // let client = NymApiClient::new_with_user_agent(nym_api_url.clone(), bin_info_owned!());
+        let client = NymApiClient::new_with_user_agent(
+            "http://localhost:8081".parse().unwrap(),
+            bin_info_owned!(),
+        );
+
+        let request = NodeRefreshBody::new(self.ed25519_identity_keys.private_key());
+        match timeout(
+            Duration::from_secs(10),
+            client.nym_api.force_refresh_describe_cache(&request),
+        )
+        .await
+        {
+            Ok(Ok(_)) => {
+                info!("managed to refresh own self-described data cache")
+            }
+            Ok(Err(request_failure)) => {
+                warn!("failed to resolve the refresh request: {request_failure}")
+            }
+            Err(_timeout) => {
+                warn!("timed out while attempting to resolve the request. the cache might be stale")
+            }
+        };
+    }
+
     pub(crate) async fn run(self) -> Result<(), NymNodeError> {
         let mut task_manager = TaskManager::default().named("NymNode");
         let http_server = self
@@ -753,6 +790,8 @@ impl NymNode {
                 http_server.run().await
             }
         });
+
+        self.try_refresh_remote_nym_api_cache().await;
 
         match self.config.mode {
             NodeMode::Mixnode => {

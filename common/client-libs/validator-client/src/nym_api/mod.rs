@@ -934,7 +934,10 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    async fn force_refresh(&self, request: &NodeRefreshBody) -> Result<(), NymAPIError> {
+    async fn force_refresh_describe_cache(
+        &self,
+        request: &NodeRefreshBody,
+    ) -> Result<(), NymAPIError> {
         self.post_json(
             &[routes::API_VERSION, "nym-nodes", "refresh-described"],
             NO_PARAMS,

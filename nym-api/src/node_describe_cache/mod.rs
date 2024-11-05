@@ -353,6 +353,10 @@ impl RefreshData {
         }
     }
 
+    pub(crate) fn node_id(&self) -> NodeId {
+        self.node_id
+    }
+
     pub(crate) async fn try_refresh(self) -> Option<NymNodeDescription> {
         match try_get_description(self).await {
             Ok(description) => Some(description),

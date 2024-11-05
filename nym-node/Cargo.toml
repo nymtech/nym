@@ -52,6 +52,7 @@ nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
 nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
+nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
 

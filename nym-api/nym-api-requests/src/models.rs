@@ -1146,8 +1146,9 @@ pub struct NoiseDetails {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NodeRefreshBody {
-    #[schema(value_type = u32)]
-    pub node_id: NodeId,
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[schemars(with = "String")]
+    pub node_identity: ed25519::PublicKey,
 
     // a poor man's nonce
     pub request_timestamp: i64,
@@ -1157,16 +1158,33 @@ pub struct NodeRefreshBody {
 }
 
 impl NodeRefreshBody {
-    pub fn plaintext(&self) -> Vec<u8> {
-        self.node_id
-            .to_be_bytes()
+    pub fn plaintext(node_identity: ed25519::PublicKey, request_timestamp: i64) -> Vec<u8> {
+        node_identity
+            .to_bytes()
             .into_iter()
-            .chain(self.request_timestamp.to_be_bytes())
+            .chain(request_timestamp.to_be_bytes())
+            .chain(b"describe-cache-refresh-request".iter().copied())
             .collect()
     }
 
-    pub fn verify_signature(&self, public_key: &ed25519::PublicKey) -> bool {
-        public_key.verify(self.plaintext(), &self.signature).is_ok()
+    pub fn new(private_key: &ed25519::PrivateKey) -> Self {
+        let node_identity = private_key.public_key();
+        let request_timestamp = OffsetDateTime::now_utc().unix_timestamp();
+        let signature = private_key.sign(Self::plaintext(node_identity, request_timestamp));
+        NodeRefreshBody {
+            node_identity,
+            request_timestamp,
+            signature,
+        }
+    }
+
+    pub fn verify_signature(&self) -> bool {
+        self.node_identity
+            .verify(
+                Self::plaintext(self.node_identity, self.request_timestamp),
+                &self.signature,
+            )
+            .is_ok()
     }
 
     pub fn is_stale(&self) -> bool {

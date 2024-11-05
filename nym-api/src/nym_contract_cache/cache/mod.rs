@@ -30,11 +30,6 @@ pub(crate) use self::data::CachedRewardedSet;
 
 const CACHE_TIMEOUT_MS: u64 = 100;
 
-pub(crate) struct RefreshDataWithKey {
-    pub(crate) pubkey: ed25519::PublicKey,
-    pub(crate) refresh_data: RefreshData,
-}
-
 #[derive(Clone)]
 pub struct NymContractCache {
     pub(crate) initialised: Arc<AtomicBool>,
@@ -359,41 +354,43 @@ impl NymContractCache {
         self.legacy_mixnode_details(mix_id).await.1
     }
 
-    pub async fn get_public_key_with_refresh_data(
+    pub async fn get_node_refresh_data(
         &self,
-        node_id: NodeId,
-    ) -> Option<RefreshDataWithKey> {
+        node_identity: ed25519::PublicKey,
+    ) -> Option<RefreshData> {
         if !self.initialised() {
             return None;
         }
 
         let inner = self.inner.read().await;
 
+        let encoded_identity = node_identity.to_base58_string();
+
         // 1. check nymnodes
-        if let Some(nym_node) = inner.nym_nodes.iter().find(|n| n.node_id() == node_id) {
-            let pubkey = nym_node.bond_information.identity().parse().ok()?;
-            return Some(RefreshDataWithKey {
-                pubkey,
-                refresh_data: nym_node.into(),
-            });
+        if let Some(nym_node) = inner
+            .nym_nodes
+            .iter()
+            .find(|n| n.bond_information.identity() == encoded_identity)
+        {
+            return Some(nym_node.into());
         }
 
         // 2. check legacy mixnodes
-        if let Some(mixnode) = inner.legacy_mixnodes.iter().find(|n| n.mix_id() == node_id) {
-            let pubkey = mixnode.bond_information.identity().parse().ok()?;
-            return Some(RefreshDataWithKey {
-                pubkey,
-                refresh_data: mixnode.into(),
-            });
+        if let Some(mixnode) = inner
+            .legacy_mixnodes
+            .iter()
+            .find(|n| n.bond_information.identity() == encoded_identity)
+        {
+            return Some(mixnode.into());
         }
 
         // 3. check legacy gateways
-        if let Some(gateway) = inner.legacy_gateways.iter().find(|n| n.node_id == node_id) {
-            let pubkey = gateway.identity().parse().ok()?;
-            return Some(RefreshDataWithKey {
-                pubkey,
-                refresh_data: gateway.into(),
-            });
+        if let Some(gateway) = inner
+            .legacy_gateways
+            .iter()
+            .find(|n| n.identity() == &encoded_identity)
+        {
+            return Some(gateway.into());
         }
 
         None

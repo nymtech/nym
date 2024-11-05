@@ -7,7 +7,7 @@ import {
   NodeConfigUpdate,
   GatewayConfigUpdate,
 } from '@nymproject/types';
-import { TBondGatewayArgs, TBondGatewaySignatureArgs, TNodeConfigUpdateArgs } from '../types';
+import { TBondGatewayArgs, TBondGatewaySignatureArgs } from '../types';
 import { invokeWrapper } from './wrapper';
 
 export const bondGateway = async (args: TBondGatewayArgs) =>

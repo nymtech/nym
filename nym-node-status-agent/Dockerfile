@@ -2,10 +2,6 @@ FROM rust:latest AS builder
 
 ARG GIT_REF=main
 
-RUN echo "Acquire::http::Pipeline-Depth 0;" > /etc/apt/apt.conf.d/99custom && \
-  echo "Acquire::http::No-Cache true;" >> /etc/apt/apt.conf.d/99custom && \
-  echo "Acquire::BrokenProxy    true;" >> /etc/apt/apt.conf.d/99custom
-
 RUN apt update && apt install -yy libdbus-1-dev pkg-config libclang-dev
 
 # Install go

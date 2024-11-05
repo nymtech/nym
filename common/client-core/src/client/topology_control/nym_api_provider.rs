@@ -97,9 +97,11 @@ impl NymApiTopologyProvider {
     }
 
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
+        #[allow(deprecated)]
         let mixnodes = match self
             .validator_client
-            .get_all_basic_active_mixing_assigned_nodes(Some(self.client_version.clone()))
+            // .get_all_basic_active_mixing_assigned_nodes(Some(self.client_version.clone()))
+            .get_basic_mixnodes(Some(self.client_version.clone()))
             .await
         {
             Err(err) => {
@@ -109,9 +111,11 @@ impl NymApiTopologyProvider {
             Ok(mixes) => mixes,
         };
 
+        #[allow(deprecated)]
         let gateways = match self
             .validator_client
-            .get_all_basic_entry_assigned_nodes(Some(self.client_version.clone()))
+            // .get_all_basic_entry_assigned_nodes(Some(self.client_version.clone()))
+            .get_basic_gateways(Some(self.client_version.clone()))
             .await
         {
             Err(err) => {

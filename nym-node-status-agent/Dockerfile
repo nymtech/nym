@@ -1,5 +1,11 @@
 FROM rust:latest AS builder
 
+ARG GIT_REF=main
+
+RUN echo "Acquire::http::Pipeline-Depth 0;" > /etc/apt/apt.conf.d/99custom && \
+  echo "Acquire::http::No-Cache true;" >> /etc/apt/apt.conf.d/99custom && \
+  echo "Acquire::BrokenProxy    true;" >> /etc/apt/apt.conf.d/99custom
+
 RUN apt update && apt install -yy libdbus-1-dev pkg-config libclang-dev
 
 # Install go
@@ -7,6 +13,7 @@ RUN wget https://go.dev/dl/go1.22.5.linux-amd64.tar.gz -O go.tar.gz
 RUN tar -xzvf go.tar.gz -C /usr/local
 
 RUN git clone https://github.com/nymtech/nym-vpn-client /usr/src/nym-vpn-client
+RUN cd /usr/src/nym-vpn-client && git checkout $GIT_REF
 ENV PATH=/go/bin:/usr/local/go/bin:$PATH
 WORKDIR /usr/src/nym-vpn-client/nym-vpn-core
 RUN cargo build --release --package nym-gateway-probe

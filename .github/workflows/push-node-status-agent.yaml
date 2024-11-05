@@ -2,6 +2,10 @@ name: Build and upload Node Status agent container to harbor.nymte.ch
 
 on:
   workflow_dispatch:
+    inputs:
+      gateway_probe_git_ref:
+        type: string
+        description: Which gateway probe git ref to build the image with
 
 env:
   WORKING_DIRECTORY: "nym-node-status-agent"
@@ -52,5 +56,5 @@ jobs:
 
       - name: BuildAndPushImageOnHarbor
         run: |
-          docker build -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
+          docker build --build-arg GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }} -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }}-${{ github.event.inputs.gateway_probe_git_ref }} -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:latest
           docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags

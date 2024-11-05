@@ -39,7 +39,7 @@ impl ClientStatsSender {
     /// Used when stats reporting is disabled -- reads all incoming messages and discards them
     pub fn sink() -> Self {
         let (stats_tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        tokio::spawn(async move { while let Some(_) = rx.recv().await {} });
+        tokio::spawn(async move { while (rx.recv().await).is_some() {} });
         Self { stats_tx }
     }
 }
@@ -53,6 +53,17 @@ pub enum ClientStatsType {
     Gateway,
     /// Nym API connection events
     NymApi,
+}
+
+impl ClientStatsType {
+    /// Return a string representation of the Stats Type
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            ClientStatsType::Packets => "packets",
+            ClientStatsType::Gateway => "gateway_conn",
+            ClientStatsType::NymApi => "nym_api",
+        }
+    }
 }
 
 /// Client Statistics events (static for now)
@@ -80,11 +91,6 @@ impl ClientStatsEvents {
 /// to allow for decentralized event implementation, but centralized event cordination, sorage, management
 /// and reporting.
 pub trait ClientStatsObj: StatisticsReporter + Send {
-    /// Constructs a new Statistics type
-    fn new() -> Self
-    where
-        Self: Sized;
-
     /// Returns a Statistics event type used to identify this event so it can be properly triaged.
     fn type_identity(&self) -> ClientStatsType;
 

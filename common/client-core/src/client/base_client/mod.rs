@@ -59,7 +59,6 @@ use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
-use tokio::io::empty;
 use tokio::sync::mpsc::Sender;
 use url::Url;
 

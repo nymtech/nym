@@ -48,6 +48,7 @@ impl From<NymApiStatsEvent> for ClientStatsEvents {
 }
 
 /// Nym API statistics tracking object
+#[derive(Default)]
 pub struct NymApiStatsControl {
     // Keep track of packet statistics over time
     stats: NymApiStats,
@@ -57,16 +58,6 @@ pub struct NymApiStatsControl {
 }
 
 impl super::ClientStatsObj for NymApiStatsControl {
-    fn new() -> Self
-    where
-        Self: Sized,
-    {
-        Self {
-            stats: NymApiStats::default(),
-            failures: VecDeque::new(),
-        }
-    }
-
     fn type_identity(&self) -> super::ClientStatsType {
         super::ClientStatsType::NymApi
     }

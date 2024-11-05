@@ -340,6 +340,7 @@ impl From<PacketStatisticsEvent> for ClientStatsEvents {
 }
 
 /// Statistics tracking for Packet based I/O
+#[derive(Default)]
 pub struct PacketStatisticsControl {
     // Keep track of packet statistics over time
     stats: PacketStatistics,
@@ -353,17 +354,6 @@ pub struct PacketStatisticsControl {
 }
 
 impl super::ClientStatsObj for PacketStatisticsControl {
-    fn new() -> Self
-    where
-        Self: Sized,
-    {
-        Self {
-            stats: PacketStatistics::default(),
-            history: VecDeque::new(),
-            rates: VecDeque::new(),
-        }
-    }
-
     fn type_identity(&self) -> super::ClientStatsType {
         super::ClientStatsType::Packets
     }

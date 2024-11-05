@@ -45,6 +45,13 @@ impl TryFrom<Vec<u8>> for ClientStatsReport {
     }
 }
 
+impl StatisticsReporter for ClientStatsReport {
+    fn marshall(&self) -> std::io::Result<String> {
+        serde_json::to_string(self)
+            .map_err(|e| std::io::Error::other(format!("serialization error: {e:?}")))
+    }
+}
+
 /// This trait represents objects that can be reported by the metrics controller and
 /// provides the function by which they will be called to report their metrics.
 pub trait StatisticsReporter {

@@ -48,6 +48,7 @@ pub enum GatewayStatsEvent {
 }
 
 /// Gateway Statistics Tracking
+#[derive(Default)]
 pub struct GatewayStatsControl {
     // Keep track of packet statistics over time
     stats: GatewayStats,
@@ -57,16 +58,6 @@ pub struct GatewayStatsControl {
 }
 
 impl super::ClientStatsObj for GatewayStatsControl {
-    fn new() -> Self
-    where
-        Self: Sized,
-    {
-        Self {
-            stats: GatewayStats::default(),
-            failures: VecDeque::new(),
-        }
-    }
-
     fn type_identity(&self) -> super::ClientStatsType {
         super::ClientStatsType::Gateway
     }

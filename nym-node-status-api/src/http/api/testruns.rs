@@ -49,7 +49,8 @@ async fn request_testrun(State(state): State<AppState>) -> HttpResult<Json<Testr
                 );
                 Ok(Json(testrun))
             } else {
-                Err(HttpError::no_available_testruns())
+                tracing::debug!("No testruns available for agent");
+                Err(HttpError::no_testruns_available())
             }
         }
         Err(err) => Err(HttpError::internal_with_logging(err)),

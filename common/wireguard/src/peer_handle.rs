@@ -75,8 +75,8 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
 
     async fn active_peer(
         &mut self,
-        storage_peer: WireguardPeer,
-        kernel_peer: Peer,
+        storage_peer: &WireguardPeer,
+        kernel_peer: &Peer,
     ) -> Result<bool, Error> {
         if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
             let spent_bandwidth = (kernel_peer.rx_bytes + kernel_peer.tx_bytes)
@@ -136,9 +136,12 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
                         log::debug!("Peer {:?} not in storage anymore, shutting down handle", self.public_key);
                         return Ok(());
                     };
-                    if !self.active_peer(storage_peer, kernel_peer).await? {
+                    if !self.active_peer(&storage_peer, &kernel_peer).await? {
                         log::debug!("Peer {:?} doesn't have bandwidth anymore, shutting down handle", self.public_key);
                         return Ok(());
+                    } else {
+                        // Update storage values
+                        self.storage.insert_wireguard_peer(&kernel_peer, self.bandwidth_storage_manager.is_some()).await?;
                     }
                 }
 

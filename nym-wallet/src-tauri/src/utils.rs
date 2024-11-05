@@ -55,16 +55,34 @@ pub async fn owns_nym_node(state: tauri::State<'_, WalletState>) -> Result<bool,
 }
 
 #[tauri::command]
-pub async fn try_convert_pubkey_to_mix_id(
+pub async fn try_convert_pubkey_to_node_id(
     state: tauri::State<'_, WalletState>,
     mix_identity: IdentityKey,
 ) -> Result<Option<NodeId>, BackendError> {
-    let res = nyxd_client!(state)
-        .get_mixnode_details_by_identity(mix_identity)
-        .await?;
-    Ok(res
+    let guard = state.read().await;
+    let client = guard.current_client()?;
+
+    // first try native nym-node
+    if let Some(node) = client
+        .nyxd
+        .get_nymnode_details_by_identity(mix_identity.clone())
+        .await?
+        .details
+    {
+        return Ok(Some(node.node_id()));
+    }
+
+    // fallback to legacy mixnode
+    if let Some(node) = client
+        .nyxd
+        .get_mixnode_details_by_identity(mix_identity.clone())
+        .await?
         .mixnode_details
-        .map(|mixnode_details| mixnode_details.mix_id()))
+    {
+        return Ok(Some(node.mix_id()));
+    }
+
+    Ok(None)
 }
 
 #[tauri::command]

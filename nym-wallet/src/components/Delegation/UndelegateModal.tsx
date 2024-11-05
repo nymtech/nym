@@ -2,7 +2,7 @@ import React, { useContext, useEffect } from 'react';
 import { Box, SxProps } from '@mui/material';
 import { FeeDetails } from '@nymproject/types';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { simulateUndelegateFromMixnode, simulateVestingUndelegateFromMixnode } from 'src/requests';
+import { simulateUndelegateFromNode, simulateVestingUndelegateFromMixnode } from 'src/requests';
 import { AppContext } from 'src/context';
 import { ModalFee } from '../Modals/ModalFee';
 import { ModalListItem } from '../Modals/ModalListItem';
@@ -27,7 +27,7 @@ export const UndelegateModal: FCWithChildren<{
   useEffect(() => {
     if (usesVestingContractTokens) getFee(simulateVestingUndelegateFromMixnode, { mixId });
     else {
-      getFee(simulateUndelegateFromMixnode, mixId);
+      getFee(simulateUndelegateFromNode, mixId);
     }
   }, []);
 

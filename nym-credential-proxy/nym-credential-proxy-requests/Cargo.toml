@@ -22,7 +22,7 @@ reqwest = { workspace = true, features = ["json"] }
 wasm-bindgen = { workspace = true, optional = true }
 
 ## openapi:
-utoipa = { workspace = true, optional = true }
+utoipa = { workspace = true, optional = true, features = ["uuid"] }
 
 nym-credentials = { path = "../../common/credentials" }
 nym-credentials-interface = { path = "../../common/credentials-interface" }

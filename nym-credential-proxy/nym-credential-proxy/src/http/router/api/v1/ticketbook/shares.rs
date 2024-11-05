@@ -149,7 +149,7 @@ pub(crate) async fn query_for_shares_by_id(
         (status = 401, description = "authentication token is missing or is invalid"),
         (status = 500, body = ErrorResponse, description = "failed to query for bandwidth blinded shares"),
     ),
-    params(OutputParams),
+    params(SharesQueryParams),
     security(
         ("auth_token" = [])
     )

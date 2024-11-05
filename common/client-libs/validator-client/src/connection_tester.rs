@@ -164,7 +164,7 @@ async fn test_nym_api_connection(
 ) -> ConnectionResult {
     let result = match timeout(
         Duration::from_secs(CONNECTION_TEST_TIMEOUT_SEC),
-        client.get_cached_mixnodes(),
+        client.health(),
     )
     .await
     {

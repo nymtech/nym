@@ -1,22 +1,12 @@
 import React from 'react';
 import { Stack, TextField, Box, FormHelperText } from '@mui/material';
 import { useForm } from 'react-hook-form';
-import { TBondNymNodeArgs } from 'src/types';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { CurrencyFormField } from '@nymproject/react/currency/CurrencyFormField';
 import { checkHasEnoughFunds } from 'src/utils';
 import { nymNodeAmountSchema } from './amountValidationSchema';
-
-const defaultNymNodeCostParamValues: TBondNymNodeArgs['costParams'] = {
-  profit_margin_percent: '10',
-  interval_operating_cost: { amount: '40', denom: 'nym' },
-};
-
-const defaultNymNodePledgeValue: TBondNymNodeArgs['pledge'] = {
-  amount: '100',
-  denom: 'nym',
-};
+import { useFormContext } from './FormContext';
 
 type NymNodeDataProps = {
   onClose: () => void;
@@ -26,6 +16,7 @@ type NymNodeDataProps = {
 };
 
 const NymNodeAmount = ({ onClose, onBack, onNext, step }: NymNodeDataProps) => {
+  const { setAmountData, setCostParams, amountData, costParams } = useFormContext();
   const {
     formState: { errors },
     register,
@@ -36,13 +27,11 @@ const NymNodeAmount = ({ onClose, onBack, onNext, step }: NymNodeDataProps) => {
   } = useForm({
     mode: 'all',
     defaultValues: {
-      pledge: defaultNymNodePledgeValue,
-      ...defaultNymNodeCostParamValues,
+      pledge: amountData,
+      ...costParams,
     },
     resolver: yupResolver(nymNodeAmountSchema()),
   });
-
-  console.log(errors, 'errors');
 
   const handleRequestValidation = async () => {
     const values = getValues();
@@ -50,7 +39,14 @@ const NymNodeAmount = ({ onClose, onBack, onNext, step }: NymNodeDataProps) => {
     const hasSufficientTokens = await checkHasEnoughFunds(values.pledge.amount);
 
     if (hasSufficientTokens) {
-      handleSubmit(onNext)();
+      handleSubmit((args) => {
+        setAmountData(args.pledge);
+        setCostParams({
+          profit_margin_percent: args.profit_margin_percent,
+          interval_operating_cost: args.interval_operating_cost,
+        });
+        onNext();
+      })();
     } else {
       setError('pledge.amount', { message: 'Not enough tokens' });
     }
@@ -77,8 +73,8 @@ const NymNodeAmount = ({ onClose, onBack, onNext, step }: NymNodeDataProps) => {
             setValue('pledge.amount', newValue.amount, { shouldValidate: true });
           }}
           validationError={errors.pledge?.amount?.message}
-          denom={defaultNymNodePledgeValue.denom}
-          initialValue={defaultNymNodePledgeValue.amount}
+          denom={amountData.denom}
+          initialValue={amountData.amount}
         />
 
         <Box>
@@ -90,8 +86,8 @@ const NymNodeAmount = ({ onClose, onBack, onNext, step }: NymNodeDataProps) => {
               setValue('interval_operating_cost', newValue, { shouldValidate: true });
             }}
             validationError={errors.interval_operating_cost?.amount?.message}
-            denom={defaultNymNodeCostParamValues.interval_operating_cost.denom}
-            initialValue={defaultNymNodeCostParamValues.interval_operating_cost.amount}
+            denom={costParams.interval_operating_cost.denom}
+            initialValue={costParams.interval_operating_cost.amount}
           />
           <FormHelperText>
             Monthly operational costs of running your node. If your node is in the active set the amount will be paid

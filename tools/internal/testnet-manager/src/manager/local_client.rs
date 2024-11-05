@@ -7,7 +7,6 @@ use crate::manager::network::LoadedNetwork;
 use crate::manager::NetworkManager;
 use console::style;
 use nym_config::{must_get_home, DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, NYM_DIR};
-use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::NymApiClient;
 use rand::{thread_rng, RngCore};
 use std::fs;
@@ -97,8 +96,8 @@ impl NetworkManager {
         let wait_fut = async {
             let inner_fut = async {
                 loop {
-                    let mut gateways = match api_client.nym_api.get_basic_gateways(None).await {
-                        Ok(gateways) => gateways,
+                    let mut nodes = match api_client.get_all_basic_nodes(None).await {
+                        Ok(nodes) => nodes,
                         Err(err) => {
                             ctx.println(format!(
                                 "❌ {} {err}",
@@ -110,8 +109,7 @@ impl NetworkManager {
 
                     // if we explicitly specified some identity, find THIS node
                     if let Some(identity) = ctx.gateway.as_ref() {
-                        if let Some(node) = gateways
-                            .nodes
+                        if let Some(node) = nodes
                             .iter()
                             .find(|gw| &gw.ed25519_identity_pubkey.to_base58_string() == identity)
                         {
@@ -123,7 +121,7 @@ impl NetworkManager {
                     }
 
                     // otherwise look for ANY node
-                    if let Some(node) = gateways.nodes.pop() {
+                    if let Some(node) = nodes.pop() {
                         return SocketAddr::new(node.ip_addresses[0], node.entry.unwrap().ws_port);
                     }
                     sleep(Duration::from_secs(10)).await;

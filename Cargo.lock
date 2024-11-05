@@ -4844,6 +4844,7 @@ dependencies = [
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-statistics-common",
  "nym-task",
  "nym-topology",
  "nym-validator-client",

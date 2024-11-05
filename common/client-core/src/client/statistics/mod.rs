@@ -3,41 +3,20 @@
 
 use std::time::Duration;
 
-use events::StatisticsEvent;
 use nym_sphinx::addressing::Recipient;
+use nym_statistics_common::clients::{ClientStatsEvent, ClientStatsReceiver, ClientStatsReporter};
 use nym_task::connections::TransmissionLane;
 
 use crate::spawn_future;
 
 use super::inbound_messages::{InputMessage, InputMessageSender};
 
-pub(crate) mod events;
-
 // Time interval between reporting statistics
 const STATS_REPORT_INTERVAL_SECS: u64 = 300;
 
-type StatisticsReceiver = tokio::sync::mpsc::UnboundedReceiver<StatisticsEvent>;
-
-#[derive(Clone)]
-pub struct StatisticsReporter {
-    stats_tx: tokio::sync::mpsc::UnboundedSender<StatisticsEvent>,
-}
-
-impl StatisticsReporter {
-    pub(crate) fn new(stats_tx: tokio::sync::mpsc::UnboundedSender<StatisticsEvent>) -> Self {
-        Self { stats_tx }
-    }
-
-    pub(crate) fn report(&self, event: StatisticsEvent) {
-        self.stats_tx.send(event).unwrap_or_else(|err| {
-            log::error!("Failed to report client stat event : {:?}", err);
-        });
-    }
-}
-
 pub(crate) struct StatisticsControl {
     // Incoming stats events from other tasks
-    stats_rx: StatisticsReceiver,
+    stats_rx: ClientStatsReceiver,
 
     //service-provider address to send stats reports
     reporting_address: Recipient,
@@ -50,7 +29,7 @@ impl StatisticsControl {
     pub(crate) fn new(
         reporting_address: Recipient,
         report_tx: InputMessageSender,
-    ) -> (Self, StatisticsReporter) {
+    ) -> (Self, ClientStatsReporter) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
         (
             StatisticsControl {
@@ -58,11 +37,11 @@ impl StatisticsControl {
                 reporting_address,
                 report_tx,
             },
-            StatisticsReporter::new(stats_tx),
+            ClientStatsReporter::new(stats_tx),
         )
     }
 
-    fn handle_event(&mut self, event: StatisticsEvent) {
+    fn handle_event(&mut self, event: ClientStatsEvent) {
         todo!()
     }
     async fn report_stats(&self) {

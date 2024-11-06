@@ -213,8 +213,10 @@
 //!     (0..len).map(|_| rng.gen::<u8>()).collect()
 //! }
 
+mod connection_tracker;
 mod tcp_proxy_client;
 mod tcp_proxy_server;
 
+pub use connection_tracker::TcpConnectionTracker;
 pub use tcp_proxy_client::NymProxyClient;
 pub use tcp_proxy_server::NymProxyServer;

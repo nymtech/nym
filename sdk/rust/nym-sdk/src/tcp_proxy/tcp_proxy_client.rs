@@ -1,6 +1,9 @@
 use crate::client_pool::ClientPool;
 use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
+#[path = "connection_tracker.rs"]
+mod connection_tracker;
+use connection_tracker::TcpConnectionTracker;
 #[path = "utils.rs"]
 mod utils;
 use anyhow::Result;
@@ -122,6 +125,8 @@ impl NymProxyClient {
         conn_pool: ClientPool,
         cancel_token: CancellationToken,
     ) -> Result<()> {
+        conn_pool.increment();
+
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
         let session_id = uuid::Uuid::new_v4();
 
@@ -167,6 +172,14 @@ impl NymProxyClient {
         let messages_account = Arc::new(DashSet::new());
         // Wrap in an Arc for memsafe concurrent access
         let sent_messages_account = Arc::clone(&messages_account);
+
+        let overall_counter = conn_pool.clone();
+        tokio::spawn(async move {
+            loop {
+                info!("active tcp connections: {}", overall_counter.get_count());
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
+        });
 
         // 'Outgoing' thread
         tokio::spawn(async move {
@@ -253,6 +266,7 @@ impl NymProxyClient {
                     _ = cancel_token.cancelled() => {
                         info!("CTRL_C triggered in thread, triggering client shutdown");
                         client.disconnect().await;
+                        conn_pool.clone().decrement()?;
                         return Ok::<(), anyhow::Error>(())
                     },
                     _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {

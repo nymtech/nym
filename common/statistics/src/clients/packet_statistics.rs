@@ -5,6 +5,7 @@ use std::{
 };
 
 use nym_metrics::{inc, inc_by};
+use serde::{Deserialize, Serialize};
 use si_scale::helpers::bibytes2;
 
 // When computing rates, we include snapshots that are up to this old. We set it to some odd number
@@ -13,8 +14,8 @@ use si_scale::helpers::bibytes2;
 // Also, set it larger than the packet report interval so that we don't miss notable singular events
 const RECORDING_WINDOW_MS: u64 = 2300;
 
-#[derive(Default, Debug, Clone)]
-struct PacketStatistics {
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct PacketStatistics {
     // Sent
     real_packets_sent: u64,
     real_packets_sent_size: usize,
@@ -353,39 +354,23 @@ pub struct PacketStatisticsControl {
     rates: VecDeque<(Instant, PacketRates)>,
 }
 
-impl super::ClientStatsObj for PacketStatisticsControl {
-    fn type_identity(&self) -> super::ClientStatsType {
-        super::ClientStatsType::Packets
+impl PacketStatisticsControl {
+    pub(crate) fn handle_event(&mut self, event: PacketStatisticsEvent) {
+        self.stats.handle(event)
     }
 
-    fn handle_event(&mut self, event: ClientStatsEvents) {
-        match event {
-            ClientStatsEvents::PacketStatistics(ev) => self.stats.handle(ev),
-            _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
-        }
-    }
-
-    fn snapshot(&mut self) {
+    pub(crate) fn snapshot(&mut self) {
         self.update_history();
         self.update_rates();
     }
 
-    fn periodic_reset(&mut self) {
-        // // pass - this stats object is not meant to be reset - causes overflowing subtract
-        // self.stats = PacketStatistics::default();
-    }
-}
-
-impl super::StatisticsReporter for PacketStatisticsControl {
-    fn marshall(&self) -> std::io::Result<String> {
+    pub(crate) fn report(&self) -> PacketStatistics {
         self.report_rates();
         self.check_for_notable_events();
         self.report_counters();
-        Ok(format!("{:?}", self.stats))
+        self.stats.clone()
     }
-}
 
-impl PacketStatisticsControl {
     // Add the current stats to the history, and remove old ones.
     fn update_history(&mut self) {
         // Update latest

@@ -1,6 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::clients::{
+    gateway_conn_statistics::GatewayStats, nym_api_statistics::NymApiStats,
+    packet_statistics::PacketStatistics,
+};
+
 use super::error::StatsError;
 
 use serde::{Deserialize, Serialize};
@@ -9,30 +14,12 @@ use time::OffsetDateTime;
 /// Report object containing both data to be reported and client / device context. We take extra care not to overcapture context information.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClientStatsReport {
-    last_update_time: OffsetDateTime,
-    client_id: String,
-    os_information: os_info::Info,
-}
-
-impl ClientStatsReport {
-    /// Creates a new ClientStatsReport object given a client_id
-    pub fn new(client_id: String) -> Self {
-        ClientStatsReport {
-            //Safety : 0 is always a valid number of seconds
-            #[allow(clippy::unwrap_used)]
-            last_update_time: OffsetDateTime::now_utc().replace_second(0).unwrap(), // allow a bigger anonymity set wrt to reports
-            client_id,
-            os_information: os_info::get(), //SW is this revealing too much info?
-        }
-    }
-
-    /// Resets fields that needs a reset
-    pub fn reset(&mut self) {
-        //Safety : 0 is always a valid number of seconds
-        #[allow(clippy::unwrap_used)]
-        let now = OffsetDateTime::now_utc().replace_second(0).unwrap(); // allow a bigger anonymity set wrt to reports
-        self.last_update_time = now;
-    }
+    pub(crate) last_update_time: OffsetDateTime,
+    pub(crate) client_id: String,
+    pub(crate) os_information: os_info::Info,
+    pub(crate) packet_stats: PacketStatistics,
+    pub(crate) gateway_conn_stats: GatewayStats,
+    pub(crate) nym_api_stats: NymApiStats,
 }
 
 impl TryFrom<ClientStatsReport> for Vec<u8> {
@@ -51,18 +38,4 @@ impl TryFrom<Vec<u8>> for ClientStatsReport {
             .map_err(|err| StatsError::ReportBytesDeserialization(err.to_string()))?;
         Ok(serde_json::from_str(&report_str)?)
     }
-}
-
-impl StatisticsReporter for ClientStatsReport {
-    fn marshall(&self) -> std::io::Result<String> {
-        serde_json::to_string(self)
-            .map_err(|e| std::io::Error::other(format!("serialization error: {e:?}")))
-    }
-}
-
-/// This trait represents objects that can be reported by the metrics controller and
-/// provides the function by which they will be called to report their metrics.
-pub trait StatisticsReporter {
-    /// Marshall the metrics into a string and write them to the provided formatter.
-    fn marshall(&self) -> std::io::Result<String>;
 }

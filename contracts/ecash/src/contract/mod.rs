@@ -30,6 +30,7 @@ use sylvia::{contract, entry_points};
 
 mod helpers;
 
+mod queued_migrations;
 #[cfg(test)]
 mod test;
 
@@ -105,7 +106,6 @@ impl NymEcashContract<'_> {
             &Config {
                 group_addr,
                 holding_account,
-                redemption_gateway_share: Decimal::percent(5),
                 deposit_amount,
             },
         )?;
@@ -446,6 +446,8 @@ impl NymEcashContract<'_> {
     pub fn migrate(&self, ctx: MigrateCtx) -> Result<Response, EcashContractError> {
         set_build_information!(ctx.deps.storage)?;
         cw2::ensure_from_older_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+        queued_migrations::remove_redemption_gateway_share(ctx.deps)?;
 
         Ok(Response::new())
     }

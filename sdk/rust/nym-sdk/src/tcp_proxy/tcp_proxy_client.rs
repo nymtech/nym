@@ -127,7 +127,7 @@ impl NymProxyClient {
     ) -> Result<()> {
         conn_tracker.increment();
         info!(
-            "new connection - current active tcp connections: {}",
+            "new connection - current active clients: {}",
             conn_tracker.get_count()
         );
 
@@ -264,7 +264,7 @@ impl NymProxyClient {
                         client.disconnect().await;
                         conn_tracker.clone().decrement()?;
                         info!(
-                            "dropped connection - current active tcp connections: {}",
+                            "dropped connection - current active clients: {}",
                             conn_tracker.get_count()
                         );
                         return Ok::<(), anyhow::Error>(())

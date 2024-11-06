@@ -237,19 +237,14 @@ impl NymProxyClient {
                         info!(":: Closing write end of session: {}", session_id);
                         info!(":: Triggering client shutdown");
                         client.disconnect().await;
-                        // conn_tracker.clone().decrement()?;
-                        // info!(
-                        //     "dropped connection - current active clients: {}",
-                        //     conn_tracker.get_count()
-                        // );
+                        conn_tracker.clone().decrement()?;
+                        info!(
+                            "dropped connection - current active clients: {}",
+                            conn_tracker.get_count()
+                        );
                         return Ok::<(), anyhow::Error>(())
                     }
                 }
-                conn_tracker.clone().decrement()?;
-                info!(
-                    "dropped connection - current active clients: {}",
-                    conn_tracker.get_count()
-                );
             }
         });
         tokio::signal::ctrl_c().await?;

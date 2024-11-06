@@ -42,9 +42,32 @@ impl PendingSync {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct BlockProcessorConfig {
+    pub pruning_options: PruningOptions,
+    pub store_precommits: bool,
+}
+
+impl Default for BlockProcessorConfig {
+    fn default() -> Self {
+        Self {
+            pruning_options: PruningOptions::nothing(),
+            store_precommits: true,
+        }
+    }
+}
+
+impl BlockProcessorConfig {
+    pub fn new(pruning_options: PruningOptions, store_precommits: bool) -> Self {
+        Self {
+            pruning_options,
+            store_precommits,
+        }
+    }
+}
+
 pub struct BlockProcessor {
-    pruning_options: PruningOptions,
-    store_precommits: bool,
+    config: BlockProcessorConfig,
     cancel: CancellationToken,
     synced: Arc<Notify>,
     last_processed_height: u32,
@@ -69,8 +92,7 @@ pub struct BlockProcessor {
 #[allow(clippy::too_many_arguments)]
 impl BlockProcessor {
     pub async fn new(
-        pruning_options: PruningOptions,
-        store_precommits: bool,
+        config: BlockProcessorConfig,
         cancel: CancellationToken,
         synced: Arc<Notify>,
         incoming: UnboundedReceiver<BlockToProcess>,
@@ -85,8 +107,7 @@ impl BlockProcessor {
         let last_pruned_height = last_pruned.try_into().unwrap_or_default();
 
         Ok(BlockProcessor {
-            pruning_options,
-            store_precommits,
+            config,
             cancel,
             synced,
             last_processed_height,
@@ -105,7 +126,7 @@ impl BlockProcessor {
     }
 
     pub fn with_pruning(mut self, pruning_options: PruningOptions) -> Self {
-        self.pruning_options = pruning_options;
+        self.config.pruning_options = pruning_options;
         self
     }
 
@@ -132,7 +153,7 @@ impl BlockProcessor {
         // we won't end up with a corrupted storage.
         let mut tx = self.storage.begin_processing_tx().await?;
 
-        persist_block(&full_info, &mut tx, self.store_precommits).await?;
+        persist_block(&full_info, &mut tx, self.config.store_precommits).await?;
 
         // let the modules do whatever they want
         // the ones wanting the full block:
@@ -245,7 +266,7 @@ impl BlockProcessor {
 
     #[instrument(skip(self))]
     async fn prune_storage(&mut self) -> Result<(), ScraperError> {
-        let keep_recent = self.pruning_options.strategy_keep_recent();
+        let keep_recent = self.config.pruning_options.strategy_keep_recent();
         let last_to_keep = self.last_processed_height - keep_recent;
 
         info!(
@@ -286,12 +307,12 @@ impl BlockProcessor {
     async fn maybe_prune_storage(&mut self) -> Result<(), ScraperError> {
         debug!("checking for storage pruning");
 
-        if self.pruning_options.strategy.is_nothing() {
+        if self.config.pruning_options.strategy.is_nothing() {
             trace!("the current pruning strategy is 'nothing'");
             return Ok(());
         }
 
-        let interval = self.pruning_options.strategy_interval();
+        let interval = self.config.pruning_options.strategy_interval();
         if self.last_pruned_height + interval <= self.last_processed_height {
             self.prune_storage().await?;
         }
@@ -375,7 +396,7 @@ impl BlockProcessor {
         if latest_block > self.last_processed_height && self.last_processed_height != 0 {
             // in case we were offline for a while,
             // make sure we don't request blocks we'd have to prune anyway
-            let keep_recent = self.pruning_options.strategy_keep_recent();
+            let keep_recent = self.config.pruning_options.strategy_keep_recent();
             let last_to_keep = latest_block - keep_recent;
             self.last_processed_height = max(self.last_processed_height, last_to_keep);
 

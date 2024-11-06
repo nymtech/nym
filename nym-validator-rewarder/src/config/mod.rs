@@ -253,8 +253,12 @@ pub struct NyxdScraper {
     pub pruning: PruningOptions,
 
     /// Specifies whether to store pre-commits within the database.
+    #[serde(default = "default_store_precommits")]
     pub store_precommits: bool,
-    // TODO: debug with everything that's currently hardcoded in the scraper
+}
+
+fn default_store_precommits() -> bool {
+    true
 }
 
 impl NyxdScraper {

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::block_processor::types::BlockToProcess;
-use crate::block_processor::BlockProcessor;
+use crate::block_processor::{BlockProcessor, BlockProcessorConfig};
 use crate::block_requester::{BlockRequest, BlockRequester};
 use crate::error::ScraperError;
 use crate::modules::{BlockModule, MsgModule, TxModule};
@@ -62,9 +62,14 @@ impl NyxdScraperBuilder {
             req_rx,
             processing_tx.clone(),
         );
-        let mut block_processor = BlockProcessor::new(
+
+        let block_processor_config = BlockProcessorConfig::new(
             scraper.config.pruning_options,
             scraper.config.store_precommits,
+        );
+
+        let mut block_processor = BlockProcessor::new(
+            block_processor_config,
             scraper.cancel_token.clone(),
             scraper.startup_sync.clone(),
             processing_rx,
@@ -278,9 +283,11 @@ impl NyxdScraper {
         req_tx: Sender<BlockRequest>,
         processing_rx: UnboundedReceiver<BlockToProcess>,
     ) -> Result<BlockProcessor, ScraperError> {
+        let block_processor_config =
+            BlockProcessorConfig::new(self.config.pruning_options, self.config.store_precommits);
+
         BlockProcessor::new(
-            self.config.pruning_options,
-            self.config.store_precommits,
+            block_processor_config,
             self.cancel_token.clone(),
             self.startup_sync.clone(),
             processing_rx,

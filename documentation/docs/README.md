@@ -46,9 +46,6 @@ pnpm run build
 
 > **Only run this script on branches where you want to push e.g. the build info of a binary to production docs**; it will build the monorepo binaries and use their command output for the produced markdown files.
 
-## CI/CD
-TODO
-
 ## Licensing and copyright information
 This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.
 

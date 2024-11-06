@@ -1,5 +1,8 @@
 use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
+#[path = "connection_tracker.rs"]
+mod connection_tracker;
+use connection_tracker::TcpConnectionTracker;
 #[path = "utils.rs"]
 mod utils;
 use anyhow::Result;
@@ -24,6 +27,7 @@ pub struct NymProxyClient {
     listen_address: String,
     listen_port: String,
     close_timeout: u64,
+    conn_tracker: TcpConnectionTracker,
 }
 
 impl NymProxyClient {
@@ -41,6 +45,7 @@ impl NymProxyClient {
             listen_address: listen_address.to_string(),
             listen_port: listen_port.to_string(),
             close_timeout,
+            conn_tracker: TcpConnectionTracker::new(),
         })
     }
 
@@ -53,6 +58,7 @@ impl NymProxyClient {
             listen_address: DEFAULT_LISTEN_HOST.to_string(),
             listen_port: DEFAULT_LISTEN_PORT.to_string(),
             close_timeout: DEFAULT_CLOSE_TIMEOUT,
+            conn_tracker: TcpConnectionTracker::new(),
         })
     }
 
@@ -68,6 +74,7 @@ impl NymProxyClient {
                 stream,
                 self.server_address,
                 self.close_timeout,
+                self.conn_tracker.clone(),
             ));
         }
     }
@@ -89,7 +96,10 @@ impl NymProxyClient {
         stream: TcpStream,
         server_address: Recipient,
         close_timeout: u64,
+        conn_pool: TcpConnectionTracker,
     ) -> Result<()> {
+        conn_pool.increment();
+
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
         let session_id = uuid::Uuid::new_v4();
 
@@ -136,6 +146,14 @@ impl NymProxyClient {
         let messages_account = Arc::new(DashSet::new());
         // Wrap in an Arc for memsafe concurrent access
         let sent_messages_account = Arc::clone(&messages_account);
+
+        let overall_counter = conn_pool.clone();
+        tokio::spawn(async move {
+            loop {
+                info!("active tcp connections: {}", overall_counter.get_count());
+                tokio::time::sleep(Duration::from_secs(5)).await;
+            }
+        });
 
         // 'Outgoing' thread
         tokio::spawn(async move {
@@ -217,6 +235,7 @@ impl NymProxyClient {
                         info!(":: Closing write end of session: {}", session_id);
                         info!(":: Triggering client shutdown");
                         client.disconnect().await;
+                        conn_pool.clone().decrement()?;
                         return Ok::<(), anyhow::Error>(())
                     }
                 }

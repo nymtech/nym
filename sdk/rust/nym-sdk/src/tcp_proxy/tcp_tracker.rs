@@ -1,8 +1,6 @@
-use anyhow::Error;
 use anyhow::{bail, Result};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
-use std::thread;
 
 #[derive(Debug)]
 pub struct TcpConnectionTracker {
@@ -45,7 +43,6 @@ impl Clone for TcpConnectionTracker {
 mod tests {
     use super::*;
     use anyhow::Result;
-    use std::sync::Arc;
     use std::thread;
 
     #[test]

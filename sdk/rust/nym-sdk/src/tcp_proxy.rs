@@ -213,10 +213,12 @@
 //!     (0..len).map(|_| rng.gen::<u8>()).collect()
 //! }
 
-mod connection_tracker;
+// TODO UPDATE EXAMPLE ONCE STABLE
+
 mod tcp_proxy_client;
 mod tcp_proxy_server;
+mod tcp_tracker;
 
-pub use connection_tracker::TcpConnectionTracker;
 pub use tcp_proxy_client::NymProxyClient;
 pub use tcp_proxy_server::NymProxyServer;
+pub use tcp_tracker::TcpConnectionTracker;

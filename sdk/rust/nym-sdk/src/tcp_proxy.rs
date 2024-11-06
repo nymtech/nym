@@ -203,10 +203,10 @@
 
 // TODO UPDATE EXAMPLE ONCE STABLE
 
+mod connection_tracker;
 mod tcp_proxy_client;
 mod tcp_proxy_server;
-mod tcp_tracker;
 
+pub use connection_tracker::ConnectionTracker;
 pub use tcp_proxy_client::NymProxyClient;
 pub use tcp_proxy_server::NymProxyServer;
-pub use tcp_tracker::TcpConnectionTracker;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::unix_epoch;
+use crate::helpers::PlaceholderJsonSchemaImpl;
 use crate::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
@@ -1141,6 +1142,67 @@ pub struct NoiseDetails {
     pub mixnet_port: u16,
 
     pub ip_addresses: Vec<IpAddr>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct NodeRefreshBody {
+    #[serde(with = "bs58_ed25519_pubkey")]
+    #[schemars(with = "String")]
+    pub node_identity: ed25519::PublicKey,
+
+    // a poor man's nonce
+    pub request_timestamp: i64,
+
+    #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    pub signature: ed25519::Signature,
+}
+
+impl NodeRefreshBody {
+    pub fn plaintext(node_identity: ed25519::PublicKey, request_timestamp: i64) -> Vec<u8> {
+        node_identity
+            .to_bytes()
+            .into_iter()
+            .chain(request_timestamp.to_be_bytes())
+            .chain(b"describe-cache-refresh-request".iter().copied())
+            .collect()
+    }
+
+    pub fn new(private_key: &ed25519::PrivateKey) -> Self {
+        let node_identity = private_key.public_key();
+        let request_timestamp = OffsetDateTime::now_utc().unix_timestamp();
+        let signature = private_key.sign(Self::plaintext(node_identity, request_timestamp));
+        NodeRefreshBody {
+            node_identity,
+            request_timestamp,
+            signature,
+        }
+    }
+
+    pub fn verify_signature(&self) -> bool {
+        self.node_identity
+            .verify(
+                Self::plaintext(self.node_identity, self.request_timestamp),
+                &self.signature,
+            )
+            .is_ok()
+    }
+
+    pub fn is_stale(&self) -> bool {
+        let Ok(encoded) = OffsetDateTime::from_unix_timestamp(self.request_timestamp) else {
+            return true;
+        };
+        let now = OffsetDateTime::now_utc();
+
+        if encoded > now {
+            return true;
+        }
+
+        if (encoded + Duration::from_secs(30)) < now {
+            return true;
+        }
+
+        false
+    }
 }
 
 #[cfg(test)]

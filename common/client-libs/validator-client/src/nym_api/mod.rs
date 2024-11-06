@@ -12,7 +12,7 @@ use nym_api_requests::ecash::models::{
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, LegacyDescribedMixNode, NodePerformanceResponse,
-    NymNodeDescription,
+    NodeRefreshBody, NymNodeDescription,
 };
 use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
 use nym_api_requests::pagination::PaginatedResponse;
@@ -930,6 +930,18 @@ pub trait NymApiClientExt: ApiClient {
                 routes::ecash::MASTER_VERIFICATION_KEY,
             ],
             &params,
+        )
+        .await
+    }
+
+    async fn force_refresh_describe_cache(
+        &self,
+        request: &NodeRefreshBody,
+    ) -> Result<(), NymAPIError> {
+        self.post_json(
+            &[routes::API_VERSION, "nym-nodes", "refresh-described"],
+            NO_PARAMS,
+            request,
         )
         .await
     }

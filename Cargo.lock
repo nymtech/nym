@@ -5906,6 +5906,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-task",
  "nym-types",
+ "nym-validator-client",
  "nym-wireguard",
  "nym-wireguard-types",
  "rand",

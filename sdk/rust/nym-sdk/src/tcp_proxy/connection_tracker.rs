@@ -3,11 +3,11 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct TcpConnectionTracker {
+pub struct ConnectionTracker {
     count: Arc<AtomicUsize>,
 }
 
-impl TcpConnectionTracker {
+impl ConnectionTracker {
     pub fn new() -> Self {
         Self {
             count: Arc::new(AtomicUsize::new(0)),
@@ -31,7 +31,7 @@ impl TcpConnectionTracker {
     }
 }
 
-impl Clone for TcpConnectionTracker {
+impl Clone for ConnectionTracker {
     fn clone(&self) -> Self {
         Self {
             count: Arc::clone(&self.count),
@@ -47,7 +47,7 @@ mod tests {
 
     #[test]
     fn test_increment_decrement() -> Result<()> {
-        let tracker = TcpConnectionTracker::new();
+        let tracker = ConnectionTracker::new();
         tracker.increment();
         tracker.increment();
         assert_eq!(tracker.get_count(), 2, "should be 2 after single increment");
@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn test_clone() {
-        let tracker = TcpConnectionTracker::new();
+        let tracker = ConnectionTracker::new();
         let tracker_clone = tracker.clone();
 
         tracker.increment();
@@ -75,7 +75,7 @@ mod tests {
 
     #[test]
     fn test_multiple_threads() {
-        let tracker = TcpConnectionTracker::new();
+        let tracker = ConnectionTracker::new();
         let mut handles = vec![];
 
         for _ in 0..10 {
@@ -100,7 +100,7 @@ mod tests {
 
     #[test]
     fn test_concurrent_increment_decrement() -> Result<()> {
-        let tracker = TcpConnectionTracker::new();
+        let tracker = ConnectionTracker::new();
         let mut handles = vec![];
 
         for i in 0..10 {
@@ -131,13 +131,13 @@ mod tests {
     #[test]
     #[should_panic]
     fn test_zero_floor() {
-        let tracker = TcpConnectionTracker::new();
+        let tracker = ConnectionTracker::new();
         tracker.decrement().unwrap(); // should panic
     }
 
     #[test]
     fn test_stress() {
-        let tracker = TcpConnectionTracker::new();
+        let tracker = ConnectionTracker::new();
         let mut handles = vec![];
         let num_threads = 100;
 

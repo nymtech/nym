@@ -262,11 +262,11 @@ impl NymProxyClient {
                     _ = cancel_token.cancelled() => {
                         info!("CTRL_C triggered in thread, triggering client shutdown");
                         client.disconnect().await;
-                        // conn_tracker.clone().decrement()?;
-                        // info!(
-                        //     "dropped connection - current active clients: {}",
-                        //     conn_tracker.get_count()
-                        // );
+                        conn_tracker.clone().decrement()?;
+                        info!(
+                            "dropped connection - current active clients: {}",
+                            conn_tracker.get_count()
+                        );
                         return Ok::<(), anyhow::Error>(())
                     },
                     _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {
@@ -276,11 +276,6 @@ impl NymProxyClient {
                         return Ok::<(), anyhow::Error>(())
                     },
                 }
-                conn_tracker.clone().decrement()?;
-                info!(
-                    "dropped connection - current active clients: {}",
-                    conn_tracker.get_count()
-                );
             }
         });
         Ok(())

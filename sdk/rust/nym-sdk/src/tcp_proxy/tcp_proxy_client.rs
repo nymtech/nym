@@ -1,9 +1,9 @@
 use crate::client_pool::ClientPool;
 use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
 use std::{sync::Arc, time::Duration};
-#[path = "tcp_tracker.rs"]
-mod tcp_tracker;
-use tcp_tracker::TcpConnectionTracker;
+#[path = "connection_tracker.rs"]
+mod connection_tracker;
+use connection_tracker::ConnectionTracker;
 #[path = "utils.rs"]
 mod utils;
 use anyhow::Result;
@@ -126,6 +126,10 @@ impl NymProxyClient {
         cancel_token: CancellationToken,
     ) -> Result<()> {
         conn_tracker.increment();
+        info!(
+            "new connection - current active tcp connections: {}",
+            conn_tracker.get_count()
+        );
 
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
         let session_id = uuid::Uuid::new_v4();
@@ -259,6 +263,10 @@ impl NymProxyClient {
                         info!("CTRL_C triggered in thread, triggering client shutdown");
                         client.disconnect().await;
                         conn_tracker.clone().decrement()?;
+                        info!(
+                            "dropped connection - current active tcp connections: {}",
+                            conn_tracker.get_count()
+                        );
                         return Ok::<(), anyhow::Error>(())
                     },
                     _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {

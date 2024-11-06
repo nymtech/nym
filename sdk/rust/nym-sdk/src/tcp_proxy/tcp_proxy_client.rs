@@ -71,7 +71,7 @@ impl NymProxyClient {
         let overall_counter = self.conn_tracker.clone();
         tokio::spawn(async move {
             loop {
-                info!("active tcp connections: {}", overall_counter.get_count());
+                info!("active clients: {}", overall_counter.get_count());
                 tokio::time::sleep(Duration::from_secs(10)).await;
             }
         });
@@ -108,7 +108,7 @@ impl NymProxyClient {
     ) -> Result<()> {
         conn_tracker.increment();
         info!(
-            "new connection - current active tcp connections: {}",
+            "new connection - current active clients: {}",
             conn_tracker.get_count()
         );
 
@@ -239,7 +239,7 @@ impl NymProxyClient {
                         client.disconnect().await;
                         conn_tracker.clone().decrement()?;
                         info!(
-                            "dropped connection - current active tcp connections: {}",
+                            "dropped connection - current active clients: {}",
                             conn_tracker.get_count()
                         );
                         return Ok::<(), anyhow::Error>(())

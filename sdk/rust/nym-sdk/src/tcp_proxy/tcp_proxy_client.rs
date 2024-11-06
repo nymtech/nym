@@ -45,7 +45,7 @@ impl NymProxyClient {
             listen_address: listen_address.to_string(),
             listen_port: listen_port.to_string(),
             close_timeout,
-            conn_tracker: ConnectionTracker::new(),
+            conn_tracker: ConnectionTracker::new(), // This is used to keep track of the number of active ephemeral clients that are being called by handle_connection()
         })
     }
 
@@ -237,14 +237,19 @@ impl NymProxyClient {
                         info!(":: Closing write end of session: {}", session_id);
                         info!(":: Triggering client shutdown");
                         client.disconnect().await;
-                        conn_tracker.clone().decrement()?;
-                        info!(
-                            "dropped connection - current active clients: {}",
-                            conn_tracker.get_count()
-                        );
+                        // conn_tracker.clone().decrement()?;
+                        // info!(
+                        //     "dropped connection - current active clients: {}",
+                        //     conn_tracker.get_count()
+                        // );
                         return Ok::<(), anyhow::Error>(())
                     }
                 }
+                conn_tracker.clone().decrement()?;
+                info!(
+                    "dropped connection - current active clients: {}",
+                    conn_tracker.get_count()
+                );
             }
         });
         tokio::signal::ctrl_c().await?;

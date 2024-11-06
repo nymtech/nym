@@ -596,12 +596,12 @@ where
     }
 
     fn start_statistics_control(
-        stats_reporting_addres: Option<Recipient>,
+        stats_reporting_address: Option<Recipient>,
         input_sender: Sender<InputMessage>,
         shutdown: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting packet statistics control...");
-        match stats_reporting_addres {
+        match stats_reporting_address {
             Some(reporting_address) => {
                 let (stats_control, stats_reporter) =
                     StatisticsControl::new(reporting_address, input_sender.clone());

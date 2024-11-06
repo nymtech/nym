@@ -2,6 +2,7 @@ use anyhow::{bail, Result};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
+// This is used to keep track of the number of active ephemeral clients that are being called by handle_connection()
 #[derive(Debug)]
 pub struct ConnectionTracker {
     count: Arc<AtomicUsize>,

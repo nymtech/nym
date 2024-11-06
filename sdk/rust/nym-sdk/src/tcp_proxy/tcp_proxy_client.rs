@@ -1,8 +1,8 @@
 use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
 use std::{sync::Arc, time::Duration};
-#[path = "tcp_tracker.rs"]
-mod tcp_tracker;
-use tcp_tracker::TcpConnectionTracker;
+#[path = "connection_tracker.rs"]
+mod connection_tracker;
+use connection_tracker::ConnectionTracker;
 #[path = "utils.rs"]
 mod utils;
 use anyhow::Result;
@@ -27,7 +27,7 @@ pub struct NymProxyClient {
     listen_address: String,
     listen_port: String,
     close_timeout: u64,
-    conn_tracker: TcpConnectionTracker,
+    conn_tracker: ConnectionTracker,
 }
 
 impl NymProxyClient {
@@ -45,7 +45,7 @@ impl NymProxyClient {
             listen_address: listen_address.to_string(),
             listen_port: listen_port.to_string(),
             close_timeout,
-            conn_tracker: TcpConnectionTracker::new(),
+            conn_tracker: ConnectionTracker::new(),
         })
     }
 
@@ -58,7 +58,7 @@ impl NymProxyClient {
             listen_address: DEFAULT_LISTEN_HOST.to_string(),
             listen_port: DEFAULT_LISTEN_PORT.to_string(),
             close_timeout: DEFAULT_CLOSE_TIMEOUT,
-            conn_tracker: TcpConnectionTracker::new(),
+            conn_tracker: ConnectionTracker::new(),
         })
     }
 
@@ -104,9 +104,13 @@ impl NymProxyClient {
         stream: TcpStream,
         server_address: Recipient,
         close_timeout: u64,
-        conn_tracker: TcpConnectionTracker,
+        conn_tracker: ConnectionTracker,
     ) -> Result<()> {
         conn_tracker.increment();
+        info!(
+            "new connection - current active tcp connections: {}",
+            conn_tracker.get_count()
+        );
 
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
         let session_id = uuid::Uuid::new_v4();
@@ -234,6 +238,10 @@ impl NymProxyClient {
                         info!(":: Triggering client shutdown");
                         client.disconnect().await;
                         conn_tracker.clone().decrement()?;
+                        info!(
+                            "dropped connection - current active tcp connections: {}",
+                            conn_tracker.get_count()
+                        );
                         return Ok::<(), anyhow::Error>(())
                     }
                 }

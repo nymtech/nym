@@ -608,7 +608,7 @@ where
                 stats_control.start_with_shutdown(shutdown.fork("statistics_control"));
                 stats_reporter
             }
-            None => ClientStatsSender::sink(),
+            None => ClientStatsSender::sink(shutdown.fork("statistics_sink")),
         }
     }
 

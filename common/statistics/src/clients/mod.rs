@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::report::StatisticsReporter;
+use nym_task::spawn;
 
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -37,9 +38,26 @@ impl ClientStatsSender {
     }
 
     /// Used when stats reporting is disabled -- reads all incoming messages and discards them
-    pub fn sink() -> Self {
+    pub fn sink(mut shutdown: nym_task::TaskClient) -> Self {
         let (stats_tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-        tokio::spawn(async move { while (rx.recv().await).is_some() {} });
+
+        spawn(async move { 
+            loop {
+                tokio::select! {
+                    m = rx.recv() => {
+                        if m.is_none() {
+                            log::trace!("StatisticsSink: channel closed shutting down");
+                            break;
+                        }
+                    },
+                    _ = shutdown.recv_with_delay() => {
+                        log::trace!("StatisticsSink: Received shutdown");
+                        break;
+                    },
+                }
+            }
+            log::debug!("StatsSink: Exited");
+        });
         Self { stats_tx }
     }
 }

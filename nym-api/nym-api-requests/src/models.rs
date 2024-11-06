@@ -1189,19 +1189,19 @@ impl NodeRefreshBody {
 
     pub fn is_stale(&self) -> bool {
         let Ok(encoded) = OffsetDateTime::from_unix_timestamp(self.request_timestamp) else {
-            return false;
+            return true;
         };
         let now = OffsetDateTime::now_utc();
 
         if encoded > now {
-            return false;
+            return true;
         }
 
         if (encoded + Duration::from_secs(30)) < now {
-            return false;
+            return true;
         }
 
-        true
+        false
     }
 }
 

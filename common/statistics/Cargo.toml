@@ -18,6 +18,9 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
+si-scale = { workspace = true }
 
 nym-sphinx = { path = "../nymsphinx" }
 nym-credentials-interface = { path = "../credentials-interface" }
+nym-metrics = { path = "../nym-metrics" }
+nym-task = { path = "../task" }

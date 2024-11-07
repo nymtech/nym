@@ -42,6 +42,9 @@ impl ClientStatsSender {
     pub fn sink(mut shutdown: nym_task::TaskClient) -> Self {
         let (stats_tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
+        //let's not propagate a shutdown if we happen to error out while doing the blackhole
+        shutdown.disarm();
+
         spawn(async move {
             loop {
                 tokio::select! {

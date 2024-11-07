@@ -25,9 +25,9 @@ The core binaries consist of:
 
 > Any syntax in `<>` brackets is a user's/version unique variable. Exchange with a corresponding name without the `<>` brackets.
 
-1. Open Github [releases page]({{nym_vpn_releases}}) and download the CLI latest binary for your system (labelled as `nym-vpn-core`)
+1. Open Github [releases page](https://github.com/nymtech/nym-vpn-client) and download the CLI latest binary for your system (labelled as `nym-vpn-core`)
 
-2. Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releases}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+2. Verify sha hash of your downloaded binary with the one listed on the [releases page](https://github.com/nymtech/nym-vpn-client). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 

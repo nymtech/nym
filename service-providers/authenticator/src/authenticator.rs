@@ -143,17 +143,17 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
         let used_private_network_ips =
             std::collections::BTreeSet::from_iter(self.used_private_network_ips.iter());
         let private_ip_network = IpNetwork::new(
-            self.config.authenticator.private_ip,
-            self.config.authenticator.private_network_prefix,
+            self.config.authenticator.private_ipv4.into(),
+            self.config.authenticator.private_network_prefix_v4,
         )?;
         let now = SystemTime::now();
         let free_private_network_ips = private_ip_network
             .iter()
-            .map(|ip| {
+            .map(|ip: IpAddr| {
                 if used_private_network_ips.contains(&ip) {
-                    (ip, Some(now))
+                    (ip.into(), Some(now))
                 } else {
-                    (ip, None)
+                    (ip.into(), None)
                 }
             })
             .collect();

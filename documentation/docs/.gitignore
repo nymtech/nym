@@ -1,14 +1,6 @@
-# mdbook files
-book/
+.next
+node_modules
+out
 
-# Compiled assets
-.sass-cache
-_site
-
-# Developing
-todo.md
-.idea
-
-# OSX
-.DS_Store
-
+# the lock file will break Vercel because it may get committed from a machine with a different build architecture
+package-lock.json

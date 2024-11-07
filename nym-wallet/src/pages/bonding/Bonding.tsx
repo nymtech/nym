@@ -11,14 +11,14 @@ import { ConfirmationDetailProps, ConfirmationDetailsModal } from 'src/component
 import { ErrorModal } from 'src/components/Modals/ErrorModal';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { AppContext, urls } from 'src/context/main';
-import { isGateway, isMixnode, isNymNode, TUpdateBondArgs } from 'src/types';
+import { isGateway, isMixnode, isNymNode, TBondNymNodeArgs, TUpdateBondArgs } from 'src/types';
 import { BondedGateway } from 'src/components/Bonding/BondedGateway';
 import { RedeemRewardsModal } from 'src/components/Bonding/modals/RedeemRewardsModal';
 import { VestingWarningModal } from 'src/components/VestingWarningModal';
 import MigrateLegacyNode from 'src/components/Bonding/modals/MigrateLegacyNode';
 import { BondedNymNode } from 'src/components/Bonding/BondedNymNode';
 import { UpdateBondAmountNymNode } from 'src/components/Bonding/modals/UpdateBondAmountNymNode';
-import { BondNymNodeModalWithState } from 'src/components/Bonding/modals/BondNymNodeModal';
+import { BondNymNode } from 'src/components/Bonding/modals/BondNymNodeModal';
 import { BondingContextProvider, useBondingContext } from '../../context';
 
 export const Bonding = () => {
@@ -44,6 +44,7 @@ export const Bonding = () => {
     redeemRewards,
     updateBondAmount,
     refresh,
+    bond,
     migrateVestedMixnode,
     migrateLegacyNode,
   } = useBondingContext();
@@ -73,6 +74,18 @@ export const Bonding = () => {
 
     setShowMigrateLegacyNodeModal(shouldShowMigrateLegacyNodeModal());
   }, [bondedNode]);
+
+  const handleBondNymNode = async (data: TBondNymNodeArgs) => {
+    setShowModal(undefined);
+    const tx = await bond(data);
+    if (tx) {
+      setConfirmationDetails({
+        status: 'success',
+        title: 'Bonding successful',
+        txUrl: `${urls(network).blockExplorer}/transaction/${tx?.transaction_hash}`,
+      });
+    }
+  };
 
   const handleMigrateVestedMixnode = async () => {
     setShowMigrationModal(false);
@@ -250,7 +263,7 @@ export const Bonding = () => {
         />
       )}
 
-      <BondNymNodeModalWithState open={showModal === 'bond-nymnode'} onClose={handleCloseModal} />
+      <BondNymNode open={showModal === 'bond-nymnode'} onClose={handleCloseModal} onBond={handleBondNymNode} />
 
       {showModal === 'update-bond-oversaturated' && uncappedSaturation && (
         <BondOversaturatedModal

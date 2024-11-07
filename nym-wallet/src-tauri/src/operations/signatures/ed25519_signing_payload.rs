@@ -116,12 +116,12 @@ pub async fn generate_gateway_bonding_msg_payload(
 
 #[tauri::command]
 pub async fn generate_nym_node_bonding_msg_payload(
-    nym_node: NymNode,
+    nymnode: NymNode,
     cost_params: NodeCostParams,
     pledge: DecCoin,
     state: tauri::State<'_, WalletState>,
 ) -> Result<String, BackendError> {
-    nym_node_bonding_msg_payload(nym_node, cost_params, pledge, state).await
+    nym_node_bonding_msg_payload(nymnode, cost_params, pledge, state).await
 }
 
 #[tauri::command]

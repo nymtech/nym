@@ -1,0 +1,21 @@
+# Types of Nym clients
+At present, there are three Nym clients. These are built as standalone binaries when building our codebase, but are most easily accessed through one of our SDKs:
+
+- the websocket (native) client - most easily accessed via the [Rust SDK](./rust) and [Go/C++ FFI](./rust/ffi).
+- the SOCKS5 client - most easily accessed via the [Rust SDK](./rust).
+- the wasm (webassembly) client - most easily via the [Typescript SDK](./typescript).
+
+> For information about the role that clients play within the Nym system and their role when communicating with the Mixnet, see the [Client network docs](../network/architecture/mixnet/clients).
+
+### The websocket client
+This is a compiled program that can run on Linux, Mac OS X, and Windows machines. It can be run as a persistent process on a desktop or server machine. You can connect to it with **any language that supports websockets**.
+
+### The webassembly client
+If you're working in JavaScript or Typescript in the browser, or building an [edge computing](https://en.wikipedia.org/wiki/Edge_computing) app, you'll likely want to choose the webassembly client.
+
+It's packaged and [available on the npm registry](https://www.npmjs.com/package/@nymproject/nym-client-wasm), so you can `npm install` it into your JavaScript or TypeScript application.
+
+### The SOCKS5 client
+The `nym-socks5-client` is useful for allowing existing applications to use the Nym mixnet without any code changes. All that's necessary is that they can use one of the SOCKS5, SOCKS4a, or SOCKS4 proxy protocols (which many applications can - crypto wallets, browsers, chat applications etc).
+
+When used as a standalone client, it's less flexible as a way of writing custom applications than the other clients, but able to be used to proxy application traffic through the mixnet without having to make any code changes.

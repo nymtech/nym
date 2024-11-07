@@ -897,6 +897,12 @@ pub enum DescribedNodeType {
     NymNode,
 }
 
+impl DescribedNodeType {
+    pub fn is_nym_node(&self) -> bool {
+        matches!(self, DescribedNodeType::NymNode)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(

@@ -1,0 +1,19 @@
+import { Callout } from 'nextra/components'
+
+# Mixnet Nodes
+
+<Callout type="info" emoji="ℹ️">
+
+If you want to run a node, the setup and maintenance guides can be found in the [Operator Guides book](../../../operators/introduction).
+
+</Callout>
+
+Although a large proportion of the Nym mixnet's functionality is implemented client-side, several key anonymity features rely on the decentralised node network that make up the Mixnet.
+
+As outlined on the previous page, the various types of Mixnet nodes - Mix Nodes, Gateways, and Network Requesters - are in the process of being compounded into a single `nym-node` binary which will run performing the features of all three nodes:
+- Acting as the first and last hops for traffic moving through the mixnet - a role fulfilled currently by Gateways.
+- (Once the payment system is turned on) checking client credentials to check for payment via the [zk-nym scheme](../../cryptography/zk-nym) - a role fulfilled currently by Entry Gateways.
+- Accepting incoming Sphinx packets from other Nym nodes and, using a variable delay, 'mixing' them with other packets (not forwarding on received packets according to FIFO but instead relying on a randomised delay function) - a role currently fulfilled by Mix Nodes.
+- Forwarding packets on to their final destination: the 'receiving' Nym client.
+
+See the [traffic flow](../../traffic) page for detailed information on how traffic moves through the Mixnet as well as the [Loopix](https://arxiv.org/pdf/1703.00536) design paper for overview of the stratified nature of the Mixnet.

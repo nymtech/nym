@@ -1,0 +1,31 @@
+{
+  "index": {
+    "display": "hidden"
+  },
+  "network": {
+    "title": "Network",
+    "type": "page"
+  },
+  "developers": {
+    "title": "Developers",
+    "type": "menu",
+    "items": {
+      "developers": {
+        "title": "Developer Overview",
+        "href": "/developers/"
+      },
+      "rust": {
+        "title": "Rust SDK",
+        "href": "/developers/rust"
+      },
+      "typescript": {
+        "title": "Typescript SDK",
+        "href": "/developers/typescript"
+      }
+    }
+  },
+  "operators": {
+    "title": "Operators",
+    "type": "page"
+  }
+}

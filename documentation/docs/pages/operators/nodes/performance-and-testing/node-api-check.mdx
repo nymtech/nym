@@ -1,0 +1,162 @@
+import { Tabs } from 'nextra/components';
+import { Callout } from 'nextra/components';
+import { VarInfo } from 'components/variable-info.tsx';
+import { Steps } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import NodeApiCheckHelp from 'components/outputs/command-outputs/node-api-check-help.md';
+import NodeApiCheckQueryHelp from 'components/outputs/command-outputs/node-api-check-query-help.md'
+
+# Node API Check
+
+<VarInfo />
+
+Operating a `nym-node` is not a *"set and forget"* endeavor, it takes some work. To diagnose node network performance through querying APIs, is a good knowledge to have. These are the main places to look for API endpoints regarding `nym-node`:
+
+- [`openapi.json`](https://validator.nymtech.net/api/v1/openapi.json): a list of all endpoints
+- [Swagger UI page](https://validator.nymtech.net/api/swagger/index.html)
+
+Besides that, node operators can check out their node performance, connectivity and much more on [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+
+### Basic API usage
+
+For information about available endpoints and their status, you can refer to:
+```sh
+# for http
+http://<PUBLIC_IP>:8080/api/v1/swagger/#/
+# or
+http://<PUBLIC_IP>/api/v1/swagger/#/
+
+# for reversed proxy/WSS
+https://<HOSTNAME>/api/v1/swagger/#/
+```
+
+For example to determine which mode your node is running, you can check `:8080/api/v1/roles` endpoint:
+```sh
+# for http
+http://<PUBLIC_IP>:8080/api/v1/roles
+# or
+http://<PUBLIC_IP>/api/v1/roles
+
+# for reversed proxy/WSS
+https://<HOSTNAME>/api/v1/roles
+```
+
+## `node_api_check.py`
+
+To make this a bit easier, we made a CLI tool querying all available API endpoints based on node `Identity Key` (further denoted as `<ID_KEY>`) called `node_api_check.py`. To diagnose your node performance, whether by yourself or by sharing an output in our [operator channel](https://matrix.to/#/#operators:nymtech.chat), this tool provides you with a quick overview of live data. We recommend to run this checker alongside [`nym_gateway_probe`](gateway-probe.md) to triage both performance and an actual routing.
+
+Besides querying any bonded node APIs, `nym_api_check.py` has a function counting all existing nodes in provided version.
+
+### Setup
+
+#### Pre-requsities
+
+<Steps>
+
+###### 1. Install and configure Python3
+
+
+- Start with installing Python3:
+```sh
+sudo apt install python3
+```
+
+- Make sure Python3 is your default Python version:
+```sh
+update-alternatives --install  /usr/bin/python python /usr/bin/python3 1
+```
+
+- Verify:
+```sh
+python --version
+
+# should return higher than 3
+```
+
+- Install Python modules `tabulate`, `pandas` and `argparse` either using [`pip`](https://python.land/virtual-environments/installing-packages-with-pip) or if you installed Python3 system-wide you can install modules directly:
+
+<div>
+  <Tabs items={[
+    <strong>Using <code>pip</code></strong>,
+    <strong>System-wide Python installation</strong>,
+    ]} defaultIndex="1">
+    <MyTab>
+      ```sh
+      pip install tabulate pandas argparse
+      ```
+    </MyTab>
+    <MyTab>
+      ```sh
+      sudo apt install python3-tabulate python3-pandas python3-argparse -y
+      ```
+    </MyTab>
+  </Tabs>
+</div>
+
+###### 2. Install `node_api_check.py` and make executable  
+
+To run the program you neet to have  [`node_api_check.py`](https://github.com/nymtech/nym/tree/develop/scripts/node_api_check.py) and [`api_endpoints.json`](https://github.com/nymtech/nym/tree/develop/scripts/api_endpoints.json). 
+
+- If you [compiled from source](../../binaries/building-nym.mdx), you already have both of these files. Note that the latest version of this program may be on `develop` branch.
+
+- If you prefer to download them individually, do it by opening terminal in your desired location and running:
+```sh
+wget https://raw.githubusercontent.com/nymtech/nym/tree/develop/node_api_check.py
+
+wget https://raw.githubusercontent.com/nymtech/nym/tree/develop/api_endpoints.json
+```
+
+- Make executable:
+```sh
+chmod u+x node_api_check.py
+```
+
+</Steps>
+
+Now you are ready to check your node.
+
+### Usage & Commands
+
+- Run the program with `--help` flag to see the available commands:
+```sh
+./node_api_check.py --help
+```
+
+- Command Output:
+
+<NodeApiCheckHelp />
+
+#### `query_stats`
+
+When you want to see all the options connected to any command, add a `--help` flag after the command of your choice. Command `query_stats` is the most useful one of this program.
+
+```sh
+./node_api_check query_stats --help
+```
+
+- Command output:
+
+<NodeApiCheckQueryHelp/ >
+
+The most common usage may be `./node_api_check.py query_stats <ID_KEY>` where `<ID_KEY>` is required, substitute it with node Identity Key.
+
+**Optional arguments**
+
+| Flag                   | Shortcut | Description                                                    |
+| :---                   |   :---   | :---                                                           |
+| `--markdown`           |   `-m`   | returns output in markdown format                              |
+| `--no_routing_history` |   None   | returns output without routing history which can be lengthy    |
+| `--no_verloc_metrics`  |   None   | returns output without verloc measurement which can be lengthy |
+| `--output`             |   `-o`   | exports output to a file, possible to add a target path        |
+
+#### `version_count`
+
+<Callout>
+To see a quick overview of `nym-node` version distribution in numbers and graph, visit [Nym Harbourmaster](https://harbourmaster.nymtech.net).
+</Callout>
+
+Another command is `version_count` where at least one `nym-node` version is required. In case of multiple version count, separate the versions with space. We recommend to run this command with `--markdown` flag for a nicer output. This is an example where we want to look up how many registered nodes are on versions `1.1.0`, `1.1.1`, `1.1.2` and `1.1.3`:
+```sh
+./node_api_check version_count 1.1.0 1.1.1 1.1.2 1.1.3 --markdown
+```
+

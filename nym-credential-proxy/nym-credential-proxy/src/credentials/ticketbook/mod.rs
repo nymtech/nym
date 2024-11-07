@@ -3,10 +3,12 @@
 
 use crate::error::VpnApiError;
 use crate::http::state::ApiState;
+use crate::storage::models::BlindedShares;
 use futures::{stream, StreamExt};
 use nym_credential_proxy_requests::api::v1::ticketbook::models::{
     TicketbookAsyncRequest, TicketbookObtainQueryParams, TicketbookRequest,
-    TicketbookWalletSharesResponse, WalletShare,
+    TicketbookWalletSharesResponse, WalletShare, WebhookTicketbookWalletShares,
+    WebhookTicketbookWalletSharesRequest,
 };
 use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::Base58;
@@ -217,11 +219,13 @@ async fn try_obtain_blinded_ticketbook_async_inner(
     requested_on: OffsetDateTime,
     request_data: TicketbookAsyncRequest,
     params: TicketbookObtainQueryParams,
+    pending: &BlindedShares,
 ) -> Result<(), VpnApiError> {
     let epoch_id = state.current_epoch_id().await?;
 
     let device_id = &request_data.device_id;
     let credential_id = &request_data.credential_id;
+    let secret = request_data.secret.clone();
 
     // 1. try to obtain global data
     let (
@@ -259,19 +263,70 @@ async fn try_obtain_blinded_ticketbook_async_inner(
         error!(uuid = %request, "failed to update db with issued information: {err}")
     }
 
-    // 4. build the response
-    let response = TicketbookWalletSharesResponse {
+    // 4. build the webhook request body
+    let data = Some(TicketbookWalletSharesResponse {
         epoch_id,
         shares,
         master_verification_key,
         aggregated_coin_index_signatures,
         aggregated_expiration_date_signatures,
+    });
+
+    let ticketbook_wallet_shares = WebhookTicketbookWalletShares {
+        id: pending.id,
+        status: pending.status.to_string(),
+        device_id: device_id.clone(),
+        credential_id: credential_id.clone(),
+        data,
+        error_message: None,
+        created: pending.created,
+        updated: pending.updated,
+    };
+
+    let webhook_request = WebhookTicketbookWalletSharesRequest {
+        ticketbook_wallet_shares,
+        secret,
     };
 
     // 5. call the webhook
     state
         .zk_nym_web_hook()
-        .try_trigger(request, &response)
+        .try_trigger(request, &webhook_request)
+        .await;
+
+    Ok(())
+}
+
+async fn try_trigger_webhook_request_for_error(
+    state: &ApiState,
+    request: Uuid,
+    request_data: TicketbookAsyncRequest,
+    pending: &BlindedShares,
+    error_message: String,
+) -> Result<(), VpnApiError> {
+    let device_id = &request_data.device_id;
+    let credential_id = &request_data.credential_id;
+    let secret = request_data.secret.clone();
+
+    let ticketbook_wallet_shares = WebhookTicketbookWalletShares {
+        id: pending.id,
+        status: "error".to_string(),
+        device_id: device_id.clone(),
+        credential_id: credential_id.clone(),
+        data: None,
+        error_message: Some(error_message),
+        created: pending.created,
+        updated: pending.updated,
+    };
+
+    let webhook_request = WebhookTicketbookWalletSharesRequest {
+        ticketbook_wallet_shares,
+        secret,
+    };
+
+    state
+        .zk_nym_web_hook()
+        .try_trigger(request, &webhook_request)
         .await;
 
     Ok(())
@@ -285,16 +340,30 @@ pub(crate) async fn try_obtain_blinded_ticketbook_async(
     requested_on: OffsetDateTime,
     request_data: TicketbookAsyncRequest,
     params: TicketbookObtainQueryParams,
+    pending: BlindedShares,
 ) {
     if let Err(err) = try_obtain_blinded_ticketbook_async_inner(
         &state,
         request,
         requested_on,
-        request_data,
+        request_data.clone(),
         params,
+        &pending,
     )
     .await
     {
+        // post to the webhook to notify of errors on this side
+        if let Err(webhook_err) = try_trigger_webhook_request_for_error(
+            &state,
+            request,
+            request_data,
+            &pending,
+            format!("Failed to get ticketbook: {err}"),
+        )
+        .await
+        {
+            error!(uuid = %request, "failed to make webhook request to report error: {webhook_err}")
+        }
         error!(uuid = %request, "failed to resolve the blinded ticketbook issuance: {err}")
     } else {
         info!(uuid = %request, "managed to resolve the blinded ticketbook issuance")

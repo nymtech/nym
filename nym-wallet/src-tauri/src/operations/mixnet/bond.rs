@@ -403,6 +403,8 @@ pub async fn update_gateway_config(
     )?)
 }
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn get_mixnode_avg_uptime(
     state: tauri::State<'_, WalletState>,
@@ -605,6 +607,8 @@ pub async fn get_nym_node_description(
     )
 }
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn get_mixnode_uptime(
     mix_id: NodeId,

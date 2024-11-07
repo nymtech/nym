@@ -141,6 +141,8 @@ pub async fn undelegate_all_from_mixnode(
     Ok(res)
 }
 
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn get_all_mix_delegations(
     state: tauri::State<'_, WalletState>,

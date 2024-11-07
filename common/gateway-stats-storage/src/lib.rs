@@ -104,8 +104,8 @@ impl PersistentStatsStorage {
             .await?)
     }
 
-    pub async fn get_unique_users_count(&self, date: Date) -> Result<i32, StatsStorageError> {
-        Ok(self.session_manager.get_unique_users_count(date).await?)
+    pub async fn get_unique_users(&self, date: Date) -> Result<Vec<String>, StatsStorageError> {
+        Ok(self.session_manager.get_unique_users(date).await?)
     }
 
     pub async fn delete_unique_users(&self, before_date: Date) -> Result<(), StatsStorageError> {

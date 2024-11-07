@@ -18,7 +18,7 @@ use nym_api_requests::ecash::{
     PartialExpirationDateSignatureResponse, VerificationKeyResponse,
 };
 use nym_api_requests::models::{
-    GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
+    ApiHealthResponse, GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
     NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
 };
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
@@ -192,6 +192,8 @@ impl<C, S> Client<C, S> {
 }
 
 // validator-api wrappers
+// we have to allow the use of deprecated method here as they're calling the deprecated trait methods
+#[allow(deprecated)]
 impl<C, S> Client<C, S> {
     pub fn api_url(&self) -> &Url {
         self.nym_api.current_url()
@@ -201,46 +203,54 @@ impl<C, S> Client<C, S> {
         self.nym_api.change_base_url(new_endpoint)
     }
 
+    #[deprecated]
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
         Ok(self.nym_api.get_mixnodes().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
         Ok(self.nym_api.get_mixnodes_detailed().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_mixnodes_detailed_unfiltered(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
         Ok(self.nym_api.get_mixnodes_detailed_unfiltered().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_rewarded_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
         Ok(self.nym_api.get_rewarded_mixnodes().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_rewarded_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
         Ok(self.nym_api.get_rewarded_mixnodes_detailed().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_active_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
         Ok(self.nym_api.get_active_mixnodes().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_active_mixnodes_detailed(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, ValidatorClientError> {
         Ok(self.nym_api.get_active_mixnodes_detailed().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
     }
@@ -304,6 +314,8 @@ pub struct NymApiClient {
     // we could re-implement the communication with the REST API on port 1317
 }
 
+// we have to allow the use of deprecated method here as they're calling the deprecated trait methods
+#[allow(deprecated)]
 impl NymApiClient {
     pub fn new(api_url: Url) -> Self {
         let nym_api = nym_api::Client::new(api_url, None);
@@ -424,6 +436,38 @@ impl NymApiClient {
         Ok(nodes)
     }
 
+    /// retrieve basic information for nodes are capable of operating as a mixnode
+    /// this includes legacy mixnodes and nym-nodes
+    pub async fn get_all_basic_mixing_capable_nodes(
+        &self,
+        semver_compatibility: Option<String>,
+    ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut nodes = Vec::new();
+
+        loop {
+            let mut res = self
+                .nym_api
+                .get_basic_mixing_capable_nodes(
+                    semver_compatibility.clone(),
+                    false,
+                    Some(page),
+                    None,
+                )
+                .await?;
+
+            nodes.append(&mut res.nodes.data);
+            if nodes.len() < res.nodes.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(nodes)
+    }
+
     /// retrieve basic information for all bonded nodes on the network
     pub async fn get_all_basic_nodes(
         &self,
@@ -450,26 +494,35 @@ impl NymApiClient {
         Ok(nodes)
     }
 
+    pub async fn health(&self) -> Result<ApiHealthResponse, ValidatorClientError> {
+        Ok(self.nym_api.health().await?)
+    }
+
+    #[deprecated]
     pub async fn get_cached_active_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
         Ok(self.nym_api.get_active_mixnodes().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_rewarded_mixnodes(
         &self,
     ) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
         Ok(self.nym_api.get_rewarded_mixnodes().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_mixnodes(&self) -> Result<Vec<MixNodeDetails>, ValidatorClientError> {
         Ok(self.nym_api.get_mixnodes().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways().await?)
     }
 
+    #[deprecated]
     pub async fn get_cached_described_gateways(
         &self,
     ) -> Result<Vec<LegacyDescribedGateway>, ValidatorClientError> {
@@ -518,6 +571,7 @@ impl NymApiClient {
         Ok(bonds)
     }
 
+    #[deprecated]
     pub async fn get_gateway_core_status_count(
         &self,
         identity: IdentityKeyRef<'_>,
@@ -529,6 +583,7 @@ impl NymApiClient {
             .await?)
     }
 
+    #[deprecated]
     pub async fn get_mixnode_core_status_count(
         &self,
         mix_id: NodeId,
@@ -540,6 +595,7 @@ impl NymApiClient {
             .await?)
     }
 
+    #[deprecated]
     pub async fn get_mixnode_status(
         &self,
         mix_id: NodeId,
@@ -547,6 +603,7 @@ impl NymApiClient {
         Ok(self.nym_api.get_mixnode_status(mix_id).await?)
     }
 
+    #[deprecated]
     pub async fn get_mixnode_reward_estimation(
         &self,
         mix_id: NodeId,
@@ -554,6 +611,7 @@ impl NymApiClient {
         Ok(self.nym_api.get_mixnode_reward_estimation(mix_id).await?)
     }
 
+    #[deprecated]
     pub async fn get_mixnode_stake_saturation(
         &self,
         mix_id: NodeId,
@@ -585,6 +643,7 @@ impl NymApiClient {
             .await?)
     }
 
+    #[deprecated]
     pub async fn spent_credentials_filter(
         &self,
     ) -> Result<SpentCredentialsResponse, ValidatorClientError> {

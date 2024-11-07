@@ -3,22 +3,21 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import { Box, Button, Divider, Grid, Stack, TextField, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
-import { updateNymNodeConfig } from 'src/requests';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
-import { bondedInfoParametersValidationSchema } from 'src/components/Bonding/forms/legacyForms/mixnodeValidationSchema';
 import { Console } from 'src/utils/console';
 import { Alert } from 'src/components/Alert';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { BalanceWarning } from 'src/components/FeeWarning';
-import { AppContext } from 'src/context';
+import { AppContext, useBondingContext } from 'src/context';
 import { TBondedNymNode } from 'src/requests/nymNodeDetails';
+import { settingsValidationSchema } from 'src/components/Bonding/forms/nym-node/settingsValidationSchema';
 
 export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymNode }) => {
   const [openConfirmationModal, setOpenConfirmationModal] = useState<boolean>(false);
   const { fee, resetFeeState } = useGetFee();
   const { userBalance } = useContext(AppContext);
+  const { updateNymNodeConfig } = useBondingContext();
 
   const theme = useTheme();
 
@@ -27,28 +26,28 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
     handleSubmit,
     formState: { errors, isSubmitting, isDirty, isValid },
   } = useForm({
-    resolver: yupResolver(bondedInfoParametersValidationSchema),
+    resolver: yupResolver(settingsValidationSchema),
     mode: 'onChange',
     defaultValues: {
       host: bondedNode.host,
-      customHttpPort: bondedNode.customHttpPort,
+      custom_http_port: bondedNode.customHttpPort,
     },
   });
 
-  const onSubmit = async (data: { host?: string; customHttpPort?: number | null }) => {
+  const onSubmit = async ({ host, custom_http_port }: { host: string; custom_http_port: number | null }) => {
     resetFeeState();
-    const { host, customHttpPort } = data;
-    if (host && customHttpPort) {
+
+    try {
       const NymNodeConfigParams = {
         host,
-        custom_http_port: customHttpPort,
+        custom_http_port,
+        restore_default_http_port: custom_http_port === null,
       };
-      try {
-        await updateNymNodeConfig(NymNodeConfigParams);
-        setOpenConfirmationModal(true);
-      } catch (error) {
-        Console.error(error);
-      }
+      await updateNymNodeConfig(NymNodeConfigParams);
+
+      setOpenConfirmationModal(true);
+    } catch (error) {
+      Console.error(error);
     }
   };
 
@@ -59,7 +58,7 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
           open
           header="Update node settings"
           fee={fee}
-          onConfirm={handleSubmit((d) => onSubmit(d))}
+          onConfirm={handleSubmit(onSubmit)}
           onPrev={resetFeeState}
           onClose={resetFeeState}
         >
@@ -70,7 +69,6 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
           )}
         </ConfirmTx>
       )}
-      {isSubmitting && <LoadingModal />}
       <Alert
         title={
           <Stack>
@@ -93,12 +91,12 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
           <Grid spacing={3} item container alignItems="center" xs={12} md={6}>
             <Grid item width={1}>
               <TextField
-                {...register('customHttpPort')}
-                name="customHttpPort"
+                {...register('custom_http_port')}
+                name="custom_http_port"
                 label="Custom HTTP port"
                 fullWidth
-                error={!!errors.customHttpPort}
-                helperText={errors.customHttpPort?.message}
+                error={!!errors.custom_http_port}
+                helperText={errors.custom_http_port?.message}
                 InputLabelProps={{ shrink: true }}
               />
             </Grid>
@@ -134,7 +132,7 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
               size="large"
               variant="contained"
               disabled={isSubmitting || !isDirty || !isValid}
-              onClick={handleSubmit(() => undefined)}
+              onClick={handleSubmit(onSubmit)}
               sx={{ m: 3, mr: 0 }}
               fullWidth
             >
@@ -152,7 +150,7 @@ export const GeneralNymNodeSettings = ({ bondedNode }: { bondedNode: TBondedNymN
         hideCloseIcon
         displayInfoIcon
         onOk={async () => {
-          await setOpenConfirmationModal(false);
+          setOpenConfirmationModal(false);
         }}
         buttonFullWidth
         sx={{

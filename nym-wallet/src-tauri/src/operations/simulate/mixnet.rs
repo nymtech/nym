@@ -184,7 +184,7 @@ pub async fn simulate_update_gateway_config(
 }
 
 #[tauri::command]
-pub async fn simulate_delegate_to_mixnode(
+pub async fn simulate_delegate_to_node(
     node_id: NodeId,
     amount: DecCoin,
     state: tauri::State<'_, WalletState>,
@@ -193,7 +193,7 @@ pub async fn simulate_delegate_to_mixnode(
 }
 
 #[tauri::command]
-pub async fn simulate_undelegate_from_mixnode(
+pub async fn simulate_undelegate_from_node(
     node_id: NodeId,
     state: tauri::State<'_, WalletState>,
 ) -> Result<FeeDetails, BackendError> {

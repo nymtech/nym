@@ -25,7 +25,7 @@ use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::EcashManager,
     BandwidthFlushingBehaviourConfig, ClientBandwidth, CredentialVerifier,
 };
-use nym_credentials_interface::{CredentialSpendingData, TicketType};
+use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::Storage;
@@ -380,7 +380,6 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 "bandwidth entry should have just been created".to_string(),
             ))?;
 
-        let t_type = credential.payment.t_type;
         let client_bandwidth = ClientBandwidth::new(bandwidth.into());
         let mut verifier = CredentialVerifier::new(
             CredentialSpendingRequest::new(credential),
@@ -393,20 +392,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 true,
             ),
         );
-        verifier.verify().await?;
-
-        let amount = TicketType::try_from_encoded(t_type)
-            .map_err(|e| {
-                AuthenticatorError::CredentialVerificationError(
-                    nym_credential_verification::Error::UnknownTicketType(e),
-                )
-            })?
-            .to_repr()
-            .bandwidth_value() as i64;
-        let available_bandwidth = ecash_verifier
-            .storage()
-            .increase_bandwidth(client_id, amount)
-            .await?;
+        let available_bandwidth = verifier.verify().await?;
 
         Ok(AuthenticatorResponse::new_topup_bandwidth(
             RemainingBandwidthData {

@@ -12,6 +12,8 @@
 #![warn(clippy::dbg_macro)]
 #![warn(missing_docs)]
 
+use nym_sphinx::addressing::Recipient;
+
 /// Client specific statistics interfaces and events.
 pub mod clients;
 /// Statistics related errors.
@@ -25,16 +27,44 @@ pub mod report;
 #[derive(Clone, Debug)]
 pub struct StatsReportingConfig {
     /// Client address to report to
-    pub reporting_address: nym_sphinx::addressing::Recipient,
+    pub reporting_address: Recipient,
 
     /// Type of client reporting (vpn_client, authenticator, native-client)
     pub reporting_type: String,
 }
-/// vpn_client
-pub const STATS_REPORTING_TYPE_VPN_CLIENT: &str = "vpn_client";
 
-/// native_client
-pub const STATS_REPORTING_TYPE_NATIVE_CLIENT: &str = "native_client";
+impl StatsReportingConfig {
+    /// Create a StatsReportingConfig for a native client
+    pub fn new_native(reporting_address: Recipient) -> Self {
+        StatsReportingConfig {
+            reporting_address,
+            reporting_type: NATIVE_CLIENT.to_string(),
+        }
+    }
+    /// Create a StatsReportingConfig for a vpn client
+    pub fn new_vpn(reporting_address: Recipient) -> Self {
+        StatsReportingConfig {
+            reporting_address,
+            reporting_type: VPN_CLIENT.to_string(),
+        }
+    }
+    /// Create a StatsReportingConfig for a socks5 client
+    pub fn new_socks5(reporting_address: Recipient) -> Self {
+        StatsReportingConfig {
+            reporting_address,
+            reporting_type: SOCKS5_CLIENT.to_string(),
+        }
+    }
+    /// Create a StatsReportingConfig for an unspecified client
+    pub fn new_unknown(reporting_address: Recipient) -> Self {
+        StatsReportingConfig {
+            reporting_address,
+            reporting_type: UNKNOWN.to_string(),
+        }
+    }
+}
 
-/// unknown
-pub const STATS_REPORTING_TYPE_UNKNOWN: &str = "unknown";
+const VPN_CLIENT: &str = "vpn_client";
+const NATIVE_CLIENT: &str = "native_client";
+const SOCKS5_CLIENT: &str = "socks5_client";
+const UNKNOWN: &str = "unknown";

@@ -6,7 +6,7 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [2024.12.1-aero] (2024-11-6)
 
-- Fixed timeout connectivity issues with uthenticator 
+- Fixed timeout connectivity issues with authenticator 
 - Amended network allowance 
 
 ## [2024.12-aero] (2024-10-17)

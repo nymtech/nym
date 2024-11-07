@@ -10,7 +10,7 @@ This is a desktop (GUI) version of NymVPN client. A demo of how the application 
 
 Follow the simple [automated script](#automated-script-for-gui-installation) below to install and run NymVPN GUI. If the script didn't work for your distribution or you prefer to do a manual setup follow the steps in the guide for [Linux](gui-linux.md) or [MacOS](gui-mac.md) .
 
-Visit NymVPN alpha latest [release page]({{nym_vpn_releases}}) to check sha sums or download the binaries directly.
+Visit NymVPN alpha latest [release page](https://github.com/nymtech/nym-vpn-client) to check sha sums or download the binaries directly.
 
 ## Linux AppImage Automated Installation Method
 

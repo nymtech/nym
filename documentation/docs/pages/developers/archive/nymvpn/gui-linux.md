@@ -12,9 +12,9 @@ NymVPN is an experimental software and it's for testing purposes only. All users
 
 ### Installation
 
-1. Open Github [releases page]({{nym_vpn_releases}}) and download the binary for Debian based Linux
+1. Open Github [releases page](https://github.com/nymtech/nym-vpn-client) and download the binary for Debian based Linux
 
-2. (Optional: if you don't want to check shasum, skip this point) Verify sha hash of your downloaded binary with the one listed on the [releases page]({{nym_vpn_releases}}). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
+2. (Optional: if you don't want to check shasum, skip this point) Verify sha hash of your downloaded binary with the one listed on the [releases page](https://github.com/nymtech/nym-vpn-client). You can use a simple `shasum` command and compare strings (ie with Python) or run in the same directory the following command, exchanging `<SHA_STRING>` with the one of your binary, like in the example:
 ```sh
 echo "<SHA_STRING>" | shasum -a 256 -c
 

@@ -32,7 +32,7 @@ Running the following the script installs Homebrew and the above dependencies:
 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 ```
 
-- `Rust & cargo >= {{minimum_rust_version}}`
+- `Rust & cargo >= 1.80`
 
 We recommend using the [Rust shell script installer](https://www.rust-lang.org/tools/install). Installing cargo from your package manager (e.g. `apt`) is not recommended as the packaged versions are usually too old.
 

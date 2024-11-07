@@ -7,7 +7,7 @@ const links = [
   ["Nym Wallet", "https://nymtech.net/download/wallet"],
   ["Nym Explorer", "https://explorer.nymtech.net/"],
   ["Nym Blog", "https://nymtech.medium.com/"],
-  ["Twitter", "https://nymtech.net/go/twitter"],
+  ["Twitter", "https://nymtech.net/go/x"],
   ["Telegram", "https://nymtech.net/go/telegram"],
 ];
 export const Footer = () => (

@@ -56,11 +56,12 @@ impl StatisticsControl {
     pub(crate) fn new(
         reporting_address: Recipient,
         client_stats_id: String,
+        client_type: String,
         report_tx: InputMessageSender,
     ) -> (Self, ClientStatsSender) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
 
-        let stats = ClientStatsController::new(client_stats_id);
+        let stats = ClientStatsController::new(client_stats_id, client_type);
 
         (
             StatisticsControl {

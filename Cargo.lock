@@ -6252,6 +6252,7 @@ dependencies = [
  "nym-socks5-client-core",
  "nym-socks5-requests",
  "nym-sphinx",
+ "nym-statistics-common",
  "nym-task",
  "nym-topology",
  "nym-validator-client",

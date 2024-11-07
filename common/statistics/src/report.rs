@@ -16,6 +16,7 @@ use time::OffsetDateTime;
 pub struct ClientStatsReport {
     pub(crate) last_update_time: OffsetDateTime,
     pub(crate) client_id: String,
+    pub(crate) client_type: String,
     pub(crate) os_information: os_info::Info,
     pub(crate) packet_stats: PacketStatistics,
     pub(crate) gateway_conn_stats: GatewayStats,

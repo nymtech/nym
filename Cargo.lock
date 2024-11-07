@@ -4848,7 +4848,6 @@ dependencies = [
  "nym-task",
  "nym-topology",
  "nym-validator-client",
- "pretty_env_logger",
  "rand",
  "rand_chacha",
  "serde",

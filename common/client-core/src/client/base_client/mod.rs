@@ -603,20 +603,13 @@ where
         input_sender: Sender<InputMessage>,
         shutdown: TaskClient,
     ) -> ClientStatsSender {
-        info!("Starting packet statistics control...");
-        match stats_reporting_config {
-            Some(config) => {
-                let (stats_control, stats_reporter) = StatisticsControl::new(
-                    config.reporting_address,
-                    client_stats_id,
-                    config.reporting_type,
-                    input_sender.clone(),
-                );
-                stats_control.start_with_shutdown(shutdown.with_suffix("controller"));
-                stats_reporter
-            }
-            None => ClientStatsSender::sink(shutdown.with_suffix("sink")),
-        }
+        info!("Starting statistics control...");
+        StatisticsControl::create_and_start_with_shutdown(
+            stats_reporting_config,
+            client_stats_id,
+            input_sender.clone(),
+            shutdown.with_suffix("controller"),
+        )
     }
 
     fn start_mix_traffic_controller(

@@ -50,12 +50,27 @@ impl fmt::Display for IpPair {
 
 impl From<IpAddr> for IpPair {
     fn from(value: IpAddr) -> Self {
-        let transformed_ipv4 = WG_TUN_DEVICE_IP_ADDRESS_V4;
-        let transformed_ipv6 = WG_TUN_DEVICE_IP_ADDRESS_V6;
-        let (ipv4, ipv6) = match value {
-            std::net::IpAddr::V4(ipv4_addr) => (ipv4_addr, transformed_ipv6),
-            std::net::IpAddr::V6(ipv6_addr) => (transformed_ipv4, ipv6_addr),
+        let (before_last_byte, last_byte) = match value {
+            std::net::IpAddr::V4(ipv4_addr) => (ipv4_addr.octets()[2], ipv4_addr.octets()[3]),
+            std::net::IpAddr::V6(ipv6_addr) => (ipv6_addr.octets()[14], ipv6_addr.octets()[15]),
         };
+        let last_bytes = (before_last_byte as u16) << 8 | last_byte as u16;
+        let ipv4 = Ipv4Addr::new(
+            WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[0],
+            WG_TUN_DEVICE_IP_ADDRESS_V4.octets()[1],
+            before_last_byte,
+            last_byte,
+        );
+        let ipv6 = Ipv6Addr::new(
+            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[0],
+            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[1],
+            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[2],
+            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[3],
+            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[4],
+            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[5],
+            WG_TUN_DEVICE_IP_ADDRESS_V6.segments()[6],
+            last_bytes,
+        );
         IpPair::new(ipv4, ipv6)
     }
 }
@@ -236,6 +251,14 @@ impl<'de> Deserialize<'de> for ClientMac {
 mod tests {
     use super::*;
     use nym_crypto::asymmetric::encryption;
+
+    #[test]
+    fn create_ip_pair() {
+        let ipv4: IpAddr = Ipv4Addr::from_str("10.1.10.50").unwrap().into();
+        let ipv6: IpAddr = Ipv6Addr::from_str("fc01::0a32").unwrap().into();
+
+        assert_eq!(IpPair::from(ipv4), IpPair::from(ipv6));
+    }
 
     #[test]
     #[cfg(feature = "verify")]

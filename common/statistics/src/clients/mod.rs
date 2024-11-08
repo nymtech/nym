@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
-use crate::report::ClientStatsReport;
+use crate::report::{ClientStatsReport, OsInformation};
 
 use nym_task::TaskClient;
 use time::OffsetDateTime;
@@ -57,7 +57,7 @@ pub struct ClientStatsController {
     last_update_time: OffsetDateTime,
     client_id: String,
     client_type: String,
-    os_information: os_info::Info,
+    os_information: OsInformation,
 
     // stats collection modules
     packet_stats: packet_statistics::PacketStatisticsControl,
@@ -74,7 +74,7 @@ impl ClientStatsController {
             last_update_time: OffsetDateTime::now_utc().replace_second(0).unwrap(), // allow a bigger anonymity set wrt
             client_id,
             client_type,
-            os_information: os_info::get(),
+            os_information: OsInformation::new(),
             packet_stats: Default::default(),
             gateway_conn_stats: Default::default(),
             nym_api_stats: Default::default(),

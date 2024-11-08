@@ -1,3 +1,6 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
 //! # API Connection statistics
 //!
 //! Metrics collected by the client while attempting to pull config from the API.

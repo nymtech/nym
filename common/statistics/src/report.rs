@@ -1,5 +1,5 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
 use crate::clients::{
     gateway_conn_statistics::GatewayStats, nym_api_statistics::NymApiStats,
@@ -9,6 +9,7 @@ use crate::clients::{
 use super::error::StatsError;
 
 use serde::{Deserialize, Serialize};
+use sysinfo::System;
 use time::OffsetDateTime;
 
 /// Report object containing both data to be reported and client / device context. We take extra care not to overcapture context information.
@@ -17,7 +18,7 @@ pub struct ClientStatsReport {
     pub(crate) last_update_time: OffsetDateTime,
     pub(crate) client_id: String,
     pub(crate) client_type: String,
-    pub(crate) os_information: os_info::Info,
+    pub(crate) os_information: OsInformation,
     pub(crate) packet_stats: PacketStatistics,
     pub(crate) gateway_conn_stats: GatewayStats,
     pub(crate) nym_api_stats: NymApiStats,
@@ -38,5 +39,28 @@ impl TryFrom<Vec<u8>> for ClientStatsReport {
         let report_str = String::from_utf8(value)
             .map_err(|err| StatsError::ReportBytesDeserialization(err.to_string()))?;
         Ok(serde_json::from_str(&report_str)?)
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OsInformation {
+    pub(crate) os_type: String,
+    pub(crate) os_version: Option<String>,
+    pub(crate) os_arch: Option<String>,
+}
+
+impl OsInformation {
+    pub fn new() -> Self {
+        OsInformation {
+            os_type: System::distribution_id(),
+            os_version: System::long_os_version(),
+            os_arch: System::cpu_arch(),
+        }
+    }
+}
+
+impl Default for OsInformation {
+    fn default() -> Self {
+        Self::new()
     }
 }

@@ -6601,6 +6601,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-metrics",
  "nym-sphinx",
+ "nym-task",
  "os_info",
  "serde",
  "serde_json",

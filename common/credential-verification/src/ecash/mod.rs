@@ -21,7 +21,7 @@ pub mod error;
 mod helpers;
 mod state;
 
-const TIME_RANGE_SEC: i64 = 30;
+pub const TIME_RANGE_SEC: i64 = 30;
 
 pub struct EcashManager<S> {
     shared_state: SharedState<S>,

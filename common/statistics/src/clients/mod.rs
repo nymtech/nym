@@ -41,7 +41,7 @@ impl ClientStatsSender {
     pub fn sink(mut shutdown: nym_task::TaskClient) -> Self {
         let (stats_tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
 
-        spawn(async move { 
+        spawn(async move {
             loop {
                 tokio::select! {
                     m = rx.recv() => {

@@ -3,7 +3,7 @@
 
 use super::packet_statistics_control::PacketStatisticsReporter;
 use super::received_buffer::ReceivedBufferMessage;
-use super::statistics::{StatisticsControl, StatisticsReporter};
+use super::statistics::StatisticsControl;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
@@ -50,6 +50,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
+use nym_statistics_common::clients::ClientStatsReporter;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
@@ -878,7 +879,7 @@ pub struct BaseClient {
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,
-    pub stats_reporter: Option<StatisticsReporter>,
+    pub stats_reporter: Option<ClientStatsReporter>,
 
     pub task_handle: TaskHandle,
 }

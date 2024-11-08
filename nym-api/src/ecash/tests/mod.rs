@@ -6,13 +6,13 @@ use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
-use crate::ecash::storage::EcashStorageExt;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
+use crate::support::config;
 use crate::support::http::state::AppState;
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
@@ -25,7 +25,6 @@ use cosmwasm_std::{
 };
 use cw3::{Proposal, ProposalResponse, Vote, VoteInfo, VoteResponse, Votes};
 use cw4::{Cw4Contract, MemberResponse};
-use nym_api_requests::ecash::models::{IssuedCredentialResponse, IssuedTicketbookBody};
 use nym_api_requests::ecash::{BlindSignRequestBody, BlindedSignatureResponse};
 use nym_coconut_dkg_common::dealer::{
     DealerDetails, DealerDetailsResponse, DealerType, RegisteredDealerDetails,
@@ -67,7 +66,7 @@ use tokio::sync::RwLock;
 
 pub(crate) mod fixtures;
 pub(crate) mod helpers;
-mod issued_credentials;
+mod issued_ticketbooks;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
@@ -548,9 +547,7 @@ impl super::client::Client for DummyClient {
             .proposals
             .get(&proposal_id)
             .cloned()
-            .ok_or(EcashError::IncorrectProposal {
-                reason: String::from("proposal not found"),
-            })?;
+            .expect("proposal not found");
 
         // replicate behaviour from `query_proposal` of cw3
         Ok(proposal_to_response(
@@ -852,9 +849,7 @@ impl super::client::Client for DummyClient {
         let voter = self.validator_address.to_string();
         let mut chain = self.state.lock().unwrap();
         if !chain.multisig_contract.proposals.contains_key(&proposal_id) {
-            return Err(EcashError::IncorrectProposal {
-                reason: String::from("proposal not found"),
-            });
+            panic!("proposal not found");
         }
 
         // for now we assume every group member is a voter
@@ -898,9 +893,7 @@ impl super::client::Client for DummyClient {
         let multisig_address: AccountId = chain.multisig_contract.address.as_str().parse().unwrap();
 
         let Some(proposal) = chain.multisig_contract.proposals.get_mut(&proposal_id) else {
-            return Err(EcashError::ProposalIdError {
-                reason: String::from("proposal id not found"),
-            });
+            panic!("proposal not found");
         };
 
         if proposal.status != cw3::Status::Passed {
@@ -1049,7 +1042,7 @@ impl super::client::Client for DummyClient {
         let epoch_id = chain.dkg_contract.epoch.epoch_id;
         let Some(dealer_details) = chain.dkg_contract.get_dealer_details(&address, epoch_id) else {
             // Just throw some error, not really the correct one
-            return Err(EcashError::DepositInfoNotFound);
+            return Err(EcashError::NotASigner);
         };
 
         let dkg_contract = chain.dkg_contract.address.clone();
@@ -1316,13 +1309,13 @@ impl TestFixture {
             .unwrap();
 
         let ecash_state = EcashState::new(
+            &config::Config::new("test"),
             ecash_contract,
             nyxd_client,
             identity,
             staged_key_pair,
             comm_channel,
             storage.clone(),
-            false,
         )
         .await
         .unwrap();
@@ -1397,199 +1390,200 @@ impl TestFixture {
         response.json()
     }
 
-    async fn issued_credential(&self, id: i64) -> Option<IssuedCredentialResponse> {
-        let response = self
-            .axum
-            .get(&format!(
-                "/{API_VERSION}/{ECASH_ROUTES}/issued-credential/{id}"
-            ))
-            .await;
-        assert_eq!(response.status_code(), StatusCode::OK);
-        response.json()
-    }
-
-    async fn issued_unchecked(&self, id: i64) -> IssuedTicketbookBody {
-        self.issued_credential(id)
-            .await
-            .unwrap()
-            .credential
-            .unwrap()
-    }
+    // async fn issued_credential(&self, id: i64) -> Option<IssuedCredentialResponse> {
+    //     let response = self
+    //         .axum
+    //         .get(&format!(
+    //             "/{API_VERSION}/{ECASH_ROUTES}/issued-credential/{id}"
+    //         ))
+    //         .await;
+    //     assert_eq!(response.status_code(), StatusCode::OK);
+    //     response.json()
+    // }
+    //
+    // async fn issued_unchecked(&self, id: i64) -> IssuedTicketbookBody {
+    //     self.issued_credential(id)
+    //         .await
+    //         .unwrap()
+    //         .credential
+    //         .unwrap()
+    // }
 }
 
 #[cfg(test)]
 mod credential_tests {
     use super::*;
     use axum::http::StatusCode;
-    use nym_compact_ecash::ttp_keygen;
 
     #[tokio::test]
     async fn already_issued() {
-        let voucher = voucher_fixture(None);
-        let signing_data = voucher.prepare_for_signing();
-        let request_body = voucher.create_blind_sign_request_body(&signing_data);
-
-        let deposit_id = request_body.deposit_id;
-
-        let test_fixture = TestFixture::new().await;
-        test_fixture.add_deposit(&voucher);
-
-        let sig = blinded_signature_fixture();
-        let commitments = request_body.encode_join_commitments();
-        let expiration_date = request_body.expiration_date;
-        test_fixture
-            .storage
-            .store_issued_ticketbook(
-                42,
-                deposit_id,
-                &sig,
-                dummy_signature(),
-                commitments,
-                expiration_date,
-                voucher.ticketbook_type(),
-            )
-            .await
-            .unwrap();
-
-        let response = test_fixture
-            .axum
-            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}",))
-            .json(&request_body)
-            .await;
-
-        assert_eq!(response.status_code(), StatusCode::OK);
-        let expected_response = BlindedSignatureResponse::new(sig);
-        let blinded_signature_response = response.json::<BlindedSignatureResponse>();
-
-        assert_eq!(
-            blinded_signature_response.to_bytes(),
-            expected_response.to_bytes()
-        );
+        todo!()
+        // let voucher = voucher_fixture(None);
+        // let signing_data = voucher.prepare_for_signing();
+        // let request_body = voucher.create_blind_sign_request_body(&signing_data);
+        //
+        // let deposit_id = request_body.deposit_id;
+        //
+        // let test_fixture = TestFixture::new().await;
+        // test_fixture.add_deposit(&voucher);
+        //
+        // let sig = blinded_signature_fixture();
+        // let commitments = request_body.encode_join_commitments();
+        // let expiration_date = request_body.expiration_date;
+        // test_fixture
+        //     .storage
+        //     .store_issued_ticketbook(
+        //         42,
+        //         deposit_id,
+        //         &sig,
+        //         dummy_signature(),
+        //         commitments,
+        //         expiration_date,
+        //         voucher.ticketbook_type(),
+        //     )
+        //     .await
+        //     .unwrap();
+        //
+        // let response = test_fixture
+        //     .axum
+        //     .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}",))
+        //     .json(&request_body)
+        //     .await;
+        //
+        // assert_eq!(response.status_code(), StatusCode::OK);
+        // let expected_response = BlindedSignatureResponse::new(sig);
+        // let blinded_signature_response = response.json::<BlindedSignatureResponse>();
+        //
+        // assert_eq!(
+        //     blinded_signature_response.to_bytes(),
+        //     expected_response.to_bytes()
+        // );
     }
 
     #[tokio::test]
     async fn state_functions() {
-        let mut rng = OsRng;
-        let identity = identity::KeyPair::new(&mut rng);
-        let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
-
-        let nyxd_client = DummyClient::new(address.clone(), Default::default());
-        let key_pair = ttp_keygen(1, 1).unwrap().remove(0);
-        let tmp_dir = tempdir().unwrap();
-
-        let storage = NymApiStorage::init(tmp_dir.path().join("storage.db"))
-            .await
-            .unwrap();
-        let comm_channel = DummyCommunicationChannel::new_single_dummy(
-            key_pair.verification_key().clone(),
-            address,
-        );
-        let staged_key_pair = crate::ecash::keys::KeyPair::new();
-        staged_key_pair
-            .set(KeyPairWithEpoch {
-                keys: key_pair,
-                issued_for_epoch: 1,
-            })
-            .await;
-        staged_key_pair.validate();
-
-        let state = EcashState::new(
-            "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l"
-                .parse()
-                .unwrap(),
-            nyxd_client,
-            identity,
-            staged_key_pair,
-            comm_channel,
-            storage.clone(),
-            false,
-        )
-        .await
-        .unwrap();
-
-        let deposit_id = 42;
-        assert!(state.already_issued(deposit_id).await.unwrap().is_none());
-
-        let voucher = voucher_fixture(None);
-        let signing_data = voucher.prepare_for_signing();
-        let request_body = voucher.create_blind_sign_request_body(&signing_data);
-
-        let commitments = request_body.encode_join_commitments();
-        let expiration_date = request_body.expiration_date;
-        let sig = blinded_signature_fixture();
-        storage
-            .store_issued_ticketbook(
-                42,
-                deposit_id,
-                &sig,
-                dummy_signature(),
-                commitments.clone(),
-                expiration_date,
-                voucher.ticketbook_type(),
-            )
-            .await
-            .unwrap();
-
-        assert_eq!(
-            state
-                .already_issued(deposit_id)
-                .await
-                .unwrap()
-                .unwrap()
-                .to_bytes(),
-            blinded_signature_fixture().to_bytes()
-        );
-
-        let blinded_signature = BlindedSignature::from_bytes(&[
-            183, 217, 166, 113, 40, 123, 74, 25, 72, 31, 136, 19, 125, 95, 217, 228, 96, 113, 25,
-            240, 12, 102, 125, 11, 174, 20, 216, 82, 192, 71, 27, 194, 48, 20, 17, 95, 243, 179,
-            82, 21, 57, 143, 101, 19, 22, 186, 147, 13, 147, 238, 39, 119, 15, 36, 251, 131, 250,
-            38, 185, 113, 187, 40, 227, 107, 134, 190, 123, 183, 126, 176, 226, 173, 147, 137, 17,
-            175, 13, 115, 78, 222, 119, 93, 146, 116, 229, 0, 152, 51, 232, 2, 102, 204, 147, 202,
-            254, 243,
-        ])
-        .unwrap();
-
-        // Check that the new payload is not stored if there was already something signed for tx_hash
-        let storage_err = storage
-            .store_issued_ticketbook(
-                42,
-                deposit_id,
-                &blinded_signature,
-                dummy_signature(),
-                commitments.clone(),
-                expiration_date,
-                voucher.ticketbook_type(),
-            )
-            .await;
-        assert!(storage_err.is_err());
-
-        // And use a new deposit to store a new signature
-        let deposit_id = 69;
-
-        storage
-            .store_issued_ticketbook(
-                42,
-                deposit_id,
-                &blinded_signature,
-                dummy_signature(),
-                commitments.clone(),
-                expiration_date,
-                voucher.ticketbook_type(),
-            )
-            .await
-            .unwrap();
-
-        // Check that the same value for tx_hash is returned
-        assert_eq!(
-            state
-                .already_issued(deposit_id)
-                .await
-                .unwrap()
-                .unwrap()
-                .to_bytes(),
-            blinded_signature.to_bytes()
-        );
+        todo!()
+        // let mut rng = OsRng;
+        // let identity = identity::KeyPair::new(&mut rng);
+        // let address = AccountId::from_str(TEST_REWARDING_VALIDATOR_ADDRESS).unwrap();
+        //
+        // let nyxd_client = DummyClient::new(address.clone(), Default::default());
+        // let key_pair = ttp_keygen(1, 1).unwrap().remove(0);
+        // let tmp_dir = tempdir().unwrap();
+        //
+        // let storage = NymApiStorage::init(tmp_dir.path().join("storage.db"))
+        //     .await
+        //     .unwrap();
+        // let comm_channel = DummyCommunicationChannel::new_single_dummy(
+        //     key_pair.verification_key().clone(),
+        //     address,
+        // );
+        // let staged_key_pair = crate::ecash::keys::KeyPair::new();
+        // staged_key_pair
+        //     .set(KeyPairWithEpoch {
+        //         keys: key_pair,
+        //         issued_for_epoch: 1,
+        //     })
+        //     .await;
+        // staged_key_pair.validate();
+        //
+        // let state = EcashState::new(
+        //     "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l"
+        //         .parse()
+        //         .unwrap(),
+        //     nyxd_client,
+        //     identity,
+        //     staged_key_pair,
+        //     comm_channel,
+        //     storage.clone(),
+        //     false,
+        // )
+        // .await
+        // .unwrap();
+        //
+        // let deposit_id = 42;
+        // assert!(state.already_issued(deposit_id).await.unwrap().is_none());
+        //
+        // let voucher = voucher_fixture(None);
+        // let signing_data = voucher.prepare_for_signing();
+        // let request_body = voucher.create_blind_sign_request_body(&signing_data);
+        //
+        // let commitments = request_body.encode_join_commitments();
+        // let expiration_date = request_body.expiration_date;
+        // let sig = blinded_signature_fixture();
+        // storage
+        //     .store_issued_ticketbook(
+        //         42,
+        //         deposit_id,
+        //         &sig,
+        //         dummy_signature(),
+        //         commitments.clone(),
+        //         expiration_date,
+        //         voucher.ticketbook_type(),
+        //     )
+        //     .await
+        //     .unwrap();
+        //
+        // assert_eq!(
+        //     state
+        //         .already_issued(deposit_id)
+        //         .await
+        //         .unwrap()
+        //         .unwrap()
+        //         .to_bytes(),
+        //     blinded_signature_fixture().to_bytes()
+        // );
+        //
+        // let blinded_signature = BlindedSignature::from_bytes(&[
+        //     183, 217, 166, 113, 40, 123, 74, 25, 72, 31, 136, 19, 125, 95, 217, 228, 96, 113, 25,
+        //     240, 12, 102, 125, 11, 174, 20, 216, 82, 192, 71, 27, 194, 48, 20, 17, 95, 243, 179,
+        //     82, 21, 57, 143, 101, 19, 22, 186, 147, 13, 147, 238, 39, 119, 15, 36, 251, 131, 250,
+        //     38, 185, 113, 187, 40, 227, 107, 134, 190, 123, 183, 126, 176, 226, 173, 147, 137, 17,
+        //     175, 13, 115, 78, 222, 119, 93, 146, 116, 229, 0, 152, 51, 232, 2, 102, 204, 147, 202,
+        //     254, 243,
+        // ])
+        // .unwrap();
+        //
+        // // Check that the new payload is not stored if there was already something signed for tx_hash
+        // let storage_err = storage
+        //     .store_issued_ticketbook(
+        //         42,
+        //         deposit_id,
+        //         &blinded_signature,
+        //         dummy_signature(),
+        //         commitments.clone(),
+        //         expiration_date,
+        //         voucher.ticketbook_type(),
+        //     )
+        //     .await;
+        // assert!(storage_err.is_err());
+        //
+        // // And use a new deposit to store a new signature
+        // let deposit_id = 69;
+        //
+        // storage
+        //     .store_issued_ticketbook(
+        //         42,
+        //         deposit_id,
+        //         &blinded_signature,
+        //         dummy_signature(),
+        //         commitments.clone(),
+        //         expiration_date,
+        //         voucher.ticketbook_type(),
+        //     )
+        //     .await
+        //     .unwrap();
+        //
+        // // Check that the same value for tx_hash is returned
+        // assert_eq!(
+        //     state
+        //         .already_issued(deposit_id)
+        //         .await
+        //         .unwrap()
+        //         .unwrap()
+        //         .to_bytes(),
+        //     blinded_signature.to_bytes()
+        // );
     }
 
     #[tokio::test]

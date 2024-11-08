@@ -821,6 +821,7 @@ impl EcashState {
             .collect();
 
         Ok(IssuedTicketbooksChallengeResponseBody {
+            expiration_date: challenge.expiration_date,
             partial_ticketbooks,
             merkle_proof,
         })

@@ -11,7 +11,9 @@ license.workspace = true
 
 [dependencies]
 futures = { workspace = true }
+log = { workspace = true }
 time = { workspace = true }
+tokio = { workspace = true }
 
 nym-sphinx = { path = "../nymsphinx" }
 nym-credentials-interface = { path = "../credentials-interface" }

@@ -23,7 +23,7 @@ impl GatewayStatsReporter {
     /// Report a gateway statistivs event using the reporter
     pub fn report(&self, event: GatewayStatsEvent) {
         self.stats_tx.send(event).unwrap_or_else(|err| {
-            log::error!("Failed to report gateway stat event : {:?}", err);
+            log::error!("Failed to report gateway stat event : {err}");
         });
     }
 }

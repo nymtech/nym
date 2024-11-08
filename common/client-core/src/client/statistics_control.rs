@@ -83,16 +83,16 @@ impl StatisticsControl {
     async fn report_stats(&mut self, recipient: Recipient) {
         let stats_report = self.stats.build_report();
 
-        if let Ok(report_bytes) = stats_report.try_into() {
-            let report_message =
-                InputMessage::new_regular(recipient, report_bytes, TransmissionLane::General, None);
-            if let Err(err) = self.report_tx.send(report_message).await {
-                log::error!("Failed to report client stats: {:?}", err);
-            } else {
-                self.stats.reset();
-            }
+        let report_message = InputMessage::new_regular(
+            recipient,
+            stats_report.into(),
+            TransmissionLane::General,
+            None,
+        );
+        if let Err(err) = self.report_tx.send(report_message).await {
+            log::error!("Failed to report client stats: {:?}", err);
         } else {
-            log::error!("Failed to serialize stats report. This should never happen");
+            self.stats.reset();
         }
     }
 

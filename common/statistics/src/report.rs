@@ -24,21 +24,19 @@ pub struct ClientStatsReport {
     pub(crate) nym_api_stats: NymApiStats,
 }
 
-impl TryFrom<ClientStatsReport> for Vec<u8> {
-    type Error = StatsError;
-
-    fn try_from(value: ClientStatsReport) -> Result<Self, Self::Error> {
-        let report_json = serde_json::to_string(&value)?;
-        Ok(report_json.as_bytes().to_vec())
+impl From<ClientStatsReport> for Vec<u8> {
+    fn from(value: ClientStatsReport) -> Self {
+        // safety, no custom serialisation
+        #[allow(clippy::unwrap_used)]
+        let report_json = serde_json::to_string(&value).unwrap();
+        report_json.as_bytes().to_vec()
     }
 }
 
-impl TryFrom<Vec<u8>> for ClientStatsReport {
+impl TryFrom<&[u8]> for ClientStatsReport {
     type Error = StatsError;
-    fn try_from(value: Vec<u8>) -> Result<Self, Self::Error> {
-        let report_str = String::from_utf8(value)
-            .map_err(|err| StatsError::ReportBytesDeserialization(err.to_string()))?;
-        Ok(serde_json::from_str(&report_str)?)
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        Ok(serde_json::from_slice(value)?)
     }
 }
 

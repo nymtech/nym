@@ -4,13 +4,14 @@
 #![warn(clippy::expect_used)]
 #![warn(clippy::unwrap_used)]
 
-use crate::cli::Cli;
+use crate::{cli::Cli, logging::setup_tracing_logger};
 use clap::{crate_name, crate_version, Parser};
-use nym_bin_common::logging::{maybe_print_banner, setup_tracing_logger};
+use nym_bin_common::logging::maybe_print_banner;
 use nym_config::defaults::setup_env;
 
 mod cli;
 mod env;
+mod logging;
 pub(crate) mod node;
 
 #[tokio::main]

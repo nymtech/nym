@@ -54,6 +54,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_shutdown: Option<TaskClient>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
+    stats_reporting_address: Option<Recipient>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -93,6 +94,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             custom_gateway_transceiver: None,
             force_tls: false,
             user_agent: None,
+            stats_reporting_address: None,
         })
     }
 }
@@ -120,6 +122,7 @@ where
             custom_shutdown: None,
             force_tls: false,
             user_agent: None,
+            stats_reporting_address: None,
             gateway_endpoint_config_path: None,
             storage,
         }
@@ -138,6 +141,7 @@ where
             custom_shutdown: self.custom_shutdown,
             force_tls: self.force_tls,
             user_agent: self.user_agent,
+            stats_reporting_address: self.stats_reporting_address,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
         }
@@ -231,6 +235,12 @@ where
         self
     }
 
+    #[must_use]
+    pub fn with_statistics_reporting(mut self, address: Recipient) -> Self {
+        self.stats_reporting_address = Some(address);
+        self
+    }
+
     /// Use custom mixnet sender that might not be the default websocket gateway connection.
     /// only for advanced use
     #[must_use]
@@ -259,6 +269,7 @@ where
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
         client.user_agent = self.user_agent;
+        client.stats_reporting_address = self.stats_reporting_address;
 
         Ok(client)
     }
@@ -308,6 +319,8 @@ where
     custom_shutdown: Option<TaskClient>,
 
     user_agent: Option<UserAgent>,
+
+    stats_reporting_address: Option<Recipient>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -357,6 +370,7 @@ where
             force_tls: false,
             custom_shutdown: None,
             user_agent: None,
+            stats_reporting_address: None,
         })
     }
 
@@ -575,6 +589,10 @@ where
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);
+        }
+
+        if let Some(stats_reporting_address) = self.stats_reporting_address {
+            base_builder = base_builder.with_statistics_reporting(stats_reporting_address);
         }
 
         if let Some(topology_provider) = self.custom_topology_provider {

@@ -208,7 +208,7 @@ impl Config {
     pub fn ticketbook_issuance_daily_budget(&self) -> Coin {
         // it doesn't have to be exact to sub micronym precision
         let daily_ticketbook_issuance_budget =
-            self.rewarding.daily_budget.amount as f64 * self.rewarding.ratios.credential_issuance;
+            self.rewarding.daily_budget.amount as f64 * self.rewarding.ratios.ticketbook_issuance;
 
         let ticketbook_issuance_budget = daily_ticketbook_issuance_budget as u128;
         Coin::new(
@@ -267,7 +267,8 @@ pub struct RewardingRatios {
     pub block_signing: f64,
 
     /// The percent of the epoch reward being awarded for credential issuance.
-    pub credential_issuance: f64,
+    #[serde(alias = "credential_issuance")]
+    pub ticketbook_issuance: f64,
 
     /// The percent of the epoch reward being awarded for credential verification.
     pub credential_verification: f64,
@@ -279,7 +280,7 @@ impl Default for RewardingRatios {
     fn default() -> Self {
         RewardingRatios {
             block_signing: 0.67,
-            credential_issuance: 0.33,
+            ticketbook_issuance: 0.33,
             credential_verification: 0.0,
             // nym: 0.0,
         }
@@ -288,7 +289,7 @@ impl Default for RewardingRatios {
 
 impl RewardingRatios {
     pub fn validate(&self) -> Result<(), NymRewarderError> {
-        if self.block_signing + self.credential_verification + self.credential_issuance != 1.0 {
+        if self.block_signing + self.credential_verification + self.ticketbook_issuance != 1.0 {
             return Err(NymRewarderError::InvalidRewardingRatios { ratios: *self });
         }
         Ok(())

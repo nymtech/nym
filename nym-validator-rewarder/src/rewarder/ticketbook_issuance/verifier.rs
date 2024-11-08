@@ -24,11 +24,7 @@ use std::cmp::max;
 use std::collections::{HashMap, HashSet};
 use thiserror::Error;
 use time::Date;
-use tracing::{debug, info, info_span, warn};
-
-const unused: &str = "add tracing like in monitor.rs";
-const unused2: &str =
-    "add intermediate logs to what's happening and results. like verifying merkle, etc.";
+use tracing::{debug, info, instrument, warn};
 
 #[derive(Error, Debug)]
 enum PartialTicketbookVerificationFailure {
@@ -127,8 +123,13 @@ impl IssuerUnderTest {
     where
         T: Serialize,
     {
+        let reason = reason.into();
+        warn!(
+            "[CHEATING] banning {} for cheating because of: {reason}",
+            self.details
+        );
         self.issuer_ban = Some(IssuerBan {
-            reason: reason.into(),
+            reason,
             serialised_evidence: serde_json::to_vec(&evidence).unwrap(),
         })
     }
@@ -150,10 +151,6 @@ impl IssuerUnderTest {
 
         // verify the signature on the response
         if !issued_ticketbooks.verify_signature(&self.details.public_key) {
-            warn!(
-                "issuer {} is cheating - failed to verify the signature on the issued response",
-                self.details
-            );
             let evidence = self.produce_cheating_evidence(RegisteredPubKey {
                 registered_pub_key: self.details.public_key,
             });
@@ -165,11 +162,6 @@ impl IssuerUnderTest {
         }
 
         if expiration_date != issued_ticketbooks.body.expiration_date {
-            warn!(
-                "issuer {} might be cheating - received response for commitments with expiration {} while we requested {expiration_date}",
-                self.details,
-                issued_ticketbooks.body.expiration_date
-            );
             let evidence = self.produce_cheating_evidence(MismatchResponse {
                 requested: expiration_date,
                 received: issued_ticketbooks.body.expiration_date,
@@ -220,10 +212,6 @@ impl IssuerUnderTest {
 
         // verify the signature on the response
         if !challenge_response.verify_signature(&self.details.public_key) {
-            warn!(
-                "issuer {} is cheating - failed to verify the signature on the challenge response",
-                self.details
-            );
             let evidence = self.produce_cheating_evidence(RegisteredPubKey {
                 registered_pub_key: self.details.public_key,
             });
@@ -235,11 +223,6 @@ impl IssuerUnderTest {
         }
 
         if expiration_date != challenge_response.body.expiration_date {
-            warn!(
-                "issuer {} is cheating - received response for challenge with expiration {} while we requested {expiration_date}",
-                self.details,
-                challenge_response.body.expiration_date
-            );
             let evidence = self.produce_cheating_evidence(MismatchResponse {
                 requested: expiration_date,
                 received: challenge_response.body.expiration_date,
@@ -316,15 +299,12 @@ impl IssuerUnderTest {
             return;
         };
 
-        let issuer = &self.details;
-
         let partial_ticketbooks = &challenge.body.partial_ticketbooks;
         let merkle_proof = &challenge.body.merkle_proof;
 
         // 1. check if the response actually contains all the requested deposits
         for &deposit_id in self.sampled_deposits.keys() {
             if !partial_ticketbooks.contains_key(&deposit_id) {
-                warn!("issuer {issuer} challenge response is missing deposit {deposit_id}!");
                 let evidence = self.produce_basic_cheating_evidence();
                 self.set_banned_issuer(
                     format!("requested deposit {deposit_id} is missing in challenge response"),
@@ -336,7 +316,6 @@ impl IssuerUnderTest {
 
         // 2. check if the provided merkle proof has the same number of deposits as initially committed to
         if !merkle_proof.total_leaves() != issued.body.deposits.len() {
-            warn!("issuer {issuer} merkle proof is for different number of deposits than initially committed to");
             let evidence = self.produce_cheating_evidence(MismatchClaim {
                 actual: merkle_proof.total_leaves(),
                 claimed: issued.body.deposits.len(),
@@ -547,6 +526,12 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         coin_toss_res
     }
 
+    #[instrument(
+        skip_all,
+        fields(
+            ticketbook_expiration = %self.expiration_date,
+        )
+    )]
     pub async fn check_issuers(
         &mut self,
         issuers: Vec<CredentialIssuer>,
@@ -574,7 +559,6 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
 
             issuers_being_tested.push(being_tested);
         }
-        let a = info_span!("todo").entered();
 
         for issuer in issuers_being_tested.iter_mut() {
             // 2. toss a coin to see if we have to go through the full verification procedure

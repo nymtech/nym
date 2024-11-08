@@ -60,16 +60,10 @@ pub struct ConfigOverridableArgs {
     pub block_signing_monitoring_only: bool,
 
     #[clap(long)]
-    pub disable_credential_issuance_rewarding: bool,
+    pub ticketbook_issuance_monitoring_only: bool,
 
     #[clap(long)]
-    pub credential_monitor_run_interval: Option<humantime::Duration>,
-
-    #[clap(long)]
-    pub credential_monitor_min_validation: Option<usize>,
-
-    #[clap(long)]
-    pub credential_monitor_sampling_rate: Option<f64>,
+    pub disable_ticketbook_issuance_rewarding: bool,
 
     #[clap(long)]
     pub scraper_endpoint: Option<Url>,
@@ -87,10 +81,7 @@ pub struct ConfigOverridableArgs {
     pub block_signing_reward_ratio: Option<f64>,
 
     #[clap(long)]
-    pub credential_issuance_reward_ratio: Option<f64>,
-
-    #[clap(long)]
-    pub credential_verification_reward_ratio: Option<f64>,
+    pub ticketbook_issuance_reward_ratio: Option<f64>,
 }
 
 #[derive(Subcommand, Debug)]

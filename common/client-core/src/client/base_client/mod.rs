@@ -610,10 +610,10 @@ where
                     client_stats_id,
                     input_sender.clone(),
                 );
-                stats_control.start_with_shutdown(shutdown.fork("statistics_control"));
+                stats_control.start_with_shutdown(shutdown.with_suffix("controller"));
                 stats_reporter
             }
-            None => ClientStatsSender::sink(shutdown.fork("statistics_sink")),
+            None => ClientStatsSender::sink(shutdown.with_suffix("sink")),
         }
     }
 

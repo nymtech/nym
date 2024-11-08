@@ -35,8 +35,8 @@ impl GatewayStats {
 
     fn summary(&self) -> (String, String) {
         (
-            format!("packets sent: {}", self.real_packets_sent,),
-            String::new(),
+            format!("packets sent: {}", self.real_packets_sent),
+            "packets received: todo".to_owned(),
         )
     }
 }

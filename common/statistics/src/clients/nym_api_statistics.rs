@@ -36,7 +36,7 @@ impl NymApiStats {
     fn summary(&self) -> (String, String) {
         (
             format!("packets sent: {}", self.real_packets_sent,),
-            String::new(),
+            "packets received: todo".to_owned(),
         )
     }
 }

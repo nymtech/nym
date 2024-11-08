@@ -131,6 +131,7 @@ impl StatisticsControl {
                 },
             }
         }
+        task_client.recv_timeout().await;
         log::debug!("StatisticsControl: Exiting");
     }
 

@@ -9,8 +9,6 @@ use thiserror::Error;
 pub enum StatsError {
     #[error("Failed to (de)serialize stats report : {0}")]
     ReportJsonSerialization(#[from] serde_json::Error),
-    #[error("Failed to deserialize stats report : {0}")]
-    ReportBytesDeserialization(String),
 }
 
 /// Result of a statistics operation.

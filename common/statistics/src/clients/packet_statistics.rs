@@ -1,4 +1,5 @@
 use super::ClientStatsEvents;
+use core::fmt;
 use std::{
     collections::VecDeque,
     time::{Duration, Instant},
@@ -400,10 +401,18 @@ impl PacketStatisticsControl {
     }
 
     pub(crate) fn report(&self) -> PacketStatistics {
-        self.report_rates();
+        self.stats.clone()
+    }
+
+    pub(crate) fn task_client_report(&mut self, task_client: &mut nym_task::TaskClient) {
+        let rates = self.report_rates();
         self.check_for_notable_events();
         self.report_counters();
-        self.stats.clone()
+
+        // Report our current bandwidth used to e.g a GUI client
+        if let Some(rates) = rates {
+            task_client.send_status_msg(Box::new(MixnetBandwidthStatisticsEvent::new(rates)));
+        }
     }
 
     // Add the current stats to the history, and remove old ones.

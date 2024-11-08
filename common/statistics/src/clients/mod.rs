@@ -3,6 +3,7 @@
 
 use crate::report::ClientStatsReport;
 
+use nym_task::TaskClient;
 use time::OffsetDateTime;
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -119,5 +120,9 @@ impl ClientStatsController {
         //no snapshot for gateway_conn_stats
         //no snapshot for nym_api_stats
         self.packet_stats.snapshot();
+    }
+
+    pub fn task_client_report(&mut self, task_client: &mut TaskClient) {
+        self.packet_stats.task_client_report(task_client);
     }
 }

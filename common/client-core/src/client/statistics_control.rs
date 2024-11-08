@@ -30,8 +30,10 @@ use crate::{
     spawn_future,
 };
 
-/// Time interval between reporting statistics
+/// Time interval between reporting statistics to the given provider
 const STATS_REPORT_INTERVAL_SECS: u64 = 300;
+/// Time interval between reporting statistics to the task client
+const TASK_CLIENT_REPORT_INTERVAL_SECS: u64 = 2;
 /// Interval for taking snapshots of the statistics
 const SNAPSHOT_INTERVAL_MS: u64 = 500;
 
@@ -96,11 +98,13 @@ impl StatisticsControl {
         }
     }
 
-    async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    async fn run_with_shutdown(&mut self, mut task_client: nym_task::TaskClient) {
         log::debug!("Started StatisticsControl with graceful shutdown support");
 
-        let report_interval = Duration::from_secs(STATS_REPORT_INTERVAL_SECS);
-        let mut report_interval = tokio::time::interval(report_interval);
+        let stats_report_interval = Duration::from_secs(STATS_REPORT_INTERVAL_SECS);
+        let mut stats_report_interval = tokio::time::interval(stats_report_interval);
+        let task_client_report_interval = Duration::from_millis(TASK_CLIENT_REPORT_INTERVAL_SECS);
+        let mut task_client_report_interval = tokio::time::interval(task_client_report_interval);
         let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
         let mut snapshot_interval = tokio::time::interval(snapshot_interval);
 
@@ -116,10 +120,14 @@ impl StatisticsControl {
                 _ = snapshot_interval.tick() => {
                     self.stats.snapshot();
                 }
-                _ = report_interval.tick() => {
+                _ = stats_report_interval.tick() => {
                     self.report_stats().await;
                 }
-                _ = shutdown.recv_with_delay() => {
+
+                _ = task_client_report_interval.tick() => {
+                    self.stats.task_client_report(&mut task_client);
+                }
+                _ = task_client.recv_with_delay() => {
                     log::trace!("StatisticsControl: Received shutdown");
                     break;
                 },

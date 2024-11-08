@@ -118,8 +118,10 @@ impl ClientStatsController {
         self.packet_stats.snapshot();
     }
 
-    pub fn task_client_report(&mut self, task_client: &mut TaskClient) {
-        self.packet_stats.task_client_report(task_client);
+    pub fn local_report(&mut self, task_client: &mut TaskClient) {
+        self.packet_stats.local_report(task_client);
+        self.gateway_conn_stats.local_report();
+        self.nym_api_stats.local_report();
     }
 
     fn get_update_time() -> OffsetDateTime {

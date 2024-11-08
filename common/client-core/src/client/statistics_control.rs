@@ -30,10 +30,10 @@ use crate::{
     spawn_future,
 };
 
-/// Time interval between reporting statistics to the given provider
+/// Time interval between reporting statistics to the given provider if it exist
 const STATS_REPORT_INTERVAL_SECS: u64 = 300;
-/// Time interval between reporting statistics to the task client
-const TASK_CLIENT_REPORT_INTERVAL: Duration = Duration::from_secs(2);
+/// Time interval between reporting statistics locally (logging/task_client)
+const LOCAL_REPORT_INTERVAL: Duration = Duration::from_secs(2);
 /// Interval for taking snapshots of the statistics
 const SNAPSHOT_INTERVAL: Duration = Duration::from_millis(500);
 
@@ -101,7 +101,7 @@ impl StatisticsControl {
 
         let stats_report_interval = Duration::from_secs(STATS_REPORT_INTERVAL_SECS);
         let mut stats_report_interval = tokio::time::interval(stats_report_interval);
-        let mut task_client_report_interval = tokio::time::interval(TASK_CLIENT_REPORT_INTERVAL);
+        let mut local_report_interval = tokio::time::interval(LOCAL_REPORT_INTERVAL);
         let mut snapshot_interval = tokio::time::interval(SNAPSHOT_INTERVAL);
 
         loop {
@@ -122,8 +122,8 @@ impl StatisticsControl {
                     self.report_stats(self.reporting_address.unwrap()).await;
                 }
 
-                _ = task_client_report_interval.tick() => {
-                    self.stats.task_client_report(&mut task_client);
+                _ = local_report_interval.tick() => {
+                    self.stats.local_report(&mut task_client);
                 }
                 _ = task_client.recv_with_delay() => {
                     log::trace!("StatisticsControl: Received shutdown");

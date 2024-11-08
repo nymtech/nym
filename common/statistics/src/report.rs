@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::error::StatsError;
-use std::time::Duration;
 
 use serde::{Deserialize, Serialize};
 use time::OffsetDateTime;
@@ -11,19 +10,28 @@ use time::OffsetDateTime;
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClientStatsReport {
     last_update_time: OffsetDateTime,
+    client_id: String,
     os_information: os_info::Info,
-    connection_time: Duration,
 }
 
-impl Default for ClientStatsReport {
-    fn default() -> Self {
+impl ClientStatsReport {
+    /// Creates a new ClientStatsReport object given a client_id
+    pub fn new(client_id: String) -> Self {
         ClientStatsReport {
             //Safety : 0 is always a valid number of seconds
             #[allow(clippy::unwrap_used)]
             last_update_time: OffsetDateTime::now_utc().replace_second(0).unwrap(), // allow a bigger anonymity set wrt to reports
+            client_id,
             os_information: os_info::get(), //SW is this revealing too much info?
-            connection_time: Default::default(),
         }
+    }
+
+    /// Resets fields that needs a reset
+    pub fn reset(&mut self) {
+        //Safety : 0 is always a valid number of seconds
+        #[allow(clippy::unwrap_used)]
+        let now = OffsetDateTime::now_utc().replace_second(0).unwrap(); // allow a bigger anonymity set wrt to reports
+        self.last_update_time = now;
     }
 }
 

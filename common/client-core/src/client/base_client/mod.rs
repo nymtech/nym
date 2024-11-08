@@ -55,6 +55,7 @@ use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, UserAgent};
 use rand::rngs::OsRng;
+use sha2::Digest;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
@@ -597,14 +598,18 @@ where
 
     fn start_statistics_control(
         stats_reporting_address: Option<Recipient>,
+        client_stats_id: String,
         input_sender: Sender<InputMessage>,
         shutdown: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting packet statistics control...");
         match stats_reporting_address {
             Some(reporting_address) => {
-                let (stats_control, stats_reporter) =
-                    StatisticsControl::new(reporting_address, input_sender.clone());
+                let (stats_control, stats_reporter) = StatisticsControl::new(
+                    reporting_address,
+                    client_stats_id,
+                    input_sender.clone(),
+                );
                 stats_control.start_with_shutdown(shutdown.fork("statistics_control"));
                 stats_reporter
             }
@@ -739,8 +744,13 @@ where
             self.user_agent.clone(),
         );
 
+        let client_stats_id = format!(
+            "{:x}",
+            sha2::Sha256::digest(self_address.identity().to_bytes())
+        );
         let stats_reporter = Self::start_statistics_control(
             self.stats_reporting_address,
+            client_stats_id,
             input_sender.clone(),
             shutdown.fork("statistics_control"),
         );

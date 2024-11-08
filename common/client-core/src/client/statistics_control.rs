@@ -1,5 +1,5 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
 //! # Statistics collection and reporting.
 //!
@@ -33,9 +33,9 @@ use crate::{
 /// Time interval between reporting statistics to the given provider
 const STATS_REPORT_INTERVAL_SECS: u64 = 300;
 /// Time interval between reporting statistics to the task client
-const TASK_CLIENT_REPORT_INTERVAL_SECS: u64 = 2;
+const TASK_CLIENT_REPORT_INTERVAL: Duration = Duration::from_secs(2);
 /// Interval for taking snapshots of the statistics
-const SNAPSHOT_INTERVAL_MS: u64 = 500;
+const SNAPSHOT_INTERVAL: Duration = Duration::from_millis(500);
 
 /// Launches and manages metrics collection and reporting.
 ///
@@ -52,18 +52,20 @@ pub(crate) struct StatisticsControl {
     report_tx: InputMessageSender,
 
     /// Service-provider address to send stats reports
-    reporting_address: Recipient,
+    reporting_address: Option<Recipient>,
 }
 
 impl StatisticsControl {
     pub(crate) fn create(
-        reporting_config: StatsReportingConfig,
+        reporting_config: Option<StatsReportingConfig>,
         client_stats_id: String,
         report_tx: InputMessageSender,
     ) -> (Self, ClientStatsSender) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
-        let client_type = reporting_config.reporting_type;
-        let reporting_address = reporting_config.reporting_address;
+        let (reporting_address, client_type) = match reporting_config {
+            Some(cfg) => (Some(cfg.reporting_address), cfg.reporting_type),
+            None => (None, "".into()),
+        };
 
         let stats = ClientStatsController::new(client_stats_id, client_type);
 
@@ -78,16 +80,12 @@ impl StatisticsControl {
         )
     }
 
-    async fn report_stats(&mut self) {
+    async fn report_stats(&mut self, recipient: Recipient) {
         let stats_report = self.stats.build_report();
 
         if let Ok(report_bytes) = stats_report.try_into() {
-            let report_message = InputMessage::new_regular(
-                self.reporting_address,
-                report_bytes,
-                TransmissionLane::General,
-                None,
-            );
+            let report_message =
+                InputMessage::new_regular(recipient, report_bytes, TransmissionLane::General, None);
             if let Err(err) = self.report_tx.send(report_message).await {
                 log::error!("Failed to report client stats: {:?}", err);
             } else {
@@ -103,10 +101,8 @@ impl StatisticsControl {
 
         let stats_report_interval = Duration::from_secs(STATS_REPORT_INTERVAL_SECS);
         let mut stats_report_interval = tokio::time::interval(stats_report_interval);
-        let task_client_report_interval = Duration::from_millis(TASK_CLIENT_REPORT_INTERVAL_SECS);
-        let mut task_client_report_interval = tokio::time::interval(task_client_report_interval);
-        let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
-        let mut snapshot_interval = tokio::time::interval(snapshot_interval);
+        let mut task_client_report_interval = tokio::time::interval(TASK_CLIENT_REPORT_INTERVAL);
+        let mut snapshot_interval = tokio::time::interval(SNAPSHOT_INTERVAL);
 
         loop {
             tokio::select! {
@@ -120,8 +116,10 @@ impl StatisticsControl {
                 _ = snapshot_interval.tick() => {
                     self.stats.snapshot();
                 }
-                _ = stats_report_interval.tick() => {
-                    self.report_stats().await;
+                _ = stats_report_interval.tick(), if self.reporting_address.is_some() => {
+                    // SAFTEY : this branch executes only if reporting is not none, so unwrapp is fine
+                    #[allow(clippy::unwrap_used)]
+                    self.report_stats(self.reporting_address.unwrap()).await;
                 }
 
                 _ = task_client_report_interval.tick() => {
@@ -148,13 +146,8 @@ impl StatisticsControl {
         report_tx: InputMessageSender,
         task_client: nym_task::TaskClient,
     ) -> ClientStatsSender {
-        match reporting_config {
-            None => ClientStatsSender::new(None),
-            Some(cfg) => {
-                let (controller, sender) = Self::create(cfg, client_stats_id, report_tx);
-                controller.start_with_shutdown(task_client);
-                sender
-            }
-        }
+        let (controller, sender) = Self::create(reporting_config, client_stats_id, report_tx);
+        controller.start_with_shutdown(task_client);
+        sender
     }
 }

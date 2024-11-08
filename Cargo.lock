@@ -4846,6 +4846,7 @@ dependencies = [
  "nym-nonexhaustive-delayqueue",
  "nym-pemstore",
  "nym-sphinx",
+ "nym-statistics-common",
  "nym-task",
  "nym-topology",
  "nym-validator-client",
@@ -6255,6 +6256,7 @@ dependencies = [
  "nym-socks5-client-core",
  "nym-socks5-requests",
  "nym-sphinx",
+ "nym-statistics-common",
  "nym-task",
  "nym-topology",
  "nym-validator-client",
@@ -6596,9 +6598,18 @@ name = "nym-statistics-common"
 version = "0.1.0"
 dependencies = [
  "futures",
+ "log",
  "nym-credentials-interface",
+ "nym-metrics",
  "nym-sphinx",
+ "nym-task",
+ "serde",
+ "serde_json",
+ "si-scale",
+ "sysinfo",
+ "thiserror",
  "time",
+ "tokio",
 ]
 
 [[package]]

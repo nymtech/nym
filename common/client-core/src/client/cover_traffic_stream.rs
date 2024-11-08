@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::BatchMixMessageSender;
-use crate::client::packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter};
 use crate::client::topology_control::TopologyAccessor;
 use crate::{config, spawn_future};
 use futures::task::{Context, Poll};
@@ -13,6 +12,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::cover::generate_loop_cover_packet;
 use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::utils::sample_poisson_duration;
+use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::pin::Pin;
 use std::sync::Arc;
@@ -63,7 +63,7 @@ where
 
     packet_type: PacketType,
 
-    stats_tx: PacketStatisticsReporter,
+    stats_tx: ClientStatsSender,
 }
 
 impl<R> Stream for LoopCoverTrafficStream<R>
@@ -109,7 +109,7 @@ impl LoopCoverTrafficStream<OsRng> {
         topology_access: TopologyAccessor,
         traffic_config: config::Traffic,
         cover_config: config::CoverTraffic,
-        stats_tx: PacketStatisticsReporter,
+        stats_tx: ClientStatsSender,
     ) -> Self {
         let rng = OsRng;
 
@@ -198,9 +198,9 @@ impl LoopCoverTrafficStream<OsRng> {
                 }
             }
         } else {
-            self.stats_tx.report(PacketStatisticsEvent::CoverPacketSent(
-                cover_traffic_packet_size.size(),
-            ));
+            self.stats_tx.report(
+                PacketStatisticsEvent::CoverPacketSent(cover_traffic_packet_size.size()).into(),
+            );
         }
 
         // TODO: I'm not entirely sure whether this is really required, because I'm not 100%

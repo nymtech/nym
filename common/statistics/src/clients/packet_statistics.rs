@@ -1,3 +1,7 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: Apache-2.0
+
+use super::ClientStatsEvents;
 use core::fmt;
 use std::{
     collections::VecDeque,
@@ -5,45 +9,17 @@ use std::{
 };
 
 use nym_metrics::{inc, inc_by};
+use serde::{Deserialize, Serialize};
 use si_scale::helpers::bibytes2;
 
-// Metrics server
-use futures::future::{FusedFuture, OptionFuture};
-use futures::FutureExt;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use http_body_util::Full;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::body::Bytes;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::server::conn::http1;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::service::service_fn;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper::{Request, Response};
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use hyper_util::rt::TokioIo;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use std::convert::Infallible;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-#[cfg(feature = "metrics-server")]
-use std::net::SocketAddr;
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-use tokio::net::TcpListener;
-
-use crate::spawn_future;
-
-// Time interval between reporting packet statistics
-const PACKET_REPORT_INTERVAL_SECS: u64 = 2;
-// Interval for taking snapshots of the packet statistics
-const SNAPSHOT_INTERVAL_MS: u64 = 500;
 // When computing rates, we include snapshots that are up to this old. We set it to some odd number
 // a tad larger than an integer number of snapshot intervals, so that we don't have to worry about
 // threshold effects.
 // Also, set it larger than the packet report interval so that we don't miss notable singular events
 const RECORDING_WINDOW_MS: u64 = 2300;
 
-#[derive(Default, Debug, Clone)]
-struct PacketStatistics {
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct PacketStatistics {
     // Sent
     real_packets_sent: u64,
     real_packets_sent_size: usize,
@@ -73,7 +49,7 @@ struct PacketStatistics {
 }
 
 impl PacketStatistics {
-    fn handle_event(&mut self, event: PacketStatisticsEvent) {
+    fn handle(&mut self, event: PacketStatisticsEvent) {
         match event {
             PacketStatisticsEvent::RealPacketSent(packet_size) => {
                 self.real_packets_sent += 1;
@@ -366,56 +342,46 @@ impl PacketRates {
     }
 }
 
+/// Event Space used for counting the Packet types used in a connection.
 #[derive(Debug)]
-pub(crate) enum PacketStatisticsEvent {
-    // The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
+pub enum PacketStatisticsEvent {
+    /// The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
     RealPacketSent(usize),
-    // The cover packets sent
+    /// The cover packets sent
     CoverPacketSent(usize),
 
-    // Real packets received
+    /// Real packets received
     RealPacketReceived(usize),
-    // Cover packets received
+    /// Cover packets received
     CoverPacketReceived(usize),
 
-    // Ack of any type received. This is mostly used as a consistency check, and should be the sum
-    // of real and cover acks received.
+    /// Ack of any type received. This is mostly used as a consistency check, and should be the sum
+    /// of real and cover acks received.
     AckReceived(usize),
-    // Out of the total acks received, this is the subset of those that were real
+    /// Out of the total acks received, this is the subset of those that were real
     RealAckReceived(usize),
-    // Out of the total acks received, this is the subset of those that were for cover traffic
+    /// Out of the total acks received, this is the subset of those that were for cover traffic
     CoverAckReceived(usize),
 
-    // Types of packets queued
+    /// Types of packets queued
     RealPacketQueued,
+    /// Types of packets queued
     RetransmissionQueued,
+    /// Types of packets queued
     ReplySurbRequestQueued,
+    /// Types of packets queued
     AdditionalReplySurbRequestQueued,
 }
 
-type PacketStatisticsReceiver = tokio::sync::mpsc::UnboundedReceiver<PacketStatisticsEvent>;
-
-#[derive(Clone)]
-pub(crate) struct PacketStatisticsReporter {
-    stats_tx: tokio::sync::mpsc::UnboundedSender<PacketStatisticsEvent>,
-}
-
-impl PacketStatisticsReporter {
-    pub(crate) fn new(stats_tx: tokio::sync::mpsc::UnboundedSender<PacketStatisticsEvent>) -> Self {
-        Self { stats_tx }
-    }
-
-    pub(crate) fn report(&self, event: PacketStatisticsEvent) {
-        self.stats_tx.send(event).unwrap_or_else(|err| {
-            log::error!("Failed to report packet stat: {:?}", err);
-        });
+impl From<PacketStatisticsEvent> for ClientStatsEvents {
+    fn from(event: PacketStatisticsEvent) -> ClientStatsEvents {
+        ClientStatsEvents::PacketStatistics(event)
     }
 }
 
-pub(crate) struct PacketStatisticsControl {
-    // Incoming packet stats events from other tasks
-    stats_rx: PacketStatisticsReceiver,
-
+/// Statistics tracking for Packet based I/O
+#[derive(Default)]
+pub struct PacketStatisticsControl {
     // Keep track of packet statistics over time
     stats: PacketStatistics,
 
@@ -428,18 +394,28 @@ pub(crate) struct PacketStatisticsControl {
 }
 
 impl PacketStatisticsControl {
-    pub(crate) fn new() -> (Self, PacketStatisticsReporter) {
-        let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
+    pub(crate) fn handle_event(&mut self, event: PacketStatisticsEvent) {
+        self.stats.handle(event)
+    }
 
-        (
-            Self {
-                stats_rx,
-                stats: PacketStatistics::default(),
-                history: VecDeque::new(),
-                rates: VecDeque::new(),
-            },
-            PacketStatisticsReporter::new(stats_tx),
-        )
+    pub(crate) fn snapshot(&mut self) {
+        self.update_history();
+        self.update_rates();
+    }
+
+    pub(crate) fn report(&self) -> PacketStatistics {
+        self.stats.clone()
+    }
+
+    pub(crate) fn local_report(&mut self, task_client: &mut nym_task::TaskClient) {
+        let rates = self.report_rates();
+        self.check_for_notable_events();
+        self.report_counters();
+
+        // Report our current bandwidth used to e.g a GUI client
+        if let Some(rates) = rates {
+            task_client.send_status_msg(Box::new(MixnetBandwidthStatisticsEvent::new(rates)));
+        }
     }
 
     // Add the current stats to the history, and remove old ones.
@@ -536,129 +512,4 @@ impl PacketStatisticsControl {
 
         // IDEA: if there is a burst of acks, that could indicate tokio task starvation.
     }
-
-    pub(crate) async fn run_with_shutdown(&mut self, mut task_client: nym_task::TaskClient) {
-        log::debug!("Started PacketStatisticsControl with graceful shutdown support");
-
-        let report_interval = Duration::from_secs(PACKET_REPORT_INTERVAL_SECS);
-        let mut report_interval = tokio::time::interval(report_interval);
-        let snapshot_interval = Duration::from_millis(SNAPSHOT_INTERVAL_MS);
-        let mut snapshot_interval = tokio::time::interval(snapshot_interval);
-
-        cfg_if::cfg_if! {
-            if #[cfg(all(target_arch = "wasm32", target_os = "unknown"))] {
-                log::warn!("Metrics server is not supported on wasm32-unknown-unknown");
-                let listener: Option<WasmEmpty> = None;
-            } else if #[cfg(feature = "metrics-server")] {
-                let mut metrics_port = 18000;
-                let listener: Option<TcpListener>;
-                loop {
-                    let addr = SocketAddr::from(([0, 0, 0, 0], metrics_port));
-                    match TcpListener::bind(addr).await {
-                        Ok(l) => {
-                            log::info!("###############################");
-                            log::info!("Metrics endpoint is at: {:?}", l.local_addr());
-                            log::info!("###############################");
-                            listener = Some(l);
-                            break;
-                        },
-                        Err(err) => {
-                            log::warn!("Failed to bind metrics server: {:?}", err);
-                            metrics_port += 1;
-                        }
-                    };
-                }
-            } else {
-                log::info!("Metrics server is disabled!");
-                let listener: Option<TcpListener> = None;
-            }
-        }
-
-        loop {
-            // it seems at some point tokio changed its select precondition evaluation,
-            // and it's no longer checked before the future is evaluated.
-            let accept_future: OptionFuture<_> = listener
-                .as_ref()
-                .map(|l| l.accept())
-                .map(FutureExt::fuse)
-                .into();
-
-            tokio::select! {
-                stats_event = self.stats_rx.recv() => match stats_event {
-                    Some(stats_event) => {
-                        log::trace!("PacketStatisticsControl: Received stats event");
-                        self.stats.handle_event(stats_event);
-                    },
-                    None => {
-                        log::trace!("PacketStatisticsControl: stopping since stats channel was closed");
-                        break;
-                    }
-                },
-                // conditional will disable the branch if we're in wasm32-unknown-unknown
-                // use `_` to calm down clippy when running for wasm
-                _result = accept_future, if !accept_future.is_terminated() => {
-                    cfg_if::cfg_if! {
-                        if #[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))] {
-                            if let Some(Ok((stream, _))) = _result {
-                                let io = TokioIo::new(stream);
-
-                                tokio::task::spawn(async move {
-                                    if let Err(err) = http1::Builder::new()
-                                        .serve_connection(io, service_fn(serve_metrics))
-                                        .await
-                                    {
-                                        log::warn!("Error serving connection: {:?}", err);
-                                    }
-                                });
-                            } else {
-                                log::warn!("Error accepting connection");
-                            }
-                        }
-                    }
-                }
-                _ = snapshot_interval.tick() => {
-                    self.update_history();
-                    self.update_rates();
-                }
-                _ = report_interval.tick() => {
-                    let rates = self.report_rates();
-                    self.check_for_notable_events();
-                    self.report_counters();
-
-                    // Report our current bandwidth used to e.g a GUI client
-                    if let Some(rates) = rates {
-                        task_client.send_status_msg(Box::new(MixnetBandwidthStatisticsEvent::new(rates)));
-                    }
-                }
-                _ = task_client.recv_with_delay() => {
-                    log::trace!("PacketStatisticsControl: Received shutdown");
-                    break;
-                },
-            }
-        }
-        log::debug!("PacketStatisticsControl: Exiting");
-    }
-
-    pub(crate) fn start_with_shutdown(mut self, task_client: nym_task::TaskClient) {
-        spawn_future(async move {
-            self.run_with_shutdown(task_client).await;
-        })
-    }
-}
-
-#[cfg(not(all(target_arch = "wasm32", target_os = "unknown")))]
-async fn serve_metrics(
-    _: Request<hyper::body::Incoming>,
-) -> Result<Response<Full<Bytes>>, Infallible> {
-    use nym_metrics::metrics;
-
-    Ok(Response::new(Full::new(Bytes::from(metrics!()))))
-}
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-struct WasmEmpty;
-
-#[cfg(all(target_arch = "wasm32", target_os = "unknown"))]
-impl WasmEmpty {
-    async fn accept(&self) {}
 }

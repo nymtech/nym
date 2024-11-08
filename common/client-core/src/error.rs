@@ -220,7 +220,6 @@ pub enum ClientCoreStatusMessage {
 
 impl std::fmt::Display for ClientCoreStatusMessage {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        // NOTE: The nym-connect frontend listens for these strings, so don't change them until we have a more robust mechanism in place
         match self {
             ClientCoreStatusMessage::GatewayIsSlow => write!(
                 f,

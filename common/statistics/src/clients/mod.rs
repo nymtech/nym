@@ -4,7 +4,7 @@
 use crate::report::{ClientStatsReport, OsInformation};
 
 use nym_task::TaskClient;
-use time::OffsetDateTime;
+use time::{OffsetDateTime, Time};
 use tokio::sync::mpsc::UnboundedSender;
 
 /// Active gateway connection statistics.
@@ -69,9 +69,7 @@ impl ClientStatsController {
     /// Creates a ClientStatsController given a client_id
     pub fn new(client_id: String, client_type: String) -> Self {
         ClientStatsController {
-            //Safety : 0 is always a valid number of seconds
-            #[allow(clippy::unwrap_used)]
-            last_update_time: OffsetDateTime::now_utc().replace_second(0).unwrap(), // allow a bigger anonymity set wrt
+            last_update_time: ClientStatsController::get_update_time(),
             client_id,
             client_type,
             os_information: OsInformation::new(),
@@ -110,9 +108,7 @@ impl ClientStatsController {
         self.gateway_conn_stats = Default::default();
         //no periodic reset for packet stats
 
-        #[allow(clippy::unwrap_used)] //Safety : 0 is always a valid number of seconds
-        let now = OffsetDateTime::now_utc().replace_second(0).unwrap();
-        self.last_update_time = now;
+        self.last_update_time = ClientStatsController::get_update_time();
     }
 
     /// snapshot the current state of the metrics for module that needs it
@@ -124,5 +120,14 @@ impl ClientStatsController {
 
     pub fn task_client_report(&mut self, task_client: &mut TaskClient) {
         self.packet_stats.task_client_report(task_client);
+    }
+
+    fn get_update_time() -> OffsetDateTime {
+        let now = OffsetDateTime::now_utc();
+        #[allow(clippy::unwrap_used)]
+        //Safety : 0 is always a valid number of seconds, hours and minutes comes from a valid source
+        let new_time = Time::from_hms(now.hour(), now.minute(), 0).unwrap();
+        //allows a bigger anonymity by hiding exact sending time
+        now.replace_time(new_time)
     }
 }

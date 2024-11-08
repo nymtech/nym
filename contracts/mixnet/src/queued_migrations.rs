@@ -90,12 +90,16 @@ mod families_purge {
 
 mod nym_nodes_usage {
     use crate::constants::{CONTRACT_STATE_KEY, REWARDING_PARAMS_KEY};
+    use crate::interval::storage::current_interval;
     use crate::mixnet_contract_settings::storage::CONTRACT_STATE;
+    use crate::nodes::storage::helpers::RoleStorageBucket;
+    use crate::nodes::storage::rewarded_set::{ACTIVE_ROLES_BUCKET, ROLES, ROLES_METADATA};
     use crate::rewards::storage::RewardingStorage;
     use crate::support::helpers::ensure_epoch_in_progress_state;
     use cosmwasm_std::{Addr, Coin, DepsMut, Order, StdResult, Storage};
     use cw_storage_plus::{Item, Map};
     use mixnet_contract_common::error::MixnetContractError;
+    use mixnet_contract_common::nym_node::{RewardedSetMetadata, Role};
     use mixnet_contract_common::reward_params::RewardedSetParams;
     use mixnet_contract_common::{
         ContractState, ContractStateParams, IntervalRewardParams, MigrateMsg, NodeId,
@@ -173,7 +177,9 @@ mod nym_nodes_usage {
         Ok(())
     }
 
-    fn preassign_gateway_ids(storage: &mut dyn Storage) -> Result<(), MixnetContractError> {
+    fn preassign_gateway_ids(
+        storage: &mut dyn Storage,
+    ) -> Result<(Option<NodeId>, Option<NodeId>), MixnetContractError> {
         // that one is a big if. we have ~100 gateways so we **might** be able to fit it within migration.
         // if not, then we'll have to do it in batches/change our approach
 
@@ -182,8 +188,15 @@ mod nym_nodes_usage {
             .map(|res| res.map(|row| row.1))
             .collect::<StdResult<Vec<_>>>()?;
 
+        let mut start = None;
+        let mut end = None;
         for gateway in gateways {
             let id = crate::nodes::storage::next_nymnode_id_counter(storage)?;
+            if start.is_none() {
+                start = Some(id)
+            }
+            end = Some(id);
+
             crate::gateways::storage::PREASSIGNED_LEGACY_IDS.save(
                 storage,
                 gateway.gateway.identity_key,
@@ -191,10 +204,12 @@ mod nym_nodes_usage {
             )?;
         }
 
-        Ok(())
+        Ok((start, end))
     }
 
-    fn cleanup_legacy_storage(storage: &mut dyn Storage) -> Result<(), MixnetContractError> {
+    fn cleanup_legacy_storage(
+        storage: &mut dyn Storage,
+    ) -> Result<Vec<NodeId>, MixnetContractError> {
         #[derive(Copy, Clone, Default, Serialize, Deserialize)]
         pub struct LayerDistribution {
             pub layer1: u64,
@@ -224,11 +239,11 @@ mod nym_nodes_usage {
             .keys(storage, None, None, Order::Ascending)
             .collect::<Result<Vec<_>, _>>()?;
 
-        for node_id in rewarded_ids {
+        for &node_id in &rewarded_ids {
             REWARDED_SET.remove(storage, node_id)
         }
 
-        Ok(())
+        Ok(rewarded_ids)
     }
 
     fn migrate_rewarded_set_params(storage: &mut dyn Storage) -> Result<(), MixnetContractError> {
@@ -268,6 +283,98 @@ mod nym_nodes_usage {
         Ok(())
     }
 
+    fn assign_temporary_rewarded_set(
+        storage: &mut dyn Storage,
+        (min_available_gateway, max_available_gateway): (Option<NodeId>, Option<NodeId>),
+        current_rewarded_set_mixnodes: Vec<NodeId>,
+    ) -> Result<(), MixnetContractError> {
+        let epoch_id = current_interval(storage)?.current_epoch_absolute_id();
+
+        // in the previous step we explicitly set rewarded set to 120 mixnodes and 50 entry gateways
+        // note: we can't assign exit gateways because the contract itself doesn't know which might support it
+
+        let active_bucket = RoleStorageBucket::default();
+        let inactive_bucket = active_bucket.other();
+        ACTIVE_ROLES_BUCKET.save(storage, &active_bucket)?;
+
+        // ACTIVE BUCKET:
+        let mut active_metadata = RewardedSetMetadata::new(epoch_id);
+
+        let mut current_rewarded_set_mixnodes = current_rewarded_set_mixnodes;
+        // ensure it's sorted. it should have already been, but better safe than sorry..
+        current_rewarded_set_mixnodes.sort();
+
+        let mut layer1 = Vec::new();
+        let mut layer2 = Vec::new();
+        let mut layer3 = Vec::new();
+        let mut entry = Vec::new();
+
+        for (i, mix_id) in current_rewarded_set_mixnodes
+            .into_iter()
+            .take(120)
+            .enumerate()
+        {
+            if i % 3 == 0 {
+                layer1.push(mix_id);
+            } else if i % 3 == 1 {
+                layer2.push(mix_id);
+            } else if i % 3 == 2 {
+                layer3.push(mix_id);
+            }
+        }
+
+        if let (Some(min_id), Some(max_id)) = (min_available_gateway, max_available_gateway) {
+            // we can assign the gateway nodes
+            entry = (min_id..=max_id).take(50).collect();
+        }
+
+        // ACTIVE BUCKET:
+        active_metadata.fully_assigned = true;
+
+        // layer1
+        ROLES.save(storage, (active_bucket as u8, Role::Layer1), &layer1)?;
+        active_metadata.layer1_metadata.num_nodes = layer1.len() as u32;
+        active_metadata.layer1_metadata.highest_id = layer1.last().copied().unwrap_or_default();
+
+        // layer2
+        ROLES.save(storage, (active_bucket as u8, Role::Layer2), &layer2)?;
+        active_metadata.layer2_metadata.num_nodes = layer2.len() as u32;
+        active_metadata.layer2_metadata.highest_id = layer2.last().copied().unwrap_or_default();
+
+        // layer3
+        ROLES.save(storage, (active_bucket as u8, Role::Layer3), &layer3)?;
+        active_metadata.layer3_metadata.num_nodes = layer3.len() as u32;
+        active_metadata.layer3_metadata.highest_id = layer3.last().copied().unwrap_or_default();
+
+        // entry
+        ROLES.save(storage, (active_bucket as u8, Role::EntryGateway), &entry)?;
+        active_metadata.entry_gateway_metadata.num_nodes = entry.len() as u32;
+        active_metadata.entry_gateway_metadata.highest_id =
+            entry.last().copied().unwrap_or_default();
+
+        // nothing for exit or standby
+        ROLES.save(storage, (active_bucket as u8, Role::ExitGateway), &vec![])?;
+        ROLES.save(storage, (active_bucket as u8, Role::Standby), &vec![])?;
+        ROLES_METADATA.save(storage, active_bucket as u8, &active_metadata)?;
+
+        // SECONDARY BUCKET
+        let roles = vec![
+            Role::Layer1,
+            Role::Layer2,
+            Role::Layer3,
+            Role::EntryGateway,
+            Role::ExitGateway,
+            Role::Standby,
+        ];
+        for role in roles {
+            ROLES.save(storage, (inactive_bucket as u8, role), &vec![])?
+        }
+
+        ROLES_METADATA.save(storage, inactive_bucket as u8, &Default::default())?;
+
+        Ok(())
+    }
+
     pub(crate) fn migrate_to_nym_nodes_usage(
         deps: DepsMut<'_>,
         _msg: &MigrateMsg,
@@ -284,16 +391,18 @@ mod nym_nodes_usage {
 
         // pre-assign NodeId to all gateways (that will be applied during nym-node migration)
         // to simplify all other code during the intermediate period
-        preassign_gateway_ids(deps.storage)?;
-
-        // initialise all the storage structures required by nym-nodes
-        crate::nodes::storage::initialise_storage(deps.storage)?;
+        let gateways = preassign_gateway_ids(deps.storage)?;
 
         // update the simple active/rewarded set sizes to actually contain the distribution of roles
         migrate_rewarded_set_params(deps.storage)?;
 
         // remove all redundant storage items
-        cleanup_legacy_storage(deps.storage)?;
+        let old_rewarded_set_mixnodes = cleanup_legacy_storage(deps.storage)?;
+
+        // assign initial rewarded set
+        // and initialise all the storage structures required by nym-nodes
+        // based on the nodes that are in the contract right now
+        assign_temporary_rewarded_set(deps.storage, gateways, old_rewarded_set_mixnodes)?;
 
         Ok(())
     }

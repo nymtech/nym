@@ -10,7 +10,6 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::todo)]
 #![warn(clippy::dbg_macro)]
-#![warn(missing_docs)]
 
 use nym_sphinx::addressing::Recipient;
 

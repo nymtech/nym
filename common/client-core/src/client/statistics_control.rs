@@ -16,13 +16,11 @@
 #![warn(clippy::todo)]
 #![warn(clippy::dbg_macro)]
 
-use std::{collections::HashMap, time::Duration};
+use std::time::Duration;
 
 use nym_sphinx::addressing::Recipient;
-use nym_statistics_common::{
-    clients::{gateway_conn_statistics, nym_api_statistics, packet_statistics},
-    clients::{ClientStatsObj, ClientStatsReceiver, ClientStatsSender, ClientStatsType},
-    report::{ClientStatsReport, StatisticsReporter},
+use nym_statistics_common::clients::{
+    ClientStatsController, ClientStatsReceiver, ClientStatsSender,
 };
 use nym_task::connections::TransmissionLane;
 
@@ -36,64 +34,13 @@ const STATS_REPORT_INTERVAL_SECS: u64 = 300;
 /// Interval for taking snapshots of the statistics
 const SNAPSHOT_INTERVAL_MS: u64 = 500;
 
-/// Client Stats Types
-enum Stats {
-    Packets(packet_statistics::PacketStatisticsControl),
-    GatewayConn(gateway_conn_statistics::GatewayStatsControl),
-    NymApi(nym_api_statistics::NymApiStatsControl),
-}
-
-impl StatisticsReporter for Stats {
-    fn marshall(&self) -> std::io::Result<String> {
-        match self {
-            Stats::Packets(s) => s.marshall(),
-            Stats::GatewayConn(s) => s.marshall(),
-            Stats::NymApi(s) => s.marshall(),
-        }
-    }
-}
-
-impl ClientStatsObj for Stats {
-    fn handle_event(&mut self, event: nym_statistics_common::clients::ClientStatsEvents) {
-        match self {
-            Stats::Packets(s) => s.handle_event(event),
-            Stats::GatewayConn(s) => s.handle_event(event),
-            Stats::NymApi(s) => s.handle_event(event),
-        }
-    }
-
-    fn periodic_reset(&mut self) {
-        match self {
-            Stats::Packets(s) => s.periodic_reset(),
-            Stats::GatewayConn(s) => s.periodic_reset(),
-            Stats::NymApi(s) => s.periodic_reset(),
-        }
-    }
-
-    fn snapshot(&mut self) {
-        match self {
-            Stats::Packets(s) => s.snapshot(),
-            Stats::GatewayConn(s) => s.snapshot(),
-            Stats::NymApi(s) => s.snapshot(),
-        }
-    }
-
-    fn type_identity(&self) -> ClientStatsType {
-        match self {
-            Stats::Packets(s) => s.type_identity(),
-            Stats::GatewayConn(s) => s.type_identity(),
-            Stats::NymApi(s) => s.type_identity(),
-        }
-    }
-}
-
 /// Launches and manages metrics collection and reporting.
 ///
 /// This is designed to be generic to allow for multiple types of metrics to be collected and
 /// reported.
 pub(crate) struct StatisticsControl {
     /// Keep store the different types of metrics collectors
-    stats: [(ClientStatsType, Stats); 3],
+    stats: ClientStatsController,
 
     /// Incoming packet stats events from other tasks
     stats_rx: ClientStatsReceiver,
@@ -103,9 +50,6 @@ pub(crate) struct StatisticsControl {
 
     /// Service-provider address to send stats reports
     reporting_address: Recipient,
-
-    /// Report structure containing (privacy preserving) context information.
-    stats_report: ClientStatsReport,
 }
 
 impl StatisticsControl {
@@ -116,20 +60,7 @@ impl StatisticsControl {
     ) -> (Self, ClientStatsSender) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
 
-        let stats = [
-            (
-                ClientStatsType::Packets,
-                Stats::Packets(packet_statistics::PacketStatisticsControl::default()),
-            ),
-            (
-                ClientStatsType::Gateway,
-                Stats::GatewayConn(gateway_conn_statistics::GatewayStatsControl::default()),
-            ),
-            (
-                ClientStatsType::NymApi,
-                Stats::NymApi(nym_api_statistics::NymApiStatsControl::default()),
-            ),
-        ];
+        let stats = ClientStatsController::new(client_stats_id);
 
         (
             StatisticsControl {
@@ -137,45 +68,25 @@ impl StatisticsControl {
                 stats_rx,
                 reporting_address,
                 report_tx,
-                stats_report: ClientStatsReport::new(client_stats_id),
             },
             ClientStatsSender::new(stats_tx),
         )
     }
 
     async fn report_stats(&mut self) {
-        let mut metrics_report: HashMap<&str, String> = HashMap::new();
-        for (_, stats) in self.stats.as_mut() {
-            match stats.marshall() {
-                Ok(metrics) => {
-                    log::trace!(" {:?}: {:?}", stats.type_identity(), metrics);
-                    metrics_report.insert(stats.type_identity().as_str(), metrics);
-                }
-                Err(err) => log::error!("{:?}: marshall metrics: {:?}", stats.type_identity(), err),
-            }
-            stats.periodic_reset();
-        }
+        let stats_report = self.stats.build_report();
 
-        let metrics = match serde_json::to_string(&metrics_report) {
-            Ok(r) => r,
-            Err(e) => {
-                log::error!("failed to serialize metrics to json: {e:?}");
-                return;
-            }
-        };
-
-        if let Ok(mut report_bytes) = self.stats_report.marshall() {
-            report_bytes.push_str(&metrics);
+        if let Ok(report_bytes) = stats_report.try_into() {
             let report_message = InputMessage::new_regular(
                 self.reporting_address,
-                report_bytes.as_bytes().to_vec(),
+                report_bytes,
                 TransmissionLane::General,
                 None,
             );
             if let Err(err) = self.report_tx.send(report_message).await {
                 log::error!("Failed to report client stats: {:?}", err);
             } else {
-                self.stats_report.reset();
+                self.stats.reset();
             }
         } else {
             log::error!("Failed to serialize stats report. This should never happen");
@@ -193,16 +104,14 @@ impl StatisticsControl {
         loop {
             tokio::select! {
                 stats_event = self.stats_rx.recv() => match stats_event {
-                        Some(stats_event) => self.handle_event(stats_event),
+                        Some(stats_event) => self.stats.handle_event(stats_event),
                         None => {
                             log::trace!("StatisticsControl: shutting down due to closed stats channel");
                             break;
                         }
                 },
                 _ = snapshot_interval.tick() => {
-                    for (_, stats) in self.stats.as_mut() {
-                        stats.snapshot();
-                    }
+                    self.stats.snapshot();
                 }
                 _ = report_interval.tick() => {
                     self.report_stats().await;
@@ -214,25 +123,6 @@ impl StatisticsControl {
             }
         }
         log::debug!("StatisticsControl: Exiting");
-    }
-
-    fn handle_event(&mut self, stats_event: nym_statistics_common::clients::ClientStatsEvents) {
-        let event_type = stats_event.metrics_type();
-        log::trace!("StatisticsControl: Received stats event ");
-        let mut found = false;
-        for (ident, stats) in self.stats.as_mut() {
-            if ident == &event_type {
-                stats.handle_event(stats_event);
-                found = true;
-                break;
-            }
-        }
-        if !found {
-            log::warn!(
-                "received event for unregistered metrics type: {:?}",
-                event_type
-            );
-        }
     }
 
     pub(crate) fn start_with_shutdown(mut self, task_client: nym_task::TaskClient) {

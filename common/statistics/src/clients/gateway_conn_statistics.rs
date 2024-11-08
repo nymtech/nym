@@ -6,12 +6,16 @@ use super::ClientStatsEvents;
 use std::collections::VecDeque;
 
 use nym_metrics::{inc, inc_by};
+use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug, Clone)]
-struct GatewayStats {
+#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+pub(crate) struct GatewayStats {
     // Sent
     real_packets_sent: u64,
     real_packets_sent_size: usize,
+
+    /// failed connection statistics
+    failures: VecDeque<()>, // TODO
 }
 
 impl GatewayStats {
@@ -52,47 +56,22 @@ pub enum GatewayStatsEvent {
 pub struct GatewayStatsControl {
     // Keep track of packet statistics over time
     stats: GatewayStats,
-
-    /// failed connection statistics
-    failures: VecDeque<()>, // TODO
-}
-
-impl super::ClientStatsObj for GatewayStatsControl {
-    fn type_identity(&self) -> super::ClientStatsType {
-        super::ClientStatsType::Gateway
-    }
-
-    fn handle_event(&mut self, event: ClientStatsEvents) {
-        match event {
-            ClientStatsEvents::GatewayConn(ev) => self.stats.handle(ev),
-            _ => log::error!("Received unusable event: {:?}", event.metrics_type()),
-        }
-    }
-
-    fn snapshot(&mut self) {
-        // pass
-    }
-
-    fn periodic_reset(&mut self) {
-        self.stats = GatewayStats::default();
-    }
-}
-
-impl super::StatisticsReporter for GatewayStatsControl {
-    fn marshall(&self) -> std::io::Result<String> {
-        self.check_for_notable_events();
-        self.report_counters();
-        Ok(format!("{:?} {:?}", self.stats, self.failures))
-    }
 }
 
 impl GatewayStatsControl {
+    pub(crate) fn handle_event(&mut self, event: GatewayStatsEvent) {
+        self.stats.handle(event)
+    }
+
+    pub(crate) fn report(&self) -> GatewayStats {
+        self.report_counters();
+        self.stats.clone()
+    }
+
     fn report_counters(&self) {
         log::trace!("packet statistics: {:?}", &self.stats);
         let (summary_sent, summary_recv) = self.stats.summary();
         log::debug!("{}", summary_sent);
         log::debug!("{}", summary_recv);
     }
-
-    fn check_for_notable_events(&self) {}
 }

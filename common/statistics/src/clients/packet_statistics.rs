@@ -407,7 +407,7 @@ impl PacketStatisticsControl {
         self.stats.clone()
     }
 
-    pub(crate) fn task_client_report(&mut self, task_client: &mut nym_task::TaskClient) {
+    pub(crate) fn local_report(&mut self, task_client: &mut nym_task::TaskClient) {
         let rates = self.report_rates();
         self.check_for_notable_events();
         self.report_counters();

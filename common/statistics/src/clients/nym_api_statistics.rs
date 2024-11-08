@@ -67,8 +67,11 @@ impl NymApiStatsControl {
     }
 
     pub(crate) fn report(&self) -> NymApiStats {
-        self.report_counters();
         self.stats.clone()
+    }
+
+    pub(crate) fn local_report(&self) {
+        self.report_counters();
     }
 
     fn report_counters(&self) {

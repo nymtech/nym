@@ -12,6 +12,10 @@ license.workspace = true
 [dependencies]
 futures = { workspace = true }
 log = { workspace = true }
+os_info = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true }
 

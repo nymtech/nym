@@ -1,10 +1,18 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+#![warn(clippy::expect_used)]
+#![warn(clippy::unwrap_used)]
+#![warn(clippy::todo)]
+#![warn(clippy::dbg_macro)]
+
 use std::time::Duration;
 
 use nym_sphinx::addressing::Recipient;
-use nym_statistics_common::clients::{ClientStatsEvent, ClientStatsReceiver, ClientStatsReporter};
+use nym_statistics_common::{
+    clients::{ClientStatsEvent, ClientStatsReceiver, ClientStatsReporter},
+    report::ClientStatsReport,
+};
 use nym_task::connections::TransmissionLane;
 
 use crate::spawn_future;
@@ -23,6 +31,8 @@ pub(crate) struct StatisticsControl {
 
     //channel to send stats report through the mixnet
     report_tx: InputMessageSender,
+
+    stats_report: ClientStatsReport,
 }
 
 impl StatisticsControl {
@@ -36,25 +46,31 @@ impl StatisticsControl {
                 stats_rx,
                 reporting_address,
                 report_tx,
+                stats_report: Default::default(),
             },
             ClientStatsReporter::new(stats_tx),
         )
     }
 
-    fn handle_event(&mut self, event: ClientStatsEvent) {
-        todo!()
+    fn handle_event(&mut self, _event: ClientStatsEvent) {
+        unimplemented!("No supported events for now");
     }
-    async fn report_stats(&self) {
-        let report_message = InputMessage::new_regular(
-            self.reporting_address,
-            "StatsReport".as_bytes().to_vec(),
-            TransmissionLane::General,
-            None,
-        );
-        self.report_tx
-            .send(report_message)
-            .await
-            .unwrap_or_else(|err| log::error!("Failed to report client stat: {:?}", err));
+    async fn report_stats(&mut self) {
+        if let Ok(report_bytes) = self.stats_report.clone().try_into() {
+            let report_message = InputMessage::new_regular(
+                self.reporting_address,
+                report_bytes,
+                TransmissionLane::General,
+                None,
+            );
+            if let Err(err) = self.report_tx.send(report_message).await {
+                log::error!("Failed to report client stats: {:?}", err);
+            } else {
+                self.stats_report = Default::default();
+            }
+        } else {
+            log::error!("Failed to serialize stats report. This should never happen");
+        }
     }
 
     pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {

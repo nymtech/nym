@@ -1,8 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use std::time::Duration;
-
 pub type ClientStatsReceiver = tokio::sync::mpsc::UnboundedReceiver<ClientStatsEvent>;
 
 #[derive(Clone)]
@@ -24,8 +22,4 @@ impl ClientStatsReporter {
 
 pub enum ClientStatsEvent {
     //SW TODO this enum is WIP
-    Connection {
-        gateway_id: String,
-        duration: Duration,
-    },
 }

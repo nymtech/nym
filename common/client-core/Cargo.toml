@@ -116,7 +116,6 @@ features = ["wasm-bindgen"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
-pretty_env_logger = { workspace = true}
 
 [features]
 default = []

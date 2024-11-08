@@ -19,8 +19,9 @@
 use std::time::Duration;
 
 use nym_sphinx::addressing::Recipient;
-use nym_statistics_common::clients::{
-    ClientStatsController, ClientStatsReceiver, ClientStatsSender,
+use nym_statistics_common::{
+    clients::{ClientStatsController, ClientStatsReceiver, ClientStatsSender},
+    StatsReportingConfig,
 };
 use nym_task::connections::TransmissionLane;
 
@@ -53,13 +54,14 @@ pub(crate) struct StatisticsControl {
 }
 
 impl StatisticsControl {
-    pub(crate) fn new(
-        reporting_address: Recipient,
+    pub(crate) fn create(
+        reporting_config: StatsReportingConfig,
         client_stats_id: String,
-        client_type: String,
         report_tx: InputMessageSender,
     ) -> (Self, ClientStatsSender) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
+        let client_type = reporting_config.reporting_type;
+        let reporting_address = reporting_config.reporting_address;
 
         let stats = ClientStatsController::new(client_stats_id, client_type);
 
@@ -70,7 +72,7 @@ impl StatisticsControl {
                 reporting_address,
                 report_tx,
             },
-            ClientStatsSender::new(stats_tx),
+            ClientStatsSender::new(Some(stats_tx)),
         )
     }
 
@@ -94,7 +96,7 @@ impl StatisticsControl {
         }
     }
 
-    pub(crate) async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
+    async fn run_with_shutdown(&mut self, mut shutdown: nym_task::TaskClient) {
         log::debug!("Started StatisticsControl with graceful shutdown support");
 
         let report_interval = Duration::from_secs(STATS_REPORT_INTERVAL_SECS);
@@ -131,44 +133,20 @@ impl StatisticsControl {
             self.run_with_shutdown(task_client).await;
         })
     }
-}
 
-#[cfg(test)]
-mod test {
-    // use std::sync::Arc;
-    // use tokio::sync::Mutex;
-
-    // use super::*;
-    // use nym_statistics_common::clients::gateway_conn_statistics::GatewayStatsEvent;
-    // use nym_statistics_common::clients::nym_api_statistics::NymApiStatsEvent;
-    // use nym_statistics_common::clients::packet_statistics::PacketStatisticsEvent;
-
-    // Disabled #[tokio::test]
-    // async fn test_metrics_controller() {
-    //     let _ = pretty_env_logger::try_init();
-    //     let (shutdown_tx, shutdown_rx) = tokio::sync::oneshot::channel();
-
-    //     let (metrics_controller, metrics_sender) = StatisticsControl::new();
-    //     let m = Arc::new(Mutex::new(metrics_controller));
-    //     let m1 = Arc::clone(&m);
-    //     tokio::spawn(async move {
-    //         let mut mc = m1.lock().await;
-    //         mc.run_with_shutdown(nym_task::TaskClient::dummy()).await;
-    //         shutdown_tx.send(()).unwrap();
-    //     });
-
-    //     for _ in 0..10 {
-    //         metrics_sender.report(StatsEvents::PacketStatistics(
-    //             PacketStatisticsEvent::RealPacketSent(1),
-    //         ));
-    //         metrics_sender.report(StatsEvents::GatewayConn(GatewayStatsEvent::RealPacketSent(
-    //             2,
-    //         )));
-    //         metrics_sender.report(StatsEvents::NymApi(NymApiStatsEvent::RealPacketSent(3)));
-    //         tokio::time::sleep(Duration::from_millis(500)).await;
-    //     }
-
-    //     drop(metrics_sender);
-    //     shutdown_rx.await.unwrap();
-    // }
+    pub(crate) fn create_and_start_with_shutdown(
+        reporting_config: Option<StatsReportingConfig>,
+        client_stats_id: String,
+        report_tx: InputMessageSender,
+        task_client: nym_task::TaskClient,
+    ) -> ClientStatsSender {
+        match reporting_config {
+            None => ClientStatsSender::new(None),
+            Some(cfg) => {
+                let (controller, sender) = Self::create(cfg, client_stats_id, report_tx);
+                controller.start_with_shutdown(task_client);
+                sender
+            }
+        }
+    }
 }

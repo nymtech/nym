@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::report::ClientStatsReport;
-use nym_task::spawn;
 
 use time::OffsetDateTime;
 use tokio::sync::mpsc::UnboundedSender;
@@ -22,47 +21,22 @@ pub type ClientStatsReceiver = tokio::sync::mpsc::UnboundedReceiver<ClientStatsE
 /// Channel allowing generic statistics events to be reported to a stats event aggregator
 #[derive(Clone)]
 pub struct ClientStatsSender {
-    stats_tx: UnboundedSender<ClientStatsEvents>,
+    stats_tx: Option<UnboundedSender<ClientStatsEvents>>,
 }
 
 impl ClientStatsSender {
     /// Create a new statistics Sender
-    pub fn new(stats_tx: UnboundedSender<ClientStatsEvents>) -> Self {
+    pub fn new(stats_tx: Option<UnboundedSender<ClientStatsEvents>>) -> Self {
         ClientStatsSender { stats_tx }
     }
 
     /// Report a statistics event using the sender.
-    pub fn report(&self, event: ClientStatsEvents) {
-        if let Err(err) = self.stats_tx.send(event) {
-            log::error!("Failed to send stats event: {:?}", err);
-        }
-    }
-
-    /// Used when stats reporting is disabled -- reads all incoming messages and discards them
-    pub fn sink(mut shutdown: nym_task::TaskClient) -> Self {
-        let (stats_tx, mut rx) = tokio::sync::mpsc::unbounded_channel();
-
-        //let's not propagate a shutdown if we happen to error out while doing the blackhole
-        shutdown.disarm();
-
-        spawn(async move {
-            loop {
-                tokio::select! {
-                    m = rx.recv() => {
-                        if m.is_none() {
-                            log::trace!("StatisticsSink: channel closed shutting down");
-                            break;
-                        }
-                    },
-                    _ = shutdown.recv_with_delay() => {
-                        log::trace!("StatisticsSink: Received shutdown");
-                        break;
-                    },
-                }
+    pub fn report(&mut self, event: ClientStatsEvents) {
+        if let Some(tx) = self.stats_tx.as_mut() {
+            if let Err(err) = tx.send(event) {
+                log::error!("Failed to send stats event: {:?}", err);
             }
-            log::debug!("StatsSink: Exited");
-        });
-        Self { stats_tx }
+        }
     }
 }
 

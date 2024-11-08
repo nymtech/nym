@@ -14,7 +14,7 @@ nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-rep
 # static var macro
 lazy_static = "1.5.0"
 # error handling
-anyhow = "1.0.90"
+anyhow = "1.0.93"
 # base58 en/decoding
 bs58 = "0.5.0"
 # UDL test

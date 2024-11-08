@@ -20,7 +20,7 @@ nym-ffi-shared = { path = "../shared" }
 tokio = { version = "1", features = ["full"] }
 lazy_static = "1.5.0"
 # error handling
-anyhow = "1.0.90"
+anyhow = "1.0.93"
 thiserror = "1.0.64"
 
 [build-dependencies]

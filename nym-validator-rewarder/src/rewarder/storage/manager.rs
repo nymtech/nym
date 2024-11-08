@@ -30,7 +30,7 @@ impl StorageManager {
     ) -> Result<Option<Date>, sqlx::Error> {
         Ok(sqlx::query!(
             r#"
-                SELECT expiration_date
+                SELECT expiration_date as "expiration_date: Date"
                 FROM ticketbook_issuance_epoch
                 ORDER BY expiration_date DESC
                 LIMIT 1

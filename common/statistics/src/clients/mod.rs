@@ -78,6 +78,7 @@ pub struct ClientStatsController {
     //static infos
     last_update_time: OffsetDateTime,
     client_id: String,
+    client_type: String,
     os_information: os_info::Info,
 
     // stats collection modules
@@ -88,12 +89,13 @@ pub struct ClientStatsController {
 
 impl ClientStatsController {
     /// Creates a ClientStatsController given a client_id
-    pub fn new(client_id: String) -> Self {
+    pub fn new(client_id: String, client_type: String) -> Self {
         ClientStatsController {
             //Safety : 0 is always a valid number of seconds
             #[allow(clippy::unwrap_used)]
             last_update_time: OffsetDateTime::now_utc().replace_second(0).unwrap(), // allow a bigger anonymity set wrt
             client_id,
+            client_type,
             os_information: os_info::get(),
             packet_stats: Default::default(),
             gateway_conn_stats: Default::default(),
@@ -105,6 +107,7 @@ impl ClientStatsController {
         ClientStatsReport {
             last_update_time: self.last_update_time,
             client_id: self.client_id.clone(),
+            client_type: self.client_type.clone(),
             os_information: self.os_information.clone(),
             packet_stats: self.packet_stats.report(),
             gateway_conn_stats: self.gateway_conn_stats.report(),

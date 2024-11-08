@@ -54,7 +54,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_shutdown: Option<TaskClient>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
-    stats_reporting_address: Option<Recipient>,
+    stats_reporting_config: Option<nym_statistics_common::StatsReportingConfig>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -94,7 +94,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             custom_gateway_transceiver: None,
             force_tls: false,
             user_agent: None,
-            stats_reporting_address: None,
+            stats_reporting_config: None,
         })
     }
 }
@@ -122,7 +122,7 @@ where
             custom_shutdown: None,
             force_tls: false,
             user_agent: None,
-            stats_reporting_address: None,
+            stats_reporting_config: None,
             gateway_endpoint_config_path: None,
             storage,
         }
@@ -141,7 +141,7 @@ where
             custom_shutdown: self.custom_shutdown,
             force_tls: self.force_tls,
             user_agent: self.user_agent,
-            stats_reporting_address: self.stats_reporting_address,
+            stats_reporting_config: self.stats_reporting_config,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
         }
@@ -236,8 +236,11 @@ where
     }
 
     #[must_use]
-    pub fn with_statistics_reporting(mut self, address: Recipient) -> Self {
-        self.stats_reporting_address = Some(address);
+    pub fn with_statistics_reporting(
+        mut self,
+        config: nym_statistics_common::StatsReportingConfig,
+    ) -> Self {
+        self.stats_reporting_config = Some(config);
         self
     }
 
@@ -269,7 +272,7 @@ where
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
         client.user_agent = self.user_agent;
-        client.stats_reporting_address = self.stats_reporting_address;
+        client.stats_reporting_config = self.stats_reporting_config;
 
         Ok(client)
     }
@@ -320,7 +323,7 @@ where
 
     user_agent: Option<UserAgent>,
 
-    stats_reporting_address: Option<Recipient>,
+    stats_reporting_config: Option<nym_statistics_common::StatsReportingConfig>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -370,7 +373,7 @@ where
             force_tls: false,
             custom_shutdown: None,
             user_agent: None,
-            stats_reporting_address: None,
+            stats_reporting_config: None,
         })
     }
 
@@ -591,8 +594,8 @@ where
             base_builder = base_builder.with_user_agent(user_agent);
         }
 
-        if let Some(stats_reporting_address) = self.stats_reporting_address {
-            base_builder = base_builder.with_statistics_reporting(stats_reporting_address);
+        if let Some(stats_reporting_config) = self.stats_reporting_config {
+            base_builder = base_builder.with_statistics_reporting(stats_reporting_config);
         }
 
         if let Some(topology_provider) = self.custom_topology_provider {

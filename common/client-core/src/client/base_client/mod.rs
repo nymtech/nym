@@ -49,6 +49,7 @@ use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_statistics_common::clients::ClientStatsSender;
+use nym_statistics_common::StatsReportingConfig;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
@@ -186,7 +187,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<TaskClient>,
     user_agent: Option<UserAgent>,
-    stats_reporting_address: Option<Recipient>,
+    stats_reporting_config: Option<StatsReportingConfig>,
 
     setup_method: GatewaySetup,
 }
@@ -210,7 +211,7 @@ where
             custom_gateway_transceiver: None,
             shutdown: None,
             user_agent: None,
-            stats_reporting_address: None,
+            stats_reporting_config: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
         }
     }
@@ -255,8 +256,8 @@ where
     }
 
     #[must_use]
-    pub fn with_statistics_reporting(mut self, address: Recipient) -> Self {
-        self.stats_reporting_address = Some(address);
+    pub fn with_statistics_reporting(mut self, config: StatsReportingConfig) -> Self {
+        self.stats_reporting_config = Some(config);
         self
     }
 
@@ -597,17 +598,18 @@ where
     }
 
     fn start_statistics_control(
-        stats_reporting_address: Option<Recipient>,
+        stats_reporting_config: Option<StatsReportingConfig>,
         client_stats_id: String,
         input_sender: Sender<InputMessage>,
         shutdown: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting packet statistics control...");
-        match stats_reporting_address {
-            Some(reporting_address) => {
+        match stats_reporting_config {
+            Some(config) => {
                 let (stats_control, stats_reporter) = StatisticsControl::new(
-                    reporting_address,
+                    config.reporting_address,
                     client_stats_id,
+                    config.reporting_type,
                     input_sender.clone(),
                 );
                 stats_control.start_with_shutdown(shutdown.with_suffix("controller"));
@@ -749,7 +751,7 @@ where
             sha2::Sha256::digest(self_address.identity().to_bytes())
         );
         let stats_reporter = Self::start_statistics_control(
-            self.stats_reporting_address,
+            self.stats_reporting_config,
             client_stats_id,
             input_sender.clone(),
             shutdown.fork("statistics_control"),

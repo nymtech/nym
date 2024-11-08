@@ -30,8 +30,7 @@ use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_credentials_interface::TicketType;
 use nym_socks5_client_core::config::Socks5;
-use nym_task::manager::TaskStatus;
-use nym_task::{TaskClient, TaskHandle};
+use nym_task::{TaskClient, TaskHandle, TaskStatus};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
@@ -655,6 +654,7 @@ where
                 .next()
                 .await
                 .ok_or(Error::Socks5NotStarted)?
+                .as_any()
                 .downcast_ref::<TaskStatus>()
                 .ok_or(Error::Socks5NotStarted)?
             {

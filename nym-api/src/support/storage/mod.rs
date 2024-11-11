@@ -326,6 +326,7 @@ impl NymApiStorage {
         Ok(reliability)
     }
 
+    #[allow(unused)]
     pub(crate) async fn get_average_mixnode_uptime_in_the_last_24hrs(
         &self,
         node_id: NodeId,
@@ -336,6 +337,7 @@ impl NymApiStorage {
             .map(Uptime::new)
     }
 
+    #[allow(unused)]
     pub(crate) async fn get_average_gateway_uptime_in_the_last_24hrs(
         &self,
         node_id: NodeId,

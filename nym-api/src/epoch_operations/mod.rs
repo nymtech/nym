@@ -100,7 +100,7 @@ impl EpochAdvancer {
     // /// 7. it purges old (older than 48h) measurement data
     // /// 8. the whole process repeats once the new epoch finishes
     async fn perform_epoch_operations(&mut self, interval: Interval) -> Result<(), RewardingError> {
-        let mut rewards = self.nodes_to_reward(interval).await?;
+        let mut rewards = self.nodes_to_reward().await?;
         rewards.sort_by_key(|a| a.node_id);
 
         info!("The current epoch has finished.");

@@ -72,7 +72,6 @@ impl EpochAdvancer {
 
     pub(crate) async fn nodes_to_reward(
         &self,
-        interval: Interval,
     ) -> Result<Vec<RewardedNodeWithParams>, RewardingError> {
         // try to get current up-to-date view of the network bypassing the cache
         // in case the epochs were significantly shortened for the purposes of testing
@@ -101,7 +100,7 @@ impl EpochAdvancer {
         };
 
         Ok(self
-            .load_nodes_for_rewarding(&interval, &rewarded_set, reward_params)
+            .load_nodes_for_rewarding(&rewarded_set, reward_params)
             .await)
     }
 }

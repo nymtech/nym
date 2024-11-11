@@ -49,7 +49,6 @@ use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_statistics_common::clients::ClientStatsSender;
-use nym_statistics_common::StatsReportingConfig;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
@@ -187,7 +186,6 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<TaskClient>,
     user_agent: Option<UserAgent>,
-    stats_reporting_config: Option<StatsReportingConfig>,
 
     setup_method: GatewaySetup,
 }
@@ -211,7 +209,6 @@ where
             custom_gateway_transceiver: None,
             shutdown: None,
             user_agent: None,
-            stats_reporting_config: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
         }
     }
@@ -255,11 +252,11 @@ where
         self
     }
 
-    #[must_use]
-    pub fn with_statistics_reporting(mut self, config: StatsReportingConfig) -> Self {
-        self.stats_reporting_config = Some(config);
-        self
-    }
+    // #[must_use]
+    // pub fn with_statistics_reporting(mut self, config: StatsReporting) -> Self {
+    //     self.config.debug.stats_reporting = config;
+    //     self
+    // }
 
     pub fn with_stored_topology<P: AsRef<Path>>(
         mut self,
@@ -599,15 +596,17 @@ where
 
     fn start_statistics_control(
         config: &Config,
-        stats_reporting_config: Option<StatsReportingConfig>,
+        user_agent: Option<UserAgent>,
         client_stats_id: String,
         input_sender: Sender<InputMessage>,
         shutdown: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting statistics control...");
         StatisticsControl::create_and_start_with_shutdown(
-            stats_reporting_config,
-            config.debug.stats_reporting.reporting_interval,
+            config.debug.stats_reporting,
+            user_agent
+                .map(|u| u.application)
+                .unwrap_or("unknown".to_string()),
             client_stats_id,
             input_sender.clone(),
             shutdown.with_suffix("controller"),
@@ -747,7 +746,7 @@ where
         );
         let stats_reporter = Self::start_statistics_control(
             self.config,
-            self.stats_reporting_config,
+            self.user_agent.clone(),
             client_stats_id,
             input_sender.clone(),
             shutdown.fork("statistics_control"),

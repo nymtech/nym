@@ -18,10 +18,10 @@
 
 use std::time::Duration;
 
+use nym_client_core_config_types::StatsReporting;
 use nym_sphinx::addressing::Recipient;
-use nym_statistics_common::{
-    clients::{ClientStatsController, ClientStatsReceiver, ClientStatsSender},
-    StatsReportingConfig,
+use nym_statistics_common::clients::{
+    ClientStatsController, ClientStatsReceiver, ClientStatsSender,
 };
 use nym_task::connections::TransmissionLane;
 
@@ -49,25 +49,18 @@ pub(crate) struct StatisticsControl {
     /// Channel to send stats report through the mixnet
     report_tx: InputMessageSender,
 
-    /// Service-provider address to send stats reports
-    reporting_address: Option<Recipient>,
-
-    /// Interval to report to `reporting_address`
-    reporting_interval: Duration,
+    /// Config for stats reporting (enabled, address, interval)
+    reporting_config: StatsReporting,
 }
 
 impl StatisticsControl {
     pub(crate) fn create(
-        reporting_config: Option<StatsReportingConfig>,
-        reporting_interval: Duration,
+        reporting_config: StatsReporting,
+        client_type: String,
         client_stats_id: String,
         report_tx: InputMessageSender,
     ) -> (Self, ClientStatsSender) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
-        let (reporting_address, client_type) = match reporting_config {
-            Some(cfg) => (Some(cfg.reporting_address), cfg.reporting_type),
-            None => (None, "".into()),
-        };
 
         let stats = ClientStatsController::new(client_stats_id, client_type);
 
@@ -75,9 +68,8 @@ impl StatisticsControl {
             StatisticsControl {
                 stats,
                 stats_rx,
-                reporting_address,
-                reporting_interval,
                 report_tx,
+                reporting_config,
             },
             ClientStatsSender::new(Some(stats_tx)),
         )
@@ -102,7 +94,8 @@ impl StatisticsControl {
     async fn run_with_shutdown(&mut self, mut task_client: nym_task::TaskClient) {
         log::debug!("Started StatisticsControl with graceful shutdown support");
 
-        let mut stats_report_interval = tokio::time::interval(self.reporting_interval);
+        let mut stats_report_interval =
+            tokio::time::interval(self.reporting_config.reporting_interval);
         let mut local_report_interval = tokio::time::interval(LOCAL_REPORT_INTERVAL);
         let mut snapshot_interval = tokio::time::interval(SNAPSHOT_INTERVAL);
 
@@ -118,10 +111,10 @@ impl StatisticsControl {
                 _ = snapshot_interval.tick() => {
                     self.stats.snapshot();
                 }
-                _ = stats_report_interval.tick(), if self.reporting_address.is_some() => {
+                _ = stats_report_interval.tick(), if self.reporting_config.enabled && self.reporting_config.provider_address.is_some() => {
                     // SAFTEY : this branch executes only if reporting is not none, so unwrapp is fine
                     #[allow(clippy::unwrap_used)]
-                    self.report_stats(self.reporting_address.unwrap()).await;
+                    self.report_stats(self.reporting_config.provider_address.unwrap()).await;
                 }
 
                 _ = local_report_interval.tick() => {
@@ -144,18 +137,14 @@ impl StatisticsControl {
     }
 
     pub(crate) fn create_and_start_with_shutdown(
-        reporting_config: Option<StatsReportingConfig>,
-        reporting_interval: Duration,
+        reporting_config: StatsReporting,
+        client_type: String,
         client_stats_id: String,
         report_tx: InputMessageSender,
         task_client: nym_task::TaskClient,
     ) -> ClientStatsSender {
-        let (controller, sender) = Self::create(
-            reporting_config,
-            reporting_interval,
-            client_stats_id,
-            report_tx,
-        );
+        let (controller, sender) =
+            Self::create(reporting_config, client_type, client_stats_id, report_tx);
         controller.start_with_shutdown(task_client);
         sender
     }

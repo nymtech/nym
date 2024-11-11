@@ -3,12 +3,14 @@
 
 use crate::nym_contract_cache::cache::data::CachedContractsInfo;
 use crate::support::caching::Cache;
-use data::ValidatorCacheData;
+use data::ContractCacheData;
 use nym_api_requests::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
 use nym_api_requests::models::MixnodeStatus;
-use nym_mixnet_contract_common::{Interval, NodeId, NymNodeDetails, RewardedSet, RewardingParams};
+use nym_mixnet_contract_common::{
+    ConfigScoreParams, Interval, NodeId, NymNodeDetails, RewardedSet, RewardingParams,
+};
 use std::{
     collections::HashSet,
     sync::{
@@ -31,21 +33,21 @@ const CACHE_TIMEOUT_MS: u64 = 100;
 #[derive(Clone)]
 pub struct NymContractCache {
     pub(crate) initialised: Arc<AtomicBool>,
-    pub(crate) inner: Arc<RwLock<ValidatorCacheData>>,
+    pub(crate) inner: Arc<RwLock<ContractCacheData>>,
 }
 
 impl NymContractCache {
     pub(crate) fn new() -> Self {
         NymContractCache {
             initialised: Arc::new(AtomicBool::new(false)),
-            inner: Arc::new(RwLock::new(ValidatorCacheData::new())),
+            inner: Arc::new(RwLock::new(ContractCacheData::new())),
         }
     }
 
     /// Returns a copy of the current cache data.
     async fn get_owned<T>(
         &self,
-        fn_arg: impl FnOnce(RwLockReadGuard<'_, ValidatorCacheData>) -> Cache<T>,
+        fn_arg: impl FnOnce(RwLockReadGuard<'_, ContractCacheData>) -> Cache<T>,
     ) -> Option<Cache<T>> {
         match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.read()).await {
             Ok(cache) => Some(fn_arg(cache)),
@@ -58,7 +60,7 @@ impl NymContractCache {
 
     async fn get<'a, T: 'a>(
         &'a self,
-        fn_arg: impl FnOnce(&ValidatorCacheData) -> &Cache<T>,
+        fn_arg: impl FnOnce(&ContractCacheData) -> &Cache<T>,
     ) -> Option<RwLockReadGuard<'a, Cache<T>>> {
         match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.read()).await {
             Ok(cache) => Some(RwLockReadGuard::map(cache, |item| fn_arg(item))),
@@ -76,6 +78,7 @@ impl NymContractCache {
         gateways: Vec<LegacyGatewayBondWithId>,
         nym_nodes: Vec<NymNodeDetails>,
         rewarded_set: RewardedSet,
+        config_score_params: ConfigScoreParams,
         rewarding_params: RewardingParams,
         current_interval: Interval,
         nym_contracts_info: CachedContractsInfo,
@@ -86,6 +89,9 @@ impl NymContractCache {
                 cache.legacy_gateways.unchecked_update(gateways);
                 cache.nym_nodes.unchecked_update(nym_nodes);
                 cache.rewarded_set.unchecked_update(rewarded_set);
+                cache
+                    .config_score_params
+                    .unchecked_update(config_score_params);
                 cache
                     .current_reward_params
                     .unchecked_update(Some(rewarding_params));
@@ -265,6 +271,12 @@ impl NymContractCache {
 
     pub async fn rewarded_set_owned(&self) -> Cache<CachedRewardedSet> {
         self.get_owned(|cache| cache.rewarded_set.clone_cache())
+            .await
+            .unwrap_or_default()
+    }
+
+    pub async fn config_score_params(&self) -> Cache<Option<ConfigScoreParams>> {
+        self.get_owned(|cache| cache.config_score_params.clone_cache())
             .await
             .unwrap_or_default()
     }

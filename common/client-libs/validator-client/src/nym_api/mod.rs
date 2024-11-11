@@ -28,10 +28,10 @@ pub use nym_api_requests::{
     },
     models::{
         ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
-        GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
-        LegacyDescribedGateway, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
-        MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
-        RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+        GatewayStatusReportResponse, GatewayUptimeHistoryResponse, LegacyDescribedGateway,
+        MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
+        MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
+        StakeSaturationResponse, UptimeResponse,
     },
     nym_nodes::{CachedNodesResponse, SkimmedNode},
 };
@@ -673,11 +673,12 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[allow(deprecated)]
     #[instrument(level = "debug", skip(self))]
     async fn get_mixnode_inclusion_probability(
         &self,
         mix_id: NodeId,
-    ) -> Result<InclusionProbabilityResponse, NymAPIError> {
+    ) -> Result<nym_api_requests::models::InclusionProbabilityResponse, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,

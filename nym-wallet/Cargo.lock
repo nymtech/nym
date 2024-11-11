@@ -3077,6 +3077,7 @@ dependencies = [
  "ecdsa",
  "getset",
  "nym-compact-ecash",
+ "nym-contracts-common",
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-time",

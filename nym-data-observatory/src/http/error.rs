@@ -6,13 +6,6 @@ pub(crate) struct Error {
 }
 
 impl Error {
-    pub(crate) fn not_found(message: String) -> Self {
-        Self {
-            message,
-            status: axum::http::StatusCode::NOT_FOUND,
-        }
-    }
-
     pub(crate) fn internal() -> Self {
         Self {
             message: String::from("Internal server error"),

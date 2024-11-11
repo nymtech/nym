@@ -237,6 +237,58 @@ impl StorageManager {
             Ok(-1)
         }
     }
+
+    #[allow(dead_code)]
+    pub async fn get_transactions_after_height(
+        &self,
+        min_height: i64,
+        message_type: Option<&str>,
+    ) -> Result<Vec<TransactionWithBlock>, sqlx::Error> {
+        match message_type {
+            Some(msg_type) => {
+                sqlx::query_as!(
+                    TransactionWithBlock,
+                    r#"
+                    SELECT t.hash, t.height, t.memo, t.raw_log
+                    FROM message m
+                    JOIN "transaction" t ON m.transaction_hash = t.hash
+                    JOIN block b ON t.height = b.height
+                    WHERE t.height > ?
+                    AND m.type = ?
+                    ORDER BY t.height ASC
+                    "#,
+                    min_height,
+                    msg_type
+                )
+                .fetch_all(&self.connection_pool)
+                .await
+            }
+            None => {
+                sqlx::query_as!(
+                    TransactionWithBlock,
+                    r#"
+                    SELECT t.hash, t.height, t.memo, t.raw_log
+                    FROM message m
+                    JOIN "transaction" t ON m.transaction_hash = t.hash
+                    JOIN block b ON t.height = b.height
+                    WHERE t.height > ?
+                    ORDER BY t.height ASC
+                    "#,
+                    min_height
+                )
+                .fetch_all(&self.connection_pool)
+                .await
+            }
+        }
+    }
+}
+
+#[derive(Debug, sqlx::FromRow)]
+pub struct TransactionWithBlock {
+    pub hash: String,
+    pub height: i64,
+    pub memo: Option<String>,
+    pub raw_log: Option<String>,
 }
 
 // make those generic over executor so that they could be performed over connection pool and a tx

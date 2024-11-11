@@ -1,22 +1,41 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-use crate::background_task::Response;
-
-#[derive(Serialize, Deserialize, Debug, ToSchema)]
-pub(crate) struct JokeDto {
-    pub(crate) joke_id: String,
-    pub(crate) joke: String,
-    pub(crate) date_created: i32,
+#[derive(Clone, Deserialize, Debug)]
+pub(crate) struct CurrencyPrices {
+    pub(crate) chf: f32,
+    pub(crate) usd: f32,
+    pub(crate) eur: f32,
+    pub(crate) btc: f32,
 }
 
-impl From<Response> for JokeDto {
-    fn from(value: Response) -> Self {
-        Self {
-            joke_id: value.joke_id,
-            joke: value.joke,
-            // casting not smart, can implicitly panic, don't do this in prod
-            date_created: chrono::offset::Utc::now().timestamp() as i32,
-        }
-    }
+// Struct to hold Coingecko response
+#[derive(Clone, Deserialize, Debug, ToSchema)]
+pub(crate) struct CoingeckoPriceResponse {
+    pub(crate) nym: CurrencyPrices,
+}
+
+#[derive(Clone, Deserialize, Debug, ToSchema)]
+pub(crate) struct PriceRecord {
+    pub(crate) timestamp: i64,
+    pub(crate) nym: CurrencyPrices,
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub(crate) struct PriceHistory {
+    pub(crate) timestamp: i64,
+    pub(crate) chf: f32,
+    pub(crate) usd: f32,
+    pub(crate) eur: f32,
+    pub(crate) btc: f32,
+}
+
+#[derive(Serialize, Deserialize, Debug, ToSchema)]
+pub(crate) struct PaymentTransaction {
+    pub(crate) transaction_hash: String,
+    pub(crate) sender_address: String,
+    pub(crate) receiver_address: String,
+    pub(crate) amount: f64,
+    pub(crate) timestamp: i64,
+    pub(crate) height: i64,
 }

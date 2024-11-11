@@ -23,7 +23,7 @@ pub fn rewarding_validator_address(storage: &dyn Storage) -> Result<Addr, Mixnet
 pub(crate) fn minimum_node_pledge(storage: &dyn Storage) -> Result<Coin, MixnetContractError> {
     Ok(CONTRACT_STATE
         .load(storage)
-        .map(|state| state.params.minimum_pledge)?)
+        .map(|state| state.params.operators_params.minimum_pledge)?)
 }
 
 pub(crate) fn profit_margin_range(
@@ -31,7 +31,7 @@ pub(crate) fn profit_margin_range(
 ) -> Result<ProfitMarginRange, MixnetContractError> {
     Ok(CONTRACT_STATE
         .load(storage)
-        .map(|state| state.params.profit_margin)?)
+        .map(|state| state.params.operators_params.profit_margin)?)
 }
 
 pub(crate) fn interval_operating_cost_range(
@@ -39,7 +39,7 @@ pub(crate) fn interval_operating_cost_range(
 ) -> Result<OperatingCostRange, MixnetContractError> {
     Ok(CONTRACT_STATE
         .load(storage)
-        .map(|state| state.params.interval_operating_cost)?)
+        .map(|state| state.params.operators_params.interval_operating_cost)?)
 }
 
 #[allow(unused)]
@@ -48,7 +48,7 @@ pub(crate) fn minimum_delegation_stake(
 ) -> Result<Option<Coin>, MixnetContractError> {
     Ok(CONTRACT_STATE
         .load(storage)
-        .map(|state| state.params.minimum_delegation)?)
+        .map(|state| state.params.delegations_params.minimum_delegation)?)
 }
 
 pub(crate) fn rewarding_denom(storage: &dyn Storage) -> Result<String, MixnetContractError> {

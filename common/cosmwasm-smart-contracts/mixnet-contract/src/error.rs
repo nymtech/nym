@@ -166,6 +166,9 @@ pub enum MixnetContractError {
     #[error("Provided message to update rewarding params did not contain any updates")]
     EmptyParamsChangeMsg,
 
+    #[error("provided message to update state parameters did not contain any updates")]
+    EmptyStateUpdateMsg,
+
     #[error("one of the roles in the new active set is empty")]
     EmptyRoleAssignment,
 
@@ -269,6 +272,9 @@ pub enum MixnetContractError {
 
     #[error("the total work for this epoch seems to be bigger than 1.0!")]
     TotalWorkAboveOne,
+
+    #[error("the provided nym-node version is not a valid semver. got: {provided}")]
+    InvalidNymNodeSemver { provided: String },
 }
 
 impl MixnetContractError {

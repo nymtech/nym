@@ -17,7 +17,7 @@ use nym_mixnet_contract_common::reward_params::{
     ActiveSetUpdate, IntervalRewardingParamsUpdate, NodeRewardingParameters,
 };
 use nym_mixnet_contract_common::{
-    ContractStateParams, ExecuteMsg as MixnetExecuteMsg, Gateway, MixNode, NodeId, NymNode,
+    ContractStateParamsUpdate, ExecuteMsg as MixnetExecuteMsg, Gateway, MixNode, NodeId, NymNode,
     RoleAssignment,
 };
 
@@ -59,12 +59,27 @@ pub trait MixnetSigningClient {
 
     async fn update_contract_state_params(
         &self,
-        updated_parameters: ContractStateParams,
+        update: ContractStateParamsUpdate,
         fee: Option<Fee>,
     ) -> Result<ExecuteResult, NyxdError> {
         self.execute_mixnet_contract(
             fee,
-            MixnetExecuteMsg::UpdateContractStateParams { updated_parameters },
+            MixnetExecuteMsg::UpdateContractStateParams { update },
+            vec![],
+        )
+        .await
+    }
+
+    async fn update_current_nym_node_semver(
+        &self,
+        current_nym_node_semver: String,
+        fee: Option<Fee>,
+    ) -> Result<ExecuteResult, NyxdError> {
+        self.execute_mixnet_contract(
+            fee,
+            MixnetExecuteMsg::UpdateCurrentNymNodeSemver {
+                current_version: current_nym_node_semver,
+            },
             vec![],
         )
         .await
@@ -682,8 +697,11 @@ mod tests {
             MixnetExecuteMsg::UpdateRewardingValidatorAddress { address } => client
                 .update_rewarding_validator_address(address.parse().unwrap(), None)
                 .ignore(),
-            MixnetExecuteMsg::UpdateContractStateParams { updated_parameters } => client
-                .update_contract_state_params(updated_parameters, None)
+            MixnetExecuteMsg::UpdateContractStateParams { update } => {
+                client.update_contract_state_params(update, None).ignore()
+            }
+            MixnetExecuteMsg::UpdateCurrentNymNodeSemver { current_version } => client
+                .update_current_nym_node_semver(current_version, None)
                 .ignore(),
             MixnetExecuteMsg::UpdateActiveSetDistribution {
                 update,

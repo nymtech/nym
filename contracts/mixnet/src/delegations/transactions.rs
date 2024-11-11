@@ -28,7 +28,7 @@ pub(crate) fn try_delegate_to_node(
     let contract_state = mixnet_params_storage::CONTRACT_STATE.load(deps.storage)?;
     let delegation = validate_delegation_stake(
         info.funds,
-        contract_state.params.minimum_delegation,
+        contract_state.params.delegations_params.minimum_delegation,
         contract_state.rewarding_denom,
     )?;
 
@@ -180,7 +180,8 @@ mod tests {
             let mut contract_state = mixnet_params_storage::CONTRACT_STATE
                 .load(test.deps().storage)
                 .unwrap();
-            contract_state.params.minimum_delegation = Some(min_delegation.clone());
+            contract_state.params.delegations_params.minimum_delegation =
+                Some(min_delegation.clone());
             mixnet_params_storage::CONTRACT_STATE
                 .save(test.deps_mut().storage, &contract_state)
                 .unwrap();

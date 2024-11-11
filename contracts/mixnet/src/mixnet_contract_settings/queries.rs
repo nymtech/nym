@@ -37,6 +37,7 @@ pub(crate) mod tests {
     use super::*;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::{coin, Addr};
+    use mixnet_contract_common::{ConfigScoreParams, DelegationsParams, OperatorsParams};
 
     #[test]
     fn query_for_contract_settings_works() {
@@ -49,10 +50,19 @@ pub(crate) mod tests {
             vesting_contract_address: Addr::unchecked("foomp"),
             rewarding_denom: "unym".to_string(),
             params: ContractStateParams {
-                minimum_delegation: None,
-                minimum_pledge: coin(123u128, "unym"),
-                profit_margin: Default::default(),
-                interval_operating_cost: Default::default(),
+                delegations_params: DelegationsParams {
+                    minimum_delegation: None,
+                },
+                operators_params: OperatorsParams {
+                    minimum_pledge: coin(123u128, "unym"),
+                    profit_margin: Default::default(),
+                    interval_operating_cost: Default::default(),
+                },
+                config_score_params: ConfigScoreParams {
+                    current_nym_node_semver: "1.1.10".to_string(),
+                    version_weights: Default::default(),
+                    version_score_formula_params: Default::default(),
+                },
             },
         };
 

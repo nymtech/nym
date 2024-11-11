@@ -109,7 +109,10 @@ impl NetworkManager {
     ) -> Result<nym_mixnet_contract_common::MigrateMsg, NetworkManagerError> {
         Ok(nym_mixnet_contract_common::MigrateMsg {
             vesting_contract_address: Some(ctx.network.contracts.vesting.address()?.to_string()),
+            current_nym_node_semver: "irrelevant".to_string(),
+            version_score_weights: Default::default(),
             unsafe_skip_state_updates: Some(true),
+            version_score_params: Default::default(),
         })
     }
 
@@ -160,6 +163,9 @@ impl NetworkManager {
                     standby: 0,
                 },
             },
+            current_nym_node_version: "1.1.10".to_string(),
+            version_score_weights: Default::default(),
+            version_score_params: Default::default(),
             profit_margin: Default::default(),
             interval_operating_cost: Default::default(),
         })

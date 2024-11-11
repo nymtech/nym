@@ -7,9 +7,9 @@ use crate::mixnode::{MixNodeConfigUpdate, NodeCostParams};
 use crate::nym_node::Role;
 use crate::reward_params::{ActiveSetUpdate, IntervalRewardParams, IntervalRewardingParamsUpdate};
 use crate::rewarding::RewardDistribution;
-use crate::{BlockHeight, ContractStateParams, EpochId, IdentityKeyRef, Interval, NodeId};
+use crate::{BlockHeight, ContractStateParamsUpdate, EpochId, IdentityKeyRef, Interval, NodeId};
 pub use contracts_common::events::*;
-use cosmwasm_std::{Addr, Coin, Decimal, Event};
+use cosmwasm_std::{attr, Addr, Coin, Decimal, Event};
 use std::fmt::Display;
 
 pub const EVENT_VERSION_PREFIX: &str = "v2_";
@@ -45,6 +45,7 @@ pub enum MixnetEventType {
     DelegationOnUnbonding,
     Undelegation,
     ContractSettingsUpdate,
+    NymNodeSemverUpdate,
     RewardingValidatorUpdate,
     BeginEpochTransition,
     AdvanceEpoch,
@@ -97,6 +98,7 @@ impl Display for MixnetEventType {
             MixnetEventType::Delegation => "delegation",
             MixnetEventType::Undelegation => "undelegation",
             MixnetEventType::ContractSettingsUpdate => "settings_update",
+            MixnetEventType::NymNodeSemverUpdate => "nym_node_semver_update",
             MixnetEventType::RewardingValidatorUpdate => "rewarding_validator_address_update",
             MixnetEventType::BeginEpochTransition => "beginning_epoch_transition",
             MixnetEventType::AdvanceEpoch => "advance_epoch",
@@ -132,11 +134,13 @@ pub const NODE_ID_KEY: &str = "node_id";
 pub const NODE_IDENTITY_KEY: &str = "identity";
 
 // settings change
-pub const OLD_MINIMUM_PLEDGE_KEY: &str = "old_minimum_pledge";
-pub const OLD_MINIMUM_DELEGATION_KEY: &str = "old_minimum_delegation";
-
 pub const NEW_MINIMUM_PLEDGE_KEY: &str = "new_minimum_pledge";
 pub const NEW_MINIMUM_DELEGATION_KEY: &str = "new_minimum_delegation";
+pub const NEW_PROFIT_MARGIN_RANGE_KEY: &str = "new_profit_margin_range";
+pub const NEW_INTERVAL_OPERATING_COST_RANGE_KEY: &str = "new_interval_operating_cost_range";
+pub const NEW_VERSION_WEIGHTS_RANGE_KEY: &str = "new_version_weights_range";
+pub const NEW_VERSION_SCORE_FORMULA_PARAMS_KEY: &str = "new_version_score_formula_params";
+pub const NYM_NODE_CURRENT_SEMVER_KEY: &str = "new_current_semver";
 
 pub const OLD_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "old_rewarding_validator_address";
 pub const NEW_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "new_rewarding_validator_address";
@@ -440,38 +444,71 @@ pub fn new_rewarding_validator_address_update_event(old: Addr, new: Addr) -> Eve
         .add_attribute(NEW_REWARDING_VALIDATOR_ADDRESS_KEY, new)
 }
 
-pub fn new_settings_update_event(
-    old_params: &ContractStateParams,
-    new_params: &ContractStateParams,
-) -> Event {
+pub fn new_settings_update_event(update: &ContractStateParamsUpdate) -> Event {
     let mut event = Event::new(MixnetEventType::ContractSettingsUpdate);
 
-    if old_params.minimum_pledge != new_params.minimum_pledge {
-        event = event
-            .add_attribute(
-                OLD_MINIMUM_PLEDGE_KEY,
-                old_params.minimum_pledge.to_string(),
-            )
-            .add_attribute(
-                NEW_MINIMUM_PLEDGE_KEY,
-                new_params.minimum_pledge.to_string(),
-            )
+    // check for delegations params updates
+    if let Some(delegations_update) = &update.delegations_params {
+        event.attributes.push(attr(
+            NEW_MINIMUM_DELEGATION_KEY,
+            delegations_update
+                .minimum_delegation
+                .as_ref()
+                .map(|d| d.to_string())
+                .unwrap_or("empty".to_string()),
+        ));
     }
 
-    if old_params.minimum_delegation != new_params.minimum_delegation {
-        if let Some(ref old) = old_params.minimum_delegation {
-            event = event.add_attribute(OLD_MINIMUM_DELEGATION_KEY, old.to_string())
-        } else {
-            event = event.add_attribute(OLD_MINIMUM_DELEGATION_KEY, "None")
+    // check for operators params updates
+    if let Some(operators_update) = &update.operators_params {
+        if let Some(minimum_pledge) = &operators_update.minimum_pledge {
+            event
+                .attributes
+                .push(attr(NEW_MINIMUM_PLEDGE_KEY, minimum_pledge.to_string()))
         }
-        if let Some(ref new) = new_params.minimum_delegation {
-            event = event.add_attribute(NEW_MINIMUM_DELEGATION_KEY, new.to_string())
-        } else {
-            event = event.add_attribute(NEW_MINIMUM_DELEGATION_KEY, "None")
+        if let Some(profit_margin) = &operators_update.profit_margin {
+            event
+                .attributes
+                .push(attr(NEW_PROFIT_MARGIN_RANGE_KEY, profit_margin.to_string()))
+        }
+        if let Some(interval_operating_cost) = &operators_update.interval_operating_cost {
+            event.attributes.push(attr(
+                NEW_INTERVAL_OPERATING_COST_RANGE_KEY,
+                interval_operating_cost.to_string(),
+            ))
+        }
+    }
+
+    // check for config score params updates
+    if let Some(config_score_update) = &update.config_score_params {
+        if let Some(current_nym_node_semver) = &config_score_update.current_nym_node_semver {
+            event.attributes.push(attr(
+                NYM_NODE_CURRENT_SEMVER_KEY,
+                current_nym_node_semver.to_string(),
+            ))
+        }
+        if let Some(version_weights) = &config_score_update.version_weights {
+            event.attributes.push(attr(
+                NEW_VERSION_WEIGHTS_RANGE_KEY,
+                format!("{version_weights:?}"),
+            ))
+        }
+        if let Some(version_score_formula_params) =
+            &config_score_update.version_score_formula_params
+        {
+            event.attributes.push(attr(
+                NEW_VERSION_SCORE_FORMULA_PARAMS_KEY,
+                format!("{version_score_formula_params:?}"),
+            ))
         }
     }
 
     event
+}
+
+pub fn new_update_nym_node_semver_event(new_version: &str) -> Event {
+    Event::new(MixnetEventType::NymNodeSemverUpdate)
+        .add_attribute(NYM_NODE_CURRENT_SEMVER_KEY, new_version)
 }
 
 pub fn new_not_found_node_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {

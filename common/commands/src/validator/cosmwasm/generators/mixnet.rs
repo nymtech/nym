@@ -33,6 +33,9 @@ pub struct Args {
     #[clap(long)]
     pub rewarding_denom: Option<String>,
 
+    #[clap(long)]
+    pub current_nym_node_version: String,
+
     #[clap(long, default_value_t = 720)]
     pub epochs_in_interval: u32,
 
@@ -143,6 +146,9 @@ pub async fn generate(args: Args) {
         epochs_in_interval: args.epochs_in_interval,
         epoch_duration: Duration::from_secs(args.epoch_duration),
         initial_rewarding_params,
+        current_nym_node_version: args.current_nym_node_version,
+        version_score_weights: Default::default(),
+        version_score_params: Default::default(),
         profit_margin: ProfitMarginRange {
             minimum: args.minimum_profit_margin_percent,
             maximum: args.maximum_profit_margin_percent,

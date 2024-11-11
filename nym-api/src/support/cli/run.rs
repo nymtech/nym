@@ -203,16 +203,16 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     // we should be doing the below, but can't due to our current startup structure
     // let refresher = node_describe_cache::new_refresher(&config.topology_cacher);
     // let cache = refresher.get_shared_cache();
-    node_describe_cache::new_refresher_with_initial_value(
+    let describe_cache_watcher = node_describe_cache::new_refresher_with_initial_value(
         &config.topology_cacher,
         nym_contract_cache_state.clone(),
         described_nodes_cache.clone(),
     )
     .named("node-self-described-data-refresher")
-    .start(task_manager.subscribe_named("node-self-described-data-refresher"));
+    .start_with_watcher(task_manager.subscribe_named("node-self-described-data-refresher"));
 
     // start all the caches first
-    let nym_contract_cache_listener = nym_contract_cache::start_refresher(
+    let contract_cache_watcher = nym_contract_cache::start_refresher(
         &config.node_status_api,
         &nym_contract_cache_state,
         nyxd_client.clone(),
@@ -221,9 +221,11 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     node_status_api::start_cache_refresh(
         &config.node_status_api,
         &nym_contract_cache_state,
+        &described_nodes_cache,
         &node_status_cache_state,
         storage.clone(),
-        nym_contract_cache_listener,
+        contract_cache_watcher,
+        describe_cache_watcher,
         &task_manager,
     );
     circulating_supply_api::start_cache_refresh(

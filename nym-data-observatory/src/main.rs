@@ -1,11 +1,15 @@
+use chain_scraper::run_chain_scraper;
 use clap::Parser;
 use nym_network_defaults::setup_env;
 use nym_task::signal::wait_for_signal;
+use tokio::join;
 
-mod background_task;
+mod chain_scraper;
 mod db;
 mod http;
 mod logging;
+mod payment_listener;
+mod price_scraper;
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
@@ -18,25 +22,13 @@ struct Args {
     #[arg(short, long, default_value = None, env = "NYM_DATA_OBSERVATORY_ENV_FILE")]
     env_file: Option<String>,
 
-    /// DB connection username
-    #[arg(long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_USERNAME")]
-    connection_username: String,
-
-    /// DB connection password
-    #[arg(long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_PASSWORD")]
-    connection_password: String,
-
-    /// DB connection host
-    #[arg(long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_HOST")]
-    connection_host: String,
-
-    /// DB connection port
-    #[arg(long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_PORT")]
-    connection_port: String,
-
-    /// DB connection database name
-    #[arg(long, default_value = None, env = "NYM_DATA_OBSERVATORY_CONNECTION_DB")]
-    connection_db: String,
+    /// SQLite database file path
+    #[arg(
+        long,
+        default_value = "data_observatory.sqlite",
+        env = "NYM_DATA_OBSERVATORY_DB_PATH"
+    )]
+    db_path: String,
 }
 
 #[tokio::main]
@@ -44,30 +36,50 @@ async fn main() -> anyhow::Result<()> {
     logging::setup_tracing_logger();
 
     let args = Args::parse();
-
     setup_env(args.env_file); // Defaults to mainnet if empty
 
-    let connection_url = format!(
-        "postgres://{}:{}@{}:{}/{}",
-        args.connection_username,
-        args.connection_password,
-        args.connection_host,
-        args.connection_port,
-        args.connection_db
-    );
+    let db_path = args.db_path;
+    // Ensure parent directory exists
+    if let Some(parent) = std::path::Path::new(&db_path).parent() {
+        std::fs::create_dir_all(parent)?;
+    }
 
+    let connection_url = format!("sqlite://{}?mode=rwc", db_path);
     let storage = db::Storage::init(connection_url).await?;
-    let db_pool = storage.pool_owned().await;
-    tokio::spawn(async move {
-        background_task::spawn_in_background(db_pool).await;
-        tracing::info!("Started task");
+    let observatory_pool = storage.pool_owned().await;
+
+    // Spawn the chain scraper and get its storage
+
+    // Spawn the payment listener task
+    let payment_listener_handle = tokio::spawn({
+        let obs_pool = observatory_pool.clone();
+        let chain_storage = run_chain_scraper().await?;
+
+        async move {
+            if let Err(e) = payment_listener::run_payment_listener(obs_pool, chain_storage).await {
+                tracing::error!("Payment listener error: {}", e);
+            }
+            Ok::<_, anyhow::Error>(())
+        }
+    });
+
+    // Clone pool for each task that needs it
+    //let background_pool = db_pool.clone();
+
+    let price_scraper_handle = tokio::spawn(async move {
+        price_scraper::run_price_scraper(&observatory_pool).await;
     });
 
     let shutdown_handles = http::server::start_http_api(storage.pool_owned().await, args.http_port)
         .await
         .expect("Failed to start server");
+
     tracing::info!("Started HTTP server on port {}", args.http_port);
 
+    // Wait for the short-lived tasks to complete
+    let _ = join!(price_scraper_handle, payment_listener_handle);
+
+    // Wait for a signal to terminate the long-running task
     wait_for_signal().await;
 
     if let Err(err) = shutdown_handles.shutdown().await {

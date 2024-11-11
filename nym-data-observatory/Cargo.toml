@@ -24,9 +24,13 @@ nym-task = { path = "../common/task" }
 nym-node-requests = { path = "../nym-node/nym-node-requests", features = [
     "openapi",
 ] }
+nyxd-scraper = {path = "../common/nyxd-scraper"}
+reqwest = {workspace= true, features = ["rustls-tls"]}
+rocket = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "time"] }
+time = {version = "0.3.36"}
 tokio = { workspace = true, features = ["process", "rt-multi-thread"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }
@@ -40,4 +44,4 @@ utoipauto = { workspace = true }
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }

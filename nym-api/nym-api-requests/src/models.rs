@@ -196,6 +196,54 @@ pub struct NodeAnnotation {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     pub last_24h_performance: Performance,
     pub current_role: Option<DisplayRole>,
+
+    pub detailed_performance: DetailedNodePerformance,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/DetailedNodePerformance.ts"
+    )
+)]
+#[non_exhaustive]
+pub struct DetailedNodePerformance {
+    /// routing_score * config_score
+    pub performance_score: f64,
+
+    pub routing_score: RoutingScore,
+    pub config_score: ConfigScore,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export, export_to = "ts-packages/types/src/types/rust/RoutingScore.ts")
+)]
+#[non_exhaustive]
+pub struct RoutingScore {
+    /// Total score after taking all the criteria into consideration
+    pub score: f64,
+}
+
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(export, export_to = "ts-packages/types/src/types/rust/ConfigScore.ts")
+)]
+#[non_exhaustive]
+pub struct ConfigScore {
+    /// Total score after taking all the criteria into consideration
+    pub score: f64,
+
+    pub versions_behind: usize,
+    pub accepted_terms_and_conditions: bool,
+    pub runs_nym_node_binary: bool,
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]

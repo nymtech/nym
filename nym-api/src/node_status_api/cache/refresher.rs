@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::NodeStatusCache;
+use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::cache::node_sets::produce_node_annotations;
+use crate::support::caching::cache::SharedCache;
 use crate::{
     node_status_api::cache::{
         inclusion_probabilities::InclusionProbabilities,
@@ -15,12 +17,13 @@ use crate::{
     storage::NymApiStorage,
     support::caching::CacheNotification,
 };
+use ::time::OffsetDateTime;
 use nym_task::TaskClient;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time;
-use tracing::{debug, error, info, trace};
+use tracing::{error, info, trace, warn};
 
 // Long running task responsible for keeping the node status cache up-to-date.
 pub struct NodeStatusCacheRefresher {
@@ -30,7 +33,9 @@ pub struct NodeStatusCacheRefresher {
 
     // Sources for when refreshing data
     contract_cache: NymContractCache,
+    described_cache: SharedCache<DescribedNodes>,
     contract_cache_listener: watch::Receiver<CacheNotification>,
+    describe_cache_listener: watch::Receiver<CacheNotification>,
     storage: NymApiStorage,
 }
 
@@ -39,20 +44,25 @@ impl NodeStatusCacheRefresher {
         cache: NodeStatusCache,
         fallback_caching_interval: Duration,
         contract_cache: NymContractCache,
+        described_cache: SharedCache<DescribedNodes>,
         contract_cache_listener: watch::Receiver<CacheNotification>,
+        describe_cache_listener: watch::Receiver<CacheNotification>,
         storage: NymApiStorage,
     ) -> Self {
         Self {
             cache,
             fallback_caching_interval,
             contract_cache,
+            described_cache,
             contract_cache_listener,
+            describe_cache_listener,
             storage,
         }
     }
 
     /// Runs the node status cache refresher task.
     pub async fn run(&mut self, mut shutdown: TaskClient) {
+        let mut last_update = OffsetDateTime::now_utc();
         let mut fallback_interval = time::interval(self.fallback_caching_interval);
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -60,10 +70,18 @@ impl NodeStatusCacheRefresher {
                 _ = shutdown.recv() => {
                     trace!("NodeStatusCacheRefresher: Received shutdown");
                 }
-                // Update node status cache when the contract cache / validator cache is updated
+                // Update node status cache when the contract cache / describe cache is updated
                 Ok(_) = self.contract_cache_listener.changed() => {
                     tokio::select! {
-                        _ = self.update_on_notify(&mut fallback_interval) => (),
+                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
+                        _ = shutdown.recv() => {
+                            trace!("NodeStatusCacheRefresher: Received shutdown");
+                        }
+                    }
+                }
+                Ok(_) = self.describe_cache_listener.changed() => {
+                    tokio::select! {
+                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
                         _ = shutdown.recv() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
                         }
@@ -73,7 +91,7 @@ impl NodeStatusCacheRefresher {
                 // refreshes
                 _ = fallback_interval.tick() => {
                     tokio::select! {
-                        _ = self.update_on_timer() => (),
+                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
                         _ = shutdown.recv() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
                         }
@@ -84,27 +102,40 @@ impl NodeStatusCacheRefresher {
         info!("NodeStatusCacheRefresher: Exiting");
     }
 
-    /// Updates the node status cache when the contract cache / validator cache is updated
-    async fn update_on_notify(&self, fallback_interval: &mut time::Interval) {
-        debug!(
-            "Validator cache event detected: {:?}",
-            &*self.contract_cache_listener.borrow(),
-        );
-        let _ = self.refresh().await;
-        fallback_interval.reset();
+    fn caches_available(&self) -> bool {
+        let contract_cache = *self.contract_cache_listener.borrow() != CacheNotification::Start;
+        let describe_cache = *self.describe_cache_listener.borrow() != CacheNotification::Start;
+
+        let available = contract_cache && describe_cache;
+        if !available {
+            warn!(
+                contract_cache,
+                describe_cache, "auxiliary caches data is not yet available"
+            )
+        }
+
+        available
     }
 
-    /// Updates the node status cache when the fallback interval is reached
-    async fn update_on_timer(&self) {
-        debug!("Timed trigger for the node status cache");
-        let have_contract_cache_data =
-            *self.contract_cache_listener.borrow() != CacheNotification::Start;
-
-        if have_contract_cache_data {
-            let _ = self.refresh().await;
-        } else {
-            trace!("Skipping updating node status cache, is the contract cache not yet available?");
+    async fn maybe_refresh(
+        &self,
+        fallback_interval: &mut time::Interval,
+        last_updated: &mut OffsetDateTime,
+    ) {
+        if !self.caches_available() {
+            trace!("not updating the cache since the auxiliary data is not yet available");
+            return;
         }
+
+        if OffsetDateTime::now_utc() - *last_updated < self.fallback_caching_interval {
+            // don't update too often
+            trace!("not updating the cache since they've been updated recently");
+            return;
+        }
+
+        let _ = self.refresh().await;
+        *last_updated = OffsetDateTime::now_utc();
+        fallback_interval.reset();
     }
 
     /// Refreshes the node status cache by fetching the latest data from the contract cache

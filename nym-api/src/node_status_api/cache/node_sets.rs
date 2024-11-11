@@ -210,6 +210,7 @@ pub(crate) async fn produce_node_annotations(
             NodeAnnotation {
                 last_24h_performance: perf,
                 current_role: rewarded_set.role(legacy_mix.mix_id()).map(|r| r.into()),
+                detailed_performance: Default::default(),
             },
         );
     }
@@ -230,6 +231,7 @@ pub(crate) async fn produce_node_annotations(
             NodeAnnotation {
                 last_24h_performance: perf,
                 current_role: rewarded_set.role(legacy_gateway.node_id).map(|r| r.into()),
+                detailed_performance: Default::default(),
             },
         );
     }
@@ -250,6 +252,7 @@ pub(crate) async fn produce_node_annotations(
             NodeAnnotation {
                 last_24h_performance: perf,
                 current_role: rewarded_set.role(nym_node.node_id()).map(|r| r.into()),
+                detailed_performance: Default::default(),
             },
         );
     }

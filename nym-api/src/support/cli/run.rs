@@ -271,6 +271,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
             EpochAdvancer::start(
                 nyxd_client,
                 &nym_contract_cache_state,
+                &node_status_cache_state,
                 described_nodes_cache.clone(),
                 &storage,
                 &task_manager,

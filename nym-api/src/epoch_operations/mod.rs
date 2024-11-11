@@ -13,7 +13,7 @@
 //    and hence this might be a good place for it.
 
 use crate::node_describe_cache::DescribedNodes;
-use crate::node_status_api::ONE_DAY;
+use crate::node_status_api::{NodeStatusCache, ONE_DAY};
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
 use crate::support::nyxd::Client;
@@ -40,6 +40,7 @@ pub struct EpochAdvancer {
     nyxd_client: Client,
     nym_contract_cache: NymContractCache,
     described_cache: SharedCache<DescribedNodes>,
+    status_cache: NodeStatusCache,
     storage: NymApiStorage,
 }
 
@@ -53,6 +54,7 @@ impl EpochAdvancer {
     pub(crate) fn new(
         nyxd_client: Client,
         nym_contract_cache: NymContractCache,
+        status_cache: NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: NymApiStorage,
     ) -> Self {
@@ -60,6 +62,7 @@ impl EpochAdvancer {
             nyxd_client,
             nym_contract_cache,
             described_cache,
+            status_cache,
             storage,
         }
     }
@@ -154,13 +157,8 @@ impl EpochAdvancer {
         // note: those operations don't really have to be atomic, so it's fine to send them
         // as separate transactions
         self.reconcile_epoch_events().await?;
-        self.update_rewarded_set_and_advance_epoch(
-            interval,
-            &legacy_mixnodes,
-            &legacy_gateways,
-            &nym_nodes,
-        )
-        .await?;
+        self.update_rewarded_set_and_advance_epoch(&legacy_mixnodes, &legacy_gateways, &nym_nodes)
+            .await?;
 
         info!("Purging old node statuses from the storage...");
         let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();
@@ -298,6 +296,7 @@ impl EpochAdvancer {
     pub(crate) fn start(
         nyxd_client: Client,
         nym_contract_cache: &NymContractCache,
+        status_cache: &NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: &NymApiStorage,
         shutdown: &TaskManager,
@@ -305,6 +304,7 @@ impl EpochAdvancer {
         let mut rewarded_set_updater = EpochAdvancer::new(
             nyxd_client,
             nym_contract_cache.to_owned(),
+            status_cache.to_owned(),
             described_cache,
             storage.to_owned(),
         );

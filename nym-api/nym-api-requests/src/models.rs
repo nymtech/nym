@@ -234,6 +234,10 @@ impl DetailedNodePerformance {
             config_score,
         }
     }
+
+    pub fn to_rewarding_performance(&self) -> Performance {
+        Performance::naive_try_from_f64(self.performance_score).unwrap_or_default()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]

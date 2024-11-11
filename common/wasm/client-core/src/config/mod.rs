@@ -108,6 +108,7 @@ pub struct DebugWasm {
     pub reply_surbs: ReplySurbsWasm,
 
     /// Defines all configuration options related to stats reporting.
+    #[wasm_bindgen(getter_with_clone)]
     pub stats_reporting: StatsReportingWasm,
 }
 
@@ -519,6 +520,7 @@ pub struct StatsReportingWasm {
     pub enabled: bool,
 
     /// Address of the stats collector. If this is none, no reporting will happen, regardless of `enabled`
+    #[wasm_bindgen(getter_with_clone)]
     pub provider_address: Option<String>,
 
     /// With what frequence will statistics be sent
@@ -535,7 +537,9 @@ impl From<StatsReportingWasm> for ConfigStatsReporting {
     fn from(stats_reporting: StatsReportingWasm) -> Self {
         ConfigStatsReporting {
             enabled: stats_reporting.enabled,
-            provider_address: None,
+            provider_address: stats_reporting
+                .provider_address
+                .map(|address| address.parse().expect("Invalid provider address")),
             reporting_interval: Duration::from_millis(stats_reporting.reporting_interval_ms as u64),
         }
     }

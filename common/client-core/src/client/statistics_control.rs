@@ -30,8 +30,6 @@ use crate::{
     spawn_future,
 };
 
-/// Time interval between reporting statistics to the given provider if it exist
-const STATS_REPORT_INTERVAL_SECS: u64 = 300;
 /// Time interval between reporting statistics locally (logging/task_client)
 const LOCAL_REPORT_INTERVAL: Duration = Duration::from_secs(2);
 /// Interval for taking snapshots of the statistics
@@ -53,11 +51,15 @@ pub(crate) struct StatisticsControl {
 
     /// Service-provider address to send stats reports
     reporting_address: Option<Recipient>,
+
+    /// Interval to report to `reporting_address`
+    reporting_interval: Duration,
 }
 
 impl StatisticsControl {
     pub(crate) fn create(
         reporting_config: Option<StatsReportingConfig>,
+        reporting_interval: Duration,
         client_stats_id: String,
         report_tx: InputMessageSender,
     ) -> (Self, ClientStatsSender) {
@@ -74,6 +76,7 @@ impl StatisticsControl {
                 stats,
                 stats_rx,
                 reporting_address,
+                reporting_interval,
                 report_tx,
             },
             ClientStatsSender::new(Some(stats_tx)),
@@ -99,8 +102,7 @@ impl StatisticsControl {
     async fn run_with_shutdown(&mut self, mut task_client: nym_task::TaskClient) {
         log::debug!("Started StatisticsControl with graceful shutdown support");
 
-        let stats_report_interval = Duration::from_secs(STATS_REPORT_INTERVAL_SECS);
-        let mut stats_report_interval = tokio::time::interval(stats_report_interval);
+        let mut stats_report_interval = tokio::time::interval(self.reporting_interval);
         let mut local_report_interval = tokio::time::interval(LOCAL_REPORT_INTERVAL);
         let mut snapshot_interval = tokio::time::interval(SNAPSHOT_INTERVAL);
 
@@ -143,11 +145,17 @@ impl StatisticsControl {
 
     pub(crate) fn create_and_start_with_shutdown(
         reporting_config: Option<StatsReportingConfig>,
+        reporting_interval: Duration,
         client_stats_id: String,
         report_tx: InputMessageSender,
         task_client: nym_task::TaskClient,
     ) -> ClientStatsSender {
-        let (controller, sender) = Self::create(reporting_config, client_stats_id, report_tx);
+        let (controller, sender) = Self::create(
+            reporting_config,
+            reporting_interval,
+            client_stats_id,
+            report_tx,
+        );
         controller.start_with_shutdown(task_client);
         sender
     }

@@ -598,6 +598,7 @@ where
     }
 
     fn start_statistics_control(
+        config: &Config,
         stats_reporting_config: Option<StatsReportingConfig>,
         client_stats_id: String,
         input_sender: Sender<InputMessage>,
@@ -606,6 +607,7 @@ where
         info!("Starting statistics control...");
         StatisticsControl::create_and_start_with_shutdown(
             stats_reporting_config,
+            config.debug.stats_reporting.reporting_interval,
             client_stats_id,
             input_sender.clone(),
             shutdown.with_suffix("controller"),
@@ -744,6 +746,7 @@ where
             sha2::Sha256::digest(self_address.identity().to_bytes())
         );
         let stats_reporter = Self::start_statistics_control(
+            self.config,
             self.stats_reporting_config,
             client_stats_id,
             input_sender.clone(),

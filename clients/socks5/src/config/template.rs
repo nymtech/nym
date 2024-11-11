@@ -108,4 +108,9 @@ average_ack_delay = '{{ core.debug.acknowledgements.average_ack_delay }}'
 [core.debug.cover_traffic]
 loop_cover_traffic_average_delay = '{{ core.debug.cover_traffic.loop_cover_traffic_average_delay }}'
 
+[core.debug.stats_reporting]
+enabled = '{{ core.debug.stats_reporting.enabled }}'
+provider_address = '{{ core.debug.stats_reporting.provider_address }}'
+reporting_interval = '{{ core.debug.stats_reporting.reporting_interval }}'
+
 "#;

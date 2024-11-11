@@ -60,6 +60,7 @@ nym-crypto = { path = "../../common/crypto" }
 nym-gateway-requests = { path = "../../common/gateway-requests" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-sphinx = { path = "../../common/nymsphinx" }
+nym-statistics-common = { path = "../../common/statistics" }
 nym-pemstore = { path = "../../common/pemstore" }
 nym-task = { path = "../../common/task" }
 nym-topology = { path = "../../common/topology" }

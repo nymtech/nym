@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_crypto::asymmetric::identity;
+use nym_sphinx::addressing::Recipient;
 use std::path::PathBuf;
 
 #[cfg_attr(feature = "cli", derive(clap::Args))]
@@ -56,4 +57,8 @@ pub struct CommonClientRunArgs {
     // has defined the conflict on that field itself
     #[cfg_attr(feature = "cli", clap(long, hide = true))]
     pub no_cover: bool,
+
+    /// Sets the address to report statistics
+    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    pub stats_reporting_address: Option<Recipient>,
 }

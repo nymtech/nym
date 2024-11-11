@@ -241,6 +241,14 @@ where
             base_builder = base_builder.with_stored_topology(custom_mixnet)?;
         }
 
+        if let Some(address) = self.config.base.debug.stats_reporting.provider_address {
+            if self.config.base.debug.stats_reporting.enabled {
+                base_builder = base_builder.with_statistics_reporting(
+                    nym_statistics_common::StatsReportingConfig::new_native(address),
+                );
+            }
+        }
+
         let packet_type = self.config.base.debug.traffic.packet_type;
         let mut started_client = base_builder.start_base().await?;
         let self_address = started_client.address;

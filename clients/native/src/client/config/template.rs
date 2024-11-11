@@ -102,5 +102,10 @@ average_ack_delay = '{{ debug.acknowledgements.average_ack_delay }}'
 [debug.cover_traffic]
 loop_cover_traffic_average_delay = '{{ debug.cover_traffic.loop_cover_traffic_average_delay }}'
 
+[debug.stats_reporting]
+enabled = '{{ debug.stats_reporting.enabled }}'
+provider_address = '{{ debug.stats_reporting.provider_address }}'
+reporting_interval = '{{ debug.stats_reporting.reporting_interval }}'
+
 
 "#;

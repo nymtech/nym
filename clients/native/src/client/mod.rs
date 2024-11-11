@@ -115,6 +115,14 @@ impl SocketClient {
             base_client = base_client.with_stored_topology(custom_mixnet)?;
         }
 
+        if let Some(address) = self.config.base.debug.stats_reporting.provider_address {
+            if self.config.base.debug.stats_reporting.enabled {
+                base_client = base_client.with_statistics_reporting(
+                    nym_statistics_common::StatsReportingConfig::new_native(address),
+                );
+            }
+        }
+
         Ok(base_client)
     }
 

@@ -346,7 +346,7 @@ impl NymApiStorage {
             .map(Uptime::new)
     }
 
-    #[allow(deprecated)]
+    #[allow(unused)]
     pub(crate) async fn get_average_node_uptime_in_the_last_24hrs(
         &self,
         node_id: NodeId,

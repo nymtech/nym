@@ -37,7 +37,7 @@ futures = "0.3.30"
 humantime = "2.1.0"
 thiserror = "1.0.59"
 rand = "0.8.5"
-reqwest = "0.12.4"
+reqwest = { version = "0.12.4", default-features = false }
 schemars = "0.8.17"
 strum = "0.26.3"
 strum_macros = "0.26.4"

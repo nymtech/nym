@@ -177,6 +177,7 @@ impl NymContractCacheRefresher {
             })
         }
 
+        let config_score_params = self.nyxd_client.get_config_score_params().await?;
         let contract_info = self.get_nym_contracts_info().await?;
 
         info!(
@@ -192,6 +193,7 @@ impl NymContractCacheRefresher {
                 gateways,
                 nym_nodes,
                 rewarded_set,
+                config_score_params,
                 rewarding_params,
                 current_interval,
                 contract_info,

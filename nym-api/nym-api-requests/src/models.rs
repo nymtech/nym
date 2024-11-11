@@ -1,6 +1,8 @@
 // Copyright 2022-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(deprecated)]
+
 use crate::helpers::unix_epoch;
 use crate::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
@@ -8,6 +10,7 @@ use crate::legacy::{
 use crate::nym_nodes::{BasicEntryInformation, NodeRole, SkimmedNode};
 use crate::pagination::PaginatedResponse;
 use cosmwasm_std::{Addr, Coin, Decimal, Uint128};
+use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::ed25519::{self, serde_helpers::bs58_ed25519_pubkey};
 use nym_crypto::asymmetric::x25519::{
     self,
@@ -194,6 +197,7 @@ impl From<DisplayRole> for Role {
 )]
 pub struct NodeAnnotation {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    // legacy
     pub last_24h_performance: Performance,
     pub current_role: Option<DisplayRole>,
 
@@ -218,6 +222,20 @@ pub struct DetailedNodePerformance {
     pub config_score: ConfigScore,
 }
 
+impl DetailedNodePerformance {
+    pub fn new(
+        performance_score: f64,
+        routing_score: RoutingScore,
+        config_score: ConfigScore,
+    ) -> DetailedNodePerformance {
+        Self {
+            performance_score,
+            routing_score,
+            config_score,
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -228,6 +246,16 @@ pub struct DetailedNodePerformance {
 pub struct RoutingScore {
     /// Total score after taking all the criteria into consideration
     pub score: f64,
+}
+
+impl RoutingScore {
+    pub fn new(score: f64) -> RoutingScore {
+        Self { score }
+    }
+
+    pub fn legacy_performance(&self) -> Performance {
+        Performance::naive_try_from_f64(self.score).unwrap_or_default()
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
@@ -241,9 +269,47 @@ pub struct ConfigScore {
     /// Total score after taking all the criteria into consideration
     pub score: f64,
 
-    pub versions_behind: usize,
+    pub versions_behind: Option<u32>,
+    pub self_described_api_available: bool,
     pub accepted_terms_and_conditions: bool,
     pub runs_nym_node_binary: bool,
+}
+
+impl ConfigScore {
+    pub fn new(
+        score: f64,
+        versions_behind: u32,
+        accepted_terms_and_conditions: bool,
+        runs_nym_node_binary: bool,
+    ) -> ConfigScore {
+        Self {
+            score,
+            versions_behind: Some(versions_behind),
+            self_described_api_available: true,
+            accepted_terms_and_conditions,
+            runs_nym_node_binary,
+        }
+    }
+
+    pub fn bad_semver() -> ConfigScore {
+        ConfigScore {
+            score: 0.0,
+            versions_behind: None,
+            self_described_api_available: true,
+            accepted_terms_and_conditions: false,
+            runs_nym_node_binary: false,
+        }
+    }
+
+    pub fn unavailable() -> ConfigScore {
+        ConfigScore {
+            score: 0.0,
+            versions_behind: None,
+            self_described_api_available: false,
+            accepted_terms_and_conditions: false,
+            runs_nym_node_binary: false,
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
@@ -535,6 +601,7 @@ pub type StakeSaturation = Decimal;
         export_to = "ts-packages/types/src/types/rust/SelectionChance.ts"
     )
 )]
+#[deprecated]
 pub enum SelectionChance {
     High,
     Good,
@@ -580,6 +647,7 @@ impl fmt::Display for SelectionChance {
         export_to = "ts-packages/types/src/types/rust/InclusionProbabilityResponse.ts"
     )
 )]
+#[deprecated]
 pub struct InclusionProbabilityResponse {
     pub in_active: SelectionChance,
     pub in_reserve: SelectionChance,
@@ -595,6 +663,7 @@ impl fmt::Display for InclusionProbabilityResponse {
     }
 }
 
+#[deprecated]
 #[derive(Clone, Serialize, schemars::JsonSchema, ToSchema)]
 pub struct AllInclusionProbabilitiesResponse {
     pub inclusion_probabilities: Vec<InclusionProbability>,
@@ -605,6 +674,7 @@ pub struct AllInclusionProbabilitiesResponse {
     pub as_at: i64,
 }
 
+#[deprecated]
 #[derive(Clone, Serialize, schemars::JsonSchema, ToSchema)]
 pub struct InclusionProbability {
     #[schema(value_type = u32)]

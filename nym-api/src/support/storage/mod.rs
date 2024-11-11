@@ -290,16 +290,50 @@ impl NymApiStorage {
         Ok(self.manager.get_gateway_historical_uptimes(node_id).await?)
     }
 
+    pub(crate) async fn get_average_mixnode_reliability_in_the_last_24hrs(
+        &self,
+        node_id: NodeId,
+        end_ts_secs: i64,
+    ) -> Result<f32, NymApiStorageError> {
+        let start = end_ts_secs - 86400;
+        let reliability = self
+            .get_average_mixnode_reliability_in_time_interval(node_id, start, end_ts_secs)
+            .await?;
+        Ok(reliability)
+    }
+
+    pub(crate) async fn get_average_gateway_reliability_in_the_last_24hrs(
+        &self,
+        node_id: NodeId,
+        end_ts_secs: i64,
+    ) -> Result<f32, NymApiStorageError> {
+        let start = end_ts_secs - 86400;
+        let reliability = self
+            .get_average_gateway_reliability_in_time_interval(node_id, start, end_ts_secs)
+            .await?;
+        Ok(reliability)
+    }
+
+    pub(crate) async fn get_average_node_reliability_in_the_last_24hrs(
+        &self,
+        node_id: NodeId,
+        end_ts_secs: i64,
+    ) -> Result<f32, NymApiStorageError> {
+        let start = end_ts_secs - 86400;
+        let reliability = self
+            .get_average_node_reliability_in_time_interval(node_id, start, end_ts_secs)
+            .await?;
+        Ok(reliability)
+    }
+
     pub(crate) async fn get_average_mixnode_uptime_in_the_last_24hrs(
         &self,
         node_id: NodeId,
         end_ts_secs: i64,
     ) -> Result<Uptime, NymApiStorageError> {
-        let start = end_ts_secs - 86400;
-        let reliability = self
-            .get_average_mixnode_reliability_in_time_interval(node_id, start, end_ts_secs)
-            .await?;
-        Ok(Uptime::new(reliability))
+        self.get_average_mixnode_reliability_in_the_last_24hrs(node_id, end_ts_secs)
+            .await
+            .map(Uptime::new)
     }
 
     pub(crate) async fn get_average_gateway_uptime_in_the_last_24hrs(
@@ -307,20 +341,18 @@ impl NymApiStorage {
         node_id: NodeId,
         end_ts_secs: i64,
     ) -> Result<Uptime, NymApiStorageError> {
-        let start = end_ts_secs - 86400;
-        let reliability = self
-            .get_average_gateway_reliability_in_time_interval(node_id, start, end_ts_secs)
-            .await?;
-        Ok(Uptime::new(reliability))
+        self.get_average_gateway_reliability_in_the_last_24hrs(node_id, end_ts_secs)
+            .await
+            .map(Uptime::new)
     }
 
+    #[allow(deprecated)]
     pub(crate) async fn get_average_node_uptime_in_the_last_24hrs(
         &self,
         node_id: NodeId,
         end_ts_secs: i64,
     ) -> Result<Uptime, NymApiStorageError> {
-        let start = end_ts_secs - 86400;
-        self.get_average_node_reliability_in_time_interval(node_id, start, end_ts_secs)
+        self.get_average_node_reliability_in_the_last_24hrs(node_id, end_ts_secs)
             .await
             .map(Uptime::new)
     }
@@ -423,17 +455,22 @@ impl NymApiStorage {
         start: i64,
         end: i64,
     ) -> Result<f32, NymApiStorageError> {
-        if let Ok(result_as_mix) = self
+        let result_as_mix = self
             .get_average_mixnode_reliability_in_time_interval(node_id, start, end)
-            .await
-        {
-            if result_as_mix != 0. {
-                return Ok(result_as_mix);
-            }
-        }
+            .await?;
 
-        self.get_average_gateway_reliability_in_time_interval(node_id, start, end)
-            .await
+        let result_as_gateway = self
+            .get_average_gateway_reliability_in_time_interval(node_id, start, end)
+            .await?;
+
+        // give the benefit of the doubt if one of the scores is 0
+        if result_as_mix == 0. {
+            return Ok(result_as_gateway);
+        }
+        if result_as_gateway == 0. {
+            return Ok(result_as_mix);
+        }
+        Ok((result_as_mix + result_as_gateway) / 2.)
     }
 
     /// Obtain status reports of mixnodes that were active in the specified time interval.

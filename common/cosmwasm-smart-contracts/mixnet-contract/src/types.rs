@@ -234,21 +234,49 @@ pub struct ConfigScoreParams {
     pub version_score_formula_params: VersionScoreFormulaParams,
 }
 
+impl ConfigScoreParams {
+    // SAFETY: the value stored in the contract is always valid
+    #[allow(clippy::unwrap_used)]
+    pub fn unchecked_nym_node_version(&self) -> semver::Version {
+        self.current_nym_node_semver.parse().unwrap()
+    }
+
+    pub fn versions_behind(&self, node_semver: &semver::Version) -> u32 {
+        let expected = self.unchecked_nym_node_version();
+
+        let major_diff = (node_semver.major as i64 - expected.major as i64).unsigned_abs() as u32;
+        let minor_diff = (node_semver.minor as i64 - expected.minor as i64).unsigned_abs() as u32;
+        let patch_diff = (node_semver.patch as i64 - expected.patch as i64).unsigned_abs() as u32;
+        let prerelease_diff = if node_semver.pre == expected.pre {
+            0
+        } else {
+            1
+        };
+
+        major_diff * self.version_weights.major
+            + minor_diff * self.version_weights.minor
+            + patch_diff * self.version_weights.patch
+            + prerelease_diff * self.version_weights.prerelease
+    }
+}
+
 /// Defines weights for calculating numbers of versions behind the current release.
 #[cw_serde]
 #[derive(Copy)]
 pub struct OutdatedVersionWeights {
-    pub major: Decimal,
-    pub minor: Decimal,
-    pub patch: Decimal,
+    pub major: u32,
+    pub minor: u32,
+    pub patch: u32,
+    pub prerelease: u32,
 }
 
 impl Default for OutdatedVersionWeights {
     fn default() -> Self {
         OutdatedVersionWeights {
-            major: Decimal::from_ratio(100u32, 1u32),
-            minor: Decimal::from_ratio(10u32, 1u32),
-            patch: Decimal::one(),
+            major: 100,
+            minor: 10,
+            patch: 1,
+            prerelease: 1,
         }
     }
 }

@@ -6,13 +6,7 @@ use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::cache::node_sets::produce_node_annotations;
 use crate::support::caching::cache::SharedCache;
 use crate::{
-    node_status_api::cache::{
-        inclusion_probabilities::InclusionProbabilities,
-        node_sets::{
-            annotate_legacy_gateways_with_details, annotate_legacy_mixnodes_nodes_with_details,
-        },
-        NodeStatusCacheError,
-    },
+    node_status_api::cache::{inclusion_probabilities, NodeStatusCacheError},
     nym_contract_cache::cache::NymContractCache,
     storage::NymApiStorage,
     support::caching::CacheNotification,
@@ -139,6 +133,7 @@ impl NodeStatusCacheRefresher {
     }
 
     /// Refreshes the node status cache by fetching the latest data from the contract cache
+    #[allow(deprecated)]
     async fn refresh(&self) -> Result<(), NodeStatusCacheError> {
         info!("Updating node status cache");
 
@@ -149,6 +144,12 @@ impl NodeStatusCacheRefresher {
         let rewarded_set = self.contract_cache.rewarded_set_owned().await;
         let gateway_bonds = self.contract_cache.legacy_gateways_all().await;
         let nym_nodes = self.contract_cache.nym_nodes().await;
+        let config_score_params = self
+            .contract_cache
+            .config_score_params()
+            .await
+            .into_inner()
+            .ok_or(NodeStatusCacheError::SourceDataMissing)?;
 
         // get blacklists
         let mixnodes_blacklist = self.contract_cache.mixnodes_blacklist().await;
@@ -159,7 +160,7 @@ impl NodeStatusCacheRefresher {
         let current_interval = current_interval.ok_or(NodeStatusCacheError::SourceDataMissing)?;
 
         // Compute inclusion probabilities
-        let inclusion_probabilities = InclusionProbabilities::compute(
+        let inclusion_probabilities = inclusion_probabilities::InclusionProbabilities::compute(
             &mixnode_details,
             interval_reward_params,
         )
@@ -168,40 +169,47 @@ impl NodeStatusCacheRefresher {
             NodeStatusCacheError::SimulationFailed
         })?;
 
+        let Ok(described) = self.described_cache.get().await else {
+            return Err(NodeStatusCacheError::UnavailableDescribedCache);
+        };
+
         let mut legacy_gateway_mapping = HashMap::new();
         for gateway in &gateway_bonds {
             legacy_gateway_mapping.insert(gateway.identity().clone(), gateway.node_id);
         }
 
         // Create annotated data
-
         let node_annotations = produce_node_annotations(
             &self.storage,
+            &config_score_params,
             &mixnode_details,
             &gateway_bonds,
             &nym_nodes,
             &rewarded_set,
             current_interval,
+            &described,
         )
         .await;
 
-        let mixnodes_annotated = annotate_legacy_mixnodes_nodes_with_details(
-            &self.storage,
-            mixnode_details,
-            interval_reward_params,
-            current_interval,
-            &rewarded_set,
-            &mixnodes_blacklist,
-        )
-        .await;
+        let mixnodes_annotated =
+            crate::node_status_api::cache::node_sets::annotate_legacy_mixnodes_nodes_with_details(
+                &self.storage,
+                mixnode_details,
+                interval_reward_params,
+                current_interval,
+                &rewarded_set,
+                &mixnodes_blacklist,
+            )
+            .await;
 
-        let gateways_annotated = annotate_legacy_gateways_with_details(
-            &self.storage,
-            gateway_bonds,
-            current_interval,
-            &gateways_blacklist,
-        )
-        .await;
+        let gateways_annotated =
+            crate::node_status_api::cache::node_sets::annotate_legacy_gateways_with_details(
+                &self.storage,
+                gateway_bonds,
+                current_interval,
+                &gateways_blacklist,
+            )
+            .await;
 
         // Update the cache
         self.cache

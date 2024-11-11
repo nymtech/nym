@@ -5,7 +5,9 @@ use crate::support::caching::Cache;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_contracts_common::ContractBuildInformation;
 use nym_mixnet_contract_common::nym_node::Role;
-use nym_mixnet_contract_common::{Interval, NodeId, NymNodeDetails, RewardedSet, RewardingParams};
+use nym_mixnet_contract_common::{
+    ConfigScoreParams, Interval, NodeId, NymNodeDetails, RewardedSet, RewardingParams,
+};
 use nym_validator_client::nyxd::AccountId;
 use std::collections::{HashMap, HashSet};
 
@@ -110,7 +112,7 @@ impl CachedRewardedSet {
     }
 }
 
-pub(crate) struct ValidatorCacheData {
+pub(crate) struct ContractCacheData {
     pub(crate) legacy_mixnodes: Cache<Vec<LegacyMixNodeDetailsWithLayer>>,
     pub(crate) legacy_gateways: Cache<Vec<LegacyGatewayBondWithId>>,
     pub(crate) nym_nodes: Cache<Vec<NymNodeDetails>>,
@@ -121,15 +123,16 @@ pub(crate) struct ValidatorCacheData {
     pub(crate) legacy_mixnodes_blacklist: Cache<HashSet<NodeId>>,
     pub(crate) legacy_gateways_blacklist: Cache<HashSet<NodeId>>,
 
+    pub(crate) config_score_params: Cache<Option<ConfigScoreParams>>,
     pub(crate) current_reward_params: Cache<Option<RewardingParams>>,
     pub(crate) current_interval: Cache<Option<Interval>>,
 
     pub(crate) contracts_info: Cache<CachedContractsInfo>,
 }
 
-impl ValidatorCacheData {
+impl ContractCacheData {
     pub(crate) fn new() -> Self {
-        ValidatorCacheData {
+        ContractCacheData {
             legacy_mixnodes: Cache::default(),
             legacy_gateways: Cache::default(),
             nym_nodes: Default::default(),
@@ -140,6 +143,7 @@ impl ValidatorCacheData {
             current_interval: Cache::default(),
             current_reward_params: Cache::default(),
             contracts_info: Cache::default(),
+            config_score_params: Default::default(),
         }
     }
 }

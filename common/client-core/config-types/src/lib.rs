@@ -5,6 +5,7 @@ use nym_config::defaults::NymNetworkDetails;
 use nym_sphinx_addressing::Recipient;
 use nym_sphinx_params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
+use serde_with::{serde_as, DisplayFromStr};
 use std::time::Duration;
 use url::Url;
 
@@ -642,6 +643,7 @@ impl Default for ReplySurbs {
     }
 }
 
+#[serde_as]
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct StatsReporting {
@@ -649,6 +651,7 @@ pub struct StatsReporting {
     pub enabled: bool,
 
     /// Address of the stats collector. If this is none, no reporting will happen, regardless of `enabled`
+    #[serde_as(as = "Option<DisplayFromStr>")]
     pub provider_address: Option<Recipient>,
 
     /// With what frequence will statistics be sent

@@ -4884,6 +4884,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "serde",
+ "serde_with",
  "thiserror",
  "url",
 ]

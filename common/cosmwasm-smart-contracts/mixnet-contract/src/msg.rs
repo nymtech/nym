@@ -12,8 +12,11 @@ use crate::reward_params::{
     ActiveSetUpdate, IntervalRewardParams, IntervalRewardingParamsUpdate, NodeRewardingParameters,
     Performance, RewardedSetParams, RewardingParams, WorkFactor,
 };
-use crate::types::{ContractStateParams, NodeId};
-use crate::{NymNode, RoleAssignment};
+use crate::types::NodeId;
+use crate::{
+    ContractStateParamsUpdate, NymNode, OutdatedVersionWeights, RoleAssignment,
+    VersionScoreFormulaParams,
+};
 use crate::{OperatingCostRange, ProfitMarginRange};
 use contracts_common::{signing::MessageSignature, IdentityKey, Percent};
 use cosmwasm_schema::cw_serde;
@@ -47,7 +50,7 @@ use crate::{
         PendingIntervalEventResponse, PendingIntervalEventsResponse,
     },
     rewarding::{EstimatedCurrentEpochRewardResponse, PendingRewardResponse},
-    types::ContractState,
+    types::{ContractState, ContractStateParams},
 };
 #[cfg(feature = "schema")]
 use contracts_common::{signing::Nonce, ContractBuildInformation};
@@ -63,6 +66,14 @@ pub struct InstantiateMsg {
     pub epochs_in_interval: u32,
     pub epoch_duration: Duration,
     pub initial_rewarding_params: InitialRewardingParams,
+
+    pub current_nym_node_version: String,
+
+    #[serde(default)]
+    pub version_score_weights: OutdatedVersionWeights,
+
+    #[serde(default)]
+    pub version_score_params: VersionScoreFormulaParams,
 
     #[serde(default)]
     pub profit_margin: ProfitMarginRange,
@@ -126,7 +137,10 @@ pub enum ExecuteMsg {
         address: String,
     },
     UpdateContractStateParams {
-        updated_parameters: ContractStateParams,
+        update: ContractStateParamsUpdate,
+    },
+    UpdateCurrentNymNodeSemver {
+        current_version: String,
     },
     UpdateActiveSetDistribution {
         update: ActiveSetUpdate,
@@ -294,6 +308,9 @@ impl ExecuteMsg {
             }
             ExecuteMsg::UpdateContractStateParams { .. } => {
                 "updating mixnet state parameters".into()
+            }
+            ExecuteMsg::UpdateCurrentNymNodeSemver { current_version } => {
+                format!("updating current nym-node semver to {current_version}")
             }
             ExecuteMsg::UpdateActiveSetDistribution {
                 force_immediately, ..
@@ -829,6 +846,13 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct MigrateMsg {
-    pub vesting_contract_address: Option<String>,
     pub unsafe_skip_state_updates: Option<bool>,
+    pub vesting_contract_address: Option<String>,
+    pub current_nym_node_semver: String,
+
+    #[serde(default)]
+    pub version_score_weights: OutdatedVersionWeights,
+
+    #[serde(default)]
+    pub version_score_params: VersionScoreFormulaParams,
 }

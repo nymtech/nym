@@ -75,7 +75,7 @@ impl<'a> From<&'a MixFetchOpts> for MixFetchConfigOpts {
             id: value.client_id.as_ref().map(|v| v.to_owned()),
             nym_api: value.nym_api_url.as_ref().map(|v| v.to_owned()),
             nyxd: value.nyxd_url.as_ref().map(|v| v.to_owned()),
-            debug: value.client_override.as_ref().map(|&v| v.into()),
+            debug: value.client_override.as_ref().map(|v| v.clone().into()),
         }
     }
 }

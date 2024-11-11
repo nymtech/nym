@@ -252,12 +252,6 @@ where
         self
     }
 
-    // #[must_use]
-    // pub fn with_statistics_reporting(mut self, config: StatsReporting) -> Self {
-    //     self.config.debug.stats_reporting = config;
-    //     self
-    // }
-
     pub fn with_stored_topology<P: AsRef<Path>>(
         mut self,
         file: P,

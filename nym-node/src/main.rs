@@ -23,7 +23,7 @@ async fn main() -> anyhow::Result<()> {
 
     let cli = Cli::parse();
     setup_env(cli.config_env_file.as_ref());
-    setup_tracing_logger();
+    setup_tracing_logger()?;
 
     if !cli.no_banner {
         maybe_print_banner(crate_name!(), crate_version!());

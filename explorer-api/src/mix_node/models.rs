@@ -1,6 +1,8 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+#![allow(deprecated)]
+
 use crate::cache::Cache;
 use nym_mixnet_contract_common::Delegation;
 use nym_mixnet_contract_common::{Addr, Coin, NodeId};

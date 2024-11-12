@@ -282,6 +282,7 @@ pub(crate) async fn annotate_legacy_gateways_with_details(
     annotated
 }
 
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn produce_node_annotations(
     storage: &NymApiStorage,
     config_score_params: &ConfigScoreParams,

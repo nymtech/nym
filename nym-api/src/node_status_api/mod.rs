@@ -30,6 +30,7 @@ pub(crate) const ONE_DAY: Duration = Duration::from_secs(86400);
 ///
 /// It is primarily refreshed in-sync with the contract cache and described, however provide a fallback
 /// caching interval that is twice the nym contract cache
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn start_cache_refresh(
     config: &config::NodeStatusAPI,
     nym_contract_cache_state: &NymContractCache,

@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::clients::{
-    gateway_conn_statistics::GatewayStats, nym_api_statistics::NymApiStats,
-    packet_statistics::PacketStatistics,
+    credential::CredentialStats, gateway_conn_statistics::GatewayStats,
+    nym_api_statistics::NymApiStats, packet_statistics::PacketStatistics,
 };
 
 use super::error::StatsError;
@@ -22,6 +22,7 @@ pub struct ClientStatsReport {
     pub(crate) packet_stats: PacketStatistics,
     pub(crate) gateway_conn_stats: GatewayStats,
     pub(crate) nym_api_stats: NymApiStats,
+    pub(crate) credential_stats: CredentialStats,
 }
 
 impl From<ClientStatsReport> for Vec<u8> {

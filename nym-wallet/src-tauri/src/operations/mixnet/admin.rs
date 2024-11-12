@@ -4,7 +4,6 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use nym_types::transaction::TransactionExecuteResult;
-use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_validator_client::nyxd::Fee;
 use nym_wallet_types::admin::TauriContractStateParams;
 

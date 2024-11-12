@@ -714,6 +714,7 @@ where
         let mut client_output = started_client.client_output.register_consumer();
         let client_state: nym_client_core::client::base_client::ClientState =
             started_client.client_state;
+        let stats_events_reporter = started_client.stats_reporter;
 
         let identity_keys = started_client.identity_keys.clone();
         let reconstructed_receiver = client_output.register_receiver()?;
@@ -725,6 +726,7 @@ where
             client_output,
             client_state,
             reconstructed_receiver,
+            stats_events_reporter,
             started_client.task_handle,
             None,
         ))

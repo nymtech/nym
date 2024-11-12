@@ -23,6 +23,7 @@ nym-credential-storage = { path = "../../../common/credential-storage" }
 nym-credential-utils = { path = "../../../common/credential-utils" }
 nym-network-defaults = { path = "../../../common/network-defaults" }
 nym-sphinx = { path = "../../../common/nymsphinx" }
+nym-statistics-common = { path = "../../../common/statistics" }
 nym-task = { path = "../../../common/task" }
 nym-topology = { path = "../../../common/topology" }
 nym-socks5-client-core = { path = "../../../common/socks5-client-core" }

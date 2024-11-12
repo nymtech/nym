@@ -32,8 +32,8 @@ impl ClientStatsSender {
     }
 
     /// Report a statistics event using the sender.
-    pub fn report(&mut self, event: ClientStatsEvents) {
-        if let Some(tx) = self.stats_tx.as_mut() {
+    pub fn report(&self, event: ClientStatsEvents) {
+        if let Some(tx) = &self.stats_tx {
             if let Err(err) = tx.send(event) {
                 log::error!("Failed to send stats event: {:?}", err);
             }

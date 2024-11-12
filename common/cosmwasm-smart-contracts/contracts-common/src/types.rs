@@ -130,7 +130,7 @@ impl Deref for Percent {
 }
 
 // this is not implemented via From traits due to its naive nature and loss of precision
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "naive_float")]
 pub trait NaiveFloat {
     fn naive_to_f64(&self) -> f64;
 
@@ -139,7 +139,7 @@ pub trait NaiveFloat {
         Self: Sized;
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "naive_float")]
 impl NaiveFloat for Decimal {
     fn naive_to_f64(&self) -> f64 {
         use cosmwasm_std::Fraction;
@@ -185,7 +185,7 @@ impl NaiveFloat for Decimal {
     }
 }
 
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(feature = "naive_float")]
 impl NaiveFloat for Percent {
     fn naive_to_f64(&self) -> f64 {
         self.0.naive_to_f64()

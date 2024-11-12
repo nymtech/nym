@@ -21,3 +21,6 @@ serde_json = { workspace = true }
 
 [build-dependencies]
 vergen = { workspace = true, features = ["build", "git", "gitcl", "rustc", "cargo"] }
+
+[features]
+naive_float = []

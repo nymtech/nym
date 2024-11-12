@@ -21,26 +21,26 @@ nyxd_scraper = '{{ storage_paths.nyxd_scraper }}'
 reward_history = '{{ storage_paths.reward_history }}'
 
 [rewarding]
-# Specifies total budget for the epoch
-epoch_budget = '{{ rewarding.epoch_budget }}'
-
-# Duration of block signing epoch.
-block_signing_epoch_duration = '{{ rewarding.epoch_duration }}'
+# Specifies total budget for a 24h period.
+daily_budget = '{{ rewarding.daily_budget }}'
 
 [rewarding.ratios]
 # The percent of the epoch reward being awarded for block signing.
 block_signing = {{ rewarding.ratios.block_signing }}
 
-# The percent of the epoch reward being awarded for credential issuance.
-credential_issuance = {{ rewarding.ratios.credential_issuance }}
+# The percent of the epoch reward being awarded for ticketbook issuance.
+ticketbook_issuance = {{ rewarding.ratios.ticketbook_issuance }}
 
-# The percent of the epoch reward being awarded for credential verification.
-credential_verification = {{ rewarding.ratios.credential_verification }}
+# The percent of the epoch reward being awarded for ticketbook verification.
+ticketbook_verification = {{ rewarding.ratios.ticketbook_verification }}
     
     
 [block_signing]
 # Specifies whether rewarding for block signing is enabled.
 enabled = {{ block_signing.enabled }}
+
+# Duration of block signing epoch.
+epoch_duration = '{{ block_signing.epoch_duration }}'
 
 # Specifies whether to only monitor and not send rewards.
 monitor_only = {{ block_signing.monitor_only }}
@@ -53,21 +53,25 @@ whitelist = [
 ]
  
     
-[issuance_monitor]
-# Specifies whether credential issuance monitoring (and associated rewards) are enabled.
-enabled = {{ issuance_monitor.enabled }}
+[ticketbook_issuance]
+# Specifies whether rewarding for ticketbook issuance is enabled.
+enabled = {{ ticketbook_issuance.enabled }}
 
-run_interval = '{{ issuance_monitor.run_interval }}'
+# Specifies whether to only monitor and not send rewards.
+monitor_only = {{ ticketbook_issuance.monitor_only }}
 
-# Defines the minimum number of credentials the monitor will validate
+# Defines the minimum number of credentials the rewarder will validate
 # regardless of the sampling rate
-min_validate_per_issuer = {{ issuance_monitor.min_validate_per_issuer }}
+min_validate_per_issuer = {{ ticketbook_issuance.min_validate_per_issuer }}
 
-# The sampling rate of the issued credentials
-sampling_rate = {{ issuance_monitor.sampling_rate }}
+# The sampling rate of the issued ticketbooks
+sampling_rate = {{ ticketbook_issuance.sampling_rate }}
 
-# List of validators that will receive rewards for credential issuance.
-# If not on the list, the validator will be treated as if it hadn't issued a single credential.
+# Ratio of issuers that will undergo full verification as opposed to being let through.
+full_verification_ratio = {{ ticketbook_issuance.full_verification_ratio }}
+
+# List of validators that will receive rewards for ticketbook issuance.
+# If not on the list, the validator will be treated as if it hadn't issued a single ticketbook.
 whitelist = [
     # needs to be manually populated; expects n1... addresses
 ]

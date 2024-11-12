@@ -10,8 +10,8 @@ use nym_mixnet_contract_common::{
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::{
     AnnotationResponse, ComputeRewardEstParam, DisplayRole, GatewayCoreStatusResponse,
-    GatewayStatusReportResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatusResponse, RewardEstimationResponse, StakeSaturationResponse,
+    GatewayStatusReportResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
+    RewardEstimationResponse, StakeSaturationResponse,
 };
 
 // TODO: fix later (yeah...)
@@ -115,7 +115,7 @@ pub async fn mixnode_stake_saturation(
 pub async fn mixnode_inclusion_probability(
     mix_id: NodeId,
     state: tauri::State<'_, WalletState>,
-) -> Result<InclusionProbabilityResponse, BackendError> {
+) -> Result<nym_validator_client::models::InclusionProbabilityResponse, BackendError> {
     Ok(api_client!(state)
         .get_mixnode_inclusion_probability(mix_id)
         .await?)

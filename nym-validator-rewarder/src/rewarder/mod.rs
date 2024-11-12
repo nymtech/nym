@@ -112,7 +112,9 @@ impl TicketbookIssuanceDetails {
 
         match &self.results {
             Some(Ok(issuance)) => {
-                for (account, issuance_amount) in issuance.rewarding_amounts(&self.total_budget) {
+                for (account, issuance_amount) in
+                    issuance.rewarding_amounts(&self.per_operator_budget)
+                {
                     if issuance_amount[0].amount != 0 {
                         amounts.push((account, issuance_amount))
                     }

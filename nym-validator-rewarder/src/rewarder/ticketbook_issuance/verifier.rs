@@ -493,13 +493,16 @@ impl<'a> TicketbookIssuanceVerifier<'a> {
         let whitelisted = self.whitelist.contains(&issuer.details.operator_account);
         let total_deposits = self.made_deposits.len();
 
+        let issued_ratio = if total_deposits == 0 {
+            Decimal::zero()
+        } else {
+            Decimal::from_ratio(issuer.claimed_issued() as u32, total_deposits as u32)
+        };
+
         OperatorIssuing {
             api_runner: issuer.details.api_client.api_url().to_string(),
             whitelisted,
-            issued_ratio: Decimal::from_ratio(
-                issuer.claimed_issued() as u32,
-                total_deposits as u32,
-            ),
+            issued_ratio,
             issued_ticketbooks: issuer.claimed_issued() as u32,
             skipped_verification: issuer.verification_skipped,
             subsample_size: issuer.sampled_deposits.len() as u32,

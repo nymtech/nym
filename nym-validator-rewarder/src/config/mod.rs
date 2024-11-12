@@ -244,6 +244,7 @@ pub struct Base {
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Rewarding {
     /// Specifies total budget for a 24h period
     #[serde_as(as = "DisplayFromStr")]
@@ -266,12 +267,13 @@ pub struct RewardingRatios {
     /// The percent of the epoch reward being awarded for block signing.
     pub block_signing: f64,
 
-    /// The percent of the epoch reward being awarded for credential issuance.
+    /// The percent of the epoch reward being awarded for ticketbook issuance.
     #[serde(alias = "credential_issuance")]
     pub ticketbook_issuance: f64,
 
-    /// The percent of the epoch reward being awarded for credential verification.
-    pub credential_verification: f64,
+    /// The percent of the epoch reward being awarded for ticketbook verification.
+    #[serde(alias = "credential_verification")]
+    pub ticketbook_verification: f64,
     // /// The percent of the epoch reward given to Nym.
     // pub nym: f64,
 }
@@ -281,7 +283,7 @@ impl Default for RewardingRatios {
         RewardingRatios {
             block_signing: 0.67,
             ticketbook_issuance: 0.33,
-            credential_verification: 0.0,
+            ticketbook_verification: 0.0,
             // nym: 0.0,
         }
     }
@@ -289,7 +291,7 @@ impl Default for RewardingRatios {
 
 impl RewardingRatios {
     pub fn validate(&self) -> Result<(), NymRewarderError> {
-        if self.block_signing + self.credential_verification + self.ticketbook_issuance != 1.0 {
+        if self.block_signing + self.ticketbook_verification + self.ticketbook_issuance != 1.0 {
             return Err(NymRewarderError::InvalidRewardingRatios { ratios: *self });
         }
         Ok(())
@@ -368,25 +370,40 @@ impl Default for BlockSigning {
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct TicketbookIssuance {
-    /// Specifies whether credential issuance monitoring (and associated rewards) are enabled.
+    /// Specifies whether rewarding for ticketbook issuance is enabled.
     pub enabled: bool,
 
     /// Specifies whether to only monitor and not send rewards.
     pub monitor_only: bool,
 
-    /// Defines the minimum number of ticketbooks the monitor will validate
+    /// Defines the minimum number of ticketbooks the rewarder will validate
     /// regardless of the sampling rate
+    #[serde(default = "default_ticketbook_issuance_min_validate")]
     pub min_validate_per_issuer: usize,
 
     /// The sampling rate of the issued ticketbooks
+    #[serde(default = "default_ticketbook_issuance_sampling_rate")]
     pub sampling_rate: f64,
 
     /// Ratio of issuers that will undergo full verification as opposed to being let through.
+    #[serde(default = "default_ticketbook_issuance_full_verification_ratio")]
     pub full_verification_ratio: f64,
 
-    /// List of validators that will receive rewards for credential issuance.
+    /// List of validators that will receive rewards for ticketbook issuance.
     /// If not on the list, the validator will be treated as if it hadn't issued a single ticketbook.
     pub whitelist: Vec<AccountId>,
+}
+
+fn default_ticketbook_issuance_min_validate() -> usize {
+    TicketbookIssuance::default().min_validate_per_issuer
+}
+
+fn default_ticketbook_issuance_sampling_rate() -> f64 {
+    TicketbookIssuance::default().sampling_rate
+}
+
+fn default_ticketbook_issuance_full_verification_ratio() -> f64 {
+    TicketbookIssuance::default().full_verification_ratio
 }
 
 impl Default for TicketbookIssuance {

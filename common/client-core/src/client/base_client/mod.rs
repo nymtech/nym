@@ -734,8 +734,9 @@ where
             self.user_agent.clone(),
         );
 
+        //make sure we don't accidentally get the same id as gateways are reporting
         let client_stats_id = format!(
-            "{:x}",
+            "stats_id_{:x}",
             sha2::Sha256::digest(self_address.identity().to_bytes())
         );
         let stats_reporter = Self::start_statistics_control(

@@ -495,18 +495,9 @@ impl Rewarder {
         mut task_manager: TaskManager,
         mut scraper_cancellation: impl FusedFuture + Unpin,
     ) {
-        let until_end = self.current_block_signing_epoch.until_end();
-        info!(
-            "the initial block signing epoch (id: {}) will finish on {} ({} secs remaining)",
-            self.current_block_signing_epoch.id,
-            self.current_block_signing_epoch.end_rfc3339(),
-            until_end.as_secs()
-        );
-        // runs as often as specified in the config. by default every 1h
-        let mut block_signing_epoch_ticker = interval_at(
-            Instant::now().add(until_end),
-            self.config.block_signing.epoch_duration,
-        );
+        let mut block_signing_epoch_ticker = self
+            .current_block_signing_epoch
+            .epoch_ticker(self.config.block_signing.epoch_duration);
 
         // runs daily
         let mut ticketbook_issuance_ticker = end_of_day_ticker();

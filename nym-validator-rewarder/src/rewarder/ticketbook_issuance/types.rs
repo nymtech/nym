@@ -51,10 +51,11 @@ impl TicketbookIssuanceResults {
         for api_runner in &self.api_runners {
             let amount = api_runner.reward_amount(per_operator_budget);
             info!(
-                    "operator {} will receive {amount} at address {} for credential issuance work (whitelisted: {})",
+                    "operator {} will receive {amount} at address {} for ticketbook issuance work (whitelisted: {}, ticketbooks issued: {})",
                     api_runner.api_runner,
                     api_runner.runner_account,
-                    api_runner.whitelisted
+                    api_runner.whitelisted,
+                    api_runner.issued_ticketbooks
                 );
             amounts.push((api_runner.runner_account.clone(), vec![amount]))
         }

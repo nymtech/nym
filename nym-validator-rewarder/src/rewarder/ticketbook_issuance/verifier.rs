@@ -144,7 +144,7 @@ impl IssuerUnderTest {
         {
             Ok(res) => res,
             Err(err) => {
-                info!("failed to obtain issued ticketbooks information from {}. it might be running an outdated api. the error was: {err}", self.details);
+                warn!("failed to obtain issued ticketbooks information from {}. it might be running an outdated api. the error was: {err}", self.details);
                 return;
             }
         };

@@ -18,7 +18,7 @@ use serde_with::{serde_as, DisplayFromStr};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tracing::debug;
+use tracing::{debug, info};
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -219,16 +219,23 @@ impl Config {
 
     /// Returns the total rewarding budget for ticketbook issuance for an individual operator for given day
     pub fn ticketbook_per_operator_daily_budget(&self) -> Coin {
-        let total_budget = self.ticketbook_issuance_daily_budget();
+        let ticketbook_total_budget = self.ticketbook_issuance_daily_budget();
+
+        let whitelist_size = self.ticketbook_issuance.whitelist.len();
 
         let amount = if self.ticketbook_issuance.whitelist.is_empty() {
             Uint128::zero()
         } else {
-            Uint128::new(total_budget.amount)
-                * Decimal::from_ratio(1u32, self.ticketbook_issuance.whitelist.len() as u64)
+            Uint128::new(ticketbook_total_budget.amount)
+                * Decimal::from_ratio(1u32, whitelist_size as u64)
         };
 
-        Coin::new(amount.u128(), &total_budget.denom)
+        let per_operator = Coin::new(amount.u128(), &ticketbook_total_budget.denom);
+
+        let total_budget = &self.rewarding.daily_budget;
+        info!("ISSUANCE BUDGET: with the total daily budget of {total_budget} ({ticketbook_total_budget} for ticketbook issuance) and with whitelist size of {whitelist_size}, the per operator budget is set to {per_operator}");
+
+        per_operator
     }
 }
 

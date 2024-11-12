@@ -53,43 +53,49 @@ impl Cli {
 
 #[derive(Debug, clap::Args)]
 pub struct ConfigOverridableArgs {
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_DISABLE_BLOCK_SIGNING_REWARDING")]
     pub disable_block_signing_rewarding: bool,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNING_MONITORING_ONLY")]
     pub block_signing_monitoring_only: bool,
 
-    #[clap(long)]
+    #[clap(
+        long,
+        env = "NYM_VALIDATOR_REWARDER_DISABLE_CREDENTIAL_ISSUANCE_REWARDING"
+    )]
     pub disable_credential_issuance_rewarding: bool,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_MONITOR_RUN_INTERVAL")]
     pub credential_monitor_run_interval: Option<humantime::Duration>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_MONITOR_MIN_VALIDATION")]
     pub credential_monitor_min_validation: Option<usize>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_MONITOR_SAMPLING_RATE")]
     pub credential_monitor_sampling_rate: Option<f64>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_SCRAPER_ENDPOINT")]
     pub scraper_endpoint: Option<Url>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_NYXD_ENDPOINT")]
     pub nyxd_endpoint: Option<Url>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_EPOCH_BUDGET")]
     pub epoch_budget: Option<Coin>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_EPOCH_DURATION")]
     pub epoch_duration: Option<humantime::Duration>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNIG_REWARD_RATIO")]
     pub block_signing_reward_ratio: Option<f64>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_ISSUANCE_REWARD_RATIO")]
     pub credential_issuance_reward_ratio: Option<f64>,
 
-    #[clap(long)]
+    #[clap(
+        long,
+        env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_VERIFICATION_REWARD_RATIO"
+    )]
     pub credential_verification_reward_ratio: Option<f64>,
 }
 

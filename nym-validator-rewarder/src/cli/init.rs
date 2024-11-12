@@ -14,15 +14,15 @@ pub struct Args {
     config_override: ConfigOverridableArgs,
 
     /// Specifies custom location for the configuration file of nym validators rewarder.
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_INIT_CUSTOM_CONFIG_PATH")]
     custom_config_path: Option<PathBuf>,
 
     /// Mnemonic used for rewarding  operations
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_MNEMONIC")]
     mnemonic: bip39::Mnemonic,
 
     /// Overwrite existing configuration file.
-    #[clap(long, short)]
+    #[clap(long, short, env = "NYM_VALIDATOR_REWARDER_FORCE")]
     force: bool,
 }
 

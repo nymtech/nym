@@ -12,7 +12,7 @@ pub struct Args {
     config_override: ConfigOverridableArgs,
 
     /// Specifies custom location for the configuration file of nym validators rewarder.
-    #[clap(long)]
+    #[clap(long, env = "NYM_REWARDER_VALIDATOR_RUN_CONFIG_PATH")]
     custom_config_path: Option<PathBuf>,
 }
 

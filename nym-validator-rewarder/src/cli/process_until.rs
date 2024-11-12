@@ -13,16 +13,16 @@ pub struct Args {
 
     /// Optional starting height for processing the blocks.
     /// If none is provided, the default behaviour will be applied.
-    #[clap(long)]
+    #[clap(long, env = "NYM_REWARDER_VALIDATOR_PROCESS_UNTIL_START_HEIGHT")]
     start_height: Option<u32>,
 
     /// Height of until we want to be processing the blocks.
     /// If none is provided, the currrent block height will be used
-    #[clap(long)]
+    #[clap(long, env = "NYM_REWARDER_VALIDATOR_PROCESS_UNTIL_STOP_HEIGHT")]
     stop_height: Option<u32>,
 
     /// Specifies custom location for the configuration file of nym validators rewarder.
-    #[clap(long)]
+    #[clap(long, env = "NYM_REWARDER_VALIDATOR_PROCESS_UNTIL_CONFIG_PATH")]
     custom_config_path: Option<PathBuf>,
 }
 

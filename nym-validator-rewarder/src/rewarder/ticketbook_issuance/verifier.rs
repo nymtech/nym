@@ -135,7 +135,10 @@ impl IssuerUnderTest {
     }
 
     async fn get_issued_commitment(&mut self, expiration_date: Date) {
-        debug!("getting issued ticketbooks information of {}", self.details);
+        debug!(
+            "getting issued ticketbooks information of {}...",
+            self.details
+        );
         let issued_ticketbooks = match self
             .details
             .api_client
@@ -315,7 +318,7 @@ impl IssuerUnderTest {
         }
 
         // 2. check if the provided merkle proof has the same number of deposits as initially committed to
-        if !merkle_proof.total_leaves() != issued.body.deposits.len() {
+        if merkle_proof.total_leaves() != issued.body.deposits.len() {
             let evidence = self.produce_cheating_evidence(MismatchClaim {
                 actual: merkle_proof.total_leaves(),
                 claimed: issued.body.deposits.len(),

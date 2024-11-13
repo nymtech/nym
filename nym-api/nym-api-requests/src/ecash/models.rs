@@ -437,7 +437,7 @@ impl IssuedTicketbooksForResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksChallengeRequest {
     #[schemars(with = "String")]
@@ -446,7 +446,7 @@ pub struct IssuedTicketbooksChallengeRequest {
     pub deposits: Vec<DepositId>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksChallengeResponseBody {
     #[schemars(with = "String")]
@@ -486,7 +486,7 @@ impl IssuedTicketbooksChallengeResponseBody {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Clone)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksChallengeResponse {
     pub body: IssuedTicketbooksChallengeResponseBody,

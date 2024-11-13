@@ -350,6 +350,9 @@ impl Rewarder {
     }
 
     async fn handle_block_signing_epoch_end(&mut self) {
+        if !self.config.block_signing.enabled {
+            return;
+        }
         info!("handling the block signing epoch end");
 
         let details = self.block_signing_details().await;
@@ -392,6 +395,10 @@ impl Rewarder {
     }
 
     async fn handle_next_ticketbook_issuance_day(&mut self) {
+        if !self.config.ticketbook_issuance.enabled {
+            return;
+        }
+
         // sanity check to make sure it's actually after midnight
         let today = ecash_today();
         assert_eq!(today.hour(), 0);
@@ -466,6 +473,7 @@ impl Rewarder {
             return Ok(());
         }
 
+        if self.config.block_signing.enabled {
         info!("attempting to distribute missed rewards");
         while self.current_block_signing_epoch.has_finished() {
             info!("processing epoch {}", self.current_block_signing_epoch);
@@ -473,6 +481,7 @@ impl Rewarder {
 
             // we need to perform rewarding from the 'current' epoch until the actual current epoch
             self.handle_block_signing_epoch_end().await
+            }
         }
 
         Ok(())

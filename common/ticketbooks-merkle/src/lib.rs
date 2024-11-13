@@ -12,6 +12,7 @@ use rs_merkle::{MerkleProof, MerkleTree};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
+use std::fmt::{Debug, Formatter};
 use time::Date;
 
 // no point in importing the entire contract commons just for this one type
@@ -174,6 +175,17 @@ pub struct IssuedTicketbooksFullMerkleProof {
     #[schemars(with = "String")]
     #[serde(with = "nym_serde_helpers::hex")]
     root: Vec<u8>,
+}
+
+impl Debug for IssuedTicketbooksFullMerkleProof {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("IssuedTicketbooksFullMerkleProof")
+            .field("inner_proof", &self.inner_proof.proof_hashes_hex())
+            .field("included_leaves", &self.included_leaves)
+            .field("total_leaves", &self.total_leaves)
+            .field("root", &self.root)
+            .finish()
+    }
 }
 
 impl Clone for IssuedTicketbooksFullMerkleProof {

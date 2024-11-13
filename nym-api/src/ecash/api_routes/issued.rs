@@ -14,6 +14,7 @@ use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use time::Date;
+use tracing::trace;
 use utoipa::{IntoParams, ToSchema};
 
 pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
@@ -27,7 +28,7 @@ pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
         )
         .route(
             "/issued-ticketbooks-challenge",
-            axum::routing::get({
+            axum::routing::post({
                 let ecash_state = Arc::clone(&ecash_state);
                 |body| issued_ticketbooks_challenge(body, ecash_state)
             }),
@@ -73,7 +74,7 @@ async fn issued_ticketbooks_for(
 #[utoipa::path(
     tag = "Ecash",
     post,
-    request_body = IssuedTicketbooksChallengeBody,
+    request_body = IssuedTicketbooksChallengeRequest,
     path = "/issued-ticketbooks-challenge",
     context_path = "/v1/ecash",
     responses(
@@ -85,6 +86,7 @@ async fn issued_ticketbooks_challenge(
     Json(challenge): Json<IssuedTicketbooksChallengeRequest>,
     state: Arc<EcashState>,
 ) -> AxumResult<Json<IssuedTicketbooksChallengeResponse>> {
+    trace!("replying to ticketbooks challenge: {:?}", challenge);
     state.ensure_signer().await?;
 
     Ok(Json(

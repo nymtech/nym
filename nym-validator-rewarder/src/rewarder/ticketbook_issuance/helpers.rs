@@ -26,7 +26,7 @@ pub fn end_of_day_ticker() -> Interval {
     #[allow(clippy::unwrap_used)]
     let next_rewarding_rfc3339 = (now + until_next_rewarding).format(&Rfc3339).unwrap();
     info!(
-        "the next ticketbook issuance rewarding will happen on {next_rewarding_rfc3339} ({} secs remaining)",
+        "if enabled, the next ticketbook issuance rewarding will happen on {next_rewarding_rfc3339} ({} secs remaining)",
         until_next_rewarding.as_secs()
     );
 

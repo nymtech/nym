@@ -51,7 +51,7 @@ impl Epoch {
         let until_end = self.until_end();
 
         info!(
-            "the next block signing epoch (id: {}) will finish on {} ({} secs remaining)",
+            "if enabled, the next block signing epoch (id: {}) will finish on {} ({} secs remaining)",
             self.id,
             self.end_rfc3339(),
             until_end.as_secs()

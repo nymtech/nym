@@ -28,12 +28,13 @@ use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_http_api_client::UserAgent;
-pub use nym_mixnet_contract_common::{
-    mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId, NymNodeDetails
-};
 use nym_network_defaults::NymNetworkDetails;
 use time::Date;
 use url::Url;
+
+pub use nym_mixnet_contract_common::{
+    mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId, NymNodeDetails,
+};
 
 // re-export the type to not break existing imports
 pub use crate::coconut::EcashApiClient;

@@ -53,7 +53,7 @@ export const Bonding = () => {
     if (!bondedNode) {
       return false;
     }
-    if (isMixnode(bondedNode) && !bondedNode.isUnbonding) {
+    if (isMixnode(bondedNode) && !bondedNode.isUnbonding && !bondedNode.proxy) {
       return true;
     }
     if (isGateway(bondedNode)) {
@@ -197,7 +197,14 @@ export const Bonding = () => {
   };
 
   if (error) {
-    return <ErrorModal open message="An error occured, please check logs for details" onClose={() => refresh()} />;
+    return (
+      <ErrorModal
+        open
+        title="An error occured, please check logs for details"
+        message={error}
+        onClose={() => refresh()}
+      />
+    );
   }
 
   return (

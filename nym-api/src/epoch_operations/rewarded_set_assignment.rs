@@ -66,6 +66,7 @@ struct IgnoredNodes {
     no_self_described: usize,
     not_nym_node_binary: usize,
     no_terms_and_conditions: usize,
+    use_vested_tokens: usize,
 }
 
 impl IgnoredNodes {
@@ -75,6 +76,7 @@ impl IgnoredNodes {
             no_self_described: 0,
             not_nym_node_binary: 0,
             no_terms_and_conditions: 0,
+            use_vested_tokens: 0,
         }
     }
 
@@ -82,6 +84,7 @@ impl IgnoredNodes {
         self.no_self_described == 0
             && self.not_nym_node_binary == 0
             && self.no_terms_and_conditions == 0
+            && self.use_vested_tokens == 0
     }
 
     fn maybe_log_summary(&self) {
@@ -102,6 +105,12 @@ impl IgnoredNodes {
             warn!(
                 "{} {} operators have not accepted the terms and conditions",
                 self.no_terms_and_conditions, self.typ
+            )
+        }
+        if self.use_vested_tokens != 0 {
+            warn!(
+                "{} {} operators bonded using vested tokens",
+                self.use_vested_tokens, self.typ
             )
         }
     }
@@ -283,6 +292,11 @@ impl EpochAdvancer {
                 .accepted_operator_terms_and_conditions
             {
                 legacy_mixnodes_info.no_terms_and_conditions += 1;
+                continue;
+            }
+
+            if mix.bond_information.proxy.is_some() {
+                legacy_mixnodes_info.use_vested_tokens += 1;
                 continue;
             }
 

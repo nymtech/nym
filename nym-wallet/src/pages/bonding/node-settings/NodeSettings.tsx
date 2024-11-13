@@ -39,9 +39,9 @@ export const NodeSettings = () => {
     if (location.state === 'unbond') {
       setValue('Unbond');
     }
-    if (location.state === 'test-node') {
-      setValue('Test my node');
-    }
+    // if (location.state === 'test-node') {
+    //   setValue('Test my node');
+    // }
   }, [location]);
 
   const handleUnbond = async (fee?: FeeDetails) => {
@@ -129,11 +129,11 @@ export const NodeSettings = () => {
       >
         <Divider />
         {value === 'General' && bondedNode && <NodeGeneralSettings bondedNode={bondedNode} />}
-        {value === 'Test my node' && <NodeTestPage />}
+        {/* {value === 'Test my node' && <NodeTestPage />} */}
         {value === 'Unbond' && bondedNode && (
           <NodeUnbondPage bondedNode={bondedNode} onConfirm={handleUnbond} onError={handleError} />
         )}
-        {value === 'Playground' && bondedNode && <ApyPlayground bondedNode={bondedNode as TBondedMixnode} />}
+        {/* {value === 'Playground' && bondedNode && <ApyPlayground bondedNode={bondedNode as TBondedMixnode} />} */}
         {confirmationDetails && confirmationDetails.status === 'success' && (
           <ConfirmationDetailsModal
             title={confirmationDetails.title}

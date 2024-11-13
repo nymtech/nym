@@ -8,6 +8,10 @@ pub(crate) async fn run_chain_scraper() -> anyhow::Result<ScraperStorage> {
     let websocket_url = reqwest::Url::parse(&websocket_url)?;
     let rpc_url = reqwest::Url::parse(&rpc_url)?;
 
+    let start_block_height = std::env::var("NYXD_SCRAPER_START_HEIGHT")
+        .ok()
+        .and_then(|value| value.parse::<u32>().ok());
+
     let scraper = NyxdScraper::builder(Config {
         websocket_url,
         rpc_url,
@@ -16,7 +20,7 @@ pub(crate) async fn run_chain_scraper() -> anyhow::Result<ScraperStorage> {
         store_precommits: false,
     });
 
-    let storage = scraper.build_and_start().await?;
+    let instance = scraper.build_and_start(start_block_height).await?;
 
-    Ok(storage.storage)
+    Ok(instance.storage)
 }

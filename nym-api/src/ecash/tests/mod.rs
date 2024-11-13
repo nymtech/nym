@@ -1308,8 +1308,11 @@ impl TestFixture {
             .parse()
             .unwrap();
 
+        let mut config = config::Config::new("test");
+        config.ecash_signer.enabled = true;
+
         let ecash_state = EcashState::new(
-            &config::Config::new("test"),
+            &config,
             ecash_contract,
             nyxd_client,
             identity,

@@ -1,5 +1,6 @@
 use axum::Router;
 use core::net::SocketAddr;
+use nym_crypto::asymmetric::ed25519::PublicKey;
 use tokio::{net::TcpListener, task::JoinHandle};
 use tokio_util::sync::{CancellationToken, WaitForCancellationFutureOwned};
 
@@ -14,10 +15,11 @@ pub(crate) async fn start_http_api(
     db_pool: DbPool,
     http_port: u16,
     nym_http_cache_ttl: u64,
+    agent_key_list: Vec<PublicKey>,
 ) -> anyhow::Result<ShutdownHandles> {
     let router_builder = RouterBuilder::with_default_routes();
 
-    let state = AppState::new(db_pool, nym_http_cache_ttl);
+    let state = AppState::new(db_pool, nym_http_cache_ttl, agent_key_list);
     let router = router_builder.with_state(state);
 
     // TODO dz do we need this to be configurable?

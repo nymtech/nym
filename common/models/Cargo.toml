@@ -12,3 +12,4 @@ readme.workspace = true
 
 [dependencies]
 serde = { workspace = true, features = ["derive"] }
+nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"] }

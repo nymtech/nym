@@ -1,4 +1,5 @@
 use crate::db::models::GatewayIdentityDto;
+
 use crate::db::DbPool;
 use futures_util::TryStreamExt;
 use std::time::Duration;
@@ -23,8 +24,6 @@ pub(crate) async fn spawn(pool: DbPool, refresh_interval: Duration) {
         }
     });
 }
-
-// TODO dz make number of max agents configurable
 
 #[instrument(level = "debug", name = "testrun_queue", skip_all)]
 async fn run(pool: &DbPool) -> anyhow::Result<()> {

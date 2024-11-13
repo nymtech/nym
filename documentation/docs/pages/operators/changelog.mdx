@@ -31,6 +31,225 @@ This page displays a full list of all the changes during our release cycle from 
 
 <VarInfo />
 
+## `v2024.13-magura`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.13-magura)
+- [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.13-magura/CHANGELOG.md)
+- [`nym-node`](nodes/nym-node.mdx) version `1.1.10`
+
+```sh
+
+```
+
+Magura release represents a bigger milestone in [project Smoosh](archive/faq/smoosh-faq.mdx) development where `nym-node` is one binary able to perform any function in Nym Mixnet. This release is especially crucial for operators, please pay attention to the section [*Operators Updates & Tooling*](#operators-updates--tooling) below.
+
+
+
+### Operators Updates & Tooling
+
+<Callout type="warning" emoji="⚠️">
+**Every operator has to make sure that their nodes [self-described endpoint works](nodes/performance-and-testing/node-api-check#basic-api-usage), otherwise the node will be un-routable and thus won't get any rewards!**
+</Callout>
+
+#### Wallet changes
+
+
+#### Rewarding
+
+Currently the rewards are split equally, i.e. every node being assigned 1/240 work factor with the usual scaling by performance, stake. etc.
+
+
+
+#### Directory Services v2.1: API & Mixnet Contract Changes 
+
+Magura release brings [breaking changes on API](https://github.com/nymtech/nym/pull/4903) logic of Nym. New APIs will only communicate with `nym-node` from this release and newer. Also old version of APIs won't be able to communicate with the new version of `nym-node`. We are also moving towards completely removing Nym Explorer API, which now has been only used to report nodes location. 
+
+Any new bonded node will provide only the bare minimum information: host, identity key and optionally custom port of its HTTP api - we highly recommend to set that one up to `8080`. Everything else will be discovered via the self-described API for maximum flexibility. This also includes the sphinx key, meaning if the API is not exposed, the node will be unable to route any traffic. Furthermore, this allows to arbitrary change of   `nym-node` from mixnode into a gateway modes (and vice versa) without losing any delegations.
+
+The contract changes also mean any node functionality can get rewards. Rather than just with assigned mixing roles, gateways now also added into the pool. However, to be eligible for gateway rewarding, one must [migrate into a `nym-node`](#wallet-changes) on a smart contract level (or bond a new node). 
+
+##### API High Level Changes
+
+###### New/Added
+
+- All new routes that return multiple nodes/entries/etc now wrap their responses to expect pagination. Currently, however, full data is returned for each of the endpoints since the pagination hasn't been  implemented yet. But once we add it, it won't be a breaking API change.
+
+###### Removed
+
+- `rocket` support has been completely removed. All routes are now always served via `axum`
+
+###### Changed
+
+- Getting anything to do with all nodes (including gateways) requires knowing their `node_id`. For legacy gateway endpoints, we have a helper method that translates identity key to the `node_id`
+- Rewarded set is no longer populated with just mixnodes. Instead `nym-node`s are assigned to eligible roles (based on stake and performance) in the following order:
+    - entry gateways
+    - exit gateways
+    - mixnodes
+    - standby
+- A lot of legacy routes got deprecated. while technically they still "work" and return data, they only return data for legacy `nym-mixnode` and `nym-gateway`. What it means is that as operators are migrating their nodes (in the smart contract), those endpoints will start running dry.
+- Since layers are only assigned during rewarded set assignment, for the purposes of network monitor (v1) and legacy mixnode routes, layerless nodes are put on random layers during annotation
+- All legacy gateway queries now also include additional field in their respones: `node_id` that indicate the id pre-assigned during contract migration
+- Nym Node performance is a bit odd. When network monitors (v1 and v2) were made, there was no concept of a Nym Node. The solution taken is checking whther there is any mixnode performance for node with a given id, if so - return it. Otherwise we grab the equivalent gateway performance. In the future it should probably be averaged or maybe split into explicit mixing or gateway routing performance metrics.
+
+##### `nym-api` Changes
+
+- Root route `/` now redirects to `/swagger`
+
+###### `nym-node` Routes
+
+<br />
+
+<AccordionTemplate name="Nym Node API routes">
+- `/v1/nym-nodes/annotation/<NODE_ID>` - get annotation about particular `nym-node`, as gathered by this `nym-api`. Currently this just includes last 24h performance metric and the current node role
+- `/v1/nym-nodes/bonded` - get bond information about Nym Nodes, as present in the mixnet contract
+- `/v1/nym-nodes/described` - get described information about Nym Nodes, as present on their self-described API
+- `/v1/nym-nodes/historical-performance/<NODE_ID>` - return historical performance of this `nym-node` on the provided date
+- `/v1/nym-nodes/performance-history/<NODE_ID>` - return performance history of this `nym-node` (as a 0 - 1 float)
+- `/v1/nym-nodes/uptime-history/<NODE_ID>` - return current uptime of this `nym-node` (as a 0 - 100 u8); added for compatibility with existing APIs using that data format
+- `/v1/nym-nodes/performance/<NODE_ID>` - return current performance of this `nym-node`
+</ AccordionTemplate>
+
+<br />
+
+<AccordionTemplate name="Unstable API routes">
+- `/v1/unstable/nym-nodes/noise` - returns basic information needed for the noise protocol between nodes
+- `/v1/unstable/nym-nodes/skimmed/active` - returns all: Nym Nodes and legacy mixnodes and legacy gateways, that are currently in the active set, unless `no-legacy` parameter is used
+- `/v1/unstable/nym-nodes/skimmed/mixnodes/active` - returns all: Nym Nodes and legacy mixnodes, that are currently in the active set, unless `no-legacy` parameter is used
+- `/v1/unstable/nym-nodes/skimmed/mixnodes/all` - returns all: Nym Nodes and legacy mixnodes, that are currently bonded and support mixing role, unless `no-legacy` parameter is used
+- `/v1/unstable/nym-nodes/skimmed/entry-gateways/active` - returns all: Nym Nodes and legacy gateways, that are currently in the active set and are assigned the entry role, unless `no-legacy` parameter is used
+- `/v1/unstable/nym-nodes/skimmed/exit-gateways/active` - returns all: Nym Nodes and legacy gateways, that are currently in the active set and are assigned the exit role, unless `no-legacy` parameter is used
+- `/v1/unstable/nym-nodes/skimmed/entry-gateways/all` - returns all: Nym Nodes and legacy gateways, that are currently bonded and support entry gateway role, unless `no-legacy` parameter is used
+- `/v1/unstable/nym-nodes/skimmed/exit-gateways/all` - returns all: Nym Nodes and legacy gateways, that are currently bonded and support exit gateway role, unless `no-legacy` parameter is used
+</ AccordionTemplate>
+
+###### Deprecated (will be removed eventually, so please migrate away from their usage)
+
+Some endpoints got purposely deprecated without any equivalent reimplemented since they do not belong on `nym-api`. This includes for example `/stake-saturation` (which can be obtained directly from the contract instead) or `/inclusion-probability` (for this run your own Monte Carlo simulation).
+<br />
+
+<AccordionTemplate name="Deprecated API routes">
+- `contract-cache` routes - all of the below got deprecated as they will only return **legacy** `nym-mixnode` and `nym-gateway` data:
+    - `/v1/gateways`
+    - `/v1/gateways/blacklisted`
+    - `/v1/mixnodes`
+    - `/v1/mixnodes/active` - just to restate the obvious, it will only return a small **SUBSET** of the active set that since it will ignore active Nym Nodes
+    - `/v1/mixnodes/active/detailed`
+    - `/v1/mixnodes/blacklisted`
+    - `/v1/mixnodes/detailed`
+    - `/v1/mixnodes/rewarded`
+    - `/v1/mixnodes/rewarded/detailed`
+- `status` routes - all of the below got deprecated as they will only return **legacy** `nym-mixnode` and `nym-gateway` data:
+    - `/v1/status/gateway/<ID_KEY>/report`
+    - `/v1/status/gateway/<ID_KEY>/history`
+    - `/v1/status/gateway/<ID_KEY>/core-status-count`
+    - `/v1/status/gateway/<ID_KEY>/avg_uptime`
+    - `/v1/status/gateways/detailed`
+    - `/v1/status/gateways/detailed-unfiltered`
+    - `/v1/status/mixnode/<MIX_ID>/report`
+    - `/v1/status/mixnode/<MIX_ID>/history`
+    - `/v1/status/mixnode/<MIX_ID>/core-status-count`
+    - `/v1/status/mixnode/<MIX_ID>/avg_uptime`
+    - `/v1/status/mixnodes/detailed`
+    - `/v1/status/mixnodes/detailed-unfiltered`
+    - `/v1/status/mixnode/<MIX_ID>/status`
+    - `/v1/status/mixnode/<MIX_ID>/reward-estimation`
+    - `/v1/status/mixnode/<MIX_ID>/compute-reward-estimation`
+    - `/v1/status/mixnode/<MIX_ID>/stake-saturation`
+    - `/v1/status/mixnode/<MIX_ID>/inclusion-probability`
+    - `/v1/status/mixnodes/inclusion_probability`
+    - `/v1/status/mixnodes/rewarded/detailed`
+    - `/v1/status/mixnodes/active/detailed`
+- `nym-node` routes - all of the below got deprecated as they will only return **legacy** `nym-mixnode` and `nym-gateway` data:
+    - `/v1/gateways/described`
+    - `/v1/mixnodes/described`
+
+
+- `Unstable Nym Nodes Routes`:
+    - `/v1/unstable/nym-nodes/mixnodes/skimmed` - due to inconsistency in behaviour (i.e. active vs all) it is now redirected to `/v1/unstable/nym-nodes/mixnodes/skimmed/active` and unwraps the pagination
+    - `/v1/unstable/nym-nodes/gateways/skimmed` - due to inconsistency in behaviour (i.e. active vs all) it is now redirected to `/v1/unstable/nym-nodes/entry-gateways/skimmed/all` and unwraps the pagination
+</ AccordionTemplate>
+
+<br />
+
+<AccordionTemplate name="Changed API routes">
+- `Unstable Nym Nodes Routes`:
+    - `/v1/unstable/nym-nodes/skimmed` - now works with `exit` parameter
+    - `/v1/unstable/nym-nodes/skimmed` - introduced `no-legacy` flag to ignore legacy `nym-mixnode` and `nym-gateway` (where applicable)
+    - `/v1/unstable/nym-nodes/skimmed` - will now return all nodes if no query parameter is provided
+</ AccordionTemplate>
+
+##### Mixnet Contract
+
+<Callout type="warning" emoji="">
+**Every operator has to make sure that their nodes [self-described endpoint works](nodes/performance-and-testing/node-api-check#basic-api-usage), otherwise the node will be un-routable and thus won't get any rewards!**
+</Callout>
+
+###### High Level Changes
+
+**New/Added**
+
+- All new nodes are now bonded as Nym Nodes, even when using old `BondMixnode` or `BondGateway` messages (messages are getting translated)
+- Operators only announce nodes identity key (`<ID_KEY>`), host and port to the directory. Everything else is discovered via self-described endpoint
+- All Nym Nodes in the rewarded set are eligible for rewards and staking. Even if they serve one of the gateway roles. Legacy gateways can't be staked on nor get rewards.
+- All nodes, including legacy mixnodes and legacy gateways, are now uniquely identified by a monotonically increasing `node_id`
+- All legacy gateways are preassigned `node_id` during the contract migration
+
+**Removed**
+
+> 🔥 all concepts of node families got purged, removed, deleted, thrown into the abyss. they simply no longer exist and the world is all better for it.
+
+**Changed**
+
+- Bunch of types got changed/renamed with some fields being added/removed/deprecated. It's be quite a lot of work to list them all here, but whenever possible and feasible, they should be cross-compatible (but not always).
+- Rewarded set is no longer just a "number". Instead it has an explicit number of all `nym-node` modes: mixnodes, entry and exit gateways as well as standby nodes
+- Rewarding is now based on two parameters: performance and work factor as opposed to performance and "is active" flag. However, in practice, during this transitional period, it is assumed that the work factor will be equivalent to what would have been calculated using the old "is active" flag
+
+###### Transaction Messages Changes
+
+<br />
+
+<AccordionTemplate name="Added transaction messages">
+- `BondNymNode` - self-explanatory
+- `UnbondNymNode` - self-explanatory
+- `UpdateNodeConfig` - works as `UpdateMixnodeConfig`; it lets you change your announced host or http api port
+- `MigrateMixnode` - migrate your existing legacy mixnode into a Nym Node
+- `MigrateGateway` - migrate your exsting legacy gasteway into a Nym Node. enables staking and rewarding
+- `AssignRoles` - an additional step for epoch transition transactions. think of it as a replacement for `AdvanceCurrentEpoch`. it assigns nodes to particular roles for the given epoch
+</AccordionTemplate>
+
+<br />
+
+<AccordionTemplate name="Removed transaction messages">
+- As mentioned, all family-related things got killed off, so the following no longer exist: `CreateFamily`, `JoinFamily`, `LeaveFamily`, `KickFamilyMember`, `CreateFamilyOnBehalf`, `JoinFamilyOnBehalf`, `LeaveFamilyOnBehalf`, `KickFamilyMemberOnBehalf`
+- `UpdateActiveSetSize` - the rewarded/active set are now based on the role distribution
+- `AssignNodeLayer` - we're no longer explicitly assigning roles to all mixnodes, instead they get assigned mixing roles
+- `AdvanceCurrentEpoch` - the logic for advancing the epoch/assigning active set has changed so this message was removed
+</AccordionTemplate>
+
+
+## `v2024.12.1-aero` - patch
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.12.1-aero)
+- `nym-node` patch only, no other binaries
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2024-11-07T08:45:13.162565620Z
+Build Version:      1.1.9-1
+Commit SHA:         ccdee808303ffcfa8ed77176d3f629512045febb
+Commit Date:        2024-11-06T16:31:30.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.82.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Changes
+
+- Fixed timeout connectivity issues with authenticator
+- Amended network allowance cap
+
 ## `v2024.12-aero`
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.12-aero)

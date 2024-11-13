@@ -736,8 +736,10 @@ where
 
         //make sure we don't accidentally get the same id as gateways are reporting
         let client_stats_id = format!(
-            "stats_id_{:x}",
-            sha2::Sha256::digest(self_address.identity().to_bytes())
+            "{:x}",
+            sha2::Sha256::digest(
+                ["stats_id".as_bytes(), &self_address.identity().to_bytes()].concat()
+            )
         );
         let stats_reporter = Self::start_statistics_control(
             self.config,

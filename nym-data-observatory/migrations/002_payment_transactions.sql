@@ -1,4 +1,4 @@
-CREATE TABLE transactions (
+CREATE TABLE payments (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     transaction_hash TEXT NOT NULL UNIQUE,
     sender_address TEXT NOT NULL,

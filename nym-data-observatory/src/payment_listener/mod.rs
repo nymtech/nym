@@ -37,7 +37,7 @@ pub(crate) async fn run_payment_listener(
             .await?;
 
         for tx in transactions {
-            println!("Processing transaction: {}", tx.hash);
+            tracing::info!("Processing transaction: {}", tx.hash);
             if let Some(raw_log) = tx.raw_log.as_deref() {
                 if let Some(transfer) = parse_transfer_from_raw_log(raw_log)? {
                     if transfer.recipient == payment_receive_address {

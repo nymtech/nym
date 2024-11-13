@@ -36,7 +36,6 @@ pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
 
 #[derive(Debug, Serialize, Deserialize, Copy, Clone, IntoParams, ToSchema, JsonSchema)]
 #[into_params(parameter_in = Path)]
-#[serde(rename_all = "kebab-case")]
 pub(crate) struct ExpirationDatePathParam {
     #[schema(value_type = String, example = "1970-01-01")]
     #[schemars(with = "String")]

@@ -62,7 +62,10 @@ pub struct ConfigOverridableArgs {
     #[clap(long, env = "NYM_VALIDATOR_TICKETBOOK_ISSUANCE_MONITORING_ONLY")]
     pub ticketbook_issuance_monitoring_only: bool,
 
-    #[clap(long, env = "NYM_VALIDATOR_REWARDER_DISABLE_TICKETBOOK_ISSUANCE_REWARDING")]
+    #[clap(
+        long,
+        env = "NYM_VALIDATOR_REWARDER_DISABLE_TICKETBOOK_ISSUANCE_REWARDING"
+    )]
     pub disable_ticketbook_issuance_rewarding: bool,
 
     #[clap(long, env = "NYM_VALIDATOR_REWARDER_SCRAPER_ENDPOINT")]

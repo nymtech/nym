@@ -6,34 +6,44 @@
 // #![warn(clippy::expect_used)]
 // #![warn(clippy::unwrap_used)]
 
-use defguard_wireguard_rs::WGApi;
 #[cfg(target_os = "linux")]
 use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
+use defguard_wireguard_rs::{WGApi, WireguardInterfaceApi};
+use hosts::Hosts;
 use nym_crypto::asymmetric::encryption::KeyPair;
 #[cfg(target_os = "linux")]
-use nym_network_defaults::constants::WG_TUN_BASE_NAME;
+use nym_network_defaults::constants::{WG_TUN_BASE_NAME_V4, WG_TUN_BASE_NAME_V6};
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
 
 pub(crate) mod error;
+pub mod hosts;
 pub mod peer_controller;
 pub mod peer_handle;
 
 pub struct WgApiWrapper {
-    inner: WGApi,
+    api_v4: WGApi,
+    api_v6: WGApi,
 }
 
 impl WgApiWrapper {
-    pub fn new(wg_api: WGApi) -> Self {
-        WgApiWrapper { inner: wg_api }
+    pub fn new(api_v4: WGApi, api_v6: WGApi) -> Self {
+        WgApiWrapper { api_v4, api_v6 }
+    }
+
+    pub fn get_hosts(&self) -> Result<Hosts, Box<dyn std::error::Error + Send + Sync + 'static>> {
+        let host_v4 = self.api_v4.read_interface_data()?;
+        let host_v6 = self.api_v6.read_interface_data()?;
+        let hosts = Hosts::new(host_v4, host_v6);
+        Ok(hosts)
     }
 }
 
 impl Drop for WgApiWrapper {
     fn drop(&mut self) {
-        if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.inner)
+        if let Err(e) = defguard_wireguard_rs::WireguardInterfaceApi::remove_interface(&self.api_v4)
         {
             log::error!("Could not remove the wireguard interface: {:?}", e);
         }
@@ -93,9 +103,13 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
     use std::collections::HashMap;
     use tokio::sync::RwLock;
 
-    let ifname = String::from(WG_TUN_BASE_NAME);
-    let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
+    let ifname_v4 = String::from(WG_TUN_BASE_NAME_V4);
+    let ifname_v6 = String::from(WG_TUN_BASE_NAME_V6);
+    let wg_api_v4 = defguard_wireguard_rs::WGApi::new(ifname_v4.clone(), false)?;
+    let wg_api_v6 = defguard_wireguard_rs::WGApi::new(ifname_v6.clone(), false)?;
     let mut peer_bandwidth_managers = HashMap::with_capacity(all_peers.len());
+    let mut peers_v4 = vec![];
+    let mut peers_v6 = vec![];
     let peers = all_peers
         .into_iter()
         .map(Peer::try_from)
@@ -108,7 +122,10 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
             peer
         })
         .collect::<Vec<_>>();
-    for peer in peers.iter() {
+    for peer in peers.into_iter() {
+        let Some(ip_mask) = peer.allowed_ips.first() else {
+            continue;
+        };
         let bandwidth_manager =
             PeerController::generate_bandwidth_manager(storage.clone(), &peer.public_key)
                 .await?
@@ -116,34 +133,35 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
         // Update storage with *x_bytes set to 0, as in kernel peers we can't set those values
         // so we need to restart counting. Hopefully the bandwidth was counted in available_bandwidth
         storage
-            .insert_wireguard_peer(peer, bandwidth_manager.is_some())
+            .insert_wireguard_peer(&peer, bandwidth_manager.is_some())
             .await?;
         peer_bandwidth_managers.insert(peer.public_key.clone(), bandwidth_manager);
+        if ip_mask.ip.is_ipv4() {
+            peers_v4.push(peer);
+        } else {
+            peers_v6.push(peer);
+        }
     }
-    wg_api.create_interface()?;
-    let interface_config = InterfaceConfiguration {
-        name: ifname.clone(),
+    wg_api_v4.create_interface()?;
+    wg_api_v6.create_interface()?;
+
+    wg_api_v4.configure_interface(&InterfaceConfiguration {
+        name: ifname_v4.clone(),
         prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
         address: wireguard_data.inner.config().private_ipv4.to_string(),
         port: wireguard_data.inner.config().announced_port as u32,
-        peers,
+        peers: peers_v4,
         mtu: None,
-    };
-    wg_api.configure_interface(&interface_config)?;
-    std::process::Command::new("ip")
-        .args([
-            "-6",
-            "addr",
-            "add",
-            &format!(
-                "{}/{}",
-                wireguard_data.inner.config().private_ipv6,
-                wireguard_data.inner.config().private_network_prefix_v6
-            ),
-            "dev",
-            (&ifname),
-        ])
-        .output()?;
+    })?;
+
+    wg_api_v6.configure_interface(&InterfaceConfiguration {
+        name: ifname_v6.clone(),
+        prvkey: BASE64_STANDARD.encode(wireguard_data.inner.keypair().private_key().to_bytes()),
+        address: wireguard_data.inner.config().private_ipv6.to_string(),
+        port: wireguard_data.inner.config().announced_port as u32,
+        peers: peers_v6,
+        mtu: None,
+    })?;
 
     // Use a dummy peer to create routing rule for the entire network space
     let mut catch_all_peer = Peer::new(Key::new([0; 32]));
@@ -155,18 +173,25 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
         wireguard_data.inner.config().private_ipv6,
         wireguard_data.inner.config().private_network_prefix_v6,
     )?;
-    catch_all_peer.set_allowed_ips(vec![
-        IpAddrMask::new(network_v4.network_address(), network_v4.netmask()),
-        IpAddrMask::new(network_v6.network_address(), network_v6.netmask()),
-    ]);
-    wg_api.configure_peer_routing(&[catch_all_peer])?;
 
-    let host = wg_api.read_interface_data()?;
-    let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
+    catch_all_peer.set_allowed_ips(vec![IpAddrMask::new(
+        network_v4.network_address(),
+        network_v4.netmask(),
+    )]);
+    wg_api_v4.configure_peer_routing(&[catch_all_peer.clone()])?;
+
+    catch_all_peer.set_allowed_ips(vec![IpAddrMask::new(
+        network_v6.network_address(),
+        network_v6.netmask(),
+    )]);
+    wg_api_v6.configure_peer_routing(&[catch_all_peer])?;
+
+    let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api_v4, wg_api_v6));
+    let hosts = wg_api.get_hosts()?;
     let mut controller = PeerController::new(
         storage,
         wg_api.clone(),
-        host,
+        hosts,
         peer_bandwidth_managers,
         wireguard_data.inner.peer_tx.clone(),
         wireguard_data.peer_rx,

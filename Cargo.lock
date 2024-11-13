@@ -6872,6 +6872,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-task",
  "nym-wireguard-types",
+ "serde",
  "thiserror",
  "tokio",
  "tokio-stream",

@@ -1,11 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use defguard_wireguard_rs::{
-    host::{Host, Peer},
-    key::Key,
-    WireguardInterfaceApi,
-};
+use defguard_wireguard_rs::{host::Peer, key::Key, WireguardInterfaceApi};
 use futures::channel::oneshot;
 use nym_authenticator_requests::{
     latest::registration::RemainingBandwidthData, v1::registration::BANDWIDTH_CAP_PER_DAY,
@@ -20,6 +16,7 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
+use crate::hosts::Hosts;
 use crate::peer_handle::PeerHandle;
 use crate::WgApiWrapper;
 use crate::{error::Error, peer_handle::SharedBandwidthStorageManager};
@@ -68,7 +65,7 @@ pub struct PeerController<St: Storage + Clone + 'static> {
     request_tx: mpsc::Sender<PeerControlRequest>,
     request_rx: mpsc::Receiver<PeerControlRequest>,
     wg_api: Arc<WgApiWrapper>,
-    host_information: Arc<RwLock<Host>>,
+    hosts_information: Arc<RwLock<Hosts>>,
     bw_storage_managers: HashMap<Key, Option<SharedBandwidthStorageManager<St>>>,
     timeout_check_interval: IntervalStream,
     task_client: nym_task::TaskClient,
@@ -78,7 +75,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
     pub fn new(
         storage: St,
         wg_api: Arc<WgApiWrapper>,
-        initial_host_information: Host,
+        initial_hosts_information: Hosts,
         bw_storage_managers: HashMap<Key, Option<SharedBandwidthStorageManager<St>>>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         request_rx: mpsc::Receiver<PeerControlRequest>,
@@ -87,12 +84,12 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         let timeout_check_interval = tokio_stream::wrappers::IntervalStream::new(
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
-        let host_information = Arc::new(RwLock::new(initial_host_information));
+        let hosts_information = Arc::new(RwLock::new(initial_hosts_information));
         for (public_key, bandwidth_storage_manager) in bw_storage_managers.iter() {
             let mut handle = PeerHandle::new(
                 storage.clone(),
                 public_key.clone(),
-                host_information.clone(),
+                hosts_information.clone(),
                 bandwidth_storage_manager.clone(),
                 request_tx.clone(),
                 &task_client,
@@ -107,7 +104,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         PeerController {
             storage,
             wg_api,
-            host_information,
+            hosts_information,
             bw_storage_managers,
             request_tx,
             request_rx,
@@ -122,7 +119,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
             self.storage.insert_wireguard_peer(peer, false).await?;
         }
         let ret: Result<(), defguard_wireguard_rs::error::WireguardInterfaceError> =
-            self.wg_api.inner.configure_peer(peer);
+            self.wg_api.api_v4.configure_peer(peer);
         if client_id.is_none() && ret.is_err() {
             // Try to revert the insertion in storage
             if self
@@ -141,7 +138,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
     pub async fn remove_peer(&mut self, key: &Key) -> Result<(), Error> {
         self.storage.remove_wireguard_peer(&key.to_string()).await?;
         self.bw_storage_managers.remove(key);
-        let ret = self.wg_api.inner.remove_peer(key);
+        let ret = self.wg_api.api_v4.remove_peer(key);
         if ret.is_err() {
             log::error!("Wireguard peer could not be removed from wireguard kernel module. Process should be restarted so that the interface is reset.");
         }
@@ -187,7 +184,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         let mut handle = PeerHandle::new(
             self.storage.clone(),
             peer.public_key.clone(),
-            self.host_information.clone(),
+            self.hosts_information.clone(),
             bandwidth_storage_manager.clone(),
             self.request_tx.clone(),
             &self.task_client,
@@ -226,7 +223,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                 .available_bandwidth()
                 .await
         } else {
-            let Some(peer) = self.host_information.read().await.peers.get(key).cloned() else {
+            let Some(peer) = self.hosts_information.read().await.get(key).cloned() else {
                 // host information not updated yet
                 return Ok(None);
             };
@@ -242,11 +239,11 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         loop {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
-                    let Ok(host) = self.wg_api.inner.read_interface_data() else {
+                    let Ok(hosts) = self.wg_api.get_hosts() else {
                         log::error!("Can't read wireguard kernel data");
                         continue;
                     };
-                    *self.host_information.write().await = host;
+                    *self.hosts_information.write().await = hosts;
                 }
                 _ = self.task_client.recv() => {
                     log::trace!("PeerController handler: Received shutdown");

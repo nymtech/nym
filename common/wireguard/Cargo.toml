@@ -23,6 +23,9 @@ futures = { workspace = true }
 x25519-dalek = { workspace = true }
 ip_network = { workspace = true }
 log.workspace = true
+serde = { workspace = true, features = [
+    "derive",
+] } # for config serialization/deserialization
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 tokio-stream = { workspace = true }

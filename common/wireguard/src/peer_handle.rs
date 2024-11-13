@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::Error;
+use crate::hosts::Hosts;
 use crate::peer_controller::PeerControlRequest;
 use defguard_wireguard_rs::host::Peer;
-use defguard_wireguard_rs::{host::Host, key::Key};
+use defguard_wireguard_rs::key::Key;
 use futures::channel::oneshot;
 use nym_authenticator_requests::v2::registration::BANDWIDTH_CAP_PER_DAY;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
@@ -23,7 +24,7 @@ const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60 * 24); // 24 hou
 pub struct PeerHandle<St> {
     storage: St,
     public_key: Key,
-    host_information: Arc<RwLock<Host>>,
+    hosts_information: Arc<RwLock<Hosts>>,
     bandwidth_storage_manager: Option<SharedBandwidthStorageManager<St>>,
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
@@ -35,7 +36,7 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
     pub fn new(
         storage: St,
         public_key: Key,
-        host_information: Arc<RwLock<Host>>,
+        hosts_information: Arc<RwLock<Hosts>>,
         bandwidth_storage_manager: Option<SharedBandwidthStorageManager<St>>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         task_client: &TaskClient,
@@ -48,7 +49,7 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         PeerHandle {
             storage,
             public_key,
-            host_information,
+            hosts_information,
             bandwidth_storage_manager,
             request_tx,
             timeout_check_interval,
@@ -123,10 +124,9 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
                     let Some(kernel_peer) = self
-                        .host_information
+                        .hosts_information
                         .read()
                         .await
-                        .peers
                         .get(&self.public_key)
                         .cloned() else {
                             // the host information hasn't beed updated yet

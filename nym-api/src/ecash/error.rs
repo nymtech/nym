@@ -22,9 +22,6 @@ pub type Result<T, E = EcashError> = std::result::Result<T, E>;
 
 #[derive(Debug, Error)]
 pub enum EcashError {
-    #[error("permanently restricted")]
-    Restricted,
-
     #[error(transparent)]
     IOError(#[from] std::io::Error),
 

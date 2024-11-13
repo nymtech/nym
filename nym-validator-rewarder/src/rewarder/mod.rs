@@ -16,10 +16,8 @@ use nym_ecash_time::{ecash_today, ecash_today_date, EcashTime};
 use nym_task::TaskManager;
 use nym_validator_client::nyxd::{AccountId, Coin, Hash};
 use nyxd_scraper::NyxdScraper;
-use std::ops::Add;
 use time::Date;
 use tokio::pin;
-use tokio::time::{interval_at, Instant};
 use tracing::{error, info, instrument, warn};
 
 mod block_signing;
@@ -474,13 +472,13 @@ impl Rewarder {
         }
 
         if self.config.block_signing.enabled {
-        info!("attempting to distribute missed rewards");
-        while self.current_block_signing_epoch.has_finished() {
-            info!("processing epoch {}", self.current_block_signing_epoch);
-            self.ensure_has_epoch_blocks().await?;
+            info!("attempting to distribute missed rewards");
+            while self.current_block_signing_epoch.has_finished() {
+                info!("processing epoch {}", self.current_block_signing_epoch);
+                self.ensure_has_epoch_blocks().await?;
 
-            // we need to perform rewarding from the 'current' epoch until the actual current epoch
-            self.handle_block_signing_epoch_end().await
+                // we need to perform rewarding from the 'current' epoch until the actual current epoch
+                self.handle_block_signing_epoch_end().await
             }
         }
 

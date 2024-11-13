@@ -388,7 +388,7 @@ impl SpentCredentialsResponse {
 
 pub type DepositId = u32;
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitedDeposit {
     pub deposit_id: DepositId,
@@ -541,7 +541,7 @@ mod tests {
     #[test]
     fn decoding_attribute_commitments() {
         let mut rng = test_rng();
-        let mut keys = ed25519::KeyPair::new(&mut rng);
+        let keys = ed25519::KeyPair::new(&mut rng);
         let dummy_sig = keys.private_key().sign("foomp");
         let dummy_keypair = KeyPairUser::new();
         let date = ecash_today_date();

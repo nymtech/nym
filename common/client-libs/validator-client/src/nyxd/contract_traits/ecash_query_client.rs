@@ -7,13 +7,13 @@ use crate::nyxd::error::NyxdError;
 use crate::nyxd::CosmWasmClient;
 use async_trait::async_trait;
 use cosmwasm_std::Coin;
+use nym_ecash_contract_common::deposit::LatestDepositResponse;
 use nym_ecash_contract_common::msg::QueryMsg as EcashQueryMsg;
 use serde::Deserialize;
 
 pub use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, PagedBlacklistedAccountResponse,
 };
-use nym_ecash_contract_common::deposit::LatestDepositResponse;
 pub use nym_ecash_contract_common::deposit::{
     Deposit, DepositData, DepositId, DepositResponse, PagedDepositsResponse,
 };

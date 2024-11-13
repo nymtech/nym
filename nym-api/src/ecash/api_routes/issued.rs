@@ -19,14 +19,14 @@ use utoipa::{IntoParams, ToSchema};
 pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
     Router::new()
         .route(
-            "issued-ticketbooks-for/:expiration_date",
+            "/issued-ticketbooks-for/:expiration_date",
             axum::routing::get({
                 let ecash_state = Arc::clone(&ecash_state);
                 |expiration_date| issued_ticketbooks_for(expiration_date, ecash_state)
             }),
         )
         .route(
-            "issued-ticketbooks-challenge",
+            "/issued-ticketbooks-challenge",
             axum::routing::get({
                 let ecash_state = Arc::clone(&ecash_state);
                 |body| issued_ticketbooks_challenge(body, ecash_state)

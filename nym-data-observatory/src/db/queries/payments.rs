@@ -2,7 +2,7 @@ use crate::db::DbPool;
 use anyhow::Result;
 
 pub async fn get_last_checked_height(pool: &DbPool) -> Result<i64> {
-    let result = sqlx::query_scalar!("SELECT MAX(height) FROM transactions")
+    let result = sqlx::query_scalar!("SELECT MAX(height) FROM payments")
         .fetch_one(pool)
         .await?;
     Ok(result.unwrap_or(0))
@@ -21,7 +21,7 @@ pub async fn insert_payment(
 
     sqlx::query!(
         r#"
-        INSERT INTO transactions (
+        INSERT INTO payments (
             transaction_hash, sender_address, receiver_address,
             amount, height, timestamp, memo
         ) VALUES (?, ?, ?, ?, ?, ?, ?)

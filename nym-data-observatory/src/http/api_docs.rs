@@ -6,5 +6,9 @@ use utoipauto::utoipauto;
 // https://github.com/ProbablyClem/utoipauto/issues/13#issuecomment-1974911829
 #[utoipauto(paths = "./nym-data-observatory/src")]
 #[derive(OpenApi)]
-#[openapi(info(title = "Nym API"), tags(), components(schemas()))]
+#[openapi(
+    info(title = "Nym Data Observatory API"),
+    tags(),
+    components(schemas())
+)]
 pub(super) struct ApiDoc;

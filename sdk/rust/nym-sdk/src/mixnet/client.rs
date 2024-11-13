@@ -23,7 +23,7 @@ use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::{
     base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
 };
-use nym_client_core::config::DebugConfig;
+use nym_client_core::config::{DebugConfig, StatsReporting};
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::setup_gateway;
@@ -54,7 +54,6 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_shutdown: Option<TaskClient>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
-    stats_reporting_config: Option<nym_statistics_common::StatsReportingConfig>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -94,7 +93,6 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             custom_gateway_transceiver: None,
             force_tls: false,
             user_agent: None,
-            stats_reporting_config: None,
         })
     }
 }
@@ -122,7 +120,6 @@ where
             custom_shutdown: None,
             force_tls: false,
             user_agent: None,
-            stats_reporting_config: None,
             gateway_endpoint_config_path: None,
             storage,
         }
@@ -141,7 +138,6 @@ where
             custom_shutdown: self.custom_shutdown,
             force_tls: self.force_tls,
             user_agent: self.user_agent,
-            stats_reporting_config: self.stats_reporting_config,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
         }
@@ -236,11 +232,8 @@ where
     }
 
     #[must_use]
-    pub fn with_statistics_reporting(
-        mut self,
-        config: nym_statistics_common::StatsReportingConfig,
-    ) -> Self {
-        self.stats_reporting_config = Some(config);
+    pub fn with_statistics_reporting(mut self, config: StatsReporting) -> Self {
+        self.config.debug_config.stats_reporting = config;
         self
     }
 
@@ -272,7 +265,6 @@ where
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
         client.user_agent = self.user_agent;
-        client.stats_reporting_config = self.stats_reporting_config;
 
         Ok(client)
     }
@@ -322,8 +314,6 @@ where
     custom_shutdown: Option<TaskClient>,
 
     user_agent: Option<UserAgent>,
-
-    stats_reporting_config: Option<nym_statistics_common::StatsReportingConfig>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -373,7 +363,6 @@ where
             force_tls: false,
             custom_shutdown: None,
             user_agent: None,
-            stats_reporting_config: None,
         })
     }
 
@@ -594,10 +583,6 @@ where
             base_builder = base_builder.with_user_agent(user_agent);
         }
 
-        if let Some(stats_reporting_config) = self.stats_reporting_config {
-            base_builder = base_builder.with_statistics_reporting(stats_reporting_config);
-        }
-
         if let Some(topology_provider) = self.custom_topology_provider {
             base_builder = base_builder.with_topology_provider(topology_provider);
         }
@@ -729,6 +714,7 @@ where
         let mut client_output = started_client.client_output.register_consumer();
         let client_state: nym_client_core::client::base_client::ClientState =
             started_client.client_state;
+        let stats_events_reporter = started_client.stats_reporter;
 
         let identity_keys = started_client.identity_keys.clone();
         let reconstructed_receiver = client_output.register_receiver()?;
@@ -740,6 +726,7 @@ where
             client_output,
             client_state,
             reconstructed_receiver,
+            stats_events_reporter,
             started_client.task_handle,
             None,
         ))

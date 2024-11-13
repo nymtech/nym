@@ -49,7 +49,6 @@ use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_statistics_common::clients::ClientStatsSender;
-use nym_statistics_common::StatsReportingConfig;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
@@ -187,7 +186,6 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<TaskClient>,
     user_agent: Option<UserAgent>,
-    stats_reporting_config: Option<StatsReportingConfig>,
 
     setup_method: GatewaySetup,
 }
@@ -211,7 +209,6 @@ where
             custom_gateway_transceiver: None,
             shutdown: None,
             user_agent: None,
-            stats_reporting_config: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
         }
     }
@@ -252,12 +249,6 @@ where
     #[must_use]
     pub fn with_user_agent(mut self, user_agent: UserAgent) -> Self {
         self.user_agent = Some(user_agent);
-        self
-    }
-
-    #[must_use]
-    pub fn with_statistics_reporting(mut self, config: StatsReportingConfig) -> Self {
-        self.stats_reporting_config = Some(config);
         self
     }
 
@@ -598,14 +589,18 @@ where
     }
 
     fn start_statistics_control(
-        stats_reporting_config: Option<StatsReportingConfig>,
+        config: &Config,
+        user_agent: Option<UserAgent>,
         client_stats_id: String,
         input_sender: Sender<InputMessage>,
         shutdown: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting statistics control...");
         StatisticsControl::create_and_start_with_shutdown(
-            stats_reporting_config,
+            config.debug.stats_reporting,
+            user_agent
+                .map(|u| u.application)
+                .unwrap_or("unknown".to_string()),
             client_stats_id,
             input_sender.clone(),
             shutdown.with_suffix("controller"),
@@ -739,12 +734,14 @@ where
             self.user_agent.clone(),
         );
 
+        //make sure we don't accidentally get the same id as gateways are reporting
         let client_stats_id = format!(
-            "{:x}",
+            "stats_id_{:x}",
             sha2::Sha256::digest(self_address.identity().to_bytes())
         );
         let stats_reporter = Self::start_statistics_control(
-            self.stats_reporting_config,
+            self.config,
+            self.user_agent.clone(),
             client_stats_id,
             input_sender.clone(),
             shutdown.fork("statistics_control"),

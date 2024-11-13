@@ -17,7 +17,7 @@ pub use nym_client_core::config::{
     Acknowledgements as ConfigAcknowledgements, Config as BaseClientConfig,
     CoverTraffic as ConfigCoverTraffic, DebugConfig as ConfigDebug,
     GatewayConnection as ConfigGatewayConnection, ReplySurbs as ConfigReplySurbs,
-    Topology as ConfigTopology, Traffic as ConfigTraffic,
+    StatsReporting as ConfigStatsReporting, Topology as ConfigTopology, Traffic as ConfigTraffic,
 };
 
 pub fn new_base_client_config(
@@ -86,7 +86,7 @@ pub fn no_cover_debug_obj() -> JsValue {
 
 // just a helper structure to more easily pass through the JS boundary
 #[wasm_bindgen(inspectable)]
-#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DebugWasm {
     /// Defines all configuration options related to traffic streams.
@@ -106,6 +106,10 @@ pub struct DebugWasm {
 
     /// Defines all configuration options related to reply SURBs.
     pub reply_surbs: ReplySurbsWasm,
+
+    /// Defines all configuration options related to stats reporting.
+    #[wasm_bindgen(getter_with_clone)]
+    pub stats_reporting: StatsReportingWasm,
 }
 
 impl Default for DebugWasm {
@@ -123,6 +127,7 @@ impl From<DebugWasm> for ConfigDebug {
             acknowledgements: debug.acknowledgements.into(),
             topology: debug.topology.into(),
             reply_surbs: debug.reply_surbs.into(),
+            stats_reporting: debug.stats_reporting.into(),
         }
     }
 }
@@ -136,6 +141,7 @@ impl From<ConfigDebug> for DebugWasm {
             acknowledgements: debug.acknowledgements.into(),
             topology: debug.topology.into(),
             reply_surbs: debug.reply_surbs.into(),
+            stats_reporting: debug.stats_reporting.into(),
         }
     }
 }
@@ -502,6 +508,49 @@ impl From<ConfigReplySurbs> for ReplySurbsWasm {
             maximum_reply_surb_age_ms: reply_surbs.maximum_reply_surb_age.as_millis() as u32,
             maximum_reply_key_age_ms: reply_surbs.maximum_reply_key_age.as_millis() as u32,
             surb_mix_hops: reply_surbs.surb_mix_hops,
+        }
+    }
+}
+
+#[wasm_bindgen(inspectable)]
+#[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
+#[serde(deny_unknown_fields)]
+pub struct StatsReportingWasm {
+    /// Is stats reporting enabled
+    pub enabled: bool,
+
+    /// Address of the stats collector. If this is none, no reporting will happen, regardless of `enabled`
+    #[wasm_bindgen(getter_with_clone)]
+    pub provider_address: Option<String>,
+
+    /// With what frequence will statistics be sent
+    pub reporting_interval_ms: u32,
+}
+
+impl Default for StatsReportingWasm {
+    fn default() -> Self {
+        ConfigStatsReporting::default().into()
+    }
+}
+
+impl From<StatsReportingWasm> for ConfigStatsReporting {
+    fn from(stats_reporting: StatsReportingWasm) -> Self {
+        ConfigStatsReporting {
+            enabled: stats_reporting.enabled,
+            provider_address: stats_reporting
+                .provider_address
+                .map(|address| address.parse().expect("Invalid provider address")),
+            reporting_interval: Duration::from_millis(stats_reporting.reporting_interval_ms as u64),
+        }
+    }
+}
+
+impl From<ConfigStatsReporting> for StatsReportingWasm {
+    fn from(stats_reporting: ConfigStatsReporting) -> Self {
+        StatsReportingWasm {
+            enabled: stats_reporting.enabled,
+            provider_address: stats_reporting.provider_address.map(|r| r.to_string()),
+            reporting_interval_ms: stats_reporting.reporting_interval.as_millis() as u32,
         }
     }
 }

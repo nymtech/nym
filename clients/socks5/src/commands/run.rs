@@ -70,6 +70,7 @@ impl From<Run> for OverrideConfig {
             nyxd_urls: run_config.common_args.nyxd_urls,
             enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
             outfox: run_config.outfox,
+            stats_reporting_address: run_config.common_args.stats_reporting_address,
         }
     }
 }

@@ -181,6 +181,7 @@ impl From<ConfigV5> for Config {
                     maximum_reply_key_age: value.debug.reply_surbs.maximum_reply_key_age,
                     surb_mix_hops: value.debug.reply_surbs.surb_mix_hops,
                 },
+                stats_reporting: Default::default(),
             },
         }
     }

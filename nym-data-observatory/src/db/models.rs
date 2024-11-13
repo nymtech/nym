@@ -31,7 +31,7 @@ pub(crate) struct PriceHistory {
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
-pub(crate) struct PaymentTransaction {
+pub(crate) struct PaymentRecord {
     pub(crate) transaction_hash: String,
     pub(crate) sender_address: String,
     pub(crate) receiver_address: String,

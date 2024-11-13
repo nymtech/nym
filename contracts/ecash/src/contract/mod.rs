@@ -8,9 +8,7 @@ use crate::helpers::{
     BlacklistKey, Config, MultisigReply, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
     CONTRACT_NAME, CONTRACT_VERSION, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT,
 };
-use cosmwasm_std::{
-    coin, BankMsg, Coin, Decimal, Event, Order, Reply, Response, StdResult, Uint128,
-};
+use cosmwasm_std::{coin, BankMsg, Coin, Event, Order, Reply, Response, StdResult};
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
@@ -283,30 +281,20 @@ impl NymEcashContract<'_> {
             .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
 
         let config = self.config.load(ctx.deps.storage)?;
-
-        // TODO: we need unit tests for this
-        let deposit_amount = config.deposit_amount.amount;
-        let ticketbook_size = Uint128::new(self.get_ticketbook_size(ctx.deps.storage)? as u128);
-        let tickets = Uint128::new(n as u128);
-
-        // how many tickets from a ticketbook you redeemed
-        let book_ratio = Decimal::from_ratio(tickets, ticketbook_size);
-
-        // return = ticketbook_price * (tickets / ticketbook_size)
-        let return_amount = book_ratio * deposit_amount;
+        let to_return = self.tickets_redemption_amount(ctx.deps.storage, &config, n)?;
+        if to_return.amount.is_zero() {
+            return Ok(Response::new());
+        }
 
         self.pool_counters
             .update(ctx.deps.storage, |mut counters| -> StdResult<_> {
-                counters.total_redeemed.amount += return_amount;
+                counters.total_redeemed.amount += to_return.amount;
                 Ok(counters)
             })?;
 
         Ok(Response::new().add_message(BankMsg::Send {
             to_address: config.holding_account.to_string(),
-            amount: vec![Coin {
-                denom: config.deposit_amount.denom,
-                amount: return_amount,
-            }],
+            amount: vec![to_return],
         }))
     }
 

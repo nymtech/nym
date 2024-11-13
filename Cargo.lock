@@ -10945,6 +10945,7 @@ dependencies = [
  "nym-gateway-client",
  "nym-sphinx",
  "nym-sphinx-acknowledgements",
+ "nym-statistics-common",
  "nym-task",
  "nym-topology",
  "nym-validator-client",

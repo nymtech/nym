@@ -61,7 +61,8 @@ pub(super) fn mandatory_routes() -> Router<AppState> {
 #[utoipa::path(
     tag = "status",
     post,
-    path = "/v1/status/submit-gateway-monitoring-results",
+    path = "/status/submit-gateway-monitoring-results",
+    context_path = "/api/v1",
     responses(
         (status = 200),
         (status = 400, body = ErrorResponse, description = "TBD"),
@@ -106,7 +107,8 @@ pub(crate) async fn submit_gateway_monitoring_results(
 #[utoipa::path(
     tag = "status",
     post,
-    path = "/v1/status/submit-node-monitoring-results",
+    path = "/status/submit-node-monitoring-results",
+    context_path = "/api/v1",
     responses(
         (status = 200),
         (status = 400, body = ErrorResponse, description = "TBD"),
@@ -154,7 +156,8 @@ pub(crate) async fn submit_node_monitoring_results(
     params(
         MixIdParam
     ),
-    path = "/v1/status/mixnode/{mix_id}/status",
+    path = "/status/mixnode/{mix_id}/status",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = MixnodeStatusResponse)
     )
@@ -173,7 +176,8 @@ async fn get_mixnode_status(
     params(
         MixIdParam
     ),
-    path = "/v1/status/mixnode/{mix_id}/stake-saturation",
+    path = "/status/mixnode/{mix_id}/stake-saturation",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = StakeSaturationResponse)
     )
@@ -199,7 +203,8 @@ async fn get_mixnode_stake_saturation(
     params(
         MixIdParam
     ),
-    path = "/v1/status/mixnode/{mix_id}/inclusion-probability",
+    path = "/status/mixnode/{mix_id}/inclusion-probability",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = InclusionProbabilityResponse)
     )
@@ -217,7 +222,8 @@ async fn get_mixnode_inclusion_probability(
 #[utoipa::path(
     tag = "status",
     get,
-    path = "/v1/status/mixnodes/inclusion-probability",
+    path = "/status/mixnodes/inclusion-probability",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = AllInclusionProbabilitiesResponse)
     )
@@ -234,7 +240,8 @@ async fn get_mixnode_inclusion_probabilities(
 #[utoipa::path(
     tag = "status",
     get,
-    path = "/v1/status/mixnodes/detailed",
+    path = "/status/mixnodes/detailed",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = MixNodeBondAnnotated)
     )
@@ -249,7 +256,8 @@ pub async fn get_mixnodes_detailed(
 #[utoipa::path(
     tag = "status",
     get,
-    path = "/v1/status/mixnodes/rewarded/detailed",
+    path = "/status/mixnodes/rewarded/detailed",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = MixNodeBondAnnotated)
     )
@@ -270,7 +278,8 @@ pub async fn get_rewarded_set_detailed(
 #[utoipa::path(
     tag = "status",
     get,
-    path = "/v1/status/mixnodes/active/detailed",
+    path = "/status/mixnodes/active/detailed",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = MixNodeBondAnnotated)
     )

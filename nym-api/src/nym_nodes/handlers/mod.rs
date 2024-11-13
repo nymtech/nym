@@ -49,7 +49,7 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
     post,
     request_body = NodeRefreshBody,
     path = "/refresh-described",
-    context_path = "/v1/nym-nodes",
+    context_path = "/api/v1/nym-nodes",
 )]
 async fn refresh_described(
     State(state): State<AppState>,
@@ -105,7 +105,7 @@ async fn refresh_described(
     tag = "Nym Nodes",
     get,
     path = "/noise",
-    context_path = "/v1/nym-nodes",
+    context_path = "/api/v1/nym-nodes",
     responses(
         (status = 200, body = PaginatedResponse<NoiseDetails>)
     ),
@@ -152,7 +152,7 @@ async fn nodes_noise(
     tag = "Nym Nodes",
     get,
     path = "/bonded",
-    context_path = "/v1/nym-nodes",
+    context_path = "/api/v1/nym-nodes",
     responses(
         (status = 200, body = PaginatedResponse<NymNodeDetails>)
     ),
@@ -182,7 +182,7 @@ async fn get_bonded_nodes(
     tag = "Nym Nodes",
     get,
     path = "/described",
-    context_path = "/v1/nym-nodes",
+    context_path = "/api/v1/nym-nodes",
     responses(
         (status = 200, body = PaginatedResponse<NymNodeDescription>)
     ),
@@ -212,7 +212,7 @@ async fn get_described_nodes(
     tag = "Nym Nodes",
     get,
     path = "/annotation/{node_id}",
-    context_path = "/v1/nym-nodes",
+    context_path = "/api/v1/nym-nodes",
     responses(
         (status = 200, body = AnnotationResponse)
     ),
@@ -238,7 +238,7 @@ async fn get_node_annotation(
     tag = "Nym Nodes",
     get,
     path = "/performance/{node_id}",
-    context_path = "/v1/nym-nodes",
+    context_path = "/api/v1/nym-nodes",
     responses(
         (status = 200, body = NodePerformanceResponse)
     ),
@@ -275,7 +275,7 @@ pub(crate) struct DateQuery {
     tag = "Nym Nodes",
     get,
     path = "/historical-performance/{node_id}",
-    context_path = "/v1/nym-nodes",
+    context_path = "/api/v1/nym-nodes",
     responses(
         (status = 200, body = NodeDatePerformanceResponse)
     ),
@@ -306,7 +306,7 @@ async fn get_historical_performance(
     tag = "Nym Nodes",
     get,
     path = "/performance-history/{node_id}",
-    context_path = "/v1/nym-nodes",
+    context_path = "/api/v1/nym-nodes",
     responses(
         (status = 200, body = PerformanceHistoryResponse)
     ),
@@ -346,7 +346,7 @@ async fn get_node_performance_history(
     tag = "Nym Nodes",
     get,
     path = "/uptime-history/{node_id}",
-    context_path = "/v1/nym-nodes",
+    context_path = "/api/v1/nym-nodes",
     responses(
         (status = 200, body = PerformanceHistoryResponse)
     ),

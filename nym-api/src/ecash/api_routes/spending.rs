@@ -60,7 +60,8 @@ fn reject_ticket(
     tag = "Ecash",
     post,
     request_body = VerifyEcashTicketBody,
-    path = "/v1/ecash/verify-ecash-ticket",
+    path = "/ecash/verify-ecash-ticket",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = EcashTicketVerificationResponse),
         (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
@@ -163,7 +164,8 @@ async fn verify_ticket(
     tag = "Ecash",
     post,
     request_body = BatchRedeemTicketsBody,
-    path = "/v1/ecash/batch-redeem-ecash-tickets",
+    path = "/ecash/batch-redeem-ecash-tickets",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = EcashBatchTicketRedemptionResponse),
         (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
@@ -238,7 +240,8 @@ async fn batch_redeem_tickets(
 #[utoipa::path(
     tag = "Ecash",
     get,
-    path = "/v1/ecash/double-spending-filter-v1",
+    path = "/ecash/double-spending-filter-v1",
+    context_path = "/api/v1",
     responses(
         (status = 500, body = ErrorResponse, description = "bloomfilters got disabled"),
     )

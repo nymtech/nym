@@ -89,7 +89,8 @@ pub(super) fn network_monitor_routes() -> Router<AppState> {
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
-    path = "/v1/status/gateway/{identity}/report",
+    path = "/status/gateway/{identity}/report",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = GatewayStatusReportResponse)
     )
@@ -107,7 +108,8 @@ async fn gateway_report(
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
-    path = "/v1/status/gateway/{identity}/history",
+    path = "/status/gateway/{identity}/history",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = GatewayUptimeHistoryResponse)
     )
@@ -134,7 +136,8 @@ struct SinceQueryParams {
     params(
         SinceQueryParams
     ),
-    path = "/v1/status/gateway/{identity}/core-status-count",
+    path = "/status/gateway/{identity}/core-status-count",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = GatewayCoreStatusResponse)
     )
@@ -153,7 +156,8 @@ async fn gateway_core_status_count(
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
-    path = "/v1/status/gateway/{identity}/avg_uptime",
+    path = "/status/gateway/{identity}/avg_uptime",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = GatewayUptimeResponse)
     )
@@ -174,7 +178,8 @@ async fn get_gateway_avg_uptime(
     params(
         MixIdParam
     ),
-    path = "/v1/status/mixnode/{mix_id}/report",
+    path = "/status/mixnode/{mix_id}/report",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = MixnodeStatusReportResponse)
     )
@@ -195,7 +200,8 @@ async fn mixnode_report(
     params(
         MixIdParam
     ),
-    path = "/v1/status/mixnode/{mix_id}/history",
+    path = "/status/mixnode/{mix_id}/history",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = MixnodeUptimeHistoryResponse)
     )
@@ -216,7 +222,8 @@ async fn mixnode_uptime_history(
     params(
         MixIdParam, SinceQueryParams
     ),
-    path = "/v1/status/mixnode/{mix_id}/core-status-count",
+    path = "/status/mixnode/{mix_id}/core-status-count",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = MixnodeCoreStatusResponse)
     )
@@ -238,7 +245,8 @@ async fn mixnode_core_status_count(
     params(
         MixIdParam
     ),
-    path = "/v1/status/mixnode/{mix_id}/reward-estimation",
+    path = "/status/mixnode/{mix_id}/reward-estimation",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = RewardEstimationResponse)
     )
@@ -264,7 +272,8 @@ async fn get_mixnode_reward_estimation(
     params(
         ComputeRewardEstParam, MixIdParam
     ),
-    path = "/v1/status/mixnode/{mix_id}/compute-reward-estimation",
+    path = "/status/mixnode/{mix_id}/compute-reward-estimation",
+    context_path = "/api/v1",
     request_body = ComputeRewardEstParam,
     responses(
         (status = 200, body = RewardEstimationResponse)
@@ -293,7 +302,8 @@ async fn compute_mixnode_reward_estimation(
     params(
         MixIdParam
     ),
-    path = "/v1/status/mixnode/{mix_id}/avg_uptime",
+    path = "/status/mixnode/{mix_id}/avg_uptime",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = UptimeResponse)
     )
@@ -311,7 +321,8 @@ async fn get_mixnode_avg_uptime(
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
-    path = "/v1/status/mixnodes/detailed-unfiltered",
+    path = "/status/mixnodes/detailed-unfiltered",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = MixNodeBondAnnotated)
     )
@@ -326,7 +337,8 @@ pub async fn get_mixnodes_detailed_unfiltered(
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
-    path = "/v1/status/gateways/detailed",
+    path = "/status/gateways/detailed",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = GatewayBondAnnotated)
     )
@@ -341,7 +353,8 @@ pub async fn get_gateways_detailed(
 #[utoipa::path(
     tag = "network-monitor-status",
     get,
-    path = "/v1/status/gateways/detailed-unfiltered",
+    path = "/status/gateways/detailed-unfiltered",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = GatewayBondAnnotated)
     )

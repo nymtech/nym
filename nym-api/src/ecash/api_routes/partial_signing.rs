@@ -51,7 +51,8 @@ pub(crate) fn partial_signing_routes(ecash_state: Arc<EcashState>) -> Router<App
     tag = "Ecash",
     post,
     request_body = BlindSignRequestBody,
-    path = "/v1/ecash/blind-sign",
+    path = "/ecash/blind-sign",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = BlindedSignatureResponse),
         (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
@@ -127,7 +128,8 @@ struct ExpirationDateParam {
     params(
         ExpirationDateParam
     ),
-    path = "/v1/ecash/partial-expiration-date-signatures",
+    path = "/ecash/partial-expiration-date-signatures",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = PartialExpirationDateSignatureResponse),
         (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
@@ -165,7 +167,8 @@ async fn partial_expiration_date_signatures(
     params(
         EpochIdParam
     ),
-    path = "/v1/ecash/partial-coin-indices-signatures",
+    path = "/ecash/partial-coin-indices-signatures",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = PartialExpirationDateSignatureResponse),
         (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),

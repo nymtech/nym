@@ -23,7 +23,8 @@ pub(crate) fn legacy_nym_node_routes() -> Router<AppState> {
 #[utoipa::path(
     tag = "Legacy gateways",
     get,
-    path = "/v1/gateways/described",
+    path = "/gateways/described",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Vec<DescribedGateway>)
     )
@@ -58,7 +59,8 @@ async fn get_gateways_described(
 #[utoipa::path(
     tag = "Legacy Mixnodes",
     get,
-    path = "/v1/mixnodes/described",
+    path = "/mixnodes/described",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Vec<DescribedMixNode>)
     )

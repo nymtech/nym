@@ -41,7 +41,8 @@ pub(crate) fn api_status_routes() -> Router<AppState> {
 #[utoipa::path(
     tag = "API Status",
     get,
-    path = "/v1/api-status/health",
+    path = "/api-status/health",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = ApiHealthResponse)
     )
@@ -55,7 +56,8 @@ async fn health(state: Arc<ApiStatusState>) -> Json<ApiHealthResponse> {
 #[utoipa::path(
     tag = "API Status",
     get,
-    path = "/v1/api-status/build-information",
+    path = "/api-status/build-information",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = BinaryBuildInformationOwned)
     )
@@ -67,7 +69,8 @@ async fn build_information(state: Arc<ApiStatusState>) -> Json<BinaryBuildInform
 #[utoipa::path(
     tag = "API Status",
     get,
-    path = "/v1/api-status/signer-information",
+    path = "/api-status/signer-information",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = SignerInformationResponse)
     )

@@ -51,7 +51,8 @@ pub(crate) fn nym_contract_cache_routes() -> Router<AppState> {
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/mixnodes",
+    path = "/mixnodes",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Vec<LegacyMixNodeDetailsWithLayer>)
     )
@@ -75,7 +76,8 @@ async fn get_mixnodes(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDe
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/mixnodes/detailed",
+    path = "/mixnodes/detailed",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Vec<MixNodeBondAnnotated>)
     )
@@ -90,7 +92,8 @@ async fn get_mixnodes_detailed(State(state): State<AppState>) -> Json<Vec<MixNod
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/gateways",
+    path = "/gateways",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Vec<GatewayBond>)
     )
@@ -111,7 +114,8 @@ async fn get_gateways(State(state): State<AppState>) -> Json<Vec<GatewayBond>> {
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/mixnodes/rewarded",
+    path = "/mixnodes/rewarded",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Vec<LegacyMixNodeDetailsWithLayer>)
     )
@@ -139,7 +143,8 @@ async fn get_rewarded_set(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/mixnodes/rewarded/detailed",
+    path = "/mixnodes/rewarded/detailed",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Vec<MixNodeBondAnnotated>)
     )
@@ -159,7 +164,8 @@ async fn get_rewarded_set_detailed(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/mixnodes/active",
+    path = "/mixnodes/active",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Vec<LegacyMixNodeDetailsWithLayer>)
     )
@@ -185,7 +191,8 @@ async fn get_active_set(State(state): State<AppState>) -> Json<Vec<LegacyMixNode
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/mixnodes/active/detailed",
+    path = "/mixnodes/active/detailed",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Vec<MixNodeBondAnnotated>)
     )
@@ -200,7 +207,8 @@ async fn get_active_set_detailed(State(state): State<AppState>) -> Json<Vec<MixN
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/mixnodes/blacklisted",
+    path = "/mixnodes/blacklisted",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Option<HashSet<NodeId>>)
     )
@@ -223,7 +231,8 @@ async fn get_blacklisted_mixnodes(State(state): State<AppState>) -> Json<Option<
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/gateways/blacklisted",
+    path = "/gateways/blacklisted",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Option<HashSet<String>>)
     )
@@ -249,7 +258,8 @@ async fn get_blacklisted_gateways(State(state): State<AppState>) -> Json<Option<
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/epoch/reward_params",
+    path = "/epoch/reward_params",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Option<RewardingParams>)
     )
@@ -268,7 +278,8 @@ async fn get_interval_reward_params(
 #[utoipa::path(
     tag = "contract-cache",
     get,
-    path = "/v1/epoch/current",
+    path = "/epoch/current",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = Option<Interval>)
     )

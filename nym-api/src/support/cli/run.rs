@@ -182,7 +182,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
             ecash_keypair: ecash_keypair_wrapper.clone(),
         });
 
-        router.nest("/v1/ecash", ecash_routes(Arc::new(ecash_state)))
+        router.nest("/api/v1/ecash", ecash_routes(Arc::new(ecash_state)))
     } else {
         router
     };

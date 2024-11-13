@@ -4,7 +4,7 @@ set -eu
 
 environment="qa"
 
-source ../envs/${environment}.env
+probe_git_ref="0dd5dacdda92b1ddd51cd30a3399515e45613371"
 
 export RUST_LOG="debug"
 
@@ -13,13 +13,17 @@ gateway_probe_src=$(dirname $(dirname "$crate_root"))/nym-vpn-client/nym-vpn-cor
 echo "gateway_probe_src=$gateway_probe_src"
 echo "crate_root=$crate_root"
 
+export RUST_LOG="debug"
+export NODE_STATUS_AGENT_SERVER_ADDRESS="http://127.0.0.1"
+export NODE_STATUS_AGENT_SERVER_PORT="8000"
 export NODE_STATUS_AGENT_PROBE_PATH="$crate_root/nym-gateway-probe"
+export NODE_STATUS_AGENT_AUTH_KEY="BjyC9SsHAZUzPRkQR4sPTvVrp4GgaquTh5YfSJksvvWT"
 
 # build & copy over GW probe
 function copy_gw_probe() {
     pushd $gateway_probe_src
-    git switch main
-    git pull
+    git fetch -a
+    git checkout $probe_git_ref
     cargo build --release --package nym-gateway-probe
     cp target/release/nym-gateway-probe "$crate_root"
     $crate_root/nym-gateway-probe --version
@@ -44,9 +48,6 @@ function swarm() {
 
     echo "All agents completed"
 }
-
-export NODE_STATUS_AGENT_SERVER_ADDRESS="http://127.0.0.1"
-export NODE_STATUS_AGENT_SERVER_PORT="8000"
 
 copy_gw_probe
 

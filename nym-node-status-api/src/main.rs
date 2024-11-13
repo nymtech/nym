@@ -14,6 +14,9 @@ async fn main() -> anyhow::Result<()> {
 
     let args = cli::Cli::parse();
 
+    let agent_key_list = args.agent_key_list();
+    tracing::info!("Registered {} agent keys", agent_key_list.len());
+
     let connection_url = args.database_url.clone();
     tracing::debug!("Using config:\n{:#?}", args);
 
@@ -31,12 +34,14 @@ async fn main() -> anyhow::Result<()> {
         .await;
         tracing::info!("Started monitor task");
     });
+
     testruns::spawn(storage.pool_owned(), args.testruns_refresh_interval).await;
 
     let shutdown_handles = http::server::start_http_api(
         storage.pool_owned(),
         args.http_port,
         args.nym_http_cache_ttl,
+        agent_key_list.to_owned(),
     )
     .await
     .expect("Failed to start server");

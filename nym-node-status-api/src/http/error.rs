@@ -15,6 +15,13 @@ impl HttpError {
         }
     }
 
+    pub(crate) fn unauthorized() -> Self {
+        Self {
+            message: serde_json::json!({"message": "Make sure your public key si registered with NS API"}).to_string(),
+            status: axum::http::StatusCode::UNAUTHORIZED,
+        }
+    }
+
     pub(crate) fn internal_with_logging(msg: impl Display) -> Self {
         tracing::error!("{}", msg.to_string());
         Self::internal()

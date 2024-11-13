@@ -3822,9 +3822,9 @@ dependencies = [
 
 [[package]]
 name = "libc"
-version = "0.2.155"
+version = "0.2.162"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "97b3888a4aecf77e811145cadf6eef5901f4782c53886191b2f693f24761847c"
+checksum = "18d287de67fe55fd7e1581fe933d965a5a9477b38e949cfa9f8574ef01506398"
 
 [[package]]
 name = "libm"
@@ -5010,6 +5010,7 @@ dependencies = [
 name = "nym-common-models"
 version = "0.1.0"
 dependencies = [
+ "nym-crypto",
  "serde",
 ]
 
@@ -6055,8 +6056,11 @@ dependencies = [
  "clap 4.5.20",
  "nym-bin-common",
  "nym-common-models",
+ "nym-crypto",
+ "rand",
  "reqwest 0.12.4",
  "serde_json",
+ "tempfile",
  "tokio",
  "tokio-util",
  "tracing",
@@ -6077,6 +6081,7 @@ dependencies = [
  "moka",
  "nym-bin-common",
  "nym-common-models",
+ "nym-crypto",
  "nym-explorer-client",
  "nym-network-defaults",
  "nym-node-requests",
@@ -8277,9 +8282,9 @@ dependencies = [
 
 [[package]]
 name = "rustix"
-version = "0.38.34"
+version = "0.38.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "70dc5ec042f7a43c4a73241207cecc9873a06d45debb38b329f8541d85c2730f"
+checksum = "99e4ea3e1cdc4b559b8e5650f9c8e5998e3e5c1343b4eaf034565f32318d63c0"
 dependencies = [
  "bitflags 2.5.0",
  "errno",
@@ -9514,12 +9519,13 @@ dependencies = [
 
 [[package]]
 name = "tempfile"
-version = "3.10.1"
+version = "3.14.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "85b77fafb263dd9d05cbeac119526425676db3784113aa9295c88498cbf8bff1"
+checksum = "28cce251fcbc87fac86a866eeb0d6c2d536fc16d06f184bb61aeae11aa4cee0c"
 dependencies = [
  "cfg-if",
  "fastrand 2.1.1",
+ "once_cell",
  "rustix",
  "windows-sys 0.52.0",
 ]

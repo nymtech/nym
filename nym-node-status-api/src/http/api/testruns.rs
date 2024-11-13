@@ -4,6 +4,8 @@ use axum::{
     extract::{Path, State},
     Router,
 };
+use nym_common_models::ns_api::SubmitResults;
+use nym_crypto::asymmetric::ed25519::PublicKey;
 use reqwest::StatusCode;
 
 use crate::db::models::TestRunStatus;
@@ -28,10 +30,14 @@ pub(crate) fn routes() -> Router<AppState> {
 }
 
 #[tracing::instrument(level = "debug", skip_all)]
-async fn request_testrun(State(state): State<AppState>) -> HttpResult<Json<TestrunAssignment>> {
-    // TODO dz log agent's key
+async fn request_testrun(
+    State(state): State<AppState>,
+    body: String,
+) -> HttpResult<Json<TestrunAssignment>> {
     // TODO dz log agent's network probe version
-    tracing::debug!("Agent requested testrun");
+    let agent_pubkey = authenticate_agent(&body, &state)?;
+
+    tracing::debug!("Agent {} requested testrun", agent_pubkey);
 
     let db = state.db_pool();
     let mut conn = db
@@ -42,10 +48,11 @@ async fn request_testrun(State(state): State<AppState>) -> HttpResult<Json<Testr
     return match db::queries::testruns::get_oldest_testrun_and_make_it_pending(&mut conn).await {
         Ok(res) => {
             if let Some(testrun) = res {
-                tracing::debug!(
-                    "🏃‍ Assigned testrun row_id {} gateway {} to agent",
+                tracing::info!(
+                    "🏃‍ Assigned testrun row_id {} gateway {} to agent {}",
                     &testrun.testrun_id,
-                    testrun.gateway_identity_key
+                    testrun.gateway_identity_key,
+                    agent_pubkey
                 );
                 Ok(Json(testrun))
             } else {
@@ -57,13 +64,20 @@ async fn request_testrun(State(state): State<AppState>) -> HttpResult<Json<Testr
     };
 }
 
-// TODO dz accept testrun_id as query parameter
 #[tracing::instrument(level = "debug", skip_all)]
 async fn submit_testrun(
     Path(testrun_id): Path<i64>,
     State(state): State<AppState>,
-    body: String,
+    Json(probe_results): Json<SubmitResults>,
 ) -> HttpResult<StatusCode> {
+    let agent_pubkey = authenticate_agent(&probe_results.public_key.to_base58_string(), &state)?;
+    agent_pubkey
+        .verify(&probe_results.message, &probe_results.signature)
+        .map_err(|_| {
+            tracing::warn!("Message verification failed, rejecting");
+            HttpError::unauthorized()
+        })?;
+
     let db = state.db_pool();
     let mut conn = db
         .acquire()
@@ -84,27 +98,31 @@ async fn submit_testrun(
             HttpError::internal_with_logging("No gateway found for testrun")
         })?;
     tracing::debug!(
-        "Agent submitted testrun {} for gateway {} ({} bytes)",
+        "Agent {} submitted testrun {} for gateway {} ({} bytes)",
+        agent_pubkey,
         testrun_id,
         gw_identity,
-        body.len(),
+        &probe_results.message.len(),
     );
 
     // TODO dz this should be part of a single transaction: commit after everything is done
     queries::testruns::update_testrun_status(&mut conn, testrun_id, TestRunStatus::Complete)
         .await
         .map_err(HttpError::internal_with_logging)?;
-    queries::testruns::update_gateway_last_probe_log(&mut conn, testrun.gateway_id, &body)
-        .await
-        .map_err(HttpError::internal_with_logging)?;
-    let result = get_result_from_log(&body);
+    queries::testruns::update_gateway_last_probe_log(
+        &mut conn,
+        testrun.gateway_id,
+        &probe_results.message,
+    )
+    .await
+    .map_err(HttpError::internal_with_logging)?;
+    let result = get_result_from_log(&probe_results.message);
     queries::testruns::update_gateway_last_probe_result(&mut conn, testrun.gateway_id, &result)
         .await
         .map_err(HttpError::internal_with_logging)?;
     queries::testruns::update_gateway_score(&mut conn, testrun.gateway_id)
         .await
         .map_err(HttpError::internal_with_logging)?;
-    // TODO dz log gw identity key
 
     tracing::info!(
         "✅ Testrun row_id {} for gateway {} complete",
@@ -113,6 +131,23 @@ async fn submit_testrun(
     );
 
     Ok(StatusCode::CREATED)
+}
+
+fn authenticate_agent(base58_pubkey: &str, state: &AppState) -> HttpResult<PublicKey> {
+    let agent_pubkey = PublicKey::from_base58_string(base58_pubkey).map_err(|_| {
+        if base58_pubkey.is_empty() {
+            tracing::warn!("Auth key missing from request body, rejecting");
+        } else {
+            tracing::warn!("Failed to deserialize key from request body, rejecting");
+        }
+        HttpError::unauthorized()
+    })?;
+    if !state.is_registered(&agent_pubkey) {
+        tracing::warn!("Public key {} not registered, rejecting", agent_pubkey);
+        return Err(HttpError::unauthorized());
+    }
+
+    Ok(agent_pubkey)
 }
 
 fn get_result_from_log(log: &str) -> String {

@@ -8,10 +8,66 @@ use crate::node_status_api::helpers::{
 use crate::support::http::state::AppState;
 use axum::extract::State;
 use axum::{Json, Router};
-use nym_api_requests::legacy::LegacyMixNodeDetailsWithLayer;
-use nym_api_requests::models::MixNodeBondAnnotated;
-use nym_mixnet_contract_common::{reward_params::RewardingParams, GatewayBond, Interval, NodeId};
+use nym_api_requests::legacy::{LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer};
+use nym_api_requests::models::{MixNodeBondAnnotated, NymNodeData};
+use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
+use nym_mixnet_contract_common::mixnode::LegacyPendingMixNodeChanges;
+use nym_mixnet_contract_common::reward_params::Performance;
+use nym_mixnet_contract_common::{
+    reward_params::RewardingParams, Gateway, GatewayBond, Interval, LegacyMixLayer, MixNode,
+    MixNodeBond, NodeId, NymNodeDetails,
+};
+use rand::prelude::SliceRandom;
+use rand::rngs::OsRng;
 use std::collections::HashSet;
+
+fn to_legacy_mixnode(
+    nym_node: &NymNodeDetails,
+    description: &NymNodeData,
+) -> LegacyMixNodeDetailsWithLayer {
+    let layer_choices = [
+        LegacyMixLayer::One,
+        LegacyMixLayer::Two,
+        LegacyMixLayer::Three,
+    ];
+    let mut rng = OsRng;
+
+    // slap a random layer on it because legacy clients don't understand a concept of layerless mixnodes
+    // SAFETY: the slice is not empty so the unwrap is fine
+    #[allow(clippy::unwrap_used)]
+    let layer = layer_choices.choose(&mut rng).copied().unwrap();
+
+    LegacyMixNodeDetailsWithLayer {
+        bond_information: LegacyMixNodeBondWithLayer {
+            bond: MixNodeBond {
+                mix_id: nym_node.node_id(),
+                owner: nym_node.bond_information.owner.clone(),
+                original_pledge: nym_node.bond_information.original_pledge.clone(),
+                mix_node: MixNode {
+                    host: nym_node.bond_information.node.host.clone(),
+                    mix_port: description.mix_port(),
+                    verloc_port: description.verloc_port(),
+                    http_api_port: nym_node
+                        .bond_information
+                        .node
+                        .custom_http_port
+                        .unwrap_or(DEFAULT_NYM_NODE_HTTP_PORT),
+                    sphinx_key: description.host_information.keys.x25519.to_base58_string(),
+                    identity_key: nym_node.bond_information.node.identity_key.clone(),
+                    version: description.build_information.build_version.clone(),
+                },
+                proxy: None,
+                bonding_height: nym_node.bond_information.bonding_height,
+                is_unbonding: nym_node.bond_information.is_unbonding,
+            },
+            layer,
+        },
+        rewarding_details: nym_node.rewarding_details.clone(),
+        pending_changes: LegacyPendingMixNodeChanges {
+            pledge_change: nym_node.pending_changes.pledge_change,
+        },
+    }
+}
 
 // we want to mark the routes as deprecated in swagger, but still expose them
 #[allow(deprecated)]
@@ -58,11 +114,47 @@ pub(crate) fn nym_contract_cache_routes() -> Router<AppState> {
 )]
 #[deprecated]
 async fn get_mixnodes(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDetailsWithLayer>> {
-    state
-        .nym_contract_cache()
-        .legacy_mixnodes_filtered()
-        .await
-        .into()
+    let mut out = state.nym_contract_cache().legacy_mixnodes_filtered().await;
+
+    let Ok(describe_cache) = state.described_nodes_cache.get().await else {
+        return Json(out);
+    };
+
+    let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
+        return Json(out);
+    };
+
+    let Ok(annotations) = state.node_annotations().await else {
+        return Json(out);
+    };
+
+    // safety: valid percentage value
+    #[allow(clippy::unwrap_used)]
+    let p50 = Performance::from_percentage_value(50).unwrap();
+
+    for nym_node in &**migrated_nymnodes {
+        // if we can't get it self-described data, ignore it
+        let Some(description) = describe_cache.get_description(&nym_node.node_id()) else {
+            continue;
+        };
+        // if the node hasn't declared it can be a mixnode, ignore it
+        if !description.declared_role.mixnode {
+            continue;
+        }
+        // if we don't have annotation for this node, ignore it
+        let Some(annotation) = annotations.get(&nym_node.node_id()) else {
+            continue;
+        };
+        // equivalent of legacy mixnode being blacklisted
+        if annotation.last_24h_performance < p50 {
+            continue;
+        }
+
+        let node = to_legacy_mixnode(nym_node, description);
+        out.push(node);
+    }
+
+    Json(out)
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
@@ -97,15 +189,71 @@ async fn get_mixnodes_detailed(State(state): State<AppState>) -> Json<Vec<MixNod
 )]
 #[deprecated]
 async fn get_gateways(State(state): State<AppState>) -> Json<Vec<GatewayBond>> {
-    Json(
-        state
-            .nym_contract_cache()
-            .legacy_gateways_filtered()
-            .await
-            .into_iter()
-            .map(Into::into)
-            .collect(),
-    )
+    // legacy
+    let mut out: Vec<GatewayBond> = state
+        .nym_contract_cache()
+        .legacy_gateways_filtered()
+        .await
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+    let Ok(describe_cache) = state.described_nodes_cache.get().await else {
+        return Json(out);
+    };
+
+    let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
+        return Json(out);
+    };
+
+    let Ok(annotations) = state.node_annotations().await else {
+        return Json(out);
+    };
+
+    // safety: valid percentage value
+    #[allow(clippy::unwrap_used)]
+    let p50 = Performance::from_percentage_value(50).unwrap();
+
+    for nym_node in &**migrated_nymnodes {
+        // if we can't get it self-described data, ignore it
+        let Some(description) = describe_cache.get_description(&nym_node.node_id()) else {
+            continue;
+        };
+        // if the node hasn't declared it can be a gateway, ignore it
+        if !description.declared_role.entry {
+            continue;
+        }
+        // if we don't have annotation for this node, ignore it
+        let Some(annotation) = annotations.get(&nym_node.node_id()) else {
+            continue;
+        };
+        // equivalent of legacy gateway being blacklisted
+        if annotation.last_24h_performance < p50 {
+            continue;
+        }
+
+        out.push(GatewayBond {
+            pledge_amount: nym_node.bond_information.original_pledge.clone(),
+            owner: nym_node.bond_information.owner.clone(),
+            block_height: nym_node.bond_information.bonding_height,
+            gateway: Gateway {
+                host: nym_node.bond_information.node.host.clone(),
+                mix_port: description.mix_port(),
+                clients_port: description.mixnet_websockets.ws_port,
+                location: description
+                    .auxiliary_details
+                    .location
+                    .map(|c| c.to_string())
+                    .unwrap_or_default(),
+                sphinx_key: description.host_information.keys.x25519.to_base58_string(),
+                identity_key: nym_node.bond_information.node.identity_key.clone(),
+                version: description.build_information.build_version.clone(),
+            },
+            proxy: None,
+        });
+    }
+
+    Json(out)
 }
 
 #[utoipa::path(
@@ -166,12 +314,59 @@ async fn get_rewarded_set_detailed(
 )]
 #[deprecated]
 async fn get_active_set(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDetailsWithLayer>> {
-    state
+    let mut out = state
         .nym_contract_cache()
         .legacy_v1_active_set_mixnodes()
         .await
-        .clone()
-        .into()
+        .clone();
+
+    let Some(rewarded_set) = state.nym_contract_cache().rewarded_set().await else {
+        return Json(out);
+    };
+
+    let Ok(describe_cache) = state.described_nodes_cache.get().await else {
+        return Json(out);
+    };
+
+    let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
+        return Json(out);
+    };
+
+    let Ok(annotations) = state.node_annotations().await else {
+        return Json(out);
+    };
+
+    // safety: valid percentage value
+    #[allow(clippy::unwrap_used)]
+    let p50 = Performance::from_percentage_value(50).unwrap();
+
+    for nym_node in &**migrated_nymnodes {
+        // if we can't get it self-described data, ignore it
+        let Some(description) = describe_cache.get_description(&nym_node.node_id()) else {
+            continue;
+        };
+        // if the node hasn't declared it can be a mixnode, ignore it
+        if !description.declared_role.mixnode {
+            continue;
+        }
+        // if we don't have annotation for this node, ignore it
+        let Some(annotation) = annotations.get(&nym_node.node_id()) else {
+            continue;
+        };
+        // equivalent of legacy mixnode being blacklisted
+        if annotation.last_24h_performance < p50 {
+            continue;
+        }
+        // if the node is not in the active set, ignore it
+        if !rewarded_set.is_active_mixnode(&nym_node.node_id()) {
+            continue;
+        }
+
+        let node = to_legacy_mixnode(nym_node, description);
+        out.push(node);
+    }
+
+    Json(out)
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,

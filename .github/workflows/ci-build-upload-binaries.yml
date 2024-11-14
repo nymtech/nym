@@ -15,24 +15,24 @@ on:
         type: boolean
   schedule:
     - cron: "14 0 * * *"
-  pull_request:
-    paths:
-      - "clients/**"
-      - "common/**"
-      - "explorer-api/**"
-      - "gateway/**"
-      - "integrations/**"
-      - "mixnode/**"
-      - "nym-api/**"
-      - "nym-node/**"
-      - "nym-outfox/**"
-      - 'nym-data-observatory/**'
-      - "nym-validator-rewarder/**"
-      - "sdk/rust/nym-sdk/**"
-      - "service-providers/**"
-      - "tools/**"
-      - "nymvisor/**"
-      - ".github/workflows/ci-build-upload-binaries.yml"
+  # pull_request:
+  #   paths:
+  #     - "clients/**"
+  #     - "common/**"
+  #     - "explorer-api/**"
+  #     - "gateway/**"
+  #     - "integrations/**"
+  #     - "mixnode/**"
+  #     - "nym-api/**"
+  #     - "nym-node/**"
+  #     - "nym-outfox/**"
+  #     - 'nym-data-observatory/**'
+  #     - "nym-validator-rewarder/**"
+  #     - "sdk/rust/nym-sdk/**"
+  #     - "service-providers/**"
+  #     - "tools/**"
+  #     - "nymvisor/**"
+  #     - ".github/workflows/ci-build-upload-binaries.yml"
 
 jobs:
   publish-nym:

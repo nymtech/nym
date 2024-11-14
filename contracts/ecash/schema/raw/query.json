@@ -91,6 +91,19 @@
     {
       "type": "object",
       "required": [
+        "get_latest_deposit"
+      ],
+      "properties": {
+        "get_latest_deposit": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "type": "object",
+      "required": [
         "get_deposits_paged"
       ],
       "properties": {

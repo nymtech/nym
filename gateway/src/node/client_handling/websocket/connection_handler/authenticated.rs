@@ -553,7 +553,7 @@ where
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = shutdown.recv() => {
-                    log::trace!("client_handling::AuthenticatedHandler: received shutdown");
+                    trace!("client_handling::AuthenticatedHandler: received shutdown");
                 },
                 // Received a request to ping the client to check if it's still active
                 tx = self.is_active_request_receiver.next() => {

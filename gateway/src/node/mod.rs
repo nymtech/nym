@@ -269,7 +269,7 @@ impl<St> Gateway<St> {
 
             tokio::spawn(async move {
                 if let Err(e) = authenticator_server.run_service_provider().await {
-                    log::error!("Run authenticator server - {e}");
+                    error!("Run authenticator server - {e}");
                 }
             });
 

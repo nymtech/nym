@@ -211,7 +211,7 @@ impl<St: Storage> ConnectionHandler<St> {
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
-                    log::trace!("ConnectionHandler: received shutdown");
+                    trace!("ConnectionHandler: received shutdown");
                 }
                 framed_sphinx_packet = framed_conn.next() => {
                     match framed_sphinx_packet {

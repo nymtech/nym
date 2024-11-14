@@ -213,6 +213,7 @@ impl PacketSender {
             None,
             gateway_packet_router,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
+            nym_statistics_common::clients::ClientStatsSender::new(None),
             task_client,
         );
 

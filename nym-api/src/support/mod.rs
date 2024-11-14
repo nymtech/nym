@@ -7,3 +7,5 @@ pub(crate) mod config;
 pub(crate) mod http;
 pub(crate) mod nyxd;
 pub(crate) mod storage;
+
+pub(crate) mod legacy_helpers;

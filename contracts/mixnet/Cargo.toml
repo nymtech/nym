@@ -40,6 +40,7 @@ cw-storage-plus = { workspace = true }
 
 bs58 = { workspace = true }
 serde = { workspace = true, default-features = false, features = ["derive"] }
+semver = { workspace = true }
 thiserror = { workspace = true }
 time = { version = "0.3", features = ["macros"] }
 

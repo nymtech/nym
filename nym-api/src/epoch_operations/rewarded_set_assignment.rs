@@ -8,7 +8,7 @@ use cosmwasm_std::Decimal;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_mixnet_contract_common::helpers::IntoBaseDecimal;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardedSetParams};
-use nym_mixnet_contract_common::{EpochState, Interval, NodeId, NymNodeDetails, RewardedSet};
+use nym_mixnet_contract_common::{EpochState, NodeId, NymNodeDetails, RewardedSet};
 use rand::prelude::SliceRandom;
 use rand::rngs::OsRng;
 use std::collections::HashSet;
@@ -58,52 +58,6 @@ impl NodeWithStakeAndPerformance {
 
     fn can_operate_exit_gateway(&self) -> bool {
         self.available_roles.contains(&AvailableRole::ExitGateway)
-    }
-}
-
-struct IgnoredNodes {
-    typ: &'static str,
-    no_self_described: usize,
-    not_nym_node_binary: usize,
-    no_terms_and_conditions: usize,
-}
-
-impl IgnoredNodes {
-    fn new(typ: &'static str) -> Self {
-        IgnoredNodes {
-            typ,
-            no_self_described: 0,
-            not_nym_node_binary: 0,
-            no_terms_and_conditions: 0,
-        }
-    }
-
-    fn is_empty(&self) -> bool {
-        self.no_self_described == 0
-            && self.not_nym_node_binary == 0
-            && self.no_terms_and_conditions == 0
-    }
-
-    fn maybe_log_summary(&self) {
-        if self.no_self_described != 0 {
-            warn!(
-                "{} {} don't expose their self-described API",
-                self.no_self_described, self.typ
-            )
-        }
-
-        if self.not_nym_node_binary != 0 {
-            warn!(
-                "{} {} are not running the 'nym-node' binary",
-                self.not_nym_node_binary, self.typ
-            )
-        }
-        if self.no_terms_and_conditions != 0 {
-            warn!(
-                "{} {} operators have not accepted the terms and conditions",
-                self.no_terms_and_conditions, self.typ
-            )
-        }
     }
 }
 
@@ -250,7 +204,6 @@ impl EpochAdvancer {
 
     async fn attach_performance_to_eligible_nodes(
         &self,
-        interval: Interval,
         legacy_mixnodes: &[LegacyMixNodeDetailsWithLayer],
         legacy_gateways: &[LegacyGatewayBondWithId],
         nym_nodes: &[NymNodeDetails],
@@ -260,36 +213,21 @@ impl EpochAdvancer {
         // SAFETY: the cache MUST HAVE been initialised before now
         let described_cache = self.described_cache.get().await.unwrap();
 
-        let mut legacy_mixnodes_info = IgnoredNodes::new("legacy mixnodes");
-        let mut legacy_gateways_info = IgnoredNodes::new("legacy gateways");
-        let mut nym_nodes_info = IgnoredNodes::new("nym nodes");
+        let Some(status_cache) = self.status_cache.node_annotations().await else {
+            warn!("there are no node annotations available");
+            return Vec::new();
+        };
 
         for mix in legacy_mixnodes {
             let node_id = mix.mix_id();
             let total_stake = mix.total_stake();
 
-            let Some(self_described) = described_cache.get_description(&node_id) else {
-                legacy_mixnodes_info.no_self_described += 1;
+            let Some(annotation) = status_cache.get(&node_id) else {
+                debug!("couldn't find annotation for legacy mixnode {node_id}");
                 continue;
             };
 
-            if self_described.build_information.binary_name != "nym-node" {
-                legacy_mixnodes_info.not_nym_node_binary += 1;
-                continue;
-            }
-
-            if !self_described
-                .auxiliary_details
-                .accepted_operator_terms_and_conditions
-            {
-                legacy_mixnodes_info.no_terms_and_conditions += 1;
-                continue;
-            }
-
-            let performance = self
-                .load_mixnode_performance(&interval, mix.mix_id())
-                .await
-                .performance;
+            let performance = annotation.detailed_performance.to_rewarding_performance();
             debug!(
                 "legacy mixnode {}: stake: {total_stake}, performance: {performance}",
                 mix.mix_id()
@@ -311,28 +249,13 @@ impl EpochAdvancer {
                 .into_base_decimal()
                 .unwrap_or_default();
 
-            let Some(self_described) = described_cache.get_description(&node_id) else {
-                legacy_gateways_info.no_self_described += 1;
+            let Some(annotation) = status_cache.get(&node_id) else {
+                debug!("couldn't find annotation for legacy gateway {node_id}");
                 continue;
             };
 
-            if self_described.build_information.binary_name != "nym-node" {
-                legacy_gateways_info.not_nym_node_binary += 1;
-                continue;
-            }
+            let performance = annotation.detailed_performance.to_rewarding_performance();
 
-            if !self_described
-                .auxiliary_details
-                .accepted_operator_terms_and_conditions
-            {
-                legacy_gateways_info.no_terms_and_conditions += 1;
-                continue;
-            }
-
-            let performance = self
-                .load_gateway_performance(&interval, gateway.node_id)
-                .await
-                .performance;
             debug!(
                 "legacy gateway {}: stake: {total_stake}, performance: {performance}",
                 gateway.node_id
@@ -351,28 +274,16 @@ impl EpochAdvancer {
             let total_stake = nym_node.total_stake();
 
             let Some(self_described) = described_cache.get_description(&node_id) else {
-                nym_nodes_info.no_self_described += 1;
                 continue;
             };
 
-            if self_described.build_information.binary_name != "nym-node" {
-                nym_nodes_info.not_nym_node_binary += 1;
+            let Some(annotation) = status_cache.get(&node_id) else {
+                debug!("couldn't find annotation for nym-node gateway {node_id}");
                 continue;
-            }
+            };
 
-            if !self_described
-                .auxiliary_details
-                .accepted_operator_terms_and_conditions
-            {
-                nym_nodes_info.no_terms_and_conditions += 1;
-                continue;
-            }
-
-            let performance = self
-                .load_any_performance(&interval, nym_node.node_id())
-                .await
-                .performance;
-            debug!("nym-node {node_id}: stake: {total_stake}, performance: {performance}",);
+            let performance = annotation.detailed_performance.to_rewarding_performance();
+            debug!("nym-node {node_id}: stake: {total_stake}, performance: {performance}");
 
             let mut available_roles = Vec::new();
             if self_described.declared_role.mixnode {
@@ -398,23 +309,11 @@ impl EpochAdvancer {
             })
         }
 
-        if !legacy_mixnodes_info.is_empty()
-            || !legacy_gateways_info.is_empty()
-            || !nym_nodes_info.is_empty()
-        {
-            warn!("not every bonded node is being considered for rewarded set selection")
-        }
-
-        legacy_mixnodes_info.maybe_log_summary();
-        legacy_gateways_info.maybe_log_summary();
-        nym_nodes_info.maybe_log_summary();
-
         with_performance
     }
 
     pub(super) async fn update_rewarded_set_and_advance_epoch(
         &self,
-        current_interval: Interval,
         legacy_mixnodes: &[LegacyMixNodeDetailsWithLayer],
         legacy_gateways: &[LegacyGatewayBondWithId],
         nym_nodes: &[NymNodeDetails],
@@ -431,7 +330,6 @@ impl EpochAdvancer {
                 info!("attempting to assign the rewarded set for the upcoming epoch...");
                 let nodes_with_performance = self
                     .attach_performance_to_eligible_nodes(
-                        current_interval,
                         legacy_mixnodes,
                         legacy_gateways,
                         nym_nodes,

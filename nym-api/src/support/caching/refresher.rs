@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::caching::cache::SharedCache;
+use crate::support::caching::CacheNotification;
 use async_trait::async_trait;
 use nym_task::TaskClient;
 use std::time::Duration;
+use tokio::sync::watch;
 use tokio::time::interval;
-use tracing::{error, info, trace};
+use tracing::{error, info, trace, warn};
 
 pub struct CacheRefresher<T, E> {
     name: String,
     refreshing_interval: Duration,
+    refresh_notification_sender: watch::Sender<CacheNotification>,
 
     // TODO: the Send + Sync bounds are only required for the `start` method. could we maybe make it less restrictive?
     provider: Box<dyn CacheItemProvider<Error = E, Item = T> + Send + Sync>,
@@ -58,9 +61,12 @@ where
         item_provider: Box<dyn CacheItemProvider<Error = E, Item = T> + Send + Sync>,
         refreshing_interval: Duration,
     ) -> Self {
+        let (refresh_notification_sender, _) = watch::channel(CacheNotification::Start);
+
         CacheRefresher {
             name: "GenericCacheRefresher".to_string(),
             refreshing_interval,
+            refresh_notification_sender,
             provider: item_provider,
             shared_cache: SharedCache::new(),
         }
@@ -71,9 +77,12 @@ where
         refreshing_interval: Duration,
         shared_cache: SharedCache<T>,
     ) -> Self {
+        let (refresh_notification_sender, _) = watch::channel(CacheNotification::Start);
+
         CacheRefresher {
             name: "GenericCacheRefresher".to_string(),
             refreshing_interval,
+            refresh_notification_sender,
             provider: item_provider,
             shared_cache,
         }
@@ -83,6 +92,10 @@ where
     pub(crate) fn named(mut self, name: impl Into<String>) -> Self {
         self.name = name.into();
         self
+    }
+
+    pub(crate) fn update_watcher(&self) -> watch::Receiver<CacheNotification> {
+        self.refresh_notification_sender.subscribe()
     }
 
     #[allow(dead_code)]
@@ -96,6 +109,14 @@ where
         match self.provider.try_refresh().await {
             Ok(updated_items) => {
                 self.shared_cache.update(updated_items).await;
+                if !self.refresh_notification_sender.is_closed()
+                    && self
+                        .refresh_notification_sender
+                        .send(CacheNotification::Updated)
+                        .is_err()
+                {
+                    warn!("failed to send cache update notification");
+                }
             }
             Err(err) => {
                 error!("{}: failed to refresh the cache: {err}", self.name)
@@ -136,5 +157,15 @@ where
         E: Send + Sync + 'static,
     {
         tokio::spawn(async move { self.run(task_client).await });
+    }
+
+    pub fn start_with_watcher(self, task_client: TaskClient) -> watch::Receiver<CacheNotification>
+    where
+        T: Send + Sync + 'static,
+        E: Send + Sync + 'static,
+    {
+        let receiver = self.update_watcher();
+        self.start(task_client);
+        receiver
     }
 }

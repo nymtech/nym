@@ -66,11 +66,6 @@ pub trait MixnetQueryClient {
             .await
     }
 
-    async fn get_mixnet_contract_settings(&self) -> Result<ContractStateParams, NyxdError> {
-        self.query_mixnet_contract(MixnetQueryMsg::GetStateParams {})
-            .await
-    }
-
     async fn get_mixnet_contract_state_params(&self) -> Result<ContractStateParams, NyxdError> {
         self.query_mixnet_contract(MixnetQueryMsg::GetStateParams {})
             .await

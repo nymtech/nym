@@ -107,7 +107,11 @@ pub(crate) fn try_reward_node(
     // make sure node's cost function is within the allowed range,
     // if not adjust it accordingly
     let params = mixnet_params_storage::state_params(deps.storage)?;
-    rewarding_info.normalise_cost_function(params.profit_margin, params.interval_operating_cost);
+    let operator_params = params.operators_params;
+    rewarding_info.normalise_cost_function(
+        operator_params.profit_margin,
+        operator_params.interval_operating_cost,
+    );
 
     let global_rewarding_params = rewarding_storage
         .global_rewarding_params

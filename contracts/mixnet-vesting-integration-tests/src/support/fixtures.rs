@@ -29,6 +29,9 @@ pub fn default_mixnet_init_msg() -> nym_mixnet_contract_common::InstantiateMsg {
                 standby: 0,
             },
         },
+        current_nym_node_version: "1.1.10".to_string(),
+        version_score_weights: Default::default(),
+        version_score_params: Default::default(),
         profit_margin: Default::default(),
         interval_operating_cost: Default::default(),
     }

@@ -2,10 +2,15 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::epoch_operations::EpochAdvancer;
+use crate::support::caching::Cache;
 use cosmwasm_std::{Decimal, Fraction};
+use nym_api_requests::models::NodeAnnotation;
 use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance, WorkFactor};
-use nym_mixnet_contract_common::{ExecuteMsg, Interval, NodeId, RewardedSet, RewardingParams};
+use nym_mixnet_contract_common::{ExecuteMsg, NodeId, RewardedSet, RewardingParams};
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use tokio::sync::RwLockReadGuard;
+use tracing::error;
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub(crate) struct NodeWithPerformance {
@@ -14,6 +19,20 @@ pub(crate) struct NodeWithPerformance {
 }
 
 impl NodeWithPerformance {
+    pub fn new(node_id: NodeId, performance: Performance) -> Self {
+        NodeWithPerformance {
+            node_id,
+            performance,
+        }
+    }
+
+    pub fn new_zero(node_id: NodeId) -> Self {
+        NodeWithPerformance {
+            node_id,
+            performance: Default::default(),
+        }
+    }
+
     pub fn with_work(self, work_factor: WorkFactor) -> RewardedNodeWithParams {
         RewardedNodeWithParams {
             node_id: self.node_id,
@@ -55,63 +74,25 @@ pub(super) fn stake_to_f64(stake: Decimal) -> f64 {
 }
 
 impl EpochAdvancer {
-    pub(crate) async fn load_mixnode_performance(
-        &self,
-        interval: &Interval,
+    fn load_performance(
+        status_cache: &Option<RwLockReadGuard<Cache<HashMap<NodeId, NodeAnnotation>>>>,
         node_id: NodeId,
     ) -> NodeWithPerformance {
-        let uptime = self
-            .storage
-            .get_average_mixnode_uptime_in_the_last_24hrs(
+        let Some(status_cache) = status_cache.as_ref() else {
+            return NodeWithPerformance::new_zero(node_id);
+        };
+
+        match status_cache.get(&node_id) {
+            Some(annotation) => NodeWithPerformance::new(
                 node_id,
-                interval.current_epoch_end_unix_timestamp(),
-            )
-            .await
-            .unwrap_or_default();
-
-        NodeWithPerformance {
-            node_id,
-            performance: uptime.into(),
+                annotation.detailed_performance.to_rewarding_performance(),
+            ),
+            None => NodeWithPerformance::new_zero(node_id),
         }
-    }
-
-    pub(crate) async fn load_gateway_performance(
-        &self,
-        interval: &Interval,
-        node_id: NodeId,
-    ) -> NodeWithPerformance {
-        let uptime = self
-            .storage
-            .get_average_gateway_uptime_in_the_last_24hrs(
-                node_id,
-                interval.current_epoch_end_unix_timestamp(),
-            )
-            .await
-            .unwrap_or_default();
-
-        NodeWithPerformance {
-            node_id,
-            performance: uptime.into(),
-        }
-    }
-
-    pub(crate) async fn load_any_performance(
-        &self,
-        interval: &Interval,
-        node_id: NodeId,
-    ) -> NodeWithPerformance {
-        // currently we can't do much better without new network monitor
-        let mix_performance = self.load_mixnode_performance(interval, node_id).await;
-        if !mix_performance.performance.is_zero() {
-            return mix_performance;
-        }
-
-        self.load_gateway_performance(interval, node_id).await
     }
 
     pub(crate) async fn load_nodes_for_rewarding(
         &self,
-        interval: &Interval,
         nodes: &RewardedSet,
         // we only need reward parameters for active set work factor and rewarded/active set sizes;
         // we do not need exact values of reward pool, staking supply, etc., so it's fine if it's slightly out of sync
@@ -132,42 +113,41 @@ impl EpochAdvancer {
         // this HAS TO blow up. there's no recovery
         assert!(total_work <= Decimal::one(), "work calculation logic is flawed! somehow the total work in the system is greater than 1!");
 
+        let status_cache = self.status_cache.node_annotations().await;
+        if status_cache.is_none() {
+            error!("there are no node annotations available");
+        };
+
         let mut with_performance = Vec::with_capacity(nodes.rewarded_set_size());
 
         // all the active set mixnodes
-        for node_id in nodes
+        for &node_id in nodes
             .layer1
             .iter()
             .chain(nodes.layer2.iter())
             .chain(nodes.layer3.iter())
         {
             with_performance.push(
-                self.load_mixnode_performance(interval, *node_id)
-                    .await
-                    .with_work(active_node_work_factor),
-            )
+                Self::load_performance(&status_cache, node_id).with_work(active_node_work_factor),
+            );
         }
 
         // all the active set gateways
-        for node_id in nodes
+        for &node_id in nodes
             .entry_gateways
             .iter()
             .chain(nodes.exit_gateways.iter())
         {
             with_performance.push(
-                self.load_gateway_performance(interval, *node_id)
-                    .await
-                    .with_work(active_node_work_factor),
-            )
+                Self::load_performance(&status_cache, node_id).with_work(active_node_work_factor),
+            );
         }
 
         // all the standby nodes
-        for node_id in &nodes.standby {
+        for &node_id in &nodes.standby {
             with_performance.push(
-                self.load_any_performance(interval, *node_id)
-                    .await
-                    .with_work(standby_node_work_factor),
-            )
+                Self::load_performance(&status_cache, node_id).with_work(standby_node_work_factor),
+            );
         }
 
         with_performance

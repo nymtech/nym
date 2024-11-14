@@ -2,25 +2,22 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::NodeStatusCache;
+use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::cache::node_sets::produce_node_annotations;
+use crate::support::caching::cache::SharedCache;
 use crate::{
-    node_status_api::cache::{
-        inclusion_probabilities::InclusionProbabilities,
-        node_sets::{
-            annotate_legacy_gateways_with_details, annotate_legacy_mixnodes_nodes_with_details,
-        },
-        NodeStatusCacheError,
-    },
+    node_status_api::cache::{inclusion_probabilities, NodeStatusCacheError},
     nym_contract_cache::cache::NymContractCache,
     storage::NymApiStorage,
     support::caching::CacheNotification,
 };
+use ::time::OffsetDateTime;
 use nym_task::TaskClient;
 use std::collections::HashMap;
 use std::time::Duration;
 use tokio::sync::watch;
 use tokio::time;
-use tracing::{debug, error, info, trace};
+use tracing::{error, info, trace, warn};
 
 // Long running task responsible for keeping the node status cache up-to-date.
 pub struct NodeStatusCacheRefresher {
@@ -30,7 +27,9 @@ pub struct NodeStatusCacheRefresher {
 
     // Sources for when refreshing data
     contract_cache: NymContractCache,
+    described_cache: SharedCache<DescribedNodes>,
     contract_cache_listener: watch::Receiver<CacheNotification>,
+    describe_cache_listener: watch::Receiver<CacheNotification>,
     storage: NymApiStorage,
 }
 
@@ -39,20 +38,25 @@ impl NodeStatusCacheRefresher {
         cache: NodeStatusCache,
         fallback_caching_interval: Duration,
         contract_cache: NymContractCache,
+        described_cache: SharedCache<DescribedNodes>,
         contract_cache_listener: watch::Receiver<CacheNotification>,
+        describe_cache_listener: watch::Receiver<CacheNotification>,
         storage: NymApiStorage,
     ) -> Self {
         Self {
             cache,
             fallback_caching_interval,
             contract_cache,
+            described_cache,
             contract_cache_listener,
+            describe_cache_listener,
             storage,
         }
     }
 
     /// Runs the node status cache refresher task.
     pub async fn run(&mut self, mut shutdown: TaskClient) {
+        let mut last_update = OffsetDateTime::now_utc();
         let mut fallback_interval = time::interval(self.fallback_caching_interval);
         while !shutdown.is_shutdown() {
             tokio::select! {
@@ -60,10 +64,18 @@ impl NodeStatusCacheRefresher {
                 _ = shutdown.recv() => {
                     trace!("NodeStatusCacheRefresher: Received shutdown");
                 }
-                // Update node status cache when the contract cache / validator cache is updated
+                // Update node status cache when the contract cache / describe cache is updated
                 Ok(_) = self.contract_cache_listener.changed() => {
                     tokio::select! {
-                        _ = self.update_on_notify(&mut fallback_interval) => (),
+                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
+                        _ = shutdown.recv() => {
+                            trace!("NodeStatusCacheRefresher: Received shutdown");
+                        }
+                    }
+                }
+                Ok(_) = self.describe_cache_listener.changed() => {
+                    tokio::select! {
+                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
                         _ = shutdown.recv() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
                         }
@@ -73,7 +85,7 @@ impl NodeStatusCacheRefresher {
                 // refreshes
                 _ = fallback_interval.tick() => {
                     tokio::select! {
-                        _ = self.update_on_timer() => (),
+                        _ = self.maybe_refresh(&mut fallback_interval, &mut last_update) => (),
                         _ = shutdown.recv() => {
                             trace!("NodeStatusCacheRefresher: Received shutdown");
                         }
@@ -84,30 +96,44 @@ impl NodeStatusCacheRefresher {
         info!("NodeStatusCacheRefresher: Exiting");
     }
 
-    /// Updates the node status cache when the contract cache / validator cache is updated
-    async fn update_on_notify(&self, fallback_interval: &mut time::Interval) {
-        debug!(
-            "Validator cache event detected: {:?}",
-            &*self.contract_cache_listener.borrow(),
-        );
+    fn caches_available(&self) -> bool {
+        let contract_cache = *self.contract_cache_listener.borrow() != CacheNotification::Start;
+        let describe_cache = *self.describe_cache_listener.borrow() != CacheNotification::Start;
+
+        let available = contract_cache && describe_cache;
+        if !available {
+            warn!(
+                contract_cache,
+                describe_cache, "auxiliary caches data is not yet available"
+            )
+        }
+
+        available
+    }
+
+    async fn maybe_refresh(
+        &self,
+        fallback_interval: &mut time::Interval,
+        last_updated: &mut OffsetDateTime,
+    ) {
+        if !self.caches_available() {
+            trace!("not updating the cache since the auxiliary data is not yet available");
+            return;
+        }
+
+        if OffsetDateTime::now_utc() - *last_updated < self.fallback_caching_interval {
+            // don't update too often
+            trace!("not updating the cache since they've been updated recently");
+            return;
+        }
+
         let _ = self.refresh().await;
+        *last_updated = OffsetDateTime::now_utc();
         fallback_interval.reset();
     }
 
-    /// Updates the node status cache when the fallback interval is reached
-    async fn update_on_timer(&self) {
-        debug!("Timed trigger for the node status cache");
-        let have_contract_cache_data =
-            *self.contract_cache_listener.borrow() != CacheNotification::Start;
-
-        if have_contract_cache_data {
-            let _ = self.refresh().await;
-        } else {
-            trace!("Skipping updating node status cache, is the contract cache not yet available?");
-        }
-    }
-
     /// Refreshes the node status cache by fetching the latest data from the contract cache
+    #[allow(deprecated)]
     async fn refresh(&self) -> Result<(), NodeStatusCacheError> {
         info!("Updating node status cache");
 
@@ -118,6 +144,12 @@ impl NodeStatusCacheRefresher {
         let rewarded_set = self.contract_cache.rewarded_set_owned().await;
         let gateway_bonds = self.contract_cache.legacy_gateways_all().await;
         let nym_nodes = self.contract_cache.nym_nodes().await;
+        let config_score_params = self
+            .contract_cache
+            .config_score_params()
+            .await
+            .into_inner()
+            .ok_or(NodeStatusCacheError::SourceDataMissing)?;
 
         // get blacklists
         let mixnodes_blacklist = self.contract_cache.mixnodes_blacklist().await;
@@ -128,7 +160,7 @@ impl NodeStatusCacheRefresher {
         let current_interval = current_interval.ok_or(NodeStatusCacheError::SourceDataMissing)?;
 
         // Compute inclusion probabilities
-        let inclusion_probabilities = InclusionProbabilities::compute(
+        let inclusion_probabilities = inclusion_probabilities::InclusionProbabilities::compute(
             &mixnode_details,
             interval_reward_params,
         )
@@ -137,40 +169,47 @@ impl NodeStatusCacheRefresher {
             NodeStatusCacheError::SimulationFailed
         })?;
 
+        let Ok(described) = self.described_cache.get().await else {
+            return Err(NodeStatusCacheError::UnavailableDescribedCache);
+        };
+
         let mut legacy_gateway_mapping = HashMap::new();
         for gateway in &gateway_bonds {
             legacy_gateway_mapping.insert(gateway.identity().clone(), gateway.node_id);
         }
 
         // Create annotated data
-
         let node_annotations = produce_node_annotations(
             &self.storage,
+            &config_score_params,
             &mixnode_details,
             &gateway_bonds,
             &nym_nodes,
             &rewarded_set,
             current_interval,
+            &described,
         )
         .await;
 
-        let mixnodes_annotated = annotate_legacy_mixnodes_nodes_with_details(
-            &self.storage,
-            mixnode_details,
-            interval_reward_params,
-            current_interval,
-            &rewarded_set,
-            &mixnodes_blacklist,
-        )
-        .await;
+        let mixnodes_annotated =
+            crate::node_status_api::cache::node_sets::annotate_legacy_mixnodes_nodes_with_details(
+                &self.storage,
+                mixnode_details,
+                interval_reward_params,
+                current_interval,
+                &rewarded_set,
+                &mixnodes_blacklist,
+            )
+            .await;
 
-        let gateways_annotated = annotate_legacy_gateways_with_details(
-            &self.storage,
-            gateway_bonds,
-            current_interval,
-            &gateways_blacklist,
-        )
-        .await;
+        let gateways_annotated =
+            crate::node_status_api::cache::node_sets::annotate_legacy_gateways_with_details(
+                &self.storage,
+                gateway_bonds,
+                current_interval,
+                &gateways_blacklist,
+            )
+            .await;
 
         // Update the cache
         self.cache

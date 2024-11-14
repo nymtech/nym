@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::data::NodeStatusCacheData;
-use self::inclusion_probabilities::InclusionProbabilities;
 use crate::support::caching::Cache;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
 use nym_contracts_common::IdentityKey;
@@ -28,6 +27,9 @@ enum NodeStatusCacheError {
 
     #[error("the current interval information is not available at the moment")]
     SourceDataMissing,
+
+    #[error("the self-described cache data is not available")]
+    UnavailableDescribedCache,
 }
 
 /// A node status cache suitable for caching values computed in one sweep, such as active set
@@ -48,13 +50,14 @@ impl NodeStatusCache {
     }
 
     /// Updates the cache with the latest data.
+    #[allow(deprecated)]
     async fn update(
         &self,
         legacy_gateway_mapping: HashMap<IdentityKey, NodeId>,
         node_annotations: HashMap<NodeId, NodeAnnotation>,
         mixnodes: HashMap<NodeId, MixNodeBondAnnotated>,
         gateways: HashMap<NodeId, GatewayBondAnnotated>,
-        inclusion_probabilities: InclusionProbabilities,
+        inclusion_probabilities: inclusion_probabilities::InclusionProbabilities,
     ) {
         match time::timeout(Duration::from_millis(CACHE_TIMEOUT_MS), self.inner.write()).await {
             Ok(mut cache) => {
@@ -160,7 +163,10 @@ impl NodeStatusCache {
         gateways.get(&node_id).cloned()
     }
 
-    pub(crate) async fn inclusion_probabilities(&self) -> Option<Cache<InclusionProbabilities>> {
+    #[allow(deprecated)]
+    pub(crate) async fn inclusion_probabilities(
+        &self,
+    ) -> Option<Cache<inclusion_probabilities::InclusionProbabilities>> {
         self.get_owned(|c| c.inclusion_probabilities.clone_cache())
             .await
     }

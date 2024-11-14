@@ -1,6 +1,8 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+#![allow(deprecated)]
+
 use nym_api_requests::legacy::LegacyMixNodeDetailsWithLayer;
 use nym_api_requests::models::InclusionProbability;
 use nym_contracts_common::truncate_decimal;
@@ -12,6 +14,7 @@ use tracing::error;
 const MAX_SIMULATION_SAMPLES: u64 = 5000;
 const MAX_SIMULATION_TIME_SEC: u64 = 15;
 
+#[deprecated]
 #[derive(Clone, Default, Serialize, schemars::JsonSchema)]
 pub(crate) struct InclusionProbabilities {
     pub inclusion_probabilities: Vec<InclusionProbability>,
@@ -36,6 +39,7 @@ impl InclusionProbabilities {
     }
 }
 
+#[deprecated]
 fn compute_inclusion_probabilities(
     mixnodes: &[LegacyMixNodeDetailsWithLayer],
     params: RewardingParams,
@@ -79,6 +83,7 @@ fn unzip_into_mixnode_ids_and_total_bonds(
         .unzip()
 }
 
+#[deprecated]
 fn zip_ids_together_with_results(
     ids: &[NodeId],
     results: &nym_inclusion_probability::SelectionProbability,

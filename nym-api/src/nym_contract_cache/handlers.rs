@@ -6,10 +6,12 @@ use crate::node_status_api::helpers::{
     _get_rewarded_set_legacy_mixnodes_detailed,
 };
 use crate::support::http::state::AppState;
+use crate::support::legacy_helpers::{to_legacy_gateway, to_legacy_mixnode};
 use axum::extract::State;
 use axum::{Json, Router};
 use nym_api_requests::legacy::LegacyMixNodeDetailsWithLayer;
 use nym_api_requests::models::MixNodeBondAnnotated;
+use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::{reward_params::RewardingParams, GatewayBond, Interval, NodeId};
 use std::collections::HashSet;
 
@@ -58,11 +60,47 @@ pub(crate) fn nym_contract_cache_routes() -> Router<AppState> {
 )]
 #[deprecated]
 async fn get_mixnodes(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDetailsWithLayer>> {
-    state
-        .nym_contract_cache()
-        .legacy_mixnodes_filtered()
-        .await
-        .into()
+    let mut out = state.nym_contract_cache().legacy_mixnodes_filtered().await;
+
+    let Ok(describe_cache) = state.described_nodes_cache.get().await else {
+        return Json(out);
+    };
+
+    let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
+        return Json(out);
+    };
+
+    let Ok(annotations) = state.node_annotations().await else {
+        return Json(out);
+    };
+
+    // safety: valid percentage value
+    #[allow(clippy::unwrap_used)]
+    let p50 = Performance::from_percentage_value(50).unwrap();
+
+    for nym_node in &**migrated_nymnodes {
+        // if we can't get it self-described data, ignore it
+        let Some(description) = describe_cache.get_description(&nym_node.node_id()) else {
+            continue;
+        };
+        // if the node hasn't declared it can be a mixnode, ignore it
+        if !description.declared_role.mixnode {
+            continue;
+        }
+        // if we don't have annotation for this node, ignore it
+        let Some(annotation) = annotations.get(&nym_node.node_id()) else {
+            continue;
+        };
+        // equivalent of legacy mixnode being blacklisted
+        if annotation.last_24h_performance < p50 {
+            continue;
+        }
+
+        let node = to_legacy_mixnode(nym_node, description);
+        out.push(node);
+    }
+
+    Json(out)
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,
@@ -97,15 +135,54 @@ async fn get_mixnodes_detailed(State(state): State<AppState>) -> Json<Vec<MixNod
 )]
 #[deprecated]
 async fn get_gateways(State(state): State<AppState>) -> Json<Vec<GatewayBond>> {
-    Json(
-        state
-            .nym_contract_cache()
-            .legacy_gateways_filtered()
-            .await
-            .into_iter()
-            .map(Into::into)
-            .collect(),
-    )
+    // legacy
+    let mut out: Vec<GatewayBond> = state
+        .nym_contract_cache()
+        .legacy_gateways_filtered()
+        .await
+        .into_iter()
+        .map(Into::into)
+        .collect();
+
+    let Ok(describe_cache) = state.described_nodes_cache.get().await else {
+        return Json(out);
+    };
+
+    let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
+        return Json(out);
+    };
+
+    let Ok(annotations) = state.node_annotations().await else {
+        return Json(out);
+    };
+
+    // safety: valid percentage value
+    #[allow(clippy::unwrap_used)]
+    let p50 = Performance::from_percentage_value(50).unwrap();
+
+    for nym_node in &**migrated_nymnodes {
+        // if we can't get it self-described data, ignore it
+        let Some(description) = describe_cache.get_description(&nym_node.node_id()) else {
+            continue;
+        };
+        // if the node hasn't declared it can be a gateway, ignore it
+        if !description.declared_role.entry {
+            continue;
+        }
+        // if we don't have annotation for this node, ignore it
+        let Some(annotation) = annotations.get(&nym_node.node_id()) else {
+            continue;
+        };
+        // equivalent of legacy gateway being blacklisted
+        if annotation.last_24h_performance < p50 {
+            continue;
+        }
+
+        let node = to_legacy_gateway(nym_node, description);
+        out.push(node);
+    }
+
+    Json(out)
 }
 
 #[utoipa::path(
@@ -166,12 +243,59 @@ async fn get_rewarded_set_detailed(
 )]
 #[deprecated]
 async fn get_active_set(State(state): State<AppState>) -> Json<Vec<LegacyMixNodeDetailsWithLayer>> {
-    state
+    let mut out = state
         .nym_contract_cache()
         .legacy_v1_active_set_mixnodes()
         .await
-        .clone()
-        .into()
+        .clone();
+
+    let Some(rewarded_set) = state.nym_contract_cache().rewarded_set().await else {
+        return Json(out);
+    };
+
+    let Ok(describe_cache) = state.described_nodes_cache.get().await else {
+        return Json(out);
+    };
+
+    let Some(migrated_nymnodes) = state.nym_contract_cache().all_cached_nym_nodes().await else {
+        return Json(out);
+    };
+
+    let Ok(annotations) = state.node_annotations().await else {
+        return Json(out);
+    };
+
+    // safety: valid percentage value
+    #[allow(clippy::unwrap_used)]
+    let p50 = Performance::from_percentage_value(50).unwrap();
+
+    for nym_node in &**migrated_nymnodes {
+        // if we can't get it self-described data, ignore it
+        let Some(description) = describe_cache.get_description(&nym_node.node_id()) else {
+            continue;
+        };
+        // if the node hasn't declared it can be a mixnode, ignore it
+        if !description.declared_role.mixnode {
+            continue;
+        }
+        // if we don't have annotation for this node, ignore it
+        let Some(annotation) = annotations.get(&nym_node.node_id()) else {
+            continue;
+        };
+        // equivalent of legacy mixnode being blacklisted
+        if annotation.last_24h_performance < p50 {
+            continue;
+        }
+        // if the node is not in the active set, ignore it
+        if !rewarded_set.is_active_mixnode(&nym_node.node_id()) {
+            continue;
+        }
+
+        let node = to_legacy_mixnode(nym_node, description);
+        out.push(node);
+    }
+
+    Json(out)
 }
 
 // DEPRECATED: this endpoint now lives in `node_status_api`. Once all consumers are updated,

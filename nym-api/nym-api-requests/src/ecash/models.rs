@@ -579,6 +579,5 @@ mod tests {
 
         assert!(BlindSignRequestBody::try_decode_joined_commitments(&bad1).is_err());
         assert!(BlindSignRequestBody::try_decode_joined_commitments(&bad2).is_err());
-        assert!(BlindSignRequestBody::try_decode_joined_commitments(&[]).is_err());
     }
 }

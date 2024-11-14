@@ -358,6 +358,7 @@ where
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
+        stats_reporter: ClientStatsSender,
         shutdown: TaskClient,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
@@ -373,7 +374,12 @@ where
 
         let mut gateway_client =
             if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
-                existing_client.upgrade(packet_router, bandwidth_controller, shutdown)
+                existing_client.upgrade(
+                    packet_router,
+                    bandwidth_controller,
+                    stats_reporter,
+                    shutdown,
+                )
             } else {
                 let cfg = GatewayConfig::new(
                     details.gateway_id,
@@ -394,6 +400,7 @@ where
                     Some(details.shared_key),
                     packet_router,
                     bandwidth_controller,
+                    stats_reporter,
                     shutdown,
                 )
             };
@@ -446,6 +453,7 @@ where
         Ok(gateway_client)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn setup_gateway_transceiver(
         custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
         config: &Config,
@@ -453,6 +461,7 @@ where
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
+        stats_reporter: ClientStatsSender,
         mut shutdown: TaskClient,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
@@ -483,6 +492,7 @@ where
             bandwidth_controller,
             details_store,
             packet_router,
+            stats_reporter,
             shutdown,
         )
         .await?;
@@ -766,6 +776,7 @@ where
             bandwidth_controller,
             &details_store,
             gateway_packet_router,
+            stats_reporter.clone(),
             shutdown.fork("gateway_transceiver"),
         )
         .await?;

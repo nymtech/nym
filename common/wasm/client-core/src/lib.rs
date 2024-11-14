@@ -26,6 +26,7 @@ pub use nym_sphinx::{
     params::PacketType,
     receiver::ReconstructedMessage,
 };
+pub use nym_statistics_common::clients::ClientStatsSender;
 pub use nym_task;
 pub use nym_topology::{HardcodedTopologyProvider, MixLayer, NymTopology, TopologyProvider};
 pub use nym_validator_client::nym_api::Client as ApiClient;

@@ -25,7 +25,7 @@ use nym_gateway_requests::{
     CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_statistics_common::clients::credential::CredentialStatsEvent;
+use nym_statistics_common::clients::connection::ConnectionStatsEvent;
 use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
@@ -766,7 +766,7 @@ impl<C, St> GatewayClient<C, St> {
         match self.claim_ecash_bandwidth(prepared_credential.data).await {
             Ok(_) => {
                 self.stats_reporter.report(
-                    CredentialStatsEvent::TicketSpent {
+                    ConnectionStatsEvent::TicketSpent {
                         typ: MIXNET_TICKET,
                         amount: TICKETS_TO_SPEND,
                     }

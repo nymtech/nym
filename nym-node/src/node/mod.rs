@@ -595,7 +595,6 @@ impl NymNode {
             self.entry_gateway.client_storage.clone(),
             self.entry_gateway.stats_storage.clone(),
         );
-        entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
         entry_gateway.set_session_stats(self.entry_gateway.sessions_stats.clone());
         if self.config.wireguard.enabled {
@@ -626,7 +625,6 @@ impl NymNode {
             self.exit_gateway.client_storage.clone(),
             self.exit_gateway.stats_storage.clone(),
         );
-        exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);
         if self.config.wireguard.enabled {
             exit_gateway.set_wireguard_data(self.wireguard.into());

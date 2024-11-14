@@ -18,10 +18,6 @@ rust-version = "1.76"
 [lib]
 path = "src/lib.rs"
 
-[[bin]]
-name = "nym-gateway"
-required-features = ["bin-deps"]
-path = "src/main.rs"
 
 [dependencies]
 anyhow = { workspace = true }
@@ -34,7 +30,6 @@ dashmap = { workspace = true }
 dirs = { workspace = true }
 dotenvy = { workspace = true }
 futures = { workspace = true }
-humantime-serde = { workspace = true }
 ipnetwork = { workspace = true }
 once_cell = { workspace = true }
 rand = { workspace = true }
@@ -64,7 +59,6 @@ zeroize = { workspace = true }
 nym-authenticator = { path = "../service-providers/authenticator" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
 nym-bin-common = { path = "../common/bin-common" }
-nym-config = { path = "../common/config" }
 nym-credentials = { path = "../common/credentials" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-credential-verification = { path = "../common/credential-verification" }
@@ -101,12 +95,3 @@ sqlx = { workspace = true, features = [
     "macros",
     "migrate",
 ] }
-
-[features]
-bin-deps = ["clap", 'nym-bin-common/output_format']
-
-[package.metadata.deb]
-name = "nym-gateway"
-maintainer-scripts = "debian"
-depends = "curl"
-systemd-units = { enable = false }

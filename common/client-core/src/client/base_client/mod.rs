@@ -49,13 +49,13 @@ use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
 use nym_statistics_common::clients::ClientStatsSender;
+use nym_statistics_common::generate_client_stats_id;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_topology::HardcodedTopologyProvider;
 use nym_validator_client::{nyxd::contract_traits::DkgQueryClient, UserAgent};
 use rand::rngs::OsRng;
-use sha2::Digest;
 use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
@@ -734,17 +734,10 @@ where
             self.user_agent.clone(),
         );
 
-        //make sure we don't accidentally get the same id as gateways are reporting
-        let client_stats_id = format!(
-            "{:x}",
-            sha2::Sha256::digest(
-                ["stats_id".as_bytes(), &self_address.identity().to_bytes()].concat()
-            )
-        );
         let stats_reporter = Self::start_statistics_control(
             self.config,
             self.user_agent.clone(),
-            client_stats_id,
+            generate_client_stats_id(&self_address.identity().to_base58_string()),
             input_sender.clone(),
             shutdown.fork("statistics_control"),
         );

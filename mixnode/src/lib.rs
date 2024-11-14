@@ -2,8 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 pub mod config;
-pub mod error;
 pub mod node;
 
-pub use error::MixnodeError;
 pub use node::MixNode;

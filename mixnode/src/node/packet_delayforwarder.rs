@@ -1,6 +1,7 @@
 // Copyright 2020 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use super::TaskClient;
 use crate::node::node_statistics::UpdateSender;
 use futures::channel::mpsc;
 use futures::StreamExt;
@@ -8,8 +9,7 @@ use nym_nonexhaustive_delayqueue::{Expired, NonExhaustiveDelayQueue};
 use nym_sphinx::forwarding::packet::MixPacket;
 use std::io;
 use tokio::time::Instant;
-
-use super::TaskClient;
+use tracing::trace;
 
 // Delay + MixPacket vs Instant + MixPacket
 
@@ -105,7 +105,7 @@ where
     }
 
     pub(crate) async fn run(&mut self) {
-        log::trace!("Starting DelayForwarder");
+        trace!("Starting DelayForwarder");
         loop {
             tokio::select! {
                 delayed = self.delay_queue.next() => {
@@ -117,12 +117,12 @@ where
                     self.handle_new_packet(new_packet.unwrap())
                 }
                 _ = self.shutdown.recv() => {
-                    log::trace!("DelayForwarder: Received shutdown");
+                    trace!("DelayForwarder: Received shutdown");
                     break;
                 }
             }
         }
-        log::trace!("DelayForwarder: Exiting");
+        trace!("DelayForwarder: Exiting");
     }
 }
 

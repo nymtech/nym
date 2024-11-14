@@ -2,25 +2,21 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
-use crate::error::MixnodeError;
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
-use log::{error, info, warn};
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc;
 use nym_mixnode_common::verloc::VerlocMeasurer;
 use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
 use nym_task::{TaskClient, TaskHandle};
-use rand::seq::SliceRandom;
-use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+use tracing::{error, info, warn};
 
 mod listener;
-pub mod node_description;
 mod node_statistics;
 mod packet_delayforwarder;
 
@@ -159,41 +155,35 @@ impl MixNode {
         verloc_state
     }
 
-    fn random_api_client(&self) -> nym_validator_client::NymApiClient {
-        let endpoints = self.config.get_nym_api_endpoints();
-        let nym_api = endpoints
-            .choose(&mut thread_rng())
-            .expect("The list of validator apis is empty");
-
-        nym_validator_client::NymApiClient::new(nym_api.clone())
-    }
-
     async fn check_if_bonded(&self) -> bool {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
-        let validator_client = self.random_api_client();
-        let existing_nodes = match validator_client.get_all_basic_nodes(None).await {
-            Ok(nodes) => nodes,
-            Err(err) => {
-                error!(
-                    "failed to grab initial network mixnodes - {err}\n \
-                    Please try to startup again in few minutes",
-                );
-                process::exit(1);
+        for api_url in self.config.get_nym_api_endpoints() {
+            let client = nym_validator_client::NymApiClient::new(api_url.clone());
+            match client.get_all_basic_nodes(None).await {
+                Ok(nodes) => {
+                    return nodes.iter().any(|node| {
+                        &node.ed25519_identity_pubkey == self.identity_keypair.public_key()
+                    })
+                }
+                Err(err) => {
+                    error!("failed to grab initial network mixnodes from {api_url}: {err}",);
+                }
             }
-        };
+        }
 
-        existing_nodes
-            .iter()
-            .any(|node| &node.ed25519_identity_pubkey == self.identity_keypair.public_key())
+        error!(
+            "failed to grab initial network mixnodes from any of the available apis. Please try to startup again in few minutes",
+        );
+        process::exit(1);
     }
 
     async fn wait_for_interrupt(&self, shutdown: TaskHandle) {
         let _res = shutdown.wait_for_shutdown().await;
-        log::info!("Stopping nym mixnode");
+        info!("Stopping nym mixnode");
     }
 
-    pub async fn run(&mut self) -> Result<(), MixnodeError> {
+    pub async fn run(&mut self) {
         info!("Starting nym mixnode");
 
         if self.check_if_bonded().await {
@@ -223,7 +213,5 @@ impl MixNode {
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
         self.wait_for_interrupt(shutdown).await;
-
-        Ok(())
     }
 }

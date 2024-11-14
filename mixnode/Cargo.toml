@@ -17,26 +17,13 @@ rust-version = "1.70"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axum = { workspace = true }
-anyhow = { workspace = true }
-bs58 = { workspace = true }
-clap = { workspace = true, features = ["cargo", "derive"] }
 colored = { workspace = true }
-cupid = { workspace = true }
-dirs = { workspace = true }
 futures = { workspace = true }
-humantime-serde = { workspace = true }
-lazy_static = { workspace = true }
-log = { workspace = true }
-rand = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-sysinfo = { workspace = true }
 time.workspace = true
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
 tokio-util = { workspace = true, features = ["codec"] }
-toml = { workspace = true }
 url = { workspace = true, features = ["serde"] }
+tracing = { workspace = true }
 thiserror = { workspace = true }
 
 # internal
@@ -50,7 +37,6 @@ nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
 nym-node-http-api = { path = "../nym-node/nym-node-http-api" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
-nym-pemstore = { path = "../common/pemstore", version = "0.3.0" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-topology = { path = "../common/topology" }
@@ -66,8 +52,3 @@ tokio = { workspace = true, features = [
 
 nym-sphinx-types = { path = "../common/nymsphinx/types" }
 nym-sphinx-params = { path = "../common/nymsphinx/params" }
-
-[package.metadata.deb]
-name = "nym-mixnode"
-maintainer-scripts = "debian"
-systemd-units = { enable = false }

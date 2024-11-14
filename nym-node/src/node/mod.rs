@@ -570,11 +570,7 @@ impl NymNode {
         mixnode.set_mixing_stats(self.mixnode.mixing_stats.clone());
         mixnode.set_verloc_stats(self.verloc_stats.clone());
 
-        tokio::spawn(async move {
-            if let Err(err) = mixnode.run().await {
-                error!("the mixnode subtask has failed with the following message: {err}")
-            }
-        });
+        tokio::spawn(async move { mixnode.run().await });
         Ok(())
     }
 

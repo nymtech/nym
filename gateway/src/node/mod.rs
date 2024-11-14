@@ -28,6 +28,7 @@ use rand::thread_rng;
 use statistics::GatewayStatisticsCollector;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
+use std::process;
 use std::sync::Arc;
 use tracing::*;
 
@@ -507,15 +508,6 @@ impl<St> Gateway<St> {
         Ok(LocalEmbeddedClientHandle::new(address, ipr_mix_sender))
     }
 
-    fn random_api_client(&self) -> Result<nym_validator_client::NymApiClient, GatewayError> {
-        let endpoints = self.config.get_nym_api_endpoints();
-        let nym_api = endpoints
-            .choose(&mut thread_rng())
-            .ok_or(GatewayError::NoNymApisAvailable)?;
-
-        Ok(nym_validator_client::NymApiClient::new(nym_api.clone()))
-    }
-
     fn random_nyxd_client(&self) -> Result<DirectSigningHttpRpcNyxdClient, GatewayError> {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
@@ -533,21 +525,27 @@ impl<St> Gateway<St> {
         .map_err(Into::into)
     }
 
-    async fn check_if_bonded(&self) -> Result<bool, GatewayError> {
+    async fn check_if_bonded(&self) -> bool {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
-        let validator_client = self.random_api_client()?;
-        let existing_nodes = match validator_client.get_all_basic_nodes(None).await {
-            Ok(nodes) => nodes,
-            Err(err) => {
-                error!("failed to grab initial network gateways - {err}\n Please try to startup again in few minutes");
-                return Err(GatewayError::NetworkGatewaysQueryFailure { source: err });
+        for api_url in self.config.get_nym_api_endpoints() {
+            let client = nym_validator_client::NymApiClient::new(api_url.clone());
+            match client.get_all_basic_nodes(None).await {
+                Ok(nodes) => {
+                    return nodes.iter().any(|node| {
+                        &node.ed25519_identity_pubkey == self.identity_keypair.public_key()
+                    })
+                }
+                Err(err) => {
+                    error!("failed to grab initial network gateways from {api_url}: {err}",);
+                }
             }
-        };
+        }
 
-        Ok(existing_nodes
-            .iter()
-            .any(|node| &node.ed25519_identity_pubkey == self.identity_keypair.public_key()))
+        error!(
+            "failed to grab initial network gateways from any of the available apis. Please try to startup again in few minutes",
+        );
+        process::exit(1);
     }
 
     pub async fn run(mut self) -> Result<(), GatewayError>
@@ -556,7 +554,7 @@ impl<St> Gateway<St> {
     {
         info!("Starting nym gateway!");
 
-        if self.check_if_bonded().await? {
+        if self.check_if_bonded().await {
             warn!("You seem to have bonded your gateway before starting it - that's highly unrecommended as in the future it might result in slashing");
         }
 

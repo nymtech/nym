@@ -9,88 +9,13 @@ use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{AccountId, Coin};
 use nym_validator_client::ValidatorClientError;
-use std::io;
 use std::net::IpAddr;
-use std::path::PathBuf;
 use thiserror::Error;
 
 pub use crate::node::client_handling::websocket::connection_handler::authenticated::RequestHandlingError;
 
 #[derive(Debug, Error)]
 pub enum GatewayError {
-    #[error("failed to load {keys} keys from '{}' (private key) and '{}' (public key): {err}", .paths.private_key_path.display(), .paths.public_key_path.display())]
-    KeyPairLoadFailure {
-        keys: String,
-        paths: nym_pemstore::KeyPairPath,
-        #[source]
-        err: io::Error,
-    },
-
-    #[error("failed to load {key} public key from '{}': {err}", .path.display())]
-    PublicKeyLoadFailure {
-        key: String,
-        path: PathBuf,
-        #[source]
-        err: io::Error,
-    },
-
-    #[error(
-        "failed to load config file for id {id} using path '{}'. detailed message: {source}", path.display()
-    )]
-    ConfigLoadFailure {
-        id: String,
-        path: PathBuf,
-        source: io::Error,
-    },
-
-    #[error(
-    "failed to load config file for network requester (gateway-id: '{id}') using path '{}'. detailed message: {source}", path.display()
-    )]
-    NetworkRequesterConfigLoadFailure {
-        id: String,
-        path: PathBuf,
-        source: io::Error,
-    },
-
-    #[error(
-        "failed to load config file for ip packet router (gateway-id: '{id}') using path '{}'. detailed message: {source}",
-        path.display()
-    )]
-    IpPacketRouterConfigLoadFailure {
-        id: String,
-        path: PathBuf,
-        source: io::Error,
-    },
-
-    #[error(
-        "failed to load config file for authenticator (gateway-id: '{id}') using path '{}'. detailed message: {source}",
-        path.display()
-    )]
-    AuthenticatorConfigLoadFailure {
-        id: String,
-        path: PathBuf,
-        source: io::Error,
-    },
-
-    #[error(
-        "failed to load config file for wireguard (gateway-id: '{id}') using path '{}'. detailed message: {source}",
-        path.display()
-    )]
-    WireguardConfigLoadFailure {
-        id: String,
-        path: PathBuf,
-        source: io::Error,
-    },
-
-    #[error(
-        "failed to save config file for id {id} using path '{}'. detailed message: {source}", path.display()
-    )]
-    ConfigSaveFailure {
-        id: String,
-        path: PathBuf,
-        source: io::Error,
-    },
-
     #[error("the configured version of the gateway ({config_version}) is incompatible with the binary version ({binary_version})")]
     LocalVersionCheckFailure {
         binary_version: String,
@@ -186,9 +111,6 @@ pub enum GatewayError {
 
     #[error("this node attempted to announce an invalid public address: {address}. Please modify [host.public_ips] section of your config. Alternatively, if you wanted to use it in the local setting, run the node with the '--local' flag.")]
     InvalidPublicIp { address: IpAddr },
-
-    #[error(transparent)]
-    NymNodeHttpError(#[from] nym_node_http_api::NymNodeHttpError),
 
     #[error("there was an issue with wireguard IP network: {source}")]
     IpNetworkError {

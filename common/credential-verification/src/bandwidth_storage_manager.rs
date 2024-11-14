@@ -7,7 +7,7 @@ use crate::ClientBandwidth;
 use nym_credentials::ecash::utils::ecash_today;
 use nym_credentials_interface::Bandwidth;
 use nym_gateway_requests::ServerResponse;
-use nym_gateway_storage::Storage;
+use nym_gateway_storage::GatewayStorage;
 use si_scale::helpers::bibytes2;
 use time::OffsetDateTime;
 use tracing::*;
@@ -15,17 +15,17 @@ use tracing::*;
 const FREE_TESTNET_BANDWIDTH_VALUE: Bandwidth = Bandwidth::new_unchecked(64 * 1024 * 1024 * 1024); // 64GB
 
 #[derive(Clone)]
-pub struct BandwidthStorageManager<S> {
-    pub(crate) storage: S,
+pub struct BandwidthStorageManager {
+    pub(crate) storage: GatewayStorage,
     pub(crate) client_bandwidth: ClientBandwidth,
     pub(crate) client_id: i64,
     pub(crate) bandwidth_cfg: BandwidthFlushingBehaviourConfig,
     pub(crate) only_coconut_credentials: bool,
 }
 
-impl<S: Storage + Clone + 'static> BandwidthStorageManager<S> {
+impl BandwidthStorageManager {
     pub fn new(
-        storage: S,
+        storage: GatewayStorage,
         client_bandwidth: ClientBandwidth,
         client_id: i64,
         bandwidth_cfg: BandwidthFlushingBehaviourConfig,

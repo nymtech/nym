@@ -168,6 +168,7 @@ impl NetworkManager {
             "--mnemonic",
             &Zeroizing::new(node.owner.mnemonic.to_string()),
             "--local",
+            "--accept-operator-terms-and-conditions",
             "--output",
             "json",
             "--bonding-information-output",
@@ -225,6 +226,7 @@ impl NetworkManager {
             .stderr(Stdio::null())
             .kill_on_drop(true)
             .output();
+
         let out = ctx.async_with_progress(child).await?;
         if !out.status.success() {
             return Err(NetworkManagerError::NymNodeExecutionFailure);

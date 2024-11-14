@@ -16,7 +16,7 @@ pub enum Error {
     MissingClientBandwidthEntry,
 
     #[error("{0}")]
-    GatewayStorage(#[from] nym_gateway_storage::error::StorageError),
+    GatewayStorage(#[from] nym_gateway_storage::error::GatewayStorageError),
 
     #[error("{0}")]
     SystemTime(#[from] std::time::SystemTimeError),

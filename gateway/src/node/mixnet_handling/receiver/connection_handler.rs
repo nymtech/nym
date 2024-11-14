@@ -6,7 +6,7 @@ use crate::node::client_handling::websocket::message_receiver::MixMessageSender;
 use crate::node::mixnet_handling::receiver::packet_processing::PacketProcessor;
 use futures::channel::mpsc::SendError;
 use futures::StreamExt;
-use nym_gateway_storage::{error::StorageError, Storage};
+use nym_gateway_storage::{error::GatewayStorageError, GatewayStorage};
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
@@ -30,7 +30,7 @@ enum CriticalPacketProcessingError {
     AckForwardingFailure { source: SendError },
 }
 
-pub(crate) struct ConnectionHandler<St: Storage> {
+pub(crate) struct ConnectionHandler {
     packet_processor: PacketProcessor,
 
     // TODO: investigate performance trade-offs for whether this cache even makes sense
@@ -39,11 +39,11 @@ pub(crate) struct ConnectionHandler<St: Storage> {
     // and each `get` internally copies the channel, however, is it really that expensive?
     clients_store_cache: HashMap<DestinationAddressBytes, MixMessageSender>,
     active_clients_store: ActiveClientsStore,
-    storage: St,
+    storage: GatewayStorage,
     ack_sender: MixForwardingSender,
 }
 
-impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
+impl Clone for ConnectionHandler {
     fn clone(&self) -> Self {
         // remove stale entries from the cache while cloning
         let mut clients_store_cache = HashMap::with_capacity(self.clients_store_cache.capacity());
@@ -63,10 +63,10 @@ impl<St: Storage + Clone> Clone for ConnectionHandler<St> {
     }
 }
 
-impl<St: Storage> ConnectionHandler<St> {
+impl ConnectionHandler {
     pub(crate) fn new(
         packet_processor: PacketProcessor,
-        storage: St,
+        storage: GatewayStorage,
         ack_sender: MixForwardingSender,
         active_clients_store: ActiveClientsStore,
     ) -> Self {
@@ -123,7 +123,7 @@ impl<St: Storage> ConnectionHandler<St> {
         &self,
         client_address: DestinationAddressBytes,
         message: Vec<u8>,
-    ) -> Result<(), StorageError> {
+    ) -> Result<(), GatewayStorageError> {
         debug!("Storing received message for {client_address} on the disk...",);
 
         self.storage.store_message(client_address, message).await
@@ -137,14 +137,9 @@ impl<St: Storage> ConnectionHandler<St> {
         if let Some(forward_ack) = forward_ack {
             let next_hop = forward_ack.next_hop();
             trace!("Sending ack from packet for {client_address} to {next_hop}",);
-
             self.ack_sender
-                .unbounded_send(forward_ack)
-                .map_err(
-                    |source| CriticalPacketProcessingError::AckForwardingFailure {
-                        source: source.into_send_error(),
-                    },
-                )?;
+                .forward_packet(forward_ack)
+                .map_err(|source| CriticalPacketProcessingError::AckForwardingFailure { source })?;
         }
         Ok(())
     }

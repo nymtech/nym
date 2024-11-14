@@ -1,0 +1,27 @@
+[package]
+name = "nym-verloc"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+bytes = { workspace = true }
+futures = { workspace = true }
+humantime = { workspace = true }
+tracing = { workspace = true }
+time = { workspace = true }
+tokio = { workspace = true, features = ["sync", "net", "rt-multi-thread", "io-util"] }
+tokio-util = { workspace = true, features = ["codec"] }
+thiserror = { workspace = true }
+rand = { workspace = true }
+url = { workspace = true }
+
+nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+nym-task = { path = "../task" }
+nym-validator-client = { path = "../client-libs/validator-client" }

@@ -14,7 +14,7 @@ use std::os::raw::c_int as RawFd;
 use thiserror::Error;
 
 #[cfg(not(target_arch = "wasm32"))]
-use futures::channel::{mpsc, oneshot};
+use futures::channel::oneshot;
 
 // we need to type erase the error type since we can't have dynamic associated types alongside dynamic dispatch
 #[derive(Debug, Error)]
@@ -170,7 +170,7 @@ pub struct LocalGateway {
 
     // 'sender' part
     /// Channel responsible for taking mix packets and forwarding them further into the further mixnet layers.
-    packet_forwarder: mpsc::UnboundedSender<MixPacket>,
+    packet_forwarder: nym_mixnet_client::forwarder::MixForwardingSender,
 
     // 'receiver' part
     packet_router_tx: Option<oneshot::Sender<PacketRouter>>,
@@ -180,7 +180,7 @@ pub struct LocalGateway {
 impl LocalGateway {
     pub fn new(
         local_identity: identity::PublicKey,
-        packet_forwarder: mpsc::UnboundedSender<MixPacket>,
+        packet_forwarder: nym_mixnet_client::forwarder::MixForwardingSender,
         packet_router_tx: oneshot::Sender<PacketRouter>,
     ) -> Self {
         LocalGateway {
@@ -208,8 +208,7 @@ mod nonwasm_sealed {
     impl GatewaySender for LocalGateway {
         async fn send_mix_packet(&mut self, packet: MixPacket) -> Result<(), ErasedGatewayError> {
             self.packet_forwarder
-                .unbounded_send(packet)
-                .map_err(|err| err.into_send_error())
+                .forward_packet(packet)
                 .map_err(erase_err)
         }
     }

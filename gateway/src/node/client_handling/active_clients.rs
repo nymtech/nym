@@ -5,8 +5,6 @@ use super::websocket::message_receiver::{IsActiveRequestSender, MixMessageSender
 use crate::node::client_handling::embedded_clients::LocalEmbeddedClientHandle;
 use dashmap::DashMap;
 use nym_sphinx::DestinationAddressBytes;
-use nym_statistics_common::gateways;
-use nym_statistics_common::gateways::GatewayStatsReporter;
 use std::sync::Arc;
 use tracing::warn;
 
@@ -34,10 +32,9 @@ impl ActiveClient {
     }
 }
 
-#[derive(Clone)]
-pub(crate) struct ActiveClientsStore {
+#[derive(Clone, Default)]
+pub struct ActiveClientsStore {
     inner: Arc<DashMap<DestinationAddressBytes, ActiveClient>>,
-    stats_event_reporter: GatewayStatsReporter,
 }
 
 #[derive(Clone)]
@@ -51,11 +48,8 @@ pub(crate) struct ClientIncomingChannels {
 
 impl ActiveClientsStore {
     /// Creates new instance of `ActiveClientsStore` to store in-memory handles to all currently connected clients.
-    pub(crate) fn new(stats_event_reporter: GatewayStatsReporter) -> Self {
-        ActiveClientsStore {
-            inner: Arc::new(DashMap::new()),
-            stats_event_reporter,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     /// Tries to obtain sending channel to specified client. Note that if stale entry existed, it is
@@ -64,7 +58,7 @@ impl ActiveClientsStore {
     /// # Arguments
     ///
     /// * `client`: address of the client for which to obtain the handle.
-    pub(crate) fn get_sender(&self, client: DestinationAddressBytes) -> Option<MixMessageSender> {
+    pub fn get_sender(&self, client: DestinationAddressBytes) -> Option<MixMessageSender> {
         let entry = self.inner.get(&client)?;
         let handle = entry.value().get_sender();
 
@@ -130,8 +124,6 @@ impl ActiveClientsStore {
     /// * `client`: address of the client for which to remove the handle.
     pub(crate) fn disconnect(&self, client: DestinationAddressBytes) {
         self.inner.remove(&client);
-        self.stats_event_reporter
-            .report(gateways::GatewayStatsEvent::new_session_stop(client));
     }
 
     /// Insert new client handle into the store.
@@ -153,12 +145,10 @@ impl ActiveClientsStore {
         if self.inner.insert(client, entry).is_some() {
             panic!("inserted a duplicate remote client")
         }
-        self.stats_event_reporter
-            .report(gateways::GatewayStatsEvent::new_session_start(client));
     }
 
     /// Inserts a handle to the embedded client
-    pub(crate) fn insert_embedded(&self, local_client_handle: LocalEmbeddedClientHandle) {
+    pub fn insert_embedded(&self, local_client_handle: LocalEmbeddedClientHandle) {
         let key = local_client_handle.client_destination();
         let entry = ActiveClient::Embedded(local_client_handle);
         if self.inner.insert(key, entry).is_some() {

@@ -31,40 +31,12 @@ impl GatewayStatsReporter {
 /// Gateway Statistics events
 pub enum GatewayStatsEvent {
     /// Events in the lifecycle of an established client tunnel
-    SessionStatsEvent(SessionEvent),
-}
-
-impl GatewayStatsEvent {
-    /// A new session between this gateway and the client remote has successfully opened
-    pub fn new_session_start(client: DestinationAddressBytes) -> GatewayStatsEvent {
-        GatewayStatsEvent::SessionStatsEvent(SessionEvent::SessionStart {
-            start_time: OffsetDateTime::now_utc(),
-            client,
-        })
-    }
-
-    /// An existing session with the client remote has ended
-    pub fn new_session_stop(client: DestinationAddressBytes) -> GatewayStatsEvent {
-        GatewayStatsEvent::SessionStatsEvent(SessionEvent::SessionStop {
-            stop_time: OffsetDateTime::now_utc(),
-            client,
-        })
-    }
-
-    /// A new ecash ticket has been added / requested
-    pub fn new_ecash_ticket(
-        client: DestinationAddressBytes,
-        ticket_type: TicketType,
-    ) -> GatewayStatsEvent {
-        GatewayStatsEvent::SessionStatsEvent(SessionEvent::EcashTicket {
-            ticket_type,
-            client,
-        })
-    }
+    SessionStatsEvent(GatewaySessionEvent),
 }
 
 /// Events in the lifecycle of an established client tunnel
-pub enum SessionEvent {
+#[derive(Debug, Clone, Copy)]
+pub enum GatewaySessionEvent {
     /// A new session between this gateway and the client remote has successfully opened
     SessionStart {
         /// The timestamp of the session open event
@@ -86,6 +58,35 @@ pub enum SessionEvent {
         /// Address of the remote client opening the connection
         client: DestinationAddressBytes,
     },
+}
+
+impl GatewaySessionEvent {
+    /// A new session between this gateway and the client remote has successfully opened
+    pub fn new_session_start(client: DestinationAddressBytes) -> GatewaySessionEvent {
+        GatewaySessionEvent::SessionStart {
+            start_time: OffsetDateTime::now_utc(),
+            client,
+        }
+    }
+
+    /// An existing session with the client remote has ended
+    pub fn new_session_stop(client: DestinationAddressBytes) -> GatewaySessionEvent {
+        GatewaySessionEvent::SessionStop {
+            stop_time: OffsetDateTime::now_utc(),
+            client,
+        }
+    }
+
+    /// A new ecash ticket has been added / requested
+    pub fn new_ecash_ticket(
+        client: DestinationAddressBytes,
+        ticket_type: TicketType,
+    ) -> GatewaySessionEvent {
+        GatewaySessionEvent::EcashTicket {
+            ticket_type,
+            client,
+        }
+    }
 }
 
 #[derive(PartialEq)]

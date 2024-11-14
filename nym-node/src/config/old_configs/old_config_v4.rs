@@ -1073,7 +1073,7 @@ pub async fn try_upgrade_config_v4<P: AsRef<Path>>(
         ConfigV4::read_from_path(&path).inspect_err(|err| debug!("failed: {err}"))?
     };
 
-    let exit_gateway_paths = ExitGatewayPaths::new(
+    let exit_gateway_paths = ServiceProvidersPaths::new(
         old_cfg
             .exit_gateway
             .storage_paths
@@ -1082,7 +1082,7 @@ pub async fn try_upgrade_config_v4<P: AsRef<Path>>(
             .ok_or(NymNodeError::DataDirDerivationFailure)?,
     );
 
-    let entry_gateway_paths = EntryGatewayPaths::new(
+    let entry_gateway_paths = GatewayTasksPaths::new(
         old_cfg
             .entry_gateway
             .storage_paths

@@ -10,9 +10,12 @@ use nym_bin_common::logging::maybe_print_banner;
 use nym_config::defaults::setup_env;
 
 mod cli;
+pub(crate) mod config;
 mod env;
+pub(crate) mod error;
 mod logging;
 pub(crate) mod node;
+pub(crate) mod wireguard;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {

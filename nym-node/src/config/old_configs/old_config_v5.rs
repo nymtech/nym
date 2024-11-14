@@ -3,27 +3,14 @@
 
 #![allow(dead_code)]
 
-use crate::{config::*, error::KeyIOFailure};
-use entry_gateway::{Debug as EntryGatewayConfigDebug, ZkNymTicketHandlerDebug};
-use exit_gateway::{
-    Debug as ExitGatewayConfigDebug, IpPacketRouter, IpPacketRouterDebug, NetworkRequester,
-    NetworkRequesterDebug,
-};
-use mixnode::{Verloc, VerlocDebug};
+use crate::config::*;
 use nym_client_core_config_types::{
     disk_persistence::{ClientKeysPaths, CommonClientPaths},
     DebugConfig as ClientDebugConfig,
 };
 use nym_config::{defaults::TICKETBOOK_VALIDITY_DAYS, serde_helpers::de_maybe_port};
-use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_network_requester::{
-    set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
-    GatewayDetails,
-};
-use nym_pemstore::{store_key, store_keypair};
-use nym_sphinx_acknowledgements::AckKey;
+use old_configs::old_config_v6::*;
 use persistence::*;
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 
@@ -94,12 +81,12 @@ pub enum NodeModeV5 {
     ExitGateway,
 }
 
-impl From<NodeModeV5> for NodeMode {
+impl From<NodeModeV5> for NodeModeV6 {
     fn from(config: NodeModeV5) -> Self {
         match config {
-            NodeModeV5::Mixnode => NodeMode::Mixnode,
-            NodeModeV5::EntryGateway => NodeMode::EntryGateway,
-            NodeModeV5::ExitGateway => NodeMode::ExitGateway,
+            NodeModeV5::Mixnode => NodeModeV6::Mixnode,
+            NodeModeV5::EntryGateway => NodeModeV6::EntryGateway,
+            NodeModeV5::ExitGateway => NodeModeV6::ExitGateway,
         }
     }
 }
@@ -942,77 +929,7 @@ pub struct ConfigV5 {
     pub logging: LoggingSettingsV5,
 }
 
-impl NymConfigTemplate for ConfigV5 {
-    fn template(&self) -> &'static str {
-        CONFIG_TEMPLATE
-    }
-}
-
 impl ConfigV5 {
-    pub fn save(&self) -> Result<(), NymNodeError> {
-        let save_location = self.save_location();
-        debug!(
-            "attempting to save config file to '{}'",
-            save_location.display()
-        );
-        save_formatted_config_to_file(self, &save_location).map_err(|source| {
-            NymNodeError::ConfigSaveFailure {
-                id: self.id.clone(),
-                path: save_location,
-                source,
-            }
-        })
-    }
-
-    pub fn save_location(&self) -> PathBuf {
-        self.save_path
-            .clone()
-            .unwrap_or(self.default_save_location())
-    }
-
-    pub fn default_save_location(&self) -> PathBuf {
-        default_config_filepath(&self.id)
-    }
-
-    pub fn default_data_directory<P: AsRef<Path>>(config_path: P) -> Result<PathBuf, NymNodeError> {
-        let config_path = config_path.as_ref();
-
-        // we got a proper path to the .toml file
-        let Some(config_dir) = config_path.parent() else {
-            error!(
-                "'{}' does not have a parent directory. Have you pointed to the fs root?",
-                config_path.display()
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        };
-
-        let Some(config_dir_name) = config_dir.file_name() else {
-            error!(
-                "could not obtain parent directory name of '{}'. Have you used relative paths?",
-                config_path.display()
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        };
-
-        if config_dir_name != DEFAULT_CONFIG_DIR {
-            error!(
-                "the parent directory of '{}' ({}) is not {DEFAULT_CONFIG_DIR}. currently this is not supported",
-                config_path.display(), config_dir_name.to_str().unwrap_or("UNKNOWN")
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        }
-
-        let Some(node_dir) = config_dir.parent() else {
-            error!(
-                "'{}' does not have a parent directory. Have you pointed to the fs root?",
-                config_dir.display()
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        };
-
-        Ok(node_dir.join(DEFAULT_DATA_DIR))
-    }
-
     // simple wrapper that reads config file and assigns path location
     fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
         let path = path.as_ref();
@@ -1025,56 +942,13 @@ impl ConfigV5 {
         debug!("loaded config file from {}", path.display());
         Ok(loaded)
     }
-
-    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
-        Self::read_from_path(path)
-    }
-}
-
-pub async fn initialise(
-    paths: &AuthenticatorPaths,
-    public_key: nym_crypto::asymmetric::identity::PublicKey,
-) -> Result<(), NymNodeError> {
-    let mut rng = OsRng;
-    let ed25519_keys = ed25519::KeyPair::new(&mut rng);
-    let x25519_keys = x25519::KeyPair::new(&mut rng);
-    let aes128ctr_key = AckKey::new(&mut rng);
-    let gateway_details = GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
-
-    store_keypair(&ed25519_keys, &paths.ed25519_identity_storage_paths()).map_err(|e| {
-        KeyIOFailure::KeyPairStoreFailure {
-            keys: "ed25519-identity".to_string(),
-            paths: paths.ed25519_identity_storage_paths(),
-            err: e,
-        }
-    })?;
-    store_keypair(&x25519_keys, &paths.x25519_diffie_hellman_storage_paths()).map_err(|e| {
-        KeyIOFailure::KeyPairStoreFailure {
-            keys: "x25519-dh".to_string(),
-            paths: paths.x25519_diffie_hellman_storage_paths(),
-            err: e,
-        }
-    })?;
-    store_key(&aes128ctr_key, &paths.ack_key_file).map_err(|e| KeyIOFailure::KeyStoreFailure {
-        key: "ack".to_string(),
-        path: paths.ack_key_file.clone(),
-        err: e,
-    })?;
-
-    // insert all required information into the gateways store
-    // (I hate that we have to do it, but that's currently the simplest thing to do)
-    let storage = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
-    store_gateway_details(&storage, &gateway_details).await?;
-    set_active_gateway(&storage, &gateway_details.gateway_id().to_base58_string()).await?;
-
-    Ok(())
 }
 
 #[instrument(skip_all)]
 pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV5>,
-) -> Result<Config, NymNodeError> {
+) -> Result<ConfigV6, NymNodeError> {
     debug!("attempting to load v5 config...");
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
@@ -1087,21 +961,21 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
         IpAddr::V6(ipv6_addr) => (WG_TUN_DEVICE_IP_ADDRESS_V4, ipv6_addr),
     };
 
-    let cfg = Config {
+    let cfg = ConfigV6 {
         save_path: old_cfg.save_path,
         id: old_cfg.id,
         mode: old_cfg.mode.into(),
-        host: Host {
+        host: HostV6 {
             public_ips: old_cfg.host.public_ips,
             hostname: old_cfg.host.hostname,
             location: old_cfg.host.location,
         },
-        mixnet: Mixnet {
+        mixnet: MixnetV6 {
             bind_address: old_cfg.mixnet.bind_address,
             announce_port: old_cfg.mixnet.announce_port,
             nym_api_urls: old_cfg.mixnet.nym_api_urls,
             nyxd_urls: old_cfg.mixnet.nyxd_urls,
-            debug: MixnetDebug {
+            debug: MixnetDebugV6 {
                 packet_forwarding_initial_backoff: old_cfg
                     .mixnet
                     .debug
@@ -1115,8 +989,8 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
                 unsafe_disable_noise: old_cfg.mixnet.debug.unsafe_disable_noise,
             },
         },
-        storage_paths: NymNodePaths {
-            keys: KeysPaths {
+        storage_paths: NymNodePathsV6 {
+            keys: KeysPathsV6 {
                 private_ed25519_identity_key_file: old_cfg
                     .storage_paths
                     .keys
@@ -1144,7 +1018,7 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
             },
             description: old_cfg.storage_paths.description,
         },
-        http: Http {
+        http: HttpV6 {
             bind_address: old_cfg.http.bind_address,
             landing_page_assets_path: old_cfg.http.landing_page_assets_path,
             access_token: old_cfg.http.access_token,
@@ -1152,7 +1026,7 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
             expose_system_hardware: old_cfg.http.expose_system_hardware,
             expose_crypto_hardware: old_cfg.http.expose_crypto_hardware,
         },
-        wireguard: Wireguard {
+        wireguard: WireguardV6 {
             enabled: old_cfg.wireguard.enabled,
             bind_address: old_cfg.wireguard.bind_address,
             private_ipv4,
@@ -1160,7 +1034,7 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
             announced_port: old_cfg.wireguard.announced_port,
             private_network_prefix_v4: old_cfg.wireguard.private_network_prefix,
             private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
-            storage_paths: WireguardPaths {
+            storage_paths: WireguardPathsV6 {
                 private_diffie_hellman_key_file: old_cfg
                     .wireguard
                     .storage_paths
@@ -1171,12 +1045,12 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
                     .public_diffie_hellman_key_file,
             },
         },
-        mixnode: MixnodeConfig {
-            storage_paths: MixnodePaths {},
-            verloc: Verloc {
+        mixnode: MixnodeConfigV6 {
+            storage_paths: MixnodePathsV6 {},
+            verloc: VerlocV6 {
                 bind_address: old_cfg.mixnode.verloc.bind_address,
                 announce_port: old_cfg.mixnode.verloc.announce_port,
-                debug: VerlocDebug {
+                debug: VerlocDebugV6 {
                     packets_per_node: old_cfg.mixnode.verloc.debug.packets_per_node,
                     connection_timeout: old_cfg.mixnode.verloc.debug.connection_timeout,
                     packet_timeout: old_cfg.mixnode.verloc.debug.packet_timeout,
@@ -1186,17 +1060,17 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
                     retry_timeout: old_cfg.mixnode.verloc.debug.retry_timeout,
                 },
             },
-            debug: mixnode::Debug {
+            debug: DebugV6 {
                 node_stats_logging_delay: old_cfg.mixnode.debug.node_stats_logging_delay,
                 node_stats_updating_delay: old_cfg.mixnode.debug.node_stats_updating_delay,
             },
         },
-        entry_gateway: EntryGatewayConfig {
-            storage_paths: EntryGatewayPaths {
+        entry_gateway: EntryGatewayConfigV6 {
+            storage_paths: EntryGatewayPathsV6 {
                 clients_storage: old_cfg.entry_gateway.storage_paths.clients_storage,
                 stats_storage: old_cfg.entry_gateway.storage_paths.stats_storage,
                 cosmos_mnemonic: old_cfg.entry_gateway.storage_paths.cosmos_mnemonic,
-                authenticator: AuthenticatorPaths {
+                authenticator: AuthenticatorPathsV6 {
                     private_ed25519_identity_key_file: old_cfg
                         .entry_gateway
                         .storage_paths
@@ -1238,9 +1112,9 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
             bind_address: old_cfg.entry_gateway.bind_address,
             announce_ws_port: old_cfg.entry_gateway.announce_ws_port,
             announce_wss_port: old_cfg.entry_gateway.announce_wss_port,
-            debug: EntryGatewayConfigDebug {
+            debug: EntryGatewayConfigDebugV6 {
                 message_retrieval_limit: old_cfg.entry_gateway.debug.message_retrieval_limit,
-                zk_nym_tickets: ZkNymTicketHandlerDebug {
+                zk_nym_tickets: ZkNymTicketHandlerDebugV6 {
                     revocation_bandwidth_penalty: old_cfg
                         .entry_gateway
                         .debug
@@ -1265,11 +1139,11 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
                 },
             },
         },
-        exit_gateway: ExitGatewayConfig {
-            storage_paths: ExitGatewayPaths {
+        exit_gateway: ExitGatewayConfigV6 {
+            storage_paths: ExitGatewayPathsV6 {
                 clients_storage: old_cfg.exit_gateway.storage_paths.clients_storage,
                 stats_storage: old_cfg.exit_gateway.storage_paths.stats_storage,
-                network_requester: NetworkRequesterPaths {
+                network_requester: NetworkRequesterPathsV6 {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -1306,7 +1180,7 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
                         .network_requester
                         .gateway_registrations,
                 },
-                ip_packet_router: IpPacketRouterPaths {
+                ip_packet_router: IpPacketRouterPathsV6 {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -1343,7 +1217,7 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
                         .ip_packet_router
                         .gateway_registrations,
                 },
-                authenticator: AuthenticatorPaths {
+                authenticator: AuthenticatorPathsV6 {
                     private_ed25519_identity_key_file: old_cfg
                         .exit_gateway
                         .storage_paths
@@ -1383,8 +1257,8 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
             },
             open_proxy: old_cfg.exit_gateway.open_proxy,
             upstream_exit_policy_url: old_cfg.exit_gateway.upstream_exit_policy_url,
-            network_requester: NetworkRequester {
-                debug: NetworkRequesterDebug {
+            network_requester: NetworkRequesterV6 {
+                debug: NetworkRequesterDebugV6 {
                     enabled: old_cfg.exit_gateway.network_requester.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .exit_gateway
@@ -1394,8 +1268,8 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
                     client_debug: old_cfg.exit_gateway.network_requester.debug.client_debug,
                 },
             },
-            ip_packet_router: IpPacketRouter {
-                debug: IpPacketRouterDebug {
+            ip_packet_router: IpPacketRouterV6 {
+                debug: IpPacketRouterDebugV6 {
                     enabled: old_cfg.exit_gateway.ip_packet_router.debug.enabled,
                     disable_poisson_rate: old_cfg
                         .exit_gateway
@@ -1405,12 +1279,12 @@ pub async fn try_upgrade_config_v5<P: AsRef<Path>>(
                     client_debug: old_cfg.exit_gateway.ip_packet_router.debug.client_debug,
                 },
             },
-            debug: ExitGatewayConfigDebug {
+            debug: ExitGatewayDebugV6 {
                 message_retrieval_limit: old_cfg.exit_gateway.debug.message_retrieval_limit,
             },
         },
         authenticator: Default::default(),
-        logging: LoggingSettings {},
+        logging: LoggingSettingsV6 {},
     };
 
     Ok(cfg)

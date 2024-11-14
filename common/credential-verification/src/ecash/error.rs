@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_gateway_storage::error::StorageError;
+use nym_gateway_storage::error::GatewayStorageError;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -37,7 +37,7 @@ pub enum EcashTicketError {
     #[error("could not handle the ecash ticket due to internal storage failure: {source}")]
     InternalStorageFailure {
         #[from]
-        source: StorageError,
+        source: GatewayStorageError,
     },
 
     #[error("failed to create ticket redemption proposal: {source}")]

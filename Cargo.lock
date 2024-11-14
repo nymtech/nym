@@ -4504,6 +4504,7 @@ dependencies = [
  "nym-sphinx",
  "nym-statistics-common",
  "nym-task",
+ "nym-ticketbooks-merkle",
  "nym-topology",
  "nym-types",
  "nym-validator-client",
@@ -4552,6 +4553,8 @@ dependencies = [
  "nym-network-defaults",
  "nym-node-requests",
  "nym-serde-helpers",
+ "nym-ticketbooks-merkle",
+ "rand_chacha",
  "schemars",
  "serde",
  "serde_json",
@@ -6647,6 +6650,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-ticketbooks-merkle"
+version = "0.1.0"
+dependencies = [
+ "nym-credentials-interface",
+ "nym-serde-helpers",
+ "rand",
+ "rand_chacha",
+ "rs_merkle",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sha2 0.10.8",
+ "time",
+]
+
+[[package]]
 name = "nym-topology"
 version = "0.1.0"
 dependencies = [
@@ -6765,7 +6784,7 @@ dependencies = [
 
 [[package]]
 name = "nym-validator-rewarder"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anyhow",
  "bip39",
@@ -6779,16 +6798,21 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-compact-ecash",
  "nym-config",
+ "nym-contracts-common",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-time",
  "nym-network-defaults",
+ "nym-serde-helpers",
  "nym-task",
+ "nym-ticketbooks-merkle",
  "nym-validator-client",
  "nyxd-scraper",
+ "rand",
  "rand_chacha",
  "serde",
+ "serde_json",
  "serde_with",
  "sha2 0.10.8",
  "sqlx",
@@ -8174,6 +8198,15 @@ dependencies = [
  "quote",
  "rocket_http",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "rs_merkle"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b241d2e59b74ef9e98d94c78c47623d04c8392abaf82014dfd372a16041128f"
+dependencies = [
+ "sha2 0.10.8",
 ]
 
 [[package]]

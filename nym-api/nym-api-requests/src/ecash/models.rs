@@ -1,18 +1,19 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::ecash::helpers::issued_credential_plaintext;
 use crate::helpers::PlaceholderJsonSchemaImpl;
 use cosmrs::AccountId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
-use nym_compact_ecash::Bytable;
+use nym_compact_ecash::utils::try_deserialize_g1_projective;
+use nym_compact_ecash::{Bytable, G1Projective};
 use nym_credentials_interface::TicketType;
 use nym_credentials_interface::{
     BlindedSignature, CompactEcashError, CredentialSpendingData, PublicKeyUser,
     VerificationKeyAuth, WithdrawalRequest,
 };
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::{ed25519, identity};
+use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
@@ -22,7 +23,7 @@ use thiserror::Error;
 use time::Date;
 use utoipa::ToSchema;
 
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]
 pub struct VerifyEcashTicketBody {
     /// The cryptographic material required for spending the underlying credential.
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
@@ -33,7 +34,7 @@ pub struct VerifyEcashTicketBody {
     pub gateway_cosmos_addr: AccountId,
 }
 
-#[derive(Serialize, Deserialize, Clone, JsonSchema)]
+#[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]
 pub struct VerifyEcashCredentialBody {
     /// The cryptographic material required for spending the underlying credential.
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
@@ -105,7 +106,7 @@ pub enum EcashTicketVerificationRejection {
 }
 
 //  All strings are base58 encoded representations of structs
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema, ToSchema)]
 pub struct BlindSignRequestBody {
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub inner_sign_request: WithdrawalRequest,
@@ -147,12 +148,35 @@ impl BlindSignRequestBody {
         }
     }
 
-    pub fn encode_commitments(&self) -> Vec<Vec<u8>> {
+    pub fn encode_join_commitments(&self) -> Vec<u8> {
         self.inner_sign_request
             .get_private_attributes_commitments()
             .iter()
-            .map(|c| c.to_byte_vec())
+            .flat_map(|c| c.to_byte_vec())
             .collect()
+    }
+
+    pub fn try_decode_joined_commitments(
+        joined: &[u8],
+    ) -> Result<Vec<G1Projective>, CompactEcashError> {
+        if joined.len() % 48 != 0 {
+            // that's not the most ideal error variant, but creating dedicated error type would have been an overkill
+            return Err(CompactEcashError::DeserializationLengthMismatch {
+                type_name: "joined commitments".to_string(),
+                expected: (joined.len() / 48) * 48,
+                actual: joined.len(),
+            });
+        };
+        let mut commitments = Vec::new();
+
+        for chunk in joined.chunks_exact(48) {
+            //SAFETY : we're taking chunks of 48 bytes
+            #[allow(clippy::unwrap_used)]
+            let bytes: &[u8; 48] = chunk.try_into().unwrap();
+            commitments.push(try_deserialize_g1_projective(bytes)?);
+        }
+
+        Ok(commitments)
     }
 }
 
@@ -187,7 +211,7 @@ impl BlindedSignatureResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct MasterVerificationKeyResponse {
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub key: VerificationKeyAuth,
@@ -271,16 +295,6 @@ pub struct Pagination<T> {
     /// limit is the total number of results to be returned in the result page.
     /// If left empty it will default to a value to be set by each app.
     pub limit: Option<u32>,
-}
-
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct CredentialsRequestBody {
-    /// Explicit ids of the credentials to retrieve. Note: it can't be set alongside pagination.
-    pub credential_ids: Vec<i64>,
-
-    /// Pagination settings for retrieving credentials. Note: it can't be set alongside explicit ids.
-    pub pagination: Option<Pagination<i64>>,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq)]
@@ -372,74 +386,136 @@ impl SpentCredentialsResponse {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
+pub type DepositId = u32;
+
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
-pub struct EpochCredentialsResponse {
-    pub epoch_id: u64,
-    pub first_epoch_credential_id: Option<i64>,
-    pub total_issued: u32,
+pub struct CommitedDeposit {
+    pub deposit_id: DepositId,
+    pub merkle_index: usize,
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedCredentialsResponse {
-    // note: BTreeMap returns ordered results, so it's fine to use it with pagination
-    pub credentials: BTreeMap<i64, IssuedTicketbookBody>,
+pub struct IssuedTicketbooksForResponseBody {
+    #[schemars(with = "String")]
+    #[serde(with = "crate::helpers::date_serde")]
+    pub expiration_date: Date,
+    pub deposits: Vec<CommitedDeposit>,
+    pub merkle_root: Option<[u8; 32]>,
+}
+
+impl IssuedTicketbooksForResponseBody {
+    pub fn plaintext(&self) -> Vec<u8> {
+        #[allow(clippy::unwrap_used)]
+        serde_json::to_vec(self).unwrap()
+    }
+
+    pub fn sign(self, key: &ed25519::PrivateKey) -> IssuedTicketbooksForResponse {
+        IssuedTicketbooksForResponse {
+            signature: key.sign(self.plaintext()),
+            body: self,
+        }
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedCredentialResponse {
-    pub credential: Option<IssuedTicketbookBody>,
-}
+pub struct IssuedTicketbooksForResponse {
+    pub body: IssuedTicketbooksForResponseBody,
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema, ToSchema)]
-#[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbookBody {
-    pub credential: IssuedTicketbook,
+    /// Signature on the body    
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub signature: identity::Signature,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
+impl IssuedTicketbooksForResponse {
+    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool {
+        pub_key
+            .verify(self.body.plaintext(), &self.signature)
+            .is_ok()
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct IssuedTicketbook {
-    pub id: i64,
-    pub epoch_id: u32,
-    pub deposit_id: u32,
+pub struct IssuedTicketbooksChallengeRequest {
+    #[schemars(with = "String")]
+    #[serde(with = "crate::helpers::date_serde")]
+    pub expiration_date: Date,
+    pub deposits: Vec<DepositId>,
+}
 
-    // NOTE: if we find creation of this guy takes too long,
-    // change `BlindedSignature` to `BlindedSignatureBytes`
-    // so that nym-api wouldn't need to parse the value out of its storage
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
-    pub blinded_partial_credential: BlindedSignature,
-    pub encoded_private_attributes_commitments: Vec<Vec<u8>>,
-
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksChallengeResponseBody {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     pub expiration_date: Date,
 
-    #[schemars(with = "String")]
-    pub ticketbook_type: TicketType,
+    pub partial_ticketbooks: BTreeMap<DepositId, IssuedTicketbook>,
+    pub merkle_proof: IssuedTicketbooksFullMerkleProof,
 }
 
-impl IssuedTicketbook {
-    // this method doesn't have to be reversible so just naively concatenate everything
-    pub fn signable_plaintext(&self) -> Vec<u8> {
-        issued_credential_plaintext(
-            self.epoch_id,
-            self.deposit_id,
-            &self.blinded_partial_credential,
-            &self.encoded_private_attributes_commitments,
-            self.expiration_date,
-            self.ticketbook_type,
+impl IssuedTicketbooksChallengeResponseBody {
+    pub fn plaintext(&self) -> Vec<u8> {
+        #[allow(clippy::unwrap_used)]
+        serde_json::to_vec(self).unwrap()
+    }
+
+    pub fn sign(self, key: &ed25519::PrivateKey) -> IssuedTicketbooksChallengeResponse {
+        IssuedTicketbooksChallengeResponse {
+            signature: key.sign(self.plaintext()),
+            body: self,
+        }
+    }
+
+    // helpers so that library consumers wouldn't need to import all the required dependencies
+    pub fn try_get_partial_credential(
+        issued: &IssuedTicketbook,
+    ) -> Result<BlindedSignature, CompactEcashError> {
+        BlindedSignature::from_bytes(&issued.blinded_partial_credential)
+    }
+
+    pub fn try_get_private_attributes_commitments(
+        issued: &IssuedTicketbook,
+    ) -> Result<Vec<G1Projective>, CompactEcashError> {
+        BlindSignRequestBody::try_decode_joined_commitments(
+            &issued.joined_encoded_private_attributes_commitments,
         )
+    }
+}
+
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct IssuedTicketbooksChallengeResponse {
+    pub body: IssuedTicketbooksChallengeResponseBody,
+
+    #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    pub signature: identity::Signature,
+}
+
+impl IssuedTicketbooksChallengeResponse {
+    pub fn verify_signature(&self, pub_key: &ed25519::PublicKey) -> bool {
+        pub_key
+            .verify(self.body.plaintext(), &self.signature)
+            .is_ok()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use nym_compact_ecash::scheme::keygen::KeyPairUser;
+    use nym_compact_ecash::withdrawal_request;
+    use nym_ecash_time::{ecash_today_date, EcashTime};
+    use rand_chacha::rand_core::SeedableRng;
+    use rand_chacha::ChaCha20Rng;
+
+    pub fn test_rng() -> ChaCha20Rng {
+        let dummy_seed = [42u8; 32];
+        ChaCha20Rng::from_seed(dummy_seed)
+    }
 
     // had some issues with `Date` and serde...
     // so might as well leave this unit test in case we do something to the helper
@@ -460,5 +536,48 @@ mod tests {
 
         let de: BatchRedeemTicketsBody = serde_json::from_slice(&bytes).unwrap();
         assert_eq!(req, de);
+    }
+
+    #[test]
+    fn decoding_attribute_commitments() {
+        let mut rng = test_rng();
+        let keys = ed25519::KeyPair::new(&mut rng);
+        let dummy_sig = keys.private_key().sign("foomp");
+        let dummy_keypair = KeyPairUser::new();
+        let date = ecash_today_date();
+        let typ = TicketType::V1MixnetEntry;
+
+        let (inner, _) = withdrawal_request(
+            dummy_keypair.secret_key(),
+            date.ecash_unix_timestamp(),
+            typ.encode(),
+        )
+        .unwrap();
+
+        let dummy = BlindSignRequestBody {
+            inner_sign_request: inner,
+            deposit_id: 42,
+            signature: dummy_sig,
+            ecash_pubkey: dummy_keypair.public_key(),
+            expiration_date: date,
+            ticketbook_type: typ,
+        };
+
+        let good = dummy.encode_join_commitments();
+        let recovered = BlindSignRequestBody::try_decode_joined_commitments(&good).unwrap();
+        assert_eq!(
+            recovered,
+            dummy
+                .inner_sign_request
+                .get_private_attributes_commitments()
+        );
+
+        let mut bad1 = good.clone();
+        let mut bad2 = good.clone();
+        bad1.push(42);
+        bad2.pop().unwrap();
+
+        assert!(BlindSignRequestBody::try_decode_joined_commitments(&bad1).is_err());
+        assert!(BlindSignRequestBody::try_decode_joined_commitments(&bad2).is_err());
     }
 }

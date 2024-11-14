@@ -13,14 +13,17 @@ use crate::ecash::state::helpers::{
     ensure_sane_expiration_date, prepare_partial_bloomfilter_builder, query_all_threshold_apis,
     try_rebuild_bloomfilter,
 };
-use crate::ecash::state::local::LocalEcashState;
+use crate::ecash::state::local::{DailyMerkleTree, LocalEcashState};
 use crate::ecash::storage::models::{SerialNumberWrapper, TicketProvider};
 use crate::ecash::storage::EcashStorageExt;
+use crate::support::config::Config;
 use crate::support::storage::NymApiStorage;
 use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
 use cw3::Status;
-use nym_api_requests::ecash::helpers::issued_credential_plaintext;
-use nym_api_requests::ecash::models::BatchRedeemTicketsBody;
+use nym_api_requests::ecash::models::{
+    BatchRedeemTicketsBody, IssuedTicketbooksChallengeRequest,
+    IssuedTicketbooksChallengeResponseBody, IssuedTicketbooksForResponseBody,
+};
 use nym_api_requests::ecash::BlindSignRequestBody;
 use nym_coconut_dkg_common::types::EpochId;
 use nym_compact_ecash::scheme::coin_indices_signatures::{
@@ -30,7 +33,7 @@ use nym_compact_ecash::scheme::expiration_date_signatures::{
     aggregate_annotated_expiration_signatures, ExpirationDateSignatureShare,
 };
 use nym_compact_ecash::{
-    constants, scheme::expiration_date_signatures::sign_expiration_date, BlindedSignature,
+    constants, scheme::expiration_date_signatures::sign_expiration_date, BlindedSignature, Bytable,
     SecretKeyAuth, VerificationKeyAuth,
 };
 use nym_config::defaults::BloomfilterParameters;
@@ -41,13 +44,16 @@ use nym_ecash_contract_common::deposit::{Deposit, DepositId};
 use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_ecash_contract_common::redeem_credential::BATCH_REDEMPTION_PROPOSAL_TITLE;
 use nym_ecash_double_spending::DoubleSpendingFilter;
-use nym_ecash_time::cred_exp_date;
+use nym_ecash_time::{cred_exp_date, ecash_today_date};
+use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof, MerkleLeaf};
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
+use rand::{thread_rng, RngCore};
+use std::collections::HashMap;
 use std::ops::Deref;
 use time::ext::NumericalDuration;
 use time::{Date, OffsetDateTime};
-use tokio::sync::RwLockReadGuard;
+use tokio::sync::{RwLockReadGuard, RwLockWriteGuard};
 use tracing::{debug, error, info, warn};
 
 pub(crate) mod auxiliary;
@@ -56,7 +62,32 @@ pub(crate) mod global;
 mod helpers;
 pub(crate) mod local;
 
+pub struct EcashStateConfig {
+    pub(crate) issued_ticketbooks_retention_period_days: u32,
+}
+
+impl EcashStateConfig {
+    pub(crate) fn ticketbook_retention_cutoff(&self) -> Date {
+        ecash_today_date()
+            - time::Duration::days(self.issued_ticketbooks_retention_period_days as i64)
+    }
+}
+
+impl EcashStateConfig {
+    pub(crate) fn new(global_config: &Config) -> Self {
+        EcashStateConfig {
+            issued_ticketbooks_retention_period_days: global_config
+                .ecash_signer
+                .debug
+                .issued_ticketbooks_retention_period_days,
+        }
+    }
+}
+
 pub struct EcashState {
+    // additional global config parameters
+    pub(crate) config: EcashStateConfig,
+
     // state global to the system, like aggregated keys, addresses, etc.
     pub(crate) global: GlobalEcachState,
 
@@ -69,13 +100,13 @@ pub struct EcashState {
 
 impl EcashState {
     pub(crate) async fn new<C, D>(
+        global_config: &Config,
         contract_address: AccountId,
         client: C,
         identity_keypair: identity::KeyPair,
         key_pair: KeyPair,
         comm_channel: D,
         storage: NymApiStorage,
-        signer_disabled: bool,
     ) -> Result<Self>
     where
         C: LocalClient + Send + Sync + 'static,
@@ -84,12 +115,13 @@ impl EcashState {
         let double_spending_filter = try_rebuild_bloomfilter(&storage).await?;
 
         Ok(Self {
+            config: EcashStateConfig::new(global_config),
             global: GlobalEcachState::new(contract_address),
             local: LocalEcashState::new(
                 key_pair,
                 identity_keypair,
                 double_spending_filter,
-                signer_disabled,
+                !global_config.ecash_signer.enabled,
             ),
             aux: AuxiliaryEcashState::new(client, comm_channel, storage),
         })
@@ -455,12 +487,11 @@ impl EcashState {
     /// Check if this nym-api has already issued a credential for the provided deposit id.
     /// If so, return it.
     pub async fn already_issued(&self, deposit_id: DepositId) -> Result<Option<BlindedSignature>> {
-        self.aux
+        Ok(self
+            .aux
             .storage
-            .get_issued_bandwidth_credential_by_deposit_id(deposit_id)
-            .await?
-            .map(|cred| cred.try_into())
-            .transpose()
+            .get_issued_partial_signature(deposit_id)
+            .await?)
     }
 
     pub async fn get_deposit(&self, deposit_id: DepositId) -> Result<Deposit> {
@@ -619,65 +650,215 @@ impl EcashState {
     //     });
     // }
 
-    pub(crate) async fn sign_and_store_credential(
+    pub(crate) async fn persist_issued(
         &self,
         current_epoch: EpochId,
-        request_body: BlindSignRequestBody,
-        blinded_signature: &BlindedSignature,
-    ) -> Result<i64> {
-        let encoded_commitments = request_body.encode_commitments();
-
-        let plaintext = issued_credential_plaintext(
-            current_epoch as u32,
-            request_body.deposit_id,
-            blinded_signature,
-            &encoded_commitments,
-            request_body.expiration_date,
-            request_body.ticketbook_type,
-        );
-
-        let signature = self.local.identity_keypair.private_key().sign(plaintext);
-
+        issued: &IssuedTicketbook,
+        merkle_leaf: MerkleLeaf,
+    ) -> Result<()> {
         // note: we have a UNIQUE constraint on the deposit_id column of the credential
         // and so if the api is processing request for the same deposit at the same time,
         // only one of them will be successfully inserted to the database
-        let credential_id = self
-            .aux
+        self.aux
             .storage
-            .store_issued_credential(
+            .store_issued_ticketbook(
+                issued.deposit_id,
                 current_epoch as u32,
-                request_body.deposit_id,
-                blinded_signature,
-                signature,
-                encoded_commitments,
-                request_body.expiration_date,
-                request_body.ticketbook_type,
+                &issued.blinded_partial_credential,
+                &issued.joined_encoded_private_attributes_commitments,
+                issued.expiration_date,
+                issued.ticketbook_type,
+                merkle_leaf,
             )
             .await?;
-
-        Ok(credential_id)
+        Ok(())
     }
 
-    pub async fn store_issued_credential(
+    async fn get_updated_merkle_read(
+        &self,
+        expiration_date: Date,
+    ) -> Result<RwLockReadGuard<DailyMerkleTree>> {
+        let write_guard = self.get_updated_full_write(expiration_date).await?;
+
+        // SAFETY: the entry was either not empty or we just inserted data in there, whilst never dropping the lock
+        // thus it MUST exist
+        #[allow(clippy::unwrap_used)]
+        Ok(RwLockWriteGuard::downgrade_map(write_guard, |map| {
+            map.get(&expiration_date).unwrap()
+        }))
+    }
+
+    async fn get_updated_full_write(
+        &self,
+        expiration_date: Date,
+    ) -> Result<RwLockWriteGuard<HashMap<Date, DailyMerkleTree>>> {
+        let mut write_guard = self.local.issued_merkle_trees.write().await;
+
+        // double check if it's still empty in case another task has already grabbed the write lock and performed the update
+        let still_empty = write_guard.get(&expiration_date).is_none();
+        if still_empty {
+            // the order actually does not matter since we're building the tree back from scratch
+            let issued_hashes = self.aux.storage.get_issued_hashes(expiration_date).await?;
+            write_guard.insert(expiration_date, DailyMerkleTree::new(issued_hashes));
+        }
+        Ok(write_guard)
+    }
+
+    pub async fn store_issued_ticketbook(
         &self,
         request_body: BlindSignRequestBody,
         blinded_signature: &BlindedSignature,
     ) -> Result<()> {
         let current_epoch = self.aux.current_epoch().await?;
+        let expiration = request_body.expiration_date;
+        let deposit_id = request_body.deposit_id;
 
-        // note: we have a UNIQUE constraint on the tx_hash column of the credential
-        // and so if the api is processing request for the same hash at the same time,
+        let joined_encoded_private_attributes_commitments = request_body.encode_join_commitments();
+        let issued = IssuedTicketbook {
+            deposit_id: request_body.deposit_id,
+            epoch_id: current_epoch,
+            blinded_partial_credential: blinded_signature.to_byte_vec(),
+            joined_encoded_private_attributes_commitments,
+            expiration_date: request_body.expiration_date,
+            ticketbook_type: request_body.ticketbook_type,
+        };
+
+        let mut map = self.get_updated_full_write(expiration).await?;
+        // SAFETY: get_updated_full_write inserted relevant entry to the map, and we never dropped the lock
+        #[allow(clippy::unwrap_used)]
+        let merkle_entry = map.get_mut(&expiration).unwrap();
+
+        // insert the ticketbook into the merkle tree
+        let inserted_leaf = merkle_entry.insert(&issued);
+
+        // note: there's a primary key constraint on the deposit_id
+        // and so if the api is processing request for the same deposit at the same time,
         // only one of them will be successfully inserted to the database
-        let credential_id = self
-            .sign_and_store_credential(current_epoch, request_body, blinded_signature)
-            .await?;
-        self.aux
-            .storage
-            .update_epoch_credentials_entry(current_epoch, credential_id)
-            .await?;
-        debug!("the stored credential has id {credential_id}");
+        if let Err(err) = self
+            .persist_issued(current_epoch, &issued, inserted_leaf)
+            .await
+        {
+            // if we failed to insert it into the db, rollback the tree. there was most likely clash on the deposit
+            warn!("failed to persist ticketbook corresponding to deposit {deposit_id}: {err}");
+            merkle_entry.rollback(deposit_id);
+            return Err(err);
+        }
+
+        // if we managed to insert it into db, check if we might want to purge the tree history,
+        // since we will no longer have to roll it back
+        merkle_entry.maybe_rebuild();
+
+        // toss a coin to check if we should clean memory of old merkle trees
+        if thread_rng().next_u32() % 10000 == 0 {
+            let mut values_to_clean = Vec::new();
+            let cutoff = self.config.ticketbook_retention_cutoff();
+            info!("attempting to remove old issued ticketbooks. the cutoff is set to {cutoff}");
+
+            for date in map.keys() {
+                if date < &cutoff {
+                    values_to_clean.push(*date)
+                }
+            }
+
+            for date in values_to_clean {
+                // remove the in-memory merkle tree
+                map.remove(&date);
+            }
+
+            // remove data from the storage
+            self.aux
+                .storage
+                .remove_old_issued_ticketbooks(cutoff)
+                .await?;
+        }
 
         Ok(())
+    }
+
+    async fn get_merkle_proof(
+        &self,
+        expiration_date: Date,
+        deposits: &[DepositId],
+    ) -> Result<IssuedTicketbooksFullMerkleProof> {
+        // check if the entry for this expiration date is empty. if so, it might imply we have crashed/shutdown
+        // and not have the full data in memory
+        if self.local.is_merkle_empty(expiration_date).await {
+            let entry = self.get_updated_merkle_read(expiration_date).await?;
+
+            return entry.proof(deposits);
+        }
+
+        // I can imagine this could happen under very rare edge case when the function is called just as the retention period expired
+        let guard = self.local.issued_merkle_trees.read().await;
+        let Some(entry) = guard.get(&expiration_date) else {
+            warn!("it seems our merkle tree has just expired!");
+            return Err(EcashError::ExpirationDateTooEarly);
+        };
+        entry.proof(deposits)
+    }
+
+    pub async fn get_issued_ticketbooks(
+        &self,
+        challenge: IssuedTicketbooksChallengeRequest,
+    ) -> Result<IssuedTicketbooksChallengeResponseBody> {
+        if challenge.expiration_date < self.config.ticketbook_retention_cutoff() {
+            return Err(EcashError::ExpirationDateTooEarly);
+        }
+
+        let merkle_proof = self
+            .get_merkle_proof(challenge.expiration_date, &challenge.deposits)
+            .await?;
+
+        let partial_ticketbooks = self
+            .aux
+            .storage
+            .get_issued_ticketbooks(challenge.deposits)
+            .await?;
+
+        let partial_ticketbooks = partial_ticketbooks
+            .into_iter()
+            .map(|t| (t.deposit_id, t))
+            .collect();
+
+        Ok(IssuedTicketbooksChallengeResponseBody {
+            expiration_date: challenge.expiration_date,
+            partial_ticketbooks,
+            merkle_proof,
+        })
+    }
+
+    pub async fn get_issued_ticketbooks_deposits_on(
+        &self,
+        expiration: Date,
+    ) -> Result<IssuedTicketbooksForResponseBody> {
+        if expiration < self.config.ticketbook_retention_cutoff() {
+            return Err(EcashError::ExpirationDateTooEarly);
+        }
+
+        // check if the entry for this expiration date is empty. if so, it might imply we have crashed/shutdown
+        // and not have the full data in memory
+        if self.local.is_merkle_empty(expiration).await {
+            let entry = self.get_updated_merkle_read(expiration).await?;
+
+            return Ok(IssuedTicketbooksForResponseBody {
+                expiration_date: expiration,
+                deposits: entry.deposits(),
+                merkle_root: entry.merkle_root(),
+            });
+        }
+
+        // I can imagine this could happen under very rare edge case when the function is called just as the retention period expired
+        let guard = self.local.issued_merkle_trees.read().await;
+        let Some(entry) = guard.get(&expiration) else {
+            warn!("it seems our merkle tree has just expired!");
+            return Err(EcashError::ExpirationDateTooEarly);
+        };
+
+        Ok(IssuedTicketbooksForResponseBody {
+            expiration_date: expiration,
+            deposits: entry.deposits(),
+            merkle_root: entry.merkle_root(),
+        })
     }
 
     pub async fn store_verified_ticket(
@@ -690,6 +871,8 @@ impl EcashState {
             .store_verified_ticket(ticket_data, gateway_addr)
             .await
             .map_err(Into::into)
+
+        // TODO UNIMPLEMENTED: we should probably also be removing old tickets here
     }
 
     pub async fn get_ticket_provider(

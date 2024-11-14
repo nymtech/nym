@@ -34,6 +34,11 @@ nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false, features = ["openapi"] }
 nym-network-defaults = { path = "../../common/network-defaults" }
+nym-ticketbooks-merkle = { path = "../../common/ticketbooks-merkle" }
+
+[dev-dependencies]
+rand_chacha = { workspace = true }
+nym-crypto = { path = "../../common/crypto", features = ["rand"] }
 
 
 [features]

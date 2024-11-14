@@ -18,20 +18,12 @@ impl ConfigOverride for ConfigOverridableArgs {
             config.block_signing.monitor_only = true
         }
 
-        if self.disable_credential_issuance_rewarding {
-            config.issuance_monitor.enabled = false
+        if self.ticketbook_issuance_monitoring_only {
+            config.ticketbook_issuance.monitor_only = true
         }
 
-        if let Some(credential_monitor_run_interval) = self.credential_monitor_run_interval {
-            config.issuance_monitor.run_interval = credential_monitor_run_interval.into()
-        }
-
-        if let Some(credential_monitor_min_validation) = self.credential_monitor_min_validation {
-            config.issuance_monitor.min_validate_per_issuer = credential_monitor_min_validation
-        }
-
-        if let Some(credential_monitor_sampling_rate) = self.credential_monitor_sampling_rate {
-            config.issuance_monitor.sampling_rate = credential_monitor_sampling_rate
+        if self.disable_ticketbook_issuance_rewarding {
+            config.ticketbook_issuance.enabled = false
         }
 
         if let Some(scraper_endpoint) = self.scraper_endpoint {
@@ -43,25 +35,15 @@ impl ConfigOverride for ConfigOverridableArgs {
         }
 
         if let Some(epoch_budget) = self.epoch_budget {
-            config.rewarding.epoch_budget = epoch_budget
-        }
-
-        if let Some(epoch_duration_secs) = self.epoch_duration {
-            config.rewarding.epoch_duration = epoch_duration_secs.into()
+            config.rewarding.daily_budget = epoch_budget
         }
 
         if let Some(block_signing_reward_ratio) = self.block_signing_reward_ratio {
             config.rewarding.ratios.block_signing = block_signing_reward_ratio;
         }
 
-        if let Some(credential_issuance_reward_ratio) = self.credential_issuance_reward_ratio {
-            config.rewarding.ratios.credential_issuance = credential_issuance_reward_ratio;
-        }
-
-        if let Some(credential_verification_reward_ratio) =
-            self.credential_verification_reward_ratio
-        {
-            config.rewarding.ratios.credential_verification = credential_verification_reward_ratio;
+        if let Some(ticketbook_issuance_reward_ratio) = self.ticketbook_issuance_reward_ratio {
+            config.rewarding.ratios.ticketbook_issuance = ticketbook_issuance_reward_ratio;
         }
     }
 }

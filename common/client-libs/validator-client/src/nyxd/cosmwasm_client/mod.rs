@@ -303,7 +303,7 @@ where
         feature = "tendermint-rpc-http-client",
         feature = "tendermint-rpc-websocket-client"
     ))]
-    async fn wait_until_healthy<T>(&self, timeout: T) -> Result<(), Error>
+    async fn wait_until_healthy<T>(&self, timeout: T) -> Result<(), TendermintRpcError>
     where
         T: Into<core::time::Duration> + Send,
     {

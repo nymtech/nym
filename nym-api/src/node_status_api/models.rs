@@ -5,6 +5,7 @@ use crate::ecash::error::{EcashError, RedemptionError};
 use crate::node_status_api::utils::NodeUptimes;
 use crate::storage::models::NodeStatus;
 use crate::support::caching::cache::UninitialisedCache;
+use nym_api_requests::ecash::models::DepositId;
 use nym_api_requests::models::{
     HistoricalPerformanceResponse, HistoricalUptimeResponse, NodePerformance,
     OldHistoricalUptimeResponse, RequestError,
@@ -437,6 +438,9 @@ pub enum NymApiStorageError {
     #[error("could not find gateway {identity} in the storage")]
     GatewayNotFound { identity: String },
 
+    #[error("could not find ticketbooks corresponding to deposits {deposits:?}")]
+    UnavailableTicketbooks { deposits: Vec<DepositId> },
+
     // I don't think we want to expose errors to the user about what really happened
     #[error("experienced internal database error")]
     InternalDatabaseError(sqlx::Error),
@@ -460,8 +464,9 @@ impl From<sqlx::Error> for NymApiStorageError {
 
 impl NymApiStorageError {
     pub fn database_inconsistency<S: Into<String>>(reason: S) -> NymApiStorageError {
-        NymApiStorageError::DatabaseInconsistency {
-            reason: reason.into(),
-        }
+        let reason = reason.into();
+        error!("experienced database inconsistency: {reason}");
+
+        NymApiStorageError::DatabaseInconsistency { reason }
     }
 }

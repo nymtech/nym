@@ -27,9 +27,8 @@ pub mod ecash {
     pub const PARTIAL_COIN_INDICES_SIGNATURES: &str = "partial-coin-indices-signatures";
     pub const GLOBAL_COIN_INDICES_SIGNATURES: &str = "aggregated-coin-indices-signatures";
     pub const MASTER_VERIFICATION_KEY: &str = "master-verification-key";
-    pub const ECASH_EPOCH_CREDENTIALS: &str = "epoch-credentials";
-    pub const ECASH_ISSUED_CREDENTIAL: &str = "issued-credential";
-    pub const ECASH_ISSUED_CREDENTIALS: &str = "issued-credentials";
+    pub const ECASH_ISSUED_TICKETBOOKS_FOR: &str = "issued-ticketbooks-for";
+    pub const ECASH_ISSUED_TICKETBOOKS_CHALLENGE: &str = "issued-ticketbooks-challenge";
 
     pub const EXPIRATION_DATE_PARAM: &str = "expiration_date";
     pub const EPOCH_ID_PARAM: &str = "epoch_id";

@@ -7,7 +7,7 @@ use anyhow::bail;
 use std::collections::HashMap;
 use tracing::{debug, info, warn};
 
-pub async fn migrate_v3_database(
+pub async fn migrate_to_directory_services_v2_1(
     storage: &NymApiStorage,
     nyxd_client: &Client,
 ) -> anyhow::Result<()> {

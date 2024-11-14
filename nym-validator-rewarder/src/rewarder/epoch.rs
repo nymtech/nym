@@ -8,6 +8,8 @@ use std::ops::Add;
 use std::time::Duration;
 use time::format_description::well_known::Rfc3339;
 use time::OffsetDateTime;
+use tokio::time::{interval_at, Instant, Interval};
+use tracing::info;
 
 const HOUR: Duration = Duration::from_secs(60 * 60);
 
@@ -43,6 +45,19 @@ impl Epoch {
     pub fn until_end(&self) -> Duration {
         let now = OffsetDateTime::now_utc();
         (self.end_time - now).try_into().unwrap_or_default()
+    }
+
+    pub fn epoch_ticker(&self, period: Duration) -> Interval {
+        let until_end = self.until_end();
+
+        info!(
+            "if enabled, the next block signing epoch (id: {}) will finish on {} ({} secs remaining)",
+            self.id,
+            self.end_rfc3339(),
+            until_end.as_secs()
+        );
+
+        interval_at(Instant::now().add(until_end), period)
     }
 
     pub fn next(&self) -> Self {

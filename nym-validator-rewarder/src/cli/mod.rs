@@ -59,20 +59,14 @@ pub struct ConfigOverridableArgs {
     #[clap(long, env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNING_MONITORING_ONLY")]
     pub block_signing_monitoring_only: bool,
 
+    #[clap(long, env = "NYM_VALIDATOR_TICKETBOOK_ISSUANCE_MONITORING_ONLY")]
+    pub ticketbook_issuance_monitoring_only: bool,
+
     #[clap(
         long,
-        env = "NYM_VALIDATOR_REWARDER_DISABLE_CREDENTIAL_ISSUANCE_REWARDING"
+        env = "NYM_VALIDATOR_REWARDER_DISABLE_TICKETBOOK_ISSUANCE_REWARDING"
     )]
-    pub disable_credential_issuance_rewarding: bool,
-
-    #[clap(long, env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_MONITOR_RUN_INTERVAL")]
-    pub credential_monitor_run_interval: Option<humantime::Duration>,
-
-    #[clap(long, env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_MONITOR_MIN_VALIDATION")]
-    pub credential_monitor_min_validation: Option<usize>,
-
-    #[clap(long, env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_MONITOR_SAMPLING_RATE")]
-    pub credential_monitor_sampling_rate: Option<f64>,
+    pub disable_ticketbook_issuance_rewarding: bool,
 
     #[clap(long, env = "NYM_VALIDATOR_REWARDER_SCRAPER_ENDPOINT")]
     pub scraper_endpoint: Option<Url>,
@@ -86,17 +80,11 @@ pub struct ConfigOverridableArgs {
     #[clap(long, env = "NYM_VALIDATOR_REWARDER_EPOCH_DURATION")]
     pub epoch_duration: Option<humantime::Duration>,
 
-    #[clap(long, env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNIG_REWARD_RATIO")]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNING_REWARD_RATIO")]
     pub block_signing_reward_ratio: Option<f64>,
 
-    #[clap(long, env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_ISSUANCE_REWARD_RATIO")]
-    pub credential_issuance_reward_ratio: Option<f64>,
-
-    #[clap(
-        long,
-        env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_VERIFICATION_REWARD_RATIO"
-    )]
-    pub credential_verification_reward_ratio: Option<f64>,
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_TICKETBOOK_ISSUANCE_REWARD_RATIO")]
+    pub ticketbook_issuance_reward_ratio: Option<f64>,
 }
 
 #[derive(Subcommand, Debug)]

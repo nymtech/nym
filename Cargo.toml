@@ -90,6 +90,7 @@ members = [
     "common/statistics",
     "common/store-cipher",
     "common/task",
+    "common/ticketbooks-merkle",
     "common/topology",
     "common/tun",
     "common/types",
@@ -277,6 +278,7 @@ ledger-transport = "0.10.0"
 ledger-transport-hid = "0.10.0"
 log = "0.4"
 maxminddb = "0.23.0"
+rs_merkle = "1.4.2"
 mime = "0.3.17"
 moka = { version = "0.12", features = ["future"] }
 nix = "0.27.1"

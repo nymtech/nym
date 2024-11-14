@@ -331,6 +331,19 @@
       {
         "type": "object",
         "required": [
+          "get_latest_deposit"
+        ],
+        "properties": {
+          "get_latest_deposit": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "type": "object",
+        "required": [
           "get_deposits_paged"
         ],
         "properties": {
@@ -543,6 +556,56 @@
           ],
           "format": "uint32",
           "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "Deposit": {
+          "type": "object",
+          "required": [
+            "bs58_encoded_ed25519_pubkey"
+          ],
+          "properties": {
+            "bs58_encoded_ed25519_pubkey": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "DepositData": {
+          "type": "object",
+          "required": [
+            "deposit",
+            "id"
+          ],
+          "properties": {
+            "deposit": {
+              "$ref": "#/definitions/Deposit"
+            },
+            "id": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      }
+    },
+    "get_latest_deposit": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "LatestDepositResponse",
+      "type": "object",
+      "properties": {
+        "deposit": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/DepositData"
+            },
+            {
+              "type": "null"
+            }
+          ]
         }
       },
       "additionalProperties": false,

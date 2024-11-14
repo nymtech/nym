@@ -523,7 +523,7 @@ mod non_wasm {
         ))]
         async fn wait_until_healthy<T>(&self, timeout: T) -> Result<(), Error>
         where
-            T: Into<Duration> + Send,
+            T: Into<core::time::Duration> + Send,
         {
             self.wait_until_healthy(timeout).await
         }

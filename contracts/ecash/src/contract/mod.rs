@@ -17,7 +17,9 @@ use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, Blacklisting, PagedBlacklistedAccountResponse,
 };
 use nym_ecash_contract_common::counters::PoolCounters;
-use nym_ecash_contract_common::deposit::{DepositData, DepositResponse, PagedDepositsResponse};
+use nym_ecash_contract_common::deposit::{
+    DepositData, DepositResponse, LatestDepositResponse, PagedDepositsResponse,
+};
 use nym_ecash_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ID, PROPOSAL_ID_ATTRIBUTE_NAME,
 };
@@ -174,6 +176,25 @@ impl NymEcashContract<'_> {
         Ok(DepositResponse {
             id: deposit_id,
             deposit: self.deposits.try_load_by_id(ctx.deps.storage, deposit_id)?,
+        })
+    }
+
+    #[msg(query)]
+    pub fn get_latest_deposit(
+        &self,
+        ctx: QueryCtx,
+    ) -> Result<LatestDepositResponse, EcashContractError> {
+        let Some(latest_id) = self.deposits.latest_deposit(ctx.deps.storage)? else {
+            return Ok(LatestDepositResponse::default());
+        };
+
+        let maybe_deposit = self.deposits.try_load_by_id(ctx.deps.storage, latest_id)?;
+
+        Ok(LatestDepositResponse {
+            deposit: maybe_deposit.map(|deposit| DepositData {
+                id: latest_id,
+                deposit,
+            }),
         })
     }
 

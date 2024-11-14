@@ -24,9 +24,10 @@ use nym_gateway_requests::{
     ClientControlRequest, ClientRequest, GatewayRequestsError, SensitiveServerResponse,
     SimpleGatewayRequestsError,
 };
-use nym_gateway_storage::{error::StorageError, Storage};
+use nym_gateway_storage::error::GatewayStorageError;
+use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_statistics_common::gateways;
+use nym_statistics_common::gateways::GatewaySessionEvent;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
@@ -39,7 +40,7 @@ use tracing::*;
 #[derive(Debug, Error)]
 pub enum RequestHandlingError {
     #[error("Internal gateway storage error")]
-    StorageError(#[from] StorageError),
+    StorageError(#[from] GatewayStorageError),
 
     #[error(
         "the database entry for bandwidth of the registered client {client_address} is missing!"
@@ -136,9 +137,9 @@ impl IntoWSMessage for ServerResponse {
     }
 }
 
-pub(crate) struct AuthenticatedHandler<R, S, St> {
-    inner: FreshHandler<R, S, St>,
-    bandwidth_storage_manager: BandwidthStorageManager<St>,
+pub(crate) struct AuthenticatedHandler<R, S> {
+    inner: FreshHandler<R, S>,
+    bandwidth_storage_manager: BandwidthStorageManager,
     client: ClientDetails,
     mix_receiver: MixMessageReceiver,
     // Occasionally the handler is requested to ping the connected client for confirm that it's
@@ -149,20 +150,13 @@ pub(crate) struct AuthenticatedHandler<R, S, St> {
 }
 
 // explicitly remove handle from the global store upon being dropped
-impl<R, S, St> Drop for AuthenticatedHandler<R, S, St> {
+impl<R, S> Drop for AuthenticatedHandler<R, S> {
     fn drop(&mut self) {
-        self.inner
-            .active_clients_store
-            .disconnect(self.client.address)
+        self.disconnect_client()
     }
 }
 
-impl<R, S, St> AuthenticatedHandler<R, S, St>
-where
-    // TODO: those trait bounds here don't really make sense....
-    R: Rng + CryptoRng,
-    St: Storage + Clone + 'static,
-{
+impl<R, S> AuthenticatedHandler<R, S> {
     /// Upgrades `FreshHandler` into the Authenticated variant implying the client is now authenticated
     /// and thus allowed to perform more actions with the gateway, such as redeeming bandwidth or
     /// sending sphinx packets.
@@ -173,7 +167,7 @@ where
     /// * `client`: details (i.e. address and shared keys) of the registered client
     /// * `mix_receiver`: channel used for receiving messages from the mixnet destined for this client.
     pub(crate) async fn upgrade(
-        fresh: FreshHandler<R, S, St>,
+        fresh: FreshHandler<R, S>,
         client: ClientDetails,
         mix_receiver: MixMessageReceiver,
         is_active_request_receiver: IsActiveRequestReceiver,
@@ -191,7 +185,7 @@ where
                 client_address: client.address.as_base58_string(),
             })?;
 
-        Ok(AuthenticatedHandler {
+        let handler = AuthenticatedHandler {
             bandwidth_storage_manager: BandwidthStorageManager::new(
                 fresh.shared_state.storage.clone(),
                 ClientBandwidth::new(bandwidth.into()),
@@ -204,14 +198,24 @@ where
             mix_receiver,
             is_active_request_receiver,
             is_active_ping_pending_reply: None,
-        })
+        };
+        handler.send_metrics(GatewaySessionEvent::new_session_start(
+            handler.client.address,
+        ));
+
+        Ok(handler)
     }
 
-    /// Explicitly removes handle from the global store.
-    fn disconnect(self) {
+    fn disconnect_client(&mut self) {
         self.inner
+            .shared_state
             .active_clients_store
-            .disconnect(self.client.address)
+            .disconnect(self.client.address);
+        self.send_metrics(GatewaySessionEvent::new_session_stop(self.client.address));
+    }
+
+    fn send_metrics(&self, event: impl Into<MetricsEvent>) {
+        self.inner.send_metrics(event)
     }
 
     /// Forwards the received mix packet from the client into the mix network.
@@ -220,7 +224,12 @@ where
     ///
     /// * `mix_packet`: packet received from the client that should get forwarded into the network.
     fn forward_packet(&self, mix_packet: MixPacket) {
-        if let Err(err) = self.inner.outbound_mix_sender.unbounded_send(mix_packet) {
+        if let Err(err) = self
+            .inner
+            .shared_state
+            .outbound_mix_sender
+            .forward_packet(mix_packet)
+        {
             error!("We failed to forward requested mix packet - {err}. Presumably our mix forwarder has crashed. We cannot continue.");
             process::exit(1);
         }
@@ -259,8 +268,8 @@ where
         trace!("available total bandwidth: {available_total}");
 
         if let Ok(ticket_type) = maybe_ticket_type {
-            self.inner.shared_state.stats_event_reporter.report(
-                gateways::GatewayStatsEvent::new_ecash_ticket(self.client.address, ticket_type),
+            self.inner.shared_state.metrics_sender.report_unchecked(
+                GatewaySessionEvent::new_ecash_ticket(self.client.address, ticket_type),
             );
         } else {
             error!("Somehow verified a ticket with an unknown ticket type");
@@ -372,7 +381,10 @@ where
     /// # Arguments
     ///
     /// * `raw_request`: raw message to handle.
-    async fn handle_text(&mut self, raw_request: String) -> Message {
+    async fn handle_text(&mut self, raw_request: String) -> Message
+    where
+        R: Rng + CryptoRng,
+    {
         trace!("text request");
 
         let request = match ClientControlRequest::try_from(raw_request) {
@@ -470,7 +482,10 @@ where
             client = %self.client.address.as_base58_string()
         )
     )]
-    async fn handle_request(&mut self, raw_request: Message) -> Option<Message> {
+    async fn handle_request(&mut self, raw_request: Message) -> Option<Message>
+    where
+        R: Rng + CryptoRng,
+    {
         trace!("new request");
 
         // apparently tungstenite auto-handles ping/pong/close messages so for now let's ignore
@@ -542,8 +557,8 @@ where
     /// and for sphinx packets received from the mix network that should be sent back to the client.
     pub(crate) async fn listen_for_requests(mut self, mut shutdown: TaskClient)
     where
+        R: Rng + CryptoRng,
         S: AsyncRead + AsyncWrite + Unpin,
-        St: Storage,
     {
         trace!("Started listening for ALL incoming requests...");
 
@@ -612,7 +627,6 @@ where
             }
         }
 
-        self.disconnect();
         trace!("The stream was closed!");
     }
 }

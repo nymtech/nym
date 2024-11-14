@@ -951,7 +951,7 @@ pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
         ConfigV3::read_from_path(&path).inspect_err(|err| debug!("failed: {err}"))?
     };
 
-    let exit_gateway_paths = ExitGatewayPaths::new(
+    let exit_gateway_paths = ServiceProvidersPaths::new(
         old_cfg
             .exit_gateway
             .storage_paths

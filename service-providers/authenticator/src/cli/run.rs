@@ -11,7 +11,7 @@ use log::error;
 use nym_authenticator::error::AuthenticatorError;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 use nym_crypto::asymmetric::x25519::KeyPair;
-use nym_gateway_storage::PersistentStorage;
+use nym_gateway_storage::GatewayStorage;
 use nym_task::TaskHandle;
 use nym_wireguard::WireguardGatewayData;
 use rand::rngs::OsRng;
@@ -54,7 +54,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), AuthenticatorError> {
         handler.run().await;
     });
 
-    let mut server = nym_authenticator::Authenticator::<PersistentStorage>::new(
+    let mut server = nym_authenticator::Authenticator::<GatewayStorage>::new(
         config,
         wireguard_gateway_data,
         vec![],

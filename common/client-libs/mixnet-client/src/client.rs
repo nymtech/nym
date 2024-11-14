@@ -3,7 +3,6 @@
 
 use futures::channel::mpsc;
 use futures::StreamExt;
-use log::*;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
@@ -18,13 +17,14 @@ use std::time::Duration;
 use tokio::net::TcpStream;
 use tokio::time::sleep;
 use tokio_util::codec::Framed;
+use tracing::*;
 
+#[derive(Clone, Copy)]
 pub struct Config {
     initial_reconnection_backoff: Duration,
     maximum_reconnection_backoff: Duration,
     initial_connection_timeout: Duration,
     maximum_connection_buffer_size: usize,
-    use_legacy_version: bool,
 }
 
 impl Config {
@@ -33,14 +33,12 @@ impl Config {
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
         maximum_connection_buffer_size: usize,
-        use_legacy_version: bool,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
             maximum_connection_buffer_size,
-            use_legacy_version,
         }
     }
 }
@@ -59,6 +57,15 @@ pub trait SendWithoutResponse {
 pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
     config: Config,
+}
+
+impl Clone for Client {
+    fn clone(&self) -> Self {
+        Client {
+            conn_new: HashMap::new(),
+            config: self.config,
+        }
+    }
 }
 
 struct ConnectionSender {
@@ -200,9 +207,8 @@ impl SendWithoutResponse for Client {
         packet: NymPacket,
         packet_type: PacketType,
     ) -> io::Result<()> {
-        trace!("Sending packet to {:?}", address);
-        let framed_packet =
-            FramedNymPacket::new(packet, packet_type, self.config.use_legacy_version);
+        trace!("Sending packet to {address:?}");
+        let framed_packet = FramedNymPacket::new(packet, packet_type);
 
         if let Some(sender) = self.conn_new.get_mut(&address) {
             if let Err(err) = sender.channel.try_send(framed_packet) {
@@ -260,7 +266,6 @@ mod tests {
             maximum_reconnection_backoff: Duration::from_millis(300_000),
             initial_connection_timeout: Duration::from_millis(1_500),
             maximum_connection_buffer_size: 128,
-            use_legacy_version: false,
         })
     }
 

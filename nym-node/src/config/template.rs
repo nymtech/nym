@@ -149,23 +149,19 @@ private_diffie_hellman_key_file = '{{ wireguard.storage_paths.private_diffie_hel
 public_diffie_hellman_key_file = '{{ wireguard.storage_paths.public_diffie_hellman_key_file }}'
 
 
-##### mixnode mode nym-node config options #####
+##### verloc config options #####
 
-[mixnode]
-
-[mixnode.verloc]
+[verloc]
 # Socket address this node will use for binding its verloc API.
 # default: `0.0.0.0:1790`
-bind_address = '{{ mixnode.verloc.bind_address }}'
+bind_address = '{{ verloc.bind_address }}'
 
 # If applicable, custom port announced in the self-described API that other clients and nodes
 # will use.
 # Useful when the node is behind a proxy.
 # (default: 0 - disabled)
-announce_port ={{#if mixnode.verloc.announce_port }} {{ mixnode.verloc.announce_port }} {{else}} 0 {{/if}}
+announce_port ={{#if verloc.announce_port }} {{ verloc.announce_port }} {{else}} 0 {{/if}}
 
-[mixnode.storage_paths]
-# currently empty
 
 ##### entry-gateway mode nym-node config options #####
 

@@ -1,106 +1,54 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use super::LocalWireguardOpts;
 use crate::config::Config;
 use clap::crate_version;
 use nym_gateway::node::{
     LocalAuthenticatorOpts, LocalIpPacketRouterOpts, LocalNetworkRequesterOpts,
 };
-use std::net::IpAddr;
-use thiserror::Error;
 
-use super::LocalWireguardOpts;
-
-#[derive(Debug, Error)]
-#[error("currently it's not supported to have different ip addresses for clients and mixnet ({clients_bind_ip} and {mix_bind_ip} were used)")]
-pub struct UnsupportedGatewayAddresses {
-    clients_bind_ip: IpAddr,
-    mix_bind_ip: IpAddr,
-}
-
-// a temporary solution until all nodes are even more tightly integrated
-pub fn ephemeral_gateway_config(
-    config: Config,
-    mnemonic: &bip39::Mnemonic,
-) -> Result<nym_gateway::config::Config, UnsupportedGatewayAddresses> {
-    let host = nym_gateway::config::Host {
-        public_ips: config.host.public_ips,
-        hostname: config.host.hostname,
-    };
-
-    let http = nym_gateway::config::Http {
-        bind_address: config.http.bind_address,
-        landing_page_assets_path: config.http.landing_page_assets_path,
-    };
-
-    let clients_bind_ip = config.entry_gateway.bind_address.ip();
-    let mix_bind_ip = config.mixnet.bind_address.ip();
-    if clients_bind_ip != mix_bind_ip {
-        return Err(UnsupportedGatewayAddresses {
-            clients_bind_ip,
-            mix_bind_ip,
-        });
-    }
-
-    // SAFETY: we're using hardcoded valid url here (that won't be used anyway)
-    #[allow(clippy::unwrap_used)]
-    let gateway = nym_gateway::config::Gateway {
-        // that field is very much irrelevant, but I guess let's keep them for now
-        version: format!("{}-nym-node", crate_version!()),
-        id: config.id,
-        only_coconut_credentials: config.entry_gateway.enforce_zk_nyms,
-        listening_address: clients_bind_ip,
-        mix_port: config.mixnet.bind_address.port(),
-        clients_port: config.entry_gateway.bind_address.port(),
-        clients_wss_port: config.entry_gateway.announce_wss_port,
-        nym_api_urls: config.mixnet.nym_api_urls,
-        nyxd_urls: config.mixnet.nyxd_urls,
-
-        // that's nasty but can't do anything about it for this temporary solution : (
-        cosmos_mnemonic: mnemonic.clone(),
-    };
-
-    Ok(nym_gateway::config::Config::externally_loaded(
-        host,
-        http,
-        gateway,
-        nym_gateway::config::NetworkRequester { enabled: false },
-        nym_gateway::config::IpPacketRouter { enabled: false },
+// a temporary solution until further refactoring is made
+fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
+    nym_gateway::config::Config::new(
+        nym_gateway::config::Gateway {
+            enforce_zk_nyms: config.gateway_tasks.enforce_zk_nyms,
+            websocket_bind_address: config.gateway_tasks.bind_address,
+            nym_api_urls: config.mixnet.nym_api_urls.clone(),
+            nyxd_urls: config.mixnet.nyxd_urls.clone(),
+        },
+        nym_gateway::config::NetworkRequester {
+            enabled: config.service_providers.ip_packet_router.debug.enabled,
+        },
+        nym_gateway::config::IpPacketRouter {
+            enabled: config.service_providers.network_requester.debug.enabled,
+        },
         nym_gateway::config::Debug {
-            packet_forwarding_initial_backoff: config
-                .mixnet
-                .debug
-                .packet_forwarding_initial_backoff,
-            packet_forwarding_maximum_backoff: config
-                .mixnet
-                .debug
-                .packet_forwarding_maximum_backoff,
-            initial_connection_timeout: config.mixnet.debug.initial_connection_timeout,
-            maximum_connection_buffer_size: config.mixnet.debug.maximum_connection_buffer_size,
-            message_retrieval_limit: config.entry_gateway.debug.message_retrieval_limit,
-            use_legacy_framed_packet_version: false,
+            client_bandwidth_max_flushing_rate:
+                nym_gateway::config::DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE,
+            client_bandwidth_max_delta_flushing_amount:
+                nym_gateway::config::DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT,
             zk_nym_tickets: nym_gateway::config::ZkNymTicketHandlerDebug {
                 revocation_bandwidth_penalty: config
-                    .entry_gateway
+                    .gateway_tasks
                     .debug
                     .zk_nym_tickets
                     .revocation_bandwidth_penalty,
-                pending_poller: config.entry_gateway.debug.zk_nym_tickets.pending_poller,
-                minimum_api_quorum: config.entry_gateway.debug.zk_nym_tickets.minimum_api_quorum,
+                pending_poller: config.gateway_tasks.debug.zk_nym_tickets.pending_poller,
+                minimum_api_quorum: config.gateway_tasks.debug.zk_nym_tickets.minimum_api_quorum,
                 minimum_redemption_tickets: config
-                    .entry_gateway
+                    .gateway_tasks
                     .debug
                     .zk_nym_tickets
                     .minimum_redemption_tickets,
                 maximum_time_between_redemption: config
-                    .entry_gateway
+                    .gateway_tasks
                     .debug
                     .zk_nym_tickets
                     .maximum_time_between_redemption,
             },
-            ..Default::default()
         },
-    ))
+    )
 }
 
 pub fn base_client_config(config: &Config) -> nym_client_core_config_types::Client {
@@ -114,10 +62,145 @@ pub fn base_client_config(config: &Config) -> nym_client_core_config_types::Clie
     }
 }
 
-pub struct EphemeralConfig {
+pub struct GatewayTasksConfig {
     pub gateway: nym_gateway::config::Config,
     pub nr_opts: Option<LocalNetworkRequesterOpts>,
     pub ipr_opts: Option<LocalIpPacketRouterOpts>,
-    pub auth_opts: LocalAuthenticatorOpts,
+    pub auth_opts: Option<LocalAuthenticatorOpts>,
+    #[allow(dead_code)]
     pub wg_opts: LocalWireguardOpts,
+}
+
+// that function is rather disgusting, but I hope it's not going to live for too long
+pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
+    let mut nr_opts = LocalNetworkRequesterOpts {
+        config: nym_network_requester::Config {
+            base: nym_client_core_config_types::Config {
+                client: base_client_config(&config),
+                debug: config
+                    .service_providers
+                    .network_requester
+                    .debug
+                    .client_debug,
+            },
+            network_requester: nym_network_requester::config::NetworkRequester {
+                open_proxy: config.service_providers.open_proxy,
+                disable_poisson_rate: config
+                    .service_providers
+                    .network_requester
+                    .debug
+                    .disable_poisson_rate,
+                upstream_exit_policy_url: Some(
+                    config.service_providers.upstream_exit_policy_url.clone(),
+                ),
+            },
+            storage_paths: nym_network_requester::config::NetworkRequesterPaths {
+                common_paths: config
+                    .service_providers
+                    .storage_paths
+                    .network_requester
+                    .to_common_client_paths(),
+            },
+            network_requester_debug: Default::default(),
+            logging: config.logging,
+        },
+        custom_mixnet_path: None,
+    };
+
+    // SAFETY: this function can only fail if fastmode or nocover is set alongside medium_toggle which is not the case here
+    #[allow(clippy::unwrap_used)]
+    nr_opts
+        .config
+        .base
+        .try_apply_traffic_modes(
+            nr_opts.config.network_requester.disable_poisson_rate,
+            false,
+            false,
+            false,
+        )
+        .unwrap();
+
+    let mut ipr_opts = LocalIpPacketRouterOpts {
+        config: nym_ip_packet_router::Config {
+            base: nym_client_core_config_types::Config {
+                client: base_client_config(&config),
+                debug: config.service_providers.ip_packet_router.debug.client_debug,
+            },
+            ip_packet_router: nym_ip_packet_router::config::IpPacketRouter {
+                disable_poisson_rate: config
+                    .service_providers
+                    .ip_packet_router
+                    .debug
+                    .disable_poisson_rate,
+                upstream_exit_policy_url: Some(
+                    config.service_providers.upstream_exit_policy_url.clone(),
+                ),
+            },
+            storage_paths: nym_ip_packet_router::config::IpPacketRouterPaths {
+                common_paths: config
+                    .service_providers
+                    .storage_paths
+                    .ip_packet_router
+                    .to_common_client_paths(),
+                ip_packet_router_description: Default::default(),
+            },
+
+            logging: config.logging,
+        },
+        custom_mixnet_path: None,
+    };
+
+    if ipr_opts.config.ip_packet_router.disable_poisson_rate {
+        ipr_opts.config.base.set_no_poisson_process()
+    }
+
+    let mut auth_opts = LocalAuthenticatorOpts {
+        config: nym_authenticator::Config {
+            base: nym_client_core_config_types::Config {
+                client: base_client_config(&config),
+                debug: config.service_providers.authenticator.debug.client_debug,
+            },
+            authenticator: config.wireguard.clone().into(),
+            storage_paths: nym_authenticator::config::AuthenticatorPaths {
+                common_paths: config
+                    .service_providers
+                    .storage_paths
+                    .authenticator
+                    .to_common_client_paths(),
+            },
+            logging: config.logging,
+        },
+        custom_mixnet_path: None,
+    };
+
+    if config
+        .service_providers
+        .authenticator
+        .debug
+        .disable_poisson_rate
+    {
+        auth_opts.config.base.set_no_poisson_process();
+    }
+
+    let wg_opts = LocalWireguardOpts {
+        config: super::Wireguard {
+            enabled: config.wireguard.enabled,
+            bind_address: config.wireguard.bind_address,
+            private_ipv4: config.wireguard.private_ipv4,
+            private_ipv6: config.wireguard.private_ipv6,
+            announced_port: config.wireguard.announced_port,
+            private_network_prefix_v4: config.wireguard.private_network_prefix_v4,
+            private_network_prefix_v6: config.wireguard.private_network_prefix_v6,
+            storage_paths: config.wireguard.storage_paths.clone(),
+        },
+        custom_mixnet_path: None,
+    };
+
+    GatewayTasksConfig {
+        gateway: ephemeral_gateway_config(config),
+        nr_opts: Some(nr_opts),
+        ipr_opts: Some(ipr_opts),
+        auth_opts: Some(auth_opts),
+        wg_opts,
+    }
 }

@@ -1,10 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_credentials_interface::TicketType;
-use nym_statistics_common::gateways::SessionType;
+use nym_node_metrics::entry::{ActiveSession, FinishedSession, SessionType};
 use sqlx::prelude::FromRow;
-use time::{Duration, OffsetDateTime};
+use time::OffsetDateTime;
+
+pub use nym_credentials_interface::TicketType;
 
 #[derive(FromRow)]
 pub struct StoredFinishedSession {
@@ -12,56 +13,34 @@ pub struct StoredFinishedSession {
     typ: String,
 }
 
-impl StoredFinishedSession {
-    pub fn serialize(&self) -> (u64, String) {
-        (
-            self.duration_ms as u64, //we are sure that it fits in a u64, see `fn end_at`
-            self.typ.clone(),
-        )
+impl From<StoredFinishedSession> for FinishedSession {
+    fn from(value: StoredFinishedSession) -> Self {
+        FinishedSession {
+            duration: std::time::Duration::from_millis(value.duration_ms as u64),
+            typ: SessionType::from_string(value.typ),
+        }
     }
 }
 
-pub struct FinishedSession {
-    pub duration: Duration,
-    pub typ: SessionType,
+pub trait ToSessionType {
+    fn to_session_type(&self) -> SessionType;
+}
+
+impl ToSessionType for TicketType {
+    fn to_session_type(&self) -> SessionType {
+        match self {
+            TicketType::V1MixnetEntry => SessionType::Mixnet,
+            TicketType::V1MixnetExit => SessionType::Mixnet,
+            TicketType::V1WireguardEntry => SessionType::Vpn,
+            TicketType::V1WireguardExit => SessionType::Vpn,
+        }
+    }
 }
 
 #[derive(FromRow)]
 pub(crate) struct StoredActiveSession {
     start_time: OffsetDateTime,
     typ: String,
-}
-
-pub struct ActiveSession {
-    pub start: OffsetDateTime,
-    pub typ: SessionType,
-}
-
-impl ActiveSession {
-    pub fn new(start_time: OffsetDateTime) -> Self {
-        ActiveSession {
-            start: start_time,
-            typ: SessionType::Unknown,
-        }
-    }
-
-    pub fn set_type(&mut self, ticket_type: TicketType) {
-        self.typ = ticket_type.into();
-    }
-
-    pub fn end_at(self, stop_time: OffsetDateTime) -> Option<FinishedSession> {
-        let session_duration = stop_time - self.start;
-        //ensure duration is positive to fit in a u64
-        //u64::max milliseconds is 500k millenia so no overflow issue
-        if session_duration > Duration::ZERO {
-            Some(FinishedSession {
-                duration: session_duration,
-                typ: self.typ,
-            })
-        } else {
-            None
-        }
-    }
 }
 
 impl From<StoredActiveSession> for ActiveSession {

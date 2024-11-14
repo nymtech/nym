@@ -1,15 +1,14 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::bonding_information::BondingInformationV1;
+use crate::config::upgrade_helpers::try_load_current_config;
+use crate::error::NymNodeError;
+use crate::node::bonding_information::BondingInformation;
 use crate::node::NymNode;
 use nym_config::helpers::SPECIAL_ADDRESSES;
-use nym_node::config::upgrade_helpers::try_load_current_config;
-use nym_node::error::NymNodeError;
 use std::fs;
 use std::net::IpAddr;
-use tracing::log::warn;
-use tracing::{debug, info, trace};
+use tracing::{debug, info, trace, warn};
 
 mod args;
 
@@ -80,6 +79,10 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         config
     };
 
+    if !config.modes.any_enabled() {
+        warn!("this node is going to run without mixnode or gateway support! consider providing `mode` value");
+    }
+
     if config.host.public_ips.is_empty() {
         return Err(NymNodeError::NoPublicIps);
     }
@@ -95,11 +98,8 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
             "writing bonding information to '{}'",
             bonding_info_path.display()
         );
-        let info = BondingInformationV1::from_data(
-            nym_node.mode(),
-            nym_node.ed25519_identity_key().to_base58_string(),
-            nym_node.x25519_sphinx_key().to_base58_string(),
-        );
+        let info =
+            BondingInformation::from_data(nym_node.config(), *nym_node.ed25519_identity_key());
         let data = output.format(&info);
         fs::write(&bonding_info_path, data).map_err(|source| {
             NymNodeError::BondingInfoWriteFailure {

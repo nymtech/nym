@@ -3,14 +3,9 @@
 
 use crate::node::client_handling::websocket::common_state::CommonHandlerState;
 use crate::node::client_handling::websocket::connection_handler::INITIAL_MESSAGE_TIMEOUT;
-use crate::node::client_handling::{
-    active_clients::ActiveClientsStore,
-    websocket::{
-        connection_handler::{
-            AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream,
-        },
-        message_receiver::{IsActive, IsActiveRequestSender},
-    },
+use crate::node::client_handling::websocket::{
+    connection_handler::{AuthenticatedHandler, ClientDetails, InitialAuthResult, SocketStream},
+    message_receiver::{IsActive, IsActiveRequestSender},
 };
 use futures::{
     channel::{mpsc, oneshot},
@@ -27,11 +22,11 @@ use nym_gateway_requests::{
     types::{ClientControlRequest, ServerResponse},
     BinaryResponse, SharedGatewayKey, CURRENT_PROTOCOL_VERSION, INITIAL_PROTOCOL_VERSION,
 };
-use nym_gateway_storage::{error::StorageError, Storage};
-use nym_mixnet_client::forwarder::MixForwardingSender;
+use nym_gateway_storage::error::GatewayStorageError;
+use nym_node_metrics::events::MetricsEvent;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
-use rand::{CryptoRng, Rng};
+use rand::CryptoRng;
 use std::net::SocketAddr;
 use std::time::Duration;
 use thiserror::Error;
@@ -43,7 +38,7 @@ use tracing::*;
 #[derive(Debug, Error)]
 pub(crate) enum InitialAuthenticationError {
     #[error("Internal gateway storage error")]
-    StorageError(#[from] StorageError),
+    StorageError(#[from] GatewayStorageError),
 
     #[error(
         "our datastore is corrupted. the stored key for client {client_id} is malformed: {source}"
@@ -51,7 +46,7 @@ pub(crate) enum InitialAuthenticationError {
     MalformedStoredSharedKey {
         client_id: String,
         #[source]
-        source: StorageError,
+        source: GatewayStorageError,
     },
 
     #[error("Failed to perform registration handshake: {0}")]
@@ -107,11 +102,9 @@ pub(crate) enum InitialAuthenticationError {
     EmptyClientDetails,
 }
 
-pub(crate) struct FreshHandler<R, S, St> {
+pub(crate) struct FreshHandler<R, S> {
     rng: R,
-    pub(crate) shared_state: CommonHandlerState<St>,
-    pub(crate) active_clients_store: ActiveClientsStore,
-    pub(crate) outbound_mix_sender: MixForwardingSender,
+    pub(crate) shared_state: CommonHandlerState,
     pub(crate) socket_connection: SocketStream<S>,
     pub(crate) peer_address: SocketAddr,
     pub(crate) shutdown: TaskClient,
@@ -120,11 +113,7 @@ pub(crate) struct FreshHandler<R, S, St> {
     pub(crate) negotiated_protocol: Option<u8>,
 }
 
-impl<R, S, St> FreshHandler<R, S, St>
-where
-    R: Rng + CryptoRng,
-    St: Storage + Clone + 'static,
-{
+impl<R, S> FreshHandler<R, S> {
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
     // also at this point I'm not entirely sure how to deal with this warning without
@@ -133,22 +122,22 @@ where
     pub(crate) fn new(
         rng: R,
         conn: S,
-        outbound_mix_sender: MixForwardingSender,
-        active_clients_store: ActiveClientsStore,
-        shared_state: CommonHandlerState<St>,
+        shared_state: CommonHandlerState,
         peer_address: SocketAddr,
         shutdown: TaskClient,
     ) -> Self {
         FreshHandler {
             rng,
-            active_clients_store,
-            outbound_mix_sender,
             socket_connection: SocketStream::RawTcp(conn),
             peer_address,
             negotiated_protocol: None,
             shared_state,
             shutdown,
         }
+    }
+
+    pub(crate) fn send_metrics(&self, event: impl Into<MetricsEvent>) {
+        self.shared_state.metrics_sender.report_unchecked(event)
     }
 
     /// Attempts to perform websocket handshake with the remote and upgrades the raw TCP socket
@@ -494,7 +483,7 @@ where
                         // The other handler reported that the client is not active, so we can
                         // disconnect the other client and continue with this connection.
                         debug!("Other handler reports it is not active");
-                        self.active_clients_store.disconnect(address);
+                        self.shared_state.active_clients_store.disconnect(address);
                     }
                     IsActive::Active => {
                         // The other handled reported a positive reply, so we have to assume it's
@@ -513,14 +502,14 @@ where
             Ok(Err(_)) => {
                 // Other channel failed to reply (the channel sender probably dropped)
                 info!("Other connection failed to reply, disconnecting it in favour of this new connection");
-                self.active_clients_store.disconnect(address);
+                self.shared_state.active_clients_store.disconnect(address);
             }
             Err(_) => {
                 // Timeout waiting for reply
                 warn!(
                     "Other connection timed out, disconnecting it in favour of this new connection"
                 );
-                self.active_clients_store.disconnect(address);
+                self.shared_state.active_clients_store.disconnect(address);
             }
         }
         Ok(())
@@ -562,7 +551,11 @@ where
             .map_err(InitialAuthenticationError::MalformedIV)?;
 
         // Check for duplicate clients
-        if let Some(client_tx) = self.active_clients_store.get_remote_client(address) {
+        if let Some(client_tx) = self
+            .shared_state
+            .active_clients_store
+            .get_remote_client(address)
+        {
             warn!("Detected duplicate connection for client: {address}");
             self.handle_duplicate_client(address, client_tx.is_active_request_sender)
                 .await?;
@@ -678,7 +671,11 @@ where
 
         debug!(remote_client = %remote_identity);
 
-        if self.active_clients_store.is_active(remote_address) {
+        if self
+            .shared_state
+            .active_clients_store
+            .is_active(remote_address)
+        {
             return Err(InitialAuthenticationError::DuplicateConnection);
         }
 
@@ -786,7 +783,7 @@ where
     pub(crate) async fn handle_until_authenticated_or_failure(
         mut self,
         shutdown: &mut TaskClient,
-    ) -> Option<AuthenticatedHandler<R, S, St>>
+    ) -> Option<AuthenticatedHandler<R, S>>
     where
         S: AsyncRead + AsyncWrite + Unpin + Send,
         R: CryptoRng + RngCore + Send,
@@ -822,7 +819,7 @@ where
                 let (mix_sender, mix_receiver) = mpsc::unbounded();
                 // Channel for handlers to ask other handlers if they are still active.
                 let (is_active_request_sender, is_active_request_receiver) = mpsc::unbounded();
-                self.active_clients_store.insert_remote(
+                self.shared_state.active_clients_store.insert_remote(
                     registration_details.address,
                     mix_sender,
                     is_active_request_sender,

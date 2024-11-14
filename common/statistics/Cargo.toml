@@ -21,6 +21,7 @@ time = { workspace = true }
 tokio = { workspace = true }
 si-scale = { workspace = true }
 
+nym-crypto = { path = "../crypto" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-credentials-interface = { path = "../credentials-interface" }
 nym-metrics = { path = "../nym-metrics" }

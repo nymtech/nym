@@ -6600,6 +6600,7 @@ dependencies = [
  "futures",
  "log",
  "nym-credentials-interface",
+ "nym-crypto",
  "nym-metrics",
  "nym-sphinx",
  "nym-task",

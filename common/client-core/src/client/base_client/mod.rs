@@ -737,7 +737,7 @@ where
         let stats_reporter = Self::start_statistics_control(
             self.config,
             self.user_agent.clone(),
-            generate_client_stats_id(&self_address.identity().to_base58_string()),
+            generate_client_stats_id(*self_address.identity()),
             input_sender.clone(),
             shutdown.fork("statistics_control"),
         );

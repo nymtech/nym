@@ -11,6 +11,7 @@
 #![warn(clippy::todo)]
 #![warn(clippy::dbg_macro)]
 
+use nym_crypto::asymmetric::ed25519;
 use sha2::Digest;
 
 /// Client specific statistics interfaces and events.
@@ -24,12 +25,14 @@ pub mod report;
 
 const CLIENT_ID_PREFIX: &str = "client_stats_id";
 
-pub fn generate_client_stats_id(id_key: &str) -> String {
-    generate_stats_id(CLIENT_ID_PREFIX, id_key)
+pub fn generate_client_stats_id(id_key: ed25519::PublicKey) -> String {
+    generate_stats_id(CLIENT_ID_PREFIX, id_key.to_base58_string())
 }
 
-fn generate_stats_id(prefix: &str, id_key: &str) -> String {
-    let mut hash_input = prefix.to_owned();
-    hash_input.push_str(id_key);
-    format!("{:x}", sha2::Sha256::digest(hash_input))
+fn generate_stats_id<M: AsRef<[u8]>>(prefix: &str, id_seed: M) -> String {
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(prefix);
+    hasher.update(&id_seed);
+    let output = hasher.finalize();
+    format!("{:x}", output)
 }

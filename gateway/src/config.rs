@@ -1,7 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
-use nym_bin_common::logging::LoggingSettings;
 use nym_network_defaults::{DEFAULT_NYM_NODE_HTTP_PORT, TICKETBOOK_VALIDITY_DAYS};
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
@@ -36,8 +35,6 @@ pub struct Config {
 
     pub ip_packet_router: IpPacketRouter,
 
-    pub logging: LoggingSettings,
-
     pub debug: Debug,
 }
 
@@ -49,7 +46,6 @@ impl Config {
         gateway: impl Into<Gateway>,
         network_requester: impl Into<NetworkRequester>,
         ip_packet_router: impl Into<IpPacketRouter>,
-        logging: impl Into<LoggingSettings>,
         debug: impl Into<Debug>,
     ) -> Self {
         Config {
@@ -58,7 +54,6 @@ impl Config {
             gateway: gateway.into(),
             network_requester: network_requester.into(),
             ip_packet_router: ip_packet_router.into(),
-            logging: logging.into(),
             debug: debug.into(),
         }
     }

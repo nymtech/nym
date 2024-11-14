@@ -3,7 +3,6 @@
 
 use crate::error::EntryGatewayError;
 use nym_client_core_config_types::disk_persistence::{ClientKeysPaths, CommonClientPaths};
-use nym_mixnode::config::persistence::paths::DEFAULT_DESCRIPTION_FILENAME;
 use serde::{Deserialize, Serialize};
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
@@ -19,6 +18,8 @@ pub const DEFAULT_X25519_PUBLIC_SPHINX_KEY_FILENAME: &str = "x25519_sphinx.pub";
 pub const DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME: &str = "x25519_noise";
 pub const DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME: &str = "x25519_noise.pub";
 pub const DEFAULT_NYMNODE_DESCRIPTION_FILENAME: &str = "description.toml";
+
+pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
 
 // Mixnode:
 

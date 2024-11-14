@@ -8,7 +8,7 @@ use crate::node::helpers::{
     store_x25519_sphinx_keypair, DisplayDetails,
 };
 use crate::node::http::{sign_host_details, system_info::get_system_info};
-use nym_bin_common::bin_info_owned;
+use nym_bin_common::{bin_info, bin_info_owned};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::Gateway;
 use nym_mixnode::MixNode;
@@ -563,11 +563,9 @@ impl NymNode {
         let config = ephemeral_mixnode_config(self.config.clone())?;
         let mut mixnode = MixNode::new_loaded(
             config,
-            Default::default(),
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
         );
-        mixnode.disable_http_server();
         mixnode.set_task_client(task_client);
         mixnode.set_mixing_stats(self.mixnode.mixing_stats.clone());
         mixnode.set_verloc_stats(self.verloc_stats.clone());
@@ -593,6 +591,7 @@ impl NymNode {
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
             self.entry_gateway.client_storage.clone(),
+            bin_info!().into(),
             self.entry_gateway.stats_storage.clone(),
         );
         entry_gateway.set_task_client(task_client);
@@ -623,6 +622,7 @@ impl NymNode {
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
             self.exit_gateway.client_storage.clone(),
+            bin_info!().into(),
             self.exit_gateway.stats_storage.clone(),
         );
         exit_gateway.set_task_client(task_client);

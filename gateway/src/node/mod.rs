@@ -9,7 +9,6 @@ use crate::node::client_handling::websocket;
 use crate::node::helpers::GatewayTopologyProvider;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use futures::channel::{mpsc, oneshot};
-use nym_bin_common::bin_info;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
@@ -23,7 +22,7 @@ use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_topology::NetworkAddress;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient, UserAgent};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use statistics::GatewayStatisticsCollector;
@@ -95,6 +94,8 @@ pub struct Gateway<St = PersistentStorage> {
 
     client_storage: St,
 
+    user_agent: UserAgent,
+
     stats_storage: PersistentStatsStorage,
 
     wireguard_data: Option<nym_wireguard::WireguardData>,
@@ -114,6 +115,7 @@ impl<St> Gateway<St> {
         identity_keypair: Arc<identity::KeyPair>,
         sphinx_keypair: Arc<encryption::KeyPair>,
         client_storage: St,
+        user_agent: UserAgent,
         stats_storage: PersistentStatsStorage,
     ) -> Self {
         Gateway {
@@ -124,6 +126,7 @@ impl<St> Gateway<St> {
             identity_keypair,
             sphinx_keypair,
             client_storage,
+            user_agent,
             stats_storage,
             wireguard_data: None,
             session_stats: None,
@@ -146,7 +149,7 @@ impl<St> Gateway<St> {
     fn gateway_topology_provider(&self) -> GatewayTopologyProvider {
         GatewayTopologyProvider::new(
             self.as_topology_node(),
-            bin_info!().into(),
+            self.user_agent.clone(),
             self.config.gateway.nym_api_urls.clone(),
         )
     }

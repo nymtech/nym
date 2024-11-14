@@ -55,10 +55,8 @@ url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true }
 
 # internal
-
 nym-authenticator = { path = "../service-providers/authenticator" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
-nym-bin-common = { path = "../common/bin-common" }
 nym-credentials = { path = "../common/credentials" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-credential-verification = { path = "../common/credential-verification" }

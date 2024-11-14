@@ -66,7 +66,6 @@ pub fn ephemeral_gateway_config(
         gateway,
         nym_gateway::config::NetworkRequester { enabled: false },
         nym_gateway::config::IpPacketRouter { enabled: false },
-        config.logging,
         nym_gateway::config::Debug {
             packet_forwarding_initial_backoff: config
                 .mixnet

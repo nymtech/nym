@@ -6,9 +6,7 @@
 
 pub mod config;
 pub mod error;
-pub mod helpers;
-pub(crate) mod http;
 pub mod node;
 
 pub use error::GatewayError;
-pub use node::{create_gateway, Gateway};
+pub use node::Gateway;

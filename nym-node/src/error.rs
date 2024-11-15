@@ -47,6 +47,9 @@ pub enum KeyIOFailure {
 
 #[derive(Debug, Error)]
 pub enum NymNodeError {
+    #[error("this binary version no longer supports migration from legacy mixnodes and gateways")]
+    UnsupportedMigration,
+
     #[error("could not find an existing config file at '{}' and fresh node initialisation has been disabled", config_path.display())]
     ForbiddenInitialisation { config_path: PathBuf },
 
@@ -152,29 +155,13 @@ pub enum NymNodeError {
     FailedUpgrade,
 }
 
-impl From<nym_mixnode::error::MixnodeError> for NymNodeError {
-    fn from(value: nym_mixnode::error::MixnodeError) -> Self {
-        MixnodeError::from(value).into()
-    }
-}
-
 #[derive(Debug, Error)]
 pub enum MixnodeError {
-    #[error("failed to load mixnode description from {}: {source}", path.display())]
-    DescriptionLoadFailure {
-        path: PathBuf,
-        #[source]
-        source: io::Error,
-    },
-
     #[error("currently it's not supported to have different ip addresses for verloc and mixnet ({verloc_bind_ip} and {mix_bind_ip} were used)")]
     UnsupportedAddresses {
         verloc_bind_ip: IpAddr,
         mix_bind_ip: IpAddr,
     },
-
-    #[error("mixnode failure: {0}")]
-    External(#[from] nym_mixnode::error::MixnodeError),
 }
 
 #[derive(Debug, Error)]

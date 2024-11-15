@@ -37,7 +37,7 @@ impl Listener {
             tokio::select! {
                 biased;
                 _ = self.shutdown.recv() => {
-                    log::trace!("mixnet_handling::Listener: Received shutdown");
+                    trace!("mixnet_handling::Listener: Received shutdown");
                 }
                 connection = tcp_listener.accept() => {
                     match connection {

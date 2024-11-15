@@ -5,8 +5,6 @@ use crate::node::listener::connection_handler::packet_processing::PacketProcesso
 use crate::node::packet_delayforwarder::PacketDelayForwardSender;
 use crate::node::TaskClient;
 use futures::StreamExt;
-use log::debug;
-use log::{error, info, warn};
 use nym_metrics::nanos;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
@@ -18,6 +16,7 @@ use std::net::SocketAddr;
 use tokio::net::TcpStream;
 use tokio::time::Instant;
 use tokio_util::codec::Framed;
+use tracing::{debug, error, info, trace, warn};
 
 pub(crate) mod packet_processing;
 
@@ -94,7 +93,7 @@ impl ConnectionHandler {
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
-                    log::trace!("ConnectionHandler: received shutdown");
+                    trace!("ConnectionHandler: received shutdown");
                 }
                 framed_sphinx_packet = framed_conn.next() => {
                     match framed_sphinx_packet {
@@ -125,6 +124,6 @@ impl ConnectionHandler {
             "Closing connection from {:?}",
             framed_conn.into_inner().peer_addr()
         );
-        log::trace!("ConnectionHandler: Exiting");
+        trace!("ConnectionHandler: Exiting");
     }
 }

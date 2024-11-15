@@ -7,7 +7,6 @@ use super::TaskClient;
 use futures::channel::mpsc;
 use futures::lock::Mutex;
 use futures::StreamExt;
-use log::{debug, info, trace};
 use nym_node_http_api::state::metrics::SharedMixingStats;
 use std::collections::HashMap;
 use std::ops::DerefMut;
@@ -15,6 +14,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
+use tracing::{debug, info, trace};
 
 // convenience aliases
 type PacketsMap = HashMap<String, u64>;
@@ -136,7 +136,7 @@ impl UpdateHandler {
     }
 
     async fn run(&mut self) {
-        log::trace!("Starting UpdateHandler");
+        trace!("Starting UpdateHandler");
         while !self.shutdown.is_shutdown() {
             tokio::select! {
                 Some(packet_data) = self.update_receiver.next() => {
@@ -151,13 +151,13 @@ impl UpdateHandler {
                     }
                 }
                 _ = self.shutdown.recv() => {
-                    log::trace!("UpdateHandler: Received shutdown");
+                    trace!("UpdateHandler: Received shutdown");
                     break;
                 }
             }
         }
 
-        log::trace!("UpdateHandler: Exiting");
+        trace!("UpdateHandler: Exiting");
     }
 }
 
@@ -230,11 +230,11 @@ impl StatsUpdater {
             tokio::select! {
                 _ = tokio::time::sleep(self.updating_delay) => self.update_stats().await,
                 _ = self.shutdown.recv() => {
-                    log::trace!("StatsUpdater: Received shutdown");
+                    trace!("StatsUpdater: Received shutdown");
                 }
             }
         }
-        log::trace!("StatsUpdater: Exiting");
+        trace!("StatsUpdater: Exiting");
     }
 }
 
@@ -319,16 +319,16 @@ impl PacketStatsConsoleLogger {
     }
 
     async fn run(&mut self) {
-        log::trace!("Starting PacketStatsConsoleLogger");
+        trace!("Starting PacketStatsConsoleLogger");
         while !self.shutdown.is_shutdown() {
             tokio::select! {
                 _ = tokio::time::sleep(self.logging_delay) => self.log_running_stats().await,
                 _ = self.shutdown.recv() => {
-                    log::trace!("PacketStatsConsoleLogger: Received shutdown");
+                    trace!("PacketStatsConsoleLogger: Received shutdown");
                 }
             };
         }
-        log::trace!("PacketStatsConsoleLogger: Exiting");
+        trace!("PacketStatsConsoleLogger: Exiting");
     }
 }
 

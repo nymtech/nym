@@ -49,7 +49,7 @@ where
             tokio::select! {
                 biased;
                 _ = shutdown.recv() => {
-                    log::trace!("client_handling::Listener: received shutdown");
+                    trace!("client_handling::Listener: received shutdown");
                 }
                 connection = tcp_listener.accept() => {
                     match connection {

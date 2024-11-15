@@ -266,11 +266,6 @@ pub fn ephemeral_exit_gateway_config(
         auth_opts.config.base.set_no_poisson_process();
     }
 
-    let pub_id_path = config
-        .storage_paths
-        .keys
-        .public_ed25519_identity_key_file
-        .clone();
     let ipr_enabled = config.exit_gateway.ip_packet_router.debug.enabled;
     let nr_enabled = config.exit_gateway.network_requester.debug.enabled;
 
@@ -291,11 +286,6 @@ pub fn ephemeral_exit_gateway_config(
     let mut gateway = ephemeral_gateway_config(config, mnemonic)?;
     gateway.ip_packet_router.enabled = ipr_enabled;
     gateway.network_requester.enabled = nr_enabled;
-
-    // this is temporary until http api is fully managed by nymnode itself
-    // (because currently gateway is loading its public key for the second time when starting the API to determine addresses of its clients.
-    // Obviously this doesn't work properly without the valid paths)
-    gateway.storage_paths.keys.public_identity_key_file = pub_id_path;
 
     Ok(EphemeralConfig {
         nr_opts: Some(nr_opts),

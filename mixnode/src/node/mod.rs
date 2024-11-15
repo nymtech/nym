@@ -2,81 +2,49 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::config::Config;
-use crate::error::MixnodeError;
-use crate::node::helpers::{load_identity_keys, load_sphinx_keys};
-use crate::node::http::HttpApiBuilder;
 use crate::node::listener::connection_handler::packet_processing::PacketProcessor;
 use crate::node::listener::connection_handler::ConnectionHandler;
 use crate::node::listener::Listener;
-use crate::node::node_description::NodeDescription;
 use crate::node::packet_delayforwarder::{DelayForwarder, PacketDelayForwardSender};
-use log::{error, info, warn};
-use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnode_common::verloc;
 use nym_mixnode_common::verloc::VerlocMeasurer;
 use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
 use nym_task::{TaskClient, TaskHandle};
-use rand::seq::SliceRandom;
-use rand::thread_rng;
 use std::net::SocketAddr;
 use std::process;
 use std::sync::Arc;
+use tracing::{error, info, warn};
 
-pub mod helpers;
-mod http;
 mod listener;
-pub mod node_description;
 mod node_statistics;
 mod packet_delayforwarder;
 
 // the MixNode will live for whole duration of this program
 pub struct MixNode {
     config: Config,
-    descriptor: NodeDescription,
     identity_keypair: Arc<identity::KeyPair>,
     sphinx_keypair: Arc<encryption::KeyPair>,
 
-    run_http_server: bool,
     task_client: Option<TaskClient>,
     mixing_stats: Option<SharedMixingStats>,
     verloc_stats: Option<SharedVerlocStats>,
 }
 
 impl MixNode {
-    pub fn new(config: Config) -> Result<Self, MixnodeError> {
-        Ok(MixNode {
-            run_http_server: true,
-            descriptor: Self::load_node_description(&config),
-            identity_keypair: Arc::new(load_identity_keys(&config)?),
-            sphinx_keypair: Arc::new(load_sphinx_keys(&config)?),
-            config,
-            task_client: None,
-            mixing_stats: None,
-            verloc_stats: None,
-        })
-    }
-
     pub fn new_loaded(
         config: Config,
-        descriptor: NodeDescription,
         identity_keypair: Arc<identity::KeyPair>,
         sphinx_keypair: Arc<encryption::KeyPair>,
     ) -> Self {
         MixNode {
-            run_http_server: true,
             task_client: None,
             config,
-            descriptor,
             identity_keypair,
             sphinx_keypair,
             mixing_stats: None,
             verloc_stats: None,
         }
-    }
-
-    pub fn disable_http_server(&mut self) {
-        self.run_http_server = false
     }
 
     pub fn set_task_client(&mut self, task_client: TaskClient) {
@@ -89,40 +57,6 @@ impl MixNode {
 
     pub fn set_verloc_stats(&mut self, verloc_stats: SharedVerlocStats) {
         self.verloc_stats = Some(verloc_stats)
-    }
-
-    fn load_node_description(config: &Config) -> NodeDescription {
-        NodeDescription::load_from_file(&config.storage_paths.node_description).unwrap_or_default()
-    }
-
-    /// Prints relevant node details to the console
-    pub fn print_node_details(&self, output: OutputFormat) {
-        let node_details = nym_types::mixnode::MixnodeNodeDetailsResponse {
-            identity_key: self.identity_keypair.public_key().to_base58_string(),
-            sphinx_key: self.sphinx_keypair.public_key().to_base58_string(),
-            bind_address: self.config.mixnode.listening_address,
-            version: self.config.mixnode.version.clone(),
-            mix_port: self.config.mixnode.mix_port,
-            http_api_port: self.config.http.bind_address.port(),
-            verloc_port: self.config.mixnode.verloc_port,
-        };
-
-        println!("{}", output.format(&node_details));
-    }
-
-    fn start_http_api(
-        &self,
-        atomic_verloc_result: SharedVerlocStats,
-        node_stats_pointer: SharedMixingStats,
-        metrics_key: Option<&String>,
-        task_client: TaskClient,
-    ) -> Result<(), MixnodeError> {
-        HttpApiBuilder::new(&self.config, &self.identity_keypair, &self.sphinx_keypair)
-            .with_verloc(atomic_verloc_result)
-            .with_mixing_stats(node_stats_pointer)
-            .with_metrics_key(metrics_key)
-            .with_descriptor(self.descriptor.clone())
-            .start(task_client)
     }
 
     fn start_node_stats_controller(
@@ -221,41 +155,35 @@ impl MixNode {
         verloc_state
     }
 
-    fn random_api_client(&self) -> nym_validator_client::NymApiClient {
-        let endpoints = self.config.get_nym_api_endpoints();
-        let nym_api = endpoints
-            .choose(&mut thread_rng())
-            .expect("The list of validator apis is empty");
-
-        nym_validator_client::NymApiClient::new(nym_api.clone())
-    }
-
     async fn check_if_bonded(&self) -> bool {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
-        let validator_client = self.random_api_client();
-        let existing_nodes = match validator_client.get_all_basic_nodes(None).await {
-            Ok(nodes) => nodes,
-            Err(err) => {
-                error!(
-                    "failed to grab initial network mixnodes - {err}\n \
-                    Please try to startup again in few minutes",
-                );
-                process::exit(1);
+        for api_url in self.config.get_nym_api_endpoints() {
+            let client = nym_validator_client::NymApiClient::new(api_url.clone());
+            match client.get_all_basic_nodes(None).await {
+                Ok(nodes) => {
+                    return nodes.iter().any(|node| {
+                        &node.ed25519_identity_pubkey == self.identity_keypair.public_key()
+                    })
+                }
+                Err(err) => {
+                    error!("failed to grab initial network mixnodes from {api_url}: {err}",);
+                }
             }
-        };
+        }
 
-        existing_nodes
-            .iter()
-            .any(|node| &node.ed25519_identity_pubkey == self.identity_keypair.public_key())
+        error!(
+            "failed to grab initial network mixnodes from any of the available apis. Please try to startup again in few minutes",
+        );
+        process::exit(1);
     }
 
     async fn wait_for_interrupt(&self, shutdown: TaskHandle) {
         let _res = shutdown.wait_for_shutdown().await;
-        log::info!("Stopping nym mixnode");
+        info!("Stopping nym mixnode");
     }
 
-    pub async fn run(&mut self) -> Result<(), MixnodeError> {
+    pub async fn run(&mut self) {
         info!("Starting nym mixnode");
 
         if self.check_if_bonded().await {
@@ -270,7 +198,7 @@ impl MixNode {
             .unwrap_or_default()
             .name_if_unnamed("mixnode");
 
-        let (node_stats_pointer, node_stats_update_sender) =
+        let (_, node_stats_update_sender) =
             self.start_node_stats_controller(shutdown.fork("node_statistics::Controller"));
         let delay_forwarding_channel = self.start_packet_delay_forwarder(
             node_stats_update_sender.clone(),
@@ -281,23 +209,9 @@ impl MixNode {
             delay_forwarding_channel,
             shutdown.fork("Listener"),
         );
-        let atomic_verloc_results = self.start_verloc_measurements(shutdown.fork("VerlocMeasurer"));
-
-        // Rocket handles shutdown on it's own, but its shutdown handling should be incorporated
-        // with that of the rest of the tasks.
-        // Currently it's runtime is forcefully terminated once the mixnode exits.
-        if self.run_http_server {
-            self.start_http_api(
-                atomic_verloc_results,
-                node_stats_pointer,
-                self.config.metrics_key(),
-                shutdown.fork("http-api"),
-            )?;
-        }
+        self.start_verloc_measurements(shutdown.fork("VerlocMeasurer"));
 
         info!("Finished nym mixnode startup procedure - it should now be able to receive mix traffic!");
         self.wait_for_interrupt(shutdown).await;
-
-        Ok(())
     }
 }

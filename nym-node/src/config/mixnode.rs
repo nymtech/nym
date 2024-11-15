@@ -201,9 +201,7 @@ pub fn ephemeral_mixnode_config(
         host,
         http,
         mixnode,
-        nym_mixnode::config::MixNodePaths::new_empty(),
         config.mixnode.verloc.debug,
-        config.logging,
         nym_mixnode::config::Debug {
             node_stats_logging_delay: config.mixnode.debug.node_stats_logging_delay,
             node_stats_updating_delay: config.mixnode.debug.node_stats_updating_delay,

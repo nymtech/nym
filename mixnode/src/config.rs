@@ -1,33 +1,10 @@
-// Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::template::CONFIG_TEMPLATE;
-use log::{debug, warn};
-use nym_bin_common::logging::LoggingSettings;
-use nym_config::defaults::{
-    mainnet, DEFAULT_HTTP_API_LISTENING_PORT, DEFAULT_MIX_LISTENING_PORT,
-    DEFAULT_VERLOC_LISTENING_PORT,
-};
-use nym_config::helpers::inaddr_any;
-use nym_config::{
-    must_get_home, read_config_from_toml_file, save_formatted_config_to_file,
-    serde_helpers::de_maybe_stringified, NymConfigTemplate, DEFAULT_CONFIG_DIR,
-    DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
-};
-use serde::{Deserialize, Serialize};
-use std::io;
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
+use std::net::{IpAddr, SocketAddr};
+use std::path::PathBuf;
 use std::time::Duration;
 use url::Url;
-
-pub mod persistence;
-mod template;
-
-pub use crate::config::persistence::paths::MixNodePaths;
-
-const DEFAULT_MIXNODES_DIR: &str = "mixnodes";
 
 // 'RTT MEASUREMENT'
 const DEFAULT_PACKETS_PER_NODE: usize = 100;
@@ -46,149 +23,33 @@ const DEFAULT_PACKET_FORWARDING_MAXIMUM_BACKOFF: Duration = Duration::from_milli
 const DEFAULT_INITIAL_CONNECTION_TIMEOUT: Duration = Duration::from_millis(1_500);
 const DEFAULT_MAXIMUM_CONNECTION_BUFFER_SIZE: usize = 2000;
 
-/// Derive default path to mixnodes's config directory.
-/// It should get resolved to `$HOME/.nym/mixnodes/<id>/config`
-pub fn default_config_directory<P: AsRef<Path>>(id: P) -> PathBuf {
-    must_get_home()
-        .join(NYM_DIR)
-        .join(DEFAULT_MIXNODES_DIR)
-        .join(id)
-        .join(DEFAULT_CONFIG_DIR)
-}
-
-/// Derive default path to mixnodes's config file.
-/// It should get resolved to `$HOME/.nym/mixnodes/<id>/config/config.toml`
-pub fn default_config_filepath<P: AsRef<Path>>(id: P) -> PathBuf {
-    default_config_directory(id).join(DEFAULT_CONFIG_FILENAME)
-}
-
-/// Derive default path to mixnodes's data directory where files, such as keys, are stored.
-/// It should get resolved to `$HOME/.nym/mixnodes/<id>/data`
-pub fn default_data_directory<P: AsRef<Path>>(id: P) -> PathBuf {
-    must_get_home()
-        .join(NYM_DIR)
-        .join(DEFAULT_MIXNODES_DIR)
-        .join(id)
-        .join(DEFAULT_DATA_DIR)
-}
-
-fn default_mixnode_http_config() -> Http {
-    Http {
-        bind_address: SocketAddr::new(
-            IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-            DEFAULT_HTTP_API_LISTENING_PORT,
-        ),
-        landing_page_assets_path: None,
-        metrics_key: None,
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, PartialEq)]
 pub struct Config {
-    // additional metadata holding on-disk location of this config file
-    #[serde(skip)]
-    pub(crate) save_path: Option<PathBuf>,
-
     pub host: Host,
 
-    #[serde(default = "default_mixnode_http_config")]
     pub http: Http,
 
     pub mixnode: MixNode,
 
-    pub storage_paths: MixNodePaths,
-
-    #[serde(default)]
     pub verloc: Verloc,
 
-    #[serde(default)]
-    pub logging: LoggingSettings,
-
-    #[serde(default)]
     pub debug: Debug,
 }
 
-impl NymConfigTemplate for Config {
-    fn template(&self) -> &'static str {
-        CONFIG_TEMPLATE
-    }
-}
-
 impl Config {
-    pub fn new<S: AsRef<str>>(id: S) -> Self {
-        let default_mixnode = MixNode::new_default(id.as_ref());
-
-        Config {
-            save_path: None,
-            host: Host {
-                // this is a very bad default!
-                public_ips: vec![default_mixnode.listening_address],
-                hostname: None,
-            },
-            http: default_mixnode_http_config(),
-            mixnode: default_mixnode,
-            storage_paths: MixNodePaths::new_default(id.as_ref()),
-            verloc: Default::default(),
-            logging: Default::default(),
-            debug: Default::default(),
-        }
-    }
-
     pub fn externally_loaded(
         host: impl Into<Host>,
         http: impl Into<Http>,
         mixnode: impl Into<MixNode>,
-        storage_paths: impl Into<MixNodePaths>,
         verloc: impl Into<Verloc>,
-        logging: impl Into<LoggingSettings>,
         debug: impl Into<Debug>,
     ) -> Self {
         Config {
-            save_path: None,
             host: host.into(),
             http: http.into(),
             mixnode: mixnode.into(),
-            storage_paths: storage_paths.into(),
             verloc: verloc.into(),
-            logging: logging.into(),
             debug: debug.into(),
-        }
-    }
-
-    // simple wrapper that reads config file and assigns path location
-    fn read_from_path<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        let path = path.as_ref();
-        let mut loaded: Config = read_config_from_toml_file(path)?;
-        loaded.save_path = Some(path.to_path_buf());
-        debug!("loaded config file from {}", path.display());
-        Ok(loaded)
-    }
-
-    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
-        Self::read_from_path(path)
-    }
-
-    pub fn read_from_default_path<P: AsRef<Path>>(id: P) -> io::Result<Self> {
-        Self::read_from_path(default_config_filepath(id))
-    }
-
-    pub fn default_location(&self) -> PathBuf {
-        default_config_filepath(&self.mixnode.id)
-    }
-
-    pub fn save_to_default_location(&self) -> io::Result<()> {
-        let config_save_location: PathBuf = self.default_location();
-        save_formatted_config_to_file(self, config_save_location)
-    }
-
-    #[allow(unused)]
-    pub fn try_save(&self) -> io::Result<()> {
-        if let Some(save_location) = &self.save_path {
-            save_formatted_config_to_file(self, save_location)
-        } else {
-            warn!("config file save location is unknown. falling back to the default");
-            self.save_to_default_location()
         }
     }
 
@@ -238,15 +99,13 @@ impl Config {
 }
 
 // TODO: this is very much a WIP. we need proper ssl certificate support here
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, PartialEq)]
 pub struct Host {
     /// Ip address(es) of this host, such as 1.1.1.1 that external clients will use for connections.
     pub public_ips: Vec<IpAddr>,
 
     /// Optional hostname of this node, for example nymtech.net.
     // TODO: this is temporary. to be replaced by pulling the data directly from the certs.
-    #[serde(deserialize_with = "de_maybe_stringified")]
     pub hostname: Option<String>,
 }
 
@@ -260,22 +119,19 @@ impl Host {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, PartialEq)]
 pub struct Http {
     /// Socket address this node will use for binding its http API.
     /// default: `0.0.0.0:8000`
     pub bind_address: SocketAddr,
 
     /// Path to assets directory of custom landing page of this node.
-    #[serde(deserialize_with = "de_maybe_stringified")]
     pub landing_page_assets_path: Option<PathBuf>,
 
-    #[serde(default)]
     pub metrics_key: Option<String>,
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
+#[derive(Debug, PartialEq)]
 pub struct MixNode {
     /// Version of the mixnode for which this configuration was created.
     pub version: String,
@@ -298,47 +154,28 @@ pub struct MixNode {
     pub nym_api_urls: Vec<Url>,
 }
 
-impl MixNode {
-    pub fn new_default<S: Into<String>>(id: S) -> Self {
-        MixNode {
-            version: env!("CARGO_PKG_VERSION").to_string(),
-            id: id.into(),
-            listening_address: inaddr_any(),
-            mix_port: DEFAULT_MIX_LISTENING_PORT,
-            verloc_port: DEFAULT_VERLOC_LISTENING_PORT,
-            nym_api_urls: vec![Url::from_str(mainnet::NYM_API).expect("Invalid default API URL")],
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[derive(Debug, PartialEq)]
 pub struct Verloc {
     /// Specifies number of echo packets sent to each node during a measurement run.
     pub packets_per_node: usize,
 
     /// Specifies maximum amount of time to wait for the connection to get established.
-    #[serde(with = "humantime_serde")]
     pub connection_timeout: Duration,
 
     /// Specifies maximum amount of time to wait for the reply packet to arrive before abandoning the test.
-    #[serde(with = "humantime_serde")]
     pub packet_timeout: Duration,
 
     /// Specifies delay between subsequent test packets being sent (after receiving a reply).
-    #[serde(with = "humantime_serde")]
     pub delay_between_packets: Duration,
 
     /// Specifies number of nodes being tested at once.
     pub tested_nodes_batch_size: usize,
 
     /// Specifies delay between subsequent test runs.
-    #[serde(with = "humantime_serde")]
     pub testing_interval: Duration,
 
     /// Specifies delay between attempting to run the measurement again if the previous run failed
     /// due to being unable to get the list of nodes.
-    #[serde(with = "humantime_serde")]
     pub retry_timeout: Duration,
 }
 
@@ -356,29 +193,23 @@ impl Default for Verloc {
     }
 }
 
-#[derive(Debug, Deserialize, PartialEq, Serialize)]
-#[serde(default)]
+#[derive(Debug, PartialEq)]
 pub struct Debug {
     /// Delay between each subsequent node statistics being logged to the console
-    #[serde(with = "humantime_serde")]
     pub node_stats_logging_delay: Duration,
 
     /// Delay between each subsequent node statistics being updated
-    #[serde(with = "humantime_serde")]
     pub node_stats_updating_delay: Duration,
 
     /// Initial value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    #[serde(with = "humantime_serde")]
     pub packet_forwarding_initial_backoff: Duration,
 
     /// Maximum value of an exponential backoff to reconnect to dropped TCP connection when
     /// forwarding sphinx packets.
-    #[serde(with = "humantime_serde")]
     pub packet_forwarding_maximum_backoff: Duration,
 
     /// Timeout for establishing initial connection when trying to forward a sphinx packet.
-    #[serde(with = "humantime_serde")]
     pub initial_connection_timeout: Duration,
 
     /// Maximum number of packets that can be stored waiting to get sent to a particular connection.

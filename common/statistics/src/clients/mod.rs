@@ -16,7 +16,7 @@ pub mod nym_api_statistics;
 /// Packet count based statistics.
 pub mod packet_statistics;
 
-pub mod credential;
+pub mod connection;
 
 /// Channel receiving generic stats events to be used by a statistics aggregator.
 pub type ClientStatsReceiver = tokio::sync::mpsc::UnboundedReceiver<ClientStatsEvents>;
@@ -52,7 +52,7 @@ pub enum ClientStatsEvents {
     /// Nym API connection events
     NymApi(nym_api_statistics::NymApiStatsEvent),
     /// Credential events
-    Credential(credential::CredentialStatsEvent),
+    Connection(connection::ConnectionStatsEvent),
 }
 
 /// Controls stats event handling and reporting
@@ -67,7 +67,7 @@ pub struct ClientStatsController {
     packet_stats: packet_statistics::PacketStatisticsControl,
     gateway_conn_stats: gateway_conn_statistics::GatewayStatsControl,
     nym_api_stats: nym_api_statistics::NymApiStatsControl,
-    credential_stats: credential::CredentialStatsControl,
+    connection_stats: connection::ConnectionStatsControl,
 }
 
 impl ClientStatsController {
@@ -81,7 +81,7 @@ impl ClientStatsController {
             packet_stats: Default::default(),
             gateway_conn_stats: Default::default(),
             nym_api_stats: Default::default(),
-            credential_stats: Default::default(),
+            connection_stats: Default::default(),
         }
     }
     /// Returns a static ClientStatsReport that can be sent somewhere
@@ -94,7 +94,7 @@ impl ClientStatsController {
             packet_stats: self.packet_stats.report(),
             gateway_conn_stats: self.gateway_conn_stats.report(),
             nym_api_stats: self.nym_api_stats.report(),
-            credential_stats: self.credential_stats.report(),
+            connection_stats: self.connection_stats.report(),
         }
     }
 
@@ -104,7 +104,7 @@ impl ClientStatsController {
             ClientStatsEvents::PacketStatistics(event) => self.packet_stats.handle_event(event),
             ClientStatsEvents::GatewayConn(event) => self.gateway_conn_stats.handle_event(event),
             ClientStatsEvents::NymApi(event) => self.nym_api_stats.handle_event(event),
-            ClientStatsEvents::Credential(event) => self.credential_stats.handle_event(event),
+            ClientStatsEvents::Connection(event) => self.connection_stats.handle_event(event),
         }
     }
 
@@ -114,7 +114,7 @@ impl ClientStatsController {
     pub fn reset(&mut self) {
         self.nym_api_stats = Default::default();
         self.gateway_conn_stats = Default::default();
-        self.credential_stats = Default::default();
+        self.connection_stats = Default::default();
         //no periodic reset for packet stats
 
         self.last_update_time = ClientStatsController::get_update_time();

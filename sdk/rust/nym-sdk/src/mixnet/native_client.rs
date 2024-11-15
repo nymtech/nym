@@ -189,6 +189,11 @@ impl MixnetClient {
         self.stats_events_reporter.report(event);
     }
 
+    /// Get a clone of stats_events_reporter for easier use
+    pub fn stats_events_reporter(&self) -> ClientStatsSender {
+        self.stats_events_reporter.clone()
+    }
+
     /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
     /// client.
     pub async fn disconnect(mut self) {

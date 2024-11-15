@@ -6,7 +6,7 @@
 
 use crate::error::VpnApiError;
 use futures::{stream, StreamExt};
-use nym_credentials::ecash::utils::{cred_exp_date, ecash_today};
+use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
 use nym_validator_client::EcashApiClient;
@@ -133,10 +133,7 @@ pub(crate) fn ensure_sane_expiration_date(expiration_date: Date) -> Result<(), V
         return Err(VpnApiError::ExpirationDateTooEarly);
     }
 
-    // SAFETY: we're nowhere near MAX date
-    #[allow(clippy::unwrap_used)]
-    if expiration_date > cred_exp_date().date().next_day().unwrap() {
-        // don't allow issuing signatures too far in advance (1 day beyond current value is fine)
+    if expiration_date > cred_exp_date().ecash_date() {
         return Err(VpnApiError::ExpirationDateTooLate);
     }
 

@@ -17,6 +17,11 @@ fn generate_random() -> u64 {
     rng.next_u64()
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
+pub struct QueryMessage {
+    pub pub_key: PeerPublicKey,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct AuthenticatorRequest {
     pub protocol: Protocol,
@@ -65,7 +70,7 @@ impl AuthenticatorRequest {
         )
     }
 
-    pub fn new_query_request(peer_public_key: PeerPublicKey, reply_to: Recipient) -> (Self, u64) {
+    pub fn new_query_request(query_message: QueryMessage, reply_to: Recipient) -> (Self, u64) {
         let request_id = generate_random();
         (
             Self {
@@ -73,7 +78,7 @@ impl AuthenticatorRequest {
                     service_provider_type: ServiceProviderType::Authenticator,
                     version: VERSION,
                 },
-                data: AuthenticatorRequestData::QueryBandwidth(peer_public_key),
+                data: AuthenticatorRequestData::QueryBandwidth(query_message.pub_key),
                 reply_to,
                 request_id,
             },

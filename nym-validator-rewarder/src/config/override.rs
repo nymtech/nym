@@ -18,12 +18,20 @@ impl ConfigOverride for ConfigOverridableArgs {
             config.block_signing.monitor_only = true
         }
 
+        if let Some(whitelist) = self.block_signing_whitelist {
+            config.block_signing.whitelist = whitelist
+        }
+
         if self.ticketbook_issuance_monitoring_only {
             config.ticketbook_issuance.monitor_only = true
         }
 
         if self.disable_ticketbook_issuance_rewarding {
             config.ticketbook_issuance.enabled = false
+        }
+
+        if let Some(whitelist) = self.issuance_monitor_whitelist {
+            config.ticketbook_issuance.whitelist = whitelist
         }
 
         if let Some(scraper_endpoint) = self.scraper_endpoint {

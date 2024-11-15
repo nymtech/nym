@@ -23,4 +23,6 @@ RUN apt-get update && apt-get install -y ca-certificates
 WORKDIR /nym
 
 COPY --from=builder /usr/src/nym/target/release/nym-validator-rewarder ./
-ENTRYPOINT [ "/nym/nym-validator-rewarder" ]
+
+COPY ./nym-validator-rewarder/entrypoint.sh /nym/entrypoint.sh
+ENTRYPOINT [ "/nym/entrypoint.sh" ]

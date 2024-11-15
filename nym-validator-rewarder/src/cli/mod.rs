@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::error::NymRewarderError;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
-use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use tracing::{debug, error};
@@ -85,6 +85,20 @@ pub struct ConfigOverridableArgs {
 
     #[clap(long, env = "NYM_VALIDATOR_REWARDER_TICKETBOOK_ISSUANCE_REWARD_RATIO")]
     pub ticketbook_issuance_reward_ratio: Option<f64>,
+
+    #[clap(
+        long,
+        value_delimiter = ',',
+        env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNING_WHITELIST"
+    )]
+    pub block_signing_whitelist: Option<Vec<AccountId>>,
+
+    #[clap(
+        long,
+        value_delimiter = ',',
+        env = "NYM_VALIDATOR_REWARDER_ISSUANCE_MONITOR_WHITELIST"
+    )]
+    pub issuance_monitor_whitelist: Option<Vec<AccountId>>,
 }
 
 #[derive(Subcommand, Debug)]

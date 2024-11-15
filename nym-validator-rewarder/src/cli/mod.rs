@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::error::NymRewarderError;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
-use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use tracing::{debug, error};
@@ -86,7 +86,7 @@ pub struct ConfigOverridableArgs {
     #[clap(long, env = "NYM_VALIDATOR_REWARDER_EPOCH_DURATION")]
     pub epoch_duration: Option<humantime::Duration>,
 
-    #[clap(long, env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNIG_REWARD_RATIO")]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNING_REWARD_RATIO")]
     pub block_signing_reward_ratio: Option<f64>,
 
     #[clap(long, env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_ISSUANCE_REWARD_RATIO")]
@@ -97,6 +97,12 @@ pub struct ConfigOverridableArgs {
         env = "NYM_VALIDATOR_REWARDER_CREDENTIAL_VERIFICATION_REWARD_RATIO"
     )]
     pub credential_verification_reward_ratio: Option<f64>,
+
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNING_WHITELIST")]
+    pub block_signing_whitelist: Option<Vec<String>>,
+
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_ISSUANCE_MONITOR_WHITELIST")]
+    pub issuance_monitor_whitelist: Option<Vec<String>>,
 }
 
 #[derive(Subcommand, Debug)]

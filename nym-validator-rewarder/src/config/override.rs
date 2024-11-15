@@ -1,6 +1,10 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use std::str::FromStr;
+
+use nym_validator_client::nyxd::AccountId;
+
 use crate::cli::ConfigOverridableArgs;
 use crate::config::Config;
 
@@ -18,6 +22,13 @@ impl ConfigOverride for ConfigOverridableArgs {
             config.block_signing.monitor_only = true
         }
 
+        if let Some(whitelist) = self.block_signing_whitelist {
+            config.block_signing.whitelist = whitelist
+                .iter()
+                .map(|account| AccountId::from_str(account).unwrap())
+                .collect();
+        }
+
         if self.disable_credential_issuance_rewarding {
             config.issuance_monitor.enabled = false
         }
@@ -32,6 +43,13 @@ impl ConfigOverride for ConfigOverridableArgs {
 
         if let Some(credential_monitor_sampling_rate) = self.credential_monitor_sampling_rate {
             config.issuance_monitor.sampling_rate = credential_monitor_sampling_rate
+        }
+
+        if let Some(whitelist) = self.issuance_monitor_whitelist {
+            config.issuance_monitor.whitelist = whitelist
+                .iter()
+                .map(|account| AccountId::from_str(account).unwrap())
+                .collect();
         }
 
         if let Some(scraper_endpoint) = self.scraper_endpoint {

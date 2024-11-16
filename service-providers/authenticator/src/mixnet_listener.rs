@@ -11,14 +11,16 @@ use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
 use nym_authenticator_requests::{
+    traits::{
+        AuthenticatorRequest, FinalMessage, InitMessage, QueryBandwidthMessage, TopUpMessage,
+    },
     v1, v2,
     v3::{
         self,
         registration::{
-            FinalMessage, GatewayClient, InitMessage, PendingRegistrations, PrivateIPs,
-            RegistrationData, RegistredData, RemainingBandwidthData,
+            GatewayClient, PendingRegistrations, PrivateIPs, RegistrationData, RegistredData,
+            RemainingBandwidthData,
         },
-        request::{AuthenticatorRequest, AuthenticatorRequestData},
         response::AuthenticatorResponse,
     },
     CURRENT_VERSION,
@@ -153,11 +155,11 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
     async fn on_initial_request(
         &mut self,
-        init_message: InitMessage,
+        init_message: Box<dyn InitMessage + Send + Sync + 'static>,
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
-        let remote_public = init_message.pub_key;
+        let remote_public = init_message.pub_key();
         let nonce: u64 = fastrand::u64(..);
         let mut registred_and_free = self.registred_and_free.write().await;
         if let Some(registration_data) = registred_and_free
@@ -221,35 +223,33 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
     async fn on_final_request(
         &mut self,
-        final_message: FinalMessage,
+        final_message: Box<dyn FinalMessage + Send + Sync + 'static>,
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
         let mut registred_and_free = self.registred_and_free.write().await;
         let registration_data = registred_and_free
             .registration_in_progres
-            .get(&final_message.gateway_client.pub_key())
+            .get(&final_message.pub_key())
             .ok_or(AuthenticatorError::RegistrationNotInProgress)?
             .clone();
 
         if final_message
-            .gateway_client
             .verify(self.keypair().private_key(), registration_data.nonce)
             .is_err()
         {
             return Err(AuthenticatorError::MacVerificationFailure);
         }
 
-        let mut peer = Peer::new(Key::new(final_message.gateway_client.pub_key.to_bytes()));
+        let mut peer = Peer::new(Key::new(final_message.pub_key().to_bytes()));
         peer.allowed_ips
-            .push(IpAddrMask::new(final_message.gateway_client.private_ip, 32));
+            .push(IpAddrMask::new(final_message.private_ip(), 32));
 
         // If gateway does ecash verification and client sends a credential, we do the additional
         // credential verification. Later this will become mandatory.
-        if let (Some(ecash_verifier), Some(credential)) = (
-            self.ecash_verifier.clone(),
-            final_message.credential.clone(),
-        ) {
+        if let (Some(ecash_verifier), Some(credential)) =
+            (self.ecash_verifier.clone(), final_message.credential())
+        {
             let client_id = ecash_verifier
                 .storage()
                 .insert_wireguard_peer(&peer, true)
@@ -279,7 +279,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         }
         registred_and_free
             .registration_in_progres
-            .remove(&final_message.gateway_client.pub_key());
+            .remove(&final_message.pub_key());
 
         Ok(AuthenticatorResponse::new_registered(
             RegistredData {
@@ -325,11 +325,11 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
     async fn on_query_bandwidth_request(
         &mut self,
-        peer_public_key: PeerPublicKey,
+        msg: Box<dyn QueryBandwidthMessage + Send + Sync + 'static>,
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
-        let bandwidth_data = self.peer_manager.query_bandwidth(peer_public_key).await?;
+        let bandwidth_data = self.peer_manager.query_bandwidth(msg).await?;
         Ok(AuthenticatorResponse::new_remaining_bandwidth(
             bandwidth_data,
             reply_to,
@@ -339,8 +339,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
     async fn on_topup_bandwidth_request(
         &mut self,
-        peer_public_key: PeerPublicKey,
-        credential: CredentialSpendingData,
+        msg: Box<dyn TopUpMessage + Send + Sync + 'static>,
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
@@ -349,7 +348,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         };
         let client_id = ecash_verifier
             .storage()
-            .get_wireguard_peer(&peer_public_key.to_string())
+            .get_wireguard_peer(&msg.pub_key().to_string())
             .await?
             .ok_or(AuthenticatorError::MissingClientBandwidthEntry)?
             .client_id
@@ -364,7 +363,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
         let client_bandwidth = ClientBandwidth::new(bandwidth.into());
         let mut verifier = CredentialVerifier::new(
-            CredentialSpendingRequest::new(credential),
+            CredentialSpendingRequest::new(msg.credential()),
             ecash_verifier.clone(),
             BandwidthStorageManager::new(
                 ecash_verifier.storage().clone(),
@@ -401,31 +400,36 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             req => req,
         }?;
 
-        match request.data {
-            AuthenticatorRequestData::Initial(init_msg) => {
-                self.on_initial_request(init_msg, request.request_id, request.reply_to)
+        match request {
+            AuthenticatorRequest::Initial {
+                msg,
+                reply_to,
+                request_id,
+                ..
+            } => self.on_initial_request(msg, request_id, reply_to).await,
+            AuthenticatorRequest::Final {
+                msg,
+                reply_to,
+                request_id,
+                ..
+            } => self.on_final_request(msg, request_id, reply_to).await,
+            AuthenticatorRequest::QueryBandwidth {
+                msg,
+                reply_to,
+                request_id,
+                ..
+            } => {
+                self.on_query_bandwidth_request(msg, request_id, reply_to)
                     .await
             }
-            AuthenticatorRequestData::Final(final_msg) => {
-                self.on_final_request(*final_msg, request.request_id, request.reply_to)
+            AuthenticatorRequest::TopUpBandwidth {
+                msg,
+                reply_to,
+                request_id,
+                ..
+            } => {
+                self.on_topup_bandwidth_request(msg, request_id, reply_to)
                     .await
-            }
-            AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
-                self.on_query_bandwidth_request(
-                    peer_public_key,
-                    request.request_id,
-                    request.reply_to,
-                )
-                .await
-            }
-            AuthenticatorRequestData::TopUpBandwidth(topup_message) => {
-                self.on_topup_bandwidth_request(
-                    topup_message.pub_key,
-                    topup_message.credential,
-                    request.request_id,
-                    request.reply_to,
-                )
-                .await
             }
         }
     }
@@ -506,7 +510,6 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
     match request_version {
         [1, _] => v1::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
             .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket { source: err })
-            .map(Into::<v2::request::AuthenticatorRequest>::into)
             .map(Into::into),
         [2, request_type] => {
             if request_type == ServiceProviderType::Authenticator as u8 {
@@ -525,6 +528,7 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
                     .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
                         source: err,
                     })
+                    .map(Into::into)
             } else {
                 Err(AuthenticatorError::InvalidPacketType(request_type))
             }

@@ -4,7 +4,10 @@
 use crate::error::*;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::channel::oneshot;
-use nym_authenticator_requests::latest::registration::{GatewayClient, RemainingBandwidthData};
+use nym_authenticator_requests::{
+    latest::registration::{GatewayClient, RemainingBandwidthData},
+    traits::QueryBandwidthMessage,
+};
 use nym_wireguard::{
     peer_controller::{
         AddPeerControlResponse, PeerControlRequest, QueryBandwidthControlResponse,
@@ -92,9 +95,9 @@ impl PeerManager {
 
     pub async fn query_bandwidth(
         &mut self,
-        peer_public_key: PeerPublicKey,
+        msg: Box<dyn QueryBandwidthMessage + Send + Sync + 'static>,
     ) -> Result<Option<RemainingBandwidthData>> {
-        let key = Key::new(peer_public_key.to_bytes());
+        let key = Key::new(msg.pub_key().to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::QueryBandwidth { key, response_tx };
         self.wireguard_gateway_data

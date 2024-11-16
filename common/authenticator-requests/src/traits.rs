@@ -5,8 +5,8 @@ use std::net::IpAddr;
 
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519::PrivateKey;
-use nym_sdk::mixnet::Recipient;
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
+use nym_sphinx::addressing::clients::Recipient;
 use nym_wireguard_types::PeerPublicKey;
 
 use crate::{v1, v2, v3, Error};

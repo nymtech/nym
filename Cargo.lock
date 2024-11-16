@@ -4622,7 +4622,6 @@ dependencies = [
  "hmac",
  "nym-credentials-interface",
  "nym-crypto",
- "nym-sdk",
  "nym-service-provider-requests-common",
  "nym-sphinx",
  "nym-wireguard-types",

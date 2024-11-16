@@ -88,6 +88,9 @@ pub enum AuthenticatorError {
 
     #[error("storage should have the requested bandwidht entry")]
     MissingClientBandwidthEntry,
+
+    #[error("unknown version number")]
+    UnknownVersion,
 }
 
 pub type Result<T> = std::result::Result<T, AuthenticatorError>;

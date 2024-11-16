@@ -11,6 +11,30 @@ use nym_wireguard_types::PeerPublicKey;
 
 use crate::{v1, v2, v3, Error};
 
+#[derive(Copy, Clone, Debug)]
+pub enum AuthenticatorVersion {
+    V1,
+    V2,
+    V3,
+    UNKNOWN,
+}
+
+impl From<Protocol> for AuthenticatorVersion {
+    fn from(value: Protocol) -> Self {
+        if value.service_provider_type != ServiceProviderType::Authenticator {
+            AuthenticatorVersion::UNKNOWN
+        } else if value.version == v1::VERSION {
+            AuthenticatorVersion::V1
+        } else if value.version == v2::VERSION {
+            AuthenticatorVersion::V2
+        } else if value.version == v3::VERSION {
+            AuthenticatorVersion::V3
+        } else {
+            AuthenticatorVersion::UNKNOWN
+        }
+    }
+}
+
 pub trait InitMessage {
     fn pub_key(&self) -> PeerPublicKey;
 }

@@ -12,16 +12,16 @@ use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
 use nym_authenticator_requests::{
     traits::{
-        AuthenticatorRequest, FinalMessage, InitMessage, QueryBandwidthMessage, TopUpMessage,
+        AuthenticatorRequest, AuthenticatorVersion, FinalMessage, InitMessage,
+        QueryBandwidthMessage, TopUpMessage,
     },
     v1, v2,
     v3::{
         self,
         registration::{
-            GatewayClient, PendingRegistrations, PrivateIPs, RegistrationData, RegistredData,
+            GatewayClient, PendingRegistrations, PrivateIPs, RegistrationData,
             RemainingBandwidthData,
         },
-        response::AuthenticatorResponse,
     },
     CURRENT_VERSION,
 };
@@ -34,7 +34,7 @@ use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
 use nym_gateway_storage::Storage;
 use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, TransmissionLane};
-use nym_service_provider_requests_common::ServiceProviderType;
+use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::receiver::ReconstructedMessage;
 use nym_task::TaskHandle;
 use nym_wireguard::WireguardGatewayData;
@@ -45,7 +45,7 @@ use tokio_stream::wrappers::IntervalStream;
 
 use crate::{config::Config, error::*};
 
-type AuthenticatorHandleResult = Result<AuthenticatorResponse>;
+type AuthenticatorHandleResult = Result<(Vec<u8>, Recipient)>;
 const DEFAULT_REGISTRATION_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
 
 pub(crate) struct RegistredAndFree {
@@ -156,6 +156,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
     async fn on_initial_request(
         &mut self,
         init_message: Box<dyn InitMessage + Send + Sync + 'static>,
+        protocol: Protocol,
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
@@ -166,11 +167,60 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             .registration_in_progres
             .get(&remote_public)
         {
-            return Ok(AuthenticatorResponse::new_pending_registration_success(
-                registration_data.clone(),
-                request_id,
-                reply_to,
-            ));
+            let gateway_data = registration_data.gateway_data.clone();
+            let bytes = match AuthenticatorVersion::from(protocol) {
+                AuthenticatorVersion::V1 => {
+                    v1::response::AuthenticatorResponse::new_pending_registration_success(
+                        v1::registration::RegistrationData {
+                            nonce: registration_data.nonce,
+                            gateway_data: v1::GatewayClient {
+                                pub_key: gateway_data.pub_key,
+                                private_ip: gateway_data.private_ip,
+                                mac: v1::ClientMac::new(gateway_data.mac.to_vec()),
+                            },
+                            wg_port: registration_data.wg_port,
+                        },
+                        request_id,
+                        reply_to,
+                    )
+                    .to_bytes()
+                    .map_err(|err| {
+                        AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                    })?
+                }
+                AuthenticatorVersion::V2 => {
+                    v2::response::AuthenticatorResponse::new_pending_registration_success(
+                        v2::registration::RegistrationData {
+                            nonce: registration_data.nonce,
+                            gateway_data: registration_data.gateway_data.clone().into(),
+                            wg_port: registration_data.wg_port,
+                        },
+                        request_id,
+                        reply_to,
+                    )
+                    .to_bytes()
+                    .map_err(|err| {
+                        AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                    })?
+                }
+                AuthenticatorVersion::V3 => {
+                    v3::response::AuthenticatorResponse::new_pending_registration_success(
+                        v3::registration::RegistrationData {
+                            nonce: registration_data.nonce,
+                            gateway_data: registration_data.gateway_data.clone(),
+                            wg_port: registration_data.wg_port,
+                        },
+                        request_id,
+                        reply_to,
+                    )
+                    .to_bytes()
+                    .map_err(|err| {
+                        AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                    })?
+                }
+                AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
+            };
+            return Ok((bytes, reply_to));
         }
 
         let peer = self.peer_manager.query_peer(remote_public).await?;
@@ -180,15 +230,49 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                     "private ip list should not be empty".to_string(),
                 ));
             };
-            return Ok(AuthenticatorResponse::new_registered(
-                RegistredData {
-                    pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
-                    private_ip: allowed_ip.ip,
-                    wg_port: self.config.authenticator.announced_port,
-                },
-                reply_to,
-                request_id,
-            ));
+            let bytes = match AuthenticatorVersion::from(protocol) {
+                AuthenticatorVersion::V1 => v1::response::AuthenticatorResponse::new_registered(
+                    v1::registration::RegistredData {
+                        pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
+                        private_ip: allowed_ip.ip,
+                        wg_port: self.config.authenticator.announced_port,
+                    },
+                    reply_to,
+                    request_id,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?,
+                AuthenticatorVersion::V2 => v2::response::AuthenticatorResponse::new_registered(
+                    v2::registration::RegistredData {
+                        pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
+                        private_ip: allowed_ip.ip,
+                        wg_port: self.config.authenticator.announced_port,
+                    },
+                    reply_to,
+                    request_id,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?,
+                AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_registered(
+                    v3::registration::RegistredData {
+                        pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
+                        private_ip: allowed_ip.ip,
+                        wg_port: self.config.authenticator.announced_port,
+                    },
+                    reply_to,
+                    request_id,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?,
+                AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
+            };
+            return Ok((bytes, reply_to));
         }
 
         let private_ip_ref = registred_and_free
@@ -207,23 +291,72 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         );
         let registration_data = RegistrationData {
             nonce,
-            gateway_data,
+            gateway_data: gateway_data.clone(),
             wg_port: self.config.authenticator.announced_port,
         };
         registred_and_free
             .registration_in_progres
             .insert(remote_public, registration_data.clone());
+        let bytes = match AuthenticatorVersion::from(protocol) {
+            AuthenticatorVersion::V1 => {
+                v1::response::AuthenticatorResponse::new_pending_registration_success(
+                    v1::registration::RegistrationData {
+                        nonce: registration_data.nonce,
+                        gateway_data: v1::GatewayClient {
+                            pub_key: gateway_data.pub_key,
+                            private_ip: gateway_data.private_ip,
+                            mac: v1::ClientMac::new(gateway_data.mac.to_vec()),
+                        },
+                        wg_port: registration_data.wg_port,
+                    },
+                    request_id,
+                    reply_to,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?
+            }
+            AuthenticatorVersion::V2 => {
+                v2::response::AuthenticatorResponse::new_pending_registration_success(
+                    v2::registration::RegistrationData {
+                        nonce: registration_data.nonce,
+                        gateway_data: registration_data.gateway_data.into(),
+                        wg_port: registration_data.wg_port,
+                    },
+                    request_id,
+                    reply_to,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?
+            }
+            AuthenticatorVersion::V3 => {
+                v3::response::AuthenticatorResponse::new_pending_registration_success(
+                    v3::registration::RegistrationData {
+                        nonce: registration_data.nonce,
+                        gateway_data: registration_data.gateway_data,
+                        wg_port: registration_data.wg_port,
+                    },
+                    request_id,
+                    reply_to,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?
+            }
+            AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
+        };
 
-        Ok(AuthenticatorResponse::new_pending_registration_success(
-            registration_data,
-            request_id,
-            reply_to,
-        ))
+        Ok((bytes, reply_to))
     }
 
     async fn on_final_request(
         &mut self,
         final_message: Box<dyn FinalMessage + Send + Sync + 'static>,
+        protocol: Protocol,
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
@@ -281,15 +414,43 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             .registration_in_progres
             .remove(&final_message.pub_key());
 
-        Ok(AuthenticatorResponse::new_registered(
-            RegistredData {
-                pub_key: registration_data.gateway_data.pub_key,
-                private_ip: registration_data.gateway_data.private_ip,
-                wg_port: registration_data.wg_port,
-            },
-            reply_to,
-            request_id,
-        ))
+        let bytes = match AuthenticatorVersion::from(protocol) {
+            AuthenticatorVersion::V1 => v1::response::AuthenticatorResponse::new_registered(
+                v1::registration::RegistredData {
+                    pub_key: registration_data.gateway_data.pub_key,
+                    private_ip: registration_data.gateway_data.private_ip,
+                    wg_port: registration_data.wg_port,
+                },
+                reply_to,
+                request_id,
+            )
+            .to_bytes()
+            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            AuthenticatorVersion::V2 => v2::response::AuthenticatorResponse::new_registered(
+                v2::registration::RegistredData {
+                    pub_key: registration_data.gateway_data.pub_key,
+                    private_ip: registration_data.gateway_data.private_ip,
+                    wg_port: registration_data.wg_port,
+                },
+                reply_to,
+                request_id,
+            )
+            .to_bytes()
+            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_registered(
+                v3::registration::RegistredData {
+                    pub_key: registration_data.gateway_data.pub_key,
+                    private_ip: registration_data.gateway_data.private_ip,
+                    wg_port: registration_data.wg_port,
+                },
+                reply_to,
+                request_id,
+            )
+            .to_bytes()
+            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
+        };
+        Ok((bytes, reply_to))
     }
 
     async fn credential_verification(
@@ -326,20 +487,59 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
     async fn on_query_bandwidth_request(
         &mut self,
         msg: Box<dyn QueryBandwidthMessage + Send + Sync + 'static>,
+        protocol: Protocol,
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
         let bandwidth_data = self.peer_manager.query_bandwidth(msg).await?;
-        Ok(AuthenticatorResponse::new_remaining_bandwidth(
-            bandwidth_data,
-            reply_to,
-            request_id,
-        ))
+        let bytes = match AuthenticatorVersion::from(protocol) {
+            AuthenticatorVersion::V1 => {
+                v1::response::AuthenticatorResponse::new_remaining_bandwidth(
+                    bandwidth_data.map(|data| v1::registration::RemainingBandwidthData {
+                        available_bandwidth: data.available_bandwidth as u64,
+                        suspended: false,
+                    }),
+                    reply_to,
+                    request_id,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?
+            }
+            AuthenticatorVersion::V2 => {
+                v2::response::AuthenticatorResponse::new_remaining_bandwidth(
+                    bandwidth_data.map(|data| v2::registration::RemainingBandwidthData {
+                        available_bandwidth: data.available_bandwidth,
+                    }),
+                    reply_to,
+                    request_id,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?
+            }
+            AuthenticatorVersion::V3 => {
+                v3::response::AuthenticatorResponse::new_remaining_bandwidth(
+                    bandwidth_data,
+                    reply_to,
+                    request_id,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?
+            }
+            AuthenticatorVersion::UNKNOWN => return Err(AuthenticatorError::UnknownVersion),
+        };
+        Ok((bytes, reply_to))
     }
 
     async fn on_topup_bandwidth_request(
         &mut self,
         msg: Box<dyn TopUpMessage + Send + Sync + 'static>,
+        protocol: Protocol,
         request_id: u64,
         reply_to: Recipient,
     ) -> AuthenticatorHandleResult {
@@ -375,13 +575,22 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         );
         let available_bandwidth = verifier.verify().await?;
 
-        Ok(AuthenticatorResponse::new_topup_bandwidth(
-            RemainingBandwidthData {
-                available_bandwidth,
-            },
-            reply_to,
-            request_id,
-        ))
+        let bytes = match AuthenticatorVersion::from(protocol) {
+            AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_topup_bandwidth(
+                RemainingBandwidthData {
+                    available_bandwidth,
+                },
+                reply_to,
+                request_id,
+            )
+            .to_bytes()
+            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            AuthenticatorVersion::V1 | AuthenticatorVersion::V2 | AuthenticatorVersion::UNKNOWN => {
+                return Err(AuthenticatorError::UnknownVersion)
+            }
+        };
+
+        Ok((bytes, reply_to))
     }
 
     async fn on_reconstructed_message(
@@ -393,67 +602,52 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             reconstructed.sender_tag
         );
 
-        let request = match deserialize_request(&reconstructed) {
-            Err(AuthenticatorError::InvalidPacketVersion(version)) => {
-                return self.on_version_mismatch(version, &reconstructed);
-            }
-            req => req,
-        }?;
+        let request = deserialize_request(&reconstructed)?;
 
         match request {
             AuthenticatorRequest::Initial {
                 msg,
                 reply_to,
                 request_id,
-                ..
-            } => self.on_initial_request(msg, request_id, reply_to).await,
+                protocol,
+            } => {
+                self.on_initial_request(msg, protocol, request_id, reply_to)
+                    .await
+            }
             AuthenticatorRequest::Final {
                 msg,
                 reply_to,
                 request_id,
-                ..
-            } => self.on_final_request(msg, request_id, reply_to).await,
+                protocol,
+            } => {
+                self.on_final_request(msg, protocol, request_id, reply_to)
+                    .await
+            }
             AuthenticatorRequest::QueryBandwidth {
                 msg,
                 reply_to,
                 request_id,
-                ..
+                protocol,
             } => {
-                self.on_query_bandwidth_request(msg, request_id, reply_to)
+                self.on_query_bandwidth_request(msg, protocol, request_id, reply_to)
                     .await
             }
             AuthenticatorRequest::TopUpBandwidth {
                 msg,
                 reply_to,
                 request_id,
-                ..
+                protocol,
             } => {
-                self.on_topup_bandwidth_request(msg, request_id, reply_to)
+                self.on_topup_bandwidth_request(msg, protocol, request_id, reply_to)
                     .await
             }
         }
     }
 
-    fn on_version_mismatch(
-        &self,
-        version: u8,
-        _reconstructed: &ReconstructedMessage,
-    ) -> AuthenticatorHandleResult {
-        // If it's possible to parse, do so and return back a response, otherwise just drop
-        Err(AuthenticatorError::InvalidPacketVersion(version))
-    }
-
     // When an incoming mixnet message triggers a response that we send back.
-    async fn handle_response(&self, response: AuthenticatorResponse) -> Result<()> {
-        let recipient = response.recipient();
-
-        let response_packet = response.to_bytes().map_err(|err| {
-            log::error!("Failed to serialize response packet");
-            AuthenticatorError::FailedToSerializeResponsePacket { source: err }
-        })?;
-
+    async fn handle_response(&self, response: Vec<u8>, recipient: Recipient) -> Result<()> {
         let input_message =
-            InputMessage::new_regular(recipient, response_packet, TransmissionLane::General, None);
+            InputMessage::new_regular(recipient, response, TransmissionLane::General, None);
         self.mixnet_client
             .send(input_message)
             .await
@@ -477,8 +671,8 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
                         match self.on_reconstructed_message(msg).await {
-                            Ok(response) => {
-                                if let Err(err) = self.handle_response(response).await {
+                            Ok((response, recipient)) => {
+                                if let Err(err) = self.handle_response(response, recipient).await {
                                     log::error!("Mixnet listener failed to handle response: {err}");
                                 }
                             }

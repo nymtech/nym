@@ -1329,7 +1329,7 @@ pub(crate) mod v3_migration {
                         identity VARCHAR NOT NULL UNIQUE
                     );
 
-                    INSERT INTO gateway_details_temp SELECT * FROM gateway_details;
+                    INSERT INTO gateway_details_temp(id, node_id, identity) SELECT id, node_id, identity FROM gateway_details;
                     DROP TABLE gateway_details;
                     ALTER TABLE gateway_details_temp RENAME TO gateway_details;
             "#,

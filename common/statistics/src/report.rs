@@ -12,9 +12,14 @@ use serde::{Deserialize, Serialize};
 use sysinfo::System;
 use time::OffsetDateTime;
 
+const KIND: &str = "client_stats_report";
+const VERSION: &str = "v1";
+
 /// Report object containing both data to be reported and client / device context. We take extra care not to overcapture context information.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClientStatsReport {
+    pub(crate) kind: String,
+    pub(crate) api_version: String,
     pub(crate) last_update_time: OffsetDateTime,
     pub(crate) client_id: String,
     pub(crate) client_type: String,
@@ -38,6 +43,23 @@ impl TryFrom<&[u8]> for ClientStatsReport {
     type Error = StatsError;
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
         Ok(serde_json::from_slice(value)?)
+    }
+}
+
+impl Default for ClientStatsReport {
+    fn default() -> Self {
+        ClientStatsReport {
+            kind: KIND.to_string(),
+            api_version: VERSION.to_string(),
+            last_update_time: OffsetDateTime::now_utc(),
+            client_id: Default::default(),
+            client_type: Default::default(),
+            os_information: Default::default(),
+            packet_stats: Default::default(),
+            gateway_conn_stats: Default::default(),
+            nym_api_stats: Default::default(),
+            connection_stats: Default::default(),
+        }
     }
 }
 

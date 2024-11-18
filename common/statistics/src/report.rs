@@ -16,9 +16,14 @@ use sysinfo::System;
 use time::OffsetDateTime;
 use log::warn;
 
+const KIND: &str = "client_stats_report";
+const VERSION: &str = "v1";
+
 /// Report object containing both data to be reported and client / device context. We take extra care not to overcapture context information.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClientStatsReport {
+    pub(crate) kind: String,
+    pub(crate) api_version: String,
     pub(crate) last_update_time: OffsetDateTime,
     pub(crate) client_id: String,
     pub(crate) client_type: String,

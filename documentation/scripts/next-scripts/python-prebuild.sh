@@ -4,7 +4,7 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-cd .. &&
+cd ../scripts &&
 python csv2md.py -s 1 ../docs/data/csv/variables.csv > ../docs/components/outputs/csv2md-outputs/variables.md &&
 python csv2md.py -s 0 ../docs/data/csv/isp-sheet.csv > ../docs/components/outputs/csv2md-outputs/isp-sheet.md &&
 

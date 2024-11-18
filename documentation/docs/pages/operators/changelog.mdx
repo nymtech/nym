@@ -43,28 +43,207 @@ This page displays a full list of all the changes during our release cycle from 
 
 Magura release represents a bigger milestone in [project Smoosh](archive/faq/smoosh-faq.mdx) development where `nym-node` is one binary able to perform any function in Nym Mixnet. This release is especially crucial for operators, please pay attention to the section [*Operators Updates & Tooling*](#operators-updates--tooling) below.
 
+### Features
+
+- Migrate Legacy Node (Frontend) ](https://github.com/nymtech/nym/pull/4826)
+
+- [Directory Sevices v2.1](https://github.com/nymtech/nym/pull/4903): Read section [Directory Services v2.1: API & Mixnet Contract Changes ](#directory-services-v21-api--mixnet-contract-changes) below with detailed explanation or the [PR notes](https://github.com/nymtech/nym/pull/4903)
+
+- [Switch over the last set of jobs to arc runners](https://github.com/nymtech/nym/pull/4938): Switch over the remaining GH jobs using 16-core runners to self-hosted arc runners. Since we can't currently use Docker on the ubuntu-20.04 runners, remove the matrix notification steps
+
+<AccordionTemplate name={<TestingSteps/>}> 
+Confirm that the deployment workflows work through manual testing
+- [x] cd-docs
+- [x] publish-sdk-npm
+</AccordionTemplate>
+
+- [V2 performance monitoring feature flag](https://github.com/nymtech/nym/pull/4943): Feature flag to use v2 network monitor results in rewarding 
+
+- [Add `utoipa` feature to nym-node](https://github.com/nymtech/nym/pull/4945): `cargo build -p nym-node` was failing, since its depending on `QueryParams` having `utoipa` traits derived 
+
+- [Ticket type storage](https://github.com/nymtech/nym/pull/4947)
+
+- [`nym-api` container](https://github.com/nymtech/nym/pull/4948)
+
+- [Extract packet processing from mixnode-common](https://github.com/nymtech/nym/pull/4949): First step on a journey of making a strong interface around packet processing, and packet processing portability. This one only moves stuff around, so it should be safe to just blindly merge.
+
+- [expose authenticator address along other address in node-details](https://github.com/nymtech/nym/pull/4953): Expose authenticator address along ip packet router and network requester for easier parsing
+
+- [Feature/contract state tools](https://github.com/nymtech/nym/pull/4954): Introduced/reimplemented old tools for importing cosmwasm contract states given a kv dump file. This makes it significantly easier to plan and test complex state migrations on actual chains where we risk timing out on expensive operations.
+
+- [Add env feature to clap and make clap parameters available as env variables](https://github.com/nymtech/nym/pull/4957)
+
+- [Bump sqlx to 0.7.4](https://github.com/nymtech/nym/pull/4959)
+
+- [`Product Data` First step in gateway usage data collection](https://github.com/nymtech/nym/pull/4963): This PR is the first step towards collecting data on gateway usage. It builds up on an old code for what was then nym-connect. It exposes unique users count and connection time histogram on the `metrics/sessions` endpoint of the self-described API on entry-gateways. For the time being, data is collected by probing the `ActiveClientStore` every minute and extracting data from this. Data is stored internally and exposed on the next day, i.e. UTC day $d$ exposes data from day $d-1$. The [`statistics`](https://github.com/nymtech/nym/tree/simon/product_data/gateway/src/node/statistics) module will evolve as we add collection for product data and censorship resistance study. The collection will also eventually switch from probing to event-based for more accurate data.
+
+- [`importer-cli` to correctly handle mixnet/vesting import](https://github.com/nymtech/nym/pull/4966)
+
+- [Import `nym-vpn-api` crates](https://github.com/nymtech/nym/pull/4967): Keep these crates in a separate workspace for now. The idea is to add them to the main workspace in time, but this appears to might require some changes to how sqlite is used. Alternatively these issues might go away once we upgrade sqlite in the main workspace. Also we intend to rename some of these to something like `nym-credential-facade`, and the wasm lib should be incorporated in one of the existing crates in `common`.
+
+- [chore: remove unused rocket code](https://github.com/nymtech/nym/pull/4968)
+
+- [add Dockerfile for nym node](https://github.com/nymtech/nym/pull/4972)
+ 
+- [`Product Data` Add session type based on ecash ticket received](https://github.com/nymtech/nym/pull/4974): Fire an `EcashTicket` event for the `GatewayStatisticsCollector`, when an Ecash ticket is being accepted. This allows to mark an active session as being a mixnet session or a vpn session. It also changes the format of the related self-described data, to accommodate that new session type. 
+
+- [Top up bandwidth](https://github.com/nymtech/nym/pull/4975)
+
+- [feature: require reporting using nym-node binary for rewarded set selection](https://github.com/nymtech/nym/pull/4976)
+
+- [Re-enable vested delegation migration](https://github.com/nymtech/nym/pull/4977): supersedes [\#4956](https://github.com/nymtech/nym/pull/4956) by removing the contract migration code as it's already been run on mainnet.
+
+- [Resolve beta clippy issues in contracts](https://github.com/nymtech/nym/pull/4978)
+
+- [Enable global ecash routes even if api is not a signer](https://github.com/nymtech/nym/pull/4980)
+
+- [Rename `nym-vpn-api` to `nym-credential-proxy`](https://github.com/nymtech/nym/pull/4981)
+
+- [Add topup req constructor](https://github.com/nymtech/nym/pull/4983)
+
+- [Eliminate 0 bandwidth race check](https://github.com/nymtech/nym/pull/4988)
+
+- [Make accepting t&c a hard requirement for rewarded set selection](https://github.com/nymtech/nym/pull/4993)
+
+- [chore: update itertools in compact ecash](https://github.com/nymtech/nym/pull/4994): supersedes [\#4916](https://github.com/nymtech/nym/pull/4916)
+
+- [Push private ip before inserting](https://github.com/nymtech/nym/pull/5008)
+
+- [Adjusted ticket sizes to the agreed amounts](https://github.com/nymtech/nym/pull/5009)
+
+- [Consume only positive bandwidth](https://github.com/nymtech/nym/pull/5013)
+
+- [Reapply fixes to new branch](https://github.com/nymtech/nym/pull/5014)
+
+- [Added `get_all_described_nodes` to NymApiClient and adjusted return](https://github.com/nymtech/nym/pull/5016)
+
+- [feature: use axum_client_ip for attempting to extract source ip](https://github.com/nymtech/nym/pull/5031): improves source ip logging by extracting relevant header when nym-api is run behind a proxy
+
+- [Pass poisson flag ](https://github.com/nymtech/nym/pull/5037)
+
+- [Added hacky routes to return nymnodes alongside legacy nodes](https://github.com/nymtech/nym/pull/5051)
+
+- [Use unstable explorer client](https://github.com/nymtech/nym/pull/5058): Clean up stale testruns & better logging:
+    - use new `/unstable` endpoints on explorer for backwards compatibility
+    - log gw identity key
+    - better agent testrun logging
+    - log responses on server side
+    - change response code for agents 
+    - update sqlx data
+    - fix agent - probe gw bug
+
+- [Merge1/release/2024.13 magura](https://github.com/nymtech/nym/pull/5061)
+
+- [Merge2/release/2024.13 magura](https://github.com/nymtech/nym/pull/5063)
+
+- [Feature/wallet bonding fixes](https://github.com/nymtech/nym/pull/5064)
+
+- [Allow nym node config updates](https://github.com/nymtech/nym/pull/5066)
 
 
+
+### Bugfix
+
+- [Fix critical issues SI84 and SI85 from Cure53](https://github.com/nymtech/nym/pull/4758): This pull request fixes the following issues:
+    - NYM-01-009 WP5: BLS12-381 EC signature bypasses in Coconut library (Critical)
+    - NYM-01-014 WP5: Partial signature bypass in offline eCash (Critical)
+    
+- [bugfix: correctly paginate through 'search_tx' endpoint](https://github.com/nymtech/nym/pull/4936): when `results.append(&mut res.txs);` was called, `res.txs` was always empty thus it was impossible to return more than page size number of results
+
+- [Fix broken build after merge](https://github.com/nymtech/nym/pull/4937)
+
+- [Bugfix/rewarder post pruning adjustments](https://github.com/nymtech/nym/pull/4942): this PR introduces/fixes the following:
+    - dedicated commands to request specific blocks for processing
+    - decreased websocket failure timeout
+    - ensuring we do actually have sufficient number of blocks to process rewarding for given epoch
+    - additional error logging 
+
+- [bugfix: fix expected return type on /v1/gateways endpoint](https://github.com/nymtech/nym/pull/4965)
+
+- [Bugfix/additional directory fixes](https://github.com/nymtech/nym/pull/4973): This branch introduces additional fixes to the new directory services
+
+- [Fix critical issues SI86 and SI87 from Cure53](https://github.com/nymtech/nym/pull/4982): This pull request fixes the following issues:
+    - Faulty aggregation to invalid offline eCash signatures
+    - Signature forgery of Pointcheval-Sanders schema
+
+- [bugfix: client memory leak](https://github.com/nymtech/nym/pull/4991): This fixes memory leaks in all the clients. however, they were most prominent in `nym-api` during network monitoring due to the sheer amount of packets being pushed 
+
+- [Fix rustfmt in nym-credential-proxy](https://github.com/nymtech/nym/pull/4992)
+
+- [bugfix: directory v2.1 `get_all_avg_gateway_reliability_in_interval` query](https://github.com/nymtech/nym/pull/5023): fixes query for avg gateway performance (no idea why it makes a difference, but it does...)
+
+- [bugfix: missing #[serde(default)] for announce port](https://github.com/nymtech/nym/pull/5024)
+
+- [bugfix: introduce 'LegacyPendingMixNodeChanges' that does not contain 'cost_params_change'](https://github.com/nymtech/nym/pull/5028)
+
+- [bugfix: verifying signed information of legacy nodes](https://github.com/nymtech/nym/pull/5029)
+
+- [bugfix: fixed backwards incompatibility for /gateways/described endpoint](https://github.com/nymtech/nym/pull/5030)
+
+- [bugfix: make sure to use correct highest node id when assigning role](https://github.com/nymtech/nym/pull/5032)
+
+- [bugfix: use old name for 'epoch_role' in SkimmedNode](https://github.com/nymtech/nym/pull/5034)
+
+- [bugfix: use human readable roles for annotations](https://github.com/nymtech/nym/pull/5036)
+
+- [bugfix: make gateways insert themselves into [local] topology](https://github.com/nymtech/nym/pull/5038)
+
+- [bugfix: use bonded nym-nodes for determining initial network monitor …](https://github.com/nymtech/nym/pull/5039)
+
+- [bugfix: make sure nym-nodes are also tested by network monitor](https://github.com/nymtech/nym/pull/5040)
+
+- [bugfix: don't assign exit gateways to standby set](https://github.com/nymtech/nym/pull/5041)
+
+- [bugfix: fix ecash handlers routes](https://github.com/nymtech/nym/pull/5043)
+
+- [bugfix: restore default http port for nym-api](https://github.com/nymtech/nym/pull/5045): when it was run under 'rocket' server the port used was 8000. let's restore that value
+
+- [bugfix: supersede 'cb13be27f8f61d9ae74d924e85d2e6787895eb14' by using…](https://github.com/nymtech/nym/pull/5046)
+
+- [bugfix: adjust runtime storage migration](https://github.com/nymtech/nym/pull/5047): remove the panic during migration as the gateway count can actually be different if some of them have already migrated to nym-nodes before the code has been run
+
+- [bugfix: mark migrated gateways as rewarded in the previous epoch in case theyre in the rewarded set](https://github.com/nymtech/nym/pull/5049)
+
+- [bugfix/feature: added NymApiClient method to get all skimmed nodes](https://github.com/nymtech/nym/pull/5062)
+
+- [bugfix: use corrext axum extractors for ecash route arguments](https://github.com/nymtech/nym/pull/5065)
+
+- [bugfix: credential-proxy obtain-async](https://github.com/nymtech/nym/pull/5067)
+ 
 ### Operators Updates & Tooling
 
 <Callout type="warning" emoji="⚠️">
 **Every operator has to make sure that their nodes [self-described endpoint works](nodes/performance-and-testing/node-api-check#basic-api-usage), otherwise the node will be un-routable and thus won't get any rewards!**
 </Callout>
 
-- **New technical documentation:** The entry to all Nym documentation now lives at [nymtech.net/docs](https://nymtech.net/docs/operators/introduction). To run locally or propose collaboration, start in our [repository](https://github.com/nymtech/nym/tree/develop/documentation)
+- **New technical documentation:** All Nym documentation starts from a new entry page [nymtech.net/docs](https://nymtech.net/docs/operators/introduction). To run locally or propose collaboration, start in our [repository](https://github.com/nymtech/nym/tree/develop/documentation)
 
-- [**New operators landing page**](https://nymtech.net/operators)
+- **New [Tokenomics chapter](tokenomics.mdx) with [Mixnet Rewads page](tokenomics/mixnet-rewards.mdx)**
+
+- **New [Operators landing page**](https://nymtech.net/operators)
 
 - [Nym Harbourmaster](https://harbourmaster.nymtech.net) had a new tab `NODE SEARCH` where operators can easily search nodes by identity keys and owner accounts and get all public information listed.
+
+- New [Tokenomics chapter](tokenomics.mdx) with [Mixnet Rewads page](tokenomics/mixnet-rewards.mdx)
 
 #### Wallet changes
 
 
-#### Rewarding
+#### Selection & Rewarding
 
-Currently the rewards are split equally, i.e. every node being assigned 1/240 work factor with the usual scaling by performance, stake. etc.
+- **Config score is introduced:** In the current version the nodes selection to the active set has a new parameter (which multiplies the existing formula) - `config_score`. Config score looks if the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`) **AND** if [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) are accepted. Config score has binary values of either 0 or 1, with a following logic:
 
+| **Run `nym-node` binary** | **T&C's accepted** | **`config_score`** |
+| :--                       | :--                | ---:               |
+| True                      | False              | 0                  |
+| False                     | True               | 0                  |
+| False                     | False              | 0                  |
+| True                      | True               | 1                  |
 
+- The active set selection formula is then:
+> CONFIG_SCORE \* STAKE_SATURATION \* PERFORMANCE ^ 20
+
+- Currently in *Native rewarding*, the rewards are split equally across the [rewarded set of nodes](https://validator.nymtech.net/api/v1/epoch/reward_params) (which now = active set and it's size is 240 nodes) for both Mixnet mode and dVPN mode. Every node being assigned 1 / 240 work factor (hence *naive rewarding*).
 
 #### Directory Services v2.1: API & Mixnet Contract Changes 
 

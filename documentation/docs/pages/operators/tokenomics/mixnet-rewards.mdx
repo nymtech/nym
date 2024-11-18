@@ -1,5 +1,6 @@
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
 import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
 import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tabs';
@@ -7,6 +8,7 @@ import NyxPercentStake from 'components/outputs/nyx-outputs/nyx-percent-stake.md
 import NyxTotalStake from 'components/outputs/nyx-outputs/nyx-total-stake.md';
 import { TimeNow } from 'components/time-now.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
+import { Clt } from 'components/callout-custom/CalloutCustom.jsx';
 
 # Nym Operators Rewards
 
@@ -19,9 +21,9 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 
 To make it easier for the reader, we use a highlighting line on the left side, with a specific color:
 
-<Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+<Clt borderColor='#008080' backgroundColor='#20b2aa' pointPosition='right' pointOffset='3rem' pointAlignment='center'>
 > **Turquoise with red pin for formulas.**
-</Callout>
+</Clt>
 
 <Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
 <AccordionTemplate name="Example">
@@ -34,39 +36,39 @@ To make it easier for the reader, we use a highlighting line on the left side, w
 This is a quick summary, to understand the full picture, please see detailed [*Rewards Logic & Calculation*](#rewards-logic--calculation) chapter below.
 
 * The operators of `nym-node` get rewarded from Mixmining pool, which emits around 6000 NYM per hour.
-* An active set of `nym-nodes` selected for Nym network routing and mixing is 240 nodes in total and it's selected for each new epoch (60 min).
-* The active set is composed of 120 Mixnodes and 120 Gateways.
-* `nym-nodes` can run in mode `entry-gateway`, `exit-gateway` and `mixnode`, the active set selection of each mode is
-
-| Nym node mode   | Total in active set | Rationale                                                 |
-| :---            | ---:                | :---                                                      |
-| `mixnode`       | 120                 | Always 3 layers of 40 mixnodes                            |
-| `entry-gateway` | 120                 | Any Gateway can act as an entry                           |
-| `exit-gateway`  | max 120             | Any Gateway running `exit-gateway` mode from the same 120 |
-
-* NymVPN can route through Nym Network two ways, both using the same active set:
+* A [rewarded set](../tokenomics.mdx#active-set) of `nym-nodes` selected for Nym network routing and mixing can be is currently 240 nodes in total and it's selected for each new epoch (60 min). The number can be adjusted - look here for the current value: [validator.nymtech.net/api/v1/epoch/reward_params](https://validator.nymtech.net/api/v1/epoch/reward_params)
+* `nym-nodes` can run in mode `entry-gateway`, `exit-gateway` and `mixnode`, which are positioned into layers
+* NymVPN users can chose to route through Nym Network in two ways:
 	- Mixnet: 5 layers routing and mixing - full privacy
 	- Wireguard: 2 layers routing, skipping 3 mixing layers - fast mode
-* The reward distribution is per layer according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
-	- 5-hop: 16%-16%-16%-16%-36%
-	- 2-hop: (In future) 33%-67%
-	- Currently Gateways earn rewards only from 5-hop mode. The operators can sign up to a grant program as a substitution for 2-hop routing.
-* Each node is rewarded according to the layer in which it's positioned in the given epoch, divided uniformly between all nodes in that layer.
-* Nodes are selected to the active set based on their performance and stake saturation (self bond + delegation)
-* In future a ticket system will be implemented where nodes will be rewarded according to the work they perform, with a revenue for both 2-hop and 5-hop work. The uniform naive distribution is an intermediate step. See [*Roadmap*](#roadmap) chapter for more details.
+* **The current reward system is *Native rewarding* - an intermediate step -  where each layer get's rewarded the same**
+* In the final model, nodes will get rewarded based on their layer position and the work they do (collected user tickets), where and the reward distribution per layer will be according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
+    - 5-hop: 16%-16%-16%-16%-36%
+    - 2-hop: 33%-67%
+* Currently Gateways earn rewards only from taking a part in the rewarded set. The operators can sign up to a grant program as a substitution for 2-hop routing.
+* To read more about the final design and future implementation, see [*Roadmap*](#roadmap) chapter for more details.
 
 ## Rewards Logic & Calculation
 
-**Note that in the current intermediate model we use one active set for both 2-hop and 5-hop routing Gateways. In reality it means that all nodes are rewarded within 5-hop reward scheme only. In the meantime, given that the 120 Gateways within the active set route traffic for 2-hop wireguard mode as well, without any extra rewards, the operators can get substitution in the form of grants.**
+**Note that in the current intermediate model we use one active set to reward all nodes and they are asign same (naive) work factor of 1 / 240, whether they work as Mixnode or Gateway of any kind, in both 2-hop and 5-hop mode. In reality it means that all nodes are rewarded within 5-hop reward scheme only.**
 
-**Nym Network active set distribution**
+**However NymVPN client can chose any `nym-node --mode entry-gateway` and `--mode exit-gateway` in the network to route through the mixnet and as well as any of those which passed [wireguard probing test](https://harbourmaster.nymtech.net) to route as dVPN nodes.**
+
+### Nym Network rewarded set distribution
+
+<div>
+  <Tabs items={[
+    <strong>Mixnet mode (5-hop)</strong>,
+    <strong>dVPN mode (2-hop)</strong>,
+    ]} defaultIndex="0">
+    <MyTab>
 
 ```ascii
 
  Network
  layer:           1.           2.           3.           4.           5.
 
-
+ --------
                             ┌► mixnode ─┐   mixnode      mixnode
                             │           │
  Node             entry     │           │                             exit
@@ -75,52 +77,78 @@ This is a quick summary, to understand the full picture, please see detailed [*R
                                         │            │
                                mixnode  └─► mixnode ─┘   mixnode
 
+```
+
+| **Network layer** | **1** | **2** | **3** | **4** | **5** |
+| :-- | :---: | :---: | :---: | :---: | :---: |
+| Node functionality in layer | Entry Gateway | Mixnode | Mixnode | Mixnode | Exit Gateway |
+| Nodes in [active set](tokenomics.mdx#active-set) |  50  | 40 | 40 | 40 | 70 |
+| Naive rewarding: Rewards distribution per node | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 |
+| Final model: Rewards distribution per node | 0.16 / 240 | 0.16 / 240 | 0.16 / 240 | 0.16 / 240 | 0.36 / 240 |
+
+    </MyTab>
+    <MyTab>
 
 
- Active set:      120           40           40           40      max 120
+```ascii
 
+ Network
+ layer:           1.                                                  2.
 
- Rewards
- distribution     16%          16%          16%          16%          36%
- 5-hop mode:
+ --------
 
-
- Future implementation:
-
- Rewards
- distribution     33%          skip         skip         skip         67%
- 2-hop mode:
+ Node             entry                                               exit
+ type:            gateway ──────────────────────────────────────────► gateway
 
 ```
+
+| **Network layer** | **1** | **2** |
+| :-- | :---: | :---: |
+| Node functionality in layer | Entry Gateway  | Exit Gateway |
+| Naive rewarding: Nodes in [active set](tokenomics.mdx#active-set) |  50  | 70 |
+| Naive rewarding: Rewards distribution per node | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 |
+| Final model: Active nodes | All following criteria for eligibility | All following criteria for eligibility |
+| Final model: Rewards distribution per node | 0.33 \* COLLECTED_USER_TICKETS | 0.67 \* COLLECTED_USER_TICKETS |
+
+    </MyTab>
+  </Tabs>
+</div>
 
 
 ### Active Set Selection
 
 *Performance matters!*
 
-For a node to be rewarded, the node must be part of an active set in the first place. The active set is selected in the beginning of each epoch (every 60min) where total of 240 nodes - represented by 120 mixnodes and 120 gateways, are randomly allocated across the layers. Mixnodes only work within the given layer, while any Exit Gateway can be chosen by a client as an Entry Gateway, not vice versa.
+For a node to be rewarded, the node must be part of a [Rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (which currently = active set) in the first place. The active set is selected in the beginning of each epoch (every 60min) where total of 240 Nym nodes - represented by 120 mixnodes and 120 gateways, are randomly allocated across the layers.
 
-The algorithm choosing nodes into the active set takes into account node's performance and [stake saturation](../tolkenomics.mdx#stake-saturation), both values being between 0 and 1.
+The algorithm choosing nodes into the active set takes into account node's performance and [stake saturation](../tolkenomics.mdx#stake-saturation), both values being between 0 and 1 and config score which is either 0 or 1.
+
+**Config score is introduced:** The nodes selection to the active set has a new parameter - `config_score`. Config score currently looks if the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`) **AND** if [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) are accepted. Config score has binary values of either 0 or 1, with a following logic:
+
+| **Run `nym-node` binary** | **T&C's accepted** | **`config_score`** |
+| :--                       | :--                | ---:               |
+| True                      | False              | 0                  |
+| False                     | True               | 0                  |
+| False                     | False              | 0                  |
+| True                      | True               | 1                  |
+
+
+The entire active set selection probablity:
 
 <Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
-active\ set\ selection\ probability = node\ performance^{20} * stake\ saturation
+> **active_set_selection_probability = config_score \* stake_saturation \* node_performance ^ 20**
 </Callout>
 
-For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation:
+For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them `config_score` = 1 and not 0):
 
-```admonish example collapsible=true
-$$
 <Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
 <AccordionTemplate name="Example">
-> Purple collapsible for examples.
-\begin{align}
-\notag node_1 &= 1^{20} * 1 = 1 \\
-\notag node_2 &= 1^{20} * 0.5 = 0.5 \\
-\notag node_3 &= 0.99^{20} * 1 = 0.818 \\
-\notag node_4 &= 0.95^{20} * 1 = 0.358 \\
-\notag node_5 &= 0.9^{20} * 1 = 0.122 \\
-\end{align}
-$$
+> node_1 = 1.00 ^ 20 \* 1.0 = 1 <br />
+> node_2 = 1.00 ^ 20 \* 0.5 = 0.5 <br />
+> node_3 = 0.99 ^ 20 \* 1.0 = 0.818 <br />
+> node_4 = 0.95 ^ 20 \* 1.0 = 0.358 <br />
+> node_5 = 0.90 ^ 20 \* 1.0 = 0.122 <br />
+</AccordionTemplate>
 </Callout>
 
 As you can see the performance (also known as *Routing score*) is much more important during the active set selection. A node with 100% performance but only 50% stake saturation has much bigger chance to be chosen than a node with 95% performance but full stake saturation and incomparably bigger chance than 90% performing node with 100% stake saturation.
@@ -132,8 +160,8 @@ Once the active set of 120 Mixnodes and 120 Gateways is selected, the nodes can 
 
 \*
 <Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
-5-hop mixnet mode: <br>
-$16\%; 16\%; 16\%; 16\%; 36\%$ <br>
+5-hop mixnet mode:
+$16\%; 16\%; 16\%; 16\%; 36\%$
 2-hop wireguard mode: $33\%; 67\%$
 </Callout>
 
@@ -143,11 +171,11 @@ In real numbers: If hourly revenue to all 240 nodes is 6000 NYM, the layer compa
 <Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
 <AccordionTemplate name="Example">
 > Purple collapsible for examples.
-5-hop mixnet mode: <br>
-$0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.36 * 6000 2160$ <br>
-<br>
-2-hop wireguard mode:<br>
+5-hop mixnet mode:
+$0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.36 * 6000 2160$
+2-hop wireguard mode:
 $33\% - 67\%$
+</AccordionTemplate>
 </Callout>
 
 ### Node Rewards within Same Layer
@@ -220,16 +248,12 @@ $1 \ NYM = 1 \_ 000 \_ 000 \ uNYM$
 - `estimated_node_profit` - An estimate of the profit that a particular Mix node operator can expect to earn. This value is calculated by subtracting the Mix Node operator's `operating_costs` from their `estimated_operator_reward` for the current epoch.
 
 - `estimated_operator_cost` - An estimate of the total cost that a particular Mix Node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a Mix Node, such as server hosting fees, and other expenses associated with operating the Mix Node.
-*/
 
 
 
 
-
-
-
-
-/* ?DROPPING THIS FROM THE OLD MAINTENANCE PAGE
+{/*
+?DROPPING THIS FROM THE OLD MAINTENANCE PAGE
 
 ### Mix Node Reward Estimation API endpoint
 
@@ -274,4 +298,4 @@ Query Response:
 
 Install `nginx` and allow the 'Nginx Full' rule in your firewall:
 
-*/
+*/}

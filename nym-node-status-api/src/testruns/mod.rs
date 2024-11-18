@@ -71,7 +71,7 @@ async fn run(pool: &DbPool) -> anyhow::Result<()> {
             testruns_created += 1;
         }
     }
-    tracing::debug!("{} testruns queued in total", testruns_created);
+    tracing::info!("{} testruns queued in total", testruns_created);
 
     Ok(())
 }

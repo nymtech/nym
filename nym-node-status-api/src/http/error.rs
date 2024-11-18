@@ -17,7 +17,7 @@ impl HttpError {
 
     pub(crate) fn unauthorized() -> Self {
         Self {
-            message: serde_json::json!({"message": "Make sure your public key si registered with NS API"}).to_string(),
+            message: serde_json::json!({"message": "Make sure your public key is registered with NS API"}).to_string(),
             status: axum::http::StatusCode::UNAUTHORIZED,
         }
     }

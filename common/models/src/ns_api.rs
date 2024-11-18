@@ -1,4 +1,4 @@
-use nym_crypto::asymmetric::ed25519::{PublicKey, Signature};
+use nym_crypto::asymmetric::ed25519::Signature;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
@@ -11,5 +11,4 @@ pub struct TestrunAssignment {
 pub struct SubmitResults {
     pub message: String,
     pub signature: Signature,
-    pub public_key: PublicKey,
 }

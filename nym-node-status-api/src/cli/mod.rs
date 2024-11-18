@@ -1,6 +1,5 @@
 use clap::Parser;
 use nym_bin_common::bin_info;
-use nym_crypto::asymmetric::ed25519::PublicKey;
 use reqwest::Url;
 use std::{sync::OnceLock, time::Duration};
 
@@ -71,29 +70,9 @@ pub(crate) struct Cli {
     #[arg(value_parser = parse_duration)]
     pub(crate) testruns_refresh_interval: Duration,
 
-    #[clap(long, env = "NODE_STATUS_API_AGENT_KEY_LIST")]
-    #[arg(value_parser = parse_key_list)]
-    agent_key_list: KeyList,
-}
-
-impl Cli {
-    pub(crate) fn agent_key_list(&self) -> &Vec<PublicKey> {
-        &self.agent_key_list.0
-    }
-}
-
-// We need a list of keys from clap. But if we define CLI argument as Vec<T>,
-// clap interprets that as type T which can be given as a CLI argument multiple
-// times (so all of them are stored in a Vec<T>). Thus we wrap Vec in a newtype
-// pattern to have a list of keys and make clap happy.
-#[derive(Debug, Clone)]
-struct KeyList(Vec<PublicKey>);
-
-fn parse_key_list(arg: &str) -> anyhow::Result<KeyList> {
-    arg.split(',')
-        .map(|value| PublicKey::from_base58_string(value.trim()).map_err(anyhow::Error::from))
-        .collect::<anyhow::Result<Vec<_>>>()
-        .map(KeyList)
+    #[clap(env = "NODE_STATUS_API_AGENT_KEY_LIST")]
+    #[arg(value_delimiter = ',')]
+    pub(crate) agent_key_list: Vec<String>,
 }
 
 fn parse_duration(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {

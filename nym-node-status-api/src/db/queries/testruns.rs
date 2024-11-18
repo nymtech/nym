@@ -6,6 +6,7 @@ use crate::{
 };
 use anyhow::Context;
 use chrono::Duration;
+use nym_crypto::asymmetric::ed25519::PublicKey;
 use sqlx::{pool::PoolConnection, Sqlite};
 
 pub(crate) async fn get_in_progress_testrun_by_id(
@@ -20,7 +21,8 @@ pub(crate) async fn get_in_progress_testrun_by_id(
             status as "status!",
             timestamp_utc as "timestamp_utc!",
             ip_address as "ip_address!",
-            log as "log!"
+            log as "log!",
+            assigned_agent
          FROM testruns
          WHERE
             id = ?
@@ -35,6 +37,35 @@ pub(crate) async fn get_in_progress_testrun_by_id(
     .context(format!("Couldn't retrieve testrun {testrun_id}"))
 }
 
+pub(crate) async fn get_testruns_assigned_to_agent(
+    conn: &mut PoolConnection<Sqlite>,
+    agent_key: PublicKey,
+) -> anyhow::Result<TestRunDto> {
+    let agent_key = agent_key.to_base58_string();
+    sqlx::query_as!(
+        TestRunDto,
+        r#"SELECT
+            id as "id!",
+            gateway_id as "gateway_id!",
+            status as "status!",
+            timestamp_utc as "timestamp_utc!",
+            ip_address as "ip_address!",
+            log as "log!",
+            assigned_agent
+         FROM testruns
+         WHERE
+            assigned_agent = ?
+         AND
+            status = ?
+         ORDER BY timestamp_utc"#,
+        agent_key,
+        TestRunStatus::InProgress as i64,
+    )
+    .fetch_one(conn.as_mut())
+    .await
+    .context(format!("No testruns in progress for agent {agent_key}"))
+}
+
 pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> anyhow::Result<u64> {
     let mut conn = db.acquire().await?;
     let previous_run = now_utc() - age;
@@ -44,7 +75,8 @@ pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> an
         r#"UPDATE
             testruns
         SET
-            status = ?
+            status = ?,
+            assigned_agent = NULL
         WHERE
             status = ?
         AND
@@ -69,13 +101,17 @@ pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> an
     Ok(stale_testruns)
 }
 
-pub(crate) async fn get_oldest_testrun_and_make_it_pending(
+pub(crate) async fn assign_oldest_testrun(
     conn: &mut PoolConnection<Sqlite>,
+    agent_key: PublicKey,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
+    let agent_key = agent_key.to_base58_string();
     // find & mark as "In progress" in the same transaction to avoid race conditions
     let returning = sqlx::query!(
         r#"UPDATE testruns
-            SET status = ?
+            SET
+                status = ?,
+                assigned_agent = ?
             WHERE rowid =
         (
             SELECT rowid
@@ -89,6 +125,7 @@ pub(crate) async fn get_oldest_testrun_and_make_it_pending(
             gateway_id
             "#,
         TestRunStatus::InProgress as i64,
+        agent_key,
         TestRunStatus::Queued as i64,
     )
     .fetch_optional(conn.as_mut())

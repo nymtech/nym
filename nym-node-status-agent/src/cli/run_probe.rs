@@ -114,6 +114,5 @@ fn sign_message(key: PrivateKey, probe_outcome: String) -> SubmitResults {
     SubmitResults {
         message: probe_outcome,
         signature,
-        public_key: key.public_key(),
     }
 }

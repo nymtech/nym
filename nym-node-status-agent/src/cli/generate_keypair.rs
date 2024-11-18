@@ -1,5 +1,4 @@
 use std::{fs::File, io::Write, path::Path};
-
 use tracing::info;
 
 pub(crate) fn generate_key_pair(path: impl AsRef<Path>) -> anyhow::Result<()> {

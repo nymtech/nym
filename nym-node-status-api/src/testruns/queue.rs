@@ -55,7 +55,8 @@ pub(crate) async fn try_queue_testrun(
             status as "status!",
             timestamp_utc as "timestamp_utc!",
             ip_address as "ip_address!",
-            log as "log!"
+            log as "log!",
+            assigned_agent
          FROM testruns
          WHERE gateway_id = ? AND status != 2
          ORDER BY id DESC

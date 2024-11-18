@@ -1,4 +1,5 @@
 use clap::Parser;
+use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_task::signal::wait_for_signal;
 
 mod cli;
@@ -14,7 +15,11 @@ async fn main() -> anyhow::Result<()> {
 
     let args = cli::Cli::parse();
 
-    let agent_key_list = args.agent_key_list();
+    let agent_key_list = args
+        .agent_key_list
+        .iter()
+        .map(|value| PublicKey::from_base58_string(value.trim()).map_err(anyhow::Error::from))
+        .collect::<anyhow::Result<Vec<_>>>()?;
     tracing::info!("Registered {} agent keys", agent_key_list.len());
 
     let connection_url = args.database_url.clone();

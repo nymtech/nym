@@ -2,6 +2,7 @@ use crate::{
     http::{self, models::SummaryHistory},
     monitor::NumericalCheckedCast,
 };
+use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
 use strum_macros::{EnumString, FromRepr};
@@ -309,6 +310,15 @@ pub struct TestRunDto {
     pub timestamp_utc: i64,
     pub ip_address: String,
     pub log: String,
+    pub assigned_agent: Option<String>,
+}
+
+impl TestRunDto {
+    pub(crate) fn assigned_agent_key(&self) -> Option<PublicKey> {
+        self.assigned_agent
+            .as_ref()
+            .and_then(|value| PublicKey::from_base58_string(value).ok())
+    }
 }
 
 #[derive(Debug, Clone, strum_macros::Display, EnumString, FromRepr, PartialEq)]

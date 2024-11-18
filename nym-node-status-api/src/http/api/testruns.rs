@@ -45,7 +45,7 @@ async fn request_testrun(
         .await
         .map_err(HttpError::internal_with_logging)?;
 
-    return match db::queries::testruns::get_oldest_testrun_and_make_it_pending(&mut conn).await {
+    return match db::queries::testruns::assign_oldest_testrun(&mut conn, agent_pubkey).await {
         Ok(res) => {
             if let Some(testrun) = res {
                 tracing::info!(
@@ -66,11 +66,44 @@ async fn request_testrun(
 
 #[tracing::instrument(level = "debug", skip_all)]
 async fn submit_testrun(
-    Path(testrun_id): Path<i64>,
+    Path(submitted_testrun_id): Path<i64>,
     State(state): State<AppState>,
     Json(probe_results): Json<SubmitResults>,
 ) -> HttpResult<StatusCode> {
-    let agent_pubkey = authenticate_agent(&probe_results.public_key.to_base58_string(), &state)?;
+    let db = state.db_pool();
+    let mut conn = db
+        .acquire()
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+
+    let submitted_testrun =
+        queries::testruns::get_in_progress_testrun_by_id(&mut conn, submitted_testrun_id)
+            .await
+            .map_err(|e| {
+                tracing::warn!("testrun_id {} not found: {}", submitted_testrun_id, e);
+                HttpError::not_found(submitted_testrun_id)
+            })?;
+    let agent_pubkey = submitted_testrun
+        .assigned_agent_key()
+        .ok_or_else(HttpError::unauthorized)?;
+
+    let assigned_testrun =
+        queries::testruns::get_testruns_assigned_to_agent(&mut conn, agent_pubkey)
+            .await
+            .map_err(|err| {
+                tracing::warn!("{err}");
+                HttpError::invalid_input("Invalid testrun submitted")
+            })?;
+    if submitted_testrun_id != assigned_testrun.id {
+        tracing::warn!(
+            "Agent {} submitted testrun {} but {} was expected",
+            agent_pubkey,
+            submitted_testrun_id,
+            assigned_testrun.id
+        );
+        return Err(HttpError::invalid_input("Invalid testrun submitted"));
+    }
+
     agent_pubkey
         .verify(&probe_results.message, &probe_results.signature)
         .map_err(|_| {
@@ -78,55 +111,51 @@ async fn submit_testrun(
             HttpError::unauthorized()
         })?;
 
-    let db = state.db_pool();
-    let mut conn = db
-        .acquire()
-        .await
-        .map_err(HttpError::internal_with_logging)?;
-
-    let testrun = queries::testruns::get_in_progress_testrun_by_id(&mut conn, testrun_id)
-        .await
-        .map_err(|e| {
-            tracing::error!("{e}");
-            HttpError::not_found(testrun_id)
-        })?;
-
-    let gw_identity = db::queries::select_gateway_identity(&mut conn, testrun.gateway_id)
+    let gw_identity = db::queries::select_gateway_identity(&mut conn, assigned_testrun.gateway_id)
         .await
         .map_err(|_| {
             // should never happen:
-            HttpError::internal_with_logging("No gateway found for testrun")
+            HttpError::internal_with_logging(format!(
+                "No gateway found for testrun {submitted_testrun_id}"
+            ))
         })?;
     tracing::debug!(
         "Agent {} submitted testrun {} for gateway {} ({} bytes)",
         agent_pubkey,
-        testrun_id,
+        submitted_testrun_id,
         gw_identity,
         &probe_results.message.len(),
     );
 
-    // TODO dz this should be part of a single transaction: commit after everything is done
-    queries::testruns::update_testrun_status(&mut conn, testrun_id, TestRunStatus::Complete)
-        .await
-        .map_err(HttpError::internal_with_logging)?;
+    queries::testruns::update_testrun_status(
+        &mut conn,
+        submitted_testrun_id,
+        TestRunStatus::Complete,
+    )
+    .await
+    .map_err(HttpError::internal_with_logging)?;
     queries::testruns::update_gateway_last_probe_log(
         &mut conn,
-        testrun.gateway_id,
+        assigned_testrun.gateway_id,
         &probe_results.message,
     )
     .await
     .map_err(HttpError::internal_with_logging)?;
     let result = get_result_from_log(&probe_results.message);
-    queries::testruns::update_gateway_last_probe_result(&mut conn, testrun.gateway_id, &result)
-        .await
-        .map_err(HttpError::internal_with_logging)?;
-    queries::testruns::update_gateway_score(&mut conn, testrun.gateway_id)
+    queries::testruns::update_gateway_last_probe_result(
+        &mut conn,
+        assigned_testrun.gateway_id,
+        &result,
+    )
+    .await
+    .map_err(HttpError::internal_with_logging)?;
+    queries::testruns::update_gateway_score(&mut conn, assigned_testrun.gateway_id)
         .await
         .map_err(HttpError::internal_with_logging)?;
 
     tracing::info!(
         "✅ Testrun row_id {} for gateway {} complete",
-        testrun.id,
+        assigned_testrun.id,
         gw_identity
     );
 

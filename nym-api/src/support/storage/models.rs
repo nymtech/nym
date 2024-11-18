@@ -87,7 +87,7 @@ pub struct GatewayDetails {
 impl From<GatewayDetails> for TestNode {
     fn from(value: GatewayDetails) -> Self {
         TestNode {
-            node_id: None,
+            node_id: Some(value.node_id),
             identity_key: Some(value.identity),
         }
     }

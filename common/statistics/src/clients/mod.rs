@@ -95,6 +95,7 @@ impl ClientStatsController {
             gateway_conn_stats: self.gateway_conn_stats.report(),
             nym_api_stats: self.nym_api_stats.report(),
             connection_stats: self.connection_stats.report(),
+            ..Default::default()
         }
     }
 

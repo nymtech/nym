@@ -2,6 +2,16 @@
 
 ## [Unreleased]
 
+## [2024.13-magura] (2024-11-18)
+
+- bugfix: [wallet] displaying delegations for native nymnodes ([#5087])
+- bugfix: wallet backend fixes ([#5070])
+- Feature/wallet bonding fixes ([#5064])
+
+[#5087]: https://github.com/nymtech/nym/pull/5087
+[#5070]: https://github.com/nymtech/nym/pull/5070
+[#5064]: https://github.com/nymtech/nym/pull/5064
+
 ## [v1.2.13] (2024-05-08)
 
 - Bug fix: wallet delegations list is empty when RPC node doesn't hold block ([#4565])

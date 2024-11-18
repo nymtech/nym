@@ -196,7 +196,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
             .insert(peer.public_key.clone(), bandwidth_storage_manager);
         // try to immediately update the host information, to eliminate races
         if let Ok(host_information) = self.wg_api.inner.read_interface_data() {
-            *self.host_information.write().await
+            *self.host_information.write().await = host_information;
         }
         tokio::spawn(async move {
             if let Err(e) = handle.run().await {

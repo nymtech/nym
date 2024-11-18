@@ -3,6 +3,8 @@ import { Tabs } from 'nextra/components';
 import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
+import { Steps } from 'nextra/components';
+
 
 
 export const TestingSteps = () => (
@@ -33,19 +35,34 @@ This page displays a full list of all the changes during our release cycle from 
 
 ## `v2024.13-magura`
 
+Magura release represents a bigger milestone in [project Smoosh](archive/faq/smoosh-faq.mdx) development where `nym-node` is one binary able to perform any function in Nym Mixnet. This release is especially crucial for operators, please pay attention to the section [*Operators Updates & Tooling*](#operators-updates--tooling) below.
+
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.13-magura)
 - [Release CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.13-magura/CHANGELOG.md)
 - [`nym-node`](nodes/nym-node.mdx) version `1.1.10`
 
 ```sh
-
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2024-11-18T17:02:50.947941194Z
+Build Version:      1.1.10
+Commit SHA:         b49ef643df86f0c670672429812c632fbbaf6cf1
+Commit Date:        2024-11-18T17:56:57.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.82.0
+rustc Channel:      stable
+cargo Profile:      release
 ```
 
-Magura release represents a bigger milestone in [project Smoosh](archive/faq/smoosh-faq.mdx) development where `nym-node` is one binary able to perform any function in Nym Mixnet. This release is especially crucial for operators, please pay attention to the section [*Operators Updates & Tooling*](#operators-updates--tooling) below.
+- **[New smart contracts](https://github.com/nymtech/nym/releases/tag/nym-contracts-magura)**
+
+- **[New wallet version 1.2.15](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.15) is out!** - allowing operators to migrate to `nym-node` in Mixnet smart contract.
+
+- [New wallet changelog](https://github.com/nymtech/nym/blob/nym-wallet-v1.2.15/nym-wallet/CHANGELOG.md)
 
 ### Features
 
-- Migrate Legacy Node (Frontend) ](https://github.com/nymtech/nym/pull/4826)
+- [Migrate Legacy Node (Frontend) ](https://github.com/nymtech/nym/pull/4826)
 
 - [Directory Sevices v2.1](https://github.com/nymtech/nym/pull/4903): Read section [Directory Services v2.1: API & Mixnet Contract Changes ](#directory-services-v21-api--mixnet-contract-changes) below with detailed explanation or the [PR notes](https://github.com/nymtech/nym/pull/4903)
 
@@ -140,6 +157,45 @@ Confirm that the deployment workflows work through manual testing
 
 - [Allow nym node config updates](https://github.com/nymtech/nym/pull/5066)
 
+- [NS API with directory v2 (#5058)](https://github.com/nymtech/nym/pull/5068)
+
+- [chore: deprecated old nym-api client methods and replaced them when possible](https://github.com/nymtech/nym/pull/5069): this is to that the next time those methods are used outside the monorepo, the relevant calls flag up the CI via clippy
+
+- [Allow custom http port to be reset](https://github.com/nymtech/nym/pull/5073)
+
+- [Fix gateway decreasing bandwidth](https://github.com/nymtech/nym/pull/5075): Make sure to update the storage after each decrease with the new values. Also set the storage values to 0 on restart for existing peers, as kernel peers can't have those values set to 0 
+
+- [Fix expiration date as today + 7 days](https://github.com/nymtech/nym/pull/5076)
+
+- [Don't increase bandwidth two times](https://github.com/nymtech/nym/pull/5081)
+
+- [Make 250 GB/30 days for free ride mode](https://github.com/nymtech/nym/pull/5083)
+
+- [Nym node - Fix claim delegator rewards](https://github.com/nymtech/nym/pull/5090)
+
+- [Add more translations from v2 to v3 authenticator](https://github.com/nymtech/nym/pull/5091)
+
+- [Graceful agent 1.1.5](https://github.com/nymtech/nym/pull/5093): API improvements:
+    - agent exits gracefully when no testrun available
+    - agent reads content of server's error message in case of 503
+    - API doesn't log every error (to avoid log spam)
+    - update network probe within NS agent image: [CI rebuild](https://github.com/nymtech/nym/blob/release/2024.13-magura/nym-node-status-agent/Dockerfile#L9) of NS agent will pick up updated network probe
+
+- [Remove old use of 1GB constant](https://github.com/nymtech/nym/pull/5096)
+
+- [Add NYM_VPN_API to env files](https://github.com/nymtech/nym/pull/5099)
+
+- [Feature/force refresh node](https://github.com/nymtech/nym/pull/5101): currently if nodes update their role from say mixnode to entry-gateway, it might take quite a while for `nym-api` to pick up the change and thus they might be losing performance. With this change, the node will be force refreshed on its startup 
+
+- [`nym-credential-proxy-requests`: reqwest use rustls-tls](https://github.com/nymtech/nym/pull/5116)
+
+- [change: dont select mixnodes bonded with vested tokens into the rewarded set](https://github.com/nymtech/nym/pull/5129)
+
+- [Pain/polyfill deprecated endpoints](https://github.com/nymtech/nym/pull/5131)
+
+- [Respond to auth messages with same version](https://github.com/nymtech/nym/pull/5140)
+
+- [Limit race probability](https://github.com/nymtech/nym/pull/5145)
 
 
 ### Bugfix
@@ -209,6 +265,18 @@ Confirm that the deployment workflows work through manual testing
 - [bugfix: use corrext axum extractors for ecash route arguments](https://github.com/nymtech/nym/pull/5065)
 
 - [bugfix: credential-proxy obtain-async](https://github.com/nymtech/nym/pull/5067)
+
+- [bugfix: wallet backend fixes](https://github.com/nymtech/nym/pull/5070)
+
+- [bugfix: additional checks inside credential proxy](https://github.com/nymtech/nym/pull/5072)
+
+- [bugfix: [wallet] displaying delegations for native nymnodes](https://github.com/nymtech/nym/pull/5087)
+
+- [bugfix: preserve as much as possible of the rewarded set during migration](https://github.com/nymtech/nym/pull/5103)
+
+- [bugfix: make sure to assign correct node_id and identity during 'gateway_details' table migration](https://github.com/nymtech/nym/pull/5142)
+
+- [bugifx: assign 'node_id' when converting from 'GatewayDetails' to 'TestNode'](https://github.com/nymtech/nym/pull/5143)
  
 ### Operators Updates & Tooling
 
@@ -226,7 +294,50 @@ Confirm that the deployment workflows work through manual testing
 
 - New [Tokenomics chapter](tokenomics.mdx) with [Mixnet Rewads page](tokenomics/mixnet-rewards.mdx)
 
+- Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://github.com/nymtech/nym/pull/5129) - read more on [Nym operators forum](https://forum.nymtech.net/t/vesting-accounts-are-no-longer-supported/827)
+
 #### Wallet changes
+
+**[New wallet version 1.2.15](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.15) is out!**
+
+- [New wallet changelog](https://github.com/nymtech/nym/blob/nym-wallet-v1.2.15/nym-wallet/CHANGELOG.md)
+
+- This version of wallet allows and prompts operators to migrate their gateway or mixnode to a `nym-node` in the Mixnet smart contract - an important step in [project smoosh](archive/faq/smoosh-faq.mdx). To do so follow these steps:
+
+<br />
+<AccordionTemplate name="Steps to use wallet for node migration">
+<Steps>
+
+###### 1. Download the wallet from [the release page](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.15)
+
+###### 2. Verify the binary and extract it if needed
+
+- Download [`hashes.json`]https://github.com/nymtech/nym/releases/download/nym-wallet-v1.2.15/hashes.json
+- Open it with your text editor or print it's content with `cat hashes.json`
+- Run `sha256sum <WALLET_BINARY>` for example `sha256sum ./nym-wallet_1.2.15_amd64.AppImage`
+- If your have to extract it (like `.tar.gz`) do it
+
+###### 3. Open the wallet and sign in
+
+###### 4. Migrate!
+
+- Go to Bonding and you will be prompted with such message:
+
+![](/images/operators/wallet-screenshots/migrate_nym-node.png)
+
+- In case you for some reason didn't see the prompt or you closed it - you can click in the upper right corner of the same window on this button:
+
+![](/images/operators/wallet-screenshots/migrate_nym-node2.png)
+
+- Confirm the transaction
+
+###### 5. Welcome to new episode of `nym-node`! 
+
+</ Steps>
+</AccordionTemplate>
+
+- **Older versions will not allow bonding new nodes!**
+
 
 
 #### Selection & Rewarding

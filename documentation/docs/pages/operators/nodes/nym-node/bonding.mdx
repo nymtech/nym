@@ -31,7 +31,7 @@ You can bond your `nym-node` via the Desktop wallet.
 
 <Steps>
 
-###### 1. Insert bonding information 
+###### 1. Insert bonding information
 
 - Open your wallet, and head to the `Bond` page, then select the node type `Mixnode` and input your node details. Press `Next`.
 - To find out your `nym-node` details, run this command in your VPS:
@@ -94,7 +94,43 @@ Your node will now be bonded and ready to receive traffic, latest at the beginni
 If everything worked, you'll see your node running on the either the [Sandbox testnet network explorer](https://sandbox-explorer.nymtech.net) or the [mainnet network explorer](https://explorer.nymtech.net), depending on which environment you're running.
 
 
+## Migrate to `nym-node` in Mixnet Smart Contract
+
+From `nym-wallet` version `1.2.15` onward the application allows and prompts operators to migrate their gateway or mixnode to a `nym-node` in the Mixnet smart contract - an important step in [project smoosh](../../archive/faq/smoosh-faq.mdx). To do so follow these steps:
+
+<Steps>
+
+###### 1. Download the latest wallet from [the release page](https://github.com/nymtech/nym/releases)
+
+###### 2. Verify the binary and extract it if needed
+
+- Download [`hashes.json`]https://github.com/nymtech/nym/releases/download/nym-wallet-v1.2.15/hashes.json
+- Open it with your text editor or print it's content with `cat hashes.json`
+- Run `sha256sum <WALLET_BINARY>` for example `sha256sum ./nym-wallet_1.2.15_amd64.AppImage`
+- If your have to extract it (like `.tar.gz`) do it
+
+###### 3. Open the wallet and sign in
+
+###### 4. Migrate!
+
+- Go to Bonding and you will be prompted with such message:
+
+![](/images/operators/wallet-screenshots/migrate_nym-node.png)
+
+- In case you for some reason didn't see the prompt or you closed it - you can click in the upper right corner of the same window on this button:
+
+![](/images/operators/wallet-screenshots/migrate_nym-node2.png)
+
+- Confirm the transaction
+
+###### 5. Welcome to new episode of `nym-node`!
+
+</ Steps>
+
+<Callout type="warning" emoji="⚠️">
+Versions older than `nym-wallet v 1.2.15` will not allow bonding new nodes.
+</Callout>
+
 ## Bond via the CLI (power users)
 
 If you want to bond your Mix Node via the CLI, then check out the [relevant section in the Nym CLI](https://nymtech.net/docs/tools/nym-cli.html#bond-a-mix-node) docs.
-

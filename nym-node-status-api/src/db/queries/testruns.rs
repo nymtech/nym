@@ -33,8 +33,10 @@ pub(crate) async fn get_in_progress_testrun_by_id(
         TestRunStatus::InProgress as i64,
     )
     .fetch_one(conn.as_mut())
-    .await
-    .context(format!("Couldn't retrieve testrun {testrun_id}"))
+    .await.map_err(|e| {
+        anyhow::anyhow!("Couldn't retrieve testrun {testrun_id}: {e}")
+    })
+
 }
 
 pub(crate) async fn get_testruns_assigned_to_agent(

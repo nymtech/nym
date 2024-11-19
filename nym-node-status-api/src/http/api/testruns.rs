@@ -4,8 +4,8 @@ use axum::{
     extract::{Path, State},
     Router,
 };
-use nym_common_models::ns_api::SubmitResults;
-use nym_crypto::asymmetric::ed25519::PublicKey;
+use nym_common_models::ns_api::{get_testrun, SubmitResults};
+use nym_crypto::asymmetric::ed25519::{PublicKey, Signature};
 use reqwest::StatusCode;
 
 use crate::db::models::TestRunStatus;
@@ -32,10 +32,12 @@ pub(crate) fn routes() -> Router<AppState> {
 #[tracing::instrument(level = "debug", skip_all)]
 async fn request_testrun(
     State(state): State<AppState>,
-    body: String,
+    Json(request): Json<get_testrun::GetTestrunRequest>,
 ) -> HttpResult<Json<TestrunAssignment>> {
     // TODO dz log agent's network probe version
-    let agent_pubkey = authenticate_agent(&body, &state)?;
+
+    authenticate(&request, &state)?;
+    let agent_pubkey = request.payload.agent_public_key;
 
     tracing::debug!("Agent {} requested testrun", agent_pubkey);
 
@@ -104,12 +106,11 @@ async fn submit_testrun(
         return Err(HttpError::invalid_input("Invalid testrun submitted"));
     }
 
-    agent_pubkey
-        .verify(&probe_results.message, &probe_results.signature)
-        .map_err(|_| {
-            tracing::warn!("Message verification failed, rejecting");
-            HttpError::unauthorized()
-        })?;
+    verify_message(
+        &agent_pubkey,
+        &probe_results.message,
+        &probe_results.signature,
+    )?;
 
     let gw_identity = db::queries::select_gateway_identity(&mut conn, assigned_testrun.gateway_id)
         .await
@@ -162,21 +163,34 @@ async fn submit_testrun(
     Ok(StatusCode::CREATED)
 }
 
-fn authenticate_agent(base58_pubkey: &str, state: &AppState) -> HttpResult<PublicKey> {
-    let agent_pubkey = PublicKey::from_base58_string(base58_pubkey).map_err(|_| {
-        if base58_pubkey.is_empty() {
-            tracing::warn!("Auth key missing from request body, rejecting");
-        } else {
-            tracing::warn!("Failed to deserialize key from request body, rejecting");
-        }
-        HttpError::unauthorized()
-    })?;
-    if !state.is_registered(&agent_pubkey) {
-        tracing::warn!("Public key {} not registered, rejecting", agent_pubkey);
+// TODO dz this should be middleware
+fn authenticate(request: &get_testrun::GetTestrunRequest, state: &AppState) -> HttpResult<()> {
+    if !state.is_registered(&request.payload.agent_public_key) {
+        tracing::warn!("Public key not registered with NS API, rejecting");
         return Err(HttpError::unauthorized());
-    }
+    };
 
-    Ok(agent_pubkey)
+    verify_message(
+        &request.payload.agent_public_key,
+        &request.payload,
+        &request.signature,
+    )
+    .inspect_err(|_| tracing::warn!("Signature verification failed, rejecting"))?;
+
+    Ok(())
+}
+
+fn verify_message<T>(public_key: &PublicKey, message: &T, signature: &Signature) -> HttpResult<()>
+where
+    T: serde::Serialize,
+{
+    bincode::serialize(message)
+        .map_err(HttpError::invalid_input)
+        .and_then(|serialized| {
+            public_key
+                .verify(serialized, signature)
+                .map_err(|_| HttpError::unauthorized())
+        })
 }
 
 fn get_result_from_log(log: &str) -> String {

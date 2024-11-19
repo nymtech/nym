@@ -6053,12 +6053,15 @@ name = "nym-node-status-agent"
 version = "0.1.6"
 dependencies = [
  "anyhow",
+ "bincode",
+ "chrono",
  "clap 4.5.20",
  "nym-bin-common",
  "nym-common-models",
  "nym-crypto",
  "rand",
  "reqwest 0.12.4",
+ "serde",
  "serde_json",
  "tempfile",
  "tokio",
@@ -6073,6 +6076,7 @@ version = "0.1.6"
 dependencies = [
  "anyhow",
  "axum 0.7.7",
+ "bincode",
  "chrono",
  "clap 4.5.20",
  "cosmwasm-std",

@@ -1,9 +1,9 @@
 #!/bin/bash
 
 set -eu
-environment="qa"
+export ENVIRONMENT=${ENVIRONMENT:-"sandbox"}
 
-probe_git_ref="0dd5dacdda92b1ddd51cd30a3399515e45613371"
+probe_git_ref="nym-vpn-core-v1.0.0-rc.6"
 
 crate_root=$(dirname $(realpath "$0"))
 monorepo_root=$(dirname "${crate_root}")
@@ -13,7 +13,7 @@ echo "gateway_probe_src=$gateway_probe_src"
 echo "crate_root=$crate_root"
 
 set -a
-source "${monorepo_root}/envs/${environment}.env"
+source "${monorepo_root}/envs/${ENVIRONMENT}.env"
 set +a
 
 export RUST_LOG="debug"

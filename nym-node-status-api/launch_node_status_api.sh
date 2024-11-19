@@ -19,12 +19,12 @@ Eujj4GmvwQBgHZaNSyqUbjMFSsnXWPSjEYUPgAsKmx1A,
 5ZnfSGxW6EKcFxB8jftb9V3f897VpwpZtf7kCPYzB595,
 H9kuRd8BGjEUD8Grh5U9YUPN5ZaQmSYz8U44R72AffKM"
 
-export ENVIRONMENT="qa.env"
+export ENVIRONMENT=${ENVIRONMENT:-"sandbox"}
 
 function run_bare() {
     # export necessary env vars
     set -a
-    source ../envs/$ENVIRONMENT
+    source ../envs/${ENVIRONMENT}.env
     set +a
     export RUST_LOG=debug
 

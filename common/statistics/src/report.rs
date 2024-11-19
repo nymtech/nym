@@ -58,6 +58,14 @@ impl ToString for ClientStatsReport {
     }
 }
 
+impl ToString for ClientStatsReport {
+    fn to_string(&self) -> String {
+        // safety, no custom serialization
+        #[allow(clippy::unwrap_used)]
+        serde_json::to_string(self).unwrap()
+    }
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OsInformation {
     pub(crate) os_type: String,

@@ -22,14 +22,14 @@ export const Clt = ({ children, backgroundColor = 'white', borderColor = 'black'
 
 
     return (
-        <div className={`callout ${pointPosition}`} style={props}>
-            <div className={`callout__bubble ${pointPosition}`}>
-                <div className="callout__content">
+        <div className={`clt ${pointPosition}`} style={props}>
+            <div className={`cclt__bubble ${pointPosition}`}>
+                <div className="clt__content">
                     {children}
                 </div>
             </div>
-            <div className={`callout__point-wrapper ${pointPosition} ${pointAlignment}`} style={{ ...(translate && { transform: translate }) }}>
-                <div className={`callout__point ${pointPosition}`} />
+            <div className={`clt__point-wrapper ${pointPosition} ${pointAlignment}`} style={{ ...(translate && { transform: translate }) }}>
+                <div className={`clt__point ${pointPosition}`} />
             </div>
         </div>
     )

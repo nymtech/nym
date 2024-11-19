@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Duration};
+use std::{collections::HashMap, sync::Arc, time::Duration};
 
 use moka::{future::Cache, Entry};
 use nym_crypto::asymmetric::ed25519::PublicKey;
@@ -6,7 +6,10 @@ use tokio::sync::RwLock;
 
 use crate::{
     db::DbPool,
-    http::models::{DailyStats, Gateway, Mixnode, SummaryHistory},
+    http::{
+        error::{HttpError, HttpResult},
+        models::{DailyStats, Gateway, Mixnode, SummaryHistory},
+    },
 };
 
 #[derive(Debug, Clone)]
@@ -14,6 +17,8 @@ pub(crate) struct AppState {
     db_pool: DbPool,
     cache: HttpCache,
     agent_key_list: Vec<PublicKey>,
+    /// last time agent requested a testrun
+    agent_last_request_times: Arc<RwLock<HashMap<String, i64>>>,
 }
 
 impl AppState {
@@ -22,6 +27,7 @@ impl AppState {
             db_pool,
             cache: HttpCache::new(cache_ttl),
             agent_key_list,
+            agent_last_request_times: Arc::new(RwLock::new(HashMap::new())),
         }
     }
 
@@ -35,6 +41,39 @@ impl AppState {
 
     pub(crate) fn is_registered(&self, agent_pubkey: &PublicKey) -> bool {
         self.agent_key_list.contains(agent_pubkey)
+    }
+
+    /// Only updates if request time is valid. Otherwise return error
+    pub(crate) async fn check_last_request_time(
+        &self,
+        agent_key: &PublicKey,
+        request_time: &i64,
+    ) -> HttpResult<()> {
+        // if entry exists with a newer time than this request's submit time,
+        // it's a repeated request
+        let agent_key = agent_key.to_base58_string();
+        let request_times = self.agent_last_request_times.read().await;
+        if let Some(previous_request_time) = request_times.get(&agent_key) {
+            if request_time <= previous_request_time {
+                tracing::warn!(
+                    "Request has timestamp {} but previous request was at {}, rejecting",
+                    request_time,
+                    previous_request_time
+                );
+                return Err(HttpError::unauthorized());
+            }
+        }
+        drop(request_times);
+
+        // otherwise this is a newer (or a first) request
+        self.agent_last_request_times
+            .write()
+            .await
+            .entry(agent_key)
+            .and_modify(|value| *value = *request_time)
+            .or_insert(*request_time);
+
+        Ok(())
     }
 }
 

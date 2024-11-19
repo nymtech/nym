@@ -37,6 +37,13 @@ async fn request_testrun(
     // TODO dz log agent's network probe version
 
     authenticate(&request, &state)?;
+    state
+        .check_last_request_time(
+            &request.payload.agent_public_key,
+            &request.payload.timestamp,
+        )
+        .await?;
+
     let agent_pubkey = request.payload.agent_public_key;
 
     tracing::debug!("Agent {} requested testrun", agent_pubkey);
@@ -58,7 +65,7 @@ async fn request_testrun(
                 );
                 Ok(Json(testrun))
             } else {
-                tracing::debug!("No testruns available for agent");
+                tracing::debug!("No testruns available for agent {}", agent_pubkey);
                 Err(HttpError::no_testruns_available())
             }
         }
@@ -164,6 +171,7 @@ async fn submit_testrun(
 }
 
 // TODO dz this should be middleware
+#[tracing::instrument(level = "debug", skip_all)]
 fn authenticate(request: &get_testrun::GetTestrunRequest, state: &AppState) -> HttpResult<()> {
     if !state.is_registered(&request.payload.agent_public_key) {
         tracing::warn!("Public key not registered with NS API, rejecting");

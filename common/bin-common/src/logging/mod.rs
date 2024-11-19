@@ -47,6 +47,7 @@ pub fn setup_logging() {
 #[cfg(feature = "basic_tracing")]
 pub fn setup_tracing_logger() {
     let log_builder = tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
         // Use a more compact, abbreviated log format
         .compact()
         // Display source code file paths

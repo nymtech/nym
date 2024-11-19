@@ -3,7 +3,7 @@
 
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 
-use crate::{v3, v4};
+use crate::{v2, v3, v4};
 
 impl From<v3::request::AuthenticatorRequest> for v4::request::AuthenticatorRequest {
     fn from(authenticator_request: v3::request::AuthenticatorRequest) -> Self {
@@ -64,6 +64,16 @@ impl From<Box<v3::topup::TopUpMessage>> for Box<v4::topup::TopUpMessage> {
     }
 }
 
+impl From<v2::registration::GatewayClient> for v4::registration::GatewayClient {
+    fn from(gw_client: v2::registration::GatewayClient) -> Self {
+        Self {
+            pub_key: gw_client.pub_key,
+            private_ips: gw_client.private_ip.into(),
+            mac: gw_client.mac.into(),
+        }
+    }
+}
+
 impl From<v3::registration::GatewayClient> for v4::registration::GatewayClient {
     fn from(gw_client: v3::registration::GatewayClient) -> Self {
         Self {
@@ -84,6 +94,22 @@ impl From<v4::registration::GatewayClient> for v3::registration::GatewayClient {
     }
 }
 
+impl From<v4::registration::GatewayClient> for v2::registration::GatewayClient {
+    fn from(gw_client: v4::registration::GatewayClient) -> Self {
+        Self {
+            pub_key: gw_client.pub_key,
+            private_ip: gw_client.private_ips.ipv4.into(),
+            mac: gw_client.mac.into(),
+        }
+    }
+}
+
+impl From<v2::registration::ClientMac> for v4::registration::ClientMac {
+    fn from(mac: v2::registration::ClientMac) -> Self {
+        Self::new(mac.to_vec())
+    }
+}
+
 impl From<v3::registration::ClientMac> for v4::registration::ClientMac {
     fn from(mac: v3::registration::ClientMac) -> Self {
         Self::new(mac.to_vec())
@@ -91,6 +117,12 @@ impl From<v3::registration::ClientMac> for v4::registration::ClientMac {
 }
 
 impl From<v4::registration::ClientMac> for v3::registration::ClientMac {
+    fn from(mac: v4::registration::ClientMac) -> Self {
+        Self::new(mac.to_vec())
+    }
+}
+
+impl From<v4::registration::ClientMac> for v2::registration::ClientMac {
     fn from(mac: v4::registration::ClientMac) -> Self {
         Self::new(mac.to_vec())
     }

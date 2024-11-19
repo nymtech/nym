@@ -89,6 +89,9 @@ pub enum AuthenticatorError {
     #[error("storage should have the requested bandwidht entry")]
     MissingClientBandwidthEntry,
 
+    #[error("unknown version number")]
+    UnknownVersion,
+
     #[error("{0}")]
     PublicKey(#[from] nym_wireguard_types::Error),
 

@@ -5,11 +5,11 @@ use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::helpers::{NodeIdParam, PaginationRequest};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
-use axum::routing::get;
+use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_api_requests::models::{
-    AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NoiseDetails,
-    NymNodeDescription, PerformanceHistoryResponse, UptimeHistoryResponse,
+    AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NodeRefreshBody,
+    NoiseDetails, NymNodeDescription, PerformanceHistoryResponse, UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;
@@ -17,7 +17,8 @@ use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NymNodeDetails;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use time::Date;
+use std::time::Duration;
+use time::{Date, OffsetDateTime};
 use utoipa::{IntoParams, ToSchema};
 
 pub(crate) mod legacy;
@@ -25,6 +26,7 @@ pub(crate) mod unstable;
 
 pub(crate) fn nym_node_routes() -> Router<AppState> {
     Router::new()
+        .route("/refresh-described", post(refresh_described))
         .route("/noise", get(nodes_noise))
         .route("/bonded", get(get_bonded_nodes))
         .route("/described", get(get_described_nodes))
@@ -40,6 +42,63 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
         )
         // to make it compatible with all the explorers that were used to using 0-100 values
         .route("/uptime-history/:node_id", get(get_node_uptime_history))
+}
+
+#[utoipa::path(
+    tag = "Nym Nodes",
+    post,
+    request_body = NodeRefreshBody,
+    path = "/refresh-described",
+    context_path = "/v1/nym-nodes",
+)]
+async fn refresh_described(
+    State(state): State<AppState>,
+    Json(request_body): Json<NodeRefreshBody>,
+) -> AxumResult<Json<()>> {
+    let Some(refresh_data) = state
+        .nym_contract_cache()
+        .get_node_refresh_data(request_body.node_identity)
+        .await
+    else {
+        return Err(AxumErrorResponse::not_found(format!(
+            "node with identity {} does not seem to exist",
+            request_body.node_identity
+        )));
+    };
+
+    if !request_body.verify_signature() {
+        return Err(AxumErrorResponse::unauthorised("invalid request signature"));
+    }
+
+    if request_body.is_stale() {
+        return Err(AxumErrorResponse::bad_request("the request is stale"));
+    }
+
+    let node_id = refresh_data.node_id();
+    if let Some(last) = state.forced_refresh.last_refreshed(node_id).await {
+        // max 1 refresh a minute
+        let minute_ago = OffsetDateTime::now_utc() - Duration::from_secs(60);
+        if last > minute_ago {
+            return Err(AxumErrorResponse::too_many(
+                "already refreshed node in the last minute",
+            ));
+        }
+    }
+    // to make sure you can't ddos the endpoint while a request is in progress
+    state.forced_refresh.set_last_refreshed(node_id).await;
+
+    if let Some(updated_data) = refresh_data.try_refresh().await {
+        let Ok(mut describe_cache) = state.described_nodes_cache.write().await else {
+            return Err(AxumErrorResponse::service_unavailable());
+        };
+        describe_cache.get_mut().force_update(updated_data)
+    } else {
+        return Err(AxumErrorResponse::unprocessable_entity(
+            "failed to refresh node description",
+        ));
+    }
+
+    Ok(Json(()))
 }
 
 #[utoipa::path(

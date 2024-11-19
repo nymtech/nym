@@ -7,8 +7,8 @@ use defguard_wireguard_rs::{
     WireguardInterfaceApi,
 };
 use futures::channel::oneshot;
-use nym_authenticator_requests::{
-    latest::registration::RemainingBandwidthData, v1::registration::BANDWIDTH_CAP_PER_DAY,
+use nym_authenticator_requests::latest::registration::{
+    RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY,
 };
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
@@ -194,6 +194,10 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         );
         self.bw_storage_managers
             .insert(peer.public_key.clone(), bandwidth_storage_manager);
+        // try to immediately update the host information, to eliminate races
+        if let Ok(host_information) = self.wg_api.inner.read_interface_data() {
+            *self.host_information.write().await = host_information;
+        }
         tokio::spawn(async move {
             if let Err(e) = handle.run().await {
                 log::error!("Peer handle shut down ungracefully - {e}");
@@ -230,7 +234,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                 // host information not updated yet
                 return Ok(None);
             };
-            BANDWIDTH_CAP_PER_DAY.saturating_sub((peer.rx_bytes + peer.tx_bytes) as i64)
+            BANDWIDTH_CAP_PER_DAY.saturating_sub(peer.rx_bytes + peer.tx_bytes) as i64
         };
 
         Ok(Some(RemainingBandwidthData {

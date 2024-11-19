@@ -188,6 +188,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     };
 
     let router = router.with_state(AppState {
+        forced_refresh: Default::default(),
         nym_contract_cache: nym_contract_cache_state.clone(),
         node_status_cache: node_status_cache_state.clone(),
         circulating_supply_cache: circulating_supply_cache.clone(),

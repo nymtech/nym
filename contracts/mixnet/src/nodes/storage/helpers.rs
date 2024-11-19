@@ -104,7 +104,10 @@ pub(crate) fn next_nymnode_id_counter(store: &mut dyn Storage) -> StdResult<Node
 }
 
 pub(crate) fn initialise_storage(storage: &mut dyn Storage) -> Result<(), MixnetContractError> {
-    ACTIVE_ROLES_BUCKET.save(storage, &RoleStorageBucket::default())?;
+    let active_bucket = RoleStorageBucket::default();
+    let inactive_bucket = active_bucket.other();
+
+    ACTIVE_ROLES_BUCKET.save(storage, &active_bucket)?;
     let roles = vec![
         Role::Layer1,
         Role::Layer2,
@@ -114,24 +117,12 @@ pub(crate) fn initialise_storage(storage: &mut dyn Storage) -> Result<(), Mixnet
         Role::Standby,
     ];
     for role in roles {
-        ROLES.save(storage, (RoleStorageBucket::default() as u8, role), &vec![])?;
-        ROLES.save(
-            storage,
-            (RoleStorageBucket::default().other() as u8, role),
-            &vec![],
-        )?
+        ROLES.save(storage, (active_bucket as u8, role), &vec![])?;
+        ROLES.save(storage, (inactive_bucket as u8, role), &vec![])?
     }
 
-    ROLES_METADATA.save(
-        storage,
-        RoleStorageBucket::default() as u8,
-        &Default::default(),
-    )?;
-    ROLES_METADATA.save(
-        storage,
-        RoleStorageBucket::default().other() as u8,
-        &Default::default(),
-    )?;
+    ROLES_METADATA.save(storage, active_bucket as u8, &Default::default())?;
+    ROLES_METADATA.save(storage, inactive_bucket as u8, &Default::default())?;
 
     Ok(())
 }

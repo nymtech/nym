@@ -217,24 +217,34 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
 
   const migrateVestedMixnode = async () => {
     setIsLoading(true);
-    const tx = await tauriMigrateVestedMixnode();
-    setIsLoading(false);
-    return tx;
+    try {
+      const tx = await tauriMigrateVestedMixnode();
+      setIsLoading(false);
+      return tx;
+    } catch (e) {
+      Console.error(e);
+      setError(`an error occurred: ${e}`);
+    }
   };
 
   const migrateLegacyNode = async () => {
     setIsLoading(true);
-    let tx: TransactionExecuteResult | undefined;
+    try {
+      let tx: TransactionExecuteResult | undefined;
 
-    if (bondedNode && isMixnode(bondedNode)) {
-      tx = await migrateLegacyMixnodeReq();
-    }
-    if (bondedNode && isGateway(bondedNode)) {
-      tx = await migrateLegacyGatewayReq();
+      if (bondedNode && isMixnode(bondedNode)) {
+        tx = await migrateLegacyMixnodeReq();
+      }
+      if (bondedNode && isGateway(bondedNode)) {
+        tx = await migrateLegacyGatewayReq();
+      }
+      return tx;
+    } catch (e) {
+      Console.error(e);
+      setError(`an error occurred: ${e}`);
     }
 
     setIsLoading(false);
-    return tx;
   };
 
   const memoizedValue = useMemo(

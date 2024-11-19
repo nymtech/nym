@@ -13,7 +13,7 @@ use nym_api_requests::ecash::models::{
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, LegacyDescribedMixNode, NodePerformanceResponse,
-    NymNodeDescription,
+    NodeRefreshBody, NymNodeDescription,
 };
 use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
 use nym_api_requests::pagination::PaginatedResponse;
@@ -695,16 +695,32 @@ pub trait NymApiClientExt: ApiClient {
         &self,
         node_id: NodeId,
     ) -> Result<NodePerformanceResponse, NymAPIError> {
-        self.get_json_from(format!("/v1/nym-nodes/performance/{node_id}"))
-            .await
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "nym-nodes",
+                "performance",
+                &node_id.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
     }
 
     async fn get_node_annotation(
         &self,
         node_id: NodeId,
     ) -> Result<AnnotationResponse, NymAPIError> {
-        self.get_json_from(format!("/v1/nym-nodes/annotation/{node_id}"))
-            .await
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "nym-nodes",
+                "annotation",
+                &node_id.to_string(),
+            ],
+            NO_PARAMS,
+        )
+        .await
     }
 
     #[deprecated]
@@ -913,6 +929,18 @@ pub trait NymApiClientExt: ApiClient {
                 ecash::MASTER_VERIFICATION_KEY,
             ],
             &params,
+        )
+        .await
+    }
+
+    async fn force_refresh_describe_cache(
+        &self,
+        request: &NodeRefreshBody,
+    ) -> Result<(), NymAPIError> {
+        self.post_json(
+            &[routes::API_VERSION, "nym-nodes", "refresh-described"],
+            NO_PARAMS,
+            request,
         )
         .await
     }

@@ -227,6 +227,11 @@ impl EpochAdvancer {
                 continue;
             };
 
+            if mix.bond_information.proxy.is_some() {
+                debug!("legacy mixnode {node_id} is using vested tokens");
+                continue;
+            }
+
             let performance = annotation.detailed_performance.to_rewarding_performance();
             debug!(
                 "legacy mixnode {}: stake: {total_stake}, performance: {performance}",

@@ -6,7 +6,7 @@ export const claimOperatorReward = async (fee?: Fee) =>
 
 export const claimDelegatorRewards = async (mixId: number, fee?: FeeDetails) =>
   invokeWrapper<TransactionExecuteResult[]>('claim_locked_and_unlocked_delegator_reward', {
-    mixId,
+    nodeId: mixId,
     fee: fee?.fee,
   });
 

@@ -27,9 +27,9 @@ impl HttpError {
         }
     }
 
-    pub(crate) fn no_available_testruns() -> Self {
+    pub(crate) fn no_testruns_available() -> Self {
         Self {
-            message: serde_json::json!({"message": "No available testruns"}).to_string(),
+            message: serde_json::json!({"message": "No testruns available"}).to_string(),
             status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
         }
     }

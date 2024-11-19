@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use time::OffsetDateTime;
-use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio::sync::{RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard};
 
 #[derive(Debug, Error)]
 #[error("the cache item has not been initialised")]
@@ -43,6 +43,13 @@ impl<T> SharedCache<T> {
     pub(crate) async fn get(&self) -> Result<RwLockReadGuard<'_, Cache<T>>, UninitialisedCache> {
         let guard = self.0.read().await;
         RwLockReadGuard::try_map(guard, |a| a.inner.as_ref()).map_err(|_| UninitialisedCache)
+    }
+
+    pub(crate) async fn write(
+        &self,
+    ) -> Result<RwLockMappedWriteGuard<'_, Cache<T>>, UninitialisedCache> {
+        let guard = self.0.write().await;
+        RwLockWriteGuard::try_map(guard, |a| a.inner.as_mut()).map_err(|_| UninitialisedCache)
     }
 
     // ignores expiration data
@@ -132,6 +139,10 @@ impl<T> Cache<T> {
     pub(crate) fn unchecked_update(&mut self, value: impl Into<T>) {
         self.value = value.into();
         self.as_at = OffsetDateTime::now_utc()
+    }
+
+    pub(crate) fn get_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 
     #[allow(dead_code)]

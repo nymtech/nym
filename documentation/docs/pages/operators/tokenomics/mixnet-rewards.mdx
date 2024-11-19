@@ -17,6 +17,10 @@ import { Clt } from 'components/callout-custom/CalloutCustom.jsx';
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)
 * For a more comprehensive overview, live data and supply graphs, visit [*nymtech.net/about/token*](https://nymtech.net/about/token)
 
+We are working on the final architecture of [*Fair Mixnet*](#fair-mixnet) tokenomics implementation and its detailed documentation. **The current design is called [*Naive rewarding*](#naive-rewarding).** It is an intermediate step, allowing operators to migrate to `nym-node` in Mixnet smart contract and for the first time recieve delegations and earn rewards for any `nym-node` functionality, in opposite to the past system, where only Mixnodes were able to recieve delegations and rewards.
+
+**Please read the [roadmap section below](#roadmap) to see the planned development.**
+
 {/*
 
 **Formulas and Examples Annotation**
@@ -115,7 +119,7 @@ This is a quick summary, to understand the full picture, please see detailed [*R
 | Naive rewarding: Nodes in [active set](tokenomics.mdx#active-set) |  50  | 70 |
 | Naive rewarding: Rewards distribution per node | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 |
 | Final model: Active nodes | All following criteria for eligibility | All following criteria for eligibility |
-| Final model: Rewards distribution per node | 0.33 \* COLLECTED_USER_TICKETS | 0.67 \* COLLECTED_USER_TICKETS |
+| Final model: Rewards distribution per node | 0.33 \* collected_user_tickets | 0.67 \* collected_user_tickets |
 
     </MyTab>
   </Tabs>
@@ -162,16 +166,19 @@ As you can see the performance (also known as *Routing score*) is much more impo
 
 ### Layer Distribution
 
-Once the active set of 120 Mixnodes and 120 Gateways is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of 6000 NYM is distributed between the layers from Mixmining pool, following the ratio according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
+Once the rewarded set (currently 120 Mixnodes and 120 Gateways) is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of 6000 NYM is distributed between the layers from Mixmining pool. Currently in our *Naive rewarding* intermediate design, all layers get a same portion, therefore each node is *naively* assigned same working factor and therefore earns 1/240 of the rewards per epoch.
 
-\*
-<Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
-5-hop mixnet mode:
-$16\%; 16\%; 16\%; 16\%; 36\%$
-2-hop wireguard mode: $33\%; 67\%$
+We are working on the final design with the ratio implementing a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
+
+<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+>5-hop mixnet mode: <br />
+> 16%; 16%; 16%; 16%; 36% <br/>
+> <br/>
+> 2-hop dVPN mode: <br />
+> 33%; 67%
 </Callout>
 
-
+{/*
 In real numbers: If hourly revenue to all 240 nodes is 6000 NYM, the layer compartmentalisation is 960 NYM for Entry Gateway layer and each Mixnode layer and 2160 NYM for Exit Gateway layer. The calculation is in the example below:
 
 <Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
@@ -190,12 +197,30 @@ $33\% - 67\%$
 ### Operation Cost, Profit Margin & Delegation
 
 ### APR Calculation
-
+*/}
 
 ## Roadmap
 
-PUT FINAL TOKENOMIC SCHEME AND ALL STEPS TOWARDS IT IN HERE
+We are working on the final architecture of [*Fair Mixnet*](#fair-mixnet) tokenomics implementation. The current design is called [*Naive rewarding*](#naive-rewarding). This is an intermediate step, allowing operators to migrate to `nym-node` in Mixnet smart contract and for the first time recieve delegations and earn rewards for any `nym-node` functionality, in opposite to the past system, where only Mixnodes were able to recieve delegations and rewards.
 
+On November 5th, we presented a release roadmap in live [Operators Townhall](https://www.youtube.com/watch?v=3G1pJqvO2VM) where we explained in detail the steps of Nym node and tokenomics development and the effect it will have on node operators and put it into a rough timeline.
+
+![](/images/operators/tokenomics/roadmap_24-q4.png)
+
+### Naive Rewarding
+
+***Naive rewarding* is the current tokenomics design.** The table below lists features and logic of this design.
+
+![](/images/operators/tokenomics/roadmap_naive.png)
+
+### Fair Mixnet
+
+***Fair Mixnet* is the architecture modeal that we work towards.** The table below lists features and logic of the design once implemented.
+
+![](/images/operators/tokenomics/roadmap_fair.png)
+
+
+{/*
 ## Stats
 
 NYM token is capped at 1b. Below is a table with actual\* token supply distribution.
@@ -254,7 +279,7 @@ $1 \ NYM = 1 \_ 000 \_ 000 \ uNYM$
 - `estimated_node_profit` - An estimate of the profit that a particular Mix node operator can expect to earn. This value is calculated by subtracting the Mix Node operator's `operating_costs` from their `estimated_operator_reward` for the current epoch.
 
 - `estimated_operator_cost` - An estimate of the total cost that a particular Mix Node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a Mix Node, such as server hosting fees, and other expenses associated with operating the Mix Node.
-
+*/}
 
 
 

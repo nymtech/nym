@@ -54,11 +54,13 @@ rustc Channel:      stable
 cargo Profile:      release
 ```
 
-- **[New smart contracts](https://github.com/nymtech/nym/releases/tag/nym-contracts-magura)**
+- [New smart contracts](https://github.com/nymtech/nym/releases/tag/nym-contracts-magura)
 
 - **[New wallet version 1.2.15](https://github.com/nymtech/nym/releases/tag/nym-wallet-v1.2.15) is out!** - allowing operators to migrate to `nym-node` in Mixnet smart contract.
 
 - [New wallet changelog](https://github.com/nymtech/nym/blob/nym-wallet-v1.2.15/nym-wallet/CHANGELOG.md)
+
+- [New directory services v2.1: API & Mixnet contract changes](#directory-services-v21-api--mixnet-contract-changes)
 
 ### Features
 
@@ -288,11 +290,15 @@ Confirm that the deployment workflows work through manual testing
 
 - **New [Tokenomics chapter](tokenomics.mdx) with [Mixnet Rewads page](tokenomics/mixnet-rewards.mdx)**
 
+- **[Operators release & rewards roadmap](tokenomics/mixnet-rewards.mdx#roadmap)**
+
 - **New [Operators landing page**](https://nymtech.net/operators)
 
 - [Nym Harbourmaster](https://harbourmaster.nymtech.net) had a new tab `NODE SEARCH` where operators can easily search nodes by identity keys and owner accounts and get all public information listed.
 
 - New [Tokenomics chapter](tokenomics.mdx) with [Mixnet Rewads page](tokenomics/mixnet-rewards.mdx)
+
+- Simplified [bonding](nodes/nym-node/bonding.mdx) and [Mixnet smart contract migration](nodes/nym-node/bonding.mdx#migrate-to-nym-node-in-mixnet-smart-contract)
 
 - Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://github.com/nymtech/nym/pull/5129) - read more on [Nym operators forum](https://forum.nymtech.net/t/vesting-accounts-are-no-longer-supported/827)
 
@@ -312,7 +318,7 @@ Confirm that the deployment workflows work through manual testing
 
 ###### 2. Verify the binary and extract it if needed
 
-- Download [`hashes.json`]https://github.com/nymtech/nym/releases/download/nym-wallet-v1.2.15/hashes.json
+- Download [`hashes.json`](https://github.com/nymtech/nym/releases/download/nym-wallet-v1.2.15/hashes.json)
 - Open it with your text editor or print it's content with `cat hashes.json`
 - Run `sha256sum <WALLET_BINARY>` for example `sha256sum ./nym-wallet_1.2.15_amd64.AppImage`
 - If your have to extract it (like `.tar.gz`) do it

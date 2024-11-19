@@ -26,6 +26,8 @@ use std::str::FromStr;
 use tokio::time::Duration;
 use tracing::instrument;
 
+mod geodata;
+
 // TODO dz should be configurable
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 
@@ -121,9 +123,6 @@ impl Monitor {
             .filter(|node| node.description.declared_role.entry)
             .collect::<Vec<_>>();
         tracing::debug!("Of those, {} gateways", gateways.len());
-        for gw in gateways.iter() {
-            tracing::debug!("{}", gw.ed25519_identity_key().to_base58_string());
-        }
 
         let mixnodes = all_nodes
             .iter()

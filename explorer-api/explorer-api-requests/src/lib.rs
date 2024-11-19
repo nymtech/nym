@@ -52,3 +52,5 @@ pub struct PrettyDetailedGatewayBond {
     pub proxy: Option<Addr>,
     pub location: Option<Location>,
 }
+
+

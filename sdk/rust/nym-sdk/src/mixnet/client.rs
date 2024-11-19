@@ -23,13 +23,14 @@ use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::{
     base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
 };
-use nym_client_core::config::{DebugConfig, StatsReporting};
+use nym_client_core::config::DebugConfig;
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_credentials_interface::TicketType;
 use nym_socks5_client_core::config::Socks5;
+use nym_statistics_common::StatsCollection;
 use nym_task::{TaskClient, TaskHandle, TaskStatus};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
@@ -54,6 +55,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_shutdown: Option<TaskClient>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
+    stats: StatsCollection,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -92,6 +94,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             custom_shutdown: None,
             custom_gateway_transceiver: None,
             force_tls: false,
+            stats: StatsCollection::default(),
             user_agent: None,
         })
     }
@@ -120,6 +123,7 @@ where
             custom_shutdown: None,
             force_tls: false,
             user_agent: None,
+            stats: StatsCollection::default(),
             gateway_endpoint_config_path: None,
             storage,
         }
@@ -138,6 +142,7 @@ where
             custom_shutdown: self.custom_shutdown,
             force_tls: self.force_tls,
             user_agent: self.user_agent,
+            stats: self.stats,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
         }
@@ -187,9 +192,13 @@ where
         self
     }
 
-    /// Use a custom debugging configuration.
+    /// Use a custom debugging configuration
+    /// 
+    /// Sets the statistics collection to be built from the stats reporting configuration in the
+    /// provided debug configuration -- i.e. overwriting `self.with_statistics(...)`.
     #[must_use]
     pub fn debug_config(mut self, debug_config: DebugConfig) -> Self {
+        self.stats = StatsCollection::FromConfig(debug_config.stats_reporting.clone());
         self.config.debug_config = debug_config;
         self
     }
@@ -232,8 +241,8 @@ where
     }
 
     #[must_use]
-    pub fn with_statistics_reporting(mut self, config: StatsReporting) -> Self {
-        self.config.debug_config.stats_reporting = config;
+    pub fn with_statistics(mut self, stats: StatsCollection) -> Self {
+        self.stats = stats;
         self
     }
 
@@ -264,6 +273,7 @@ where
         client.custom_shutdown = self.custom_shutdown;
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
+        client.stats = self.stats;
         client.user_agent = self.user_agent;
 
         Ok(client)
@@ -313,6 +323,10 @@ where
     /// Allows passing an externally controlled shutdown handle.
     custom_shutdown: Option<TaskClient>,
 
+    /// Allows either configurable launched statistics collector, or passing of existing statistics event 
+    /// channel.
+    stats: StatsCollection,
+
     user_agent: Option<UserAgent>,
 }
 
@@ -352,6 +366,7 @@ where
         };
 
         Ok(DisconnectedMixnetClient {
+            stats: StatsCollection::FromConfig(config.debug_config.stats_reporting.clone()),
             config,
             socks5_config,
             state: BuilderState::New,
@@ -577,7 +592,8 @@ where
 
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway);
+                .with_wait_for_gateway(self.wait_for_gateway)
+                .with_statistics(self.stats);
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);

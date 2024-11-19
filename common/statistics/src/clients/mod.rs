@@ -1,9 +1,11 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::report::{ClientStatsReport, OsInformation};
+use crate::{
+    report::{ClientStatsReport, OsInformation},
+    Runtime,
+};
 
-use nym_task::TaskClient;
 use time::{OffsetDateTime, Time};
 use tokio::sync::mpsc::UnboundedSender;
 
@@ -127,7 +129,7 @@ impl ClientStatsController {
         self.packet_stats.snapshot();
     }
 
-    pub fn local_report(&mut self, task_client: &mut TaskClient) {
+    pub fn local_report(&mut self, task_client: &mut Runtime) {
         self.packet_stats.local_report(task_client);
         self.gateway_conn_stats.local_report();
         self.nym_api_stats.local_report();

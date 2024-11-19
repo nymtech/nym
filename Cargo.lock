@@ -6577,6 +6577,7 @@ version = "0.1.0"
 dependencies = [
  "futures",
  "log",
+ "nym-client-core-config-types",
  "nym-credentials-interface",
  "nym-crypto",
  "nym-metrics",
@@ -6590,6 +6591,7 @@ dependencies = [
  "thiserror",
  "time",
  "tokio",
+ "tokio-util",
 ]
 
 [[package]]

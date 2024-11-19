@@ -54,11 +54,18 @@ impl From<NymApiStatsEvent> for ClientStatsEvents {
     }
 }
 
-/// Nym API statistics tracking object
+/// Nym API statistics tracking object.
+///
+// Internally this uses two copies since we have separate reporting epochs for local and 
+// non-local stats reporting. In the future these may track different things.
 #[derive(Default)]
 pub struct NymApiStatsControl {
     // Keep track of packet statistics over time
-    stats: NymApiStats,
+    local_stats: NymApiStats,
+
+    //
+    remote_stats: NymApiStats,
+
 }
 
 impl NymApiStatsControl {
@@ -70,8 +77,16 @@ impl NymApiStatsControl {
         self.stats.clone()
     }
 
-    pub(crate) fn local_report(&self) {
+    pub(crate) fn local_report(&self) -> NymApiStats {
         self.report_counters();
+    }
+
+    pub(crate) fn reset(&mut self) {
+        self.stats = NymApiStats::default();
+    }
+
+    pub(crate) fn local_reset(&mut self) {
+        self.local_stats = NymApiStats::default();
     }
 
     fn report_counters(&self) {

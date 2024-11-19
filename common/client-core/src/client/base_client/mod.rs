@@ -48,8 +48,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
-use nym_statistics_common::clients::ClientStatsSender;
-use nym_statistics_common::generate_client_stats_id;
+use nym_statistics_common::{generate_client_stats_id, StatsCollection, clients::ClientStatsSender};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
@@ -186,6 +185,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
     shutdown: Option<TaskClient>,
     user_agent: Option<UserAgent>,
+    stats: StatsCollection,
 
     setup_method: GatewaySetup,
 }
@@ -209,6 +209,7 @@ where
             custom_gateway_transceiver: None,
             shutdown: None,
             user_agent: None,
+            stats: StatsCollection::FromConfig(base_config.debug.stats_reporting),
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
         }
     }
@@ -259,6 +260,12 @@ where
         self.custom_topology_provider =
             Some(Box::new(HardcodedTopologyProvider::new_from_file(file)?));
         Ok(self)
+    }
+
+    #[must_use]
+    pub fn with_statistics(mut self, stats: StatsCollection) -> Self {
+        self.stats = stats;
+        self
     }
 
     // note: do **NOT** make this method public as its only valid usage is from within `start_base`
@@ -599,22 +606,28 @@ where
     }
 
     fn start_statistics_control(
-        config: &Config,
+        stats: StatsCollection,
         user_agent: Option<UserAgent>,
         client_stats_id: String,
         input_sender: Sender<InputMessage>,
         shutdown: TaskClient,
     ) -> ClientStatsSender {
         info!("Starting statistics control...");
-        StatisticsControl::create_and_start_with_shutdown(
-            config.debug.stats_reporting,
-            user_agent
-                .map(|u| u.application)
-                .unwrap_or("unknown".to_string()),
-            client_stats_id,
-            input_sender.clone(),
-            shutdown.with_suffix("controller"),
-        )
+        
+        match stats {
+            StatsCollection::PreExisting(tx) => tx,
+            StatsCollection::FromConfig(config) => {
+                StatisticsControl::create_and_start_with_shutdown(
+                    config,
+                    user_agent
+                        .map(|u| u.application)
+                        .unwrap_or("unknown".to_string()),
+                    client_stats_id,
+                    input_sender.clone(),
+                    shutdown.with_suffix("controller"),
+                )
+            }
+        } 
     }
 
     fn start_mix_traffic_controller(
@@ -737,19 +750,21 @@ where
             .dkg_query_client
             .map(|client| BandwidthController::new(credential_store, client));
 
+        
+        // if we weren't given a stats reporter in the builder start the stats tracker ourself.
+        let stats_reporter = Self::start_statistics_control(
+                self.stats,
+                self.user_agent.clone(),
+                generate_client_stats_id(*self_address.identity()),
+                input_sender.clone(),
+                shutdown.fork("statistics_control"),
+            );
+
         let topology_provider = Self::setup_topology_provider(
             self.custom_topology_provider.take(),
             self.config.debug.topology,
             self.config.get_nym_api_endpoints(),
             self.user_agent.clone(),
-        );
-
-        let stats_reporter = Self::start_statistics_control(
-            self.config,
-            self.user_agent.clone(),
-            generate_client_stats_id(*self_address.identity()),
-            input_sender.clone(),
-            shutdown.fork("statistics_control"),
         );
 
         // needs to be started as the first thing to block if required waiting for the gateway

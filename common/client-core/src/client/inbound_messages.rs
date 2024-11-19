@@ -13,7 +13,7 @@ pub type InputMessageReceiver = tokio::sync::mpsc::Receiver<InputMessage>;
 #[derive(Debug)]
 pub enum InputMessage {
     /// Fire an already prepared mix packets into the network.
-    /// No guarantees are made about it. For example no retransmssion
+    /// No guarantees are made about it. For example no retransmission
     /// will be attempted if it gets dropped.
     Premade {
         msgs: Vec<MixPacket>,

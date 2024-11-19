@@ -23,6 +23,7 @@ Nym Network is composed of two main elements, the Mixnet represented by [Nym Nod
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)
 * For a more comprehensive overview, token live data and supply graphs, visit [*nymtech.net/about/token*](https://nymtech.net/about/token)
 
+{/*
 **Formulas and Examples Annotation**
 
 To make it easier for the reader, we use a highlighting line on the left side, with a specific color:
@@ -37,6 +38,7 @@ To make it easier for the reader, we use a highlighting line on the left side, w
 > Purple collapsible for examples.
 </AccordionTemplate>
 </Callout>
+*/}
 
 ## NYM Token: Incentivise Stability & Secure Reputation
 
@@ -106,8 +108,8 @@ NYM token is capped at 1b. Visit [Nym token page](https://nymtech.net/about/toke
 
 A number of aimed NYM tokens to be staked in the network. The staking target a is multiplier of staking supply scale factor and circulating supply.
 
-<Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
-> **staking_target = staking_supply_scale_factor * circulating_supply**
+<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+> **staking_target = staking_supply_scale_factor \* circulating_supply**
 </Callout>
 
 Staking supply scale factor is currently it's set to be <span style={{display: 'inline-block'}}><StakingScaleFactor /></span>.
@@ -118,7 +120,7 @@ The value of this variable can be changed to optimize the metrics of the network
 
 Node reputation in a form of self bond or stakers delegation. Stake saturation is calculated as:
 
-<Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
 > **stake_saturation = staking_target / rewarded_set_size**
 >
 > **rewarded_set_size = active_set_size + standby_set_size**
@@ -143,7 +145,7 @@ The way how we approach this challenge is different for Mixnet (5-hop) and dVPN 
     <MyTab>
 Nym Mixnet is using an active set of chosen nodes. Currently <b>the [active set size](https://validator.nymtech.net/api/v1/epoch/reward_params) is 240 nodes</b>, 120 with Gateway functionality: 50 entry (1st layer) and 70 exit (5th layer) and 120 as Mixnode (2nd, 3rd and 4th mixing layer). The active set is chosen in the beginning of each epoch (60min). The best performing and reputated (optimal stake saturation) nodes are chosen. Performance is much more ample as you can see in the formula below:
 
-<Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+<Callout type ="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
 > **active_set_selection_probability = ( node_performance ^ 20 ) * stake_saturation**
 </Callout>
 
@@ -153,6 +155,8 @@ In dVPN (2-hop) mode every node which meets the performance criteria, including 
     </MyTab>
   </Tabs>
 </div>
+
+In both cases, the selection algorithm also looks whether the node runs with [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) accepted **AND** if it's not a legacy binary version. In case either of these criterias are not met, the node will have be excluded from the rewarded set selection.
 
 To read more about rewards calculation, please see next page [*Nym Operators Rewards*](mixnet-rewards.md).
 
@@ -181,6 +185,6 @@ curl -X 'GET' \
 
 > The unit of value is measured in `uNYM`.
 
-<Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
 > **1 NYM = 1_000_000 uNYM**
 </Callout>

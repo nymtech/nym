@@ -17,6 +17,8 @@ import { Clt } from 'components/callout-custom/CalloutCustom.jsx';
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)
 * For a more comprehensive overview, live data and supply graphs, visit [*nymtech.net/about/token*](https://nymtech.net/about/token)
 
+{/*
+
 **Formulas and Examples Annotation**
 
 To make it easier for the reader, we use a highlighting line on the left side, with a specific color:
@@ -25,13 +27,12 @@ To make it easier for the reader, we use a highlighting line on the left side, w
 > **Turquoise with red pin for formulas.**
 </Clt>
 
-> 📌  **foo**
-
 <Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
 <AccordionTemplate name="Example">
 > Purple collapsible for examples.
 </AccordionTemplate>
 </Callout>
+*/}
 
 <Callout type="info" emoji="ℹ️">
 Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://github.com/nymtech/nym/pull/5129) - read more on [Nym operators forum](https://forum.nymtech.net/t/vesting-accounts-are-no-longer-supported/827).
@@ -129,7 +130,7 @@ For a node to be rewarded, the node must be part of a [Rewarded set](https://val
 
 The algorithm choosing nodes into the active set takes into account node's performance and [stake saturation](../tolkenomics.mdx#stake-saturation), both values being between 0 and 1 and config score which is either 0 or 1.
 
-**Config score is introduced:** The nodes selection to the active set has a new parameter - `config_score`. Config score currently looks if the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`) **AND** if [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) are accepted. Config score has binary values of either 0 or 1, with a following logic:
+**Config score is introduced:** The nodes selection to the active set has a new parameter - `config_score`. Config score currently looks if the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`) **AND** if [Terms & Conditionswnodes/nym-node/setup.mdx#terms--conditions) are accepted. Config score has binary values of either 0 or 1, with a following logic:
 
 | **Run `nym-node` binary** | **T&C's accepted** | **`config_score`** |
 | :--                       | :--                | ---:               |
@@ -141,21 +142,20 @@ The algorithm choosing nodes into the active set takes into account node's perfo
 
 The entire active set selection probablity:
 
-<Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+<Callout type="info" emoji="📌">
 > **active_set_selection_probability = config_score \* stake_saturation \* node_performance ^ 20**
 </Callout>
 
 For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them `config_score` = 1 and not 0):
 
-<Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
-<AccordionTemplate name="Example">
+<br />
+<AccordionTemplate name="✏️  Example: Reward set selection">
 > node_1 = 1.00 ^ 20 \* 1.0 = 1 <br />
 > node_2 = 1.00 ^ 20 \* 0.5 = 0.5 <br />
 > node_3 = 0.99 ^ 20 \* 1.0 = 0.818 <br />
 > node_4 = 0.95 ^ 20 \* 1.0 = 0.358 <br />
 > node_5 = 0.90 ^ 20 \* 1.0 = 0.122 <br />
 </AccordionTemplate>
-</Callout>
 
 As you can see the performance (also known as *Routing score*) is much more important during the active set selection. A node with 100% performance but only 50% stake saturation has much bigger chance to be chosen than a node with 95% performance but full stake saturation and incomparably bigger chance than 90% performing node with 100% stake saturation.
 

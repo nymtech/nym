@@ -1,6 +1,3 @@
-{
-  "validator-rewards": "Nyx Validator Rewards",
-  "mixnet-rewards": {
-    "display": "hidden"
-  }
+{ "mixnet-rewards": "Nym Mixnet Rewards",
+  "validator-rewards": "Nyx Validator Rewards"
 }

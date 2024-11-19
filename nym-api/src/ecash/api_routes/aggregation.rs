@@ -52,7 +52,8 @@ pub(crate) fn aggregation_routes(ecash_state: Arc<EcashState>) -> Router<AppStat
     params(
         EpochIdParam
     ),
-    path = "/v1/ecash/master-verification-key",
+    path = "/ecash/master-verification-key",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = VerificationKeyResponse)
     )
@@ -83,7 +84,8 @@ struct ExpirationDateParam {
     params(
         ExpirationDateParam
     ),
-    path = "/v1/ecash/aggregated-expiration-date-signatures",
+    path = "/ecash/aggregated-expiration-date-signatures",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = AggregatedExpirationDateSignatureResponse)
     )
@@ -120,7 +122,8 @@ async fn expiration_date_signatures(
     params(
         EpochIdParam
     ),
-    path = "/v1/ecash/aggregated-coin-indices-signatures",
+    path = "/ecash/aggregated-coin-indices-signatures",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = AggregatedCoinIndicesSignatureResponse)
     )

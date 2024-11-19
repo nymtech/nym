@@ -23,7 +23,8 @@ pub(crate) fn circulating_supply_routes() -> Router<AppState> {
 #[utoipa::path(
     tag = "circulating-supply",
     get,
-    path = "/v1/circulating-supply",
+    path = "/circulating-supply",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = CirculatingSupplyResponse)
     )
@@ -44,7 +45,8 @@ async fn get_full_circulating_supply(
 #[utoipa::path(
     tag = "circulating-supply",
     get,
-    path = "/v1/circulating-supply/total-supply-value",
+    path = "/circulating-supply/total-supply-value",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = [f64])
     )
@@ -67,7 +69,8 @@ async fn get_total_supply(
 #[utoipa::path(
     tag = "circulating-supply",
     get,
-    path = "/v1/circulating-supply/circulating-supply-value",
+    path = "/circulating-supply/circulating-supply-value",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = [f64])
     )

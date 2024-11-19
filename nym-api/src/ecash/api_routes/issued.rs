@@ -54,7 +54,8 @@ struct EpochParam {
     params(
         EpochParam
     ),
-    path = "/v1/ecash/epoch-credentials/{epoch}",
+    path = "/ecash/epoch-credentials/{epoch}",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = EpochCredentialsResponse),
         (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
@@ -93,7 +94,8 @@ struct IdParam {
     params(
         IdParam
     ),
-    path = "/v1/ecash/issued-credential/{id}",
+    path = "/ecash/issued-credential/{id}",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = IssuedCredentialResponse),
         (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
@@ -120,7 +122,8 @@ async fn issued_credential(
     tag = "Ecash",
     post,
     request_body = CredentialsRequestBody,
-    path = "/v1/ecash/issued-credentials",
+    path = "/ecash/issued-credentials",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = IssuedCredentialsResponse),
         (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),

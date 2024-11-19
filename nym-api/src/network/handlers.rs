@@ -21,7 +21,8 @@ pub(crate) fn nym_network_routes() -> Router<AppState> {
 #[utoipa::path(
     tag = "network",
     get,
-    path = "/v1/network/details",
+    path = "/network/details",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = NetworkDetails)
     )
@@ -50,7 +51,8 @@ pub(crate) struct ContractVersionSchemaResponse {
 #[utoipa::path(
     tag = "network",
     get,
-    path = "/v1/network/nym-contracts",
+    path = "/network/nym-contracts",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = HashMap<String, ContractInformation<ContractVersionSchemaResponse>>)
     )
@@ -76,7 +78,8 @@ async fn nym_contracts(
 #[utoipa::path(
     tag = "network",
     get,
-    path = "/v1/network/nym-contracts-detailed",
+    path = "/network/nym-contracts-detailed",
+    context_path = "/api/v1",
     responses(
         (status = 200, body = HashMap<String, ContractInformation<ContractBuildInformation>>)
     )

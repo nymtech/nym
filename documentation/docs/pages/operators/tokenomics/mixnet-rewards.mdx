@@ -134,7 +134,7 @@ For a node to be rewarded, the node must be part of a [Rewarded set](https://val
 
 The algorithm choosing nodes into the active set takes into account node's performance and [stake saturation](../tolkenomics.mdx#stake-saturation), both values being between 0 and 1 and config score which is either 0 or 1.
 
-**Config score is introduced:** The nodes selection to the active set has a new parameter - `config_score`. Config score currently looks if the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`) **AND** if [Terms & Conditionswnodes/nym-node/setup.mdx#terms--conditions) are accepted. Config score has binary values of either 0 or 1, with a following logic:
+**Config score is introduced:** The nodes selection to the active set has a new parameter - `config_score`. Config score currently looks if the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`) **AND** if [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) are accepted. Config score has binary values of either 0 or 1, with a following logic:
 
 | **Run `nym-node` binary** | **T&C's accepted** | **`config_score`** |
 | :--                       | :--                | ---:               |

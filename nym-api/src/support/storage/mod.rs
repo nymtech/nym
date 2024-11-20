@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, HistoricalUptime as ApiHistoricalUptime,
@@ -16,10 +17,10 @@ use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::NodeResult;
 use sqlx::ConnectOptions;
 use std::path::Path;
+use std::time::Duration;
 use time::{Date, OffsetDateTime};
+use tracing::log::LevelFilter;
 use tracing::{error, info, warn};
-
-use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
 
 pub(crate) mod manager;
 pub(crate) mod models;
@@ -37,7 +38,8 @@ impl NymApiStorage {
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true)
-            .disable_statement_logging();
+            .log_statements(LevelFilter::Trace)
+            .log_slow_statements(LevelFilter::Warn, Duration::from_millis(250));
 
         // TODO: do we want auto_vacuum ?
 

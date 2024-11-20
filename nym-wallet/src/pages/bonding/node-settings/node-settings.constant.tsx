@@ -16,4 +16,4 @@ export const makeNavItems = (bondedNode: TBondedNode) => {
 
 // And these back in once fixed.
 // 'Playground' | 'Test my node' include in array at a later point
-export type NavItems = 'General' | 'Unbond' ;
+export type NavItems = 'General' | 'Unbond';

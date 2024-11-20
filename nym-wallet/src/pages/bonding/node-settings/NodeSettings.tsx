@@ -14,12 +14,9 @@ import { useBondingContext, BondingContextProvider } from 'src/context';
 import { AppContext, urls } from 'src/context/main';
 
 import { getIntervalAsDate } from 'src/utils';
-import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 import { NodeGeneralSettings } from './settings-pages/general-settings';
 import { NodeUnbondPage } from './settings-pages/NodeUnbondPage';
 import { NavItems, makeNavItems } from './node-settings.constant';
-import { ApyPlayground } from './apy-playground';
-import { NodeTestPage } from './node-test';
 
 export const NodeSettings = () => {
   const theme = useTheme();

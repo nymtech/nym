@@ -9,6 +9,7 @@ use reqwest::StatusCode;
 
 use crate::db::models::TestRunStatus;
 use crate::db::queries;
+use crate::testruns::now_utc;
 use crate::{
     db,
     http::{
@@ -35,15 +36,9 @@ async fn request_testrun(
 ) -> HttpResult<Json<TestrunAssignment>> {
     // TODO dz log agent's network probe version
     authenticate(&request, &state)?;
-    state
-        .update_last_request_time(
-            &request.payload.agent_public_key,
-            &request.payload.timestamp,
-        )
-        .await?;
+    is_fresh(&request.payload.timestamp)?;
 
-    let agent_pubkey = request.payload.agent_public_key;
-    tracing::debug!("Agent {} requested testrun", agent_pubkey);
+    tracing::debug!("Agent requested testrun");
 
     let db = state.db_pool();
     let mut conn = db
@@ -51,31 +46,29 @@ async fn request_testrun(
         .await
         .map_err(HttpError::internal_with_logging)?;
 
-    if let Ok(testrun) =
-        db::queries::testruns::testrun_in_progress_assigned_to_agent(&mut conn, &agent_pubkey).await
-    {
+    let active_testruns = db::queries::testruns::count_testruns_in_progress(&mut conn)
+        .await
+        .map_err(HttpError::internal_with_logging)?;
+    if active_testruns >= state.agent_max_count() {
         tracing::warn!(
-            "Testrun {} already in progress for agent {:?}, rejecting",
-            testrun.id,
-            testrun.assigned_agent
+            "{}/{} testruns in progress, rejecting",
+            active_testruns,
+            state.agent_max_count()
         );
-        return Err(HttpError::invalid_input(
-            "Testrun already in progress for this agent",
-        ));
-    };
+        return Err(HttpError::no_testruns_available());
+    }
 
-    return match db::queries::testruns::assign_oldest_testrun(&mut conn, agent_pubkey).await {
+    return match db::queries::testruns::assign_oldest_testrun(&mut conn).await {
         Ok(res) => {
             if let Some(testrun) = res {
                 tracing::info!(
-                    "🏃‍ Assigned testrun row_id {} gateway {} to agent {}",
+                    "🏃‍ Assigned testrun row_id {} gateway {} to agent",
                     &testrun.testrun_id,
                     testrun.gateway_identity_key,
-                    agent_pubkey
                 );
                 Ok(Json(testrun))
             } else {
-                tracing::debug!("No testruns available for agent {}", agent_pubkey);
+                tracing::debug!("No testruns available");
                 Err(HttpError::no_testruns_available())
             }
         }
@@ -97,23 +90,17 @@ async fn submit_testrun(
         .await
         .map_err(HttpError::internal_with_logging)?;
 
-    let submitter_pubkey = submitted_result.payload.agent_public_key;
     let assigned_testrun =
-        queries::testruns::testrun_in_progress_assigned_to_agent(&mut conn, &submitter_pubkey)
+        queries::testruns::get_in_progress_testrun_by_id(&mut conn, submitted_testrun_id)
             .await
             .map_err(|err| {
-                tracing::warn!("No testruns in progress for agent {submitter_pubkey}: {err}");
+                tracing::warn!(
+                    "No testruns in progress for testrun_id {}: {}",
+                    submitted_testrun_id,
+                    err
+                );
                 HttpError::invalid_input("Invalid testrun submitted")
             })?;
-    if submitted_testrun_id != assigned_testrun.id {
-        tracing::warn!(
-            "Agent {} submitted testrun {} but {} was expected",
-            submitter_pubkey,
-            submitted_testrun_id,
-            assigned_testrun.id
-        );
-        return Err(HttpError::invalid_input("Invalid testrun submitted"));
-    }
     if Some(submitted_result.payload.assigned_at_utc) != assigned_testrun.last_assigned_utc {
         tracing::warn!(
             "Submitted testrun timestamp mismatch: {} != {:?}, rejecting",
@@ -132,8 +119,7 @@ async fn submit_testrun(
             ))
         })?;
     tracing::debug!(
-        "Agent {} submitted testrun {} for gateway {} ({} bytes)",
-        submitter_pubkey,
+        "Agent submitted testrun {} for gateway {} ({} bytes)",
         submitted_testrun_id,
         gw_identity,
         &submitted_result.payload.probe_result.len(),
@@ -165,10 +151,20 @@ async fn submit_testrun(
         .await
         .map_err(HttpError::internal_with_logging)?;
 
+    let created_at = chrono::DateTime::from_timestamp(assigned_testrun.created_utc, 0)
+        .map(|d| d.to_rfc3339())
+        .unwrap_or_default();
+    let last_assigned = assigned_testrun
+        .last_assigned_utc
+        .and_then(|d| chrono::DateTime::from_timestamp(d, 0))
+        .map(|d| d.to_rfc3339())
+        .unwrap_or_default();
     tracing::info!(
-        "✅ Testrun row_id {} for gateway {} complete",
+        "✅ Testrun row_id {} for gateway {} complete (last assigned at {}, created at {})",
         assigned_testrun.id,
-        gw_identity
+        gw_identity,
+        last_assigned,
+        created_at
     );
 
     Ok(StatusCode::CREATED)
@@ -187,6 +183,17 @@ fn authenticate(request: &impl VerifiableRequest, state: &AppState) -> HttpResul
         HttpError::unauthorized()
     })?;
 
+    Ok(())
+}
+
+fn is_fresh(request_time: &i64) -> HttpResult<()> {
+    // if a request took longer than N minutes to reach NS API, something is very wrong
+    let freshness_cutoff = chrono::Duration::minutes(1);
+    let cutoff_timestamp = (now_utc() - freshness_cutoff).timestamp();
+    if *request_time < cutoff_timestamp {
+        tracing::warn!("Request older than {}s, rejecting", cutoff_timestamp);
+        return Err(HttpError::unauthorized());
+    }
     Ok(())
 }
 

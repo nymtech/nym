@@ -31,10 +31,7 @@ mod test {
 
     use super::*;
 
-    use std::{
-        fs::{self},
-        path::PathBuf,
-    };
+    use std::{fs, path::PathBuf};
 
     #[test]
     fn can_generate_valid_keypair() {

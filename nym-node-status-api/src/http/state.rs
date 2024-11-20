@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc, time::Duration};
+use std::{sync::Arc, time::Duration};
 
 use moka::{future::Cache, Entry};
 use nym_crypto::asymmetric::ed25519::PublicKey;
@@ -6,11 +6,7 @@ use tokio::sync::RwLock;
 
 use crate::{
     db::DbPool,
-    http::{
-        error::{HttpError, HttpResult},
-        models::{DailyStats, Gateway, Mixnode, SummaryHistory},
-    },
-    testruns::now_utc,
+    http::models::{DailyStats, Gateway, Mixnode, SummaryHistory},
 };
 
 #[derive(Debug, Clone)]
@@ -18,18 +14,21 @@ pub(crate) struct AppState {
     db_pool: DbPool,
     cache: HttpCache,
     agent_key_list: Vec<PublicKey>,
-    /// last time agent requested a testrun
-    // if performance becomes a problem, consider a faster hashmap like `scc``
-    agent_last_request_times: Arc<RwLock<HashMap<String, i64>>>,
+    agent_max_count: i64,
 }
 
 impl AppState {
-    pub(crate) fn new(db_pool: DbPool, cache_ttl: u64, agent_key_list: Vec<PublicKey>) -> Self {
+    pub(crate) fn new(
+        db_pool: DbPool,
+        cache_ttl: u64,
+        agent_key_list: Vec<PublicKey>,
+        agent_max_count: i64,
+    ) -> Self {
         Self {
             db_pool,
             cache: HttpCache::new(cache_ttl),
             agent_key_list,
-            agent_last_request_times: Arc::new(RwLock::new(HashMap::new())),
+            agent_max_count,
         }
     }
 
@@ -45,45 +44,8 @@ impl AppState {
         self.agent_key_list.contains(agent_pubkey)
     }
 
-    /// Only updates if request is not a replay. Otherwise return error
-    pub(crate) async fn update_last_request_time(
-        &self,
-        agent_key: &PublicKey,
-        request_time: &i64,
-    ) -> HttpResult<()> {
-        // if a request took longer than N minutes to reach NS API, something is very wrong
-        let cutoff_duration = chrono::Duration::minutes(1);
-        let cutoff_timestamp = (now_utc() - cutoff_duration).timestamp();
-        if *request_time < cutoff_timestamp {
-            tracing::warn!("Request older than {}s, rejecting", cutoff_timestamp);
-            return Err(HttpError::unauthorized());
-        }
-
-        // if a previous entry has a newer time than this request's submit time,
-        // it's a repeated request
-        let agent_key = agent_key.to_base58_string();
-        let request_times = self.agent_last_request_times.read().await;
-        if let Some(previous_request_time) = request_times.get(&agent_key) {
-            if request_time <= previous_request_time {
-                tracing::warn!(
-                    "Request has timestamp {} but previous request was at {}, rejecting",
-                    request_time,
-                    previous_request_time
-                );
-                return Err(HttpError::unauthorized());
-            }
-        }
-        drop(request_times);
-
-        // otherwise this is a newer (or a first) request
-        self.agent_last_request_times
-            .write()
-            .await
-            .entry(agent_key)
-            .and_modify(|value| *value = *request_time)
-            .or_insert(*request_time);
-
-        Ok(())
+    pub(crate) fn agent_max_count(&self) -> i64 {
+        self.agent_max_count
     }
 }
 

@@ -73,6 +73,13 @@ pub(crate) struct Cli {
     #[clap(env = "NODE_STATUS_API_AGENT_KEY_LIST")]
     #[arg(value_delimiter = ',')]
     pub(crate) agent_key_list: Vec<String>,
+
+    #[clap(
+        long,
+        default_value_t = 40,
+        env = "NYM_NODE_STATUS_API_NYM_HTTP_CACHE_TTL"
+    )]
+    pub(crate) max_agent_count: i64,
 }
 
 fn parse_duration(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {

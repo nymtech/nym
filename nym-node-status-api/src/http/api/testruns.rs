@@ -35,17 +35,15 @@ async fn request_testrun(
     Json(request): Json<get_testrun::GetTestrunRequest>,
 ) -> HttpResult<Json<TestrunAssignment>> {
     // TODO dz log agent's network probe version
-
     authenticate(&request, &state)?;
     state
-        .check_last_request_time(
+        .update_last_request_time(
             &request.payload.agent_public_key,
             &request.payload.timestamp,
         )
         .await?;
 
     let agent_pubkey = request.payload.agent_public_key;
-
     tracing::debug!("Agent {} requested testrun", agent_pubkey);
 
     let db = state.db_pool();
@@ -53,6 +51,19 @@ async fn request_testrun(
         .acquire()
         .await
         .map_err(HttpError::internal_with_logging)?;
+
+    if let Ok(testrun) =
+        db::queries::testruns::testrun_in_progress_assigned_to_agent(&mut conn, &agent_pubkey).await
+    {
+        tracing::warn!(
+            "Testrun {} already in progress for agent {:?}, rejecting",
+            testrun.id,
+            testrun.assigned_agent
+        );
+        return Err(HttpError::invalid_input(
+            "Testrun already in progress for this agent",
+        ));
+    };
 
     return match db::queries::testruns::assign_oldest_testrun(&mut conn, agent_pubkey).await {
         Ok(res) => {
@@ -97,10 +108,10 @@ async fn submit_testrun(
         .ok_or_else(HttpError::unauthorized)?;
 
     let assigned_testrun =
-        queries::testruns::get_testruns_assigned_to_agent(&mut conn, agent_pubkey)
+        queries::testruns::testrun_in_progress_assigned_to_agent(&mut conn, &agent_pubkey)
             .await
             .map_err(|err| {
-                tracing::warn!("{err}");
+                tracing::warn!("No testruns in progress for agent {agent_pubkey}: {err}");
                 HttpError::invalid_input("Invalid testrun submitted")
             })?;
     if submitted_testrun_id != assigned_testrun.id {
@@ -188,11 +199,11 @@ fn authenticate(request: &get_testrun::GetTestrunRequest, state: &AppState) -> H
     Ok(())
 }
 
-fn verify_message<T>(public_key: &PublicKey, message: &T, signature: &Signature) -> HttpResult<()>
+fn verify_message<T>(public_key: &PublicKey, payload: &T, signature: &Signature) -> HttpResult<()>
 where
     T: serde::Serialize,
 {
-    bincode::serialize(message)
+    bincode::serialize(payload)
         .map_err(HttpError::invalid_input)
         .and_then(|serialized| {
             public_key

@@ -28,7 +28,7 @@ pub(crate) async fn try_queue_testrun(
          LIMIT 1"#,
         identity_key,
     )
-    // TODO dz shoudl call .fetch_one
+    // TODO dz should call .fetch_one
     // TODO dz replace this in other queries as well
     .fetch(conn.as_mut())
     .try_collect::<Vec<_>>()
@@ -53,10 +53,11 @@ pub(crate) async fn try_queue_testrun(
             id as "id!",
             gateway_id as "gateway_id!",
             status as "status!",
-            timestamp_utc as "timestamp_utc!",
+            created_utc as "created_utc!",
             ip_address as "ip_address!",
             log as "log!",
-            assigned_agent
+            assigned_agent,
+            last_assigned_utc
          FROM testruns
          WHERE gateway_id = ? AND status != 2
          ORDER BY id DESC
@@ -90,7 +91,7 @@ pub(crate) async fn try_queue_testrun(
     );
 
     let id = sqlx::query!(
-        "INSERT INTO testruns (gateway_id, status, ip_address, timestamp_utc, log) VALUES (?, ?, ?, ?, ?)",
+        "INSERT INTO testruns (gateway_id, status, ip_address, created_utc, log) VALUES (?, ?, ?, ?, ?)",
         gateway_id,
         status,
         ip_address,

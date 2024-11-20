@@ -4,7 +4,6 @@ use crate::{
     db::models::{TestRunDto, TestRunStatus},
     testruns::now_utc,
 };
-use anyhow::Context;
 use chrono::Duration;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use sqlx::{pool::PoolConnection, Sqlite};
@@ -19,30 +18,29 @@ pub(crate) async fn get_in_progress_testrun_by_id(
             id as "id!",
             gateway_id as "gateway_id!",
             status as "status!",
-            timestamp_utc as "timestamp_utc!",
+            created_utc as "created_utc!",
             ip_address as "ip_address!",
             log as "log!",
-            assigned_agent
+            assigned_agent,
+            last_assigned_utc
          FROM testruns
          WHERE
             id = ?
          AND
             status = ?
-         ORDER BY timestamp_utc"#,
+         ORDER BY created_utc"#,
         testrun_id,
         TestRunStatus::InProgress as i64,
     )
     .fetch_one(conn.as_mut())
-    .await.map_err(|e| {
-        anyhow::anyhow!("Couldn't retrieve testrun {testrun_id}: {e}")
-    })
-
+    .await
+    .map_err(|e| anyhow::anyhow!("Couldn't retrieve testrun {testrun_id}: {e}"))
 }
 
-pub(crate) async fn get_testruns_assigned_to_agent(
+pub(crate) async fn testrun_in_progress_assigned_to_agent(
     conn: &mut PoolConnection<Sqlite>,
-    agent_key: PublicKey,
-) -> anyhow::Result<TestRunDto> {
+    agent_key: &PublicKey,
+) -> sqlx::Result<TestRunDto> {
     let agent_key = agent_key.to_base58_string();
     sqlx::query_as!(
         TestRunDto,
@@ -50,27 +48,30 @@ pub(crate) async fn get_testruns_assigned_to_agent(
             id as "id!",
             gateway_id as "gateway_id!",
             status as "status!",
-            timestamp_utc as "timestamp_utc!",
+            created_utc as "created_utc!",
             ip_address as "ip_address!",
             log as "log!",
-            assigned_agent
+            assigned_agent,
+            last_assigned_utc
          FROM testruns
          WHERE
             assigned_agent = ?
          AND
             status = ?
-         ORDER BY timestamp_utc"#,
+         ORDER BY created_utc"#,
         agent_key,
         TestRunStatus::InProgress as i64,
     )
     .fetch_one(conn.as_mut())
     .await
-    .context(format!("No testruns in progress for agent {agent_key}"))
 }
 
-pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> anyhow::Result<u64> {
+pub(crate) async fn update_testruns_assigned_before(
+    db: &DbPool,
+    max_age: Duration,
+) -> anyhow::Result<u64> {
     let mut conn = db.acquire().await?;
-    let previous_run = now_utc() - age;
+    let previous_run = now_utc() - max_age;
     let cutoff_timestamp = previous_run.timestamp();
 
     let res = sqlx::query!(
@@ -82,7 +83,7 @@ pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> an
         WHERE
             status = ?
         AND
-            timestamp_utc < ?
+            last_assigned_utc < ?
             "#,
         TestRunStatus::Queued as i64,
         TestRunStatus::InProgress as i64,
@@ -93,8 +94,8 @@ pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> an
 
     let stale_testruns = res.rows_affected();
     if stale_testruns > 0 {
-        tracing::debug!(
-            "Refreshed {} stale testruns, scheduled before {} but not yet finished",
+        tracing::info!(
+            "Refreshed {} stale testruns, assigned before {} but not yet finished",
             stale_testruns,
             previous_run
         );
@@ -119,7 +120,7 @@ pub(crate) async fn assign_oldest_testrun(
             SELECT rowid
             FROM testruns
             WHERE status = ?
-            ORDER BY timestamp_utc asc
+            ORDER BY created_utc asc
             LIMIT 1
         )
         RETURNING

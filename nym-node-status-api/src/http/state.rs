@@ -10,6 +10,7 @@ use crate::{
         error::{HttpError, HttpResult},
         models::{DailyStats, Gateway, Mixnode, SummaryHistory},
     },
+    testruns::now_utc,
 };
 
 #[derive(Debug, Clone)]
@@ -18,6 +19,7 @@ pub(crate) struct AppState {
     cache: HttpCache,
     agent_key_list: Vec<PublicKey>,
     /// last time agent requested a testrun
+    // if performance becomes a problem, consider a faster hashmap like `scc``
     agent_last_request_times: Arc<RwLock<HashMap<String, i64>>>,
 }
 
@@ -43,13 +45,21 @@ impl AppState {
         self.agent_key_list.contains(agent_pubkey)
     }
 
-    /// Only updates if request time is valid. Otherwise return error
-    pub(crate) async fn check_last_request_time(
+    /// Only updates if request is not a replay. Otherwise return error
+    pub(crate) async fn update_last_request_time(
         &self,
         agent_key: &PublicKey,
         request_time: &i64,
     ) -> HttpResult<()> {
-        // if entry exists with a newer time than this request's submit time,
+        // if a request took longer than N minutes to reach NS API, something is very wrong
+        let cutoff_duration = chrono::Duration::minutes(1);
+        let cutoff_timestamp = (now_utc() - cutoff_duration).timestamp();
+        if *request_time < cutoff_timestamp {
+            tracing::warn!("Request older than {}s, rejecting", cutoff_timestamp);
+            return Err(HttpError::unauthorized());
+        }
+
+        // if a previous entry has a newer time than this request's submit time,
         // it's a repeated request
         let agent_key = agent_key.to_base58_string();
         let request_times = self.agent_last_request_times.read().await;

@@ -191,7 +191,13 @@ impl Default for ClientStatsReport {
             kind: KIND.to_string(),
             api_version: VERSION.to_string(),
             last_update_time: OffsetDateTime::now_utc(),
-            ..Default::default()
+            client_id: Default::default(),
+            client_type: Default::default(),
+            os_information: Default::default(),
+            packet_stats: Default::default(),
+            gateway_conn_stats: Default::default(),
+            nym_api_stats: Default::default(),
+            connection_stats: Default::default(),
         }
     }
 }

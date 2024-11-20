@@ -4,8 +4,7 @@ use axum::{
     extract::{Path, State},
     Router,
 };
-use nym_common_models::ns_api::{get_testrun, SubmitResults};
-use nym_crypto::asymmetric::ed25519::{PublicKey, Signature};
+use nym_common_models::ns_api::{get_testrun, submit_results, VerifiableRequest};
 use reqwest::StatusCode;
 
 use crate::db::models::TestRunStatus;
@@ -88,47 +87,41 @@ async fn request_testrun(
 async fn submit_testrun(
     Path(submitted_testrun_id): Path<i64>,
     State(state): State<AppState>,
-    Json(probe_results): Json<SubmitResults>,
+    Json(submitted_result): Json<submit_results::SubmitResults>,
 ) -> HttpResult<StatusCode> {
+    authenticate(&submitted_result, &state)?;
+
     let db = state.db_pool();
     let mut conn = db
         .acquire()
         .await
         .map_err(HttpError::internal_with_logging)?;
 
-    let submitted_testrun =
-        queries::testruns::get_in_progress_testrun_by_id(&mut conn, submitted_testrun_id)
-            .await
-            .map_err(|e| {
-                tracing::warn!("testrun_id {} not found: {}", submitted_testrun_id, e);
-                HttpError::not_found(submitted_testrun_id)
-            })?;
-    let agent_pubkey = submitted_testrun
-        .assigned_agent_key()
-        .ok_or_else(HttpError::unauthorized)?;
-
+    let submitter_pubkey = submitted_result.payload.agent_public_key;
     let assigned_testrun =
-        queries::testruns::testrun_in_progress_assigned_to_agent(&mut conn, &agent_pubkey)
+        queries::testruns::testrun_in_progress_assigned_to_agent(&mut conn, &submitter_pubkey)
             .await
             .map_err(|err| {
-                tracing::warn!("No testruns in progress for agent {agent_pubkey}: {err}");
+                tracing::warn!("No testruns in progress for agent {submitter_pubkey}: {err}");
                 HttpError::invalid_input("Invalid testrun submitted")
             })?;
     if submitted_testrun_id != assigned_testrun.id {
         tracing::warn!(
             "Agent {} submitted testrun {} but {} was expected",
-            agent_pubkey,
+            submitter_pubkey,
             submitted_testrun_id,
             assigned_testrun.id
         );
         return Err(HttpError::invalid_input("Invalid testrun submitted"));
     }
-
-    verify_message(
-        &agent_pubkey,
-        &probe_results.message,
-        &probe_results.signature,
-    )?;
+    if Some(submitted_result.payload.assigned_at_utc) != assigned_testrun.last_assigned_utc {
+        tracing::warn!(
+            "Submitted testrun timestamp mismatch: {} != {:?}, rejecting",
+            submitted_result.payload.assigned_at_utc,
+            assigned_testrun.last_assigned_utc
+        );
+        return Err(HttpError::invalid_input("Invalid testrun submitted"));
+    }
 
     let gw_identity = db::queries::select_gateway_identity(&mut conn, assigned_testrun.gateway_id)
         .await
@@ -140,10 +133,10 @@ async fn submit_testrun(
         })?;
     tracing::debug!(
         "Agent {} submitted testrun {} for gateway {} ({} bytes)",
-        agent_pubkey,
+        submitter_pubkey,
         submitted_testrun_id,
         gw_identity,
-        &probe_results.message.len(),
+        &submitted_result.payload.probe_result.len(),
     );
 
     queries::testruns::update_testrun_status(
@@ -156,11 +149,11 @@ async fn submit_testrun(
     queries::testruns::update_gateway_last_probe_log(
         &mut conn,
         assigned_testrun.gateway_id,
-        &probe_results.message,
+        &submitted_result.payload.probe_result,
     )
     .await
     .map_err(HttpError::internal_with_logging)?;
-    let result = get_result_from_log(&probe_results.message);
+    let result = get_result_from_log(&submitted_result.payload.probe_result);
     queries::testruns::update_gateway_last_probe_result(
         &mut conn,
         assigned_testrun.gateway_id,
@@ -183,33 +176,18 @@ async fn submit_testrun(
 
 // TODO dz this should be middleware
 #[tracing::instrument(level = "debug", skip_all)]
-fn authenticate(request: &get_testrun::GetTestrunRequest, state: &AppState) -> HttpResult<()> {
-    if !state.is_registered(&request.payload.agent_public_key) {
+fn authenticate(request: &impl VerifiableRequest, state: &AppState) -> HttpResult<()> {
+    if !state.is_registered(request.public_key()) {
         tracing::warn!("Public key not registered with NS API, rejecting");
         return Err(HttpError::unauthorized());
     };
 
-    verify_message(
-        &request.payload.agent_public_key,
-        &request.payload,
-        &request.signature,
-    )
-    .inspect_err(|_| tracing::warn!("Signature verification failed, rejecting"))?;
+    request.verify_signature().map_err(|_| {
+        tracing::warn!("Signature verification failed, rejecting");
+        HttpError::unauthorized()
+    })?;
 
     Ok(())
-}
-
-fn verify_message<T>(public_key: &PublicKey, payload: &T, signature: &Signature) -> HttpResult<()>
-where
-    T: serde::Serialize,
-{
-    bincode::serialize(payload)
-        .map_err(HttpError::invalid_input)
-        .and_then(|serialized| {
-            public_key
-                .verify(serialized, signature)
-                .map_err(|_| HttpError::unauthorized())
-        })
 }
 
 fn get_result_from_log(log: &str) -> String {

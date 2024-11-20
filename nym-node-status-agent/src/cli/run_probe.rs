@@ -1,5 +1,5 @@
 use anyhow::{bail, Context};
-use nym_common_models::ns_api::{get_testrun, SubmitResults, TestrunAssignment};
+use nym_common_models::ns_api::{get_testrun, submit_results, TestrunAssignment};
 use nym_crypto::asymmetric::ed25519::{PrivateKey, Signature};
 use std::fmt::Display;
 use tracing::instrument;
@@ -27,7 +27,7 @@ pub(crate) async fn run_probe(
         let log = probe.run_and_get_log(&Some(testrun.gateway_identity_key));
 
         ns_api_client
-            .submit_results(testrun.testrun_id, log)
+            .submit_results(testrun.testrun_id, log, testrun.assigned_at_utc)
             .await?;
     } else {
         tracing::info!("No testruns available, exiting")
@@ -92,19 +92,22 @@ impl Client {
             })
     }
 
-    #[instrument(level = "debug", skip(self, probe_outcome))]
+    #[instrument(level = "debug", skip(self, probe_result))]
     pub(crate) async fn submit_results(
         &self,
         testrun_id: i64,
-        probe_outcome: String,
+        probe_result: String,
+        assigned_at_utc: i64,
     ) -> anyhow::Result<()> {
         let target_url = self.api_with_subpath(Some(testrun_id));
 
-        let signature = self.sign_message(&probe_outcome)?;
-        let submit_results = SubmitResults {
-            message: probe_outcome,
-            signature,
+        let payload = submit_results::Payload {
+            probe_result,
+            agent_public_key: self.auth_key.public_key(),
+            assigned_at_utc,
         };
+        let signature = self.sign_message(&payload)?;
+        let submit_results = submit_results::SubmitResults { payload, signature };
 
         let res = self
             .client

@@ -11,5 +11,7 @@ rust-version.workspace = true
 readme.workspace = true
 
 [dependencies]
-serde = { workspace = true, features = ["derive"] }
+anyhow = { workspace = true }
+bincode = { workspace = true }
 nym-crypto = { path = "../crypto", features = ["asymmetric", "serde"] }
+serde = { workspace = true, features = ["derive"] }

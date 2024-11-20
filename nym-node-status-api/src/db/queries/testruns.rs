@@ -8,35 +8,6 @@ use chrono::Duration;
 use nym_crypto::asymmetric::ed25519::PublicKey;
 use sqlx::{pool::PoolConnection, Sqlite};
 
-pub(crate) async fn get_in_progress_testrun_by_id(
-    conn: &mut PoolConnection<Sqlite>,
-    testrun_id: i64,
-) -> anyhow::Result<TestRunDto> {
-    sqlx::query_as!(
-        TestRunDto,
-        r#"SELECT
-            id as "id!",
-            gateway_id as "gateway_id!",
-            status as "status!",
-            created_utc as "created_utc!",
-            ip_address as "ip_address!",
-            log as "log!",
-            assigned_agent,
-            last_assigned_utc
-         FROM testruns
-         WHERE
-            id = ?
-         AND
-            status = ?
-         ORDER BY created_utc"#,
-        testrun_id,
-        TestRunStatus::InProgress as i64,
-    )
-    .fetch_one(conn.as_mut())
-    .await
-    .map_err(|e| anyhow::anyhow!("Couldn't retrieve testrun {testrun_id}: {e}"))
-}
-
 pub(crate) async fn testrun_in_progress_assigned_to_agent(
     conn: &mut PoolConnection<Sqlite>,
     agent_key: &PublicKey,
@@ -109,12 +80,14 @@ pub(crate) async fn assign_oldest_testrun(
     agent_key: PublicKey,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
     let agent_key = agent_key.to_base58_string();
+    let now = now_utc().timestamp();
     // find & mark as "In progress" in the same transaction to avoid race conditions
     let returning = sqlx::query!(
         r#"UPDATE testruns
             SET
                 status = ?,
-                assigned_agent = ?
+                assigned_agent = ?,
+                last_assigned_utc = ?
             WHERE rowid =
         (
             SELECT rowid
@@ -129,6 +102,7 @@ pub(crate) async fn assign_oldest_testrun(
             "#,
         TestRunStatus::InProgress as i64,
         agent_key,
+        now,
         TestRunStatus::Queued as i64,
     )
     .fetch_optional(conn.as_mut())
@@ -151,6 +125,7 @@ pub(crate) async fn assign_oldest_testrun(
         Ok(Some(TestrunAssignment {
             testrun_id: testrun.id,
             gateway_identity_key: gw_identity.gateway_identity_key,
+            assigned_at_utc: now,
         }))
     } else {
         Ok(None)

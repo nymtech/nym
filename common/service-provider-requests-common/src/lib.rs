@@ -3,7 +3,7 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum ServiceProviderType {
     NetworkRequester = 0,

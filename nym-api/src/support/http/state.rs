@@ -15,7 +15,9 @@ use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeA
 use nym_mixnet_contract_common::NodeId;
 use nym_task::TaskManager;
 use std::collections::HashMap;
-use tokio::sync::RwLockReadGuard;
+use std::sync::Arc;
+use time::OffsetDateTime;
+use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::task::JoinHandle;
 use tokio_util::sync::CancellationToken;
 
@@ -70,6 +72,7 @@ type AxumJoinHandle = JoinHandle<std::io::Result<()>>;
 
 #[derive(Clone)]
 pub(crate) struct AppState {
+    pub(crate) forced_refresh: ForcedRefresh,
     pub(crate) nym_contract_cache: NymContractCache,
     pub(crate) node_status_cache: NodeStatusCache,
     pub(crate) circulating_supply_cache: CirculatingSupplyCache,
@@ -77,6 +80,24 @@ pub(crate) struct AppState {
     pub(crate) described_nodes_cache: SharedCache<DescribedNodes>,
     pub(crate) network_details: NetworkDetails,
     pub(crate) node_info_cache: unstable::NodeInfoCache,
+}
+
+#[derive(Clone, Default)]
+pub(crate) struct ForcedRefresh {
+    pub(crate) refreshes: Arc<RwLock<HashMap<NodeId, OffsetDateTime>>>,
+}
+
+impl ForcedRefresh {
+    pub(crate) async fn last_refreshed(&self, node_id: NodeId) -> Option<OffsetDateTime> {
+        self.refreshes.read().await.get(&node_id).copied()
+    }
+
+    pub(crate) async fn set_last_refreshed(&self, node_id: NodeId) {
+        self.refreshes
+            .write()
+            .await
+            .insert(node_id, OffsetDateTime::now_utc());
+    }
 }
 
 impl AppState {

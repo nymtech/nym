@@ -190,15 +190,21 @@ export const BondedMixnode = ({
                   </Button>
                 </Box>
               </Tooltip>
-              <Button
-                startIcon={<UpgradeRounded />}
-                variant="contained"
-                disableElevation
-                onClick={onShowMigrateToNymNodeModal}
-                disabled={isUnbonding}
+              <Tooltip
+                title={!!mixnode.proxy && 'You must migrate your vested tokens before you can migrate your mixnode'}
               >
-                Migrate to Nym Node
-              </Button>
+                <Box>
+                  <Button
+                    startIcon={<UpgradeRounded />}
+                    variant="contained"
+                    disableElevation
+                    onClick={onShowMigrateToNymNodeModal}
+                    disabled={isUnbonding || !!mixnode.proxy}
+                  >
+                    Migrate to Nym Node
+                  </Button>
+                </Box>
+              </Tooltip>
             </Stack>
 
             {nextEpoch instanceof Error ? null : (

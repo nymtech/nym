@@ -315,6 +315,7 @@ impl Client {
         parse_response(res, true).await
     }
 
+    #[instrument(level = "debug", skip_all)]
     pub async fn get_json_endpoint<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
         for<'a> T: Deserialize<'a>,

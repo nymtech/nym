@@ -1,7 +1,6 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use crate::nym_api::NymApiClientExt;
 use crate::nyxd::{self, NyxdClient};
 use crate::signing::direct_wallet::DirectSecp256k1HdWallet;
 use crate::signing::signer::{NoSigner, OfflineSigner};
@@ -32,6 +31,7 @@ use nym_network_defaults::NymNetworkDetails;
 use time::Date;
 use url::Url;
 
+pub use crate::nym_api::NymApiClientExt;
 pub use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId, NymNodeDetails,
 };
@@ -332,10 +332,10 @@ impl NymApiClient {
         NymApiClient { nym_api }
     }
 
-    pub fn new_with_user_agent(api_url: Url, user_agent: UserAgent) -> Self {
+    pub fn new_with_user_agent(api_url: Url, user_agent: impl Into<UserAgent>) -> Self {
         let nym_api = nym_api::Client::builder::<_, ValidatorClientError>(api_url)
             .expect("invalid api url")
-            .with_user_agent(user_agent)
+            .with_user_agent(user_agent.into())
             .build::<ValidatorClientError>()
             .expect("failed to build nym api client");
 

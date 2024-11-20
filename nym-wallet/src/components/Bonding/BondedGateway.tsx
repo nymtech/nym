@@ -113,6 +113,7 @@ export const BondedGateway = ({
             startIcon={<UpgradeRounded />}
             variant="contained"
             disableElevation
+            disabled={!!gateway.proxy}
             onClick={onShowMigrateToNymNodeModal}
           >
             Migrate to Nym Node

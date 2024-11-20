@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::{
@@ -9,7 +9,7 @@ use crate::storage::NymApiStorage;
 use nym_task::{TaskClient, TaskManager};
 use std::time::Duration;
 use time::{OffsetDateTime, PrimitiveDateTime, Time};
-use tokio::time::{interval, sleep};
+use tokio::time::{interval_at, Instant};
 use tracing::error;
 use tracing::{info, trace, warn};
 
@@ -93,15 +93,8 @@ impl HistoricalUptimeUpdater {
             "waiting until {update_datetime} to update the historical uptimes for the first time ({} seconds left)", time_left.as_secs()
         );
 
-        tokio::select! {
-            biased;
-            _ = shutdown.recv() => {
-                trace!("UpdateHandler: Received shutdown");
-            }
-            _ = sleep(time_left) => {}
-        }
-
-        let mut interval = interval(ONE_DAY);
+        let start = Instant::now() + time_left;
+        let mut interval = interval_at(start, ONE_DAY);
         while !shutdown.is_shutdown() {
             tokio::select! {
                 biased;
@@ -109,6 +102,7 @@ impl HistoricalUptimeUpdater {
                     trace!("UpdateHandler: Received shutdown");
                 }
                 _ = interval.tick() => {
+                    info!("updating historical uptimes of nodes");
                     // we don't want to have another select here; uptime update is relatively speedy
                     // and we don't want to exit while we're in the middle of database update
                     if let Err(err) = self.update_uptimes().await {

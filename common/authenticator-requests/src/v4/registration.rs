@@ -42,6 +42,12 @@ impl IpPair {
     }
 }
 
+impl From<(Ipv4Addr, Ipv6Addr)> for IpPair {
+    fn from((ipv4, ipv6): (Ipv4Addr, Ipv6Addr)) -> Self {
+        IpPair { ipv4, ipv6 }
+    }
+}
+
 impl fmt::Display for IpPair {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "({}, {})", self.ipv4, self.ipv6)

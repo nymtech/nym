@@ -773,6 +773,18 @@ const config = {
         basePath: false,
       },
       {
+        source: "/operators/troubleshooting/nodes.html",
+        destination: "/docs/operators/troubleshooting/nodes",
+        permanent: true,
+        basePath: false,
+      },
+      {
+        source: "/operators/nodes/manual-upgrade.html",
+        destination: "/docs/operators/nodes/maintenance/manual-upgrade",
+        permanent: true,
+        basePath: false,
+      },
+      {
         source: "/developers/faq/general-faq.html",
         destination: "/docs/operators/faq/general-faq",
         permanent: true,

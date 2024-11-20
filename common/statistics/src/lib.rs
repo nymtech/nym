@@ -109,3 +109,14 @@ where
 {
     tokio::spawn(future);
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[tokio::test]
+    async fn handle_event() {
+        let ctrl = StatsCollection::default();
+
+    }
+}

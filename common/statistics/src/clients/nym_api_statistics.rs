@@ -32,17 +32,10 @@ impl NymApiStats {
             }
         }
     }
-
-    fn summary(&self) -> (String, String) {
-        (
-            format!("packets sent: {}", self.real_packets_sent,),
-            "packets received: todo".to_owned(),
-        )
-    }
 }
 
 /// Event space for Nym API statistics tracking
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum NymApiStatsEvent {
     /// The real packets sent. Recall that acks are sent by the Api, so it's not included here.
     RealPacketSent(usize),
@@ -61,11 +54,7 @@ impl From<NymApiStatsEvent> for ClientStatsEvents {
 #[derive(Default)]
 pub struct NymApiStatsControl {
     // Keep track of packet statistics over time
-    local_stats: NymApiStats,
-
-    //
-    remote_stats: NymApiStats,
-
+    stats: NymApiStats,
 }
 
 impl NymApiStatsControl {
@@ -77,22 +66,7 @@ impl NymApiStatsControl {
         self.stats.clone()
     }
 
-    pub(crate) fn local_report(&self) -> NymApiStats {
-        self.report_counters();
-    }
-
     pub(crate) fn reset(&mut self) {
         self.stats = NymApiStats::default();
-    }
-
-    pub(crate) fn local_reset(&mut self) {
-        self.local_stats = NymApiStats::default();
-    }
-
-    fn report_counters(&self) {
-        log::trace!("packet statistics: {:?}", &self.stats);
-        let (summary_sent, summary_recv) = self.stats.summary();
-        log::debug!("{}", summary_sent);
-        log::debug!("{}", summary_recv);
     }
 }

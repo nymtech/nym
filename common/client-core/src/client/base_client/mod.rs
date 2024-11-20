@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use super::received_buffer::ReceivedBufferMessage;
-use super::statistics_control::StatisticsControl;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
@@ -48,7 +47,7 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
-use nym_statistics_common::{generate_client_stats_id, StatsCollection, clients::ClientStatsSender};
+use nym_statistics_common::{generate_client_stats_id, StatsCollection, clients::ClientStatsSender, controller::StatisticsControl};
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;

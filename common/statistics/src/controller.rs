@@ -1,7 +1,5 @@
 use crate::{
-    clients::{ClientStatsController, ClientStatsReceiver, ClientStatsSender},
-    spawn_future, Runtime,
-	report::Sink,
+    clients::{ClientStatsController, ClientStatsReceiver, ClientStatsSender, LocalStatsController}, report::{Sink, Sinks}, spawn_future, Runtime
 };
 
 use std::time::Duration;
@@ -18,26 +16,29 @@ const SNAPSHOT_INTERVAL: Duration = Duration::from_millis(500);
 ///
 /// This is designed to be generic to allow for multiple types of metrics to be collected and
 /// reported.
-pub(crate) struct StatisticsControl {
+pub struct StatisticsControl {
     /// Keep store the different types of metrics collectors
     stats: ClientStatsController,
+
+    /// Keep store the different types of metrics collectors for internal tracking
+    local_stats: LocalStatsController,
 
     /// Incoming packet stats events from other tasks
     stats_rx: ClientStatsReceiver,
 
     /// Channel to send stats report through the mixnet
-    report: Sink,
+    report: Sinks,
 
     /// Config for stats reporting (enabled, address, interval)
     reporting_config: StatsReporting,
 }
 
 impl StatisticsControl {
-    pub(crate) fn create(
+    pub fn create(
         reporting_config: StatsReporting,
         client_type: String,
         client_stats_id: String,
-        report: Sink,
+        report: Sinks,
     ) -> (Self, ClientStatsSender) {
         let (stats_tx, stats_rx) = tokio::sync::mpsc::unbounded_channel();
 
@@ -46,6 +47,7 @@ impl StatisticsControl {
         (
             StatisticsControl {
                 stats,
+                local_stats: Default::default(),
                 stats_rx,
                 report,
                 reporting_config,
@@ -64,10 +66,10 @@ impl StatisticsControl {
 
 	/// Reports to local stats handlers, logging, application facing handlers, etc.
 	async fn report_local_stats(&mut self) {
-        let stats_report = self.stats.build_local_report();
+        let stats_report = self.local_stats.build_report();
 
 		self.report.local_report(&stats_report.to_string()).await;
-		self.stats.reset();
+		self.local_stats.reset();
     }
 
     async fn run_with_shutdown(&mut self, mut runtime: Runtime) {
@@ -81,7 +83,10 @@ impl StatisticsControl {
         loop {
             tokio::select! {
                 stats_event = self.stats_rx.recv() => match stats_event {
-                        Some(stats_event) => self.stats.handle_event(stats_event),
+                        Some(stats_event) => {
+                            self.stats.handle_event(stats_event.clone());
+                            self.local_stats.handle_event(stats_event);
+                        }
                         None => {
                             log::trace!("StatisticsControl: shutting down due to closed stats channel");
                             break;
@@ -106,17 +111,17 @@ impl StatisticsControl {
         log::debug!("StatisticsControl: Exiting");
     }
 
-    pub(crate) fn start_with_shutdown(mut self, task_client: nym_task::TaskClient) {
+    pub fn start_with_shutdown(mut self, task_client: nym_task::TaskClient) {
         spawn_future(async move {
             self.run_with_shutdown(Runtime::Task(task_client)).await;
         })
     }
 
-    pub(crate) fn create_and_start_with_shutdown(
+    pub fn create_and_start_with_shutdown(
         reporting_config: StatsReporting,
         client_type: String,
         client_stats_id: String,
-        report: Sink,
+        report: Sinks,
         task_client: nym_task::TaskClient,
     ) -> ClientStatsSender {
         let (controller, sender) =
@@ -125,7 +130,3 @@ impl StatisticsControl {
         sender
     }
 }
-
-
-                    // // SAFTEY : this branch executes only if reporting is not none, so unwrap is fine
-                    // #[allow(clippy::unwrap_used)]

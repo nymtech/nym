@@ -1,10 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{
-    report::{ClientStatsReport, OsInformation},
-    Runtime,
-};
+use crate::report::{ClientStatsReport, LocalStatsReport, OsInformation};
 
 use time::{OffsetDateTime, Time};
 use tokio::sync::mpsc::UnboundedSender;
@@ -46,6 +43,7 @@ impl ClientStatsSender {
 }
 
 /// Client Statistics events (static for now)
+#[derive(Clone)]
 pub enum ClientStatsEvents {
     /// Packet count events
     PacketStatistics(packet_statistics::PacketStatisticsEvent),
@@ -65,11 +63,7 @@ pub struct ClientStatsController {
     client_type: String,
     os_information: OsInformation,
 
-    // stats collection modules
-    packet_stats: packet_statistics::PacketStatisticsControl,
-    gateway_conn_stats: gateway_conn_statistics::GatewayStatsControl,
-    nym_api_stats: nym_api_statistics::NymApiStatsControl,
-    connection_stats: connection::ConnectionStatsControl,
+    stats: StatsModules,
 }
 
 impl ClientStatsController {
@@ -80,12 +74,10 @@ impl ClientStatsController {
             client_id,
             client_type,
             os_information: OsInformation::new(),
-            packet_stats: Default::default(),
-            gateway_conn_stats: Default::default(),
-            nym_api_stats: Default::default(),
-            connection_stats: Default::default(),
+            stats: Default::default(),
         }
     }
+
     /// Returns a static ClientStatsReport that can be sent somewhere
     pub fn build_report(&self) -> ClientStatsReport {
         ClientStatsReport {
@@ -93,16 +85,54 @@ impl ClientStatsController {
             client_id: self.client_id.clone(),
             client_type: self.client_type.clone(),
             os_information: self.os_information.clone(),
-            packet_stats: self.packet_stats.report(),
-            gateway_conn_stats: self.gateway_conn_stats.report(),
-            nym_api_stats: self.nym_api_stats.report(),
-            connection_stats: self.connection_stats.report(),
+            packet_stats: self.stats.packet_stats.report(),
+            gateway_conn_stats: self.stats.gateway_conn_stats.report(),
+            nym_api_stats: self.stats.nym_api_stats.report(),
+            connection_stats: self.stats.connection_stats.report(),
             ..Default::default()
         }
     }
 
     /// Handle and dispatch incoming stats event
     pub fn handle_event(&mut self, stats_event: ClientStatsEvents) {
+        self.stats.handle_event(stats_event);
+    }
+
+    /// Reset the metrics to their initial state.
+    ///
+    /// Used to periodically reset the metrics in accordance with periodic reporting strategy
+    pub fn reset(&mut self) {
+        self.stats.reset();
+        self.last_update_time = ClientStatsController::get_update_time();
+    }
+
+    /// snapshot the current state of the metrics for module that needs it
+    pub fn snapshot(&mut self) {
+        self.stats.snapshot();
+    }
+
+    fn get_update_time() -> OffsetDateTime {
+        let now = OffsetDateTime::now_utc();
+        #[allow(clippy::unwrap_used)]
+        //Safety : 0 is always a valid number of seconds, hours and minutes comes from a valid source
+        let new_time = Time::from_hms(now.hour(), now.minute(), 0).unwrap();
+        //allows a bigger anonymity by hiding exact sending time
+        now.replace_time(new_time)
+    }
+}
+
+// Statistics collection modules
+#[derive(Default)]
+struct StatsModules {
+    pub(crate) packet_stats: packet_statistics::PacketStatisticsControl,
+    pub(crate) gateway_conn_stats: gateway_conn_statistics::GatewayStatsControl,
+    pub(crate) nym_api_stats: nym_api_statistics::NymApiStatsControl,
+    pub(crate) connection_stats: connection::ConnectionStatsControl,
+}
+
+impl StatsModules {
+    /// Handle and dispatch incoming stats event
+    fn handle_event(&mut self, stats_event: ClientStatsEvents) {
         match stats_event {
             ClientStatsEvents::PacketStatistics(event) => self.packet_stats.handle_event(event),
             ClientStatsEvents::GatewayConn(event) => self.gateway_conn_stats.handle_event(event),
@@ -114,26 +144,64 @@ impl ClientStatsController {
     /// Reset the metrics to their initial state.
     ///
     /// Used to periodically reset the metrics in accordance with periodic reporting strategy
-    pub fn reset(&mut self) {
+    fn reset(&mut self) {
         self.nym_api_stats = Default::default();
         self.gateway_conn_stats = Default::default();
         self.connection_stats = Default::default();
         //no periodic reset for packet stats
+    }
 
+    /// snapshot the current state of the metrics for module that needs it
+    fn snapshot(&mut self) {
+        //no snapshot for gateway_conn_stats
+        //no snapshot for nym_api_stats
+        self.packet_stats.snapshot();
+    }
+}
+
+/// Controls stats event handling and reporting
+pub struct LocalStatsController {
+    last_update_time: OffsetDateTime,
+    stats: StatsModules,
+}
+
+impl Default for LocalStatsController {
+    /// Creates a ClientStatsController given a client_id
+    fn default() -> Self {
+        Self {
+            last_update_time: ClientStatsController::get_update_time(),
+            stats: Default::default(),
+        }
+    }
+}
+
+impl LocalStatsController {
+    /// Handle and dispatch incoming stats event
+    pub fn handle_event(&mut self, stats_event: ClientStatsEvents) {
+        self.stats.handle_event(stats_event);
+    }
+
+    /// Reset the metrics to their initial state.
+    ///
+    /// Used to periodically reset the metrics in accordance with periodic reporting strategy
+    pub fn reset(&mut self) {
+        self.stats.reset();
         self.last_update_time = ClientStatsController::get_update_time();
     }
 
     /// snapshot the current state of the metrics for module that needs it
     pub fn snapshot(&mut self) {
-        //no snapshot for gateway_conn_stats
-        //no snapshot for nym_api_stats
-        self.packet_stats.snapshot();
+        self.stats.snapshot();
     }
 
-    pub fn local_report(&mut self, task_client: &mut Runtime) {
-        self.packet_stats.local_report(task_client);
-        self.gateway_conn_stats.local_report();
-        self.nym_api_stats.local_report();
+    /// Returns a static ClientStatsReport that can be sent somewhere
+    pub fn build_report(&self) -> LocalStatsReport {
+        LocalStatsReport {
+            packet_stats: self.stats.packet_stats.report(),
+            gateway_conn_stats: self.stats.gateway_conn_stats.report(),
+            nym_api_stats: self.stats.nym_api_stats.report(),
+            connection_stats: self.stats.connection_stats.report(),
+        }
     }
 
     fn get_update_time() -> OffsetDateTime {

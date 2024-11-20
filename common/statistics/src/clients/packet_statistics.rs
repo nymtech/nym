@@ -343,7 +343,7 @@ impl PacketRates {
 }
 
 /// Event Space used for counting the Packet types used in a connection.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum PacketStatisticsEvent {
     /// The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
     RealPacketSent(usize),
@@ -404,6 +404,10 @@ impl PacketStatisticsControl {
     }
 
     pub(crate) fn report(&self) -> PacketStatistics {
+        self.report_rates();
+        self.check_for_notable_events();
+        self.report_counters();
+
         self.stats.clone()
     }
 

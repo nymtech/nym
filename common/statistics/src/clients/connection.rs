@@ -20,7 +20,7 @@ pub(crate) struct ConnectionStats {
 }
 
 /// Event space for Nym API statistics tracking
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum ConnectionStatsEvent {
     /// ecash ticket was spend
     TicketSpent {

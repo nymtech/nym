@@ -48,7 +48,7 @@ impl From<GatewayStatsEvent> for ClientStatsEvents {
 }
 
 /// Event space for Gateway Connection Events
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum GatewayStatsEvent {
     /// The real packets sent. Recall that acks are sent by the gateway, so it's not included here.
     RealPacketSent(usize),

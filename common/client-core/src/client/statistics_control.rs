@@ -16,14 +16,9 @@
 #![warn(clippy::todo)]
 #![warn(clippy::dbg_macro)]
 
-use std::time::Duration;
-
-use nym_client_core_config_types::StatsReporting;
 use nym_sphinx::addressing::Recipient;
-use nym_statistics_common::{clients::{
-    ClientStatsController, ClientStatsReceiver, ClientStatsSender,
-}, report::DataSender};
-use nym_task::connections::TransmissionLane;
+use nym_statistics_common::report::{DataReceiver, DataSender};
+use nym_task::{connections::TransmissionLane, TaskClient};
 
 use crate::{
     client::inbound_messages::{InputMessage, InputMessageSender},
@@ -31,8 +26,8 @@ use crate::{
 };
 
 pub struct MixnetReporter {
-    message_rx: DataSender,
-    
+    message_rx: DataReceiver,
+
     /// Channel to send stats report through the mixnet
     report_tx: InputMessageSender,
 
@@ -41,18 +36,23 @@ pub struct MixnetReporter {
 }
 
 impl MixnetReporter {
-    pub(crate) async fn run_with_shutdown(&mut self, task_client: TaskClient) {
+    pub(crate) async fn run_with_shutdown(&mut self, mut task_client: TaskClient) {
         loop {
             tokio::select! {
                 msg = self.message_rx.recv() => {
-                    let report_message = InputMessage::new_regular(
-                        self.recipient,
-                        msg,
-                        TransmissionLane::General,
-                        None,
-                    );
-                    if let Err(err) = self.report_tx.send(report_message).await {
-                        log::error!("Failed to report client stats: {:?}", err);
+                    match msg {
+                        Some(data) => {
+                            let report_message = InputMessage::new_regular(
+                                self.recipient,
+                                data,
+                                TransmissionLane::General,
+                                None,
+                            );
+                            if let Err(err) = self.report_tx.send(report_message).await {
+                                log::error!("Failed to report client stats: {:?}", err);
+                            }
+                        }
+                        None => {},
                     }
                 },
                 _ = task_client.recv_with_delay() => {
@@ -68,9 +68,18 @@ impl MixnetReporter {
         })
     }
 
-    pub(crate) fn create_and_start_with_shutdown( report_tx: InputMessageSender, task_client: TaskClient) -> ClientStatsSender {
-        let (controller, sender) = Self::create(report_tx);
+    pub(crate) fn create_and_start_with_shutdown(
+        report_tx: InputMessageSender,
+        task_client: TaskClient,
+        recipient: Recipient,
+    ) -> DataSender {
+        let (tx, message_rx) = tokio::sync::mpsc::unbounded_channel();
+        let controller = Self {
+            report_tx,
+            message_rx,
+            recipient,
+        };
         controller.start_with_shutdown(task_client);
-        sender
+        tx
     }
 }

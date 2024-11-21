@@ -1309,7 +1309,7 @@ Every `nym-node` should be upgraded to the latest version! Operators can test us
 **`nym-node`**
 
 - Make sure to fill in basic description info, into the file located at `.nym/nym-nodes/<ID>/data/description.toml` (all nodes)
-- Configure wireguard routing with new [`network_tunnel_manager.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) following [these steps](nodes/configuration.md#routing-configuration) (Gateways only for the time being)
+- Configure wireguard routing with new [`network_tunnel_manager.sh`](https://github.com/nymtech/nym/blob/develop/scripts/network_tunnel_manager.sh) following [these steps](nodes/configuration.md#routing-configuration) (Gateways only for the time being)
 - Enable Wireguard with `--wireguard-enabled true` flag included in your run command (Gateways only for the time being)
     - Note: On some VPS this setup may not be enough to get the correct results as some ISPs  have their own security groups setup below the individual VPS. In that case a ticket to ISP will have to be issued to open the needed settings. We are working on a template for such ticket.
 - Setup [reverse proxy and WSS](nodes/proxy-configuration.md) on `nym-node` (Gateways only for the time being)
@@ -1551,7 +1551,7 @@ ufw status
 
 **Step 2: Download and Prepare the Network Tunnel Manager Script**
 
-1. Download the [`network_tunnel_manager.sh`](https://gist.github.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77) script:
+1. Download the [`network_tunnel_manager.sh`](https://github.com/nymtech/nym/blob/develop/scripts/network_tunnel_manager.sh) script:
 ```bash
 curl -L -o network_tunnel_manager.sh https://gist.githubusercontent.com/tommyv1987/ccf6ca00ffb3d7e13192edda61bb2a77/raw/3c0a38c1416f8fdf22906c013299dd08d1497183/network_tunnel_manager.sh
 ```

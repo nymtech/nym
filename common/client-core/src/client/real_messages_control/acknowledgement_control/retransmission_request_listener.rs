@@ -20,6 +20,7 @@ use std::sync::{Arc, Weak};
 
 // responsible for packet retransmission upon fired timer
 pub(super) struct RetransmissionRequestListener<R> {
+    maximum_retransmissions: Option<u32>,
     action_sender: AckActionSender,
     message_handler: MessageHandler<R>,
     request_receiver: RetransmissionRequestReceiver,
@@ -31,12 +32,14 @@ where
     R: CryptoRng + Rng,
 {
     pub(super) fn new(
+        maximum_retransmissions: Option<u32>,
         action_sender: AckActionSender,
         message_handler: MessageHandler<R>,
         request_receiver: RetransmissionRequestReceiver,
         reply_controller_sender: ReplyControllerSender,
     ) -> Self {
         RetransmissionRequestListener {
+            maximum_retransmissions,
             action_sender,
             message_handler,
             request_receiver,
@@ -77,6 +80,18 @@ where
             }
         };
 
+        let frag_id = timed_out_ack.message_chunk.fragment_identifier();
+
+        if let Some(limit) = self.maximum_retransmissions {
+            if timed_out_ack.retransmissions >= limit {
+                warn!("reached maximum number of allowed retransmissions for the packet");
+                self.action_sender
+                    .unbounded_send(Action::new_remove(frag_id))
+                    .unwrap();
+                return;
+            }
+        }
+
         let maybe_prepared_fragment = match &timed_out_ack.destination {
             PacketDestination::Anonymous {
                 recipient_tag,
@@ -100,8 +115,6 @@ where
                 .await
             }
         };
-
-        let frag_id = timed_out_ack.message_chunk.fragment_identifier();
 
         let prepared_fragment = match maybe_prepared_fragment {
             Ok(prepared_fragment) => prepared_fragment,
@@ -136,7 +149,7 @@ where
         // with the additional poisson delay.
         // And since Actions are executed in order `UpdateTimer` will HAVE TO be executed before `StartTimer`
         self.action_sender
-            .unbounded_send(Action::new_update_delay(frag_id, new_delay))
+            .unbounded_send(Action::new_update_pending_ack(frag_id, new_delay))
             .unwrap();
 
         // send to `OutQueueControl` to eventually send to the mix network

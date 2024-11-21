@@ -30,7 +30,8 @@ pub(crate) enum Action {
     InsertPending(Vec<PendingAcknowledgement>),
 
     /// Removes given `PendingAcknowledgement` from the 'shared' state. Also cancels the retransmission timer.
-    /// Initiated by `AcknowledgementListener`
+    /// Initiated by `AcknowledgementListener` upon receiving the acknowledgement. Also by `RetransmissionRequestListener`
+    /// upon deciding to abandon the data.
     RemovePending(FragmentIdentifier),
 
     /// Starts the retransmission timer on given `PendingAcknowledgement` with the `Duration` based on
@@ -41,7 +42,7 @@ pub(crate) enum Action {
 
     /// Updates the expected delay of given `PendingAcknowledgement` with the new provided `SphinxDelay`.
     /// Initiated by `RetransmissionRequestListener`
-    UpdateDelay(FragmentIdentifier, SphinxDelay),
+    UpdatePendingAck(FragmentIdentifier, SphinxDelay),
 }
 
 impl Action {
@@ -57,8 +58,8 @@ impl Action {
         Action::StartTimer(frag_id)
     }
 
-    pub(crate) fn new_update_delay(frag_id: FragmentIdentifier, delay: SphinxDelay) -> Self {
-        Action::UpdateDelay(frag_id, delay)
+    pub(crate) fn new_update_pending_ack(frag_id: FragmentIdentifier, delay: SphinxDelay) -> Self {
+        Action::UpdatePendingAck(frag_id, delay)
     }
 }
 
@@ -135,7 +136,7 @@ impl ActionController {
     }
 
     fn handle_start_timer(&mut self, frag_id: FragmentIdentifier) {
-        trace!("{} is starting its timer", frag_id);
+        trace!("{frag_id} is starting its timer");
 
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
             // the fact that this branch is now POSSIBLE is a sign of a need to refactor this whole
@@ -193,7 +194,7 @@ impl ActionController {
 
     // initiated basically as a first step of retransmission. At first data has its delay updated
     // (as new sphinx packet was created with new expected delivery time)
-    fn handle_update_delay(&mut self, frag_id: FragmentIdentifier, delay: SphinxDelay) {
+    fn handle_update_pending_ack(&mut self, frag_id: FragmentIdentifier, delay: SphinxDelay) {
         trace!("{} is updating its delay", frag_id);
         // TODO: is it possible to solve this without either locking or temporarily removing the value?
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.remove(&frag_id) {
@@ -202,7 +203,7 @@ impl ActionController {
             // reference to this Arc. HOWEVER, before the Action was pushed onto the queue, the reference
             // was dropped hence this unwrap is safe.
             let mut inner_data = Arc::try_unwrap(pending_ack_data).unwrap();
-            inner_data.update_delay(delay);
+            inner_data.update_retransmitted(delay);
 
             self.pending_acks_data
                 .insert(frag_id, (Arc::new(inner_data), queue_key));
@@ -225,7 +226,7 @@ impl ActionController {
         // about it. Perhaps just reschedule it at later point?
         let frag_id = expired_ack.into_inner();
 
-        trace!("{} has expired", frag_id);
+        trace!("{frag_id} has expired");
 
         if let Some((pending_ack_data, queue_key)) = self.pending_acks_data.get_mut(&frag_id) {
             if queue_key.is_none() {
@@ -258,7 +259,9 @@ impl ActionController {
             Action::InsertPending(pending_acks) => self.handle_insert(pending_acks),
             Action::RemovePending(frag_id) => self.handle_remove(frag_id),
             Action::StartTimer(frag_id) => self.handle_start_timer(frag_id),
-            Action::UpdateDelay(frag_id, delay) => self.handle_update_delay(frag_id, delay),
+            Action::UpdatePendingAck(frag_id, delay) => {
+                self.handle_update_pending_ack(frag_id, delay)
+            }
         }
     }
 

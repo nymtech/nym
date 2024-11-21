@@ -640,7 +640,7 @@ where
 
     pub(crate) fn update_ack_delay(&self, id: FragmentIdentifier, new_delay: Delay) {
         self.action_sender
-            .unbounded_send(Action::UpdateDelay(id, new_delay))
+            .unbounded_send(Action::UpdatePendingAck(id, new_delay))
             .expect("action control task has died")
     }
 

@@ -1,4 +1,5 @@
 use clap::Parser;
+use nym_crypto::asymmetric::ed25519::PublicKey;
 use nym_task::signal::wait_for_signal;
 
 mod cli;
@@ -13,6 +14,13 @@ async fn main() -> anyhow::Result<()> {
     logging::setup_tracing_logger()?;
 
     let args = cli::Cli::parse();
+
+    let agent_key_list = args
+        .agent_key_list
+        .iter()
+        .map(|value| PublicKey::from_base58_string(value.trim()).map_err(anyhow::Error::from))
+        .collect::<anyhow::Result<Vec<_>>>()?;
+    tracing::info!("Registered {} agent keys", agent_key_list.len());
 
     let connection_url = args.database_url.clone();
     tracing::debug!("Using config:\n{:#?}", args);
@@ -31,12 +39,15 @@ async fn main() -> anyhow::Result<()> {
         .await;
         tracing::info!("Started monitor task");
     });
+
     testruns::spawn(storage.pool_owned(), args.testruns_refresh_interval).await;
 
     let shutdown_handles = http::server::start_http_api(
         storage.pool_owned(),
         args.http_port,
         args.nym_http_cache_ttl,
+        agent_key_list.to_owned(),
+        args.max_agent_count,
     )
     .await
     .expect("Failed to start server");

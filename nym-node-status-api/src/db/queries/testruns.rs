@@ -4,9 +4,25 @@ use crate::{
     db::models::{TestRunDto, TestRunStatus},
     testruns::now_utc,
 };
-use anyhow::Context;
 use chrono::Duration;
 use sqlx::{pool::PoolConnection, Sqlite};
+
+pub(crate) async fn count_testruns_in_progress(
+    conn: &mut PoolConnection<Sqlite>,
+) -> anyhow::Result<i64> {
+    sqlx::query_scalar!(
+        r#"SELECT
+            COUNT(id) as "count: i64"
+         FROM testruns
+         WHERE
+            status = ?
+         "#,
+        TestRunStatus::InProgress as i64,
+    )
+    .fetch_one(conn.as_mut())
+    .await
+    .map_err(anyhow::Error::from)
+}
 
 pub(crate) async fn get_in_progress_testrun_by_id(
     conn: &mut PoolConnection<Sqlite>,
@@ -18,26 +34,31 @@ pub(crate) async fn get_in_progress_testrun_by_id(
             id as "id!",
             gateway_id as "gateway_id!",
             status as "status!",
-            timestamp_utc as "timestamp_utc!",
+            created_utc as "created_utc!",
             ip_address as "ip_address!",
-            log as "log!"
+            log as "log!",
+            last_assigned_utc
          FROM testruns
          WHERE
             id = ?
          AND
             status = ?
-         ORDER BY timestamp_utc"#,
+         ORDER BY created_utc
+         LIMIT 1"#,
         testrun_id,
         TestRunStatus::InProgress as i64,
     )
     .fetch_one(conn.as_mut())
     .await
-    .context(format!("Couldn't retrieve testrun {testrun_id}"))
+    .map_err(|e| anyhow::anyhow!("Couldn't retrieve testrun {testrun_id}: {e}"))
 }
 
-pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> anyhow::Result<u64> {
+pub(crate) async fn update_testruns_assigned_before(
+    db: &DbPool,
+    max_age: Duration,
+) -> anyhow::Result<u64> {
     let mut conn = db.acquire().await?;
-    let previous_run = now_utc() - age;
+    let previous_run = now_utc() - max_age;
     let cutoff_timestamp = previous_run.timestamp();
 
     let res = sqlx::query!(
@@ -48,7 +69,7 @@ pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> an
         WHERE
             status = ?
         AND
-            timestamp_utc < ?
+            last_assigned_utc < ?
             "#,
         TestRunStatus::Queued as i64,
         TestRunStatus::InProgress as i64,
@@ -59,8 +80,8 @@ pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> an
 
     let stale_testruns = res.rows_affected();
     if stale_testruns > 0 {
-        tracing::debug!(
-            "Refreshed {} stale testruns, scheduled before {} but not yet finished",
+        tracing::info!(
+            "Refreshed {} stale testruns, assigned before {} but not yet finished",
             stale_testruns,
             previous_run
         );
@@ -69,19 +90,22 @@ pub(crate) async fn update_testruns_older_than(db: &DbPool, age: Duration) -> an
     Ok(stale_testruns)
 }
 
-pub(crate) async fn get_oldest_testrun_and_make_it_pending(
+pub(crate) async fn assign_oldest_testrun(
     conn: &mut PoolConnection<Sqlite>,
 ) -> anyhow::Result<Option<TestrunAssignment>> {
+    let now = now_utc().timestamp();
     // find & mark as "In progress" in the same transaction to avoid race conditions
     let returning = sqlx::query!(
         r#"UPDATE testruns
-            SET status = ?
+            SET
+                status = ?,
+                last_assigned_utc = ?
             WHERE rowid =
         (
             SELECT rowid
             FROM testruns
             WHERE status = ?
-            ORDER BY timestamp_utc asc
+            ORDER BY created_utc asc
             LIMIT 1
         )
         RETURNING
@@ -89,6 +113,7 @@ pub(crate) async fn get_oldest_testrun_and_make_it_pending(
             gateway_id
             "#,
         TestRunStatus::InProgress as i64,
+        now,
         TestRunStatus::Queued as i64,
     )
     .fetch_optional(conn.as_mut())
@@ -111,6 +136,7 @@ pub(crate) async fn get_oldest_testrun_and_make_it_pending(
         Ok(Some(TestrunAssignment {
             testrun_id: testrun.id,
             gateway_identity_key: gw_identity.gateway_identity_key,
+            assigned_at_utc: now,
         }))
     } else {
         Ok(None)

@@ -1,6 +1,7 @@
 use std::{sync::Arc, time::Duration};
 
 use moka::{future::Cache, Entry};
+use nym_crypto::asymmetric::ed25519::PublicKey;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -12,13 +13,22 @@ use crate::{
 pub(crate) struct AppState {
     db_pool: DbPool,
     cache: HttpCache,
+    agent_key_list: Vec<PublicKey>,
+    agent_max_count: i64,
 }
 
 impl AppState {
-    pub(crate) fn new(db_pool: DbPool, cache_ttl: u64) -> Self {
+    pub(crate) fn new(
+        db_pool: DbPool,
+        cache_ttl: u64,
+        agent_key_list: Vec<PublicKey>,
+        agent_max_count: i64,
+    ) -> Self {
         Self {
             db_pool,
             cache: HttpCache::new(cache_ttl),
+            agent_key_list,
+            agent_max_count,
         }
     }
 
@@ -28,6 +38,14 @@ impl AppState {
 
     pub(crate) fn cache(&self) -> &HttpCache {
         &self.cache
+    }
+
+    pub(crate) fn is_registered(&self, agent_pubkey: &PublicKey) -> bool {
+        self.agent_key_list.contains(agent_pubkey)
+    }
+
+    pub(crate) fn agent_max_count(&self) -> i64 {
+        self.agent_max_count
     }
 }
 

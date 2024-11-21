@@ -11,24 +11,9 @@ async fn main() -> anyhow::Result<()> {
     setup_tracing();
     let args = Args::parse();
 
-    let server_addr = format!("{}:{}", args.server_address, args.server_port);
-    test_ns_api_conn(&server_addr).await?;
-
     args.execute().await?;
 
     Ok(())
-}
-
-async fn test_ns_api_conn(server_addr: &str) -> anyhow::Result<()> {
-    reqwest::get(server_addr)
-        .await
-        .map(|res| {
-            tracing::info!(
-                "Testing connection to NS API at {server_addr}: {}",
-                res.status()
-            );
-        })
-        .map_err(|err| anyhow::anyhow!("Couldn't connect to server on {}: {}", server_addr, err))
 }
 
 pub(crate) fn setup_tracing() {

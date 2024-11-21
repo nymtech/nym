@@ -15,6 +15,13 @@ impl HttpError {
         }
     }
 
+    pub(crate) fn unauthorized() -> Self {
+        Self {
+            message: serde_json::json!({"message": "Make sure your public key is registered with NS API"}).to_string(),
+            status: axum::http::StatusCode::UNAUTHORIZED,
+        }
+    }
+
     pub(crate) fn internal_with_logging(msg: impl Display) -> Self {
         tracing::error!("{}", msg.to_string());
         Self::internal()
@@ -31,12 +38,6 @@ impl HttpError {
         Self {
             message: serde_json::json!({"message": "No testruns available"}).to_string(),
             status: axum::http::StatusCode::SERVICE_UNAVAILABLE,
-        }
-    }
-    pub(crate) fn not_found(msg: impl Display) -> Self {
-        Self {
-            message: serde_json::json!({"message": msg.to_string()}).to_string(),
-            status: axum::http::StatusCode::NOT_FOUND,
         }
     }
 }

@@ -2,7 +2,8 @@ use anyhow::{bail, Result};
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 
-// This is used to keep track of the number of active ephemeral clients that are being called by handle_connection()
+// Used by the ProxyClient for tracking # of active clients created on new TCP connection
+// TODO used by the connection pool for maintaining # of clients in pool +/-
 #[derive(Debug)]
 pub struct ConnectionTracker {
     count: Arc<AtomicUsize>,
@@ -133,7 +134,7 @@ mod tests {
     #[should_panic]
     fn test_zero_floor() {
         let tracker = ConnectionTracker::new();
-        tracker.decrement().unwrap(); // should panic
+        tracker.decrement().unwrap();
     }
 
     #[test]

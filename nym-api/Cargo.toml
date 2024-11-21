@@ -71,9 +71,6 @@ utoipauto = { workspace = true }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 tracing = { workspace = true }
 
-# useful for `#[axum_macros::debug_handler]`
-axum-macros = "0.4.2"
-
 ## ephemera-specific
 #actix-web = "4"
 #array-bytes = "6.0.0"

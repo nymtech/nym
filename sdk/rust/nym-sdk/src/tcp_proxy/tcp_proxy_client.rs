@@ -39,13 +39,13 @@ impl NymProxyClient {
         env: Option<String>,
     ) -> Result<Self> {
         debug!("loading env file: {:?}", env);
-        setup_env(env);
+        setup_env(env); // Defaults to mainnet if empty
         Ok(NymProxyClient {
             server_address,
             listen_address: listen_address.to_string(),
             listen_port: listen_port.to_string(),
             close_timeout,
-            conn_tracker: ConnectionTracker::new(), // This is used to keep track of the number of active ephemeral clients that are being called by handle_connection()
+            conn_tracker: ConnectionTracker::new(), // Keep track of the number of active ephemeral clients that are in use
         })
     }
 
@@ -72,7 +72,7 @@ impl NymProxyClient {
         tokio::spawn(async move {
             loop {
                 info!("active clients: {}", overall_counter.get_count());
-                tokio::time::sleep(Duration::from_secs(10)).await;
+                tokio::time::sleep(Duration::from_secs(5)).await;
             }
         });
 
@@ -106,12 +106,6 @@ impl NymProxyClient {
         close_timeout: u64,
         conn_tracker: ConnectionTracker,
     ) -> Result<()> {
-        conn_tracker.increment();
-        info!(
-            "new connection - current active clients: {}",
-            conn_tracker.get_count()
-        );
-
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
         let session_id = uuid::Uuid::new_v4();
 
@@ -120,8 +114,8 @@ impl NymProxyClient {
 
         // Client creation can fail for multiple reasons like bad network connection: this loop just allows us to
         // retry in a loop until we can successfully connect without having to restart the entire function
-        info!(":: Starting session: {}", session_id);
-        info!(":: creating client...");
+        info!("Starting session: {}", session_id);
+        info!("Creating client...");
         let mut client = loop {
             let net = NymNetworkDetails::new_from_env();
             match MixnetClientBuilder::new_ephemeral()
@@ -132,13 +126,18 @@ impl NymProxyClient {
             {
                 Ok(client) => break client,
                 Err(err) => {
-                    warn!(":: Error creating client: {:?}, will retry in 100ms", err);
+                    warn!("Error creating client: {:?}, will retry in 100ms", err);
                     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
                 }
             }
         };
         let client_addr = &client.nym_address();
-        info!(":: client created: {}", &client_addr);
+        info!("Client created: {}", &client_addr);
+        conn_tracker.increment();
+        info!(
+            "New connection - current active clients: {}",
+            conn_tracker.get_count()
+        );
 
         // Split our tcpstream into OwnedRead and OwnedWrite halves for concurrent read/writing
         let (read, mut write) = stream.into_split();
@@ -192,7 +191,7 @@ impl NymProxyClient {
                 .send_message(server_addr, &coded_message, IncludedSurbs::Amount(100))
                 .await?;
 
-            info!(":: Closing read end of session: {}", session_id);
+            info!("Closing read end of session: {}", session_id);
             tx.send(true)
                 .map_err(|_| anyhow::anyhow!("Could not send close signal"))?;
             Ok::<(), anyhow::Error>(())
@@ -210,7 +209,7 @@ impl NymProxyClient {
             loop {
                 tokio::select! {
                     _ = &mut rx => {
-                        info!(":: Closing write end of session: {} in {} seconds", session_id, close_timeout);
+                        info!(" Closing write end of session: {} in {} seconds", session_id, close_timeout);
                         break
                     }
                     Some(message) = client.next() => {
@@ -234,12 +233,12 @@ impl NymProxyClient {
                         msg_buffer.tick(&mut write).await?;
                     },
                     _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {
-                        info!(":: Closing write end of session: {}", session_id);
-                        info!(":: Triggering client shutdown");
+                        info!(" Closing write end of session: {}", session_id);
+                        info!(" Triggering client shutdown");
                         client.disconnect().await;
                         conn_tracker.clone().decrement()?;
                         info!(
-                            "dropped connection - current active clients: {}",
+                            "Dropped connection - current active clients: {}",
                             conn_tracker.get_count()
                         );
                         return Ok::<(), anyhow::Error>(())

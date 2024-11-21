@@ -6,7 +6,7 @@ use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
-use axum::extract::{Path, State};
+use axum::extract::{Query, State};
 use axum::{Json, Router};
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
@@ -50,7 +50,7 @@ pub(crate) fn aggregation_routes() -> Router<AppState> {
 )]
 async fn master_verification_key(
     State(state): State<Arc<EcashState>>,
-    Path(EpochIdParam { epoch_id }): Path<EpochIdParam>,
+    Query(EpochIdParam { epoch_id }): Query<EpochIdParam>,
 ) -> AxumResult<Json<VerificationKeyResponse>> {
     trace!("aggregated_verification_key request");
 
@@ -63,7 +63,6 @@ async fn master_verification_key(
 }
 
 #[derive(Deserialize, IntoParams)]
-#[into_params(parameter_in = Path)]
 struct ExpirationDateParam {
     expiration_date: Option<String>,
 }
@@ -81,7 +80,7 @@ struct ExpirationDateParam {
 )]
 async fn expiration_date_signatures(
     State(state): State<Arc<EcashState>>,
-    Path(ExpirationDateParam { expiration_date }): Path<ExpirationDateParam>,
+    Query(ExpirationDateParam { expiration_date }): Query<ExpirationDateParam>,
 ) -> AxumResult<Json<AggregatedExpirationDateSignatureResponse>> {
     trace!("aggregated_expiration_date_signatures request");
 
@@ -117,8 +116,8 @@ async fn expiration_date_signatures(
     )
 )]
 async fn coin_indices_signatures(
+    Query(EpochIdParam { epoch_id }): Query<EpochIdParam>,
     State(state): State<Arc<EcashState>>,
-    Path(EpochIdParam { epoch_id }): Path<EpochIdParam>,
 ) -> AxumResult<Json<AggregatedCoinIndicesSignatureResponse>> {
     trace!("aggregated_coin_indices_signatures request");
 

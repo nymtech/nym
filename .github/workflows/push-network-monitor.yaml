@@ -25,12 +25,12 @@ jobs:
           git config --global user.email "lawrence@nymtech.net"
           git config --global user.name "Lawrence Stalder"
 
-      - name: Get version from package.json
-        uses: sergeysova/jq-action@v2
+      - name: Get version from cargo.toml
+        uses: mikefarah/yq@v4.44.5
         id: get_version
         with:
-          cmd: jq -r '.version' ${{ env.WORKING_DIRECTORY }}/package.json
-
+          cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/nym-network-monitor/Cargo.toml
+          
       - name: Check if tag exists
         run: |
           if git rev-parse ${{ steps.get_version.outputs.value }} >/dev/null 2>&1; then

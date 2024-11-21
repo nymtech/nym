@@ -51,6 +51,7 @@ impl<R> NodeTester<R>
 where
     R: Rng + CryptoRng,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rng: R,
         base_topology: NymTopology,

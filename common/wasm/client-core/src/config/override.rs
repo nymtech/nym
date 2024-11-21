@@ -83,6 +83,10 @@ pub struct TrafficWasmOverride {
     #[tsify(optional)]
     pub message_sending_average_delay_ms: Option<u32>,
 
+    /// Specify whether route selection should be determined by the packet header.
+    #[tsify(optional)]
+    pub deterministic_route_selection: Option<bool>,
+
     /// Controls whether the main packet stream constantly produces packets according to the predefined
     /// poisson distribution.
     #[tsify(optional)]
@@ -108,6 +112,9 @@ impl From<TrafficWasmOverride> for TrafficWasm {
             message_sending_average_delay_ms: value
                 .message_sending_average_delay_ms
                 .unwrap_or(def.message_sending_average_delay_ms),
+            deterministic_route_selection: value
+                .deterministic_route_selection
+                .unwrap_or(def.deterministic_route_selection),
             disable_main_poisson_packet_distribution: value
                 .disable_main_poisson_packet_distribution
                 .unwrap_or(def.disable_main_poisson_packet_distribution),

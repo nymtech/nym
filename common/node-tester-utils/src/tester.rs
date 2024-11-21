@@ -29,6 +29,9 @@ pub struct NodeTester<R> {
 
     packet_size: PacketSize,
 
+    /// Specify whether route selection should be determined by the packet header.
+    deterministic_route_selection: bool,
+
     /// Average delay a data packet is going to get delay at a single mixnode.
     average_packet_delay: Duration,
 
@@ -48,11 +51,13 @@ impl<R> NodeTester<R>
 where
     R: Rng + CryptoRng,
 {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         rng: R,
         base_topology: NymTopology,
         self_address: Option<Recipient>,
         packet_size: PacketSize,
+        deterministic_route_selection: bool,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
         ack_key: Arc<AckKey>,
@@ -62,6 +67,7 @@ where
             base_topology,
             self_address,
             packet_size,
+            deterministic_route_selection,
             average_packet_delay,
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
@@ -289,8 +295,16 @@ where
 impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
     type Rng = R;
 
+    fn deterministic_route_selection(&self) -> bool {
+        self.deterministic_route_selection
+    }
+
     fn rng(&mut self) -> &mut Self::Rng {
         &mut self.rng
+    }
+
+    fn nonce(&self) -> i32 {
+        1
     }
 
     fn num_mix_hops(&self) -> u8 {
@@ -303,9 +317,5 @@ impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
 
     fn average_ack_delay(&self) -> Duration {
         self.average_ack_delay
-    }
-
-    fn nonce(&self) -> i32 {
-        1
     }
 }

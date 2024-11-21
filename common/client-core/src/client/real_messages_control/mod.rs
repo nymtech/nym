@@ -97,6 +97,7 @@ impl<'a> From<&'a Config> for message_handler::Config {
             cfg.self_recipient,
             cfg.traffic.average_packet_delay,
             cfg.acks.average_ack_delay,
+            cfg.traffic.deterministic_route_selection,
         )
         .with_custom_primary_packet_size(cfg.traffic.primary_packet_size)
         .with_custom_secondary_packet_size(cfg.traffic.secondary_packet_size)

@@ -229,6 +229,7 @@ impl NymNodeTesterBuilder {
             self.base_topology,
             Some(address(&managed_keys, gateway_identity)),
             PacketSize::default(),
+            false,
             Duration::from_millis(5),
             Duration::from_millis(5),
             managed_keys.ack_key(),

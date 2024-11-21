@@ -91,6 +91,9 @@ pub(crate) struct Config {
     /// and surb-based are going to be sent.
     sender_address: Recipient,
 
+    /// Specify whether route selection should be determined by the packet header.
+    deterministic_route_selection: bool,
+
     /// Average delay a data packet is going to get delay at a single mixnode.
     average_packet_delay: Duration,
 
@@ -114,10 +117,12 @@ impl Config {
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
+        deterministic_route_selection: bool,
     ) -> Self {
         Config {
             ack_key,
             sender_address,
+            deterministic_route_selection,
             average_packet_delay,
             average_ack_delay,
             num_mix_hops: DEFAULT_NUM_MIX_HOPS,
@@ -176,6 +181,7 @@ where
     {
         let message_preparer = MessagePreparer::new(
             rng,
+            config.deterministic_route_selection,
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,

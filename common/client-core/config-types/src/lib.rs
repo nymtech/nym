@@ -381,13 +381,16 @@ pub struct Traffic {
     /// poisson distribution.
     pub disable_main_poisson_packet_distribution: bool,
 
+    /// Specify whether route selection should be determined by the packet header.
+    pub deterministic_route_selection: bool,
+
     /// Specifies the packet size used for sent messages.
     /// Do not override it unless you understand the consequences of that change.
     pub primary_packet_size: PacketSize,
 
     /// Specifies the optional auxiliary packet size for optimizing message streams.
     /// Note that its use decreases overall anonymity.
-    /// Do not set it it unless you understand the consequences of that change.
+    /// Do not set it unless you understand the consequences of that change.
     pub secondary_packet_size: Option<PacketSize>,
 
     pub packet_type: PacketType,
@@ -412,6 +415,7 @@ impl Default for Traffic {
             average_packet_delay: DEFAULT_AVERAGE_PACKET_DELAY,
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
             disable_main_poisson_packet_distribution: false,
+            deterministic_route_selection: false,
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
             packet_type: PacketType::Mix,

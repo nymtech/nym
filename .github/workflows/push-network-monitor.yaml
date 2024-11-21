@@ -33,8 +33,9 @@ jobs:
           
       - name: Remove existing tag if exists
         run: |
+          echo "Checking if tag ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }} exists..."
           if git rev-parse ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }} >/dev/null 2>&1; then
-            echo "Tag ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.value }} already exists"
+            echo "Tag ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }} already exists"
             git push --delete origin ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }}
             git tag -d ${{ env.CONTAINER_NAME }}-${{ steps.get_version.outputs.result }}
           fi

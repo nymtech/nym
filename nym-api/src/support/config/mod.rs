@@ -436,6 +436,8 @@ pub struct TopologyCacherDebug {
     pub node_describe_caching_interval: Duration,
 
     pub node_describe_batch_size: usize,
+
+    pub node_describe_allow_illegal_ips: bool,
 }
 
 impl Default for TopologyCacherDebug {
@@ -444,6 +446,7 @@ impl Default for TopologyCacherDebug {
             caching_interval: DEFAULT_TOPOLOGY_CACHE_INTERVAL,
             node_describe_caching_interval: DEFAULT_NODE_DESCRIBE_CACHE_INTERVAL,
             node_describe_batch_size: DEFAULT_NODE_DESCRIBE_BATCH_SIZE,
+            node_describe_allow_illegal_ips: false,
         }
     }
 }

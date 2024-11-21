@@ -18,7 +18,7 @@ use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng, SeedableRng};
-use rand_chacha::ChaCha20Rng;
+use rand_chacha::ChaCha8Rng;
 
 use nym_sphinx_chunking::monitoring;
 use std::time::Duration;
@@ -244,7 +244,7 @@ pub trait FragmentPreparer {
         let route = if self.deterministic_route_selection() {
             log::trace!("using deterministic route selection");
             let seed = fragment_header.seed().wrapping_mul(self.nonce());
-            let mut rng = ChaCha20Rng::seed_from_u64(seed as u64);
+            let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
             topology.random_route_to_gateway(&mut rng, hops, destination)?
         } else {
             log::trace!("using pseudorandom route selection");

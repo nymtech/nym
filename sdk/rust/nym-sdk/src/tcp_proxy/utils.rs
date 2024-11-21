@@ -6,6 +6,8 @@ use tokio::{io::AsyncWriteExt as _, net::tcp::OwnedWriteHalf};
 use tracing::{debug, info};
 use uuid::Uuid;
 
+const DEFAULT_DECAY: u64 = 2; // decay time in seconds
+
 // Keeps track of
 // - incoming and unsorted messages wrapped in DecayWrapper for keeping track of when they were received
 // - the expected next message ID (reset on .tick())
@@ -122,7 +124,7 @@ impl<T> DecayWrapper<T> {
         DecayWrapper {
             value,
             start: Instant::now(),
-            decay: 6,
+            decay: DEFAULT_DECAY,
         }
     }
 

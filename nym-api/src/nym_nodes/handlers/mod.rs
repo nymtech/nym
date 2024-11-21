@@ -86,8 +86,9 @@ async fn refresh_described(
     }
     // to make sure you can't ddos the endpoint while a request is in progress
     state.forced_refresh.set_last_refreshed(node_id).await;
+    let allow_all_ips = state.forced_refresh.allow_all_ip_addresses;
 
-    if let Some(updated_data) = refresh_data.try_refresh().await {
+    if let Some(updated_data) = refresh_data.try_refresh(allow_all_ips).await {
         let Ok(mut describe_cache) = state.described_nodes_cache.write().await else {
             return Err(AxumErrorResponse::service_unavailable());
         };

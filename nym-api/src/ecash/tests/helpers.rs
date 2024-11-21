@@ -51,7 +51,7 @@ pub(crate) async fn initialise_dkg(controllers: &mut [TestingDkgController], res
 
     // add every dealer to group contract
     for controller in controllers.iter() {
-        let address = controller.dkg_client.get_address().await;
+        let address = controller.dkg_client.get_address().await.unwrap();
         let mut chain = controllers[0].chain_state.lock().unwrap();
         chain.add_member(address.as_ref(), 10);
     }

@@ -4457,7 +4457,6 @@ dependencies = [
  "async-trait",
  "axum 0.7.7",
  "axum-extra",
- "axum-macros",
  "axum-test",
  "bincode",
  "bip39",

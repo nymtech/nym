@@ -313,7 +313,7 @@ mod tests {
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
 
-        let first_dealer = controllers[0].dkg_client.get_address().await;
+        let first_dealer = controllers[0].dkg_client.get_address().await?;
 
         {
             let mut guard = chain.lock().unwrap();
@@ -365,8 +365,8 @@ mod tests {
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
 
-        let first_dealer = controllers[0].dkg_client.get_address().await;
-        let second_dealer = controllers[1].dkg_client.get_address().await;
+        let first_dealer = controllers[0].dkg_client.get_address().await?;
+        let second_dealer = controllers[1].dkg_client.get_address().await?;
 
         {
             let mut guard = chain.lock().unwrap();

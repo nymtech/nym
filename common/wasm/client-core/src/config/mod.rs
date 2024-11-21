@@ -156,6 +156,10 @@ pub struct TrafficWasm {
     /// a loop cover message is sent instead in order to preserve the rate.
     pub message_sending_average_delay_ms: u32,
 
+    /// Specify how many times particular packet can be retransmitted
+    /// None - no limit
+    pub maximum_number_of_retransmissions: Option<u32>,
+
     /// Specify whether route selection should be determined by the packet header.
     pub deterministic_route_selection: bool,
 

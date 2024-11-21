@@ -384,6 +384,10 @@ pub struct Traffic {
     /// Specify whether route selection should be determined by the packet header.
     pub deterministic_route_selection: bool,
 
+    /// Specify how many times particular packet can be retransmitted
+    /// None - no limit
+    pub maximum_number_of_retransmissions: Option<u32>,
+
     /// Specifies the packet size used for sent messages.
     /// Do not override it unless you understand the consequences of that change.
     pub primary_packet_size: PacketSize,
@@ -416,6 +420,7 @@ impl Default for Traffic {
             message_sending_average_delay: DEFAULT_MESSAGE_STREAM_AVERAGE_DELAY,
             disable_main_poisson_packet_distribution: false,
             deterministic_route_selection: false,
+            maximum_number_of_retransmissions: None,
             primary_packet_size: PacketSize::RegularPacket,
             secondary_packet_size: None,
             packet_type: PacketType::Mix,

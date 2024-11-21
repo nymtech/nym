@@ -71,6 +71,7 @@ pub(crate) struct PendingAcknowledgement {
     delay: SphinxDelay,
     destination: PacketDestination,
     mix_hops: Option<u8>,
+    retransmissions: u32,
 }
 
 impl PendingAcknowledgement {
@@ -86,6 +87,7 @@ impl PendingAcknowledgement {
             delay,
             destination: PacketDestination::KnownRecipient(recipient.into()),
             mix_hops,
+            retransmissions: 0,
         }
     }
 
@@ -105,6 +107,7 @@ impl PendingAcknowledgement {
             // Messages sent using SURBs are using the number of mix hops set by the recipient when
             // they provided the SURBs, so it doesn't make sense to include it here.
             mix_hops: None,
+            retransmissions: 0,
         }
     }
 
@@ -116,8 +119,9 @@ impl PendingAcknowledgement {
         self.message_chunk.clone()
     }
 
-    fn update_delay(&mut self, new_delay: SphinxDelay) {
+    fn update_retransmitted(&mut self, new_delay: SphinxDelay) {
         self.delay = new_delay;
+        self.retransmissions += 1;
     }
 }
 
@@ -163,6 +167,9 @@ impl AcknowledgementControllerConnectors {
 
 /// Configurable parameters of the `AcknowledgementController`
 pub(super) struct Config {
+    /// Specify how many times particular packet can be retransmitted
+    maximum_retransmissions: Option<u32>,
+
     /// Given ack timeout in the form a * BASE_DELAY + b, it specifies the additive part `b`
     ack_wait_addition: Duration,
 
@@ -174,8 +181,13 @@ pub(super) struct Config {
 }
 
 impl Config {
-    pub(super) fn new(ack_wait_addition: Duration, ack_wait_multiplier: f64) -> Self {
+    pub(super) fn new(
+        maximum_retransmissions: Option<u32>,
+        ack_wait_addition: Duration,
+        ack_wait_multiplier: f64,
+    ) -> Self {
         Config {
+            maximum_retransmissions,
             ack_wait_addition,
             ack_wait_multiplier,
             packet_size: Default::default(),
@@ -238,6 +250,7 @@ where
 
         // will listen for any ack timeouts and trigger retransmission
         let retransmission_request_listener = RetransmissionRequestListener::new(
+            config.maximum_retransmissions,
             connectors.ack_action_sender.clone(),
             message_handler,
             retransmission_rx,

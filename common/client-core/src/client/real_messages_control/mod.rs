@@ -65,6 +65,7 @@ pub struct Config {
 impl<'a> From<&'a Config> for acknowledgement_control::Config {
     fn from(cfg: &'a Config) -> Self {
         acknowledgement_control::Config::new(
+            cfg.traffic.maximum_number_of_retransmissions,
             cfg.acks.ack_wait_addition,
             cfg.acks.ack_wait_multiplier,
         )

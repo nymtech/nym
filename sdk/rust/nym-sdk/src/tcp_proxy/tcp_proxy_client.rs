@@ -125,12 +125,6 @@ impl NymProxyClient {
         conn_pool: ClientPool,
         cancel_token: CancellationToken,
     ) -> Result<()> {
-        conn_tracker.increment();
-        info!(
-            "new connection - current active clients: {}",
-            conn_tracker.get_count()
-        );
-
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
         let session_id = uuid::Uuid::new_v4();
 
@@ -264,7 +258,7 @@ impl NymProxyClient {
                         client.disconnect().await;
                         conn_tracker.clone().decrement()?;
                         info!(
-                            "dropped connection - current active clients: {}",
+                            "Dropped connection - current active clients: {}",
                             conn_tracker.get_count()
                         );
                         return Ok::<(), anyhow::Error>(())

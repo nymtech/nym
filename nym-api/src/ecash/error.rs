@@ -25,6 +25,9 @@ pub enum EcashError {
     #[error(transparent)]
     IOError(#[from] std::io::Error),
 
+    #[error("this instance is running without on-chain signing capabilities so no transactions can be sent")]
+    ChainSignerNotEnabled,
+
     #[error("this operation couldn't be completed as this nym-api is not an active ecash signer")]
     NotASigner,
 

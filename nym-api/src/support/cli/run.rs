@@ -157,7 +157,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     // if ecash signer is enabled, there are additional constraints on the nym-api,
     // such as having sufficient token balance
     let signer_information = if config.ecash_signer.enabled {
-        let cosmos_address = nyxd_client.address().await;
+        let cosmos_address = nyxd_client.address().await?;
 
         // make sure we have some tokens to cover multisig fees
         let balance = nyxd_client.balance(&mix_denom).await?;

@@ -155,7 +155,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         resharing: bool,
     ) -> Result<(), DealingGenerationError> {
         let dealing_state = self.state.dealing_exchange_state(epoch_id)?;
-        let address = self.dkg_client.get_address().await.to_string();
+        let address = self.dkg_client.get_address().await?.to_string();
 
         let status = self
             .dkg_client
@@ -259,7 +259,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             .checked_sub(1)
             .expect("resharing epoch invariant has been broken");
 
-        let address = self.dkg_client.get_address().await;
+        let address = self.dkg_client.get_address().await?;
         Ok(self
             .dkg_client
             .dealer_in_epoch(previous_epoch_id, address.to_string())

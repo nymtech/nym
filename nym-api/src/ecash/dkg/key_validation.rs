@@ -155,7 +155,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             };
 
             // if this is our share, obviously vote for yes without spending time on verification
-            if owner.as_ref() == self.dkg_client.get_address().await.as_ref() {
+            if owner.as_ref() == self.dkg_client.get_address().await?.as_ref() {
                 votes.insert(*proposal_id, true);
                 continue;
             }

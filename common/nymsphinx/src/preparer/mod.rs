@@ -51,6 +51,7 @@ impl From<PreparedFragment> for MixPacket {
 pub trait FragmentPreparer {
     type Rng: CryptoRng + Rng;
 
+    fn deterministic_route_selection(&self) -> bool;
     fn rng(&mut self) -> &mut Self::Rng;
     fn nonce(&self) -> i32;
     fn num_mix_hops(&self) -> u8;
@@ -201,9 +202,7 @@ pub trait FragmentPreparer {
         // could perform diffie-hellman with its own keys followed by a kdf to re-derive
         // the packet encryption key
 
-        let seed = fragment.seed().wrapping_mul(self.nonce());
-        let mut rng = ChaCha20Rng::seed_from_u64(seed as u64);
-
+        let fragment_header = fragment.header();
         let destination = packet_recipient.gateway();
         let hops = mix_hops.unwrap_or(self.num_mix_hops());
         monitoring::fragment_sent(&fragment, self.nonce(), *destination, hops);
@@ -241,8 +240,18 @@ pub trait FragmentPreparer {
         };
 
         // generate pseudorandom route for the packet
-        log::trace!("Preparing chunk for sending with {} mix hops", hops);
-        let route = topology.random_route_to_gateway(&mut rng, hops, destination)?;
+        log::trace!("Preparing chunk for sending with {hops} mix hops");
+        let route = if self.deterministic_route_selection() {
+            log::trace!("using deterministic route selection");
+            let seed = fragment_header.seed().wrapping_mul(self.nonce());
+            let mut rng = ChaCha20Rng::seed_from_u64(seed as u64);
+            topology.random_route_to_gateway(&mut rng, hops, destination)?
+        } else {
+            log::trace!("using pseudorandom route selection");
+            let mut rng = self.rng();
+            topology.random_route_to_gateway(&mut rng, hops, destination)?
+        };
+
         let destination = packet_recipient.as_sphinx_destination();
 
         // including set of delays
@@ -313,6 +322,9 @@ pub struct MessagePreparer<R> {
     /// Instance of a cryptographically secure random number generator.
     rng: R,
 
+    /// Specify whether route selection should be determined by the packet header.
+    deterministic_route_selection: bool,
+
     /// Address of this client which also represent an address to which all acknowledgements
     /// and surb-based are going to be sent.
     sender_address: Recipient,
@@ -336,6 +348,7 @@ where
 {
     pub fn new(
         rng: R,
+        deterministic_route_selection: bool,
         sender_address: Recipient,
         average_packet_delay: Duration,
         average_ack_delay: Duration,
@@ -344,6 +357,7 @@ where
         let nonce = rng.gen();
         MessagePreparer {
             rng,
+            deterministic_route_selection,
             sender_address,
             average_packet_delay,
             average_ack_delay,
@@ -457,8 +471,16 @@ where
 impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
     type Rng = R;
 
+    fn deterministic_route_selection(&self) -> bool {
+        self.deterministic_route_selection
+    }
+
     fn rng(&mut self) -> &mut Self::Rng {
         &mut self.rng
+    }
+
+    fn nonce(&self) -> i32 {
+        self.nonce
     }
 
     fn num_mix_hops(&self) -> u8 {
@@ -471,10 +493,6 @@ impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
 
     fn average_ack_delay(&self) -> Duration {
         self.average_ack_delay
-    }
-
-    fn nonce(&self) -> i32 {
-        self.nonce
     }
 }
 

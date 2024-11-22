@@ -4470,6 +4470,7 @@ dependencies = [
  "cw2",
  "cw3",
  "cw4",
+ "dashmap",
  "dirs",
  "futures",
  "getset",
@@ -4781,7 +4782,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.43"
+version = "1.1.44"
 dependencies = [
  "bs58",
  "clap 4.5.20",
@@ -5898,7 +5899,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.44"
+version = "1.1.45"
 dependencies = [
  "addr",
  "anyhow",
@@ -5949,7 +5950,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "anyhow",
  "bip39",
@@ -6305,7 +6306,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.43"
+version = "1.1.44"
 dependencies = [
  "bs58",
  "clap 4.5.20",

@@ -162,6 +162,13 @@ pub struct TrafficWasm {
     /// a loop cover message is sent instead in order to preserve the rate.
     pub message_sending_average_delay_ms: u32,
 
+    /// Specify how many times particular packet can be retransmitted
+    /// None - no limit
+    pub maximum_number_of_retransmissions: Option<u32>,
+
+    /// Specify whether route selection should be determined by the packet header.
+    pub deterministic_route_selection: bool,
+
     /// Controls whether the main packet stream constantly produces packets according to the predefined
     /// poisson distribution.
     pub disable_main_poisson_packet_distribution: bool,
@@ -196,6 +203,8 @@ impl From<TrafficWasm> for ConfigTraffic {
             message_sending_average_delay: Duration::from_millis(
                 traffic.message_sending_average_delay_ms as u64,
             ),
+            deterministic_route_selection: traffic.deterministic_route_selection,
+            maximum_number_of_retransmissions: traffic.maximum_number_of_retransmissions,
             disable_main_poisson_packet_distribution: traffic
                 .disable_main_poisson_packet_distribution,
             primary_packet_size: PacketSize::RegularPacket,
@@ -211,6 +220,8 @@ impl From<ConfigTraffic> for TrafficWasm {
             average_packet_delay_ms: traffic.average_packet_delay.as_millis() as u32,
             message_sending_average_delay_ms: traffic.message_sending_average_delay.as_millis()
                 as u32,
+            deterministic_route_selection: traffic.deterministic_route_selection,
+            maximum_number_of_retransmissions: traffic.maximum_number_of_retransmissions,
             disable_main_poisson_packet_distribution: traffic
                 .disable_main_poisson_packet_distribution,
             use_extended_packet_size: traffic.secondary_packet_size.is_some(),

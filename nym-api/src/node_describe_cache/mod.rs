@@ -57,6 +57,9 @@ pub enum NodeDescribeCacheError {
     // TODO: perhaps include more details here like whether key/signature/payload was malformed
     #[error("could not verify signed host information for node {node_id}")]
     MissignedHostInformation { node_id: NodeId },
+
+    #[error("node {node_id} is announcing an illegal ip address")]
+    IllegalIpAddress { node_id: NodeId },
 }
 
 // this exists because I've been moving things around quite a lot and now the place that holds the type
@@ -199,13 +202,18 @@ impl DescribedNodes {
 pub struct NodeDescriptionProvider {
     contract_cache: NymContractCache,
 
+    allow_all_ips: bool,
     batch_size: usize,
 }
 
 impl NodeDescriptionProvider {
-    pub(crate) fn new(contract_cache: NymContractCache) -> NodeDescriptionProvider {
+    pub(crate) fn new(
+        contract_cache: NymContractCache,
+        allow_all_ips: bool,
+    ) -> NodeDescriptionProvider {
         NodeDescriptionProvider {
             contract_cache,
+            allow_all_ips,
             batch_size: DEFAULT_NODE_DESCRIBE_BATCH_SIZE,
         }
     }
@@ -270,6 +278,7 @@ async fn try_get_client(
 
 async fn try_get_description(
     data: RefreshData,
+    allow_all_ips: bool,
 ) -> Result<NymNodeDescription, NodeDescribeCacheError> {
     let client = try_get_client(&data.host, data.node_id, data.port).await?;
 
@@ -282,6 +291,12 @@ async fn try_get_description(
 
     if !host_info.verify_host_information() {
         return Err(NodeDescribeCacheError::MissignedHostInformation {
+            node_id: data.node_id,
+        });
+    }
+
+    if !allow_all_ips && !host_info.data.check_ips() {
+        return Err(NodeDescribeCacheError::IllegalIpAddress {
             node_id: data.node_id,
         });
     }
@@ -357,8 +372,8 @@ impl RefreshData {
         self.node_id
     }
 
-    pub(crate) async fn try_refresh(self) -> Option<NymNodeDescription> {
-        match try_get_description(self).await {
+    pub(crate) async fn try_refresh(self, allow_all_ips: bool) -> Option<NymNodeDescription> {
+        match try_get_description(self, allow_all_ips).await {
             Ok(description) => Some(description),
             Err(err) => {
                 debug!("failed to obtain node self-described data: {err}");
@@ -412,11 +427,15 @@ impl CacheItemProvider for NodeDescriptionProvider {
             }
         }
 
-        let nodes = stream::iter(nodes_to_query.into_iter().map(|n| n.try_refresh()))
-            .buffer_unordered(self.batch_size)
-            .filter_map(|x| async move { x.map(|d| (d.node_id, d)) })
-            .collect::<HashMap<_, _>>()
-            .await;
+        let nodes = stream::iter(
+            nodes_to_query
+                .into_iter()
+                .map(|n| n.try_refresh(self.allow_all_ips)),
+        )
+        .buffer_unordered(self.batch_size)
+        .filter_map(|x| async move { x.map(|d| (d.node_id, d)) })
+        .collect::<HashMap<_, _>>()
+        .await;
 
         info!("refreshed self described data for {} nodes", nodes.len());
 
@@ -432,8 +451,11 @@ pub(crate) fn new_refresher(
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new(
         Box::new(
-            NodeDescriptionProvider::new(contract_cache)
-                .with_batch_size(config.debug.node_describe_batch_size),
+            NodeDescriptionProvider::new(
+                contract_cache,
+                config.debug.node_describe_allow_illegal_ips,
+            )
+            .with_batch_size(config.debug.node_describe_batch_size),
         ),
         config.debug.node_describe_caching_interval,
     )
@@ -446,8 +468,11 @@ pub(crate) fn new_refresher_with_initial_value(
 ) -> CacheRefresher<DescribedNodes, NodeDescribeCacheError> {
     CacheRefresher::new_with_initial_value(
         Box::new(
-            NodeDescriptionProvider::new(contract_cache)
-                .with_batch_size(config.debug.node_describe_batch_size),
+            NodeDescriptionProvider::new(
+                contract_cache,
+                config.debug.node_describe_allow_illegal_ips,
+            )
+            .with_batch_size(config.debug.node_describe_batch_size),
         ),
         config.debug.node_describe_caching_interval,
         initial,

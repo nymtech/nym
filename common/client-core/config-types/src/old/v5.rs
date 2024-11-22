@@ -111,6 +111,7 @@ impl From<ConfigV5> for Config {
                     primary_packet_size: value.debug.traffic.primary_packet_size,
                     secondary_packet_size: value.debug.traffic.secondary_packet_size,
                     packet_type: value.debug.traffic.packet_type,
+                    ..Default::default()
                 },
                 cover_traffic: CoverTraffic {
                     loop_cover_traffic_average_delay: value

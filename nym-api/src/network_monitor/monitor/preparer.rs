@@ -121,6 +121,7 @@ impl PacketPreparer {
             test_route.topology().clone(),
             self_address,
             PacketSize::RegularPacket,
+            false,
             DEFAULT_AVERAGE_PACKET_DELAY,
             DEFAULT_AVERAGE_ACK_DELAY,
             self.ack_key.clone(),

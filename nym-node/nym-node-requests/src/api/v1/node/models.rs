@@ -59,6 +59,17 @@ pub struct HostInformation {
     pub keys: HostKeys,
 }
 
+impl HostInformation {
+    pub fn check_ips(&self) -> bool {
+        for ip in &self.ip_address {
+            if ip.is_unspecified() || ip.is_loopback() || ip.is_multicast() {
+                return false;
+            }
+        }
+        true
+    }
+}
+
 #[derive(Serialize)]
 pub struct LegacyHostInformationV2 {
     pub ip_address: Vec<IpAddr>,

@@ -107,11 +107,11 @@ struct Args {
     client_lifetime: u64,
 
     /// Port to listen on
-    #[arg(long, default_value_t = 8080)]
+    #[arg(long, default_value_t = 8080, env = "NYM_NETWORK_MONITORING_PORT")]
     port: u16,
 
     /// Host to listen on
-    #[arg(long, default_value = "127.0.0.1")]
+    #[arg(long, default_value = "127.0.0.1", env = "NYM_NETWORK_MONITORING_HOST")]
     host: String,
 
     /// Path to the topology file

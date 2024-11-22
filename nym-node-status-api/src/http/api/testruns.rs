@@ -4,7 +4,10 @@ use axum::{
     extract::{Path, State},
     Router,
 };
-use nym_common_models::ns_api::{get_testrun, submit_results, VerifiableRequest};
+use node_status_api_client::{
+    auth::VerifiableRequest,
+    models::{get_testrun, submit_results},
+};
 use reqwest::StatusCode;
 
 use crate::db::models::TestRunStatus;

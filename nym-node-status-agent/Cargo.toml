@@ -20,7 +20,7 @@ bincode = { workspace = true }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["derive", "env"] }
 nym-bin-common = { path = "../common/bin-common", features = ["models"]}
-nym-common-models = { path = "../common/models" }
+nym-node-status-api = { path = "../nym-node-status-api" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "process"] }

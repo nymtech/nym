@@ -5007,16 +5007,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-common-models"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bincode",
- "nym-crypto",
- "serde",
-]
-
-[[package]]
 name = "nym-compact-ecash"
 version = "0.1.0"
 dependencies = [
@@ -6059,8 +6049,8 @@ dependencies = [
  "chrono",
  "clap 4.5.20",
  "nym-bin-common",
- "nym-common-models",
  "nym-crypto",
+ "nym-node-status-api",
  "rand",
  "reqwest 0.12.4",
  "serde",
@@ -6086,9 +6076,9 @@ dependencies = [
  "futures-util",
  "moka",
  "nym-bin-common",
- "nym-common-models",
  "nym-crypto",
  "nym-explorer-client",
+ "nym-http-api-client",
  "nym-network-defaults",
  "nym-node-requests",
  "nym-task",

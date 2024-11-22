@@ -35,7 +35,7 @@ impl NymApiStorage {
     pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, NymApiStorageError> {
         // TODO: we can inject here more stuff based on our nym-api global config
         // struct. Maybe different pool size or timeout intervals?
-        let opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let connect_opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true)
             .log_statements(LevelFilter::Trace)
@@ -43,7 +43,12 @@ impl NymApiStorage {
 
         // TODO: do we want auto_vacuum ?
 
-        let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
+        let pool_opts = sqlx::sqlite::SqlitePoolOptions::new()
+            .min_connections(5)
+            .max_connections(25)
+            .acquire_timeout(Duration::from_secs(60));
+
+        let connection_pool = match pool_opts.connect_with(connect_opts).await {
             Ok(db) => db,
             Err(err) => {
                 error!("Failed to connect to SQLx database: {err}");

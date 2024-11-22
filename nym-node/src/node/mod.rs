@@ -618,6 +618,7 @@ impl NymNode {
         );
         exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);
+        exit_gateway.set_session_stats(self.entry_gateway.sessions_stats.clone()); //Weird naming I'll give you that, but Andrew is gonna rework it anyway
         if self.config.wireguard.enabled {
             exit_gateway.set_wireguard_data(self.wireguard.into());
         }

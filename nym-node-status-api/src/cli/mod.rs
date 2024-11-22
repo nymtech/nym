@@ -77,7 +77,7 @@ pub(crate) struct Cli {
     #[clap(
         long,
         default_value_t = 40,
-        env = "NYM_NODE_STATUS_API_NYM_HTTP_CACHE_TTL"
+        env = "NYM_NODE_STATUS_API_MAX_AGENT_COUNT"
     )]
     pub(crate) max_agent_count: i64,
 }

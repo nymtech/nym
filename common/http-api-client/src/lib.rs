@@ -282,6 +282,49 @@ impl Client {
         }
     }
 
+    pub async fn create_delete_request<K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> RequestBuilder
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let url = sanitize_url(&self.base_url, path, params);
+        self.reqwest_client.delete(url)
+    }
+
+    pub async fn send_delete_request<K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<Response, HttpClientError<E>>
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+        E: Display,
+    {
+        tracing::trace!("Sending DELETE request");
+        let url = sanitize_url(&self.base_url, path, params);
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            Ok(wasmtimer::tokio::timeout(
+                self.request_timeout,
+                self.reqwest_client.delete(url).send(),
+            )
+            .await
+            .map_err(|_timeout| HttpClientError::RequestTimeout)??)
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Ok(self.reqwest_client.delete(url).send().await?)
+        }
+    }
+
+
     #[instrument(level = "debug", skip_all)]
     pub async fn get_json<T, K, V, E>(
         &self,
@@ -313,6 +356,21 @@ impl Client {
     {
         let res = self.send_post_request(path, params, json_body).await?;
         parse_response(res, true).await
+    }
+
+    pub async fn delete_json<T, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+        E: Display + DeserializeOwned,
+    {
+        let res = self.send_delete_request(path, params).await?;
+        parse_response(res, false).await
     }
 
     #[instrument(level = "debug", skip_all)]
@@ -379,6 +437,35 @@ impl Client {
         };
 
         parse_response(res, true).await
+    }
+
+    pub async fn delete_json_endpoint<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str>,
+    {
+        #[cfg(target_arch = "wasm32")]
+        let res = {
+            wasmtimer::tokio::timeout(
+                self.request_timeout,
+                self.reqwest_client
+                    .delete(self.base_url.join(endpoint.as_ref())?)
+                    .send(),
+            )
+            .await
+            .map_err(|_timeout| HttpClientError::RequestTimeout)??
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let res = {
+            self.reqwest_client
+                .delete(self.base_url.join(endpoint.as_ref())?)
+                .send()
+                .await?
+        };
+
+        parse_response(res, false).await
     }
 }
 

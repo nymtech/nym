@@ -5868,7 +5868,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitor"
-version = "1.0.1-testfran3"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "axum 0.7.7",

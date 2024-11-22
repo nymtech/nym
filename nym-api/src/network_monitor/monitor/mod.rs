@@ -95,10 +95,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             )
             .await
         {
-            error!("Failed to submit monitor run information to the database - {err}",);
-
-            // TODO: slightly more graceful shutdown here
-            process::exit(1);
+            error!("Failed to submit monitor run information to the database: {err}",);
         }
     }
 

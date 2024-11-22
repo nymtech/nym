@@ -14,7 +14,6 @@ use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
-use std::process;
 use tokio::time::{sleep, Duration, Instant};
 use tracing::{debug, error, info, trace};
 

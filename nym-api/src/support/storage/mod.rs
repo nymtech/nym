@@ -13,10 +13,12 @@ use crate::storage::models::{NodeStatus, TestingRoute};
 use crate::support::storage::models::{
     GatewayDetails, HistoricalUptime, MixnodeDetails, TestedGatewayStatus, TestedMixnodeStatus,
 };
+use dashmap::DashMap;
 use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::NodeResult;
 use sqlx::ConnectOptions;
 use std::path::Path;
+use std::sync::Arc;
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use tracing::log::LevelFilter;
@@ -25,10 +27,36 @@ use tracing::{error, info, warn};
 pub(crate) mod manager;
 pub(crate) mod models;
 
+#[derive(Default)]
+pub(crate) struct DbIdCache {
+    pub mixnodes_v1: DashMap<NodeId, i64>,
+    pub gateways_v1: DashMap<NodeId, i64>,
+}
+
+impl DbIdCache {
+    pub(crate) fn mixnode_db_id(&self, node_id: NodeId) -> Option<i64> {
+        self.mixnodes_v1.get(&node_id).map(|v| *v)
+    }
+
+    pub(crate) fn gateway_db_id(&self, node_id: NodeId) -> Option<i64> {
+        self.gateways_v1.get(&node_id).map(|v| *v)
+    }
+
+    pub(crate) fn set_mixnode_db_id(&self, node_id: NodeId, db_id: i64) {
+        self.mixnodes_v1.insert(node_id, db_id);
+    }
+
+    pub(crate) fn set_gateway_db_id(&self, node_id: NodeId, db_id: i64) {
+        self.gateways_v1.insert(node_id, db_id);
+    }
+}
+
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
 pub(crate) struct NymApiStorage {
     pub manager: StorageManager,
+
+    pub db_id_cache: Arc<DbIdCache>,
 }
 
 impl NymApiStorage {
@@ -65,32 +93,38 @@ impl NymApiStorage {
 
         let storage = NymApiStorage {
             manager: StorageManager { connection_pool },
+            db_id_cache: Arc::new(Default::default()),
         };
 
         Ok(storage)
     }
 
-    #[allow(unused)]
-    pub(crate) async fn mix_identity_to_mix_ids(
+    pub(crate) async fn get_mixnode_database_id(
         &self,
-        identity: &str,
-    ) -> Result<Vec<NodeId>, NymApiStorageError> {
-        Ok(self
-            .manager
-            .get_mixnode_mix_ids_by_identity(identity)
-            .await?)
+        node_id: NodeId,
+    ) -> Result<Option<i64>, NymApiStorageError> {
+        if let Some(cached) = self.db_id_cache.mixnode_db_id(node_id) {
+            return Ok(Some(cached));
+        }
+        if let Some(retrieved) = self.manager.get_mixnode_database_id(node_id).await? {
+            self.db_id_cache.set_mixnode_db_id(node_id, retrieved);
+            return Ok(Some(retrieved));
+        }
+        Ok(None)
     }
 
-    #[allow(unused)]
-    pub(crate) async fn mix_identity_to_latest_mix_id(
+    pub(crate) async fn get_gateway_database_id(
         &self,
-        identity: &str,
-    ) -> Result<Option<NodeId>, NymApiStorageError> {
-        Ok(self
-            .mix_identity_to_mix_ids(identity)
-            .await?
-            .into_iter()
-            .max())
+        node_id: NodeId,
+    ) -> Result<Option<i64>, NymApiStorageError> {
+        if let Some(cached) = self.db_id_cache.gateway_db_id(node_id) {
+            return Ok(Some(cached));
+        }
+        if let Some(retrieved) = self.manager.get_gateway_database_id(node_id).await? {
+            self.db_id_cache.set_gateway_db_id(node_id, retrieved);
+            return Ok(Some(retrieved));
+        }
+        Ok(None)
     }
 
     pub(crate) async fn get_all_avg_gateway_reliability_in_last_24hr(
@@ -543,7 +577,6 @@ impl NymApiStorage {
         // we MUST have those entries in the database, otherwise the route wouldn't have been chosen
         // in the first place
         let layer1_mix_db_id = self
-            .manager
             .get_mixnode_database_id(test_route.layer_one_mix().mix_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
@@ -551,7 +584,6 @@ impl NymApiStorage {
             })?;
 
         let layer2_mix_db_id = self
-            .manager
             .get_mixnode_database_id(test_route.layer_two_mix().mix_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
@@ -559,7 +591,6 @@ impl NymApiStorage {
             })?;
 
         let layer3_mix_db_id = self
-            .manager
             .get_mixnode_database_id(test_route.layer_three_mix().mix_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
@@ -567,7 +598,6 @@ impl NymApiStorage {
             })?;
 
         let gateway_db_id = self
-            .manager
             .get_gateway_database_id(test_route.gateway().node_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
@@ -668,17 +698,37 @@ impl NymApiStorage {
         let monitor_run_id = self.manager.insert_monitor_run(now).await?;
 
         self.manager
-            .submit_mixnode_statuses(now, mixnode_results)
+            .submit_mixnode_statuses(now, mixnode_results, &self.db_id_cache)
             .await?;
 
         self.manager
-            .submit_gateway_statuses(now, gateway_results)
+            .submit_gateway_statuses(now, gateway_results, &self.db_id_cache)
             .await?;
 
         for test_route in test_routes {
             self.insert_test_route(monitor_run_id, test_route).await?;
         }
 
+        Ok(())
+    }
+
+    pub(crate) async fn submit_mixnode_statuses_v2(
+        &self,
+        mixnode_results: &[NodeResult],
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .submit_mixnode_statuses_v2(mixnode_results)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn submit_gateway_statuses_v2(
+        &self,
+        gateway_results: &[NodeResult],
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .submit_gateway_statuses_v2(gateway_results)
+            .await?;
         Ok(())
     }
 

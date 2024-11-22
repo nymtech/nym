@@ -6045,19 +6045,13 @@ name = "nym-node-status-agent"
 version = "1.0.0-rc.1"
 dependencies = [
  "anyhow",
- "bincode",
- "chrono",
  "clap 4.5.20",
  "nym-bin-common",
  "nym-crypto",
- "nym-node-status-api",
+ "nym-node-status-api-client",
  "rand",
- "reqwest 0.12.4",
- "serde",
- "serde_json",
  "tempfile",
  "tokio",
- "tokio-util",
  "tracing",
  "tracing-subscriber",
 ]
@@ -6068,7 +6062,6 @@ version = "1.0.0-rc.2"
 dependencies = [
  "anyhow",
  "axum 0.7.7",
- "bincode",
  "chrono",
  "clap 4.5.20",
  "cosmwasm-std",
@@ -6078,9 +6071,9 @@ dependencies = [
  "nym-bin-common",
  "nym-crypto",
  "nym-explorer-client",
- "nym-http-api-client",
  "nym-network-defaults",
  "nym-node-requests",
+ "nym-node-status-api-client",
  "nym-task",
  "nym-validator-client",
  "regex",
@@ -6101,6 +6094,21 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "utoipauto",
+]
+
+[[package]]
+name = "nym-node-status-api-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "chrono",
+ "nym-crypto",
+ "nym-http-api-client",
+ "reqwest 0.12.4",
+ "serde",
+ "serde_json",
+ "tracing",
 ]
 
 [[package]]

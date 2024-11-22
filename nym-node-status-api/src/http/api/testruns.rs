@@ -1,15 +1,3 @@
-use axum::extract::DefaultBodyLimit;
-use axum::Json;
-use axum::{
-    extract::{Path, State},
-    Router,
-};
-use node_status_api_client::{
-    auth::VerifiableRequest,
-    models::{get_testrun, submit_results},
-};
-use reqwest::StatusCode;
-
 use crate::db::models::TestRunStatus;
 use crate::db::queries;
 use crate::testruns::now_utc;
@@ -21,6 +9,17 @@ use crate::{
         state::AppState,
     },
 };
+use axum::extract::DefaultBodyLimit;
+use axum::Json;
+use axum::{
+    extract::{Path, State},
+    Router,
+};
+use nym_node_status_api_client::{
+    auth::VerifiableRequest,
+    models::{get_testrun, submit_results},
+};
+use reqwest::StatusCode;
 
 // TODO dz consider adding endpoint to trigger testrun scan for a given gateway_id
 // like in H< src/http/testruns.rs

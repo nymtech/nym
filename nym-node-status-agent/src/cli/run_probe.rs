@@ -11,7 +11,8 @@ pub(crate) async fn run_probe(
     let auth_key = PrivateKey::from_base58_string(ns_api_auth_key)
         .context("Couldn't parse auth key, exiting")?;
 
-    let ns_api_client = node_status_api_client::NsApiClient::new(server_ip, server_port, auth_key);
+    let ns_api_client =
+        nym_node_status_api_client::NsApiClient::new(server_ip, server_port, auth_key);
 
     let probe = GwProbe::new(probe_path.to_string());
 

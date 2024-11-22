@@ -1,0 +1,25 @@
+# Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+# SPDX-License-Identifier: Apache-2.0
+
+[package]
+name = "nym-node-status-api-client"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+chrono = { workspace = true }
+bincode = { workspace = true }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
+nym-http-api-client = { path = "../../common/http-api-client" }
+reqwest = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tracing = { workspace = true }

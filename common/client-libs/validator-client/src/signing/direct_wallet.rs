@@ -98,6 +98,13 @@ impl DirectSecp256k1HdWallet {
         Ok((private_key, public_key))
     }
 
+    pub fn derive_extended_private_key(
+        &self,
+        hd_path: &DerivationPath,
+    ) -> Result<XPrv, DirectSecp256k1HdWalletError> {
+        Ok(XPrv::derive_from_path(self.seed, hd_path)?)
+    }
+
     pub fn try_derive_accounts(&self) -> Result<Vec<AccountData>, DirectSecp256k1HdWalletError> {
         let mut accounts = Vec::with_capacity(self.accounts.len());
         for derivation_info in &self.accounts {

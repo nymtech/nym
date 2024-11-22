@@ -20,6 +20,7 @@ bloomfilter = { workspace = true }
 cfg-if = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive", "env"] }
 console-subscriber = { workspace = true, optional = true } # validator-api needs to be built with RUSTFLAGS="--cfg tokio_unstable"
+dashmap = { workspace = true }
 dirs = { workspace = true }
 futures = { workspace = true }
 itertools = { workspace = true }

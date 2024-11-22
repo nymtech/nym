@@ -1,6 +1,6 @@
 [package]
 name = "nym-network-monitor"
-version = "1.0.1-testfran"
+version = "1.0.1-testfran2"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

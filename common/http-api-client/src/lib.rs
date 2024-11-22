@@ -324,7 +324,6 @@ impl Client {
         }
     }
 
-
     #[instrument(level = "debug", skip_all)]
     pub async fn get_json<T, K, V, E>(
         &self,
@@ -499,6 +498,17 @@ pub trait ApiClient {
         V: AsRef<str> + Sync,
         E: Display + DeserializeOwned;
 
+    async fn delete_json<T, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
+        E: Display + DeserializeOwned;
+
     /// `get` json data from the provided absolute endpoint, i.e. for example `"/api/v1/mixnodes?since=12345"`
     async fn get_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
@@ -513,6 +523,12 @@ pub trait ApiClient {
     ) -> Result<T, HttpClientError<E>>
     where
         B: Serialize + ?Sized + Sync,
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str> + Sync + Send;
+
+    async fn delete_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
+    where
         for<'a> T: Deserialize<'a>,
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send;
@@ -551,6 +567,20 @@ impl ApiClient for Client {
         self.post_json(path, params, json_body).await
     }
 
+    async fn delete_json<T, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
+        E: Display + DeserializeOwned,
+    {
+        self.delete_json(path, params).await
+    }
+
     async fn get_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
         for<'a> T: Deserialize<'a>,
@@ -572,6 +602,15 @@ impl ApiClient for Client {
         S: AsRef<str> + Sync + Send,
     {
         self.post_json_endpoint(endpoint, json_body).await
+    }
+
+    async fn delete_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str> + Sync + Send,
+    {
+        self.delete_json_endpoint(endpoint).await
     }
 }
 

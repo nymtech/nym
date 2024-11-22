@@ -157,6 +157,46 @@ impl NymNetworkDetails {
         }
     }
 
+    #[rustfmt::skip]
+    #[cfg(feature = "env")]
+    pub fn export_to_env(self) {
+        use crate::var_names;
+        use std::env::set_var;
+
+        fn set_optional_var(var_name: &str, value: Option<String>) {
+            if let Some(value) = value {
+                set_var(var_name, value);
+            }
+        }
+
+        set_var(var_names::NETWORK_NAME, self.network_name);
+        set_var(var_names::BECH32_PREFIX, self.chain_details.bech32_account_prefix);
+
+        set_var(var_names::MIX_DENOM, self.chain_details.mix_denom.base);
+        set_var(var_names::MIX_DENOM_DISPLAY, self.chain_details.mix_denom.display);
+
+        set_var(var_names::STAKE_DENOM, self.chain_details.stake_denom.base);
+        set_var(var_names::STAKE_DENOM_DISPLAY, self.chain_details.stake_denom.display);
+
+        set_var(var_names::DENOMS_EXPONENT, self.chain_details.mix_denom.display_exponent.to_string());
+
+        if let Some(e) = self.endpoints.first() {
+            set_var(var_names::NYXD, e.nyxd_url.clone());
+            set_optional_var(var_names::NYM_API, e.api_url.clone());
+            set_optional_var(var_names::NYXD_WEBSOCKET, e.websocket_url.clone());
+        }
+
+        set_optional_var(var_names::MIXNET_CONTRACT_ADDRESS, self.contracts.mixnet_contract_address);
+        set_optional_var(var_names::VESTING_CONTRACT_ADDRESS, self.contracts.vesting_contract_address);
+        set_optional_var(var_names::ECASH_CONTRACT_ADDRESS, self.contracts.ecash_contract_address);
+        set_optional_var(var_names::GROUP_CONTRACT_ADDRESS, self.contracts.group_contract_address);
+        set_optional_var(var_names::MULTISIG_CONTRACT_ADDRESS, self.contracts.multisig_contract_address);
+        set_optional_var(var_names::COCONUT_DKG_CONTRACT_ADDRESS, self.contracts.coconut_dkg_contract_address);
+
+        set_optional_var(var_names::EXPLORER_API, self.explorer_api);
+        set_optional_var(var_names::NYM_VPN_API, self.nym_vpn_api_url);
+    }
+
     pub fn default_gas_price_amount(&self) -> f64 {
         GAS_PRICE_AMOUNT
     }

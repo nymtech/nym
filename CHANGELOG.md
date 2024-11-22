@@ -4,6 +4,12 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.13-magura-patched] (2024-11-22)
+
+- [experimental] allow clients to change between deterministic route selection based on packet headers and a pseudorandom distribution
+- Introduced a configurable limit on retransmission frequency of packets if ACKs are not received
+- Filtered out invalid IP addresses on nym-api
+
 ## [2024.13-magura] (2024-11-18)
 
 - Limit race probability ([#5145])

@@ -282,6 +282,48 @@ impl Client {
         }
     }
 
+    pub async fn create_delete_request<K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> RequestBuilder
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let url = sanitize_url(&self.base_url, path, params);
+        self.reqwest_client.delete(url)
+    }
+
+    pub async fn send_delete_request<K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<Response, HttpClientError<E>>
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+        E: Display,
+    {
+        tracing::trace!("Sending DELETE request");
+        let url = sanitize_url(&self.base_url, path, params);
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            Ok(wasmtimer::tokio::timeout(
+                self.request_timeout,
+                self.reqwest_client.delete(url).send(),
+            )
+            .await
+            .map_err(|_timeout| HttpClientError::RequestTimeout)??)
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Ok(self.reqwest_client.delete(url).send().await?)
+        }
+    }
+
     #[instrument(level = "debug", skip_all)]
     pub async fn get_json<T, K, V, E>(
         &self,
@@ -313,6 +355,21 @@ impl Client {
     {
         let res = self.send_post_request(path, params, json_body).await?;
         parse_response(res, true).await
+    }
+
+    pub async fn delete_json<T, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+        E: Display + DeserializeOwned,
+    {
+        let res = self.send_delete_request(path, params).await?;
+        parse_response(res, false).await
     }
 
     #[instrument(level = "debug", skip_all)]
@@ -380,6 +437,35 @@ impl Client {
 
         parse_response(res, true).await
     }
+
+    pub async fn delete_json_endpoint<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str>,
+    {
+        #[cfg(target_arch = "wasm32")]
+        let res = {
+            wasmtimer::tokio::timeout(
+                self.request_timeout,
+                self.reqwest_client
+                    .delete(self.base_url.join(endpoint.as_ref())?)
+                    .send(),
+            )
+            .await
+            .map_err(|_timeout| HttpClientError::RequestTimeout)??
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let res = {
+            self.reqwest_client
+                .delete(self.base_url.join(endpoint.as_ref())?)
+                .send()
+                .await?
+        };
+
+        parse_response(res, false).await
+    }
 }
 
 // define those methods on the trait for nicer extensions (and not having to type the thing twice)
@@ -412,6 +498,17 @@ pub trait ApiClient {
         V: AsRef<str> + Sync,
         E: Display + DeserializeOwned;
 
+    async fn delete_json<T, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
+        E: Display + DeserializeOwned;
+
     /// `get` json data from the provided absolute endpoint, i.e. for example `"/api/v1/mixnodes?since=12345"`
     async fn get_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
@@ -426,6 +523,12 @@ pub trait ApiClient {
     ) -> Result<T, HttpClientError<E>>
     where
         B: Serialize + ?Sized + Sync,
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str> + Sync + Send;
+
+    async fn delete_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
+    where
         for<'a> T: Deserialize<'a>,
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send;
@@ -464,6 +567,20 @@ impl ApiClient for Client {
         self.post_json(path, params, json_body).await
     }
 
+    async fn delete_json<T, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
+        E: Display + DeserializeOwned,
+    {
+        self.delete_json(path, params).await
+    }
+
     async fn get_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
         for<'a> T: Deserialize<'a>,
@@ -485,6 +602,15 @@ impl ApiClient for Client {
         S: AsRef<str> + Sync + Send,
     {
         self.post_json_endpoint(endpoint, json_body).await
+    }
+
+    async fn delete_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
+    where
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str> + Sync + Send,
+    {
+        self.delete_json_endpoint(endpoint).await
     }
 }
 

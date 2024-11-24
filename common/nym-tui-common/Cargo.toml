@@ -1,0 +1,45 @@
+[package]
+name = "nym-tui-common"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+async-trait = { workspace = true }
+humantime-serde = { workspace = true }
+serde = { workspace = true }
+tokio = { workspace = true, features = ["sync", "rt-multi-thread", "signal", "macros"] }
+tokio-stream = { workspace = true }
+tokio-util = { workspace = true, features = ["rt"] }
+tracing = { workspace = true }
+thiserror = { workspace = true }
+
+# tui
+crossterm = { workspace = true, features = ["event-stream"] }
+ratatui = { workspace = true, features = ["serde", "macros", "crossterm"] }
+tui-logger = { workspace = true, optional = true, features = ["tracing-support"], default-features = false }
+
+# panic handlers
+better-panic = { workspace = true }
+color-eyre = { workspace = true }
+strip-ansi-escapes = { workspace = true }
+
+[dev-dependencies]
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
+tracing = { workspace = true, features = ["log"] }
+
+[[example]]
+name = "hello_world"
+required-features = ["logger"]
+
+
+
+
+[features]
+logger = ["tui-logger"]

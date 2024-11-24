@@ -1,5 +1,10 @@
 import { Card, CardHeader, CardContent, Typography, Box } from "@mui/material";
 import React, { FC, ReactElement, ReactEventHandler } from "react";
+import { ExplorerLineChart, IExplorerLineChartData } from "./ExplorerLineChart";
+import {
+  ExplorerProgressBar,
+  IExplorerProgressBarProps,
+} from "./ExplorerProgressBar";
 
 interface ICardUpDownPriceLineProps {
   percentage: number;
@@ -10,8 +15,8 @@ const CardUpDownPriceLine = (
 ): ReactElement => {
   const { percentage, priceWentUp } = props;
   return (
-    <Box>
-      <Typography>{percentage} (24H)</Typography>
+    <Box mb={3}>
+      <Typography sx={{ color: "#00CA33" }}>{percentage}% (24H)</Typography>
     </Box>
   );
 };
@@ -23,10 +28,10 @@ interface ICardTitlePriceProps {
 const CardTitlePrice = (props: ICardTitlePriceProps): React.ReactNode => {
   const { price, upDownLine } = props;
   return (
-    <Box>
-      <Box>
+    <Box display={"flex"} flexDirection={"column"} alignItems={"flex-end"}>
+      <Box display={"flex"} justifyContent={"space-between"} width={"100%"}>
         <Typography>NYM</Typography>
-        <Typography>{price}</Typography>
+        <Typography>${price}</Typography>
       </Box>
       <CardUpDownPriceLine {...upDownLine} />
     </Box>
@@ -39,10 +44,17 @@ interface ICardDataRowsProps {
 const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
   const { rows } = props;
   return (
-    <Box>
+    <Box mb={3}>
       {rows.map((row, i) => {
         return (
-          <Box key={i}>
+          <Box
+            key={i}
+            paddingTop={2}
+            paddingBottom={2}
+            display={"flex"}
+            justifyContent={"space-between"}
+            borderBottom={i === 0 ? "1px solid #fff" : "none"}
+          >
             <Typography>{row.key}</Typography>
             <Typography>{row.value}</Typography>
           </Box>
@@ -58,8 +70,8 @@ type ContentCardProps = {
   upDownLine?: ICardUpDownPriceLineProps;
   titlePrice?: ICardTitlePriceProps;
   dataRows?: ICardDataRowsProps;
-  graph?: React.ReactNode;
-  progressLineGraph?: React.ReactNode;
+  graph?: Array<IExplorerLineChartData>;
+  progressBar?: IExplorerProgressBarProps;
   paragraph?: string;
   onClick?: ReactEventHandler;
 };
@@ -71,16 +83,36 @@ export const ExplorerCard: FC<ContentCardProps> = ({
   upDownLine,
   dataRows,
   graph,
-  progressLineGraph,
+  progressBar,
+  paragraph,
   onClick,
 }) => (
   <Card onClick={onClick} sx={{ height: "100%" }}>
     <CardContent>
-      {overTitle && <Typography>{overTitle}</Typography>}
-      {title && <Typography>{title}</Typography>}
+      {overTitle && (
+        <Typography fontSize={14} mb={3}>
+          {overTitle}
+        </Typography>
+      )}
+      {title && (
+        <Typography fontSize={24} mb={!upDownLine ? 3 : 0}>
+          {title}
+        </Typography>
+      )}
       {upDownLine && <CardUpDownPriceLine {...upDownLine} />}
       {titlePrice && <CardTitlePrice {...titlePrice} />}
       {dataRows && <CardDataRows {...dataRows} />}
+      {graph && (
+        <Box mb={3}>
+          <ExplorerLineChart data={graph} />
+        </Box>
+      )}
+      {progressBar && (
+        <Box mb={3}>
+          <ExplorerProgressBar {...progressBar} />
+        </Box>
+      )}
+      {paragraph && <Typography>{paragraph}</Typography>}
     </CardContent>
   </Card>
 );

@@ -11,7 +11,7 @@ const LineChart = dynamic(
   }
 );
 
-interface IExplorerLineChartData {
+export interface IExplorerLineChartData {
   date_utc: string;
   greenLineNumericData: number;
   purpleLineNumericData: number;
@@ -29,7 +29,7 @@ interface ILineAxes {
   data: Array<IAxes>;
 }
 
-export const PacketsLineChart = ({
+export const ExplorerLineChart = ({
   data,
 }: {
   data: Array<IExplorerLineChartData>;
@@ -60,14 +60,14 @@ export const PacketsLineChart = ({
     data.map((item: any) => {
       const axesGreenLineData: IAxes = {
         x: new Date(item.date_utc),
-        y: item.numericData1,
+        y: item.greenLineNumericData,
       };
 
       greenLineData.data.push(axesGreenLineData);
 
       const axesPurpleLineData: IAxes = {
         x: new Date(item.date_utc),
-        y: item.numericData2,
+        y: item.purpleLineNumericData,
       };
 
       purpleLineData.data.push(axesPurpleLineData);
@@ -102,8 +102,8 @@ export const PacketsLineChart = ({
           enableSlices="x"
           margin={{
             bottom: 24,
-            left: 36,
-            right: 20,
+            left: 16,
+            right: 16,
             top: 20,
           }}
           theme={{
@@ -129,7 +129,7 @@ export const PacketsLineChart = ({
             type: "time",
             format: "%Y-%m-%d",
           }}
-          yScale={{ min: 150000000, type: "linear" }}
+          yScale={{ min: 1, type: "linear" }}
           xFormat="time:%Y-%m-%d"
           axisLeft={{
             legendOffset: 12,
@@ -140,7 +140,7 @@ export const PacketsLineChart = ({
           axisBottom={{
             format: "%b %d",
             legendOffset: -12,
-            tickValues: "every 2 days",
+            tickValues: "every day",
           }}
         />
       )}

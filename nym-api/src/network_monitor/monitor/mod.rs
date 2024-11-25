@@ -14,7 +14,6 @@ use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
-use std::process;
 use tokio::time::{sleep, Duration, Instant};
 use tracing::{debug, error, info, trace};
 
@@ -95,10 +94,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             )
             .await
         {
-            error!("Failed to submit monitor run information to the database - {err}",);
-
-            // TODO: slightly more graceful shutdown here
-            process::exit(1);
+            error!("Failed to submit monitor run information to the database: {err}",);
         }
     }
 

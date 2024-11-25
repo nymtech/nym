@@ -85,7 +85,6 @@ You can follow these steps to make a workaround:
 
 <AccordionTemplate name="Authenticator error fix">
 <Steps>
-
 ###### 1. Find the error
 
 - In the node logs, locate the ERROR message which says `the exit gateway subtask has failed with the following message: failed to start authenticator: internal wireguard error no private IP set for peer KN5GPvkC+p6G/SM4PD2Z3ObAtRGiDjHPRnQOPpbdUQk=`
@@ -93,6 +92,10 @@ You can follow these steps to make a workaround:
 - Copy the end part of that peer, later denoted as `<WG_PEER_STRING_END>` (in our example `GiDjHPRnQOPpbdUQk=`) to use later in the sql commands
 
 ###### 2. Fix the issue in sqlite3 db
+
+<Callout type="warning" emoji="⚠️">
+Be careful when running commands within sqlite database.
+</Callout>
 
 - Navigate to the data directory:
 ```sh

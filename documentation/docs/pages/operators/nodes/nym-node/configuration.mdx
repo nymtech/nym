@@ -428,7 +428,11 @@ Make sure that you get the validation of all connectivity. If there are still an
 
 ## Running `nym-node` as a non-root
 
-Some operators prefer to run `nym-node` without root privileges. It's possible but still `nym-node` binary needs higher privileges for network-level operations demanding these permissions. Bellow is a guide how to go about such setup:
+Some operators prefer to run `nym-node` without root privileges. It's possible but still `nym-node` binary needs higher privileges for network-level operations demanding these permissions. Below is a guide how to go about such setup:
+
+<Callout type="warning" emoji="⚠️">
+Copying nodes database and the `.nym/` directories from `/root/.nym` to `/home/<USER>/.nym/` should be treated as experimental, therefore we would advise this section for operators starting new nodes, rather than tweaking an existing one. We will publish a detailed guide for changing permissions of an existing node soon.
+</Callout>
 
 <Steps>
 ###### 1. Setup a new user
@@ -462,10 +466,10 @@ echo "$user_name ALL=(ALL) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/$user_name
 
 ###### 2. Grant needed permissions for network-level operations
 
-While `nym-node` will be set as a user level process, it requires higher privileges for network-level operations, Set them up with this command:
+While `nym-node` will be set as a user process, it requires higher privileges for network-level operations, set them up with this command:
 
 ```sh
-sudo setcap 'cap_net_bind_service=+ep cap_net_admin=+ep' nym-nod
+sudo setcap 'cap_net_bind_service=+ep cap_net_admin=+ep' nym-node
 ```
 
 **After replacing or upgrading the binary, you must reapply these permissions each time!**

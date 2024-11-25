@@ -14,10 +14,6 @@ pub struct ClientPool {
     clients: Arc<RwLock<Vec<Arc<MixnetClient>>>>,
     default_pool_size: usize,
     conn_count: Arc<AtomicUsize>, // the actual # of connections running, denoting an incoming tcp request that is matched with a nym client
-    ready: bool, // default false, trigger true when clients.len() is default_pool_size/2 (currently arbitrary decision for 'floor' of ready clients)
-                 //
-                 // TODO not sure we need this, can just rely on trying to get a client and if there is none available then make one
-                 // incoming_conns: Arc<AtomicUsize>, // if we have incoming tcp connections that aren't matched: this will be used in order to work out the tcp conn 'backpressure' and to work out if we need to add clients to the pool
 }
 
 impl fmt::Debug for ClientPool {
@@ -50,8 +46,7 @@ impl fmt::Debug for ClientPool {
         debug_struct
             .field("default_pool_size", &self.default_pool_size)
             .field("connection count", &*self.conn_count)
-            .field("clients", &format_args!("[{}]", clients_debug))
-            .field("ready", &self.ready);
+            .field("clients", &format_args!("[{}]", clients_debug));
 
         debug_struct.finish()
     }
@@ -63,8 +58,6 @@ impl ClientPool {
             clients: Arc::new(RwLock::new(Vec::new())),
             default_pool_size,
             conn_count: Arc::new(AtomicUsize::new(0)),
-            // incoming_conns: Arc::new(AtomicUsize::new(0)), // see comment above
-            ready: false,
         }
     }
 
@@ -135,12 +128,11 @@ impl ClientPool {
             clients: Arc::clone(&self.clients),
             default_pool_size: *&self.default_pool_size,
             conn_count: Arc::clone(&self.conn_count),
-            // incoming_conns: Arc::clone(&self.incoming_conns),
-            ready: self.ready.clone(),
         }
     }
 }
 
+// TODO COVER ALL FNS
 #[cfg(test)]
 mod tests {
     use super::*;

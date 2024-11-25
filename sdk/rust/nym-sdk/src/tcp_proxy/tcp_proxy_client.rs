@@ -123,7 +123,7 @@ impl NymProxyClient {
 
         info!("Starting session: {}", session_id);
 
-        let mut client: MixnetClient = match conn_pool.get_conn_count() >= DEFAULT_CLIENT_POOL_SIZE
+        let mut client: MixnetClient = match conn_pool.get_conn_count() <= DEFAULT_CLIENT_POOL_SIZE
         {
             true => {
                 debug!("grabbing client from pool");

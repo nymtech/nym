@@ -449,7 +449,7 @@ else
 fi
 ```
 
-- and
+- And follow by:
 
 ```sh
 sudo usermod -aG sudo "$user_name"
@@ -460,7 +460,7 @@ sudo usermod -aG sudo "$user_name"
 echo "$user_name ALL=(ALL) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/$user_name
 ```
 
-##### 2. Grant needed permissions for network-level operations
+###### 2. Grant needed permissions for network-level operations
 
 While `nym-node` will be set as a user level process, it requires higher privileges for network-level operations, Set them up with this command:
 

@@ -231,22 +231,28 @@ impl<St> Gateway<St> {
             forwarding_channel,
             router_tx,
         );
-        let all_peers = self.client_storage.get_all_wireguard_peers().await?;
-        let used_private_network_ips = all_peers
-            .iter()
-            .cloned()
-            .map(|wireguard_peer| {
-                defguard_wireguard_rs::host::Peer::try_from(wireguard_peer).map(|mut peer| {
-                    peer.allowed_ips
-                        .pop()
-                        .ok_or(Box::new(GatewayError::InternalWireguardError(format!(
-                            "no private IP set for peer {}",
-                            peer.public_key
-                        ))))
-                        .map(|p| p.ip)
-                })
-            })
-            .collect::<Result<Result<Vec<_>, _>, _>>()??;
+        let mut used_private_network_ips = vec![];
+        let mut all_peers = vec![];
+        for wireguard_peer in self
+            .client_storage
+            .get_all_wireguard_peers()
+            .await?
+            .into_iter()
+        {
+            let mut peer = defguard_wireguard_rs::host::Peer::try_from(wireguard_peer.clone())?;
+            let Some(peer) = peer.allowed_ips.pop() else {
+                tracing::warn!(
+                    "Peer {} has empty allowed ips. It will be removed",
+                    peer.public_key
+                );
+                self.client_storage
+                    .remove_wireguard_peer(&peer.public_key.to_string())
+                    .await?;
+                continue;
+            };
+            used_private_network_ips.push(peer.ip);
+            all_peers.push(wireguard_peer);
+        }
 
         if let Some(wireguard_data) = self.wireguard_data.take() {
             let (on_start_tx, on_start_rx) = oneshot::channel();

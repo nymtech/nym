@@ -5,6 +5,7 @@ use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
+use axum::extract::State;
 use axum::{Json, Router};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{
@@ -21,28 +22,16 @@ use time::{OffsetDateTime, Time};
 use tracing::{error, warn};
 
 #[allow(deprecated)]
-pub(crate) fn spending_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
+pub(crate) fn spending_routes() -> Router<AppState> {
     Router::new()
-        .route(
-            "/verify-ecash-ticket",
-            axum::routing::post({
-                let ecash_state = Arc::clone(&ecash_state);
-                |body| verify_ticket(body, ecash_state)
-            }),
-        )
+        .route("/verify-ecash-ticket", axum::routing::post(verify_ticket))
         .route(
             "/batch-redeem-ecash-tickets",
-            axum::routing::post({
-                let ecash_state = Arc::clone(&ecash_state);
-                |body| batch_redeem_tickets(body, ecash_state)
-            }),
+            axum::routing::post(batch_redeem_tickets),
         )
         .route(
             "/double-spending-filter-v1",
-            axum::routing::get({
-                let ecash_state = Arc::clone(&ecash_state);
-                || double_spending_filter_v1(ecash_state)
-            }),
+            axum::routing::get(double_spending_filter_v1),
         )
 }
 
@@ -67,9 +56,9 @@ fn reject_ticket(
     )
 )]
 async fn verify_ticket(
+    State(state): State<Arc<EcashState>>,
     // TODO in the future: make it send binary data rather than json
     Json(verify_ticket_body): Json<VerifyEcashTicketBody>,
-    state: Arc<EcashState>,
 ) -> AxumResult<Json<EcashTicketVerificationResponse>> {
     state.ensure_signer().await?;
 
@@ -170,9 +159,9 @@ async fn verify_ticket(
     )
 )]
 async fn batch_redeem_tickets(
+    State(state): State<Arc<EcashState>>,
     // TODO in the future: make it send binary data rather than json
     Json(batch_redeem_credentials_body): Json<BatchRedeemTicketsBody>,
-    state: Arc<EcashState>,
 ) -> AxumResult<Json<EcashBatchTicketRedemptionResponse>> {
     state.ensure_signer().await?;
 
@@ -244,8 +233,6 @@ async fn batch_redeem_tickets(
     )
 )]
 #[deprecated]
-async fn double_spending_filter_v1(
-    _state: Arc<EcashState>,
-) -> AxumResult<Json<SpentCredentialsResponse>> {
+async fn double_spending_filter_v1() -> AxumResult<Json<SpentCredentialsResponse>> {
     AxumResult::Err(AxumErrorResponse::internal_msg("permanently restricted"))
 }

@@ -121,7 +121,7 @@ nym-types = { path = "../common/types" }
 nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
 nym-serde-helpers = { path = "../common/serde-helpers", features = ["date"] }
 nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
-nym-statistics-common = {path ="../common/statistics" }
+nym-statistics-common = { path = "../common/statistics" }
 
 [features]
 no-reward = []

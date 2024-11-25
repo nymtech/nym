@@ -4,7 +4,7 @@
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
-use axum::extract::Path;
+use axum::extract::{Path, State};
 use axum::{Json, Router};
 use nym_api_requests::ecash::models::{
     IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
@@ -17,21 +17,15 @@ use time::Date;
 use tracing::trace;
 use utoipa::{IntoParams, ToSchema};
 
-pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
+pub(crate) fn issued_routes() -> Router<AppState> {
     Router::new()
         .route(
             "/issued-ticketbooks-for/:expiration_date",
-            axum::routing::get({
-                let ecash_state = Arc::clone(&ecash_state);
-                |expiration_date| issued_ticketbooks_for(expiration_date, ecash_state)
-            }),
+            axum::routing::get(issued_ticketbooks_for),
         )
         .route(
             "/issued-ticketbooks-challenge",
-            axum::routing::post({
-                let ecash_state = Arc::clone(&ecash_state);
-                |body| issued_ticketbooks_challenge(body, ecash_state)
-            }),
+            axum::routing::post(issued_ticketbooks_challenge),
         )
 }
 
@@ -58,8 +52,8 @@ pub(crate) struct ExpirationDatePathParam {
     )
 )]
 async fn issued_ticketbooks_for(
+    State(state): State<Arc<EcashState>>,
     Path(ExpirationDatePathParam { expiration_date }): Path<ExpirationDatePathParam>,
-    state: Arc<EcashState>,
 ) -> AxumResult<Json<IssuedTicketbooksForResponse>> {
     state.ensure_signer().await?;
 
@@ -83,8 +77,8 @@ async fn issued_ticketbooks_for(
     )
 )]
 async fn issued_ticketbooks_challenge(
+    State(state): State<Arc<EcashState>>,
     Json(challenge): Json<IssuedTicketbooksChallengeRequest>,
-    state: Arc<EcashState>,
 ) -> AxumResult<Json<IssuedTicketbooksChallengeResponse>> {
     trace!("replying to ticketbooks challenge: {:?}", challenge);
     state.ensure_signer().await?;

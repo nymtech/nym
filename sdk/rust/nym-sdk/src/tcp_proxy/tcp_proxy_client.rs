@@ -1,9 +1,9 @@
 use crate::client_pool::ClientPool;
 use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
 use std::{sync::Arc, time::Duration};
-#[path = "connection_tracker.rs"]
-mod connection_tracker;
-use connection_tracker::ConnectionTracker;
+#[path = "client_pool.rs"]
+mod client_pool;
+use client_pool::ClientPool;
 #[path = "utils.rs"]
 mod utils;
 use anyhow::Result;
@@ -256,10 +256,10 @@ impl NymProxyClient {
                     _ = cancel_token.cancelled() => {
                         info!("CTRL_C triggered in thread, triggering client shutdown");
                         client.disconnect().await;
-                        conn_tracker.clone().decrement()?;
+                        conn_pool.clone().decrement_conn_count()?;
                         info!(
-                            "Dropped connection - current active clients: {}",
-                            conn_tracker.get_count()
+                            "Dropped connection - current active connections: {}",
+                            conn_pool.get_conn_count()
                         );
                         return Ok::<(), anyhow::Error>(())
                     },
@@ -275,3 +275,5 @@ impl NymProxyClient {
         Ok(())
     }
 }
+
+// TODO tests

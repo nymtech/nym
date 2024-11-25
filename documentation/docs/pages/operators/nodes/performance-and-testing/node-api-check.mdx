@@ -8,6 +8,10 @@ import NodeApiCheckQueryHelp from 'components/outputs/command-outputs/node-api-c
 
 # Node API Check
 
+<Callout type="warning" emoji="⚠️">
+CLI tool `node_api_check.py`, helping operators to collect all API values about their nodes locally, is not up to date with the API changes introduced with `v2024.13-magura` release version. Please treat it as unstable before we fix it.
+</Callout>
+
 <VarInfo />
 
 Operating a `nym-node` is not a *"set and forget"* endeavor, it takes some work. To diagnose node network performance through querying APIs, is a good knowledge to have. These are the main places to look for API endpoints regarding `nym-node`:
@@ -93,9 +97,9 @@ python --version
   </Tabs>
 </div>
 
-###### 2. Install `node_api_check.py` and make executable  
+###### 2. Install `node_api_check.py` and make executable
 
-To run the program you neet to have  [`node_api_check.py`](https://github.com/nymtech/nym/tree/develop/scripts/node_api_check.py) and [`api_endpoints.json`](https://github.com/nymtech/nym/tree/develop/scripts/api_endpoints.json). 
+To run the program you neet to have  [`node_api_check.py`](https://github.com/nymtech/nym/tree/develop/scripts/node_api_check.py) and [`api_endpoints.json`](https://github.com/nymtech/nym/tree/develop/scripts/api_endpoints.json).
 
 - If you [compiled from source](../../binaries/building-nym.mdx), you already have both of these files. Note that the latest version of this program may be on `develop` branch.
 
@@ -159,4 +163,3 @@ Another command is `version_count` where at least one `nym-node` version is requ
 ```sh
 ./node_api_check version_count 1.1.0 1.1.1 1.1.2 1.1.3 --markdown
 ```
-

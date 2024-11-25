@@ -48,6 +48,7 @@ nym-vesting-contract-common = { path = "../cosmwasm-smart-contracts/vesting-cont
 nym-coconut-dkg-common = { path = "../cosmwasm-smart-contracts/coconut-dkg" }
 nym-multisig-contract-common = { path = "../cosmwasm-smart-contracts/multisig-contract" }
 nym-ecash-contract-common = { path = "../cosmwasm-smart-contracts/ecash-contract" }
+nym-ecash-time = { path = "../../common/ecash-time" }
 nym-sphinx = { path = "../../common/nymsphinx" }
 nym-client-core = { path = "../../common/client-core" }
 nym-config = { path = "../../common/config" }
@@ -56,6 +57,7 @@ nym-credentials-interface = { path = "../../common/credentials-interface" }
 nym-credential-storage = { path = "../../common/credential-storage" }
 nym-credential-utils = { path = "../../common/credential-utils" }
 nym-id = { path = "../nym-id" }
+nym-credential-proxy-requests = { path = "../../nym-credential-proxy/nym-credential-proxy-requests" }
 
 nym-pemstore = { path = "../../common/pemstore", version = "0.3.0" }
 nym-types = { path = "../../common/types" }

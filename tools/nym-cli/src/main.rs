@@ -9,6 +9,7 @@ use nym_validator_client::nyxd::AccountId;
 
 mod completion;
 mod ecash;
+mod internal;
 mod validator;
 
 #[derive(Debug, Parser)]
@@ -74,6 +75,11 @@ pub(crate) enum Commands {
     VestingSchedule(nym_cli_commands::validator::vesting::VestingSchedule),
     /// Manage your mixnet infrastructure, delegate stake or query the directory
     Mixnet(nym_cli_commands::validator::mixnet::Mixnet),
+
+    #[clap(hide = true)]
+    /// Internal commands used for testing and debugging
+    Internal(nym_cli_commands::internal::Internal),
+
     /// Generates shell completion
     GenerateFig,
 }
@@ -117,6 +123,9 @@ async fn execute(cli: Cli) -> anyhow::Result<()> {
         }
         Commands::Mixnet(mixnet) => {
             validator::mixnet::execute(args, mixnet, &network_details).await?
+        }
+        Commands::Internal(internal_commands) => {
+            internal::execute(args, internal_commands, &network_details).await?
         }
         Commands::GenerateFig => {
             let mut cmd = Cli::command();

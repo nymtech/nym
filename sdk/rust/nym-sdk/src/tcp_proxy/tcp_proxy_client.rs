@@ -1,8 +1,10 @@
-use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
+use crate::mixnet::{
+    IncludedSurbs, MixnetClient, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails,
+};
 use std::{sync::Arc, time::Duration};
-#[path = "connection_tracker.rs"]
-mod connection_tracker;
-use connection_tracker::ConnectionTracker;
+#[path = "client_pool.rs"]
+mod client_pool;
+use client_pool::ClientPool;
 #[path = "utils.rs"]
 mod utils;
 use anyhow::Result;
@@ -21,13 +23,14 @@ use utils::{MessageBuffer, Payload, ProxiedMessage};
 const DEFAULT_CLOSE_TIMEOUT: u64 = 60;
 const DEFAULT_LISTEN_HOST: &str = "127.0.0.1";
 const DEFAULT_LISTEN_PORT: &str = "8080";
+const DEFAULT_CLIENT_POOL_SIZE: usize = 4;
 
 pub struct NymProxyClient {
     server_address: Recipient,
     listen_address: String,
     listen_port: String,
     close_timeout: u64,
-    conn_tracker: ConnectionTracker,
+    conn_pool: ClientPool,
 }
 
 impl NymProxyClient {
@@ -37,6 +40,7 @@ impl NymProxyClient {
         listen_port: &str,
         close_timeout: u64,
         env: Option<String>,
+        default_client_amount: usize,
     ) -> Result<Self> {
         debug!("loading env file: {:?}", env);
         setup_env(env); // Defaults to mainnet if empty
@@ -45,21 +49,21 @@ impl NymProxyClient {
             listen_address: listen_address.to_string(),
             listen_port: listen_port.to_string(),
             close_timeout,
-            conn_tracker: ConnectionTracker::new(), // Keep track of the number of active ephemeral clients that are in use
+            conn_pool: ClientPool::new(default_client_amount),
         })
     }
 
     // server_address is the Nym address of the NymProxyServer to communicate with.
     pub async fn new_with_defaults(server_address: Recipient, env: Option<String>) -> Result<Self> {
-        debug!("loading env file: {:?}", env);
-        setup_env(env); // Defaults to mainnet if empty
-        Ok(NymProxyClient {
+        NymProxyClient::new(
             server_address,
-            listen_address: DEFAULT_LISTEN_HOST.to_string(),
-            listen_port: DEFAULT_LISTEN_PORT.to_string(),
-            close_timeout: DEFAULT_CLOSE_TIMEOUT,
-            conn_tracker: ConnectionTracker::new(),
-        })
+            DEFAULT_LISTEN_HOST,
+            DEFAULT_LISTEN_PORT,
+            DEFAULT_CLOSE_TIMEOUT,
+            env,
+            DEFAULT_CLIENT_POOL_SIZE,
+        )
+        .await
     }
 
     pub async fn run(&self) -> Result<()> {
@@ -68,22 +72,27 @@ impl NymProxyClient {
         let listener =
             TcpListener::bind(format!("{}:{}", self.listen_address, self.listen_port)).await?;
 
-        let overall_counter = self.conn_tracker.clone();
+        let client_maker = self.conn_pool.clone();
+        tokio::spawn(async move { client_maker.start().await.unwrap() });
+
+        let overall_counter = self.conn_pool.clone();
         tokio::spawn(async move {
             loop {
-                info!("active clients: {}", overall_counter.get_count());
+                info!("active connections: {}", overall_counter.get_conn_count());
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
         });
 
         loop {
-            let (stream, _) = listener.accept().await?;
-            tokio::spawn(NymProxyClient::handle_incoming(
-                stream,
-                self.server_address,
-                self.close_timeout,
-                self.conn_tracker.clone(),
-            ));
+            if self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2 {
+                let (stream, _) = listener.accept().await?;
+                tokio::spawn(NymProxyClient::handle_incoming(
+                    stream,
+                    self.server_address,
+                    self.close_timeout,
+                    self.conn_pool.clone(),
+                ));
+            }
         }
     }
 
@@ -104,7 +113,7 @@ impl NymProxyClient {
         stream: TcpStream,
         server_address: Recipient,
         close_timeout: u64,
-        conn_tracker: ConnectionTracker,
+        conn_pool: ClientPool,
     ) -> Result<()> {
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
         let session_id = uuid::Uuid::new_v4();
@@ -112,31 +121,29 @@ impl NymProxyClient {
         // Used to communicate end of session between 'Outgoing' and 'Incoming' tasks
         let (tx, mut rx) = oneshot::channel();
 
-        // Client creation can fail for multiple reasons like bad network connection: this loop just allows us to
-        // retry in a loop until we can successfully connect without having to restart the entire function
         info!("Starting session: {}", session_id);
-        info!("Creating client...");
-        let mut client = loop {
-            let net = NymNetworkDetails::new_from_env();
-            match MixnetClientBuilder::new_ephemeral()
-                .network_details(net)
-                .build()?
-                .connect_to_mixnet()
-                .await
-            {
-                Ok(client) => break client,
-                Err(err) => {
-                    warn!("Error creating client: {:?}, will retry in 100ms", err);
-                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-                }
+
+        let mut client: MixnetClient = match conn_pool.get_conn_count() >= DEFAULT_CLIENT_POOL_SIZE
+        {
+            true => {
+                debug!("grabbing client from pool");
+                conn_pool.get_mixnet_client().await?
+            }
+            false => {
+                debug!("not enough clients in pool, creating ephemeral client");
+                let net = NymNetworkDetails::new_from_env();
+                MixnetClientBuilder::new_ephemeral()
+                    .network_details(net)
+                    .build()?
+                    .connect_to_mixnet()
+                    .await?
             }
         };
-        let client_addr = &client.nym_address();
-        info!("Client created: {}", &client_addr);
-        conn_tracker.increment();
+
+        conn_pool.increment_conn_count();
         info!(
-            "New connection - current active clients: {}",
-            conn_tracker.get_count()
+            "New connection - current active connections: {}",
+            conn_pool.get_conn_count()
         );
 
         // Split our tcpstream into OwnedRead and OwnedWrite halves for concurrent read/writing
@@ -235,11 +242,12 @@ impl NymProxyClient {
                     _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {
                         info!(" Closing write end of session: {}", session_id);
                         info!(" Triggering client shutdown");
+                        // TODO change this to be a fn in the conn_pool, disconnect and remove from vec
                         client.disconnect().await;
-                        conn_tracker.clone().decrement()?;
+                        conn_pool.clone().decrement_conn_count()?;
                         info!(
-                            "Dropped connection - current active clients: {}",
-                            conn_tracker.get_count()
+                            "Dropped connection - current active connections: {}",
+                            conn_pool.get_conn_count()
                         );
                         return Ok::<(), anyhow::Error>(())
                     }
@@ -250,3 +258,5 @@ impl NymProxyClient {
         Ok(())
     }
 }
+
+// TODO tests

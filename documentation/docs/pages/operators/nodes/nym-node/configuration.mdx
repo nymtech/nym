@@ -426,6 +426,91 @@ journalctl -u nym-node.service -f -n 100
 
 Make sure that you get the validation of all connectivity. If there are still any problems, please refer to [troubleshooting section](../../troubleshooting/vps-isp.mdx#incorrect-gateway-network-check).
 
+## Running `nym-node` as a non-root
+
+Some operators prefer to run `nym-node` without root privileges. It's possible but still `nym-node` binary needs higher privileges for network-level operations demanding these permissions. Bellow is a guide how to go about such setup:
+
+<Steps>
+###### 1. Setup a new user
+
+- Define a variable `user_name` using your desired user name:
+```sh
+user_name="<USER>"
+```
+
+- Run:
+```sh
+user_home="/home/$user_name"
+
+if ! id "$user_name" &>/dev/null; then
+    sudo adduser --home "$user_home" --disabled-login --gecos "" "$user_name"
+else
+    echo "user $user_name already exists"
+fi
+```
+
+- and
+
+```sh
+sudo usermod -aG sudo "$user_name"
+```
+
+- Optional: Add to sudoers group:
+```sh
+echo "$user_name ALL=(ALL) NOPASSWD:ALL" | sudo tee -a /etc/sudoers.d/$user_name
+```
+
+##### 2. Grant needed permissions for network-level operations
+
+While `nym-node` will be set as a user level process, it requires higher privileges for network-level operations, Set them up with this command:
+
+```sh
+sudo setcap 'cap_net_bind_service=+ep cap_net_admin=+ep' nym-nod
+```
+
+**After replacing or upgrading the binary, you must reapply these permissions each time!**
+
+###### 3. Edit service config file
+
+- Add these new lines to your `/etc/systemd/system/nym-node.service` [service config file](#systemd)
+    - `After=network.target`
+    - `Group=<USER>`
+    - `Type=simple`
+    
+- Your service file will then look like this:
+
+```ini
+[Unit]
+Description=Nym Node
+After=network.target
+StartLimitInterval=350
+StartLimitBurst=10
+ 
+[Service]
+User=<USER>
+Group=<USER>
+Type=simple
+LimitNOFILE=65536
+ExecStart=<PATH>/nym-node run <ARGUMENTS> # add all the flags you use to run your node
+KillSignal=SIGINT
+Restart=on-failure
+RestartSec=30
+ 
+[Install]
+WantedBy=multi-user.target
+```
+
+###### 4. Reload and restart the service
+
+```sh
+systemctl daemon-reload && service nym-node restart
+```
+
+- If you want to follow the logs, run:
+```sh
+journalctl -u nym-node -f
+```
+</Steps>
 
 ## Next Steps
 

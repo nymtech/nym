@@ -66,9 +66,64 @@ After changes coming along with `v2024.13-magura` (`nym-node v1.1.10`), Nym Expl
 
 - **Please re-run [routing configuration steps](https://nymtech.net/docs/operators/nodes/nym-node/configuration#routing-configuration) to update your routing settings.**
 
+- New manual how to [run `nym-node` as non-root](nodes/nym-node/configuration#running-nym-node-as-a-non-root)
+
 - Since `v2024.13-magura`, operators do not update their node version in the wallet. [Manual upgrading steps](nodes/maintenance/manual-upgrade.mdx) has been updated accordingly.
 
 - CLI tool [`node_api_check.py`](nodes/performance-and-testing/node-api-check.mdx), helping operators to collect all API values about their nodes locally, is not up to date with the API changes introduced with `v2024.13-magura` release version. Please treat it as unstable before we fix it.
+
+#### Error Log
+
+In case you encounter this error:
+```
+[ERROR] nym-node/src/node/mod.rs:628: the exit gateway subtask has failed with the following message: failed to start authenticator: internal wireguard error no private IP set for peer..
+```
+
+You can follow these steps to make a workaround:
+
+<br />
+
+<AccordionTemplate name="Authenticator error fix">
+<Steps>
+
+###### 1. Find the error
+
+- In the node logs, locate the ERROR message which says `the exit gateway subtask has failed with the following message: failed to start authenticator: internal wireguard error no private IP set for peer KN5GPvkC+p6G/SM4PD2Z3ObAtRGiDjHPRnQOPpbdUQk=`
+
+- Copy the end part of that peer, later denoted as `<WG_PEER_STRING_END>` (in our example `GiDjHPRnQOPpbdUQk=`) to use later in the sql commands
+
+###### 2. Fix the issue in sqlite3 db
+
+- Navigate to the data directory:
+```sh
+cd $HOME/.nym/nym-nodes/<ID>/data
+```
+- Enter the database: 
+```sh
+sqlite3 clients.sqlite
+```
+
+- Run these commands:
+```sh
+# Change with your unique <PEER_STRING_END>
+select * from wireguard_peer where public_key like "%<WG_PEER_STRING_END>%"
+# Make sure that only ONE line is returned and it contains the key
+
+delete from wireguard_peer where public_key like "%<WG_PEER_STRING_END>%";
+```
+- Confirm that peer has been removed by running this again:
+```sh
+select * from wireguard_peer where public_key like "%<WG_PEER_STRING_END>%";
+```
+
+###### 3. Exit and restart the service
+
+Run `.quit` and: 
+```sh
+systemctl restart nym-node.service
+```
+</Steps>
+</AccordionTemplate>
 
 ## `v2024.13-magura`
 

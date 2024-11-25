@@ -153,6 +153,23 @@ joke_through_tunnel() {
     fi
 }
 
+configure_dns_and_icmp_wg() {
+    echo "allowing icmp (ping)..."
+    sudo iptables -A INPUT -p icmp --icmp-type echo-request -j ACCEPT
+    sudo iptables -A OUTPUT -p icmp --icmp-type echo-reply -j ACCEPT
+
+    echo "allowing dns over udp (port 53)..."
+    sudo iptables -A INPUT -p udp --dport 53 -j ACCEPT
+
+    echo "allowing dns over tcp (port 53)..."
+    sudo iptables -A INPUT -p tcp --dport 53 -j ACCEPT
+
+    echo "saving iptables rules..."
+    sudo iptables-save > /etc/iptables/rules.v4
+
+    echo "dns and icmp configuration completed."
+}
+
 case "$1" in
 fetch_ipv6_address_nym_tun)
     fetch_ipv6_address "$tunnel_interface"
@@ -187,6 +204,9 @@ joke_through_the_mixnet)
 joke_through_wg_tunnel)
     joke_through_tunnel "$wg_tunnel_interface"
     ;;
+configure_dns_and_icmp_wg)
+    configure_dns_and_icmp_wg
+    ;;
 *)
     echo "Usage: $0 [command]"
     echo "Commands:"
@@ -203,6 +223,7 @@ joke_through_wg_tunnel)
     echo "  perform_pings                   - Test IPv4 and IPv6 connectivity."
     echo "  joke_through_the_mixnet         - Fetch a joke via nymtun0."
     echo "  joke_through_wg_tunnel          - Fetch a joke via nymwg."
+    echo "  configure_dns_and_icmp_wg       - Allows icmp ping tests for probes alongside configuring dns"
     exit 1
     ;;
 esac

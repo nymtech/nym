@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
+use log::trace;
 use nym_credentials_interface::{generate_keypair_user, generate_keypair_user_from_seed, Base58};
 use serde::{Deserialize, Serialize};
 use std::io::stdout;
@@ -20,6 +21,8 @@ pub struct Args {
 }
 
 pub fn generate_ecash_keypair(args: Args) -> anyhow::Result<()> {
+    trace!("args: {args:?}");
+
     let keypair = if let Some(secret) = args.bs58_encoded_client_secret {
         let seed = bs58::decode(&secret).into_vec()?;
         generate_keypair_user_from_seed(&seed)

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use clap::Parser;
-use log::info;
+use log::trace;
 use nym_credential_proxy_requests::api::v1::ticketbook::models::TicketbookRequest;
 use nym_credentials_interface::{
     generate_keypair_user, withdrawal_request, Base58, SecretKeyUser, TicketType,
@@ -44,7 +44,7 @@ pub struct Args {
 }
 
 pub async fn generate_withdrawal_request(args: Args) -> anyhow::Result<()> {
-    info!("args: {args:?}");
+    trace!("args: {args:?}");
 
     let ecash_keypair = if let Some(secret_key) = args.ecash_secret_key_bs58 {
         let secret_key = Zeroizing::new(bs58::decode(Zeroizing::new(secret_key)).into_vec()?);

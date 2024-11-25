@@ -36,7 +36,7 @@ impl MixnodeConfig {
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
-#[serde(deny_unknown_fields)]
+#[serde(deny_unknown_fields, default)]
 pub struct Verloc {
     /// Socket address this node will use for binding its verloc API.
     /// default: `0.0.0.0:1790`

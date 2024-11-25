@@ -214,8 +214,6 @@ configure_dns_and_icmp_wg)
     echo "  fetch_and_display_ipv6          - Show IPv6 on default device."
     echo "  apply_iptables_rules            - Apply IPtables rules for nymtun0."
     echo "  apply_iptables_rules_wg         - Apply IPtables rules for nymwg."
-    echo "  remove_iptables_rules           - Remove IPtables rules for nymtun0."
-    echo "  remove_iptables_rules_wg        - Remove IPtables rules for nymwg."
     echo "  check_nymtun_iptables           - Check IPtables for nymtun0."
     echo "  check_nym_wg_tun                - Check IPtables for nymwg."
     echo "  check_ipv6_ipv4_forwarding      - Check IPv4 and IPv6 forwarding."

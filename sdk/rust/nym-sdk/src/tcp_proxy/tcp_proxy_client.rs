@@ -244,8 +244,6 @@ impl NymProxyClient {
                     _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {
                         info!(" Closing write end of session: {}", session_id);
                         info!(" Triggering client shutdown");
-                        // TODO change this to be a fn in the conn_pool, disconnect and remove from vec
-                        // client.disconnect().await;
                         conn_pool.disconnect_and_remove_client(client).await?;
                         conn_pool.clone().decrement_conn_count()?;
                         info!(

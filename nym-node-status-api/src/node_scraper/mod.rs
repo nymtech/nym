@@ -19,6 +19,7 @@ mod error;
 
 const FAILURE_RETRY_DELAY: Duration = Duration::from_secs(60);
 const REFRESH_INTERVAL: Duration = Duration::from_secs(21600); //6h, data only update once a day
+const STALE_DURATION: Duration = Duration::from_secs(86400 * 365); //one year
 
 #[instrument(level = "debug", name = "node_scraper", skip_all)]
 pub(crate) async fn spawn_in_background(db_pool: DbPool, nym_api_client_timeout: Duration) {
@@ -89,6 +90,12 @@ async fn run(
         .await
         .map(|_| {
             tracing::debug!("Session info written to DB!");
+        })?;
+    let cut_off_date = (OffsetDateTime::now_utc() - STALE_DURATION).date();
+    queries::delete_old_records(pool, cut_off_date)
+        .await
+        .map(|_| {
+            tracing::debug!("Cleared old data before {}", cut_off_date);
         })?;
 
     Ok(())

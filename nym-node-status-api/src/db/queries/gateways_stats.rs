@@ -3,13 +3,14 @@ use crate::{
     http::models::SessionStats,
 };
 use futures_util::TryStreamExt;
+use time::Date;
 use tracing::error;
 
 pub(crate) async fn insert_session_records(
     pool: &DbPool,
     records: Vec<GatewaySessionsRecord>,
 ) -> anyhow::Result<()> {
-    let mut db = pool.acquire().await?;
+    let mut tx = pool.begin().await?;
     for record in records {
         sqlx::query!(
             "INSERT OR IGNORE INTO gateway_session_stats
@@ -27,9 +28,10 @@ pub(crate) async fn insert_session_records(
             record.mixnet_sessions,
             record.unknown_sessions,
         )
-        .execute(&mut *db)
+        .execute(&mut *tx)
         .await?;
     }
+    tx.commit().await?;
 
     Ok(())
 }
@@ -63,4 +65,12 @@ pub(crate) async fn get_sessions_stats(pool: &DbPool) -> anyhow::Result<Vec<Sess
         })?;
 
     Ok(items)
+}
+
+pub(crate) async fn delete_old_records(pool: &DbPool, cut_off: Date) -> anyhow::Result<()> {
+    let mut conn = pool.acquire().await?;
+    sqlx::query!("DELETE FROM gateway_session_stats WHERE day <= ?", cut_off)
+        .execute(&mut *conn)
+        .await?;
+    Ok(())
 }

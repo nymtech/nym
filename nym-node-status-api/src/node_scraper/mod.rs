@@ -25,6 +25,7 @@ pub(crate) async fn spawn_in_background(db_pool: DbPool, nym_api_client_timeout:
     let network_defaults = nym_network_defaults::NymNetworkDetails::new_from_env();
 
     loop {
+        //No graceful shutdown?
         tracing::info!("Refreshing node self-described metrics...");
 
         if let Err(e) = run(&db_pool, &network_defaults, nym_api_client_timeout).await {
@@ -129,13 +130,13 @@ impl MetricsScrapingData {
                         }
                     }
                     Err(e) => {
-                        tracing::error!("[metrics scraper][node {0}]:\t{e}", self.node_id);
+                        tracing::error!("[metrics scraper]: {e}");
                         None
                     }
                 }
             }
             Err(e) => {
-                tracing::error!("[metrics scraper][node {0}]:\t{e}", self.node_id);
+                tracing::error!("[metrics scraper]: {e}");
                 None
             }
         }

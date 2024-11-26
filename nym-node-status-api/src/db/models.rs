@@ -4,6 +4,7 @@ use crate::{
 };
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use strum_macros::{EnumString, FromRepr};
 use time::Date;
 use utoipa::ToSchema;
@@ -336,7 +337,7 @@ pub struct GatewayInfoDto {
     pub explorer_pretty_bond: Option<String>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, FromRow)]
 pub struct GatewaySessionsRecord {
     pub gateway_identity_key: String,
     pub node_id: i64,

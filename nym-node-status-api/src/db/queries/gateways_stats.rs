@@ -38,8 +38,7 @@ pub(crate) async fn insert_session_records(
 
 pub(crate) async fn get_sessions_stats(pool: &DbPool) -> anyhow::Result<Vec<SessionStats>> {
     let mut conn = pool.acquire().await?;
-    let items = sqlx::query_as!(
-        GatewaySessionsRecord,
+    let items = sqlx::query_as(
         "SELECT gateway_identity_key, 
                 node_id,              
                 day,                  
@@ -49,7 +48,7 @@ pub(crate) async fn get_sessions_stats(pool: &DbPool) -> anyhow::Result<Vec<Sess
                 vpn_sessions,         
                 mixnet_sessions,      
                 unknown_sessions
-        FROM gateway_session_stats"
+        FROM gateway_session_stats",
     )
     .fetch(&mut *conn)
     .try_collect::<Vec<GatewaySessionsRecord>>()

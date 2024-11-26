@@ -1,19 +1,18 @@
 use crate::mixnet::{MixnetClient, MixnetClientBuilder, NymNetworkDetails};
 use anyhow::{bail, Result};
-use std::collections::VecDeque;
 use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::sync::Semaphore;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, warn};
 
 // Make a set # of clients (low default)
 // Once a client is used, kill the client & remove it from the pool
 pub struct ClientPool {
     clients: Arc<RwLock<Vec<Arc<MixnetClient>>>>,
     semaphore: Arc<Semaphore>,
-    default_pool_size: usize,
+    default_pool_size: usize, // default # of clients to have running simultaneously, otherwise make ephemeral
     conn_count: Arc<AtomicUsize>, // the actual # of connections running, denoting an incoming tcp request that is matched with a nym client
 }
 
@@ -65,11 +64,15 @@ impl ClientPool {
 
     pub async fn start(&self) -> Result<()> {
         loop {
-            // TODO double check this..
             let spawned_clients = self.clients.read().await.len();
-            debug!("Currently spawned clients: {}", spawned_clients);
+            let addresses = self;
+            info!(
+                "Currently spawned clients: {}: {:?} ",
+                spawned_clients, addresses
+            );
 
-            if spawned_clients >= self.default_pool_size {
+            // TODO check this logic in situation with larger pool
+            if spawned_clients == self.semaphore.available_permits() {
                 debug!("Got enough clients already: sleeping");
             } else {
                 info!("Spawning new client");
@@ -102,11 +105,12 @@ impl ClientPool {
             .and_then(|arc_client| Arc::try_unwrap(arc_client).ok())
     }
 
+    // TODO why is it not being removed? just passed back into pool?
     pub async fn disconnect_and_remove_client(&self, client: MixnetClient) -> Result<()> {
         let mut clients = self.clients.write().await;
+        self.semaphore.add_permits(1);
         clients.retain(|arc_client| arc_client.as_ref().nym_address() != client.nym_address());
         client.disconnect().await;
-        self.semaphore.add_permits(1);
         Ok(())
     }
 

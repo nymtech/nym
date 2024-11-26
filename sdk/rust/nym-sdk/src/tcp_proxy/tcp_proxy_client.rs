@@ -7,7 +7,7 @@ mod client_pool;
 use client_pool::ClientPool;
 #[path = "utils.rs"]
 mod utils;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use dashmap::DashSet;
 use nym_network_defaults::setup_env;
 use nym_sphinx::addressing::Recipient;
@@ -42,7 +42,7 @@ impl NymProxyClient {
         env: Option<String>,
         default_client_amount: usize,
     ) -> Result<Self> {
-        debug!("loading env file: {:?}", env);
+        debug!("Loading env file: {:?}", env);
         setup_env(env); // Defaults to mainnet if empty
         Ok(NymProxyClient {
             server_address,
@@ -78,13 +78,16 @@ impl NymProxyClient {
         let overall_counter = self.conn_pool.clone();
         tokio::spawn(async move {
             loop {
-                info!("active connections: {}", overall_counter.get_conn_count());
+                info!("Active connections: {}", overall_counter.get_conn_count());
                 tokio::time::sleep(Duration::from_secs(5)).await;
             }
         });
 
+        //     if self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2 {
         loop {
-            if self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2 {
+            if DEFAULT_CLIENT_POOL_SIZE == 1 && self.conn_pool.get_client_count().await == 1
+                || self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2
+            {
                 let (stream, _) = listener.accept().await?;
                 tokio::spawn(NymProxyClient::handle_incoming(
                     stream,
@@ -123,14 +126,13 @@ impl NymProxyClient {
 
         info!("Starting session: {}", session_id);
 
-        let mut client: MixnetClient = match conn_pool.get_conn_count() <= DEFAULT_CLIENT_POOL_SIZE
-        {
-            true => {
-                debug!("grabbing client from pool");
-                conn_pool.get_mixnet_client().await?
+        let mut client = match conn_pool.get_mixnet_client().await {
+            Some(client) => {
+                info!("Grabbing client {} from pool", client.nym_address());
+                client
             }
-            false => {
-                debug!("not enough clients in pool, creating ephemeral client");
+            None => {
+                info!("Not enough clients in pool, creating ephemeral client");
                 let net = NymNetworkDetails::new_from_env();
                 MixnetClientBuilder::new_ephemeral()
                     .network_details(net)
@@ -243,7 +245,8 @@ impl NymProxyClient {
                         info!(" Closing write end of session: {}", session_id);
                         info!(" Triggering client shutdown");
                         // TODO change this to be a fn in the conn_pool, disconnect and remove from vec
-                        client.disconnect().await;
+                        // client.disconnect().await;
+                        conn_pool.disconnect_and_remove_client(client).await?;
                         conn_pool.clone().decrement_conn_count()?;
                         info!(
                             "Dropped connection - current active connections: {}",

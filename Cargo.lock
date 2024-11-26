@@ -5546,6 +5546,7 @@ version = "0.1.0"
 dependencies = [
  "nym-credentials-interface",
  "nym-sphinx",
+ "nym-statistics-common",
  "sqlx",
  "thiserror",
  "time",
@@ -6094,6 +6095,7 @@ dependencies = [
  "nym-explorer-client",
  "nym-network-defaults",
  "nym-node-requests",
+ "nym-statistics-common",
  "nym-task",
  "nym-validator-client",
  "regex",
@@ -6105,6 +6107,7 @@ dependencies = [
  "strum 0.26.3",
  "strum_macros 0.26.4",
  "thiserror",
+ "time",
  "tokio",
  "tokio-util",
  "tower-http",

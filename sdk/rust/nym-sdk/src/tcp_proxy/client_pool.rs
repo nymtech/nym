@@ -5,13 +5,14 @@ use std::fmt;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use tokio::sync::Semaphore;
 use tracing::{debug, info, instrument, warn};
 
 // Make a set # of clients (low default)
-// Make sure that # of clients is always 1 above the # of incoming conn requests
 // Once a client is used, kill the client & remove it from the pool
 pub struct ClientPool {
     clients: Arc<RwLock<Vec<Arc<MixnetClient>>>>,
+    semaphore: Arc<Semaphore>,
     default_pool_size: usize,
     conn_count: Arc<AtomicUsize>, // the actual # of connections running, denoting an incoming tcp request that is matched with a nym client
 }
@@ -56,20 +57,20 @@ impl ClientPool {
     pub fn new(default_pool_size: usize) -> Self {
         ClientPool {
             clients: Arc::new(RwLock::new(Vec::new())),
+            semaphore: Arc::new(Semaphore::new(default_pool_size)),
             default_pool_size,
             conn_count: Arc::new(AtomicUsize::new(0)),
         }
     }
 
-    // if clients == default, sleep
-    // if incoming conns > default - conn_count (aka in use clients) then make more clients
     pub async fn start(&self) -> Result<()> {
         loop {
+            // TODO double check this..
             let spawned_clients = self.clients.read().await.len();
-            info!("Currently spawned clients: {}", spawned_clients);
+            debug!("Currently spawned clients: {}", spawned_clients);
 
             if spawned_clients >= self.default_pool_size {
-                debug!("got enough clients already: sleeping");
+                debug!("Got enough clients already: sleeping");
             } else {
                 info!("Spawning new client");
                 let client = loop {
@@ -93,14 +94,20 @@ impl ClientPool {
         }
     }
 
-    pub async fn get_mixnet_client(&self) -> Result<MixnetClient> {
-        todo!()
+    pub async fn get_mixnet_client(&self) -> Option<MixnetClient> {
+        let _permit = self.semaphore.acquire().await.ok()?;
+        let mut clients = self.clients.write().await;
+        clients
+            .pop()
+            .and_then(|arc_client| Arc::try_unwrap(arc_client).ok())
     }
 
-    // disconnect ephemeral
-    // remove from vec
     pub async fn disconnect_and_remove_client(&self, client: MixnetClient) -> Result<()> {
-        todo!()
+        let mut clients = self.clients.write().await;
+        clients.retain(|arc_client| arc_client.as_ref().nym_address() != client.nym_address());
+        client.disconnect().await;
+        self.semaphore.add_permits(1);
+        Ok(())
     }
 
     pub async fn get_client_count(&self) -> usize {
@@ -126,6 +133,7 @@ impl ClientPool {
     pub fn clone(&self) -> Self {
         Self {
             clients: Arc::clone(&self.clients),
+            semaphore: Arc::clone(&self.semaphore),
             default_pool_size: *&self.default_pool_size,
             conn_count: Arc::clone(&self.conn_count),
         }

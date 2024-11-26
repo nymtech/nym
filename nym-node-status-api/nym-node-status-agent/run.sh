@@ -3,14 +3,14 @@
 set -eu
 export ENVIRONMENT=${ENVIRONMENT:-"sandbox"}
 
-probe_git_ref="nym-vpn-core-v1.0.0-rc.6"
+probe_git_ref="nym-vpn-core-v1.0.0-rc.14"
 
 crate_root=$(dirname $(realpath "$0"))
-monorepo_root=$(dirname "${crate_root}")
+monorepo_root=$(realpath "${crate_root}/../..")
+
 echo "Expecting nym-vpn-client repo at a sibling level of nym monorepo dir"
 gateway_probe_src=$(dirname "${monorepo_root}")/nym-vpn-client/nym-vpn-core
 echo "gateway_probe_src=$gateway_probe_src"
-echo "crate_root=$crate_root"
 
 set -a
 source "${monorepo_root}/envs/${ENVIRONMENT}.env"
@@ -30,9 +30,11 @@ function copy_gw_probe() {
     pushd $gateway_probe_src
     git fetch -a
     git checkout $probe_git_ref
+
     cargo build --release --package nym-gateway-probe
     cp target/release/nym-gateway-probe "$crate_root"
     $crate_root/nym-gateway-probe --version
+
     popd
 }
 
@@ -44,7 +46,7 @@ function swarm() {
     local workers=$1
 
     for ((i = 1; i <= workers; i++)); do
-        ../target/release/nym-node-status-agent run-probe &
+        ${monorepo_root}/target/release/nym-node-status-agent run-probe &
     done
 
     wait

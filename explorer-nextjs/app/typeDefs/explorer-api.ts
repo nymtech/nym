@@ -20,6 +20,15 @@ export interface SummaryOverviewResponse {
   validators: {
     count: number;
   };
+  nymnodes: {
+    count: number;
+    roles: {
+      mixnode: number;
+      entry: number;
+      exit_nr: number;
+      exit_ipr: number;
+    };
+  };
 }
 
 export interface MixNode {
@@ -157,6 +166,14 @@ export interface LocatedGateway {
 }
 
 export type GatewayResponse = GatewayBond[];
+
+export interface NymNodeReportResponse {
+  identity: string;
+  owner: string;
+  most_recent: number;
+  last_hour: number;
+  last_day: number;
+}
 
 export interface GatewayReportResponse {
   identity: string;

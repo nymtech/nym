@@ -1,6 +1,6 @@
-use nym_api_requests::models::NodePerformance;
+use nym_api_requests::models::{DescribedNodeType, NodePerformance, NymNodeData};
 use nym_contracts_common::Percent;
-use nym_mixnet_contract_common::{Addr, Coin, Gateway, LegacyMixLayer, MixNode, NodeId};
+use nym_mixnet_contract_common::{Addr, Coin, Delegation, Gateway, LegacyMixLayer, MixNode, NodeId, NodeRewarding, NymNodeBond};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -51,4 +51,33 @@ pub struct PrettyDetailedGatewayBond {
     pub gateway: Gateway,
     pub proxy: Option<Addr>,
     pub location: Option<Location>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct NymNodeWithDescriptionAndLocation {
+    pub node_id: NodeId,
+    pub contract_node_type: Option<DescribedNodeType>,
+    pub description: Option<NymNodeData>,
+    pub bond_information: NymNodeBond,
+    pub rewarding_details: NodeRewarding,
+    pub location: Option<Location>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct NymNodeWithDescriptionAndLocationAndDelegations {
+    pub node_id: NodeId,
+    pub contract_node_type: Option<DescribedNodeType>,
+    pub description: Option<NymNodeData>,
+    pub bond_information: NymNodeBond,
+    pub rewarding_details: NodeRewarding,
+    pub location: Option<Location>,
+    pub delegations: Option<Vec<Delegation>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+pub struct NymVestingAccount {
+    pub locked: Coin,
+    pub vested: Coin,
+    pub vesting: Coin,
+    pub spendable: Coin,
 }

@@ -18,7 +18,7 @@ import { CustomColumnHeading } from '@/app/components/CustomColumnHeading'
 import { Title } from '@/app/components/Title'
 import { unymToNym } from '@/app/utils/currency'
 import { Tooltip } from '@/app/components/Tooltip'
-import { NYM_BIG_DIPPER } from '@/app/api/constants'
+import { EXPLORER_FOR_ACCOUNTS } from '@/app/api/constants'
 import { splice } from '@/app/utils'
 import {
   VersionDisplaySelector,
@@ -222,7 +222,7 @@ const PageGateways = () => {
             Cell: ({ row }) => {
               return (
                 <StyledLink
-                  to={`${NYM_BIG_DIPPER}/account/${row.original.owner}`}
+                  to={`${EXPLORER_FOR_ACCOUNTS}/account/${row.original.owner}`}
                   target="_blank"
                   data-testid="owner"
                   color="text.primary"
@@ -341,7 +341,7 @@ const PageGateways = () => {
       headerClassName: 'MuiDataGrid-header-override',
       renderCell: (params: GridRenderCellParams) => (
         <StyledLink
-          to={`${NYM_BIG_DIPPER}/account/${params.value}`}
+          to={`${EXPLORER_FOR_ACCOUNTS}/account/${params.value}`}
           target="_blank"
           data-testid="owner"
         >

@@ -29,7 +29,7 @@ import { useMainContext } from '@/app/context/main'
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard'
 import { splice } from '@/app/utils'
 import { currencyToString } from '@/app/utils/currency'
-import { NYM_BIG_DIPPER } from '@/app/api/constants'
+import { EXPLORER_FOR_ACCOUNTS } from '@/app/api/constants'
 import {
   MixnodeStatusWithAll,
   toMixnodeStatus,
@@ -255,7 +255,7 @@ export default function MixnodesPage() {
             Header: () => <CustomColumnHeading headingTitle="Owner" />,
             Cell: ({ row }) => (
               <StyledLink
-                to={`${NYM_BIG_DIPPER}/account/${row.original.owner}`}
+                to={`${EXPLORER_FOR_ACCOUNTS}/account/${row.original.owner}`}
                 color={useGetMixNodeStatusColor(row.original.status)}
                 target="_blank"
                 data-testid="big-dipper-link"

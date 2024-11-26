@@ -4,7 +4,7 @@ import Link from 'next/link'
 
 type StyledLinkProps = {
   to: string
-  children: string
+  children: React.ReactNode
   target?: React.HTMLAttributeAnchorTarget
   dataTestId?: string
   color?: string

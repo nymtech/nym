@@ -38,8 +38,14 @@ impl CountryStatisticsDistributionTask {
     /// Retrieves the current list of mixnodes from the validators and calculates how many nodes are in each country
     async fn calculate_nodes_per_country(&mut self) {
         let cache = self.state.inner.mixnodes.get_locations().await;
+        let nym_nodes = self
+            .state
+            .inner
+            .nymnodes
+            .get_bonded_nymnodes_locations()
+            .await;
 
-        let three_letter_iso_country_codes: Vec<String> = cache
+        let mut three_letter_iso_country_codes: Vec<String> = cache
             .values()
             .flat_map(|i| {
                 i.location
@@ -47,6 +53,10 @@ impl CountryStatisticsDistributionTask {
                     .map(|j| j.three_letter_iso_country_code.clone())
             })
             .collect();
+
+        for node in nym_nodes {
+            three_letter_iso_country_codes.push(node.three_letter_iso_country_code);
+        }
 
         let mut distribution = CountryNodesDistribution::new();
 

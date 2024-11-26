@@ -12,7 +12,7 @@ import {
   UPTIME_STORY_API,
   VALIDATORS_API,
   SERVICE_PROVIDERS,
-  GATEWAYS_EXPLORER_API,
+  GATEWAYS_EXPLORER_API, TEMP_UNSTABLE_NYM_NODES, NYM_API_NODE_UPTIME, NYM_API_NODE_PERFORMANCE, TEMP_UNSTABLE_ACCOUNT,
 } from './constants';
 
 import {
@@ -59,7 +59,14 @@ export class Api {
       return cache;
     }
     const res = await fetch(`${OVERVIEW_API}/summary`);
-    const json = await res.json();
+    const json: SummaryOverviewResponse = await res.json();
+
+    if (json.nymnodes?.roles) {
+      json.mixnodes.count += json.nymnodes.roles.mixnode;
+      json.gateways.count += json.nymnodes.roles.entry;
+      json.gateways.count += Math.max(json.nymnodes.roles.exit_ipr, json.nymnodes.roles.exit_nr);
+    }
+
     storeInCache('overview-summary', JSON.stringify(json));
     return json;
   };
@@ -165,6 +172,36 @@ export class Api {
     const json = await res.json();
     return json;
   };
+
+  static fetchNodes = async () => {
+    const res = await fetch(TEMP_UNSTABLE_NYM_NODES);
+    const json = await res.json();
+    return json;
+  }
+
+  static fetchNodeById = async (id: number) => {
+    const res = await fetch(`${TEMP_UNSTABLE_NYM_NODES}/${id}`);
+    const json = await res.json();
+    return json;
+  }
+
+  static fetchNymNodeUptimeHistoryById = async (id: number | string) => {
+    const res = await fetch(`${NYM_API_NODE_UPTIME}/${id}`)
+    const json = await res.json();
+    return json;
+  }
+
+  static fetchNymNodePerformanceById = async (id: number | string) => {
+    const res = await fetch(`${NYM_API_NODE_PERFORMANCE}/${id}`)
+    const json = await res.json();
+    return json;
+  }
+
+  static fetchAccountById = async (id: string) => {
+    const res = await fetch(`${TEMP_UNSTABLE_ACCOUNT}/${id}`);
+    const json = await res.json();
+    return json;
+  }
 }
 
 export const getEnvironment = (): Environment => {

@@ -26,6 +26,7 @@ interface StateData {
   gateways?: ApiState<GatewayResponse>
   globalError?: string | undefined
   mixnodes?: ApiState<MixNodeResponse>
+  nodes?: ApiState<any>
   mode: PaletteMode
   validators?: ApiState<ValidatorsResponse>
   environment?: Environment
@@ -37,6 +38,9 @@ interface StateApi {
     status?: MixnodeStatus
   ) => Promise<MixNodeResponse | undefined>
   filterMixnodes: (filters: any, status: any) => void
+  fetchNodes: () => Promise<any>
+  fetchNodeById: (id: number) => Promise<any>
+  fetchAccountById: (accountAddr: string) => Promise<any>
   toggleMode: () => void
 }
 
@@ -47,6 +51,9 @@ export const MainContext = React.createContext<State>({
   toggleMode: () => undefined,
   filterMixnodes: () => null,
   fetchMixnodes: () => Promise.resolve(undefined),
+  fetchNodes: async () => undefined,
+  fetchNodeById: async () => undefined,
+  fetchAccountById: async () => undefined,
 })
 
 export const useMainContext = (): React.ContextType<typeof MainContext> =>
@@ -65,6 +72,7 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   // various APIs for Overview page
   const [summaryOverview, setSummaryOverview] =
     React.useState<ApiState<SummaryOverviewResponse>>()
+  const [nodes, setNodes] = React.useState<ApiState<any>>()
   const [mixnodes, setMixnodes] = React.useState<ApiState<MixNodeResponse>>()
   const [gateways, setGateways] = React.useState<ApiState<GatewayResponse>>()
   const [validators, setValidators] =
@@ -205,6 +213,34 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
     }
   }
 
+  const fetchNodes = async () => {
+    setNodes({ data: undefined, isLoading: true })
+    try {
+      const res = await Api.fetchNodes()
+      setNodes({
+        data: res.sort((a: any, b: any) => a.node_id - b.node_id),
+        isLoading: false,
+      })
+    } catch (error) {
+      setNodes({
+        error:
+          error instanceof Error
+            ? error
+            : new Error('Service provider api fail'),
+        isLoading: false,
+      })
+    }  };
+
+  const fetchNodeById = async (id: number) => {
+    const res = await Api.fetchNodeById(id);
+    return res;
+  };
+
+  const fetchAccountById = async (id: string) => {
+    const res = await Api.fetchAccountById(id);
+    return res;
+  };
+
   React.useEffect(() => {
     if (environment === 'mainnet') {
       fetchServiceProviders()
@@ -231,12 +267,16 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
       globalError,
       mixnodes,
       mode,
+      nodes,
       summaryOverview,
       validators,
       serviceProviders,
       toggleMode,
       fetchMixnodes,
       filterMixnodes,
+      fetchNodes,
+      fetchNodeById,
+      fetchAccountById,
     }),
     [
       environment,
@@ -246,6 +286,7 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
       globalError,
       mixnodes,
       mode,
+      nodes,
       summaryOverview,
       validators,
       serviceProviders,

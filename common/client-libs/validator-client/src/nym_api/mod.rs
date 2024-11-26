@@ -104,6 +104,21 @@ pub trait NymApiClientExt: ApiClient {
 
     #[deprecated]
     #[instrument(level = "debug", skip(self))]
+    async fn get_gateways_detailed_unfiltered(&self) -> Result<Vec<GatewayBondAnnotated>, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::GATEWAYS,
+                routes::DETAILED_UNFILTERED,
+            ],
+            NO_PARAMS,
+        )
+            .await
+    }
+
+    #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnodes_detailed_unfiltered(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {

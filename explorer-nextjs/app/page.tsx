@@ -13,7 +13,7 @@ import { GatewaysSVG } from '@/app/icons/GatewaysSVG'
 import { ValidatorsSVG } from '@/app/icons/ValidatorsSVG'
 import { ContentCard } from '@/app/components/ContentCard'
 import { WorldMap } from '@/app/components/WorldMap'
-import { BIG_DIPPER } from '@/app/api/constants'
+import { BLOCK_EXPLORER_BASE_URL } from '@/app/api/constants'
 import { formatNumber } from '@/app/utils'
 import { useMainContext } from './context/main'
 import { useRouter } from 'next/navigation'
@@ -42,71 +42,49 @@ const PageOverview = () => {
               <>
                 <Grid item xs={12} md={4}>
                   <StatsCard
-                    onClick={() => router.push('/network-components/mixnodes')}
-                    title="Mixnodes"
+                    onClick={() => router.push('/network-components/nodes')}
+                    title="Nodes"
                     icon={<MixnodesSVG />}
                     count={summaryOverview.data?.mixnodes.count || ''}
                     errorMsg={summaryOverview?.error}
                   />
                 </Grid>
-                <Grid item xs={12} md={4}>
-                  <StatsCard
-                    onClick={() =>
-                      router.push('/network-components/mixnodes?status=active')
-                    }
-                    title="Active nodes"
-                    icon={<Icons.Mixnodes.Status.Active />}
-                    color={
-                      theme.palette.nym.networkExplorer.mixnodes.status.active
-                    }
-                    count={summaryOverview.data?.mixnodes.activeset.active}
-                    errorMsg={summaryOverview?.error}
-                  />
-                </Grid>
-                <Grid item xs={12} md={4}>
-                  <StatsCard
-                    onClick={() =>
-                      router.push('/network-components/mixnodes?status=standby')
-                    }
-                    title="Standby nodes"
-                    color={
-                      theme.palette.nym.networkExplorer.mixnodes.status.standby
-                    }
-                    icon={<Icons.Mixnodes.Status.Standby />}
-                    count={summaryOverview.data?.mixnodes.activeset.standby}
-                    errorMsg={summaryOverview?.error}
-                  />
-                </Grid>
               </>
             )}
-            {gateways && (
+            {summaryOverview && (
               <Grid item xs={12} md={4}>
                 <StatsCard
                   onClick={() => router.push('/network-components/gateways')}
-                  title="Gateways"
-                  count={gateways?.data?.length || ''}
-                  errorMsg={gateways?.error}
+                  title="Entry Gateways"
+                  count={summaryOverview.data?.nymnodes.roles.entry || ''}
                   icon={<GatewaysSVG />}
                 />
               </Grid>
             )}
-            {serviceProviders && (
+            {summaryOverview && (
               <Grid item xs={12} md={4}>
                 <StatsCard
-                  onClick={() =>
-                    router.push('/network-components/service-providers')
-                  }
-                  title="Service providers"
-                  icon={<PeopleAlt />}
-                  count={serviceProviders.data?.length}
-                  errorMsg={summaryOverview?.error}
+                  onClick={() => router.push('/network-components/gateways')}
+                  title="Exit Gateways"
+                  count={summaryOverview.data?.nymnodes.roles.exit_ipr || ''}
+                  icon={<GatewaysSVG />}
+                />
+              </Grid>
+            )}
+            {summaryOverview && (
+              <Grid item xs={12} md={4}>
+                <StatsCard
+                  onClick={() => router.push('/network-components/gateways')}
+                  title="SOCKS5 Network Requesters"
+                  count={summaryOverview.data?.nymnodes.roles.exit_nr || ''}
+                  icon={<GatewaysSVG />}
                 />
               </Grid>
             )}
             {validators && (
               <Grid item xs={12} md={4}>
                 <StatsCard
-                  onClick={() => window.open(`${BIG_DIPPER}/validators`)}
+                  onClick={() => window.open(`${BLOCK_EXPLORER_BASE_URL}/validators`)}
                   title="Validators"
                   count={validators?.data?.count || ''}
                   errorMsg={validators?.error}
@@ -117,7 +95,7 @@ const PageOverview = () => {
             {block?.data && (
               <Grid item xs={12}>
                 <Link
-                  href={`${BIG_DIPPER}/blocks`}
+                  href={`${BLOCK_EXPLORER_BASE_URL}/blocks`}
                   target="_blank"
                   rel="noreferrer"
                   underline="none"

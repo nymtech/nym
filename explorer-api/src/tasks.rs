@@ -3,9 +3,11 @@
 
 use crate::mix_nodes::CACHE_REFRESH_RATE;
 use crate::state::ExplorerApiStateContext;
-use nym_mixnet_contract_common::{GatewayBond, NymNodeDetails};
+use nym_mixnet_contract_common::NymNodeDetails;
 use nym_task::TaskClient;
-use nym_validator_client::models::{MixNodeBondAnnotated, NymNodeDescription};
+use nym_validator_client::models::{
+    GatewayBondAnnotated, MixNodeBondAnnotated, NymNodeDescription,
+};
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{Paging, TendermintRpcClient, ValidatorResponse};
 use nym_validator_client::{QueryHttpRpcValidatorClient, ValidatorClientError};
@@ -71,13 +73,15 @@ impl ExplorerApiTasks {
         .await
     }
 
-    async fn retrieve_all_gateways(&self) -> Result<Vec<GatewayBond>, ValidatorClientError> {
+    async fn retrieve_all_gateways(
+        &self,
+    ) -> Result<Vec<GatewayBondAnnotated>, ValidatorClientError> {
         info!("About to retrieve all gateways...");
         self.state
             .inner
             .validator_client
             .0
-            .get_cached_gateways()
+            .get_cached_gateways_detailed_unfiltered()
             .await
     }
 

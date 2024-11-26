@@ -44,7 +44,7 @@ async fn get_mix_node_stats(host: &str, port: u16) -> Result<NodeStats, ReqwestE
         .await
 }
 
-#[openapi(tag = "mix_nodes")]
+#[openapi(tag = "mix_node")]
 #[get("/<mix_id>")]
 pub(crate) async fn get_by_id(
     mix_id: NodeId,

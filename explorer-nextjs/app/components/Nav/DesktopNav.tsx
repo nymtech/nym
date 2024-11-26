@@ -24,6 +24,7 @@ import { DarkLightSwitchDesktop } from '@/app/components/Switch'
 import { Footer } from '@/app/components/Footer'
 import { ConnectKeplrWallet } from '@/app/components/Wallet/ConnectKeplrWallet'
 import { usePathname, useRouter } from 'next/navigation'
+import {SearchToolbar} from "@/app/components/Nav/Search";
 
 const drawerWidth = 255
 const bannerHeight = 80
@@ -292,6 +293,9 @@ export const Nav: FCWithChildren = ({ children }) => {
               display: 'flex',
             }}
           >
+            <Box>
+              <SearchToolbar/>
+            </Box>
             <Box
               sx={{
                 display: 'flex',

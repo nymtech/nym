@@ -4,6 +4,7 @@
 use crate::{cache::Cache, location::LocationCacheItem};
 use nym_explorer_api_requests::{Location, PrettyDetailedGatewayBond};
 use nym_mixnet_contract_common::{GatewayBond, IdentityKey};
+use nym_validator_client::models::GatewayBondAnnotated;
 use serde::Serialize;
 use std::{sync::Arc, time::SystemTime};
 use tokio::sync::RwLock;
@@ -11,7 +12,7 @@ use tokio::sync::RwLock;
 use super::location::GatewayLocationCache;
 
 pub(crate) struct GatewayCache {
-    pub(crate) gateways: Cache<IdentityKey, GatewayBond>,
+    pub(crate) gateways: Cache<IdentityKey, GatewayBondAnnotated>,
 }
 
 #[derive(Clone, Debug, Serialize, JsonSchema)]
@@ -51,7 +52,14 @@ impl ThreadsafeGatewayCache {
     }
 
     pub(crate) async fn get_gateways(&self) -> Vec<GatewayBond> {
-        self.gateways.read().await.gateways.get_all()
+        self.gateways
+            .read()
+            .await
+            .gateways
+            .get_all()
+            .iter()
+            .map(|g| g.gateway_bond.bond.clone())
+            .collect()
     }
 
     pub(crate) async fn get_detailed_gateways(&self) -> Vec<PrettyDetailedGatewayBond> {
@@ -64,7 +72,7 @@ impl ThreadsafeGatewayCache {
             .iter()
             .map(|bond| {
                 let location = location_guard.get(bond.identity());
-                self.create_detailed_gateway(bond.to_owned(), location)
+                self.create_detailed_gateway(bond.gateway_bond.bond.to_owned(), location)
             })
             .collect()
     }
@@ -106,13 +114,13 @@ impl ThreadsafeGatewayCache {
             .insert(identy_key, LocationCacheItem::new_from_location(location));
     }
 
-    pub(crate) async fn update_cache(&self, gateways: Vec<GatewayBond>) {
+    pub(crate) async fn update_cache(&self, gateways: Vec<GatewayBondAnnotated>) {
         let mut guard = self.gateways.write().await;
 
         for gateway in gateways {
             guard
                 .gateways
-                .set(gateway.gateway.identity_key.clone(), gateway)
+                .set(gateway.gateway_bond.gateway.identity_key.clone(), gateway)
         }
     }
 }

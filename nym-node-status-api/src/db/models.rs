@@ -5,6 +5,7 @@ use crate::{
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
 use strum_macros::{EnumString, FromRepr};
+use time::Date;
 use utoipa::ToSchema;
 
 pub(crate) struct GatewayRecord {
@@ -333,4 +334,17 @@ pub struct GatewayInfoDto {
     pub gateway_identity_key: String,
     pub self_described: Option<String>,
     pub explorer_pretty_bond: Option<String>,
+}
+
+#[derive(Debug, Clone)]
+pub struct GatewaySessionsRecord {
+    pub gateway_identity_key: String,
+    pub node_id: u32,
+    pub date: Date,
+    pub unique_active_clients: i64,
+    pub session_started: i64,
+    pub users_hashes: Option<String>,
+    pub vpn_sessions: Option<String>,
+    pub mixnet_sessions: Option<String>,
+    pub unknown_sessions: Option<String>,
 }

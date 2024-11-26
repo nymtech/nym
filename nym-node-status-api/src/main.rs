@@ -7,6 +7,7 @@ mod db;
 mod http;
 mod logging;
 mod monitor;
+mod node_scraper;
 mod testruns;
 
 #[tokio::main]
@@ -41,6 +42,12 @@ async fn main() -> anyhow::Result<()> {
     });
 
     testruns::spawn(storage.pool_owned(), args.testruns_refresh_interval).await;
+
+    let db_pool_scraper = storage.pool_owned();
+    tokio::spawn(async move {
+        node_scraper::spawn_in_background(db_pool_scraper, args_clone.nym_api_client_timeout).await;
+        tracing::info!("Started metrics scraper task");
+    });
 
     let shutdown_handles = http::server::start_http_api(
         storage.pool_owned(),

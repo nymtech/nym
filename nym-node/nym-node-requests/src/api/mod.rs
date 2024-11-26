@@ -1,7 +1,9 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::api::v1::node::models::{HostInformation, LegacyHostInformation};
+use crate::api::v1::node::models::{
+    HostInformation, LegacyHostInformation, LegacyHostInformationV2,
+};
 use crate::error::Error;
 use nym_crypto::asymmetric::identity;
 use schemars::JsonSchema;
@@ -46,6 +48,7 @@ impl<T> SignedData<T> {
         let Ok(plaintext) = serde_json::to_string(&self.data) else {
             return false;
         };
+
         let Ok(signature) = identity::Signature::from_base58_string(&self.signature) else {
             return false;
         };
@@ -56,21 +59,25 @@ impl<T> SignedData<T> {
 
 impl SignedHostInformation {
     pub fn verify_host_information(&self) -> bool {
-        let Ok(pub_key) = identity::PublicKey::from_base58_string(&self.keys.ed25519_identity)
-        else {
-            return false;
-        };
-
-        if self.verify(&pub_key) {
+        if self.verify(&self.keys.ed25519_identity) {
             return true;
         }
 
-        // attempt to verify legacy signature
+        // attempt to verify legacy signatures
+        let legacy_v2 = SignedData {
+            data: LegacyHostInformationV2::from(self.data.clone()),
+            signature: self.signature.clone(),
+        };
+
+        if legacy_v2.verify(&self.keys.ed25519_identity) {
+            return true;
+        }
+
         SignedData {
-            data: LegacyHostInformation::from(self.data.clone()),
+            data: LegacyHostInformation::from(legacy_v2.data),
             signature: self.signature.clone(),
         }
-        .verify(&pub_key)
+        .verify(&self.keys.ed25519_identity)
     }
 }
 
@@ -105,20 +112,111 @@ mod tests {
         let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
         let ed22519 = ed25519::KeyPair::new(&mut rng);
         let x25519_sphinx = x25519::KeyPair::new(&mut rng);
+        let x25519_noise = x25519::KeyPair::new(&mut rng);
 
         let host_info = crate::api::v1::node::models::HostInformation {
             ip_address: vec!["1.1.1.1".parse().unwrap()],
             hostname: Some("foomp.com".to_string()),
             keys: crate::api::v1::node::models::HostKeys {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                x25519_noise: None,
+            },
+        };
+
+        let signed_info = SignedHostInformation::new(host_info, ed22519.private_key()).unwrap();
+        assert!(signed_info.verify(ed22519.public_key()));
+        assert!(signed_info.verify_host_information());
+
+        let host_info_with_noise = crate::api::v1::node::models::HostInformation {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: crate::api::v1::node::models::HostKeys {
+                ed25519_identity: *ed22519.public_key(),
+                x25519_sphinx: *x25519_sphinx.public_key(),
+                x25519_noise: Some(*x25519_noise.public_key()),
+            },
+        };
+
+        let signed_info =
+            SignedHostInformation::new(host_info_with_noise, ed22519.private_key()).unwrap();
+        assert!(signed_info.verify(ed22519.public_key()));
+        assert!(signed_info.verify_host_information());
+    }
+
+    #[test]
+    fn dummy_legacy_v2_signed_host_verification() {
+        let mut rng = rand_chacha::ChaCha20Rng::from_seed([0u8; 32]);
+        let ed22519 = ed25519::KeyPair::new(&mut rng);
+        let x25519_sphinx = x25519::KeyPair::new(&mut rng);
+        let x25519_noise = x25519::KeyPair::new(&mut rng);
+
+        let legacy_info_no_noise = crate::api::v1::node::models::LegacyHostInformationV2 {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: crate::api::v1::node::models::LegacyHostKeysV2 {
                 ed25519_identity: ed22519.public_key().to_base58_string(),
                 x25519_sphinx: x25519_sphinx.public_key().to_base58_string(),
                 x25519_noise: "".to_string(),
             },
         };
 
-        let signed_info = SignedHostInformation::new(host_info, ed22519.private_key()).unwrap();
-        assert!(signed_info.verify(ed22519.public_key()));
-        assert!(signed_info.verify_host_information())
+        let legacy_info_noise = crate::api::v1::node::models::LegacyHostInformationV2 {
+            ip_address: vec!["1.1.1.1".parse().unwrap()],
+            hostname: Some("foomp.com".to_string()),
+            keys: crate::api::v1::node::models::LegacyHostKeysV2 {
+                ed25519_identity: ed22519.public_key().to_base58_string(),
+                x25519_sphinx: x25519_sphinx.public_key().to_base58_string(),
+                x25519_noise: x25519_noise.public_key().to_base58_string(),
+            },
+        };
+
+        let host_info_no_noise = crate::api::v1::node::models::HostInformation {
+            ip_address: legacy_info_no_noise.ip_address.clone(),
+            hostname: legacy_info_no_noise.hostname.clone(),
+            keys: crate::api::v1::node::models::HostKeys {
+                ed25519_identity: legacy_info_no_noise.keys.ed25519_identity.parse().unwrap(),
+                x25519_sphinx: legacy_info_no_noise.keys.x25519_sphinx.parse().unwrap(),
+                x25519_noise: None,
+            },
+        };
+
+        let host_info_noise = crate::api::v1::node::models::HostInformation {
+            ip_address: legacy_info_noise.ip_address.clone(),
+            hostname: legacy_info_noise.hostname.clone(),
+            keys: crate::api::v1::node::models::HostKeys {
+                ed25519_identity: legacy_info_noise.keys.ed25519_identity.parse().unwrap(),
+                x25519_sphinx: legacy_info_noise.keys.x25519_sphinx.parse().unwrap(),
+                x25519_noise: Some(legacy_info_noise.keys.x25519_noise.parse().unwrap()),
+            },
+        };
+
+        // signature on legacy data
+        let signature_no_noise = SignedData::new(legacy_info_no_noise, ed22519.private_key())
+            .unwrap()
+            .signature;
+
+        let signature_noise = SignedData::new(legacy_info_noise, ed22519.private_key())
+            .unwrap()
+            .signature;
+
+        // signed blob with the 'current' structure
+        let current_struct_no_noise = SignedData {
+            data: host_info_no_noise,
+            signature: signature_no_noise,
+        };
+
+        let current_struct_noise = SignedData {
+            data: host_info_noise,
+            signature: signature_noise,
+        };
+
+        assert!(!current_struct_no_noise.verify(ed22519.public_key()));
+        assert!(current_struct_no_noise.verify_host_information());
+
+        // if noise key is present, the signature is actually valid
+        assert!(current_struct_noise.verify(ed22519.public_key()));
+        assert!(current_struct_noise.verify_host_information())
     }
 
     #[test]
@@ -140,9 +238,9 @@ mod tests {
             ip_address: legacy_info.ip_address.clone(),
             hostname: legacy_info.hostname.clone(),
             keys: crate::api::v1::node::models::HostKeys {
-                ed25519_identity: legacy_info.keys.ed25519.clone(),
-                x25519_sphinx: legacy_info.keys.x25519.clone(),
-                x25519_noise: "".to_string(),
+                ed25519_identity: legacy_info.keys.ed25519.parse().unwrap(),
+                x25519_sphinx: legacy_info.keys.x25519.parse().unwrap(),
+                x25519_noise: None,
             },
         };
 

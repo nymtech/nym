@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO global_coin_index_signatures(epoch_id, serialised_signatures) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "dc78354f374f0fb71feef0b219cefb12a0b84ef905ab08ef0adcbc2535b3bbca"
+}

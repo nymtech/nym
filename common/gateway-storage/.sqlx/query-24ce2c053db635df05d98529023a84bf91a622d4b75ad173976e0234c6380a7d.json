@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT OR IGNORE INTO wireguard_peer(public_key, preshared_key, protocol_version, endpoint, last_handshake, tx_bytes, rx_bytes, persistent_keepalive_interval, allowed_ips, client_id)\n                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);\n\n                UPDATE wireguard_peer \n                SET preshared_key = ?, protocol_version = ?, endpoint = ?, last_handshake = ?, tx_bytes = ?, rx_bytes = ?, persistent_keepalive_interval = ?, allowed_ips = ?, client_id = ?\n                WHERE public_key = ?\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 20
+    },
+    "nullable": []
+  },
+  "hash": "24ce2c053db635df05d98529023a84bf91a622d4b75ad173976e0234c6380a7d"
+}

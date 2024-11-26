@@ -2,11 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::epoch_operations::error::RewardingError;
-use crate::RewardedSetUpdater;
+use crate::EpochAdvancer;
 use nym_mixnet_contract_common::EpochState;
 use std::cmp::max;
+use tracing::{error, info, warn};
 
-impl RewardedSetUpdater {
+impl EpochAdvancer {
     pub(super) async fn reconcile_epoch_events(&self) -> Result<(), RewardingError> {
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
         match epoch_status.state {
@@ -18,17 +19,17 @@ impl RewardedSetUpdater {
                     operation: "reconciling epoch events".to_string(),
                 })
             }
-            EpochState::AdvancingEpoch => {
+            EpochState::RoleAssignment { .. } => {
                 warn!("we seem to have crashed mid epoch operations... no need to reconcile events as we've already done that!");
                 Ok(())
             }
             EpochState::ReconcilingEvents => {
-                log::info!("Reconciling all pending epoch events...");
+                info!("Reconciling all pending epoch events...");
                 if let Err(err) = self._reconcile_epoch_events().await {
-                    log::error!("FAILED to reconcile epoch events... - {err}");
+                    error!("FAILED to reconcile epoch events... - {err}");
                     Err(err)
                 } else {
-                    log::info!("Reconciled all pending epoch events... SUCCESS");
+                    info!("Reconciled all pending epoch events... SUCCESS");
                     Ok(())
                 }
             }

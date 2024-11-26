@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT timestamp, reliability as \"reliability: u8\"\n                    FROM mixnode_status\n                    WHERE mixnode_details_id=? AND timestamp > ? AND timestamp < ?;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "timestamp",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "reliability: u8",
+        "ordinal": 1,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "8b1978f7cd1a6281cc0d6528f8ea004e1047fe42b7d74d53c617d20b886e54c1"
+}

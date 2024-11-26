@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::MixId;
+use crate::NodeId;
 use nym_sphinx::chunking::ChunkingError;
 use nym_sphinx::receiver::MessageRecoveryError;
 use nym_topology::NymTopologyError;
@@ -19,7 +19,7 @@ pub enum NetworkTestingError {
     InvalidTopology(#[from] NymTopologyError),
 
     #[error("The specified mixnode (id: {mix_id}) doesn't exist")]
-    NonExistentMixnode { mix_id: MixId },
+    NonExistentMixnode { mix_id: NodeId },
 
     #[error("The specified mixnode (identity: {mix_identity}) doesn't exist")]
     NonExistentMixnodeIdentity { mix_identity: String },

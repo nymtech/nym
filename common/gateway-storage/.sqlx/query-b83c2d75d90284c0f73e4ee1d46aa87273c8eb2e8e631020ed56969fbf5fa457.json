@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO redemption_proposals (proposal_id, created_at) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "b83c2d75d90284c0f73e4ee1d46aa87273c8eb2e8e631020ed56969fbf5fa457"
+}

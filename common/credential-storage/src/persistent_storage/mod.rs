@@ -3,27 +3,35 @@
 
 mod legacy_helpers;
 
-use crate::backends::sqlite::{
-    get_next_unspent_ticketbook, increase_used_ticketbook_tickets, SqliteEcashTicketbookManager,
+use crate::{
+    backends::sqlite::{
+        get_next_unspent_ticketbook, increase_used_ticketbook_tickets, SqliteEcashTicketbookManager,
+    },
+    error::StorageError,
+    models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook},
+    persistent_storage::legacy_helpers::{
+        deserialise_v1_coin_index_signatures, deserialise_v1_expiration_date_signatures,
+        deserialise_v1_master_verification_key,
+    },
+    storage::Storage,
 };
-use crate::error::StorageError;
-use crate::models::{BasicTicketbookInformation, RetrievedPendingTicketbook, RetrievedTicketbook};
-use crate::persistent_storage::legacy_helpers::{
-    deserialise_v1_coin_index_signatures, deserialise_v1_expiration_date_signatures,
-    deserialise_v1_master_verification_key,
-};
-use crate::storage::Storage;
 use async_trait::async_trait;
 use log::{debug, error};
-use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
-use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
-use nym_compact_ecash::VerificationKeyAuth;
-use nym_credentials::ecash::bandwidth::serialiser::keys::EpochVerificationKey;
-use nym_credentials::ecash::bandwidth::serialiser::signatures::{
-    AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures,
+use nym_compact_ecash::{
+    scheme::{
+        coin_indices_signatures::AnnotatedCoinIndexSignature,
+        expiration_date_signatures::AnnotatedExpirationDateSignature,
+    },
+    VerificationKeyAuth,
 };
-use nym_credentials::ecash::bandwidth::serialiser::VersionedSerialise;
-use nym_credentials::{IssuanceTicketBook, IssuedTicketBook};
+use nym_credentials::{
+    ecash::bandwidth::serialiser::{
+        keys::EpochVerificationKey,
+        signatures::{AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures},
+        VersionedSerialise,
+    },
+    IssuanceTicketBook, IssuedTicketBook,
+};
 use nym_ecash_time::{ecash_today, Date, EcashTime};
 use sqlx::ConnectOptions;
 use std::path::Path;
@@ -47,11 +55,10 @@ impl PersistentStorage {
             database_path.as_ref().as_os_str()
         );
 
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
-
-        opts.disable_statement_logging();
+            .create_if_missing(true)
+            .disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,
@@ -171,13 +178,16 @@ impl Storage for PersistentStorage {
     /// could obtain their own tickets at the same time
     async fn get_next_unspent_usable_ticketbook(
         &self,
+        ticketbook_type: String,
         tickets: u32,
     ) -> Result<Option<RetrievedTicketbook>, Self::StorageError> {
         let deadline = ecash_today().ecash_date();
         let mut tx = self.storage_manager.begin_storage_tx().await?;
 
         // we don't want ticketbooks with expiration in the past
-        let Some(raw) = get_next_unspent_ticketbook(&mut tx, deadline, tickets).await? else {
+        let Some(raw) =
+            get_next_unspent_ticketbook(&mut *tx, ticketbook_type, deadline, tickets).await?
+        else {
             // make sure to finish our tx
             tx.commit().await?;
             return Ok(None);
@@ -191,7 +201,7 @@ impl Storage for PersistentStorage {
                     ))
                 })?;
 
-        increase_used_ticketbook_tickets(&mut tx, raw.id, tickets).await?;
+        increase_used_ticketbook_tickets(&mut *tx, raw.id, tickets).await?;
         tx.commit().await?;
 
         // set the number of spent tickets on the crypto object

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE received_ticket SET rejected = true WHERE id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "8412b95638509f59d2daa30399ba864263e24b2ab75e0d8a2afbde75da8b6d5a"
+}

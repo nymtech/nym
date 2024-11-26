@@ -41,6 +41,12 @@ location = '{{ host.location }}'
 # default: `0.0.0.0:1789`
 bind_address = '{{ mixnet.bind_address }}'
 
+# If applicable, custom port announced in the self-described API that other clients and nodes
+# will use.
+# Useful when the node is behind a proxy.
+# (default: 0 - disabled)
+announce_port ={{#if mixnet.announce_port }} {{ mixnet.announce_port }} {{else}} 0 {{/if}}
+
 # Addresses to nym APIs from which the node gets the view of the network.
 nym_api_urls = [
 {{#each mixnet.nym_api_urls }}'{{this}}',{{/each}}
@@ -143,6 +149,12 @@ public_diffie_hellman_key_file = '{{ wireguard.storage_paths.public_diffie_hellm
 # Socket address this node will use for binding its verloc API.
 # default: `0.0.0.0:1790`
 bind_address = '{{ mixnode.verloc.bind_address }}'
+
+# If applicable, custom port announced in the self-described API that other clients and nodes
+# will use.
+# Useful when the node is behind a proxy.
+# (default: 0 - disabled)
+announce_port ={{#if mixnode.verloc.announce_port }} {{ mixnode.verloc.announce_port }} {{else}} 0 {{/if}}
 
 [mixnode.storage_paths]
 # currently empty

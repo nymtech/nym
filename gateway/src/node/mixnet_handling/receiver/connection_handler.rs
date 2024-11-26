@@ -8,10 +8,10 @@ use futures::channel::mpsc::SendError;
 use futures::StreamExt;
 use nym_gateway_storage::{error::StorageError, Storage};
 use nym_mixnet_client::forwarder::MixForwardingSender;
-use nym_mixnode_common::packet_processor::processor::ProcessedFinalHop;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
+use nym_sphinx::framing::processing::ProcessedFinalHop;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
 use std::collections::HashMap;
@@ -20,6 +20,8 @@ use thiserror::Error;
 use tokio::net::TcpStream;
 use tokio_util::codec::Framed;
 use tracing::*;
+
+use super::packet_processing::process_packet;
 
 // defines errors that warrant a panic if not thrown in the context of a shutdown
 #[derive(Debug, Error)]
@@ -184,14 +186,14 @@ impl<St: Storage> ConnectionHandler<St> {
         // question: can it also be per connection vs global?
         //
 
-        let processed_final_hop = match self.packet_processor.process_received(framed_sphinx_packet)
-        {
-            Err(err) => {
-                debug!("We failed to process received sphinx packet - {err}");
-                return Ok(());
-            }
-            Ok(processed_final_hop) => processed_final_hop,
-        };
+        let processed_final_hop =
+            match process_packet(framed_sphinx_packet, self.packet_processor.sphinx_key()) {
+                Err(err) => {
+                    debug!("We failed to process received sphinx packet - {err}");
+                    return Ok(());
+                }
+                Ok(processed_final_hop) => processed_final_hop,
+            };
 
         self.handle_processed_packet(processed_final_hop).await
     }

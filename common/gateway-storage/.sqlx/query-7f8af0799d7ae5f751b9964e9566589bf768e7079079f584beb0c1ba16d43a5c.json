@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT EXISTS (SELECT 1 FROM ticket_data WHERE serial_number = ?) AS 'exists'",
+  "describe": {
+    "columns": [
+      {
+        "name": "exists",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "7f8af0799d7ae5f751b9964e9566589bf768e7079079f584beb0c1ba16d43a5c"
+}

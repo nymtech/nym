@@ -1,6 +1,6 @@
 use nym_api_requests::models::NodePerformance;
 use nym_contracts_common::Percent;
-use nym_mixnet_contract_common::{Addr, Coin, Gateway, Layer, MixId, MixNode};
+use nym_mixnet_contract_common::{Addr, Coin, Gateway, LegacyMixLayer, MixNode, NodeId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
@@ -14,13 +14,13 @@ pub enum MixnodeStatus {
 
 #[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct PrettyDetailedMixNodeBond {
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
     pub location: Option<Location>,
     pub status: MixnodeStatus,
     pub pledge_amount: Coin,
     pub total_delegation: Coin,
     pub owner: Addr,
-    pub layer: Layer,
+    pub layer: LegacyMixLayer,
     pub mix_node: MixNode,
     pub stake_saturation: f32,
     pub uncapped_saturation: f32,

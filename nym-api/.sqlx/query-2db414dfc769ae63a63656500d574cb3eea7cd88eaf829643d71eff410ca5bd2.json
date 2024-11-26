@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) as count FROM monitor_run WHERE timestamp > ? AND timestamp < ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "count",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "2db414dfc769ae63a63656500d574cb3eea7cd88eaf829643d71eff410ca5bd2"
+}

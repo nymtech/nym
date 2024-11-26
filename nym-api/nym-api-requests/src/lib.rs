@@ -7,6 +7,7 @@ use serde::{Deserialize, Serialize};
 pub mod constants;
 pub mod ecash;
 mod helpers;
+pub mod legacy;
 pub mod models;
 pub mod nym_nodes;
 pub mod pagination;

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT identity FROM gateway_details WHERE node_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "identity",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "924f8eb10c6cbb7f35da6c1bb77e1025442a594dcb5c6401b3dfac7df9c25073"
+}

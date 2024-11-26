@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::support::caching::cache::SharedCache;
+use async_trait::async_trait;
 use nym_task::TaskClient;
 use std::time::Duration;
 use tokio::time::interval;
+use tracing::{error, info, trace};
 
 pub struct CacheRefresher<T, E> {
     name: String,
@@ -88,6 +90,8 @@ where
         self.shared_cache.clone()
     }
 
+    // TODO: in the future offer 2 options of refreshing cache. either provide `T` directly
+    // or via `FnMut(&mut T)` closure
     async fn do_refresh_cache(&self) {
         match self.provider.try_refresh().await {
             Ok(updated_items) => {
@@ -100,12 +104,12 @@ where
     }
 
     pub async fn refresh(&self, task_client: &mut TaskClient) {
-        log::info!("{}: refreshing cache state", self.name);
+        info!("{}: refreshing cache state", self.name);
 
         tokio::select! {
             biased;
             _ = task_client.recv() => {
-                log::trace!("{}: Received shutdown while refreshing cache", self.name)
+                trace!("{}: Received shutdown while refreshing cache", self.name)
             }
             _ = self.do_refresh_cache() => (),
         }
@@ -119,7 +123,7 @@ where
             tokio::select! {
                 biased;
                 _ = task_client.recv() => {
-                    log::trace!("{}: Received shutdown", self.name)
+                    trace!("{}: Received shutdown", self.name)
                 }
                 _ = refresh_interval.tick() => self.refresh(&mut task_client).await,
             }

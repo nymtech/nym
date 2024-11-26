@@ -6,14 +6,13 @@ use crate::storage::{
     account_from_address, save_account, ADMIN, MIXNET_CONTRACT_ADDRESS, MIX_DENOM,
 };
 use crate::traits::{
-    DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, NodeFamilies, VestingAccount,
+    DelegatingAccount, GatewayBondingAccount, MixnodeBondingAccount, VestingAccount,
 };
 use crate::vesting::{populate_vesting_periods, StorableVestingAccountExt};
 use contracts_common::signing::MessageSignature;
 use cosmwasm_std::{coin, BankMsg, Coin, DepsMut, Env, MessageInfo, Response, Timestamp};
-use mixnet_contract_common::families::FamilyHead;
 use mixnet_contract_common::{
-    Gateway, GatewayConfigUpdate, MixId, MixNode, MixNodeConfigUpdate, MixNodeCostParams,
+    Gateway, GatewayConfigUpdate, MixNode, MixNodeConfigUpdate, NodeCostParams, NodeId,
 };
 use vesting_contract_common::events::{
     new_ownership_transfer_event, new_periodic_vesting_account_event,
@@ -23,40 +22,6 @@ use vesting_contract_common::events::{
     new_vested_coins_withdraw_event,
 };
 use vesting_contract_common::{Account, PledgeCap, VestingContractError, VestingSpecification};
-
-pub fn try_create_family(
-    info: MessageInfo,
-    deps: DepsMut,
-    label: String,
-) -> Result<Response, VestingContractError> {
-    let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_create_family(deps.storage, label)
-}
-pub fn try_join_family(
-    info: MessageInfo,
-    deps: DepsMut,
-    join_permit: MessageSignature,
-    family_head: FamilyHead,
-) -> Result<Response, VestingContractError> {
-    let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_join_family(deps.storage, join_permit, family_head)
-}
-pub fn try_leave_family(
-    info: MessageInfo,
-    deps: DepsMut,
-    family_head: FamilyHead,
-) -> Result<Response, VestingContractError> {
-    let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_leave_family(deps.storage, family_head)
-}
-pub fn try_kick_family_member(
-    info: MessageInfo,
-    deps: DepsMut,
-    member: String,
-) -> Result<Response, VestingContractError> {
-    let account = account_from_address(info.sender.as_ref(), deps.storage, deps.api)?;
-    account.try_head_kick_member(deps.storage, &member)
-}
 
 /// Update locked_pledge_cap, the hard cap for staking/bonding with unvested tokens.
 ///
@@ -99,7 +64,7 @@ pub fn try_update_gateway_config(
 }
 
 pub fn try_update_mixnode_cost_params(
-    new_costs: MixNodeCostParams,
+    new_costs: NodeCostParams,
     info: MessageInfo,
     deps: DepsMut,
 ) -> Result<Response, VestingContractError> {
@@ -273,7 +238,7 @@ pub fn try_track_migrate_mixnode(
 /// Track vesting delegation being converted into the usage of liquid tokens. invoked by the mixnet contract after successful migration.
 pub fn try_track_migrate_delegation(
     owner: &str,
-    mix_id: MixId,
+    mix_id: NodeId,
     info: MessageInfo,
     deps: DepsMut<'_>,
 ) -> Result<Response, VestingContractError> {
@@ -288,7 +253,7 @@ pub fn try_track_migrate_delegation(
 /// Bond a mixnode, sends [mixnet_contract_common::ExecuteMsg::BondMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
 pub fn try_bond_mixnode(
     mix_node: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     owner_signature: MessageSignature,
     amount: Coin,
     info: MessageInfo,
@@ -392,7 +357,7 @@ pub fn try_track_reward(
 /// Track undelegation, invoked by the mixnet contract after sucessful undelegation, message contains coins returned with any accrued rewards.
 pub fn try_track_undelegation(
     address: &str,
-    mix_id: MixId,
+    mix_id: NodeId,
     amount: Coin,
     info: MessageInfo,
     deps: DepsMut<'_>,
@@ -408,7 +373,7 @@ pub fn try_track_undelegation(
 
 /// Delegate to mixnode, sends [mixnet_contract_common::ExecuteMsg::DelegateToMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS]..
 pub fn try_delegate_to_mixnode(
-    mix_id: MixId,
+    mix_id: NodeId,
     amount: Coin,
     on_behalf_of: Option<String>,
     info: MessageInfo,
@@ -452,7 +417,7 @@ pub fn try_claim_operator_reward(
 pub fn try_claim_delegator_reward(
     deps: DepsMut<'_>,
     info: MessageInfo,
-    mix_id: MixId,
+    mix_id: NodeId,
 ) -> Result<Response, VestingContractError> {
     let account = account_from_address(info.sender.as_str(), deps.storage, deps.api)?;
 
@@ -461,7 +426,7 @@ pub fn try_claim_delegator_reward(
 
 /// Undelegates from a mixnode, sends [mixnet_contract_common::ExecuteMsg::UndelegateFromMixnodeOnBehalf] to [crate::storage::MIXNET_CONTRACT_ADDRESS].
 pub fn try_undelegate_from_mixnode(
-    mix_id: MixId,
+    mix_id: NodeId,
     on_behalf_of: Option<String>,
     info: MessageInfo,
     deps: DepsMut<'_>,

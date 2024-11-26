@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT available FROM available_bandwidth WHERE client_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "available",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9450b5f34620ec901e555f418eec6e0f489ed72d6b4f2b70ae1d905b4c46f0df"
+}

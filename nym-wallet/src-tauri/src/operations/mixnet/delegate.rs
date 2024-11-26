@@ -4,14 +4,16 @@
 use crate::error::BackendError;
 use crate::state::WalletState;
 use crate::vesting::delegate::vesting_undelegate_from_mixnode;
-use nym_mixnet_contract_common::mixnode::StakeSaturationResponse;
-use nym_mixnet_contract_common::MixId;
+use nym_mixnet_contract_common::mixnode::MixStakeSaturationResponse;
+use nym_mixnet_contract_common::NodeId;
 use nym_types::currency::DecCoin;
-use nym_types::delegation::{Delegation, DelegationWithEverything, DelegationsSummaryResponse};
+use nym_types::delegation::{
+    Delegation, DelegationWithEverything, DelegationsSummaryResponse, NodeInformation,
+};
 use nym_types::deprecated::{
     convert_to_delegation_events, DelegationEvent, WrappedDelegationEvent,
 };
-use nym_types::mixnode::MixNodeCostParams;
+use nym_types::mixnode::NodeCostParams;
 use nym_types::pending_events::PendingEpochEvent;
 use nym_types::transaction::TransactionExecuteResult;
 use nym_validator_client::client::NymApiClientExt;
@@ -19,6 +21,7 @@ use nym_validator_client::nyxd::contract_traits::{
     MixnetQueryClient, MixnetSigningClient, NymContractsProvider, PagedMixnetQueryClient,
 };
 use nym_validator_client::nyxd::Fee;
+use nym_validator_client::DirectSigningHttpRpcValidatorClient;
 use tap::TapFallible;
 
 #[tauri::command]
@@ -69,7 +72,7 @@ pub async fn get_pending_delegation_events(
 
 #[tauri::command]
 pub async fn delegate_to_mixnode(
-    mix_id: MixId,
+    mix_id: NodeId,
     amount: DecCoin,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
@@ -86,10 +89,7 @@ pub async fn delegate_to_mixnode(
         delegation_base,
         fee,
     );
-    let res = client
-        .nyxd
-        .delegate_to_mixnode(mix_id, delegation_base, fee)
-        .await?;
+    let res = client.nyxd.delegate(mix_id, delegation_base, fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
@@ -99,7 +99,7 @@ pub async fn delegate_to_mixnode(
 
 #[tauri::command]
 pub async fn undelegate_from_mixnode(
-    mix_id: MixId,
+    mix_id: NodeId,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {
@@ -111,11 +111,7 @@ pub async fn undelegate_from_mixnode(
         mix_id,
         fee
     );
-    let res = guard
-        .current_client()?
-        .nyxd
-        .undelegate_from_mixnode(mix_id, fee)
-        .await?;
+    let res = guard.current_client()?.nyxd.undelegate(mix_id, fee).await?;
     log::info!("<<< tx hash = {}", res.transaction_hash);
     log::trace!("<<< {:?}", res);
     Ok(TransactionExecuteResult::from_execute_result(
@@ -125,7 +121,7 @@ pub async fn undelegate_from_mixnode(
 
 #[tauri::command]
 pub async fn undelegate_all_from_mixnode(
-    mix_id: MixId,
+    mix_id: NodeId,
     uses_vesting_contract_tokens: bool,
     fee_liquid: Option<Fee>,
     fee_vesting: Option<Fee>,
@@ -148,6 +144,60 @@ pub async fn undelegate_all_from_mixnode(
     Ok(res)
 }
 
+pub(crate) async fn get_node_information(
+    client: &DirectSigningHttpRpcValidatorClient,
+    node_id: NodeId,
+    error_strings: &mut Vec<String>,
+) -> Result<Option<NodeInformation>, BackendError> {
+    let native_nymnode = client
+        .nyxd
+        .get_nymnode_details(node_id)
+        .await
+        .inspect_err(|err| {
+            let str_err =
+                format!("Failed to get nymnode details for node_id = {node_id}. Error: {err}");
+            log::error!("  <<< {str_err}",);
+            error_strings.push(str_err);
+        })?;
+
+    if let Some(native) = native_nymnode.details {
+        return Ok(Some(NodeInformation {
+            is_unbonding: native.is_unbonding(),
+            owner: native.bond_information.owner.to_string(),
+            mix_id: node_id,
+            node_identity: native.bond_information.node.identity_key,
+            rewarding_details: native.rewarding_details,
+        }));
+    }
+
+    let legacy_mixnode = client
+        .nyxd
+        .get_mixnode_details(node_id)
+        .await
+        .inspect_err(|err| {
+            let str_err = format!(
+                "Failed to get legacy mixnode details for node_id = {node_id}. Error: {err}",
+            );
+            log::error!("  <<< {}", str_err);
+            error_strings.push(str_err);
+        })?
+        .mixnode_details;
+
+    if let Some(legacy) = legacy_mixnode {
+        return Ok(Some(NodeInformation {
+            is_unbonding: legacy.is_unbonding(),
+            owner: legacy.bond_information.owner.to_string(),
+            mix_id: node_id,
+            node_identity: legacy.bond_information.mix_node.identity_key,
+            rewarding_details: legacy.rewarding_details,
+        }));
+    }
+
+    Ok(None)
+}
+
+// TODO: fix later (yeah...)
+#[allow(deprecated)]
 #[tauri::command]
 pub async fn get_all_mix_delegations(
     state: tauri::State<'_, WalletState>,
@@ -195,8 +245,8 @@ pub async fn get_all_mix_delegations(
 
         let d = Delegation::from_mixnet_contract(delegation.clone(), reg).tap_err(|err| {
             log::error!(
-                "  <<< Failed to get delegation for mix id {} from contract. Error: {}",
-                delegation.mix_id,
+                "  <<< Failed to get delegation for node id {} from contract. Error: {}",
+                delegation.node_id,
                 err
             );
         })?;
@@ -213,21 +263,9 @@ pub async fn get_all_mix_delegations(
             d.amount
         );
 
-        let mixnode = client
-            .nyxd
-            .get_mixnode_details(d.mix_id)
-            .await
-            .tap_err(|err| {
-                let str_err = format!(
-                    "Failed to get mixnode details for mix_id = {}. Error: {}",
-                    d.mix_id, err
-                );
-                log::error!("  <<< {}", str_err);
-                error_strings.push(str_err);
-            })?
-            .mixnode_details;
+        let node_details = get_node_information(client, d.mix_id, &mut error_strings).await?;
 
-        let accumulated_by_operator = mixnode
+        let accumulated_by_operator = node_details
             .as_ref()
             .map(|m| {
                 guard.display_coin_from_base_decimal(&base_mix_denom, m.rewarding_details.operator)
@@ -243,10 +281,13 @@ pub async fn get_all_mix_delegations(
             })
             .unwrap_or_default();
 
-        let accumulated_by_delegates = mixnode
+        let accumulated_by_delegates = node_details
             .as_ref()
             .map(|m| {
-                guard.display_coin_from_base_decimal(&base_mix_denom, m.rewarding_details.delegates)
+                reg.attempt_create_display_coin_from_base_dec_amount(
+                    &base_mix_denom,
+                    m.rewarding_details.delegates,
+                )
             })
             .transpose()
             .tap_err(|err| {
@@ -259,10 +300,10 @@ pub async fn get_all_mix_delegations(
             })
             .unwrap_or_default();
 
-        let cost_params = mixnode
+        let cost_params = node_details
             .as_ref()
             .map(|m| {
-                MixNodeCostParams::from_mixnet_contract_mixnode_cost_params(
+                NodeCostParams::from_mixnet_contract_mixnode_cost_params(
                     m.rewarding_details.cost_params.clone(),
                     reg,
                 )
@@ -329,7 +370,7 @@ pub async fn get_all_mix_delegations(
                 log::error!("  <<< {}", str_err);
                 error_strings.push(str_err);
             })
-            .unwrap_or(StakeSaturationResponse {
+            .unwrap_or(MixStakeSaturationResponse {
                 mix_id: d.mix_id,
                 uncapped_saturation: None,
                 current_saturation: None,
@@ -340,21 +381,26 @@ pub async fn get_all_mix_delegations(
             "  >>> Get average uptime percentage: mix_iid = {}",
             d.mix_id
         );
-        let avg_uptime_percent = client
+
+        let current_performance = client
             .nym_api
-            .get_mixnode_avg_uptime(d.mix_id)
+            .get_current_node_performance(d.mix_id)
             .await
-            .tap_err(|err| {
+            .inspect_err(|err| {
                 let str_err = format!(
-                    "Failed to get average uptime percentage for mix_id = {}. Error: {}",
-                    d.mix_id, err
+                    "Failed to get current node performance for node_id = {}. Error: {err}",
+                    d.mix_id
                 );
                 log::error!("  <<< {}", str_err);
                 error_strings.push(str_err);
             })
             .ok()
-            .map(|r| r.avg_uptime);
-        log::trace!("  <<< {:?}", avg_uptime_percent);
+            .and_then(|r| r.performance);
+
+        // convert to old u8
+        let current_uptime = current_performance.map(|p| (p * 100.) as u8);
+
+        log::trace!("  <<< {:?}", current_uptime);
 
         log::trace!(
             "  >>> Convert delegated on block height to timestamp: block_height = {}",
@@ -382,9 +428,9 @@ pub async fn get_all_mix_delegations(
             pending_events.len()
         );
 
-        let mixnode_is_unbonding = mixnode.as_ref().map(|m| m.is_unbonding());
+        let mixnode_is_unbonding = node_details.as_ref().map(|m| m.is_unbonding);
         log::trace!(
-            "  >>> mixnode with mix_id: {} is unbonding: {:?}",
+            "  >>> node with mix_id: {} is unbonding: {:?}",
             d.mix_id,
             mixnode_is_unbonding
         );
@@ -392,16 +438,14 @@ pub async fn get_all_mix_delegations(
         with_everything.push(DelegationWithEverything {
             owner: d.owner,
             mix_id: d.mix_id,
-            node_identity: mixnode
-                .map(|m| m.bond_information.mix_node.identity_key)
-                .unwrap_or_default(),
+            node_identity: node_details.map(|m| m.node_identity).unwrap_or_default(),
             amount: d.amount,
             block_height: d.height,
             uses_vesting_contract_tokens,
             delegated_on_iso_datetime,
             stake_saturation: stake_saturation.uncapped_saturation,
             accumulated_by_operator,
-            avg_uptime_percent,
+            avg_uptime_percent: current_uptime,
             accumulated_by_delegates,
             cost_params,
             unclaimed_rewards: accumulated_rewards,
@@ -420,7 +464,7 @@ pub async fn get_all_mix_delegations(
 }
 
 fn filter_pending_events(
-    mix_id: MixId,
+    mix_id: NodeId,
     pending_events: &[WrappedDelegationEvent],
 ) -> Vec<DelegationEvent> {
     pending_events
@@ -434,7 +478,7 @@ fn filter_pending_events(
 #[tauri::command]
 pub async fn get_pending_delegator_rewards(
     address: String,
-    mix_id: MixId,
+    mix_id: NodeId,
     proxy: Option<String>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<DecCoin, BackendError> {

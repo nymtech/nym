@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "PreassignedGatewayIdsResponse",
+  "type": "object",
+  "required": [
+    "ids"
+  ],
+  "properties": {
+    "ids": {
+      "type": "array",
+      "items": {
+        "$ref": "#/definitions/PreassignedId"
+      }
+    },
+    "start_next_after": {
+      "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+      "type": [
+        "string",
+        "null"
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "PreassignedId": {
+      "type": "object",
+      "required": [
+        "identity",
+        "node_id"
+      ],
+      "properties": {
+        "identity": {
+          "description": "The identity key (base58-encoded ed25519 public key) of the gateway.",
+          "type": "string"
+        },
+        "node_id": {
+          "description": "The id pre-assigned to this gateway",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

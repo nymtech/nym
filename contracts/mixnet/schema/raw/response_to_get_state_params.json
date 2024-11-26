@@ -4,8 +4,7 @@
   "description": "Contract parameters that could be adjusted in a transaction by the contract admin.",
   "type": "object",
   "required": [
-    "minimum_gateway_pledge",
-    "minimum_mixnode_pledge"
+    "minimum_pledge"
   ],
   "properties": {
     "interval_operating_cost": {
@@ -20,15 +19,7 @@
         }
       ]
     },
-    "minimum_gateway_pledge": {
-      "description": "Minimum amount a gateway must pledge to get into the system.",
-      "allOf": [
-        {
-          "$ref": "#/definitions/Coin"
-        }
-      ]
-    },
-    "minimum_mixnode_delegation": {
+    "minimum_delegation": {
       "description": "Minimum amount a delegator must stake in orders for his delegation to get accepted.",
       "anyOf": [
         {
@@ -39,8 +30,8 @@
         }
       ]
     },
-    "minimum_mixnode_pledge": {
-      "description": "Minimum amount a mixnode must pledge to get into the system.",
+    "minimum_pledge": {
+      "description": "Minimum amount a node must pledge to get into the system.",
       "allOf": [
         {
           "$ref": "#/definitions/Coin"

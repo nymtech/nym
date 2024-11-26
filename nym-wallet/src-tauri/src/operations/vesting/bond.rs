@@ -8,7 +8,7 @@ use crate::{Gateway, MixNode};
 use nym_contracts_common::signing::MessageSignature;
 use nym_mixnet_contract_common::{GatewayConfigUpdate, MixNodeConfigUpdate};
 use nym_types::currency::DecCoin;
-use nym_types::mixnode::MixNodeCostParams;
+use nym_types::mixnode::NodeCostParams;
 use nym_types::transaction::TransactionExecuteResult;
 use nym_validator_client::nyxd::{contract_traits::VestingSigningClient, Fee};
 use std::cmp::Ordering;
@@ -76,7 +76,7 @@ pub async fn vesting_unbond_gateway(
 #[tauri::command]
 pub async fn vesting_bond_mixnode(
     mixnode: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     msg_signature: MessageSignature,
     pledge: DecCoin,
     fee: Option<Fee>,
@@ -284,7 +284,7 @@ pub async fn withdraw_vested_coins(
 
 #[tauri::command]
 pub async fn vesting_update_mixnode_cost_params(
-    new_costs: MixNodeCostParams,
+    new_costs: NodeCostParams,
     fee: Option<Fee>,
     state: tauri::State<'_, WalletState>,
 ) -> Result<TransactionExecuteResult, BackendError> {

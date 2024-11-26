@@ -10,7 +10,8 @@ use nym_contracts_common::signing::{
 use nym_crypto::asymmetric::identity;
 use nym_mixnet_contract_common::{
     construct_legacy_mixnode_bonding_sign_payload, Gateway, GatewayBondingPayload, MixNode,
-    MixNodeCostParams, SignableGatewayBondingMsg, SignableLegacyMixNodeBondingMsg,
+    NodeCostParams, NymNode, NymNodeBondingPayload, SignableGatewayBondingMsg,
+    SignableLegacyMixNodeBondingMsg, SignableNymNodeBondingMsg,
 };
 use nym_validator_client::nyxd::contract_traits::MixnetQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
@@ -39,7 +40,7 @@ impl AddressAndNonceProvider for DirectSigningHttpRpcValidatorClient {
 pub(crate) async fn create_mixnode_bonding_sign_payload<P: AddressAndNonceProvider>(
     client: &P,
     mix_node: MixNode,
-    cost_params: MixNodeCostParams,
+    cost_params: NodeCostParams,
     pledge: Coin,
     vesting: bool,
 ) -> Result<SignableLegacyMixNodeBondingMsg, BackendError> {
@@ -61,7 +62,7 @@ pub(crate) async fn create_mixnode_bonding_sign_payload<P: AddressAndNonceProvid
 pub(crate) async fn verify_mixnode_bonding_sign_payload<P: AddressAndNonceProvider>(
     client: &P,
     mix_node: &MixNode,
-    cost_params: &MixNodeCostParams,
+    cost_params: &NodeCostParams,
     pledge: &Coin,
     vesting: bool,
     msg_signature: &MessageSignature,
@@ -143,11 +144,58 @@ pub(crate) async fn verify_gateway_bonding_sign_payload<P: AddressAndNonceProvid
     Ok(())
 }
 
+pub(crate) async fn create_nym_node_bonding_sign_payload<P: AddressAndNonceProvider>(
+    client: &P,
+    nym_node: NymNode,
+    cost_params: NodeCostParams,
+    pledge: Coin,
+) -> Result<SignableNymNodeBondingMsg, BackendError> {
+    let payload = NymNodeBondingPayload::new(nym_node, cost_params);
+    let sender = client.cw_address();
+    let content = ContractMessageContent::new(sender, vec![pledge.into()], payload);
+    let nonce = client.get_signing_nonce().await?;
+
+    Ok(SignableMessage::new(nonce, content))
+}
+
+pub(crate) async fn verify_nym_node_bonding_sign_payload<P: AddressAndNonceProvider>(
+    client: &P,
+    nym_node: &NymNode,
+    cost_params: &NodeCostParams,
+    pledge: &Coin,
+    msg_signature: &MessageSignature,
+) -> Result<(), BackendError> {
+    let identity_key = identity::PublicKey::from_base58_string(&nym_node.identity_key)?;
+    let signature = identity::Signature::from_bytes(msg_signature.as_ref())?;
+
+    // recreate the plaintext
+    let msg = create_nym_node_bonding_sign_payload(
+        client,
+        nym_node.clone(),
+        cost_params.clone(),
+        pledge.clone(),
+    )
+    .await?;
+    let plaintext = msg.to_plaintext()?;
+
+    if !msg.algorithm.is_ed25519() {
+        return Err(BackendError::UnexpectedSigningAlgorithm {
+            received: msg.algorithm,
+            expected: SigningAlgorithm::Ed25519,
+        });
+    }
+
+    // TODO: possibly provide better error message if this check fails
+    identity_key.verify(plaintext, &signature)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use cosmwasm_std::coin;
     use nym_contracts_common::Percent;
+    use nym_mixnet_contract_common::NodeCostParams;
     use rand_chacha::rand_core::SeedableRng;
     use rand_chacha::ChaCha20Rng;
 
@@ -186,7 +234,7 @@ mod tests {
             identity_key: identity_keypair.public_key().to_base58_string(),
             version: "v1.2.3".to_string(),
         };
-        let dummy_cost_params = MixNodeCostParams {
+        let dummy_cost_params = NodeCostParams {
             profit_margin_percent: Percent::from_percentage_value(42).unwrap(),
             interval_operating_cost: coin(1111111, "unym"),
         };

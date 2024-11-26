@@ -4,17 +4,10 @@
   "description": "Parameters used for reward calculation.",
   "type": "object",
   "required": [
-    "active_set_size",
     "interval",
-    "rewarded_set_size"
+    "rewarded_set"
   ],
   "properties": {
-    "active_set_size": {
-      "description": "The expected number of mixnodes in the active set.",
-      "type": "integer",
-      "format": "uint32",
-      "minimum": 0.0
-    },
     "interval": {
       "description": "Parameters that should remain unchanged throughout an interval.",
       "allOf": [
@@ -23,11 +16,8 @@
         }
       ]
     },
-    "rewarded_set_size": {
-      "description": "The expected number of mixnodes in the rewarded set (i.e. active + standby).",
-      "type": "integer",
-      "format": "uint32",
-      "minimum": 0.0
+    "rewarded_set": {
+      "$ref": "#/definitions/RewardedSetParams"
     }
   },
   "additionalProperties": false,
@@ -124,6 +114,42 @@
           "$ref": "#/definitions/Decimal"
         }
       ]
+    },
+    "RewardedSetParams": {
+      "type": "object",
+      "required": [
+        "entry_gateways",
+        "exit_gateways",
+        "mixnodes",
+        "standby"
+      ],
+      "properties": {
+        "entry_gateways": {
+          "description": "The expected number of nodes assigned entry gateway role (i.e. [`Role::EntryGateway`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "exit_gateways": {
+          "description": "The expected number of nodes assigned exit gateway role (i.e. [`Role::ExitGateway`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "mixnodes": {
+          "description": "The expected number of nodes assigned the 'mixnode' role, i.e. total of [`Role::Layer1`], [`Role::Layer2`] and [`Role::Layer3`].",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        },
+        "standby": {
+          "description": "Number of nodes in the 'standby' set. (i.e. [`Role::Standby`])",
+          "type": "integer",
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false
     }
   }
 }

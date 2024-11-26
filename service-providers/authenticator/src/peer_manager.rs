@@ -2,9 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::*;
-use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
+use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::channel::oneshot;
-use nym_authenticator_requests::v2::registration::{GatewayClient, RemainingBandwidthData};
+use nym_authenticator_requests::{
+    latest::registration::{GatewayClient, RemainingBandwidthData},
+    traits::QueryBandwidthMessage,
+};
 use nym_wireguard::{
     peer_controller::{
         AddPeerControlResponse, PeerControlRequest, QueryBandwidthControlResponse,
@@ -24,18 +27,11 @@ impl PeerManager {
             wireguard_gateway_data,
         }
     }
-    pub async fn add_peer(
-        &mut self,
-        client: &GatewayClient,
-        ticket_validation: bool,
-    ) -> Result<Option<i64>> {
-        let mut peer = Peer::new(Key::new(client.pub_key.to_bytes()));
+    pub async fn add_peer(&mut self, peer: Peer, client_id: Option<i64>) -> Result<()> {
         let (response_tx, response_rx) = oneshot::channel();
-        peer.allowed_ips
-            .push(IpAddrMask::new(client.private_ip, 32));
         let msg = PeerControlRequest::AddPeer {
             peer,
-            ticket_validation,
+            client_id,
             response_tx,
         };
         self.wireguard_gateway_data
@@ -44,7 +40,7 @@ impl PeerManager {
             .await
             .map_err(|_| AuthenticatorError::PeerInteractionStopped)?;
 
-        let AddPeerControlResponse { success, client_id } = response_rx.await.map_err(|_| {
+        let AddPeerControlResponse { success } = response_rx.await.map_err(|_| {
             AuthenticatorError::InternalError("no response for add peer".to_string())
         })?;
         if !success {
@@ -52,10 +48,10 @@ impl PeerManager {
                 "adding peer could not be performed".to_string(),
             ));
         }
-        Ok(client_id)
+        Ok(())
     }
 
-    pub async fn remove_peer(&mut self, client: &GatewayClient) -> Result<()> {
+    pub async fn _remove_peer(&mut self, client: &GatewayClient) -> Result<()> {
         let key = Key::new(client.pub_key().to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::RemovePeer { key, response_tx };
@@ -99,9 +95,9 @@ impl PeerManager {
 
     pub async fn query_bandwidth(
         &mut self,
-        peer_public_key: PeerPublicKey,
+        msg: Box<dyn QueryBandwidthMessage + Send + Sync + 'static>,
     ) -> Result<Option<RemainingBandwidthData>> {
-        let key = Key::new(peer_public_key.to_bytes());
+        let key = Key::new(msg.pub_key().to_bytes());
         let (response_tx, response_rx) = oneshot::channel();
         let msg = PeerControlRequest::QueryBandwidth { key, response_tx };
         self.wireguard_gateway_data

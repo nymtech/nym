@@ -107,7 +107,7 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
     utils::issue_credential(&client, &credentials_store, &secret, args.ticketbook_type).await?;
 
     let ticketbook = credentials_store
-        .get_next_unspent_usable_ticketbook(0)
+        .get_next_unspent_usable_ticketbook(args.ticketbook_type.to_string(), 0)
         .await?
         .ok_or(anyhow!("we just issued a ticketbook, it must be present!"))?
         .ticketbook;

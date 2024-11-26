@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO gateways\n                (gateway_identity_key, bonded, blacklisted,\n                    self_described, explorer_pretty_bond,\n                    last_updated_utc, performance)\n                VALUES (?, ?, ?, ?, ?, ?, ?)\n                ON CONFLICT(gateway_identity_key) DO UPDATE SET\n                bonded=excluded.bonded,\n                blacklisted=excluded.blacklisted,\n                self_described=excluded.self_described,\n                explorer_pretty_bond=excluded.explorer_pretty_bond,\n                last_updated_utc=excluded.last_updated_utc,\n                performance = excluded.performance;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 7
+    },
+    "nullable": []
+  },
+  "hash": "d8ea93e781666e6267902170709ee2aa37f6163525bbdce1a4cebef4a285f8d9"
+}

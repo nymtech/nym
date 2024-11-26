@@ -57,10 +57,9 @@ pub fn try_advance_epoch_state(deps: DepsMut<'_>, env: Env) -> Result<Response, 
 
     // if we're advancing into dealing exchange, we need to set the threshold value based on the number of registered dealers
     if next_state.is_dealing_exchange() {
-        // note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
         let registered_dealers = current_epoch.state_progress.registered_dealers as u64;
         // set the threshold to 2/3 amount of registered dealers
-        let threshold = (2 * registered_dealers + 3 - 1) / 3;
+        let threshold = (2 * registered_dealers).div_ceil(3);
 
         // update current threshold values
         THRESHOLD.save(deps.storage, &threshold)?;

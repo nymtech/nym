@@ -6,7 +6,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use thiserror::Error;
 use time::OffsetDateTime;
-use tokio::sync::{RwLock, RwLockReadGuard};
+use tokio::sync::{RwLock, RwLockMappedWriteGuard, RwLockReadGuard, RwLockWriteGuard};
 
 #[derive(Debug, Error)]
 #[error("the cache item has not been initialised")]
@@ -31,12 +31,12 @@ impl<T> SharedCache<T> {
         SharedCache::default()
     }
 
-    pub(crate) async fn update(&self, value: T) {
+    pub(crate) async fn update(&self, value: impl Into<T>) {
         let mut guard = self.0.write().await;
         if let Some(ref mut existing) = guard.inner {
             existing.unchecked_update(value)
         } else {
-            guard.inner = Some(Cache::new(value))
+            guard.inner = Some(Cache::new(value.into()))
         }
     }
 
@@ -45,12 +45,30 @@ impl<T> SharedCache<T> {
         RwLockReadGuard::try_map(guard, |a| a.inner.as_ref()).map_err(|_| UninitialisedCache)
     }
 
+    pub(crate) async fn write(
+        &self,
+    ) -> Result<RwLockMappedWriteGuard<'_, Cache<T>>, UninitialisedCache> {
+        let guard = self.0.write().await;
+        RwLockWriteGuard::try_map(guard, |a| a.inner.as_mut()).map_err(|_| UninitialisedCache)
+    }
+
     // ignores expiration data
     #[allow(dead_code)]
     pub(crate) async fn unchecked_get_inner(
         &self,
     ) -> Result<RwLockReadGuard<'_, T>, UninitialisedCache> {
         Ok(RwLockReadGuard::map(self.get().await?, |a| &a.value))
+    }
+
+    pub(crate) async fn naive_wait_for_initial_values(&self) {
+        let initialisation_backoff = Duration::from_secs(5);
+        loop {
+            if self.get().await.is_ok() {
+                break;
+            } else {
+                tokio::time::sleep(initialisation_backoff).await;
+            }
+        }
     }
 }
 
@@ -118,9 +136,13 @@ impl<T> Cache<T> {
     }
 
     // ugh. I hate to expose it, but it'd have broken pre-existing code
-    pub(crate) fn unchecked_update(&mut self, value: T) {
-        self.value = value;
+    pub(crate) fn unchecked_update(&mut self, value: impl Into<T>) {
+        self.value = value.into();
         self.as_at = OffsetDateTime::now_utc()
+    }
+
+    pub(crate) fn get_mut(&mut self) -> &mut T {
+        &mut self.value
     }
 
     #[allow(dead_code)]
@@ -135,7 +157,6 @@ impl<T> Cache<T> {
         self.as_at
     }
 
-    #[allow(dead_code)]
     pub fn into_inner(self) -> T {
         self.value
     }

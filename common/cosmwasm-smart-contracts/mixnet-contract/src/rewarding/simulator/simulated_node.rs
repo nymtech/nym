@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{Delegation, EpochId, MixId, MixNodeCostParams, MixNodeRewarding};
+use crate::{Delegation, EpochId, NodeCostParams, NodeId, NodeRewarding};
 use cosmwasm_std::{Addr, Coin};
 use std::collections::HashMap;
 
@@ -9,21 +9,21 @@ use crate::error::MixnetContractError;
 use crate::rewarding::helpers::truncate_reward;
 
 pub struct SimulatedNode {
-    pub mix_id: MixId,
-    pub rewarding_details: MixNodeRewarding,
+    pub mix_id: NodeId,
+    pub rewarding_details: NodeRewarding,
     pub delegations: HashMap<String, Delegation>,
 }
 
 impl SimulatedNode {
     pub fn new(
-        mix_id: MixId,
-        cost_params: MixNodeCostParams,
+        mix_id: NodeId,
+        cost_params: NodeCostParams,
         initial_pledge: &Coin,
         current_epoch: EpochId,
     ) -> Result<Self, MixnetContractError> {
         Ok(SimulatedNode {
             mix_id,
-            rewarding_details: MixNodeRewarding::initialise_new(
+            rewarding_details: NodeRewarding::initialise_new(
                 cost_params,
                 initial_pledge,
                 current_epoch,
@@ -59,8 +59,8 @@ impl SimulatedNode {
     ) -> Result<(Coin, Coin), MixnetContractError> {
         let delegator = delegator.into();
         let delegation = self.delegations.remove(&delegator).ok_or(
-            MixnetContractError::NoMixnodeDelegationFound {
-                mix_id: MixId::MAX,
+            MixnetContractError::NodeDelegationNotFound {
+                node_id: NodeId::MAX,
                 address: delegator,
                 proxy: None,
             },

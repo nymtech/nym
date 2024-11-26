@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT timestamp, reliability as \"reliability: u8\"\n                    FROM gateway_status\n                    JOIN gateway_details\n                    ON gateway_status.gateway_details_id = gateway_details.id\n                    WHERE gateway_details.node_id=? AND gateway_status.timestamp > ?;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "timestamp",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "reliability: u8",
+        "ordinal": 1,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      true
+    ]
+  },
+  "hash": "1d4535b58abdefaaca96bc7312fe14f63ccb56fa62976f7ce3d3b4f6eca8b711"
+}

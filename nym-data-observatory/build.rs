@@ -14,9 +14,9 @@ async fn main() -> Result<()> {
     let db_url =
         format!("postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@localhost:5432/{POSTGRES_DB}");
 
+    export_db_variables(&db_url)?;
     // if a live DB is reachable, use that
     if PgConnection::connect(&db_url).await.is_ok() {
-        export_db_variables(&db_url)?;
         println!("cargo::rustc-env=SQLX_OFFLINE=false");
         run_migrations(&db_url).await?;
     } else {

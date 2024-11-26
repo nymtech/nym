@@ -4,14 +4,17 @@
 use crate::currency::DecCoin;
 use crate::error::TypesError;
 use crate::pending_events::{PendingEpochEvent, PendingEpochEventData};
-use nym_mixnet_contract_common::{IdentityKey, MixId};
+use nym_mixnet_contract_common::{IdentityKey, NodeId};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DelegationEventKind.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/DelegationEventKind.ts"
+    )
 )]
 #[derive(Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Debug)]
 pub enum DelegationEventKind {
@@ -22,12 +25,15 @@ pub enum DelegationEventKind {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/DelegationEvent.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/DelegationEvent.ts"
+    )
 )]
 #[derive(Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Debug)]
 pub struct DelegationEvent {
     pub kind: DelegationEventKind,
-    pub mix_id: MixId,
+    pub mix_id: NodeId,
     pub address: String,
     pub amount: Option<DecCoin>,
     pub proxy: Option<String>,
@@ -36,7 +42,10 @@ pub struct DelegationEvent {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/WrappedDelegationEvent.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/WrappedDelegationEvent.ts"
+    )
 )]
 #[derive(Clone, Deserialize, Serialize, PartialEq, Eq, JsonSchema, Debug)]
 pub struct WrappedDelegationEvent {

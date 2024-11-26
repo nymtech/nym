@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE gateways\n             SET blacklisted = true\n             WHERE gateway_identity_key = ?;",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "8571faad2f66e08f24acfbfe036d17ca6eb090df7f6d52ef89c5d51564f8b45c"
+}

@@ -4,6 +4,7 @@
 use clap::Parser;
 use cosmwasm_std::Decimal;
 use log::{debug, info};
+use nym_mixnet_contract_common::reward_params::RewardedSetParams;
 use nym_mixnet_contract_common::{
     InitialRewardingParams, InstantiateMsg, OperatingCostRange, Percent, ProfitMarginRange,
 };
@@ -56,11 +57,17 @@ pub struct Args {
     #[clap(long, default_value_t = 2)]
     pub interval_pool_emission: u64,
 
-    #[clap(long, default_value_t = 240)]
-    pub rewarded_set_size: u32,
+    #[clap(long, default_value_t = 50)]
+    pub(crate) entry_gateways: u32,
 
-    #[clap(long, default_value_t = 240)]
-    pub active_set_size: u32,
+    #[clap(long, default_value_t = 70)]
+    pub(crate) exit_gateways: u32,
+
+    #[clap(long, default_value_t = 120)]
+    pub(crate) mixnodes: u32,
+
+    #[clap(long, default_value_t = 0)]
+    pub(crate) standby: u32,
 
     #[clap(long, default_value_t = Percent::zero())]
     pub minimum_profit_margin_percent: Percent,
@@ -95,8 +102,13 @@ pub async fn generate(args: Args) {
             .expect("active_set_work_factor can't be converted to Decimal"),
         interval_pool_emission: Percent::from_percentage_value(args.interval_pool_emission)
             .expect("interval_pool_emission can't be converted to Percent"),
-        rewarded_set_size: args.rewarded_set_size,
-        active_set_size: args.active_set_size,
+
+        rewarded_set_params: RewardedSetParams {
+            entry_gateways: args.entry_gateways,
+            exit_gateways: args.exit_gateways,
+            mixnodes: args.mixnodes,
+            standby: args.standby,
+        },
     };
 
     debug!("initial_rewarding_params: {:?}", initial_rewarding_params);

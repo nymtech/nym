@@ -2,17 +2,22 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::helpers::IntoBaseDecimal;
+use crate::nym_node::Role;
 use crate::{error::MixnetContractError, Percent};
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Decimal;
 
 pub type Performance = Percent;
+pub type WorkFactor = Decimal;
 
 /// Parameters required by the mix-mining reward distribution that do not change during an interval.
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardParams.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/IntervalRewardParams.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Copy)]
@@ -78,7 +83,10 @@ impl IntervalRewardParams {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/RewardingParams.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/RewardingParams.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Copy)]
@@ -86,23 +94,15 @@ pub struct RewardingParams {
     /// Parameters that should remain unchanged throughout an interval.
     pub interval: IntervalRewardParams,
 
-    // while the rewarded set size can change between epochs to accommodate for bandwidth demands,
-    // the active set size should be unchanged between epochs and should only be adjusted between
-    // intervals. However, it makes more sense to keep both of those values together as they're
-    // very strongly related to each other.
-    /// The expected number of mixnodes in the rewarded set (i.e. active + standby).
-    pub rewarded_set_size: u32,
-
-    /// The expected number of mixnodes in the active set.
-    pub active_set_size: u32,
+    pub rewarded_set: RewardedSetParams,
 }
 
 impl RewardingParams {
-    pub fn active_node_work(&self) -> Decimal {
+    pub fn active_node_work(&self) -> WorkFactor {
         self.interval.active_set_work_factor * self.standby_node_work()
     }
 
-    pub fn standby_node_work(&self) -> Decimal {
+    pub fn standby_node_work(&self) -> WorkFactor {
         let f = self.interval.active_set_work_factor;
         let k = self.dec_rewarded_set_size();
         let one = Decimal::one();
@@ -113,27 +113,33 @@ impl RewardingParams {
         one / (f * k - (f - one) * k_r)
     }
 
+    pub fn rewarded_set_size(&self) -> u32 {
+        self.rewarded_set.rewarded_set_size()
+    }
+
+    pub fn active_set_size(&self) -> u32 {
+        self.rewarded_set.active_set_size()
+    }
+
     pub fn dec_rewarded_set_size(&self) -> Decimal {
         // the unwrap here is fine as we're guaranteed an `u32` is going to fit in a Decimal
         // with 0 decimal places
         #[allow(clippy::unwrap_used)]
-        self.rewarded_set_size.into_base_decimal().unwrap()
+        self.rewarded_set_size().into_base_decimal().unwrap()
     }
 
     pub fn dec_active_set_size(&self) -> Decimal {
         // the unwrap here is fine as we're guaranteed an `u32` is going to fit in a Decimal
         // with 0 decimal places
         #[allow(clippy::unwrap_used)]
-        self.active_set_size.into_base_decimal().unwrap()
+        self.active_set_size().into_base_decimal().unwrap()
     }
 
     fn dec_standby_set_size(&self) -> Decimal {
         // the unwrap here is fine as we're guaranteed an `u32` is going to fit in a Decimal
         // with 0 decimal places
         #[allow(clippy::unwrap_used)]
-        (self.rewarded_set_size - self.active_set_size)
-            .into_base_decimal()
-            .unwrap()
+        self.rewarded_set.standby.into_base_decimal().unwrap()
     }
 
     pub fn apply_epochs_in_interval_change(&mut self, new_epochs_in_interval: u32) {
@@ -146,19 +152,35 @@ impl RewardingParams {
             * self.interval.interval_pool_emission;
     }
 
-    pub fn try_change_active_set_size(
-        &mut self,
-        new_active_set_size: u32,
+    pub fn validate_active_set_update(
+        &self,
+        update: ActiveSetUpdate,
     ) -> Result<(), MixnetContractError> {
-        if new_active_set_size == 0 {
-            return Err(MixnetContractError::ZeroActiveSet);
-        }
+        update.ensure_non_empty()?;
+        let active_set_size = update.active_set_size();
 
-        if new_active_set_size > self.rewarded_set_size {
+        if active_set_size > self.rewarded_set_size() {
             return Err(MixnetContractError::InvalidActiveSetSize);
         }
 
-        self.active_set_size = new_active_set_size;
+        Ok(())
+    }
+
+    pub fn try_change_active_set(
+        &mut self,
+        update: ActiveSetUpdate,
+    ) -> Result<(), MixnetContractError> {
+        self.validate_active_set_update(update)?;
+        let active_set_size = update.active_set_size();
+        let rewarded_set_size = self.rewarded_set_size();
+
+        // safety: due to validation we know that the active_set_size <= rewarded_set_size
+        let new_standby = rewarded_set_size - active_set_size;
+
+        self.rewarded_set.exit_gateways = update.exit_gateways;
+        self.rewarded_set.entry_gateways = update.entry_gateways;
+        self.rewarded_set.mixnodes = update.mixnodes;
+        self.rewarded_set.standby = new_standby;
         Ok(())
     }
 
@@ -201,16 +223,10 @@ impl RewardingParams {
             self.interval.interval_pool_emission = interval_pool_emission;
         }
 
-        if let Some(rewarded_set_size) = updates.rewarded_set_size {
-            if rewarded_set_size == 0 {
-                return Err(MixnetContractError::ZeroRewardedSet);
-            }
-            if rewarded_set_size < self.active_set_size {
-                return Err(MixnetContractError::InvalidRewardedSetSize);
-            }
-
+        if let Some(rewarded_set_update) = updates.rewarded_set_params {
+            rewarded_set_update.ensure_valid()?;
             recompute_saturation_point = true;
-            self.rewarded_set_size = rewarded_set_size;
+            self.rewarded_set = rewarded_set_update;
         }
 
         if recompute_epoch_budget {
@@ -221,31 +237,112 @@ impl RewardingParams {
 
         if recompute_saturation_point {
             self.interval.stake_saturation_point =
-                self.interval.staking_supply / self.rewarded_set_size.into_base_decimal()?
+                self.interval.staking_supply / self.rewarded_set_size().into_base_decimal()?
         }
 
         Ok(())
     }
 }
 
-// TODO: possibly refactor this
-/// Parameters used for rewarding particular mixnode.
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/RewardedSetParams.ts"
+    )
+)]
 #[cw_serde]
 #[derive(Copy)]
-pub struct NodeRewardParams {
-    /// Performance of the particular node in the current epoch.
-    pub performance: Percent,
+pub struct RewardedSetParams {
+    /// The expected number of nodes assigned entry gateway role (i.e. [`Role::EntryGateway`])
+    pub entry_gateways: u32,
 
-    /// Flag indicating whether the node has been in the active set during the epoch.
-    pub in_active_set: bool,
+    /// The expected number of nodes assigned exit gateway role (i.e. [`Role::ExitGateway`])
+    pub exit_gateways: u32,
+
+    /// The expected number of nodes assigned the 'mixnode' role, i.e. total of [`Role::Layer1`], [`Role::Layer2`] and [`Role::Layer3`].
+    pub mixnodes: u32,
+
+    /// Number of nodes in the 'standby' set. (i.e. [`Role::Standby`])
+    pub standby: u32,
 }
 
-impl NodeRewardParams {
-    pub fn new(performance: Percent, in_active_set: bool) -> Self {
-        NodeRewardParams {
-            performance,
-            in_active_set,
+impl RewardedSetParams {
+    pub fn active_set_size(&self) -> u32 {
+        self.entry_gateways + self.exit_gateways + self.mixnodes
+    }
+
+    pub fn rewarded_set_size(&self) -> u32 {
+        self.active_set_size() + self.standby
+    }
+
+    pub fn ensure_valid(&self) -> Result<(), MixnetContractError> {
+        if self.entry_gateways == 0 || self.exit_gateways == 0 || self.mixnodes == 0 {
+            return Err(MixnetContractError::EmptyRoleAssignment);
         }
+        if self.mixnodes % 3 != 0 {
+            return Err(MixnetContractError::UnevenLayerAssignment);
+        }
+        Ok(())
+    }
+
+    pub fn maximum_role_count(&self, role: Role) -> u32 {
+        match role {
+            Role::EntryGateway => self.entry_gateways,
+            Role::Layer1 | Role::Layer2 | Role::Layer3 => self.mixnodes / 3,
+            Role::ExitGateway => self.exit_gateways,
+            Role::Standby => self.standby,
+        }
+    }
+
+    pub fn ensure_role_count(&self, role: Role, assigned: u32) -> Result<(), MixnetContractError> {
+        let allowed = self.maximum_role_count(role);
+
+        if assigned > allowed {
+            return Err(MixnetContractError::IllegalRoleCount {
+                role,
+                assigned,
+                allowed,
+            });
+        }
+
+        Ok(())
+    }
+}
+
+/// Parameters used for rewarding particular node.
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/NodeRewardingParameters.ts"
+    )
+)]
+#[cw_serde]
+#[derive(Copy)]
+pub struct NodeRewardingParameters {
+    /// Performance of the particular node in the current epoch.
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    pub performance: Performance,
+
+    /// Amount of work performed by this node in the current epoch
+    /// also known as 'omega' in the paper
+    #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    pub work_factor: WorkFactor,
+}
+
+impl NodeRewardingParameters {
+    pub fn new(performance: Performance, work_factor: WorkFactor) -> Self {
+        NodeRewardingParameters {
+            performance,
+            work_factor,
+        }
+    }
+
+    pub fn is_zero(&self) -> bool {
+        self.performance.is_zero() || self.work_factor.is_zero()
     }
 }
 
@@ -253,7 +350,10 @@ impl NodeRewardParams {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/IntervalRewardingParamsUpdate.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/IntervalRewardingParamsUpdate.ts"
+    )
 )]
 #[cw_serde]
 #[derive(Copy, Default)]
@@ -282,8 +382,8 @@ pub struct IntervalRewardingParamsUpdate {
     /// Defines the new value of the interval pool emission rate.
     pub interval_pool_emission: Option<Percent>,
 
-    /// Defines the new size of the rewarded set.
-    pub rewarded_set_size: Option<u32>,
+    /// Defines the parameters of the rewarded set.
+    pub rewarded_set_params: Option<RewardedSetParams>,
 }
 
 impl IntervalRewardingParamsUpdate {
@@ -295,10 +395,45 @@ impl IntervalRewardingParamsUpdate {
             || self.sybil_resistance_percent.is_some()
             || self.active_set_work_factor.is_some()
             || self.interval_pool_emission.is_some()
-            || self.rewarded_set_size.is_some()
+            || self.rewarded_set_params.is_some()
     }
 
     pub fn to_inline_json(&self) -> String {
         serde_json_wasm::to_string(self).unwrap_or_else(|_| "serialisation failure".into())
+    }
+}
+
+/// Specification on how the active set should be updated.
+#[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
+#[cfg_attr(
+    feature = "generate-ts",
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/ActiveSetUpdate.ts"
+    )
+)]
+#[cw_serde]
+#[derive(Copy, Default)]
+pub struct ActiveSetUpdate {
+    /// The expected number of nodes assigned entry gateway role (i.e. [`Role::EntryGateway`])
+    pub entry_gateways: u32,
+
+    /// The expected number of nodes assigned exit gateway role (i.e. [`Role::ExitGateway`])
+    pub exit_gateways: u32,
+
+    /// The expected number of nodes assigned the 'mixnode' role, i.e. total of [`Role::Layer1`], [`Role::Layer2`] and [`Role::Layer3`].
+    pub mixnodes: u32,
+}
+
+impl ActiveSetUpdate {
+    pub fn active_set_size(&self) -> u32 {
+        self.entry_gateways + self.exit_gateways + self.mixnodes
+    }
+
+    pub fn ensure_non_empty(&self) -> Result<(), MixnetContractError> {
+        if self.entry_gateways == 0 || self.exit_gateways == 0 || self.mixnodes == 0 {
+            return Err(MixnetContractError::EmptyRoleAssignment);
+        }
+        Ok(())
     }
 }

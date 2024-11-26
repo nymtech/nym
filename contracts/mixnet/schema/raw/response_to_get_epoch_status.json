@@ -81,12 +81,38 @@
           ]
         },
         {
-          "description": "Represents the state of an epoch when all mixnodes have already been rewarded for their work in this epoch, all issued actions got resolved and the epoch should now be advanced whilst assigning new rewarded set.",
-          "type": "string",
-          "enum": [
-            "advancing_epoch"
-          ]
+          "description": "Represents the state of an epoch when all nodes have already been rewarded for their work in this epoch, all issued actions got resolved and node roles should now be assigned before advancing into the next epoch.",
+          "type": "object",
+          "required": [
+            "role_assignment"
+          ],
+          "properties": {
+            "role_assignment": {
+              "type": "object",
+              "required": [
+                "next"
+              ],
+              "properties": {
+                "next": {
+                  "$ref": "#/definitions/Role"
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "additionalProperties": false
         }
+      ]
+    },
+    "Role": {
+      "type": "string",
+      "enum": [
+        "eg",
+        "l1",
+        "l2",
+        "l3",
+        "xg",
+        "stb"
       ]
     }
   }

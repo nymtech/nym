@@ -5,7 +5,7 @@ pub use ed25519_dalek::SignatureError;
 use ed25519_dalek::{Signer, SigningKey};
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -119,12 +119,18 @@ impl PemStorableKeyPair for KeyPair {
 }
 
 /// ed25519 EdDSA Public Key
-#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq)]
 pub struct PublicKey(ed25519_dalek::VerifyingKey);
 
 impl Display for PublicKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_base58_string())
+        Display::fmt(&self.to_base58_string(), f)
+    }
+}
+
+impl Debug for PublicKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&self.to_base58_string(), f)
     }
 }
 

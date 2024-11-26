@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO message_store(client_address_bs58, content) VALUES (?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "58ba6fb669847d7b82440178bc3ffd8de03c0308d0fc9cb8615a5d151e785864"
+}

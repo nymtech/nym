@@ -3,7 +3,7 @@
 
 use crate::account::VestingAccountStorageKey;
 use cosmwasm_std::{Addr, Coin, OverflowError, StdError, Uint128};
-use mixnet_contract_common::MixId;
+use mixnet_contract_common::NodeId;
 use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
@@ -50,7 +50,7 @@ pub enum VestingContractError {
     MultipleDenoms,
 
     #[error("VESTING ({}): No delegations found for account {0}, mix_identity {1}", line!())]
-    NoSuchDelegation(Addr, MixId),
+    NoSuchDelegation(Addr, NodeId),
 
     #[error("VESTING ({}): Only mixnet contract can perform this operation, got {0}", line!())]
     NotMixnetContract(Addr),
@@ -95,7 +95,7 @@ pub enum VestingContractError {
     TooManyDelegations {
         address: Addr,
         acc_id: VestingAccountStorageKey,
-        mix_id: MixId,
+        mix_id: NodeId,
         num: u32,
         cap: u32,
     },

@@ -234,7 +234,7 @@ impl MixNode {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
         let validator_client = self.random_api_client();
-        let existing_nodes = match validator_client.get_cached_mixnodes().await {
+        let existing_nodes = match validator_client.get_all_basic_nodes(None).await {
             Ok(nodes) => nodes,
             Err(err) => {
                 error!(
@@ -245,10 +245,9 @@ impl MixNode {
             }
         };
 
-        existing_nodes.iter().any(|node| {
-            node.bond_information.mix_node.identity_key
-                == self.identity_keypair.public_key().to_base58_string()
-        })
+        existing_nodes
+            .iter()
+            .any(|node| &node.ed25519_identity_pubkey == self.identity_keypair.public_key())
     }
 
     async fn wait_for_interrupt(&self, shutdown: TaskHandle) {

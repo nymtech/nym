@@ -6,7 +6,7 @@ use crate::peer_controller::PeerControlRequest;
 use defguard_wireguard_rs::host::Peer;
 use defguard_wireguard_rs::{host::Host, key::Key};
 use futures::channel::oneshot;
-use nym_authenticator_requests::v2::registration::BANDWIDTH_CAP_PER_DAY;
+use nym_authenticator_requests::latest::registration::BANDWIDTH_CAP_PER_DAY;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_gateway_storage::models::WireguardPeer;
 use nym_gateway_storage::Storage;
@@ -18,7 +18,7 @@ use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
 pub(crate) type SharedBandwidthStorageManager<St> = Arc<RwLock<BandwidthStorageManager<St>>>;
-const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60 * 24); // 24 hours
+const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60 * 24 * 30); // 30 days
 
 pub struct PeerHandle<St> {
     storage: St,
@@ -75,8 +75,8 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
 
     async fn active_peer(
         &mut self,
-        storage_peer: WireguardPeer,
-        kernel_peer: Peer,
+        storage_peer: &WireguardPeer,
+        kernel_peer: &Peer,
     ) -> Result<bool, Error> {
         if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
             let spent_bandwidth = (kernel_peer.rx_bytes + kernel_peer.tx_bytes)
@@ -84,12 +84,13 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
                 .ok_or(Error::InconsistentConsumedBytes)?
                 .try_into()
                 .map_err(|_| Error::InconsistentConsumedBytes)?;
-            if bandwidth_manager
-                .write()
-                .await
-                .try_use_bandwidth(spent_bandwidth)
-                .await
-                .is_err()
+            if spent_bandwidth > 0
+                && bandwidth_manager
+                    .write()
+                    .await
+                    .try_use_bandwidth(spent_bandwidth)
+                    .await
+                    .is_err()
             {
                 let success = self.remove_peer().await?;
                 return Ok(!success);
@@ -97,7 +98,7 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         } else {
             if SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER {
                 log::debug!(
-                    "Peer {} has been present for 24 hours, removing it",
+                    "Peer {} has been present for 30 days, removing it",
                     self.public_key.to_string()
                 );
                 let success = self.remove_peer().await?;
@@ -135,9 +136,12 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
                         log::debug!("Peer {:?} not in storage anymore, shutting down handle", self.public_key);
                         return Ok(());
                     };
-                    if !self.active_peer(storage_peer, kernel_peer).await? {
+                    if !self.active_peer(&storage_peer, &kernel_peer).await? {
                         log::debug!("Peer {:?} doesn't have bandwidth anymore, shutting down handle", self.public_key);
                         return Ok(());
+                    } else {
+                        // Update storage values
+                        self.storage.insert_wireguard_peer(&kernel_peer, self.bandwidth_storage_manager.is_some()).await?;
                     }
                 }
 

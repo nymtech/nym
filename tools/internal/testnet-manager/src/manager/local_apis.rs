@@ -91,6 +91,8 @@ impl NetworkManager {
                 "--enable-zk-nym",
                 "--announce-address",
                 info.data.endpoint.as_ref(),
+                "--bind-address",
+                &format!("0.0.0.0:{}", info.data.endpoint.port().unwrap()),
             ])
             .stdin(Stdio::null())
             .stderr(Stdio::null())
@@ -119,11 +121,11 @@ impl NetworkManager {
         let pub_id = &storage_paths["public_identity_key_file"]
             .as_str()
             .expect("nym-api config serialisation has changed");
-        let ecash = &parsed_config["coconut_signer"]
+        let ecash = &parsed_config["ecash_signer"]
             .as_table()
             .expect("nym-api config serialisation has changed")["storage_paths"]
             .as_table()
-            .expect("nym-api config serialisation has changed")["coconut_key_path"]
+            .expect("nym-api config serialisation has changed")["ecash_key_path"]
             .as_str()
             .expect("nym-api config serialisation has changed");
 
@@ -163,11 +165,10 @@ impl NetworkManager {
 
         let mut cmds = Vec::new();
         for signer in &ctx.signers {
-            let port = signer.api_port();
             let id = ctx.signer_id(signer);
 
             cmds.push(format!(
-                "ROCKET_PORT={port} {bin_canon_display} -c {env_canon_display} run --id {id}"
+                "{bin_canon_display} -c {env_canon_display} run --id {id}"
             ));
         }
         Ok(RunCommands(cmds))

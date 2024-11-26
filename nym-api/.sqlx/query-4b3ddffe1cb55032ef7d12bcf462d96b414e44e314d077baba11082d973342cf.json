@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT epoch_id as \"epoch_id: u32\", start_id, total_issued as \"total_issued: u32\"\n                FROM epoch_credentials\n                WHERE epoch_id = ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "epoch_id: u32",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "start_id",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_issued: u32",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "4b3ddffe1cb55032ef7d12bcf462d96b414e44e314d077baba11082d973342cf"
+}

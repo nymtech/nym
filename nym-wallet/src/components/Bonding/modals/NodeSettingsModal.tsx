@@ -2,7 +2,6 @@ import React, { useEffect, useState } from 'react';
 import { Box, Button, FormHelperText, TextField, Typography } from '@mui/material';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
 import { Node as NodeIcon } from 'src/svg-icons/node';
-import { TBondedMixnode } from 'src/context';
 import { Tabs } from 'src/components/Tabs';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { attachDefaultOperatingCost, isDecimal, toPercentFloatString } from 'src/utils';
@@ -11,6 +10,7 @@ import { ConfirmTx } from 'src/components/ConfirmTX';
 import { simulateUpdateMixnodeCostParams, simulateVestingUpdateMixnodeCostParams } from 'src/requests';
 import { LoadingModal } from 'src/components/Modals/LoadingModal';
 import { FeeDetails } from '@nymproject/types';
+import { TBondedMixnode } from 'src/requests/mixnodeDetails';
 
 // Now we are using the node setting page instead of this modal
 export const NodeSettings = ({

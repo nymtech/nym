@@ -1,17 +1,19 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::NymRewarderError;
-use crate::rewarder::credential_issuance::types::CredentialIssuer;
-use crate::rewarder::epoch::Epoch;
-use crate::rewarder::storage::manager::StorageManager;
-use crate::rewarder::{EpochRewards, RewardingResult};
-use nym_validator_client::nym_api::IssuedTicketbookBody;
-use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
-use nym_validator_client::nyxd::Coin;
+use crate::{
+    error::NymRewarderError,
+    rewarder::{
+        credential_issuance::types::CredentialIssuer, epoch::Epoch,
+        storage::manager::StorageManager, EpochRewards, RewardingResult,
+    },
+};
+use nym_validator_client::{
+    nym_api::IssuedTicketbookBody,
+    nyxd::{contract_traits::ecash_query_client::DepositId, Coin},
+};
 use sqlx::ConnectOptions;
-use std::fmt::Debug;
-use std::path::Path;
+use std::{fmt::Debug, path::Path};
 use tracing::{error, info, instrument};
 
 mod manager;
@@ -24,13 +26,12 @@ pub struct RewarderStorage {
 impl RewarderStorage {
     #[instrument]
     pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, NymRewarderError> {
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
+            .create_if_missing(true)
+            .disable_statement_logging();
 
         // TODO: do we want auto_vacuum ?
-
-        opts.disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,

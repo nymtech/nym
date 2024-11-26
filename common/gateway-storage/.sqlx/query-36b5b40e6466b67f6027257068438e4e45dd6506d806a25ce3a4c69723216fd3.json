@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT signer_id FROM ecash_signer WHERE epoch_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "signer_id",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "36b5b40e6466b67f6027257068438e4e45dd6506d806a25ce3a4c69723216fd3"
+}

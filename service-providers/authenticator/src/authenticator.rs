@@ -128,7 +128,9 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
         // Connect to the mixnet
         let mixnet_client = crate::mixnet_client::create_mixnet_client(
             &self.config.base,
-            task_handle.get_handle().named("nym_sdk::MixnetClient"),
+            task_handle
+                .get_handle()
+                .named("nym_sdk::MixnetClient[AUTH]"),
             self.custom_gateway_transceiver,
             self.custom_topology_provider,
             self.wait_for_gateway,

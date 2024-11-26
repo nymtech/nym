@@ -36,8 +36,11 @@ pub mod ecash {
 }
 
 pub const STATUS_ROUTES: &str = "status";
+pub const API_STATUS_ROUTES: &str = "api-status";
+pub const HEALTH: &str = "health";
 pub const MIXNODE: &str = "mixnode";
 pub const GATEWAY: &str = "gateway";
+pub const NYM_NODES: &str = "nym-nodes";
 
 pub const CORE_STATUS_COUNT: &str = "core-status-count";
 pub const SINCE_ARG: &str = "since";
@@ -52,5 +55,6 @@ pub const STAKE_SATURATION: &str = "stake-saturation";
 pub const INCLUSION_CHANCE: &str = "inclusion-probability";
 pub const SUBMIT_GATEWAY: &str = "submit-gateway-monitoring-results";
 pub const SUBMIT_NODE: &str = "submit-node-monitoring-results";
+pub const PERFORMANCE: &str = "performance";
 
 pub const SERVICE_PROVIDERS: &str = "services";

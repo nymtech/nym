@@ -5,21 +5,67 @@ use crate::ecash::api_routes::helpers::build_credentials_response;
 use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
 use crate::ecash::storage::EcashStorageExt;
+use crate::node_status_api::models::AxumResult;
+use crate::support::http::state::AppState;
+use axum::extract::Path;
+use axum::{Json, Router};
 use nym_api_requests::ecash::models::{
     EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
 };
 use nym_api_requests::ecash::CredentialsRequestBody;
-use nym_coconut_dkg_common::types::EpochId;
-use rocket::serde::json::Json;
-use rocket::State as RocketState;
-use rocket_okapi::openapi;
+use serde::Deserialize;
+use std::sync::Arc;
+use utoipa::IntoParams;
 
-#[openapi(tag = "Ecash")]
-#[get("/epoch-credentials/<epoch>")]
-pub async fn epoch_credentials(
-    epoch: EpochId,
-    state: &RocketState<EcashState>,
-) -> crate::ecash::error::Result<Json<EpochCredentialsResponse>> {
+pub(crate) fn issued_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
+    Router::new()
+        .route(
+            "/epoch-credentials/:epoch",
+            axum::routing::get({
+                let ecash_state = Arc::clone(&ecash_state);
+                |epoch| epoch_credentials(epoch, ecash_state)
+            }),
+        )
+        .route(
+            "/issued-credential/:id",
+            axum::routing::get({
+                let ecash_state = Arc::clone(&ecash_state);
+                |id| issued_credential(id, ecash_state)
+            }),
+        )
+        .route(
+            "/issued-credentials",
+            axum::routing::post({
+                let ecash_state = Arc::clone(&ecash_state);
+                |body| issued_credentials(body, ecash_state)
+            }),
+        )
+}
+
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
+struct EpochParam {
+    epoch: u64,
+}
+
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    params(
+        EpochParam
+    ),
+    path = "/v1/ecash/epoch-credentials/{epoch}",
+    responses(
+        (status = 200, body = EpochCredentialsResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+    )
+)]
+async fn epoch_credentials(
+    Path(EpochParam { epoch }): Path<EpochParam>,
+    state: Arc<EcashState>,
+) -> AxumResult<Json<EpochCredentialsResponse>> {
+    state.ensure_signer().await?;
+
     let issued = state.aux.storage.get_epoch_credentials(epoch).await?;
 
     let response = if let Some(issued) = issued {
@@ -35,12 +81,30 @@ pub async fn epoch_credentials(
     Ok(Json(response))
 }
 
-#[openapi(tag = "Ecash")]
-#[get("/issued-credential/<id>")]
-pub async fn issued_credential(
+#[derive(Deserialize, IntoParams)]
+#[into_params(parameter_in = Path)]
+struct IdParam {
     id: i64,
-    state: &RocketState<EcashState>,
-) -> crate::ecash::error::Result<Json<IssuedCredentialResponse>> {
+}
+
+#[utoipa::path(
+    tag = "Ecash",
+    get,
+    params(
+        IdParam
+    ),
+    path = "/v1/ecash/issued-credential/{id}",
+    responses(
+        (status = 200, body = IssuedCredentialResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+    )
+)]
+async fn issued_credential(
+    Path(IdParam { id }): Path<IdParam>,
+    state: Arc<EcashState>,
+) -> AxumResult<Json<IssuedCredentialResponse>> {
+    state.ensure_signer().await?;
+
     let issued = state.aux.storage.get_issued_credential(id).await?;
 
     let credential = if let Some(issued) = issued {
@@ -52,16 +116,24 @@ pub async fn issued_credential(
     Ok(Json(IssuedCredentialResponse { credential }))
 }
 
-#[openapi(tag = "Ecash")]
-#[post("/issued-credentials", data = "<params>")]
-pub async fn issued_credentials(
-    params: Json<CredentialsRequestBody>,
-    state: &RocketState<EcashState>,
-) -> crate::ecash::error::Result<Json<IssuedCredentialsResponse>> {
-    let params = params.into_inner();
+#[utoipa::path(
+    tag = "Ecash",
+    post,
+    request_body = CredentialsRequestBody,
+    path = "/v1/ecash/issued-credentials",
+    responses(
+        (status = 200, body = IssuedCredentialsResponse),
+        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+    )
+)]
+async fn issued_credentials(
+    Json(params): Json<CredentialsRequestBody>,
+    state: Arc<EcashState>,
+) -> AxumResult<Json<IssuedCredentialsResponse>> {
+    state.ensure_signer().await?;
 
     if params.pagination.is_some() && !params.credential_ids.is_empty() {
-        return Err(EcashError::InvalidQueryArguments);
+        return Err(EcashError::InvalidQueryArguments.into());
     }
 
     let credentials = if let Some(pagination) = params.pagination {
@@ -78,5 +150,7 @@ pub async fn issued_credentials(
             .await?
     };
 
-    build_credentials_response(credentials).map(Json)
+    build_credentials_response(credentials)
+        .map(Json)
+        .map_err(From::from)
 }

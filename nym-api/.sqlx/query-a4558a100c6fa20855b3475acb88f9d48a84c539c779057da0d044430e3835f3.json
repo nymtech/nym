@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO ticket_providers(gateway_address) VALUES (?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "a4558a100c6fa20855b3475acb88f9d48a84c539c779057da0d044430e3835f3"
+}

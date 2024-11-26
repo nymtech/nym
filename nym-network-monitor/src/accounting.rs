@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use anyhow::Result;
 use futures::{stream::FuturesUnordered, StreamExt};
 use log::{debug, info};
-use nym_sphinx::chunking::{SentFragment, FRAGMENTS_RECEIVED, FRAGMENTS_SENT};
+use nym_sphinx::chunking::{monitoring, SentFragment};
 use nym_topology::{gateway, mix, NymTopology};
 use nym_types::monitoring::{MonitorMessage, NodeResult};
 use nym_validator_client::nym_api::routes::{API_VERSION, STATUS, SUBMIT_GATEWAY, SUBMIT_NODE};
@@ -15,16 +15,16 @@ use utoipa::ToSchema;
 use crate::{NYM_API_URL, PRIVATE_KEY, TOPOLOGY};
 
 struct HydratedRoute {
-    mix_nodes: Vec<mix::Node>,
-    gateway_node: gateway::Node,
+    mix_nodes: Vec<mix::LegacyNode>,
+    gateway_node: gateway::LegacyNode,
 }
 
 #[derive(Serialize, Deserialize, Debug, Default, ToSchema)]
-struct GatewayStats(u32, u32, Option<String>);
+struct GatewayStats(u32, u32);
 
 impl GatewayStats {
-    fn new(sent: u32, recv: u32, owner: Option<String>) -> Self {
-        GatewayStats(sent, recv, owner)
+    fn new(sent: u32, recv: u32) -> Self {
+        GatewayStats(sent, recv)
     }
 
     fn success(&self) -> u32 {
@@ -60,9 +60,9 @@ pub struct NetworkAccount {
     topology: NymTopology,
     tested_nodes: HashSet<u32>,
     #[serde(skip)]
-    mix_details: HashMap<u32, mix::Node>,
+    mix_details: HashMap<u32, mix::LegacyNode>,
     #[serde(skip)]
-    gateway_details: HashMap<String, gateway::Node>,
+    gateway_details: HashMap<String, gateway::LegacyNode>,
 }
 
 impl NetworkAccount {
@@ -82,7 +82,6 @@ impl NetworkAccount {
             complete_routes,
             incomplete_routes,
             node.identity_key.to_base58_string(),
-            node.owner.clone(),
         )
     }
 
@@ -116,8 +115,8 @@ impl NetworkAccount {
     }
 
     pub fn empty_buffers() {
-        FRAGMENTS_SENT.clear();
-        FRAGMENTS_RECEIVED.clear();
+        monitoring::FRAGMENTS_SENT.clear();
+        monitoring::FRAGMENTS_RECEIVED.clear();
     }
 
     fn new() -> Self {
@@ -126,7 +125,7 @@ impl NetworkAccount {
             topology,
             ..Default::default()
         };
-        for fragment_set in FRAGMENTS_SENT.iter() {
+        for fragment_set in monitoring::FRAGMENTS_SENT.iter() {
             let sent_fragments = fragment_set
                 .value()
                 .first()
@@ -139,7 +138,7 @@ impl NetworkAccount {
                 sent_fragments
             );
 
-            let recv = FRAGMENTS_RECEIVED.get(fragment_set.key());
+            let recv = monitoring::FRAGMENTS_RECEIVED.get(fragment_set.key());
             let recv_fragments = recv.as_ref().map(|r| r.value().len()).unwrap_or(0);
             debug!(
                 "RECV Fragment set {} has {} fragments",
@@ -171,7 +170,7 @@ impl NetworkAccount {
     }
 
     fn hydrate_all_fragments(&mut self) -> Result<()> {
-        for fragment_set in FRAGMENTS_SENT.iter() {
+        for fragment_set in monitoring::FRAGMENTS_SENT.iter() {
             let fragment_set_id = fragment_set.key();
             for fragment in fragment_set.value() {
                 let route = self.hydrate_route(fragment.clone())?;
@@ -186,7 +185,7 @@ impl NetworkAccount {
                 let gateway_stats_entry = self
                     .gateway_stats
                     .entry(route.gateway_node.identity_key.to_base58_string())
-                    .or_insert(GatewayStats::new(0, 0, route.gateway_node.owner.clone()));
+                    .or_insert(GatewayStats::new(0, 0));
                 self.gateway_details.insert(
                     route.gateway_node.identity_key.to_base58_string(),
                     route.gateway_node,
@@ -206,7 +205,7 @@ impl NetworkAccount {
     fn find_missing_fragments(&mut self) {
         let mut missing_fragments_map = HashMap::new();
         for fragment_set_id in &self.incomplete_fragment_sets {
-            if let Some(fragment_ref) = FRAGMENTS_RECEIVED.get(fragment_set_id) {
+            if let Some(fragment_ref) = monitoring::FRAGMENTS_RECEIVED.get(fragment_set_id) {
                 if let Some(ref_fragment) = fragment_ref.value().first() {
                     let ref_header = ref_fragment.header();
                     let ref_id_set = (0..ref_header.total_fragments()).collect::<HashSet<u8>>();
@@ -265,7 +264,6 @@ pub struct NodeStats {
     incomplete_routes: usize,
     reliability: f64,
     identity: String,
-    owner: Option<String>,
 }
 
 impl NodeStats {
@@ -274,7 +272,6 @@ impl NodeStats {
         complete_routes: usize,
         incomplete_routes: usize,
         identity: String,
-        owner: Option<String>,
     ) -> Self {
         NodeStats {
             mix_id,
@@ -282,7 +279,6 @@ impl NodeStats {
             incomplete_routes,
             reliability: complete_routes as f64 / (complete_routes + incomplete_routes) as f64,
             identity,
-            owner,
         }
     }
 

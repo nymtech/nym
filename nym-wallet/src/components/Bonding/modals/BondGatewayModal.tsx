@@ -4,15 +4,11 @@ import { CurrencyDenom, TNodeType } from '@nymproject/types';
 import { ConfirmTx } from 'src/components/ConfirmTX';
 import { ModalListItem } from 'src/components/Modals/ModalListItem';
 import { SimpleModal } from 'src/components/Modals/SimpleModal';
-import { TPoolOption } from 'src/components/TokenPoolSelector';
 import { useGetFee } from 'src/hooks/useGetFee';
-import { GatewayAmount, GatewayData, Signature } from 'src/pages/bonding/types';
-import { simulateBondGateway, simulateVestingBondGateway } from 'src/requests';
-import { TBondGatewayArgs } from 'src/types';
+import { GatewayAmount, GatewayData } from 'src/pages/bonding/types';
 import { BalanceWarning } from 'src/components/FeeWarning';
 import { AppContext } from 'src/context';
-import { BondGatewayForm } from '../forms/BondGatewayForm';
-import { gatewayToTauri } from '../utils';
+import { BondGatewayForm } from '../forms/legacyForms/BondGatewayForm';
 
 const defaultGatewayValues: GatewayData = {
   identityKey: '',
@@ -34,14 +30,12 @@ const defaultAmountValues = (denom: CurrencyDenom) => ({
 export const BondGatewayModal = ({
   denom,
   hasVestingTokens,
-  onBondGateway,
   onSelectNodeType,
   onClose,
   onError,
 }: {
   denom: CurrencyDenom;
   hasVestingTokens: boolean;
-  onBondGateway: (data: TBondGatewayArgs, tokenPool: TPoolOption) => void;
   onSelectNodeType: (type: TNodeType) => void;
   onClose: () => void;
   onError: (e: string) => void;
@@ -49,9 +43,8 @@ export const BondGatewayModal = ({
   const [step, setStep] = useState<1 | 2 | 3>(1);
   const [gatewayData, setGatewayData] = useState<GatewayData>(defaultGatewayValues);
   const [amountData, setAmountData] = useState<GatewayAmount>(defaultAmountValues(denom));
-  const [signature, setSignature] = useState<string>();
 
-  const { fee, getFee, resetFeeState, feeError } = useGetFee();
+  const { fee, resetFeeState, feeError } = useGetFee();
   const { userBalance } = useContext(AppContext);
 
   useEffect(() => {
@@ -83,32 +76,7 @@ export const BondGatewayModal = ({
     setStep(3);
   };
 
-  const handleUpdateSignature = async (data: Signature) => {
-    setSignature(data.signature);
-
-    const payload = {
-      pledge: amountData.amount,
-      msgSignature: data.signature,
-      gateway: gatewayToTauri(gatewayData),
-    };
-
-    if (amountData.tokenPool === 'balance') {
-      await getFee<TBondGatewayArgs>(simulateBondGateway, payload);
-    } else {
-      await getFee<TBondGatewayArgs>(simulateVestingBondGateway, payload);
-    }
-  };
-
-  const handleConfirm = async () => {
-    await onBondGateway(
-      {
-        pledge: amountData.amount,
-        msgSignature: signature as string,
-        gateway: gatewayToTauri(gatewayData),
-      },
-      amountData.tokenPool as TPoolOption,
-    );
-  };
+  const handleConfirm = async () => {};
 
   if (fee) {
     return (
@@ -154,7 +122,6 @@ export const BondGatewayModal = ({
           hasVestingTokens={hasVestingTokens}
           onValidateGatewayData={handleUpdateGatwayData}
           onValidateAmountData={handleUpdateAmountData}
-          onValidateSignature={handleUpdateSignature}
           onSelectNodeType={onSelectNodeType}
         />
       </Box>

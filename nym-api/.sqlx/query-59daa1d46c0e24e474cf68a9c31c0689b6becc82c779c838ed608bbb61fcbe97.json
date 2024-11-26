@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO partial_expiration_date_signatures(expiration_date, epoch_id, serialised_signatures) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "59daa1d46c0e24e474cf68a9c31c0689b6becc82c779c838ed608bbb61fcbe97"
+}

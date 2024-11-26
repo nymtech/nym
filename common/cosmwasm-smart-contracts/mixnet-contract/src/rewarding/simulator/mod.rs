@@ -3,23 +3,21 @@
 
 use crate::error::MixnetContractError;
 use crate::helpers::IntoBaseDecimal;
-use crate::reward_params::NodeRewardParams;
+use crate::reward_params::{NodeRewardingParameters, WorkFactor};
 use crate::rewarding::simulator::simulated_node::SimulatedNode;
 use crate::rewarding::RewardDistribution;
-use crate::{
-    Delegation, Interval, IntervalRewardParams, MixId, MixNodeCostParams, RewardingParams,
-};
+use crate::{Delegation, Interval, IntervalRewardParams, NodeCostParams, NodeId, RewardingParams};
 use cosmwasm_std::{Coin, Decimal};
 use std::collections::BTreeMap;
 
 pub mod simulated_node;
 
 pub struct Simulator {
-    pub nodes: BTreeMap<MixId, SimulatedNode>,
+    pub nodes: BTreeMap<NodeId, SimulatedNode>,
     pub system_rewarding_params: RewardingParams,
     pub interval: Interval,
 
-    next_mix_id: MixId,
+    next_mix_id: NodeId,
     pending_reward_pool_emission: Decimal,
 }
 
@@ -32,6 +30,14 @@ impl Simulator {
             next_mix_id: 0,
             pending_reward_pool_emission: Default::default(),
         }
+    }
+
+    pub fn legacy_standby_work_factor(&self) -> WorkFactor {
+        self.system_rewarding_params.standby_node_work()
+    }
+
+    pub fn legacy_active_work_factor(&self) -> WorkFactor {
+        self.system_rewarding_params.active_node_work()
     }
 
     fn advance_epoch(&mut self) -> Result<(), MixnetContractError> {
@@ -53,7 +59,7 @@ impl Simulator {
             let stake_saturation_point = staking_supply
                 / self
                     .system_rewarding_params
-                    .rewarded_set_size
+                    .rewarded_set_size()
                     .into_base_decimal()?;
 
             let updated_params = RewardingParams {
@@ -67,8 +73,7 @@ impl Simulator {
                     active_set_work_factor: old.active_set_work_factor,
                     interval_pool_emission: old.interval_pool_emission,
                 },
-                rewarded_set_size: self.system_rewarding_params.rewarded_set_size,
-                active_set_size: self.system_rewarding_params.active_set_size,
+                rewarded_set: self.system_rewarding_params.rewarded_set,
             };
 
             self.system_rewarding_params = updated_params;
@@ -82,8 +87,8 @@ impl Simulator {
     pub fn bond(
         &mut self,
         pledge: Coin,
-        cost_params: MixNodeCostParams,
-    ) -> Result<MixId, MixnetContractError> {
+        cost_params: NodeCostParams,
+    ) -> Result<NodeId, MixnetContractError> {
         let mix_id = self.next_mix_id;
 
         self.nodes.insert(
@@ -105,7 +110,7 @@ impl Simulator {
         &mut self,
         delegator: S,
         delegation: Coin,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<(), MixnetContractError> {
         let node = self
             .nodes
@@ -119,7 +124,7 @@ impl Simulator {
     pub fn undelegate<S: Into<String>>(
         &mut self,
         delegator: S,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<(Coin, Coin), MixnetContractError> {
         let node = self
             .nodes
@@ -130,7 +135,7 @@ impl Simulator {
 
     pub fn simulate_epoch_single_node(
         &mut self,
-        params: NodeRewardParams,
+        params: NodeRewardingParameters,
     ) -> Result<RewardDistribution, MixnetContractError> {
         assert_eq!(self.nodes.len(), 1);
 
@@ -148,8 +153,8 @@ impl Simulator {
 
     pub fn simulate_epoch(
         &mut self,
-        node_params: &BTreeMap<MixId, NodeRewardParams>,
-    ) -> Result<BTreeMap<MixId, RewardDistribution>, MixnetContractError> {
+        node_params: &BTreeMap<NodeId, NodeRewardingParameters>,
+    ) -> Result<BTreeMap<NodeId, RewardDistribution>, MixnetContractError> {
         let mut params_keys = node_params.keys().copied().collect::<Vec<_>>();
         params_keys.sort_unstable();
         let mut node_keys = self.nodes.keys().copied().collect::<Vec<_>>();
@@ -185,7 +190,7 @@ impl Simulator {
         &self,
         delegation: &Delegation,
     ) -> Result<Decimal, MixnetContractError> {
-        Ok(self.nodes[&delegation.mix_id]
+        Ok(self.nodes[&delegation.node_id]
             .rewarding_details
             .determine_delegation_reward(delegation)?)
     }
@@ -206,7 +211,7 @@ impl Simulator {
     // assume node state doesn't change in the interval (kinda unrealistic)
     pub fn simulate_full_interval(
         &mut self,
-        node_params: &BTreeMap<MixId, NodeRewardParams>,
+        node_params: &BTreeMap<NodeId, NodeRewardingParameters>,
     ) -> Result<(), MixnetContractError> {
         for _ in 0..self.interval.epochs_in_interval() {
             self.simulate_epoch(node_params)?;
@@ -219,6 +224,7 @@ impl Simulator {
 mod tests {
     use super::*;
     use crate::helpers::compare_decimals;
+    use crate::reward_params::RewardedSetParams;
     use crate::Percent;
     use cosmwasm_std::testing::mock_env;
     use std::time::Duration;
@@ -226,6 +232,7 @@ mod tests {
     #[cfg(test)]
     mod single_node_case {
         use super::*;
+        use crate::reward_params::RewardedSetParams;
         use crate::rewarding::helpers::truncate_reward_amount;
         use cosmwasm_std::coin;
 
@@ -237,15 +244,23 @@ mod tests {
             let profit_margin = Percent::from_percentage_value(10).unwrap();
             let interval_operating_cost = Coin::new(40_000_000, "unym");
             let epochs_in_interval = 720u32;
-            let rewarded_set_size = 240;
-            let active_set_size = 100;
             let interval_pool_emission = Percent::from_percentage_value(2).unwrap();
+
+            // the import values here are active set being 100 and rewarded set being 240
+            // since those are the values we were using in the past
+            let rewarded_set = RewardedSetParams {
+                entry_gateways: 20,
+                exit_gateways: 50,
+                mixnodes: 30,
+                standby: 140,
+            };
 
             let reward_pool = 250_000_000_000_000u128;
             let staking_supply = 100_000_000_000_000u128;
             let epoch_reward_budget =
                 interval_pool_emission * Decimal::from_ratio(reward_pool, epochs_in_interval);
-            let stake_saturation_point = Decimal::from_ratio(staking_supply, rewarded_set_size);
+            let stake_saturation_point =
+                Decimal::from_ratio(staking_supply, rewarded_set.rewarded_set_size());
 
             let rewarding_params = RewardingParams {
                 interval: IntervalRewardParams {
@@ -258,8 +273,7 @@ mod tests {
                     active_set_work_factor: Decimal::percent(1000), // value '10'
                     interval_pool_emission,
                 },
-                rewarded_set_size,
-                active_set_size,
+                rewarded_set,
             };
 
             let interval = Interval::init_interval(
@@ -270,7 +284,7 @@ mod tests {
             let initial_pledge = Coin::new(initial_pledge, "unym");
             let mut simulator = Simulator::new(rewarding_params, interval);
 
-            let cost_params = MixNodeCostParams {
+            let cost_params = NodeCostParams {
                 profit_margin_percent: profit_margin,
                 interval_operating_cost,
             };
@@ -315,8 +329,10 @@ mod tests {
         fn simulator_returns_expected_values_for_base_case() {
             let mut simulator = base_simulator(10000_000000);
 
-            let epoch_params =
-                NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
+            let epoch_params = NodeRewardingParameters::new(
+                Percent::from_percentage_value(100).unwrap(),
+                simulator.legacy_active_work_factor(),
+            );
             let rewards = simulator.simulate_epoch_single_node(epoch_params).unwrap();
 
             assert_eq!(rewards.delegates, Decimal::zero());
@@ -334,8 +350,10 @@ mod tests {
                 .delegate("alice", Coin::new(18000_000000, "unym"), 0)
                 .unwrap();
 
-            let node_params =
-                NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
+            let node_params = NodeRewardingParameters::new(
+                Percent::from_percentage_value(100).unwrap(),
+                simulator.legacy_active_work_factor(),
+            );
             let rewards = simulator.simulate_epoch_single_node(node_params).unwrap();
 
             compare_decimals(
@@ -364,8 +382,10 @@ mod tests {
         #[test]
         fn delegation_and_undelegation() {
             let mut simulator = base_simulator(10000_000000);
-            let node_params =
-                NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
+            let node_params = NodeRewardingParameters::new(
+                Percent::from_percentage_value(100).unwrap(),
+                simulator.legacy_active_work_factor(),
+            );
 
             let rewards1 = simulator.simulate_epoch_single_node(node_params).unwrap();
             let expected_operator1 = "1128452.5416104363".parse().unwrap();
@@ -411,8 +431,10 @@ mod tests {
             // essentially all delegators' rewards (and the operator itself) are still correctly computed
             let original_pledge = coin(10000_000000, "unym");
             let mut simulator = base_simulator(original_pledge.amount.u128());
-            let node_params =
-                NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
+            let node_params = NodeRewardingParameters::new(
+                Percent::from_percentage_value(100).unwrap(),
+                simulator.legacy_active_work_factor(),
+            );
 
             // add 2 delegations at genesis (because it makes things easier and as shown with previous tests
             // delegating at different times still work)
@@ -454,8 +476,10 @@ mod tests {
         fn withdrawing_delegator_reward() {
             // essentially all delegators' rewards (and the operator itself) are still correctly computed
             let mut simulator = base_simulator(10000_000000);
-            let node_params =
-                NodeRewardParams::new(Percent::from_percentage_value(100).unwrap(), true);
+            let node_params = NodeRewardingParameters::new(
+                Percent::from_percentage_value(100).unwrap(),
+                simulator.legacy_active_work_factor(),
+            );
 
             // add 2 delegations at genesis (because it makes things easier and as shown with previous tests
             // delegating at different times still work)
@@ -524,7 +548,7 @@ mod tests {
         fn simulating_multiple_epochs() {
             let mut simulator = base_simulator(10000_000000);
 
-            let mut is_active = true;
+            let mut work_factor = simulator.legacy_active_work_factor();
             let mut performance = Percent::from_percentage_value(100).unwrap();
             for epoch in 0..720 {
                 if epoch == 0 {
@@ -538,7 +562,7 @@ mod tests {
                         .unwrap()
                 }
                 if epoch == 89 {
-                    is_active = false;
+                    work_factor = simulator.legacy_standby_work_factor();
                 }
                 if epoch == 123 {
                     simulator
@@ -560,7 +584,7 @@ mod tests {
                     // TODO: figure out if there's a good way to verify whether `reward` is what we expect it to be
                 }
                 if epoch == 345 {
-                    is_active = true;
+                    work_factor = simulator.legacy_active_work_factor();
                 }
                 if epoch == 358 {
                     performance = Percent::from_percentage_value(100).unwrap();
@@ -579,7 +603,7 @@ mod tests {
 
                 // this has to always hold
                 check_rewarding_invariant(&simulator);
-                let node_params = NodeRewardParams::new(performance, is_active);
+                let node_params = NodeRewardingParameters::new(performance, work_factor);
                 simulator.simulate_epoch_single_node(node_params).unwrap();
             }
 
@@ -600,15 +624,23 @@ mod tests {
         // rather than just checking the final results
 
         let epochs_in_interval = 1u32;
-        let rewarded_set_size = 10;
-        let active_set_size = 6;
         let interval_pool_emission = Percent::from_percentage_value(2).unwrap();
+
+        // the import values here are active set being 6 and rewarded set being 10
+        // since those are the values we were using in the past
+        let rewarded_set = RewardedSetParams {
+            entry_gateways: 1,
+            exit_gateways: 2,
+            mixnodes: 3,
+            standby: 4,
+        };
 
         let reward_pool = 250_000_000_000_000u128;
         let staking_supply = 100_000_000_000_000u128;
         let epoch_reward_budget =
             interval_pool_emission * Decimal::from_ratio(reward_pool, epochs_in_interval);
-        let stake_saturation_point = Decimal::from_ratio(staking_supply, rewarded_set_size);
+        let stake_saturation_point =
+            Decimal::from_ratio(staking_supply, rewarded_set.rewarded_set_size());
 
         let rewarding_params = RewardingParams {
             interval: IntervalRewardParams {
@@ -621,8 +653,7 @@ mod tests {
                 active_set_work_factor: Decimal::percent(1000), // value '10'
                 interval_pool_emission,
             },
-            rewarded_set_size,
-            active_set_size,
+            rewarded_set,
         };
 
         let interval = Interval::init_interval(
@@ -636,7 +667,7 @@ mod tests {
         let n0 = simulator
             .bond(
                 Coin::new(11_000_000_000000, "unym"),
-                MixNodeCostParams {
+                NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
                     interval_operating_cost: Coin::new(40_000_000, "unym"),
                 },
@@ -649,7 +680,7 @@ mod tests {
         let n1 = simulator
             .bond(
                 Coin::new(1_000_000_000000, "unym"),
-                MixNodeCostParams {
+                NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
                     interval_operating_cost: Coin::new(40_000_000, "unym"),
                 },
@@ -662,7 +693,7 @@ mod tests {
         let n2 = simulator
             .bond(
                 Coin::new(1_000_000_000000, "unym"),
-                MixNodeCostParams {
+                NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
                     interval_operating_cost: Coin::new(40_000_000, "unym"),
                 },
@@ -675,7 +706,7 @@ mod tests {
         let n3 = simulator
             .bond(
                 Coin::new(1_000_000_000000, "unym"),
-                MixNodeCostParams {
+                NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
                     interval_operating_cost: Coin::new(500_000_000, "unym"),
                 },
@@ -688,7 +719,7 @@ mod tests {
         let n4 = simulator
             .bond(
                 Coin::new(1000_000000, "unym"),
-                MixNodeCostParams {
+                NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
                     interval_operating_cost: Coin::new(40_000_000, "unym"),
                 },
@@ -701,7 +732,7 @@ mod tests {
         let n5 = simulator
             .bond(
                 Coin::new(1_000_000_000000, "unym"),
-                MixNodeCostParams {
+                NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
                     interval_operating_cost: Coin::new(40_000_000, "unym"),
                 },
@@ -714,7 +745,7 @@ mod tests {
         let n6 = simulator
             .bond(
                 Coin::new(11_000_000_000000, "unym"),
-                MixNodeCostParams {
+                NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
                     interval_operating_cost: Coin::new(40_000_000, "unym"),
                 },
@@ -727,7 +758,7 @@ mod tests {
         let n7 = simulator
             .bond(
                 Coin::new(1_000_000_000000, "unym"),
-                MixNodeCostParams {
+                NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
                     interval_operating_cost: Coin::new(40_000_000, "unym"),
                 },
@@ -740,7 +771,7 @@ mod tests {
         let n8 = simulator
             .bond(
                 Coin::new(1_000_000_000000, "unym"),
-                MixNodeCostParams {
+                NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(0).unwrap(),
                     interval_operating_cost: Coin::new(500_000_000, "unym"),
                 },
@@ -753,7 +784,7 @@ mod tests {
         let n9 = simulator
             .bond(
                 Coin::new(1_000_000_000000, "unym"),
-                MixNodeCostParams {
+                NodeCostParams {
                     profit_margin_percent: Percent::from_percentage_value(10).unwrap(),
                     interval_operating_cost: Coin::new(40_000_000, "unym"),
                 },
@@ -767,17 +798,20 @@ mod tests {
         let uptime_09 = Percent::from_percentage_value(90).unwrap();
         let uptime_0 = Percent::from_percentage_value(0).unwrap();
 
+        let active_work = simulator.legacy_active_work_factor();
+        let standby_work = simulator.legacy_standby_work_factor();
+
         let node_params = [
-            (n0, NodeRewardParams::new(uptime_1, true)),
-            (n1, NodeRewardParams::new(uptime_1, true)),
-            (n2, NodeRewardParams::new(uptime_1, true)),
-            (n3, NodeRewardParams::new(uptime_09, true)),
-            (n4, NodeRewardParams::new(uptime_09, true)),
-            (n5, NodeRewardParams::new(uptime_0, true)),
-            (n6, NodeRewardParams::new(uptime_1, false)),
-            (n7, NodeRewardParams::new(uptime_1, false)),
-            (n8, NodeRewardParams::new(uptime_09, false)),
-            (n9, NodeRewardParams::new(uptime_0, false)),
+            (n0, NodeRewardingParameters::new(uptime_1, active_work)),
+            (n1, NodeRewardingParameters::new(uptime_1, active_work)),
+            (n2, NodeRewardingParameters::new(uptime_1, active_work)),
+            (n3, NodeRewardingParameters::new(uptime_09, active_work)),
+            (n4, NodeRewardingParameters::new(uptime_09, active_work)),
+            (n5, NodeRewardingParameters::new(uptime_0, active_work)),
+            (n6, NodeRewardingParameters::new(uptime_1, standby_work)),
+            (n7, NodeRewardingParameters::new(uptime_1, standby_work)),
+            (n8, NodeRewardingParameters::new(uptime_09, standby_work)),
+            (n9, NodeRewardingParameters::new(uptime_0, standby_work)),
         ]
         .into_iter()
         .collect::<BTreeMap<_, _>>();

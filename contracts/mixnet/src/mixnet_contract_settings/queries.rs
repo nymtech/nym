@@ -49,9 +49,8 @@ pub(crate) mod tests {
             vesting_contract_address: Addr::unchecked("foomp"),
             rewarding_denom: "unym".to_string(),
             params: ContractStateParams {
-                minimum_mixnode_delegation: None,
-                minimum_mixnode_pledge: coin(123u128, "unym"),
-                minimum_gateway_pledge: coin(456u128, "unym"),
+                minimum_delegation: None,
+                minimum_pledge: coin(123u128, "unym"),
                 profit_margin: Default::default(),
                 interval_operating_cost: Default::default(),
             },

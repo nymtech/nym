@@ -45,3 +45,4 @@ tracing = [
     "opentelemetry",
 ]
 clap = [ "dep:clap", "dep:clap_complete", "dep:clap_complete_fig" ]
+models = []

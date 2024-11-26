@@ -11,7 +11,14 @@ repository = { workspace = true }
 bytes = { workspace = true }
 tokio-util = { workspace = true, features = ["codec"] }
 thiserror = { workspace = true }
+log = { workspace = true }
 
 nym-sphinx-types = { path = "../types", features = ["sphinx", "outfox"] }
 nym-sphinx-params = { path = "../params", features = ["sphinx", "outfox"] }
+nym-sphinx-forwarding = { path = "../forwarding" }
+nym-metrics = { path = "../../nym-metrics" }
+nym-sphinx-addressing = { path = "../addressing" }
+nym-sphinx-acknowledgements = { path = "../acknowledgements" }
 
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }

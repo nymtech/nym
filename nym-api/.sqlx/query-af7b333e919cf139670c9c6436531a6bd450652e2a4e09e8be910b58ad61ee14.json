@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            SELECT AVG(reliability) as \"reliability: f32\" FROM gateway_status\n            WHERE gateway_details_id= ? AND timestamp >= ? AND timestamp <= ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "reliability: f32",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "af7b333e919cf139670c9c6436531a6bd450652e2a4e09e8be910b58ad61ee14"
+}

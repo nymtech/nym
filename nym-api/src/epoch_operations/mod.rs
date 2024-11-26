@@ -1,7 +1,7 @@
 // Copyright 2022 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// there is couple of reasons for putting this in a separate module:
+// there is a couple of reasons for putting this in a separate module:
 // 1. I didn't feel it fit well in nym contract "cache". It seems like purpose of cache is to just keep updating local data
 //    rather than attempting to change global view (i.e. the active set)
 //
@@ -12,17 +12,20 @@
 // 3. Eventually this whole procedure is going to get expanded to allow for distribution of rewarded set generation
 //    and hence this might be a good place for it.
 
+use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::ONE_DAY;
 use crate::nym_contract_cache::cache::NymContractCache;
+use crate::support::caching::cache::SharedCache;
 use crate::support::nyxd::Client;
 use crate::support::storage::NymApiStorage;
 use error::RewardingError;
-pub(crate) use helpers::MixnodeWithPerformance;
+pub(crate) use helpers::RewardedNodeWithParams;
 use nym_mixnet_contract_common::{CurrentIntervalResponse, Interval};
 use nym_task::{TaskClient, TaskManager};
 use std::collections::HashSet;
 use std::time::Duration;
 use tokio::time::sleep;
+use tracing::{error, info, trace, warn};
 
 pub(crate) mod error;
 mod event_reconciliation;
@@ -31,13 +34,16 @@ mod rewarded_set_assignment;
 mod rewarding;
 mod transition_beginning;
 
-pub struct RewardedSetUpdater {
+// naming things is difficult, ok?
+// this is struct responsible for advancing an epoch
+pub struct EpochAdvancer {
     nyxd_client: Client,
     nym_contract_cache: NymContractCache,
+    described_cache: SharedCache<DescribedNodes>,
     storage: NymApiStorage,
 }
 
-impl RewardedSetUpdater {
+impl EpochAdvancer {
     pub(crate) async fn current_interval_details(
         &self,
     ) -> Result<CurrentIntervalResponse, RewardingError> {
@@ -47,71 +53,80 @@ impl RewardedSetUpdater {
     pub(crate) fn new(
         nyxd_client: Client,
         nym_contract_cache: NymContractCache,
+        described_cache: SharedCache<DescribedNodes>,
         storage: NymApiStorage,
     ) -> Self {
-        RewardedSetUpdater {
+        EpochAdvancer {
             nyxd_client,
             nym_contract_cache,
+            described_cache,
             storage,
         }
     }
 
     #[allow(clippy::doc_lazy_continuation)]
     // This is where the epoch gets advanced, and all epoch related transactions originate
-    /// Upon each epoch having finished the following actions are executed by this nym-api:
-    /// 1. it computes the rewards for each node using the ephemera channel for the epoch that
-    ///    ended
-    /// 2. it queries the mixnet contract to check the current `EpochState` in order to figure out whether
-    ///     a different nym-api has already started epoch transition (not yet applicable)
-    /// 3. it sends a `BeginEpochTransition` message to the mixnet contract causing the following to happen:
-    ///     - if successful, the address of this validator is going to be saved as being responsible for progressing this epoch.
-    ///         What it means in practice is that once we have multiple instances of nym-api running,
-    ///         only this one will try to perform the rest of the actions. It will also allow it to
-    ///         more easily recover in case of crashes.
-    ///     - the `EpochState` changes to `Rewarding`, meaning the nym-api will now be allowed to send
-    ///         `RewardMixnode` transactions. However, it's not going to be able anything else like `ReconcileEpochEvents`
-    ///         until that is done.
-    ///     - ability to send transactions (by other users) that get resolved once given epoch/interval rolls over,
-    ///         such as `BondMixnode` or `DelegateToMixnode` will temporarily be frozen until the entire procedure is finished.
-    /// 4. it obtains the current rewarded set and for each node in there (**SORTED BY MIX_ID!!**),
-    ///    it sends (in a single batch) `RewardMixnode` message with the measured performance.
-    ///    Once the final message gets executed, the mixnet contract automatically transitions
-    ///    the state to `ReconcilingEvents`.
-    /// 5. it obtains the number of pending epoch and interval events and repeatedly sends
-    ///    `ReconcileEpochEvents` transaction until all of them are resolved.
-    ///    At this point the mixnet contract automatically transitions the state to `AdvancingEpoch`.
-    /// 6. it obtains the list of all nodes on the network and pseudorandomly (but weighted by total stake)
-    ///    determines the new rewarded set. It then assigns layers to the provided nodes taking
-    ///    family information into consideration. Finally it sends `AdvanceCurrentEpoch` message
-    ///    containing the set and layer information thus rolling over the epoch and changing the state
-    ///    to `InProgress`.
-    /// 7. it purges old (older than 48h) measurement data
-    /// 8. the whole process repeats once the new epoch finishes
+    // TODO: make sure this is still up to date
+    // /// Upon each epoch having finished the following actions are executed by this nym-api:
+    // /// 1. it computes the rewards for each node using the ephemera channel for the epoch that
+    // ///    ended
+    // /// 2. it queries the mixnet contract to check the current `EpochState` in order to figure out whether
+    // ///     a different nym-api has already started epoch transition (not yet applicable)
+    // /// 3. it sends a `BeginEpochTransition` message to the mixnet contract causing the following to happen:
+    // ///     - if successful, the address of this validator is going to be saved as being responsible for progressing this epoch.
+    // ///     What it means in practice is that once we have multiple instances of nym-api running,
+    // ///     only this one will try to perform the rest of the actions. It will also allow it to
+    // ///     more easily recover in case of crashes.
+    // ///     - the `EpochState` changes to `Rewarding`, meaning the nym-api will now be allowed to send
+    // ///    `RewardNode` transactions. However, it's not going to be able anything else like `ReconcileEpochEvents`
+    // ///     until that is done.
+    // ///     - ability to send transactions (by other users) that get resolved once given epoch/interval rolls over,
+    // ///     such as `BondMixnode` or `DelegateToMixnode` will temporarily be frozen until the entire procedure is finished.
+    // /// 4. it obtains the current rewarded set and for each node in there (**SORTED BY NODE_ID!!**),
+    // ///    it sends (in a single batch) `RewardMixnode` message with the measured performance.
+    // ///    Once the final message gets executed, the mixnet contract automatically transitions
+    // ///    the state to `ReconcilingEvents`.
+    // /// 5. it obtains the number of pending epoch and interval events and repeatedly sends
+    // ///    `ReconcileEpochEvents` transaction until all of them are resolved.
+    // ///    At this point the mixnet contract automatically transitions the state to `AdvancingEpoch`.
+    // /// 6. it obtains the list of all nodes on the network and pseudorandomly (but weighted by total stake)
+    // ///    determines the new rewarded set. It then assigns roles to the provided nodes taking
+    // ///    family information into consideration. Finally, it sends `AssignRole` message
+    // ///    containing the role assignment information thus (after each role has been assigned)
+    // ///    rolling over the epoch and changing the state to `InProgress`.
+    // /// 7. it purges old (older than 48h) measurement data
+    // /// 8. the whole process repeats once the new epoch finishes
     async fn perform_epoch_operations(&mut self, interval: Interval) -> Result<(), RewardingError> {
-        let mut rewards = self.nodes_to_reward(interval).await;
-        rewards.sort_by_key(|a| a.mix_id);
+        let mut rewards = self.nodes_to_reward(interval).await?;
+        rewards.sort_by_key(|a| a.node_id);
 
-        log::info!("The current epoch has finished.");
-        log::info!(
+        info!("The current epoch has finished.");
+        info!(
             "Interval id: {}, epoch id: {} (absolute epoch id: {})",
             interval.current_interval_id(),
             interval.current_epoch_id(),
             interval.current_epoch_absolute_id()
         );
-        log::info!(
+        info!(
             "The current epoch has lasted from {} until {}",
             interval.current_epoch_start(),
             interval.current_epoch_end()
         );
 
-        log::info!("Performing all epoch operations...");
+        info!("Performing all epoch operations...");
 
         let epoch_end = interval.current_epoch_end();
 
-        let all_mixnodes = self.nym_contract_cache.mixnodes_filtered().await;
-        if all_mixnodes.is_empty() {
-            // that's a bit weird, but
-            log::warn!("there don't seem to be any mixnodes on the network!")
+        let legacy_mixnodes = self.nym_contract_cache.legacy_mixnodes_filtered().await;
+        let legacy_gateways = self.nym_contract_cache.legacy_gateways_filtered().await;
+
+        // TODO: for the purposes of rewarding, this might have to grab some pre-filtered nodes instead,
+        // such as ones that use up to date version or have correct 'peanut' score
+        let nym_nodes = self.nym_contract_cache.nym_nodes().await;
+
+        if legacy_mixnodes.is_empty() && legacy_gateways.is_empty() && nym_nodes.is_empty() {
+            // that's a bit weird, but ok
+            warn!("there don't seem to be any nodes on the network!")
         }
 
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
@@ -133,23 +148,33 @@ impl RewardedSetUpdater {
         }
 
         // Reward all the nodes in the still current, soon to be previous rewarded set
-        log::info!("Rewarding the current rewarded set...");
-        self.reward_current_rewarded_set(&rewards, interval).await?;
+        info!("Rewarding the current rewarded set...");
+        self.reward_current_rewarded_set(rewards, interval).await?;
 
         // note: those operations don't really have to be atomic, so it's fine to send them
         // as separate transactions
         self.reconcile_epoch_events().await?;
-        self.update_rewarded_set_and_advance_epoch(interval, &all_mixnodes)
-            .await?;
+        self.update_rewarded_set_and_advance_epoch(
+            interval,
+            &legacy_mixnodes,
+            &legacy_gateways,
+            &nym_nodes,
+        )
+        .await?;
 
-        log::info!("Purging old node statuses from the storage...");
+        info!("Purging old node statuses from the storage...");
         let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();
         self.storage.purge_old_statuses(cutoff).await?;
 
         Ok(())
     }
 
-    async fn update_blacklist(&mut self, interval: &Interval) -> Result<(), RewardingError> {
+    // this purposely does not deal with nym-nodes as they don't have a concept of a blacklist.
+    // instead clients are meant to be filtering out them themselves based on the provided scores.
+    async fn update_legacy_node_blacklist(
+        &mut self,
+        interval: &Interval,
+    ) -> Result<(), RewardingError> {
         info!("Updating blacklists");
 
         let mut mix_blacklist_add = HashSet::new();
@@ -183,15 +208,16 @@ impl RewardedSetUpdater {
 
         for gateway in gateways {
             if gateway.value() <= 50.0 {
-                gate_blacklist_add.insert(gateway.identity().to_string());
+                gate_blacklist_add.insert(gateway.node_id());
             } else {
-                gate_blacklist_remove.insert(gateway.identity().to_string());
+                gate_blacklist_remove.insert(gateway.node_id());
             }
         }
 
         self.nym_contract_cache
             .update_gateways_blacklist(gate_blacklist_add, gate_blacklist_remove)
             .await;
+
         Ok(())
     }
 
@@ -219,7 +245,7 @@ impl RewardedSetUpdater {
                 return Some(current_interval.interval);
             } else {
                 let time_left = current_interval.time_until_current_epoch_end();
-                log::info!(
+                info!(
                     "Waiting for epoch change, it should take approximately {}s",
                     time_left.as_secs()
                 );
@@ -244,7 +270,11 @@ impl RewardedSetUpdater {
     }
 
     pub(crate) async fn run(&mut self, mut shutdown: TaskClient) -> Result<(), RewardingError> {
+        info!("waiting for initial contract cache values before we can start rewarding");
         self.nym_contract_cache.wait_for_initial_values().await;
+
+        info!("waiting for initial self-described cache values before we can start rewarding");
+        self.described_cache.naive_wait_for_initial_values().await;
 
         while !shutdown.is_shutdown() {
             let interval_details = match self.wait_until_epoch_end(&mut shutdown).await {
@@ -252,7 +282,7 @@ impl RewardedSetUpdater {
                 None => return Ok(()),
                 Some(interval) => interval,
             };
-            if let Err(err) = self.update_blacklist(&interval_details).await {
+            if let Err(err) = self.update_legacy_node_blacklist(&interval_details).await {
                 error!("failed to update the node blacklist - {err}");
                 continue;
             }
@@ -268,11 +298,16 @@ impl RewardedSetUpdater {
     pub(crate) fn start(
         nyxd_client: Client,
         nym_contract_cache: &NymContractCache,
-        storage: NymApiStorage,
+        described_cache: SharedCache<DescribedNodes>,
+        storage: &NymApiStorage,
         shutdown: &TaskManager,
     ) {
-        let mut rewarded_set_updater =
-            RewardedSetUpdater::new(nyxd_client, nym_contract_cache.to_owned(), storage);
+        let mut rewarded_set_updater = EpochAdvancer::new(
+            nyxd_client,
+            nym_contract_cache.to_owned(),
+            described_cache,
+            storage.to_owned(),
+        );
         let shutdown_listener = shutdown.subscribe();
         tokio::spawn(async move { rewarded_set_updater.run(shutdown_listener).await });
     }

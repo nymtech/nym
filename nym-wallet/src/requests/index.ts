@@ -1,5 +1,6 @@
 export * from './app';
 export * from './account';
+export * from './bond';
 export * from './actions';
 export * from './contract';
 export * from './delegation';

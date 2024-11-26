@@ -23,7 +23,7 @@ const columnsHeaders: Array<{ title: string; align: TableCellProps['align'] }> =
 const vestingPeriod = (current?: Period, original?: number) => {
   if (current === 'After') return 'Complete';
 
-  if (typeof current === 'object' && typeof original === 'number') return `${current.in + 1}/${original}`;
+  if (typeof current === 'object' && typeof original === 'number') return `${current.In + 1}/${original}`;
 
   return 'N/A';
 };

@@ -16,7 +16,7 @@ use nym_credential_storage::models::RetrievedTicketbook;
 use nym_credential_storage::storage::Storage;
 use nym_credentials::ecash::bandwidth::CredentialSpendingData;
 use nym_credentials_interface::{
-    AnnotatedCoinIndexSignature, AnnotatedExpirationDateSignature, VerificationKeyAuth,
+    AnnotatedCoinIndexSignature, AnnotatedExpirationDateSignature, TicketType, VerificationKeyAuth,
 };
 use nym_ecash_time::Date;
 use nym_validator_client::nym_api::EpochId;
@@ -64,9 +64,10 @@ impl<C, St: Storage> BandwidthController<C, St> {
         BandwidthController { storage, client }
     }
 
-    /// Tries to retrieve one of the stored, unused credentials that hasn't yet expired.
+    /// Tries to retrieve one of the stored, unused credentials for the given type that hasn't yet expired.
     pub async fn get_next_usable_ticketbook(
         &self,
+        ticketbook_type: TicketType,
         tickets: u32,
     ) -> Result<RetrievedTicketbook, BandwidthControllerError>
     where
@@ -74,7 +75,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
     {
         let Some(ticketbook) = self
             .storage
-            .get_next_unspent_usable_ticketbook(tickets)
+            .get_next_unspent_usable_ticketbook(ticketbook_type.to_string(), tickets)
             .await
             .map_err(BandwidthControllerError::credential_storage_error)?
         else {
@@ -181,6 +182,7 @@ impl<C, St: Storage> BandwidthController<C, St> {
 
     pub async fn prepare_ecash_ticket(
         &self,
+        ticketbook_type: TicketType,
         provider_pk: [u8; 32],
         tickets_to_spend: u32,
     ) -> Result<PreparedCredential, BandwidthControllerError>
@@ -188,7 +190,9 @@ impl<C, St: Storage> BandwidthController<C, St> {
         C: DkgQueryClient + Sync + Send,
         <St as Storage>::StorageError: Send + Sync + 'static,
     {
-        let retrieved_ticketbook = self.get_next_usable_ticketbook(tickets_to_spend).await?;
+        let retrieved_ticketbook = self
+            .get_next_usable_ticketbook(ticketbook_type, tickets_to_spend)
+            .await?;
 
         let ticketbook_id = retrieved_ticketbook.ticketbook_id;
         let epoch_id = retrieved_ticketbook.ticketbook.epoch_id();

@@ -18,7 +18,7 @@ import {
   MixnetContractVersion,
   MixNode,
   MixNodeBond,
-  MixNodeCostParams,
+  NodeCostParams,
   MixNodeDetails,
   MixNodeRewarding,
   MixOwnershipResponse,
@@ -451,7 +451,7 @@ export default class ValidatorClient implements INymClient {
   public async bondMixNode(
     mixNode: MixNode,
     ownerSignature: string,
-    costParams: MixNodeCostParams,
+    costParams: NodeCostParams,
     pledge: Coin,
     fee?: StdFee | 'auto' | number,
     memo?: string,

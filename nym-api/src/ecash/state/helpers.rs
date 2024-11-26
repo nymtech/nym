@@ -16,6 +16,7 @@ use std::future::Future;
 use time::ext::NumericalDuration;
 use time::Date;
 use tokio::sync::Mutex;
+use tracing::{debug, error, info, warn};
 
 // attempt to completely rebuild the bloomfilter data for given day
 async fn try_rebuild_today_bloomfilter(
@@ -23,10 +24,10 @@ async fn try_rebuild_today_bloomfilter(
     params: BloomfilterParameters,
     storage: &NymApiStorage,
 ) -> Result<DoubleSpendingFilter, EcashError> {
-    log::info!("rebuilding bloomfilter for {today}");
+    info!("rebuilding bloomfilter for {today}");
 
     let tickets = storage.get_all_spent_tickets_on(today).await?;
-    log::debug!(
+    debug!(
         "there are {} tickets to insert into the filter",
         tickets.len()
     );
@@ -45,7 +46,7 @@ pub(crate) async fn prepare_partial_bloomfilter_builder(
     start: Date,
     days: i64,
 ) -> Result<DoubleSpendingFilterBuilder, EcashError> {
-    log::info!(
+    info!(
         "attempting to rebuild partial bloomfilter starting at {start} which includes {days} days"
     );
 
@@ -56,11 +57,11 @@ pub(crate) async fn prepare_partial_bloomfilter_builder(
             .try_load_partial_bloomfilter_bitmap(date, params_id)
             .await?
         else {
-            log::warn!("missing double spending bloomfilter bitmap for {date} (if this API hasn't been running for at least {days} day(s) since 'ecash'-based zk-nyms were introduced this is expected)");
+            warn!("missing double spending bloomfilter bitmap for {date} (if this API hasn't been running for at least {days} day(s) since 'ecash'-based zk-nyms were introduced this is expected)");
             continue;
         };
         if !filter_builder.add_bytes(&bitmap) {
-            log::error!(
+            error!(
                 "failed to add bitmap from {date} to the global bloomfilter. it may be malformed!"
             );
         }
@@ -71,16 +72,16 @@ pub(crate) async fn prepare_partial_bloomfilter_builder(
 pub(super) async fn try_rebuild_bloomfilter(
     storage: &NymApiStorage,
 ) -> Result<TicketDoubleSpendingFilter, EcashError> {
-    log::info!("attempting to rebuild the double spending bloomfilter...");
+    info!("attempting to rebuild the double spending bloomfilter...");
     let today = ecash_today().date();
 
     let (params_id, params) = storage.get_double_spending_filter_params().await?;
-    log::info!("will use the following parameters: {params:?}");
+    info!("will use the following parameters: {params:?}");
 
     // we're never going to have persisted data for 'today'. we need to rebuild it from scratch
     let today_filter = try_rebuild_today_bloomfilter(today, params, storage).await?;
 
-    log::info!("attempting to rebuild the global filter");
+    info!("attempting to rebuild the global filter");
     let mut global_filter = prepare_partial_bloomfilter_builder(
         storage,
         params,
@@ -91,9 +92,7 @@ pub(super) async fn try_rebuild_bloomfilter(
     .await?;
 
     if !global_filter.add_bytes(&today_filter.dump_bitmap()) {
-        log::error!(
-            "failed to add bitmap from {today} to the global bloomfilter. it may be malformed!"
-        );
+        error!("failed to add bitmap from {today} to the global bloomfilter. it may be malformed!");
     }
 
     Ok(TicketDoubleSpendingFilter::new(
@@ -141,7 +140,7 @@ where
             match f(api).await {
                 Ok(partial_share) => shares.lock().await.push(partial_share),
                 Err(err) => {
-                    log::warn!("failed to obtain partial threshold data from API: {disp}: {err}")
+                    warn!("failed to obtain partial threshold data from API: {disp}: {err}")
                 }
             }
         })

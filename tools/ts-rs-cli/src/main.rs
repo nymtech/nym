@@ -1,12 +1,19 @@
 use nym_api_requests::models::{
-    GatewayCoreStatusResponse, InclusionProbabilityResponse, MixnodeCoreStatusResponse,
-    MixnodeStatus, MixnodeStatusResponse, RewardEstimationResponse, SelectionChance,
-    StakeSaturationResponse,
+    AnnotationResponse, DeclaredRoles, DescribedNodeType, GatewayCoreStatusResponse,
+    HistoricalPerformanceResponse, HistoricalUptimeResponse, InclusionProbabilityResponse,
+    MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusResponse, NodeAnnotation,
+    NodeDatePerformanceResponse, NodePerformanceResponse, PerformanceHistoryResponse,
+    RewardEstimationResponse, SelectionChance, StakeSaturationResponse, UptimeHistoryResponse,
+};
+use nym_api_requests::pagination::{PaginatedResponse, Pagination};
+use nym_mixnet_contract_common::nym_node::{NodeConfigUpdate, Role};
+use nym_mixnet_contract_common::reward_params::{
+    ActiveSetUpdate, NodeRewardingParameters, RewardedSetParams,
 };
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
 use nym_mixnet_contract_common::{
     GatewayConfigUpdate, Interval as ContractInterval, IntervalRewardParams,
-    IntervalRewardingParamsUpdate, MixNode, MixNodeConfigUpdate, RewardedSetNodeStatus,
+    IntervalRewardingParamsUpdate, MixNode, MixNodeConfigUpdate, NymNode, PendingNodeChanges,
     RewardingParams, UnbondedMixnode,
 };
 use nym_types::account::{Account, AccountEntry, AccountWithMnemonic, Balance};
@@ -18,7 +25,8 @@ use nym_types::deprecated::{DelegationEvent, DelegationEventKind, WrappedDelegat
 use nym_types::fees::{self, FeeDetails};
 use nym_types::gas::{Gas, GasInfo};
 use nym_types::gateway::{Gateway, GatewayBond};
-use nym_types::mixnode::{MixNodeBond, MixNodeCostParams, MixNodeDetails, MixNodeRewarding};
+use nym_types::mixnode::{MixNodeBond, MixNodeDetails, NodeCostParams, NodeRewarding};
+use nym_types::nym_node::{NymNodeBond, NymNodeDetails};
 use nym_types::pending_events::{
     PendingEpochEvent, PendingEpochEventData, PendingIntervalEvent, PendingIntervalEventData,
 };
@@ -52,7 +60,7 @@ macro_rules! do_export {
     }};
 }
 
-fn main() {
+fn main() -> anyhow::Result<()> {
     println!("Starting export of types using ts-rs...");
     println!();
 
@@ -69,10 +77,16 @@ fn main() {
     do_export!(MixNode);
     do_export!(MixNodeConfigUpdate);
     do_export!(RewardingParams);
-    do_export!(RewardedSetNodeStatus);
+    do_export!(RewardedSetParams);
+    do_export!(NodeRewardingParameters);
+    do_export!(ActiveSetUpdate);
     do_export!(UnbondedMixnode);
     do_export!(RewardEstimate);
     do_export!(ContractInterval);
+    do_export!(NymNode);
+    do_export!(PendingNodeChanges);
+    do_export!(NodeConfigUpdate);
+    do_export!(Role);
 
     // common/types/src
     do_export!(Account);
@@ -99,9 +113,14 @@ fn main() {
     do_export!(CurrencyDenom);
     do_export!(DecCoin);
     do_export!(MixNodeBond);
-    do_export!(MixNodeCostParams);
+    do_export!(NodeCostParams);
     do_export!(MixNodeDetails);
-    do_export!(MixNodeRewarding);
+
+    // for nym-node:
+    do_export!(NymNodeDetails);
+    do_export!(NymNodeBond);
+
+    do_export!(NodeRewarding);
     do_export!(OriginalVestingResponse);
     do_export!(PendingEpochEvent);
     do_export!(PendingEpochEventData);
@@ -126,6 +145,18 @@ fn main() {
     do_export!(SelectionChance);
     do_export!(StakeSaturationResponse);
     do_export!(RewardEstimationResponse);
+    do_export!(NodeAnnotation);
+    do_export!(AnnotationResponse);
+    do_export!(NodePerformanceResponse);
+    do_export!(NodeDatePerformanceResponse);
+    do_export!(PerformanceHistoryResponse);
+    do_export!(UptimeHistoryResponse);
+    do_export!(HistoricalUptimeResponse);
+    do_export!(HistoricalPerformanceResponse);
+    do_export!(DescribedNodeType);
+    do_export!(DeclaredRoles);
+    do_export!(PaginatedResponse<ts_rs::Dummy>);
+    do_export!(Pagination);
 
     // nym-wallet
     do_export!(AppEnv);
@@ -144,7 +175,10 @@ fn main() {
     println!();
     println!("Moving output files into place...");
 
-    for file in WalkDir::new("./")
+    let source = Path::new("./bindings");
+
+    // move from ./bindings/foo/bar/X.ts into ../../foo/bar/X.ts
+    for file in WalkDir::new(source)
         .into_iter()
         .filter_map(|file| file.ok())
         .filter(|f| {
@@ -155,11 +189,14 @@ fn main() {
                 && !path.starts_with("./Cargo.toml")
                 && !path.starts_with("./.gitignore")
                 && f.file_type().is_file()
+                && f.path().extension() == Some("ts".as_ref())
         })
     {
         // construct the source and destination paths that can be used to replace the output file
         let src = file.path();
-        let dst = dst_base.join(src);
+        let sourceless_src = src.strip_prefix(source)?;
+
+        let dst = dst_base.join(sourceless_src);
         let dst_directory = dst.parent().expect("Could not get parent directory");
 
         if !dst_directory.exists() {
@@ -176,15 +213,19 @@ fn main() {
                     println!("✅ {}  =>  {}", file.path().display(), res.display());
                 }
                 Err(e) => {
-                    println!("❌ {}: {}", file.path().display(), e);
+                    println!("❌ {}: {e}", file.path().display());
                 }
             },
             Err(e) => {
-                println!("❌ {}: {}", file.path().display(), e);
+                println!("❌ {}: {e}", file.path().display());
             }
         }
     }
 
+    // finally remove the ephemeral dir
+    std::fs::remove_dir_all(source)?;
+
     println!();
     println!("Done");
+    Ok(())
 }

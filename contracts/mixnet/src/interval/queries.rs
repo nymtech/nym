@@ -4,7 +4,6 @@
 use crate::constants::{
     EPOCH_EVENTS_DEFAULT_RETRIEVAL_LIMIT, EPOCH_EVENTS_MAX_RETRIEVAL_LIMIT,
     INTERVAL_EVENTS_DEFAULT_RETRIEVAL_LIMIT, INTERVAL_EVENTS_MAX_RETRIEVAL_LIMIT,
-    REWARDED_SET_DEFAULT_RETRIEVAL_LIMIT, REWARDED_SET_MAX_RETRIEVAL_LIMIT,
 };
 use crate::interval::storage;
 use cosmwasm_std::{Deps, Env, Order, StdResult};
@@ -12,9 +11,9 @@ use cw_storage_plus::Bound;
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::pending_events::{PendingEpochEvent, PendingIntervalEvent};
 use mixnet_contract_common::{
-    CurrentIntervalResponse, EpochEventId, EpochStatus, IntervalEventId, MixId,
-    NumberOfPendingEventsResponse, PagedRewardedSetResponse, PendingEpochEventResponse,
-    PendingEpochEventsResponse, PendingIntervalEventResponse, PendingIntervalEventsResponse,
+    CurrentIntervalResponse, EpochEventId, EpochStatus, IntervalEventId,
+    NumberOfPendingEventsResponse, PendingEpochEventResponse, PendingEpochEventsResponse,
+    PendingIntervalEventResponse, PendingIntervalEventsResponse,
 };
 
 pub fn query_epoch_status(deps: Deps<'_>) -> StdResult<EpochStatus> {
@@ -28,30 +27,6 @@ pub fn query_current_interval_details(
     let interval = storage::current_interval(deps.storage)?;
 
     Ok(CurrentIntervalResponse::new(interval, env))
-}
-
-pub fn query_rewarded_set_paged(
-    deps: Deps<'_>,
-    start_after: Option<MixId>,
-    limit: Option<u32>,
-) -> StdResult<PagedRewardedSetResponse> {
-    let limit = limit
-        .unwrap_or(REWARDED_SET_DEFAULT_RETRIEVAL_LIMIT)
-        .min(REWARDED_SET_MAX_RETRIEVAL_LIMIT) as usize;
-
-    let start = start_after.map(Bound::exclusive);
-
-    let nodes = storage::REWARDED_SET
-        .range(deps.storage, start, None, Order::Ascending)
-        .take(limit)
-        .collect::<StdResult<Vec<_>>>()?;
-
-    let start_next_after = nodes.last().map(|node| node.0);
-
-    Ok(PagedRewardedSetResponse {
-        nodes,
-        start_next_after,
-    })
 }
 
 pub fn query_pending_epoch_events_paged(
@@ -174,7 +149,7 @@ mod tests {
     fn push_dummy_interval_action(test: &mut TestSetup) {
         let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
             mix_id: test.rng.next_u32(),
-            new_costs: fixtures::mix_node_cost_params_fixture(),
+            new_costs: fixtures::node_cost_params_fixture(),
         };
         let env = test.env();
         storage::push_new_interval_event(test.deps_mut().storage, &env, dummy_action).unwrap();
@@ -212,95 +187,6 @@ mod tests {
         assert!(res.is_current_interval_over);
         assert!(res.is_current_epoch_over);
         assert_eq!(res.current_blocktime, env.block.time.seconds());
-    }
-
-    #[cfg(test)]
-    mod rewarded_set {
-        use super::*;
-
-        fn set_rewarded_set_to_n_nodes(test: &mut TestSetup, n: usize) {
-            let set = (1u32..).take(n).collect::<Vec<_>>();
-            test.force_change_rewarded_set(set)
-        }
-
-        #[test]
-        fn obeys_limits() {
-            let mut test = TestSetup::new();
-            set_rewarded_set_to_n_nodes(&mut test, 200);
-
-            let limit = 2;
-            let page1 = query_rewarded_set_paged(test.deps(), None, Some(limit)).unwrap();
-            assert_eq!(limit, page1.nodes.len() as u32);
-        }
-
-        #[test]
-        fn has_default_limit() {
-            let mut test = TestSetup::new();
-            set_rewarded_set_to_n_nodes(&mut test, 2000);
-
-            // query without explicitly setting a limit
-            let page1 = query_rewarded_set_paged(test.deps(), None, None).unwrap();
-
-            assert_eq!(
-                REWARDED_SET_DEFAULT_RETRIEVAL_LIMIT,
-                page1.nodes.len() as u32
-            );
-        }
-
-        #[test]
-        fn has_max_limit() {
-            let mut test = TestSetup::new();
-            set_rewarded_set_to_n_nodes(&mut test, 2000);
-
-            // query with a crazily high limit in an attempt to use too many resources
-            let crazy_limit = 10000;
-            let page1 = query_rewarded_set_paged(test.deps(), None, Some(crazy_limit)).unwrap();
-
-            assert_eq!(REWARDED_SET_MAX_RETRIEVAL_LIMIT, page1.nodes.len() as u32);
-        }
-
-        #[test]
-        fn pagination_works() {
-            let mut test = TestSetup::new();
-
-            set_rewarded_set_to_n_nodes(&mut test, 1);
-
-            let per_page = 2;
-            let page1 = query_rewarded_set_paged(test.deps(), None, Some(per_page)).unwrap();
-
-            // page should have 1 result on it
-            assert_eq!(1, page1.nodes.len());
-
-            set_rewarded_set_to_n_nodes(&mut test, 2);
-
-            // page1 should have 2 results on it
-            let page1 = query_rewarded_set_paged(test.deps(), None, Some(per_page)).unwrap();
-            assert_eq!(2, page1.nodes.len());
-
-            set_rewarded_set_to_n_nodes(&mut test, 3);
-
-            // page1 still has the same 2 results
-            let another_page1 =
-                query_rewarded_set_paged(test.deps(), None, Some(per_page)).unwrap();
-            assert_eq!(2, another_page1.nodes.len());
-            assert_eq!(page1, another_page1);
-
-            // retrieving the next page should start after the last key on this page
-            let start_after = page1.start_next_after.unwrap();
-            let page2 =
-                query_rewarded_set_paged(test.deps(), Some(start_after), Some(per_page)).unwrap();
-
-            assert_eq!(1, page2.nodes.len());
-
-            // save another one
-            set_rewarded_set_to_n_nodes(&mut test, 4);
-
-            let page2 =
-                query_rewarded_set_paged(test.deps(), Some(start_after), Some(per_page)).unwrap();
-
-            // now we have 2 pages, with 2 results on the second page
-            assert_eq!(2, page2.nodes.len());
-        }
     }
 
     #[cfg(test)]
@@ -605,7 +491,7 @@ mod tests {
         // it exists
         let dummy_action = PendingIntervalEventKind::ChangeMixCostParams {
             mix_id: test.rng.next_u32(),
-            new_costs: fixtures::mix_node_cost_params_fixture(),
+            new_costs: fixtures::node_cost_params_fixture(),
         };
         let env = test.env();
         storage::push_new_interval_event(test.deps_mut().storage, &env, dummy_action.clone())

@@ -1,0 +1,29 @@
+[package]
+name = "importer-cli"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+bip39 = { workspace = true }
+clap = { workspace = true, features = ["derive"] }
+dirs = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "net", "signal"] }
+tracing = { workspace = true }
+
+importer-contract = { path = "../importer-contract" }
+nym-validator-client = { path = "../../../../common/client-libs/validator-client" }
+nym-bin-common = { path = "../../../../common/bin-common", features = ["basic_tracing"] }
+nym-network-defaults = { path = "../../../../common/network-defaults" }
+
+nym-mixnet-contract-common = { path = "../../../../common/cosmwasm-smart-contracts/mixnet-contract" }
+nym-vesting-contract-common = { path = "../../../../common/cosmwasm-smart-contracts/vesting-contract" }

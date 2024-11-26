@@ -25,20 +25,25 @@ use nym_node::config::{
 };
 use nym_node::error::{EntryGatewayError, ExitGatewayError, MixnodeError, NymNodeError};
 use nym_node_http_api::api::api_requests;
-use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
-use nym_node_http_api::state::metrics::{SharedMixingStats, SharedVerlocStats};
+use nym_node_http_api::api::api_requests::v1::node::models::{AnnouncePorts, NodeDescription};
+use nym_node_http_api::state::metrics::{SharedMixingStats, SharedSessionStats, SharedVerlocStats};
 use nym_node_http_api::state::AppState;
 use nym_node_http_api::{NymNodeHTTPServer, NymNodeRouter};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{TaskClient, TaskManager};
+use nym_validator_client::client::NymApiClientExt;
+use nym_validator_client::models::NodeRefreshBody;
+use nym_validator_client::NymApiClient;
 use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
 use tokio::sync::mpsc;
-use tracing::{debug, error, info, trace};
+use tokio::time::timeout;
+use tracing::{debug, error, info, trace, warn};
 use zeroize::Zeroizing;
 
 use self::helpers::load_x25519_wireguard_keypair;
@@ -67,6 +72,7 @@ impl MixnodeData {
 pub struct EntryGatewayData {
     mnemonic: Zeroizing<bip39::Mnemonic>,
     client_storage: nym_gateway::node::PersistentStorage,
+    sessions_stats: SharedSessionStats,
 }
 
 impl EntryGatewayData {
@@ -93,6 +99,7 @@ impl EntryGatewayData {
             )
             .await
             .map_err(nym_gateway::GatewayError::from)?,
+            sessions_stats: SharedSessionStats::new(),
         })
     }
 }
@@ -522,6 +529,7 @@ impl NymNode {
             x25519_wireguard_key: self.x25519_wireguard_key().to_base58_string(),
             exit_network_requester_address: self.exit_network_requester_address().to_string(),
             exit_ip_packet_router_address: self.exit_ip_packet_router_address().to_string(),
+            exit_authenticator_address: self.exit_authenticator_address().to_string(),
         }
     }
 
@@ -580,6 +588,7 @@ impl NymNode {
         );
         entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
+        entry_gateway.set_session_stats(self.entry_gateway.sessions_stats.clone());
         if self.config.wireguard.enabled {
             entry_gateway.set_wireguard_data(self.wireguard.into());
         }
@@ -609,6 +618,7 @@ impl NymNode {
         );
         exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);
+        exit_gateway.set_session_stats(self.entry_gateway.sessions_stats.clone()); //Weird naming I'll give you that, but Andrew is gonna rework it anyway
         if self.config.wireguard.enabled {
             exit_gateway.set_wireguard_data(self.wireguard.into());
         }
@@ -631,6 +641,10 @@ impl NymNode {
 
         let auxiliary_details = api_requests::v1::node::models::AuxiliaryDetails {
             location: self.config.host.location,
+            announce_ports: AnnouncePorts {
+                verloc_port: self.config.mixnode.verloc.announce_port,
+                mix_port: self.config.mixnet.announce_port,
+            },
             accepted_operator_terms_and_conditions: self.accepted_operator_terms_and_conditions,
         };
 
@@ -723,12 +737,45 @@ impl NymNode {
 
         let app_state = AppState::new()
             .with_mixing_stats(self.mixnode.mixing_stats.clone())
+            .with_sessions_stats(self.entry_gateway.sessions_stats.clone())
             .with_verloc_stats(self.verloc_stats.clone())
             .with_metrics_key(self.config.http.access_token.clone());
 
         Ok(NymNodeRouter::new(config, Some(app_state))
             .build_server(&self.config.http.bind_address)
             .await?)
+    }
+
+    async fn try_refresh_remote_nym_api_cache(&self) {
+        info!("attempting to request described cache request from nym-api...");
+        if self.config.mixnet.nym_api_urls.is_empty() {
+            warn!("no nym-api urls available");
+            return;
+        }
+
+        for nym_api in &self.config.mixnet.nym_api_urls {
+            info!("trying {nym_api}...");
+            let client = NymApiClient::new_with_user_agent(nym_api.clone(), bin_info_owned!());
+
+            // make new request every time in case previous one takes longer and invalidates the signature
+            let request = NodeRefreshBody::new(self.ed25519_identity_keys.private_key());
+            match timeout(
+                Duration::from_secs(10),
+                client.nym_api.force_refresh_describe_cache(&request),
+            )
+            .await
+            {
+                Ok(Ok(_)) => {
+                    info!("managed to refresh own self-described data cache")
+                }
+                Ok(Err(request_failure)) => {
+                    warn!("failed to resolve the refresh request: {request_failure}")
+                }
+                Err(_timeout) => {
+                    warn!("timed out while attempting to resolve the request. the cache might be stale")
+                }
+            };
+        }
     }
 
     pub(crate) async fn run(self) -> Result<(), NymNodeError> {
@@ -744,6 +791,8 @@ impl NymNode {
                 http_server.run().await
             }
         });
+
+        self.try_refresh_remote_nym_api_cache().await;
 
         match self.config.mode {
             NodeMode::Mixnode => {

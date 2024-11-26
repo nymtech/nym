@@ -9,13 +9,13 @@ use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
 use crate::support::config;
-use log::{debug, error, info};
+use nym_mixnet_contract_common::NodeId;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
-use std::process;
 use tokio::time::{sleep, Duration, Instant};
+use tracing::{debug, error, info, trace};
 
 pub(crate) mod gateway_clients_cache;
 pub(crate) mod gateways_pinger;
@@ -94,10 +94,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             )
             .await
         {
-            error!("Failed to submit monitor run information to the database - {err}",);
-
-            // TODO: slightly more graceful shutdown here
-            process::exit(1);
+            error!("Failed to submit monitor run information to the database: {err}",);
         }
     }
 
@@ -169,11 +166,11 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             .collect()
     }
 
-    fn blacklist_route_nodes(&self, route: &TestRoute, blacklist: &mut HashSet<String>) {
+    fn blacklist_route_nodes(&self, route: &TestRoute, blacklist: &mut HashSet<NodeId>) {
         for mix in route.topology().mixes_as_vec() {
-            blacklist.insert(mix.identity_key.to_base58_string());
+            blacklist.insert(mix.mix_id);
         }
-        blacklist.insert(route.gateway_identity().to_base58_string());
+        blacklist.insert(route.gateway().node_id);
     }
 
     async fn prepare_test_routes(&mut self) -> Option<Vec<TestRoute>> {
@@ -273,8 +270,8 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         info!("Received {}/{} packets", total_received, total_sent);
 
         let summary = self.summary_producer.produce_summary(
-            prepared_packets.tested_mixnodes,
-            prepared_packets.tested_gateways,
+            prepared_packets.mixnodes_under_test,
+            prepared_packets.gateways_under_test,
             received,
             prepared_packets.invalid_mixnodes,
             prepared_packets.invalid_gateways,

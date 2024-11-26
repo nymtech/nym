@@ -4,6 +4,7 @@
 use nym_cli_commands::context::{create_signing_client, ClientArgs};
 use nym_network_defaults::NymNetworkDetails;
 
+#[allow(dead_code)]
 pub(crate) async fn execute(
     global_args: ClientArgs,
     rewards: nym_cli_commands::validator::mixnet::operators::mixnode::rewards::MixnetOperatorsMixnodeRewards,

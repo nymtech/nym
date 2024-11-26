@@ -1,0 +1,61 @@
+name: Build and upload Node Status agent container to harbor.nymte.ch
+
+on:
+  workflow_dispatch:
+    inputs:
+      gateway_probe_git_ref:
+        type: string
+        description: Which gateway probe git ref to build the image with
+
+env:
+  WORKING_DIRECTORY: "nym-node-status-agent"
+  CONTAINER_NAME: "node-status-agent"
+
+jobs:
+  build-container:
+    runs-on: arc-ubuntu-22.04-dind
+    steps:
+      - name: Login to Harbor
+        uses: docker/login-action@v3
+        with:
+          registry: harbor.nymte.ch
+          username: ${{ secrets.HARBOR_ROBOT_USERNAME }}
+          password: ${{ secrets.HARBOR_ROBOT_SECRET }}
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Configure git identity
+        run: |
+          git config --global user.email "lawrence@nymtech.net"
+          git config --global user.name "Lawrence Stalder"
+
+      - name: Get version from cargo.toml
+        uses: mikefarah/yq@v4.44.3
+        id: get_version
+        with:
+          cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
+
+      - name: cleanup-gateway-probe-ref
+        id: cleanup_gateway_probe_ref
+        run: |
+          GATEWAY_PROBE_GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }}
+          GIT_REF_SLUG="${GATEWAY_PROBE_GIT_REF//\//-}"
+          echo "git_ref=${GIT_REF_SLUG}" >> $GITHUB_OUTPUT
+
+      - name: Remove existing tag if exists
+        run: |
+          if git rev-parse ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }} >/dev/null 2>&1; then
+            git push --delete origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}
+            git tag -d ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}
+          fi
+
+      - name: Create tag
+        run: |
+          git tag -a ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }} -m "Version ${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}"
+          git push origin ${{ env.WORKING_DIRECTORY }}-${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}
+
+      - name: BuildAndPushImageOnHarbor
+        run: |
+          docker build --build-arg GIT_REF=${{ github.event.inputs.gateway_probe_git_ref }} -f ${{ env.WORKING_DIRECTORY }}/Dockerfile . -t harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }}:${{ steps.get_version.outputs.result }}-${{ steps.cleanup_gateway_probe_ref.outputs.git_ref }}
+          docker push harbor.nymte.ch/nym/${{ env.CONTAINER_NAME }} --all-tags

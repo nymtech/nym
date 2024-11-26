@@ -7,12 +7,12 @@ license.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-log.workspace = true
 nym-explorer-api-requests = { path = "../explorer-api-requests" }
 reqwest = { workspace = true, features = ["json"] }
 serde.workspace = true
 thiserror.workspace = true
 url.workspace = true
+tracing = {workspace = true, features = ["attributes"]}
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["full"] }

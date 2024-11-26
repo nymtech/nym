@@ -252,11 +252,25 @@ pub fn prepare_blind_sign(
         });
     }
 
-    let (commitment_opening, commitment) =
-        compute_attributes_commitment(params, private_attributes, public_attributes, hs);
+    let mut commitment_hash;
+    let mut commitment;
+    let mut commitment_opening;
 
-    // Compute the challenge as the commitment hash
-    let commitment_hash = compute_hash(commitment, public_attributes);
+    loop {
+        // Compute the attributes commitment
+        let (c_opening, c) =
+            compute_attributes_commitment(params, private_attributes, public_attributes, hs);
+        commitment_opening = c_opening;
+        commitment = c;
+
+        // Compute the commitment hash
+        commitment_hash = compute_hash(commitment, public_attributes);
+
+        // Check if the commitment hash is not the identity point
+        if !bool::from(commitment_hash.is_identity()) {
+            break;
+        }
+    }
 
     let (pedersen_commitments_openings, pedersen_commitments) =
         compute_pedersen_commitments_for_private_attributes(
@@ -304,6 +318,11 @@ pub fn blind_sign(
 
     // Verify the commitment hash
     let h = compute_hash(blind_sign_request.commitment, public_attributes);
+    if bool::from(blind_sign_request.commitment_hash.is_identity()) {
+        return Err(CoconutError::Issuance(
+            "Commitment hash should not be an identity point".to_string(),
+        ));
+    }
     if !(h == blind_sign_request.commitment_hash) {
         return Err(CoconutError::Issuance(
             "Failed to verify the commitment hash".to_string(),
@@ -372,6 +391,9 @@ pub fn verify_partial_blind_signature(
     if num_private_attributes + public_attributes.len() > partial_verification_key.beta_g2.len() {
         return false;
     }
+    if bool::from(blind_sig.0.is_identity()) {
+        return false;
+    }
 
     // TODO: we're losing some memory here due to extra allocation,
     // but worst-case scenario (given SANE amount of attributes), it's just few kb at most
@@ -430,11 +452,7 @@ pub fn verify_partial_blind_signature(
 }
 
 /// Creates a Coconut Signature under a given secret key on a set of public attributes only.
-pub fn sign(
-    params: &Parameters,
-    secret_key: &SecretKey,
-    public_attributes: &[&Attribute],
-) -> Result<Signature> {
+pub fn sign(secret_key: &SecretKey, public_attributes: &[&Attribute]) -> Result<Signature> {
     if public_attributes.len() > secret_key.ys.len() {
         return Err(CoconutError::IssuanceMaxAttributes {
             max: secret_key.ys.len(),
@@ -442,13 +460,23 @@ pub fn sign(
         });
     }
 
-    // TODO: why in the python implementation this hash onto the curve is present
-    // while it's not used in the paper? the paper uses random exponent instead.
-    // (the python implementation hashes string representation of all attributes onto the curve,
-    // but I think the same can be achieved by just summing the attributes thus avoiding the unnecessary
-    // transformation. If I'm wrong, please correct me.)
-    let attributes_sum = public_attributes.iter().copied().sum::<Scalar>();
-    let h = hash_g1((params.gen1() * attributes_sum).to_bytes());
+    //Serialize the array structure of the public attributes into a byte array
+    let mut serialized_attributes = Vec::new();
+    //Prepend the length of the entire array (in bytes)
+    let array_len = public_attributes.len() as u64;
+    serialized_attributes.extend_from_slice(&array_len.to_le_bytes());
+    //Serialize each attribute with its length
+    for &attribute in public_attributes.iter() {
+        let attr_bytes = attribute.to_bytes();
+        let attr_len = attr_bytes.len() as u64;
+
+        // Prefix the attribute with its length
+        serialized_attributes.extend_from_slice(&attr_len.to_le_bytes());
+        serialized_attributes.extend_from_slice(&attr_bytes);
+    }
+
+    //Hash the resulting byte array to derive the point H
+    let h = hash_g1(serialized_attributes);
 
     // x + m0 * y0 + m1 * y1 + ... mn * yn
     let exponent = secret_key.x
@@ -496,6 +524,61 @@ mod tests {
         assert_eq!(
             BlindSignRequest::try_from(bytes.as_slice()).unwrap(),
             lambda
+        );
+    }
+
+    #[test]
+    fn test_prepare_blind_sign_non_identity_commitment_hash() {
+        let params = Parameters::new(1).unwrap();
+        random_scalars_refs!(private_attributes, params, 1);
+        random_scalars_refs!(public_attributes, params, 0);
+
+        // Call the function to prepare the blind sign
+        let result = prepare_blind_sign(&params, &private_attributes, &public_attributes);
+
+        // Ensure the result is Ok
+        assert!(result.is_ok(), "prepare_blind_sign should succeed");
+
+        let (_, blind_sign_request) = result.unwrap();
+
+        // Ensure the commitment_hash is not the identity point
+        assert!(
+            !bool::from(blind_sign_request.commitment_hash.is_identity()),
+            "commitment_hash should not be the identity point"
+        );
+    }
+
+    #[test]
+    fn test_blind_sign_with_identity_commitment_hash() {
+        let params = Parameters::new(1).unwrap();
+        random_scalars_refs!(private_attributes, params, 1);
+        random_scalars_refs!(public_attributes, params, 0);
+
+        // Call the function to prepare the blind sign
+        let (_commitments_openings, blind_sign_request) =
+            prepare_blind_sign(&params, &private_attributes, &public_attributes).unwrap();
+        let blind_sign_request = BlindSignRequest {
+            commitment_hash: G1Projective::identity(),
+            ..blind_sign_request // This copies the other fields from the existing instance
+        };
+
+        let signing_secret_key = SecretKey {
+            x: params.random_scalar(),
+            ys: vec![params.random_scalar()],
+        };
+
+        // Call blind_sign and ensure it returns an error due to identity commitment hash
+        let result = blind_sign(
+            &params,
+            &signing_secret_key,
+            &blind_sign_request,
+            &public_attributes,
+        );
+
+        // The result should be an error
+        assert!(
+            result.is_err(),
+            "blind_sign should return an error when commitment_hash is the identity point"
         );
     }
 

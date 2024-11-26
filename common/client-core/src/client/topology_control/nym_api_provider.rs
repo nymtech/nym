@@ -14,9 +14,10 @@ use url::Url;
 pub const DEFAULT_MIN_MIXNODE_PERFORMANCE: u8 = 50;
 pub const DEFAULT_MIN_GATEWAY_PERFORMANCE: u8 = 50;
 
-pub(crate) struct Config {
-    pub(crate) min_mixnode_performance: u8,
-    pub(crate) min_gateway_performance: u8,
+#[derive(Debug)]
+pub struct Config {
+    pub min_mixnode_performance: u8,
+    pub min_gateway_performance: u8,
 }
 
 impl Default for Config {
@@ -29,7 +30,7 @@ impl Default for Config {
     }
 }
 
-pub(crate) struct NymApiTopologyProvider {
+pub struct NymApiTopologyProvider {
     config: Config,
 
     validator_client: nym_validator_client::client::NymApiClient,
@@ -40,7 +41,7 @@ pub(crate) struct NymApiTopologyProvider {
 }
 
 impl NymApiTopologyProvider {
-    pub(crate) fn new(
+    pub fn new(
         config: Config,
         mut nym_api_urls: Vec<Url>,
         client_version: String,
@@ -98,7 +99,7 @@ impl NymApiTopologyProvider {
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
         let mixnodes = match self
             .validator_client
-            .get_basic_mixnodes(Some(self.client_version.clone()))
+            .get_all_basic_active_mixing_assigned_nodes(Some(self.client_version.clone()))
             .await
         {
             Err(err) => {
@@ -110,7 +111,7 @@ impl NymApiTopologyProvider {
 
         let gateways = match self
             .validator_client
-            .get_basic_gateways(Some(self.client_version.clone()))
+            .get_all_basic_entry_assigned_nodes(Some(self.client_version.clone()))
             .await
         {
             Err(err) => {
@@ -134,7 +135,6 @@ impl NymApiTopologyProvider {
                 g.performance.round_to_integer() >= self.config.min_gateway_performance
             }),
         );
-
         if let Err(err) = self.check_layer_distribution(&topology) {
             warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used: {err}");
             self.use_next_nym_api();

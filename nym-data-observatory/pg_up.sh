@@ -1,5 +1,6 @@
 #!/bin/bash
 
+# .env is generated in build.rs
 source .env
 
 # Launching a container in such a way that it's destroyed after you detach from the terminal:

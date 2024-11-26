@@ -3,12 +3,12 @@
 
 use crate::network_monitor::monitor::gateway_clients_cache::ActiveGatewayClients;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
-use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_crypto::asymmetric::identity::PUBLIC_KEY_LENGTH;
 use nym_task::TaskClient;
 use std::time::Duration;
 use tokio::time::{sleep, Instant};
+use tracing::{debug, info, trace, warn};
 
 // TODO: should it perhaps be moved to config along other timeout values?
 const PING_TIMEOUT: Duration = Duration::from_secs(3);

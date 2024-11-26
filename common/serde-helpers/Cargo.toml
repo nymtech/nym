@@ -13,11 +13,13 @@ license.workspace = true
 [dependencies]
 
 serde = { workspace = true }
+hex = { workspace = true, optional = true }
 bs58 = { workspace = true, optional = true }
 base64 = { workspace = true, optional = true }
 time = { workspace = true, features = ["formatting", "parsing"], optional = true }
 
 [features]
+hex = ["dep:hex"]
 bs58 = ["dep:bs58"]
 base64 = ["dep:base64"]
 date = ["time"]

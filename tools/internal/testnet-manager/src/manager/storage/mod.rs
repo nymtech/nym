@@ -1,11 +1,15 @@
 use std::fs;
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
-use crate::error::NetworkManagerError;
-use crate::manager::contract::{Account, Contract, LoadedNymContracts};
-use crate::manager::network::{LoadedNetwork, Network, SpecialAddresses};
-use crate::manager::node::NymNode;
-use crate::manager::storage::manager::StorageManager;
+use crate::{
+    error::NetworkManagerError,
+    manager::{
+        contract::{Account, Contract, LoadedNymContracts},
+        network::{LoadedNetwork, Network, SpecialAddresses},
+        node::NymNode,
+        storage::manager::StorageManager,
+    },
+};
 use sqlx::ConnectOptions;
 use std::path::Path;
 use tracing::{error, info};
@@ -34,13 +38,12 @@ impl NetworkManagerStorage {
 
         // TODO: we can inject here more stuff based on our nym-api global config
         // struct. Maybe different pool size or timeout intervals?
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
+            .create_if_missing(true)
+            .disable_statement_logging();
 
         // TODO: do we want auto_vacuum ?
-
-        opts.disable_statement_logging();
 
         let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
             Ok(db) => db,

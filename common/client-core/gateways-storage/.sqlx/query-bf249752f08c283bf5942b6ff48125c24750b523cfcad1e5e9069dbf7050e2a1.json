@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT active_gateway_id_bs58 FROM active_gateway",
+  "describe": {
+    "columns": [
+      {
+        "name": "active_gateway_id_bs58",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "bf249752f08c283bf5942b6ff48125c24750b523cfcad1e5e9069dbf7050e2a1"
+}

@@ -2,10 +2,10 @@
 import type { DecCoin } from './DecCoin';
 import type { VestingPeriod } from './VestingPeriod';
 
-export interface VestingAccountInfo {
+export type VestingAccountInfo = {
   owner_address: string;
   staking_address: string | null;
   start_time: bigint;
   periods: Array<VestingPeriod>;
   amount: DecCoin;
-}
+};

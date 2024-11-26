@@ -99,12 +99,25 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
     let peers = all_peers
         .into_iter()
         .map(Peer::try_from)
-        .collect::<Result<Vec<_>, _>>()?;
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .map(|mut peer| {
+            // since WGApi doesn't set those values on init, let's set them to 0
+            peer.rx_bytes = 0;
+            peer.tx_bytes = 0;
+            peer
+        })
+        .collect::<Vec<_>>();
     for peer in peers.iter() {
         let bandwidth_manager =
             PeerController::generate_bandwidth_manager(storage.clone(), &peer.public_key)
                 .await?
                 .map(|bw_m| Arc::new(RwLock::new(bw_m)));
+        // Update storage with *x_bytes set to 0, as in kernel peers we can't set those values
+        // so we need to restart counting. Hopefully the bandwidth was counted in available_bandwidth
+        storage
+            .insert_wireguard_peer(peer, bandwidth_manager.is_some())
+            .await?;
         peer_bandwidth_managers.insert(peer.public_key.clone(), bandwidth_manager);
     }
     wg_api.create_interface()?;

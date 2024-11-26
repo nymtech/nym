@@ -42,7 +42,7 @@ pub(crate) fn initialise_new(id: &str) -> Result<Config> {
 
     // create DKG BTE keys
     let mut rng = OsRng;
-    init_bte_keypair(&mut rng, &config.coconut_signer)?;
+    init_bte_keypair(&mut rng, &config.ecash_signer)?;
     Ok(config)
 }
 

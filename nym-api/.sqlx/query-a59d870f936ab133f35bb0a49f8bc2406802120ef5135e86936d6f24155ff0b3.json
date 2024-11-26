@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE partial_bloomfilter SET bitmap = ? WHERE date = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "a59d870f936ab133f35bb0a49f8bc2406802120ef5135e86936d6f24155ff0b3"
+}

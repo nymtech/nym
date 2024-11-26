@@ -10,6 +10,7 @@ use crate::gateways::http::gateways_make_default_routes;
 use crate::http::swagger::get_docs;
 use crate::mix_node::http::mix_node_make_default_routes;
 use crate::mix_nodes::http::mix_nodes_make_default_routes;
+use crate::nym_nodes::http::unstable_temp_nymnodes_make_default_routes;
 use crate::overview::http::overview_make_default_routes;
 use crate::ping::http::ping_make_default_routes;
 use crate::service_providers::http::service_providers_make_default_routes;
@@ -58,6 +59,7 @@ fn configure_rocket(state: ExplorerApiStateContext) -> Rocket<Build> {
         "/ping" => ping_make_default_routes(&openapi_settings),
         "/validators" => validators_make_default_routes(&openapi_settings),
         "/service-providers" => service_providers_make_default_routes(&openapi_settings),
+        "/tmp/unstable" => unstable_temp_nymnodes_make_default_routes(&openapi_settings),
     };
 
     building_rocket

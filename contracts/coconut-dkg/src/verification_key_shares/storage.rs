@@ -16,7 +16,7 @@ pub(crate) struct VkShareIndex<'a> {
     pub(crate) epoch_id: MultiIndex<'a, EpochId, ContractVKShare, VKShareKey<'a>>,
 }
 
-impl<'a> IndexList<ContractVKShare> for VkShareIndex<'a> {
+impl IndexList<ContractVKShare> for VkShareIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<ContractVKShare>> + '_> {
         let v: Vec<&dyn Index<ContractVKShare>> = vec![&self.epoch_id];
         Box::new(v.into_iter())

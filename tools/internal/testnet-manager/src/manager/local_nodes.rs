@@ -7,8 +7,9 @@ use crate::manager::network::LoadedNetwork;
 use crate::manager::node::NymNode;
 use crate::manager::NetworkManager;
 use console::style;
-use nym_mixnet_contract_common::{Layer, LayerAssignment};
-use nym_validator_client::nyxd::contract_traits::{MixnetQueryClient, MixnetSigningClient};
+use nym_mixnet_contract_common::nym_node::Role;
+use nym_mixnet_contract_common::RoleAssignment;
+use nym_validator_client::nyxd::contract_traits::MixnetSigningClient;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use serde::{Deserialize, Serialize};
 use std::fs;
@@ -160,6 +161,10 @@ impl NetworkManager {
             &format!("127.0.0.1:{verloc_port}"),
             "--entry-bind-address",
             &format!("127.0.0.1:{clients_port}"),
+            "--mixnet-announce-port",
+            &mix_port.to_string(),
+            "--verloc-announce-port",
+            &verloc_port.to_string(),
             "--mnemonic",
             &Zeroizing::new(node.owner.mnemonic.to_string()),
             "--local",
@@ -202,11 +207,7 @@ impl NetworkManager {
 
         ctx.set_pb_message(format!("generating bonding signature for node {id}..."));
 
-        let msg = if is_gateway {
-            node.gateway_bonding_payload()
-        } else {
-            node.mixnode_bonding_payload()
-        };
+        let msg = node.bonding_payload();
 
         let child = Command::new(&ctx.nym_node_binary)
             .args([
@@ -317,28 +318,20 @@ impl NetworkManager {
 
         let owner = ctx.signing_node_owner(node)?;
 
-        let (bonding_fut, typ) = if is_gateway {
-            (
-                owner.bond_gateway(
-                    node.gateway(),
-                    node.bonding_signature(),
-                    node.pledge().into(),
-                    None,
-                ),
-                "gateway",
-            )
+        let typ = if is_gateway {
+            "gateway [as nym-node]"
         } else {
-            (
-                owner.bond_mixnode(
-                    node.mixnode(),
-                    node.cost_params(),
-                    node.bonding_signature(),
-                    node.pledge().into(),
-                    None,
-                ),
-                "mixnode",
-            )
+            "mixnode [as nym-node]"
         };
+
+        let bonding_fut = owner.bond_nymnode(
+            node.bonding_nym_node(),
+            node.cost_params(),
+            node.bonding_signature(),
+            node.pledge().into(),
+            None,
+        );
+
         let res = ctx.async_with_progress(bonding_fut).await?;
         ctx.println(format!(
             "\t{id} ({typ}) bonded in transaction: {}",
@@ -371,10 +364,11 @@ impl NetworkManager {
         ctx: &LocalNodesCtx<'a>,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
-            "🔌 {}Assigning mixnodes to the active set...",
+            "🔌 {}Assigning nodes to the active set...",
             style("[4/5]").bold().dim()
         ));
 
+        // this could be batched in a single tx, but that's too much effort for now
         let rewarder = ctx.signing_rewarder()?;
 
         ctx.set_pb_message("starting epoch transition...");
@@ -385,17 +379,64 @@ impl NetworkManager {
         let fut = rewarder.reconcile_epoch_events(None, None);
         ctx.async_with_progress(fut).await?;
 
-        ctx.set_pb_message("finally assigning the active set...");
-        let fut = rewarder.get_rewarding_parameters();
-        let rewarding_params = ctx.async_with_progress(fut).await?;
-        let active_set_size = rewarding_params.active_set_size;
+        ctx.set_pb_message("finally assigning the active set... exit...");
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::ExitGateway,
+                nodes: vec![],
+            },
+            None,
+        );
+        ctx.async_with_progress(fut).await?;
 
-        let layer_assignment = vec![
-            LayerAssignment::new(1, Layer::One),
-            LayerAssignment::new(2, Layer::Two),
-            LayerAssignment::new(3, Layer::Three),
-        ];
-        let fut = rewarder.advance_current_epoch(layer_assignment, active_set_size, None);
+        ctx.set_pb_message("finally assigning the active set... entry...");
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::EntryGateway,
+                nodes: vec![4],
+            },
+            None,
+        );
+        ctx.async_with_progress(fut).await?;
+
+        ctx.set_pb_message("finally assigning the active set... layer1...");
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::Layer1,
+                nodes: vec![1],
+            },
+            None,
+        );
+        ctx.async_with_progress(fut).await?;
+
+        ctx.set_pb_message("finally assigning the active set... layer2...");
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::Layer2,
+                nodes: vec![2],
+            },
+            None,
+        );
+        ctx.async_with_progress(fut).await?;
+
+        ctx.set_pb_message("finally assigning the active set... layer3...");
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::Layer3,
+                nodes: vec![3],
+            },
+            None,
+        );
+        ctx.async_with_progress(fut).await?;
+
+        ctx.set_pb_message("finally assigning the active set... [empty] standby...");
+        let fut = rewarder.assign_roles(
+            RoleAssignment {
+                role: Role::Standby,
+                nodes: vec![],
+            },
+            None,
+        );
         ctx.async_with_progress(fut).await?;
 
         Ok(())

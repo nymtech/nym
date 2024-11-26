@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/SendTxResult.ts")
+    ts(export, export_to = "ts-packages/types/src/types/rust/SendTxResult.ts")
 )]
 #[derive(Deserialize, Serialize, Debug)]
 pub struct SendTxResult {
@@ -38,7 +38,10 @@ impl SendTxResult {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/TransactionDetails.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/TransactionDetails.ts"
+    )
 )]
 #[derive(Deserialize, Serialize, Debug)]
 pub struct TransactionDetails {
@@ -60,7 +63,10 @@ impl TransactionDetails {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/TransactionExecuteResult.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/TransactionExecuteResult.ts"
+    )
 )]
 #[derive(Deserialize, Serialize, Debug)]
 pub struct TransactionExecuteResult {
@@ -89,7 +95,10 @@ impl TransactionExecuteResult {
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
-    ts(export_to = "ts-packages/types/src/types/rust/RpcTransactionResponse.ts")
+    ts(
+        export,
+        export_to = "ts-packages/types/src/types/rust/RpcTransactionResponse.ts"
+    )
 )]
 #[derive(Deserialize, Serialize)]
 pub struct RpcTransactionResponse {

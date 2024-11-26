@@ -38,6 +38,7 @@ pub(crate) struct DisplayDetails {
 
     pub(crate) exit_network_requester_address: String,
     pub(crate) exit_ip_packet_router_address: String,
+    pub(crate) exit_authenticator_address: String,
 }
 
 impl Display for DisplayDetails {
@@ -63,6 +64,11 @@ impl Display for DisplayDetails {
             f,
             "exit ip packet router address: {}",
             self.exit_ip_packet_router_address
+        )?;
+        writeln!(
+            f,
+            "exit authenticator address: {}",
+            self.exit_authenticator_address
         )?;
         Ok(())
     }

@@ -154,7 +154,7 @@ pub fn ephemeral_entry_gateway_config(
     config: Config,
     mnemonic: &bip39::Mnemonic,
 ) -> Result<EphemeralConfig, EntryGatewayError> {
-    let auth_opts = LocalAuthenticatorOpts {
+    let mut auth_opts = LocalAuthenticatorOpts {
         config: nym_authenticator::Config {
             base: nym_client_core_config_types::Config {
                 client: base_client_config(&config),
@@ -172,6 +172,10 @@ pub fn ephemeral_entry_gateway_config(
         },
         custom_mixnet_path: None,
     };
+
+    if config.authenticator.debug.disable_poisson_rate {
+        auth_opts.config.base.set_no_poisson_process();
+    }
 
     let wg_opts = LocalWireguardOpts {
         config: super::Wireguard {

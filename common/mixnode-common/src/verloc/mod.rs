@@ -14,7 +14,6 @@ use nym_task::TaskClient;
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use std::net::SocketAddr;
-use std::net::ToSocketAddrs;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::task::JoinHandle;
@@ -313,7 +312,7 @@ impl VerlocMeasurer {
             info!("Starting verloc measurements");
             // TODO: should we also measure gateways?
 
-            let all_mixes = match self.validator_client.get_cached_mixnodes().await {
+            let all_mixes = match self.validator_client.get_all_described_nodes().await {
                 Ok(nodes) => nodes,
                 Err(err) => {
                     error!(
@@ -332,22 +331,14 @@ impl VerlocMeasurer {
             // we only care about address and identity
             let tested_nodes = all_mixes
                 .into_iter()
+                .filter(|n| n.description.declared_role.mixnode)
                 .filter_map(|node| {
-                    let mix_node = node.bond_information.mix_node;
-                    // check if the node has sufficient version to be able to understand the packets
-                    let node_version = parse_version(&mix_node.version).ok()?;
-                    if node_version < self.config.minimum_compatible_node_version {
-                        return None;
-                    }
-
                     // try to parse the identity and host
-                    let node_identity =
-                        identity::PublicKey::from_base58_string(mix_node.identity_key).ok()?;
+                    let node_identity = node.ed25519_identity_key();
 
-                    let verloc_host = (&*mix_node.host, mix_node.verloc_port)
-                        .to_socket_addrs()
-                        .ok()?
-                        .next()?;
+                    let ip = node.description.host_information.ip_address.first()?;
+                    let verloc_port = node.description.verloc_port();
+                    let verloc_host = SocketAddr::new(*ip, verloc_port);
 
                     // TODO: possible problem in the future, this does name resolution and theoretically
                     // if a lot of nodes maliciously mis-configured themselves, it might take a while to resolve them all

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "INSERT INTO gateway_historical_uptime(gateway_details_id, date, uptime) VALUES (?, ?, ?)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "4077371f0dccf1b389da97b3f8b290a4095c807eaefd68f3863b0fcec67019e9"
+}

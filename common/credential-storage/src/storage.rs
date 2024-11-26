@@ -45,12 +45,13 @@ pub trait Storage: Send + Sync {
 
     async fn remove_pending_ticketbook(&self, pending_id: i64) -> Result<(), Self::StorageError>;
 
-    /// Tries to retrieve one of the stored ticketbook,
+    /// Tries to retrieve one of the stored ticketbook for the specified type,
     /// that has not yet expired and has required number of unspent tickets.
     /// it immediately updated the on-disk number of used tickets so that another task
     /// could obtain their own tickets at the same time
     async fn get_next_unspent_usable_ticketbook(
         &self,
+        ticketbook_type: String,
         tickets: u32,
     ) -> Result<Option<RetrievedTicketbook>, Self::StorageError>;
 

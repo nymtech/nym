@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT COUNT(*) as count FROM\n                (\n                    SELECT monitor_run_id\n                    FROM testing_route\n                    WHERE testing_route.gateway_id = ?\n                ) testing_route\n                JOIN\n                (\n                    SELECT id\n                    FROM monitor_run\n                    WHERE monitor_run.timestamp > ?\n                ) monitor_run\n                ON monitor_run.id = testing_route.monitor_run_id;\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "count",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "93db1709eb08a8badc95ce94e1c28ba3da889468e4b12807aaad117a741d3f11"
+}

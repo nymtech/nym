@@ -1,0 +1,11 @@
+name: Hello world
+
+on:
+  workflow_dispatch:
+
+jobs:
+  my-job:
+    runs-on: arc-ubuntu-22.04
+    steps:
+      - name: my-step
+        run: echo "Hello World!"

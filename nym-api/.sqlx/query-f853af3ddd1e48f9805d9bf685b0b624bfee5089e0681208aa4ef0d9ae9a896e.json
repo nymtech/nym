@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    INSERT INTO mixnode_status (mixnode_details_id, reliability, timestamp) VALUES (?, ?, ?);\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": []
+  },
+  "hash": "f853af3ddd1e48f9805d9bf685b0b624bfee5089e0681208aa4ef0d9ae9a896e"
+}

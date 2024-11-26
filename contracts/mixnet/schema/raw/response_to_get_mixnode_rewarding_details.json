@@ -17,7 +17,7 @@
       "description": "If there exists a mixnode with the provided id, this field contains its rewarding information.",
       "anyOf": [
         {
-          "$ref": "#/definitions/MixNodeRewarding"
+          "$ref": "#/definitions/NodeRewarding"
         },
         {
           "type": "null"
@@ -46,7 +46,7 @@
       "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
       "type": "string"
     },
-    "MixNodeCostParams": {
+    "NodeCostParams": {
       "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences how the rewards should be split between the node operator and its delegators.",
       "type": "object",
       "required": [
@@ -55,7 +55,7 @@
       ],
       "properties": {
         "interval_operating_cost": {
-          "description": "Operating cost of the associated mixnode per the entire interval.",
+          "description": "Operating cost of the associated node per the entire interval.",
           "allOf": [
             {
               "$ref": "#/definitions/Coin"
@@ -63,7 +63,7 @@
           ]
         },
         "profit_margin_percent": {
-          "description": "The profit margin of the associated mixnode, i.e. the desired percent of the reward to be distributed to the operator.",
+          "description": "The profit margin of the associated node, i.e. the desired percent of the reward to be distributed to the operator.",
           "allOf": [
             {
               "$ref": "#/definitions/Percent"
@@ -73,7 +73,7 @@
       },
       "additionalProperties": false
     },
-    "MixNodeRewarding": {
+    "NodeRewarding": {
       "type": "object",
       "required": [
         "cost_params",
@@ -89,7 +89,7 @@
           "description": "Information provided by the operator that influence the cost function.",
           "allOf": [
             {
-              "$ref": "#/definitions/MixNodeCostParams"
+              "$ref": "#/definitions/NodeCostParams"
             }
           ]
         },
@@ -129,7 +129,7 @@
           "minimum": 0.0
         },
         "unit_delegation": {
-          "description": "Value of the theoretical \"unit delegation\" that has delegated to this mixnode at block 0.",
+          "description": "Value of the theoretical \"unit delegation\" that has delegated to this node at block 0.",
           "allOf": [
             {
               "$ref": "#/definitions/Decimal"

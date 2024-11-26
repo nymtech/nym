@@ -102,7 +102,6 @@ export const isLessThan = (a: number, b: number) => a < b;
  */
 
 export const isBalanceEnough = (fee: string, tx: string = '0', balance: string = '0') => {
-  console.log('balance', balance, fee, tx);
   try {
     return Big(balance).gte(Big(fee).plus(Big(tx)));
   } catch (e) {

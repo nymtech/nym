@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT DISTINCT identity_key, mix_id as \"mix_id: NodeId\", id\n                    FROM mixnode_details\n                    JOIN mixnode_status\n                    ON mixnode_details.id = mixnode_status.mixnode_details_id\n                    WHERE EXISTS (\n                        SELECT 1 FROM mixnode_status WHERE timestamp > ? AND timestamp < ?\n                    )\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "identity_key",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "mix_id: NodeId",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "id",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b72420d03ee03ee3506e7b2a97667f1481269877ef2eea32a673f4ba2fbdb498"
+}

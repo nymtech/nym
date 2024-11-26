@@ -14,7 +14,7 @@ license = { workspace = true }
 bls12_381 = { workspace = true, features = ["alloc", "pairings", "experimental", "zeroize", "experimental_serde"] }
 bincode.workspace = true
 cfg-if.workspace = true
-itertools = "0.12.1"
+itertools = { workspace = true }
 digest = "0.9"
 rand = { workspace = true }
 thiserror = { workspace = true }
@@ -25,6 +25,7 @@ rayon = { workspace = true, optional = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
 ff = { workspace = true }
 group = { workspace = true }
+subtle = { workspace = true }
 
 nym-pemstore = { path = "../pemstore" }
 nym-network-defaults = { path = "../network-defaults", default-features = false }

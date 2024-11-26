@@ -11,9 +11,9 @@ bs58 = { workspace = true }
 cosmrs = { workspace = true }
 cosmwasm-std = { workspace = true }
 getset = { workspace = true }
-rocket = { workspace = true, optional = true }
 schemars = { workspace = true, features = ["preserve_order"] }
 serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
 sha2.workspace = true
 tendermint = { workspace = true }
 thiserror.workspace = true
@@ -32,12 +32,9 @@ nym-ecash-time = { path = "../../common/ecash-time" }
 nym-compact-ecash = { path = "../../common/nym_offline_compact_ecash" }
 nym-mixnet-contract-common = { path = "../../common/cosmwasm-smart-contracts/mixnet-contract" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", default-features = false, features = ["openapi"] }
+nym-network-defaults = { path = "../../common/network-defaults" }
 
-
-[dev-dependencies]
-serde_json.workspace = true
 
 [features]
 default = []
-rocket-traits = ["rocket"]
 generate-ts = ["ts-rs", "nym-mixnet-contract-common/generate-ts"]

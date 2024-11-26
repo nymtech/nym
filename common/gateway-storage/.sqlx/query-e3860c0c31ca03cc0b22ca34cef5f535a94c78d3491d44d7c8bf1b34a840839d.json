@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                   SELECT \n                        id as \"id!\",\n                        client_address_bs58 as \"client_address_bs58!\",\n                        content as \"content!\"\n                    FROM message_store\n                    WHERE client_address_bs58 = ?\n                    ORDER BY id ASC\n                    LIMIT ?;\n                ",
+  "describe": {
+    "columns": [
+      {
+        "name": "id!",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "client_address_bs58!",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "content!",
+        "ordinal": 2,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e3860c0c31ca03cc0b22ca34cef5f535a94c78d3491d44d7c8bf1b34a840839d"
+}

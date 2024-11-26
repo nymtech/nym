@@ -1,21 +1,18 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::cmp::Ordering;
-use std::collections::{HashMap, HashSet};
-use std::fs;
-use std::fs::OpenOptions;
-
 use clap::Parser;
 use comfy_table::Table;
 use csv::WriterBuilder;
 use log::info;
 use nym_mixnet_contract_common::ExecuteMsg;
-use nym_mixnet_contract_common::ExecuteMsg::{DelegateToMixnode, UndelegateFromMixnode};
-
-use nym_mixnet_contract_common::PendingEpochEventKind::{Delegate, Undelegate};
+use nym_mixnet_contract_common::PendingEpochEventKind;
 use nym_validator_client::nyxd::contract_traits::{NymContractsProvider, PagedMixnetQueryClient};
 use nym_validator_client::nyxd::Coin;
+use std::cmp::Ordering;
+use std::collections::{HashMap, HashSet};
+use std::fs;
+use std::fs::OpenOptions;
 
 use crate::context::SigningClient;
 use crate::utils::pretty_coin;
@@ -40,7 +37,7 @@ pub struct Args {
 
 #[derive(Debug)]
 pub struct InputFileRow {
-    pub mix_id: String,
+    pub node_id: String,
     pub amount: Coin,
 }
 #[derive(Debug)]
@@ -76,7 +73,7 @@ impl InputFileReader {
             }
 
             rows.push(InputFileRow {
-                mix_id,
+                node_id: mix_id,
                 amount: Coin {
                     amount: micro_nym_amount,
                     denom: "unym".to_string(),
@@ -140,8 +137,10 @@ async fn fetch_delegation_data(
     let mut pending_delegation_map: HashMap<String, Coin> = HashMap::new();
 
     for delegation in delegations {
-        existing_delegation_map
-            .insert(delegation.mix_id.to_string(), Coin::from(delegation.amount));
+        existing_delegation_map.insert(
+            delegation.node_id.to_string(),
+            Coin::from(delegation.amount),
+        );
     }
 
     // Look for pending delegate / undelegate events which might be of interest to us
@@ -155,27 +154,27 @@ async fn fetch_delegation_data(
     for event in pending_events {
         match event.event.kind {
             // If a pending undelegate tx is found, remove it from delegation map
-            Undelegate { owner, mix_id, .. } => {
+            PendingEpochEventKind::Undelegate { owner, node_id, .. } => {
                 if owner == address.as_ref()
-                    && existing_delegation_map.contains_key(&mix_id.to_string())
+                    && existing_delegation_map.contains_key(&node_id.to_string())
                 {
-                    existing_delegation_map.remove(&mix_id.to_string());
+                    existing_delegation_map.remove(&node_id.to_string());
                 }
             }
 
             // If a pending delegation event is found, gather them to consolidate later
-            Delegate {
+            PendingEpochEventKind::Delegate {
                 owner,
-                mix_id,
+                node_id,
                 amount,
                 ..
             } => {
                 if owner == address.as_ref() {
                     let mut amount = Coin::from(amount);
-                    if let Some(pending_record) = pending_delegation_map.get(&mix_id.to_string()) {
+                    if let Some(pending_record) = pending_delegation_map.get(&node_id.to_string()) {
                         amount.amount += pending_record.amount;
                     }
-                    pending_delegation_map.insert(mix_id.to_string(), amount);
+                    pending_delegation_map.insert(node_id.to_string(), amount);
                 }
             }
             _ => {}
@@ -217,7 +216,7 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
     for row in &records.rows {
         let input_amount = row.amount.amount;
         let existing_delegation_amount = existing_delegation_map
-            .get(&row.mix_id)
+            .get(&row.node_id)
             .map_or(0, |coin| coin.amount);
 
         match existing_delegation_amount.cmp(&input_amount) {
@@ -229,25 +228,26 @@ pub async fn delegate_to_multiple_mixnodes(args: Args, client: SigningClient) {
                     amount: input_amount - existing_delegation_amount,
                     denom: row.amount.denom.clone(),
                 };
-                let mix_id = row.mix_id.clone().parse::<u32>().unwrap();
-                delegation_msgs.push((DelegateToMixnode { mix_id }, vec![difference.clone()]));
+                let node_id = row.node_id.clone().parse::<u32>().unwrap();
+                delegation_msgs.push((ExecuteMsg::Delegate { node_id }, vec![difference.clone()]));
                 delegation_table.add_row(&[
-                    row.mix_id.clone(),
+                    row.node_id.clone(),
                     pretty_coin(&row.amount),
                     pretty_coin(&difference),
                 ]);
             }
 
             Ordering::Greater => {
-                let mix_id = row.mix_id.clone().parse::<u32>().unwrap();
+                let node_id = row.node_id.clone().parse::<u32>().unwrap();
                 let coins: Vec<Coin> = vec![];
-                undelegation_msgs.push((UndelegateFromMixnode { mix_id }, coins));
-                undelegation_table.add_row(&[row.mix_id.clone()]);
+                undelegation_msgs.push((ExecuteMsg::Undelegate { node_id }, coins));
+                undelegation_table.add_row(&[row.node_id.clone()]);
 
                 if row.amount.amount > 0 {
-                    delegation_msgs.push((DelegateToMixnode { mix_id }, vec![row.amount.clone()]));
+                    delegation_msgs
+                        .push((ExecuteMsg::Delegate { node_id }, vec![row.amount.clone()]));
                     delegation_table.add_row(&[
-                        row.mix_id.clone(),
+                        row.node_id.clone(),
                         pretty_coin(&row.amount),
                         pretty_coin(&row.amount),
                     ]);

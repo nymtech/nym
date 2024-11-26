@@ -5,6 +5,7 @@ use crate::ecash::client::Client;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::helpers::CachedImmutableEpochItem;
 use crate::{ecash, nyxd};
+use async_trait::async_trait;
 use nym_coconut_dkg_common::types::{Epoch, EpochId};
 use nym_dkg::Threshold;
 use nym_validator_client::EcashApiClient;

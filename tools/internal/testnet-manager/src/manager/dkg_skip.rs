@@ -77,12 +77,6 @@ impl<'a> PemStorableKey for FakeDkgKey<'a> {
     }
 }
 
-impl EcashSignerWithPaths {
-    pub(crate) fn api_port(&self) -> u16 {
-        self.data.endpoint.port().unwrap()
-    }
-}
-
 struct DkgSkipCtx<'a> {
     progress: ProgressTracker,
     network: &'a LoadedNetwork,

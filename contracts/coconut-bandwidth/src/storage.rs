@@ -18,7 +18,7 @@ pub(crate) struct SpendCredentialIndex<'a> {
 
 // IndexList is just boilerplate code for fetching a struct's indexes
 // note that from my understanding this will be converted into a macro at some point in the future
-impl<'a> IndexList<SpendCredential> for SpendCredentialIndex<'a> {
+impl IndexList<SpendCredential> for SpendCredentialIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<SpendCredential>> + '_> {
         let v: Vec<&dyn Index<SpendCredential>> = vec![&self.blinded_serial_number];
         Box::new(v.into_iter())

@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM ticket_verification WHERE ticket_id = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "0aaf87e0bec011910fa23aefa9a487247eb416d4203ab22b787fdcf15e47e586"
+}

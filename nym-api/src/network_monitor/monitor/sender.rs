@@ -11,7 +11,6 @@ use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;
 use futures::{Future, Stream};
-use log::{debug, info, trace, warn};
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
 use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
@@ -30,6 +29,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
+use tracing::{debug, info, trace, warn};
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 

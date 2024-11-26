@@ -1,48 +1,82 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
-    GatewayStatusReport, GatewayUptimeHistory, MixnodeStatusReport, MixnodeUptimeHistory,
-    NymApiStorageError, Uptime,
+    GatewayStatusReport, GatewayUptimeHistory, HistoricalUptime as ApiHistoricalUptime,
+    MixnodeStatusReport, MixnodeUptimeHistory, NymApiStorageError, Uptime,
 };
 use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NodeStatus, TestingRoute};
 use crate::support::storage::models::{
-    GatewayDetails, MixnodeDetails, TestedGatewayStatus, TestedMixnodeStatus,
+    GatewayDetails, HistoricalUptime, MixnodeDetails, TestedGatewayStatus, TestedMixnodeStatus,
 };
-use nym_mixnet_contract_common::MixId;
-use nym_types::monitoring::{GatewayResult, MixnodeResult};
-use rocket::fairing::AdHoc;
+use dashmap::DashMap;
+use nym_mixnet_contract_common::NodeId;
+use nym_types::monitoring::NodeResult;
 use sqlx::ConnectOptions;
 use std::path::Path;
-use time::OffsetDateTime;
-
-use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
+use std::sync::Arc;
+use std::time::Duration;
+use time::{Date, OffsetDateTime};
+use tracing::log::LevelFilter;
+use tracing::{error, info, warn};
 
 pub(crate) mod manager;
 pub(crate) mod models;
+
+#[derive(Default)]
+pub(crate) struct DbIdCache {
+    pub mixnodes_v1: DashMap<NodeId, i64>,
+    pub gateways_v1: DashMap<NodeId, i64>,
+}
+
+impl DbIdCache {
+    pub(crate) fn mixnode_db_id(&self, node_id: NodeId) -> Option<i64> {
+        self.mixnodes_v1.get(&node_id).map(|v| *v)
+    }
+
+    pub(crate) fn gateway_db_id(&self, node_id: NodeId) -> Option<i64> {
+        self.gateways_v1.get(&node_id).map(|v| *v)
+    }
+
+    pub(crate) fn set_mixnode_db_id(&self, node_id: NodeId, db_id: i64) {
+        self.mixnodes_v1.insert(node_id, db_id);
+    }
+
+    pub(crate) fn set_gateway_db_id(&self, node_id: NodeId, db_id: i64) {
+        self.gateways_v1.insert(node_id, db_id);
+    }
+}
 
 // note that clone here is fine as upon cloning the same underlying pool will be used
 #[derive(Clone)]
 pub(crate) struct NymApiStorage {
     pub manager: StorageManager,
+
+    pub db_id_cache: Arc<DbIdCache>,
 }
 
 impl NymApiStorage {
     pub async fn init<P: AsRef<Path>>(database_path: P) -> Result<Self, NymApiStorageError> {
         // TODO: we can inject here more stuff based on our nym-api global config
         // struct. Maybe different pool size or timeout intervals?
-        let mut opts = sqlx::sqlite::SqliteConnectOptions::new()
+        let connect_opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
-            .create_if_missing(true);
+            .create_if_missing(true)
+            .log_statements(LevelFilter::Trace)
+            .log_slow_statements(LevelFilter::Warn, Duration::from_millis(250));
 
         // TODO: do we want auto_vacuum ?
 
-        opts.disable_statement_logging();
+        let pool_opts = sqlx::sqlite::SqlitePoolOptions::new()
+            .min_connections(5)
+            .max_connections(25)
+            .acquire_timeout(Duration::from_secs(60));
 
-        let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
+        let connection_pool = match pool_opts.connect_with(connect_opts).await {
             Ok(db) => db,
             Err(err) => {
                 error!("Failed to connect to SQLx database: {err}");
@@ -59,39 +93,38 @@ impl NymApiStorage {
 
         let storage = NymApiStorage {
             manager: StorageManager { connection_pool },
+            db_id_cache: Arc::new(Default::default()),
         };
 
         Ok(storage)
     }
 
-    #[deprecated(note = "TODO rocket: obsolete because it's used for Rocket")]
-    pub(crate) fn stage(storage: NymApiStorage) -> AdHoc {
-        AdHoc::try_on_ignite("SQLx Database", |rocket| async {
-            Ok(rocket.manage(storage))
-        })
+    pub(crate) async fn get_mixnode_database_id(
+        &self,
+        node_id: NodeId,
+    ) -> Result<Option<i64>, NymApiStorageError> {
+        if let Some(cached) = self.db_id_cache.mixnode_db_id(node_id) {
+            return Ok(Some(cached));
+        }
+        if let Some(retrieved) = self.manager.get_mixnode_database_id(node_id).await? {
+            self.db_id_cache.set_mixnode_db_id(node_id, retrieved);
+            return Ok(Some(retrieved));
+        }
+        Ok(None)
     }
 
-    #[allow(unused)]
-    pub(crate) async fn mix_identity_to_mix_ids(
+    pub(crate) async fn get_gateway_database_id(
         &self,
-        identity: &str,
-    ) -> Result<Vec<MixId>, NymApiStorageError> {
-        Ok(self
-            .manager
-            .get_mixnode_mix_ids_by_identity(identity)
-            .await?)
-    }
-
-    #[allow(unused)]
-    pub(crate) async fn mix_identity_to_latest_mix_id(
-        &self,
-        identity: &str,
-    ) -> Result<Option<MixId>, NymApiStorageError> {
-        Ok(self
-            .mix_identity_to_mix_ids(identity)
-            .await?
-            .into_iter()
-            .max())
+        node_id: NodeId,
+    ) -> Result<Option<i64>, NymApiStorageError> {
+        if let Some(cached) = self.db_id_cache.gateway_db_id(node_id) {
+            return Ok(Some(cached));
+        }
+        if let Some(retrieved) = self.manager.get_gateway_database_id(node_id).await? {
+            self.db_id_cache.set_gateway_db_id(node_id, retrieved);
+            return Ok(Some(retrieved));
+        }
+        Ok(None)
     }
 
     pub(crate) async fn get_all_avg_gateway_reliability_in_last_24hr(
@@ -127,7 +160,7 @@ impl NymApiStorage {
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     async fn get_mixnode_statuses(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         since: i64,
     ) -> Result<Vec<NodeStatus>, NymApiStorageError> {
         let statuses = self
@@ -143,16 +176,15 @@ impl NymApiStorage {
     ///
     /// # Arguments
     ///
-    /// * `identity`: identity key of the gateway to query.
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     async fn get_gateway_statuses(
         &self,
-        identity: &str,
+        node_id: NodeId,
         since: i64,
     ) -> Result<Vec<NodeStatus>, NymApiStorageError> {
         let statuses = self
             .manager
-            .get_gateway_statuses_since(identity, since)
+            .get_gateway_statuses_since(node_id, since)
             .await?;
 
         Ok(statuses)
@@ -165,7 +197,7 @@ impl NymApiStorage {
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     pub(crate) async fn construct_mixnode_report(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeStatusReport, NymApiStorageError> {
         let now = OffsetDateTime::now_utc();
         let day_ago = (now - ONE_DAY).unix_timestamp();
@@ -186,21 +218,14 @@ impl NymApiStorage {
             .get_monitor_runs_count(day_ago, now.unix_timestamp())
             .await?;
 
-        let mixnode_owner =
-            self.manager.get_mixnode_owner(mix_id).await?.expect(
-                "The node doesn't have an owner even though we have status information on it!",
-            );
-
-        let mixnode_identity =
-            self.manager.get_mixnode_identity_key(mix_id).await?.expect(
-                "The node doesn't have an owner even though we have status information on it!",
-            );
+        let mixnode_identity = self.manager.get_mixnode_identity_key(mix_id).await?.expect(
+            "The node doesn't have an identity even though we have status information on it!",
+        );
 
         Ok(MixnodeStatusReport::construct_from_last_day_reports(
             now,
             mix_id,
             mixnode_identity,
-            mixnode_owner,
             statuses,
             last_hour_runs_count,
             last_day_runs_count,
@@ -209,19 +234,17 @@ impl NymApiStorage {
 
     pub(crate) async fn construct_gateway_report(
         &self,
-        identity: &str,
+        node_id: NodeId,
     ) -> Result<GatewayStatusReport, NymApiStorageError> {
         let now = OffsetDateTime::now_utc();
         let day_ago = (now - ONE_DAY).unix_timestamp();
         let hour_ago = (now - ONE_HOUR).unix_timestamp();
 
-        let statuses = self.get_gateway_statuses(identity, day_ago).await?;
+        let statuses = self.get_gateway_statuses(node_id, day_ago).await?;
 
         // if we have no statuses, the node doesn't exist (or monitor is down), but either way, we can't make a report
         if statuses.is_empty() {
-            return Err(NymApiStorageError::GatewayReportNotFound {
-                identity: identity.to_owned(),
-            });
+            return Err(NymApiStorageError::GatewayReportNotFound { node_id });
         }
 
         // determine the number of runs the gateway should have been online for
@@ -232,14 +255,18 @@ impl NymApiStorage {
             .get_monitor_runs_count(day_ago, now.unix_timestamp())
             .await?;
 
-        let gateway_owner = self.manager.get_gateway_owner(identity).await?.expect(
-            "The gateway doesn't have an owner even though we have status information on it!",
-        );
+        let gateway_identity = self
+            .manager
+            .get_gateway_identity_key(node_id)
+            .await?
+            .expect(
+                "The node doesn't have an identity even though we have status information on it!",
+            );
 
         Ok(GatewayStatusReport::construct_from_last_day_reports(
             now,
-            identity.to_owned(),
-            gateway_owner,
+            node_id,
+            gateway_identity,
             statuses,
             last_hour_runs_count,
             last_day_runs_count,
@@ -248,7 +275,7 @@ impl NymApiStorage {
 
     pub(crate) async fn get_mixnode_uptime_history(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
     ) -> Result<MixnodeUptimeHistory, NymApiStorageError> {
         let history = self.manager.get_mixnode_historical_uptimes(mix_id).await?;
 
@@ -256,69 +283,123 @@ impl NymApiStorage {
             return Err(NymApiStorageError::MixnodeUptimeHistoryNotFound { mix_id });
         }
 
-        let mixnode_owner =
-            self.manager.get_mixnode_owner(mix_id).await?.expect(
-                "The node doesn't have an owner even though we have uptime history for it!",
-            );
-
         let mixnode_identity =
             self.manager.get_mixnode_identity_key(mix_id).await?.expect(
                 "The node doesn't have an identity even though we have uptime history for it!",
             );
 
-        Ok(MixnodeUptimeHistory::new(
-            mix_id,
-            mixnode_identity,
-            mixnode_owner,
+        Ok(MixnodeUptimeHistory::new(mix_id, mixnode_identity, history))
+    }
+
+    pub(crate) async fn get_gateway_uptime_history_by_identity(
+        &self,
+        gateway_identity: &str,
+    ) -> Result<GatewayUptimeHistory, NymApiStorageError> {
+        let Some(node_id) = self
+            .manager
+            .get_gateway_node_id_from_identity_key(gateway_identity)
+            .await?
+        else {
+            return Err(NymApiStorageError::GatewayNotFound {
+                identity: gateway_identity.to_string(),
+            });
+        };
+
+        let history = self.manager.get_gateway_historical_uptimes(node_id).await?;
+
+        if history.is_empty() {
+            return Err(NymApiStorageError::GatewayUptimeHistoryNotFound { node_id });
+        }
+
+        Ok(GatewayUptimeHistory::new(
+            node_id,
+            gateway_identity,
             history,
         ))
     }
 
-    pub(crate) async fn get_gateway_uptime_history(
+    pub(crate) async fn get_node_uptime_history(
         &self,
-        identity: &str,
-    ) -> Result<GatewayUptimeHistory, NymApiStorageError> {
-        let history = self
-            .manager
-            .get_gateway_historical_uptimes(identity)
-            .await?;
+        node_id: NodeId,
+    ) -> Result<Vec<ApiHistoricalUptime>, NymApiStorageError> {
+        let history = self.manager.get_mixnode_historical_uptimes(node_id).await?;
 
-        if history.is_empty() {
-            return Err(NymApiStorageError::GatewayUptimeHistoryNotFound {
-                identity: identity.to_owned(),
-            });
+        if !history.is_empty() {
+            return Ok(history);
         }
 
-        let gateway_owner =
-            self.manager.get_gateway_owner(identity).await?.expect(
-                "The gateway doesn't have an owner even though we have uptime history for it!",
-            );
-
-        Ok(GatewayUptimeHistory::new(
-            identity.to_owned(),
-            gateway_owner,
-            history,
-        ))
+        Ok(self.manager.get_gateway_historical_uptimes(node_id).await?)
     }
 
     pub(crate) async fn get_average_mixnode_uptime_in_the_last_24hrs(
         &self,
-        mix_id: MixId,
+        node_id: NodeId,
         end_ts_secs: i64,
     ) -> Result<Uptime, NymApiStorageError> {
         let start = end_ts_secs - 86400;
-        self.get_average_mixnode_uptime_in_time_interval(mix_id, start, end_ts_secs)
-            .await
+        let reliability = self
+            .get_average_mixnode_reliability_in_time_interval(node_id, start, end_ts_secs)
+            .await?;
+        Ok(Uptime::new(reliability))
     }
 
     pub(crate) async fn get_average_gateway_uptime_in_the_last_24hrs(
         &self,
-        identity: &str,
+        node_id: NodeId,
         end_ts_secs: i64,
     ) -> Result<Uptime, NymApiStorageError> {
         let start = end_ts_secs - 86400;
-        self.get_average_gateway_uptime_in_time_interval(identity, start, end_ts_secs)
+        let reliability = self
+            .get_average_gateway_reliability_in_time_interval(node_id, start, end_ts_secs)
+            .await?;
+        Ok(Uptime::new(reliability))
+    }
+
+    pub(crate) async fn get_average_node_uptime_in_the_last_24hrs(
+        &self,
+        node_id: NodeId,
+        end_ts_secs: i64,
+    ) -> Result<Uptime, NymApiStorageError> {
+        let start = end_ts_secs - 86400;
+        self.get_average_node_reliability_in_time_interval(node_id, start, end_ts_secs)
             .await
+            .map(Uptime::new)
+    }
+
+    pub(crate) async fn get_historical_mix_uptime_on(
+        &self,
+        node_id: NodeId,
+        date: Date,
+    ) -> Result<Option<HistoricalUptime>, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_historical_mix_uptime_on(node_id as i64, date)
+            .await?)
+    }
+
+    pub(crate) async fn get_historical_gateway_uptime_on(
+        &self,
+        node_id: NodeId,
+        date: Date,
+    ) -> Result<Option<HistoricalUptime>, NymApiStorageError> {
+        Ok(self
+            .manager
+            .get_historical_gateway_uptime_on(node_id as i64, date)
+            .await?)
+    }
+
+    pub(crate) async fn get_historical_node_uptime_on(
+        &self,
+        node_id: NodeId,
+        date: Date,
+    ) -> Result<Option<HistoricalUptime>, NymApiStorageError> {
+        if let Ok(result_as_mix) = self.get_historical_mix_uptime_on(node_id, date).await {
+            if result_as_mix.is_some() {
+                return Ok(result_as_mix);
+            }
+        }
+
+        self.get_historical_gateway_uptime_on(node_id, date).await
     }
 
     /// Based on the data available in the validator API, determines the average uptime of particular
@@ -329,15 +410,16 @@ impl NymApiStorage {
     /// * `mix_id`: mix-id (as assigned by the smart contract) of the mixnode.
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `end`: unix timestamp indicating the upper bound interval of the selection.
-    pub(crate) async fn get_average_mixnode_uptime_in_time_interval(
+    pub(crate) async fn get_average_mixnode_reliability_in_time_interval(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         start: i64,
         end: i64,
-    ) -> Result<Uptime, NymApiStorageError> {
+    ) -> Result<f32, NymApiStorageError> {
+        // those two should have been a single sql query /shrug
         let mixnode_database_id = match self.manager.get_mixnode_database_id(mix_id).await? {
             Some(id) => id,
-            None => return Ok(Uptime::zero()),
+            None => return Ok(0.),
         };
 
         let reliability = self
@@ -345,11 +427,7 @@ impl NymApiStorage {
             .get_mixnode_average_reliability_in_interval(mixnode_database_id, start, end)
             .await?;
 
-        if let Some(reliability) = reliability {
-            Ok(Uptime::new(reliability))
-        } else {
-            Ok(Uptime::zero())
-        }
+        Ok(reliability.unwrap_or_default())
     }
 
     /// Based on the data available in the validator API, determines the average uptime of particular
@@ -360,15 +438,16 @@ impl NymApiStorage {
     /// * `identity`: base58-encoded identity of the gateway.
     /// * `since`: unix timestamp indicating the lower bound interval of the selection.
     /// * `end`: unix timestamp indicating the upper bound interval of the selection.
-    pub(crate) async fn get_average_gateway_uptime_in_time_interval(
+    pub(crate) async fn get_average_gateway_reliability_in_time_interval(
         &self,
-        identity: &str,
+        node_id: NodeId,
         start: i64,
         end: i64,
-    ) -> Result<Uptime, NymApiStorageError> {
-        let gateway_database_id = match self.manager.get_gateway_id(identity).await? {
+    ) -> Result<f32, NymApiStorageError> {
+        // those two should have been a single sql query /shrug
+        let gateway_database_id = match self.manager.get_gateway_database_id(node_id).await? {
             Some(id) => id,
-            None => return Ok(Uptime::zero()),
+            None => return Ok(0.),
         };
 
         let reliability = self
@@ -376,11 +455,26 @@ impl NymApiStorage {
             .get_gateway_average_reliability_in_interval(gateway_database_id, start, end)
             .await?;
 
-        if let Some(reliability) = reliability {
-            Ok(Uptime::new(reliability))
-        } else {
-            Ok(Uptime::zero())
+        Ok(reliability.unwrap_or_default())
+    }
+
+    pub(crate) async fn get_average_node_reliability_in_time_interval(
+        &self,
+        node_id: NodeId,
+        start: i64,
+        end: i64,
+    ) -> Result<f32, NymApiStorageError> {
+        if let Ok(result_as_mix) = self
+            .get_average_mixnode_reliability_in_time_interval(node_id, start, end)
+            .await
+        {
+            if result_as_mix != 0. {
+                return Ok(result_as_mix);
+            }
         }
+
+        self.get_average_gateway_reliability_in_time_interval(node_id, start, end)
+            .await
     }
 
     /// Obtain status reports of mixnodes that were active in the specified time interval.
@@ -416,7 +510,6 @@ impl NymApiStorage {
                     OffsetDateTime::from_unix_timestamp(end).unwrap(),
                     statuses.mix_id,
                     statuses.identity,
-                    statuses.owner,
                     statuses.statuses,
                     last_hour_runs_count,
                     last_day_runs_count,
@@ -458,8 +551,8 @@ impl NymApiStorage {
             .map(|statuses| {
                 GatewayStatusReport::construct_from_last_day_reports(
                     OffsetDateTime::from_unix_timestamp(end).unwrap(),
+                    statuses.node_id,
                     statuses.identity,
-                    statuses.owner,
                     statuses.statuses,
                     last_hour_runs_count,
                     last_day_runs_count,
@@ -484,7 +577,6 @@ impl NymApiStorage {
         // we MUST have those entries in the database, otherwise the route wouldn't have been chosen
         // in the first place
         let layer1_mix_db_id = self
-            .manager
             .get_mixnode_database_id(test_route.layer_one_mix().mix_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
@@ -492,7 +584,6 @@ impl NymApiStorage {
             })?;
 
         let layer2_mix_db_id = self
-            .manager
             .get_mixnode_database_id(test_route.layer_two_mix().mix_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
@@ -500,7 +591,6 @@ impl NymApiStorage {
             })?;
 
         let layer3_mix_db_id = self
-            .manager
             .get_mixnode_database_id(test_route.layer_three_mix().mix_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
@@ -508,8 +598,7 @@ impl NymApiStorage {
             })?;
 
         let gateway_db_id = self
-            .manager
-            .get_gateway_id(&test_route.gateway().identity_key.to_base58_string())
+            .get_gateway_database_id(test_route.gateway().node_id)
             .await?
             .ok_or_else(|| NymApiStorageError::DatabaseInconsistency {
                 reason: format!(
@@ -539,7 +628,7 @@ impl NymApiStorage {
     /// * `since`: optional unix timestamp indicating the lower bound interval of the selection.
     pub(crate) async fn get_core_mixnode_status_count(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         since: Option<i64>,
     ) -> Result<i32, NymApiStorageError> {
         let db_id = self.manager.get_mixnode_database_id(mix_id).await?;
@@ -565,12 +654,15 @@ impl NymApiStorage {
     ///
     /// * `identity`: identity (base58-encoded public key) of the gateway.
     /// * `since`: optional unix timestamp indicating the lower bound interval of the selection.
-    pub(crate) async fn get_core_gateway_status_count(
+    pub(crate) async fn get_core_gateway_status_count_by_identity(
         &self,
         identity: &str,
         since: Option<i64>,
     ) -> Result<i32, NymApiStorageError> {
-        let node_id = self.manager.get_gateway_id(identity).await?;
+        let node_id = self
+            .manager
+            .get_gateway_database_id_by_identity(identity)
+            .await?;
 
         if let Some(node_id) = node_id {
             let since = since
@@ -595,8 +687,8 @@ impl NymApiStorage {
     /// * `route_results`:
     pub(crate) async fn insert_monitor_run_results(
         &self,
-        mixnode_results: Vec<MixnodeResult>,
-        gateway_results: Vec<GatewayResult>,
+        mixnode_results: Vec<NodeResult>,
+        gateway_results: Vec<NodeResult>,
         test_routes: Vec<TestRoute>,
     ) -> Result<(), NymApiStorageError> {
         info!("Submitting new node results to the database. There are {} mixnode results and {} gateway results", mixnode_results.len(), gateway_results.len());
@@ -606,17 +698,37 @@ impl NymApiStorage {
         let monitor_run_id = self.manager.insert_monitor_run(now).await?;
 
         self.manager
-            .submit_mixnode_statuses(now, mixnode_results)
+            .submit_mixnode_statuses(now, mixnode_results, &self.db_id_cache)
             .await?;
 
         self.manager
-            .submit_gateway_statuses(now, gateway_results)
+            .submit_gateway_statuses(now, gateway_results, &self.db_id_cache)
             .await?;
 
         for test_route in test_routes {
             self.insert_test_route(monitor_run_id, test_route).await?;
         }
 
+        Ok(())
+    }
+
+    pub(crate) async fn submit_mixnode_statuses_v2(
+        &self,
+        mixnode_results: &[NodeResult],
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .submit_mixnode_statuses_v2(mixnode_results)
+            .await?;
+        Ok(())
+    }
+
+    pub(crate) async fn submit_gateway_statuses_v2(
+        &self,
+        gateway_results: &[NodeResult],
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .submit_gateway_statuses_v2(gateway_results)
+            .await?;
         Ok(())
     }
 
@@ -678,8 +790,8 @@ impl NymApiStorage {
         for report in gateway_reports {
             // if this ever fails, we have a super weird error because we just constructed report for that node
             // and we never delete node data!
-            let node_id = match self.manager.get_gateway_id(&report.identity).await? {
-                Some(node_id) => node_id,
+            let db_id = match self.manager.get_gateway_database_id(report.node_id).await? {
+                Some(db_id) => db_id,
                 None => {
                     error!(
                         "Somehow we failed to grab id of gateway {} from the database!",
@@ -690,7 +802,7 @@ impl NymApiStorage {
             };
 
             self.manager
-                .insert_gateway_historical_uptime(node_id, today_iso_8601, report.last_day.u8())
+                .insert_gateway_historical_uptime(db_id, today_iso_8601, report.last_day.u8())
                 .await?;
         }
 
@@ -749,7 +861,7 @@ impl NymApiStorage {
 
     pub(crate) async fn get_mixnode_detailed_statuses(
         &self,
-        mix_id: MixId,
+        mix_id: NodeId,
         limit: u32,
         offset: u32,
     ) -> Result<Vec<TestedMixnodeStatus>, NymApiStorageError> {
@@ -781,5 +893,44 @@ impl NymApiStorage {
             .manager
             .get_gateway_statuses(gateway_identity, limit, offset)
             .await?)
+    }
+}
+
+pub(crate) mod v3_migration {
+    use crate::node_status_api::models::NymApiStorageError;
+    use crate::support::storage::models::GatewayDetailsBeforeMigration;
+    use crate::support::storage::NymApiStorage;
+    use nym_mixnet_contract_common::NodeId;
+
+    impl NymApiStorage {
+        pub(crate) async fn check_v3_migration(&self) -> Result<bool, NymApiStorageError> {
+            Ok(self.manager.check_v3_migration().await?)
+        }
+
+        pub(crate) async fn set_v3_migration_completion(&self) -> Result<(), NymApiStorageError> {
+            Ok(self.manager.set_v3_migration_completion().await?)
+        }
+
+        pub(crate) async fn get_all_known_gateways(
+            &self,
+        ) -> Result<Vec<GatewayDetailsBeforeMigration>, NymApiStorageError> {
+            Ok(self.manager.get_all_known_gateways().await?)
+        }
+
+        pub(crate) async fn set_gateway_node_id(
+            &self,
+            identity: &str,
+            node_id: NodeId,
+        ) -> Result<(), NymApiStorageError> {
+            Ok(self.manager.set_gateway_node_id(identity, node_id).await?)
+        }
+
+        pub(crate) async fn purge_gateway(&self, db_id: i64) -> Result<(), NymApiStorageError> {
+            Ok(self.manager.purge_gateway(db_id).await?)
+        }
+
+        pub(crate) async fn make_node_id_not_null(&self) -> Result<(), NymApiStorageError> {
+            Ok(self.manager.make_node_id_not_null().await?)
+        }
     }
 }

@@ -20,7 +20,7 @@ export const NymCard: FCWithChildren<{
   dataTestid?: string;
   sx?: SxProps;
   sxTitle?: SxProps;
-  children: React.ReactNode;
+  children?: React.ReactNode;
 }> = ({ title, subheader, Action, Icon, noPadding, borderless, children, dataTestid, sx, sxTitle }) => (
   <Card variant="outlined" sx={{ overflow: 'auto', ...(borderless && { border: 'none', dropShadow: 'none' }), ...sx }}>
     <CardHeader

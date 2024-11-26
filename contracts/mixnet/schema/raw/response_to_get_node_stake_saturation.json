@@ -1,0 +1,46 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "StakeSaturationResponse",
+  "description": "Response containing the current state of the stake saturation of a node with the provided id.",
+  "type": "object",
+  "required": [
+    "node_id"
+  ],
+  "properties": {
+    "current_saturation": {
+      "description": "The current stake saturation of this node that is indirectly used in reward calculation formulas. Note that it can't be larger than 1.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Decimal"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "node_id": {
+      "description": "Id of the requested node.",
+      "type": "integer",
+      "format": "uint32",
+      "minimum": 0.0
+    },
+    "uncapped_saturation": {
+      "description": "The current, absolute, stake saturation of this node. Note that as the name suggests it can be larger than 1. However, anything beyond that value has no effect on the total node reward.",
+      "anyOf": [
+        {
+          "$ref": "#/definitions/Decimal"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "Decimal": {
+      "description": "A fixed-point decimal value with 18 fractional digits, i.e. Decimal(1_000_000_000_000_000_000) == 1.0\n\nThe greatest possible value that can be represented is 340282366920938463463.374607431768211455 (which is (2^128 - 1) / 10^18)",
+      "type": "string"
+    }
+  }
+}

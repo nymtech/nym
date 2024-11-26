@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
-use std::fmt::{self, Display, Formatter};
+use std::fmt::{self, Debug, Display, Formatter};
 use std::str::FromStr;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -11,6 +11,9 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 use rand::{CryptoRng, RngCore};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+
+#[cfg(feature = "serde")]
+pub mod serde_helpers;
 
 /// Size of a X25519 private key
 pub const PRIVATE_KEY_SIZE: usize = 32;
@@ -109,12 +112,18 @@ impl PemStorableKeyPair for KeyPair {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
 pub struct PublicKey(x25519_dalek::PublicKey);
 
 impl Display for PublicKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        write!(f, "{}", self.to_base58_string())
+        Display::fmt(&self.to_base58_string(), f)
+    }
+}
+
+impl Debug for PublicKey {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Debug::fmt(&self.to_base58_string(), f)
     }
 }
 

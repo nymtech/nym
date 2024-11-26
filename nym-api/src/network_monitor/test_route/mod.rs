@@ -16,10 +16,10 @@ pub(crate) struct TestRoute {
 impl TestRoute {
     pub(crate) fn new(
         id: u64,
-        l1_mix: mix::Node,
-        l2_mix: mix::Node,
-        l3_mix: mix::Node,
-        gateway: gateway::Node,
+        l1_mix: mix::LegacyNode,
+        l2_mix: mix::LegacyNode,
+        l3_mix: mix::LegacyNode,
+        gateway: gateway::LegacyNode,
     ) -> Self {
         let layered_mixes = [
             (1u8, vec![l1_mix]),
@@ -39,19 +39,19 @@ impl TestRoute {
         self.id
     }
 
-    pub(crate) fn gateway(&self) -> &gateway::Node {
+    pub(crate) fn gateway(&self) -> &gateway::LegacyNode {
         &self.nodes.gateways()[0]
     }
 
-    pub(crate) fn layer_one_mix(&self) -> &mix::Node {
+    pub(crate) fn layer_one_mix(&self) -> &mix::LegacyNode {
         &self.nodes.mixes().get(&1).unwrap()[0]
     }
 
-    pub(crate) fn layer_two_mix(&self) -> &mix::Node {
+    pub(crate) fn layer_two_mix(&self) -> &mix::LegacyNode {
         &self.nodes.mixes().get(&2).unwrap()[0]
     }
 
-    pub(crate) fn layer_three_mix(&self) -> &mix::Node {
+    pub(crate) fn layer_three_mix(&self) -> &mix::LegacyNode {
         &self.nodes.mixes().get(&3).unwrap()[0]
     }
 

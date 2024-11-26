@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                    DELETE FROM gateway_historical_uptime WHERE gateway_details_id = ?;\n                    DELETE FROM gateway_status WHERE gateway_details_id = ?;\n                    DELETE FROM testing_route WHERE gateway_id = ?;\n                    DELETE FROM gateway_details WHERE id = ?;\n                ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "5125387e3d7383aec751904efe8325750974fe1274729c6981b05cd872121fe6"
+}

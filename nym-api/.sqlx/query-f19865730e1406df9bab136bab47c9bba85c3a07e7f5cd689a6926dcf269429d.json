@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT serialised_key FROM master_verification_key WHERE epoch_id = ?",
+  "describe": {
+    "columns": [
+      {
+        "name": "serialised_key",
+        "ordinal": 0,
+        "type_info": "Blob"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "f19865730e1406df9bab136bab47c9bba85c3a07e7f5cd689a6926dcf269429d"
+}

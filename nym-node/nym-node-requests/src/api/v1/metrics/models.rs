@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_crypto::asymmetric::identity::{self, serde_helpers::bs58_pubkey};
+use nym_crypto::asymmetric::identity::{self, serde_helpers::bs58_ed25519_pubkey};
 use serde::{Deserialize, Serialize};
 use std::cmp::Ordering;
 use std::fmt;
@@ -33,6 +33,28 @@ pub struct MixingStats {
 
     // we know for sure we dropped those packets
     pub dropped_since_last_update: u64,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct Session {
+    pub duration_ms: u64,
+    pub typ: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+pub struct SessionStats {
+    #[serde(with = "time::serde::rfc3339")]
+    pub update_time: OffsetDateTime,
+
+    pub unique_active_users: u32,
+
+    pub sessions: Vec<Session>,
+
+    pub sessions_started: u32,
+
+    pub sessions_finished: u32,
 }
 
 #[derive(Serialize, Deserialize, Default, Debug, Clone)]
@@ -86,7 +108,7 @@ impl VerlocResultData {
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct VerlocNodeResult {
-    #[serde(with = "bs58_pubkey")]
+    #[serde(with = "bs58_ed25519_pubkey")]
     pub node_identity: identity::PublicKey,
 
     pub latest_measurement: Option<VerlocMeasurement>,

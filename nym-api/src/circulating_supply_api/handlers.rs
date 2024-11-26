@@ -1,15 +1,13 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::{
-    node_status_api::models::{AxumErrorResponse, AxumResult},
-    v2::AxumAppState,
-};
+use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
+use crate::support::http::state::AppState;
 use axum::{extract, Router};
 use nym_api_requests::models::CirculatingSupplyResponse;
 use nym_validator_client::nyxd::Coin;
 
-pub(crate) fn circulating_supply_routes() -> Router<AxumAppState> {
+pub(crate) fn circulating_supply_routes() -> Router<AppState> {
     Router::new()
         .route("/", axum::routing::get(get_full_circulating_supply))
         .route(
@@ -31,7 +29,7 @@ pub(crate) fn circulating_supply_routes() -> Router<AxumAppState> {
     )
 )]
 async fn get_full_circulating_supply(
-    extract::State(state): extract::State<AxumAppState>,
+    extract::State(state): extract::State<AppState>,
 ) -> AxumResult<axum::Json<CirculatingSupplyResponse>> {
     match state
         .circulating_supply_cache()
@@ -52,7 +50,7 @@ async fn get_full_circulating_supply(
     )
 )]
 async fn get_total_supply(
-    extract::State(state): extract::State<AxumAppState>,
+    extract::State(state): extract::State<AppState>,
 ) -> AxumResult<axum::Json<f64>> {
     let full_circulating_supply = match state
         .circulating_supply_cache()
@@ -75,7 +73,7 @@ async fn get_total_supply(
     )
 )]
 async fn get_circulating_supply(
-    extract::State(state): extract::State<AxumAppState>,
+    extract::State(state): extract::State<AppState>,
 ) -> AxumResult<axum::Json<f64>> {
     let full_circulating_supply = match state
         .circulating_supply_cache()

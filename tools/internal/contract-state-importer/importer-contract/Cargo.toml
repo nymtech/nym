@@ -1,0 +1,24 @@
+[package]
+name = "importer-contract"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+readme.workspace = true
+
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+base85rs = "0.1.3"
+cosmwasm-std = { workspace = true }
+cosmwasm-storage = { workspace = true }
+cosmwasm-schema = { workspace = true }
+
+[features]
+default = ["library"]
+library = []

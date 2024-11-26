@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
     // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
     let proxy_client =
-        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 2)
+        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 1)
             .await?;
 
     tokio::spawn(async move {

@@ -75,15 +75,14 @@ impl NymProxyClient {
         let client_maker = self.conn_pool.clone();
         tokio::spawn(async move { client_maker.start().await.unwrap() });
 
-        let overall_counter = self.conn_pool.clone();
-        tokio::spawn(async move {
-            loop {
-                info!("Active connections: {}", overall_counter.get_conn_count());
-                tokio::time::sleep(Duration::from_secs(5)).await;
-            }
-        });
+        // let overall_counter = self.conn_pool.clone();
+        // tokio::spawn(async move {
+        //     loop {
+        //         info!("Active connections: {}", overall_counter.get_conn_count());
+        //         tokio::time::sleep(Duration::from_secs(5)).await;
+        //     }
+        // });
 
-        //     if self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2 {
         loop {
             if DEFAULT_CLIENT_POOL_SIZE == 1 && self.conn_pool.get_client_count().await == 1
                 || self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2
@@ -142,11 +141,11 @@ impl NymProxyClient {
             }
         };
 
-        conn_pool.increment_conn_count();
-        info!(
-            "New connection - current active connections: {}",
-            conn_pool.get_conn_count()
-        );
+        // conn_pool.increment_conn_count();
+        // info!(
+        //     "New connection - current active connections: {}",
+        //     conn_pool.get_conn_count()
+        // );
 
         // Split our tcpstream into OwnedRead and OwnedWrite halves for concurrent read/writing
         let (read, mut write) = stream.into_split();
@@ -245,11 +244,11 @@ impl NymProxyClient {
                         info!(" Closing write end of session: {}", session_id);
                         info!(" Triggering client shutdown");
                         conn_pool.disconnect_and_remove_client(client).await?;
-                        conn_pool.clone().decrement_conn_count()?;
-                        info!(
-                            "Dropped connection - current active connections: {}",
-                            conn_pool.get_conn_count()
-                        );
+                        // conn_pool.clone().decrement_conn_count()?;
+                        // info!(
+                        //     "Dropped connection - current active connections: {}",
+                        //     conn_pool.get_conn_count()
+                        // );
                         return Ok::<(), anyhow::Error>(())
                     }
                 }

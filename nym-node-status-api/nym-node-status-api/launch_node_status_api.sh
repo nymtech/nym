@@ -21,10 +21,13 @@ H9kuRd8BGjEUD8Grh5U9YUPN5ZaQmSYz8U44R72AffKM"
 
 export ENVIRONMENT=${ENVIRONMENT:-"sandbox"}
 
+script_dir=$(dirname $(realpath "$0"))
+monorepo_root=$(realpath "${script_dir}/../..")
+
 function run_bare() {
     # export necessary env vars
     set -a
-    source ../envs/${ENVIRONMENT}.env
+    source "${monorepo_root}/envs/${ENVIRONMENT}.env"
     set +a
     export RUST_LOG=debug
 

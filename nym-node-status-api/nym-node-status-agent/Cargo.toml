@@ -16,9 +16,9 @@ readme.workspace = true
 [dependencies]
 anyhow = { workspace = true}
 clap = { workspace = true, features = ["derive", "env"] }
-nym-bin-common = { path = "../common/bin-common", features = ["models"]}
-nym-node-status-api-client = { path = "../nym-node-status-api/client" }
-nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
+nym-bin-common = { path = "../../common/bin-common", features = ["models"]}
+nym-node-status-client = { path = "../nym-node-status-client" }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "rand"] }
 rand = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread", "process"] }
 tracing = { workspace = true }

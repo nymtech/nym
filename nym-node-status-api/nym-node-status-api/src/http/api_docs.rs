@@ -5,7 +5,7 @@ use utoipauto::utoipauto;
 // manually import external structs which are behind feature flags because they
 // can't be automatically discovered
 // https://github.com/ProbablyClem/utoipauto/issues/13#issuecomment-1974911829
-#[utoipauto(paths = "./nym-node-status-api/src")]
+#[utoipauto(paths = "./nym-node-status-api/nym-node-status-api/src")]
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Node Status API"),

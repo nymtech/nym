@@ -15,7 +15,7 @@ use axum::{
     extract::{Path, State},
     Router,
 };
-use nym_node_status_api_client::{
+use nym_node_status_client::{
     auth::VerifiableRequest,
     models::{get_testrun, submit_results},
 };

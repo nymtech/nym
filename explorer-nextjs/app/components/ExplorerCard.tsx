@@ -8,15 +8,17 @@ import {
 
 interface ICardUpDownPriceLineProps {
   percentage: number;
-  priceWentUp: boolean;
+  numberWentUp: boolean;
 }
 const CardUpDownPriceLine = (
   props: ICardUpDownPriceLineProps
 ): ReactElement => {
-  const { percentage, priceWentUp } = props;
+  const { percentage, numberWentUp } = props;
   return (
     <Box mb={3}>
-      <Typography sx={{ color: "#00CA33" }}>{percentage}% (24H)</Typography>
+      <Typography sx={{ color: numberWentUp ? "#00CA33" : "#DF1400" }}>
+        {percentage}% (24H)
+      </Typography>
     </Box>
   );
 };
@@ -66,7 +68,7 @@ const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
 
 type ContentCardProps = {
   overTitle?: string;
-  title?: string;
+  title?: string | number;
   upDownLine?: ICardUpDownPriceLineProps;
   titlePrice?: ICardTitlePriceProps;
   dataRows?: ICardDataRowsProps;
@@ -90,7 +92,7 @@ export const ExplorerCard: FC<ContentCardProps> = ({
   <Card onClick={onClick} sx={{ height: "100%" }}>
     <CardContent>
       {overTitle && (
-        <Typography fontSize={14} mb={3}>
+        <Typography fontSize={14} mb={3} textTransform={"uppercase"}>
           {overTitle}
         </Typography>
       )}

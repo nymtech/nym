@@ -6,22 +6,21 @@ import { Typography } from "@mui/material";
 export interface IExplorerProgressBarProps {
   title?: string;
   start: string; // Start timestamp as ISO 8601 string
-  end: string; // End timestamp as ISO 8601 string
   showEpoch: boolean;
 }
 
 export const ExplorerProgressBar = (props: IExplorerProgressBarProps) => {
-  const { start, end, showEpoch, title } = props;
+  const { start, showEpoch, title } = props;
   const [progress, setProgress] = React.useState(0);
 
   React.useEffect(() => {
-    // Parse the timestamps
+    // Parse the start timestamp
     const startTime = new Date(start).getTime();
-    const endTime = new Date(end).getTime();
+    const endTime = startTime + 60 * 60 * 1000; // Add 1 hour to the start time
 
-    // Validate timestamps
-    if (isNaN(startTime) || isNaN(endTime)) {
-      console.error("Invalid start or end timestamp:", { start, end });
+    // Validate start timestamp
+    if (isNaN(startTime)) {
+      console.error("Invalid start timestamp:", { start });
       return;
     }
 
@@ -49,17 +48,50 @@ export const ExplorerProgressBar = (props: IExplorerProgressBarProps) => {
     return () => {
       clearInterval(timer);
     };
-  }, [start, end]);
+  }, [start]);
+
+  // Helper function to format date
+  const formatDate = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const hours = String(date.getHours()).padStart(2, "0");
+    const minutes = String(date.getMinutes()).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    const month = String(date.getMonth() + 1).padStart(2, "0"); // Months are 0-based
+    const year = date.getFullYear();
+    return `${hours}:${minutes}, ${day}/${month}/${year}`;
+  };
+
+  const startTime = new Date(start).getTime();
+  const endTime = startTime + 60 * 60 * 1000;
 
   return (
     <Box sx={{ width: "100%" }}>
-      {title && <Typography mb={2}>{title}</Typography>}
+      {title && (
+        <Typography mb={2} textTransform={"uppercase"}>
+          {title}
+        </Typography>
+      )}
 
-      <LinearProgress variant="determinate" value={progress} />
+      <LinearProgress
+        variant="determinate"
+        value={progress}
+        sx={{
+          backgroundColor: "#CAD6D7",
+          "& .MuiLinearProgress-bar": {
+            backgroundColor: "#14E76F",
+          },
+        }}
+      />
       {showEpoch && (
         <Box mt={2}>
-          <Typography>Start: {new Date(start).toLocaleString()}</Typography>
-          <Typography>End: {new Date(end).toLocaleString()}</Typography>
+          <Box display={"flex"} justifyContent={"space-between"}>
+            <Typography textTransform={"uppercase"}>START:</Typography>
+            <Typography> {formatDate(startTime)}</Typography>
+          </Box>
+          <Box display={"flex"} justifyContent={"space-between"}>
+            <Typography textTransform={"uppercase"}>END:</Typography>
+            <Typography> {formatDate(endTime)}</Typography>
+          </Box>
         </Box>
       )}
     </Box>

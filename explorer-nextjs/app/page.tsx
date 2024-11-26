@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { Box, Grid, Link, Typography } from "@mui/material";
 import { useTheme } from "@mui/material/styles";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
@@ -18,6 +18,8 @@ import { formatNumber } from "@/app/utils";
 import { useMainContext } from "./context/main";
 import { useRouter } from "next/navigation";
 import { ExplorerCard } from "./components/ExplorerCard";
+import type { GetStaticProps, InferGetStaticPropsType } from "next";
+import { ExplorerData, getCacheExplorerData } from "./api/explorer";
 
 // type ContentCardProps = {
 //   overTitle?: string;
@@ -36,13 +38,13 @@ const explorerCard = {
   title: "SINGLE",
   upDownLine: {
     percentage: 10,
-    priceWentUp: true,
+    numberWentUp: true,
   },
   titlePrice: {
     price: 1.15,
     upDownLine: {
       percentage: 10,
-      priceWentUp: true,
+      numberWentUp: true,
     },
   },
   dataRows: {
@@ -73,18 +75,84 @@ const explorerCard = {
       purpleLineNumericData: 4,
     },
   ],
-  progressBar: {
-    title: "Current NGM epoch",
-    start: "2024-11-24T13:26:19Z",
-    end: "2024-11-24T14:26:19Z",
-    showEpoch: true,
-  },
+
   paragraph: "Additional line",
 };
+export const DATA_REVALIDATE = 60;
 
-const PageOverview = () => {
+export default function PageOverview() {
+  const [explorerData, setExplorerData] = useState<ExplorerData | null>(null);
+
+  useEffect(() => {
+    async function fetchData() {
+      const data = await getCacheExplorerData();
+      setExplorerData(data);
+    }
+    fetchData();
+  }, []);
   const theme = useTheme();
   const router = useRouter();
+
+  console.log("explorerData :>> ", explorerData);
+  const currentEpochStart =
+    explorerData?.currentEpochData.current_epoch_start || "";
+
+  const progressBar = {
+    title: "Current NGM epoch",
+    start: currentEpochStart,
+    showEpoch: true,
+  };
+
+  const formatBigNum = (num: number) => {
+    if (typeof num === "number") {
+      if (num >= 1000000000) {
+        return (num / 1000000000).toFixed(1).replace(/\.0$/, "") + "B";
+      }
+      if (num >= 1000000) {
+        return (num / 1000000).toFixed(1).replace(/\.0$/, "") + "M";
+      }
+      if (num >= 1000) {
+        return (num / 1000).toFixed(1).replace(/\.0$/, "") + "K";
+      }
+      return num;
+    }
+  };
+
+  const packetsSentLast24H =
+    explorerData?.packetsAndStakingData[
+      explorerData.packetsAndStakingData.length - 1
+    ].total_packets_sent;
+
+  const packetsSentPrevious24H =
+    explorerData?.packetsAndStakingData[
+      explorerData.packetsAndStakingData.length - 2
+    ].total_packets_sent;
+
+  const calculatePercentageChange = (last24H: number, previous24H: number) => {
+    if (previous24H === 0) {
+      throw new Error(
+        "Cannot calculate percentage change when yesterday's value is zero."
+      );
+    }
+
+    const change = ((last24H - previous24H) / previous24H) * 100;
+
+    return parseFloat(change.toFixed(2));
+  };
+
+  const percentage = calculatePercentageChange(
+    packetsSentLast24H,
+    packetsSentPrevious24H
+  );
+
+  const noiseCard = {
+    overTitle: "Noise generated last 24h",
+    title: formatBigNum(packetsSentLast24H) || "",
+    upDownLine: {
+      percentage: Math.abs(percentage),
+      numberWentUp: percentage > 0,
+    },
+  };
 
   const {
     summaryOverview,
@@ -106,6 +174,12 @@ const PageOverview = () => {
               <>
                 <Grid item xs={12} md={4}>
                   <ExplorerCard {...explorerCard} />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <ExplorerCard progressBar={progressBar} />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <ExplorerCard {...noiseCard} />
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <StatsCard
@@ -218,6 +292,4 @@ const PageOverview = () => {
       </Grid>
     </Box>
   );
-};
-
-export default PageOverview;
+}

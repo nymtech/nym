@@ -6,7 +6,7 @@ mod client_pool;
 use client_pool::ClientPool;
 #[path = "utils.rs"]
 mod utils;
-use anyhow::Result;
+use anyhow::{bail, Result};
 use dashmap::DashSet;
 use nym_network_defaults::setup_env;
 use nym_sphinx::addressing::Recipient;
@@ -81,6 +81,7 @@ impl NymProxyClient {
             Ok::<(), anyhow::Error>(())
         });
 
+        //     if self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2 {
         loop {
             tokio::select! {
                 stream = listener.accept() => {

@@ -81,7 +81,6 @@ impl NymProxyClient {
             Ok::<(), anyhow::Error>(())
         });
 
-        //     if self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2 {
         loop {
             tokio::select! {
                 stream = listener.accept() => {

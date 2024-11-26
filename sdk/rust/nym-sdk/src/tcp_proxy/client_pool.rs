@@ -12,8 +12,7 @@ use tracing::{debug, info, warn};
 pub struct ClientPool {
     clients: Arc<RwLock<Vec<Arc<MixnetClient>>>>,
     semaphore: Arc<Semaphore>,
-    default_pool_size: usize, // default # of clients to have running simultaneously, otherwise make ephemeral
-    conn_count: Arc<AtomicUsize>, // the actual # of connections running, denoting an incoming tcp request that is matched with a nym client
+    default_pool_size: usize, // default # of clients to have available in pool. If incoming tcp requests > this, make ephemeral client elsewhere
 }
 
 impl fmt::Debug for ClientPool {
@@ -45,7 +44,7 @@ impl fmt::Debug for ClientPool {
         let mut debug_struct = f.debug_struct("Pool");
         debug_struct
             .field("default_pool_size", &self.default_pool_size)
-            .field("connection count", &*self.conn_count)
+            // .field("connection count", &*self.conn_count)
             .field("clients", &format_args!("[{}]", clients_debug));
 
         debug_struct.finish()
@@ -58,7 +57,7 @@ impl ClientPool {
             clients: Arc::new(RwLock::new(Vec::new())),
             semaphore: Arc::new(Semaphore::new(default_pool_size)),
             default_pool_size,
-            conn_count: Arc::new(AtomicUsize::new(0)),
+            // conn_count: Arc::new(AtomicUsize::new(0)),
         }
     }
 
@@ -70,8 +69,12 @@ impl ClientPool {
                 "Currently spawned clients: {}: {:?} ",
                 spawned_clients, addresses
             );
+            info!(
+                "current avail permits {}",
+                self.semaphore.available_permits()
+            );
 
-            // TODO check this logic in situation with larger pool
+            // TODO FIX THIS
             if spawned_clients == self.semaphore.available_permits() {
                 debug!("Got enough clients already: sleeping");
             } else {
@@ -118,158 +121,159 @@ impl ClientPool {
         self.clients.read().await.len()
     }
 
-    pub fn get_conn_count(&self) -> usize {
-        self.conn_count.load(Ordering::SeqCst)
-    }
+    // pub fn get_conn_count(&self) -> usize {
+    //     // self.conn_count.load(Ordering::SeqCst)
+    //     self.default_pool_size - self.semaphore.available_permits()
+    // }
 
-    pub fn increment_conn_count(&self) {
-        self.conn_count.fetch_add(1, Ordering::SeqCst);
-    }
+    // pub fn increment_conn_count(&self) {
+    //     self.conn_count.fetch_add(1, Ordering::SeqCst);
+    // }
 
-    pub fn decrement_conn_count(&self) -> Result<()> {
-        if self.get_conn_count() == 0 {
-            bail!("count already 0");
-        }
-        self.conn_count.fetch_sub(1, Ordering::SeqCst);
-        Ok(())
-    }
+    // pub fn decrement_conn_count(&self) -> Result<()> {
+    //     if self.get_conn_count() == 0 {
+    //         bail!("count already 0");
+    //     }
+    //     self.conn_count.fetch_sub(1, Ordering::SeqCst);
+    //     Ok(())
+    // }
 
     pub fn clone(&self) -> Self {
         Self {
             clients: Arc::clone(&self.clients),
             semaphore: Arc::clone(&self.semaphore),
             default_pool_size: *&self.default_pool_size,
-            conn_count: Arc::clone(&self.conn_count),
+            // conn_count: Arc::clone(&self.conn_count),
         }
     }
 }
 
 // TODO COVER ALL FNS
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use anyhow::Result;
-    use std::thread;
+// #[cfg(test)]
+// mod tests {
+//     use super::*;
+//     use anyhow::Result;
+//     use std::thread;
 
-    #[test]
-    fn test_conn_count_increment_decrement() -> Result<()> {
-        let tracker = ClientPool::new(0);
-        tracker.increment_conn_count();
-        tracker.increment_conn_count();
-        assert_eq!(
-            tracker.get_conn_count(),
-            2,
-            "should be 2 after single increment"
-        );
-        tracker.decrement_conn_count()?;
-        assert_eq!(
-            tracker.get_conn_count(),
-            1,
-            "should be 1 after two increments and one decrement"
-        );
-        Ok(())
-    }
-    #[test]
-    fn test_clone() {
-        let tracker = ClientPool::new(1);
-        let tracker_clone = tracker.clone();
+//     #[test]
+//     fn test_conn_count_increment_decrement() -> Result<()> {
+//         let tracker = ClientPool::new(0);
+//         tracker.increment_conn_count();
+//         tracker.increment_conn_count();
+//         assert_eq!(
+//             tracker.get_conn_count(),
+//             2,
+//             "should be 2 after single increment"
+//         );
+//         tracker.decrement_conn_count()?;
+//         assert_eq!(
+//             tracker.get_conn_count(),
+//             1,
+//             "should be 1 after two increments and one decrement"
+//         );
+//         Ok(())
+//     }
+//     #[test]
+//     fn test_clone() {
+//         let tracker = ClientPool::new(1);
+//         let tracker_clone = tracker.clone();
 
-        tracker.increment_conn_count();
-        assert_eq!(
-            tracker_clone.get_conn_count(),
-            1,
-            "tracker clones should share the same count"
-        );
-    }
+//         tracker.increment_conn_count();
+//         assert_eq!(
+//             tracker_clone.get_conn_count(),
+//             1,
+//             "tracker clones should share the same count"
+//         );
+//     }
 
-    #[test]
-    fn test_conn_count_multiple_threads() {
-        let tracker = ClientPool::new(0);
-        let mut handles = vec![];
+//     #[test]
+//     fn test_conn_count_multiple_threads() {
+//         let tracker = ClientPool::new(0);
+//         let mut handles = vec![];
 
-        for _ in 0..10 {
-            let thread_tracker = tracker.clone();
-            let handle = thread::spawn(move || {
-                thread_tracker.increment_conn_count();
-                thread::sleep(std::time::Duration::from_millis(10));
-            });
-            handles.push(handle);
-        }
+//         for _ in 0..10 {
+//             let thread_tracker = tracker.clone();
+//             let handle = thread::spawn(move || {
+//                 thread_tracker.increment_conn_count();
+//                 thread::sleep(std::time::Duration::from_millis(10));
+//             });
+//             handles.push(handle);
+//         }
 
-        for handle in handles {
-            handle.join().unwrap();
-        }
+//         for handle in handles {
+//             handle.join().unwrap();
+//         }
 
-        assert_eq!(
-            tracker.get_conn_count(),
-            10,
-            "should be 10 after 10 thread increments"
-        );
-    }
+//         assert_eq!(
+//             tracker.get_conn_count(),
+//             10,
+//             "should be 10 after 10 thread increments"
+//         );
+//     }
 
-    #[test]
-    fn test_concurrent_increment_decrement() -> Result<()> {
-        let tracker = ClientPool::new(0);
-        let mut handles = vec![];
+//     #[test]
+//     fn test_concurrent_increment_decrement() -> Result<()> {
+//         let tracker = ClientPool::new(0);
+//         let mut handles = vec![];
 
-        for i in 0..10 {
-            let thread_tracker = tracker.clone();
-            let handle = thread::spawn(move || {
-                if i < 5 {
-                    thread_tracker.increment_conn_count();
-                } else {
-                    thread_tracker.decrement_conn_count().unwrap();
-                }
-                thread::sleep(std::time::Duration::from_millis(10));
-            });
-            handles.push(handle);
-        }
+//         for i in 0..10 {
+//             let thread_tracker = tracker.clone();
+//             let handle = thread::spawn(move || {
+//                 if i < 5 {
+//                     thread_tracker.increment_conn_count();
+//                 } else {
+//                     thread_tracker.decrement_conn_count().unwrap();
+//                 }
+//                 thread::sleep(std::time::Duration::from_millis(10));
+//             });
+//             handles.push(handle);
+//         }
 
-        for handle in handles {
-            handle.join().unwrap();
-        }
+//         for handle in handles {
+//             handle.join().unwrap();
+//         }
 
-        assert_eq!(
-            tracker.get_conn_count(),
-            0,
-            "should be 0 after equal increments and decrements"
-        );
-        Ok(())
-    }
+//         assert_eq!(
+//             tracker.get_conn_count(),
+//             0,
+//             "should be 0 after equal increments and decrements"
+//         );
+//         Ok(())
+//     }
 
-    #[test]
-    #[should_panic]
-    fn test_zero_floor() {
-        let tracker = ClientPool::new(0);
-        tracker.decrement_conn_count().unwrap();
-    }
+//     #[test]
+//     #[should_panic]
+//     fn test_zero_floor() {
+//         let tracker = ClientPool::new(0);
+//         tracker.decrement_conn_count().unwrap();
+//     }
 
-    #[test]
-    fn test_stress() {
-        let tracker = ClientPool::new(0);
-        let mut handles = vec![];
-        let num_threads = 100;
+//     #[test]
+//     fn test_stress() {
+//         let tracker = ClientPool::new(0);
+//         let mut handles = vec![];
+//         let num_threads = 100;
 
-        for _ in 0..num_threads {
-            let thread_tracker = tracker.clone();
-            let handle = thread::spawn(move || {
-                for _ in 0..100 {
-                    thread_tracker.increment_conn_count();
-                    thread::sleep(std::time::Duration::from_micros(1));
-                    thread_tracker.decrement_conn_count().unwrap();
-                }
-            });
-            handles.push(handle);
-        }
+//         for _ in 0..num_threads {
+//             let thread_tracker = tracker.clone();
+//             let handle = thread::spawn(move || {
+//                 for _ in 0..100 {
+//                     thread_tracker.increment_conn_count();
+//                     thread::sleep(std::time::Duration::from_micros(1));
+//                     thread_tracker.decrement_conn_count().unwrap();
+//                 }
+//             });
+//             handles.push(handle);
+//         }
 
-        for handle in handles {
-            handle.join().unwrap();
-        }
+//         for handle in handles {
+//             handle.join().unwrap();
+//         }
 
-        assert_eq!(
-            tracker.get_conn_count(),
-            0,
-            "should return to 0 after all increments and decrements"
-        );
-    }
-}
+//         assert_eq!(
+//             tracker.get_conn_count(),
+//             0,
+//             "should return to 0 after all increments and decrements"
+//         );
+//     }
+// }

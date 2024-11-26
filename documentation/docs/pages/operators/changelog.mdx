@@ -66,6 +66,41 @@ After changes coming along with `v2024.13-magura` (`nym-node v1.1.10`), Nym Expl
 
 - **Please re-run [routing configuration steps](https://nymtech.net/docs/operators/nodes/nym-node/configuration#routing-configuration) to update your routing settings.**
 
+- We found out that some operators have a wrong value for wireguard IP. Follow these steps to ensure your value is set to `10.1.0.1` (default on new nodes):
+
+<Steps>
+###### 1. Open your node config file:
+```sh
+nano $HOME/.nym/nym-nodes/<ID>/config/config.toml
+
+# change <ID> for your local nym moniker for example:
+# nano $HOME/.nym/nym-nodes/default-nym-node/config/config.toml
+```
+###### 2. Control or change the value of wireguard private IP
+- Scroll down to section starting with `[wireguard]`
+- Find line `private_ip` and ensure it's set to value `10.1.0.1`
+- The section will look like this:
+```toml
+[wireguard]
+# Specifies whether the wireguard service is enabled on this node.
+enabled = true
+
+# Socket address this node will use for binding its wireguard interface.
+# default: `0.0.0.0:51822`
+bind_address = '0.0.0.0:51822'
+
+# Private IP address of the wireguard gateway.
+# default: `10.1.0.1`
+private_ip = '10.1.0.1'
+```
+###### 3. Save, exit and restart the service
+- If you used `nano` editor - press `ctrl` + `x` and confirm the changes
+- Run these commands to update the service with new values and restart your node process:
+```sh
+systemctl daemon-reload && service nym-node restart
+```
+</Steps>
+
 - New manual how to [run `nym-node` as non-root](nodes/nym-node/configuration#running-nym-node-as-a-non-root)
 
 - Since `v2024.13-magura`, operators do not update their node version in the wallet. [Manual upgrading steps](nodes/maintenance/manual-upgrade.mdx) has been updated accordingly.

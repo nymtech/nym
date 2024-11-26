@@ -259,8 +259,8 @@ fn prepare_session_data(
 
     GatewaySessionsRecord {
         gateway_identity_key: node_data.id_key.clone(),
-        node_id: node_data.node_id,
-        date: stat.update_time.date(),
+        node_id: node_data.node_id as i64,
+        day: stat.update_time.date(),
         unique_active_clients: stat.unique_active_users as i64,
         session_started: stat.sessions_started as i64,
         users_hashes,

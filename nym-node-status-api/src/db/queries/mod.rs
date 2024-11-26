@@ -15,4 +15,4 @@ pub(crate) use mixnodes::{
 };
 pub(crate) use summary::{get_summary, get_summary_history};
 
-pub(crate) use gateways_stats::insert_session_records;
+pub(crate) use gateways_stats::{get_sessions_stats, insert_session_records};

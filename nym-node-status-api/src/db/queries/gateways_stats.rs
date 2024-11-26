@@ -1,4 +1,9 @@
-use crate::db::{models::GatewaySessionsRecord, DbPool};
+use crate::{
+    db::{models::GatewaySessionsRecord, DbPool},
+    http::models::SessionStats,
+};
+use futures_util::TryStreamExt;
+use tracing::error;
 
 pub(crate) async fn insert_session_records(
     pool: &DbPool,
@@ -8,13 +13,13 @@ pub(crate) async fn insert_session_records(
     for record in records {
         sqlx::query!(
             "INSERT OR IGNORE INTO gateway_session_stats
-                (gateway_identity_key, node_id, date_utc,
+                (gateway_identity_key, node_id, day,
                     unique_active_clients, session_started, users_hashes,
                     vpn_sessions, mixnet_sessions, unknown_sessions)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
             record.gateway_identity_key,
             record.node_id,
-            record.date,
+            record.day,
             record.unique_active_clients,
             record.session_started,
             record.users_hashes,
@@ -27,4 +32,35 @@ pub(crate) async fn insert_session_records(
     }
 
     Ok(())
+}
+
+pub(crate) async fn get_sessions_stats(pool: &DbPool) -> anyhow::Result<Vec<SessionStats>> {
+    let mut conn = pool.acquire().await?;
+    let items = sqlx::query_as!(
+        GatewaySessionsRecord,
+        "SELECT gateway_identity_key, 
+                node_id,              
+                day,                  
+                unique_active_clients,
+                session_started,      
+                users_hashes,         
+                vpn_sessions,         
+                mixnet_sessions,      
+                unknown_sessions
+        FROM gateway_session_stats"
+    )
+    .fetch(&mut *conn)
+    .try_collect::<Vec<GatewaySessionsRecord>>()
+    .await?;
+
+    let items: Vec<SessionStats> = items
+        .into_iter()
+        .map(|item| item.try_into())
+        .collect::<anyhow::Result<Vec<_>>>()
+        .map_err(|e| {
+            error!("Conversion from database failed: {e}. Invalidly stored data?");
+            e
+        })?;
+
+    Ok(items)
 }

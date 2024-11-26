@@ -11,6 +11,7 @@ use nym_pemstore::store_keypair;
 use old_configs::old_config_v2::*;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -756,15 +757,16 @@ fn initialise(config: &WireguardV2) -> std::io::Result<()> {
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub async fn try_upgrade_config_v1<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV1>,
 ) -> Result<ConfigV2, NymNodeError> {
-    tracing::debug!("Updating from 1.1.2");
+    debug!("attempting to load v1 config...");
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
     } else {
-        ConfigV1::read_from_path(&path)?
+        ConfigV1::read_from_path(&path).inspect_err(|err| debug!("failed: {err}"))?
     };
     let wireguard = WireguardV2 {
         enabled: old_cfg.wireguard.enabled,

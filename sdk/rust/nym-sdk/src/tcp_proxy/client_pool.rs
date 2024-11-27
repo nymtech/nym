@@ -3,15 +3,11 @@ use anyhow::Result;
 use std::fmt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use tokio::sync::Semaphore;
 use tracing::{debug, info, warn};
 
-// Make a set # of clients (low default)
-// Once a client is used, kill the client & remove it from the pool
 pub struct ClientPool {
-    clients: Arc<RwLock<Vec<Arc<MixnetClient>>>>,
-    semaphore: Arc<Semaphore>,
-    default_pool_size: usize, // default # of clients to have available in pool. If incoming tcp requests > this, make ephemeral client elsewhere
+    clients: Arc<RwLock<Vec<Arc<MixnetClient>>>>, // collection of clients waiting to be used which are popped off in get_mixnet_client()
+    client_pool_reserve_number: usize, // default # of clients to have available in pool in reserve waiting for incoming connections
 }
 
 impl fmt::Debug for ClientPool {
@@ -42,18 +38,20 @@ impl fmt::Debug for ClientPool {
 
         let mut debug_struct = f.debug_struct("Pool");
         debug_struct
-            .field("default_pool_size", &self.default_pool_size)
+            .field(
+                "client_pool_reserve_number",
+                &self.client_pool_reserve_number,
+            )
             .field("clients", &format_args!("[{}]", clients_debug));
         debug_struct.finish()
     }
 }
 
 impl ClientPool {
-    pub fn new(default_pool_size: usize) -> Self {
+    pub fn new(client_pool_reserve_number: usize) -> Self {
         ClientPool {
             clients: Arc::new(RwLock::new(Vec::new())),
-            semaphore: Arc::new(Semaphore::new(default_pool_size)),
-            default_pool_size,
+            client_pool_reserve_number,
         }
     }
 
@@ -61,23 +59,17 @@ impl ClientPool {
         loop {
             let spawned_clients = self.clients.read().await.len();
             let addresses = self;
-            info!(
+            debug!(
                 "Currently spawned clients: {}: {:?} ",
                 spawned_clients, addresses
             );
-            // TODO PROBLEM IS HERE: not updating / tracking the in use permits when grab_mixnet_client is called
-            info!(
-                "current avail permits {}",
-                self.semaphore.available_permits()
-            );
-            info!(
-                "current in use permits {}",
-                self.default_pool_size - self.semaphore.available_permits()
-            );
-            if spawned_clients == self.semaphore.available_permits() {
+            if spawned_clients >= self.client_pool_reserve_number {
                 debug!("Got enough clients already: sleeping");
             } else {
-                info!("Spawning new client");
+                info!(
+                    "Clients in reserve = {}, reserve amount = {}, spawning new client",
+                    spawned_clients, self.client_pool_reserve_number
+                );
                 let client = loop {
                     let net = NymNetworkDetails::new_from_env();
                     match MixnetClientBuilder::new_ephemeral()
@@ -95,17 +87,13 @@ impl ClientPool {
                 };
                 self.clients.write().await.push(Arc::new(client));
             }
-            tokio::time::sleep(tokio::time::Duration::from_secs(1)).await;
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
     }
 
     pub async fn get_mixnet_client(&self) -> Option<MixnetClient> {
-        info!("Grabbing client from pool");
-        let permit = self.semaphore.acquire().await;
-        info!("{permit:?}");
-        info!("Available permits: {}", self.semaphore.available_permits());
+        debug!("Grabbing client from pool");
         let mut clients = self.clients.write().await;
-        // gain ownership of client, tracking with semaphore once its working to stop constantly renewing size of pool to default_pool_size and instead have pool be (default_pool_size - in use clients) to stop bloat
         clients
             .pop()
             .and_then(|arc_client| Arc::try_unwrap(arc_client).ok())
@@ -124,8 +112,7 @@ impl ClientPool {
     pub fn clone(&self) -> Self {
         Self {
             clients: Arc::clone(&self.clients),
-            semaphore: Arc::clone(&self.semaphore),
-            default_pool_size: *&self.default_pool_size,
+            client_pool_reserve_number: *&self.client_pool_reserve_number,
         }
     }
 }

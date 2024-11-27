@@ -76,7 +76,6 @@ impl NymProxyClient {
         tokio::spawn(async move { client_maker.start().await.unwrap() });
 
         loop {
-            // TODO change this to a proper 'ready' state
             if DEFAULT_CLIENT_POOL_SIZE == 1 && self.conn_pool.get_client_count().await == 1
                 || self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2
             {

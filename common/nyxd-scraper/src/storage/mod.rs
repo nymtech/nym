@@ -4,9 +4,9 @@
 use crate::block_processor::types::{FullBlockInformation, ParsedTransactionResponse};
 use crate::error::ScraperError;
 use crate::storage::manager::{
-    insert_block, insert_message, insert_precommit, insert_transaction, insert_validator,
-    prune_blocks, prune_messages, prune_pre_commits, prune_transactions, update_last_processed,
-    update_last_pruned, StorageManager,
+    insert_block, insert_message, insert_precommit, insert_transaction,
+    insert_validator, prune_blocks, prune_messages, prune_pre_commits, prune_transactions,
+    update_last_processed, update_last_pruned, StorageManager, Coin, Fee, SignerInfo,
 };
 use crate::storage::models::{CommitSignature, Validator};
 use sqlx::types::time::OffsetDateTime;
@@ -227,10 +227,9 @@ pub async fn persist_block(
     }
 
     // persist txs
-    persist_txs(&block.transactions, tx).await?;
-
-    // persist messages (inside the transactions)
-    persist_messages(&block.transactions, tx).await?;
+    for chain_tx in &block.transactions {
+        persist_transaction(chain_tx, tx).await?;
+    }
 
     update_last_processed(block.block.header.height.into(), tx).await?;
 
@@ -326,24 +325,86 @@ async fn persist_commits(
     Ok(())
 }
 
-async fn persist_txs(
-    txs: &[ParsedTransactionResponse],
-    tx: &mut StorageTransaction,
+async fn persist_transaction(
+    chain_tx: &ParsedTransactionResponse,
+    tx: &mut Transaction<'_, Postgres>,
 ) -> Result<(), ScraperError> {
-    debug!("persisting {} txs", txs.len());
+    let signer_infos = chain_tx
+        .tx
+        .auth_info
+        .signer_infos
+        .iter()
+        .map(|info| SignerInfo {
+            public_key: info.public_key.clone()
+                .map(|pk| pk.into())
+                .unwrap_or_default(),
+            mode_info: serde_json::to_string(&serde_json::json!({
+                "single": {
+                    "mode": match &info.mode_info {
+                        cosmrs::tx::ModeInfo::Single(s) => s.mode as u32,
+                        _ => 0,
+                    }
+                }
+            })).unwrap_or_default(),
+            sequence: info.sequence as i64,
+        })
+        .collect();
 
-    for chain_tx in txs {
-        insert_transaction(
+    let fee = Fee {
+        amount: chain_tx
+            .tx
+            .auth_info
+            .fee
+            .amount
+            .iter()
+            .map(|coin| Coin {
+                denom: coin.denom.to_string(),
+                amount: coin.amount.to_string(),
+            })
+            .collect(),
+        gas_limit: chain_tx.tx.auth_info.fee.gas_limit as i64,
+        payer: chain_tx.tx.auth_info.fee.payer
+            .clone()
+            .map(|id| id.to_string())
+            .unwrap_or_default(),
+        granter: chain_tx.tx.auth_info.fee.granter
+            .clone()
+            .map(|id| id.to_string())
+            .unwrap_or_default(),
+    };
+
+    let signatures = chain_tx.tx.signatures
+        .iter()
+        .map(|sig| base64::encode(sig))
+        .collect();
+
+    insert_transaction(
+        chain_tx.hash.to_string(),
+        chain_tx.height.into(),
+        chain_tx.index as i64,
+        chain_tx.tx_result.code.is_ok(),
+        chain_tx.tx.body.messages.len() as i64,
+        chain_tx.tx.body.messages.clone(),
+        chain_tx.tx.body.memo.clone(),
+        signatures,
+        signer_infos,
+        fee,
+        chain_tx.tx_result.gas_wanted,
+        chain_tx.tx_result.gas_used,
+        chain_tx.tx_result.log.clone(),
+        &mut *tx,
+    )
+    .await?;
+
+    for (index, msg) in chain_tx.tx.body.messages.iter().enumerate() {
+        let involved_accounts = extract_involved_accounts(msg);
+        insert_message(
             chain_tx.hash.to_string(),
+            index as i64,
+            msg.type_url.clone(),
+            msg.clone(),
+            involved_accounts,
             chain_tx.height.into(),
-            chain_tx.index as i64,
-            chain_tx.tx_result.code.is_ok(),
-            chain_tx.tx.body.messages.len() as i64,
-            chain_tx.tx.body.messages.clone(),
-            chain_tx.tx.body.memo.clone(),
-            chain_tx.tx_result.gas_wanted,
-            chain_tx.tx_result.gas_used,
-            chain_tx.tx_result.log.clone(),
             &mut *tx,
         )
         .await?;
@@ -352,25 +413,8 @@ async fn persist_txs(
     Ok(())
 }
 
-async fn persist_messages(
-    txs: &[ParsedTransactionResponse],
-    tx: &mut StorageTransaction,
-) -> Result<(), ScraperError> {
-    debug!("persisting messages");
-
-    for chain_tx in txs {
-        for (index, msg) in chain_tx.tx.body.messages.iter().enumerate() {
-            insert_message(
-                chain_tx.hash.to_string(),
-                index as i64,
-                msg.type_url.clone(),
-                chain_tx.height.into(),
-                &mut *tx,
-            )
-            .await?
-        }
-    }
-
-    Ok(())
+fn extract_involved_accounts(_msg: &cosmrs::Any) -> Vec<String> {
+    // This is a placeholder implementation
+    // TODO: Implement proper account extraction based on message type
+    vec![]
 }
-    

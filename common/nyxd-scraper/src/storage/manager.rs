@@ -5,6 +5,8 @@ use std::vec;
 
 use crate::storage::log_db_operation_time;
 use crate::storage::models::{CommitSignature, Validator};
+use base64;
+use serde_json::Value as JsonValue;
 use sqlx::types::time::OffsetDateTime;
 use sqlx::{Executor, Postgres};
 use tokio::time::Instant;
@@ -348,9 +350,12 @@ pub(crate) async fn insert_transaction<'a, E>(
     height: i64,
     index: i64,
     success: bool,
-    message_len: i64,
+    num_messages: i64,
     messages: Vec<cosmrs::Any>,
     memo: String,
+    signatures: Vec<String>,
+    signer_infos: Vec<SignerInfo>,
+    fee: Fee,
     gas_wanted: i64,
     gas_used: i64,
     raw_log: String,
@@ -364,32 +369,57 @@ where
 
     sqlx::query!(
         r#"
-            INSERT INTO "transaction" (hash, height, "index", success, num_messages, messages, memo, gas_wanted, gas_used, raw_log)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-               ON CONFLICT (hash) DO UPDATE
-               SET height = excluded.height,
-               "index" = excluded."index",
-               success = excluded.success,
-               num_messages = excluded.num_messages,
-               messages = excluded.messages
-               memo = excluded.memo,
-               gas_wanted = excluded.gas_wanted,
-               gas_used = excluded.gas_used,
-               raw_log = excluded.raw_log
+            INSERT INTO transaction (hash, height, "index", success, num_messages, messages, memo, signatures, signer_infos, fee, gas_wanted, gas_used, raw_log)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+            ON CONFLICT (hash) DO UPDATE
+                SET height = excluded.height,
+                    "index" = excluded."index",
+                    success = excluded.success,
+                    num_messages = excluded.num_messages,
+                    messages = excluded.messages,
+                    memo = excluded.memo,
+                    signatures = excluded.signatures,
+                    signer_infos = excluded.signer_infos,
+                    fee = excluded.fee,
+                    gas_wanted = excluded.gas_wanted,
+                    gas_used = excluded.gas_used,
+                    raw_log = excluded.raw_log
         "#,
-            hash,
-            height,
-            index as i32,
-            success,
-            messages as i32,
-            messages,
-            memo,
-            gas_wanted,
-            gas_used,
-            raw_log,
+        hash,
+        height,
+        index as i32,
+        success,
+        num_messages as i32,
+        serde_json::json!(messages.iter().map(|msg| {
+            serde_json::json!({
+                "type_url": msg.type_url,
+                "value": base64::encode(&msg.value)
+            })
+        }).collect::<Vec<_>>()),
+        memo,
+        &signatures,
+        serde_json::json!(signer_infos.iter().map(|info| {
+            serde_json::json!({
+                "public_key": {
+                    "type_url": info.public_key.type_url,
+                    "value": base64::encode(&info.public_key.value)
+                },
+                "mode_info": info.mode_info,
+                "sequence": info.sequence
+            })
+        }).collect::<Vec<_>>()),
+        serde_json::json!({
+            "amount": fee.amount,
+            "gas_limit": fee.gas_limit,
+            "payer": fee.payer,
+            "granter": fee.granter
+        }),
+        gas_wanted,
+        gas_used,
+        raw_log
     )
-        .execute(executor)
-        .await?;
+    .execute(executor)
+    .await?;
     log_db_operation_time("insert_transaction", start);
 
     Ok(())
@@ -400,6 +430,8 @@ pub(crate) async fn insert_message<'a, E>(
     transaction_hash: String,
     index: i64,
     typ: String,
+    value: cosmrs::Any,
+    involved_accounts: Vec<String>,
     height: i64,
     executor: E,
 ) -> Result<(), sqlx::Error>
@@ -411,16 +443,23 @@ where
 
     sqlx::query!(
         r#"
-            INSERT INTO message (transaction_hash, "index", type, height)
-            VALUES ($1, $2, $3, $4)
+            INSERT INTO message (transaction_hash, "index", type, value, involved_accounts_addresses, height)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (transaction_hash, "index") DO UPDATE
                 SET height = excluded.height,
-                type = excluded.type
+                type = excluded.type,
+                value = excluded.value,
+                involved_accounts_addresses = excluded.involved_accounts_addresses
         "#,
-        transaction_hash,
-        index,
-        typ,
-        height
+            transaction_hash,
+            index,
+            typ,
+            serde_json::json!({
+                "type_url": value.type_url,
+                "value": base64::encode(&value.value)
+            }),
+            &involved_accounts,
+            height
     )
     .execute(executor)
     .await?;
@@ -511,7 +550,7 @@ where
     let start = Instant::now();
 
     sqlx::query!(
-        "DELETE FROM \"transaction\" WHERE height < $1",
+        "DELETE FROM transaction WHERE height < $1",
         oldest_to_keep
     )
     .execute(executor)
@@ -537,4 +576,25 @@ where
     log_db_operation_time("prune_messages", start);
 
     Ok(())
+}
+
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct Coin {
+    pub denom: String,
+    pub amount: String,
+}
+
+#[derive(Debug, Clone)]
+pub struct SignerInfo {
+    pub public_key: cosmrs::Any,
+    pub mode_info: String,
+    pub sequence: i64,
+}
+
+#[derive(Debug, Clone)]
+pub struct Fee {
+    pub amount: Vec<Coin>,
+    pub gas_limit: i64,
+    pub payer: String,
+    pub granter: String,
 }

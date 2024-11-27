@@ -37,7 +37,7 @@ async fn main() -> anyhow::Result<()> {
     // to DEBUG to see the contents of the msg buffer, sphinx packet chunking, etc.
     tracing_subscriber::registry()
         .with(fmt::layer())
-        .with(EnvFilter::new("nym_sdk::tcp_proxy=info"))
+        .with(EnvFilter::new("nym_sdk::tcp_proxy=warn"))
         .init();
 
     let env_path = env::args().nth(2).expect("Env file not specified");
@@ -45,9 +45,9 @@ async fn main() -> anyhow::Result<()> {
 
     let listen_port = env::args().nth(3).expect("Port not specified");
 
-    // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
+    // Within the TcpProxyClient, individual client shutdown is triggered by the timeout. The final argument is how many clients to keep in reserve in the client pool.
     let proxy_client =
-        tcp_proxy::NymProxyClient::new(server, "127.0.0.1", &listen_port, 45, Some(env), 5).await?;
+        tcp_proxy::NymProxyClient::new(server, "127.0.0.1", &listen_port, 45, Some(env), 2).await?;
 
     tokio::spawn(async move {
         proxy_client.run().await?;
@@ -60,7 +60,7 @@ async fn main() -> anyhow::Result<()> {
     println!("done. sending bytes");
 
     // In the info traces you will see the different session IDs being set up, one for each TcpStream.
-    for i in 0..5 {
+    for i in 0..8 {
         let conn_id = i;
         let local_tcp_addr = format!("127.0.0.1:{}", listen_port.clone());
         tokio::spawn(async move {
@@ -77,7 +77,7 @@ async fn main() -> anyhow::Result<()> {
 
             // Lets just send a bunch of messages to the server with variable delays between them, with a message and tcp connection ids to keep track of ordering on the server side (for illustrative purposes **only**; keeping track of anonymous replies is handled by the proxy under the hood with Single Use Reply Blocks (SURBs); for this illustration we want some kind of app-level message id, but irl most of the time you'll probably be parsing on e.g. the incoming response type instead)
             tokio::spawn(async move {
-                for i in 0..4 {
+                for i in 0..8 {
                     let mut rng = SmallRng::from_entropy();
                     let delay: f64 = rng.gen_range(2.5..5.0);
                     tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
@@ -104,17 +104,8 @@ async fn main() -> anyhow::Result<()> {
                 while let Some(Ok(bytes)) = framed_read.next().await {
                     match bincode::deserialize::<ExampleMessage>(&bytes) {
                         Ok(msg) => {
-                            // println!(
-                            //     "<< client received {}: {} bytes on conn {}",
-                            //     msg.message_id,
-                            //     msg.message_bytes.len(),
-                            //     msg.tcp_conn
-                            // );
                             reply_counter += 1;
-                            println!(
-                                "<< connection {} received reply {}/4",
-                                msg.tcp_conn, reply_counter
-                            );
+                            println!("<< conn {} received {}/8", msg.tcp_conn, reply_counter);
                         }
                         Err(e) => {
                             println!("<< client received something that wasn't an example message of {} bytes. error: {}", bytes.len(), e);
@@ -137,7 +128,7 @@ async fn main() -> anyhow::Result<()> {
 
 // emulate a series of small messages followed by a closing larger one
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
-    let amounts = [10, 15, 50, 1000];
+    let amounts = [10, 15, 50, 1000, 10, 15, 500, 2000];
     let len = amounts[i];
     let mut rng = rand::thread_rng();
     (0..len).map(|_| rng.gen::<u8>()).collect()

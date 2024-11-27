@@ -10,6 +10,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ExampleMessage {
@@ -35,8 +36,12 @@ async fn main() -> anyhow::Result<()> {
 
     // Comment this out to just see println! statements from this example, as Nym client logging is very informative but quite verbose.
     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering. To see the contents of the msg buffer, sphinx packet chunking, etc change the tracing::Level to DEBUG.
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+    // tracing_subscriber::fmt()
+    //     .with_max_level(tracing::Level::INFO)
+    //     .init();
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::new("nym_sdk::tcp_proxy=info"))
         .init();
 
     let server_port = env::args()
@@ -60,7 +65,7 @@ async fn main() -> anyhow::Result<()> {
     // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
     let proxy_client =
-        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 1)
+        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 3)
             .await?;
 
     tokio::spawn(async move {

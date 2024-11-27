@@ -35,9 +35,6 @@ async fn main() -> anyhow::Result<()> {
     // Nym client logging is very informative but quite verbose.
     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering: you need to switch
     // to DEBUG to see the contents of the msg buffer, sphinx packet chunking, etc.
-    // tracing_subscriber::fmt()
-    //     .with_max_level(tracing::Level::INFO)
-    //     .init();
     tracing_subscriber::registry()
         .with(fmt::layer())
         .with(EnvFilter::new("nym_sdk::tcp_proxy=info"))
@@ -63,9 +60,8 @@ async fn main() -> anyhow::Result<()> {
     println!("done. sending bytes");
 
     // In the info traces you will see the different session IDs being set up, one for each TcpStream.
-    for i in 0..10 {
+    for i in 0..5 {
         let conn_id = i;
-        println!("Starting TCP connection {}", conn_id);
         let local_tcp_addr = format!("127.0.0.1:{}", listen_port.clone());
         tokio::spawn(async move {
             // Now the client and server proxies are running we can create and pipe traffic to/from
@@ -96,12 +92,7 @@ async fn main() -> anyhow::Result<()> {
                         .write_all(&serialised)
                         .await
                         .expect("couldn't write to stream");
-                    println!(
-                        ">> client sent {}: {} bytes on conn {}",
-                        &i,
-                        msg.message_bytes.len(),
-                        &conn_id
-                    );
+                    println!(">> client sent msg {} on conn {}", &i, &conn_id);
                 }
                 Ok::<(), anyhow::Error>(())
             });
@@ -113,15 +104,15 @@ async fn main() -> anyhow::Result<()> {
                 while let Some(Ok(bytes)) = framed_read.next().await {
                     match bincode::deserialize::<ExampleMessage>(&bytes) {
                         Ok(msg) => {
-                            println!(
-                                "<< client received {}: {} bytes on conn {}",
-                                msg.message_id,
-                                msg.message_bytes.len(),
-                                msg.tcp_conn
-                            );
+                            // println!(
+                            //     "<< client received {}: {} bytes on conn {}",
+                            //     msg.message_id,
+                            //     msg.message_bytes.len(),
+                            //     msg.tcp_conn
+                            // );
                             reply_counter += 1;
                             println!(
-                                "tcp connection {} replies received {}/4",
+                                "<< connection {} received reply {}/4",
                                 msg.tcp_conn, reply_counter
                             );
                         }

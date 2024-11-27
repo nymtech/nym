@@ -73,8 +73,12 @@ impl NymProxyClient {
             TcpListener::bind(format!("{}:{}", self.listen_address, self.listen_port)).await?;
 
         let client_maker = self.conn_pool.clone();
-        tokio::spawn(async move { client_maker.start().await.unwrap() });
+        tokio::spawn(async move {
+            client_maker.start().await?;
+            Ok::<(), anyhow::Error>(())
+        });
 
+        // TODO add 'ready' marker for consuming code
         loop {
             if DEFAULT_CLIENT_POOL_SIZE == 1 && self.conn_pool.get_client_count().await == 1
                 || self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2

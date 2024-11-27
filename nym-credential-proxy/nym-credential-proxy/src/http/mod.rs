@@ -10,7 +10,6 @@ use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 pub mod helpers;
-pub mod middleware;
 pub mod router;
 pub mod state;
 pub mod types;

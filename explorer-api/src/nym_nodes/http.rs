@@ -101,6 +101,7 @@ pub struct NyxAccountDetails {
     pub total_delegations: Coin,
     pub claimable_rewards: Coin,
     pub vesting_account: Option<NymVestingAccount>,
+    pub operator_rewards: Option<Coin>,
 }
 
 #[openapi(tag = "UNSTABLE")]
@@ -193,6 +194,22 @@ pub(crate) async fn get_account_by_addr(
                 total_value += vesting_account.spendable.amount.u128();
             }
 
+            // 6. get operator rewards
+
+            let operator_rewards: Option<Coin> = if let Ok(operator_rewards_res) =
+                state.inner.get_operator_rewards(&address).await
+            {
+                if let Some(operator_reward_amount) = &operator_rewards_res.amount_earned {
+                    total_value += operator_reward_amount.amount.u128();
+                }
+
+                operator_rewards_res.amount_earned
+            } else {
+                None
+            };
+
+            // 7. convert totals
+
             let claimable_rewards = Coin::new(claimable_rewards, "unym");
             let total_delegations = Coin::new(total_delegations, "unym");
             let total_value = Coin::new(total_value, "unym");
@@ -206,6 +223,7 @@ pub(crate) async fn get_account_by_addr(
                 total_delegations,
                 total_value,
                 vesting_account,
+                operator_rewards,
             }))
         }
         Err(_e) => Err(NotFound("Account not found".to_string())),

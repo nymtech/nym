@@ -144,7 +144,7 @@ const PageAccountWithState = ({ account }: {
 
     const parts = [];
 
-    const nymBalance = Number.parseFloat(account.balances.find((b: any) => b.denom === "unym")?.amount || "0");
+    const nymBalance = Number.parseFloat(account.balances.find((b: any) => b.denom === "unym")?.amount || "0") / 1e6;
 
     parts.push({ label: "Spendable", value: nymBalance, color: theme.palette.primary.main });
 
@@ -152,14 +152,14 @@ const PageAccountWithState = ({ account }: {
       if (`${account.vesting_account.locked?.amount}` !== "0") {
         parts.push({
           label: "Vesting locked",
-          value: Number.parseFloat(account.vesting_account.locked.amount),
+          value: Number.parseFloat(account.vesting_account.locked.amount) / 1e6,
           color: 'red'
         });
       }
       if (`${account.vesting_account.spendable?.amount}` !== "0") {
         parts.push({
           label: "Vesting spendable",
-          value: Number.parseFloat(account.vesting_account.spendable.amount),
+          value: Number.parseFloat(account.vesting_account.spendable.amount) / 1e6,
           color: theme.palette.primary.light
         });
       }
@@ -167,15 +167,22 @@ const PageAccountWithState = ({ account }: {
 
     if (`${account.claimable_rewards.amount}` !== "0") {
       parts.push({
-        label: "Claimable rewards",
-        value: Number.parseFloat(account.claimable_rewards.amount),
+        label: "Claimable delegation rewards",
+        value: Number.parseFloat(account.claimable_rewards.amount) / 1e6,
         color: theme.palette.success.light
+      });
+    }
+    if (`${account.operator_rewards.amount}` !== "0") {
+      parts.push({
+        label: "Claimable operator rewards",
+        value: Number.parseFloat(account.operator_rewards.amount) / 1e6,
+        color: theme.palette.success.dark
       });
     }
     if (`${account.total_delegations.amount}` !== "0") {
       parts.push({
         label: "Total delegations",
-        value: Number.parseFloat(account.total_delegations.amount),
+        value: Number.parseFloat(account.total_delegations.amount) / 1e6,
         color: '#888'
       });
     }
@@ -228,12 +235,20 @@ const PageAccountWithState = ({ account }: {
               </TableRow>
               <TableRow sx={{ color: theme => theme.palette.success.light }}>
                 <TableCell component="th" scope="row" sx={{ color: "inherit" }}>
-                  Claimable rewards
+                  Claimable delegation rewards
                 </TableCell>
                 <TableCell align="right" sx={{ color: "inherit" }}>
                   {humanReadableCurrencyToString(account.claimable_rewards)}
                 </TableCell>
               </TableRow>
+              {`${account.operator_rewards.amount}` !== "0" && <TableRow sx={{ color: theme => theme.palette.success.light }}>
+                <TableCell component="th" scope="row" sx={{ color: "inherit" }}>
+                  Claimable operator rewards
+                </TableCell>
+                <TableCell align="right" sx={{ color: "inherit" }}>
+                  {humanReadableCurrencyToString(account.operator_rewards)}
+                </TableCell>
+              </TableRow>}
               {account.vesting_account && (
                 <>
                   <TableRow>

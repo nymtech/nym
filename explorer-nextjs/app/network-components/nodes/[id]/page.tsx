@@ -21,6 +21,7 @@ import TableContainer from '@mui/material/TableContainer';
 import TableRow from '@mui/material/TableRow';
 import {humanReadableCurrencyToString} from "@/app/utils/currency";
 import {DeclaredRole} from "@/app/network-components/nodes/DeclaredRole";
+import {NodeDelegationsTable, VestingDelegationWarning} from "@/app/network-components/nodes/[id]/NodeDelegationsTable";
 
 const columns: ColumnsType[] = [
   {
@@ -91,6 +92,8 @@ const PageNymNodeDetailsWithState = ({
   const { uptimeHistory } = useNymNodeContext()
   const enrichedData = React.useMemo(() => selectedNymNode ? [nodeEnrichedToGridRow(selectedNymNode)] : [], []);
 
+  const hasVestingContractDelegations = React.useMemo(() => selectedNymNode?.delegations?.filter((d: any) => d.proxy)?.length, [selectedNymNode]);
+
   return (
     <Box component="main">
       <Title text="Nym Node Detail" />
@@ -126,7 +129,14 @@ const PageNymNodeDetailsWithState = ({
                     </TableRow>
                     <TableRow>
                         <TableCell component="th" scope="row" sx={{ color: "inherit" }}>
-                            <strong>Delegates ({selectedNymNode.rewarding_details.unique_delegations} delegates)</strong>
+                            <strong>
+                              {hasVestingContractDelegations ?
+                                <VestingDelegationWarning plural={true}>
+                                  Delegates&nbsp;({selectedNymNode.rewarding_details.unique_delegations} delegates)
+                                </VestingDelegationWarning> :
+                                <>Delegates&nbsp;({selectedNymNode.rewarding_details.unique_delegations} delegates)</>
+                              }
+                            </strong>
                         </TableCell>
                         <TableCell align="right">
                           {humanReadableCurrencyToString({ amount : selectedNymNode.rewarding_details.delegates.split('.')[0], denom: "unym" })}
@@ -193,6 +203,10 @@ const PageNymNodeDetailsWithState = ({
           )}
         </Grid>
       </Grid>
+
+      <Box mt={2}>
+        <NodeDelegationsTable node={selectedNymNode}/>
+      </Box>
     </Box>
   )
 }

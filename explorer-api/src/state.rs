@@ -179,6 +179,22 @@ impl ExplorerApiState {
             Err(e) => Err(rocket::response::status::NotFound(format!("{}", e))),
         }
     }
+
+    pub(crate) async fn get_operator_rewards(
+        &self,
+        addr: &AccountId,
+    ) -> Result<PendingRewardResponse, rocket::response::status::NotFound<String>> {
+        match self
+            .validator_client
+            .0
+            .nyxd
+            .get_pending_operator_reward(addr)
+            .await
+        {
+            Ok(res) => Ok(res),
+            Err(e) => Err(rocket::response::status::NotFound(format!("{}", e))),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize)]

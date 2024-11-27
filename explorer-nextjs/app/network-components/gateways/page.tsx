@@ -89,7 +89,7 @@ const PageGateways = () => {
     return [
       {
         id: 'gateway-data',
-        header: 'Gatewsay Data',
+        header: 'Gateways Data',
         columns: [
           {
             id: 'identity_key',

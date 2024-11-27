@@ -139,7 +139,7 @@ impl NymProxyClient {
                 client
             }
             None => {
-                info!("Not enough clients in pool, creating ephemeral client");
+                info!("IF YOU SEE THIS not enough clients in pool, creating ephemeral client");
                 let net = NymNetworkDetails::new_from_env();
                 let client = MixnetClientBuilder::new_ephemeral()
                     .network_details(net)

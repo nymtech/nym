@@ -60,7 +60,7 @@ impl ClientPool {
             let spawned_clients = self.clients.read().await.len();
             let addresses = self;
             debug!(
-                "Currently spawned clients: {}: {:?} ",
+                "Currently spawned clients: {}: {:?}",
                 spawned_clients, addresses
             );
             if spawned_clients >= self.client_pool_reserve_number {
@@ -101,6 +101,10 @@ impl ClientPool {
 
     pub async fn get_client_count(&self) -> usize {
         self.clients.read().await.len()
+    }
+
+    pub async fn get_pool_reserve(&self) -> usize {
+        self.client_pool_reserve_number
     }
 
     pub fn clone(&self) -> Self {

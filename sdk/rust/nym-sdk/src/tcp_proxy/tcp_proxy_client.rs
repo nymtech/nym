@@ -13,6 +13,7 @@ use tokio::{
 };
 use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, instrument, warn};
 use utils::{MessageBuffer, Payload, ProxiedMessage};
 
@@ -74,25 +75,34 @@ impl NymProxyClient {
             Ok::<(), anyhow::Error>(())
         });
 
-        tokio::spawn(async move {
-            tokio::signal::ctrl_c().await.unwrap();
-            info!("RECEIVED KILL SIGNAL");
-            // TODO client pool kill function
+        let cancel_token = CancellationToken::new();
+
+        tokio::spawn({
+            let token = cancel_token.clone();
+            async move {
+                tokio::signal::ctrl_c().await.unwrap();
+                info!("Shutdown signal triggered");
+                token.cancel();
+            }
         });
 
-        // TODO add 'ready' marker for consuming code
+        // TODO add 'ready' marker for upstream lib to know when to start sending
 
         loop {
-            if DEFAULT_CLIENT_POOL_SIZE == 1 && self.conn_pool.get_client_count().await == 1
-                || self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2
-            {
-                let (stream, _) = listener.accept().await?;
-                tokio::spawn(NymProxyClient::handle_incoming(
-                    stream,
-                    self.server_address,
-                    self.close_timeout,
-                    self.conn_pool.clone(),
-                ));
+            tokio::select! {
+                stream = listener.accept() => {
+                    let (stream, _) = stream?;
+                        tokio::spawn(NymProxyClient::handle_incoming(
+                            stream,
+                            self.server_address,
+                            self.close_timeout,
+                            self.conn_pool.clone(),
+                            cancel_token.clone(),
+                        ));
+                }
+                _ = cancel_token.cancelled() => {
+                    break Ok(());
+                }
             }
         }
     }
@@ -109,12 +119,13 @@ impl NymProxyClient {
     // Then we spawn 2 tasks:
     // - 'Outgoing' thread => frames incoming bytes from OwnedReadHalf and pipe through the mixnet & trigger session close.
     // - 'Incoming' thread => orders incoming messages from the Mixnet via placing them in a MessageBuffer and using tick(), as well as manage session closing.
-    #[instrument(skip(stream, server_address, close_timeout, conn_pool))]
+    #[instrument(skip(stream, server_address, close_timeout, conn_pool, cancel_token))]
     async fn handle_incoming(
         stream: TcpStream,
         server_address: Recipient,
         close_timeout: u64,
         conn_pool: ClientPool,
+        cancel_token: CancellationToken,
     ) -> Result<()> {
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
         let session_id = uuid::Uuid::new_v4();
@@ -211,17 +222,22 @@ impl NymProxyClient {
             // Select!-ing one of following options:
             // - rx is triggered by tx to log the session will end in ARGS.close_timeout time, break from this loop to pass to loop below
             // - Deserialise incoming mixnet message, push to msg buffer and tick() to order and write to OwnedWriteHalf.
-            // - call tick() once per 100ms if neither of the above have occurred.
+            // - If the cancel_token is in cancelled state, break and kick down to the loop below.
+            // - Call tick() once per 100ms if neither of the above have occurred.
             loop {
                 tokio::select! {
                     _ = &mut rx => {
-                        info!(" Closing write end of session: {} in {} seconds", session_id, close_timeout);
+                        info!("Closing write end of session: {} in {} seconds", session_id, close_timeout);
                         break
                     }
                     Some(message) = client.next() => {
                         let message = bincode::deserialize::<ProxiedMessage>(&message.message)?;
                         msg_buffer.push(message);
                         msg_buffer.tick(&mut write).await?;
+                    },
+                    _ = cancel_token.cancelled() => {
+                        info!("CTRL_C triggered in thread, triggering loop shutdown");
+                        break
                     },
                     _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
                         msg_buffer.tick(&mut write).await?;
@@ -230,6 +246,7 @@ impl NymProxyClient {
             }
             // Select!-ing one of following options:
             // - Deserialise incoming mixnet message, push to msg buffer and tick() to order and write next messageID in line to OwnedWriteHalf.
+            // - If the cancel_token is in cancelled state, shutdown client for this thread.
             // - Sleep for session timeout and return, kills thread with Ok(()).
             loop {
                 tokio::select! {
@@ -238,11 +255,15 @@ impl NymProxyClient {
                         msg_buffer.push(message);
                         msg_buffer.tick(&mut write).await?;
                     },
+                    _ = cancel_token.cancelled() => {
+                        info!("CTRL_C triggered in thread, triggering client shutdown");
+                        client.disconnect().await;
+                        return Ok::<(), anyhow::Error>(())
+                    },
                     _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {
                         info!(" Closing write end of session: {}", session_id);
                         info!(" Triggering client shutdown");
                         client.disconnect().await;
-                        // conn_pool.disconnect_and_remove_client(client).await?;
                         return Ok::<(), anyhow::Error>(())
                     },
                 }

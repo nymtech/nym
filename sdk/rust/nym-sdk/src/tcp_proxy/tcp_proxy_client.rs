@@ -6,7 +6,7 @@ mod client_pool;
 use client_pool::ClientPool;
 #[path = "utils.rs"]
 mod utils;
-use anyhow::{bail, Result};
+use anyhow::Result;
 use dashmap::DashSet;
 use nym_network_defaults::setup_env;
 use nym_sphinx::addressing::Recipient;
@@ -88,6 +88,7 @@ impl NymProxyClient {
         });
 
         // TODO add 'ready' marker for consuming code
+
         loop {
             tokio::select! {
                 stream = listener.accept() => {
@@ -146,7 +147,7 @@ impl NymProxyClient {
                 client
             }
             None => {
-                info!("IF YOU SEE THIS not enough clients in pool, creating ephemeral client");
+                warn!("Not enough clients in pool, creating ephemeral client");
                 let net = NymNetworkDetails::new_from_env();
                 let client = MixnetClientBuilder::new_ephemeral()
                     .network_details(net)

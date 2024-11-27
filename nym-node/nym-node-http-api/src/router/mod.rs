@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::error::NymNodeHttpError;
-use crate::middleware::logging;
 use crate::state::AppState;
 use crate::NymNodeHTTPServer;
 use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
+use nym_http_api_common::middleware::logging;
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::{Gateway, Wireguard};
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;

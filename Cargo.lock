@@ -5620,12 +5620,15 @@ dependencies = [
  "axum-client-ip",
  "bytes",
  "colored",
+ "futures",
  "mime",
  "serde",
  "serde_json",
  "serde_yaml",
+ "tower 0.4.13",
  "tracing",
  "utoipa",
+ "zeroize",
 ]
 
 [[package]]

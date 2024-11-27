@@ -17,7 +17,7 @@ use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
 use core::net::SocketAddr;
-use nym_http_api_common::logging::logger;
+use nym_http_api_common::middleware::logging::logger;
 use tokio::net::TcpListener;
 use tokio_util::sync::WaitForCancellationFutureOwned;
 use tower_http::cors::CorsLayer;

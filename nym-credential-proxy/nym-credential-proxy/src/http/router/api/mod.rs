@@ -4,8 +4,8 @@
 use crate::http::state::ApiState;
 use axum::Router;
 use nym_credential_proxy_requests::routes;
+use nym_http_api_common::middleware::bearer_auth::AuthLayer;
 
-use crate::http::middleware::auth::AuthLayer;
 pub(crate) use nym_http_api_common::{Output, OutputParams};
 
 pub mod v1;

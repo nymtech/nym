@@ -86,11 +86,11 @@ export const ExplorerProgressBar = (props: IExplorerProgressBarProps) => {
         <Box mt={2}>
           <Box display={"flex"} justifyContent={"space-between"}>
             <Typography textTransform={"uppercase"}>START:</Typography>
-            <Typography> {formatDate(startTime)}</Typography>
+            <Typography> {startTime ? formatDate(startTime) : ""}</Typography>
           </Box>
           <Box display={"flex"} justifyContent={"space-between"}>
             <Typography textTransform={"uppercase"}>END:</Typography>
-            <Typography> {formatDate(endTime)}</Typography>
+            <Typography> {endTime ? formatDate(endTime) : ""}</Typography>
           </Box>
         </Box>
       )}

@@ -5,6 +5,9 @@ import {
   ExplorerProgressBar,
   IExplorerProgressBarProps,
 } from "./ExplorerProgressBar";
+import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
+import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
+import { NymTokenSVG } from "../icons/NymTokenSVG";
 
 interface ICardUpDownPriceLineProps {
   percentage: number;
@@ -15,7 +18,12 @@ const CardUpDownPriceLine = (
 ): ReactElement => {
   const { percentage, numberWentUp } = props;
   return (
-    <Box mb={3}>
+    <Box mb={3} display={"flex"}>
+      {numberWentUp ? (
+        <ArrowUpwardIcon sx={{ color: "#00CA33" }} fontSize="small" />
+      ) : (
+        <ArrowDownwardIcon sx={{ color: "#DF1400" }} fontSize="small" />
+      )}
       <Typography sx={{ color: numberWentUp ? "#00CA33" : "#DF1400" }}>
         {percentage}% (24H)
       </Typography>
@@ -32,7 +40,10 @@ const CardTitlePrice = (props: ICardTitlePriceProps): React.ReactNode => {
   return (
     <Box display={"flex"} flexDirection={"column"} alignItems={"flex-end"}>
       <Box display={"flex"} justifyContent={"space-between"} width={"100%"}>
-        <Typography>NYM</Typography>
+        <Box display={"flex"} gap={1}>
+          <NymTokenSVG />
+          <Typography>NYM</Typography>
+        </Box>
         <Typography>${price}</Typography>
       </Box>
       <CardUpDownPriceLine {...upDownLine} />

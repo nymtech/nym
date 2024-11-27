@@ -151,7 +151,6 @@ export async function ensureCacheExists() {
     global.explorerCache.data = {
       circulatingNymSupplyData,
       nymNodesData,
-
       packetsAndStakingData,
       currentEpochData,
       currentEpochRewardsData,

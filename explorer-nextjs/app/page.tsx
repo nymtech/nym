@@ -99,7 +99,7 @@ export default function PageOverview() {
 
   const progressBar = {
     title: "Current NGM epoch",
-    start: currentEpochStart,
+    start: currentEpochStart || "",
     showEpoch: true,
   };
 
@@ -149,9 +149,17 @@ export default function PageOverview() {
     overTitle: "Noise generated last 24h",
     title: formatBigNum(packetsSentLast24H) || "",
     upDownLine: {
-      percentage: Math.abs(percentage),
+      percentage: Math.abs(percentage) || 0,
       numberWentUp: percentage > 0,
     },
+  };
+
+  const currentStake =
+    Number(explorerData?.currentEpochRewardsData.interval.staking_supply) || 0;
+  console.log("currentStake :>> ", currentStake);
+  const stakeCard = {
+    overTitle: "Current network stake",
+    title: formatBigNum(currentStake) + " NYM" || "",
   };
 
   const {
@@ -180,6 +188,9 @@ export default function PageOverview() {
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <ExplorerCard {...noiseCard} />
+                </Grid>
+                <Grid item xs={12} md={4}>
+                  <ExplorerCard {...stakeCard} />
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <StatsCard

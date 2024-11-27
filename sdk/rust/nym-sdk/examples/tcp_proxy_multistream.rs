@@ -37,7 +37,11 @@ async fn main() -> anyhow::Result<()> {
     // to DEBUG to see the contents of the msg buffer, sphinx packet chunking, etc.
     tracing_subscriber::registry()
         .with(fmt::layer())
-        .with(EnvFilter::new("nym_sdk::tcp_proxy=warn"))
+        .with(
+            EnvFilter::new("info")
+                .add_directive("nym_sdk::client_pool=info".parse().unwrap())
+                .add_directive("nym_sdk::tcp_proxy_client=debug".parse().unwrap()),
+        )
         .init();
 
     let env_path = env::args().nth(2).expect("Env file not specified");

@@ -81,6 +81,12 @@ impl NymProxyClient {
             Ok::<(), anyhow::Error>(())
         });
 
+        tokio::spawn(async move {
+            tokio::signal::ctrl_c().await.unwrap();
+            info!("RECEIVED KILL SIGNAL");
+            // TODO client pool kill function
+        });
+
         // TODO add 'ready' marker for consuming code
         loop {
             tokio::select! {

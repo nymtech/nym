@@ -1,4 +1,11 @@
-import { Card, CardHeader, CardContent, Typography, Box } from "@mui/material";
+import {
+  Card,
+  CardHeader,
+  CardContent,
+  Typography,
+  Box,
+  useTheme,
+} from "@mui/material";
 import React, { FC, ReactElement, ReactEventHandler } from "react";
 import { ExplorerLineChart, IExplorerLineChartData } from "./ExplorerLineChart";
 import {
@@ -56,6 +63,7 @@ interface ICardDataRowsProps {
 }
 const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
   const { rows } = props;
+
   return (
     <Box mb={3}>
       {rows.map((row, i) => {
@@ -66,7 +74,7 @@ const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
             paddingBottom={2}
             display={"flex"}
             justifyContent={"space-between"}
-            borderBottom={i === 0 ? "1px solid #fff" : "none"}
+            borderBottom={i === 0 ? "1px solid #CAD6D7" : "none"}
           >
             <Typography>{row.key}</Typography>
             <Typography>{row.value}</Typography>
@@ -83,7 +91,7 @@ type ContentCardProps = {
   upDownLine?: ICardUpDownPriceLineProps;
   titlePrice?: ICardTitlePriceProps;
   dataRows?: ICardDataRowsProps;
-  graph?: Array<IExplorerLineChartData>;
+  graph?: { data: Array<IExplorerLineChartData>; color: string; label: string };
   progressBar?: IExplorerProgressBarProps;
   paragraph?: string;
   onClick?: ReactEventHandler;
@@ -117,7 +125,11 @@ export const ExplorerCard: FC<ContentCardProps> = ({
       {dataRows && <CardDataRows {...dataRows} />}
       {graph && (
         <Box mb={3}>
-          <ExplorerLineChart data={graph} />
+          <ExplorerLineChart
+            data={graph.data}
+            color={graph.color}
+            label={graph.label}
+          />
         </Box>
       )}
       {progressBar && (

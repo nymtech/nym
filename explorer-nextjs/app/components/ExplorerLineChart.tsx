@@ -13,10 +13,8 @@ const LineChart = dynamic(
 
 export interface IExplorerLineChartData {
   date_utc: string;
-  greenLineNumericData: number;
-  purpleLineNumericData: number;
-  //   total_packets_dropped: number;
-  //   total_stake: number;
+  numericData?: number;
+  // purpleLineNumericData?: number;
 }
 
 interface IAxes {
@@ -31,8 +29,12 @@ interface ILineAxes {
 
 export const ExplorerLineChart = ({
   data,
+  color,
+  label,
 }: {
   data: Array<IExplorerLineChartData>;
+  color: string;
+  label: string;
 }) => {
   const theme = useTheme();
   const isDesktop = useMediaQuery(theme.breakpoints.up("lg"));
@@ -44,35 +46,35 @@ export const ExplorerLineChart = ({
     if (resultData.length > 0) {
       setChartData(resultData);
     }
-  }, []);
+  }, [data]);
 
   const transformData = (data: Array<IExplorerLineChartData>) => {
-    const greenLineData: ILineAxes = {
-      id: "Numeric Data 1",
+    const lineData: ILineAxes = {
+      id: label,
       data: [],
     };
 
-    const purpleLineData: ILineAxes = {
-      id: "Numeric Data 2",
-      data: [],
-    };
+    // const purpleLineData: ILineAxes = {
+    //   id: "Numeric Data 2",
+    //   data: [],
+    // };
 
     data.map((item: any) => {
       const axesGreenLineData: IAxes = {
         x: new Date(item.date_utc),
-        y: item.greenLineNumericData,
+        y: item.numericData,
       };
 
-      greenLineData.data.push(axesGreenLineData);
+      lineData.data.push(axesGreenLineData);
 
-      const axesPurpleLineData: IAxes = {
-        x: new Date(item.date_utc),
-        y: item.purpleLineNumericData,
-      };
+      // const axesPurpleLineData: IAxes = {
+      //   x: new Date(item.date_utc),
+      //   y: item.purpleLineNumericData,
+      // };
 
-      purpleLineData.data.push(axesPurpleLineData);
+      // purpleLineData.data.push(axesPurpleLineData);
     });
-    return [{ ...purpleLineData }, { ...greenLineData }];
+    return [{ ...lineData }];
   };
 
   const yformat = (num: number | string | Date) => {
@@ -91,18 +93,20 @@ export const ExplorerLineChart = ({
       throw new Error("Unexpected value");
     }
   };
+
+  console.log("chartData.length :>> ", chartData);
   return (
     <Box width={"100%"} height={isDesktop ? 200 : 150}>
       {chartData && (
         <LineChart
           curve="monotoneX"
-          colors={["#8482FD", "#00CA33"]}
+          colors={[color]}
           data={chartData}
           animate
           enableSlices="x"
           margin={{
             bottom: 24,
-            left: 16,
+            left: 26,
             right: 16,
             top: 20,
           }}
@@ -140,7 +144,8 @@ export const ExplorerLineChart = ({
           axisBottom={{
             format: "%b %d",
             legendOffset: -12,
-            tickValues: "every day",
+            tickValues:
+              chartData[0].data.length > 7 ? "every 4 days" : "every day",
           }}
         />
       )}

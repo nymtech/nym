@@ -20,6 +20,7 @@ import { useRouter } from "next/navigation";
 import { ExplorerCard } from "./components/ExplorerCard";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import { ExplorerData, getCacheExplorerData } from "./api/explorer";
+import { IExplorerLineChartData } from "./components/ExplorerLineChart";
 
 // type ContentCardProps = {
 //   overTitle?: string;
@@ -53,28 +54,28 @@ const explorerCard = {
       { key: "24H VOL", value: "$ 1000000" },
     ],
   },
-  graph: [
-    {
-      date_utc: "2024-11-20",
-      greenLineNumericData: 10,
-      purpleLineNumericData: 5,
-    },
-    {
-      date_utc: "2024-11-21",
-      greenLineNumericData: 12,
-      purpleLineNumericData: 6,
-    },
-    {
-      date_utc: "2024-11-22",
-      greenLineNumericData: 9,
-      purpleLineNumericData: 5,
-    },
-    {
-      date_utc: "2024-11-23",
-      greenLineNumericData: 11,
-      purpleLineNumericData: 4,
-    },
-  ],
+  graph: {
+    data: [
+      {
+        date_utc: "2024-11-20",
+        numericData: 10,
+      },
+      {
+        date_utc: "2024-11-21",
+        numericData: 12,
+      },
+      {
+        date_utc: "2024-11-22",
+        numericData: 9,
+      },
+      {
+        date_utc: "2024-11-23",
+        numericData: 11,
+      },
+    ],
+    color: "#00CA33",
+    label: "Label",
+  },
 
   paragraph: "Additional line",
 };
@@ -82,6 +83,13 @@ export const DATA_REVALIDATE = 60;
 
 export default function PageOverview() {
   const [explorerData, setExplorerData] = useState<ExplorerData | null>(null);
+  const [noiseLineGraphData, setNoiseLineGraphData] = useState<{
+    color: string;
+    label: string;
+    data: IExplorerLineChartData[];
+  }>();
+
+  console.log("noiseLineGraphData :>> ", noiseLineGraphData);
 
   useEffect(() => {
     async function fetchData() {
@@ -118,15 +126,21 @@ export default function PageOverview() {
     }
   };
 
-  const packetsSentLast24H =
+  const noiseLast24H =
     explorerData?.packetsAndStakingData[
       explorerData.packetsAndStakingData.length - 1
-    ].total_packets_sent;
+    ].total_packets_sent +
+    explorerData?.packetsAndStakingData[
+      explorerData.packetsAndStakingData.length - 1
+    ].total_packets_received;
 
-  const packetsSentPrevious24H =
+  const noisePrevious24H =
     explorerData?.packetsAndStakingData[
       explorerData.packetsAndStakingData.length - 2
-    ].total_packets_sent;
+    ].total_packets_sent +
+    explorerData?.packetsAndStakingData[
+      explorerData.packetsAndStakingData.length - 2
+    ].total_packets_received;
 
   const calculatePercentageChange = (last24H: number, previous24H: number) => {
     if (previous24H === 0) {
@@ -140,14 +154,31 @@ export default function PageOverview() {
     return parseFloat(change.toFixed(2));
   };
 
-  const percentage = calculatePercentageChange(
-    packetsSentLast24H,
-    packetsSentPrevious24H
-  );
+  const percentage = calculatePercentageChange(noiseLast24H, noisePrevious24H);
+
+  const getPacketsData = () => {
+    const data: Array<IExplorerLineChartData> = [];
+    explorerData?.packetsAndStakingData.map((item: any) => {
+      data.push({
+        date_utc: item.date_utc,
+        numericData: item.total_packets_sent + item.total_packets_received,
+      });
+    });
+    return data;
+  };
+
+  useEffect(() => {
+    const noiseLineGraphData = {
+      color: "#8482FD",
+      label: "Total packets sent and received",
+      data: getPacketsData(),
+    };
+    setNoiseLineGraphData(noiseLineGraphData);
+  }, [explorerData]);
 
   const noiseCard = {
     overTitle: "Noise generated last 24h",
-    title: formatBigNum(packetsSentLast24H) || "",
+    title: formatBigNum(noiseLast24H) || "",
     upDownLine: {
       percentage: Math.abs(percentage) || 0,
       numberWentUp: percentage > 0,
@@ -156,10 +187,9 @@ export default function PageOverview() {
 
   const currentStake =
     Number(explorerData?.currentEpochRewardsData.interval.staking_supply) || 0;
-  console.log("currentStake :>> ", currentStake);
   const stakeCard = {
     overTitle: "Current network stake",
-    title: formatBigNum(currentStake) + " NYM" || "",
+    title: currentStake + " NYM" || "",
   };
 
   const {
@@ -187,7 +217,7 @@ export default function PageOverview() {
                   <ExplorerCard progressBar={progressBar} />
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <ExplorerCard {...noiseCard} />
+                  <ExplorerCard {...noiseCard} graph={noiseLineGraphData} />
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <ExplorerCard {...stakeCard} />

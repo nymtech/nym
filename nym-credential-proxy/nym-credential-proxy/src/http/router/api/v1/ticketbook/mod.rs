@@ -21,7 +21,7 @@ use nym_credential_proxy_requests::api::v1::ticketbook::models::{
 use nym_credential_proxy_requests::routes::api::v1::ticketbook;
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use time::OffsetDateTime;
-use tracing::{error, info, span, warn, Level};
+use tracing::{error, info, span, warn, Instrument, Level};
 
 pub(crate) mod shares;
 
@@ -71,55 +71,58 @@ pub(crate) async fn obtain_ticketbook_shares(
     let requested_on = OffsetDateTime::now_utc();
 
     let span = span!(Level::INFO, "obtain ticketboook", uuid = %uuid);
-    let _entered = span.enter();
-    info!("");
+    async move {
+        info!("");
 
-    let output = params.output.unwrap_or_default();
+        let output = params.output.unwrap_or_default();
 
-    state.ensure_not_in_epoch_transition(Some(uuid)).await?;
-    let epoch_id = state
-        .current_epoch_id()
-        .await
-        .map_err(|err| RequestError::new_server_error(err, uuid))?;
+        state.ensure_not_in_epoch_transition(Some(uuid)).await?;
+        let epoch_id = state
+            .current_epoch_id()
+            .await
+            .map_err(|err| RequestError::new_server_error(err, uuid))?;
 
-    if let Err(err) = ensure_sane_expiration_date(payload.expiration_date) {
-        warn!("failure due to invalid expiration date");
-        return Err(RequestError::new_with_uuid(
-            err.to_string(),
-            uuid,
-            StatusCode::BAD_REQUEST,
-        ));
-    }
+        if let Err(err) = ensure_sane_expiration_date(payload.expiration_date) {
+            warn!("failure due to invalid expiration date");
+            return Err(RequestError::new_with_uuid(
+                err.to_string(),
+                uuid,
+                StatusCode::BAD_REQUEST,
+            ));
+        }
 
-    // if additional data was requested, grab them first in case there are any cache/network issues
-    let (
-        master_verification_key,
-        aggregated_expiration_date_signatures,
-        aggregated_coin_index_signatures,
-    ) = state
-        .response_global_data(
-            params.include_master_verification_key,
-            params.include_expiration_date_signatures,
-            params.include_coin_index_signatures,
+        // if additional data was requested, grab them first in case there are any cache/network issues
+        let (
+            master_verification_key,
+            aggregated_expiration_date_signatures,
+            aggregated_coin_index_signatures,
+        ) = state
+            .response_global_data(
+                params.include_master_verification_key,
+                params.include_expiration_date_signatures,
+                params.include_coin_index_signatures,
+                epoch_id,
+                payload.expiration_date,
+                uuid,
+            )
+            .await?;
+
+        let shares = try_obtain_wallet_shares(&state, uuid, requested_on, payload)
+            .await
+            .inspect_err(|err| warn!("request failure: {err}"))
+            .map_err(|err| RequestError::new(err.to_string(), StatusCode::INTERNAL_SERVER_ERROR))?;
+
+        info!("request was successful!");
+        Ok(output.to_response(TicketbookWalletSharesResponse {
             epoch_id,
-            payload.expiration_date,
-            uuid,
-        )
-        .await?;
-
-    let shares = try_obtain_wallet_shares(&state, uuid, requested_on, payload)
-        .await
-        .inspect_err(|err| warn!("request failure: {err}"))
-        .map_err(|err| RequestError::new(err.to_string(), StatusCode::INTERNAL_SERVER_ERROR))?;
-
-    info!("request was successful!");
-    Ok(output.to_response(TicketbookWalletSharesResponse {
-        epoch_id,
-        shares,
-        master_verification_key,
-        aggregated_coin_index_signatures,
-        aggregated_expiration_date_signatures,
-    }))
+            shares,
+            master_verification_key,
+            aggregated_coin_index_signatures,
+            aggregated_expiration_date_signatures,
+        }))
+    }
+    .instrument(span)
+    .await
 }
 
 /// Attempt to obtain blinded shares of an ecash ticketbook wallet asynchronously
@@ -159,63 +162,69 @@ pub(crate) async fn obtain_ticketbook_shares_async(
     let requested_on = OffsetDateTime::now_utc();
 
     let span = span!(Level::INFO, "[async] obtain ticketboook", uuid = %uuid);
-    let _entered = span.enter();
-    info!("");
+    async move {
+        info!("");
+        let output = params.output.unwrap_or_default();
 
-    let output = params.output.unwrap_or_default();
+        // 1. perform basic validation
+        state.ensure_not_in_epoch_transition(Some(uuid)).await?;
 
-    // 1. perform basic validation
-    state.ensure_not_in_epoch_transition(Some(uuid)).await?;
-
-    if let Err(err) = ensure_sane_expiration_date(payload.inner.expiration_date) {
-        warn!("failure due to invalid expiration date");
-        return Err(RequestError::new_with_uuid(
-            err.to_string(),
-            uuid,
-            StatusCode::BAD_REQUEST,
-        ));
-    }
-
-    // 2. store the request to retrieve the id
-    let pending = match state
-        .storage()
-        .insert_new_pending_async_shares_request(uuid, &payload.device_id, &payload.credential_id)
-        .await
-    {
-        Err(err) => {
-            error!("failed to insert new pending async shares: {err}");
+        if let Err(err) = ensure_sane_expiration_date(payload.inner.expiration_date) {
+            warn!("failure due to invalid expiration date");
             return Err(RequestError::new_with_uuid(
                 err.to_string(),
                 uuid,
-                StatusCode::CONFLICT,
+                StatusCode::BAD_REQUEST,
             ));
         }
-        Ok(pending) => pending,
-    };
-    let id = pending.id;
 
-    // 3. try to spawn a new task attempting to resolve the request
-    if state
-        .try_spawn(try_obtain_blinded_ticketbook_async(
-            state.clone(),
-            uuid,
-            requested_on,
-            payload,
-            params,
-            pending,
-        ))
-        .is_none()
-    {
-        // we're going through the shutdown
-        return Err(RequestError::new_with_uuid(
-            "server shutdown in progress",
-            uuid,
-            StatusCode::INTERNAL_SERVER_ERROR,
-        ));
+        // 2. store the request to retrieve the id
+        let pending = match state
+            .storage()
+            .insert_new_pending_async_shares_request(
+                uuid,
+                &payload.device_id,
+                &payload.credential_id,
+            )
+            .await
+        {
+            Err(err) => {
+                error!("failed to insert new pending async shares: {err}");
+                return Err(RequestError::new_with_uuid(
+                    err.to_string(),
+                    uuid,
+                    StatusCode::CONFLICT,
+                ));
+            }
+            Ok(pending) => pending,
+        };
+        let id = pending.id;
+
+        // 3. try to spawn a new task attempting to resolve the request
+        if state
+            .try_spawn(try_obtain_blinded_ticketbook_async(
+                state.clone(),
+                uuid,
+                requested_on,
+                payload,
+                params,
+                pending,
+            ))
+            .is_none()
+        {
+            // we're going through the shutdown
+            return Err(RequestError::new_with_uuid(
+                "server shutdown in progress",
+                uuid,
+                StatusCode::INTERNAL_SERVER_ERROR,
+            ));
+        }
+
+        // 4. in the meantime, return the id to the user
+        Ok(output.to_response(TicketbookWalletSharesAsyncResponse { id, uuid }))
     }
-
-    // 4. in the meantime, return the id to the user
-    Ok(output.to_response(TicketbookWalletSharesAsyncResponse { id, uuid }))
+    .instrument(span)
+    .await
 }
 
 /// Obtain the current value of the bandwidth voucher deposit

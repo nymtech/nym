@@ -81,6 +81,7 @@ impl NymProxyClient {
             Ok::<(), anyhow::Error>(())
         });
 
+        // TODO add 'ready' marker for consuming code
         loop {
             tokio::select! {
                 stream = listener.accept() => {

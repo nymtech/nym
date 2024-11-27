@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 
 env:
-  WORKING_DIRECTORY: "nym-node-status-api"
+  WORKING_DIRECTORY: "nym-node-status-api/nym-node-status-api"
   CONTAINER_NAME: "node-status-api"
 
 jobs:

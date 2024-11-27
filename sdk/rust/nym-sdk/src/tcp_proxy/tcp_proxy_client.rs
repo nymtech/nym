@@ -1,8 +1,6 @@
+use crate::client_pool::ClientPool;
 use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
 use std::sync::Arc;
-#[path = "client_pool.rs"]
-mod client_pool;
-use client_pool::ClientPool;
 #[path = "utils.rs"]
 mod utils;
 use anyhow::Result;

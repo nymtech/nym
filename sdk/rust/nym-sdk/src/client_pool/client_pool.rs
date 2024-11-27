@@ -99,12 +99,6 @@ impl ClientPool {
             .and_then(|arc_client| Arc::try_unwrap(arc_client).ok())
     }
 
-    // This might still be needed if it needs to be called with a cancellation token in various threads. keeping for the moment
-    // pub async fn disconnect_and_remove_client(&self, client: MixnetClient) -> Result<()> {
-    //     client.disconnect().await;
-    //     Ok(())
-    // }
-
     pub async fn get_client_count(&self) -> usize {
         self.clients.read().await.len()
     }

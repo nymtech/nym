@@ -75,15 +75,8 @@ impl NymProxyClient {
         let client_maker = self.conn_pool.clone();
         tokio::spawn(async move { client_maker.start().await.unwrap() });
 
-        // let overall_counter = self.conn_pool.clone();
-        // tokio::spawn(async move {
-        //     loop {
-        //         info!("Active connections: {}", overall_counter.get_conn_count());
-        //         tokio::time::sleep(Duration::from_secs(5)).await;
-        //     }
-        // });
-
         loop {
+            // TODO change this to a proper 'ready' state
             if DEFAULT_CLIENT_POOL_SIZE == 1 && self.conn_pool.get_client_count().await == 1
                 || self.conn_pool.get_client_count().await >= DEFAULT_CLIENT_POOL_SIZE / 2
             {
@@ -110,7 +103,7 @@ impl NymProxyClient {
     // Then we spawn 2 tasks:
     // - 'Outgoing' thread => frames incoming bytes from OwnedReadHalf and pipe through the mixnet & trigger session close.
     // - 'Incoming' thread => orders incoming messages from the Mixnet via placing them in a MessageBuffer and using tick(), as well as manage session closing.
-    #[instrument]
+    #[instrument(skip(stream, server_address, close_timeout, conn_pool))]
     async fn handle_incoming(
         stream: TcpStream,
         server_address: Recipient,
@@ -127,11 +120,11 @@ impl NymProxyClient {
 
         let mut client = match conn_pool.get_mixnet_client().await {
             Some(client) => {
-                info!("Grabbing client {} from pool", client.nym_address());
+                info!("Grabbed client {} from pool", client.nym_address());
                 client
             }
             None => {
-                info!("Not enough clients in pool, creating ephemeral client");
+                info!("IF YOU SEE THIS not enough clients in pool, creating ephemeral client");
                 let net = NymNetworkDetails::new_from_env();
                 MixnetClientBuilder::new_ephemeral()
                     .network_details(net)
@@ -140,12 +133,6 @@ impl NymProxyClient {
                     .await?
             }
         };
-
-        // conn_pool.increment_conn_count();
-        // info!(
-        //     "New connection - current active connections: {}",
-        //     conn_pool.get_conn_count()
-        // );
 
         // Split our tcpstream into OwnedRead and OwnedWrite halves for concurrent read/writing
         let (read, mut write) = stream.into_split();
@@ -243,12 +230,8 @@ impl NymProxyClient {
                     _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {
                         info!(" Closing write end of session: {}", session_id);
                         info!(" Triggering client shutdown");
-                        conn_pool.disconnect_and_remove_client(client).await?;
-                        // conn_pool.clone().decrement_conn_count()?;
-                        // info!(
-                        //     "Dropped connection - current active connections: {}",
-                        //     conn_pool.get_conn_count()
-                        // );
+                        client.disconnect().await;
+                        // conn_pool.disconnect_and_remove_client(client).await?;
                         return Ok::<(), anyhow::Error>(())
                     }
                 }

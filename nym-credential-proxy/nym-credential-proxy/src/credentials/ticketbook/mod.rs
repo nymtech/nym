@@ -14,7 +14,6 @@ use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::Base58;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::ecash::BlindSignRequestBody;
-use nym_validator_client::nyxd::contract_traits::EcashSigningClient;
 use nym_validator_client::nyxd::cosmwasm_client::ToSingletonContractData;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
@@ -61,19 +60,15 @@ pub(crate) async fn try_obtain_wallet_shares(
 
     let chain_write_permit = state.start_chain_tx().await;
 
+    // TODO: batch those up
+    // TODO: batch those up
     info!("starting the deposit!");
-    // TODO: batch those up
-    // TODO: batch those up
     let deposit_res = chain_write_permit
-        .make_ticketbook_deposit(
+        .make_deposit(
             ed25519_keypair.public_key().to_base58_string(),
             deposit_amount.clone(),
-            None,
         )
         .await?;
-
-    // explicitly drop it here so other tasks could start using it
-    drop(chain_write_permit);
 
     let deposit_id = deposit_res.parse_singleton_u32_contract_data()?;
     let tx_hash = deposit_res.transaction_hash;

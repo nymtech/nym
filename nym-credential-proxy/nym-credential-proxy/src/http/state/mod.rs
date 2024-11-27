@@ -32,13 +32,15 @@ use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
 use nym_validator_client::nyxd::contract_traits::{
-    DkgQueryClient, EcashQueryClient, NymContractsProvider, PagedDkgQueryClient,
+    DkgQueryClient, EcashQueryClient, EcashSigningClient, NymContractsProvider, PagedDkgQueryClient,
 };
-use nym_validator_client::nyxd::{Coin, NyxdClient};
+use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
+use nym_validator_client::nyxd::{Coin, CosmWasmClient, NyxdClient};
 use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient, EcashApiClient};
 use std::future::Future;
 use std::ops::Deref;
 use std::sync::Arc;
+use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
@@ -672,6 +674,52 @@ pub(crate) struct ChainWritePermit<'a> {
     #[allow(dead_code)]
     lock_timer: LockTimer,
     inner: RwLockWriteGuard<'a, DirectSigningHttpRpcNyxdClient>,
+}
+
+impl<'a> ChainWritePermit<'a> {
+    // pub(crate) async fn make_transaction<F, Fut, T, E>(self, tx: F) -> Result<T, VpnApiError>
+    // where
+    //     F: Fn(&'a RwLockWriteGuard<'a, DirectSigningHttpRpcNyxdClient>) -> Fut,
+    //     Fut: Future<Output = Result<T, E>> + Send + 'static,
+    //     VpnApiError: From<E>,
+    // {
+    //     let address = self.inner.address();
+    //     let starting_sequence = self
+    //         .inner
+    //         .get_sequence(&self.inner.address())
+    //         .await?
+    //         .sequence;
+    //     // let res = tx(&*self.inner).await?;
+    //
+    //     todo!()
+    // }
+
+    pub(crate) async fn make_deposit(
+        self,
+        public_key: String,
+        deposit_amount: Coin,
+    ) -> Result<ExecuteResult, VpnApiError> {
+        let address = self.inner.address();
+        let starting_sequence = self.inner.get_sequence(&address).await?.sequence;
+
+        let res = self
+            .inner
+            .make_ticketbook_deposit(public_key, deposit_amount, None)
+            .await
+            .map_err(Into::into);
+
+        loop {
+            let updated_sequence = self.inner.get_sequence(&address).await?.sequence;
+
+            if updated_sequence > starting_sequence {
+                break;
+            }
+            warn!("wrong sequence number... waiting before releasing chain lock");
+            tokio::time::sleep(Duration::from_millis(50)).await;
+        }
+
+        res
+    }
 }
 
 impl Deref for ChainWritePermit<'_> {

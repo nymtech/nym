@@ -275,5 +275,3 @@ impl NymProxyClient {
         Ok(())
     }
 }
-
-// TODO tests

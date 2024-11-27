@@ -45,7 +45,7 @@ const PageOverview = () => {
                     onClick={() => router.push('/network-components/nodes')}
                     title="Nodes"
                     icon={<MixnodesSVG />}
-                    count={summaryOverview.data?.mixnodes.count || ''}
+                    count={summaryOverview.data?.nymnodes?.count || ''}
                     errorMsg={summaryOverview?.error}
                   />
                 </Grid>
@@ -54,9 +54,19 @@ const PageOverview = () => {
             {summaryOverview && (
               <Grid item xs={12} md={4}>
                 <StatsCard
-                  onClick={() => router.push('/network-components/gateways')}
+                  onClick={() => router.push('/network-components/nodes')}
+                  title="Mixnodes"
+                  count={summaryOverview.data?.nymnodes?.roles?.mixnode || ''}
+                  icon={<GatewaysSVG />}
+                />
+              </Grid>
+            )}
+            {summaryOverview && (
+              <Grid item xs={12} md={4}>
+                <StatsCard
+                  onClick={() => router.push('/network-components/nodes')}
                   title="Entry Gateways"
-                  count={summaryOverview.data?.nymnodes.roles.entry || ''}
+                  count={summaryOverview.data?.nymnodes?.roles?.entry || ''}
                   icon={<GatewaysSVG />}
                 />
               </Grid>
@@ -64,9 +74,9 @@ const PageOverview = () => {
             {summaryOverview && (
               <Grid item xs={12} md={4}>
                 <StatsCard
-                  onClick={() => router.push('/network-components/gateways')}
+                  onClick={() => router.push('/network-components/nodes')}
                   title="Exit Gateways"
-                  count={summaryOverview.data?.nymnodes.roles.exit_ipr || ''}
+                  count={summaryOverview.data?.nymnodes?.roles?.exit_ipr || ''}
                   icon={<GatewaysSVG />}
                 />
               </Grid>
@@ -74,9 +84,9 @@ const PageOverview = () => {
             {summaryOverview && (
               <Grid item xs={12} md={4}>
                 <StatsCard
-                  onClick={() => router.push('/network-components/gateways')}
+                  onClick={() => router.push('/network-components/nodes')}
                   title="SOCKS5 Network Requesters"
-                  count={summaryOverview.data?.nymnodes.roles.exit_nr || ''}
+                  count={summaryOverview.data?.nymnodes?.roles?.exit_nr || ''}
                   icon={<GatewaysSVG />}
                 />
               </Grid>

@@ -78,6 +78,12 @@ impl NymProxyClient {
             Ok::<(), anyhow::Error>(())
         });
 
+        tokio::spawn(async move {
+            tokio::signal::ctrl_c().await.unwrap();
+            info!("RECEIVED KILL SIGNAL");
+            // TODO client pool kill function
+        });
+
         // TODO add 'ready' marker for consuming code
         loop {
             if DEFAULT_CLIENT_POOL_SIZE == 1 && self.conn_pool.get_client_count().await == 1
@@ -236,11 +242,10 @@ impl NymProxyClient {
                         client.disconnect().await;
                         // conn_pool.disconnect_and_remove_client(client).await?;
                         return Ok::<(), anyhow::Error>(())
-                    }
+                    },
                 }
             }
         });
-        tokio::signal::ctrl_c().await?;
         Ok(())
     }
 }

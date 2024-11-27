@@ -57,6 +57,7 @@ async fn main() -> anyhow::Result<()> {
         Ok::<(), anyhow::Error>(())
     });
 
+    // TODO change this to wait on the actual client to be ready (pool -> client ready state kickback via oneshot)
     println!("waiting for everything to be set up..");
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     println!("done. sending bytes");

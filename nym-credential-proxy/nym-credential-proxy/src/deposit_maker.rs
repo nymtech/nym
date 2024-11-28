@@ -146,14 +146,16 @@ impl DepositMaker {
                 // in this case terminate the proxy with 0 exit code so it wouldn't get automatically restarted
                 // because it requires some serious MANUAL intervention
                 error!("CRITICAL FAILURE: failed to parse out deposit information from the contract transaction. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually. error was: {err}");
-                process::exit(0)
+                self.cancellation_token.cancel();
+                return Err(VpnApiError::DepositFailure);
             }
         };
 
         if contract_data.len() != replies.len() {
             // another critical failure, that one should be quite impossible and thus has to be manually inspected
             error!("CRITICAL FAILURE: failed to parse out all deposit information from the contract transaction. got {} responses while we sent {} deposits! either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually", contract_data.len(), replies.len());
-            process::exit(0)
+            self.cancellation_token.cancel();
+            return Err(VpnApiError::DepositFailure);
         }
 
         for (reply_channel, response) in replies.into_iter().zip(contract_data) {
@@ -163,7 +165,8 @@ impl DepositMaker {
                 Err(err) => {
                     // another impossibility
                     error!("CRITICAL FAILURE: failed to parse out deposit id out of the response at index {response_index}: {err}. either the chain got upgraded and the schema changed or the ecash contract got changed! terminating the process. it has to be inspected manually");
-                    process::exit(0)
+                    self.cancellation_token.cancel();
+                    return Err(VpnApiError::DepositFailure);
                 }
             };
 

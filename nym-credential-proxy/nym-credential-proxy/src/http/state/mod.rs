@@ -711,23 +711,6 @@ pub(crate) struct ChainWritePermit<'a> {
 }
 
 impl<'a> ChainWritePermit<'a> {
-    // pub(crate) async fn make_transaction<F, Fut, T, E>(self, tx: F) -> Result<T, VpnApiError>
-    // where
-    //     F: Fn(&'a RwLockWriteGuard<'a, DirectSigningHttpRpcNyxdClient>) -> Fut,
-    //     Fut: Future<Output = Result<T, E>> + Send + 'static,
-    //     VpnApiError: From<E>,
-    // {
-    //     let address = self.inner.address();
-    //     let starting_sequence = self
-    //         .inner
-    //         .get_sequence(&self.inner.address())
-    //         .await?
-    //         .sequence;
-    //     // let res = tx(&*self.inner).await?;
-    //
-    //     todo!()
-    // }
-
     pub(crate) async fn make_deposits(
         self,
         short_sha: &'static str,

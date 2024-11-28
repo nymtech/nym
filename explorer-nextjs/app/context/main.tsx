@@ -100,13 +100,11 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
     }
   }
 
-  const fetchMixnodes = async (status?: MixnodeStatus) => {
+  const fetchMixnodes = async () => {
     let data
     setMixnodes((d) => ({ ...d, isLoading: true }))
     try {
-      data = status
-        ? await Api.fetchMixnodesActiveSetByStatus(status)
-        : await Api.fetchMixnodes()
+      data  = await Api.fetchMixnodes()
       setMixnodes({ data, isLoading: false })
     } catch (error) {
       setMixnodes({
@@ -122,9 +120,7 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
     status?: MixnodeStatus
   ) => {
     setMixnodes((d) => ({ ...d, isLoading: true }))
-    const mxns = status
-      ? await Api.fetchMixnodesActiveSetByStatus(status)
-      : await Api.fetchMixnodes()
+    const mxns  = await Api.fetchMixnodes()
 
     const filtered = mxns?.filter(
       (m) =>

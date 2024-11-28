@@ -209,6 +209,9 @@ joke_through_wg_tunnel)
 configure_dns_and_icmp_wg)
     configure_dns_and_icmp_wg
     ;;
+adjust_ip_forwarding)
+    adjust_ip_forwarding
+    ;;
 *)
     echo "Usage: $0 [command]"
     echo "Commands:"
@@ -224,6 +227,7 @@ configure_dns_and_icmp_wg)
     echo "  joke_through_the_mixnet         - Fetch a joke via nymtun0."
     echo "  joke_through_wg_tunnel          - Fetch a joke via nymwg."
     echo "  configure_dns_and_icmp_wg       - Allows icmp ping tests for probes alongside configuring dns"
+    echo "  adjust_ip_forwarding            - Enable IPV6 and IPV4 forwarding"
     exit 1
     ;;
 esac

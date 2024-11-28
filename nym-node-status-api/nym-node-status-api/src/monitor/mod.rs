@@ -2,17 +2,17 @@
 
 use crate::db::models::{
     gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_BLACKLISTED_COUNT,
-    GATEWAYS_BONDED_COUNT, GATEWAYS_EXPLORER_COUNT, GATEWAYS_HISTORICAL_COUNT,
-    MIXNODES_BLACKLISTED_COUNT, MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT,
-    MIXNODES_BONDED_INACTIVE, MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
+    GATEWAYS_BONDED_COUNT, GATEWAYS_HISTORICAL_COUNT, MIXNODES_BLACKLISTED_COUNT,
+    MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT, MIXNODES_BONDED_INACTIVE,
+    MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
 };
 use crate::db::{queries, DbPool};
+use crate::monitor::geodata::{GatewayGeoData, Location};
 use anyhow::anyhow;
 use cosmwasm_std::Decimal;
-use ipinfo::IpInfo;
-use nym_explorer_client::{ExplorerClient, PrettyDetailedGatewayBond};
+use moka::future::Cache;
 use nym_network_defaults::NymNetworkDetails;
-use nym_validator_client::client::NymApiClientExt;
+use nym_validator_client::client::{NodeId, NymApiClientExt};
 use nym_validator_client::models::{
     LegacyDescribedMixNode, MixNodeBondAnnotated, NymNodeDescription,
 };
@@ -21,10 +21,12 @@ use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::{AccountId, NyxdClient};
 use nym_validator_client::NymApiClient;
 use reqwest::Url;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use tokio::time::Duration;
 use tracing::instrument;
+
+pub(crate) use geodata::IpInfoClient;
 
 mod geodata;
 
@@ -36,10 +38,10 @@ static DELEGATION_PROGRAM_WALLET: &str = "n1rnxpdpx3kldygsklfft0gech7fhfcux4zst5
 struct Monitor {
     db_pool: DbPool,
     network_details: NymNetworkDetails,
-    explorer_client_timeout: Duration,
     nym_api_client_timeout: Duration,
     nyxd_addr: Url,
-    _ipinfo: IpInfo,
+    ipinfo: IpInfoClient,
+    geocache: Cache<NodeId, Location>,
 }
 
 // TODO dz: query many NYM APIs:
@@ -47,19 +49,20 @@ struct Monitor {
 #[instrument(level = "debug", name = "data_monitor", skip_all)]
 pub(crate) async fn spawn_in_background(
     db_pool: DbPool,
-    explorer_client_timeout: Duration,
     nym_api_client_timeout: Duration,
     nyxd_addr: Url,
     refresh_interval: Duration,
-    ipinfo: IpInfo,
+    ipinfo: IpInfoClient,
+    geodata_ttl: Duration,
 ) {
-    let monitor = Monitor {
+    let geocache = Cache::builder().time_to_live(geodata_ttl).build();
+    let mut monitor = Monitor {
         db_pool,
         network_details: nym_network_defaults::NymNetworkDetails::new_from_env(),
-        explorer_client_timeout,
         nym_api_client_timeout,
         nyxd_addr,
-        _ipinfo: ipinfo,
+        ipinfo,
+        geocache,
     };
 
     loop {
@@ -83,9 +86,7 @@ pub(crate) async fn spawn_in_background(
 }
 
 impl Monitor {
-    async fn run(&self) -> anyhow::Result<()> {
-        let pool = &self.db_pool;
-
+    async fn run(&mut self) -> anyhow::Result<()> {
         let default_api_url = self
             .network_details
             .endpoints
@@ -94,20 +95,6 @@ impl Monitor {
             .api_url()
             .clone()
             .expect("rust sdk mainnet default missing api_url");
-        let default_explorer_url = self.network_details.explorer_api.clone().map(|url| {
-            url.parse()
-                .expect("rust sdk mainnet default explorer url not parseable")
-        });
-
-        // TODO dz replace explorer api with ipinfo.io
-        let default_explorer_url =
-            default_explorer_url.expect("explorer url missing in network config");
-        let explorer_client =
-            ExplorerClient::new_with_timeout(default_explorer_url, self.explorer_client_timeout)?;
-        let explorer_gateways = explorer_client
-            .unstable_get_gateways()
-            .await
-            .log_error("unstable_get_gateways")?;
 
         let api_client =
             NymApiClient::new_with_timeout(default_api_url, self.nym_api_client_timeout);
@@ -130,20 +117,33 @@ impl Monitor {
             .collect::<Vec<_>>();
         tracing::debug!("Of those, {} mixnodes", mixnodes.len());
 
-        log_gw_in_explorer_not_api(explorer_gateways.as_slice(), gateways.as_slice());
+        let bonded_node_info = api_client
+            .get_all_bonded_nym_nodes()
+            .await?
+            .into_iter()
+            .map(|node| (node.bond_information.node_id, node.bond_information))
+            // for faster reads
+            .collect::<HashMap<_, _>>();
 
+        let mut gateway_geodata = Vec::new();
+        for gateway in gateways.iter() {
+            if let Some(node_info) = bonded_node_info.get(&gateway.node_id) {
+                let gw_geodata = GatewayGeoData {
+                    identity_key: node_info.node.identity_key.to_owned(),
+                    owner: node_info.owner.to_owned(),
+                    pledge_amount: node_info.original_pledge.to_owned(),
+                    location: self.location_cached(&gateway).await,
+                };
+                gateway_geodata.push(gw_geodata);
+            }
+        }
+
+        // contains performance data
         let all_skimmed_nodes = api_client
             .get_all_basic_nodes(None)
             .await
             .log_error("get_all_basic_nodes")?;
 
-        let mixnodes = api_client
-            .get_cached_mixnodes()
-            .await
-            .log_error("get_cached_mixnodes")?;
-        tracing::debug!("Fetched {} mixnodes", mixnodes.len());
-
-        // let gateways_blacklisted = gateways.iter().filter(|gw|gw.)
         let gateways_blacklisted = all_skimmed_nodes
             .iter()
             .filter_map(|node| {
@@ -157,6 +157,7 @@ impl Monitor {
 
         // Cached mixnodes don't include blacklisted nodes
         // We need that to calculate the total locked tokens later
+        // TODO dz deprecated API, remove
         let mixnodes = api_client
             .nym_api
             .get_mixnodes_detailed_unfiltered()
@@ -178,16 +179,17 @@ impl Monitor {
         // keep stats for later
         let count_bonded_mixnodes = mixnodes.len();
         let count_bonded_gateways = gateways.len();
-        let count_explorer_gateways = explorer_gateways.len();
         let count_bonded_mixnodes_active = mixnodes_active.len();
 
         let gateway_records = self.prepare_gateway_data(
             &gateways,
             &gateways_blacklisted,
-            explorer_gateways,
+            gateway_geodata,
             all_skimmed_nodes,
         )?;
-        queries::insert_gateways(pool, gateway_records)
+
+        let pool = self.db_pool.clone();
+        queries::insert_gateways(&pool, gateway_records)
             .await
             .map(|_| {
                 tracing::debug!("Gateway info written to DB!");
@@ -203,7 +205,7 @@ impl Monitor {
             .count();
 
         if count_gateways_blacklisted > 0 {
-            queries::write_blacklisted_gateways_to_db(pool, gateways_blacklisted.iter())
+            queries::write_blacklisted_gateways_to_db(&pool, gateways_blacklisted.iter())
                 .await
                 .map(|_| {
                     tracing::debug!(
@@ -215,7 +217,7 @@ impl Monitor {
 
         let mixnode_records =
             self.prepare_mixnode_data(&mixnodes, mixnodes_described, delegation_program_members)?;
-        queries::insert_mixnodes(pool, mixnode_records)
+        queries::insert_mixnodes(&pool, mixnode_records)
             .await
             .map(|_| {
                 tracing::debug!("Mixnode info written to DB!");
@@ -224,14 +226,14 @@ impl Monitor {
         let count_mixnodes_blacklisted = mixnodes.iter().filter(|elem| elem.blacklisted).count();
 
         let recently_unbonded_gateways =
-            queries::ensure_gateways_still_bonded(pool, &gateways).await?;
+            queries::ensure_gateways_still_bonded(&pool, &gateways).await?;
         let recently_unbonded_mixnodes =
-            queries::ensure_mixnodes_still_bonded(pool, &mixnodes).await?;
+            queries::ensure_mixnodes_still_bonded(&pool, &mixnodes).await?;
 
         let count_bonded_mixnodes_reserve = 0; // TODO: NymAPI doesn't report the reserve set size
         let count_bonded_mixnodes_inactive = count_bonded_mixnodes - count_bonded_mixnodes_active;
 
-        let (all_historical_gateways, all_historical_mixnodes) = calculate_stats(pool).await?;
+        let (all_historical_gateways, all_historical_mixnodes) = calculate_stats(&pool).await?;
 
         //
         // write summary keys and values to table
@@ -244,7 +246,6 @@ impl Monitor {
             (MIXNODES_BONDED_RESERVE, &count_bonded_mixnodes_reserve),
             (MIXNODES_BLACKLISTED_COUNT, &count_mixnodes_blacklisted),
             (GATEWAYS_BONDED_COUNT, &count_bonded_gateways),
-            (GATEWAYS_EXPLORER_COUNT, &count_explorer_gateways),
             (MIXNODES_HISTORICAL_COUNT, &all_historical_mixnodes),
             (GATEWAYS_HISTORICAL_COUNT, &all_historical_gateways),
             (GATEWAYS_BLACKLISTED_COUNT, &count_gateways_blacklisted),
@@ -283,14 +284,10 @@ impl Monitor {
                     count: all_historical_gateways.cast_checked()?,
                     last_updated_utc: last_updated_utc.to_owned(),
                 },
-                explorer: gateway::GatewaySummaryExplorer {
-                    count: count_explorer_gateways.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
-                },
             },
         };
 
-        queries::insert_summaries(pool, &nodes_summary, &network_summary, last_updated).await?;
+        queries::insert_summaries(&pool, &nodes_summary, &network_summary, last_updated).await?;
 
         let mut log_lines: Vec<String> = vec![];
         for (key, value) in nodes_summary.iter() {
@@ -310,11 +307,35 @@ impl Monitor {
         Ok(())
     }
 
+    #[instrument(level = "debug", skip(self))]
+    async fn location_cached(&mut self, node: &NymNodeDescription) -> Location {
+        let node_id = node.node_id;
+
+        match self.geocache.get(&node_id).await {
+            Some(location) => return location,
+            None => {
+                for ip in node.description.host_information.ip_address.iter() {
+                    let location = self
+                        .ipinfo
+                        .locate_ip(ip.to_string())
+                        .await
+                        .inspect_err(|err| tracing::warn!("Couldn't get {} location: {}", ip, err))
+                        .unwrap_or_default();
+
+                    self.geocache.insert(node_id, location.clone()).await;
+                    return location;
+                }
+                // if no data could be retrieved
+                Location::empty()
+            }
+        }
+    }
+
     fn prepare_gateway_data(
         &self,
         gateways: &[&NymNodeDescription],
         gateways_blacklisted: &HashSet<String>,
-        explorer_gateways: Vec<PrettyDetailedGatewayBond>,
+        gateway_geodata: Vec<GatewayGeoData>,
         skimmed_gateways: Vec<SkimmedNode>,
     ) -> anyhow::Result<Vec<GatewayRecord>> {
         let mut gateway_records = Vec::new();
@@ -327,9 +348,9 @@ impl Monitor {
 
             let self_described = serde_json::to_string(&gateway.description)?;
 
-            let explorer_pretty_bond = explorer_gateways
+            let explorer_pretty_bond = gateway_geodata
                 .iter()
-                .find(|g| g.gateway.identity_key.eq(&identity_key));
+                .find(|g| g.identity_key.eq(&identity_key));
             let explorer_pretty_bond =
                 explorer_pretty_bond.and_then(|g| serde_json::to_string(g).ok());
 
@@ -400,28 +421,6 @@ impl Monitor {
         }
 
         Ok(mixnode_records)
-    }
-}
-
-fn log_gw_in_explorer_not_api(
-    explorer: &[PrettyDetailedGatewayBond],
-    api_gateways: &[&NymNodeDescription],
-) {
-    let api_gateways = api_gateways
-        .iter()
-        .map(|gw| gw.ed25519_identity_key().to_base58_string())
-        .collect::<HashSet<_>>();
-    let explorer_only = explorer
-        .iter()
-        .filter(|gw| !api_gateways.contains(&gw.gateway.identity_key.to_string()))
-        .collect::<Vec<_>>();
-
-    tracing::debug!(
-        "Gateways listed by explorer but not by Nym API: {}",
-        explorer_only.len()
-    );
-    for gw in explorer_only.iter() {
-        tracing::debug!("{}", gw.gateway.identity_key.to_string());
     }
 }
 

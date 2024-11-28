@@ -172,10 +172,10 @@ joke_through_tunnel() {
     echo
     echo "### connectivity testing recommendations ###"
     echo "- use the following command to test WebSocket connectivity from an external client:"
-    echo "  wscat -c wss://<your-ip-address>:9001"
+    echo "  wscat -c wss://<your-ip-address/ hostname>:9001" 
     echo
     echo "- test UDP connectivity on port 51822 (commonly used for nym wireguard):"
-    echo "  From another machine, use tools like nc or socat to send UDP packets:"
+    echo "  from another machine, use tools like nc or socat to send UDP packets:"
     echo "  echo 'test message' | nc -u <your-ip-address> 51822"
     echo 
     echo "if connectivity issues persist, ensure port forwarding and firewall rules are correctly configured"

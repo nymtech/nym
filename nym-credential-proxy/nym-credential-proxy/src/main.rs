@@ -113,10 +113,10 @@ async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    std::env::set_var(
-        "RUST_LOG",
-        "trace,handlebars=warn,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn,tokio_util=warn,tokio_tungstenite=warn,tokio-util=warn,nym_validator_client=info",
-    );
+    // std::env::set_var(
+    //     "RUST_LOG",
+    //     "trace,handlebars=warn,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn,tokio_util=warn,tokio_tungstenite=warn,tokio-util=warn,axum=warn,sqlx-core=warn,nym_validator_client=info",
+    // );
 
     let cli = Cli::parse();
     cli.webhook.ensure_valid_client_url()?;

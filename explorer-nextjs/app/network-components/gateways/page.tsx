@@ -39,7 +39,7 @@ const PageGateways = () => {
 
   const highestVersion = React.useMemo(() => {
     if (gateways?.data) {
-      const versions = gateways.data.reduce(
+      const versions = gateways.data.filter(g => g.gateway.version).reduce(
         (a: string[], b) => [...a, b.gateway.version],
         []
       )
@@ -51,7 +51,7 @@ const PageGateways = () => {
   }, [gateways])
 
   const filterByLatestVersions = React.useMemo(() => {
-    const filtered = gateways?.data?.filter((gw) => {
+    const filtered = gateways?.data?.filter(g => g.gateway.version).filter((gw) => {
       const versionDiff = diff(highestVersion, gw.gateway.version)
       return versionDiff === 'patch' || versionDiff === null
     })
@@ -60,7 +60,7 @@ const PageGateways = () => {
   }, [gateways])
 
   const filterByOlderVersions = React.useMemo(() => {
-    const filtered = gateways?.data?.filter((gw) => {
+    const filtered = gateways?.data?.filter(g => g.gateway.version).filter((gw) => {
       const versionDiff = diff(highestVersion, gw.gateway.version)
       return versionDiff === 'major' || versionDiff === 'minor'
     })

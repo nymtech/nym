@@ -33,9 +33,11 @@ fetch_and_display_ipv6() {
 }
 
 adjust_ip_forwarding() {
-    echo "adjusting IP forwarding settings..."
-    sudo sysctl -w net.ipv6.conf.all.forwarding=1
-    sudo sysctl -w net.ipv4.ip_forward=1
+    ipv6_forwarding_setting="net.ipv6.conf.all.forwarding=1"
+    ipv4_forwarding_setting="net.ipv4.ip_forward=1"
+    echo "$ipv6_forwarding_setting" | sudo tee -a /etc/sysctl.conf
+    echo "$ipv4_forwarding_setting" | sudo tee -a /etc/sysctl.conf
+    sysctl -p /etc/sysctl.conf
 }
 
 apply_iptables_rules() {
@@ -207,6 +209,9 @@ joke_through_wg_tunnel)
 configure_dns_and_icmp_wg)
     configure_dns_and_icmp_wg
     ;;
+adjust_ip_forwarding)
+    adjust_ip_forwarding
+    ;;
 *)
     echo "Usage: $0 [command]"
     echo "Commands:"
@@ -222,6 +227,7 @@ configure_dns_and_icmp_wg)
     echo "  joke_through_the_mixnet         - Fetch a joke via nymtun0."
     echo "  joke_through_wg_tunnel          - Fetch a joke via nymwg."
     echo "  configure_dns_and_icmp_wg       - Allows icmp ping tests for probes alongside configuring dns"
+    echo "  adjust_ip_forwarding            - Enable IPV6 and IPV4 forwarding"
     exit 1
     ;;
 esac

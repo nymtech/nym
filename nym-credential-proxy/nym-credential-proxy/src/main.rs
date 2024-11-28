@@ -18,7 +18,7 @@ use nym_bin_common::logging::setup_tracing_logger;
 use nym_bin_common::{bin_info, bin_info_owned};
 use nym_network_defaults::setup_env;
 use tokio_util::sync::CancellationToken;
-use tracing::{info, trace};
+use tracing::{error, info, trace};
 
 pub mod cli;
 pub mod config;
@@ -59,6 +59,12 @@ fn build_sha_short() -> &'static str {
     if bin_info.commit_sha.len() < 7 {
         panic!("unavailable build commit sha")
     }
+
+    if bin_info.commit_sha == "VERGEN_IDEMPOTENT_OUTPUT" {
+        error!("the binary hasn't been built correctly. it doesn't have a commit sha information");
+        return "unknown";
+    }
+
     &bin_info.commit_sha[..7]
 }
 

@@ -2,10 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::state::ExplorerApiStateContext;
-use nym_explorer_api_requests::{
-    NymNodeWithDescriptionAndLocation, NymNodeWithDescriptionAndLocationAndDelegations,
-    NymVestingAccount, PrettyDetailedGatewayBond,
-};
+use nym_explorer_api_requests::{NymNodeWithDescriptionAndLocation, NymNodeWithDescriptionAndLocationAndDelegations, NymVestingAccount, PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond};
 use nym_mixnet_contract_common::{Addr, Coin, NodeId};
 use nym_validator_client::nyxd::AccountId;
 use okapi::openapi3::OpenApi;
@@ -17,10 +14,8 @@ use rocket_okapi::settings::OpenApiSettings;
 use std::collections::HashMap;
 use std::str::FromStr;
 
-pub fn unstable_temp_nymnodes_make_default_routes(
-    settings: &OpenApiSettings,
-) -> (Vec<Route>, OpenApi) {
-    openapi_get_routes_spec![settings: all_gateways, all_nym_nodes, get_nym_node_by_id, get_account_by_addr]
+pub fn unstable_temp_make_default_routes(settings: &OpenApiSettings) -> (Vec<Route>, OpenApi) {
+    openapi_get_routes_spec![settings: all_gateways, all_gateway_bonds, all_mixnode_bonds, all_nym_nodes, get_nym_node_by_id, get_account_by_addr]
 }
 
 #[openapi(tag = "UNSTABLE")]
@@ -32,6 +27,22 @@ pub(crate) async fn all_gateways(
     gateways.append(&mut state.inner.nymnodes.pretty_gateways().await);
 
     Json(gateways)
+}
+
+#[openapi(tag = "UNSTABLE")]
+#[get("/legacy-gateway-bonds")]
+pub(crate) async fn all_gateway_bonds(
+    state: &State<ExplorerApiStateContext>,
+) -> Json<Vec<PrettyDetailedGatewayBond>> {
+    Json(state.inner.gateways.get_legacy_detailed_gateways().await)
+}
+
+#[openapi(tag = "UNSTABLE")]
+#[get("/legacy-mixnode-bonds")]
+pub(crate) async fn all_mixnode_bonds(
+    state: &State<ExplorerApiStateContext>,
+) -> Json<Vec<PrettyDetailedMixNodeBond>> {
+    Json(state.inner.mixnodes.get_legacy_detailed_mixnodes().await)
 }
 
 #[openapi(tag = "UNSTABLE")]

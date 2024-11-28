@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::location::{LocationCache, LocationCacheItem};
-use crate::nym_nodes::location::NymNodeLocationCache;
-use crate::nym_nodes::CACHE_ENTRY_TTL;
+use crate::unstable::location::NymNodeLocationCache;
+use crate::unstable::CACHE_ENTRY_TTL;
 use nym_explorer_api_requests::{
     Location, NymNodeWithDescriptionAndLocation, PrettyDetailedGatewayBond,
 };

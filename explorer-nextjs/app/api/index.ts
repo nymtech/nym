@@ -3,7 +3,6 @@ import {
   API_BASE_URL,
   BLOCK_API,
   COUNTRY_DATA_API,
-  GATEWAYS_API,
   UPTIME_STORY_API_GATEWAY,
   MIXNODE_API,
   MIXNODE_PING,
@@ -12,7 +11,11 @@ import {
   UPTIME_STORY_API,
   VALIDATORS_API,
   SERVICE_PROVIDERS,
-  GATEWAYS_EXPLORER_API, TEMP_UNSTABLE_NYM_NODES, NYM_API_NODE_UPTIME, NYM_API_NODE_PERFORMANCE, TEMP_UNSTABLE_ACCOUNT,
+  TEMP_UNSTABLE_NYM_NODES,
+  NYM_API_NODE_UPTIME,
+  NYM_API_NODE_PERFORMANCE,
+  TEMP_UNSTABLE_ACCOUNT,
+  LEGACY_MIXNODES_API, LEGACY_GATEWAYS_API,
 } from './constants';
 
 import {
@@ -77,7 +80,7 @@ export class Api {
       return cachedMixnodes;
     }
 
-    const res = await fetch(MIXNODES_API);
+    const res = await fetch(LEGACY_MIXNODES_API);
     const json = await res.json();
     storeInCache('mixnodes', JSON.stringify(json));
     return json;
@@ -105,17 +108,21 @@ export class Api {
     return response.json();
   };
 
-  static fetchGateways = async (): Promise<GatewayBond[]> => {
-    const res = await fetch(GATEWAYS_API);
-    const gatewaysAnnotated: GatewayBondAnnotated[] = await res.json();
-    const res2 = await fetch(GATEWAYS_EXPLORER_API);
-    const locatedGateways: LocatedGateway[] = await res2.json();
-    const locatedGatewaysByOwner = keyBy(locatedGateways, 'owner');
-    return gatewaysAnnotated.map(({ gateway_bond, node_performance }) => ({
-      ...gateway_bond,
-      node_performance,
-      location: locatedGatewaysByOwner[gateway_bond.owner]?.location,
-    }));
+  static fetchGateways = async (): Promise<LocatedGateway[]> => {
+    // const res = await fetch(GATEWAYS_API);
+    // const gatewaysAnnotated: GatewayBondAnnotated[] = await res.json();
+    // const res2 = await fetch(GATEWAYS_EXPLORER_API);
+    // const locatedGateways: LocatedGateway[] = await res2.json();
+    // const locatedGatewaysByOwner = keyBy(locatedGateways, 'owner');
+    // return gatewaysAnnotated.map(({ gateway_bond, node_performance }) => ({
+    //   ...gateway_bond,
+    //   node_performance,
+    //   location: locatedGatewaysByOwner[gateway_bond.owner]?.location,
+    // }));
+
+    const res = await fetch(LEGACY_GATEWAYS_API);
+    const locatedGateways: LocatedGateway[] = await res.json();
+    return locatedGateways;
   };
 
   static fetchGatewayUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>

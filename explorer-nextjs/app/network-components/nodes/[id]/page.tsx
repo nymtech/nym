@@ -68,7 +68,7 @@ interface NodeEnrichedRowType {
   version: string;
 }
 
-export function nodeEnrichedToGridRow(node: any): NodeEnrichedRowType {
+function nodeEnrichedToGridRow(node: any): NodeEnrichedRowType {
   return {
     node_id: node.node_id,
     owner: node.bond_information?.owner || '',

@@ -117,41 +117,6 @@ const PageGateways = () => {
             },
           },
           {
-            id: 'node_performance',
-            header: 'Node Performance',
-            accessorKey: 'node_performance',
-            size: 200,
-            Header: () => {
-              return (
-                <Box display="flex">
-                  <InfoTooltip
-                    id="gateways-list-routing-score"
-                    title="Gateway's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test"
-                    placement="top-start"
-                    textColor={theme.palette.nym.networkExplorer.tooltip.color}
-                    bgColor={
-                      theme.palette.nym.networkExplorer.tooltip.background
-                    }
-                    maxWidth={230}
-                    arrow
-                  />
-                  <CustomColumnHeading headingTitle="Routing Score" />
-                </Box>
-              )
-            },
-            Cell: ({ row }) => {
-              return (
-                <StyledLink
-                  to={`/network-components/gateways/${row.original.identity_key}`}
-                  data-testid="node-performance"
-                  color="text.primary"
-                >
-                  {`${row.original.node_performance}%`}
-                </StyledLink>
-              )
-            },
-          },
-          {
             id: 'version',
             header: 'Version',
             accessorKey: 'version',
@@ -237,137 +202,6 @@ const PageGateways = () => {
     ]
   }, [])
 
-  const _columns: GridColDef[] = [
-    {
-      field: 'node_performance',
-      align: 'center',
-      renderHeader: () => (
-        <>
-          <InfoTooltip
-            id="gateways-list-routing-score"
-            title="Gateway's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test"
-            placement="top-start"
-            textColor={theme.palette.nym.networkExplorer.tooltip.color}
-            bgColor={theme.palette.nym.networkExplorer.tooltip.background}
-            maxWidth={230}
-            arrow
-          />
-          <CustomColumnHeading headingTitle="Routing Score" />
-        </>
-      ),
-      width: 120,
-      disableColumnMenu: true,
-      headerAlign: 'center',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <StyledLink
-          to={`/network-components/gateways/${params.row.identity_key}`}
-          data-testid="pledge-amount"
-        >
-          {`${params.value}%`}
-        </StyledLink>
-      ),
-    },
-    {
-      field: 'version',
-      align: 'center',
-      renderHeader: () => <CustomColumnHeading headingTitle="Version" />,
-      width: 150,
-      disableColumnMenu: true,
-      headerAlign: 'center',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <StyledLink
-          to={`/network-components/gateways/${params.row.identity_key}`}
-          data-testid="version"
-        >
-          {params.value}
-        </StyledLink>
-      ),
-      sortComparator: (a, b) => {
-        if (gte(a, b)) return 1
-        return -1
-      },
-    },
-    {
-      field: 'location',
-      renderHeader: () => <CustomColumnHeading headingTitle="Location" />,
-      width: 180,
-      disableColumnMenu: true,
-      headerAlign: 'left',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <Box
-          sx={{ justifyContent: 'flex-start', cursor: 'pointer' }}
-          data-testid="location-button"
-        >
-          <Tooltip text={params.value} id="gateway-location-text">
-            <Box
-              sx={{
-                overflow: 'hidden',
-                whiteSpace: 'nowrap',
-                textOverflow: 'ellipsis',
-              }}
-            >
-              {params.value}
-            </Box>
-          </Tooltip>
-        </Box>
-      ),
-    },
-    {
-      field: 'host',
-      renderHeader: () => <CustomColumnHeading headingTitle="IP:Port" />,
-      width: 180,
-      disableColumnMenu: true,
-      headerAlign: 'left',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <StyledLink
-          to={`/network-components/gateways/${params.row.identity_key}`}
-          data-testid="host"
-        >
-          {params.value}
-        </StyledLink>
-      ),
-    },
-    {
-      field: 'owner',
-      headerName: 'Owner',
-      renderHeader: () => <CustomColumnHeading headingTitle="Owner" />,
-      width: 180,
-      disableColumnMenu: true,
-      headerAlign: 'left',
-      headerClassName: 'MuiDataGrid-header-override',
-      renderCell: (params: GridRenderCellParams) => (
-        <StyledLink
-          to={`${EXPLORER_FOR_ACCOUNTS}/account/${params.value}`}
-          target="_blank"
-          data-testid="owner"
-        >
-          {splice(7, 29, params.value)}
-        </StyledLink>
-      ),
-    },
-    {
-      field: 'bond',
-      width: 150,
-      disableColumnMenu: true,
-      type: 'number',
-      renderHeader: () => <CustomColumnHeading headingTitle="Bond" />,
-      headerClassName: 'MuiDataGrid-header-override',
-      headerAlign: 'left',
-      renderCell: (params: GridRenderCellParams) => (
-        <StyledLink
-          to={`/network-components/gateways/${params.row.identity_key}`}
-          data-testid="pledge-amount"
-        >
-          {`${unymToNym(params.value, 6)}`}
-        </StyledLink>
-      ),
-    },
-  ]
-
   const table = useMaterialReactTable({
     columns,
     data,
@@ -376,7 +210,7 @@ const PageGateways = () => {
   return (
     <>
       <Box mb={2}>
-        <Title text="Gateways" />
+        <Title text="Legacy Gateways" />
       </Box>
       <Grid container>
         <Grid item xs={12}>

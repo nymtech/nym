@@ -3,11 +3,12 @@
 
 use crate::mix_nodes::CACHE_REFRESH_RATE;
 use crate::state::ExplorerApiStateContext;
-use nym_mixnet_contract_common::NymNodeDetails;
+use nym_mixnet_contract_common::{GatewayBond, MixNodeBond, NymNodeDetails};
 use nym_task::TaskClient;
 use nym_validator_client::models::{
     GatewayBondAnnotated, MixNodeBondAnnotated, NymNodeDescription,
 };
+use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::error::NyxdError;
 use nym_validator_client::nyxd::{Paging, TendermintRpcClient, ValidatorResponse};
 use nym_validator_client::{QueryHttpRpcValidatorClient, ValidatorClientError};
@@ -119,7 +120,30 @@ impl ExplorerApiTasks {
             .await
     }
 
+    async fn retrieve_legacy_gateway_bonds(&self) -> Vec<GatewayBond> {
+        self.state
+            .inner
+            .validator_client
+            .0
+            .nyxd
+            .get_all_gateways()
+            .await
+            .unwrap_or(vec![])
+    }
+
+    async fn retrieve_legacy_mixnode_bonds(&self) -> Vec<MixNodeBond> {
+        self.state
+            .inner
+            .validator_client
+            .0
+            .nyxd
+            .get_all_mixnode_bonds()
+            .await
+            .unwrap_or(vec![])
+    }
+
     async fn update_mixnode_cache(&self) {
+        let legacy_mixnode_bonds = self.retrieve_legacy_mixnode_bonds().await;
         let all_bonds = self.retrieve_all_mixnodes().await;
         let rewarded_nodes = self
             .retrieve_rewarded_mixnodes()
@@ -136,7 +160,12 @@ impl ExplorerApiTasks {
         self.state
             .inner
             .mixnodes
-            .update_cache(all_bonds, rewarded_nodes, active_nodes)
+            .update_cache(
+                all_bonds,
+                rewarded_nodes,
+                active_nodes,
+                legacy_mixnode_bonds,
+            )
             .await;
     }
 
@@ -150,8 +179,15 @@ impl ExplorerApiTasks {
     }
 
     async fn update_gateways_cache(&self) {
+        let legacy_gateway_bonds = self.retrieve_legacy_gateway_bonds().await;
         match self.retrieve_all_gateways().await {
-            Ok(response) => self.state.inner.gateways.update_cache(response).await,
+            Ok(response) => {
+                self.state
+                    .inner
+                    .gateways
+                    .update_cache(response, legacy_gateway_bonds)
+                    .await
+            }
             Err(err) => {
                 error!("Failed to get gateways: {err}")
             }

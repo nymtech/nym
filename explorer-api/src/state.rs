@@ -24,9 +24,9 @@ use crate::gateways::models::ThreadsafeGatewayCache;
 use crate::mix_node::models::ThreadsafeMixNodeCache;
 use crate::mix_nodes::location::MixnodeLocationCache;
 use crate::mix_nodes::models::ThreadsafeMixNodesCache;
-use crate::nym_nodes::location::NymNodeLocationCache;
-use crate::nym_nodes::models::ThreadSafeNymNodesCache;
 use crate::ping::models::ThreadsafePingCache;
+use crate::unstable::location::NymNodeLocationCache;
+use crate::unstable::models::ThreadSafeNymNodesCache;
 use crate::validators::models::ThreadsafeValidatorCache;
 
 // TODO: change to an environment variable with a default value

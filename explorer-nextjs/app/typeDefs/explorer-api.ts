@@ -165,7 +165,7 @@ export interface LocatedGateway {
   location?: Location;
 }
 
-export type GatewayResponse = GatewayBond[];
+export type GatewayResponse = LocatedGateway[];
 
 export interface NymNodeReportResponse {
   identity: string;

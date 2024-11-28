@@ -8,7 +8,7 @@ use crate::{
         models::{
             gateway::{
                 GatewaySummary, GatewaySummaryBlacklisted, GatewaySummaryBonded,
-                GatewaySummaryExplorer, GatewaySummaryHistorical,
+                GatewaySummaryHistorical,
             },
             mixnode::{
                 MixnodeSummary, MixnodeSummaryBlacklisted, MixnodeSummaryBonded,
@@ -82,7 +82,6 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
     const MIXNODES_BONDED_RESERVE: &str = "mixnodes.bonded.reserve";
     const MIXNODES_BLACKLISTED_COUNT: &str = "mixnodes.blacklisted.count";
     const GATEWAYS_BONDED_COUNT: &str = "gateways.bonded.count";
-    const GATEWAYS_EXPLORER_COUNT: &str = "gateways.explorer.count";
     const GATEWAYS_BLACKLISTED_COUNT: &str = "gateways.blacklisted.count";
     const MIXNODES_HISTORICAL_COUNT: &str = "mixnodes.historical.count";
     const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
@@ -96,7 +95,6 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
     // check we have all the keys we are expecting, and build up a map of errors for missing one
     let keys = [
         GATEWAYS_BONDED_COUNT,
-        GATEWAYS_EXPLORER_COUNT,
         GATEWAYS_HISTORICAL_COUNT,
         GATEWAYS_BLACKLISTED_COUNT,
         MIXNODES_BLACKLISTED_COUNT,
@@ -139,10 +137,6 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
         .unwrap_or_default();
     let gateways_bonded_count: SummaryDto =
         map.get(GATEWAYS_BONDED_COUNT).cloned().unwrap_or_default();
-    let gateways_explorer_count: SummaryDto = map
-        .get(GATEWAYS_EXPLORER_COUNT)
-        .cloned()
-        .unwrap_or_default();
     let mixnodes_historical_count: SummaryDto = map
         .get(MIXNODES_HISTORICAL_COUNT)
         .cloned()
@@ -186,10 +180,6 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
             historical: GatewaySummaryHistorical {
                 count: to_count_i32(&gateways_historical_count),
                 last_updated_utc: to_timestamp(&gateways_historical_count),
-            },
-            explorer: GatewaySummaryExplorer {
-                count: to_count_i32(&gateways_explorer_count),
-                last_updated_utc: to_timestamp(&gateways_explorer_count),
             },
         },
     })

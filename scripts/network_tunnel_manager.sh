@@ -27,8 +27,41 @@ fetch_and_display_ipv6() {
     ipv6_address=$(ip -6 addr show "$network_device" scope global | grep inet6 | awk '{print $2}')
     if [[ -z "$ipv6_address" ]]; then
         echo "no global IPv6 address found on $network_device."
-    elsen
+        else
         echo "IPv6 address on $network_device: $ipv6_address"
+    fi
+}
+
+remove_duplicate_rules() {
+    local interface=$1
+    local script_name=$(basename "$0")
+
+    if [[ -z "$interface" ]]; then
+        echo "error: no interface specified. please enter the interface (nymwg or nymtun0):"
+        read -r interface
+    fi
+
+    if [[ "$interface" != "nymwg" && "$interface" != "nymtun0" ]]; then
+        echo "error: invalid interface '$interface'. allowed values are 'nymwg' or 'nymtun0'." >&2
+        exit 1
+    fi
+
+    echo "removing duplicate rules for $interface..."
+
+    iptables-save | grep "$interface" | while read -r line; do
+        sudo iptables -D ${line#-A } || echo "Failed to delete rule: $line"
+    done
+
+    ip6tables-save | grep "$interface" | while read -r line; do
+        sudo ip6tables -D ${line#-A } || echo "Failed to delete rule: $line"
+    done
+
+    echo "duplicates removed for $interface."
+    echo "!!-important-!!  you need to now reapply the iptables rules for $interface."
+    if [ "$interface" == "nymwg" ]; then
+        echo "run: ./$script_name apply_iptables_rules_wg"
+    else
+        echo "run: ./$script_name apply_iptables_rules"
     fi
 }
 
@@ -45,22 +78,10 @@ apply_iptables_rules() {
     echo "applying IPtables rules for $interface..."
     sleep 2
 
-    # remove duplicates for IPv4
-    sudo iptables -D FORWARD -i "$interface" -o "$network_device" -j ACCEPT 2>/dev/null || true
-    sudo iptables -D FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
-    sudo iptables -t nat -D POSTROUTING -o "$network_device" -j MASQUERADE 2>/dev/null || true
-
-    # remove duplicates for IPv6
-    sudo ip6tables -D FORWARD -i "$interface" -o "$network_device" -j ACCEPT 2>/dev/null || true
-    sudo ip6tables -D FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
-    sudo ip6tables -t nat -D POSTROUTING -o "$network_device" -j MASQUERADE 2>/dev/null || true
-
-    # add new rules for IPv4
     sudo iptables -t nat -A POSTROUTING -o "$network_device" -j MASQUERADE
     sudo iptables -A FORWARD -i "$interface" -o "$network_device" -j ACCEPT
     sudo iptables -A FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
 
-    # add new rules for IPv6
     sudo ip6tables -t nat -A POSTROUTING -o "$network_device" -j MASQUERADE
     sudo ip6tables -A FORWARD -i "$interface" -o "$network_device" -j ACCEPT
     sudo ip6tables -A FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
@@ -68,36 +89,6 @@ apply_iptables_rules() {
     sudo iptables-save | sudo tee /etc/iptables/rules.v4
     sudo ip6tables-save | sudo tee /etc/iptables/rules.v6
 }
-
-apply_iptables_rules_wg() {
-    local interface=$wg_tunnel_interface
-    echo "applying IPtables rules for WireGuard ($interface)..."
-    sleep 2
-
-    # remove duplicates for IPv4
-    sudo iptables -D FORWARD -i "$interface" -o "$network_device" -j ACCEPT 2>/dev/null || true
-    sudo iptables -D FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
-    sudo iptables -t nat -D POSTROUTING -o "$network_device" -j MASQUERADE 2>/dev/null || true
-
-    # remove duplicates for IPv6
-    sudo ip6tables -D FORWARD -i "$interface" -o "$network_device" -j ACCEPT 2>/dev/null || true
-    sudo ip6tables -D FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT 2>/dev/null || true
-    sudo ip6tables -t nat -D POSTROUTING -o "$network_device" -j MASQUERADE 2>/dev/null || true
-
-    # add new rules for IPv4
-    sudo iptables -t nat -A POSTROUTING -o "$network_device" -j MASQUERADE
-    sudo iptables -A FORWARD -i "$interface" -o "$network_device" -j ACCEPT
-    sudo iptables -A FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
-
-    # add new rules for IPv6
-    sudo ip6tables -t nat -A POSTROUTING -o "$network_device" -j MASQUERADE
-    sudo ip6tables -A FORWARD -i "$interface" -o "$network_device" -j ACCEPT
-    sudo ip6tables -A FORWARD -i "$network_device" -o "$interface" -m state --state RELATED,ESTABLISHED -j ACCEPT
-
-    sudo iptables-save | sudo tee /etc/iptables/rules.v4
-    sudo ip6tables-save | sudo tee /etc/iptables/rules.v6
-}
-
 
 check_tunnel_iptables() {
     local interface=$1
@@ -167,7 +158,7 @@ configure_dns_and_icmp_wg() {
     sudo iptables -A INPUT -p tcp --dport 53 -j ACCEPT
 
     echo "saving iptables rules..."
-    sudo iptables-save > /etc/iptables/rules.v4
+    sudo iptables-save >/etc/iptables/rules.v4
 
     echo "dns and icmp configuration completed."
 }
@@ -212,6 +203,9 @@ configure_dns_and_icmp_wg)
 adjust_ip_forwarding)
     adjust_ip_forwarding
     ;;
+remove_duplicate_rules)
+    remove_duplicate_rules "$2"
+    ;;
 *)
     echo "Usage: $0 [command]"
     echo "Commands:"
@@ -228,6 +222,7 @@ adjust_ip_forwarding)
     echo "  joke_through_wg_tunnel          - Fetch a joke via nymwg."
     echo "  configure_dns_and_icmp_wg       - Allows icmp ping tests for probes alongside configuring dns"
     echo "  adjust_ip_forwarding            - Enable IPV6 and IPV4 forwarding"
+    echo "  remove_duplicate_rules <interface> - Remove duplicate iptables rules. Valid interfaces: nymwg, nymtun0"
     exit 1
     ;;
 esac

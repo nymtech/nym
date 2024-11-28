@@ -29,6 +29,23 @@ import {
   GatewayRowType,
   gatewayToGridRow,
 } from '@/app/components/Gateways/Gateways'
+import {LocatedGateway} from "@/app/typeDefs/explorer-api";
+
+const gatewaySanitize = (g?: LocatedGateway): boolean => {
+  if(!g) {
+    return false;
+  }
+
+  if(!g.gateway.version || !g.gateway.version.trim().length) {
+    return false;
+  }
+
+  if(g.gateway.version === "null") {
+    return false;
+  }
+
+  return true;
+}
 
 const PageGateways = () => {
   const { gateways } = useMainContext()
@@ -39,7 +56,7 @@ const PageGateways = () => {
 
   const highestVersion = React.useMemo(() => {
     if (gateways?.data) {
-      const versions = gateways.data.filter(g => g.gateway.version).reduce(
+      const versions = gateways.data.filter(gatewaySanitize).reduce(
         (a: string[], b) => [...a, b.gateway.version],
         []
       )
@@ -51,7 +68,7 @@ const PageGateways = () => {
   }, [gateways])
 
   const filterByLatestVersions = React.useMemo(() => {
-    const filtered = gateways?.data?.filter(g => g.gateway.version).filter((gw) => {
+    const filtered = gateways?.data?.filter(gatewaySanitize).filter((gw) => {
       const versionDiff = diff(highestVersion, gw.gateway.version)
       return versionDiff === 'patch' || versionDiff === null
     })
@@ -60,7 +77,7 @@ const PageGateways = () => {
   }, [gateways])
 
   const filterByOlderVersions = React.useMemo(() => {
-    const filtered = gateways?.data?.filter(g => g.gateway.version).filter((gw) => {
+    const filtered = gateways?.data?.filter(gatewaySanitize).filter((gw) => {
       const versionDiff = diff(highestVersion, gw.gateway.version)
       return versionDiff === 'major' || versionDiff === 'minor'
     })

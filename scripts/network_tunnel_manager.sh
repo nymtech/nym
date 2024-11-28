@@ -132,8 +132,8 @@ joke_through_tunnel() {
     ipv6_address=$(ip addr show "$interface" | awk '/inet6 / && $2 !~ /^fe80/ {print $2}' | cut -d'/' -f1)
 
     if [[ -z "$ipv4_address" && -z "$ipv6_address" ]]; then
-        echo "No IP address found on $interface. Unable to fetch a joke."
-        echo "Please verify your tunnel configuration and ensure the interface is up."
+        echo "no IP address found on $interface. unable to fetch a joke."
+        echo "please verify your tunnel configuration and ensure the interface is up."
         return 1
     fi
 
@@ -170,7 +170,7 @@ joke_through_tunnel() {
     echo "joke fetching process completed for $interface."
     sleep 1
     echo
-    echo "### Connectivity Testing Recommendations ###"
+    echo "### connectivity testing recommendations ###"
     echo "- use the following command to test WebSocket connectivity from an external client:"
     echo "  wscat -c wss://<your-ip-address>:9001"
     echo

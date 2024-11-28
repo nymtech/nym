@@ -127,23 +127,58 @@ perform_pings() {
 joke_through_tunnel() {
     local interface=$1
     echo "checking tunnel connectivity and fetching a joke for $interface..."
-    ipv4_address=$(ip addr show "$interface" | grep 'inet ' | awk '{print $2}' | cut -d'/' -f1)
-    ipv6_address=$(ip addr show "$interface" | grep 'inet6 ' | awk '{print $2}' | grep -v '^fe80:' | cut -d'/' -f1)
+
+    ipv4_address=$(ip addr show "$interface" | awk '/inet / {print $2}' | cut -d'/' -f1)
+    ipv6_address=$(ip addr show "$interface" | awk '/inet6 / && $2 !~ /^fe80/ {print $2}' | cut -d'/' -f1)
 
     if [[ -z "$ipv4_address" && -z "$ipv6_address" ]]; then
-        echo "no IP address found on $interface. Unable to fetch a joke."
-        return
+        echo "No IP address found on $interface. Unable to fetch a joke."
+        echo "Please verify your tunnel configuration and ensure the interface is up."
+        return 1
     fi
 
     if [[ -n "$ipv4_address" ]]; then
-        joke=$(curl -s -H "Accept: application/json" --interface "$ipv4_address" https://icanhazdadjoke.com/ | jq -r .joke)
-        [[ -n "$joke" && "$joke" != "null" ]] && echo "IPv4 joke: $joke" || echo "Failed to fetch a joke via IPv4."
+        echo "detected IPv4 address: $ipv4_address"
+        echo "testing IPv4 connectivity..."
+        echo "if this test succeeds, it confirms your machine can reach the outside world via IPv4."
+        echo "however, probes and external clients may experience different connectivity to your probe."
+
+        if ping -c 1 -I "$ipv4_address" google.com >/dev/null 2>&1; then
+            echo "IPv4 connectivity is working. Fetching a joke..."
+            joke=$(curl -s -H "Accept: application/json" --interface "$ipv4_address" https://icanhazdadjoke.com/ | jq -r .joke)
+            [[ -n "$joke" && "$joke" != "null" ]] && echo "IPv4 joke: $joke" || echo "Failed to fetch a joke via IPv4."
+        else
+            echo "IPv4 connectivity is not working for $interface. verify your routing and NAT settings."
+        fi
     fi
 
     if [[ -n "$ipv6_address" ]]; then
-        joke=$(curl -s -H "Accept: application/json" --interface "$ipv6_address" https://icanhazdadjoke.com/ | jq -r .joke)
-        [[ -n "$joke" && "$joke" != "null" ]] && echo "IPv6 joke: $joke" || echo "Failed to fetch a joke via IPv6."
+        echo "detected IPv6 address: $ipv6_address"
+        echo "testing IPv6 connectivity..."
+        echo "if this test succeeds, it confirms your machine can reach the outside world via IPv6."
+        echo "however, probes and external clients may experience different connectivity to your nym-node."
+
+        if ping6 -c 1 -I "$ipv6_address" google.com >/dev/null 2>&1; then
+            echo "IPv6 connectivity is working. Fetching a joke..."
+            joke=$(curl -s -H "Accept: application/json" --interface "$ipv6_address" https://icanhazdadjoke.com/ | jq -r .joke)
+            [[ -n "$joke" && "$joke" != "null" ]] && echo "IPv6 joke: $joke" || echo "Failed to fetch a joke via IPv6."
+        else
+            echo "IPv6 connectivity is not working for $interface. verify your routing and NAT settings."
+        fi
     fi
+
+    echo "joke fetching process completed for $interface."
+    sleep 1
+    echo
+    echo "### Connectivity Testing Recommendations ###"
+    echo "- use the following command to test WebSocket connectivity from an external client:"
+    echo "  wscat -c wss://<your-ip-address>:9001"
+    echo
+    echo "- test UDP connectivity on port 51822 (commonly used for nym wireguard):"
+    echo "  From another machine, use tools like nc or socat to send UDP packets:"
+    echo "  echo 'test message' | nc -u <your-ip-address> 51822"
+    echo 
+    echo "if connectivity issues persist, ensure port forwarding and firewall rules are correctly configured"
 }
 
 configure_dns_and_icmp_wg() {

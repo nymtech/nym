@@ -1,6 +1,7 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::deposit_maker::{DepositRequest, DepositRequestSender};
 use crate::error::VpnApiError;
 use crate::helpers::LockTimer;
 use crate::http::types::RequestError;
@@ -28,11 +29,12 @@ use nym_credentials::{
     AggregatedCoinIndicesSignatures, AggregatedExpirationDateSignatures, EpochVerificationKey,
 };
 use nym_credentials_interface::VerificationKeyAuth;
+use nym_ecash_contract_common::msg::ExecuteMsg;
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::dkg_query_client::Epoch;
 use nym_validator_client::nyxd::contract_traits::{
-    DkgQueryClient, EcashQueryClient, EcashSigningClient, NymContractsProvider, PagedDkgQueryClient,
+    DkgQueryClient, EcashQueryClient, NymContractsProvider, PagedDkgQueryClient,
 };
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient, NyxdClient};
@@ -44,6 +46,7 @@ use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
 use tokio::task::JoinHandle;
+use tokio::time::Instant;
 use tokio_util::sync::CancellationToken;
 use tokio_util::task::TaskTracker;
 use tracing::{debug, info, warn};
@@ -61,36 +64,19 @@ impl ApiState {
     pub async fn new(
         storage: VpnApiStorage,
         zk_nym_web_hook_config: ZkNymWebHookConfig,
-        mnemonic: Mnemonic,
+        client: ChainClient,
+        deposit_requester: DepositRequestSender,
+        cancellation_token: CancellationToken,
     ) -> Result<Self, VpnApiError> {
-        let network_details = nym_network_defaults::NymNetworkDetails::new_from_env();
-        let client_config = nyxd::Config::try_from_nym_network_details(&network_details)?;
-
-        let nyxd_url = network_details
-            .endpoints
-            .first()
-            .ok_or_else(|| VpnApiError::NoNyxEndpointsAvailable)?
-            .nyxd_url
-            .as_str();
-
-        let client = NyxdClient::connect_with_mnemonic(client_config, nyxd_url, mnemonic)?;
-
-        if client.ecash_contract_address().is_none() {
-            return Err(VpnApiError::UnavailableEcashContract);
-        }
-
-        if client.dkg_contract_address().is_none() {
-            return Err(VpnApiError::UnavailableDKGContract);
-        }
-
         let state = ApiState {
             inner: Arc::new(ApiStateInner {
                 storage,
-                client: RwLock::new(client),
+                client,
                 ecash_state: EcashState::default(),
                 zk_nym_web_hook_config,
                 task_tracker: TaskTracker::new(),
-                cancellation_token: CancellationToken::new(),
+                deposit_requester,
+                cancellation_token,
             }),
         };
 
@@ -136,10 +122,6 @@ impl ApiState {
     pub(crate) async fn cancel_and_wait(&self) {
         self.inner.cancellation_token.cancel();
         self.inner.task_tracker.wait().await
-    }
-
-    pub(crate) fn cancellation_token(&self) -> CancellationToken {
-        self.inner.cancellation_token.clone()
     }
 
     pub(crate) fn zk_nym_web_hook(&self) -> &ZkNymWebHookConfig {
@@ -222,16 +204,19 @@ impl ApiState {
     }
 
     pub(crate) async fn query_chain(&self) -> RwLockReadGuard<DirectSigningHttpRpcNyxdClient> {
-        let _acquire_timer = LockTimer::new("acquire chain query permit");
-        self.inner.client.read().await
+        self.inner.client.query_chain().await
     }
 
-    pub(crate) async fn start_chain_tx(&self) -> ChainWritePermit {
-        let _acquire_timer = LockTimer::new("acquire exclusive chain write permit");
+    pub(crate) async fn request_deposit(&self, request: DepositRequest) {
+        let start = Instant::now();
+        self.inner.deposit_requester.request_deposit(request).await;
 
-        ChainWritePermit {
-            lock_timer: LockTimer::new("exclusive chain access permit"),
-            inner: self.inner.client.write().await,
+        let time_taken = start.elapsed();
+        let formatted = humantime::format_duration(time_taken);
+        if time_taken > Duration::from_secs(10) {
+            warn!("attempting to push new deposit request onto the queue took {formatted}. perhaps the buffer is too small or the process/chain is overloaded?")
+        } else {
+            debug!("attempting to push new deposit request onto the queue took {formatted}")
         }
     }
 
@@ -606,10 +591,57 @@ impl ApiState {
     }
 }
 
+#[derive(Clone)]
+pub struct ChainClient(Arc<RwLock<DirectSigningHttpRpcNyxdClient>>);
+
+impl ChainClient {
+    pub fn new(mnemonic: Mnemonic) -> Result<Self, VpnApiError> {
+        let network_details = nym_network_defaults::NymNetworkDetails::new_from_env();
+        let client_config = nyxd::Config::try_from_nym_network_details(&network_details)?;
+
+        let nyxd_url = network_details
+            .endpoints
+            .first()
+            .ok_or_else(|| VpnApiError::NoNyxEndpointsAvailable)?
+            .nyxd_url
+            .as_str();
+
+        let client = NyxdClient::connect_with_mnemonic(client_config, nyxd_url, mnemonic)?;
+
+        if client.ecash_contract_address().is_none() {
+            return Err(VpnApiError::UnavailableEcashContract);
+        }
+
+        if client.dkg_contract_address().is_none() {
+            return Err(VpnApiError::UnavailableDKGContract);
+        }
+
+        Ok(ChainClient(Arc::new(RwLock::new(client))))
+    }
+
+    pub(crate) async fn query_chain(&self) -> ChainReadPermit {
+        let _acquire_timer = LockTimer::new("acquire chain query permit");
+        self.0.read().await
+    }
+
+    pub(crate) async fn start_chain_tx(&self) -> ChainWritePermit {
+        let _acquire_timer = LockTimer::new("acquire exclusive chain write permit");
+
+        ChainWritePermit {
+            lock_timer: LockTimer::new("exclusive chain access permit"),
+            inner: self.0.write().await,
+        }
+    }
+}
+
+//
+
 struct ApiStateInner {
     storage: VpnApiStorage,
 
-    client: RwLock<DirectSigningHttpRpcNyxdClient>,
+    client: ChainClient,
+
+    deposit_requester: DepositRequestSender,
 
     zk_nym_web_hook_config: ZkNymWebHookConfig,
 
@@ -668,6 +700,8 @@ pub(crate) struct EcashState {
         CachedImmutableItems<Date, AggregatedExpirationDateSignatures>,
 }
 
+pub(crate) type ChainReadPermit<'a> = RwLockReadGuard<'a, DirectSigningHttpRpcNyxdClient>;
+
 // explicitly wrap the WriteGuard for extra information regarding time taken
 pub(crate) struct ChainWritePermit<'a> {
     // it's not really dead, we only care about it being dropped
@@ -694,19 +728,39 @@ impl<'a> ChainWritePermit<'a> {
     //     todo!()
     // }
 
-    pub(crate) async fn make_deposit(
+    pub(crate) async fn make_deposits(
         self,
-        public_key: String,
-        deposit_amount: Coin,
+        short_sha: &'static str,
+        info: Vec<(String, Coin)>,
     ) -> Result<ExecuteResult, VpnApiError> {
         let address = self.inner.address();
         let starting_sequence = self.inner.get_sequence(&address).await?.sequence;
 
+        let deposits = info.len();
+
+        let ecash_contract = self
+            .inner
+            .ecash_contract_address()
+            .ok_or(VpnApiError::UnavailableEcashContract)?;
+        let deposit_messages = info
+            .into_iter()
+            .map(|(identity_key, amount)| {
+                (
+                    ExecuteMsg::DepositTicketBookFunds { identity_key },
+                    vec![amount],
+                )
+            })
+            .collect::<Vec<_>>();
+
         let res = self
             .inner
-            .make_ticketbook_deposit(public_key, deposit_amount, None)
-            .await
-            .map_err(Into::into);
+            .execute_multiple(
+                ecash_contract,
+                deposit_messages,
+                None,
+                format!("cp-{short_sha}: performing {deposits} deposits"),
+            )
+            .await?;
 
         loop {
             let updated_sequence = self.inner.get_sequence(&address).await?.sequence;
@@ -718,7 +772,7 @@ impl<'a> ChainWritePermit<'a> {
             tokio::time::sleep(Duration::from_millis(50)).await;
         }
 
-        res
+        Ok(res)
     }
 }
 

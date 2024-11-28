@@ -1,6 +1,7 @@
 // Copyright 2024 Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::deposit_maker::{DepositRequest, DepositResponse};
 use crate::error::VpnApiError;
 use crate::http::state::ApiState;
 use crate::storage::models::BlindedShares;
@@ -14,19 +15,47 @@ use nym_credentials::IssuanceTicketBook;
 use nym_credentials_interface::Base58;
 use nym_crypto::asymmetric::ed25519;
 use nym_validator_client::ecash::BlindSignRequestBody;
-use nym_validator_client::nyxd::cosmwasm_client::ToSingletonContractData;
+use nym_validator_client::nyxd::Coin;
 use rand::rngs::OsRng;
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::Duration;
 use time::OffsetDateTime;
-use tokio::sync::Mutex;
-use tokio::time::timeout;
-use tracing::{debug, error, info, instrument};
+use tokio::sync::{oneshot, Mutex};
+use tokio::time::{timeout, Instant};
+use tracing::{debug, error, info, instrument, warn};
 use uuid::Uuid;
 
 // use the same type alias as our contract without importing the whole thing just for this single line
 pub type NodeId = u64;
+
+#[instrument(skip(state), ret, err(Display))]
+async fn make_deposit(
+    state: &ApiState,
+    pub_key: ed25519::PublicKey,
+    deposit_amount: &Coin,
+) -> Result<DepositResponse, VpnApiError> {
+    let start = Instant::now();
+    let (on_done_tx, on_done_rx) = oneshot::channel();
+    let request = DepositRequest::new(pub_key, deposit_amount, on_done_tx);
+    state.request_deposit(request).await;
+
+    let time_taken = start.elapsed();
+    let formatted = humantime::format_duration(time_taken);
+
+    let Ok(deposit_response) = on_done_rx.await else {
+        error!("failed to receive deposit response: the corresponding sender channel got dropped by the DepositMaker!");
+        return Err(VpnApiError::DepositFailure);
+    };
+
+    if time_taken > Duration::from_secs(20) {
+        warn!("attempting to resolve deposit request took {formatted}. perhaps the buffer is too small or the process/chain is overloaded?")
+    } else {
+        debug!("attempting to resolve deposit request took {formatted}")
+    }
+
+    deposit_response.ok_or(VpnApiError::DepositFailure)
+}
 
 #[instrument(
     skip(state, request_data, request, requested_on),
@@ -58,21 +87,12 @@ pub(crate) async fn try_obtain_wallet_shares(
         .await?;
     let ecash_api_clients = state.ecash_clients(epoch).await?.clone();
 
-    let chain_write_permit = state.start_chain_tx().await;
+    let DepositResponse {
+        deposit_id,
+        tx_hash,
+    } = make_deposit(state, *ed25519_keypair.public_key(), &deposit_amount).await?;
 
-    // TODO: batch those up
-    // TODO: batch those up
-    info!("starting the deposit!");
-    let deposit_res = chain_write_permit
-        .make_deposit(
-            ed25519_keypair.public_key().to_base58_string(),
-            deposit_amount.clone(),
-        )
-        .await?;
-
-    let deposit_id = deposit_res.parse_singleton_u32_contract_data()?;
-    let tx_hash = deposit_res.transaction_hash;
-    info!(deposit_id = %deposit_id, tx_hash = %tx_hash, "deposit finished");
+    info!(deposit_id = %deposit_id, "deposit finished");
 
     // store the deposit information so if we fail, we could perhaps still reuse it for another issuance
     state

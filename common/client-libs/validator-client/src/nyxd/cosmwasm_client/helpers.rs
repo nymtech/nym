@@ -13,6 +13,44 @@ use tracing::error;
 
 pub use cosmrs::abci::MsgResponse;
 
+pub fn parse_singleton_u32_from_contract_response(b: Vec<u8>) -> Result<u32, NyxdError> {
+    if b.len() != 4 {
+        return Err(NyxdError::MalformedResponseData {
+            got: b.len(),
+            expected: 4,
+        });
+    }
+    Ok(u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
+}
+
+pub fn parse_singleton_u64_from_contract_response(b: Vec<u8>) -> Result<u64, NyxdError> {
+    if b.len() != 8 {
+        return Err(NyxdError::MalformedResponseData {
+            got: b.len(),
+            expected: 8,
+        });
+    }
+    Ok(u64::from_be_bytes([
+        b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+    ]))
+}
+
+#[derive(Debug, Clone)]
+pub struct ParsedContractResponse {
+    pub message_index: usize,
+    pub response: Vec<u8>,
+}
+
+impl ParsedContractResponse {
+    pub fn parse_singleton_u32_contract_data(self) -> Result<u32, NyxdError> {
+        parse_singleton_u32_from_contract_response(self.response)
+    }
+
+    pub fn parse_singleton_u64_contract_data(self) -> Result<u64, NyxdError> {
+        parse_singleton_u64_from_contract_response(self.response)
+    }
+}
+
 pub fn parse_msg_responses(data: Bytes) -> Vec<MsgResponse> {
     // it seems that currently, on wasmd 0.43 + tendermint-rs 0.37 + cosmrs 0.17.0-pre
     // the data is left in undecoded base64 form, but I'd imagine this might change so if the decoding fails,
@@ -34,35 +72,25 @@ pub fn parse_msg_responses(data: Bytes) -> Vec<MsgResponse> {
 }
 
 // requires there's a single response message
-pub trait ToSingletonContractData: Sized {
+pub trait ContractResponseData: Sized {
     fn parse_singleton_u32_contract_data(&self) -> Result<u32, NyxdError> {
         let b = self.to_singleton_contract_data()?;
-        if b.len() != 4 {
-            return Err(NyxdError::MalformedResponseData {
-                got: b.len(),
-                expected: 4,
-            });
-        }
-        Ok(u32::from_be_bytes([b[0], b[1], b[2], b[3]]))
+        parse_singleton_u32_from_contract_response(b)
     }
 
     fn parse_singleton_u64_contract_data(&self) -> Result<u64, NyxdError> {
         let b = self.to_singleton_contract_data()?;
-        if b.len() != 8 {
-            return Err(NyxdError::MalformedResponseData {
-                got: b.len(),
-                expected: 8,
-            });
-        }
-        Ok(u64::from_be_bytes([
-            b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
-        ]))
+        parse_singleton_u64_from_contract_response(b)
     }
 
     fn to_singleton_contract_data(&self) -> Result<Vec<u8>, NyxdError>;
+
+    fn to_unchecked_contract_data(&self) -> Result<Vec<Vec<u8>>, NyxdError>;
+
+    fn to_contract_data(&self) -> Result<Vec<ParsedContractResponse>, NyxdError>;
 }
 
-impl ToSingletonContractData for ExecuteResult {
+impl ContractResponseData for ExecuteResult {
     fn to_singleton_contract_data(&self) -> Result<Vec<u8>, NyxdError> {
         if self.msg_responses.len() != 1 {
             return Err(NyxdError::UnexpectedNumberOfMsgResponses {
@@ -71,6 +99,30 @@ impl ToSingletonContractData for ExecuteResult {
         }
 
         self.msg_responses[0].to_contract_response_data()
+    }
+
+    fn to_unchecked_contract_data(&self) -> Result<Vec<Vec<u8>>, NyxdError> {
+        self.msg_responses
+            .iter()
+            .map(ToContractResponseData::to_contract_response_data)
+            .collect()
+    }
+
+    fn to_contract_data(&self) -> Result<Vec<ParsedContractResponse>, NyxdError> {
+        let mut response = Vec::new();
+
+        for (message_index, msg) in self.msg_responses.iter().enumerate() {
+            // unfortunately `Name` trait has not been derived for `MsgExecuteContractResponse`,
+            // so we have to make an explicit string comparison instead
+            if msg.type_url == "/cosmwasm.wasm.v1.MsgExecuteContractResponse" {
+                response.push(ParsedContractResponse {
+                    message_index,
+                    response: msg.to_contract_response_data()?,
+                })
+            }
+        }
+
+        Ok(response)
     }
 }
 

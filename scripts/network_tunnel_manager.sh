@@ -68,9 +68,16 @@ remove_duplicate_rules() {
 adjust_ip_forwarding() {
     ipv6_forwarding_setting="net.ipv6.conf.all.forwarding=1"
     ipv4_forwarding_setting="net.ipv4.ip_forward=1"
+
+    # remove duplicate entries for these settings from the file
+    sudo sed -i "/^net.ipv6.conf.all.forwarding=/d" /etc/sysctl.conf
+    sudo sed -i "/^net.ipv4.ip_forward=/d" /etc/sysctl.conf
+
     echo "$ipv6_forwarding_setting" | sudo tee -a /etc/sysctl.conf
     echo "$ipv4_forwarding_setting" | sudo tee -a /etc/sysctl.conf
-    sysctl -p /etc/sysctl.conf
+
+    sudo sysctl -p /etc/sysctl.conf
+
 }
 
 apply_iptables_rules() {
@@ -126,60 +133,74 @@ perform_pings() {
 
 joke_through_tunnel() {
     local interface=$1
-    echo "checking tunnel connectivity and fetching a joke for $interface..."
+    local green="\033[0;32m"
+    local reset="\033[0m"
+    local red="\033[0;31m"
+    local yellow="\033[0;33m"
+
+    sleep 1
+    echo 
+    echo -e "${yellow}checking tunnel connectivity and fetching a joke for $interface...${reset}"
+    echo -e "${yellow}if these test succeeds, it confirms your machine can reach the outside world via IPv4 and IPv6.${reset}"
+    echo -e "${yellow}however, probes and external clients may experience different connectivity to your nym-node.${reset}"
 
     ipv4_address=$(ip addr show "$interface" | awk '/inet / {print $2}' | cut -d'/' -f1)
     ipv6_address=$(ip addr show "$interface" | awk '/inet6 / && $2 !~ /^fe80/ {print $2}' | cut -d'/' -f1)
 
     if [[ -z "$ipv4_address" && -z "$ipv6_address" ]]; then
-        echo "no IP address found on $interface. unable to fetch a joke."
-        echo "please verify your tunnel configuration and ensure the interface is up."
+        echo -e "${red}no IP address found on $interface. unable to fetch a joke.${reset}"
+        echo -e "${red}please verify your tunnel configuration and ensure the interface is up.${reset}"
         return 1
     fi
-
+    
     if [[ -n "$ipv4_address" ]]; then
-        echo "detected IPv4 address: $ipv4_address"
-        echo "testing IPv4 connectivity..."
-        echo "if this test succeeds, it confirms your machine can reach the outside world via IPv4."
-        echo "however, probes and external clients may experience different connectivity to your probe."
+        echo 
+        echo -e "------------------------------------"
+        echo -e "detected IPv4 address: $ipv4_address"
+        echo -e "testing IPv4 connectivity..."
+        echo 
 
         if ping -c 1 -I "$ipv4_address" google.com >/dev/null 2>&1; then
-            echo "IPv4 connectivity is working. Fetching a joke..."
+            echo -e "${green}IPv4 connectivity is working. fetching a joke...${reset}"
             joke=$(curl -s -H "Accept: application/json" --interface "$ipv4_address" https://icanhazdadjoke.com/ | jq -r .joke)
-            [[ -n "$joke" && "$joke" != "null" ]] && echo "IPv4 joke: $joke" || echo "Failed to fetch a joke via IPv4."
+            [[ -n "$joke" && "$joke" != "null" ]] && echo -e "${green}IPv4 joke: $joke${reset}" || echo -e "failed to fetch a joke via IPv4."
         else
-            echo "IPv4 connectivity is not working for $interface. verify your routing and NAT settings."
+            echo -e "${red}IPv4 connectivity is not working for $interface. verify your routing and NAT settings.${reset}"
         fi
     fi
 
     if [[ -n "$ipv6_address" ]]; then
-        echo "detected IPv6 address: $ipv6_address"
-        echo "testing IPv6 connectivity..."
-        echo "if this test succeeds, it confirms your machine can reach the outside world via IPv6."
-        echo "however, probes and external clients may experience different connectivity to your nym-node."
+        echo 
+        echo -e "------------------------------------"
+        echo -e "detected IPv6 address: $ipv6_address"
+        echo -e "testing IPv6 connectivity..."
+        echo 
 
         if ping6 -c 1 -I "$ipv6_address" google.com >/dev/null 2>&1; then
-            echo "IPv6 connectivity is working. Fetching a joke..."
+            echo -e "${green}IPv6 connectivity is working. fetching a joke...${reset}"
             joke=$(curl -s -H "Accept: application/json" --interface "$ipv6_address" https://icanhazdadjoke.com/ | jq -r .joke)
-            [[ -n "$joke" && "$joke" != "null" ]] && echo "IPv6 joke: $joke" || echo "Failed to fetch a joke via IPv6."
+            [[ -n "$joke" && "$joke" != "null" ]] && echo -e "${green}IPv6 joke: $joke${reset}" || echo -e "${red}failed to fetch a joke via IPv6.${reset}"
         else
-            echo "IPv6 connectivity is not working for $interface. verify your routing and NAT settings."
+            echo -e "${red}IPv6 connectivity is not working for $interface. verify your routing and NAT settings.${reset}"
         fi
     fi
 
-    echo "joke fetching process completed for $interface."
-    sleep 1
+    echo -e "${green}joke fetching processes completed for $interface.${reset}"
+    echo -e "------------------------------------"
+
+    sleep 3
     echo
-    echo "### connectivity testing recommendations ###"
-    echo "- use the following command to test WebSocket connectivity from an external client:"
-    echo "  wscat -c wss://<your-ip-address/ hostname>:9001" 
-    echo
-    echo "- test UDP connectivity on port 51822 (commonly used for nym wireguard):"
-    echo "  from another machine, use tools like nc or socat to send UDP packets:"
-    echo "  echo 'test message' | nc -u <your-ip-address> 51822"
     echo 
-    echo "if connectivity issues persist, ensure port forwarding and firewall rules are correctly configured"
+    echo -e "${yellow}### connectivity testing recommendations ###${reset}"
+    echo -e "${yellow}- use the following command to test WebSocket connectivity from an external client:${reset}"
+    echo -e "${yellow}  wscat -c wss://<your-ip-address/ hostname>:9001 ${reset}"
+    echo -e "${yellow}- test UDP connectivity on port 51822 (commonly used for nym wireguard) ${reset}"
+    echo -e "${yellow}  from another machine, use tools like nc or socat to send UDP packets ${reset}"
+    echo -e "${yellow}  echo 'test message' | nc -u <your-ip-address> 51822 ${reset}"
+    echo -e "${yellow}if connectivity issues persist, ensure port forwarding and firewall rules are correctly configured ${reset}"
+    echo 
 }
+
 
 configure_dns_and_icmp_wg() {
     echo "allowing icmp (ping)..."

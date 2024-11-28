@@ -165,21 +165,21 @@ const PageAccountWithState = ({ account }: {
       }
     }
 
-    if (`${account.claimable_rewards.amount}` !== "0") {
+    if (account.claimable_rewards &&`${account.claimable_rewards.amount}` !== "0") {
       parts.push({
         label: "Claimable delegation rewards",
         value: Number.parseFloat(account.claimable_rewards.amount) / 1e6,
         color: theme.palette.success.light
       });
     }
-    if (`${account.operator_rewards.amount}` !== "0") {
+    if (account.operator_rewards && `${account.operator_rewards.amount}` !== "0") {
       parts.push({
         label: "Claimable operator rewards",
         value: Number.parseFloat(account.operator_rewards.amount) / 1e6,
         color: theme.palette.success.dark
       });
     }
-    if (`${account.total_delegations.amount}` !== "0") {
+    if (account.total_delegations && `${account.total_delegations.amount}` !== "0") {
       parts.push({
         label: "Total delegations",
         value: Number.parseFloat(account.total_delegations.amount) / 1e6,
@@ -233,15 +233,15 @@ const PageAccountWithState = ({ account }: {
                   {humanReadableCurrencyToString(account.total_delegations)}
                 </TableCell>
               </TableRow>
-              <TableRow sx={{ color: theme => theme.palette.success.light }}>
+              {account.claimable_rewards && <TableRow sx={{ color: theme => theme.palette.success.light }}>
                 <TableCell component="th" scope="row" sx={{ color: "inherit" }}>
                   Claimable delegation rewards
                 </TableCell>
                 <TableCell align="right" sx={{ color: "inherit" }}>
                   {humanReadableCurrencyToString(account.claimable_rewards)}
                 </TableCell>
-              </TableRow>
-              {`${account.operator_rewards.amount}` !== "0" && <TableRow sx={{ color: theme => theme.palette.success.light }}>
+              </TableRow>}
+              {account.operator_rewards && `${account.operator_rewards.amount}` !== "0" && <TableRow sx={{ color: theme => theme.palette.success.light }}>
                 <TableCell component="th" scope="row" sx={{ color: "inherit" }}>
                   Claimable operator rewards
                 </TableCell>

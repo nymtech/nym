@@ -94,7 +94,6 @@ export const ExplorerLineChart = ({
     }
   };
 
-  console.log("chartData.length :>> ", chartData);
   return (
     <Box width={"100%"} height={isDesktop ? 200 : 150}>
       {chartData && (
@@ -106,7 +105,7 @@ export const ExplorerLineChart = ({
           enableSlices="x"
           margin={{
             bottom: 24,
-            left: 26,
+            left: 36,
             right: 16,
             top: 20,
           }}

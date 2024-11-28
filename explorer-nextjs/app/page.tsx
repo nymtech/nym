@@ -88,8 +88,11 @@ export default function PageOverview() {
     label: string;
     data: IExplorerLineChartData[];
   }>();
-
-  console.log("noiseLineGraphData :>> ", noiseLineGraphData);
+  const [stakeLineGraphData, setStakeLineGraphData] = useState<{
+    color: string;
+    label: string;
+    data: IExplorerLineChartData[];
+  }>();
 
   useEffect(() => {
     async function fetchData() {
@@ -98,10 +101,13 @@ export default function PageOverview() {
     }
     fetchData();
   }, []);
+
   const theme = useTheme();
   const router = useRouter();
 
   console.log("explorerData :>> ", explorerData);
+
+  //  CURRENT EPOCH
   const currentEpochStart =
     explorerData?.currentEpochData.current_epoch_start || "";
 
@@ -125,6 +131,8 @@ export default function PageOverview() {
       return num;
     }
   };
+
+  // NOISE
 
   const noiseLast24H =
     explorerData?.packetsAndStakingData[
@@ -183,13 +191,39 @@ export default function PageOverview() {
       percentage: Math.abs(percentage) || 0,
       numberWentUp: percentage > 0,
     },
+    graph: noiseLineGraphData,
   };
 
+  // STAKE
+
   const currentStake =
-    Number(explorerData?.currentEpochRewardsData.interval.staking_supply) || 0;
+    Number(explorerData?.currentEpochRewardsData.interval.staking_supply) /
+      1000000 || 0;
+
+  const getStakeData = () => {
+    const data: Array<IExplorerLineChartData> = [];
+    explorerData?.packetsAndStakingData.map((item: any) => {
+      data.push({
+        date_utc: item.date_utc,
+        numericData: item.total_stake / 1000000,
+      });
+    });
+    return data;
+  };
+
+  useEffect(() => {
+    const stakeLineGraphData = {
+      color: "#00CA33",
+      label: "Total stake delegated in NYM",
+      data: getStakeData(),
+    };
+    setStakeLineGraphData(stakeLineGraphData);
+  }, [explorerData]);
+
   const stakeCard = {
     overTitle: "Current network stake",
     title: currentStake + " NYM" || "",
+    graph: stakeLineGraphData,
   };
 
   const {
@@ -217,7 +251,7 @@ export default function PageOverview() {
                   <ExplorerCard progressBar={progressBar} />
                 </Grid>
                 <Grid item xs={12} md={4}>
-                  <ExplorerCard {...noiseCard} graph={noiseLineGraphData} />
+                  <ExplorerCard {...noiseCard} />
                 </Grid>
                 <Grid item xs={12} md={4}>
                   <ExplorerCard {...stakeCard} />

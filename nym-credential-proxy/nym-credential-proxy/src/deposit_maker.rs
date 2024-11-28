@@ -107,8 +107,17 @@ impl DepositMaker {
         let mut contents = Vec::new();
         let mut replies = Vec::new();
         for request in requests {
+            // check if the channel is still open in case the receiver client has cancelled the request
+            if request.on_done.is_closed() {
+                warn!(
+                    "the request for deposit from {} got cancelled",
+                    request.pubkey
+                );
+                continue;
+            }
+
             contents.push((request.pubkey.to_base58_string(), request.deposit_amount));
-            replies.push(request.on_done)
+            replies.push(request.on_done);
         }
 
         let deposits_res = chain_write_permit

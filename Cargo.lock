@@ -5113,6 +5113,7 @@ dependencies = [
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
+ "nym-ecash-contract-common",
  "nym-http-api-common",
  "nym-network-defaults",
  "nym-validator-client",

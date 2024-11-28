@@ -21,10 +21,15 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub fn new(bind_address: SocketAddr, state: ApiState, auth_token: String) -> Self {
+    pub fn new(
+        bind_address: SocketAddr,
+        state: ApiState,
+        auth_token: String,
+        cancellation: CancellationToken,
+    ) -> Self {
         HttpServer {
             bind_address,
-            cancellation: state.cancellation_token(),
+            cancellation,
             router: build_router(state, auth_token),
         }
     }

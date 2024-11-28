@@ -14,8 +14,8 @@ use crate::http::HttpServer;
 use crate::storage::VpnApiStorage;
 use crate::tasks::StoragePruner;
 use clap::Parser;
-use nym_bin_common::bin_info;
 use nym_bin_common::logging::setup_tracing_logger;
+use nym_bin_common::{bin_info, bin_info_owned};
 use nym_network_defaults::setup_env;
 use tokio_util::sync::CancellationToken;
 use tracing::{info, trace};
@@ -124,6 +124,9 @@ async fn main() -> anyhow::Result<()> {
 
     setup_env(cli.config_env_file.as_ref());
     setup_tracing_logger();
+
+    let bin_info = bin_info_owned!();
+    info!("using the following version: {bin_info}");
 
     run_api(cli).await?;
     Ok(())

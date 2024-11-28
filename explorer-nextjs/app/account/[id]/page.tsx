@@ -146,45 +146,62 @@ const PageAccountWithState = ({ account }: {
 
     const nymBalance = Number.parseFloat(account.balances.find((b: any) => b.denom === "unym")?.amount || "0") / 1e6;
 
-    parts.push({ label: "Spendable", value: nymBalance, color: theme.palette.primary.main });
+    if(nymBalance?.amount > 0) {
+      parts.push({label: "Spendable", value: nymBalance, color: theme.palette.primary.main});
+    }
 
     if(account.vesting_account) {
       if (`${account.vesting_account.locked?.amount}` !== "0") {
-        parts.push({
-          label: "Vesting locked",
-          value: Number.parseFloat(account.vesting_account.locked.amount) / 1e6,
-          color: 'red'
-        });
+        const value = Number.parseFloat(account.vesting_account.locked.amount) / 1e6;
+        if(value > 0) {
+          parts.push({
+            label: "Vesting locked",
+            value,
+            color: 'red'
+          });
+        }
       }
       if (`${account.vesting_account.spendable?.amount}` !== "0") {
-        parts.push({
-          label: "Vesting spendable",
-          value: Number.parseFloat(account.vesting_account.spendable.amount) / 1e6,
-          color: theme.palette.primary.light
-        });
+        const value = Number.parseFloat(account.vesting_account.spendable.amount) / 1e6;
+        if(value > 0) {
+          parts.push({
+            label: "Vesting spendable",
+            value,
+            color: theme.palette.primary.light
+          });
+        }
       }
     }
 
     if (account.claimable_rewards &&`${account.claimable_rewards.amount}` !== "0") {
-      parts.push({
-        label: "Claimable delegation rewards",
-        value: Number.parseFloat(account.claimable_rewards.amount) / 1e6,
-        color: theme.palette.success.light
-      });
+      const value = Number.parseFloat(account.claimable_rewards.amount) / 1e6;
+      if(value > 0) {
+        parts.push({
+          label: "Claimable delegation rewards",
+          value,
+          color: theme.palette.success.light
+        });
+      }
     }
     if (account.operator_rewards && `${account.operator_rewards.amount}` !== "0") {
-      parts.push({
-        label: "Claimable operator rewards",
-        value: Number.parseFloat(account.operator_rewards.amount) / 1e6,
-        color: theme.palette.success.dark
-      });
+      const value = Number.parseFloat(account.operator_rewards.amount) / 1e6;
+      if(value > 0) {
+        parts.push({
+          label: "Claimable operator rewards",
+          value,
+          color: theme.palette.success.dark
+        });
+      }
     }
     if (account.total_delegations && `${account.total_delegations.amount}` !== "0") {
-      parts.push({
-        label: "Total delegations",
-        value: Number.parseFloat(account.total_delegations.amount) / 1e6,
-        color: '#888'
-      });
+      const value = Number.parseFloat(account.total_delegations.amount) / 1e6;
+      if(value > 0) {
+        parts.push({
+          label: "Total delegations",
+          value,
+          color: '#888'
+        });
+      }
     }
 
     return parts;

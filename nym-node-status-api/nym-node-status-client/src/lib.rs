@@ -1,62 +1,35 @@
-use anyhow::{bail, Context};
-use nym_common_models::ns_api::{get_testrun, submit_results, TestrunAssignment};
+use crate::models::{get_testrun, submit_results, TestrunAssignment};
+use anyhow::bail;
+use api::ApiPaths;
 use nym_crypto::asymmetric::ed25519::{PrivateKey, Signature};
-use std::fmt::Display;
 use tracing::instrument;
 
-use crate::cli::GwProbe;
+mod api;
+pub mod auth;
+pub mod models;
 
-const INTERNAL_TESTRUNS: &str = "internal/testruns";
-
-pub(crate) async fn run_probe(
-    server_ip: &str,
-    server_port: u16,
-    ns_api_auth_key: &str,
-    probe_path: &str,
-) -> anyhow::Result<()> {
-    let auth_key = PrivateKey::from_base58_string(ns_api_auth_key)
-        .context("Couldn't parse auth key, exiting")?;
-    let ns_api_client = Client::new(server_ip, server_port, auth_key);
-
-    let probe = GwProbe::new(probe_path.to_string());
-
-    let version = probe.version().await;
-    tracing::info!("Probe version:\n{}", version);
-
-    if let Some(testrun) = ns_api_client.request_testrun().await? {
-        let log = probe.run_and_get_log(&Some(testrun.gateway_identity_key));
-
-        ns_api_client
-            .submit_results(testrun.testrun_id, log, testrun.assigned_at_utc)
-            .await?;
-    } else {
-        tracing::info!("No testruns available, exiting")
-    }
-
-    Ok(())
-}
-
-struct Client {
-    server_address: String,
+pub struct NsApiClient {
+    api: ApiPaths,
     client: reqwest::Client,
     auth_key: PrivateKey,
 }
 
-impl Client {
+impl NsApiClient {
     pub fn new(server_ip: &str, server_port: u16, auth_key: PrivateKey) -> Self {
         let server_address = format!("{}:{}", server_ip, server_port);
+        let api = ApiPaths::new(server_address);
         let client = reqwest::Client::new();
 
         Self {
-            server_address,
+            api,
             client,
             auth_key,
         }
     }
 
     #[instrument(level = "debug", skip_all)]
-    pub(crate) async fn request_testrun(&self) -> anyhow::Result<Option<TestrunAssignment>> {
-        let target_url = self.api_with_subpath(None::<String>);
+    pub async fn request_testrun(&self) -> anyhow::Result<Option<TestrunAssignment>> {
+        let target_url = self.api.request_testrun();
 
         let payload = get_testrun::Payload {
             agent_public_key: self.auth_key.public_key(),
@@ -93,13 +66,13 @@ impl Client {
     }
 
     #[instrument(level = "debug", skip(self, probe_result))]
-    pub(crate) async fn submit_results(
+    pub async fn submit_results(
         &self,
         testrun_id: i64,
         probe_result: String,
         assigned_at_utc: i64,
     ) -> anyhow::Result<()> {
-        let target_url = self.api_with_subpath(Some(testrun_id));
+        let target_url = self.api.submit_results(testrun_id);
 
         let payload = submit_results::Payload {
             probe_result,
@@ -128,13 +101,5 @@ impl Client {
         let serialized = bincode::serialize(message)?;
         let signed = self.auth_key.sign(&serialized);
         Ok(signed)
-    }
-
-    fn api_with_subpath(&self, subpath: Option<impl Display>) -> String {
-        if let Some(subpath) = subpath {
-            format!("{}/{}/{}", self.server_address, INTERNAL_TESTRUNS, subpath)
-        } else {
-            format!("{}/{}", self.server_address, INTERNAL_TESTRUNS)
-        }
     }
 }

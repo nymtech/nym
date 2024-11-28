@@ -4470,6 +4470,7 @@ dependencies = [
  "cw2",
  "cw3",
  "cw4",
+ "dashmap",
  "dirs",
  "futures",
  "getset",
@@ -4751,12 +4752,14 @@ dependencies = [
  "nym-coconut-dkg-common",
  "nym-config",
  "nym-contracts-common",
+ "nym-credential-proxy-requests",
  "nym-credential-storage",
  "nym-credential-utils",
  "nym-credentials",
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-contract-common",
+ "nym-ecash-time",
  "nym-id",
  "nym-mixnet-contract-common",
  "nym-multisig-contract-common",
@@ -4781,7 +4784,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.43"
+version = "1.1.44"
 dependencies = [
  "bs58",
  "clap 4.5.20",
@@ -5004,16 +5007,6 @@ dependencies = [
  "cw4",
  "nym-contracts-common",
  "nym-multisig-contract-common",
-]
-
-[[package]]
-name = "nym-common-models"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "bincode",
- "nym-crypto",
- "serde",
 ]
 
 [[package]]
@@ -5868,7 +5861,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-monitor"
-version = "0.1.0"
+version = "1.0.2"
 dependencies = [
  "anyhow",
  "axum 0.7.7",
@@ -5898,7 +5891,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.44"
+version = "1.1.45"
 dependencies = [
  "addr",
  "anyhow",
@@ -5949,7 +5942,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.1.10"
+version = "1.1.11"
 dependencies = [
  "anyhow",
  "bip39",
@@ -6055,30 +6048,23 @@ name = "nym-node-status-agent"
 version = "1.0.0-rc.1"
 dependencies = [
  "anyhow",
- "bincode",
- "chrono",
  "clap 4.5.20",
  "nym-bin-common",
- "nym-common-models",
  "nym-crypto",
+ "nym-node-status-client",
  "rand",
- "reqwest 0.12.4",
- "serde",
- "serde_json",
  "tempfile",
  "tokio",
- "tokio-util",
  "tracing",
  "tracing-subscriber",
 ]
 
 [[package]]
 name = "nym-node-status-api"
-version = "1.0.0-rc.1"
+version = "1.0.0-rc.3"
 dependencies = [
  "anyhow",
  "axum 0.7.7",
- "bincode",
  "chrono",
  "clap 4.5.20",
  "cosmwasm-std",
@@ -6086,11 +6072,11 @@ dependencies = [
  "futures-util",
  "moka",
  "nym-bin-common",
- "nym-common-models",
  "nym-crypto",
  "nym-explorer-client",
  "nym-network-defaults",
  "nym-node-requests",
+ "nym-node-status-client",
  "nym-task",
  "nym-validator-client",
  "regex",
@@ -6111,6 +6097,21 @@ dependencies = [
  "utoipa",
  "utoipa-swagger-ui",
  "utoipauto",
+]
+
+[[package]]
+name = "nym-node-status-client"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "chrono",
+ "nym-crypto",
+ "nym-http-api-client",
+ "reqwest 0.12.4",
+ "serde",
+ "serde_json",
+ "tracing",
 ]
 
 [[package]]
@@ -6305,7 +6306,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.43"
+version = "1.1.44"
 dependencies = [
  "bs58",
  "clap 4.5.20",

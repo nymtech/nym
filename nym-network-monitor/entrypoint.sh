@@ -15,7 +15,7 @@ nnm_pid=$!
 
 sleep 10
 
-python -m locust -H http://127.0.0.1:8080 --processes "${processes}" --autostart --autoquit 60 -u "${users}" -t "${timeout}"s &
+python -m locust -H http://${NYM_NETWORK_MONITOR_HOST}:${NYM_NETWORK_MONITOR_PORT} --processes "${processes}" --autostart --autoquit 60 -u "${users}" -t "${timeout}"s &
 locust_pid=$!
 
 wait $locust_pid

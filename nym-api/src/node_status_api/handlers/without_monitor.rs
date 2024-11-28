@@ -88,7 +88,6 @@ pub(crate) async fn submit_gateway_monitoring_results(
 
     match state
         .storage
-        .manager
         .submit_gateway_statuses_v2(message.results())
         .await
     {
@@ -133,7 +132,6 @@ pub(crate) async fn submit_node_monitoring_results(
 
     match state
         .storage
-        .manager
         .submit_mixnode_statuses_v2(message.results())
         .await
     {

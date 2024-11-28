@@ -1,6 +1,6 @@
 [package]
 name = "nym-network-monitor"
-version = "1.0.1"
+version = "1.0.2"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -13,7 +13,7 @@ license.workspace = true
 [dependencies]
 anyhow = { workspace = true }
 axum = { workspace = true, features = ["json"] }
-clap = { workspace = true, features = ["derive"] }
+clap = { workspace = true, features = ["derive", "env"] }
 dashmap = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }

@@ -13,7 +13,7 @@ use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
-use crate::support::http::state::AppState;
+use crate::support::http::state::{AppState, ForcedRefresh};
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
 use axum::Router;
@@ -1264,7 +1264,7 @@ struct TestFixture {
 impl TestFixture {
     fn build_app_state(storage: NymApiStorage) -> AppState {
         AppState {
-            forced_refresh: Default::default(),
+            forced_refresh: ForcedRefresh::new(true),
             nym_contract_cache: NymContractCache::new(),
             node_status_cache: NodeStatusCache::new(),
             circulating_supply_cache: CirculatingSupplyCache::new("unym".to_owned()),

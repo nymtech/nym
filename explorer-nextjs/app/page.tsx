@@ -92,6 +92,9 @@ const explorerCard: ContentCardProps = {
   qrCode: {
     url: "https://nymtech.net",
   },
+  ratings: {
+    ratings: [{ title: "Rating", numberOfStars: 4 }],
+  },
 
   paragraph: "Additional line",
 };

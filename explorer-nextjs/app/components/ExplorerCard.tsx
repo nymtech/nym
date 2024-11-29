@@ -13,6 +13,7 @@ import Image from "next/image";
 import profileImagePlaceholder from "../../public/profileImagePlaceholder.png";
 import Flag from "react-world-flags";
 import { QRCodeCanvas } from "qrcode.react";
+import StarIcon from "@mui/icons-material/Star";
 
 interface ICardUpDownPriceLineProps {
   percentage: number;
@@ -170,6 +171,57 @@ const CardQRCode = (props: ICardQRCodeProps) => {
   );
 };
 
+interface ICardRatingsProps {
+  ratings: Array<{ title: string; numberOfStars: number }>;
+}
+
+const CardRatings = (props: ICardRatingsProps) => {
+  const { ratings } = props;
+
+  return (
+    <Box mb={3}>
+      {ratings.map((rating, i) => {
+        const Stars = () => {
+          const stars = [];
+          for (let i = 0; i < rating.numberOfStars; i++) {
+            stars.push(<StarIcon sx={{ color: "#14E76F" }} fontSize="small" />);
+          }
+          return stars;
+        };
+        const RatingTitle = () => {
+          if (rating.numberOfStars === 1) {
+            return <Typography>Bad</Typography>;
+          } else if (rating.numberOfStars === 2) {
+            return <Typography>Bad</Typography>;
+          } else if (rating.numberOfStars === 3) {
+            return <Typography>ok</Typography>;
+          } else if (rating.numberOfStars === 4) {
+            return <Typography>Good</Typography>;
+          } else {
+            return <Typography>Excellent</Typography>;
+          }
+        };
+        return (
+          <Box
+            key={i}
+            paddingTop={2}
+            paddingBottom={2}
+            display={"flex"}
+            justifyContent={"space-between"}
+            borderBottom={i === 0 ? "1px solid #C3D7D7" : "none"}
+          >
+            <Typography>{rating.title}</Typography>
+            <Box display={"flex"} gap={2} alignItems={"center"}>
+              <Stars />
+              <RatingTitle />
+            </Box>
+          </Box>
+        );
+      })}
+    </Box>
+  );
+};
+
 export type ContentCardProps = {
   overTitle?: string;
   profileImage?: ICardProileImage;
@@ -185,6 +237,7 @@ export type ContentCardProps = {
   nymAddress?: ICardCopyAddressProps;
   identityKey?: ICardCopyAddressProps;
   qrCode?: ICardQRCodeProps;
+  ratings?: ICardRatingsProps;
 };
 
 export const ExplorerCard: FC<ContentCardProps> = ({
@@ -202,6 +255,7 @@ export const ExplorerCard: FC<ContentCardProps> = ({
   nymAddress,
   identityKey,
   qrCode,
+  ratings,
 }) => (
   <Card onClick={onClick} sx={{ height: "100%" }}>
     <CardContent>
@@ -223,6 +277,7 @@ export const ExplorerCard: FC<ContentCardProps> = ({
       {nymAddress && <CardCopyAddress {...nymAddress} />}
       {identityKey && <CardCopyAddress {...identityKey} />}
       {dataRows && <CardDataRows {...dataRows} />}
+      {ratings && <CardRatings {...ratings} />}
       {graph && (
         <Box mb={3}>
           <ExplorerLineChart

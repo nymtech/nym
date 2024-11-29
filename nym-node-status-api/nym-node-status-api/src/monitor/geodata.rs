@@ -1,35 +1,43 @@
 use cosmwasm_std::{Addr, Coin};
-use ipinfo::{IpInfo, IpInfoConfig};
 use serde::{Deserialize, Serialize};
 
 pub(crate) struct IpInfoClient {
-    client: IpInfo,
+    client: reqwest::Client,
+    token: String,
 }
 
 impl IpInfoClient {
     pub(crate) fn new(token: impl Into<String>) -> anyhow::Result<Self> {
-        let config = IpInfoConfig {
-            token: Some(token.into()),
-            ..Default::default()
-        };
-        let client = IpInfo::new(config)?;
+        let client = reqwest::Client::new();
+        let token = token.into();
 
-        Ok(Self { client })
+        Ok(Self { client, token })
     }
 
-    pub(crate) async fn locate_ip(&mut self, ip: impl AsRef<str>) -> anyhow::Result<Location> {
-        self.client
-            .lookup(ip.as_ref())
+    pub(crate) async fn locate_ip(&self, ip: impl AsRef<str>) -> anyhow::Result<Location> {
+        let url = format!(
+            "https://ipinfo.io/{}/country?token={}",
+            ip.as_ref(),
+            &self.token
+        );
+        let response = self
+            .client
+            .get(url)
+            .send()
             .await
-            .map(|details| Location {
-                two_letter_iso_country_code: details.country,
-            })
+            // map non 2xx responses to error
+            .and_then(|res| res.error_for_status())
             .map_err(|err| {
-                if matches!(err.kind(), ipinfo::IpErrorKind::RateLimitExceededError) {
-                    tracing::error!("Rate limit exceeded: {}", err);
+                if matches!(err.status(), Some(reqwest::StatusCode::TOO_MANY_REQUESTS)) {
+                    tracing::error!("ipinfo rate limit exceeded");
                 }
                 anyhow::Error::from(err)
-            })
+            })?;
+        let response_text = response.text().await?;
+
+        Ok(Location {
+            two_letter_iso_country_code: response_text,
+        })
     }
 }
 

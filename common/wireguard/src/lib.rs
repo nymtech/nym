@@ -20,6 +20,7 @@ const WG_TUN_NAME: &str = "nymwg";
 pub(crate) mod error;
 pub mod peer_controller;
 pub mod peer_handle;
+pub mod peer_storage_manager;
 
 pub struct WgApiWrapper {
     inner: WGApi,
@@ -118,7 +119,7 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
         storage
             .insert_wireguard_peer(peer, bandwidth_manager.is_some())
             .await?;
-        peer_bandwidth_managers.insert(peer.public_key.clone(), bandwidth_manager);
+        peer_bandwidth_managers.insert(peer.public_key.clone(), (bandwidth_manager, peer.clone()));
     }
     wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {

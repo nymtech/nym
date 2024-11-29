@@ -114,7 +114,7 @@ export const ExplorerLineChart = ({
             tooltip: { container: { color: "black" } },
             axis: {
               domain: {
-                line: { stroke: "#ffffff", strokeWidth: 1, strokeOpacity: 1 },
+                line: { stroke: "#C3D7D7", strokeWidth: 1, strokeOpacity: 1 },
               },
               ticks: {
                 text: {

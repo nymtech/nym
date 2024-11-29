@@ -9,10 +9,10 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { NymTokenSVG } from "../icons/NymTokenSVG";
 import { CopyToClipboard } from "@nymproject/react/clipboard/CopyToClipboard";
-
 import Image from "next/image";
 import profileImagePlaceholder from "../../public/profileImagePlaceholder.png";
 import Flag from "react-world-flags";
+import { QRCodeCanvas } from "qrcode.react";
 
 interface ICardUpDownPriceLineProps {
   percentage: number;
@@ -72,7 +72,7 @@ const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
             paddingBottom={2}
             display={"flex"}
             justifyContent={"space-between"}
-            borderBottom={i === 0 ? "1px solid #CAD6D7" : "none"}
+            borderBottom={i === 0 ? "1px solid #C3D7D7" : "none"}
           >
             <Typography>{row.key}</Typography>
             <Typography>{row.value}</Typography>
@@ -132,7 +132,7 @@ const CardCopyAddress = (props: ICardCopyAddressProps) => {
       display={"flex"}
       flexDirection={"column"}
       gap={2}
-      borderBottom={"1px solid #CAD6D7"}
+      borderBottom={"1px solid #C3D7D7"}
     >
       <Typography textTransform={"uppercase"}>{title}</Typography>
       <Box display={"flex"} justifyContent={"space-between"}>
@@ -144,6 +144,27 @@ const CardCopyAddress = (props: ICardCopyAddressProps) => {
           value={address}
           tooltip={`Copy identity key ${address} to clipboard`}
         />
+      </Box>
+    </Box>
+  );
+};
+
+interface ICardQRCodeProps {
+  url: string;
+}
+
+const CardQRCode = (props: ICardQRCodeProps) => {
+  const { url } = props;
+  return (
+    <Box display={"flex"} justifyContent={"flex-start"}>
+      <Box
+        padding={2}
+        border={"1px solid #C3D7D7"}
+        mb={3}
+        display={"block"}
+        width={"unset"}
+      >
+        <QRCodeCanvas value={url} />
       </Box>
     </Box>
   );
@@ -163,6 +184,7 @@ export type ContentCardProps = {
   onClick?: ReactEventHandler;
   nymAddress?: ICardCopyAddressProps;
   identityKey?: ICardCopyAddressProps;
+  qrCode?: ICardQRCodeProps;
 };
 
 export const ExplorerCard: FC<ContentCardProps> = ({
@@ -179,6 +201,7 @@ export const ExplorerCard: FC<ContentCardProps> = ({
   profileCountry,
   nymAddress,
   identityKey,
+  qrCode,
 }) => (
   <Card onClick={onClick} sx={{ height: "100%" }}>
     <CardContent>
@@ -196,6 +219,7 @@ export const ExplorerCard: FC<ContentCardProps> = ({
       {profileCountry && <CardProfileCountry {...profileCountry} />}
       {upDownLine && <CardUpDownPriceLine {...upDownLine} />}
       {titlePrice && <CardTitlePrice {...titlePrice} />}
+      {qrCode && <CardQRCode {...qrCode} />}
       {nymAddress && <CardCopyAddress {...nymAddress} />}
       {identityKey && <CardCopyAddress {...identityKey} />}
       {dataRows && <CardDataRows {...dataRows} />}

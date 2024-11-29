@@ -89,6 +89,9 @@ const explorerCard: ContentCardProps = {
     address: "n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su",
     title: "Nym address",
   },
+  qrCode: {
+    url: "https://nymtech.net",
+  },
 
   paragraph: "Additional line",
 };

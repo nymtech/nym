@@ -30,6 +30,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::process;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::*;
 
 pub(crate) mod client_handling;
@@ -148,8 +149,11 @@ impl<St> Gateway<St> {
     }
 
     fn gateway_topology_provider(&self) -> GatewayTopologyProvider {
+        // TODO: make topology ttl configurable
+        // (to be done in reeses with the final smooshing)
         GatewayTopologyProvider::new(
             self.as_topology_node(),
+            Duration::from_secs(5 * 60),
             self.user_agent.clone(),
             self.config.gateway.nym_api_urls.clone(),
         )

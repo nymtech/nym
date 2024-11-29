@@ -29,14 +29,13 @@ async fn main() -> anyhow::Result<()> {
     let db_pool = storage.pool_owned();
     let args_clone = args.clone();
 
-    let ipinfo_client = monitor::IpInfoClient::new(args.ipinfo_api_token.clone())?;
     tokio::spawn(async move {
         monitor::spawn_in_background(
             db_pool,
             args_clone.nym_api_client_timeout,
             args_clone.nyxd_addr,
             args_clone.monitor_refresh_interval,
-            ipinfo_client,
+            args_clone.ipinfo_api_token,
             args_clone.geodata_ttl,
         )
         .await;

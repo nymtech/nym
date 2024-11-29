@@ -7,11 +7,11 @@ pub(crate) struct IpInfoClient {
 }
 
 impl IpInfoClient {
-    pub(crate) fn new(token: impl Into<String>) -> anyhow::Result<Self> {
+    pub(crate) fn new(token: impl Into<String>) -> Self {
         let client = reqwest::Client::new();
         let token = token.into();
 
-        Ok(Self { client, token })
+        Self { client, token }
     }
 
     pub(crate) async fn locate_ip(&self, ip: impl AsRef<str>) -> anyhow::Result<Location> {
@@ -33,11 +33,34 @@ impl IpInfoClient {
                 }
                 anyhow::Error::from(err)
             })?;
-        let response_text = response.text().await?;
+        let response_text = response.text().await?.trim().to_string();
 
         Ok(Location {
             two_letter_iso_country_code: response_text,
         })
+    }
+
+    /// check DOESN'T consume bandwidth allowance
+    pub(crate) async fn check_remaining_bandwidth(
+        &self,
+    ) -> anyhow::Result<ipinfo::MeResponseRequests> {
+        let url = format!("https://ipinfo.io/me?token={}", &self.token);
+        let response = self
+            .client
+            .get(url)
+            .send()
+            .await
+            // map non 2xx responses to error
+            .and_then(|res| res.error_for_status())
+            .map_err(|err| {
+                if matches!(err.status(), Some(reqwest::StatusCode::TOO_MANY_REQUESTS)) {
+                    tracing::error!("ipinfo rate limit exceeded");
+                }
+                anyhow::Error::from(err)
+            })?;
+        let response: ipinfo::MeResponse = response.json().await?;
+
+        Ok(response.requests)
     }
 }
 
@@ -59,5 +82,31 @@ impl Location {
         Self {
             two_letter_iso_country_code: String::new(),
         }
+    }
+}
+
+pub(crate) mod ipinfo {
+    use super::*;
+
+    // clippy doesn't understand it's used for typed deserialization
+    #[allow(dead_code)]
+    #[derive(Debug, Clone, Deserialize)]
+    /// `/me` is undocumented in their developers page
+    /// https://ipinfo.io/developers/responses
+    /// but explained here
+    /// https://community.ipinfo.io/t/easy-way-to-check-allowance-usage/5755/2
+    pub(crate) struct MeResponse {
+        token: String,
+        pub(crate) requests: MeResponseRequests,
+    }
+
+    // clippy doesn't understand it's used for typed deserialization
+    #[allow(dead_code)]
+    #[derive(Debug, Clone, Deserialize)]
+    pub(crate) struct MeResponseRequests {
+        pub(crate) day: u64,
+        pub(crate) month: u64,
+        pub(crate) limit: u64,
+        pub(crate) remaining: u64,
     }
 }

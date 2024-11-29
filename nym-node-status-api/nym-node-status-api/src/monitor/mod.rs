@@ -52,10 +52,11 @@ pub(crate) async fn spawn_in_background(
     nym_api_client_timeout: Duration,
     nyxd_addr: Url,
     refresh_interval: Duration,
-    ipinfo: IpInfoClient,
+    ipinfo_api_token: String,
     geodata_ttl: Duration,
 ) {
     let geocache = Cache::builder().time_to_live(geodata_ttl).build();
+    let ipinfo = IpInfoClient::new(ipinfo_api_token.clone());
     let mut monitor = Monitor {
         db_pool,
         network_details: nym_network_defaults::NymNetworkDetails::new_from_env(),
@@ -87,6 +88,8 @@ pub(crate) async fn spawn_in_background(
 
 impl Monitor {
     async fn run(&mut self) -> anyhow::Result<()> {
+        self.check_ipinfo_bandwidth().await;
+
         let default_api_url = self
             .network_details
             .endpoints
@@ -322,7 +325,7 @@ impl Monitor {
         Ok(())
     }
 
-    #[instrument(level = "debug", skip(self))]
+    #[instrument(level = "debug", skip_all)]
     async fn location_cached(&mut self, node: &NymNodeDescription) -> Location {
         let node_id = node.node_id;
 
@@ -432,6 +435,21 @@ impl Monitor {
         }
 
         Ok(mixnode_records)
+    }
+
+    async fn check_ipinfo_bandwidth(&self) {
+        match self.ipinfo.check_remaining_bandwidth().await {
+            Ok(bandwidth) => {
+                tracing::info!(
+                    "ipinfo monthly bandwidth: {}/{} spent",
+                    bandwidth.month,
+                    bandwidth.limit
+                );
+            }
+            Err(err) => {
+                tracing::debug!("Couldn't check ipinfo bandwidth: {}", err);
+            }
+        }
     }
 }
 

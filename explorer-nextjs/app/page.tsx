@@ -93,7 +93,11 @@ const explorerCard: ContentCardProps = {
     url: "https://nymtech.net",
   },
   ratings: {
-    ratings: [{ title: "Rating", numberOfStars: 4 }],
+    ratings: [
+      { title: "Rating", numberOfStars: 4 },
+      { title: "Rating", numberOfStars: 2 },
+      { title: "Rating", numberOfStars: 3 },
+    ],
   },
 
   paragraph: "Additional line",

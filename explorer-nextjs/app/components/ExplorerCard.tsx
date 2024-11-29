@@ -208,10 +208,10 @@ const CardRatings = (props: ICardRatingsProps) => {
             paddingBottom={2}
             display={"flex"}
             justifyContent={"space-between"}
-            borderBottom={i === 0 ? "1px solid #C3D7D7" : "none"}
+            borderBottom={i < ratings.length - 1 ? "1px solid #C3D7D7" : "none"}
           >
             <Typography>{rating.title}</Typography>
-            <Box display={"flex"} gap={2} alignItems={"center"}>
+            <Box display={"flex"} gap={1} alignItems={"center"}>
               <Stars />
               <RatingTitle />
             </Box>

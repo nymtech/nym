@@ -264,7 +264,7 @@ impl<'b> Add<&'b VerificationKeyAuth> for VerificationKeyAuth {
     }
 }
 
-impl<'a> Mul<Scalar> for &'a VerificationKeyAuth {
+impl Mul<Scalar> for &VerificationKeyAuth {
     type Output = VerificationKeyAuth;
 
     #[inline]

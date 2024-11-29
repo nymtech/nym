@@ -58,7 +58,7 @@ impl<'a> FakeDkgKey<'a> {
     }
 }
 
-impl<'a> PemStorableKey for FakeDkgKey<'a> {
+impl PemStorableKey for FakeDkgKey<'_> {
     type Error = NetworkManagerError;
 
     fn pem_type() -> &'static str {
@@ -84,7 +84,7 @@ struct DkgSkipCtx<'a> {
     ecash_signers: Vec<EcashSignerWithPaths>,
 }
 
-impl<'a> ProgressCtx for DkgSkipCtx<'a> {
+impl ProgressCtx for DkgSkipCtx<'_> {
     fn progress_tracker(&self) -> &ProgressTracker {
         &self.progress
     }
@@ -138,7 +138,7 @@ impl NetworkManager {
 
         // generate required materials
         let n = api_endpoints.len();
-        let threshold = (2 * n + 3 - 1) / 3;
+        let threshold = (2 * n).div_ceil(3);
 
         let ecash_keys = ttp_keygen(threshold as u64, n as u64)?;
 

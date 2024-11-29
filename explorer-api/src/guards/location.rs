@@ -65,7 +65,7 @@ impl<'r> FromRequest<'r> for Location {
     }
 }
 
-impl<'a> OpenApiFromRequest<'a> for Location {
+impl OpenApiFromRequest<'_> for Location {
     fn from_request_input(
         _gen: &mut OpenApiGenerator,
         _name: String,

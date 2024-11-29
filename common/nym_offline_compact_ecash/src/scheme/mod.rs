@@ -984,7 +984,7 @@ pub struct SerialNumberRef<'a> {
     pub(crate) inner: &'a [G1Projective],
 }
 
-impl<'a> SerialNumberRef<'a> {
+impl SerialNumberRef<'_> {
     pub fn to_bytes(&self) -> Vec<u8> {
         let ss_len = self.inner.len();
         let mut bytes: Vec<u8> = Vec::with_capacity(ss_len * 48);

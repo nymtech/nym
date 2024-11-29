@@ -17,7 +17,7 @@ import { BIG_DIPPER } from "@/app/api/constants";
 import { formatNumber } from "@/app/utils";
 import { useMainContext } from "./context/main";
 import { useRouter } from "next/navigation";
-import { ExplorerCard } from "./components/ExplorerCard";
+import { ContentCardProps, ExplorerCard } from "./components/ExplorerCard";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import { ExplorerData, getCacheExplorerData } from "./api/explorer";
 import { IExplorerLineChartData } from "./components/ExplorerLineChart";
@@ -34,9 +34,14 @@ import { IExplorerLineChartData } from "./components/ExplorerLineChart";
 //   onClick?: ReactEventHandler;
 // };
 
-const explorerCard = {
+const explorerCard: ContentCardProps = {
   overTitle: "SINGLE",
+  profileImage: {},
   title: "SINGLE",
+  profileCountry: {
+    countryCode: "NO",
+    countryName: "Norway",
+  },
   upDownLine: {
     percentage: 10,
     numberWentUp: true,

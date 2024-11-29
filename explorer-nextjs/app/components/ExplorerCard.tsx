@@ -1,11 +1,4 @@
-import {
-  Card,
-  CardHeader,
-  CardContent,
-  Typography,
-  Box,
-  useTheme,
-} from "@mui/material";
+import { Card, CardContent, Typography, Box } from "@mui/material";
 import React, { FC, ReactElement, ReactEventHandler } from "react";
 import { ExplorerLineChart, IExplorerLineChartData } from "./ExplorerLineChart";
 import {
@@ -15,6 +8,9 @@ import {
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { NymTokenSVG } from "../icons/NymTokenSVG";
+import Image from "next/image";
+import profileImagePlaceholder from "../../public/profileImagePlaceholder.png";
+import Flag from "react-world-flags";
 
 interface ICardUpDownPriceLineProps {
   percentage: number;
@@ -84,10 +80,47 @@ const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
     </Box>
   );
 };
+interface ICardProileImage {
+  url?: string;
+}
+const CardProfileImage = (props: ICardProileImage) => {
+  const { url } = props;
+  return (
+    <Box display={"flex"} justifyContent={"flex-start"} mb={3}>
+      {url ? (
+        <Image src={url} alt="linkedIn" width={80} height={80} />
+      ) : (
+        <Image
+          src={profileImagePlaceholder}
+          alt="linkedIn"
+          width={80}
+          height={80}
+        />
+      )}
+    </Box>
+  );
+};
 
-type ContentCardProps = {
+interface ICardProfileCountry {
+  countryCode: string;
+  countryName: string;
+}
+
+const CardProfileCountry = (props: ICardProfileCountry) => {
+  const { countryCode, countryName } = props;
+  return (
+    <Box display={"flex"} justifyContent={"flex-start"} gap={2} mb={3}>
+      <Flag code={countryCode} width="20" />
+      <Typography textTransform={"uppercase"}>{countryName}</Typography>
+    </Box>
+  );
+};
+
+export type ContentCardProps = {
   overTitle?: string;
+  profileImage?: ICardProileImage;
   title?: string | number;
+  profileCountry?: ICardProfileCountry;
   upDownLine?: ICardUpDownPriceLineProps;
   titlePrice?: ICardTitlePriceProps;
   dataRows?: ICardDataRowsProps;
@@ -107,6 +140,8 @@ export const ExplorerCard: FC<ContentCardProps> = ({
   progressBar,
   paragraph,
   onClick,
+  profileImage,
+  profileCountry,
 }) => (
   <Card onClick={onClick} sx={{ height: "100%" }}>
     <CardContent>
@@ -115,11 +150,13 @@ export const ExplorerCard: FC<ContentCardProps> = ({
           {overTitle}
         </Typography>
       )}
+      {profileImage && <CardProfileImage {...profileImage} />}
       {title && (
-        <Typography fontSize={24} mb={!upDownLine ? 3 : 0}>
+        <Typography fontSize={24} mb={3}>
           {title}
         </Typography>
       )}
+      {profileCountry && <CardProfileCountry {...profileCountry} />}
       {upDownLine && <CardUpDownPriceLine {...upDownLine} />}
       {titlePrice && <CardTitlePrice {...titlePrice} />}
       {dataRows && <CardDataRows {...dataRows} />}

@@ -151,6 +151,12 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
 
                 _ = self.task_client.recv() => {
                     log::trace!("PeerHandle: Received shutdown");
+                    if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
+                        if let Err(e) = bandwidth_manager.write().await.sync_storage_bandwidth().await {
+                            log::error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
+                        }
+                    }
+                    log::trace!("PeerHandle: Finished shutdown");
                 }
             }
         }

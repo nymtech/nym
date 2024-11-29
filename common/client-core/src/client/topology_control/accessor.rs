@@ -38,7 +38,7 @@ pub struct TopologyReadPermit<'a> {
     permit: RwLockReadGuard<'a, Option<NymTopology>>,
 }
 
-impl<'a> Deref for TopologyReadPermit<'a> {
+impl Deref for TopologyReadPermit<'_> {
     type Target = Option<NymTopology>;
 
     fn deref(&self) -> &Self::Target {

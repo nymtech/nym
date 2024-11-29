@@ -32,7 +32,7 @@ impl Div<GasPrice> for Coin {
     }
 }
 
-impl<'a> Div<GasPrice> for &'a Coin {
+impl Div<GasPrice> for &Coin {
     type Output = Gas;
 
     fn div(self, rhs: GasPrice) -> Self::Output {

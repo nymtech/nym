@@ -26,9 +26,8 @@ const PARALLEL_RUNS: usize = 32;
 /// `lambda` ($\lambda$) in the DKG paper
 const SECURITY_PARAMETER: usize = 256;
 
-// note: ceiling in integer division can be achieved via q = (x + y - 1) / y;
 /// ceil(SECURITY_PARAMETER / PARALLEL_RUNS) in the paper
-const NUM_CHALLENGE_BITS: usize = (SECURITY_PARAMETER + PARALLEL_RUNS - 1) / PARALLEL_RUNS;
+const NUM_CHALLENGE_BITS: usize = SECURITY_PARAMETER.div_ceil(PARALLEL_RUNS);
 
 // type alias for ease of use
 type FirstChallenge = Vec<Vec<Vec<u64>>>;

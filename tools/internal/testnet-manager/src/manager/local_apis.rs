@@ -24,7 +24,7 @@ struct LocalApisCtx<'a> {
     signers: Vec<EcashSignerWithPaths>,
 }
 
-impl<'a> ProgressCtx for LocalApisCtx<'a> {
+impl ProgressCtx for LocalApisCtx<'_> {
     fn progress_tracker(&self) -> &ProgressTracker {
         &self.progress
     }

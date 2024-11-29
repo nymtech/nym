@@ -305,7 +305,7 @@ impl<'b> Add<&'b VerificationKey> for VerificationKey {
     }
 }
 
-impl<'a> Mul<Scalar> for &'a VerificationKey {
+impl Mul<Scalar> for &VerificationKey {
     type Output = VerificationKey;
 
     #[inline]

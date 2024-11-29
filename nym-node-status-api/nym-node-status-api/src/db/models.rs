@@ -12,6 +12,7 @@ pub(crate) struct GatewayRecord {
     pub(crate) bonded: bool,
     pub(crate) blacklisted: bool,
     pub(crate) self_described: String,
+    // TODO dz shouldn't be an option
     pub(crate) explorer_pretty_bond: Option<String>,
     pub(crate) last_updated_utc: i64,
     pub(crate) performance: u8,
@@ -215,7 +216,6 @@ pub(crate) const MIXNODES_BONDED_RESERVE: &str = "mixnodes.bonded.reserve";
 pub(crate) const MIXNODES_BLACKLISTED_COUNT: &str = "mixnodes.blacklisted.count";
 
 pub(crate) const GATEWAYS_BONDED_COUNT: &str = "gateways.bonded.count";
-pub(crate) const GATEWAYS_EXPLORER_COUNT: &str = "gateways.explorer.count";
 pub(crate) const GATEWAYS_BLACKLISTED_COUNT: &str = "gateways.blacklisted.count";
 
 pub(crate) const MIXNODES_HISTORICAL_COUNT: &str = "mixnodes.historical.count";
@@ -272,7 +272,6 @@ pub(crate) mod gateway {
         pub(crate) bonded: GatewaySummaryBonded,
         pub(crate) blacklisted: GatewaySummaryBlacklisted,
         pub(crate) historical: GatewaySummaryHistorical,
-        pub(crate) explorer: GatewaySummaryExplorer,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]

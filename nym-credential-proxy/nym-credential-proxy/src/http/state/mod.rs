@@ -674,7 +674,7 @@ pub(crate) struct ChainWritePermit<'a> {
     inner: RwLockWriteGuard<'a, DirectSigningHttpRpcNyxdClient>,
 }
 
-impl<'a> Deref for ChainWritePermit<'a> {
+impl Deref for ChainWritePermit<'_> {
     type Target = DirectSigningHttpRpcNyxdClient;
 
     fn deref(&self) -> &Self::Target {

@@ -22,7 +22,7 @@ pub struct GasPrice {
     pub denom: String,
 }
 
-impl<'a> Mul<Gas> for &'a GasPrice {
+impl Mul<Gas> for &GasPrice {
     type Output = Coin;
 
     fn mul(self, gas_limit: Gas) -> Self::Output {

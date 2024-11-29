@@ -64,7 +64,7 @@ pub(crate) mod overengineered_offset_date_time_serde {
         ])),
     ];
 
-    impl<'de> Visitor<'de> for OffsetDateTimeVisitor {
+    impl Visitor<'_> for OffsetDateTimeVisitor {
         type Value = OffsetDateTime;
 
         fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {

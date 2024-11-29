@@ -7,7 +7,7 @@ use crate::db::models::{
     MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
 };
 use crate::db::{queries, DbPool};
-use crate::monitor::geodata::{GatewayGeoData, Location};
+use crate::monitor::geodata::{Location, NodeGeoData};
 use anyhow::anyhow;
 use cosmwasm_std::Decimal;
 use moka::future::Cache;
@@ -109,13 +109,21 @@ impl Monitor {
             .iter()
             .filter(|node| node.description.declared_role.entry)
             .collect::<Vec<_>>();
-        tracing::debug!("Of those, {} gateways", gateways.len());
+        tracing::debug!(
+            "{}/{} with declared entry gateway capability",
+            gateways.len(),
+            all_nodes.len()
+        );
 
         let mixnodes = all_nodes
             .iter()
             .filter(|node| node.description.declared_role.mixnode)
             .collect::<Vec<_>>();
-        tracing::debug!("Of those, {} mixnodes", mixnodes.len());
+        tracing::debug!(
+            "{}/{} with declared mixnode capability",
+            mixnodes.len(),
+            all_nodes.len()
+        );
 
         let bonded_node_info = api_client
             .get_all_bonded_nym_nodes()
@@ -128,7 +136,7 @@ impl Monitor {
         let mut gateway_geodata = Vec::new();
         for gateway in gateways.iter() {
             if let Some(node_info) = bonded_node_info.get(&gateway.node_id) {
-                let gw_geodata = GatewayGeoData {
+                let gw_geodata = NodeGeoData {
                     identity_key: node_info.node.identity_key.to_owned(),
                     owner: node_info.owner.to_owned(),
                     pledge_amount: node_info.original_pledge.to_owned(),
@@ -158,7 +166,7 @@ impl Monitor {
         // Cached mixnodes don't include blacklisted nodes
         // We need that to calculate the total locked tokens later
         // TODO dz deprecated API, remove
-        let mixnodes = api_client
+        let legacy_mixnodes = api_client
             .nym_api
             .get_mixnodes_detailed_unfiltered()
             .await
@@ -170,9 +178,11 @@ impl Monitor {
             .log_error("get_mixnodes_described")?;
         let mixnodes_active = api_client
             .nym_api
-            .get_active_mixnodes()
+            .get_basic_active_mixing_assigned_nodes(None, false, None, None)
             .await
-            .log_error("get_active_mixnodes")?;
+            .log_error("get_active_mixnodes")?
+            .nodes
+            .data;
         let delegation_program_members =
             get_delegation_program_details(&self.network_details, &self.nyxd_addr).await?;
 
@@ -195,7 +205,6 @@ impl Monitor {
                 tracing::debug!("Gateway info written to DB!");
             })?;
 
-        // instead of counting blacklisted GWs returned from API cache, count from the active set
         let count_gateways_blacklisted = gateways
             .iter()
             .filter(|gw| {
@@ -215,20 +224,26 @@ impl Monitor {
                 })?;
         }
 
-        let mixnode_records =
-            self.prepare_mixnode_data(&mixnodes, mixnodes_described, delegation_program_members)?;
+        let mixnode_records = self.prepare_mixnode_data(
+            &legacy_mixnodes,
+            mixnodes_described,
+            delegation_program_members,
+        )?;
         queries::insert_mixnodes(&pool, mixnode_records)
             .await
             .map(|_| {
                 tracing::debug!("Mixnode info written to DB!");
             })?;
 
-        let count_mixnodes_blacklisted = mixnodes.iter().filter(|elem| elem.blacklisted).count();
+        let count_mixnodes_blacklisted = legacy_mixnodes
+            .iter()
+            .filter(|elem| elem.blacklisted)
+            .count();
 
         let recently_unbonded_gateways =
             queries::ensure_gateways_still_bonded(&pool, &gateways).await?;
         let recently_unbonded_mixnodes =
-            queries::ensure_mixnodes_still_bonded(&pool, &mixnodes).await?;
+            queries::ensure_mixnodes_still_bonded(&pool, &legacy_mixnodes).await?;
 
         let count_bonded_mixnodes_reserve = 0; // TODO: NymAPI doesn't report the reserve set size
         let count_bonded_mixnodes_inactive = count_bonded_mixnodes - count_bonded_mixnodes_active;
@@ -335,7 +350,7 @@ impl Monitor {
         &self,
         gateways: &[&NymNodeDescription],
         gateways_blacklisted: &HashSet<String>,
-        gateway_geodata: Vec<GatewayGeoData>,
+        gateway_geodata: Vec<NodeGeoData>,
         skimmed_gateways: Vec<SkimmedNode>,
     ) -> anyhow::Result<Vec<GatewayRecord>> {
         let mut gateway_records = Vec::new();

@@ -34,7 +34,7 @@ impl IpInfoClient {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct GatewayGeoData {
+pub(crate) struct NodeGeoData {
     pub(crate) identity_key: String,
     pub(crate) owner: Addr,
     pub(crate) pledge_amount: Coin,

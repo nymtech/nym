@@ -1,4 +1,4 @@
-import { Card, CardContent, Typography, Box } from "@mui/material";
+import { Card, CardContent, Typography, Box, IconButton } from "@mui/material";
 import React, { FC, ReactElement, ReactEventHandler } from "react";
 import { ExplorerLineChart, IExplorerLineChartData } from "./ExplorerLineChart";
 import {
@@ -8,6 +8,8 @@ import {
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { NymTokenSVG } from "../icons/NymTokenSVG";
+import { CopyToClipboard } from "@nymproject/react/clipboard/CopyToClipboard";
+
 import Image from "next/image";
 import profileImagePlaceholder from "../../public/profileImagePlaceholder.png";
 import Flag from "react-world-flags";
@@ -116,6 +118,37 @@ const CardProfileCountry = (props: ICardProfileCountry) => {
   );
 };
 
+interface ICardCopyAddressProps {
+  title: string;
+  address: string;
+}
+
+const CardCopyAddress = (props: ICardCopyAddressProps) => {
+  const { title, address } = props;
+  return (
+    <Box
+      paddingTop={2}
+      paddingBottom={2}
+      display={"flex"}
+      flexDirection={"column"}
+      gap={2}
+      borderBottom={"1px solid #CAD6D7"}
+    >
+      <Typography textTransform={"uppercase"}>{title}</Typography>
+      <Box display={"flex"} justifyContent={"space-between"}>
+        <Typography>{address}</Typography>
+
+        <CopyToClipboard
+          sx={{ mr: 0.5, color: "grey.400" }}
+          smallIcons
+          value={address}
+          tooltip={`Copy identity key ${address} to clipboard`}
+        />
+      </Box>
+    </Box>
+  );
+};
+
 export type ContentCardProps = {
   overTitle?: string;
   profileImage?: ICardProileImage;
@@ -128,6 +161,8 @@ export type ContentCardProps = {
   progressBar?: IExplorerProgressBarProps;
   paragraph?: string;
   onClick?: ReactEventHandler;
+  nymAddress?: ICardCopyAddressProps;
+  identityKey?: ICardCopyAddressProps;
 };
 
 export const ExplorerCard: FC<ContentCardProps> = ({
@@ -142,6 +177,8 @@ export const ExplorerCard: FC<ContentCardProps> = ({
   onClick,
   profileImage,
   profileCountry,
+  nymAddress,
+  identityKey,
 }) => (
   <Card onClick={onClick} sx={{ height: "100%" }}>
     <CardContent>
@@ -159,6 +196,8 @@ export const ExplorerCard: FC<ContentCardProps> = ({
       {profileCountry && <CardProfileCountry {...profileCountry} />}
       {upDownLine && <CardUpDownPriceLine {...upDownLine} />}
       {titlePrice && <CardTitlePrice {...titlePrice} />}
+      {nymAddress && <CardCopyAddress {...nymAddress} />}
+      {identityKey && <CardCopyAddress {...identityKey} />}
       {dataRows && <CardDataRows {...dataRows} />}
       {graph && (
         <Box mb={3}>

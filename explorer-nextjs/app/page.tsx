@@ -81,6 +81,14 @@ const explorerCard: ContentCardProps = {
     color: "#00CA33",
     label: "Label",
   },
+  nymAddress: {
+    address: "n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su",
+    title: "Nym address",
+  },
+  identityKey: {
+    address: "n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su",
+    title: "Nym address",
+  },
 
   paragraph: "Additional line",
 };

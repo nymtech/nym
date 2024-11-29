@@ -140,7 +140,7 @@ impl Monitor {
                     identity_key: node_info.node.identity_key.to_owned(),
                     owner: node_info.owner.to_owned(),
                     pledge_amount: node_info.original_pledge.to_owned(),
-                    location: self.location_cached(&gateway).await,
+                    location: self.location_cached(gateway).await,
                 };
                 gateway_geodata.push(gw_geodata);
             }
@@ -330,17 +330,13 @@ impl Monitor {
             Some(location) => return location,
             None => {
                 for ip in node.description.host_information.ip_address.iter() {
-                    let location = self
-                        .ipinfo
-                        .locate_ip(ip.to_string())
-                        .await
-                        .inspect_err(|err| tracing::warn!("Couldn't get {} location: {}", ip, err))
-                        .unwrap_or_default();
-
-                    self.geocache.insert(node_id, location.clone()).await;
-                    return location;
+                    if let Ok(location) = self.ipinfo.locate_ip(ip.to_string()).await {
+                        self.geocache.insert(node_id, location.clone()).await;
+                        return location;
+                    }
                 }
                 // if no data could be retrieved
+                tracing::debug!("No geodata could be retrieved for {}", node_id);
                 Location::empty()
             }
         }

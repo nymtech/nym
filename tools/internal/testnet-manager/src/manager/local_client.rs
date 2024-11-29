@@ -30,7 +30,7 @@ struct LocalClientCtx<'a> {
     network: &'a LoadedNetwork,
 }
 
-impl<'a> ProgressCtx for LocalClientCtx<'a> {
+impl ProgressCtx for LocalClientCtx<'_> {
     fn progress_tracker(&self) -> &ProgressTracker {
         &self.progress
     }

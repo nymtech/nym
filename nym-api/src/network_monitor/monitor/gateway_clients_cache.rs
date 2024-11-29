@@ -59,7 +59,7 @@ impl GatewayClientHandle {
     }
 }
 
-impl<'a> UnlockedGatewayClientHandle<'a> {
+impl UnlockedGatewayClientHandle<'_> {
     pub(crate) fn get_mut_unchecked(
         &mut self,
     ) -> &mut GatewayClient<nyxd::Client, PersistentStorage> {

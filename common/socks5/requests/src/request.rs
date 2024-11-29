@@ -253,25 +253,12 @@ impl Socks5RequestContent {
     /// Deserialize the request type, connection id, destination address and port,
     /// and the request body from bytes.
     ///
-    // TODO: this was already inaccurate
-    // /// Serialized bytes looks like this:
-    // ///
-    // /// --------------------------------------------------------------------------------------
-    // ///  request_flag | connection_id | address_length | remote_address_bytes | request_data |
-    // ///        1      |       8       |      2         |    address_length    |    ...       |
-    // /// --------------------------------------------------------------------------------------
-    ///
-    /// The request_flag tells us whether this is a new connection request (`new_connect`),
-    /// an already-established connection we should send up (`new_send`), or
-    /// a request to close an established connection (`new_close`).
-
     // connect:
     // RequestFlag::Connect || CONN_ID || ADDR_LEN || ADDR || <RETURN_ADDR>
     //
     // send:
     // RequestFlag::Send || CONN_ID || LOCAL_CLOSED || DATA
     // where DATA: SEQ || TRUE_DATA
-
     pub fn try_from_bytes(b: &[u8]) -> Result<Socks5RequestContent, RequestDeserializationError> {
         // each request needs to at least contain flag and ConnectionId
         if b.is_empty() {

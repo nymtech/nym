@@ -33,7 +33,7 @@ pub(crate) struct VkShareIndex<'a> {
     pub(crate) epoch_id: MultiIndex<'a, EpochId, ContractVKShare, VKShareKey<'a>>,
 }
 
-impl<'a> IndexList<ContractVKShare> for VkShareIndex<'a> {
+impl IndexList<ContractVKShare> for VkShareIndex<'_> {
     fn get_indexes(&'_ self) -> Box<dyn Iterator<Item = &'_ dyn Index<ContractVKShare>> + '_> {
         let v: Vec<&dyn Index<ContractVKShare>> = vec![&self.epoch_id];
         Box::new(v.into_iter())
@@ -87,7 +87,7 @@ pub fn query(_: Deps<'_>, _: Env, _: EmptyMessage) -> Result<QueryResponse, StdE
 #[cfg_attr(not(feature = "library"), cosmwasm_std::entry_point)]
 pub fn migrate(deps: DepsMut<'_>, env: Env, msg: MigrateMsg) -> Result<Response, StdError> {
     // on migration immediately attempt to rewrite the storage
-    let threshold = (2 * msg.dealers.len() as u64 + 3 - 1) / 3;
+    let threshold = (2 * msg.dealers.len() as u64).div_ceil(3);
     let epoch = CURRENT_EPOCH.load(deps.storage)?;
     assert_eq!(0, epoch.epoch_id);
 

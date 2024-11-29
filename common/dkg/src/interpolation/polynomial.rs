@@ -196,7 +196,7 @@ impl<'b> Add<&'b Polynomial> for Polynomial {
     }
 }
 
-impl<'a> Add<Polynomial> for &'a Polynomial {
+impl Add<Polynomial> for &Polynomial {
     type Output = Polynomial;
 
     fn add(self, rhs: Polynomial) -> Polynomial {
@@ -212,7 +212,7 @@ impl Add<Polynomial> for Polynomial {
     }
 }
 
-impl<'a, 'b> Add<&'b Polynomial> for &'a Polynomial {
+impl<'b> Add<&'b Polynomial> for &Polynomial {
     type Output = Polynomial;
 
     fn add(self, rhs: &'b Polynomial) -> Self::Output {

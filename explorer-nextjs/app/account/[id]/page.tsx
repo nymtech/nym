@@ -146,7 +146,7 @@ const PageAccountWithState = ({ account }: {
 
     const nymBalance = Number.parseFloat(account.balances.find((b: any) => b.denom === "unym")?.amount || "0") / 1e6;
 
-    if(nymBalance?.amount > 0) {
+    if(nymBalance > 0) {
       parts.push({label: "Spendable", value: nymBalance, color: theme.palette.primary.main});
     }
 

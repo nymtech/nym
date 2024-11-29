@@ -8,8 +8,8 @@ use nym_gateway_storage::Storage;
 use std::time::Duration;
 use time::OffsetDateTime;
 
-const DEFAULT_PEER_MAX_FLUSHING_RATE: Duration = Duration::from_secs(5);
-const DEFAULT_PEER_MAX_DELTA_FLUSHING_AMOUNT: u64 = 512 * 1024; // 512kB
+const DEFAULT_PEER_MAX_FLUSHING_RATE: Duration = Duration::from_secs(60 * 60 * 24); // 24h
+const DEFAULT_PEER_MAX_DELTA_FLUSHING_AMOUNT: u64 = 512 * 1024 * 1024; // 512MB
 
 #[derive(Debug, Clone, Copy)]
 pub struct PeerFlushingBehaviourConfig {

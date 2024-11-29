@@ -2,7 +2,10 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::state::ExplorerApiStateContext;
-use nym_explorer_api_requests::{NymNodeWithDescriptionAndLocation, NymNodeWithDescriptionAndLocationAndDelegations, NymVestingAccount, PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond};
+use nym_explorer_api_requests::{
+    NymNodeWithDescriptionAndLocation, NymNodeWithDescriptionAndLocationAndDelegations,
+    NymVestingAccount, PrettyDetailedGatewayBond, PrettyDetailedMixNodeBond,
+};
 use nym_mixnet_contract_common::{Addr, Coin, NodeId};
 use nym_validator_client::nyxd::AccountId;
 use okapi::openapi3::OpenApi;
@@ -23,8 +26,21 @@ pub fn unstable_temp_make_default_routes(settings: &OpenApiSettings) -> (Vec<Rou
 pub(crate) async fn all_gateways(
     state: &State<ExplorerApiStateContext>,
 ) -> Json<Vec<PrettyDetailedGatewayBond>> {
-    let mut gateways = state.inner.gateways.get_detailed_gateways().await;
-    gateways.append(&mut state.inner.nymnodes.pretty_gateways().await);
+    let mut gateways = state.inner.gateways.get_legacy_detailed_gateways().await;
+    let mut nym_node_gateways: Vec<PrettyDetailedGatewayBond> = state
+        .inner
+        .nymnodes
+        .pretty_gateways()
+        .await
+        .clone()
+        .into_iter()
+        .filter(|g| {
+            !gateways
+                .iter()
+                .any(|g2| g.gateway.identity_key == g2.gateway.identity_key)
+        })
+        .collect();
+    gateways.append(&mut nym_node_gateways);
 
     Json(gateways)
 }

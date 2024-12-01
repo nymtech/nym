@@ -35,7 +35,7 @@ export default function Home() {
         locale: 'en',
         show_email_subscription: false,
         simple_view: true,
-        no_footer: false
+        no_footer: true
       };
     `,
           }}

@@ -35,6 +35,7 @@ import Script from "next/script";
 import Head from "next/head";
 import { useEffect } from "react";
 import { useMainContext } from "@/app/context/main";
+import { ExplorerCard } from "@/app/components/ExplorerCard";
 
 const columns: ColumnsType[] = [
   {
@@ -121,7 +122,6 @@ const PageMixnodeDetailWithState = () => {
   const isMobile = useIsMobile();
   const { mode } = useMainContext();
 
-  console.log("toggleMode :>> ", mode);
   useEffect(() => {
     if (typeof window !== "undefined") {
       // Set Remark42 configuration on the window object
@@ -135,7 +135,7 @@ const PageMixnodeDetailWithState = () => {
         locale: "en",
         show_email_subscription: false,
         simple_view: true,
-        no_footer: false,
+        no_footer: true,
       };
 
       // Dynamically load the Remark42 script if it doesn't exist
@@ -308,7 +308,8 @@ const PageMixnodeDetailWithState = () => {
           )}
         </Grid>
       </Grid>
-      <div id="remark42"></div>
+      {/* <div id="remark42"></div>
+
       <Script
         id="remark-init"
         strategy="afterInteractive"
@@ -319,7 +320,10 @@ const PageMixnodeDetailWithState = () => {
             }
           `,
         }}
-      />
+      /> */}
+      <Grid item xs={12} md={4}>
+        <ExplorerCard chat={true} overTitle="Test" />
+      </Grid>
     </Box>
   );
 };

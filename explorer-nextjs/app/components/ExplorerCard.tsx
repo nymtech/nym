@@ -1,5 +1,5 @@
 import { Card, CardContent, Typography, Box, IconButton } from "@mui/material";
-import React, { FC, ReactElement, ReactEventHandler } from "react";
+import React, { FC, ReactElement, ReactEventHandler, useEffect } from "react";
 import { ExplorerLineChart, IExplorerLineChartData } from "./ExplorerLineChart";
 import {
   ExplorerProgressBar,
@@ -14,6 +14,8 @@ import profileImagePlaceholder from "../../public/profileImagePlaceholder.png";
 import Flag from "react-world-flags";
 import { QRCodeCanvas } from "qrcode.react";
 import StarIcon from "@mui/icons-material/Star";
+import Script from "next/script";
+import { useMainContext } from "../context/main";
 
 interface ICardUpDownPriceLineProps {
   percentage: number;
@@ -222,6 +224,65 @@ const CardRatings = (props: ICardRatingsProps) => {
   );
 };
 
+const CardChat = () => {
+  const { mode } = useMainContext();
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      // Set Remark42 configuration on the window object
+      window.remark_config = {
+        host: "http://localhost:8081",
+        site_id: "remark42",
+        components: ["embed", "last-comments"],
+        max_shown_comments: 100,
+        theme: mode === "light" ? "light" : "dark",
+        page_title: "My custom title for a page",
+        locale: "en",
+        show_email_subscription: false,
+        simple_view: true,
+        no_footer: true,
+      };
+
+      // Dynamically load the Remark42 script if it doesn't exist
+      if (!document.getElementById("remark42-script")) {
+        const script = document.createElement("script");
+        script.src = `${window.remark_config.host}/web/embed.js`;
+        script.async = true;
+        script.defer = true;
+        script.id = "remark42-script";
+        document.body.appendChild(script);
+      } else if (window.REMARK42) {
+        // Re-initialize if the script is already loaded
+        window.REMARK42.createInstance(window.remark_config);
+      }
+    }
+  }, []);
+
+  // React to mode changes and update Remark42 theme
+  useEffect(() => {
+    if (window.REMARK42 && window.REMARK42.changeTheme) {
+      window.REMARK42.changeTheme(mode === "dark" ? "dark" : "light");
+    }
+  }, [mode]);
+
+  return (
+    <Box>
+      <div id="remark42"></div>
+      <Script
+        id="remark-init"
+        strategy="afterInteractive"
+        dangerouslySetInnerHTML={{
+          __html: `
+        if (window.REMARK42) {
+          window.REMARK42.createInstance(window.remark_config);
+        }
+      `,
+        }}
+      />
+    </Box>
+  );
+};
+
 export type ContentCardProps = {
   overTitle?: string;
   profileImage?: ICardProileImage;
@@ -238,6 +299,7 @@ export type ContentCardProps = {
   identityKey?: ICardCopyAddressProps;
   qrCode?: ICardQRCodeProps;
   ratings?: ICardRatingsProps;
+  chat?: boolean;
 };
 
 export const ExplorerCard: FC<ContentCardProps> = ({
@@ -256,6 +318,7 @@ export const ExplorerCard: FC<ContentCardProps> = ({
   identityKey,
   qrCode,
   ratings,
+  chat,
 }) => (
   <Card onClick={onClick} sx={{ height: "100%" }}>
     <CardContent>
@@ -293,6 +356,7 @@ export const ExplorerCard: FC<ContentCardProps> = ({
         </Box>
       )}
       {paragraph && <Typography>{paragraph}</Typography>}
+      {chat && <CardChat />}
     </CardContent>
   </Card>
 );

@@ -99,7 +99,7 @@ const explorerCard: ContentCardProps = {
       { title: "Rating", numberOfStars: 3 },
     ],
   },
-
+  chat: true,
   paragraph: "Additional line",
 };
 export const DATA_REVALIDATE = 60;

@@ -6886,6 +6886,7 @@ dependencies = [
  "nym-task",
  "nym-wireguard-types",
  "thiserror",
+ "time",
  "tokio",
  "tokio-stream",
  "x25519-dalek",

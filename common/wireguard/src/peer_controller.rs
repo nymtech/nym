@@ -20,9 +20,9 @@ use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
-use crate::peer_handle::PeerHandle;
 use crate::WgApiWrapper;
 use crate::{error::Error, peer_handle::SharedBandwidthStorageManager};
+use crate::{peer_handle::PeerHandle, peer_storage_manager::PeerStorageManager};
 
 pub enum PeerControlRequest {
     AddPeer {
@@ -79,7 +79,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         storage: St,
         wg_api: Arc<WgApiWrapper>,
         initial_host_information: Host,
-        bw_storage_managers: HashMap<Key, Option<SharedBandwidthStorageManager<St>>>,
+        bw_storage_managers: HashMap<Key, (Option<SharedBandwidthStorageManager<St>>, Peer)>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         request_rx: mpsc::Receiver<PeerControlRequest>,
         task_client: nym_task::TaskClient,
@@ -88,11 +88,16 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
             tokio::time::interval(DEFAULT_PEER_TIMEOUT_CHECK),
         );
         let host_information = Arc::new(RwLock::new(initial_host_information));
-        for (public_key, bandwidth_storage_manager) in bw_storage_managers.iter() {
-            let mut handle = PeerHandle::new(
+        for (public_key, (bandwidth_storage_manager, peer)) in bw_storage_managers.iter() {
+            let peer_storage_manager = PeerStorageManager::new(
                 storage.clone(),
+                peer.clone(),
+                bandwidth_storage_manager.is_some(),
+            );
+            let mut handle = PeerHandle::new(
                 public_key.clone(),
                 host_information.clone(),
+                peer_storage_manager,
                 bandwidth_storage_manager.clone(),
                 request_tx.clone(),
                 &task_client,
@@ -103,6 +108,10 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                 }
             });
         }
+        let bw_storage_managers = bw_storage_managers
+            .into_iter()
+            .map(|(k, (m, _))| (k, m))
+            .collect();
 
         PeerController {
             storage,
@@ -184,10 +193,15 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
             Self::generate_bandwidth_manager(self.storage.clone(), &peer.public_key)
                 .await?
                 .map(|bw_m| Arc::new(RwLock::new(bw_m)));
-        let mut handle = PeerHandle::new(
+        let peer_storage_manager = PeerStorageManager::new(
             self.storage.clone(),
+            peer.clone(),
+            bandwidth_storage_manager.is_some(),
+        );
+        let mut handle = PeerHandle::new(
             peer.public_key.clone(),
             self.host_information.clone(),
+            peer_storage_manager,
             bandwidth_storage_manager.clone(),
             self.request_tx.clone(),
             &self.task_client,

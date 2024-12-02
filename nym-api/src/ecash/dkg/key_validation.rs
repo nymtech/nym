@@ -155,7 +155,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
             };
 
             // if this is our share, obviously vote for yes without spending time on verification
-            if owner.as_ref() == self.dkg_client.get_address().await.as_ref() {
+            if owner.as_ref() == self.dkg_client.get_address().await?.as_ref() {
                 votes.insert(*proposal_id, true);
                 continue;
             }
@@ -313,7 +313,7 @@ mod tests {
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
 
-        let first_dealer = controllers[0].dkg_client.get_address().await;
+        let first_dealer = controllers[0].dkg_client.get_address().await?;
 
         {
             let mut guard = chain.lock().unwrap();
@@ -365,8 +365,8 @@ mod tests {
         exchange_dealings(&mut controllers, false).await;
         derive_keypairs(&mut controllers, false).await;
 
-        let first_dealer = controllers[0].dkg_client.get_address().await;
-        let second_dealer = controllers[1].dkg_client.get_address().await;
+        let first_dealer = controllers[0].dkg_client.get_address().await?;
+        let second_dealer = controllers[1].dkg_client.get_address().await?;
 
         {
             let mut guard = chain.lock().unwrap();

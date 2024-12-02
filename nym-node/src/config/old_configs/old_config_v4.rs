@@ -20,6 +20,7 @@ use old_configs::old_config_v5::*;
 use persistence::*;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -203,7 +204,7 @@ pub struct MixnetV4 {
     /// If applicable, custom port announced in the self-described API that other clients and nodes
     /// will use.
     /// Useful when the node is behind a proxy.
-    #[serde(deserialize_with = "de_maybe_port")]
+    #[serde(deserialize_with = "de_maybe_port", default)]
     pub announce_port: Option<u16>,
 
     /// Addresses to nym APIs from which the node gets the view of the network.
@@ -385,7 +386,7 @@ pub struct VerlocV4 {
     /// default: `0.0.0.0:1790`
     pub bind_address: SocketAddr,
 
-    #[serde(deserialize_with = "de_maybe_port")]
+    #[serde(deserialize_with = "de_maybe_port", default)]
     pub announce_port: Option<u16>,
 
     #[serde(default)]
@@ -1060,15 +1061,16 @@ pub async fn initialise(
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub async fn try_upgrade_config_v4<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV4>,
 ) -> Result<ConfigV5, NymNodeError> {
-    tracing::debug!("Updating from 1.1.5");
+    debug!("attempting to load v4 config...");
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
     } else {
-        ConfigV4::read_from_path(&path)?
+        ConfigV4::read_from_path(&path).inspect_err(|err| debug!("failed: {err}"))?
     };
 
     let exit_gateway_paths = ExitGatewayPaths::new(

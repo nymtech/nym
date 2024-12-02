@@ -253,6 +253,9 @@ impl Socks5RequestContent {
     /// Deserialize the request type, connection id, destination address and port,
     /// and the request body from bytes.
     ///
+    /// The request_flag tells us whether this is a new connection request (`new_connect`),
+    /// an already-established connection we should send up (`new_send`), or
+    /// a request to close an established connection (`new_close`).
     // connect:
     // RequestFlag::Connect || CONN_ID || ADDR_LEN || ADDR || <RETURN_ADDR>
     //

@@ -30,6 +30,7 @@ use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
 use std::process;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::*;
 
 pub(crate) mod client_handling;
@@ -148,8 +149,11 @@ impl<St> Gateway<St> {
     }
 
     fn gateway_topology_provider(&self) -> GatewayTopologyProvider {
+        // TODO: make topology ttl configurable
+        // (to be done in reeses with the final smooshing)
         GatewayTopologyProvider::new(
             self.as_topology_node(),
+            Duration::from_secs(5 * 60),
             self.user_agent.clone(),
             self.config.gateway.nym_api_urls.clone(),
         )
@@ -231,22 +235,28 @@ impl<St> Gateway<St> {
             forwarding_channel,
             router_tx,
         );
-        let all_peers = self.client_storage.get_all_wireguard_peers().await?;
-        let used_private_network_ips = all_peers
-            .iter()
-            .cloned()
-            .map(|wireguard_peer| {
-                defguard_wireguard_rs::host::Peer::try_from(wireguard_peer).map(|mut peer| {
-                    peer.allowed_ips
-                        .pop()
-                        .ok_or(Box::new(GatewayError::InternalWireguardError(format!(
-                            "no private IP set for peer {}",
-                            peer.public_key
-                        ))))
-                        .map(|p| p.ip)
-                })
-            })
-            .collect::<Result<Result<Vec<_>, _>, _>>()??;
+        let mut used_private_network_ips = vec![];
+        let mut all_peers = vec![];
+        for wireguard_peer in self
+            .client_storage
+            .get_all_wireguard_peers()
+            .await?
+            .into_iter()
+        {
+            let mut peer = defguard_wireguard_rs::host::Peer::try_from(wireguard_peer.clone())?;
+            let Some(peer) = peer.allowed_ips.pop() else {
+                tracing::warn!(
+                    "Peer {} has empty allowed ips. It will be removed",
+                    peer.public_key
+                );
+                self.client_storage
+                    .remove_wireguard_peer(&peer.public_key.to_string())
+                    .await?;
+                continue;
+            };
+            used_private_network_ips.push(peer.ip);
+            all_peers.push(wireguard_peer);
+        }
 
         if let Some(wireguard_data) = self.wireguard_data.take() {
             let (on_start_tx, on_start_rx) = oneshot::channel();

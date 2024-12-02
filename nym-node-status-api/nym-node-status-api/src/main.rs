@@ -6,9 +6,9 @@ mod cli;
 mod db;
 mod http;
 mod logging;
+mod mixnet_scraper;
 mod monitor;
 mod node_scraper;
-mod scraper;
 mod testruns;
 
 #[tokio::main]
@@ -31,7 +31,7 @@ async fn main() -> anyhow::Result<()> {
     let db_pool = storage.pool_owned();
 
     // Start the node scraper
-    let scraper = scraper::Scraper::new(storage.pool_owned());
+    let scraper = mixnet_scraper::Scraper::new(storage.pool_owned());
     tokio::spawn(async move {
         scraper.start().await;
     });

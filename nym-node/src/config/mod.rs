@@ -310,11 +310,13 @@ pub struct Config {
     #[serde(alias = "exit_gateway")]
     pub service_providers: ServiceProvidersConfig,
 
+    #[serde(default)]
     pub metrics: MetricsConfig,
 
     #[serde(default)]
     pub logging: LoggingSettings,
 
+    #[serde(default)]
     pub debug: Debug,
 }
 

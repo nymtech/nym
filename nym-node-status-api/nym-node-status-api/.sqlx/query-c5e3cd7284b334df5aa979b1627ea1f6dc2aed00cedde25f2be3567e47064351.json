@@ -11,22 +11,22 @@
       {
         "name": "total_packets_received!: i64",
         "ordinal": 1,
-        "type_info": "Int64"
+        "type_info": "Int"
       },
       {
         "name": "total_packets_sent!: i64",
         "ordinal": 2,
-        "type_info": "Int64"
+        "type_info": "Int"
       },
       {
         "name": "total_packets_dropped!: i64",
         "ordinal": 3,
-        "type_info": "Int64"
+        "type_info": "Int"
       },
       {
         "name": "total_stake!: i64",
         "ordinal": 4,
-        "type_info": "Int64"
+        "type_info": "Int"
       }
     ],
     "parameters": {

@@ -8,6 +8,7 @@ mod http;
 mod logging;
 mod monitor;
 mod node_scraper;
+mod scraper;
 mod testruns;
 
 #[tokio::main]
@@ -28,6 +29,15 @@ async fn main() -> anyhow::Result<()> {
 
     let storage = db::Storage::init(connection_url).await?;
     let db_pool = storage.pool_owned();
+
+    // Start the node scraper
+    let scraper = scraper::Scraper::new(storage.pool_owned());
+    tokio::spawn(async move {
+        scraper.start().await;
+    });
+    tracing::info!("Started node scraper task");
+
+    // Start the monitor
     let args_clone = args.clone();
 
     tokio::spawn(async move {

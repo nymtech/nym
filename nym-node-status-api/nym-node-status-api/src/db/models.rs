@@ -376,3 +376,9 @@ impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
         })
     }
 }
+
+pub(crate) struct ScraperNodeInfo {
+    pub node_id: i64,
+    pub host: String,
+    pub http_api_port: i64,
+}

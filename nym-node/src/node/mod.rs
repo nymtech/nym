@@ -613,6 +613,10 @@ impl NymNode {
         // if we're running wireguard, start the authenticator
         // and the actual wireguard listener
         if self.config.wireguard.enabled {
+            if !self.modes().expects_final_hop_traffic() {
+                return Err(NymNodeError::WireguardWithoutFinalHopCapabilities);
+            }
+
             gateway_tasks_builder.set_authenticator_opts(config.auth_opts);
 
             // that's incredibly nasty, but unfortunately to change it, would require some refactoring...

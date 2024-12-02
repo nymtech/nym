@@ -116,6 +116,9 @@ pub enum NymNodeError {
     #[error("wireguard data is no longer available - has it been reused?")]
     WireguardDataUnavailable,
 
+    #[error("attempted to start wireguard (+authenticator) listener without gateway capabilities")]
+    WireguardWithoutFinalHopCapabilities,
+
     #[deprecated]
     #[error(transparent)]
     KeyRecoveryError {

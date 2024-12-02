@@ -73,10 +73,6 @@ pub(crate) struct Cli {
     #[arg(value_delimiter = ',')]
     pub(crate) agent_key_list: Vec<String>,
 
-    /// https://github.com/ipinfo/rust
-    #[clap(long, env = "IPINFO_API_TOKEN")]
-    pub(crate) ipinfo_api_token: String,
-
     #[clap(
         long,
         default_value_t = 40,

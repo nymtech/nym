@@ -10,7 +10,7 @@ export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=120
 # For TESTING only. NOT used in any other environment
 export NODE_STATUS_API_AGENT_KEY_LIST="H4z8kx5Kkf5JMQHhxaW1MwYndjKCDHC7HsVhHTFfBZ4J"
 
-export ENVIRONMENT=${ENVIRONMENT:-"sandbox"}
+export ENVIRONMENT=${ENVIRONMENT:-"mainnet"}
 
 script_dir=$(dirname $(realpath "$0"))
 monorepo_root=$(realpath "${script_dir}/../..")

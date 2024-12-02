@@ -1,6 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use nym_validator_client::UserAgent;
 use std::net::{IpAddr, Ipv6Addr, SocketAddr};
 use std::time::Duration;
 use url::Url;
@@ -44,11 +45,14 @@ pub struct Config {
 
     /// URLs to the nym apis for obtaining network topology.
     pub nym_api_urls: Vec<Url>,
+
+    /// User agent used for querying the nym-api
+    pub user_agent: UserAgent,
 }
 
 impl Config {
-    pub fn build(nym_api_urls: Vec<Url>) -> ConfigBuilder {
-        ConfigBuilder::new(nym_api_urls)
+    pub fn build(nym_api_urls: Vec<Url>, user_agent: impl Into<UserAgent>) -> ConfigBuilder {
+        ConfigBuilder::new(nym_api_urls, user_agent)
     }
 }
 
@@ -56,7 +60,7 @@ impl Config {
 pub struct ConfigBuilder(Config);
 
 impl ConfigBuilder {
-    pub fn new(nym_api_urls: Vec<Url>) -> ConfigBuilder {
+    pub fn new(nym_api_urls: Vec<Url>, user_agent: impl Into<UserAgent>) -> ConfigBuilder {
         ConfigBuilder(Config {
             // '[::]:port'
             listening_address: SocketAddr::new(
@@ -71,6 +75,7 @@ impl ConfigBuilder {
             testing_interval: DEFAULT_TESTING_INTERVAL,
             retry_timeout: DEFAULT_RETRY_TIMEOUT,
             nym_api_urls,
+            user_agent: user_agent.into(),
         })
     }
 

@@ -357,6 +357,7 @@ pub(crate) async fn try_obtain_blinded_ticketbook_async(
     params: TicketbookObtainQueryParams,
     pending: BlindedShares,
 ) {
+    let skip_webhook = params.skip_webhook;
     if let Err(err) = try_obtain_blinded_ticketbook_async_inner(
         &state,
         request,
@@ -367,6 +368,11 @@ pub(crate) async fn try_obtain_blinded_ticketbook_async(
     )
     .await
     {
+        if skip_webhook {
+            info!(uuid = %request,"the webhook is not going to be called for this request");
+            return;
+        }
+
         // post to the webhook to notify of errors on this side
         if let Err(webhook_err) = try_trigger_webhook_request_for_error(
             &state,

@@ -8,9 +8,7 @@ pub enum NodeScraperError {
     #[error("node {node_id} has provided malformed host information ({host}: {source}")]
     MalformedHost {
         host: String,
-
         node_id: NodeId,
-
         #[source]
         source: NymNodeApiClientError,
     },

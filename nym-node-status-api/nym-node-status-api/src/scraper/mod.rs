@@ -5,7 +5,6 @@ pub mod helpers;
 use anyhow::Result;
 use helpers::{scrape_and_store_description, scrape_and_store_packet_stats};
 use sqlx::SqlitePool;
-use tokio;
 use tracing::{debug, error, warn};
 
 use crate::db::models::ScraperNodeInfo;

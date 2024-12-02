@@ -263,7 +263,7 @@ pub(crate) struct TestingDkgController {
 
 impl TestingDkgController {
     pub async fn address(&self) -> AccountId {
-        self.dkg_client.get_address().await
+        self.dkg_client.get_address().await.unwrap()
     }
 
     pub async fn cw_address(&self) -> Addr {

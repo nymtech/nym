@@ -5,6 +5,7 @@ use crate::config::old_configs::*;
 use crate::config::Config;
 use crate::error::NymNodeError;
 use std::path::Path;
+use tracing::debug;
 
 // currently there are no upgrades
 async fn try_upgrade_config(path: &Path) -> Result<(), NymNodeError> {
@@ -24,7 +25,10 @@ async fn try_upgrade_config(path: &Path) -> Result<(), NymNodeError> {
 pub async fn try_load_current_config<P: AsRef<Path>>(
     config_path: P,
 ) -> Result<Config, NymNodeError> {
-    if let Ok(cfg) = Config::read_from_toml_file(config_path.as_ref()) {
+    if let Ok(cfg) = Config::read_from_toml_file(config_path.as_ref())
+        .inspect_err(|err| debug!("didn't manage to load the current config: {err}"))
+    {
+        debug!("managed to load the current version of the config");
         return Ok(cfg);
     }
 

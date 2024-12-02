@@ -212,10 +212,10 @@ impl Add<Polynomial> for Polynomial {
     }
 }
 
-impl<'b> Add<&'b Polynomial> for &Polynomial {
+impl<'a> Add<&'a Polynomial> for &Polynomial {
     type Output = Polynomial;
 
-    fn add(self, rhs: &'b Polynomial) -> Self::Output {
+    fn add(self, rhs: &'a Polynomial) -> Self::Output {
         let len = self.coefficients.len();
         let rhs_len = rhs.coefficients.len();
 

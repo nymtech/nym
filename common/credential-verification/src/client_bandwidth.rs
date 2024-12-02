@@ -8,8 +8,8 @@ use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::sync::RwLock;
 
-const DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE: Duration = Duration::from_millis(5);
-const DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT: i64 = 512 * 1024; // 512kB
+const DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE: Duration = Duration::from_secs(5 * 60); // 5 minutes
+const DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT: i64 = 5 * 1024 * 1024; // 5MB
 
 #[derive(Debug, Clone, Copy)]
 pub struct BandwidthFlushingBehaviourConfig {

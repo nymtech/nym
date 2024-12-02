@@ -17,6 +17,7 @@ use old_configs::old_config_v4::*;
 use persistence::*;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -938,15 +939,16 @@ pub async fn initialise(
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV3>,
 ) -> Result<ConfigV4, NymNodeError> {
-    tracing::debug!("Updating from 1.1.4");
+    debug!("attempting to load v3 config...");
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
     } else {
-        ConfigV3::read_from_path(&path)?
+        ConfigV3::read_from_path(&path).inspect_err(|err| debug!("failed: {err}"))?
     };
 
     let exit_gateway_paths = ExitGatewayPaths::new(

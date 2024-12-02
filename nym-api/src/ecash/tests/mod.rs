@@ -11,6 +11,7 @@ use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::NymContractCache;
+use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::config;
 use crate::support::http::state::{AppState, ForcedRefresh};
@@ -524,8 +525,8 @@ impl DummyClient {
 
 #[async_trait]
 impl super::client::Client for DummyClient {
-    async fn address(&self) -> AccountId {
-        self.validator_address.clone()
+    async fn address(&self) -> Result<AccountId> {
+        Ok(self.validator_address.clone())
     }
 
     async fn dkg_contract_address(&self) -> Result<AccountId> {
@@ -1262,7 +1263,7 @@ struct TestFixture {
 }
 
 impl TestFixture {
-    fn build_app_state(storage: NymApiStorage) -> AppState {
+    fn build_app_state(storage: NymApiStorage, ecash_state: EcashState) -> AppState {
         AppState {
             forced_refresh: ForcedRefresh::new(true),
             nym_contract_cache: NymContractCache::new(),
@@ -1275,6 +1276,8 @@ impl TestFixture {
                 NymNetworkDetails::new_empty(),
             ),
             node_info_cache: unstable::NodeInfoCache::default(),
+            api_status: ApiStatusState::new(None),
+            ecash_state: Arc::new(ecash_state),
         }
     }
 
@@ -1337,8 +1340,8 @@ impl TestFixture {
         TestFixture {
             axum: TestServer::new(
                 Router::new()
-                    .nest("/v1/ecash", ecash_routes(Arc::new(ecash_state)))
-                    .with_state(Self::build_app_state(storage.clone())),
+                    .nest("/v1/ecash", ecash_routes())
+                    .with_state(Self::build_app_state(storage.clone(), ecash_state)),
             )
             .unwrap(),
             storage,

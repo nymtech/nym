@@ -4,7 +4,9 @@ use crate::{
 };
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 use strum_macros::{EnumString, FromRepr};
+use time::Date;
 use utoipa::ToSchema;
 
 pub(crate) struct GatewayRecord {
@@ -332,4 +334,45 @@ pub struct GatewayInfoDto {
     pub gateway_identity_key: String,
     pub self_described: Option<String>,
     pub explorer_pretty_bond: Option<String>,
+}
+
+#[derive(Debug, Clone, FromRow)]
+pub struct GatewaySessionsRecord {
+    pub gateway_identity_key: String,
+    pub node_id: i64,
+    pub day: Date,
+    pub unique_active_clients: i64,
+    pub session_started: i64,
+    pub users_hashes: Option<String>,
+    pub vpn_sessions: Option<String>,
+    pub mixnet_sessions: Option<String>,
+    pub unknown_sessions: Option<String>,
+}
+
+impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
+    type Error = anyhow::Error;
+
+    fn try_from(value: GatewaySessionsRecord) -> Result<Self, Self::Error> {
+        let users_hashes = value.users_hashes.clone().unwrap_or("null".to_string());
+        let vpn_sessions = value.vpn_sessions.clone().unwrap_or("null".to_string());
+        let mixnet_sessions = value.mixnet_sessions.clone().unwrap_or("null".to_string());
+        let unknown_sessions = value.unknown_sessions.clone().unwrap_or("null".to_string());
+
+        let users_hashes = serde_json::from_str(&users_hashes).unwrap_or(None);
+        let vpn_sessions = serde_json::from_str(&vpn_sessions).unwrap_or(None);
+        let mixnet_sessions = serde_json::from_str(&mixnet_sessions).unwrap_or(None);
+        let unknown_sessions = serde_json::from_str(&unknown_sessions).unwrap_or(None);
+
+        Ok(http::models::SessionStats {
+            gateway_identity_key: value.gateway_identity_key.clone(),
+            node_id: value.node_id as u32,
+            day: value.day,
+            unique_active_clients: value.unique_active_clients,
+            session_started: value.session_started,
+            users_hashes,
+            vpn_sessions,
+            mixnet_sessions,
+            unknown_sessions,
+        })
+    }
 }

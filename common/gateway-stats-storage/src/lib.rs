@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use error::StatsStorageError;
-use models::{ActiveSession, FinishedSession, SessionType, StoredFinishedSession};
+use models::{ActiveSession, FinishedSession, StoredFinishedSession};
 use nym_sphinx::DestinationAddressBytes;
+use nym_statistics_common::gateways::SessionType;
 use sessions::SessionManager;
 use sqlx::ConnectOptions;
 use std::path::Path;

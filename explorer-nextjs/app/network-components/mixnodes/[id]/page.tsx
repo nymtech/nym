@@ -85,27 +85,6 @@ const columns: ColumnsType[] = [
   },
 ];
 
-declare global {
-  interface Window {
-    remark_config: {
-      host: string;
-      site_id: string;
-      components: string[];
-      max_shown_comments: number;
-      theme: string;
-      page_title: string;
-      locale: string;
-      show_email_subscription: boolean;
-      simple_view: boolean;
-      no_footer: boolean;
-    };
-    REMARK42: {
-      createInstance: (config: typeof window.remark_config) => void;
-      changeTheme: (theme: "light" | "dark") => void;
-    };
-  }
-}
-
 /**
  * Shows mix node details
  */
@@ -122,43 +101,43 @@ const PageMixnodeDetailWithState = () => {
   const isMobile = useIsMobile();
   const { mode } = useMainContext();
 
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      // Set Remark42 configuration on the window object
-      window.remark_config = {
-        host: "http://localhost:8081",
-        site_id: "remark42",
-        components: ["embed", "last-comments"],
-        max_shown_comments: 100,
-        theme: mode === "light" ? "light" : "dark",
-        page_title: "My custom title for a page",
-        locale: "en",
-        show_email_subscription: false,
-        simple_view: true,
-        no_footer: true,
-      };
+  // useEffect(() => {
+  //   if (typeof window !== "undefined") {
+  //     // Set Remark42 configuration on the window object
+  //     window.remark_config = {
+  //       host: "http://localhost:8081",
+  //       site_id: "remark42",
+  //       components: ["embed", "last-comments"],
+  //       max_shown_comments: 100,
+  //       theme: mode === "light" ? "light" : "dark",
+  //       page_title: "My custom title for a page",
+  //       locale: "en",
+  //       show_email_subscription: false,
+  //       simple_view: true,
+  //       no_footer: true,
+  //     };
 
-      // Dynamically load the Remark42 script if it doesn't exist
-      if (!document.getElementById("remark42-script")) {
-        const script = document.createElement("script");
-        script.src = `${window.remark_config.host}/web/embed.js`;
-        script.async = true;
-        script.defer = true;
-        script.id = "remark42-script";
-        document.body.appendChild(script);
-      } else if (window.REMARK42) {
-        // Re-initialize if the script is already loaded
-        window.REMARK42.createInstance(window.remark_config);
-      }
-    }
-  }, []);
+  //     // Dynamically load the Remark42 script if it doesn't exist
+  //     if (!document.getElementById("remark42-script")) {
+  //       const script = document.createElement("script");
+  //       script.src = `${window.remark_config.host}/web/embed.js`;
+  //       script.async = true;
+  //       script.defer = true;
+  //       script.id = "remark42-script";
+  //       document.body.appendChild(script);
+  //     } else if (window.REMARK42) {
+  //       // Re-initialize if the script is already loaded
+  //       window.REMARK42.createInstance(window.remark_config);
+  //     }
+  //   }
+  // }, []);
 
-  // React to mode changes and update Remark42 theme
-  useEffect(() => {
-    if (window.REMARK42 && window.REMARK42.changeTheme) {
-      window.REMARK42.changeTheme(mode === "dark" ? "dark" : "light");
-    }
-  }, [mode]);
+  // // React to mode changes and update Remark42 theme
+  // useEffect(() => {
+  //   if (window.REMARK42 && window.REMARK42.changeTheme) {
+  //     window.REMARK42.changeTheme(mode === "dark" ? "dark" : "light");
+  //   }
+  // }, [mode]);
 
   return (
     <Box component="main">
@@ -308,19 +287,6 @@ const PageMixnodeDetailWithState = () => {
           )}
         </Grid>
       </Grid>
-      {/* <div id="remark42"></div>
-
-      <Script
-        id="remark-init"
-        strategy="afterInteractive"
-        dangerouslySetInnerHTML={{
-          __html: `
-            if (window.REMARK42) {
-              window.REMARK42.createInstance(window.remark_config);
-            }
-          `,
-        }}
-      /> */}
       <Grid item xs={12} md={4}>
         <ExplorerCard chat={true} overTitle="Test" />
       </Grid>

@@ -101,6 +101,10 @@ const explorerCard: ContentCardProps = {
   },
   chat: true,
   paragraph: "Additional line",
+  button: {
+    onClick: () => {},
+    label: "Label",
+  },
 };
 export const DATA_REVALIDATE = 60;
 

@@ -1,4 +1,11 @@
-import { Card, CardContent, Typography, Box, IconButton } from "@mui/material";
+import {
+  Card,
+  CardContent,
+  Typography,
+  Box,
+  IconButton,
+  Button,
+} from "@mui/material";
 import React, { FC, ReactElement, ReactEventHandler, useEffect } from "react";
 import { ExplorerLineChart, IExplorerLineChartData } from "./ExplorerLineChart";
 import {
@@ -16,6 +23,26 @@ import { QRCodeCanvas } from "qrcode.react";
 import StarIcon from "@mui/icons-material/Star";
 import Script from "next/script";
 import { useMainContext } from "../context/main";
+
+declare global {
+  interface Window {
+    remark_config: {
+      host: string;
+      site_id: string;
+      components: string[];
+      max_shown_comments: number;
+      theme: string;
+      locale: string;
+      show_email_subscription: boolean;
+      simple_view: boolean;
+      no_footer: boolean;
+    };
+    REMARK42: {
+      createInstance: (config: typeof window.remark_config) => void;
+      changeTheme: (theme: "light" | "dark") => void;
+    };
+  }
+}
 
 interface ICardUpDownPriceLineProps {
   percentage: number;
@@ -236,7 +263,6 @@ const CardChat = () => {
         components: ["embed", "last-comments"],
         max_shown_comments: 100,
         theme: mode === "light" ? "light" : "dark",
-        page_title: "My custom title for a page",
         locale: "en",
         show_email_subscription: false,
         simple_view: true,
@@ -267,7 +293,7 @@ const CardChat = () => {
 
   return (
     <Box>
-      <div id="remark42"></div>
+      <div id="remark42" className="remark"></div>
       <Script
         id="remark-init"
         strategy="afterInteractive"
@@ -300,6 +326,10 @@ export type ContentCardProps = {
   qrCode?: ICardQRCodeProps;
   ratings?: ICardRatingsProps;
   chat?: boolean;
+  button?: {
+    onClick: () => void;
+    label: string;
+  };
 };
 
 export const ExplorerCard: FC<ContentCardProps> = ({
@@ -319,6 +349,7 @@ export const ExplorerCard: FC<ContentCardProps> = ({
   qrCode,
   ratings,
   chat,
+  button,
 }) => (
   <Card onClick={onClick} sx={{ height: "100%" }}>
     <CardContent>
@@ -357,6 +388,11 @@ export const ExplorerCard: FC<ContentCardProps> = ({
       )}
       {paragraph && <Typography>{paragraph}</Typography>}
       {chat && <CardChat />}
+      {button && (
+        <Button onClick={button.onClick} variant="contained">
+          {button.label}
+        </Button>
+      )}
     </CardContent>
   </Card>
 );

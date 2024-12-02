@@ -1,15 +1,15 @@
-import type { Metadata } from 'next'
-import '@interchain-ui/react/styles'
-import { App } from './App'
+import type { Metadata } from "next";
+import "@interchain-ui/react/styles";
+import { App } from "./App";
 
 export const metadata: Metadata = {
-  title: 'Nym Network Explorer',
-}
+  title: "Nym Network Explorer",
+};
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode
+  children: React.ReactNode;
 }>) {
   return (
     <html lang="en">
@@ -17,5 +17,5 @@ export default function RootLayout({
         <App>{children}</App>
       </body>
     </html>
-  )
+  );
 }

@@ -26,7 +26,7 @@ use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::shared_topology::NymNodeTopologyProvider;
-use nym_bin_common::{bin_info, bin_info_owned};
+use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
 use nym_mixnet_client::forwarder::MixForwardingSender;
@@ -43,7 +43,7 @@ use nym_task::{TaskClient, TaskManager};
 use nym_topology::NetworkAddress;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::NodeRefreshBody;
-use nym_validator_client::NymApiClient;
+use nym_validator_client::{NymApiClient, UserAgent};
 use nym_verloc::measurements::SharedVerlocStats;
 use nym_verloc::{self, measurements::VerlocMeasurer};
 use nym_wireguard::{peer_controller::PeerControlRequest, WireguardGatewayData};
@@ -529,7 +529,7 @@ impl NymNode {
         Ok(NymNodeTopologyProvider::new(
             self.as_gateway_topology_node()?,
             self.config.debug.topology_cache_ttl,
-            bin_info!().into(),
+            self.user_agent(),
             self.config.mixnet.nym_api_urls.clone(),
         ))
     }
@@ -757,6 +757,10 @@ impl NymNode {
             .await?)
     }
 
+    fn user_agent(&self) -> UserAgent {
+        bin_info!().into()
+    }
+
     async fn try_refresh_remote_nym_api_cache(&self) {
         info!("attempting to request described cache request from nym-api...");
         if self.config.mixnet.nym_api_urls.is_empty() {
@@ -766,7 +770,7 @@ impl NymNode {
 
         for nym_api in &self.config.mixnet.nym_api_urls {
             info!("trying {nym_api}...");
-            let client = NymApiClient::new_with_user_agent(nym_api.clone(), bin_info_owned!());
+            let client = NymApiClient::new_with_user_agent(nym_api.clone(), self.user_agent());
 
             // make new request every time in case previous one takes longer and invalidates the signature
             let request = NodeRefreshBody::new(self.ed25519_identity_keys.private_key());
@@ -792,17 +796,21 @@ impl NymNode {
     pub(crate) fn start_verloc_measurements(&self, shutdown: TaskClient) {
         info!("Starting the round-trip-time measurer...");
 
-        let config =
-            nym_verloc::measurements::ConfigBuilder::new(self.config.mixnet.nym_api_urls.clone())
-                .listening_address(self.config.verloc.bind_address)
-                .packets_per_node(self.config.verloc.debug.packets_per_node)
-                .connection_timeout(self.config.verloc.debug.connection_timeout)
-                .packet_timeout(self.config.verloc.debug.packet_timeout)
-                .delay_between_packets(self.config.verloc.debug.delay_between_packets)
-                .tested_nodes_batch_size(self.config.verloc.debug.tested_nodes_batch_size)
-                .testing_interval(self.config.verloc.debug.testing_interval)
-                .retry_timeout(self.config.verloc.debug.retry_timeout)
-                .build();
+        let mut base_agent = self.user_agent();
+        base_agent.application = format!("{}-verloc", base_agent.application);
+        let config = nym_verloc::measurements::ConfigBuilder::new(
+            self.config.mixnet.nym_api_urls.clone(),
+            base_agent,
+        )
+        .listening_address(self.config.verloc.bind_address)
+        .packets_per_node(self.config.verloc.debug.packets_per_node)
+        .connection_timeout(self.config.verloc.debug.connection_timeout)
+        .packet_timeout(self.config.verloc.debug.packet_timeout)
+        .delay_between_packets(self.config.verloc.debug.delay_between_packets)
+        .tested_nodes_batch_size(self.config.verloc.debug.tested_nodes_batch_size)
+        .testing_interval(self.config.verloc.debug.testing_interval)
+        .retry_timeout(self.config.verloc.debug.retry_timeout)
+        .build();
 
         let mut verloc_measurer =
             VerlocMeasurer::new(config, self.ed25519_identity_keys.clone(), shutdown);

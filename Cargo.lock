@@ -6071,6 +6071,7 @@ dependencies = [
  "nym-crypto",
  "nym-explorer-client",
  "nym-network-defaults",
+ "nym-node-metrics",
  "nym-node-requests",
  "nym-node-status-client",
  "nym-serde-helpers",

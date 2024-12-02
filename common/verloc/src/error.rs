@@ -1,7 +1,6 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_crypto::asymmetric::ed25519;
 use std::io;
 use std::net::SocketAddr;
 use thiserror::Error;
@@ -31,7 +30,7 @@ pub enum VerlocError {
 
     #[error("could not establish connection to {identity} on {address}: {err}")]
     UnreachableNode {
-        identity: ed25519::PublicKey,
+        identity: String,
         address: SocketAddr,
         #[source]
         err: io::Error,
@@ -39,7 +38,7 @@ pub enum VerlocError {
 
     #[error("failed to write echo packet to {identity} on {address}: {err}")]
     UnexpectedConnectionFailureWrite {
-        identity: ed25519::PublicKey,
+        identity: String,
         address: SocketAddr,
         #[source]
         err: io::Error,
@@ -47,7 +46,7 @@ pub enum VerlocError {
 
     #[error("failed to read reply packet from {identity} on {address}: {err}")]
     UnexpectedConnectionFailureRead {
-        identity: ed25519::PublicKey,
+        identity: String,
         address: SocketAddr,
         #[source]
         err: io::Error,
@@ -55,13 +54,13 @@ pub enum VerlocError {
 
     #[error("timed out while trying to read reply packet from {identity} on {address}")]
     ConnectionReadTimeout {
-        identity: ed25519::PublicKey,
+        identity: String,
         address: SocketAddr,
     },
 
     #[error("timed out while trying to write echo packet to {identity} on {address}")]
     ConnectionWriteTimeout {
-        identity: ed25519::PublicKey,
+        identity: String,
         address: SocketAddr,
     },
 

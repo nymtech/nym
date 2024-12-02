@@ -72,7 +72,7 @@ impl PersistentStatsStorage {
             .insert_finished_session(
                 date,
                 session.duration.as_millis() as i64,
-                session.typ.to_string().into(),
+                session.typ.to_string(),
             )
             .await?)
     }
@@ -126,7 +126,7 @@ impl PersistentStatsStorage {
             .insert_active_session(
                 client_address.as_base58_string(),
                 session.start,
-                session.typ.to_string().into(),
+                session.typ.to_string(),
             )
             .await?)
     }
@@ -138,10 +138,7 @@ impl PersistentStatsStorage {
     ) -> Result<(), StatsStorageError> {
         Ok(self
             .session_manager
-            .update_active_session_type(
-                client_address.as_base58_string(),
-                session_type.to_string().into(),
-            )
+            .update_active_session_type(client_address.as_base58_string(), session_type.to_string())
             .await?)
     }
 

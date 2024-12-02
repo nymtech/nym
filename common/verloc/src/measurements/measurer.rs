@@ -105,7 +105,10 @@ impl VerlocMeasurer {
 
                         // if we receive JoinError it means the task failed to get executed, so either there's a bigger issue with tokio
                         // or there was a panic inside the task itself. In either case, we should just terminate ourselves.
-                        let execution_result = result.expect("the measurement task panicked!");
+                        let Ok(execution_result) = result else {
+                            error!("the verloc measurer has panicked!");
+                            continue
+                        };
                         let identity = execution_result.1;
 
                         let measurement_result = match execution_result.0 {

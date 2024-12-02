@@ -46,7 +46,7 @@ impl ConnectionHandler {
 
         ConnectionHandler {
             shared: SharedData {
-                processing_config: shared.processing_config.clone(),
+                processing_config: shared.processing_config,
                 sphinx_key: shared.sphinx_key.clone(),
                 mixnet_forwarder: shared.mixnet_forwarder.clone(),
                 final_hop: shared.final_hop.clone(),

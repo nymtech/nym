@@ -116,6 +116,8 @@ impl<C> PacketForwarder<C> {
                     break;
                 }
                 delayed = self.delay_queue.next() => {
+                    // SAFETY: `stream` implementation of `NonExhaustiveDelayQueue` never returns `None`
+                    #[allow(clippy::unwrap_used)]
                     self.handle_done_delaying(delayed.unwrap());
                 }
                 new_packet = self.packet_receiver.next() => {

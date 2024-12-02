@@ -204,6 +204,7 @@ impl SPMessageRouterBuilder {
         }
     }
 
+    #[allow(clippy::expect_used)]
     pub(crate) fn gateway_transceiver(&mut self) -> Box<dyn GatewayTransceiver + Send + Sync> {
         Box::new(
             self.gateway_transceiver
@@ -212,6 +213,7 @@ impl SPMessageRouterBuilder {
         )
     }
 
+    #[allow(clippy::expect_used)]
     fn mix_sender(&mut self) -> MixMessageSender {
         self.mix_sender
             .take()

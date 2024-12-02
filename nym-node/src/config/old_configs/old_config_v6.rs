@@ -29,7 +29,7 @@ use std::env;
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tracing::debug;
+use tracing::{debug, instrument};
 use url::Url;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
@@ -37,25 +37,6 @@ use url::Url;
 pub struct WireguardPathsV6 {
     pub private_diffie_hellman_key_file: PathBuf,
     pub public_diffie_hellman_key_file: PathBuf,
-}
-
-impl WireguardPathsV6 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        WireguardPathsV6 {
-            private_diffie_hellman_key_file: data_dir
-                .join(persistence::DEFAULT_X25519_WG_DH_KEY_FILENAME),
-            public_diffie_hellman_key_file: data_dir
-                .join(persistence::DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME),
-        }
-    }
-
-    pub fn x25519_wireguard_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_diffie_hellman_key_file,
-            &self.public_diffie_hellman_key_file,
-        )
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -968,11 +949,12 @@ impl ConfigV6 {
     }
 }
 
+#[instrument(skip_all)]
 pub async fn try_upgrade_config_v6<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV6>,
 ) -> Result<Config, NymNodeError> {
-    tracing::debug!("Updating from config v6");
+    debug!("attempting to load v6 config...");
 
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config

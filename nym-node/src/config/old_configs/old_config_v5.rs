@@ -21,25 +21,6 @@ pub struct WireguardPathsV5 {
     pub public_diffie_hellman_key_file: PathBuf,
 }
 
-impl WireguardPathsV5 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        WireguardPathsV5 {
-            private_diffie_hellman_key_file: data_dir
-                .join(persistence::DEFAULT_X25519_WG_DH_KEY_FILENAME),
-            public_diffie_hellman_key_file: data_dir
-                .join(persistence::DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME),
-        }
-    }
-
-    pub fn x25519_wireguard_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_diffie_hellman_key_file,
-            &self.public_diffie_hellman_key_file,
-        )
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WireguardV5 {

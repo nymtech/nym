@@ -18,7 +18,10 @@ use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
     PartialExpirationDateSignatureResponse, VerificationKeyResponse,
 };
-use nym_api_requests::models::{ApiHealthResponse, GatewayBondAnnotated, GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse, NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse};
+use nym_api_requests::models::{
+    ApiHealthResponse, GatewayBondAnnotated, GatewayCoreStatusResponse, MixnodeCoreStatusResponse,
+    MixnodeStatusResponse, NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
+};
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_coconut_dkg_common::types::EpochId;

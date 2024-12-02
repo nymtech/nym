@@ -104,7 +104,9 @@ pub trait NymApiClientExt: ApiClient {
 
     #[deprecated]
     #[instrument(level = "debug", skip(self))]
-    async fn get_gateways_detailed_unfiltered(&self) -> Result<Vec<GatewayBondAnnotated>, NymAPIError> {
+    async fn get_gateways_detailed_unfiltered(
+        &self,
+    ) -> Result<Vec<GatewayBondAnnotated>, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
@@ -114,7 +116,7 @@ pub trait NymApiClientExt: ApiClient {
             ],
             NO_PARAMS,
         )
-            .await
+        .await
     }
 
     #[deprecated]

@@ -1,6 +1,8 @@
 use nym_api_requests::models::{DescribedNodeType, NodePerformance, NymNodeData};
 use nym_contracts_common::Percent;
-use nym_mixnet_contract_common::{Addr, Coin, Delegation, Gateway, LegacyMixLayer, MixNode, NodeId, NodeRewarding, NymNodeBond};
+use nym_mixnet_contract_common::{
+    Addr, Coin, Delegation, Gateway, LegacyMixLayer, MixNode, NodeId, NodeRewarding, NymNodeBond,
+};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 

@@ -7,7 +7,6 @@ use nym_crypto::asymmetric::ed25519;
 use nym_ecash_contract_common::deposit::DepositId;
 use nym_validator_client::nyxd::cosmwasm_client::ContractResponseData;
 use nym_validator_client::nyxd::{Coin, Hash};
-use std::process;
 use tokio::sync::{mpsc, oneshot};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};

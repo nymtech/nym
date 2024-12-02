@@ -47,6 +47,8 @@ impl EchoPacket {
             return Err(VerlocError::UnexpectedEchoPacketSize);
         }
 
+        // SAFETY: we have ensured our packet has correct size
+        #[allow(clippy::unwrap_used)]
         let sequence_number = u64::from_be_bytes(bytes[..8].try_into().unwrap());
         let sender = ed25519::PublicKey::from_bytes(&bytes[8..8 + PUBLIC_KEY_LENGTH])
             .map_err(|_| VerlocError::MalformedSenderIdentity)?;

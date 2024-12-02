@@ -94,14 +94,14 @@ impl PacketSender {
         {
             Err(_timeout) => {
                 return Err(VerlocError::UnreachableNode {
-                    identity: tested_node.identity,
+                    identity: tested_node.identity.to_string(),
                     err: io::ErrorKind::TimedOut.into(),
                     address: tested_node.address,
                 })
             }
             Ok(Err(err)) => {
                 return Err(VerlocError::UnreachableNode {
-                    identity: tested_node.identity,
+                    identity: tested_node.identity.to_string(),
                     err,
                     address: tested_node.address,
                 })
@@ -129,7 +129,7 @@ impl PacketSender {
                                 self.packet_timeout
                             );
                             return Err(VerlocError::UnexpectedConnectionFailureWrite{
-                                identity,
+                                identity: identity.to_string(),
                                 err:io::ErrorKind::TimedOut.into(),
                                 address: tested_node.address
                             });
@@ -140,7 +140,7 @@ impl PacketSender {
                                 "failed to write echo packet to {identity}: {err}. Stopping the test.",
                             );
                             return Err(VerlocError::UnexpectedConnectionFailureWrite{
-                                identity,
+                                identity: identity.to_string(),
                                 err,
                                 address: tested_node.address
                             });
@@ -164,7 +164,7 @@ impl PacketSender {
                         "failed to read reply packet from {identity}: {err}. Stopping the test.",
                     );
                     return Err(VerlocError::UnexpectedConnectionFailureRead {
-                        identity,
+                        identity: identity.to_string(),
                         err,
                         address: tested_node.address,
                     });
@@ -184,8 +184,9 @@ impl PacketSender {
                                 self.packet_timeout
                             );
                             return Err(VerlocError::ConnectionReadTimeout{
-                              identity:  tested_node.identity,
-                            address: tested_node.address});
+                                identity: tested_node.identity.to_string(),
+                                address: tested_node.address
+                            });
                         }
                     }
                 },

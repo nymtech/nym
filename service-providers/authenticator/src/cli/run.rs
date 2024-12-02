@@ -1,8 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::sync::Arc;
-
 use crate::cli::peer_handler::DummyHandler;
 use crate::cli::{override_config, OverrideConfig};
 use crate::cli::{try_load_current_config, version_check};
@@ -11,10 +9,10 @@ use log::error;
 use nym_authenticator::error::AuthenticatorError;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 use nym_crypto::asymmetric::x25519::KeyPair;
-use nym_gateway_storage::GatewayStorage;
 use nym_task::TaskHandle;
 use nym_wireguard::WireguardGatewayData;
 use rand::rngs::OsRng;
+use std::sync::Arc;
 
 #[allow(clippy::struct_excessive_bools)]
 #[derive(Args, Clone)]
@@ -54,11 +52,7 @@ pub(crate) async fn execute(args: &Run) -> Result<(), AuthenticatorError> {
         handler.run().await;
     });
 
-    let mut server = nym_authenticator::Authenticator::<GatewayStorage>::new(
-        config,
-        wireguard_gateway_data,
-        vec![],
-    );
+    let mut server = nym_authenticator::Authenticator::new(config, wireguard_gateway_data, vec![]);
     if let Some(custom_mixnet) = &args.common_args.custom_mixnet {
         server = server.with_stored_topology(custom_mixnet)?
     }

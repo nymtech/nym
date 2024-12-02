@@ -76,7 +76,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
     let mut nr_opts = LocalNetworkRequesterOpts {
         config: nym_network_requester::Config {
             base: nym_client_core_config_types::Config {
-                client: base_client_config(&config),
+                client: base_client_config(config),
                 debug: config
                     .service_providers
                     .network_requester
@@ -123,7 +123,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
     let mut ipr_opts = LocalIpPacketRouterOpts {
         config: nym_ip_packet_router::Config {
             base: nym_client_core_config_types::Config {
-                client: base_client_config(&config),
+                client: base_client_config(config),
                 debug: config.service_providers.ip_packet_router.debug.client_debug,
             },
             ip_packet_router: nym_ip_packet_router::config::IpPacketRouter {
@@ -157,7 +157,7 @@ pub fn gateway_tasks_config(config: &Config) -> GatewayTasksConfig {
     let mut auth_opts = LocalAuthenticatorOpts {
         config: nym_authenticator::Config {
             base: nym_client_core_config_types::Config {
-                client: base_client_config(&config),
+                client: base_client_config(config),
                 debug: config.service_providers.authenticator.debug.client_debug,
             },
             authenticator: config.wireguard.clone().into(),

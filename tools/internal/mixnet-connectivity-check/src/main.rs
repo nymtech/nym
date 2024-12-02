@@ -40,6 +40,7 @@ impl Cli {
 }
 
 #[derive(Subcommand)]
+#[allow(clippy::large_enum_variant)]
 pub(crate) enum Commands {
     /// Attempt to run a simple connectivity test
     CheckConnectivity(ConnectivityArgs),

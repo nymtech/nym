@@ -27,6 +27,7 @@ impl MixForwardingSender {
             .map_err(|err| err.into_send_error())
     }
 
+    #[allow(clippy::len_without_is_empty)]
     pub fn len(&self) -> usize {
         self.0.len()
     }

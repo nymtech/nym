@@ -143,7 +143,13 @@ enum EchoPacketCodecError {
     IoError(#[from] io::Error),
 
     #[error("failed to correctly decode an echo packet: {0}")]
-    PacketRecoveryError(#[from] VerlocError),
+    PacketRecoveryError(Box<VerlocError>),
+}
+
+impl From<VerlocError> for EchoPacketCodecError {
+    fn from(value: VerlocError) -> Self {
+        EchoPacketCodecError::PacketRecoveryError(Box::new(value))
+    }
 }
 
 // a super simple codec implemented for the convenience of Stream
@@ -172,10 +178,7 @@ impl Decoder for EchoPacketCodec {
 
         let packet_bytes = src.split_to(EchoPacket::SIZE);
 
-        let echo_packet = match EchoPacket::try_from_bytes(&packet_bytes) {
-            Ok(packet) => packet,
-            Err(err) => return Err(EchoPacketCodecError::PacketRecoveryError(err)),
-        };
+        let echo_packet = EchoPacket::try_from_bytes(&packet_bytes)?;
 
         // reserve enough bytes for the next frame
         src.reserve(EchoPacket::SIZE);

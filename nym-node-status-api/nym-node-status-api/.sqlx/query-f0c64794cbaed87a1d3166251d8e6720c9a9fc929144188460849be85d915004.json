@@ -1,6 +1,6 @@
 {
   "db_name": "SQLite",
-  "query": "SELECT\n            id as \"id!\",\n            gateway_id as \"gateway_id!\",\n            status as \"status!\",\n            timestamp_utc as \"timestamp_utc!\",\n            ip_address as \"ip_address!\",\n            log as \"log!\"\n         FROM testruns\n         WHERE\n            id = ?\n         AND\n            status = ?\n         ORDER BY timestamp_utc",
+  "query": "SELECT\n            id as \"id!\",\n            gateway_id as \"gateway_id!\",\n            status as \"status!\",\n            created_utc as \"created_utc!\",\n            ip_address as \"ip_address!\",\n            log as \"log!\",\n            last_assigned_utc\n         FROM testruns\n         WHERE\n            id = ?\n         AND\n            status = ?\n         ORDER BY created_utc\n         LIMIT 1",
   "describe": {
     "columns": [
       {
@@ -19,7 +19,7 @@
         "type_info": "Int64"
       },
       {
-        "name": "timestamp_utc!",
+        "name": "created_utc!",
         "ordinal": 3,
         "type_info": "Int64"
       },
@@ -32,6 +32,11 @@
         "name": "log!",
         "ordinal": 5,
         "type_info": "Text"
+      },
+      {
+        "name": "last_assigned_utc",
+        "ordinal": 6,
+        "type_info": "Int64"
       }
     ],
     "parameters": {
@@ -43,8 +48,9 @@
       false,
       false,
       false,
-      false
+      false,
+      true
     ]
   },
-  "hash": "6d7967b831b355d5f2c77950abc56f816956b0824c66a25da611dce688105d36"
+  "hash": "f0c64794cbaed87a1d3166251d8e6720c9a9fc929144188460849be85d915004"
 }

@@ -9,6 +9,8 @@ use crate::{
     http::models::{DailyStats, Gateway, Mixnode, SummaryHistory},
 };
 
+use super::models::SessionStats;
+
 #[derive(Debug, Clone)]
 pub(crate) struct AppState {
     db_pool: DbPool,
@@ -53,6 +55,7 @@ static GATEWAYS_LIST_KEY: &str = "gateways";
 static MIXNODES_LIST_KEY: &str = "mixnodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
 static SUMMARY_HISTORY_LIST_KEY: &str = "summary-history";
+static SESSION_STATS_LIST_KEY: &str = "session-stats";
 
 #[derive(Debug, Clone)]
 pub(crate) struct HttpCache {
@@ -60,6 +63,7 @@ pub(crate) struct HttpCache {
     mixnodes: Cache<String, Arc<RwLock<Vec<Mixnode>>>>,
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
     history: Cache<String, Arc<RwLock<Vec<SummaryHistory>>>>,
+    session_stats: Cache<String, Arc<RwLock<Vec<SessionStats>>>>,
 }
 
 impl HttpCache {
@@ -78,6 +82,10 @@ impl HttpCache {
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
             history: Cache::builder()
+                .max_capacity(2)
+                .time_to_live(Duration::from_secs(ttl_seconds))
+                .build(),
+            session_stats: Cache::builder()
                 .max_capacity(2)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
@@ -234,6 +242,41 @@ impl HttpCache {
                     v.clone()
                 } else {
                     Arc::new(RwLock::new(summary_history))
+                }
+            })
+            .await
+    }
+
+    pub async fn get_sessions_stats(&self, db: &DbPool) -> Vec<SessionStats> {
+        match self.session_stats.get(SESSION_STATS_LIST_KEY).await {
+            Some(guard) => {
+                let read_lock = guard.read().await;
+                read_lock.to_vec()
+            }
+            None => {
+                let session_stats = crate::db::queries::get_sessions_stats(db)
+                    .await
+                    .unwrap_or_default();
+                self.upsert_sessions_stats(session_stats.clone()).await;
+                session_stats
+            }
+        }
+    }
+
+    pub async fn upsert_sessions_stats(
+        &self,
+        session_stats: Vec<SessionStats>,
+    ) -> Entry<String, Arc<RwLock<Vec<SessionStats>>>> {
+        self.session_stats
+            .entry_by_ref(SESSION_STATS_LIST_KEY)
+            .and_upsert_with(|maybe_entry| async {
+                if let Some(entry) = maybe_entry {
+                    let v = entry.into_value();
+                    let mut guard = v.write().await;
+                    *guard = session_stats;
+                    v.clone()
+                } else {
+                    Arc::new(RwLock::new(session_stats))
                 }
             })
             .await

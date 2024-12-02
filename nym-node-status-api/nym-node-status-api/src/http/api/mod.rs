@@ -8,6 +8,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::http::{server::HttpServer, state::AppState};
 
 pub(crate) mod gateways;
+pub(crate) mod metrics;
 pub(crate) mod mixnodes;
 pub(crate) mod services;
 pub(crate) mod summary;
@@ -34,7 +35,8 @@ impl RouterBuilder {
                     .nest("/gateways", gateways::routes())
                     .nest("/mixnodes", mixnodes::routes())
                     .nest("/services", services::routes())
-                    .nest("/summary", summary::routes()),
+                    .nest("/summary", summary::routes())
+                    .nest("/metrics", metrics::routes()),
             )
             .nest(
                 "/internal",

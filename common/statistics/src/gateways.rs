@@ -87,3 +87,39 @@ pub enum SessionEvent {
         client: DestinationAddressBytes,
     },
 }
+
+#[derive(PartialEq)]
+pub enum SessionType {
+    Vpn,
+    Mixnet,
+    Unknown,
+}
+
+impl SessionType {
+    pub fn to_string(&self) -> &str {
+        match self {
+            Self::Vpn => "vpn",
+            Self::Mixnet => "mixnet",
+            Self::Unknown => "unknown",
+        }
+    }
+
+    pub fn from_string(s: &str) -> Self {
+        match s {
+            "vpn" => Self::Vpn,
+            "mixnet" => Self::Mixnet,
+            _ => Self::Unknown,
+        }
+    }
+}
+
+impl From<TicketType> for SessionType {
+    fn from(value: TicketType) -> Self {
+        match value {
+            TicketType::V1MixnetEntry => Self::Mixnet,
+            TicketType::V1MixnetExit => Self::Mixnet,
+            TicketType::V1WireguardEntry => Self::Vpn,
+            TicketType::V1WireguardExit => Self::Vpn,
+        }
+    }
+}

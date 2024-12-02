@@ -26,6 +26,7 @@ nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
 nym-explorer-client = { path = "../../explorer-api/explorer-client" }
 nym-network-defaults = { path = "../../common/network-defaults" }
+nym-statistics-common = { path = "../../common/statistics"}
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-task = { path = "../../common/task" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", features = ["openapi"] }
@@ -36,8 +37,9 @@ serde_json = { workspace = true }
 serde_json_path = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "time"] }
 thiserror = { workspace = true }
+time = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
 tokio-util = { workspace = true }
 tracing = { workspace = true }

@@ -19,10 +19,11 @@ impl StoragePruner {
     }
 
     pub async fn run_forever(self) {
-        while !self.cancellation_token.is_cancelled() {
+        info!("starting the storage pruner task");
+        loop {
             tokio::select! {
                 _ = self.cancellation_token.cancelled() => {
-                    // The token was cancelled, task can shut down
+                    break
                 }
                 _ = tokio::time::sleep(std::time::Duration::from_secs(60 * 60)) => {
                     match self.storage.prune_old_blinded_shares().await {

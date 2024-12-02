@@ -19,7 +19,9 @@ use nym_validator_client::nyxd::Coin;
 use sqlx::ConnectOptions;
 use std::fmt::Debug;
 use std::path::Path;
+use std::time::Duration;
 use time::{Date, OffsetDateTime};
+use tracing::log::LevelFilter;
 use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -40,9 +42,15 @@ impl VpnApiStorage {
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true)
-            .disable_statement_logging();
+            .log_statements(LevelFilter::Trace)
+            .log_slow_statements(LevelFilter::Warn, Duration::from_millis(250));
 
-        let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
+        let pool_opts = sqlx::sqlite::SqlitePoolOptions::new()
+            .min_connections(5)
+            .max_connections(25)
+            .acquire_timeout(Duration::from_secs(60));
+
+        let connection_pool = match pool_opts.connect_with(opts).await {
             Ok(db) => db,
             Err(err) => {
                 error!("Failed to connect to SQLx database: {err}");

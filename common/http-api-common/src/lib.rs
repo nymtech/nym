@@ -7,7 +7,7 @@ use axum::Json;
 use bytes::{BufMut, BytesMut};
 use serde::{Deserialize, Serialize};
 
-pub mod logging;
+pub mod middleware;
 
 #[derive(Debug, Clone)]
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]

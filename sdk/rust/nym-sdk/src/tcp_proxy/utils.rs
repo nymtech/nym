@@ -62,7 +62,7 @@ impl MessageBuffer {
             debug!("{}", msg.inner());
         }
 
-        // Iterate over self, filtering messages where msg.decayed() = true (aka message is older than 2 seconds), or where msg.message_id is less than next_msg_id. Then collect and order according to message_id.
+        // Iterate over self, filtering messages where msg.decayed() = true (aka message is older than DEFAULT_DECAY seconds), or where msg.message_id is less than next_msg_id. Then collect and order according to message_id.
         let mut send_buffer = self
             .iter()
             .filter(|msg| msg.decayed() || msg.message_id() <= self.next_msg_id)

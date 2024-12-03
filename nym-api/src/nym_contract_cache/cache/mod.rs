@@ -219,14 +219,6 @@ impl NymContractCache {
             .into_inner()
     }
 
-    pub async fn legacy_mixnodes_filtered_basic(&self) -> Vec<LegacyMixNodeBondWithLayer> {
-        self.legacy_mixnodes_filtered()
-            .await
-            .into_iter()
-            .map(|bond| bond.bond_information)
-            .collect()
-    }
-
     pub async fn legacy_mixnodes_all_basic(&self) -> Vec<LegacyMixNodeBondWithLayer> {
         self.legacy_mixnodes_all()
             .await

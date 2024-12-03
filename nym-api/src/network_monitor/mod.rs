@@ -12,6 +12,7 @@ use crate::network_monitor::monitor::sender::PacketSender;
 use crate::network_monitor::monitor::summary_producer::SummaryProducer;
 use crate::network_monitor::monitor::Monitor;
 use crate::node_describe_cache::DescribedNodes;
+use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
 use crate::support::caching::cache::SharedCache;
@@ -38,6 +39,7 @@ pub(crate) fn setup<'a>(
     config: &'a config::NetworkMonitor,
     nym_contract_cache: &NymContractCache,
     described_cache: SharedCache<DescribedNodes>,
+    node_status_cache: NodeStatusCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
 ) -> NetworkMonitorBuilder<'a> {
@@ -47,6 +49,7 @@ pub(crate) fn setup<'a>(
         storage.to_owned(),
         nym_contract_cache.clone(),
         described_cache,
+        node_status_cache,
     )
 }
 
@@ -56,6 +59,7 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
     node_status_storage: NymApiStorage,
     contract_cache: NymContractCache,
     described_cache: SharedCache<DescribedNodes>,
+    node_status_cache: NodeStatusCache,
 }
 
 impl<'a> NetworkMonitorBuilder<'a> {
@@ -65,6 +69,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         node_status_storage: NymApiStorage,
         contract_cache: NymContractCache,
         described_cache: SharedCache<DescribedNodes>,
+        node_status_cache: NodeStatusCache,
     ) -> Self {
         NetworkMonitorBuilder {
             config,
@@ -72,6 +77,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             node_status_storage,
             contract_cache,
             described_cache,
+            node_status_cache,
         }
     }
 
@@ -94,6 +100,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let packet_preparer = new_packet_preparer(
             self.contract_cache,
             self.described_cache,
+            self.node_status_cache,
             self.config.debug.per_node_test_packets,
             Arc::clone(&ack_key),
             *identity_keypair.public_key(),
@@ -169,6 +176,7 @@ impl<R: MessageReceiver + Send + 'static> NetworkMonitorRunnables<R> {
 fn new_packet_preparer(
     contract_cache: NymContractCache,
     described_cache: SharedCache<DescribedNodes>,
+    node_status_cache: NodeStatusCache,
     per_node_test_packets: usize,
     ack_key: Arc<AckKey>,
     self_public_identity: identity::PublicKey,
@@ -177,6 +185,7 @@ fn new_packet_preparer(
     PacketPreparer::new(
         contract_cache,
         described_cache,
+        node_status_cache,
         per_node_test_packets,
         ack_key,
         self_public_identity,
@@ -231,6 +240,7 @@ pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
     config: &config::NetworkMonitor,
     nym_contract_cache: &NymContractCache,
     described_cache: SharedCache<DescribedNodes>,
+    node_status_cache: NodeStatusCache,
     storage: &NymApiStorage,
     nyxd_client: nyxd::Client,
     shutdown: &TaskManager,
@@ -239,6 +249,7 @@ pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
         config,
         nym_contract_cache,
         described_cache,
+        node_status_cache,
         storage,
         nyxd_client,
     );

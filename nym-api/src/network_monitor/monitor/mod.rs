@@ -197,7 +197,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             // the actual target
             let candidates = match self
                 .packet_preparer
-                .prepare_test_routes(remaining * 2, &mut blacklist)
+                .prepare_test_routes(remaining * 2)
                 .await
             {
                 Some(candidates) => candidates,

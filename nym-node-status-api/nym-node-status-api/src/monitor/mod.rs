@@ -249,7 +249,8 @@ impl Monitor {
             queries::ensure_mixnodes_still_bonded(&pool, &legacy_mixnodes).await?;
 
         let count_bonded_mixnodes_reserve = 0; // TODO: NymAPI doesn't report the reserve set size
-        let count_bonded_mixnodes_inactive = count_bonded_mixnodes - count_bonded_mixnodes_active;
+        let count_bonded_mixnodes_inactive =
+            count_bonded_mixnodes.saturating_sub(count_bonded_mixnodes_active);
 
         let (all_historical_gateways, all_historical_mixnodes) = calculate_stats(&pool).await?;
 

@@ -90,6 +90,7 @@ void uniffi_nym_go_ffi_fn_func_new_proxy_client(
 	RustBuffer listen_port,
 	uint64_t close_timeout,
 	RustBuffer env,
+	uint8_t pool_size,
 	RustCallStatus* out_status
 );
 

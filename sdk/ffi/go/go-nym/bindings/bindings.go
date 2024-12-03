@@ -383,7 +383,7 @@ func uniffiCheckChecksums() {
 		checksum := rustCall(func(uniffiStatus *C.RustCallStatus) C.uint16_t {
 			return C.uniffi_nym_go_ffi_checksum_func_new_proxy_client(uniffiStatus)
 		})
-		if checksum != 14386 {
+		if checksum != 38844 {
 			// If this happens try cleaning and rebuilding your project
 			panic("bindings: uniffi_nym_go_ffi_checksum_func_new_proxy_client: UniFFI API checksum mismatch")
 		}
@@ -452,6 +452,30 @@ func uniffiCheckChecksums() {
 		}
 	}
 }
+
+type FfiConverterUint8 struct{}
+
+var FfiConverterUint8INSTANCE = FfiConverterUint8{}
+
+func (FfiConverterUint8) Lower(value uint8) C.uint8_t {
+	return C.uint8_t(value)
+}
+
+func (FfiConverterUint8) Write(writer io.Writer, value uint8) {
+	writeUint8(writer, value)
+}
+
+func (FfiConverterUint8) Lift(value C.uint8_t) uint8 {
+	return uint8(value)
+}
+
+func (FfiConverterUint8) Read(reader io.Reader) uint8 {
+	return readUint8(reader)
+}
+
+type FfiDestroyerUint8 struct{}
+
+func (FfiDestroyerUint8) Destroy(_ uint8) {}
 
 type FfiConverterUint64 struct{}
 
@@ -963,9 +987,9 @@ func ListenForIncoming() (IncomingMessage, error) {
 	}
 }
 
-func NewProxyClient(serverAddress string, listenAddress string, listenPort string, closeTimeout uint64, env *string) error {
+func NewProxyClient(serverAddress string, listenAddress string, listenPort string, closeTimeout uint64, env *string, poolSize uint8) error {
 	_, _uniffiErr := rustCallWithError(FfiConverterTypeGoWrapError{}, func(_uniffiStatus *C.RustCallStatus) bool {
-		C.uniffi_nym_go_ffi_fn_func_new_proxy_client(FfiConverterStringINSTANCE.Lower(serverAddress), FfiConverterStringINSTANCE.Lower(listenAddress), FfiConverterStringINSTANCE.Lower(listenPort), FfiConverterUint64INSTANCE.Lower(closeTimeout), FfiConverterOptionalStringINSTANCE.Lower(env), _uniffiStatus)
+		C.uniffi_nym_go_ffi_fn_func_new_proxy_client(FfiConverterStringINSTANCE.Lower(serverAddress), FfiConverterStringINSTANCE.Lower(listenAddress), FfiConverterStringINSTANCE.Lower(listenPort), FfiConverterUint64INSTANCE.Lower(closeTimeout), FfiConverterOptionalStringINSTANCE.Lower(env), FfiConverterUint8INSTANCE.Lower(poolSize), _uniffiStatus)
 		return false
 	})
 	return _uniffiErr

@@ -72,7 +72,7 @@
       "version_score_weights": {
         "default": {
           "major": 100,
-          "minor": 10,
+          "minor": 1,
           "patch": 1,
           "prerelease": 1
         },
@@ -3455,7 +3455,7 @@
       "version_score_weights": {
         "default": {
           "major": 100,
-          "minor": 10,
+          "minor": 1,
           "patch": 1,
           "prerelease": 1
         },

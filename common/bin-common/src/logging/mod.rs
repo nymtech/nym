@@ -15,12 +15,27 @@ pub use tracing_subscriber;
 #[cfg(feature = "tracing")]
 pub use tracing_tree;
 
+#[cfg(target_os = "macos")]
+const MACOS_LOG_FILEPATH: &str = "/var/log/nym-vpnd/daemon.log";
+#[cfg(target_os = "ios")]
+const IOS_LOG_FILEPATH_VAR: &str = "IOS_LOG_FILEPATH";
+
 #[derive(Debug, Default, Copy, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct LoggingSettings {
     // well, we need to implement something here at some point...
 }
 
+/// Enables and configures logging using the `log` and `pretty_env_logger` libraries.
+///
+/// On call this subscriber attempts to parse filter level from the `"RUST_LOG"` environment variable.
+/// If that is not set it defaults to `INFO` level.
+///
+/// As logs are not available to iOS or MacOS apps through the console, logs can be written to
+/// file for handling. On iOS if a path is provided in the `"IOS__LOG_FILEPATH"` variable this
+/// function will attempt to open that file and use it as the logging sink. On MacOS logs are
+/// written to the static `"/var/log/nym-vpnd/daemon.log"`. If we are unable to open the
+/// log filepath for either iOS or MacOS we default to writing to the default (console) output.
 // I'd argue we should start transitioning from `log` to `tracing`
 pub fn setup_logging() {
     let mut log_builder = pretty_env_logger::formatted_timed_builder();
@@ -29,6 +44,18 @@ pub fn setup_logging() {
     } else {
         // default to 'Info'
         log_builder.filter(None, log::LevelFilter::Info);
+    }
+
+    #[cfg(target_os = "macos")]
+    if let Ok(f) = ::std::fs::File::create(MACOS_LOG_FILEPATH) {
+        log_builder.target(env_logger::fmt::Target::Pipe(Box::new(f)));
+    }
+
+    #[cfg(target_os = "ios")]
+    if let Ok(logfile_path) = ::std::env::var(IOS_LOG_FILEPATH_VAR) {
+        if let Ok(f) = File::create(logfile_path) {
+            log_builder.target(env_logger::fmt::Target::Pipe(Box::new(f)));
+        }
     }
 
     log_builder
@@ -44,6 +71,16 @@ pub fn setup_logging() {
         .init();
 }
 
+/// Enables and configures logging using the `tracing` and `tracing-subscriber` libraries.
+///
+/// On call this subscriber attempts to parse filter level from the `"RUST_LOG"` environment variable.
+/// If that is not set it defaults to `INFO` level.
+///
+/// As logs are not available to iOS or MacOS apps through the console, logs can be written to
+/// file for handling. On iOS if a path is provided in the `"IOS__LOG_FILEPATH"` variable this
+/// function will attempt to open that file and use it as the logging sink. On MacOS logs are
+/// written to the static `"/var/log/nym-vpnd/daemon.log"`. If we are unable to open the
+/// log filepath for either iOS or MacOS we default to writing to the default (console) output.
 #[cfg(feature = "basic_tracing")]
 pub fn setup_tracing_logger() {
     let log_builder = tracing_subscriber::fmt()
@@ -56,6 +93,21 @@ pub fn setup_tracing_logger() {
         .with_line_number(true)
         // Don't display the event's target (module path)
         .with_target(false);
+
+    #[cfg(target_os = "macos")]
+    // Attempt to set the log sink to a file on macos, if we fail to open the file fallback to default (console)
+    if let Ok(f) = ::std::fs::File::create(MACOS_LOG_FILEPATH) {
+        log_builder.with_writer(Mutex::new(f));
+    }
+
+    #[cfg(target_os = "ios")]
+    // Attempt to set the log sink to a file on ios, if the env var is not set or we fail to open the file
+    //  fallback to default (console)
+    if let Ok(logfile_path) = ::std::env::var(IOS_LOG_FILEPATH_VAR) {
+        if let Ok(f) = ::std::fs::File::create(logfile_path) {
+            log_builder.with_writer(Mutex::new(f));
+        }
+    }
 
     if ::std::env::var("RUST_LOG").is_ok() {
         log_builder

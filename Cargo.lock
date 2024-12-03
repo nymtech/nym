@@ -2428,7 +2428,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.1.42"
+version = "1.1.43"
 dependencies = [
  "chrono",
  "clap 4.5.20",
@@ -4451,7 +4451,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nym-api"
-version = "1.1.46"
+version = "1.1.47"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4701,7 +4701,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.44"
+version = "1.1.45"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4784,7 +4784,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.44"
+version = "1.1.45"
 dependencies = [
  "bs58",
  "clap 4.5.20",
@@ -5536,6 +5536,7 @@ version = "0.1.0"
 dependencies = [
  "nym-credentials-interface",
  "nym-sphinx",
+ "nym-statistics-common",
  "sqlx",
  "thiserror",
  "time",
@@ -5891,7 +5892,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.45"
+version = "1.1.46"
 dependencies = [
  "addr",
  "anyhow",
@@ -5942,7 +5943,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.1.11"
+version = "1.1.12"
 dependencies = [
  "anyhow",
  "bip39",
@@ -6061,7 +6062,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "1.0.0-rc.3"
+version = "1.0.0-rc.5"
 dependencies = [
  "anyhow",
  "axum 0.7.7",
@@ -6077,6 +6078,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-node-requests",
  "nym-node-status-client",
+ "nym-statistics-common",
  "nym-task",
  "nym-validator-client",
  "regex",
@@ -6088,6 +6090,7 @@ dependencies = [
  "strum 0.26.3",
  "strum_macros 0.26.4",
  "thiserror",
+ "time",
  "tokio",
  "tokio-util",
  "tower-http",
@@ -6306,7 +6309,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.44"
+version = "1.1.45"
 dependencies = [
  "bs58",
  "clap 4.5.20",
@@ -6886,6 +6889,7 @@ dependencies = [
  "nym-task",
  "nym-wireguard-types",
  "thiserror",
+ "time",
  "tokio",
  "tokio-stream",
  "x25519-dalek",
@@ -6908,7 +6912,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.9"
+version = "0.1.10"
 dependencies = [
  "anyhow",
  "bytes",
@@ -7019,9 +7023,9 @@ checksum = "ff011a302c396a5197692431fc1948019154afc178baf7d8e37367442a4601cf"
 
 [[package]]
 name = "openssl-sys"
-version = "0.9.102"
+version = "0.9.104"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c597637d56fbc83893a35eb0dd04b2b8e7a50c91e64e9493e398b5df4fb45fa2"
+checksum = "45abf306cbf99debc8195b66b7346498d7b10c210de50418b5ccd7ceba08c741"
 dependencies = [
  "cc",
  "libc",

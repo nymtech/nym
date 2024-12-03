@@ -30,7 +30,7 @@ struct LocalNodesCtx<'a> {
     gateways: Vec<NymNode>,
 }
 
-impl<'a> ProgressCtx for LocalNodesCtx<'a> {
+impl ProgressCtx for LocalNodesCtx<'_> {
     fn progress_tracker(&self) -> &ProgressTracker {
         &self.progress
     }

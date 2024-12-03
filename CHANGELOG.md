@@ -4,6 +4,10 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.13-magura-drift] (2024-11-29)
+
+- Optimised syncing bandwidth information to storage
+
 ## [2024.13-magura-patched] (2024-11-22)
 
 - [experimental] allow clients to change between deterministic route selection based on packet headers and a pseudorandom distribution

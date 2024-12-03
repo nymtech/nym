@@ -51,7 +51,7 @@ pub(crate) async fn initialise_dkg(controllers: &mut [TestingDkgController], res
 
     // add every dealer to group contract
     for controller in controllers.iter() {
-        let address = controller.dkg_client.get_address().await;
+        let address = controller.dkg_client.get_address().await.unwrap();
         let mut chain = controllers[0].chain_state.lock().unwrap();
         chain.add_member(address.as_ref(), 10);
     }
@@ -76,7 +76,7 @@ pub(crate) async fn submit_public_keys(controllers: &mut [TestingDkgController],
             .unwrap();
     }
 
-    let threshold = (2 * controllers.len() as u64 + 3 - 1) / 3;
+    let threshold = (2 * controllers.len() as u64).div_ceil(3);
 
     let mut guard = controllers[0].chain_state.lock().unwrap();
     guard.dkg_contract.epoch.state = EpochState::DealingExchange { resharing };

@@ -16,6 +16,7 @@ use nym_sphinx_acknowledgements::AckKey;
 use old_configs::old_config_v3::*;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
@@ -786,15 +787,16 @@ pub async fn initialise(
     Ok(())
 }
 
+#[instrument(skip_all)]
 pub async fn try_upgrade_config_v2<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV2>,
 ) -> Result<ConfigV3, NymNodeError> {
-    tracing::debug!("Updating from 1.1.3");
+    debug!("attempting to load v2 config...");
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
     } else {
-        ConfigV2::read_from_path(&path)?
+        ConfigV2::read_from_path(&path).inspect_err(|err| debug!("failed: {err}"))?
     };
 
     let authenticator_paths = AuthenticatorPathsV3::new(

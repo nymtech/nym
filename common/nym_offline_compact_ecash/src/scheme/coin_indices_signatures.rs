@@ -324,18 +324,6 @@ pub fn unchecked_aggregate_indices_signatures(
     _aggregate_indices_signatures(params, vk, signatures_shares, false)
 }
 
-/// Generates parameters for the scheme setup.
-///
-/// # Arguments
-///
-/// * `total_coins` - it is the number of coins in a freshly generated wallet. It is the public parameter of the scheme.
-///
-/// # Returns
-///
-/// A `Parameters` struct containing group parameters, public key, the number of signatures (`total_coins`),
-/// and a map of signatures for each index `l`.
-///
-
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -494,7 +494,7 @@ impl<R: RngCore + CryptoRng> DkgController<R> {
         // submitted proposals and find the one with our address
         self.get_validation_proposals()
             .await?
-            .get(self.dkg_client.get_address().await.as_ref())
+            .get(self.dkg_client.get_address().await?.as_ref())
             .copied()
             .ok_or(KeyDerivationError::UnrecoverableProposalId)
     }

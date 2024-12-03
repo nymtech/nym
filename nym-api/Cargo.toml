@@ -4,7 +4,7 @@
 [package]
 name = "nym-api"
 license = "GPL-3.0"
-version = "1.1.46"
+version = "1.1.47"
 authors.workspace = true
 edition = "2021"
 rust-version.workspace = true
@@ -121,7 +121,7 @@ nym-types = { path = "../common/types" }
 nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
 nym-serde-helpers = { path = "../common/serde-helpers", features = ["date"] }
 nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
-nym-statistics-common = {path ="../common/statistics" }
+nym-statistics-common = { path = "../common/statistics" }
 
 [features]
 no-reward = []

@@ -50,6 +50,7 @@ pub struct SessionStats {
 
     pub unique_active_users: u32,
 
+    #[serde(default = "Vec::new")] // field was added later
     pub unique_active_users_hashes: Vec<String>,
 
     pub sessions: Vec<Session>,

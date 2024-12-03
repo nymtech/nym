@@ -1,4 +1,4 @@
-use crate::http::{Gateway, GatewaySkinny, Mixnode, Service};
+use crate::http::{Gateway, GatewaySkinny, Mixnode, Service, SessionStats};
 use utoipa::OpenApi;
 use utoipauto::utoipauto;
 

@@ -45,11 +45,6 @@ pub(crate) struct Cli {
     #[arg(value_parser = parse_duration)]
     pub(crate) nym_api_client_timeout: Duration,
 
-    /// Explorer api client timeout.
-    #[clap(long, default_value = "15", env = "EXPLORER_CLIENT_TIMEOUT")]
-    #[arg(value_parser = parse_duration)]
-    pub(crate) explorer_client_timeout: Duration,
-
     /// Connection url for the database.
     #[clap(long, env = "DATABASE_URL")]
     pub(crate) database_url: String,
@@ -70,9 +65,17 @@ pub(crate) struct Cli {
     #[arg(value_parser = parse_duration)]
     pub(crate) testruns_refresh_interval: Duration,
 
+    #[clap(long, default_value = "86400", env = "NODE_STATUS_API_GEODATA_TTL")]
+    #[arg(value_parser = parse_duration)]
+    pub(crate) geodata_ttl: Duration,
+
     #[clap(env = "NODE_STATUS_API_AGENT_KEY_LIST")]
     #[arg(value_delimiter = ',')]
     pub(crate) agent_key_list: Vec<String>,
+
+    /// https://github.com/ipinfo/rust
+    #[clap(long, env = "IPINFO_API_TOKEN")]
+    pub(crate) ipinfo_api_token: String,
 
     #[clap(
         long,

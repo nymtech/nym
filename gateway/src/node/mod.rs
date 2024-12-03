@@ -93,6 +93,14 @@ pub struct GatewayTasksBuilder {
     wireguard_networks: Option<Vec<IpAddr>>,
 }
 
+impl Drop for GatewayTasksBuilder {
+    fn drop(&mut self) {
+        // disarm the shutdown as it was already used to construct relevant tasks and we don't want the builder
+        // to cause shutdown
+        self.shutdown.disarm();
+    }
+}
+
 impl GatewayTasksBuilder {
     pub fn new(
         config: Config,

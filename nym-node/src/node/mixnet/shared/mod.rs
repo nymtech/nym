@@ -61,7 +61,7 @@ pub(crate) struct SharedData {
 
 impl SharedData {
     pub(crate) fn new(
-        config: &Config,
+        processing_config: ProcessingConfig,
         x25519_key: &x25519::PrivateKey,
         mixnet_forwarder: MixForwardingSender,
         final_hop: SharedFinalHopData,
@@ -69,7 +69,7 @@ impl SharedData {
         task_client: TaskClient,
     ) -> Self {
         SharedData {
-            processing_config: ProcessingConfig::new(config),
+            processing_config,
             sphinx_key: Arc::new(x25519_key.into()),
             mixnet_forwarder,
             final_hop,

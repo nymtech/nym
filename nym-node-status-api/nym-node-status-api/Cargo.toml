@@ -26,6 +26,7 @@ nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
 nym-explorer-client = { path = "../../explorer-api/explorer-client" }
 nym-network-defaults = { path = "../../common/network-defaults" }
+nym-serde-helpers = { path = "../../common/serde-helpers"}
 nym-statistics-common = { path = "../../common/statistics"}
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-task = { path = "../../common/task" }

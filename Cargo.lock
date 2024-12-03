@@ -6078,6 +6078,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-node-requests",
  "nym-node-status-client",
+ "nym-serde-helpers",
  "nym-statistics-common",
  "nym-task",
  "nym-validator-client",

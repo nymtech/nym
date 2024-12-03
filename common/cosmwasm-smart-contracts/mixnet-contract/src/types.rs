@@ -253,10 +253,22 @@ impl ConfigScoreParams {
             1
         };
 
-        major_diff * self.version_weights.major
-            + minor_diff * self.version_weights.minor
-            + patch_diff * self.version_weights.patch
-            + prerelease_diff * self.version_weights.prerelease
+        // if you're a major version behind, ignore minor and patch and treat it as 0
+        if major_diff != 0 {
+            return major_diff * self.version_weights.major
+                + expected.minor as u32 * self.version_weights.minor
+                + expected.patch as u32 * self.version_weights.patch
+                + prerelease_diff * self.version_weights.prerelease;
+        }
+
+        // if you're minor version behind, ignore patch and treat is as 0
+        if minor_diff != 0 {
+            return minor_diff * self.version_weights.minor
+                + expected.patch as u32 * self.version_weights.patch
+                + prerelease_diff * self.version_weights.prerelease;
+        }
+
+        patch_diff * self.version_weights.patch + prerelease_diff * self.version_weights.prerelease
     }
 }
 
@@ -274,7 +286,7 @@ impl Default for OutdatedVersionWeights {
     fn default() -> Self {
         OutdatedVersionWeights {
             major: 100,
-            minor: 10,
+            minor: 1,
             patch: 1,
             prerelease: 1,
         }
@@ -312,5 +324,60 @@ impl ConfigScoreParamsUpdate {
         self.current_nym_node_semver.is_some()
             || self.version_weights.is_some()
             || self.version_score_formula_params.is_some()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn versions_behind() {
+        let weights = OutdatedVersionWeights {
+            major: 100,
+            minor: 1,
+            patch: 1,
+            prerelease: 1,
+        };
+        let c = ConfigScoreParams {
+            current_nym_node_semver: "2.2.3".to_string(),
+            version_weights: weights,
+            version_score_formula_params: Default::default(),
+        };
+
+        // 1 patch behind
+        assert_eq!(1, c.versions_behind(&"2.2.2".parse().unwrap()));
+
+        // 1 minor behind
+        assert_eq!(4, c.versions_behind(&"2.1.0".parse().unwrap()));
+        assert_eq!(4, c.versions_behind(&"2.1.15".parse().unwrap()));
+
+        // 2 patch behind
+        assert_eq!(2, c.versions_behind(&"2.2.1".parse().unwrap()));
+
+        // 2 minor behind
+        assert_eq!(5, c.versions_behind(&"2.0.0".parse().unwrap()));
+        assert_eq!(5, c.versions_behind(&"2.0.123".parse().unwrap()));
+
+        // lying about being 1 patch AHEAD (you're still penalised as if behind)
+        assert_eq!(1, c.versions_behind(&"2.2.4".parse().unwrap()));
+
+        // major behind
+        assert_eq!(105, c.versions_behind(&"1.0.0".parse().unwrap()));
+        assert_eq!(105, c.versions_behind(&"1.2.0".parse().unwrap()));
+        assert_eq!(105, c.versions_behind(&"1.0.123".parse().unwrap()));
+
+        // different prerelease
+        let c = ConfigScoreParams {
+            current_nym_node_semver: "1.2.3-important-patch".to_string(),
+            version_weights: weights,
+            version_score_formula_params: Default::default(),
+        };
+        assert_eq!(1, c.versions_behind(&"1.2.3".parse().unwrap()));
+
+        // different prerelease + patch
+        assert_eq!(2, c.versions_behind(&"1.2.2".parse().unwrap()));
+
+        assert_eq!(5, c.versions_behind(&"1.1.0".parse().unwrap()));
     }
 }

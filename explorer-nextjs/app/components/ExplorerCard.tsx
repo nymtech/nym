@@ -1,11 +1,4 @@
-import {
-  Card,
-  CardContent,
-  Typography,
-  Box,
-  IconButton,
-  Button,
-} from "@mui/material";
+import { Card, CardContent, Typography, Box, Button } from "@mui/material";
 import React, { FC, ReactElement, ReactEventHandler, useEffect } from "react";
 import { ExplorerLineChart, IExplorerLineChartData } from "./ExplorerLineChart";
 import {
@@ -86,10 +79,10 @@ const CardTitlePrice = (props: ICardTitlePriceProps): React.ReactNode => {
   );
 };
 
-interface ICardDataRowsProps {
+export interface ICardDataRowsProps {
   rows: Array<{ key: string; value: string }>;
 }
-const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
+export const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
   const { rows } = props;
 
   return (
@@ -351,7 +344,7 @@ export const ExplorerCard: FC<ContentCardProps> = ({
   chat,
   button,
 }) => (
-  <Card onClick={onClick} sx={{ height: "100%" }}>
+  <Card onClick={onClick} sx={{ height: "100%", borderRadius: "unset" }}>
     <CardContent>
       {overTitle && (
         <Typography fontSize={14} mb={3} textTransform={"uppercase"}>

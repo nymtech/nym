@@ -24,6 +24,7 @@ use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
 use crate::node::metrics::handler::legacy_packet_data::LegacyMixingStatsUpdater;
 use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
+use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
 use crate::node::shared_topology::NymNodeTopologyProvider;
 use nym_bin_common::bin_info;
@@ -586,19 +587,24 @@ impl NymNode {
 
         // if we're running in entry mode, start the websocket
         if self.modes().entry {
-            info!("starting the clients websocket...");
+            info!(
+                "starting the clients websocket... on {}",
+                self.config.gateway_tasks.bind_address
+            );
             let websocket = gateway_tasks_builder
                 .build_websocket_listener(active_clients_store.clone())
                 .await?;
             websocket.start();
+        } else {
+            info!("node not running in entry mode: the websocket will remain closed");
         }
 
         // if we're running in exit mode, start the IPR and NR
         if self.modes().exit {
+            info!("starting the exit service providers: NR + IPR");
             gateway_tasks_builder.set_network_requester_opts(config.nr_opts);
             gateway_tasks_builder.set_ip_packet_router_opts(config.ipr_opts);
 
-            info!("starting the exit service providers (nr/ipr)...");
             let exit_sps = gateway_tasks_builder.build_exit_service_providers(
                 topology_provider.clone(),
                 topology_provider.clone(),
@@ -608,11 +614,15 @@ impl NymNode {
             let (started_nr, started_ipr) = exit_sps.start_service_providers().await?;
             active_clients_store.insert_embedded(started_nr.handle);
             active_clients_store.insert_embedded(started_ipr.handle);
+        } else {
+            info!("node not running in exit mode: the exit service providers (NR + IPR) will remain unavailable");
         }
 
         // if we're running wireguard, start the authenticator
         // and the actual wireguard listener
         if self.config.wireguard.enabled {
+            info!("starting the wireguard tasks: authenticator service provider + wireguard peer controller");
+
             gateway_tasks_builder.set_authenticator_opts(config.auth_opts);
 
             // that's incredibly nasty, but unfortunately to change it, would require some refactoring...
@@ -622,7 +632,6 @@ impl NymNode {
 
             gateway_tasks_builder.set_wireguard_data(wg_data.into());
 
-            info!("starting wireguard + authenticator...");
             let authenticator = gateway_tasks_builder
                 .build_wireguard_authenticator(topology_provider)
                 .await?;
@@ -633,6 +642,8 @@ impl NymNode {
                 .try_start_wireguard()
                 .await
                 .map_err(NymNodeError::GatewayTasksStartupFailure)?;
+        } else {
+            info!("node not running with wireguard: authenticator service provider and wireguard will remain unavailable");
         }
 
         Ok(())
@@ -790,7 +801,10 @@ impl NymNode {
     }
 
     pub(crate) fn start_verloc_measurements(&self, shutdown: TaskClient) {
-        info!("Starting the round-trip-time measurer...");
+        info!(
+            "Starting the [verloc] round-trip-time measurer on {} ...",
+            self.config.verloc.bind_address
+        );
 
         let mut base_agent = self.user_agent();
         base_agent.application = format!("{}-verloc", base_agent.application);
@@ -880,8 +894,15 @@ impl NymNode {
         active_clients_store: &ActiveClientsStore,
         shutdown: TaskClient,
     ) -> MixForwardingSender {
+        let processing_config = ProcessingConfig::new(&self.config);
+
         // we're ALWAYS listening for mixnet packets, either for forward or final hops (or both)
-        info!("Starting the mixnet listener...");
+        info!(
+            "Starting the mixnet listener... on {} (forward: {}, final hop: {}))",
+            self.config.mixnet.bind_address,
+            processing_config.forward_hop_processing_enabled,
+            processing_config.final_hop_processing_enabled
+        );
 
         let mixnet_client_config = nym_mixnet_client::Config::new(
             self.config.mixnet.debug.packet_forwarding_initial_backoff,
@@ -905,7 +926,7 @@ impl NymNode {
         );
 
         let shared = mixnet::SharedData::new(
-            &self.config,
+            processing_config,
             self.x25519_sphinx_keys.private_key(),
             mix_packet_sender.clone(),
             final_hop_data,
@@ -919,6 +940,7 @@ impl NymNode {
 
     pub(crate) async fn run(mut self) -> Result<(), NymNodeError> {
         info!("starting Nym Node {}", self.ed25519_identity_key());
+        debug!("config: {:#?}", self.config);
 
         let mut task_manager = TaskManager::default().named("NymNode");
         let http_server = self
@@ -928,7 +950,7 @@ impl NymNode {
         let bind_address = self.config.http.bind_address;
         tokio::spawn(async move {
             {
-                info!("Started NymNodeHTTPServer on {bind_address}");
+                info!("started NymNodeHTTPServer on {bind_address}");
                 http_server.run().await
             }
         });

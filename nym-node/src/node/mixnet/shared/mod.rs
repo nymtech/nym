@@ -36,7 +36,8 @@ impl ProcessingConfig {
         ProcessingConfig {
             maximum_packet_delay: config.mixnet.debug.maximum_forward_packet_delay,
             forward_hop_processing_enabled: config.modes.mixnode,
-            final_hop_processing_enabled: config.modes.expects_final_hop_traffic(),
+            final_hop_processing_enabled: config.modes.expects_final_hop_traffic()
+                || config.wireguard.enabled,
         }
     }
 }

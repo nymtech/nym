@@ -69,7 +69,7 @@ pub(crate) struct NodeGeoData {
     pub(crate) location: Location,
 }
 
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub(crate) struct Location {
     pub(crate) two_letter_iso_country_code: String,
     #[serde(flatten)]
@@ -98,13 +98,13 @@ where
     D: Deserializer<'de>,
 {
     let loc_raw = String::deserialize(deserializer)?;
-    return match loc_raw.split_once(',') {
+    match loc_raw.split_once(',') {
         Some((lat, long)) => Ok(Coordinates {
-            latitude: lat.parse().map_err(|err| serde::de::Error::custom(err))?,
-            longitude: long.parse().map_err(|err| serde::de::Error::custom(err))?,
+            latitude: lat.parse().map_err(serde::de::Error::custom)?,
+            longitude: long.parse().map_err(serde::de::Error::custom)?,
         }),
         None => Err(serde::de::Error::custom("coordinates")),
-    };
+    }
 }
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
@@ -116,10 +116,8 @@ pub(crate) struct Coordinates {
 impl Location {
     pub(crate) fn empty() -> Self {
         Self {
-            two_letter_iso_country_code: String::default(),
-            location: Coordinates {
-                ..Default::default()
-            },
+            two_letter_iso_country_code: String::new(),
+            location: Coordinates::default(),
         }
     }
 }
@@ -147,5 +145,40 @@ pub(crate) mod ipinfo {
         pub(crate) month: u64,
         pub(crate) limit: u64,
         pub(crate) remaining: u64,
+    }
+}
+
+#[cfg(test)]
+mod api_regression {
+
+    use super::*;
+    use std::{env::var, sync::LazyLock};
+
+    static IPINFO_TOKEN: LazyLock<String> = LazyLock::new(|| var("IPINFO_API_TOKEN").unwrap());
+
+    #[tokio::test]
+    async fn should_parse_response() {
+        let client = IpInfoClient::new(&(*IPINFO_TOKEN));
+        let my_ip = reqwest::get("https://api.ipify.org")
+            .await
+            .expect("Couldn't get own IP")
+            .text()
+            .await
+            .unwrap();
+
+        let location_result = client.locate_ip(my_ip).await;
+        assert!(location_result.is_ok(), "Did ipinfo response change?");
+
+        assert!(
+            client.check_remaining_bandwidth().await.is_ok(),
+            "Failed to check remaining bandwidth?"
+        );
+
+        // when serialized, these fields should be present because they're exposed over API
+        let location_result = location_result.unwrap();
+        let json = serde_json::to_value(&location_result).unwrap();
+        assert!(json.get("two_letter_iso_country_code").is_some());
+        assert!(json.get("latitude").is_some());
+        assert!(json.get("longitude").is_some());
     }
 }

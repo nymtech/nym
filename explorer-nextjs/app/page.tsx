@@ -21,6 +21,10 @@ import { ContentCardProps, ExplorerCard } from "./components/ExplorerCard";
 import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import { ExplorerData, getCacheExplorerData } from "./api/explorer";
 import { IExplorerLineChartData } from "./components/ExplorerLineChart";
+import {
+  AccountStatsCard,
+  IAccountStatsCardProps,
+} from "./components/AccountStatsCard";
 
 // type ContentCardProps = {
 //   overTitle?: string;
@@ -253,6 +257,45 @@ export default function PageOverview() {
     graph: stakeLineGraphData,
   };
 
+  const accountStatsCard: IAccountStatsCardProps = {
+    rows: [
+      { type: "Spendable", allocation: 15.53, amount: 12800, value: 1200 },
+      {
+        type: "Delegated",
+        allocation: 15.53,
+        amount: 12800,
+        value: 1200,
+        history: [
+          { type: "Liquid", amount: 6900 },
+          { type: "Locked", amount: 6900 },
+        ],
+      },
+      {
+        type: "Claimable",
+        allocation: 15.53,
+        amount: 12800,
+        value: 1200,
+        history: [
+          { type: "Unlocked", amount: 6900 },
+          { type: "Staking rewards", amount: 6900 },
+          { type: "Operator comission", amount: 6900 },
+        ],
+      },
+      {
+        type: "Self bonded",
+        allocation: 15.53,
+        amount: 12800,
+        value: 1200,
+      },
+      {
+        type: "Locked",
+        allocation: 15.53,
+        amount: 12800,
+        value: 1200,
+      },
+    ],
+  };
+
   const {
     summaryOverview,
     gateways,
@@ -271,6 +314,9 @@ export default function PageOverview() {
           <Grid container spacing={3}>
             {summaryOverview && (
               <>
+                <Grid item xs={12}>
+                  <AccountStatsCard {...accountStatsCard} />
+                </Grid>
                 <Grid item xs={12} md={4}>
                   <ExplorerCard {...explorerCard} />
                 </Grid>

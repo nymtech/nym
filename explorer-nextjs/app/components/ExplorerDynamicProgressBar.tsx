@@ -3,13 +3,15 @@ import Box from "@mui/material/Box";
 import LinearProgress from "@mui/material/LinearProgress";
 import { Typography } from "@mui/material";
 
-export interface IExplorerProgressBarProps {
+export interface IExplorerDynamicProgressBarProps {
   title?: string;
   start: string; // Start timestamp as ISO 8601 string
   showEpoch: boolean;
 }
 
-export const ExplorerProgressBar = (props: IExplorerProgressBarProps) => {
+export const ExplorerDynamicProgressBar = (
+  props: IExplorerDynamicProgressBarProps
+) => {
   const { start, showEpoch, title } = props;
   const [progress, setProgress] = React.useState(0);
 

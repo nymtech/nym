@@ -2,9 +2,9 @@ import { Card, CardContent, Typography, Box, Button } from "@mui/material";
 import React, { FC, ReactElement, ReactEventHandler, useEffect } from "react";
 import { ExplorerLineChart, IExplorerLineChartData } from "./ExplorerLineChart";
 import {
-  ExplorerProgressBar,
-  IExplorerProgressBarProps,
-} from "./ExplorerProgressBar";
+  ExplorerDynamicProgressBar,
+  IExplorerDynamicProgressBarProps,
+} from "./ExplorerDynamicProgressBar";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { NymTokenSVG } from "../icons/NymTokenSVG";
@@ -311,7 +311,7 @@ export type ContentCardProps = {
   titlePrice?: ICardTitlePriceProps;
   dataRows?: ICardDataRowsProps;
   graph?: { data: Array<IExplorerLineChartData>; color: string; label: string };
-  progressBar?: IExplorerProgressBarProps;
+  progressBar?: IExplorerDynamicProgressBarProps;
   paragraph?: string;
   onClick?: ReactEventHandler;
   nymAddress?: ICardCopyAddressProps;
@@ -376,7 +376,7 @@ export const ExplorerCard: FC<ContentCardProps> = ({
       )}
       {progressBar && (
         <Box mb={3}>
-          <ExplorerProgressBar {...progressBar} />
+          <ExplorerDynamicProgressBar {...progressBar} />
         </Box>
       )}
       {paragraph && <Typography>{paragraph}</Typography>}

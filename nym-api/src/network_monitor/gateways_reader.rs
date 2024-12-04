@@ -2,9 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use futures::Stream;
-use nym_crypto::asymmetric::identity;
+use nym_crypto::asymmetric::{ed25519, identity};
 use nym_gateway_client::{AcknowledgementReceiver, MixnetMessageReceiver};
-use nym_mixnet_contract_common::IdentityKey;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 use tokio_stream::StreamMap;
@@ -15,8 +14,8 @@ pub(crate) enum GatewayMessages {
 }
 
 pub(crate) struct GatewaysReader {
-    ack_map: StreamMap<IdentityKey, AcknowledgementReceiver>,
-    stream_map: StreamMap<IdentityKey, MixnetMessageReceiver>,
+    ack_map: StreamMap<ed25519::PublicKey, AcknowledgementReceiver>,
+    stream_map: StreamMap<ed25519::PublicKey, MixnetMessageReceiver>,
 }
 
 impl GatewaysReader {
@@ -33,19 +32,18 @@ impl GatewaysReader {
         message_receiver: MixnetMessageReceiver,
         ack_receiver: AcknowledgementReceiver,
     ) {
-        let channel_id = id.to_string();
-        self.stream_map.insert(channel_id.clone(), message_receiver);
-        self.ack_map.insert(channel_id, ack_receiver);
+        self.stream_map.insert(id, message_receiver);
+        self.ack_map.insert(id, ack_receiver);
     }
 
-    pub fn remove_receivers(&mut self, id: &str) {
-        self.stream_map.remove(id);
-        self.ack_map.remove(id);
+    pub fn remove_receivers(&mut self, id: ed25519::PublicKey) {
+        self.stream_map.remove(&id);
+        self.ack_map.remove(&id);
     }
 }
 
 impl Stream for GatewaysReader {
-    type Item = (IdentityKey, GatewayMessages);
+    type Item = (ed25519::PublicKey, GatewayMessages);
 
     fn poll_next(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Option<Self::Item>> {
         match Pin::new(&mut self.ack_map).poll_next(cx) {

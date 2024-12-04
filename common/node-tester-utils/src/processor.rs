@@ -35,6 +35,7 @@ pub struct TestPacketProcessor<T, R: MessageReceiver = SphinxMessageReceiver> {
     ack_key: Arc<AckKey>,
 
     /// Structure responsible for decrypting and recovering plaintext message from received ciphertexts.
+    // message_receiver: Mutex<R>,
     message_receiver: R,
 
     _ext_phantom: PhantomData<T>,

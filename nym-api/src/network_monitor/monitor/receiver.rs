@@ -46,7 +46,7 @@ impl PacketReceiver {
                     .add_receivers(id, message_receiver, ack_receiver);
             }
             GatewayClientUpdate::Failure(id) => {
-                self.gateways_reader.remove_receivers(&id.to_string());
+                self.gateways_reader.remove_receivers(id);
             }
         }
     }

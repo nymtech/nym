@@ -81,7 +81,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         }
     }
 
-    pub(crate) async fn build<R: MessageReceiver + Send + 'static>(
+    pub(crate) async fn build<R: MessageReceiver + Send + Sync + 'static>(
         self,
     ) -> NetworkMonitorRunnables<R> {
         // TODO: those keys change constant throughout the whole execution of the monitor.
@@ -154,12 +154,12 @@ impl<'a> NetworkMonitorBuilder<'a> {
     }
 }
 
-pub(crate) struct NetworkMonitorRunnables<R: MessageReceiver + Send + 'static> {
+pub(crate) struct NetworkMonitorRunnables<R: MessageReceiver + Send + Sync + 'static> {
     monitor: Monitor<R>,
     packet_receiver: PacketReceiver,
 }
 
-impl<R: MessageReceiver + Send + 'static> NetworkMonitorRunnables<R> {
+impl<R: MessageReceiver + Send + Sync + 'static> NetworkMonitorRunnables<R> {
     // TODO: note, that is not exactly doing what we want, because when
     // `ReceivedProcessor` is constructed, it already spawns a future
     // this needs to be refactored!
@@ -236,7 +236,7 @@ fn new_packet_receiver(
 
 // TODO: 1) does it still have to have separate builder or could we get rid of it now?
 // TODO: 2) how do we make it non-async as other 'start' methods?
-pub(crate) async fn start<R: MessageReceiver + Send + 'static>(
+pub(crate) async fn start<R: MessageReceiver + Send + Sync + 'static>(
     config: &config::NetworkMonitor,
     nym_contract_cache: &NymContractCache,
     described_cache: SharedCache<DescribedNodes>,

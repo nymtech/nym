@@ -9,11 +9,15 @@ use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
 use crate::support::config;
+use dashmap::DashMap;
+use nym_crypto::asymmetric::ed25519;
+use nym_gateway_client::SharedGatewayKey;
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 use tokio::time::{sleep, Duration, Instant};
 use tracing::{debug, error, info, trace};
 
@@ -25,7 +29,14 @@ pub(crate) mod receiver;
 pub(crate) mod sender;
 pub(crate) mod summary_producer;
 
-pub(super) struct Monitor<R: MessageReceiver + Send + 'static> {
+// if we already used particular gateway before, keep its shared keys so that we would not need
+// to go through the whole handshake again
+// #[derive(Clone)]
+// pub(crate) struct SharedKeysCache {
+//     keys: Arc<DashMap<ed25519::PublicKey, Arc<SharedGatewayKey>>>,
+// }
+
+pub(super) struct Monitor<R: MessageReceiver + Send + Sync + 'static> {
     test_nonce: u64,
     packet_preparer: PacketPreparer,
     packet_sender: PacketSender,
@@ -49,7 +60,7 @@ pub(super) struct Monitor<R: MessageReceiver + Send + 'static> {
     packet_type: PacketType,
 }
 
-impl<R: MessageReceiver + Send> Monitor<R> {
+impl<R: MessageReceiver + Send + Sync> Monitor<R> {
     pub(super) fn new(
         config: &config::NetworkMonitor,
         packet_preparer: PacketPreparer,
@@ -135,7 +146,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             packets.push(gateway_packets);
         }
 
-        self.received_processor.set_route_test_nonce().await;
+        self.received_processor.set_route_test_nonce();
         self.packet_sender.send_packets(packets).await;
 
         // give the packets some time to traverse the network
@@ -247,9 +258,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             .flat_map(|packets| packets.packets.iter())
             .count();
 
-        self.received_processor
-            .set_new_test_nonce(self.test_nonce)
-            .await;
+        self.received_processor.set_new_test_nonce(self.test_nonce);
 
         info!("Sending packets to all gateways...");
         self.packet_sender

@@ -82,7 +82,7 @@ export const Button = ({
                 : `1px solid ${t.palette.primary.contrastText}`
           : "1px solid transparent",
         "&:hover": {
-          backgroundColor: (t) => hoverBgColor(t),
+          backgroundColor: hoverBgColor,
         },
         "&:disabled": {
           color: "text.disabled",

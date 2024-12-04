@@ -18,7 +18,6 @@ import { formatNumber } from "@/app/utils";
 import { useMainContext } from "./context/main";
 import { useRouter } from "next/navigation";
 import { ContentCardProps, ExplorerCard } from "./components/ExplorerCard";
-import type { GetStaticProps, InferGetStaticPropsType } from "next";
 import { ExplorerData, getCacheExplorerData } from "./api/explorer";
 import { IExplorerLineChartData } from "./components/ExplorerLineChart";
 import {
@@ -135,8 +134,6 @@ export default function PageOverview() {
 
   const theme = useTheme();
   const router = useRouter();
-
-  console.log("explorerData :>> ", explorerData);
 
   //  CURRENT EPOCH
   const currentEpochStart =

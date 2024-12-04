@@ -1,7 +1,6 @@
 import * as React from "react";
 import Box from "@mui/material/Box";
 import LinearProgress from "@mui/material/LinearProgress";
-import { Typography } from "@mui/material";
 
 export interface IExplorerStaticProgressBarProps {
   color: string;

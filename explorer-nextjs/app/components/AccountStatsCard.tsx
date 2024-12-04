@@ -1,6 +1,5 @@
 import * as React from "react";
 import Box from "@mui/material/Box";
-import Collapse from "@mui/material/Collapse";
 import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
 import TableBody from "@mui/material/TableBody";
@@ -9,11 +8,15 @@ import TableContainer from "@mui/material/TableContainer";
 import TableHead from "@mui/material/TableHead";
 import TableRow from "@mui/material/TableRow";
 import Typography from "@mui/material/Typography";
-import Paper from "@mui/material/Paper";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { Card, CardContent } from "@mui/material";
 import { ExplorerStaticProgressBar } from "./ExplorerStaticProgressBar";
+import {
+  MultiSegmentProgressBar,
+  MultiSegmentProgressBarProps,
+} from "./ExplorerMultiSegmentProgressBar";
+import useMediaQuery from "@mui/material/useMediaQuery";
 
 export interface IAccontStatsRowProps {
   type: string;
@@ -22,7 +25,7 @@ export interface IAccontStatsRowProps {
   value: number;
   history?: { type: string; amount: number }[];
   isLastRow?: boolean;
-  progressBarColor: string;
+  progressBarColor?: string;
 }
 
 const progressBarColours = [
@@ -34,6 +37,8 @@ const progressBarColours = [
 ];
 
 const Row = (props: IAccontStatsRowProps) => {
+  const tablet = useMediaQuery("(min-width:700px)");
+
   const {
     type,
     allocation,
@@ -49,70 +54,129 @@ const Row = (props: IAccontStatsRowProps) => {
     <React.Fragment>
       {/* Main Row */}
 
-      <TableRow>
-        <TableCell
-          sx={{
-            borderBottom: isLastRow
-              ? "none"
-              : "1px solid rgba(224, 224, 224, 1)",
-          }}
-        >
-          {type}
-        </TableCell>
-        <TableCell
-          align="right"
-          sx={{
-            borderBottom: isLastRow
-              ? "none"
-              : "1px solid rgba(224, 224, 224, 1)",
-          }}
-        >
-          <Box>
-            <Typography>{allocation}%</Typography>
-            <ExplorerStaticProgressBar
-              value={allocation}
-              color={progressBarColor}
-            />
-          </Box>
-        </TableCell>
-        <TableCell
-          align="right"
-          sx={{
-            borderBottom: isLastRow
-              ? "none"
-              : "1px solid rgba(224, 224, 224, 1)",
-          }}
-        >
-          {amount} NYM
-        </TableCell>
-        <TableCell
-          align="right"
-          sx={{
-            borderBottom: isLastRow
-              ? "none"
-              : "1px solid rgba(224, 224, 224, 1)",
-          }}
-        >
-          $ {value}
-        </TableCell>
-        <TableCell
-          sx={{
-            borderBottom: isLastRow
-              ? "none"
-              : "1px solid rgba(224, 224, 224, 1)",
-          }}
-        >
-          {history && (
-            <IconButton
-              aria-label="expand row"
-              size="small"
-              onClick={() => setOpen(!open)}
-            >
-              {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
-            </IconButton>
-          )}
-        </TableCell>
-      </TableRow>
+      {tablet ? (
+        <TableRow>
+          <TableCell
+            sx={{
+              borderBottom: isLastRow
+                ? "none"
+                : "1px solid rgba(224, 224, 224, 1)",
+            }}
+          >
+            {type}
+          </TableCell>
+          <TableCell
+            align="right"
+            sx={{
+              borderBottom: isLastRow
+                ? "none"
+                : "1px solid rgba(224, 224, 224, 1)",
+            }}
+          >
+            <Box>
+              <Typography>{allocation}%</Typography>
+              <ExplorerStaticProgressBar
+                value={allocation}
+                color={progressBarColor || "green"}
+              />
+            </Box>
+          </TableCell>
+          <TableCell
+            align="right"
+            sx={{
+              borderBottom: isLastRow
+                ? "none"
+                : "1px solid rgba(224, 224, 224, 1)",
+            }}
+          >
+            {amount} NYM
+          </TableCell>
+          <TableCell
+            align="right"
+            sx={{
+              borderBottom: isLastRow
+                ? "none"
+                : "1px solid rgba(224, 224, 224, 1)",
+            }}
+          >
+            $ {value}
+          </TableCell>
+          <TableCell
+            sx={{
+              borderBottom: isLastRow
+                ? "none"
+                : "1px solid rgba(224, 224, 224, 1)",
+            }}
+          >
+            {history && (
+              <IconButton
+                aria-label="expand row"
+                size="small"
+                onClick={() => setOpen(!open)}
+              >
+                {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+              </IconButton>
+            )}
+          </TableCell>
+        </TableRow>
+      ) : (
+        <TableRow>
+          <TableCell
+            sx={{
+              borderBottom: isLastRow
+                ? "none"
+                : "1px solid rgba(224, 224, 224, 1)",
+            }}
+          >
+            {type}
+          </TableCell>
+          {/* <TableCell
+            align="right"
+            sx={{
+              borderBottom: isLastRow
+                ? "none"
+                : "1px solid rgba(224, 224, 224, 1)",
+            }}
+          >
+            <Box>
+              <Typography>{allocation}%</Typography>
+              <ExplorerStaticProgressBar
+                value={allocation}
+                color={progressBarColor || "green"}
+              />
+            </Box>
+          </TableCell> */}
+          <TableCell
+            align="right"
+            sx={{
+              borderBottom: isLastRow
+                ? "none"
+                : "1px solid rgba(224, 224, 224, 1)",
+            }}
+          >
+            <Typography>{amount} NYM</Typography>
+            <Typography>$ {value}</Typography>
+          </TableCell>
+
+          <TableCell
+            sx={{
+              borderBottom: isLastRow
+                ? "none"
+                : "1px solid rgba(224, 224, 224, 1)",
+            }}
+          >
+            {history && (
+              <IconButton
+                aria-label="expand row"
+                size="small"
+                onClick={() => setOpen(!open)}
+              >
+                {open ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
+              </IconButton>
+            )}
+          </TableCell>
+        </TableRow>
+      )}
 
       {/* History Rows */}
       {history &&
@@ -130,14 +194,7 @@ const Row = (props: IAccontStatsRowProps) => {
               <span style={{ marginRight: 8 }}>•</span>
               {historyRow.type}
             </TableCell>
-            <TableCell
-              align="right"
-              sx={{
-                borderBottom: "none", // Explicitly remove border
-              }}
-            >
-              {/* Empty cell for alignment */}
-            </TableCell>
+
             <TableCell
               align="right"
               sx={{
@@ -146,14 +203,7 @@ const Row = (props: IAccontStatsRowProps) => {
             >
               {historyRow.amount}
             </TableCell>
-            <TableCell
-              align="right"
-              sx={{
-                borderBottom: "none", // Explicitly remove border
-              }}
-            >
-              {/* Empty cell for alignment */}
-            </TableCell>
+
             <TableCell
               sx={{
                 borderBottom: "none", // Explicitly remove border
@@ -171,21 +221,54 @@ export interface IAccountStatsCardProps {
   rows: Array<IAccontStatsRowProps>;
 }
 
+// const progressValues = [
+//   { percentage: 25, color: "#4caf50" }, // Green
+//   { percentage: 35, color: "#2196f3" }, // Blue
+//   { percentage: 40, color: "#ff9800" }, // Orange
+// ];
+
 export const AccountStatsCard = (props: IAccountStatsCardProps) => {
   const { rows } = props;
+  const tablet = useMediaQuery("(min-width:700px)");
+  const progressBarPercentages = () => {
+    return rows.map((row, i) => row.allocation);
+  };
+  const getProgressValues = () => {
+    const percentages = progressBarPercentages();
+    const result: Array<{ percentage: number; color: string }> = [];
+    percentages.map((value, i) => {
+      result.push({
+        percentage: value,
+        color: progressBarColours[i],
+      });
+    });
+    return result;
+  };
+
+  const progressValues = getProgressValues();
+
   return (
     <Card sx={{ height: "100%", borderRadius: "unset" }}>
       <CardContent>
+        {!tablet && <MultiSegmentProgressBar values={progressValues} />}
         <TableContainer>
           <Table aria-label="collapsible table" sx={{ marginBottom: 3 }}>
             <TableHead>
-              <TableRow>
-                <TableCell>Type</TableCell>
-                <TableCell align="right">Allocation</TableCell>
-                <TableCell align="right">Amount</TableCell>
-                <TableCell align="right">Value</TableCell>
-                <TableCell></TableCell>
-              </TableRow>
+              {tablet ? (
+                <TableRow>
+                  <TableCell>Type</TableCell>
+                  <TableCell align="right">Allocation</TableCell>
+                  <TableCell align="right">Amount</TableCell>
+                  <TableCell align="right">Value</TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              ) : (
+                <TableRow>
+                  <TableCell>Type</TableCell>
+                  <TableCell align="right">Amount / Value</TableCell>
+                  <TableCell></TableCell>
+                </TableRow>
+              )}
             </TableHead>
             <TableBody>
               {rows.map((row, i) => (

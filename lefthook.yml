@@ -1,0 +1,7 @@
+pre-commit:
+  commands:
+    check:
+      root: "explorer-nextjs/"
+      glob: "*.{js,ts,cjs,mjs,d.cts,d.mts,jsx,tsx,json,jsonc,css}"
+      run: yarn biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off {staged_files}
+      stage_fixed: true

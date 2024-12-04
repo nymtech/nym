@@ -32,6 +32,7 @@ use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::net::IpAddr;
 use std::ops::{Deref, DerefMut};
@@ -1254,6 +1255,18 @@ pub struct PartialTestResult {
 
 pub type MixnodeTestResultResponse = PaginatedResponse<PartialTestResult>;
 pub type GatewayTestResultResponse = PaginatedResponse<PartialTestResult>;
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct NetworkMonitorRunDetailsResponse {
+    pub monitor_run_id: i64,
+    pub network_reliability: f64,
+    pub total_sent: usize,
+    pub total_received: usize,
+
+    // integer score to number of nodes with that score
+    pub mixnode_results: BTreeMap<u8, usize>,
+    pub gateway_results: BTreeMap<u8, usize>,
+}
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NoiseDetails {

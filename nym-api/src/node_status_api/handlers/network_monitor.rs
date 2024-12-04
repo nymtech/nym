@@ -1,6 +1,8 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use super::unstable;
+use crate::node_status_api::handlers::unstable::{latest_monitor_run_report, monitor_run_report};
 use crate::node_status_api::handlers::MixIdParam;
 use crate::node_status_api::helpers::{
     _compute_mixnode_reward_estimation, _gateway_core_status_count, _gateway_report,
@@ -22,8 +24,6 @@ use nym_api_requests::models::{
 };
 use serde::Deserialize;
 use utoipa::IntoParams;
-
-use super::unstable;
 
 // we want to mark the routes as deprecated in swagger, but still expose them
 #[allow(deprecated)]
@@ -82,6 +82,18 @@ pub(super) fn network_monitor_routes() -> Router<AppState> {
                 .route(
                     "/unstable/:gateway_identity/test-results",
                     axum::routing::get(unstable::gateway_test_results),
+                ),
+        )
+        .nest(
+            "/network-monitor/unstable",
+            Router::new()
+                .route(
+                    "/run/:monitor_run_id/details",
+                    axum::routing::get(monitor_run_report),
+                )
+                .route(
+                    "/run/latest/details",
+                    axum::routing::get(latest_monitor_run_report),
                 ),
         )
 }

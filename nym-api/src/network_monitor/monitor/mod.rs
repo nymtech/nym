@@ -4,7 +4,7 @@
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::ReceivedProcessor;
 use crate::network_monitor::monitor::sender::PacketSender;
-use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestSummary};
+use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestReport, TestSummary};
 use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
@@ -78,10 +78,10 @@ impl<R: MessageReceiver + Send> Monitor<R> {
 
     // while it might have been cleaner to put this into a separate `Notifier` structure,
     // I don't see much point considering it's only a single, small, method
-    async fn submit_new_node_statuses(&mut self, test_summary: TestSummary) {
+    async fn submit_new_node_statuses(&mut self, test_summary: TestSummary, report: TestReport) {
         // indicate our run has completed successfully and should be used in any future
         // uptime calculations
-        if let Err(err) = self
+        let monitor_run_id = match self
             .node_status_storage
             .insert_monitor_run_results(
                 test_summary.mixnode_results,
@@ -94,8 +94,22 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             )
             .await
         {
-            error!("Failed to submit monitor run information to the database: {err}",);
+            Ok(id) => id,
+            Err(err) => {
+                error!("Failed to submit monitor run information to the database: {err}",);
+                return;
+            }
+        };
+
+        if let Err(err) = self
+            .node_status_storage
+            .insert_monitor_run_report(report, monitor_run_id)
+            .await
+        {
+            error!("failed to submit monitor run report to the database: {err}",);
         }
+
+        info!("finished persisting monitor run with id {monitor_run_id}");
     }
 
     fn analyse_received_test_route_packets(
@@ -279,9 +293,13 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         );
 
         let report = summary.create_report(total_sent, total_received);
-        info!("{report}");
 
-        self.submit_new_node_statuses(summary).await;
+        let display_report = summary
+            .create_report(total_sent, total_received)
+            .to_display_report(&summary.route_results);
+        info!("{display_report}");
+
+        self.submit_new_node_statuses(summary, report).await;
     }
 
     async fn test_run(&mut self) {

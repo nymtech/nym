@@ -1,11 +1,11 @@
 "use client";
 
+import NymLogo from "@/components/icons/NymLogo";
+import { Link } from "@/components/muiLink";
+import { Wrapper } from "@/components/wrapper";
+import { subtitles } from "@/theme/typography";
 import { Box, Button, Divider } from "@mui/material";
 import type React from "react";
-import { Wrapper } from "@/components/wrapper";
-import { Link } from "@/components/muiLink";
-import NymLogo from "@/components/icons/NymLogo";
-import { subtitles } from "@/theme/typography";
 
 const DUMMY_MENU_DATA = [
   {

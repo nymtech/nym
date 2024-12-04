@@ -57,10 +57,10 @@ export const Button = ({
   const padding = isTextButton
     ? "none"
     : isXtraSmall
-    ? "10px 23px"
-    : isSmall
-    ? "11px 23px"
-    : "15px 23px";
+      ? "10px 23px"
+      : isSmall
+        ? "11px 23px"
+        : "15px 23px";
 
   const CustomButtom = (
     <MUIButton

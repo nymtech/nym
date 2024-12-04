@@ -222,7 +222,6 @@ async fn main() -> Result<()> {
             Ok(_) => {
                 info!("Received kill signal, shutting down, submitting final batch of metrics");
                 submit_metrics(client).await?;
-                cancel_token.cancel();
                 break;
             }
             Err(_) => {
@@ -231,6 +230,8 @@ async fn main() -> Result<()> {
             }
         };
     }
+
+    cancel_token.cancel();
 
     server_handle.await??;
 

@@ -8,7 +8,7 @@ export const colours = {
     500: "#14e76f",
   },
   haze: {
-    200: "#DAE0EB",
+     200: '#DAE0EB',
     300: "#C4CCDE",
   },
   pine: {

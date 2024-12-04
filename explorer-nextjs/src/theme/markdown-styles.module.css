@@ -1,0 +1,31 @@
+.reactMarkDown {
+  padding: 0px;
+  margin: 0px;
+  margin-top: 0px;
+  line-height: unset;
+  border: 0px;
+  margin: 0px;
+  font-size: 16px;
+  display: inline;
+}
+
+.reactMarkDown p {
+  margin: 0px;
+  font-size: 16px;
+}
+
+.reactMarkDownLink {
+  display: inline;
+}
+
+.reactMarkDownLink p {
+  margin: 7px 0px;
+  font-size: 14px;
+  display: inline-block;
+}
+
+.reactMarkDownLink a {
+  font-size: 14px;
+  color: #fb6e4e;
+  display: inline;
+}

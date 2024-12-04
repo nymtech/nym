@@ -1,0 +1,9 @@
+{
+  "mainnet": "Mainnet",
+  "sandbox": "Sandbox",
+  "---": {
+    "type": "separator"
+  },
+  "licensing": "Licensing",
+  "coc": "Coc"
+}

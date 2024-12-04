@@ -1,0 +1,15 @@
+import { RedocStandalone } from 'redoc';
+
+# Node Status API
+
+The Node Status API contains information about the network, its topology, and the routing scores of all nodes within it. It offers broadly similar information to the experimental [Habourmaster frontend](https://harbourmaster.nymtech.net/) but aims to be more stable.
+
+People building applications or dashboards which requires information about nodes, their uptime, and their delegations should **use this instead of Habourmaster**.
+
+The code for this service can be found [in our monorepo](https://github.com/nymtech/nym/tree/develop/nym-node-status-api). In the future we will encourage developers to run their own instance of this API in order to distribute endpoints and query load.
+
+The information below is generated with [Redoc](https://redocly.com/docs/redoc) consuming the OpenAPI spec found at [https://mainnet-node-status-api.nymtech.cc/api-docs/openapi.json](https://mainnet-node-status-api.nymtech.cc/api-docs/openapi.json) which is also used to generate the Swagger docs deployed at [https://mainnet-node-status-api.nymtech.cc/swagger/](https://mainnet-node-status-api.nymtech.cc/swagger/).
+
+<RedocStandalone
+  specUrl="https://mainnet-node-status-api.nymtech.cc/api-docs/openapi.json"
+/>

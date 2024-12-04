@@ -256,7 +256,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     // if the monitoring is enabled
     if config.network_monitor.enabled {
         network_monitor::start::<SphinxMessageReceiver>(
-            &config,
+            config,
             &nym_contract_cache_state,
             described_nodes_cache.clone(),
             node_status_cache_state.clone(),

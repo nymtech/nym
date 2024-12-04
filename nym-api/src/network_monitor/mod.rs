@@ -123,7 +123,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
         };
 
         let packet_sender = new_packet_sender(
-            &self.config,
+            self.config,
             gateway_status_update_sender,
             Arc::clone(&identity_keypair),
             bandwidth_controller,

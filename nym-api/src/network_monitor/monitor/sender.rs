@@ -420,7 +420,9 @@ impl PacketSender {
 
         // can't chain it all nicely together as there's no adapter method defined on Stream directly
         // for ForEachConcurrentClientUse
-        let used_clients = ForEachConcurrentClientUse::new(
+        //
+        // we need to keep clients alive until the test finishes so that we could keep receiving
+        ForEachConcurrentClientUse::new(
             stream::iter(stream_data.into_iter()),
             max_concurrent_clients,
             |(packets, fresh_data)| async move {
@@ -437,10 +439,7 @@ impl PacketSender {
         .await
         .into_iter()
         .flatten()
-        .collect();
-
-        // we need to keep clients alive until the test finishes so that we could keep receiving
-        used_clients
+        .collect()
     }
 }
 

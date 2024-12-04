@@ -30,6 +30,7 @@ impl StorageManager {
         }
 
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();
@@ -110,7 +111,7 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO registered_gateway(gateway_id_bs58, registration_timestamp, gateway_type) 
+                INSERT INTO registered_gateway(gateway_id_bs58, registration_timestamp, gateway_type)
                 VALUES (?, ?, ?)
             "#,
             registered_gateway.gateway_id_bs58,
@@ -224,7 +225,7 @@ impl StorageManager {
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO custom_gateway_details(gateway_id_bs58, data) 
+                INSERT INTO custom_gateway_details(gateway_id_bs58, data)
                 VALUES (?, ?)
             "#,
             custom.gateway_id_bs58,

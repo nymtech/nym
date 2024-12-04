@@ -86,6 +86,7 @@ impl GatewayStorage {
         // TODO: we can inject here more stuff based on our gateway global config
         // struct. Maybe different pool size or timeout intervals?
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();

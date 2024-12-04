@@ -2,6 +2,7 @@
 
 set -e
 
+user_rust_log_preference=$RUST_LOG
 export NYM_API_CLIENT_TIMEOUT=60
 export EXPLORER_CLIENT_TIMEOUT=60
 export NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL=120
@@ -20,7 +21,8 @@ function run_bare() {
     set -a
     source "${monorepo_root}/envs/${ENVIRONMENT}.env"
     set +a
-    export RUST_LOG=debug
+    export RUST_LOG=${user_rust_log_preference:-debug}
+    echo "RUST_LOG=${RUST_LOG}"
 
     # --conection-url is provided in build.rs
     cargo run --package nym-node-status-api

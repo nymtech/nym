@@ -56,6 +56,7 @@ impl PersistentStorage {
         );
 
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();

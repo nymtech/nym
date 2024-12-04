@@ -31,6 +31,7 @@ impl StorageManager {
         }
 
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .filename(database_path)
             .create_if_missing(fresh)
             .disable_statement_logging();

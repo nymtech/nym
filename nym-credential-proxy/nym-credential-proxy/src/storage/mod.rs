@@ -40,6 +40,7 @@ impl VpnApiStorage {
         debug!("Attempting to connect to database");
 
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .filename(database_path)
             .create_if_missing(true)
             .log_statements(LevelFilter::Trace)

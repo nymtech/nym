@@ -1,7 +1,10 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use anyhow::Result;
-use futures::{stream::FuturesUnordered, StreamExt};
+use futures::{pin_mut, stream::FuturesUnordered, StreamExt};
 use log::{debug, info};
 use nym_sphinx::chunking::{monitoring, SentFragment};
 use nym_topology::{gateway, mix, NymTopology};
@@ -10,6 +13,7 @@ use nym_validator_client::nym_api::routes::{API_VERSION, STATUS, SUBMIT_GATEWAY,
 use rand::SeedableRng;
 use rand_chacha::ChaCha8Rng;
 use serde::{Deserialize, Serialize};
+use tokio_postgres::{binary_copy::BinaryCopyInWriter, types::Type, Client};
 use utoipa::ToSchema;
 
 use crate::{NYM_API_URL, PRIVATE_KEY, TOPOLOGY};
@@ -23,20 +27,20 @@ struct HydratedRoute {
 struct GatewayStats(u32, u32);
 
 impl GatewayStats {
-    fn new(sent: u32, recv: u32) -> Self {
-        GatewayStats(sent, recv)
+    fn new(success: u32, failure: u32) -> Self {
+        GatewayStats(success, failure)
     }
 
     fn success(&self) -> u32 {
         self.0
     }
 
-    fn failed(&self) -> u32 {
+    fn failure(&self) -> u32 {
         self.1
     }
 
     fn reliability(&self) -> f64 {
-        self.success() as f64 / (self.success() + self.failed()) as f64
+        self.success() as f64 / (self.success() + self.failure()) as f64
     }
 
     fn incr_success(&mut self) {
@@ -321,48 +325,125 @@ pub async fn monitor_mixnode_results() -> anyhow::Result<Vec<NodeResult>> {
         .collect())
 }
 
-pub async fn submit_metrics() -> anyhow::Result<()> {
-    let node_stats = monitor_mixnode_results().await?;
-    let gateway_stats = monitor_gateway_results().await?;
+async fn submit_node_stats_to_db(client: Arc<Client>) -> anyhow::Result<()> {
+    let client = Arc::clone(&client);
+    let node_stats = all_node_stats().await?;
 
-    info!("Submitting metrics to {}", *NYM_API_URL);
-    let client = reqwest::Client::new();
+    let sink = client
+        .copy_in("COPY node_stats (node_id, identity, reliability, complete_routes, incomplete_routes) FROM STDIN BINARY")
+        .await?;
 
-    let node_submit_url = format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", &*NYM_API_URL);
-    let gateway_submit_url = format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}", &*NYM_API_URL);
+    let writer = BinaryCopyInWriter::new(
+        sink,
+        &[Type::INT4, Type::TEXT, Type::FLOAT8, Type::INT8, Type::INT8],
+    );
+    pin_mut!(writer);
 
-    info!("Submitting {} mixnode measurements", node_stats.len());
+    for stat in node_stats {
+        writer
+            .as_mut()
+            .write(&[
+                &(stat.mix_id as i32),
+                &stat.identity,
+                &stat.reliability,
+                &(stat.complete_routes as i64),
+                &(stat.incomplete_routes as i64),
+            ])
+            .await?;
+    }
 
-    node_stats
-        .chunks(10)
-        .map(|chunk| {
-            let monitor_message =
-                MonitorMessage::new(chunk.to_vec(), PRIVATE_KEY.get().expect("We've set this!"));
-            client.post(&node_submit_url).json(&monitor_message).send()
-        })
-        .collect::<FuturesUnordered<_>>()
-        .collect::<Vec<Result<_, _>>>()
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
+    writer.finish().await?;
 
-    info!("Submitting {} gateway measurements", gateway_stats.len());
+    Ok(())
+}
 
-    gateway_stats
-        .chunks(10)
-        .map(|chunk| {
-            let monitor_message =
-                MonitorMessage::new(chunk.to_vec(), PRIVATE_KEY.get().expect("We've set this!"));
-            client
-                .post(&gateway_submit_url)
-                .json(&monitor_message)
-                .send()
-        })
-        .collect::<FuturesUnordered<_>>()
-        .collect::<Vec<Result<_, _>>>()
-        .await
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?;
+async fn submit_gateway_stats_to_db(client: Arc<Client>) -> anyhow::Result<()> {
+    let client = Arc::clone(&client);
+    let network_account = NetworkAccount::finalize()?;
+    let gateway_stats = network_account.gateway_stats;
+
+    let sink = client
+        .copy_in("COPY gateway_stats (identity, reliability, success, failure) FROM STDIN BINARY")
+        .await?;
+
+    let writer = BinaryCopyInWriter::new(sink, &[Type::TEXT, Type::FLOAT8, Type::INT8, Type::INT8]);
+    pin_mut!(writer);
+
+    for (key, stats) in gateway_stats {
+        writer
+            .as_mut()
+            .write(&[
+                &key,
+                &stats.reliability(),
+                &(stats.success() as i64),
+                &(stats.failure() as i64),
+            ])
+            .await?;
+    }
+
+    writer.finish().await?;
+
+    Ok(())
+}
+
+pub async fn submit_metrics_to_db(client: Arc<Client>) -> anyhow::Result<()> {
+    let client = Arc::clone(&client);
+    let client2 = Arc::clone(&client);
+    submit_node_stats_to_db(client).await?;
+    submit_gateway_stats_to_db(client2).await?;
+    Ok(())
+}
+
+pub async fn submit_metrics(client: Option<Arc<Client>>) -> anyhow::Result<()> {
+    if let Some(client) = client {
+        submit_metrics_to_db(client).await?;
+    }
+
+    if let Some(private_key) = PRIVATE_KEY.get() {
+        let node_stats = monitor_mixnode_results().await?;
+        let gateway_stats = monitor_gateway_results().await?;
+
+        info!("Submitting metrics to {}", *NYM_API_URL);
+        let client = reqwest::Client::new();
+
+        let node_submit_url = format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_NODE}", &*NYM_API_URL);
+        let gateway_submit_url =
+            format!("{}/{API_VERSION}/{STATUS}/{SUBMIT_GATEWAY}", &*NYM_API_URL);
+
+        info!("Submitting {} mixnode measurements", node_stats.len());
+
+        node_stats
+            .chunks(10)
+            .map(|chunk| {
+                let monitor_message = MonitorMessage::new(chunk.to_vec(), private_key);
+                client.post(&node_submit_url).json(&monitor_message).send()
+            })
+            .collect::<FuturesUnordered<_>>()
+            .collect::<Vec<Result<_, _>>>()
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()?;
+
+        info!("Submitting {} gateway measurements", gateway_stats.len());
+
+        gateway_stats
+            .chunks(10)
+            .map(|chunk| {
+                let monitor_message = MonitorMessage::new(
+                    chunk.to_vec(),
+                    PRIVATE_KEY.get().expect("We've set this!"),
+                );
+                client
+                    .post(&gateway_submit_url)
+                    .json(&monitor_message)
+                    .send()
+            })
+            .collect::<FuturesUnordered<_>>()
+            .collect::<Vec<Result<_, _>>>()
+            .await
+            .into_iter()
+            .collect::<Result<Vec<_>, _>>()?;
+    }
 
     NetworkAccount::empty_buffers();
 

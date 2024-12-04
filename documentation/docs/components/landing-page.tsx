@@ -51,6 +51,13 @@ export const LandingPage = () => {
       href: "/developers/rust",
       icon: sdkDocs,
     },
+    {
+      text: "APIs",
+      description: "Redoc API references",
+
+      href: "/apis",
+      icon: sdkDocs, // TODO NEW IMAGE
+    },
   ];
 
   const shortenDescription = (description: string) => {

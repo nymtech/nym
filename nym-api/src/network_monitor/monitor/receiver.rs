@@ -14,7 +14,7 @@ pub(crate) type GatewayClientUpdateSender = mpsc::UnboundedSender<GatewayClientU
 pub(crate) type GatewayClientUpdateReceiver = mpsc::UnboundedReceiver<GatewayClientUpdate>;
 
 pub(crate) enum GatewayClientUpdate {
-    Failure(identity::PublicKey),
+    Disconnect(identity::PublicKey),
     New(
         identity::PublicKey,
         (MixnetMessageReceiver, AcknowledgementReceiver),
@@ -45,7 +45,7 @@ impl PacketReceiver {
                 self.gateways_reader
                     .add_receivers(id, message_receiver, ack_receiver);
             }
-            GatewayClientUpdate::Failure(id) => {
+            GatewayClientUpdate::Disconnect(id) => {
                 self.gateways_reader.remove_receivers(id);
             }
         }

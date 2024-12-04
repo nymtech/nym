@@ -9,32 +9,20 @@ use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
 use crate::support::config;
-use dashmap::DashMap;
-use nym_crypto::asymmetric::ed25519;
-use nym_gateway_client::SharedGatewayKey;
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::MessageReceiver;
 use nym_task::TaskClient;
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 use tokio::time::{sleep, Duration, Instant};
 use tracing::{debug, error, info, trace};
 
-pub(crate) mod gateway_clients_cache;
-pub(crate) mod gateways_pinger;
+pub(crate) mod gateway_client_handle;
 pub(crate) mod preparer;
 pub(crate) mod processor;
 pub(crate) mod receiver;
 pub(crate) mod sender;
 pub(crate) mod summary_producer;
-
-// if we already used particular gateway before, keep its shared keys so that we would not need
-// to go through the whole handshake again
-// #[derive(Clone)]
-// pub(crate) struct SharedKeysCache {
-//     keys: Arc<DashMap<ed25519::PublicKey, Arc<SharedGatewayKey>>>,
-// }
 
 pub(super) struct Monitor<R: MessageReceiver + Send + Sync + 'static> {
     test_nonce: u64,
@@ -44,7 +32,6 @@ pub(super) struct Monitor<R: MessageReceiver + Send + Sync + 'static> {
     summary_producer: SummaryProducer,
     node_status_storage: NymApiStorage,
     run_interval: Duration,
-    gateway_ping_interval: Duration,
     packet_delivery_timeout: Duration,
 
     /// Number of test packets sent via each "random" route to verify whether they work correctly.
@@ -78,7 +65,6 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
             summary_producer,
             node_status_storage,
             run_interval: config.debug.run_interval,
-            gateway_ping_interval: config.debug.gateway_ping_interval,
             packet_delivery_timeout: config.debug.packet_delivery_timeout,
             route_test_packets: config.debug.route_test_packets,
             test_routes: config.debug.test_routes,
@@ -147,10 +133,13 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
         }
 
         self.received_processor.set_route_test_nonce();
-        self.packet_sender.send_packets(packets).await;
+        let gateway_clients = self.packet_sender.send_packets(packets).await;
 
         // give the packets some time to traverse the network
         sleep(self.packet_delivery_timeout).await;
+
+        // start all the disconnections in the background
+        drop(gateway_clients);
 
         let received = self.received_processor.return_received().await;
         let mut results = self.analyse_received_test_route_packets(&received);
@@ -261,7 +250,8 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
         self.received_processor.set_new_test_nonce(self.test_nonce);
 
         info!("Sending packets to all gateways...");
-        self.packet_sender
+        let gateway_clients = self
+            .packet_sender
             .send_packets(prepared_packets.packets)
             .await;
 
@@ -272,6 +262,9 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
 
         // give the packets some time to traverse the network
         sleep(self.packet_delivery_timeout).await;
+
+        // start all the disconnections in the background
+        drop(gateway_clients);
 
         let received = self.received_processor.return_received().await;
         let total_received = received.len();
@@ -319,9 +312,6 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
         self.packet_preparer
             .wait_for_validator_cache_initial_values(self.minimum_test_routes)
             .await;
-
-        self.packet_sender
-            .spawn_gateways_pinger(self.gateway_ping_interval, shutdown.clone());
 
         let mut run_interval = tokio::time::interval(self.run_interval);
         while !shutdown.is_shutdown() {

@@ -16,7 +16,8 @@ use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::storage::NymApiStorage;
 use crate::support::caching::cache::SharedCache;
-use crate::support::{config, nyxd};
+use crate::support::config::Config;
+use crate::support::nyxd;
 use futures::channel::mpsc;
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
@@ -36,7 +37,7 @@ pub(crate) mod test_route;
 pub(crate) const ROUTE_TESTING_TEST_NONCE: u64 = 0;
 
 pub(crate) fn setup<'a>(
-    config: &'a config::NetworkMonitor,
+    config: &'a Config,
     nym_contract_cache: &NymContractCache,
     described_cache: SharedCache<DescribedNodes>,
     node_status_cache: NodeStatusCache,
@@ -54,7 +55,7 @@ pub(crate) fn setup<'a>(
 }
 
 pub(crate) struct NetworkMonitorBuilder<'a> {
-    config: &'a config::NetworkMonitor,
+    config: &'a Config,
     nyxd_client: nyxd::Client,
     node_status_storage: NymApiStorage,
     contract_cache: NymContractCache,
@@ -64,7 +65,7 @@ pub(crate) struct NetworkMonitorBuilder<'a> {
 
 impl<'a> NetworkMonitorBuilder<'a> {
     pub(crate) fn new(
-        config: &'a config::NetworkMonitor,
+        config: &'a Config,
         nyxd_client: nyxd::Client,
         node_status_storage: NymApiStorage,
         contract_cache: NymContractCache,
@@ -101,7 +102,7 @@ impl<'a> NetworkMonitorBuilder<'a> {
             self.contract_cache,
             self.described_cache,
             self.node_status_cache,
-            self.config.debug.per_node_test_packets,
+            self.config.network_monitor.debug.per_node_test_packets,
             Arc::clone(&ack_key),
             *identity_keypair.public_key(),
             *encryption_keypair.public_key(),
@@ -110,7 +111,11 @@ impl<'a> NetworkMonitorBuilder<'a> {
         let bandwidth_controller = {
             BandwidthController::new(
                 nym_credential_storage::initialise_persistent_storage(
-                    &self.config.storage_paths.credentials_database_path,
+                    &self
+                        .config
+                        .network_monitor
+                        .storage_paths
+                        .credentials_database_path,
                 )
                 .await,
                 self.nyxd_client.clone(),
@@ -118,12 +123,10 @@ impl<'a> NetworkMonitorBuilder<'a> {
         };
 
         let packet_sender = new_packet_sender(
-            self.config,
+            &self.config,
             gateway_status_update_sender,
             Arc::clone(&identity_keypair),
-            self.config.debug.gateway_sending_rate,
             bandwidth_controller,
-            self.config.debug.disabled_credentials_mode,
         );
 
         let received_processor = new_received_processor(
@@ -131,14 +134,15 @@ impl<'a> NetworkMonitorBuilder<'a> {
             Arc::clone(&encryption_keypair),
             ack_key,
         );
-        let summary_producer = new_summary_producer(self.config.debug.per_node_test_packets);
+        let summary_producer =
+            new_summary_producer(self.config.network_monitor.debug.per_node_test_packets);
         let packet_receiver = new_packet_receiver(
             gateway_status_update_receiver,
             received_processor_sender_channel,
         );
 
         let monitor = Monitor::new(
-            self.config,
+            &self.config.network_monitor,
             packet_preparer,
             packet_sender,
             received_processor,
@@ -194,22 +198,16 @@ fn new_packet_preparer(
 }
 
 fn new_packet_sender(
-    config: &config::NetworkMonitor,
+    config: &Config,
     gateways_status_updater: GatewayClientUpdateSender,
     local_identity: Arc<identity::KeyPair>,
-    max_sending_rate: usize,
     bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
-    disabled_credentials_mode: bool,
 ) -> PacketSender {
     PacketSender::new(
+        config,
         gateways_status_updater,
         local_identity,
-        config.debug.gateway_response_timeout,
-        config.debug.gateway_connection_timeout,
-        config.debug.max_concurrent_gateway_clients,
-        max_sending_rate,
         bandwidth_controller,
-        disabled_credentials_mode,
     )
 }
 
@@ -237,7 +235,7 @@ fn new_packet_receiver(
 // TODO: 1) does it still have to have separate builder or could we get rid of it now?
 // TODO: 2) how do we make it non-async as other 'start' methods?
 pub(crate) async fn start<R: MessageReceiver + Send + Sync + 'static>(
-    config: &config::NetworkMonitor,
+    config: &Config,
     nym_contract_cache: &NymContractCache,
     described_cache: SharedCache<DescribedNodes>,
     node_status_cache: NodeStatusCache,

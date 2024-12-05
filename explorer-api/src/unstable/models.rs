@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::location::{LocationCache, LocationCacheItem};
-use crate::nym_nodes::location::NymNodeLocationCache;
-use crate::nym_nodes::CACHE_ENTRY_TTL;
-use nym_explorer_api_requests::{Location, PrettyDetailedGatewayBond};
+use crate::unstable::location::NymNodeLocationCache;
+use crate::unstable::CACHE_ENTRY_TTL;
+use nym_explorer_api_requests::{
+    Location, NymNodeWithDescriptionAndLocation, PrettyDetailedGatewayBond,
+};
 use nym_mixnet_contract_common::{Gateway, NodeId, NymNodeDetails};
-use nym_validator_client::models::NymNodeDescription;
+use nym_validator_client::models::{NymNodeData, NymNodeDescription};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, SystemTime};
@@ -68,6 +70,54 @@ impl ThreadSafeNymNodesCache {
     ) -> RwLockReadGuard<HashMap<NodeId, NymNodeDetails>> {
         let guard = self.nymnodes.read().await;
         RwLockReadGuard::map(guard, |n| &n.bonded_nym_nodes)
+    }
+
+    pub(crate) async fn get_bonded_nymnodes_descriptions(&self) -> Vec<NymNodeData> {
+        let guard = self.nymnodes.read().await;
+        guard
+            .described_nodes
+            .values()
+            .map(|i| i.description.clone())
+            .collect()
+    }
+
+    pub(crate) async fn get_bonded_nymnodes_locations(&self) -> Vec<Location> {
+        let guard_locations = self.locations.read().await;
+        let mut locations: Vec<Location> = vec![];
+        for location in guard_locations.values() {
+            if let Some(l) = &location.location {
+                locations.push(l.clone());
+            }
+        }
+        locations
+    }
+
+    pub(crate) async fn get_bonded_nymnodes_with_description_and_location(
+        &self,
+    ) -> HashMap<NodeId, NymNodeWithDescriptionAndLocation> {
+        let guard_nodes = self.nymnodes.read().await;
+        let guard_locations = self.locations.read().await;
+
+        let mut map: HashMap<NodeId, NymNodeWithDescriptionAndLocation> = HashMap::new();
+
+        for (node_id, node) in guard_nodes.bonded_nym_nodes.clone() {
+            let description = guard_nodes.described_nodes.get(&node_id);
+            let location = guard_locations.get(&node_id);
+
+            map.insert(
+                node_id,
+                NymNodeWithDescriptionAndLocation {
+                    node_id,
+                    description: description.map(|d| d.description.clone()),
+                    location: location.and_then(|l| l.location.clone()),
+                    contract_node_type: description.map(|d| d.contract_node_type),
+                    bond_information: node.bond_information,
+                    rewarding_details: node.rewarding_details,
+                },
+            );
+        }
+
+        map
     }
 
     pub(crate) async fn get_locations(&self) -> NymNodeLocationCache {

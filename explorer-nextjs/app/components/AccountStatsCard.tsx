@@ -12,11 +12,9 @@ import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
 import { Card, CardContent } from "@mui/material";
 import { ExplorerStaticProgressBar } from "./ExplorerStaticProgressBar";
-import {
-  MultiSegmentProgressBar,
-  MultiSegmentProgressBarProps,
-} from "./ExplorerMultiSegmentProgressBar";
+import { MultiSegmentProgressBar } from "./ExplorerMultiSegmentProgressBar";
 import useMediaQuery from "@mui/material/useMediaQuery";
+import CircleIcon from "@mui/icons-material/Circle";
 
 export interface IAccontStatsRowProps {
   type: string;
@@ -36,8 +34,10 @@ const progressBarColours = [
   "#FEECB3",
 ];
 
+const TABLET_WIDTH = "(min-width:700px)";
+
 const Row = (props: IAccontStatsRowProps) => {
-  const tablet = useMediaQuery("(min-width:700px)");
+  const tablet = useMediaQuery(TABLET_WIDTH);
 
   const {
     type,
@@ -61,9 +61,10 @@ const Row = (props: IAccontStatsRowProps) => {
               borderBottom: isLastRow
                 ? "none"
                 : "1px solid rgba(224, 224, 224, 1)",
+              width: "25%",
             }}
           >
-            {type}
+            <Typography>{type}</Typography>
           </TableCell>
           <TableCell
             align="right"
@@ -71,6 +72,7 @@ const Row = (props: IAccontStatsRowProps) => {
               borderBottom: isLastRow
                 ? "none"
                 : "1px solid rgba(224, 224, 224, 1)",
+              width: "25%",
             }}
           >
             <Box>
@@ -87,6 +89,7 @@ const Row = (props: IAccontStatsRowProps) => {
               borderBottom: isLastRow
                 ? "none"
                 : "1px solid rgba(224, 224, 224, 1)",
+              width: "20%",
             }}
           >
             {amount} NYM
@@ -97,6 +100,7 @@ const Row = (props: IAccontStatsRowProps) => {
               borderBottom: isLastRow
                 ? "none"
                 : "1px solid rgba(224, 224, 224, 1)",
+              width: "20%",
             }}
           >
             $ {value}
@@ -106,6 +110,7 @@ const Row = (props: IAccontStatsRowProps) => {
               borderBottom: isLastRow
                 ? "none"
                 : "1px solid rgba(224, 224, 224, 1)",
+              width: "10%",
             }}
           >
             {history && (
@@ -120,38 +125,29 @@ const Row = (props: IAccontStatsRowProps) => {
           </TableCell>
         </TableRow>
       ) : (
+        // MOBILE VIEW
         <TableRow>
           <TableCell
             sx={{
               borderBottom: isLastRow
                 ? "none"
                 : "1px solid rgba(224, 224, 224, 1)",
+              width: "45%",
             }}
           >
-            {type}
-          </TableCell>
-          {/* <TableCell
-            align="right"
-            sx={{
-              borderBottom: isLastRow
-                ? "none"
-                : "1px solid rgba(224, 224, 224, 1)",
-            }}
-          >
-            <Box>
-              <Typography>{allocation}%</Typography>
-              <ExplorerStaticProgressBar
-                value={allocation}
-                color={progressBarColor || "green"}
-              />
+            <Box display={"flex"} gap={1} alignItems={"center"}>
+              <CircleIcon sx={{ color: progressBarColor }} fontSize="small" />
+              {type}
             </Box>
-          </TableCell> */}
+          </TableCell>
+
           <TableCell
             align="right"
             sx={{
               borderBottom: isLastRow
                 ? "none"
                 : "1px solid rgba(224, 224, 224, 1)",
+              width: "45%",
             }}
           >
             <Typography>{amount} NYM</Typography>
@@ -163,6 +159,7 @@ const Row = (props: IAccontStatsRowProps) => {
               borderBottom: isLastRow
                 ? "none"
                 : "1px solid rgba(224, 224, 224, 1)",
+              width: "10%",
             }}
           >
             {history && (
@@ -219,17 +216,13 @@ const Row = (props: IAccontStatsRowProps) => {
 
 export interface IAccountStatsCardProps {
   rows: Array<IAccontStatsRowProps>;
+  overTitle?: string;
+  priceTitle?: number;
 }
 
-// const progressValues = [
-//   { percentage: 25, color: "#4caf50" }, // Green
-//   { percentage: 35, color: "#2196f3" }, // Blue
-//   { percentage: 40, color: "#ff9800" }, // Orange
-// ];
-
 export const AccountStatsCard = (props: IAccountStatsCardProps) => {
-  const { rows } = props;
-  const tablet = useMediaQuery("(min-width:700px)");
+  const { rows, overTitle, priceTitle } = props;
+  const tablet = useMediaQuery(TABLET_WIDTH);
   const progressBarPercentages = () => {
     return rows.map((row, i) => row.allocation);
   };
@@ -250,22 +243,48 @@ export const AccountStatsCard = (props: IAccountStatsCardProps) => {
   return (
     <Card sx={{ height: "100%", borderRadius: "unset" }}>
       <CardContent>
+        {overTitle && (
+          <Typography fontSize={14} mb={3} textTransform={"uppercase"}>
+            {overTitle}
+          </Typography>
+        )}
+        {priceTitle && (
+          <Typography fontSize={24} mb={3}>
+            ${priceTitle}
+          </Typography>
+        )}
         {!tablet && <MultiSegmentProgressBar values={progressValues} />}
         <TableContainer>
           <Table aria-label="collapsible table" sx={{ marginBottom: 3 }}>
             <TableHead>
               {tablet ? (
                 <TableRow>
-                  <TableCell>Type</TableCell>
-                  <TableCell align="right">Allocation</TableCell>
-                  <TableCell align="right">Amount</TableCell>
-                  <TableCell align="right">Value</TableCell>
+                  <TableCell>
+                    <Typography textTransform={"uppercase"}>Type</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography textTransform={"uppercase"}>
+                      Allocation
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography textTransform={"uppercase"}>Amount</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography textTransform={"uppercase"}>Value</Typography>
+                  </TableCell>
                   <TableCell></TableCell>
                 </TableRow>
               ) : (
                 <TableRow>
-                  <TableCell>Type</TableCell>
-                  <TableCell align="right">Amount / Value</TableCell>
+                  <TableCell>
+                    <Typography textTransform={"uppercase"}>Type</Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <Typography textTransform={"uppercase"}>
+                      Amount / Value
+                    </Typography>
+                  </TableCell>
                   <TableCell></TableCell>
                 </TableRow>
               )}

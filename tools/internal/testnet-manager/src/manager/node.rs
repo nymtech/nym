@@ -14,9 +14,7 @@ pub(crate) struct NymNode {
     pub(crate) verloc_port: u16,
     pub(crate) http_port: u16,
     pub(crate) clients_port: u16,
-    pub(crate) sphinx_key: String,
     pub(crate) identity_key: String,
-    pub(crate) version: String,
 
     pub(crate) owner: Account,
     pub(crate) bonding_signature: String,
@@ -29,9 +27,7 @@ impl NymNode {
             verloc_port: 0,
             http_port: 0,
             clients_port: 0,
-            sphinx_key: "".to_string(),
             identity_key: "".to_string(),
-            version: "".to_string(),
             owner: Account::new(),
             bonding_signature: "".to_string(),
         }

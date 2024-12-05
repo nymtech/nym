@@ -18,19 +18,13 @@ pub struct FramedNymPacket {
 }
 
 impl FramedNymPacket {
-    pub fn new(packet: NymPacket, packet_type: PacketType, use_legacy_version: bool) -> Self {
+    pub fn new(packet: NymPacket, packet_type: PacketType) -> Self {
         // If this fails somebody is using the library in a super incorrect way, because they
         // already managed to somehow create a sphinx packet
         let packet_size = PacketSize::get_type(packet.len()).unwrap();
 
-        let use_legacy = if packet_type == PacketType::Outfox {
-            false
-        } else {
-            use_legacy_version
-        };
-
         let header = Header {
-            packet_version: PacketVersion::new(use_legacy),
+            packet_version: PacketVersion::new(),
             packet_size,
             packet_type,
         };

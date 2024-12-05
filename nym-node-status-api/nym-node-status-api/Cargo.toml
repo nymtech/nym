@@ -21,13 +21,13 @@ cosmwasm-std = { workspace = true }
 envy = { workspace = true }
 futures-util = { workspace = true }
 moka = { workspace = true, features = ["future"] }
-nym-bin-common = { path = "../../common/bin-common", features = ["models"]}
+nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }
 nym-explorer-client = { path = "../../explorer-api/explorer-client" }
 nym-network-defaults = { path = "../../common/network-defaults" }
 nym-serde-helpers = { path = "../../common/serde-helpers"}
-nym-statistics-common = { path = "../../common/statistics"}
+nym-statistics-common = { path = "../../common/statistics" }
 nym-validator-client = { path = "../../common/client-libs/validator-client" }
 nym-task = { path = "../../common/task" }
 nym-node-requests = { path = "../../nym-node/nym-node-requests", features = ["openapi"] }
@@ -55,12 +55,15 @@ utoipa-swagger-ui = { workspace = true, features = ["axum"] }
 # utoipauto = { git = "https://github.com/ProbablyClem/utoipauto", rev = "eb04cba" }
 utoipauto = { workspace = true }
 
+nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }
+
+
 [build-dependencies]
 anyhow = { workspace = true }
 tokio = { workspace = true, features = ["macros"] }
 sqlx = { workspace = true, features = [
-  "runtime-tokio-rustls",
-  "sqlite",
-  "macros",
-  "migrate",
+    "runtime-tokio-rustls",
+    "sqlite",
+    "macros",
+    "migrate",
 ] }

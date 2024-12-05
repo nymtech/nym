@@ -22,25 +22,6 @@ pub struct WireguardPathsV1 {
     pub public_diffie_hellman_key_file: PathBuf,
 }
 
-impl WireguardPathsV1 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        WireguardPathsV1 {
-            private_diffie_hellman_key_file: data_dir
-                .join(persistence::DEFAULT_X25519_WG_DH_KEY_FILENAME),
-            public_diffie_hellman_key_file: data_dir
-                .join(persistence::DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME),
-        }
-    }
-
-    pub fn x25519_wireguard_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_diffie_hellman_key_file,
-            &self.public_diffie_hellman_key_file,
-        )
-    }
-}
-
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WireguardV1 {
@@ -656,77 +637,7 @@ pub struct ConfigV1 {
     pub logging: LoggingSettingsV1,
 }
 
-impl NymConfigTemplate for ConfigV1 {
-    fn template(&self) -> &'static str {
-        CONFIG_TEMPLATE
-    }
-}
-
 impl ConfigV1 {
-    pub fn save(&self) -> Result<(), NymNodeError> {
-        let save_location = self.save_location();
-        debug!(
-            "attempting to save config file to '{}'",
-            save_location.display()
-        );
-        save_formatted_config_to_file(self, &save_location).map_err(|source| {
-            NymNodeError::ConfigSaveFailure {
-                id: self.id.clone(),
-                path: save_location,
-                source,
-            }
-        })
-    }
-
-    pub fn save_location(&self) -> PathBuf {
-        self.save_path
-            .clone()
-            .unwrap_or(self.default_save_location())
-    }
-
-    pub fn default_save_location(&self) -> PathBuf {
-        default_config_filepath(&self.id)
-    }
-
-    pub fn default_data_directory<P: AsRef<Path>>(config_path: P) -> Result<PathBuf, NymNodeError> {
-        let config_path = config_path.as_ref();
-
-        // we got a proper path to the .toml file
-        let Some(config_dir) = config_path.parent() else {
-            error!(
-                "'{}' does not have a parent directory. Have you pointed to the fs root?",
-                config_path.display()
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        };
-
-        let Some(config_dir_name) = config_dir.file_name() else {
-            error!(
-                "could not obtain parent directory name of '{}'. Have you used relative paths?",
-                config_path.display()
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        };
-
-        if config_dir_name != DEFAULT_CONFIG_DIR {
-            error!(
-                "the parent directory of '{}' ({}) is not {DEFAULT_CONFIG_DIR}. currently this is not supported",
-                config_path.display(), config_dir_name.to_str().unwrap_or("UNKNOWN")
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        }
-
-        let Some(node_dir) = config_dir.parent() else {
-            error!(
-                "'{}' does not have a parent directory. Have you pointed to the fs root?",
-                config_dir.display()
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        };
-
-        Ok(node_dir.join(DEFAULT_DATA_DIR))
-    }
-
     // simple wrapper that reads config file and assigns path location
     fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
         let path = path.as_ref();
@@ -738,10 +649,6 @@ impl ConfigV1 {
         loaded.save_path = Some(path.to_path_buf());
         debug!("loaded config file from {}", path.display());
         Ok(loaded)
-    }
-
-    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
-        Self::read_from_path(path)
     }
 }
 

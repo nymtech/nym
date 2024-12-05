@@ -3,9 +3,9 @@
 
 use crate::cli::commands::{bonding_information, build_info, migrate, node_details, run, sign};
 use crate::env::vars::{NYMNODE_CONFIG_ENV_FILE_ARG, NYMNODE_NO_BANNER_ARG};
+use crate::error::NymNodeError;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
-use nym_node::error::NymNodeError;
 use std::sync::OnceLock;
 
 mod commands;

@@ -1,7 +1,7 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::error::StorageError;
+use crate::error::GatewayStorageError;
 use nym_credentials_interface::{AvailableBandwidth, ClientTicket, CredentialSpendingData};
 use nym_gateway_requests::shared_key::{LegacySharedKeys, SharedGatewayKey, SharedSymmetricKey};
 use sqlx::FromRow;
@@ -24,24 +24,24 @@ pub struct PersistedSharedKeys {
 }
 
 impl TryFrom<PersistedSharedKeys> for SharedGatewayKey {
-    type Error = StorageError;
+    type Error = GatewayStorageError;
 
     fn try_from(value: PersistedSharedKeys) -> Result<Self, Self::Error> {
         match (
             &value.derived_aes256_gcm_siv_key,
             &value.derived_aes128_ctr_blake3_hmac_keys_bs58,
         ) {
-            (None, None) => Err(StorageError::MissingSharedKey {
+            (None, None) => Err(GatewayStorageError::MissingSharedKey {
                 id: value.client_id,
             }),
             (Some(aes256gcm_siv), _) => {
                 let current_key = SharedSymmetricKey::try_from_bytes(aes256gcm_siv)
-                    .map_err(|source| StorageError::DataCorruption(source.to_string()))?;
+                    .map_err(|source| GatewayStorageError::DataCorruption(source.to_string()))?;
                 Ok(SharedGatewayKey::Current(current_key))
             }
             (None, Some(aes128ctr_hmac)) => {
                 let legacy_key = LegacySharedKeys::try_from_base58_string(aes128ctr_hmac)
-                    .map_err(|source| StorageError::DataCorruption(source.to_string()))?;
+                    .map_err(|source| GatewayStorageError::DataCorruption(source.to_string()))?;
                 Ok(SharedGatewayKey::Legacy(legacy_key))
             }
         }
@@ -91,12 +91,12 @@ pub struct UnverifiedTicketData {
 }
 
 impl TryFrom<UnverifiedTicketData> for ClientTicket {
-    type Error = StorageError;
+    type Error = GatewayStorageError;
 
     fn try_from(value: UnverifiedTicketData) -> Result<Self, Self::Error> {
         Ok(ClientTicket {
             spending_data: CredentialSpendingData::try_from_bytes(&value.data).map_err(|_| {
-                StorageError::MalformedStoredTicketData {
+                GatewayStorageError::MalformedStoredTicketData {
                     ticket_id: value.ticket_id,
                 }
             })?,
@@ -152,7 +152,7 @@ impl From<defguard_wireguard_rs::host::Peer> for WireguardPeer {
 }
 
 impl TryFrom<WireguardPeer> for defguard_wireguard_rs::host::Peer {
-    type Error = crate::error::StorageError;
+    type Error = crate::error::GatewayStorageError;
 
     fn try_from(value: WireguardPeer) -> Result<Self, Self::Error> {
         Ok(Self {

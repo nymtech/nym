@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::helpers::{
-    ConfigArgs, EntryGatewayArgs, ExitGatewayArgs, HostArgs, HttpArgs, MixnetArgs, MixnodeArgs,
-    WireguardArgs,
+    ConfigArgs, EntryGatewayArgs, ExitGatewayArgs, HostArgs, HttpArgs, MetricsArgs, MixnetArgs,
+    VerlocArgs, WireguardArgs,
 };
+use crate::config::persistence::NymNodePaths;
+use crate::config::{Config, ConfigBuilder, NodeMode, NodeModes};
 use crate::env::vars::*;
+use crate::error::NymNodeError;
 use nym_bin_common::output_format::OutputFormat;
-use nym_node::config::persistence::NymNodePaths;
-use nym_node::config::{Config, ConfigBuilder, NodeMode};
-use nym_node::error::NymNodeError;
 use std::path::PathBuf;
 use zeroize::Zeroizing;
 
@@ -55,13 +55,25 @@ pub(crate) struct Args {
     )]
     pub(crate) local: bool,
 
-    /// Specifies the current mode of this nym-node.
+    /// Specifies the current mode(s) of this nym-node.
     #[clap(
         long,
         value_enum,
-        env = NYMNODE_MODE_ARG
+        env = NYMNODE_MODE_ARG,
+        num_args(0..=3),
+        group = "node_mode"
     )]
-    pub(crate) mode: Option<NodeMode>,
+    pub(crate) mode: Option<Vec<NodeMode>>,
+
+    /// Specifies the current mode(s) of this nym-node as a single flag.
+    #[clap(
+        long,
+        value_enum,
+        env = NYMNODE_MODES_ARG,
+        value_delimiter = ',',
+        group = "node_mode"
+    )]
+    pub(crate) modes: Vec<NodeMode>,
 
     /// If this node has been initialised before, specify whether to write any new changes to the config file.
     #[clap(
@@ -100,10 +112,13 @@ pub(crate) struct Args {
     mixnet: MixnetArgs,
 
     #[clap(flatten)]
+    metrics: MetricsArgs,
+
+    #[clap(flatten)]
     wireguard: WireguardArgs,
 
     #[clap(flatten)]
-    mixnode: MixnodeArgs,
+    verloc: VerlocArgs,
 
     #[clap(flatten)]
     entry_gateway: EntryGatewayArgs,
@@ -119,6 +134,18 @@ impl Args {
 }
 
 impl Args {
+    pub(crate) fn custom_modes(&self) -> Option<NodeModes> {
+        if let Some(explicit_modes) = &self.mode {
+            return Some(explicit_modes.as_slice().into());
+        }
+
+        if !self.modes.is_empty() {
+            return Some(self.modes.as_slice().into());
+        }
+
+        None
+    }
+
     pub(crate) fn build_config(self) -> Result<Config, NymNodeError> {
         let config_path = self.config.config_path();
         let data_dir = Config::default_data_directory(&config_path)?;
@@ -133,35 +160,41 @@ impl Args {
             })?;
 
         let config = ConfigBuilder::new(id, config_path.clone(), data_dir.clone())
-            .with_mode(self.mode.unwrap_or_default())
+            // the old default behaviour of running in mixnode mode if nothing is explicitly set
+            .with_modes(
+                self.custom_modes()
+                    .unwrap_or(*NodeModes::default().with_mixnode()),
+            )
             .with_host(self.host.build_config_section())
             .with_http(self.http.build_config_section())
             .with_mixnet(self.mixnet.build_config_section())
             .with_wireguard(self.wireguard.build_config_section(&data_dir))
             .with_storage_paths(NymNodePaths::new(&data_dir))
-            .with_mixnode(self.mixnode.build_config_section())
-            .with_entry_gateway(self.entry_gateway.build_config_section(&data_dir))
-            .with_exit_gateway(self.exit_gateway.build_config_section(&data_dir))
+            .with_verloc(self.verloc.build_config_section())
+            .with_metrics(self.metrics.build_config_section())
+            .with_gateway_tasks(self.entry_gateway.build_config_section(&data_dir))
+            .with_service_providers(self.exit_gateway.build_config_section(&data_dir))
             .build();
 
         Ok(config)
     }
 
     pub(crate) fn override_config(self, mut config: Config) -> Config {
-        if let Some(mode) = self.mode {
-            config.mode = mode;
+        if let Some(modes) = self.custom_modes() {
+            config.modes = modes;
         }
+
         config.host = self.host.override_config_section(config.host);
         config.http = self.http.override_config_section(config.http);
         config.mixnet = self.mixnet.override_config_section(config.mixnet);
         config.wireguard = self.wireguard.override_config_section(config.wireguard);
-        config.mixnode = self.mixnode.override_config_section(config.mixnode);
-        config.entry_gateway = self
+        config.metrics = self.metrics.override_config_section(config.metrics);
+        config.gateway_tasks = self
             .entry_gateway
-            .override_config_section(config.entry_gateway);
-        config.exit_gateway = self
+            .override_config_section(config.gateway_tasks);
+        config.service_providers = self
             .exit_gateway
-            .override_config_section(config.exit_gateway);
+            .override_config_section(config.service_providers);
         config
     }
 }

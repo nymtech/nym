@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use error::StatsStorageError;
-use models::{ActiveSession, FinishedSession, StoredFinishedSession};
+use models::StoredFinishedSession;
+use nym_node_metrics::entry::{ActiveSession, FinishedSession, SessionType};
 use nym_sphinx::DestinationAddressBytes;
-use nym_statistics_common::gateways::SessionType;
 use sessions::SessionManager;
 use sqlx::ConnectOptions;
 use std::path::Path;
@@ -71,8 +71,8 @@ impl PersistentStatsStorage {
             .session_manager
             .insert_finished_session(
                 date,
-                session.duration.whole_milliseconds() as i64,
-                session.typ.to_string().into(),
+                session.duration.as_millis() as i64,
+                session.typ.to_string(),
             )
             .await?)
     }
@@ -126,7 +126,7 @@ impl PersistentStatsStorage {
             .insert_active_session(
                 client_address.as_base58_string(),
                 session.start,
-                session.typ.to_string().into(),
+                session.typ.to_string(),
             )
             .await?)
     }
@@ -138,10 +138,7 @@ impl PersistentStatsStorage {
     ) -> Result<(), StatsStorageError> {
         Ok(self
             .session_manager
-            .update_active_session_type(
-                client_address.as_base58_string(),
-                session_type.to_string().into(),
-            )
+            .update_active_session_type(client_address.as_base58_string(), session_type.to_string())
             .await?)
     }
 

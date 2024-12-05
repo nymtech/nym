@@ -9,4 +9,4 @@ pub mod error;
 pub mod node;
 
 pub use error::GatewayError;
-pub use node::Gateway;
+pub use node::GatewayTasksBuilder;

@@ -45,7 +45,7 @@ pub enum AuthenticatorError {
     FailedToSetupMixnetClient { source: nym_sdk::Error },
 
     #[error("{0}")]
-    GatewayStorageError(#[from] nym_gateway_storage::error::StorageError),
+    GatewayStorageError(#[from] nym_gateway_storage::error::GatewayStorageError),
 
     #[error("internal error: {0}")]
     InternalError(String),

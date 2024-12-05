@@ -149,7 +149,7 @@ members = [
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
     "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract", "documentation/scripts/generate-api",
+    "tools/internal/testnet-manager/dkg-bypass-contract",
 ]
 
 default-members = [

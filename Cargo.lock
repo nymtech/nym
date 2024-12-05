@@ -2805,15 +2805,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f5f3913fa0bfe7ee1fd8248b6b9f42a5af4b9d65ec2dd2c3c26132b950ecfc2"
 
 [[package]]
-name = "generate-api"
-version = "0.1.0"
-dependencies = [
- "nym-api",
- "utoipa",
- "utoipauto",
-]
-
-[[package]]
 name = "generator"
 version = "0.7.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"

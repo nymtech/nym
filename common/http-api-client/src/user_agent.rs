@@ -5,8 +5,9 @@ use std::fmt;
 
 use http::HeaderValue;
 use nym_bin_common::build_information::{BinaryBuildInformation, BinaryBuildInformationOwned};
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq)]
 pub struct UserAgent {
     pub application: String,
     pub version: String,

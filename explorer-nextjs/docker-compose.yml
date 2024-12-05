@@ -22,10 +22,13 @@ services:
      - "443:8443"
 
     environment:
-      - REMARK_URL=http://localhost:8081
+      # - REMARK_URL=http://localhost:8081
+      - REMARK_URL=https://remark.blockfend.com
       - SECRET=secret-key
       - AUTH_ANON=true 
-      - SITE=remark42
+      # - SITE=remark42
+      - SITE=nym-explorer-test
+
       # - DEBUG=true
       # - AUTH_GOOGLE_CID
       # - AUTH_GOOGLE_CSEC

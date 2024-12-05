@@ -26,18 +26,6 @@ import {
 } from "./components/AccountStatsCard";
 import TwoSidedSwitch from "./components/ExplorerSwitchButton";
 
-// type ContentCardProps = {
-//   overTitle?: string;
-//   title?: string;
-//   upDownLine?: ICardUpDownPriceLineProps;
-//   titlePrice?: ICardTitlePriceProps;
-//   dataRows?: ICardDataRowsProps;
-//   graph?: Array<IExplorerLineChartData>;
-//   progressBar?: IExplorerProgressBarProps;
-//   paragraph?: string;
-//   onClick?: ReactEventHandler;
-// };
-
 const explorerCard: ContentCardProps = {
   overTitle: "SINGLE",
   profileImage: {},

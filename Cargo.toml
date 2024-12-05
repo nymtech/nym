@@ -155,7 +155,6 @@ default-members = [
     "clients/native",
     "clients/socks5",
     "explorer-api",
-    "gateway",
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-data-observatory",

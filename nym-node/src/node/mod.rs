@@ -17,7 +17,7 @@ use crate::node::http::api::api_requests;
 use crate::node::http::helpers::sign_host_details;
 use crate::node::http::helpers::system_info::get_system_info;
 use crate::node::http::state::AppState;
-use crate::node::http::{HttpServerConfig, NymNodeHTTPServer, NymNodeRouter};
+use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
 use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
@@ -656,7 +656,7 @@ impl NymNode {
         Ok(())
     }
 
-    pub(crate) async fn build_http_server(&self) -> Result<NymNodeHTTPServer, NymNodeError> {
+    pub(crate) async fn build_http_server(&self) -> Result<NymNodeHttpServer, NymNodeError> {
         let host_details = sign_host_details(
             &self.config,
             self.x25519_sphinx_keys.public_key(),

@@ -3,7 +3,7 @@
 
 use crate::node::http::error::NymNodeHttpError;
 use crate::node::http::state::AppState;
-use crate::node::http::NymNodeHTTPServer;
+use crate::node::http::NymNodeHttpServer;
 use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
@@ -160,7 +160,7 @@ impl NymNodeRouter {
     pub async fn build_server(
         self,
         bind_address: &SocketAddr,
-    ) -> Result<NymNodeHTTPServer, NymNodeHttpError> {
+    ) -> Result<NymNodeHttpServer, NymNodeHttpError> {
         let listener = tokio::net::TcpListener::bind(bind_address)
             .await
             .map_err(|source| NymNodeHttpError::HttpBindFailure {
@@ -174,6 +174,6 @@ impl NymNodeRouter {
                 .into_make_service_with_connect_info::<SocketAddr>(),
         );
 
-        Ok(NymNodeHTTPServer::new(axum_server))
+        Ok(NymNodeHttpServer::new(axum_server))
     }
 }

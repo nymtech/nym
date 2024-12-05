@@ -89,7 +89,7 @@ impl RunnableServiceProvider for Authenticator {
 pub struct ServiceProviderBeingBuilt<T: RunnableServiceProvider> {
     on_start_rx: oneshot::Receiver<T::OnStartData>,
     sp_builder: T,
-    sp_message_router_builder: SPMessageRouterBuilder,
+    sp_message_router_builder: SpMessageRouterBuilder,
 }
 
 pub struct StartedServiceProvider<T: RunnableServiceProvider> {
@@ -107,7 +107,7 @@ where
     pub(crate) fn new(
         on_start_rx: oneshot::Receiver<T::OnStartData>,
         sp_builder: T,
-        sp_message_router_builder: SPMessageRouterBuilder,
+        sp_message_router_builder: SpMessageRouterBuilder,
     ) -> Self {
         ServiceProviderBeingBuilt {
             on_start_rx,
@@ -176,7 +176,7 @@ impl ExitServiceProviders {
     }
 }
 
-pub struct SPMessageRouterBuilder {
+pub struct SpMessageRouterBuilder {
     mix_sender: Option<MixMessageSender>,
     mix_receiver: MixMessageReceiver,
     router_receiver: oneshot::Receiver<PacketRouter>,
@@ -184,7 +184,7 @@ pub struct SPMessageRouterBuilder {
     shutdown: TaskClient,
 }
 
-impl SPMessageRouterBuilder {
+impl SpMessageRouterBuilder {
     pub(crate) fn new(
         node_identity: ed25519::PublicKey,
         forwarding_channel: MixForwardingSender,
@@ -195,7 +195,7 @@ impl SPMessageRouterBuilder {
 
         let transceiver = LocalGateway::new(node_identity, forwarding_channel, router_tx);
 
-        SPMessageRouterBuilder {
+        SpMessageRouterBuilder {
             mix_sender: Some(mix_sender),
             mix_receiver,
             router_receiver: router_rx,

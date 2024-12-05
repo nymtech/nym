@@ -22,14 +22,14 @@ type InnerService = IntoMakeServiceWithConnectInfo<Router, SocketAddr>;
 type ConnectInfoExt = AddExtension<Router, ConnectInfo<SocketAddr>>;
 pub type ServeService = Serve<InnerService, ConnectInfoExt>;
 
-pub struct NymNodeHTTPServer {
+pub struct NymNodeHttpServer {
     task_client: Option<TaskClient>,
     inner: ServeService,
 }
 
-impl NymNodeHTTPServer {
+impl NymNodeHttpServer {
     pub(crate) fn new(inner: ServeService) -> Self {
-        NymNodeHTTPServer {
+        NymNodeHttpServer {
             task_client: None,
             inner,
         }

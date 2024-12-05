@@ -5,8 +5,6 @@ use crate::epoch_operations::error::RewardingError;
 use crate::epoch_operations::helpers::stake_to_f64;
 use crate::EpochAdvancer;
 use cosmwasm_std::Decimal;
-use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
-use nym_mixnet_contract_common::helpers::IntoBaseDecimal;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardedSetParams};
 use nym_mixnet_contract_common::{EpochState, NodeId, NymNodeDetails, RewardedSet};
 use rand::prelude::SliceRandom;

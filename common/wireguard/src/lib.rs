@@ -95,6 +95,7 @@ pub async fn start_wireguard(
     use peer_controller::PeerController;
     use std::collections::HashMap;
     use tokio::sync::RwLock;
+    use tracing::info;
 
     let ifname = String::from(WG_TUN_BASE_NAME);
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
@@ -123,6 +124,7 @@ pub async fn start_wireguard(
             .await?;
         peer_bandwidth_managers.insert(peer.public_key.clone(), (bandwidth_manager, peer.clone()));
     }
+
     wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
@@ -132,6 +134,11 @@ pub async fn start_wireguard(
         peers,
         mtu: None,
     };
+    info!(
+        "attempting to configure wireguard interface '{ifname}': address={}, port={}",
+        interface_config.address, interface_config.port
+    );
+
     wg_api.configure_interface(&interface_config)?;
     std::process::Command::new("ip")
         .args([

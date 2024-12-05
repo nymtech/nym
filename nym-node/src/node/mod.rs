@@ -614,6 +614,8 @@ impl NymNode {
             let (started_nr, started_ipr) = exit_sps.start_service_providers().await?;
             active_clients_store.insert_embedded(started_nr.handle);
             active_clients_store.insert_embedded(started_ipr.handle);
+            info!("started NR at: {}", started_nr.on_start_data.address);
+            info!("started IPR at: {}", started_ipr.on_start_data.address);
         } else {
             info!("node not running in exit mode: the exit service providers (NR + IPR) will remain unavailable");
         }
@@ -637,6 +639,11 @@ impl NymNode {
                 .await?;
             let started_authenticator = authenticator.start_service_provider().await?;
             active_clients_store.insert_embedded(started_authenticator.handle);
+
+            info!(
+                "started authenticator at: {}",
+                started_authenticator.on_start_data.address
+            );
 
             gateway_tasks_builder
                 .try_start_wireguard()

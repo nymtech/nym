@@ -442,14 +442,14 @@ impl GatewayTasksBuilder {
     #[cfg(not(target_os = "linux"))]
     pub async fn try_start_wireguard(
         &mut self,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         unimplemented!("wireguard is not supported on this platform")
     }
 
     #[cfg(target_os = "linux")]
     pub async fn try_start_wireguard(
         &mut self,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
         let all_peers = self.get_wireguard_peers().await?;
 
         let Some(wireguard_data) = self.wireguard_data.take() else {
@@ -458,13 +458,13 @@ impl GatewayTasksBuilder {
             );
         };
 
-        nym_wireguard::start_wireguard(
+        let wg_handle = nym_wireguard::start_wireguard(
             self.storage.clone(),
             all_peers,
             self.shutdown.fork("wireguard"),
             wireguard_data,
         )
         .await?;
-        Ok(())
+        Ok(wg_handle)
     }
 }

@@ -939,7 +939,13 @@ impl NymNode {
     }
 
     pub(crate) async fn run(mut self) -> Result<(), NymNodeError> {
-        info!("starting Nym Node {}", self.ed25519_identity_key());
+        info!("starting Nym Node {} with the following modes: mixnode: {}, entry: {}, exit: {}, wireguard: {}",
+            self.ed25519_identity_key(),
+            self.config.modes.mixnode,
+            self.config.modes.entry,
+            self.config.modes.exit,
+            self.config.wireguard.enabled
+        );
         debug!("config: {:#?}", self.config);
 
         let mut task_manager = TaskManager::default().named("NymNode");

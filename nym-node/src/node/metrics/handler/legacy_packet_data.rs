@@ -51,8 +51,8 @@ impl OnUpdateMetricsHandler for LegacyMixingStatsUpdater {
 
         self.metrics.mixnet.update_legacy_stats(
             received_since_update,
-            dropped_since_update,
             sent_since_update,
+            dropped_since_update,
             OffsetDateTime::now_utc().unix_timestamp(),
         );
     }

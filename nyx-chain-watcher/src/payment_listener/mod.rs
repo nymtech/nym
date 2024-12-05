@@ -14,7 +14,7 @@ struct TransferEvent {
 }
 
 pub(crate) async fn run_payment_listener(
-    observatory_pool: SqlitePool,
+    watcher_pool: SqlitePool,
     chain_storage: ScraperStorage,
 ) -> anyhow::Result<()> {
     let payment_receive_address = env::var("PAYMENT_RECEIVE_ADDRESS").map_err(|_| {
@@ -26,7 +26,7 @@ pub(crate) async fn run_payment_listener(
     let client = Client::new();
     loop {
         let last_checked_height =
-            queries::payments::get_last_checked_height(&observatory_pool).await?;
+            queries::payments::get_last_checked_height(&watcher_pool).await?;
         tracing::info!("Last checked height: {}", last_checked_height);
 
         let transactions = chain_storage
@@ -44,7 +44,7 @@ pub(crate) async fn run_payment_listener(
                         let amount: f64 = parse_unym_amount(&transfer.amount)?;
 
                         queries::payments::insert_payment(
-                            &observatory_pool,
+                            &watcher_pool,
                             tx.hash.clone(),
                             transfer.sender.clone(),
                             transfer.recipient.clone(),

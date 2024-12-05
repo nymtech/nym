@@ -5,9 +5,9 @@ import {Alert, AlertTitle, Box, Button, Chip, CircularProgress, Grid, Tooltip, T
 import { useParams } from 'next/navigation'
 import { useMainContext } from '@/app/context/main'
 import { Title } from '@/app/components/Title'
-import {MaterialReactTable, MRT_ColumnDef, useMaterialReactTable} from "material-react-table";
-import {useMemo} from "react";
-import {humanReadableCurrencyToString} from "@/app/utils/currency";
+import { MaterialReactTable, MRT_ColumnDef, useMaterialReactTable } from "material-react-table";
+import { useMemo } from "react";
+import { humanReadableCurrencyToString } from "@/app/utils/currency";
 import Table from '@mui/material/Table';
 import TableBody from '@mui/material/TableBody';
 import TableCell from '@mui/material/TableCell';
@@ -17,8 +17,9 @@ import Paper from '@mui/material/Paper';
 import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 import WarningAmberIcon from '@mui/icons-material/WarningAmber';
 import { PieChart } from '@mui/x-charts/PieChart';
-import {useTheme} from "@mui/material/styles";
-import {useIsMobile} from "@/app/hooks";
+import { useTheme } from "@mui/material/styles";
+import { useIsMobile } from "@/app/hooks";
+import { StyledLink } from "@/app/components";
 
 const AccumulatedRewards = ({account}: { account?: any}) => {
   const columns = useMemo<
@@ -34,6 +35,11 @@ const AccumulatedRewards = ({account}: { account?: any}) => {
             accessorKey: 'node_id',
             header: 'Node ID',
             size: 150,
+            Cell: ({ row }) => (<StyledLink
+              color="text.primary"
+              to={`/network-components/nodes/${row.original.node_id}`}>
+              {row.original.node_id}
+            </StyledLink>),
           },
           {
             id: 'node_still_fully_bonded',

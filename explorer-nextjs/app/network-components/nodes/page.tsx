@@ -15,7 +15,7 @@ import { Tooltip as InfoTooltip } from '@nymproject/react/tooltip/Tooltip'
 import { useMainContext } from '@/app/context/main'
 import { CustomColumnHeading } from '@/app/components/CustomColumnHeading'
 import { Title } from '@/app/components/Title'
-import { unymToNym } from '@/app/utils/currency'
+import { humanReadableCurrencyToString } from '@/app/utils/currency'
 import { Tooltip } from '@/app/components/Tooltip'
 import { EXPLORER_FOR_ACCOUNTS } from '@/app/api/constants'
 import { splice } from '@/app/utils'
@@ -52,6 +52,12 @@ const PageNodes = () => {
         header: 'Nym Node Data',
         columns: [
           {
+            id: 'node_id',
+            header: 'Node Id',
+            accessorKey: 'node_id',
+            size: 75,
+          },
+          {
             id: 'identity_key',
             header: 'Identity Key',
             accessorKey: 'identity_key',
@@ -80,7 +86,7 @@ const PageNodes = () => {
             id: 'version',
             header: 'Version',
             accessorKey: 'description.build_information.build_version',
-            size: 150,
+            size: 75,
             Cell: ({ row }) => {
               return (
                 <StyledLink
@@ -102,7 +108,7 @@ const PageNodes = () => {
               return (
                 <StyledLink
                   to={`/network-components/nodes/${row.original.node_id}`}
-                  data-testid="version"
+                  data-testid="contract_node_type"
                   color="text.primary"
                 >
                   <code>{row.original.contract_node_type || "-"}</code>
@@ -119,9 +125,25 @@ const PageNodes = () => {
               return (
                 <Box
                   sx={{ justifyContent: 'flex-start', cursor: 'pointer' }}
-                  data-testid="location-button"
+                  data-testid="declared_role-button"
                 >
                   <DeclaredRole declared_role={row.original.description?.declared_role}/>
+                </Box>
+              )
+            },
+          },
+          {
+            id: 'total_stake',
+            header: 'Total Stake',
+            accessorKey: 'description.total_stake',
+            size: 250,
+            Cell: ({ row }) => {
+              return (
+                <Box
+                  sx={{ justifyContent: 'flex-start', cursor: 'pointer' }}
+                  data-testid="total_stake-button"
+                >
+                  {humanReadableCurrencyToString({ amount: row.original.total_stake || 0, denom: "unym" })}
                 </Box>
               )
             },
@@ -130,7 +152,7 @@ const PageNodes = () => {
             id: 'location',
             header: 'Location',
             accessorKey: 'location.country_name',
-            size: 150,
+            size: 75,
             Cell: ({ row }) => {
               return (
                 <Box

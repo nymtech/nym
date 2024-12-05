@@ -212,9 +212,13 @@ export const MainContextProvider: FCWithChildren = ({ children }) => {
   const fetchNodes = async () => {
     setNodes({ data: undefined, isLoading: true })
     try {
-      const res = await Api.fetchNodes()
+      const res = await Api.fetchNodes();
+      res.forEach((node: any) => node.total_stake =
+        Math.round(Number.parseFloat(node.rewarding_details?.operator || "0")
+          + Number.parseFloat(node.rewarding_details?.delegates || "0"))
+      );
       setNodes({
-        data: res.sort((a: any, b: any) => a.node_id - b.node_id),
+        data: res.sort((a: any, b: any) => b.total_stake - a.total_stake),
         isLoading: false,
       })
     } catch (error) {

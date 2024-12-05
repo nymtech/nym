@@ -15,18 +15,18 @@ mod price_scraper;
 #[command(version, about, long_about = None)]
 struct Args {
     /// Port to listen on
-    #[arg(long, default_value_t = 8000, env = "NYM_DATA_OBSERVATORY_HTTP_PORT")]
+    #[arg(long, default_value_t = 8000, env = "NYX_CHAIN_WATCHER_HTTP_PORT")]
     http_port: u16,
 
     /// Path to the environment variables file. If you don't provide one, variables for the mainnet will be used.
-    #[arg(short, long, default_value = None, env = "NYM_DATA_OBSERVATORY_ENV_FILE")]
+    #[arg(short, long, default_value = None, env = "NYX_CHAIN_WATCHER_ENV_FILE")]
     env_file: Option<String>,
 
     /// SQLite database file path
     #[arg(
         long,
-        default_value = "data_observatory.sqlite",
-        env = "NYM_DATA_OBSERVATORY_DB_PATH"
+        default_value = "nyx_chain_watcher.sqlite",
+        env = "DATABASE_URL"
     )]
     db_path: String,
 }
@@ -46,13 +46,13 @@ async fn main() -> anyhow::Result<()> {
 
     let connection_url = format!("sqlite://{}?mode=rwc", db_path);
     let storage = db::Storage::init(connection_url).await?;
-    let observatory_pool = storage.pool_owned().await;
+    let watcher_pool = storage.pool_owned().await;
 
     // Spawn the chain scraper and get its storage
 
     // Spawn the payment listener task
     let payment_listener_handle = tokio::spawn({
-        let obs_pool = observatory_pool.clone();
+        let obs_pool = watcher_pool.clone();
         let chain_storage = run_chain_scraper().await?;
 
         async move {
@@ -67,7 +67,7 @@ async fn main() -> anyhow::Result<()> {
     //let background_pool = db_pool.clone();
 
     let price_scraper_handle = tokio::spawn(async move {
-        price_scraper::run_price_scraper(&observatory_pool).await;
+        price_scraper::run_price_scraper(&watcher_pool).await;
     });
 
     let shutdown_handles = http::server::start_http_api(storage.pool_owned().await, args.http_port)

@@ -1,11 +1,11 @@
-body {
+/* body {
   --colorPrimary: #fc8469;
-  /* --textPrimary: #121726; */
+  --textPrimary: #121726;
 }
 
 div.nextra-code-block > div {
   background: var(--colorPrimary) !important;
-}
+} */
 
 footer {
   text-align: center;
@@ -137,7 +137,6 @@ input:focus-visible {
 a.MuiLink-root {
   color: var(--colorPrimary) !important;
 }
-
 
 .MuiPaper-root.MuiAccordion-root {
   border-radius: 8px;

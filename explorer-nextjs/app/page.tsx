@@ -24,6 +24,7 @@ import {
   AccountStatsCard,
   IAccountStatsCardProps,
 } from "./components/AccountStatsCard";
+import TwoSidedSwitch from "./components/ExplorerSwitchButton";
 
 // type ContentCardProps = {
 //   overTitle?: string;
@@ -305,6 +306,11 @@ export default function PageOverview() {
   } = useMainContext();
   return (
     <Box component="main" sx={{ flexGrow: 1 }}>
+      <TwoSidedSwitch
+        leftLabel="Account"
+        rightLabel="Mixnode"
+        onSwitch={() => {}}
+      />
       <Grid>
         <Grid item paddingBottom={3}>
           <Title text="Overview" />

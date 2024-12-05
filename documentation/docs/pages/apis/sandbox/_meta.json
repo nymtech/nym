@@ -1,4 +1,6 @@
 {
   "ns-api": "Node Status API",
-  "nym-api": "NymAPI"
+  "nym-api": "NymAPI",
+  "explorer-api": "Explorer API",
+  "cosmos-sdk-nyx": "Validator REST API"
 }

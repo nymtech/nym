@@ -53,9 +53,9 @@ export const LandingPage = () => {
     },
     {
       text: "APIs",
-      description: "Redoc API references",
+      description: "Redoc APIs",
 
-      href: "/apis",
+      href: "/apis/introduction",
       icon: sdkDocs, // TODO NEW IMAGE
     },
   ];

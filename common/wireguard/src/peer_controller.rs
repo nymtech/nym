@@ -7,6 +7,7 @@ use defguard_wireguard_rs::{
     WireguardInterfaceApi,
 };
 use futures::channel::oneshot;
+use log::info;
 use nym_authenticator_requests::latest::registration::{
     RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY,
 };
@@ -257,6 +258,7 @@ impl PeerController {
     }
 
     pub async fn run(&mut self) {
+        info!("started wireguard peer controller");
         loop {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {

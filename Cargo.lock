@@ -6907,6 +6907,7 @@ dependencies = [
  "time",
  "tokio",
  "tokio-stream",
+ "tracing",
  "x25519-dalek",
 ]
 

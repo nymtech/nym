@@ -5301,31 +5301,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nym-data-observatory"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "axum 0.7.7",
- "chrono",
- "clap 4.5.20",
- "nym-bin-common",
- "nym-network-defaults",
- "nym-node-requests",
- "nym-task",
- "serde",
- "serde_json",
- "sqlx",
- "tokio",
- "tokio-util",
- "tower-http",
- "tracing",
- "tracing-subscriber",
- "utoipa",
- "utoipa-swagger-ui",
- "utoipauto",
-]
-
-[[package]]
 name = "nym-dkg"
 version = "0.1.0"
 dependencies = [
@@ -6955,6 +6930,35 @@ dependencies = [
  "tokio",
  "tracing",
  "url",
+]
+
+[[package]]
+name = "nyx-chain-watcher"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "axum 0.7.7",
+ "chrono",
+ "clap 4.5.20",
+ "nym-bin-common",
+ "nym-network-defaults",
+ "nym-node-requests",
+ "nym-task",
+ "nyxd-scraper",
+ "reqwest 0.12.4",
+ "rocket",
+ "serde",
+ "serde_json",
+ "sqlx",
+ "time",
+ "tokio",
+ "tokio-util",
+ "tower-http",
+ "tracing",
+ "tracing-subscriber",
+ "utoipa",
+ "utoipa-swagger-ui",
+ "utoipauto",
 ]
 
 [[package]]

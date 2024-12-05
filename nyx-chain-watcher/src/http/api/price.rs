@@ -18,7 +18,7 @@ pub(crate) fn routes() -> Router<AppState> {
     )
 )]
 
-/// Fetch the latest price cached by the data observatory
+/// Fetch the latest price cached by this API
 async fn price(State(state): State<AppState>) -> HttpResult<Json<PriceHistory>> {
     get_latest_price(state.db_pool())
         .await

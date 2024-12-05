@@ -59,15 +59,6 @@ pub struct Client {
     config: Config,
 }
 
-impl Clone for Client {
-    fn clone(&self) -> Self {
-        Client {
-            conn_new: HashMap::new(),
-            config: self.config,
-        }
-    }
-}
-
 struct ConnectionSender {
     channel: mpsc::Sender<FramedNymPacket>,
     current_reconnection_attempt: Arc<AtomicU32>,

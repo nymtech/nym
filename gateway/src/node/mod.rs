@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::error::GatewayError;
 use crate::node::client_handling::websocket;
 use crate::node::internal_service_providers::{
-    ExitServiceProviders, SPMessageRouterBuilder, ServiceProviderBeingBuilt,
+    ExitServiceProviders, ServiceProviderBeingBuilt, SpMessageRouterBuilder,
 };
 use futures::channel::oneshot;
 use nym_authenticator::Authenticator;
@@ -267,7 +267,7 @@ impl GatewayTasksBuilder {
             return Err(GatewayError::UnspecifiedNetworkRequesterConfig);
         };
 
-        let mut message_router_builder = SPMessageRouterBuilder::new(
+        let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
             self.shutdown.fork("network-requester-message-router"),
@@ -302,7 +302,7 @@ impl GatewayTasksBuilder {
             return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
         };
 
-        let mut message_router_builder = SPMessageRouterBuilder::new(
+        let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
             self.shutdown.fork("ipr-message-router"),
@@ -406,7 +406,7 @@ impl GatewayTasksBuilder {
             ));
         };
 
-        let mut message_router_builder = SPMessageRouterBuilder::new(
+        let mut message_router_builder = SpMessageRouterBuilder::new(
             *self.identity_keypair.public_key(),
             self.mix_packet_sender.clone(),
             self.shutdown.fork("authenticator-message-router"),

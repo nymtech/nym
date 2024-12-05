@@ -769,7 +769,7 @@ impl NymNode {
     }
 
     async fn try_refresh_remote_nym_api_cache(&self) {
-        info!("attempting to request described cache request from nym-api...");
+        info!("attempting to request described cache refresh from nym-api...");
         if self.config.mixnet.nym_api_urls.is_empty() {
             warn!("no nym-api urls available");
             return;

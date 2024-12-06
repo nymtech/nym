@@ -12,6 +12,7 @@ use rs_merkle::{MerkleProof, MerkleTree};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
+use utoipa::ToSchema;
 use std::fmt::{Debug, Formatter};
 use time::Date;
 
@@ -80,7 +81,7 @@ pub struct InsertedMerkleLeaf {
     pub leaf: MerkleLeaf,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialOrd, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialOrd, PartialEq, Eq, ToSchema)]
 pub struct MerkleLeaf {
     #[schemars(with = "String")]
     #[serde(with = "nym_serde_helpers::hex")]
@@ -162,16 +163,14 @@ impl IssuedTicketbooksMerkleTree {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct IssuedTicketbooksFullMerkleProof {
     #[schemars(with = "String")]
     #[serde(with = "inner_proof_base64_serde")]
+    #[schema(value_type = String)]
     inner_proof: MerkleProof<Sha256>,
-
     included_leaves: Vec<MerkleLeaf>,
-
     total_leaves: usize,
-
     #[schemars(with = "String")]
     #[serde(with = "nym_serde_helpers::hex")]
     root: Vec<u8>,

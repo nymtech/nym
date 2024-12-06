@@ -11,16 +11,20 @@ use crate::{constants, EncodedDate};
 use bls12_381::{G1Projective, Scalar};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use std::borrow::Borrow;
 
 /// A structure representing an expiration date signature.
 pub type ExpirationDateSignature = Signature;
 pub type PartialExpirationDateSignature = ExpirationDateSignature;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct AnnotatedExpirationDateSignature {
+    #[schema(value_type = Signature)]
     pub signature: ExpirationDateSignature,
+    #[schema(value_type = u32)]
     pub expiration_timestamp: EncodedDate,
+    #[schema(value_type = u32)]
     pub spending_timestamp: EncodedDate,
 }
 

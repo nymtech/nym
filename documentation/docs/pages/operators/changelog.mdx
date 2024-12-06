@@ -25,13 +25,93 @@ export const CiConfig = () => (
   </div>
 );
 
+export const TunnelManagerCommands = () => (
+  <div>
+    Commands to update IP tables rules with a new <code>network_tunnel_manager.sh</code>
+  </div>
+);
+
 
 
 # Changelog
 
-This page displays a full list of all the changes during our release cycle from `v2024.3-eclipse` onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
+This page displays a full list of all the changes during our release cycle from `v2024.3-eclipse` onward. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
 <VarInfo />
+
+## `v2024.14-crunch`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.14-crunch)
+- [`nym-node`](nodes/nym-node.mdx) version `1.2.0`
+
+```sh
+
+```
+
+### Features
+
+
+### Bugfix
+
+
+### Operators Updates & Tools
+
+<Callout type="warning" emoji="⚠️">
+**Nym Network will now only allow nodes which [migrated](nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract) their node in Nym mixnet smart contract to Nym Node. All nodes which are still bonded as a legacy one (Mixnode or Gateway) in the wallet will have no chnance to taske part in the [Rewarded set selection](tokenomics/mixnet-rewards#rewarded-set-selection).**
+
+**Operators taking part in Delegation program or Service Grant program must migrate their nodes latest by December 13th, 08:00 UTC.**
+</Callout>
+
+#### Updates
+
+- [Version count as a part of config score](tokenomics/mixnet-rewards#config-score-calculation) has been introduced. To familiarize yourself with Nym Node operator rewards calculation, read [this page](tokenomics/mixnet-rewards).
+- Nym nodes running as Exit Gateway in Service Grant program received delegation. Nym team is now delegating total of **64,800,000 NYM on top 241 Nym Nodes** (137 in Mixnode mode and 104 as Gateways). Our delegation aims to incentivise committed operators who support bootstrapping of Nym network before paying users come.
+
+<br />
+
+<AccordionTemplate name="Delegation size for Gateways in SGP">
+- 250k NYM - Upgrading to magura in time - 2 nodes
+- 300k NYM - Upgrading to magura + bonus for a quick patch upgrade - 102 nodes
+- No delegation - not upgrading in time - 2 nodes
+</AccordionTemplate>
+
+- [`network_tunnel_manager.sh` updated](): run the commands below to make sure 
+
+<br />
+
+<AccordionTemplate name={<TestingSteps/>}>
+these commands can be run one by one or copy-pasted and run as a block.
+```sh
+mkdir $HOME/nym-binaries; \
+
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/network_tunnel_manager.sh -o $HOME/nym-binaries/network_tunnel_manager.sh && chmod +x $HOME/nym-binaries/network_tunnel_manager.sh; \
+
+$HOME/nym-binaries/network_tunnel_manager.sh check_nymtun_iptables  ; \
+$HOME/nym-binaries/network_tunnel_manager.sh remove_duplicate_rules nymtun0 ;\
+$HOME/nym-binaries/network_tunnel_manager.sh remove_duplicate_rules nymwg;\
+$HOME/nym-binaries/network_tunnel_manager.sh check_nymtun_iptables ; \
+$HOME/nym-binaries/network_tunnel_manager.sh adjust_ip_forwarding ; \
+$HOME/nym-binaries/network_tunnel_manager.sh apply_iptables_rules ; \
+$HOME/nym-binaries/network_tunnel_manager.sh check_nymtun_iptables ; \
+$HOME/nym-binaries/network_tunnel_manager.sh apply_iptables_rules_wg ; \
+$HOME/nym-binaries/network_tunnel_manager.sh configure_dns_and_icmp_wg ; \
+$HOME/nym-binaries/network_tunnel_manager.sh adjust_ip_forwarding ; \
+$HOME/nym-binaries/network_tunnel_manager.sh check_ipv6_ipv4_forwarding; \
+
+systemctl daemon-reload && service nym-node restart && journalctl -u nym-node -f 
+```
+
+Then run the jokes in a new window for control
+
+</AccordionTemplate>
+
+
+
+#### Tools
+
+- [Nym Harbourmaster](https://harbourmaster.nymtech.net/) has a new tab called `CONTRACT EXPLORER` querying data from Nym mixnet contract in real time.
+- [Nym Explorer](https://explorer.nymtech.net) is updated to read migrated nodes correctly
+- [New community explorer by SpectreDAO](https://explorer.nym.spectredao.net/dashboard) offers Nym Network dashboard, Node overview and Account stats view functions for operators and delegators.
 
 
 ## `magura-drift`

@@ -23,9 +23,6 @@ pub enum AuthenticatorError {
     #[error("received too short packet")]
     ShortPacket,
 
-    #[error("failed local version check, client and config mismatch")]
-    FailedLocalVersionCheck,
-
     #[error("failed to connect to mixnet: {source}")]
     FailedToConnectToMixnet { source: nym_sdk::Error },
 

@@ -4,7 +4,6 @@
 #![allow(unknown_lints)]
 // clippy::to_string_trait_impl is not on stable as of 1.77
 
-use crate::filter::VersionFilterable;
 pub use error::NymTopologyError;
 use log::{debug, info, warn};
 use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
@@ -25,7 +24,6 @@ use std::str::FromStr;
 use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
 
 pub mod error;
-pub mod filter;
 pub mod gateway;
 pub mod mix;
 pub mod random_route_provider;
@@ -464,19 +462,6 @@ impl NymTopology {
         }
 
         Ok(())
-    }
-
-    #[must_use]
-    pub fn filter_system_version(&self, expected_version: &str) -> Self {
-        self.filter_node_versions(expected_version)
-    }
-
-    #[must_use]
-    pub fn filter_node_versions(&self, expected_mix_version: &str) -> Self {
-        NymTopology {
-            mixes: self.mixes.filter_by_version(expected_mix_version),
-            gateways: self.gateways.clone(),
-        }
     }
 }
 

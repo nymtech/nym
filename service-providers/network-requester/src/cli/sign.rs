@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::cli::{try_load_current_config, version_check};
+use crate::cli::try_load_current_config;
 use crate::error::NetworkRequesterError;
 use clap::Args;
 use nym_bin_common::output_format::OutputFormat;
@@ -56,11 +56,6 @@ fn print_signed_contract_msg(
 
 pub(crate) async fn execute(args: &Sign) -> Result<(), NetworkRequesterError> {
     let config = try_load_current_config(&args.id).await?;
-
-    if !version_check(&config) {
-        log::error!("Failed the local version check");
-        return Err(NetworkRequesterError::FailedLocalVersionCheck);
-    }
 
     let key_store = OnDiskKeys::new(config.storage_paths.common_paths.keys);
     let identity_keypair = key_store.load_identity_keypair().map_err(|source| {

@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import matplotlib.axes as ax
 import matplotlib.pylab as pylab
+from matplotlib.pyplot import figure
 import numpy as np
 
 plt.style.use('dark_background')
@@ -14,6 +15,10 @@ y = [a**(n**b) for n in x]
 #x2 = np.linspace(0, 10, 25)
 #y2 = 4 + 1 * np.sin(2 * x2)
 
+f = plt.figure()
+f.set_figwidth(12)
+f.set_figheight(9)
+
 # plot
 #fig, ax = plt.subplots()
 plt.plot(x,y, label=f'version_config_score_multiplier = {a} ^ (version_behind ^ {b})')
@@ -22,20 +27,20 @@ plt.plot(x,y, label=f'version_config_score_multiplier = {a} ^ (version_behind ^ 
 
 
 # naming the x axis
-plt.xlabel('Nym Node versions behind the current one', fontsize=24)
+plt.xlabel('Nym Node versions behind the current one', fontsize=20)
 
 
 # naming the y axis
-plt.ylabel('Config score multiplier', fontsize=24)
+plt.ylabel('Config score multiplier', fontsize=20)
 
 # giving a title to my graph
-plt.title('Nym node version config score multiplier', fontsize=32)
+plt.title('Nym node version config score multiplier', fontsize=28)
 
 
 #ax.Axes.set_xticks([x])
 #ax.Axes.set_yticks([y])
 
-plt.legend(fontsize=20)
+plt.legend(fontsize=12)
 
 #params = {'legend.fontsize': 20,
 #         'axes.labelsize': 24,
@@ -48,6 +53,9 @@ plt.legend(fontsize=20)
 # set the limits
 plt.xlim([0, 5])
 plt.ylim([0,1])
-plt.show()
 
-#plt.savefig('../docs/public/images/operators/tokenomics/reward_version_graph.png')
+
+
+#plt.show()
+
+plt.savefig('../docs/public/images/operators/tokenomics/reward_version_graph.png')

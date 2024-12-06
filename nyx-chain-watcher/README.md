@@ -10,6 +10,7 @@ Look in [env.rs](./src/env.rs) for the names of environment variables that can b
 NYX_CHAIN_WATCHER_HISTORY_DATABASE_PATH=chain_history.sqlite \
 NYX_CHAIN_WATCHER_DATABASE_PATH=nyx_chain_watcher.sqlite \
 NYX_CHAIN_WATCHER_WATCH_ACCOUNTS=n1...,n1...,n1... \
+NYX_CHAIN_WATCHER_WATCH_CHAIN_MESSAGE_TYPES="/cosmos.bank.v1beta1.MsgSend,/ibc.applications.transfer.v1.MsgTransfer"
 NYX_CHAIN_WATCHER_WEBHOOK_URL="https://webhook.site" \
 NYX_CHAIN_WATCHER_WEBHOOK_AUTH=1234 \
 cargo run -- run

@@ -13,6 +13,7 @@ pub use helpers::{parse_urls, OptionalSet};
 pub use toml::de::Error as TomlDeError;
 
 pub mod defaults;
+pub mod error;
 pub mod helpers;
 pub mod legacy_helpers;
 pub mod serde_helpers;
@@ -93,6 +94,42 @@ where
     }
 
     config.format_to_writer(file)
+}
+
+pub fn save_unformatted_config_to_file<C, P>(
+    config: &C,
+    path: P,
+) -> Result<(), error::NymConfigTomlError>
+where
+    C: Serialize + ?Sized,
+    P: AsRef<Path>,
+{
+    let path = path.as_ref();
+    log::info!("saving config file to {}", path.display());
+
+    if let Some(parent) = path.parent() {
+        create_dir_all(parent)?;
+    }
+
+    let mut file = File::create(path)?;
+
+    // TODO: check for whether any of our configs store anything sensitive
+    // and change that to 0o644 instead
+    #[cfg(target_family = "unix")]
+    {
+        use std::os::unix::fs::PermissionsExt;
+
+        let mut perms = fs::metadata(path)?.permissions();
+        perms.set_mode(0o600);
+        fs::set_permissions(path, perms)?;
+    }
+
+    // let serde format the TOML in whatever ugly way it chooses
+    // TODO: in https://docs.rs/toml/latest/toml/fn.to_string_pretty.html it recommends using
+    //   https://docs.rs/toml_edit/latest/toml_edit/struct.DocumentMut.html to preserve formatting
+    let toml_string = toml::to_string_pretty(config)?;
+
+    Ok(file.write_all(toml_string.as_bytes())?)
 }
 
 pub fn deserialize_config_from_toml_str<C>(raw: &str) -> Result<C, TomlDeError>

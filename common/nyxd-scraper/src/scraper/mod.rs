@@ -36,6 +36,8 @@ pub struct Config {
     pub pruning_options: PruningOptions,
 
     pub store_precommits: bool,
+
+    pub start_block_height: Option<u32>,
 }
 
 pub struct NyxdScraperBuilder {
@@ -47,10 +49,9 @@ pub struct NyxdScraperBuilder {
 }
 
 impl NyxdScraperBuilder {
-    pub async fn build_and_start(
-        self,
-        start_block: Option<u32>,
-    ) -> Result<NyxdScraper, ScraperError> {
+    pub async fn build_and_start(self) -> Result<NyxdScraper, ScraperError> {
+        let start_block_height = self.config.start_block_height.clone();
+
         let scraper = NyxdScraper::new(self.config).await?;
 
         let (processing_tx, processing_rx) = unbounded_channel();
@@ -93,7 +94,8 @@ impl NyxdScraperBuilder {
         )
         .await?;
 
-        if let Some(height) = start_block {
+        // TODO: decide if this should be removed?
+        if let Some(height) = start_block_height {
             scraper.process_block_range(Some(height), None).await?;
         }
 

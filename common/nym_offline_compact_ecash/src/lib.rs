@@ -36,7 +36,7 @@ pub mod common_types;
 pub mod constants;
 pub mod error;
 mod helpers;
-mod proofs;
+pub mod proofs;
 pub mod scheme;
 pub mod tests;
 mod traits;

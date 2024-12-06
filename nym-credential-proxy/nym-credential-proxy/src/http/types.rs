@@ -13,7 +13,6 @@ use uuid::Uuid;
 #[response(description = "Error response with additional message")]
 pub struct RequestError {
     pub inner: ErrorResponse,
-
     pub status: StatusCode,
 }
 

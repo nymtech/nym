@@ -18,6 +18,7 @@ use core::ops::{Add, Mul};
 use group::{Curve, GroupEncoding};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug, PartialEq, Clone, Zeroize, ZeroizeOnDrop)]
@@ -124,10 +125,13 @@ impl SecretKeyAuth {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, ToSchema)]
 pub struct VerificationKeyAuth {
+    #[schema(value_type = G1ProjectiveSchema)]
     pub(crate) alpha: G2Projective,
+    #[schema(value_type = Vec<G1ProjectiveSchema>)]
     pub(crate) beta_g1: Vec<G1Projective>,
+    #[schema(value_type = Vec<G1ProjectiveSchema>)]
     pub(crate) beta_g2: Vec<G2Projective>,
 }
 

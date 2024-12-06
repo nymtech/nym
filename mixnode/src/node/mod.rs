@@ -160,7 +160,7 @@ impl MixNode {
         // as opposed to the validator API
         for api_url in self.config.get_nym_api_endpoints() {
             let client = nym_validator_client::NymApiClient::new(api_url.clone());
-            match client.get_all_basic_nodes(None).await {
+            match client.get_all_basic_nodes().await {
                 Ok(nodes) => {
                     return nodes.iter().any(|node| {
                         &node.ed25519_identity_pubkey == self.identity_keypair.public_key()

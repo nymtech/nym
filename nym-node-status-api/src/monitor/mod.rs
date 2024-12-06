@@ -125,7 +125,7 @@ async fn run(
     log_gw_in_explorer_not_api(explorer_gateways.as_slice(), gateways.as_slice());
 
     let all_skimmed_nodes = api_client
-        .get_all_basic_nodes(None)
+        .get_all_basic_nodes()
         .await
         .log_error("get_all_basic_nodes")?;
 

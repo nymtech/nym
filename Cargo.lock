@@ -4674,7 +4674,6 @@ dependencies = [
  "opentelemetry-jaeger",
  "pretty_env_logger",
  "schemars",
- "semver 1.0.23",
  "serde",
  "serde_json",
  "tracing-opentelemetry",

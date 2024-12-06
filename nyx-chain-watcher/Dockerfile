@@ -28,5 +28,5 @@ RUN apt update && apt install -yy curl ca-certificates
 WORKDIR /nym
 
 COPY --from=builder /usr/src/nym/target/release/nyx-chain-watcher ./
-ENTRYPOINT [ "/nym/nyx-chain-watcher" ]
+ENTRYPOINT [ "/nym/nyx-chain-watcher", "run" ]
 

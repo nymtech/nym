@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "\n        SELECT packets_received, packets_sent, packets_dropped\n        FROM mixnode_packet_stats_raw\n        WHERE mix_id = ?\n        ORDER BY timestamp_utc DESC\n        LIMIT 1 OFFSET 1\n        ",
+  "describe": {
+    "columns": [
+      {
+        "name": "packets_received",
+        "ordinal": 0,
+        "type_info": "Int64"
+      },
+      {
+        "name": "packets_sent",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "packets_dropped",
+        "ordinal": 2,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "7b3e44e1dea0568d331017216e5375684086bbeb80f3b251adc761bae0dafe92"
+}

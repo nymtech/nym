@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT\n            COUNT(id) as \"count: i64\"\n         FROM testruns\n         WHERE\n            status = ?\n         ",
+  "describe": {
+    "columns": [
+      {
+        "name": "count: i64",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a79a61b87325f3f1d9c5a4fb386ccd585be0641e5878acb6283b879f22ed2b4c"
+}

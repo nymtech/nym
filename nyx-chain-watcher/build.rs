@@ -5,7 +5,9 @@ use std::{collections::HashMap, fs::File, path::PathBuf, str::FromStr};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let db_path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("nyx_chain_watcher.sqlite");
+    let db_path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join(".build")
+        .join("nyx_chain_watcher.sqlite");
 
     // Create the database directory if it doesn't exist
     if let Some(parent) = db_path.parent() {

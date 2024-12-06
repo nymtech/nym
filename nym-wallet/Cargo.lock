@@ -3163,6 +3163,7 @@ dependencies = [
  "log",
  "nym-network-defaults",
  "serde",
+ "thiserror",
  "toml 0.8.19",
  "url",
 ]

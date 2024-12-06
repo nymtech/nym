@@ -1,68 +1,130 @@
+use crate::config::PaymentWatcherConfig;
 use crate::db::queries;
+use crate::models::WebhookPayload;
+use nym_validator_client::nyxd::AccountId;
 use nyxd_scraper::storage::ScraperStorage;
 use reqwest::Client;
-use serde_json::{json, Value};
+use rocket::form::validate::Contains;
+use serde_json::Value;
 use sqlx::SqlitePool;
-use std::env;
+use std::str::FromStr;
 use tokio::time::{self, Duration};
+use tracing::{error, info};
 
 #[derive(Debug)]
 struct TransferEvent {
-    recipient: String,
-    sender: String,
+    recipient: AccountId,
+    sender: AccountId,
     amount: String,
+    message_index: u64,
 }
 
 pub(crate) async fn run_payment_listener(
+    payment_watcher_config: PaymentWatcherConfig,
     watcher_pool: SqlitePool,
     chain_storage: ScraperStorage,
 ) -> anyhow::Result<()> {
-    let payment_receive_address = env::var("PAYMENT_RECEIVE_ADDRESS").map_err(|_| {
-        anyhow::anyhow!("Environment variable `PAYMENT_RECEIVE_ADDRESS` not defined")
-    })?;
-    let webhook_url = env::var("WEBHOOK_URL")
-        .map_err(|_| anyhow::anyhow!("Environment variable `WEBHOOK_URL` not defined"))?;
-
     let client = Client::new();
+
+    let default_message_types = vec!["/cosmos.bank.v1beta1.MsgSend".to_string()];
+
     loop {
-        let last_checked_height =
-            queries::payments::get_last_checked_height(&watcher_pool).await?;
-        tracing::info!("Last checked height: {}", last_checked_height);
+        // 1. get the last height this watcher ran at
+        let last_checked_height = queries::payments::get_last_checked_height(&watcher_pool).await?;
+        info!("Last checked height: {}", last_checked_height);
 
-        let transactions = chain_storage
-            .get_transactions_after_height(
-                last_checked_height,
-                Some("/cosmos.bank.v1beta1.MsgSend"),
-            )
-            .await?;
+        // 2. iterate through watchers
+        for watcher in &payment_watcher_config.watchers {
+            let watch_for_chain_message_types = watcher
+                .watch_for_chain_message_types
+                .as_ref()
+                .unwrap_or(&default_message_types);
 
-        for tx in transactions {
-            tracing::info!("Processing transaction: {}", tx.hash);
-            if let Some(raw_log) = tx.raw_log.as_deref() {
-                if let Some(transfer) = parse_transfer_from_raw_log(raw_log)? {
-                    if transfer.recipient == payment_receive_address {
-                        let amount: f64 = parse_unym_amount(&transfer.amount)?;
+            // 3. build up transactions that match the message types we are looking for
+            let mut transactions = vec![];
+            for message_type in watch_for_chain_message_types {
+                match chain_storage
+                    .get_transactions_after_height(
+                        last_checked_height,
+                        Some(message_type),
+                    )
+                    .await {
+                    Ok(txs) => {
+                        for t in txs {
+                            transactions.push(t);
+                        }
+                    }
+                    Err(e) => error!("Failed to get transactions (message_type = {message_type}) from scraper database: {e}")
+                }
+            }
 
-                        queries::payments::insert_payment(
-                            &watcher_pool,
-                            tx.hash.clone(),
-                            transfer.sender.clone(),
-                            transfer.recipient.clone(),
-                            amount,
-                            tx.height,
-                            tx.memo.clone(),
-                        )
-                        .await?;
+            for tx in transactions {
+                info!(
+                    "[watcher = {}] Processing transaction: {}",
+                    watcher.id, tx.hash
+                );
+                if let Some(raw_log) = tx.raw_log.as_deref() {
+                    if let Some(watch_for_transfer_recipient_accounts) =
+                        &watcher.watch_for_transfer_recipient_accounts
+                    {
+                        // 4. match recipient accounts we are looking for
+                        match parse_transfer_from_raw_log(
+                            raw_log,
+                            watch_for_transfer_recipient_accounts,
+                        ) {
+                            Ok(transfer_events) => {
+                                for transfer in transfer_events {
+                                    let amount: f64 = parse_unym_amount(&transfer.amount)?;
 
-                        let webhook_data = json!({
-                            "transaction_hash": tx.hash,
-                            "sender_address": transfer.sender,
-                            "receiver_address": transfer.recipient,
-                            "amount": amount,
-                            "height": tx.height,
-                            "memo": tx.memo,
-                        });
-                        let _ = client.post(&webhook_url).json(&webhook_data).send().await;
+                                    queries::payments::insert_payment(
+                                        &watcher_pool,
+                                        tx.hash.clone(),
+                                        transfer.sender.clone().to_string(),
+                                        transfer.recipient.clone().to_string(),
+                                        amount,
+                                        tx.height,
+                                        tx.memo.clone(),
+                                    )
+                                    .await?;
+
+                                    let webhook_data = WebhookPayload {
+                                        transaction_hash: tx.hash.clone(),
+                                        message_index: transfer.message_index,
+                                        sender_address: transfer.sender.to_string(),
+                                        receiver_address: transfer.recipient.to_string(),
+                                        amount: transfer.amount,
+                                        height: tx.height as u128,
+                                        memo: tx.memo.clone(),
+                                    };
+                                    match client
+                                        .post(&watcher.webhook_url)
+                                        .json(&webhook_data)
+                                        .send()
+                                        .await
+                                    {
+                                        Ok(res) => info!(
+                                            "[watcher = {}] ✅ Webhook {} {} - tx {}, index {}",
+                                            watcher.id,
+                                            res.status(),
+                                            res.url(),
+                                            tx.hash,
+                                            transfer.message_index,
+                                        ),
+                                        Err(e) => error!(
+                                            "[watcher = {}] ❌ Webhook {:?} {:?} error = {}",
+                                            watcher.id,
+                                            e.status(),
+                                            e.url(),
+                                            e,
+                                        ),
+                                    }
+                                }
+                            }
+                            Err(e) => error!(
+                                "[watcher = {}] ❌ Parse logs for tx {} failed, error = {}",
+                                watcher.id, tx.hash, e,
+                            ),
+                        }
                     }
                 }
             }
@@ -72,39 +134,56 @@ pub(crate) async fn run_payment_listener(
     }
 }
 
-fn parse_transfer_from_raw_log(raw_log: &str) -> anyhow::Result<Option<TransferEvent>> {
+fn parse_transfer_from_raw_log(
+    raw_log: &str,
+    watch_for_transfer_recipient_accounts: &Vec<AccountId>,
+) -> anyhow::Result<Vec<TransferEvent>> {
     let log_value: Value = serde_json::from_str(raw_log)?;
 
+    let mut transfers: Vec<TransferEvent> = vec![];
+
     if let Some(events) = log_value[0]["events"].as_array() {
-        if let Some(transfer_event) = events.iter().find(|e| e["type"] == "transfer") {
+        for transfer_event in events.iter().filter(|e| e["type"] == "transfer") {
             if let Some(attrs) = transfer_event["attributes"].as_array() {
-                let mut transfer = TransferEvent {
-                    recipient: String::new(),
-                    sender: String::new(),
-                    amount: String::new(),
-                };
+                let mut recipient: Option<AccountId> = None;
+                let mut sender: Option<AccountId> = None;
+                let mut amount: Option<String> = None;
+                let message_index: Option<u64> = Some(0u64);
 
                 for attr in attrs {
                     match attr["key"].as_str() {
                         Some("recipient") => {
-                            transfer.recipient = attr["value"].as_str().unwrap_or("").to_string()
+                            recipient =
+                                AccountId::from_str(attr["value"].as_str().unwrap_or("")).ok();
                         }
                         Some("sender") => {
-                            transfer.sender = attr["value"].as_str().unwrap_or("").to_string()
+                            sender = AccountId::from_str(attr["value"].as_str().unwrap_or("")).ok();
                         }
                         Some("amount") => {
-                            transfer.amount = attr["value"].as_str().unwrap_or("").to_string()
+                            amount = Some(attr["value"].as_str().unwrap_or("").to_string())
                         }
+                        // TODO: parse message index
                         _ => continue,
                     }
                 }
 
-                return Ok(Some(transfer));
+                if let (Some(recipient), Some(sender), Some(amount), Some(message_index)) =
+                    (recipient, sender, amount, message_index)
+                {
+                    if watch_for_transfer_recipient_accounts.contains(&recipient) {
+                        transfers.push(TransferEvent {
+                            recipient,
+                            sender,
+                            amount,
+                            message_index,
+                        });
+                    }
+                }
             }
         }
     }
 
-    Ok(None)
+    Ok(transfers)
 }
 
 fn parse_unym_amount(amount: &str) -> anyhow::Result<f64> {

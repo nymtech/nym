@@ -54,3 +54,4 @@ nym-network-monitor/__pycache__
 nym-network-monitor/*.key
 
 *.sqlite
+.build

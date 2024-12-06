@@ -251,9 +251,7 @@ const CardChat = () => {
     if (typeof window !== "undefined") {
       // Set Remark42 configuration on the window object
       window.remark_config = {
-        // host: "http://localhost:8081",
         host: "https://remark.blockfend.com",
-        // site_id: "remark42",
         site_id: "nym-explorer-test",
         components: ["embed", "last-comments"],
         max_shown_comments: 100,

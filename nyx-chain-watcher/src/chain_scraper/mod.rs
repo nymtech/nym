@@ -1,6 +1,8 @@
 use nyxd_scraper::{storage::ScraperStorage, NyxdScraper, PruningOptions};
 
-pub(crate) async fn run_chain_scraper(config: &crate::config::Config) -> anyhow::Result<ScraperStorage> {
+pub(crate) async fn run_chain_scraper(
+    config: &crate::config::Config,
+) -> anyhow::Result<ScraperStorage> {
     let websocket_url = std::env::var("NYXD_WS").expect("NYXD_WS not defined");
 
     let rpc_url = std::env::var("NYXD").expect("NYXD not defined");

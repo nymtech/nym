@@ -21,8 +21,18 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
     let db_path = config.database_path();
 
     info!("Config is {config:#?}");
-    info!("Database path is {:?}", std::path::Path::new(&db_path).canonicalize().unwrap_or_default());
-    info!("Chain History Database path is {:?}", std::path::Path::new(&config.chain_scraper_database_path()).canonicalize().unwrap_or_default());
+    info!(
+        "Database path is {:?}",
+        std::path::Path::new(&db_path)
+            .canonicalize()
+            .unwrap_or_default()
+    );
+    info!(
+        "Chain History Database path is {:?}",
+        std::path::Path::new(&config.chain_scraper_database_path())
+            .canonicalize()
+            .unwrap_or_default()
+    );
 
     // Ensure parent directory exists
     if let Some(parent) = std::path::Path::new(&db_path).parent() {

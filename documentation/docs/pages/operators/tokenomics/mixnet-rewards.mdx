@@ -177,7 +177,7 @@ Only if both conditions above are `True` the node can have any chance to be sele
 **The `version_behind` parameter in `config_score` calculation**
 
 From release `2024.14-crunch` (`nym-node v1.2.0`), the `config_score` parameter takes into account also nodes version. Current version is the
-one marked as `Latest` in our repository. From that one we count the parameter `version_behind`. With every version behind increasing the number of `versions_behind` by 1 in this formula:
+one marked as `Latest` in our repository. From that one we count the parameter `version_behind`, where every version back the number of `versions_behind` increases by 1 in this formula:
 
 <Callout type="info" emoji="📌">
 > **0.8 ^ ( versions_behind ^ 2 )**
@@ -187,11 +187,11 @@ one marked as `Latest` in our repository. From that one we count the parameter `
 | :--                 | --:       |
 | 0 (current version) | 1.0       |
 | 1                   | 0.8       |
-| 2 | 0.4096000000000001 |
-| 3 | 0.13421772800000006 |
-| 4 | 0.028147497671065624 |
-| 5 | 0.0037778931862957215 |
-| 6 | 0.00032451855365842736 |
+| 2 | 0.4096 |
+| 3 | 0.1342 |
+| 4 | 0.0281 |
+| 5 | 0.0038 |
+| 6 | 0.0003 |
 
 ![](/images/operators/tokenomics/reward_version_graph.png)
 

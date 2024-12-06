@@ -57,3 +57,4 @@ nym-network-monitor/.envrc
 
 
 *.sqlite
+.build

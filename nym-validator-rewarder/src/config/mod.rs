@@ -129,6 +129,7 @@ impl Config {
             database_path: self.storage_paths.nyxd_scraper.clone(),
             pruning_options: self.nyxd_scraper.pruning,
             store_precommits: self.nyxd_scraper.store_precommits,
+            start_block_height: None,
         }
     }
 

@@ -15,6 +15,7 @@ use crate::{constants, ecash_group_parameters, Attribute, EncodedDate, EncodedTi
 use bls12_381::{multi_miller_loop, G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, Group, GroupEncoding};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use std::ops::Neg;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -34,10 +35,13 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 ///
 /// The struct derives `Debug` and `PartialEq` to provide debug output and basic comparison functionality.
 ///
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, ToSchema)]
 pub struct WithdrawalRequest {
+    #[schema(value_type = G1ProjectiveSchema)]
     joined_commitment_hash: G1Projective,
+    #[schema(value_type = G1ProjectiveSchema)]
     joined_commitment: G1Projective,
+    #[schema(value_type = Vec<G1ProjectiveSchema>)]
     private_attributes_commitments: Vec<G1Projective>,
     zk_proof: WithdrawalReqProof,
 }

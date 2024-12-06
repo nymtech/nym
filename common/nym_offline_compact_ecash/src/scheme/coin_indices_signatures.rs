@@ -11,13 +11,15 @@ use crate::utils::{batch_verify_signatures, hash_g1};
 use bls12_381::{G1Projective, Scalar};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use std::borrow::Borrow;
 
 pub type CoinIndexSignature = Signature;
 pub type PartialCoinIndexSignature = CoinIndexSignature;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct AnnotatedCoinIndexSignature {
+    #[schema(value_type = Signature)]
     pub signature: CoinIndexSignature,
     pub index: u64,
 }

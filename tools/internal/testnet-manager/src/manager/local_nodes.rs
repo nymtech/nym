@@ -7,6 +7,7 @@ use crate::manager::network::LoadedNetwork;
 use crate::manager::node::NymNode;
 use crate::manager::NetworkManager;
 use console::style;
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::RoleAssignment;
 use nym_validator_client::nyxd::contract_traits::MixnetSigningClient;
@@ -89,28 +90,10 @@ impl<'a> LocalNodesCtx<'a> {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug)]
-#[serde(tag = "node_type")]
-pub enum BondingInformationV1 {
-    Mixnode(MixnodeBondingInformation),
-    Gateway(GatewayBondingInformation),
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct MixnodeBondingInformation {
-    pub(crate) version: String,
-    pub(crate) host: String,
-    pub(crate) identity_key: String,
-    pub(crate) sphinx_key: String,
-}
-
-#[derive(Serialize, Deserialize, Debug)]
-pub struct GatewayBondingInformation {
-    pub(crate) version: String,
-    pub(crate) host: String,
-    pub(crate) location: String,
-    pub(crate) identity_key: String,
-    pub(crate) sphinx_key: String,
+#[derive(Debug, Deserialize, Serialize)]
+pub struct BondingInformation {
+    host: String,
+    identity_key: ed25519::PublicKey,
 }
 
 #[derive(Deserialize)]
@@ -168,6 +151,7 @@ impl NetworkManager {
             "--mnemonic",
             &Zeroizing::new(node.owner.mnemonic.to_string()),
             "--local",
+            "--accept-operator-terms-and-conditions",
             "--output",
             "json",
             "--bonding-information-output",
@@ -180,6 +164,9 @@ impl NetworkManager {
 
         if is_gateway {
             cmd.args(["--mode", "entry"]);
+        } else {
+            // be explicit about it, even though we don't have to be
+            cmd.args(["--mode", "mixnode"]);
         }
 
         let mut child = cmd.spawn()?;
@@ -190,20 +177,9 @@ impl NetworkManager {
         }
 
         let output_file = fs::File::open(&output_file_path)?;
-        let bonding_info: BondingInformationV1 = serde_json::from_reader(&output_file)?;
+        let bonding_info: BondingInformation = serde_json::from_reader(&output_file)?;
 
-        match bonding_info {
-            BondingInformationV1::Mixnode(bonding_info) => {
-                node.identity_key = bonding_info.identity_key;
-                node.sphinx_key = bonding_info.sphinx_key;
-                node.version = bonding_info.version;
-            }
-            BondingInformationV1::Gateway(bonding_info) => {
-                node.identity_key = bonding_info.identity_key;
-                node.sphinx_key = bonding_info.sphinx_key;
-                node.version = bonding_info.version;
-            }
-        }
+        node.identity_key = bonding_info.identity_key.to_string();
 
         ctx.set_pb_message(format!("generating bonding signature for node {id}..."));
 
@@ -225,6 +201,7 @@ impl NetworkManager {
             .stderr(Stdio::null())
             .kill_on_drop(true)
             .output();
+
         let out = ctx.async_with_progress(child).await?;
         if !out.status.success() {
             return Err(NetworkManagerError::NymNodeExecutionFailure);

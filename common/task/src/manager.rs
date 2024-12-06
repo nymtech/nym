@@ -455,6 +455,10 @@ impl TaskClient {
         self.mode.set_should_not_signal_on_drop();
     }
 
+    pub fn rearm(&mut self) {
+        self.mode.set_should_signal_on_drop();
+    }
+
     pub fn send_we_stopped(&mut self, err: SentError) {
         if self.mode.is_dummy() {
             return;
@@ -482,7 +486,7 @@ impl Drop for TaskClient {
         if !self.mode.should_signal_on_drop() {
             self.log(
                 Level::Trace,
-                "the task client is getting dropped but inststructed to not signal: this is expected during client shutdown",
+                "the task client is getting dropped but instructed to not signal: this is expected during client shutdown",
             );
             return;
         } else {
@@ -525,6 +529,14 @@ impl ClientOperatingMode {
             ClientOperatingMode::Listening => true,
             ClientOperatingMode::ListeningButDontReportHalt | ClientOperatingMode::Dummy => false,
         }
+    }
+
+    fn set_should_signal_on_drop(&mut self) {
+        use ClientOperatingMode::{Dummy, Listening, ListeningButDontReportHalt};
+        *self = match &self {
+            ListeningButDontReportHalt | Listening => Listening,
+            Dummy => Dummy,
+        };
     }
 
     fn set_should_not_signal_on_drop(&mut self) {

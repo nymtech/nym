@@ -27,7 +27,6 @@ use nym_credential_verification::{
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519::KeyPair;
 use nym_gateway_requests::models::CredentialSpendingRequest;
-use nym_gateway_storage::Storage;
 use nym_sdk::mixnet::{InputMessage, MixnetMessageSender, Recipient, TransmissionLane};
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::receiver::ReconstructedMessage;
@@ -55,7 +54,7 @@ impl RegistredAndFree {
     }
 }
 
-pub(crate) struct MixnetListener<S> {
+pub(crate) struct MixnetListener {
     // The configuration for the mixnet listener
     pub(crate) config: Config,
 
@@ -70,19 +69,19 @@ pub(crate) struct MixnetListener<S> {
 
     pub(crate) peer_manager: PeerManager,
 
-    pub(crate) ecash_verifier: Option<Arc<EcashManager<S>>>,
+    pub(crate) ecash_verifier: Option<Arc<EcashManager>>,
 
     pub(crate) timeout_check_interval: IntervalStream,
 }
 
-impl<S: Storage + Clone + 'static> MixnetListener<S> {
+impl MixnetListener {
     pub fn new(
         config: Config,
         free_private_network_ips: PrivateIPs,
         wireguard_gateway_data: WireguardGatewayData,
         mixnet_client: nym_sdk::mixnet::MixnetClient,
         task_handle: TaskHandle,
-        ecash_verifier: Option<Arc<EcashManager<S>>>,
+        ecash_verifier: Option<Arc<EcashManager>>,
     ) -> Self {
         let timeout_check_interval =
             IntervalStream::new(tokio::time::interval(DEFAULT_REGISTRATION_TIMEOUT_CHECK));
@@ -519,7 +518,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
     }
 
     async fn credential_verification(
-        ecash_verifier: Arc<EcashManager<S>>,
+        ecash_verifier: Arc<EcashManager>,
         credential: CredentialSpendingData,
         client_id: i64,
     ) -> Result<i64> {

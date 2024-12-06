@@ -10,7 +10,6 @@ use futures::channel::oneshot;
 use nym_authenticator_requests::latest::registration::BANDWIDTH_CAP_PER_DAY;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_gateway_storage::models::WireguardPeer;
-use nym_gateway_storage::Storage;
 use nym_task::TaskClient;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::sync::Arc;
@@ -18,26 +17,26 @@ use std::time::{Duration, SystemTime};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
-pub(crate) type SharedBandwidthStorageManager<St> = Arc<RwLock<BandwidthStorageManager<St>>>;
+pub(crate) type SharedBandwidthStorageManager = Arc<RwLock<BandwidthStorageManager>>;
 const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60 * 24 * 30); // 30 days
 
-pub struct PeerHandle<St> {
+pub struct PeerHandle {
     public_key: Key,
     host_information: Arc<RwLock<Host>>,
-    peer_storage_manager: PeerStorageManager<St>,
-    bandwidth_storage_manager: Option<SharedBandwidthStorageManager<St>>,
+    peer_storage_manager: PeerStorageManager,
+    bandwidth_storage_manager: Option<SharedBandwidthStorageManager>,
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
     task_client: TaskClient,
     startup_timestamp: SystemTime,
 }
 
-impl<St: Storage + Clone + 'static> PeerHandle<St> {
+impl PeerHandle {
     pub fn new(
         public_key: Key,
         host_information: Arc<RwLock<Host>>,
-        peer_storage_manager: PeerStorageManager<St>,
-        bandwidth_storage_manager: Option<SharedBandwidthStorageManager<St>>,
+        peer_storage_manager: PeerStorageManager,
+        bandwidth_storage_manager: Option<SharedBandwidthStorageManager>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         task_client: &TaskClient,
     ) -> Self {

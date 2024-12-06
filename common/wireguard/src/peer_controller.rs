@@ -7,6 +7,7 @@ use defguard_wireguard_rs::{
     WireguardInterfaceApi,
 };
 use futures::channel::oneshot;
+use log::info;
 use nym_authenticator_requests::latest::registration::{
     RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY,
 };
@@ -14,7 +15,7 @@ use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
     ClientBandwidth,
 };
-use nym_gateway_storage::Storage;
+use nym_gateway_storage::GatewayStorage;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
@@ -62,24 +63,24 @@ pub struct QueryBandwidthControlResponse {
     pub bandwidth_data: Option<RemainingBandwidthData>,
 }
 
-pub struct PeerController<St: Storage + Clone + 'static> {
-    storage: St,
+pub struct PeerController {
+    storage: GatewayStorage,
     // used to receive commands from individual handles too
     request_tx: mpsc::Sender<PeerControlRequest>,
     request_rx: mpsc::Receiver<PeerControlRequest>,
     wg_api: Arc<WgApiWrapper>,
     host_information: Arc<RwLock<Host>>,
-    bw_storage_managers: HashMap<Key, Option<SharedBandwidthStorageManager<St>>>,
+    bw_storage_managers: HashMap<Key, Option<SharedBandwidthStorageManager>>,
     timeout_check_interval: IntervalStream,
     task_client: nym_task::TaskClient,
 }
 
-impl<St: Storage + Clone + 'static> PeerController<St> {
+impl PeerController {
     pub fn new(
-        storage: St,
+        storage: GatewayStorage,
         wg_api: Arc<WgApiWrapper>,
         initial_host_information: Host,
-        bw_storage_managers: HashMap<Key, (Option<SharedBandwidthStorageManager<St>>, Peer)>,
+        bw_storage_managers: HashMap<Key, (Option<SharedBandwidthStorageManager>, Peer)>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         request_rx: mpsc::Receiver<PeerControlRequest>,
         task_client: nym_task::TaskClient,
@@ -158,9 +159,9 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
     }
 
     pub async fn generate_bandwidth_manager(
-        storage: St,
+        storage: GatewayStorage,
         public_key: &Key,
-    ) -> Result<Option<BandwidthStorageManager<St>>, Error> {
+    ) -> Result<Option<BandwidthStorageManager>, Error> {
         if let Some(client_id) = storage
             .get_wireguard_peer(&public_key.to_string())
             .await?
@@ -257,6 +258,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
     }
 
     pub async fn run(&mut self) {
+        info!("started wireguard peer controller");
         loop {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {

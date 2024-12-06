@@ -79,6 +79,7 @@ pub(crate) struct SummaryHistory {
 pub struct SessionStats {
     pub gateway_identity_key: String,
     pub node_id: u32,
+    #[serde(with = "nym_serde_helpers::date")]
     pub day: time::Date,
     pub unique_active_clients: i64,
     pub session_started: i64,

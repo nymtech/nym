@@ -1,9 +1,7 @@
 use crate::db::{models::GatewaySessionsRecord, queries, DbPool};
 use error::NodeScraperError;
-
 use nym_network_defaults::{NymNetworkDetails, DEFAULT_NYM_NODE_HTTP_PORT};
 use nym_node_requests::api::{client::NymNodeApiClientExt, v1::metrics::models::SessionStats};
-use nym_statistics_common::gateways::SessionType;
 use nym_validator_client::{
     client::{NodeId, NymNodeDetails},
     models::{DescribedNodeType, NymNodeDescription},
@@ -11,6 +9,7 @@ use nym_validator_client::{
 };
 use time::OffsetDateTime;
 
+use nym_node_metrics::entry::SessionType;
 use std::collections::HashMap;
 use tokio::time::Duration;
 use tracing::instrument;

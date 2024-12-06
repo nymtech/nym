@@ -2,17 +2,15 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use bandwidth_storage_manager::BandwidthStorageManager;
+use ecash::EcashManager;
+use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
+use nym_credentials_interface::{Bandwidth, ClientTicket, TicketType};
+use nym_gateway_requests::models::CredentialSpendingRequest;
 use std::sync::Arc;
 use time::{Date, OffsetDateTime};
 use tracing::*;
 
-use nym_credentials::ecash::utils::{cred_exp_date, ecash_today, EcashTime};
-use nym_credentials_interface::{Bandwidth, ClientTicket, TicketType};
-use nym_gateway_requests::models::CredentialSpendingRequest;
-use nym_gateway_storage::Storage;
-
 pub use client_bandwidth::*;
-use ecash::EcashManager;
 pub use error::*;
 
 pub mod bandwidth_storage_manager;
@@ -20,17 +18,17 @@ mod client_bandwidth;
 pub mod ecash;
 pub mod error;
 
-pub struct CredentialVerifier<S> {
+pub struct CredentialVerifier {
     credential: CredentialSpendingRequest,
-    ecash_verifier: Arc<EcashManager<S>>,
-    bandwidth_storage_manager: BandwidthStorageManager<S>,
+    ecash_verifier: Arc<EcashManager>,
+    bandwidth_storage_manager: BandwidthStorageManager,
 }
 
-impl<S: Storage + Clone + 'static> CredentialVerifier<S> {
+impl CredentialVerifier {
     pub fn new(
         credential: CredentialSpendingRequest,
-        ecash_verifier: Arc<EcashManager<S>>,
-        bandwidth_storage_manager: BandwidthStorageManager<S>,
+        ecash_verifier: Arc<EcashManager>,
+        bandwidth_storage_manager: BandwidthStorageManager,
     ) -> Self {
         CredentialVerifier {
             credential,

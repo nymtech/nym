@@ -39,7 +39,7 @@ pub enum Error {
     OutOfBandwidth { required: i64, available: i64 },
 
     #[error("Internal gateway storage error")]
-    StorageError(#[from] nym_gateway_storage::error::StorageError),
+    StorageError(#[from] nym_gateway_storage::error::GatewayStorageError),
 
     #[error("{0}")]
     UnknownTicketType(#[from] nym_credentials_interface::UnknownTicketType),

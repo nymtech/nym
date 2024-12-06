@@ -5954,7 +5954,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.1.13"
+version = "1.2.0"
 dependencies = [
  "anyhow",
  "bip39",

@@ -5,6 +5,7 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::todo)]
 
+mod config_score;
 pub mod constants;
 pub mod delegation;
 pub mod error;

@@ -92,15 +92,6 @@ pub(crate) fn try_update_contract_settings(
 
     // check for config score params updates
     if let Some(config_score_update) = update.config_score_params {
-        // if semver is to be updated - validate the provided value
-        if let Some(current_nym_node_semver) = config_score_update.current_nym_node_semver {
-            if semver::Version::from_str(&current_nym_node_semver).is_err() {
-                return Err(MixnetContractError::InvalidNymNodeSemver {
-                    provided: current_nym_node_semver,
-                });
-            }
-            state.params.config_score_params.current_nym_node_semver = current_nym_node_semver
-        }
         if let Some(version_weights) = config_score_update.version_weights {
             state.params.config_score_params.version_weights = version_weights
         }
@@ -110,6 +101,9 @@ pub(crate) fn try_update_contract_settings(
                 .params
                 .config_score_params
                 .version_score_formula_params = version_score_formula_params
+        }
+        if config_score_update.contains_updates() {
+            todo!("recalculate chain")
         }
     }
 

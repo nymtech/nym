@@ -3,9 +3,14 @@
 
 use super::storage;
 use crate::mixnet_contract_settings::storage::ADMIN;
-use cosmwasm_std::{Deps, StdResult};
+use cosmwasm_std::{Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
-use mixnet_contract_common::{ContractBuildInformation, ContractState, ContractStateParams};
+use cw_storage_plus::Bound;
+use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::{
+    ContractBuildInformation, ContractState, ContractStateParams, CurrentNymNodeVersionResponse,
+    NymNodeVersionHistoryResponse,
+};
 use nym_contracts_common::get_build_information;
 
 pub(crate) fn query_admin(deps: Deps<'_>) -> StdResult<AdminResponse> {
@@ -30,6 +35,31 @@ pub(crate) fn query_rewarding_validator_address(deps: Deps<'_>) -> StdResult<Str
 
 pub(crate) fn query_contract_version() -> ContractBuildInformation {
     get_build_information!()
+}
+
+pub(crate) fn query_nym_node_version_history_paged(
+    deps: Deps<'_>,
+    start_after: Option<u32>,
+    limit: Option<u32>,
+) -> StdResult<NymNodeVersionHistoryResponse> {
+    let limit = limit.unwrap_or(100).min(200) as usize;
+    let start = start_after.map(Bound::exclusive);
+
+    let history = storage::NymNodeVersionHistory::new()
+        .version_history
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|r| r.map(Into::into))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    Ok(NymNodeVersionHistoryResponse { history })
+}
+
+pub(crate) fn query_current_nym_node_version(
+    deps: Deps<'_>,
+) -> Result<CurrentNymNodeVersionResponse, MixnetContractError> {
+    let version = storage::NymNodeVersionHistory::new().current_version(deps.storage)?;
+    Ok(CurrentNymNodeVersionResponse { version })
 }
 
 #[cfg(test)]

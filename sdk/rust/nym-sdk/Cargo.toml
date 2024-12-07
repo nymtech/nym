@@ -57,7 +57,7 @@ uuid = { version = "1", features = ["v4", "serde"] }
 bincode = "1.0"
 serde = { version = "1", features = ["derive"] }
 tracing.workspace = true
-tracing-subscriber = "0.3"
+tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 dirs.workspace = true
 
 [dev-dependencies]

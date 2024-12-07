@@ -5,6 +5,7 @@
 #![warn(clippy::unwrap_used)]
 #![warn(clippy::todo)]
 
+mod config_score;
 pub mod constants;
 pub mod delegation;
 pub mod error;
@@ -21,6 +22,7 @@ pub mod rewarding;
 pub mod signing_types;
 pub mod types;
 
+pub use config_score::*;
 pub use constants::*;
 pub use contracts_common::types::*;
 pub use cosmwasm_std::{Addr, Coin, Decimal, Fraction};

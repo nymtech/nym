@@ -4,7 +4,8 @@
 mod config_score_params {
     use crate::constants::CONTRACT_STATE_KEY;
     use crate::mixnet_contract_settings::storage as mixnet_params_storage;
-    use cosmwasm_std::{Addr, Coin, DepsMut};
+    use crate::mixnet_contract_settings::storage::NymNodeVersionHistory;
+    use cosmwasm_std::{Addr, Coin, DepsMut, Env};
     use cw_storage_plus::Item;
     use mixnet_contract_common::error::MixnetContractError;
     use mixnet_contract_common::{
@@ -16,6 +17,7 @@ mod config_score_params {
 
     pub(crate) fn add_config_score_params(
         deps: DepsMut<'_>,
+        env: Env,
         msg: &MigrateMsg,
     ) -> Result<(), MixnetContractError> {
         if semver::Version::from_str(&msg.current_nym_node_semver).is_err() {
@@ -62,7 +64,6 @@ mod config_score_params {
                     interval_operating_cost: old_state.params.interval_operating_cost,
                 },
                 config_score_params: ConfigScoreParams {
-                    current_nym_node_semver: msg.current_nym_node_semver.to_string(),
                     version_weights: msg.version_score_weights,
                     version_score_formula_params: msg.version_score_params,
                 },
@@ -70,6 +71,14 @@ mod config_score_params {
         };
 
         mixnet_params_storage::CONTRACT_STATE.save(deps.storage, &new_state)?;
+
+        // initialise the version chain
+        NymNodeVersionHistory::new().try_insert_new(
+            deps.storage,
+            &env,
+            &msg.current_nym_node_semver,
+        )?;
+
         Ok(())
     }
 }

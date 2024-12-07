@@ -1,11 +1,12 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config_score::{ConfigScoreParams, OutdatedVersionWeights, VersionScoreFormulaParams};
 use crate::nym_node::Role;
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Coin;
 use cosmwasm_std::{Addr, Uint128};
-use cosmwasm_std::{Coin, Decimal};
 use std::fmt::{Display, Formatter};
 
 // type aliases for better reasoning about available data
@@ -222,162 +223,13 @@ impl OperatorsParamsUpdate {
 }
 
 #[cw_serde]
-pub struct ConfigScoreParams {
-    /// Current version of the nym node that is going to be used for determining the version score of a node.
-    /// note: value stored here is pre-validated `semver::Version`
-    pub current_nym_node_semver: String,
-
-    /// Defines weights for calculating numbers of versions behind the current release.
-    pub version_weights: OutdatedVersionWeights,
-
-    /// Defines the parameters of the formula for calculating the version score
-    pub version_score_formula_params: VersionScoreFormulaParams,
-}
-
-impl ConfigScoreParams {
-    // SAFETY: the value stored in the contract is always valid
-    #[allow(clippy::unwrap_used)]
-    pub fn unchecked_nym_node_version(&self) -> semver::Version {
-        self.current_nym_node_semver.parse().unwrap()
-    }
-
-    pub fn versions_behind(&self, node_semver: &semver::Version) -> u32 {
-        let expected = self.unchecked_nym_node_version();
-
-        let major_diff = (node_semver.major as i64 - expected.major as i64).unsigned_abs() as u32;
-        let minor_diff = (node_semver.minor as i64 - expected.minor as i64).unsigned_abs() as u32;
-        let patch_diff = (node_semver.patch as i64 - expected.patch as i64).unsigned_abs() as u32;
-        let prerelease_diff = if node_semver.pre == expected.pre {
-            0
-        } else {
-            1
-        };
-
-        // if you're a major version behind, ignore minor and patch and treat it as 0
-        if major_diff != 0 {
-            return major_diff * self.version_weights.major
-                + expected.minor as u32 * self.version_weights.minor
-                + expected.patch as u32 * self.version_weights.patch
-                + prerelease_diff * self.version_weights.prerelease;
-        }
-
-        // if you're minor version behind, ignore patch and treat is as 0
-        if minor_diff != 0 {
-            return minor_diff * self.version_weights.minor
-                + expected.patch as u32 * self.version_weights.patch
-                + prerelease_diff * self.version_weights.prerelease;
-        }
-
-        patch_diff * self.version_weights.patch + prerelease_diff * self.version_weights.prerelease
-    }
-}
-
-/// Defines weights for calculating numbers of versions behind the current release.
-#[cw_serde]
-#[derive(Copy)]
-pub struct OutdatedVersionWeights {
-    pub major: u32,
-    pub minor: u32,
-    pub patch: u32,
-    pub prerelease: u32,
-}
-
-impl Default for OutdatedVersionWeights {
-    fn default() -> Self {
-        OutdatedVersionWeights {
-            major: 100,
-            minor: 1,
-            patch: 1,
-            prerelease: 1,
-        }
-    }
-}
-
-/// Given the formula of version_score = penalty ^ (num_versions_behind ^ penalty_scaling)
-/// define the relevant parameters
-#[cw_serde]
-#[derive(Copy)]
-pub struct VersionScoreFormulaParams {
-    pub penalty: Decimal,
-    pub penalty_scaling: Decimal,
-}
-
-impl Default for VersionScoreFormulaParams {
-    fn default() -> Self {
-        #[allow(clippy::unwrap_used)]
-        VersionScoreFormulaParams {
-            penalty: "0.8".parse().unwrap(),
-            penalty_scaling: "2.0".parse().unwrap(),
-        }
-    }
-}
-
-#[cw_serde]
 pub struct ConfigScoreParamsUpdate {
-    pub current_nym_node_semver: Option<String>,
     pub version_weights: Option<OutdatedVersionWeights>,
     pub version_score_formula_params: Option<VersionScoreFormulaParams>,
 }
 
 impl ConfigScoreParamsUpdate {
     pub fn contains_updates(&self) -> bool {
-        self.current_nym_node_semver.is_some()
-            || self.version_weights.is_some()
-            || self.version_score_formula_params.is_some()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn versions_behind() {
-        let weights = OutdatedVersionWeights {
-            major: 100,
-            minor: 1,
-            patch: 1,
-            prerelease: 1,
-        };
-        let c = ConfigScoreParams {
-            current_nym_node_semver: "2.2.3".to_string(),
-            version_weights: weights,
-            version_score_formula_params: Default::default(),
-        };
-
-        // 1 patch behind
-        assert_eq!(1, c.versions_behind(&"2.2.2".parse().unwrap()));
-
-        // 1 minor behind
-        assert_eq!(4, c.versions_behind(&"2.1.0".parse().unwrap()));
-        assert_eq!(4, c.versions_behind(&"2.1.15".parse().unwrap()));
-
-        // 2 patch behind
-        assert_eq!(2, c.versions_behind(&"2.2.1".parse().unwrap()));
-
-        // 2 minor behind
-        assert_eq!(5, c.versions_behind(&"2.0.0".parse().unwrap()));
-        assert_eq!(5, c.versions_behind(&"2.0.123".parse().unwrap()));
-
-        // lying about being 1 patch AHEAD (you're still penalised as if behind)
-        assert_eq!(1, c.versions_behind(&"2.2.4".parse().unwrap()));
-
-        // major behind
-        assert_eq!(105, c.versions_behind(&"1.0.0".parse().unwrap()));
-        assert_eq!(105, c.versions_behind(&"1.2.0".parse().unwrap()));
-        assert_eq!(105, c.versions_behind(&"1.0.123".parse().unwrap()));
-
-        // different prerelease
-        let c = ConfigScoreParams {
-            current_nym_node_semver: "1.2.3-important-patch".to_string(),
-            version_weights: weights,
-            version_score_formula_params: Default::default(),
-        };
-        assert_eq!(1, c.versions_behind(&"1.2.3".parse().unwrap()));
-
-        // different prerelease + patch
-        assert_eq!(2, c.versions_behind(&"1.2.2".parse().unwrap()));
-
-        assert_eq!(5, c.versions_behind(&"1.1.0".parse().unwrap()));
+        self.version_weights.is_some() || self.version_score_formula_params.is_some()
     }
 }

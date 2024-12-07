@@ -144,9 +144,9 @@ impl NodeStatusCacheRefresher {
         let rewarded_set = self.contract_cache.rewarded_set_owned().await;
         let gateway_bonds = self.contract_cache.legacy_gateways_all().await;
         let nym_nodes = self.contract_cache.nym_nodes().await;
-        let config_score_params = self
+        let config_score_data = self
             .contract_cache
-            .config_score_params()
+            .config_score_data()
             .await
             .into_inner()
             .ok_or(NodeStatusCacheError::SourceDataMissing)?;
@@ -181,7 +181,7 @@ impl NodeStatusCacheRefresher {
         // Create annotated data
         let node_annotations = produce_node_annotations(
             &self.storage,
-            &config_score_params,
+            &config_score_data,
             &mixnode_details,
             &gateway_bonds,
             &nym_nodes,

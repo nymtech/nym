@@ -5,9 +5,8 @@ use crate::config_score::{ConfigScoreParams, OutdatedVersionWeights, VersionScor
 use crate::nym_node::Role;
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
+use cosmwasm_std::Coin;
 use cosmwasm_std::{Addr, Uint128};
-use cosmwasm_std::{Coin, Decimal};
-use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 
 // type aliases for better reasoning about available data

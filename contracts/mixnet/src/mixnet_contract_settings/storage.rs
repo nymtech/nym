@@ -5,8 +5,8 @@ use crate::constants::{
     ADMIN_STORAGE_KEY, CONTRACT_STATE_KEY, VERSION_HISTORY_ID_COUNTER_KEY,
     VERSION_HISTORY_NAMESPACE,
 };
-use cosmwasm_std::{Addr, DepsMut, Storage};
-use cosmwasm_std::{Coin, StdResult};
+use cosmwasm_std::Coin;
+use cosmwasm_std::{Addr, DepsMut, Env, Storage};
 use cw_controllers::Admin;
 use cw_storage_plus::{Item, Map};
 use mixnet_contract_common::error::MixnetContractError;
@@ -14,6 +14,7 @@ use mixnet_contract_common::{
     ContractState, ContractStateParams, HistoricalNymNodeVersion, HistoricalNymNodeVersionEntry,
     OperatingCostRange, ProfitMarginRange,
 };
+use std::str::FromStr;
 
 pub(crate) const CONTRACT_STATE: Item<'_, ContractState> = Item::new(CONTRACT_STATE_KEY);
 pub(crate) const ADMIN: Admin = Admin::new(ADMIN_STORAGE_KEY);
@@ -60,6 +61,36 @@ impl NymNodeVersionHistory<'_> {
         let next_id = self.next_id(storage)?;
         self.version_history.save(storage, next_id, &entry)?;
         Ok(next_id)
+    }
+
+    pub fn try_insert_new(
+        &self,
+        storage: &mut dyn Storage,
+        env: &Env,
+        raw_semver: &str,
+    ) -> Result<u32, MixnetContractError> {
+        let Ok(semver) = semver::Version::from_str(raw_semver) else {
+            return Err(MixnetContractError::InvalidNymNodeSemver {
+                provided: raw_semver.to_string(),
+            });
+        };
+
+        let Some(current) = self.current_version(storage)? else {
+            // treat this as genesis
+            let genesis =
+                HistoricalNymNodeVersion::genesis(raw_semver.to_string(), env.block.height);
+            return self.insert_new(storage, genesis);
+        };
+
+        let diff = current
+            .version_information
+            .difference_against_new_current(&semver);
+        let entry = HistoricalNymNodeVersion {
+            semver: raw_semver.to_string(),
+            introduced_at_height: env.block.height,
+            difference_since_genesis: diff,
+        };
+        self.insert_new(storage, entry)
     }
 }
 
@@ -120,9 +151,13 @@ pub(crate) fn state_params(
 
 pub(crate) fn initialise_storage(
     deps: DepsMut<'_>,
+    env: &Env,
     initial_state: ContractState,
     initial_admin: Addr,
-) -> StdResult<()> {
+    initial_nymnode_version: String,
+) -> Result<(), MixnetContractError> {
     CONTRACT_STATE.save(deps.storage, &initial_state)?;
-    ADMIN.set(deps, Some(initial_admin))
+    NymNodeVersionHistory::new().try_insert_new(deps.storage, env, &initial_nymnode_version)?;
+    ADMIN.set(deps, Some(initial_admin))?;
+    Ok(())
 }

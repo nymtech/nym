@@ -9,7 +9,7 @@ use cw_storage_plus::Bound;
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
     ContractBuildInformation, ContractState, ContractStateParams, CurrentNymNodeVersionResponse,
-    NymNodeVersionHistoryResponse,
+    HistoricalNymNodeVersionEntry, NymNodeVersionHistoryResponse,
 };
 use nym_contracts_common::get_build_information;
 
@@ -49,10 +49,15 @@ pub(crate) fn query_nym_node_version_history_paged(
         .version_history
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
-        .map(|r| r.map(Into::into))
+        .map(|r| r.map(Into::<HistoricalNymNodeVersionEntry>::into))
         .collect::<StdResult<Vec<_>>>()?;
 
-    Ok(NymNodeVersionHistoryResponse { history })
+    let start_next_after = history.last().map(|entry| entry.id);
+
+    Ok(NymNodeVersionHistoryResponse {
+        history,
+        start_next_after,
+    })
 }
 
 pub(crate) fn query_current_nym_node_version(
@@ -89,7 +94,6 @@ pub(crate) mod tests {
                     interval_operating_cost: Default::default(),
                 },
                 config_score_params: ConfigScoreParams {
-                    current_nym_node_semver: "1.1.10".to_string(),
                     version_weights: Default::default(),
                     version_score_formula_params: Default::default(),
                 },

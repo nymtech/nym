@@ -38,18 +38,18 @@ impl HistoricalNymNodeVersion {
     /// Return [`TotalVersionDifference`] for a new release version that is going to be pushed right after this one
     /// this function cannot be called against 2 arbitrary versions
     #[inline]
-    pub fn difference_against_new_current(
+    pub fn cumulative_difference_since_genesis(
         &self,
         new_version: &semver::Version,
     ) -> TotalVersionDifference {
         let self_semver = self.semver_unchecked();
         let mut new_absolute = self.difference_since_genesis;
         if new_version.major > self_semver.major {
-            new_absolute.major += 1
+            new_absolute.major += (new_version.major - self_semver.major) as u32
         } else if new_version.minor > self_semver.minor {
-            new_absolute.minor += 1
+            new_absolute.minor += (new_version.minor - self_semver.minor) as u32
         } else if new_version.patch > self_semver.patch {
-            new_absolute.patch += 1
+            new_absolute.patch += (new_version.patch - self_semver.patch) as u32
         } else if new_version.pre != self_semver.pre {
             new_absolute.prerelease += 1
         }
@@ -122,10 +122,10 @@ impl Sub for TotalVersionDifference {
     type Output = TotalVersionDifference;
     fn sub(self, rhs: TotalVersionDifference) -> Self::Output {
         TotalVersionDifference {
-            major: self.major.sub(rhs.major),
-            minor: self.minor.sub(rhs.minor),
-            patch: self.patch.sub(rhs.patch),
-            prerelease: self.prerelease.sub(rhs.prerelease),
+            major: self.major.saturating_sub(rhs.major),
+            minor: self.minor.saturating_sub(rhs.minor),
+            patch: self.patch.saturating_sub(rhs.patch),
+            prerelease: self.prerelease.saturating_sub(rhs.prerelease),
         }
     }
 }
@@ -244,13 +244,19 @@ impl OutdatedVersionWeights {
         // in which case we simply calculate the absolute difference between the genesis entry and add up the total difference
         let version_diff = match release_chain
             .iter()
-            .find(|h| h.version_information.semver == node_version.to_string())
+            .rfind(|h| &h.version_information.semver_unchecked() <= node_version)
         {
-            Some(version_chain_entry) => {
-                // determine the difference against the current
-                version_chain_entry
-                    .version_information
-                    .relative_difference(&latest.version_information)
+            Some(h) => {
+                // first chain entry that is smaller (or equal) to the provided node version
+                // now, calculate the difference to the genesis version and ultimately against the current head
+                let diff_since_genesis = if h.version_information.semver == node_version.to_string()
+                {
+                    h.version_information.difference_since_genesis
+                } else {
+                    h.version_information
+                        .cumulative_difference_since_genesis(node_version)
+                };
+                latest.version_information.difference_since_genesis - diff_since_genesis
             }
             None => {
                 // SAFETY: since we managed to get 'last' entry, it means the release chain is not empty,
@@ -341,7 +347,7 @@ mod tests {
 
             let new_absolute = latest
                 .version_information
-                .difference_against_new_current(&new_version);
+                .cumulative_difference_since_genesis(&new_version);
 
             self.inner.push(HistoricalNymNodeVersionEntry {
                 id: latest.id + 1,
@@ -497,9 +503,9 @@ mod tests {
 
         // weird in between
         let res = weights.versions_behind_factor(&s("1.2.1"), &release_chain);
-        assert_eq!(21, res);
+        assert_eq!(20, res);
         let res = weights.versions_behind_factor(&s("1.3.3"), &release_chain);
-        assert_eq!(30, res);
+        assert_eq!(10, res);
 
         // "ahead" versions
         let res = weights.versions_behind_factor(&s("1.4.1"), &release_chain);
@@ -524,8 +530,8 @@ mod tests {
             .with_release("1.2.0")
             .with_release("1.2.1")
             .with_release("1.3.0")
+            .with_release("1.3.1-importantpre")
             .with_release("1.3.1")
-            .with_release("1.3.1-important")
             .with_release("1.3.2")
             .with_release("1.4.0");
 
@@ -559,18 +565,18 @@ mod tests {
         assert_eq!(23, res);
         let res = weights.versions_behind_factor(&s("1.3.0"), &release_chain);
         assert_eq!(13, res);
-        let res = weights.versions_behind_factor(&s("1.3.1"), &release_chain);
+        let res = weights.versions_behind_factor(&s("1.3.1-importantpre"), &release_chain);
         assert_eq!(12, res);
-        let res = weights.versions_behind_factor(&s("1.3.1-important"), &release_chain);
+        let res = weights.versions_behind_factor(&s("1.3.1"), &release_chain);
         assert_eq!(11, res);
         let res = weights.versions_behind_factor(&s("1.3.2"), &release_chain);
         assert_eq!(10, res);
 
         // weird in between
         let res = weights.versions_behind_factor(&s("1.2.3"), &release_chain);
-        assert_eq!(44, res);
+        assert_eq!(21, res);
         let res = weights.versions_behind_factor(&s("1.3.69"), &release_chain);
-        assert_eq!(54, res);
+        assert_eq!(10, res);
 
         // "ahead" versions
         let res = weights.versions_behind_factor(&s("1.4.1"), &release_chain);
@@ -587,5 +593,81 @@ mod tests {
         assert_eq!(100, res);
         let res = weights.versions_behind_factor(&s("3.0.0"), &release_chain);
         assert_eq!(100, res);
+
+        // ###############################
+        // skipped patch chain (1.1.13 => 1.2.0 => 1.2.1 => 1.2.4 => [1.3.0])
+        // ###############################
+        let mut release_chain = ReleaseChain::new("1.1.13")
+            .with_release("1.2.0")
+            .with_release("1.2.1")
+            .with_release("1.2.4");
+
+        // current
+        let res = weights.versions_behind_factor(&s("1.2.4"), &release_chain);
+        assert_eq!(0, res);
+
+        // on 'skipped' version
+        let res = weights.versions_behind_factor(&s("1.2.2"), &release_chain);
+        assert_eq!(2, res);
+
+        // on version before the skip
+        let res = weights.versions_behind_factor(&s("1.2.1"), &release_chain);
+        assert_eq!(3, res);
+
+        release_chain.push_new("1.3.0");
+        // current
+        let res = weights.versions_behind_factor(&s("1.3.0"), &release_chain);
+        assert_eq!(0, res);
+
+        // on 'skipped' version
+        let res = weights.versions_behind_factor(&s("1.2.2"), &release_chain);
+        assert_eq!(12, res);
+
+        // on version before the skip
+        let res = weights.versions_behind_factor(&s("1.2.1"), &release_chain);
+        assert_eq!(13, res);
+
+        // ###############################
+        // skipped minor chain (1.1.13 => 1.2.0 => 1.2.1 => 1.4.0 => [1.5.0])
+        // ###############################
+        let mut release_chain = ReleaseChain::new("1.1.13")
+            .with_release("1.2.0")
+            .with_release("1.2.1")
+            .with_release("1.4.0");
+
+        // current
+        let res = weights.versions_behind_factor(&s("1.4.0"), &release_chain);
+        assert_eq!(0, res);
+
+        // on 'skipped' version
+        let res = weights.versions_behind_factor(&s("1.3.0"), &release_chain);
+        assert_eq!(10, res);
+
+        // on version before the skip
+        let res = weights.versions_behind_factor(&s("1.2.1"), &release_chain);
+        assert_eq!(20, res);
+
+        let res = weights.versions_behind_factor(&s("1.2.0"), &release_chain);
+        assert_eq!(21, res);
+
+        release_chain.push_new("1.5.0");
+
+        // current
+        let res = weights.versions_behind_factor(&s("1.5.0"), &release_chain);
+        assert_eq!(0, res);
+
+        let res = weights.versions_behind_factor(&s("1.4.0"), &release_chain);
+        assert_eq!(10, res);
+
+        // on 'skipped' version
+        let res = weights.versions_behind_factor(&s("1.3.0"), &release_chain);
+        assert_eq!(20, res);
+
+        // on version before the skip
+        let res = weights.versions_behind_factor(&s("1.2.1"), &release_chain);
+        assert_eq!(30, res);
+
+        let res = weights.versions_behind_factor(&s("1.2.0"), &release_chain);
+        assert_eq!(31, res);
     }
 }

@@ -93,7 +93,7 @@ impl NymNodeVersionHistory<'_> {
 
         let diff = current
             .version_information
-            .difference_against_new_current(&new_semver);
+            .cumulative_difference_since_genesis(&new_semver);
         let entry = HistoricalNymNodeVersion {
             semver: raw_semver.to_string(),
             introduced_at_height: env.block.height,

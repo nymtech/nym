@@ -20,10 +20,12 @@ use time::Date;
 pub type DepositId = u32;
 pub type DKGEpochId = u64;
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbook {
+    #[schema(value_type = u32)]
     pub deposit_id: DepositId,
+    #[schema(value_type = u32)]
     pub epoch_id: DKGEpochId,
 
     // 96 bytes serialised 'BlindedSignature'
@@ -38,9 +40,11 @@ pub struct IssuedTicketbook {
 
     #[schemars(with = "String")]
     #[serde(with = "nym_serde_helpers::date")]
+    #[schema(value_type = String)]
     pub expiration_date: Date,
 
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub ticketbook_type: TicketType,
 }
 

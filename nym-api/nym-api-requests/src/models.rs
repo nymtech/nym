@@ -145,7 +145,7 @@ pub struct NodePerformance {
     pub last_24h: Performance,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Hash, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Hash, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -190,7 +190,7 @@ impl From<DisplayRole> for Role {
 // imo for now there's no point in exposing more than that,
 // nym-api shouldn't be calculating apy or stake saturation for you.
 // it should just return its own metrics (performance) and then you can do with it as you wish
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -202,13 +202,14 @@ impl From<DisplayRole> for Role {
 pub struct NodeAnnotation {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     // legacy
+    #[schema(value_type = String)]
     pub last_24h_performance: Performance,
     pub current_role: Option<DisplayRole>,
 
     pub detailed_performance: DetailedNodePerformance,
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -244,7 +245,7 @@ impl DetailedNodePerformance {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -266,7 +267,7 @@ impl RoutingScore {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -825,6 +826,7 @@ pub struct CirculatingSupplyResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct HostInformation {
+    #[schema(value_type = Vec<String>)]
     pub ip_address: Vec<IpAddr>,
     pub hostname: Option<String>,
     pub keys: HostKeys,
@@ -844,15 +846,18 @@ impl From<nym_node_requests::api::v1::node::models::HostInformation> for HostInf
 pub struct HostKeys {
     #[serde(with = "bs58_ed25519_pubkey")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub ed25519: ed25519::PublicKey,
 
     #[serde(with = "bs58_x25519_pubkey")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub x25519: x25519::PublicKey,
 
     #[serde(default)]
     #[serde(with = "option_bs58_x25519_pubkey")]
     #[schemars(with = "Option<String>")]
+    #[schema(value_type = String)]
     pub x25519_noise: Option<x25519::PublicKey>,
 }
 
@@ -896,6 +901,7 @@ pub struct OffsetDateTimeJsonSchemaWrapper(
         default = "unix_epoch",
         with = "crate::helpers::overengineered_offset_date_time_serde"
     )]
+    #[schema(value_type = String)]
     pub OffsetDateTime,
 );
 
@@ -1285,12 +1291,14 @@ pub struct NoiseDetails {
 pub struct NodeRefreshBody {
     #[serde(with = "bs58_ed25519_pubkey")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub node_identity: ed25519::PublicKey,
 
     // a poor man's nonce
     pub request_timestamp: i64,
 
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = String)]
     pub signature: ed25519::Signature,
 }
 

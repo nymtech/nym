@@ -24,6 +24,15 @@ use url::Url;
 
 mod subscriber;
 
+#[derive(Default, Clone, Copy)]
+pub struct StartingBlockOpts {
+    pub start_block_height: Option<u32>,
+
+    /// If the scraper fails to start from the desired height, rather than failing,
+    /// attempt to use the next available height
+    pub use_best_effort_start_height: bool,
+}
+
 pub struct Config {
     /// Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
     pub websocket_url: Url,
@@ -37,7 +46,7 @@ pub struct Config {
 
     pub store_precommits: bool,
 
-    pub start_block_height: Option<u32>,
+    pub start_block: StartingBlockOpts,
 }
 
 pub struct NyxdScraperBuilder {
@@ -50,8 +59,6 @@ pub struct NyxdScraperBuilder {
 
 impl NyxdScraperBuilder {
     pub async fn build_and_start(self) -> Result<NyxdScraper, ScraperError> {
-        let start_block_height = self.config.start_block_height.clone();
-
         let scraper = NyxdScraper::new(self.config).await?;
 
         let (processing_tx, processing_rx) = unbounded_channel();
@@ -70,6 +77,8 @@ impl NyxdScraperBuilder {
         let block_processor_config = BlockProcessorConfig::new(
             scraper.config.pruning_options,
             scraper.config.store_precommits,
+            scraper.config.start_block.start_block_height,
+            scraper.config.start_block.use_best_effort_start_height,
         );
 
         let mut block_processor = BlockProcessor::new(
@@ -93,11 +102,6 @@ impl NyxdScraperBuilder {
             processing_tx,
         )
         .await?;
-
-        // TODO: decide if this should be removed?
-        if let Some(height) = start_block_height {
-            scraper.process_block_range(Some(height), None).await?;
-        }
 
         scraper.start_tasks(block_requester, block_processor, chain_subscriber);
 
@@ -175,7 +179,10 @@ impl NyxdScraper {
         self.task_tracker.close();
     }
 
-    pub async fn process_single_block(&self, height: u32) -> Result<(), ScraperError> {
+    // DO NOT USE UNLESS YOU KNOW EXACTLY WHAT YOU'RE DOING
+    // AS THIS WILL NOT USE ANY OF YOUR REGISTERED MODULES
+    // YOU WILL BE FIRED IF YOU USE IT : )
+    pub async fn unsafe_process_single_block(&self, height: u32) -> Result<(), ScraperError> {
         info!(height = height, "attempting to process a single block");
         if !self.task_tracker.is_empty() {
             return Err(ScraperError::ScraperAlreadyRunning);
@@ -194,7 +201,10 @@ impl NyxdScraper {
         block_processor.process_block(block.into()).await
     }
 
-    pub async fn process_block_range(
+    // DO NOT USE UNLESS YOU KNOW EXACTLY WHAT YOU'RE DOING
+    // AS THIS WILL NOT USE ANY OF YOUR REGISTERED MODULES
+    // YOU WILL BE FIRED IF YOU USE IT : )
+    pub async fn unsafe_process_block_range(
         &self,
         starting_height: Option<u32>,
         end_height: Option<u32>,
@@ -323,8 +333,12 @@ impl NyxdScraper {
         req_tx: Sender<BlockRequest>,
         processing_rx: UnboundedReceiver<BlockToProcess>,
     ) -> Result<BlockProcessor, ScraperError> {
-        let block_processor_config =
-            BlockProcessorConfig::new(self.config.pruning_options, self.config.store_precommits);
+        let block_processor_config = BlockProcessorConfig::new(
+            self.config.pruning_options,
+            self.config.store_precommits,
+            self.config.start_block.start_block_height,
+            self.config.start_block.use_best_effort_start_height,
+        );
 
         BlockProcessor::new(
             block_processor_config,

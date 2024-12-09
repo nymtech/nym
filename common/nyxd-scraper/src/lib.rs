@@ -16,5 +16,5 @@ pub mod storage;
 
 pub use block_processor::pruning::{PruningOptions, PruningStrategy};
 pub use modules::{BlockModule, MsgModule, TxModule};
-pub use scraper::{Config, NyxdScraper};
+pub use scraper::{Config, NyxdScraper, StartingBlockOpts};
 pub use storage::models;

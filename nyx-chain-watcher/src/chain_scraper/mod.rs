@@ -1,3 +1,4 @@
+use crate::env::vars::{NYXD_SCRAPER_START_HEIGHT, NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT};
 use nyxd_scraper::{storage::ScraperStorage, NyxdScraper, PruningOptions};
 
 pub(crate) async fn run_chain_scraper(
@@ -9,9 +10,19 @@ pub(crate) async fn run_chain_scraper(
     let websocket_url = reqwest::Url::parse(&websocket_url)?;
     let rpc_url = reqwest::Url::parse(&rpc_url)?;
 
-    let start_block_height = std::env::var("NYXD_SCRAPER_START_HEIGHT")
-        .ok()
-        .and_then(|value| value.parse::<u32>().ok());
+    // why are those not part of CLI? : (
+    let start_block_height = match std::env::var(NYXD_SCRAPER_START_HEIGHT).ok() {
+        None => None,
+        // blow up if passed malformed env value
+        Some(raw) => Some(raw.parse()?),
+    };
+
+    let use_best_effort_start_height =
+        match std::env::var(NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT).ok() {
+            None => false,
+            // blow up if passed malformed env value
+            Some(raw) => raw.parse()?,
+        };
 
     let scraper = NyxdScraper::builder(nyxd_scraper::Config {
         websocket_url,
@@ -19,7 +30,10 @@ pub(crate) async fn run_chain_scraper(
         database_path: config.chain_scraper_database_path().into(),
         pruning_options: PruningOptions::nothing(),
         store_precommits: false,
-        start_block_height,
+        start_block: nyxd_scraper::StartingBlockOpts {
+            start_block_height,
+            use_best_effort_start_height,
+        },
     });
 
     let instance = scraper.build_and_start().await?;

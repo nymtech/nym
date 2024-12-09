@@ -117,6 +117,17 @@ impl RpcClient {
         Ok(info.last_block_height.value())
     }
 
+    pub(crate) async fn earliest_available_block_height(&self) -> Result<u64, ScraperError> {
+        debug!("getting earliest available block height");
+
+        let status = self
+            .inner
+            .status()
+            .await
+            .map_err(|source| ScraperError::AbciInfoQueryFailure { source })?;
+        Ok(status.sync_info.earliest_block_height.value())
+    }
+
     async fn get_transaction_results(
         &self,
         raw: &[Vec<u8>],

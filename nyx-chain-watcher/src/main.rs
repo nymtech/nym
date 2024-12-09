@@ -1,6 +1,8 @@
 use clap::{crate_name, crate_version, Parser};
+use nym_bin_common::bin_info_owned;
 use nym_bin_common::logging::maybe_print_banner;
 use nym_network_defaults::setup_env;
+use tracing::info;
 
 mod chain_scraper;
 mod cli;
@@ -23,6 +25,9 @@ async fn main() -> anyhow::Result<()> {
     if !cli.no_banner {
         maybe_print_banner(crate_name!(), crate_version!());
     }
+
+    let bin_info = bin_info_owned!();
+    info!("using the following version: {bin_info}");
 
     cli.execute().await?;
 

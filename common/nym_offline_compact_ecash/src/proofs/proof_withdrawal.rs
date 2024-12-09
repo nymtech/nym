@@ -8,6 +8,7 @@ use bls12_381::{G1Projective, Scalar};
 use group::GroupEncoding;
 use itertools::izip;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[cfg_attr(test, derive(PartialEq))]
@@ -32,11 +33,15 @@ pub struct WithdrawalReqWitness<'a> {
     pub private_attributes_openings: &'a Vec<Scalar>,
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, ToSchema)]
 pub struct WithdrawalReqProof {
+    #[schema(value_type = [u64; 4])]
     challenge: Scalar,
+    #[schema(value_type = [u64; 4])]
     response_opening: Scalar,
+    #[schema(value_type = Vec<[u64; 4]>)]
     response_openings: Vec<Scalar>,
+    #[schema(value_type = Vec<[u64; 4]>)]
     response_attributes: Vec<Scalar>,
 }
 

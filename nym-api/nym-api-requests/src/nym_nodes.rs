@@ -35,7 +35,7 @@ impl<T> CachedNodesResponse<T> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct PaginatedCachedNodesResponse<T> {
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: PaginatedResponse<T>,

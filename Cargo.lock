@@ -5059,6 +5059,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "utoipa",
  "vergen",
 ]
 

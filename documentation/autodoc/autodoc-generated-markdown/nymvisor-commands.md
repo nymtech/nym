@@ -99,13 +99,13 @@ Example output:
 ```sh
 
 Binary Name:        nymvisor
-Build Timestamp:    2024-10-29T09:48:31.988049207Z
-Build Version:      0.1.8
-Commit SHA:         299552881810511273af13eb135297a4cf7a38de
-Commit Date:        2024-10-29T10:48:07.000000000+01:00
-Commit Branch:      max/new-docs-framework
-rustc Version:      1.80.0
-rustc Channel:      stable
+Build Timestamp:    2024-12-09T12:07:12.738785193Z
+Build Version:      0.1.9
+Commit SHA:         62045d76b32265f6a5e6358ab7aebbc827d47dcd
+Commit Date:        2024-11-26T11:53:05.000000000+01:00
+Commit Branch:      master
+rustc Version:      1.84.0-nightly
+rustc Channel:      nightly
 cargo Profile:      release
 
 ```

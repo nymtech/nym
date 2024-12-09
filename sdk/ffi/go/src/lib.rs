@@ -100,6 +100,7 @@ fn new_proxy_client(
     listen_port: String,
     close_timeout: u64,
     env: Option<String>,
+    pool_size: u8,
 ) -> Result<(), GoWrapError> {
     let server_nym_addr =
         Recipient::try_from_base58_string(server_address).expect("couldn't create Recipient");
@@ -109,6 +110,7 @@ fn new_proxy_client(
         &listen_port,
         close_timeout,
         env,
+        pool_size as usize,
     ) {
         Ok(_) => Ok(()),
         Err(_) => Err(GoWrapError::ProxyInitError {}),

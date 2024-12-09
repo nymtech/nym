@@ -27,10 +27,12 @@ use utoipa::ToSchema;
 pub struct VerifyEcashTicketBody {
     /// The cryptographic material required for spending the underlying credential.
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = String)]
     pub credential: CredentialSpendingData,
 
     /// Cosmos address of the sender of the credential
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub gateway_cosmos_addr: AccountId,
 }
 
@@ -62,8 +64,16 @@ impl VerifyEcashCredentialBody {
     }
 }
 
+/// Used exclusively as part of OpenAPI docs
+#[derive(ToSchema)]
+pub enum EcashTicketVerificationResult {
+    Ok(()),
+    EcashTicketVerificationRejection
+}
+
 #[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct EcashTicketVerificationResponse {
+    #[schema(value_type = EcashTicketVerificationResult)]
     pub verified: Result<(), EcashTicketVerificationRejection>,
 }
 
@@ -81,12 +91,15 @@ pub enum EcashTicketVerificationRejection {
     InvalidSpentDate {
         #[schemars(with = "String")]
         #[serde(with = "crate::helpers::date_serde")]
+        #[schema(value_type = String)]
         today: Date,
         #[schemars(with = "String")]
         #[serde(with = "crate::helpers::date_serde")]
+        #[schema(value_type = String)]
         yesterday: Date,
         #[schemars(with = "String")]
         #[serde(with = "crate::helpers::date_serde")]
+        #[schema(value_type = String)]
         received: Date,
     },
 
@@ -120,13 +133,16 @@ pub struct BlindSignRequestBody {
     pub signature: identity::Signature,
 
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = G1ProjectiveSchema)]
     pub ecash_pubkey: PublicKeyUser,
 
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String)]
     pub expiration_date: Date,
 
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub ticketbook_type: TicketType,
 }
 
@@ -403,6 +419,7 @@ pub type DepositId = u32;
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitedDeposit {
+    #[schema(value_type = u32)]
     pub deposit_id: DepositId,
     pub merkle_index: usize,
 }
@@ -455,7 +472,9 @@ impl IssuedTicketbooksForResponse {
 pub struct IssuedTicketbooksChallengeRequest {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String)]
     pub expiration_date: Date,
+    #[schema(value_type = Vec<u32>)]
     pub deposits: Vec<DepositId>,
 }
 
@@ -464,8 +483,10 @@ pub struct IssuedTicketbooksChallengeRequest {
 pub struct IssuedTicketbooksChallengeResponseBody {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String)]
     pub expiration_date: Date,
 
+    #[schema(value_type = BTreeMap<u32, IssuedTicketbook>)]
     pub partial_ticketbooks: BTreeMap<DepositId, IssuedTicketbook>,
     pub merkle_proof: IssuedTicketbooksFullMerkleProof,
 }
@@ -499,7 +520,7 @@ impl IssuedTicketbooksChallengeResponseBody {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksChallengeResponse {
     pub body: IssuedTicketbooksChallengeResponseBody,

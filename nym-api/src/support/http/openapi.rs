@@ -17,8 +17,8 @@ use utoipauto::utoipauto;
 
 #[utoipauto(paths = "./nym-api/src,
     ./nym-api/nym-api-requests/src from nym-api-requests,
-    ./common/nym_offline_compact_ecash/src from nym-compact-ecash,
     ./common/config/src from nym-config,
+    ./common/cosmwasm-smart-contracts/mixnet-contract/src from nym-mixnet-contract-common,
     ./common/ticketbooks-merkle/src from nym-ticketbooks-merkle,
     ./common/nym_offline_compact_ecash/src from nym_compact_ecash")]
 #[derive(OpenApi)]

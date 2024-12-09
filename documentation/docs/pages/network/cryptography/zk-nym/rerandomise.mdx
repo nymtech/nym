@@ -2,21 +2,20 @@ import { Callout } from 'nextra/components'
 
 # Rerandomisation & Incremental Spend
 
-Each zk-nym ticket will not be valid for the entire amount of data that the credential aggregated from the PSCs is; if the aggregated credential is worth (e.g.) 10GB of Mixnet data, each ticket will be worth far less (e.g. 100MB). This amount will be globally uniform in order to avoid situations where differently sized tickets allow for patterns to emerge.
+Each ticket will not be valid for the entire amount of data that the ticketbook aggregated from the PSCs is; if the aggregated ticketbook is worth (e.g.) 10GB of Mixnet data, each ticket will be worth far less (e.g. 100MB). This amount will be globally uniform in order to avoid situations where differently sized tickets allow for patterns to emerge.
 
 <Callout type="info" emoji="ℹ️">
   The functionality included in the following code block examples were added to the [nym-cli tool](../tools/nym-cli.md) for illustrative purposes only: this is not necessarily how credentials will be accessed in the future.
 
-  The numbers used in this high level overview are for illustration purposes only. The figures used in production will potentially vary. Note that individual zkNym sizes will be uniform across the Network.
+  The numbers used in this high level overview are for illustration purposes only. The figures used in production will potentially vary. Note that individual ticket sizes will be uniform across the Network.
 </Callout>
 
-
-## Why not spend the entire credential at once?
+## Why a 'ticketbook', not individual 'tickets', and why not spend them all at once?
 This is to account for the need for a client to change their ingress Gateway, either because the Gateway itself has gone down / is not offering the required bandwidth, or because a user might simply want to split their traffic across multiple Gateways for extra privacy.
 
-This means that clients are not tied to particular Gateways they have 'spent' their entire subscription amount with; if the ingress Gateway goes down, or the client simply wishes to use another ingress Gateway, the user has multiple other zk-nym tickets they can use that account for their remaining purchased bandwidth.
+This means that clients are not tied to particular Gateways they have 'spent' their entire subscription amount with; if the ingress Gateway goes down, or the client simply wishes to use another ingress Gateway, the user has multiple other tickets they can use that account for their remaining purchased bandwidth.
 
-Going back to the `nym-cli` tool to illustrate this; we can generate multiple unlinkable tickets from a ticketbook below):
+Going back to the `nym-cli` tool to illustrate this; we can generate multiple unlinkable tickets from a single ticketbook aggregated from PSCs:
 
 ```sh
 ❯ ./nym-cli ecash generate-ticket --credential-storage storage.db --provider 6qidVK21zpHD298jdDa1RRpbRozP29ENVyqcSbm6hQrG --full

@@ -263,7 +263,7 @@ export const MonoCard: FC<ContentCardProps> = ({
   identityKey,
   qrCode,
   ratings,
-  comments,
+  // comments,
   stakeButton,
 }) => (
   <Card sx={{ height: "100%", borderRadius: "unset", padding: 3 }}>

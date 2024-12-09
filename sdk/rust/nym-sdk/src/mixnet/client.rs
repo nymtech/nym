@@ -244,6 +244,15 @@ where
         self
     }
 
+    #[must_use]
+    pub fn with_connection_fd_callback(
+        mut self,
+        connection_fd_callback: Box<dyn Fn(std::os::fd::RawFd) + Send + Sync>,
+    ) -> Self {
+        self.connection_fd_callback = Some(connection_fd_callback);
+        self
+    }
+
     /// Use custom mixnet sender that might not be the default websocket gateway connection.
     /// only for advanced use
     #[must_use]

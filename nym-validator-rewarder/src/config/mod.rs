@@ -112,6 +112,7 @@ impl Config {
             nyxd_scraper: NyxdScraper {
                 websocket_url,
                 pruning: Default::default(),
+                store_precommits: true,
             },
             base: Base {
                 upstream_nyxd: nyxd_url,
@@ -127,6 +128,7 @@ impl Config {
             rpc_url: self.base.upstream_nyxd.clone(),
             database_path: self.storage_paths.nyxd_scraper.clone(),
             pruning_options: self.nyxd_scraper.pruning,
+            store_precommits: self.nyxd_scraper.store_precommits,
         }
     }
 
@@ -314,7 +316,14 @@ pub struct NyxdScraper {
     // if the value is missing, use `nothing` pruning as this was the past behaviour
     #[serde(default = "PruningOptions::nothing")]
     pub pruning: PruningOptions,
-    // TODO: debug with everything that's currently hardcoded in the scraper
+
+    /// Specifies whether to store pre-commits within the database.
+    #[serde(default = "default_store_precommits")]
+    pub store_precommits: bool,
+}
+
+fn default_store_precommits() -> bool {
+    true
 }
 
 impl NyxdScraper {

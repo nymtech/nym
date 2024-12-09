@@ -212,6 +212,7 @@ impl ScraperStorage {
 pub async fn persist_block(
     block: &FullBlockInformation,
     tx: &mut StorageTransaction,
+    store_precommits: bool,
 ) -> Result<(), ScraperError> {
     let total_gas = crate::helpers::tx_gas_sum(&block.transactions);
 
@@ -224,11 +225,12 @@ pub async fn persist_block(
     // persist block data
     persist_block_data(&block.block, total_gas, tx).await?;
 
-    // persist commits
-    if let Some(commit) = &block.block.last_commit {
-        persist_commits(commit, &block.validators, tx).await?;
-    } else {
-        warn!("no commits for block {}", block.block.header.height)
+    if store_precommits {
+        if let Some(commit) = &block.block.last_commit {
+            persist_commits(commit, &block.validators, tx).await?;
+        } else {
+            warn!("no commits for block {}", block.block.header.height)
+        }
     }
 
     // persist txs

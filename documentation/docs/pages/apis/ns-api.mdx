@@ -1,0 +1,11 @@
+import { Callout } from 'nextra/components'
+
+# Node Status API
+
+The Node Status API contains information about the network, its topology, and the routing scores of all nodes within it. It offers broadly similar information to the experimental [Habourmaster frontend](https://harbourmaster.nymtech.net/) but is stable where the Harbourmaster is subject to sudden changes as we modify and experiment with how we scrape and present data about the Mixnet infrastructure.
+
+<Callout type="info">
+People building applications or dashboards which requires information about nodes, their uptime, and their delegations should use this instead of Habourmaster.
+</Callout>
+
+The code for this service can be found [in our monorepo](https://github.com/nymtech/nym/tree/develop/nym-node-status-api). In the future we will encourage developers to run their own instance of this API in order to distribute endpoints and query load.

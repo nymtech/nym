@@ -232,7 +232,7 @@ impl OutdatedVersionWeights {
         // if you're more recent than the latest, you get the benefit of the doubt, the release might have not yet been commited to the chain
         // but only if you're only a single semver ahead, otherwise you get penalty equivalent of being major version behind for cheating
         if node_version > &latest_semver {
-            return if is_one_semver_difference(&node_version, &latest_semver) {
+            return if is_one_semver_difference(node_version, &latest_semver) {
                 0
             } else {
                 self.major
@@ -259,7 +259,7 @@ impl OutdatedVersionWeights {
 
                 let difference_from_genesis = genesis
                     .version_information
-                    .difference_against_legacy(&node_version);
+                    .difference_against_legacy(node_version);
                 difference_from_genesis + latest.version_information.difference_since_genesis
             }
         };

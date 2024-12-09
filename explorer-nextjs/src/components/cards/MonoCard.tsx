@@ -140,7 +140,9 @@ const CardCopyAddress = (props: ICardCopyAddressProps) => {
     >
       <Typography textTransform={"uppercase"}>{title}</Typography>
       <Box display={"flex"} justifyContent={"space-between"}>
-        <Typography>{address}</Typography>
+        <Typography maxWidth={"90%"} sx={{ wordWrap: "break-word" }}>
+          {address}
+        </Typography>
 
         <CopyToClipboard
           sx={{ mr: 0.5, color: "grey.400" }}
@@ -329,7 +331,7 @@ export const MonoCard: FC<ContentCardProps> = ({
           <DynamicProgressBar {...progressBar} />
         </Box>
       )}
-      {paragraph && <Typography>{paragraph}</Typography>}
+      {paragraph && <Typography mb={3}>{paragraph}</Typography>}
       {/* {comments && (
         <Box mb={3}>
           <Remark42Comments />

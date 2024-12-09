@@ -1,4 +1,8 @@
 "use client";
+import {
+  AccountStatsCard,
+  type IAccountStatsCardProps,
+} from "@/components/cards/AccountStatsCard";
 import TwoSidedSwitch from "@/components/twoSidedSwitchButton";
 import { Wrapper } from "@/components/wrapper";
 import { Box, Typography } from "@mui/material";
@@ -84,6 +88,47 @@ const explorerCard: ContentCardProps = {
   },
 };
 
+const accountStatsCard: IAccountStatsCardProps = {
+  overTitle: "Total value",
+  priceTitle: 1990.0174,
+  rows: [
+    { type: "Spendable", allocation: 15.53, amount: 12800, value: 1200 },
+    {
+      type: "Delegated",
+      allocation: 15.53,
+      amount: 12800,
+      value: 1200,
+      history: [
+        { type: "Liquid", amount: 6900 },
+        { type: "Locked", amount: 6900 },
+      ],
+    },
+    {
+      type: "Claimable",
+      allocation: 15.53,
+      amount: 12800,
+      value: 1200,
+      history: [
+        { type: "Unlocked", amount: 6900 },
+        { type: "Staking rewards", amount: 6900 },
+        { type: "Operator comission", amount: 6900 },
+      ],
+    },
+    {
+      type: "Self bonded",
+      allocation: 15.53,
+      amount: 12800,
+      value: 1200,
+    },
+    {
+      type: "Locked",
+      allocation: 15.53,
+      amount: 12800,
+      value: 1200,
+    },
+  ],
+};
+
 export default function Home() {
   return (
     <div>
@@ -93,16 +138,21 @@ export default function Home() {
             <Typography fontWeight="light">
               🚀 EXPLORER 2.0, Let&apos;s go! 🚀
             </Typography>
-            <Grid container>
-              <Grid size={{ xs: 12, md: 6 }}>
+            <Grid container gap={2} alignItems={"flex-start"}>
+              <Grid size={{ xs: 12, md: 5 }}>
                 <MonoCard {...explorerCard} />
               </Grid>
-              <Grid size={{ xs: 4 }}>
-                <TwoSidedSwitch
-                  leftLabel="Account"
-                  rightLabel="Mixnode"
-                  // onSwitch={() => console.log("object :>> ")}
-                />
+              <Grid container size={{ xs: 6 }}>
+                <Grid size={{ xs: 12 }}>
+                  <TwoSidedSwitch
+                    leftLabel="Account"
+                    rightLabel="Mixnode"
+                    // onSwitch={() => console.log("object :>> ")}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  <AccountStatsCard {...accountStatsCard} />
+                </Grid>
               </Grid>
             </Grid>
           </Wrapper>

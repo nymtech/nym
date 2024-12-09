@@ -40,6 +40,7 @@ use utoipauto::utoipauto;
         ContractVersionSchemaResponse,
         nym_bin_common::build_information::BinaryBuildInformationOwned,
         nym_node_requests::api::v1::node::models::AuxiliaryDetails,
+        nym_contracts_common::ContractBuildInformation
     ))
 )]
 pub(crate) struct ApiDoc;

@@ -46,6 +46,8 @@ impl PendingSync {
 pub struct BlockProcessorConfig {
     pub pruning_options: PruningOptions,
     pub store_precommits: bool,
+    pub explicit_starting_block_height: Option<u32>,
+    pub use_best_effort_start_height: bool,
 }
 
 impl Default for BlockProcessorConfig {
@@ -53,15 +55,24 @@ impl Default for BlockProcessorConfig {
         Self {
             pruning_options: PruningOptions::nothing(),
             store_precommits: true,
+            explicit_starting_block_height: None,
+            use_best_effort_start_height: false,
         }
     }
 }
 
 impl BlockProcessorConfig {
-    pub fn new(pruning_options: PruningOptions, store_precommits: bool) -> Self {
+    pub fn new(
+        pruning_options: PruningOptions,
+        store_precommits: bool,
+        explicit_starting_block_height: Option<u32>,
+        use_best_effort_start_height: bool,
+    ) -> Self {
         Self {
             pruning_options,
             store_precommits,
+            explicit_starting_block_height,
+            use_best_effort_start_height,
         }
     }
 }
@@ -402,6 +413,42 @@ impl BlockProcessor {
 
             let request_range = self.last_processed_height + 1..latest_block + 1;
             info!("we need to request {request_range:?} to resync");
+            self.request_missing_blocks(request_range).await?;
+            return Ok(());
+        }
+
+        // this is the first time starting up
+        if self.last_processed_height == 0 {
+            let Some(starting_height) = self.config.explicit_starting_block_height else {
+                // nothing to do
+                return Ok(());
+            };
+
+            info!("attempting to start the scraper from block {starting_height}");
+            let earliest_available =
+                self.rpc_client.earliest_available_block_height().await? as u32;
+            info!("earliest available block height: {earliest_available}");
+
+            if earliest_available > starting_height && self.config.use_best_effort_start_height {
+                error!("the earliest available block is higher than the desired starting height");
+                return Err(ScraperError::BlocksUnavailable {
+                    height: starting_height,
+                });
+            }
+
+            let starting_height = if earliest_available > starting_height {
+                // add few additional blocks to account for all the startup waiting
+                // because the node might have pruned few blocks since
+                earliest_available + 10
+            } else {
+                starting_height
+            };
+
+            let request_range = starting_height..latest_block + 1;
+
+            info!("going to start the scraper from block {starting_height}");
+            info!("we need to request {request_range:?} before properly starting up");
+
             self.request_missing_blocks(request_range).await?;
         }
 

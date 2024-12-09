@@ -278,7 +278,7 @@ fn execute_command(
 ) -> io::Result<()> {
     // checking for the nym-cli subsubcommands
     if subsubcommand.is_some() {
-        writeln!(file, "\n### `{} {}`", subcommand, subsubcommand.unwrap())?;
+        writeln!(file, "\n## `{} {}`", subcommand, subsubcommand.unwrap())?;
 
         info!("executing {} {} --help ", main_command, subcommand);
         let output = Command::new(main_command)
@@ -293,7 +293,7 @@ fn execute_command(
         }
     // just subcommands
     } else {
-        writeln!(file, "\n### `{}`", subcommand)?;
+        writeln!(file, "\n## `{}`", subcommand)?;
 
         // execute help
         let output = Command::new(main_command)

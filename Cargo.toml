@@ -98,7 +98,7 @@ members = [
     "common/wasm/utils",
     "common/wireguard",
     "common/wireguard-types",
-    # "documentation/autodoc",
+    "documentation/autodoc",
     "explorer-api",
     "explorer-api/explorer-api-requests",
     "explorer-api/explorer-client",
@@ -150,6 +150,8 @@ members = [
     "tools/internal/contract-state-importer/importer-contract",
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
+    "common/verloc",
+    "tools/internal/mixnet-connectivity-check",
 ]
 
 default-members = [

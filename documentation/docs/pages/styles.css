@@ -1,12 +1,3 @@
-/* body {
-  --colorPrimary: #fc8469;
-  --textPrimary: #121726;
-}
-
-div.nextra-code-block > div {
-  background: var(--colorPrimary) !important;
-} */
-
 footer {
   text-align: center;
 }
@@ -24,17 +15,19 @@ footer {
 }
 
 .nextra-toc {
-  width: 300px !important;
+  width: 10px !important;
   padding-right: 0px;
   padding-left: 0px;
-  text-align: right;
+  /* text-align: right; */
   border-left: 1px solid #262626;
 }
 
-/* Code blocks*/
-.nx-absolute.nx-top-0 {
-  background: var(--colorPrimary) !important;
-  color: var(--textPrimary) !important;
+.nextra-content {
+  padding-top: 0 !important;
+  padding-right: 0 !important;
+  padding-bottom: 0 !important;
+  padding-left: 0 !important;
+  margin: 0 !important;
 }
 
 :is(html[class~="dark"] .dark\:nx-bg-primary-300\/10) {
@@ -56,14 +49,6 @@ footer {
   column-width: 500px;
 }
 
-/* aside ul > li > a:hover{
-    background: #fb6e4ea9 !important;
-} */
-
-/* aside ul > li > a:active{
-    background: #fb6e4e !important;
-} */
-
 /* Links*/
 .nx-text-primary-600.nx-underline.nx-decoration-from-font {
   color: var(--colorPrimary) !important;
@@ -72,31 +57,6 @@ footer {
 .MuiTypography-root.MuiTypography-inherit.MuiLink-root.MuiLink-underlineAlways.css-1xr3c94-MuiTypography-root-MuiLink-root {
   color: var(--colorPrimary) !important;
 }
-
-/* Callouts */
-/*
-.nextra-callout {
-  background-color: #fb6e4e21 !important;
-}
-
-.nx-mt-6 .nx-leading-7 > p {
-  color: var(--colorPrimary) !important;
-}
-*/
-
-/* Callout Secondary */
-/*
-:is(html .dark\:nx-border-yellow-200\/30) {
-  border-color: transparent !important;
-}
-*/
-
-/* Callout Primary */
-/*
-:is(html .dark\:nx-border-blue-200\/30) {
-  border-color: var(--colorPrimary) !important;
-}
-*/
 
 /* Chips*/
 .chipContained {

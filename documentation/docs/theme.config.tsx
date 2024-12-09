@@ -28,16 +28,16 @@ const config: DocsThemeConfig = {
     extraContent: <Matrix />,
   },
   toc: {
-    float: true, // TODO would be nice to set this to false so the TOC is in the left sidebar but this doesn't seem to work with pages that are also the top of directories: fix
+    float: false, // TODO would be nice to set this to false so the TOC is in the left sidebar but this doesn't seem to work with pages that are also the top of directories: fix
     // if we do this then we also have to uncomment the editLink and feedback objects below
+    component: null, // try remove right-hand column
   },
-  // editLink: {
-  //   component: null,
-  // },
-  // feedback: {
-  //   content: null,
-  // },
-
+  editLink: {
+    component: null, // remove element
+  },
+  feedback: {
+    content: null, // remove element
+  },
   // gitTimestamp: TODO
 };
 

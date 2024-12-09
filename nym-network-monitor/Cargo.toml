@@ -27,6 +27,7 @@ tokio = { workspace = true, features = ["macros", "time"] }
 tokio-util = { workspace = true }
 utoipa = { workspace = true, features = ["axum_extras"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+tokio-postgres = "0.7"
 
 # internal
 nym-bin-common = { path = "../common/bin-common" }

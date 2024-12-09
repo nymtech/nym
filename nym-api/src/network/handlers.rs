@@ -54,7 +54,6 @@ pub struct ContractInformationContractVersion {
     pub(crate) details: Option<ContractVersionSchemaResponse>,
 }
 
-
 #[utoipa::path(
     tag = "network",
     get,

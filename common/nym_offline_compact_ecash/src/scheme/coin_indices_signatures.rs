@@ -11,8 +11,8 @@ use crate::utils::{batch_verify_signatures, hash_g1};
 use bls12_381::{G1Projective, Scalar};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use std::borrow::Borrow;
+use utoipa::ToSchema;
 
 pub type CoinIndexSignature = Signature;
 pub type PartialCoinIndexSignature = CoinIndexSignature;

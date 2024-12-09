@@ -68,7 +68,7 @@ impl VerifyEcashCredentialBody {
 #[derive(ToSchema)]
 pub enum EcashTicketVerificationResult {
     Ok(()),
-    EcashTicketVerificationRejection
+    EcashTicketVerificationRejection,
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]

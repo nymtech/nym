@@ -319,6 +319,7 @@ pub(crate) type AxumResult<T> = Result<T, AxumErrorResponse>;
 
 #[derive(ToSchema, ToResponse)]
 #[schema(title = "ErrorResponse")]
+#[schema(as = ErrorResponse)]
 pub(crate) struct AxumErrorResponse {
     message: RequestError,
     #[schema(value_type = u16)]

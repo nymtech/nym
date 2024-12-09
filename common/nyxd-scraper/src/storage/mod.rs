@@ -51,6 +51,7 @@ impl ScraperStorage {
     #[instrument]
     pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, ScraperError> {
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();

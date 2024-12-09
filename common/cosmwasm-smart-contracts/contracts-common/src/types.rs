@@ -221,6 +221,7 @@ fn default_unknown() -> String {
 // TODO: there's no reason this couldn't be used for proper binaries, but in that case
 // perhaps the struct should get renamed and moved to a "more" common crate
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct ContractBuildInformation {
     /// Provides the name of the binary, i.e. the content of `CARGO_PKG_NAME` environmental variable.
     #[serde(default = "default_unknown")]

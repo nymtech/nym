@@ -417,7 +417,12 @@ impl BlockProcessor {
             self.last_processed_height = max(self.last_processed_height, last_to_keep);
 
             let request_range = self.last_processed_height + 1..latest_block + 1;
-            info!("we need to request {request_range:?} to resync");
+            info!(
+                keep_recent = %keep_recent,
+                last_to_keep = %last_to_keep,
+                last_processed_height = %self.last_processed_height,
+                "we need to request {request_range:?} to resync"
+            );
             self.request_missing_blocks(request_range).await?;
             return Ok(());
         }

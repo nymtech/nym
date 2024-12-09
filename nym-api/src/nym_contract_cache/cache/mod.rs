@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_describe_cache::RefreshData;
-use crate::nym_contract_cache::cache::data::CachedContractsInfo;
+use crate::nym_contract_cache::cache::data::{CachedContractsInfo, ConfigScoreData};
 use crate::support::caching::Cache;
 use data::ContractCacheData;
 use nym_api_requests::legacy::{
@@ -11,7 +11,8 @@ use nym_api_requests::legacy::{
 use nym_api_requests::models::MixnodeStatus;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, Interval, NodeId, NymNodeDetails, RewardedSet, RewardingParams,
+    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, NodeId, NymNodeDetails,
+    RewardedSet, RewardingParams,
 };
 use std::{
     collections::HashSet,
@@ -25,7 +26,7 @@ use tokio::sync::{RwLock, RwLockReadGuard};
 use tokio::time;
 use tracing::{debug, error};
 
-mod data;
+pub(crate) mod data;
 pub(crate) mod refresher;
 
 pub(crate) use self::data::CachedRewardedSet;
@@ -81,19 +82,23 @@ impl NymContractCache {
         nym_nodes: Vec<NymNodeDetails>,
         rewarded_set: RewardedSet,
         config_score_params: ConfigScoreParams,
+        nym_node_version_history: Vec<HistoricalNymNodeVersionEntry>,
         rewarding_params: RewardingParams,
         current_interval: Interval,
         nym_contracts_info: CachedContractsInfo,
     ) {
         match time::timeout(Duration::from_millis(100), self.inner.write()).await {
             Ok(mut cache) => {
+                let config_score_data = ConfigScoreData {
+                    config_score_params,
+                    nym_node_version_history,
+                };
+
                 cache.legacy_mixnodes.unchecked_update(mixnodes);
                 cache.legacy_gateways.unchecked_update(gateways);
                 cache.nym_nodes.unchecked_update(nym_nodes);
                 cache.rewarded_set.unchecked_update(rewarded_set);
-                cache
-                    .config_score_params
-                    .unchecked_update(config_score_params);
+                cache.config_score_data.unchecked_update(config_score_data);
                 cache
                     .current_reward_params
                     .unchecked_update(Some(rewarding_params));
@@ -269,8 +274,12 @@ impl NymContractCache {
             .unwrap_or_default()
     }
 
-    pub async fn config_score_params(&self) -> Cache<Option<ConfigScoreParams>> {
-        self.get_owned(|cache| cache.config_score_params.clone_cache())
+    pub async fn maybe_config_score_data_owned(&self) -> Option<Cache<ConfigScoreData>> {
+        self.config_score_data_owned().await.transpose()
+    }
+
+    pub async fn config_score_data_owned(&self) -> Cache<Option<ConfigScoreData>> {
+        self.get_owned(|cache| cache.config_score_data.clone_cache())
             .await
             .unwrap_or_default()
     }

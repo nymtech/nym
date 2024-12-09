@@ -103,6 +103,15 @@ pub struct Cache<T> {
     as_at: OffsetDateTime,
 }
 
+impl<T> Cache<Option<T>> {
+    pub(crate) fn transpose(self) -> Option<Cache<T>> {
+        self.value.map(|value| Cache {
+            value,
+            as_at: self.as_at,
+        })
+    }
+}
+
 impl<T> Cache<T> {
     // ugh. I hate to expose it, but it'd have broken pre-existing code
     pub(crate) fn new(value: T) -> Self {

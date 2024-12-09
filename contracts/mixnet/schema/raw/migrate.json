@@ -17,8 +17,8 @@
     },
     "version_score_params": {
       "default": {
-        "penalty": "0.8",
-        "penalty_scaling": "2"
+        "penalty": "0.995",
+        "penalty_scaling": "1.65"
       },
       "allOf": [
         {
@@ -29,7 +29,7 @@
     "version_score_weights": {
       "default": {
         "major": 100,
-        "minor": 1,
+        "minor": 10,
         "patch": 1,
         "prerelease": 1
       },
@@ -86,7 +86,7 @@
       "additionalProperties": false
     },
     "VersionScoreFormulaParams": {
-      "description": "Given the formula of version_score = penalty ^ (num_versions_behind ^ penalty_scaling) define the relevant parameters",
+      "description": "Given the formula of version_score = penalty ^ (versions_behind_factor ^ penalty_scaling) define the relevant parameters",
       "type": "object",
       "required": [
         "penalty",

@@ -11,8 +11,8 @@ use crate::{constants, EncodedDate};
 use bls12_381::{G1Projective, Scalar};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use std::borrow::Borrow;
+use utoipa::ToSchema;
 
 /// A structure representing an expiration date signature.
 pub type ExpirationDateSignature = Signature;

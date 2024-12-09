@@ -12,9 +12,9 @@ use rs_merkle::{MerkleProof, MerkleTree};
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
-use utoipa::ToSchema;
 use std::fmt::{Debug, Formatter};
 use time::Date;
+use utoipa::ToSchema;
 
 // no point in importing the entire contract commons just for this one type
 pub type DepositId = u32;

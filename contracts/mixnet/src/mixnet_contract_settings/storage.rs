@@ -69,7 +69,7 @@ impl NymNodeVersionHistory<'_> {
         env: &Env,
         raw_semver: &str,
     ) -> Result<u32, MixnetContractError> {
-        let Ok(semver) = semver::Version::from_str(raw_semver) else {
+        let Ok(new_semver) = semver::Version::from_str(raw_semver) else {
             return Err(MixnetContractError::InvalidNymNodeSemver {
                 provided: raw_semver.to_string(),
             });
@@ -82,9 +82,18 @@ impl NymNodeVersionHistory<'_> {
             return self.insert_new(storage, genesis);
         };
 
+        let current_semver = current.version_information.semver_unchecked();
+        if new_semver <= current_semver {
+            // make sure the new semver is strictly more recent than the current head
+            return Err(MixnetContractError::NonIncreasingSemver {
+                provided: raw_semver.to_string(),
+                current: current.version_information.semver,
+            });
+        }
+
         let diff = current
             .version_information
-            .difference_against_new_current(&semver);
+            .difference_against_new_current(&new_semver);
         let entry = HistoricalNymNodeVersion {
             semver: raw_semver.to_string(),
             introduced_at_height: env.block.height,

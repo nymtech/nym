@@ -37,6 +37,7 @@ impl HistoricalNymNodeVersion {
 
     /// Return [`TotalVersionDifference`] for a new release version that is going to be pushed right after this one
     /// this function cannot be called against 2 arbitrary versions
+    #[inline]
     pub fn difference_against_new_current(
         &self,
         new_version: &semver::Version,

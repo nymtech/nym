@@ -15,8 +15,8 @@ use crate::{constants, ecash_group_parameters, Attribute, EncodedDate, EncodedTi
 use bls12_381::{multi_miller_loop, G1Projective, G2Prepared, G2Projective, Scalar};
 use group::{Curve, Group, GroupEncoding};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use std::ops::Neg;
+use utoipa::ToSchema;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Represents a withdrawal request generate by the client who wants to obtain a zk-nym credential.

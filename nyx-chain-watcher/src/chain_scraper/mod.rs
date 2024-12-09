@@ -1,6 +1,10 @@
-use crate::env::vars::{NYXD_SCRAPER_START_HEIGHT, NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT};
+use crate::env::vars::{
+    NYXD_SCRAPER_START_HEIGHT, NYXD_SCRAPER_UNSAFE_NUKE_DB,
+    NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT,
+};
 use nyxd_scraper::{NyxdScraper, PruningOptions};
-use tracing::info;
+use std::fs;
+use tracing::{info, warn};
 
 pub(crate) async fn run_chain_scraper(
     config: &crate::config::Config,
@@ -24,6 +28,17 @@ pub(crate) async fn run_chain_scraper(
             // blow up if passed malformed env value
             Some(raw) => raw.parse()?,
         };
+
+    let nuke_db: bool = match std::env::var(NYXD_SCRAPER_UNSAFE_NUKE_DB).ok() {
+        None => false,
+        // blow up if passed malformed env value
+        Some(raw) => raw.parse()?,
+    };
+
+    if nuke_db {
+        warn!("☢️☢️☢️ NUKING THE SCRAPER DATABASE");
+        fs::remove_file(config.chain_scraper_database_path())?;
+    }
 
     let scraper = NyxdScraper::builder(nyxd_scraper::Config {
         websocket_url,

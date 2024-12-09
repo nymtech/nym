@@ -18,7 +18,6 @@ use utoipauto::utoipauto;
 #[utoipauto(paths = "./nym-api/src,
     ./nym-api/nym-api-requests/src from nym-api-requests,
     ./common/config/src from nym-config,
-    ./common/cosmwasm-smart-contracts/mixnet-contract/src from nym-mixnet-contract-common,
     ./common/ticketbooks-merkle/src from nym-ticketbooks-merkle,
     ./common/nym_offline_compact_ecash/src from nym_compact_ecash")]
 #[derive(OpenApi)]
@@ -27,6 +26,9 @@ use utoipauto::utoipauto;
     tags(),
     components(schemas(
         nym_mixnet_contract_common::Interval,
+        nym_mixnet_contract_common::IntervalRewardParams,
+        nym_mixnet_contract_common::RewardingParams,
+        nym_mixnet_contract_common::reward_params::RewardedSetParams,
         nym_config::defaults::NymNetworkDetails,
         nym_config::defaults::ChainDetails,
         nym_config::defaults::DenomDetailsOwned,

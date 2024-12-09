@@ -18,11 +18,11 @@ use reqwest::StatusCode;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sqlx::Error;
-use utoipa::{ToResponse, ToSchema};
 use std::fmt::Display;
 use thiserror::Error;
 use time::{Date, OffsetDateTime};
 use tracing::error;
+use utoipa::{ToResponse, ToSchema};
 
 #[derive(Error, Debug)]
 #[error("Received uptime value was within 0-100 range (got {received})")]

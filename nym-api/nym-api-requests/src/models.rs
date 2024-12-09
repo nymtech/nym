@@ -1340,6 +1340,21 @@ impl NodeRefreshBody {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct RewardedSetResponse {
+    pub entry_gateways: Vec<NodeId>,
+
+    pub exit_gateways: Vec<NodeId>,
+
+    pub layer1: Vec<NodeId>,
+
+    pub layer2: Vec<NodeId>,
+
+    pub layer3: Vec<NodeId>,
+
+    pub standby: Vec<NodeId>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
+use crate::support::caching::cache::UninitialisedCache;
 use crate::support::http::helpers::{NodeIdParam, PaginationRequest};
 use crate::support::http::state::AppState;
 use axum::extract::{Path, Query, State};
@@ -9,7 +10,8 @@ use axum::routing::{get, post};
 use axum::{Json, Router};
 use nym_api_requests::models::{
     AnnotationResponse, NodeDatePerformanceResponse, NodePerformanceResponse, NodeRefreshBody,
-    NoiseDetails, NymNodeDescription, PerformanceHistoryResponse, UptimeHistoryResponse,
+    NoiseDetails, NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
+    UptimeHistoryResponse,
 };
 use nym_api_requests::pagination::{PaginatedResponse, Pagination};
 use nym_contracts_common::NaiveFloat;
@@ -17,6 +19,7 @@ use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NymNodeDetails;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
+use std::ops::Deref;
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use utoipa::{IntoParams, ToSchema};
@@ -42,6 +45,27 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
         )
         // to make it compatible with all the explorers that were used to using 0-100 values
         .route("/uptime-history/:node_id", get(get_node_uptime_history))
+        .route("/rewarded-set", get(rewarded_set))
+}
+
+#[utoipa::path(
+    tag = "Nym Nodes",
+    get,
+    request_body = NodeRefreshBody,
+    path = "/rewarded-set",
+    context_path = "/v1/nym-nodes",
+    responses(
+        (status = 200, body = RewardedSetResponse)
+    ),
+)]
+async fn rewarded_set(State(state): State<AppState>) -> AxumResult<Json<RewardedSetResponse>> {
+    let cached_rewarded_set = state
+        .nym_contract_cache()
+        .rewarded_set()
+        .await
+        .ok_or(UninitialisedCache)?;
+
+    Ok(Json(cached_rewarded_set.deref().deref().into()))
 }
 
 #[utoipa::path(

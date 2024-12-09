@@ -3,6 +3,7 @@
 
 use crate::support::caching::Cache;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
+use nym_api_requests::models::RewardedSetResponse;
 use nym_contracts_common::ContractBuildInformation;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::{
@@ -49,6 +50,19 @@ impl From<CachedRewardedSet> for RewardedSet {
             layer2: value.layer2.into_iter().collect(),
             layer3: value.layer3.into_iter().collect(),
             standby: value.standby.into_iter().collect(),
+        }
+    }
+}
+
+impl From<&CachedRewardedSet> for RewardedSetResponse {
+    fn from(value: &CachedRewardedSet) -> Self {
+        RewardedSetResponse {
+            entry_gateways: value.entry_gateways.iter().copied().collect(),
+            exit_gateways: value.exit_gateways.iter().copied().collect(),
+            layer1: value.layer1.iter().copied().collect(),
+            layer2: value.layer2.iter().copied().collect(),
+            layer3: value.layer3.iter().copied().collect(),
+            standby: value.standby.iter().copied().collect(),
         }
     }
 }

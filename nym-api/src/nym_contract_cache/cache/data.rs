@@ -3,7 +3,7 @@
 
 use crate::support::caching::Cache;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
-use nym_api_requests::models::RewardedSetResponse;
+use nym_api_requests::models::{ConfigScoreDataResponse, RewardedSetResponse};
 use nym_contracts_common::ContractBuildInformation;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::{
@@ -131,6 +131,19 @@ impl CachedRewardedSet {
 pub(crate) struct ConfigScoreData {
     pub(crate) config_score_params: ConfigScoreParams,
     pub(crate) nym_node_version_history: Vec<HistoricalNymNodeVersionEntry>,
+}
+
+impl From<ConfigScoreData> for ConfigScoreDataResponse {
+    fn from(value: ConfigScoreData) -> Self {
+        ConfigScoreDataResponse {
+            parameters: value.config_score_params.into(),
+            version_history: value
+                .nym_node_version_history
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
 }
 
 pub(crate) struct ContractCacheData {

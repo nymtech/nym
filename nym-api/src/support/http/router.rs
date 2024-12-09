@@ -4,7 +4,7 @@
 use crate::circulating_supply_api::handlers::circulating_supply_routes;
 use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::network::handlers::nym_network_routes;
-use crate::node_status_api::handlers::node_status_routes;
+use crate::node_status_api::handlers::status_routes;
 use crate::nym_contract_cache::handlers::nym_contract_cache_routes;
 use crate::nym_nodes::handlers::legacy::legacy_nym_node_routes;
 use crate::nym_nodes::handlers::nym_node_routes;
@@ -59,7 +59,7 @@ impl RouterBuilder {
                     .merge(nym_contract_cache_routes())
                     .merge(legacy_nym_node_routes())
                     .nest("/circulating-supply", circulating_supply_routes())
-                    .nest("/status", node_status_routes(network_monitor))
+                    .nest("/status", status_routes(network_monitor))
                     .nest("/network", nym_network_routes())
                     .nest("/api-status", status::handlers::api_status_routes())
                     .nest("/nym-nodes", nym_node_routes())

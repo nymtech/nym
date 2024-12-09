@@ -146,7 +146,7 @@ impl NodeStatusCacheRefresher {
         let nym_nodes = self.contract_cache.nym_nodes().await;
         let config_score_data = self
             .contract_cache
-            .config_score_data()
+            .config_score_data_owned()
             .await
             .into_inner()
             .ok_or(NodeStatusCacheError::SourceDataMissing)?;

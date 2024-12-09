@@ -274,7 +274,11 @@ impl NymContractCache {
             .unwrap_or_default()
     }
 
-    pub async fn config_score_data(&self) -> Cache<Option<ConfigScoreData>> {
+    pub async fn maybe_config_score_data_owned(&self) -> Option<Cache<ConfigScoreData>> {
+        self.config_score_data_owned().await.transpose()
+    }
+
+    pub async fn config_score_data_owned(&self) -> Cache<Option<ConfigScoreData>> {
         self.get_owned(|cache| cache.config_score_data.clone_cache())
             .await
             .unwrap_or_default()

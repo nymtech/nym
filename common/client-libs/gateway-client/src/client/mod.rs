@@ -101,6 +101,10 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     // currently unused (but populated)
     negotiated_protocol: Option<u8>,
 
+    // Callback on the fd as soon as the connection has been established
+    #[cfg(unix)]
+    connection_fd_callback: Option<Box<dyn Fn(RawFd) + Send + Sync>>,
+
     /// Listen to shutdown messages and send notifications back to the task manager
     task_client: TaskClient,
 }
@@ -116,6 +120,7 @@ impl<C, St> GatewayClient<C, St> {
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
+        #[cfg(unix)] connection_fd_callback: Option<Box<dyn Fn(RawFd) + Send + Sync>>,
         task_client: TaskClient,
     ) -> Self {
         GatewayClient {
@@ -131,6 +136,8 @@ impl<C, St> GatewayClient<C, St> {
             bandwidth_controller,
             stats_reporter,
             negotiated_protocol: None,
+            #[cfg(unix)]
+            connection_fd_callback,
             task_client,
         }
     }
@@ -201,6 +208,12 @@ impl<C, St> GatewayClient<C, St> {
         };
 
         self.connection = SocketState::Available(Box::new(ws_stream));
+
+        #[cfg(unix)]
+        if let (Some(callback), Some(fd)) = (self.connection_fd_callback.as_ref(), self.ws_fd()) {
+            callback.as_ref()(fd);
+        }
+
         Ok(())
     }
 
@@ -1048,6 +1061,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             bandwidth_controller: None,
             stats_reporter: ClientStatsSender::new(None),
             negotiated_protocol: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
             task_client,
         }
     }
@@ -1078,6 +1093,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             bandwidth_controller,
             stats_reporter,
             negotiated_protocol: self.negotiated_protocol,
+            #[cfg(unix)]
+            connection_fd_callback: self.connection_fd_callback,
             task_client,
         }
     }

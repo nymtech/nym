@@ -188,6 +188,9 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     user_agent: Option<UserAgent>,
 
     setup_method: GatewaySetup,
+
+    #[cfg(unix)]
+    connection_fd_callback: Option<Box<dyn Fn(RawFd) + Send + Sync>>,
 }
 
 impl<'a, C, S> BaseClientBuilder<'a, C, S>
@@ -210,6 +213,8 @@ where
             shutdown: None,
             user_agent: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
+            #[cfg(unix)]
+            connection_fd_callback: None,
         }
     }
 
@@ -259,6 +264,15 @@ where
         self.custom_topology_provider =
             Some(Box::new(HardcodedTopologyProvider::new_from_file(file)?));
         Ok(self)
+    }
+
+    #[cfg(unix)]
+    pub fn with_connection_fd_callback(
+        mut self,
+        callback: Box<dyn Fn(RawFd) + Send + Sync>,
+    ) -> Self {
+        self.connection_fd_callback = Some(callback);
+        self
     }
 
     // note: do **NOT** make this method public as its only valid usage is from within `start_base`
@@ -359,6 +373,7 @@ where
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
+        #[cfg(unix)] connection_fd_callback: Option<Box<dyn Fn(RawFd) + Send + Sync>>,
         shutdown: TaskClient,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
@@ -401,6 +416,8 @@ where
                     packet_router,
                     bandwidth_controller,
                     stats_reporter,
+                    #[cfg(unix)]
+                    connection_fd_callback,
                     shutdown,
                 )
             };
@@ -462,6 +479,7 @@ where
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
+        #[cfg(unix)] connection_fd_callback: Option<Box<dyn Fn(RawFd) + Send + Sync>>,
         mut shutdown: TaskClient,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
@@ -493,6 +511,8 @@ where
             details_store,
             packet_router,
             stats_reporter,
+            #[cfg(unix)]
+            connection_fd_callback,
             shutdown,
         )
         .await?;
@@ -777,6 +797,8 @@ where
             &details_store,
             gateway_packet_router,
             stats_reporter.clone(),
+            #[cfg(unix)]
+            self.connection_fd_callback,
             shutdown.fork("gateway_transceiver"),
         )
         .await?;

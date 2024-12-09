@@ -1,5 +1,5 @@
 use crate::env::vars::{NYXD_SCRAPER_START_HEIGHT, NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT};
-use nyxd_scraper::{storage::ScraperStorage, NyxdScraper, PruningOptions};
+use nyxd_scraper::{NyxdScraper, PruningOptions};
 use tracing::info;
 
 pub(crate) async fn run_chain_scraper(

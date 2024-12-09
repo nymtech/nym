@@ -88,6 +88,7 @@ async fn make_client(topology: NymTopology) -> Result<MixnetClient> {
     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .network_details(net)
         .custom_topology_provider(topology_provider)
+        .debug_config(mixnet_debug_config(0))
         // .enable_credentials_mode()
         .build()?;
 
@@ -215,4 +216,15 @@ async fn main() -> Result<()> {
     server_handle.await??;
 
     Ok(())
+}
+
+fn mixnet_debug_config(min_gateway_performance: u8) -> nym_client_core::config::DebugConfig {
+    let mut debug_config = nym_client_core::config::DebugConfig::default();
+    debug_config
+        .traffic
+        .disable_main_poisson_packet_distribution = true;
+    debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
+    debug_config.topology.minimum_gateway_performance = min_gateway_performance;
+    debug_config.traffic.deterministic_route_selection = true;
+    debug_config
 }

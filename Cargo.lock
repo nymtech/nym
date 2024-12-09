@@ -5862,6 +5862,7 @@ dependencies = [
  "futures",
  "log",
  "nym-bin-common",
+ "nym-client-core",
  "nym-crypto",
  "nym-network-defaults",
  "nym-sdk",

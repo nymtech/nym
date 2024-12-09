@@ -51,6 +51,12 @@ pub(crate) fn log_db_operation_time(op_name: &str, start_time: Instant) {
 impl ScraperStorage {
     #[instrument]
     pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, ScraperError> {
+        let database_path = database_path.as_ref();
+        debug!(
+            "initialising scraper database path to '{}'",
+            database_path.display()
+        );
+
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true)

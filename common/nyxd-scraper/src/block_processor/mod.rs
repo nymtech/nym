@@ -117,6 +117,8 @@ impl BlockProcessor {
         let last_pruned = storage.get_pruned_height().await?;
         let last_pruned_height = last_pruned.try_into().unwrap_or_default();
 
+        debug!(last_processed_height = %last_processed_height, pruned_height = %last_pruned_height, "setting up block processor...");
+
         Ok(BlockProcessor {
             config,
             cancel,
@@ -399,12 +401,15 @@ impl BlockProcessor {
     // but we need it to help the compiler figure out the future is `Send`
     async fn startup_resync(&mut self) -> Result<(), ScraperError> {
         assert!(self.pending_sync.is_empty());
+        info!("attempting to run startup resync...");
 
         self.maybe_prune_storage().await?;
 
         let latest_block = self.rpc_client.current_block_height().await? as u32;
+        info!("obtained latest block height: {latest_block}");
 
         if latest_block > self.last_processed_height && self.last_processed_height != 0 {
+            info!("we have already processed some blocks in the past - attempting to resume...");
             // in case we were offline for a while,
             // make sure we don't request blocks we'd have to prune anyway
             let keep_recent = self.config.pruning_options.strategy_keep_recent();
@@ -419,7 +424,9 @@ impl BlockProcessor {
 
         // this is the first time starting up
         if self.last_processed_height == 0 {
+            info!("this is the first time starting up");
             let Some(starting_height) = self.config.explicit_starting_block_height else {
+                info!("no starting block height set - will use the default behaviour");
                 // nothing to do
                 return Ok(());
             };
@@ -456,7 +463,7 @@ impl BlockProcessor {
     }
 
     pub(crate) async fn run(&mut self) {
-        info!("starting processing loop");
+        info!("starting block processor processing loop");
 
         // sure, we could be more efficient and reset it on every processed block,
         // but the overhead is so minimal that it doesn't matter

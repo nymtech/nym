@@ -139,7 +139,7 @@ pub struct NyxdScraper {
     task_tracker: TaskTracker,
     cancel_token: CancellationToken,
     startup_sync: Arc<Notify>,
-    pub storage: ScraperStorage,
+    storage: ScraperStorage,
     rpc_client: RpcClient,
 }
 
@@ -161,6 +161,10 @@ impl NyxdScraper {
             storage,
             rpc_client,
         })
+    }
+
+    pub fn storage(&self) -> ScraperStorage {
+        self.storage.clone()
     }
 
     fn start_tasks(

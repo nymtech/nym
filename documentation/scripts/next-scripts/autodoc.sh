@@ -11,7 +11,7 @@ CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD) && git checkout master &&
 cd ../../ && cargo build --release && cd tools/nym-cli && cargo build --release && cd ../../ && git checkout $CURRENT_BRANCH &&
 
   # run autodoc script
-  cd documentation/autodoc/ && cargo run --release &&
+  cd documentation/autodoc/ && rm -r ./autodoc-generated-markdown/* && cargo run --release &&
   mv autodoc-generated-markdown/nym-cli-commands.md ../docs/pages/developers/tools/nym-cli/commands.mdx &&
   mv autodoc-generated-markdown/nym-client-commands.md ../docs/pages/developers/clients/websocket/commands.mdx &&
   mv autodoc-generated-markdown/nym-socks5-client-commands.md ../docs/pages/developers/clients/socks5/commands.mdx &&

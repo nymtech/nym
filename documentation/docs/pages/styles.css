@@ -11,7 +11,7 @@ footer {
 /* set width entire div */
 .nx-mx-auto.nx-flex.nx-max-w-\[90rem\] {
   max-width: 110rem;
-  padding: 0%;
+  left-padding: 1%;
 }
 
 .nextra-toc {

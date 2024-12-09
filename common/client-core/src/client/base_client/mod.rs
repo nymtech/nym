@@ -366,6 +366,7 @@ where
         controller.start_with_shutdown(shutdown)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn start_gateway_client(
         config: &Config,
         initialisation_result: InitialisationResult,

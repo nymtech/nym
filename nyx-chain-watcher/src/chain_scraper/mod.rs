@@ -1,9 +1,10 @@
 use crate::env::vars::{NYXD_SCRAPER_START_HEIGHT, NYXD_SCRAPER_USE_BEST_EFFORT_START_HEIGHT};
 use nyxd_scraper::{storage::ScraperStorage, NyxdScraper, PruningOptions};
+use tracing::info;
 
 pub(crate) async fn run_chain_scraper(
     config: &crate::config::Config,
-) -> anyhow::Result<ScraperStorage> {
+) -> anyhow::Result<NyxdScraper> {
     let websocket_url = std::env::var("NYXD_WS").expect("NYXD_WS not defined");
 
     let rpc_url = std::env::var("NYXD").expect("NYXD not defined");
@@ -38,5 +39,8 @@ pub(crate) async fn run_chain_scraper(
 
     let instance = scraper.build_and_start().await?;
 
-    Ok(instance.storage)
+    info!("🚧 blocking until the chain has caught up...");
+    instance.wait_for_startup_sync().await;
+
+    Ok(instance)
 }

@@ -75,16 +75,17 @@ This page displays a full list of all the changes during our release cycle from 
 - No delegation - not upgrading in time - 2 nodes
 </AccordionTemplate>
 
-- [`network_tunnel_manager.sh` updated](): run the commands below to make sure 
+- [`network_tunnel_manager.sh` updated](network): run the commands below to make sure 
 
 <br />
 
-<AccordionTemplate name={<TestingSteps/>}>
-these commands can be run one by one or copy-pasted and run as a block.
+<AccordionTemplate name={<TunnelManagerCommands/>}>
+These commands can be run one by one or copy-pasted and run as a block.
 ```sh
 mkdir $HOME/nym-binaries; \
 
-curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/network_tunnel_manager.sh -o $HOME/nym-binaries/network_tunnel_manager.sh && chmod +x $HOME/nym-binaries/network_tunnel_manager.sh; \
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/network_tunnel_manager.sh -o $HOME/nym-binaries/network_tunnel_manager.sh && \
+chmod +x $HOME/nym-binaries/network_tunnel_manager.sh; \
 
 $HOME/nym-binaries/network_tunnel_manager.sh check_nymtun_iptables  ; \
 $HOME/nym-binaries/network_tunnel_manager.sh remove_duplicate_rules nymtun0 ;\
@@ -102,13 +103,17 @@ systemctl daemon-reload && service nym-node restart && journalctl -u nym-node -f
 ```
 
 Then run the jokes in a new window for control
-
+```sh
+$HOME/nym-binaries/network_tunnel_manager.sh joke_through_the_mixnet
+$HOME/nym-binaries/network_tunnel_manager.sh joke_through_wg_tunnel
+```
 </AccordionTemplate>
 
 
 
 #### Tools
 
+- **[New APIs documentation](../apis/introduction)** with interactive APIs generated from the OpenAPI specs of various API endpoints offered by bits of Nym infrastructure run both by Nym and community operators for both Mainnet and the Sandbox testnet.
 - [Nym Harbourmaster](https://harbourmaster.nymtech.net/) has a new tab called `CONTRACT EXPLORER` querying data from Nym mixnet contract in real time.
 - [Nym Explorer](https://explorer.nymtech.net) is updated to read migrated nodes correctly
 - [New community explorer by SpectreDAO](https://explorer.nym.spectredao.net/dashboard) offers Nym Network dashboard, Node overview and Account stats view functions for operators and delegators.

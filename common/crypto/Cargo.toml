@@ -18,7 +18,7 @@ digest = { workspace = true, optional = true }
 generic-array = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
 hmac = { workspace = true, optional = true }
-cipher = { workspace = true, features = ["zeroize"], optional = true }
+cipher = { workspace = true, optional = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"], optional = true }
 ed25519-dalek = { workspace = true, features = ["rand_core"], optional = true }
 rand = { workspace = true, optional = true }
@@ -39,7 +39,7 @@ rand_chacha = { workspace = true }
 default = ["sphinx"]
 aead = ["dep:aead", "aead/std", "aes-gcm-siv", "generic-array"]
 serde = ["dep:serde", "serde_bytes", "ed25519-dalek/serde", "x25519-dalek/serde"]
-asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize"]
+asymmetric = ["x25519-dalek", "ed25519-dalek", "zeroize", "cipher/zeroize"]
 hashing = ["blake3", "digest", "hkdf", "hmac", "generic-array"]
 stream_cipher = ["aes", "ctr", "cipher", "generic-array"]
 sphinx = ["nym-sphinx-types/sphinx"]

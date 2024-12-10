@@ -21,7 +21,7 @@ impl MyTopologyProvider {
     async fn get_topology(&self) -> NymTopology {
         let mixnodes = self
             .validator_client
-            .get_all_basic_active_mixing_assigned_nodes(None)
+            .get_all_basic_active_mixing_assigned_nodes()
             .await
             .unwrap();
 
@@ -35,7 +35,7 @@ impl MyTopologyProvider {
 
         let gateways = self
             .validator_client
-            .get_all_basic_entry_assigned_nodes(None)
+            .get_all_basic_entry_assigned_nodes()
             .await
             .unwrap();
 

@@ -35,18 +35,11 @@ pub struct NymApiTopologyProvider {
 
     validator_client: nym_validator_client::client::NymApiClient,
     nym_api_urls: Vec<Url>,
-
-    client_version: String,
     currently_used_api: usize,
 }
 
 impl NymApiTopologyProvider {
-    pub fn new(
-        config: Config,
-        mut nym_api_urls: Vec<Url>,
-        client_version: String,
-        user_agent: Option<UserAgent>,
-    ) -> Self {
+    pub fn new(config: Config, mut nym_api_urls: Vec<Url>, user_agent: Option<UserAgent>) -> Self {
         nym_api_urls.shuffle(&mut thread_rng());
 
         let validator_client = if let Some(user_agent) = user_agent {
@@ -62,7 +55,6 @@ impl NymApiTopologyProvider {
             config,
             validator_client,
             nym_api_urls,
-            client_version,
             currently_used_api: 0,
         }
     }
@@ -99,7 +91,7 @@ impl NymApiTopologyProvider {
     async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
         let mixnodes = match self
             .validator_client
-            .get_all_basic_active_mixing_assigned_nodes(Some(self.client_version.clone()))
+            .get_all_basic_active_mixing_assigned_nodes()
             .await
         {
             Err(err) => {
@@ -111,7 +103,7 @@ impl NymApiTopologyProvider {
 
         let gateways = match self
             .validator_client
-            .get_all_basic_entry_assigned_nodes(Some(self.client_version.clone()))
+            .get_all_basic_entry_assigned_nodes()
             .await
         {
             Err(err) => {

@@ -38,13 +38,12 @@ const DEFAULT_GATEWAY_SENDING_RATE: usize = 200;
 const DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS: usize = 50;
 const DEFAULT_PACKET_DELIVERY_TIMEOUT: Duration = Duration::from_secs(20);
 const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(15 * 60);
-const DEFAULT_GATEWAY_PING_INTERVAL: Duration = Duration::from_secs(60);
 // Set this to a high value for now, so that we don't risk sporadic timeouts that might cause
 // bought bandwidth tokens to not have time to be spent; Once we remove the gateway from the
 // bandwidth bridging protocol, we can come back to a smaller timeout value
 const DEFAULT_GATEWAY_RESPONSE_TIMEOUT: Duration = Duration::from_secs(5 * 60);
-// This timeout value should be big enough to accommodate an initial bandwidth acquirement
-const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_secs(2 * 60);
+const DEFAULT_GATEWAY_CONNECTION_TIMEOUT: Duration = Duration::from_secs(15);
+const DEFAULT_GATEWAY_BANDWIDTH_CLAIM_TIMEOUT: Duration = Duration::from_secs(2 * 60);
 
 const DEFAULT_TEST_ROUTES: usize = 3;
 const DEFAULT_MINIMUM_TEST_ROUTES: usize = 1;
@@ -326,11 +325,6 @@ pub struct NetworkMonitorDebug {
     #[serde(with = "humantime_serde")]
     pub run_interval: Duration,
 
-    /// Specifies interval at which we should be sending ping packets to all active gateways
-    /// in order to keep the websocket connections alive.
-    #[serde(with = "humantime_serde")]
-    pub gateway_ping_interval: Duration,
-
     /// Specifies maximum rate (in packets per second) of test packets being sent to gateway
     pub gateway_sending_rate: usize,
 
@@ -345,6 +339,10 @@ pub struct NetworkMonitorDebug {
     /// Maximum allowed time for the gateway connection to get established.
     #[serde(with = "humantime_serde")]
     pub gateway_connection_timeout: Duration,
+
+    /// Maximum allowed time for the gateway bandwidth claim to get resolved
+    #[serde(with = "humantime_serde")]
+    pub gateway_bandwidth_claim_timeout: Duration,
 
     /// Specifies the duration the monitor is going to wait after sending all measurement
     /// packets before declaring nodes unreachable.
@@ -373,11 +371,11 @@ impl Default for NetworkMonitorDebug {
             min_gateway_reliability: DEFAULT_MIN_GATEWAY_RELIABILITY,
             disabled_credentials_mode: true,
             run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
-            gateway_ping_interval: DEFAULT_GATEWAY_PING_INTERVAL,
             gateway_sending_rate: DEFAULT_GATEWAY_SENDING_RATE,
             max_concurrent_gateway_clients: DEFAULT_MAX_CONCURRENT_GATEWAY_CLIENTS,
             gateway_response_timeout: DEFAULT_GATEWAY_RESPONSE_TIMEOUT,
             gateway_connection_timeout: DEFAULT_GATEWAY_CONNECTION_TIMEOUT,
+            gateway_bandwidth_claim_timeout: DEFAULT_GATEWAY_BANDWIDTH_CLAIM_TIMEOUT,
             packet_delivery_timeout: DEFAULT_PACKET_DELIVERY_TIMEOUT,
             test_routes: DEFAULT_TEST_ROUTES,
             minimum_test_routes: DEFAULT_MINIMUM_TEST_ROUTES,

@@ -34,7 +34,6 @@ nym-serde-helpers = { path = "../../common/serde-helpers", features = ["bs58"] }
 workspace = true
 features = ["tokio"]
 
-
 [features]
 default = ["query-types"]
 query-types = ["nym-http-api-common"]

@@ -33,7 +33,6 @@ impl NymNodeTopologyProvider {
                         min_gateway_performance: 0,
                     },
                     nym_api_url,
-                    env!("CARGO_PKG_VERSION").to_string(),
                     Some(user_agent),
                 ),
                 cache_ttl,

@@ -139,6 +139,10 @@ impl<C, St> GatewayClient<C, St> {
         self.gateway_identity
     }
 
+    pub fn shared_key(&self) -> Option<Arc<SharedGatewayKey>> {
+        self.shared_key.clone()
+    }
+
     pub fn ws_fd(&self) -> Option<RawFd> {
         match &self.connection {
             SocketState::Available(conn) => ws_fd(conn.as_ref()),
@@ -408,7 +412,7 @@ impl<C, St> GatewayClient<C, St> {
             }
 
             Some(_) => {
-                info!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
+                debug!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
                 Ok(())
             }
         }
@@ -991,24 +995,6 @@ impl<C, St> GatewayClient<C, St> {
             self.claim_bandwidth().await?;
         }
         Ok(())
-    }
-
-    #[deprecated(note = "this method does not deal with upgraded keys for legacy clients")]
-    pub async fn authenticate_and_start(
-        &mut self,
-    ) -> Result<AuthenticationResponse, GatewayClientError>
-    where
-        C: DkgQueryClient + Send + Sync,
-        St: CredentialStorage,
-        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
-    {
-        let shared_key = self.perform_initial_authentication().await?;
-        self.claim_initial_bandwidth().await?;
-
-        // this call is NON-blocking
-        self.start_listening_for_mixnet_messages()?;
-
-        Ok(shared_key)
     }
 }
 

@@ -3,16 +3,15 @@
 
 use super::storage;
 use crate::mixnet_contract_settings::storage::ADMIN;
-use cosmwasm_std::MessageInfo;
 use cosmwasm_std::Response;
 use cosmwasm_std::{DepsMut, StdResult};
+use cosmwasm_std::{Env, MessageInfo};
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::events::{
     new_rewarding_validator_address_update_event, new_settings_update_event,
     new_update_nym_node_semver_event,
 };
 use mixnet_contract_common::ContractStateParamsUpdate;
-use std::str::FromStr;
 
 pub fn try_update_contract_admin(
     mut deps: DepsMut<'_>,
@@ -92,15 +91,6 @@ pub(crate) fn try_update_contract_settings(
 
     // check for config score params updates
     if let Some(config_score_update) = update.config_score_params {
-        // if semver is to be updated - validate the provided value
-        if let Some(current_nym_node_semver) = config_score_update.current_nym_node_semver {
-            if semver::Version::from_str(&current_nym_node_semver).is_err() {
-                return Err(MixnetContractError::InvalidNymNodeSemver {
-                    provided: current_nym_node_semver,
-                });
-            }
-            state.params.config_score_params.current_nym_node_semver = current_nym_node_semver
-        }
         if let Some(version_weights) = config_score_update.version_weights {
             state.params.config_score_params.version_weights = version_weights
         }
@@ -119,23 +109,19 @@ pub(crate) fn try_update_contract_settings(
 
 pub(crate) fn try_update_current_nym_node_semver(
     deps: DepsMut<'_>,
+    env: Env,
     info: MessageInfo,
     current_version: String,
 ) -> Result<Response, MixnetContractError> {
-    let mut state = storage::CONTRACT_STATE.load(deps.storage)?;
     ADMIN.assert_admin(deps.as_ref(), &info.sender)?;
 
-    let response = Response::new().add_event(new_update_nym_node_semver_event(&current_version));
+    let new_id = storage::NymNodeVersionHistory::new().try_insert_new(
+        deps.storage,
+        &env,
+        &current_version,
+    )?;
 
-    if semver::Version::from_str(&current_version).is_err() {
-        return Err(MixnetContractError::InvalidNymNodeSemver {
-            provided: current_version,
-        });
-    }
-
-    state.params.config_score_params.current_nym_node_semver = current_version;
-    storage::CONTRACT_STATE.save(deps.storage, &state)?;
-    Ok(response)
+    Ok(Response::new().add_event(new_update_nym_node_semver_event(&current_version, new_id)))
 }
 
 #[cfg(test)]

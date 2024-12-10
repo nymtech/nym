@@ -71,6 +71,9 @@ pub const LAST_INTERVAL_EVENT_ID_KEY: &str = "lie";
 pub const ADMIN_STORAGE_KEY: &str = "admin";
 pub const CONTRACT_STATE_KEY: &str = "state";
 
+pub const VERSION_HISTORY_ID_COUNTER_KEY: &str = "vhid";
+pub const VERSION_HISTORY_NAMESPACE: &str = "vh";
+
 pub const NYMNODE_ROLES_ASSIGNMENT_NAMESPACE: &str = "roles";
 pub const NYMNODE_REWARDED_SET_METADATA_NAMESPACE: &str = "roles_metadata";
 pub const NYMNODE_ACTIVE_ROLE_ASSIGNMENT_KEY: &str = "active_roles";

@@ -32,6 +32,7 @@ use schemars::gen::SchemaGenerator;
 use schemars::schema::{InstanceType, Schema, SchemaObject};
 use schemars::JsonSchema;
 use serde::{Deserialize, Deserializer, Serialize};
+use std::collections::BTreeMap;
 use std::fmt::{Debug, Display, Formatter};
 use std::net::IpAddr;
 use std::ops::{Deref, DerefMut};
@@ -1256,6 +1257,18 @@ pub type MixnodeTestResultResponse = PaginatedResponse<PartialTestResult>;
 pub type GatewayTestResultResponse = PaginatedResponse<PartialTestResult>;
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct NetworkMonitorRunDetailsResponse {
+    pub monitor_run_id: i64,
+    pub network_reliability: f64,
+    pub total_sent: usize,
+    pub total_received: usize,
+
+    // integer score to number of nodes with that score
+    pub mixnode_results: BTreeMap<u8, usize>,
+    pub gateway_results: BTreeMap<u8, usize>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct NoiseDetails {
     #[schemars(with = "String")]
     #[serde(with = "bs58_x25519_pubkey")]
@@ -1324,6 +1337,138 @@ impl NodeRefreshBody {
         }
 
         false
+    }
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct RewardedSetResponse {
+    pub entry_gateways: Vec<NodeId>,
+
+    pub exit_gateways: Vec<NodeId>,
+
+    pub layer1: Vec<NodeId>,
+
+    pub layer2: Vec<NodeId>,
+
+    pub layer3: Vec<NodeId>,
+
+    pub standby: Vec<NodeId>,
+}
+
+pub use config_score::*;
+pub mod config_score {
+    use nym_contracts_common::NaiveFloat;
+    use serde::{Deserialize, Serialize};
+    use std::cmp::Ordering;
+    use utoipa::ToSchema;
+
+    #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+    pub struct ConfigScoreDataResponse {
+        pub parameters: ConfigScoreParams,
+        pub version_history: Vec<HistoricalNymNodeVersionEntry>,
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq)]
+    pub struct HistoricalNymNodeVersionEntry {
+        /// The unique, ordered, id of this particular entry
+        pub id: u32,
+
+        /// Data associated with this particular version
+        pub version_information: HistoricalNymNodeVersion,
+    }
+
+    impl PartialOrd for HistoricalNymNodeVersionEntry {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            // we only care about id for the purposes of ordering as they should have unique data
+            self.id.partial_cmp(&other.id)
+        }
+    }
+
+    impl From<nym_mixnet_contract_common::HistoricalNymNodeVersionEntry>
+        for HistoricalNymNodeVersionEntry
+    {
+        fn from(value: nym_mixnet_contract_common::HistoricalNymNodeVersionEntry) -> Self {
+            HistoricalNymNodeVersionEntry {
+                id: value.id,
+                version_information: value.version_information.into(),
+            }
+        }
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, PartialEq)]
+    pub struct HistoricalNymNodeVersion {
+        /// Version of the nym node that is going to be used for determining the version score of a node.
+        /// note: value stored here is pre-validated `semver::Version`
+        pub semver: String,
+
+        /// Block height of when this version has been added to the contract
+        pub introduced_at_height: u64,
+        // for now ignore that field. it will give nothing useful to the users
+        //     pub difference_since_genesis: TotalVersionDifference,
+    }
+
+    impl From<nym_mixnet_contract_common::HistoricalNymNodeVersion> for HistoricalNymNodeVersion {
+        fn from(value: nym_mixnet_contract_common::HistoricalNymNodeVersion) -> Self {
+            HistoricalNymNodeVersion {
+                semver: value.semver,
+                introduced_at_height: value.introduced_at_height,
+            }
+        }
+    }
+
+    #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+    pub struct ConfigScoreParams {
+        /// Defines weights for calculating numbers of versions behind the current release.
+        pub version_weights: OutdatedVersionWeights,
+
+        /// Defines the parameters of the formula for calculating the version score
+        pub version_score_formula_params: VersionScoreFormulaParams,
+    }
+
+    /// Defines weights for calculating numbers of versions behind the current release.
+    #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+    pub struct OutdatedVersionWeights {
+        pub major: u32,
+        pub minor: u32,
+        pub patch: u32,
+        pub prerelease: u32,
+    }
+
+    /// Given the formula of version_score = penalty ^ (versions_behind_factor ^ penalty_scaling)
+    /// define the relevant parameters
+    #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+    pub struct VersionScoreFormulaParams {
+        pub penalty: f64,
+        pub penalty_scaling: f64,
+    }
+
+    impl From<nym_mixnet_contract_common::ConfigScoreParams> for ConfigScoreParams {
+        fn from(value: nym_mixnet_contract_common::ConfigScoreParams) -> Self {
+            ConfigScoreParams {
+                version_weights: value.version_weights.into(),
+                version_score_formula_params: value.version_score_formula_params.into(),
+            }
+        }
+    }
+
+    impl From<nym_mixnet_contract_common::OutdatedVersionWeights> for OutdatedVersionWeights {
+        fn from(value: nym_mixnet_contract_common::OutdatedVersionWeights) -> Self {
+            OutdatedVersionWeights {
+                major: value.major,
+                minor: value.minor,
+                patch: value.patch,
+                prerelease: value.prerelease,
+            }
+        }
+    }
+
+    impl From<nym_mixnet_contract_common::VersionScoreFormulaParams> for VersionScoreFormulaParams {
+        fn from(value: nym_mixnet_contract_common::VersionScoreFormulaParams) -> Self {
+            VersionScoreFormulaParams {
+                penalty: value.penalty.naive_to_f64(),
+                penalty_scaling: value.penalty_scaling.naive_to_f64(),
+            }
+        }
     }
 }
 

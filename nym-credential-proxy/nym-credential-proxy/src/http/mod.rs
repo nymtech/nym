@@ -10,7 +10,6 @@ use tokio_util::sync::CancellationToken;
 use tracing::info;
 
 pub mod helpers;
-pub mod middleware;
 pub mod router;
 pub mod state;
 pub mod types;
@@ -22,10 +21,15 @@ pub struct HttpServer {
 }
 
 impl HttpServer {
-    pub fn new(bind_address: SocketAddr, state: ApiState, auth_token: String) -> Self {
+    pub fn new(
+        bind_address: SocketAddr,
+        state: ApiState,
+        auth_token: String,
+        cancellation: CancellationToken,
+    ) -> Self {
         HttpServer {
             bind_address,
-            cancellation: state.cancellation_token(),
+            cancellation,
             router: build_router(state, auth_token),
         }
     }

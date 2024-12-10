@@ -94,7 +94,7 @@ pub async fn current_gateways<R: Rng>(
 
     log::debug!("Fetching list of gateways from: {nym_api}");
 
-    let gateways = client.get_all_basic_entry_assigned_nodes(None).await?;
+    let gateways = client.get_all_basic_entry_assigned_nodes().await?;
     log::debug!("Found {} gateways", gateways.len());
     log::trace!("Gateways: {:#?}", gateways);
 
@@ -121,9 +121,7 @@ pub async fn current_mixnodes<R: Rng>(
 
     log::trace!("Fetching list of mixnodes from: {nym_api}");
 
-    let mixnodes = client
-        .get_all_basic_active_mixing_assigned_nodes(None)
-        .await?;
+    let mixnodes = client.get_all_basic_active_mixing_assigned_nodes().await?;
     let valid_mixnodes = mixnodes
         .iter()
         .filter_map(|mixnode| mixnode.try_into().ok())

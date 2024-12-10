@@ -8,7 +8,7 @@ use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
 use nym_bin_common::bin_info_owned;
-use nym_http_api_common::logging;
+use nym_http_api_common::middleware::logging;
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::Gateway;
 use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;

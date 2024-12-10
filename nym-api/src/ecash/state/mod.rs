@@ -890,7 +890,7 @@ impl EcashState {
 
     pub async fn get_redeemable_tickets(
         &self,
-        provider_info: TicketProvider,
+        provider_info: &TicketProvider,
     ) -> Result<Vec<SerialNumberWrapper>> {
         let since = provider_info
             .last_batch_verification
@@ -901,6 +901,14 @@ impl EcashState {
             .get_verified_tickets_since(provider_info.id, since)
             .await
             .map_err(Into::into)
+    }
+
+    pub async fn update_last_batch_verification(&self, provider: &TicketProvider) -> Result<()> {
+        Ok(self
+            .aux
+            .storage
+            .update_last_batch_verification(provider.id, OffsetDateTime::now_utc())
+            .await?)
     }
 
     pub async fn get_ticket_data_by_serial_number(

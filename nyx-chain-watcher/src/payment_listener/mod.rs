@@ -2,7 +2,7 @@ use crate::config::payments_watcher::HttpAuthenticationOptions;
 use crate::config::PaymentWatcherConfig;
 use crate::db::queries;
 use crate::models::WebhookPayload;
-use nym_validator_client::nyxd::AccountId;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use nyxd_scraper::storage::ScraperStorage;
 use reqwest::Client;
 use rocket::form::validate::Contains;
@@ -78,7 +78,8 @@ pub(crate) async fn run_payment_listener(
                                 }
 
                                 for transfer in transfer_events {
-                                    let amount: f64 = parse_unym_amount(&transfer.amount)?;
+                                    let funds = Coin::from_str(&transfer.amount)?;
+                                    let amount: f64 = funds.amount as f64 / 1e6f64; // convert to major value, there will be precision loss
 
                                     queries::payments::insert_payment(
                                         &watcher_pool,
@@ -96,7 +97,7 @@ pub(crate) async fn run_payment_listener(
                                         message_index: transfer.message_index,
                                         sender_address: transfer.sender.to_string(),
                                         receiver_address: transfer.recipient.to_string(),
-                                        amount: transfer.amount,
+                                        funds: funds.into(),
                                         height: tx.height as u128,
                                         memo: tx.memo.clone(),
                                     };
@@ -206,10 +207,4 @@ fn parse_transfer_from_raw_log(
     }
 
     Ok(transfers)
-}
-
-fn parse_unym_amount(amount: &str) -> anyhow::Result<f64> {
-    let amount = amount.trim_end_matches("unym");
-    let parsed: f64 = amount.parse()?;
-    Ok(parsed / 1_000_000.0)
 }

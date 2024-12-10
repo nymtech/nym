@@ -96,7 +96,7 @@ impl NetworkManager {
         let wait_fut = async {
             let inner_fut = async {
                 loop {
-                    let nodes = match api_client.get_all_basic_nodes(None).await {
+                    let nodes = match api_client.get_all_basic_nodes().await {
                         Ok(nodes) => nodes,
                         Err(err) => {
                             ctx.println(format!(

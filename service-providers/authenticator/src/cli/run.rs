@@ -2,10 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::cli::peer_handler::DummyHandler;
+use crate::cli::try_load_current_config;
 use crate::cli::{override_config, OverrideConfig};
-use crate::cli::{try_load_current_config, version_check};
 use clap::Args;
-use log::error;
 use nym_authenticator::error::AuthenticatorError;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 use nym_crypto::asymmetric::x25519::KeyPair;
@@ -35,11 +34,6 @@ pub(crate) async fn execute(args: &Run) -> Result<(), AuthenticatorError> {
     let mut config = try_load_current_config(&args.common_args.id).await?;
     config = override_config(config, OverrideConfig::from(args.clone()));
     log::debug!("Using config: {:#?}", config);
-
-    if !version_check(&config) {
-        error!("failed the local version check");
-        return Err(AuthenticatorError::FailedLocalVersionCheck);
-    }
 
     log::info!("Starting authenticator service provider");
     let (wireguard_gateway_data, peer_rx) = WireguardGatewayData::new(

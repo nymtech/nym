@@ -315,6 +315,7 @@ impl MixnetListener {
             .filter(|r| r.1.is_none())
             .choose(&mut thread_rng())
             .ok_or(AuthenticatorError::NoFreeIp)?;
+        let private_ips = *private_ip_ref.0;
         // mark it as used, even though it's not final
         *private_ip_ref.1 = Some(SystemTime::now());
         let gateway_data = GatewayClient::new(
@@ -336,11 +337,12 @@ impl MixnetListener {
                 v1::response::AuthenticatorResponse::new_pending_registration_success(
                     v1::registration::RegistrationData {
                         nonce: registration_data.nonce,
-                        gateway_data: v1::GatewayClient {
-                            pub_key: gateway_data.pub_key,
-                            private_ip: gateway_data.private_ips.ipv4.into(),
-                            mac: v1::ClientMac::new(gateway_data.mac.to_vec()),
-                        },
+                        gateway_data: v1::registration::GatewayClient::new(
+                            self.keypair().private_key(),
+                            remote_public.inner(),
+                            private_ips.ipv4.into(),
+                            nonce,
+                        ),
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
@@ -355,7 +357,12 @@ impl MixnetListener {
                 v2::response::AuthenticatorResponse::new_pending_registration_success(
                     v2::registration::RegistrationData {
                         nonce: registration_data.nonce,
-                        gateway_data: registration_data.gateway_data.into(),
+                        gateway_data: v2::registration::GatewayClient::new(
+                            self.keypair().private_key(),
+                            remote_public.inner(),
+                            private_ips.ipv4.into(),
+                            nonce,
+                        ),
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
@@ -370,7 +377,12 @@ impl MixnetListener {
                 v3::response::AuthenticatorResponse::new_pending_registration_success(
                     v3::registration::RegistrationData {
                         nonce: registration_data.nonce,
-                        gateway_data: registration_data.gateway_data.into(),
+                        gateway_data: v3::registration::GatewayClient::new(
+                            self.keypair().private_key(),
+                            remote_public.inner(),
+                            private_ips.ipv4.into(),
+                            nonce,
+                        ),
                         wg_port: registration_data.wg_port,
                     },
                     request_id,

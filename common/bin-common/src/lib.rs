@@ -3,7 +3,6 @@
 
 pub mod build_information;
 pub mod logging;
-pub mod version_checker;
 
 #[cfg(feature = "clap")]
 pub mod completions;

@@ -151,7 +151,7 @@ impl Monitor {
 
         // contains performance data
         let all_skimmed_nodes = api_client
-            .get_all_basic_nodes(None)
+            .get_all_basic_nodes()
             .await
             .log_error("get_all_basic_nodes")?;
 
@@ -181,7 +181,7 @@ impl Monitor {
             .log_error("get_mixnodes_described")?;
         let mixnodes_active = api_client
             .nym_api
-            .get_basic_active_mixing_assigned_nodes(None, false, None, None)
+            .get_basic_active_mixing_assigned_nodes(false, None, None)
             .await
             .log_error("get_active_mixnodes")?
             .nodes

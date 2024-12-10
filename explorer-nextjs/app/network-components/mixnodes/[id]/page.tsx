@@ -94,7 +94,12 @@ const PageMixnodeDetailWithState = () => {
   const isMobile = useIsMobile()
   return (
     <Box component="main">
-      <Title text="Mixnode Detail" />
+      <Title text="Legacy Mixnode Detail" />
+      <Alert variant="filled" severity="warning" sx={{ my : 2, pt: 2 }}>
+        <AlertTitle>
+          Please update to the latest <code>nym-node</code> binary and migrate your bond and delegations from the wallet
+        </AlertTitle>
+      </Alert>
       <Grid container spacing={2} mt={1} mb={6}>
         <Grid item xs={12}>
           {mixNodeRow && description?.data && (

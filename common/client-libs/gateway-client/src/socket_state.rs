@@ -111,6 +111,11 @@ impl PartiallyDelegatedRouter {
             }
         };
 
+        if self.stream_return.is_canceled() {
+            // nothing to do, receiver has been dropped
+            return;
+        }
+
         let return_res = match ret {
             Err(err) => self.stream_return.send(Err(err)),
             Ok(_) => {

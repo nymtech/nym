@@ -17,7 +17,7 @@ use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::EcashSigningClient;
 use nym_validator_client::nyxd::contract_traits::{DkgQueryClient, EcashQueryClient};
-use nym_validator_client::nyxd::cosmwasm_client::ToSingletonContractData;
+use nym_validator_client::nyxd::cosmwasm_client::ContractResponseData;
 use nym_validator_client::EcashApiClient;
 use rand::rngs::OsRng;
 

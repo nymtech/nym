@@ -7,19 +7,23 @@
 #![warn(clippy::dbg_macro)]
 
 use crate::cli::Cli;
+use crate::deposit_maker::DepositMaker;
 use crate::error::VpnApiError;
-use crate::http::state::ApiState;
+use crate::http::state::{ApiState, ChainClient};
 use crate::http::HttpServer;
 use crate::storage::VpnApiStorage;
 use crate::tasks::StoragePruner;
 use clap::Parser;
 use nym_bin_common::logging::setup_tracing_logger;
+use nym_bin_common::{bin_info, bin_info_owned};
 use nym_network_defaults::setup_env;
-use tracing::{info, trace};
+use tokio_util::sync::CancellationToken;
+use tracing::{error, info, trace};
 
 pub mod cli;
 pub mod config;
 pub mod credentials;
+mod deposit_maker;
 pub mod error;
 pub mod helpers;
 pub mod http;
@@ -50,6 +54,20 @@ pub async fn wait_for_signal() {
     }
 }
 
+fn build_sha_short() -> &'static str {
+    let bin_info = bin_info!();
+    if bin_info.commit_sha.len() < 7 {
+        panic!("unavailable build commit sha")
+    }
+
+    if bin_info.commit_sha == "VERGEN_IDEMPOTENT_OUTPUT" {
+        error!("the binary hasn't been built correctly. it doesn't have a commit sha information");
+        return "unknown";
+    }
+
+    &bin_info.commit_sha[..7]
+}
+
 async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
     // create the tasks
     let bind_address = cli.bind_address();
@@ -58,14 +76,37 @@ async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
     let mnemonic = cli.mnemonic;
     let auth_token = cli.http_auth_token;
     let webhook_cfg = cli.webhook;
-    let api_state = ApiState::new(storage.clone(), webhook_cfg, mnemonic).await?;
-    let http_server = HttpServer::new(bind_address, api_state.clone(), auth_token);
+    let chain_client = ChainClient::new(mnemonic)?;
+    let cancellation_token = CancellationToken::new();
 
-    let storage_pruner = StoragePruner::new(api_state.cancellation_token(), storage);
+    let deposit_maker = DepositMaker::new(
+        build_sha_short(),
+        chain_client.clone(),
+        cli.max_concurrent_deposits,
+        cancellation_token.clone(),
+    );
+
+    let deposit_request_sender = deposit_maker.deposit_request_sender();
+    let api_state = ApiState::new(
+        storage.clone(),
+        webhook_cfg,
+        chain_client,
+        deposit_request_sender,
+        cancellation_token.clone(),
+    )
+    .await?;
+    let http_server = HttpServer::new(
+        bind_address,
+        api_state.clone(),
+        auth_token,
+        cancellation_token.clone(),
+    );
+    let storage_pruner = StoragePruner::new(cancellation_token, storage);
 
     // spawn all the tasks
     api_state.try_spawn(http_server.run_forever());
     api_state.try_spawn(storage_pruner.run_forever());
+    api_state.try_spawn(deposit_maker.run_forever());
 
     // wait for cancel signal (SIGINT, SIGTERM or SIGQUIT)
     wait_for_signal().await;
@@ -78,10 +119,10 @@ async fn run_api(cli: Cli) -> Result<(), VpnApiError> {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    std::env::set_var(
-        "RUST_LOG",
-        "trace,handlebars=warn,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn,tokio_util=warn,tokio_tungstenite=warn,tokio-util=warn,nym_validator_client=info",
-    );
+    // std::env::set_var(
+    //     "RUST_LOG",
+    //     "trace,handlebars=warn,tendermint_rpc=warn,h2=warn,hyper=warn,rustls=warn,reqwest=warn,tungstenite=warn,async_tungstenite=warn,tokio_util=warn,tokio_tungstenite=warn,tokio-util=warn,axum=warn,sqlx-core=warn,nym_validator_client=info",
+    // );
 
     let cli = Cli::parse();
     cli.webhook.ensure_valid_client_url()?;
@@ -89,6 +130,9 @@ async fn main() -> anyhow::Result<()> {
 
     setup_env(cli.config_env_file.as_ref());
     setup_tracing_logger();
+
+    let bin_info = bin_info_owned!();
+    info!("using the following version: {bin_info}");
 
     run_api(cli).await?;
     Ok(())

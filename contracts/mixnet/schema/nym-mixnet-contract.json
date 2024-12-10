@@ -60,8 +60,8 @@
       },
       "version_score_params": {
         "default": {
-          "penalty": "0.8",
-          "penalty_scaling": "2"
+          "penalty": "0.995",
+          "penalty_scaling": "1.65"
         },
         "allOf": [
           {
@@ -261,7 +261,7 @@
         "type": "string"
       },
       "VersionScoreFormulaParams": {
-        "description": "Given the formula of version_score = penalty ^ (num_versions_behind ^ penalty_scaling) define the relevant parameters",
+        "description": "Given the formula of version_score = penalty ^ (versions_behind_factor ^ penalty_scaling) define the relevant parameters",
         "type": "object",
         "required": [
           "penalty",
@@ -1308,12 +1308,6 @@
       "ConfigScoreParamsUpdate": {
         "type": "object",
         "properties": {
-          "current_nym_node_semver": {
-            "type": [
-              "string",
-              "null"
-            ]
-          },
           "version_score_formula_params": {
             "anyOf": [
               {
@@ -1938,7 +1932,7 @@
         "type": "string"
       },
       "VersionScoreFormulaParams": {
-        "description": "Given the formula of version_score = penalty ^ (num_versions_behind ^ penalty_scaling) define the relevant parameters",
+        "description": "Given the formula of version_score = penalty ^ (versions_behind_factor ^ penalty_scaling) define the relevant parameters",
         "type": "object",
         "required": [
           "penalty",
@@ -2038,6 +2032,54 @@
         "properties": {
           "get_state": {
             "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Get the current expected version of a Nym Node.",
+        "type": "object",
+        "required": [
+          "get_current_nym_node_version"
+        ],
+        "properties": {
+          "get_current_nym_node_version": {
+            "type": "object",
+            "additionalProperties": false
+          }
+        },
+        "additionalProperties": false
+      },
+      {
+        "description": "Get the version history of Nym Node.",
+        "type": "object",
+        "required": [
+          "get_nym_node_version_history"
+        ],
+        "properties": {
+          "get_nym_node_version_history": {
+            "type": "object",
+            "properties": {
+              "limit": {
+                "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              },
+              "start_after": {
+                "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+                "type": [
+                  "integer",
+                  "null"
+                ],
+                "format": "uint32",
+                "minimum": 0.0
+              }
+            },
             "additionalProperties": false
           }
         },
@@ -3443,8 +3485,8 @@
       },
       "version_score_params": {
         "default": {
-          "penalty": "0.8",
-          "penalty_scaling": "2"
+          "penalty": "0.995",
+          "penalty_scaling": "1.65"
         },
         "allOf": [
           {
@@ -3512,7 +3554,7 @@
         "additionalProperties": false
       },
       "VersionScoreFormulaParams": {
-        "description": "Given the formula of version_score = penalty ^ (num_versions_behind ^ penalty_scaling) define the relevant parameters",
+        "description": "Given the formula of version_score = penalty ^ (versions_behind_factor ^ penalty_scaling) define the relevant parameters",
         "type": "object",
         "required": [
           "penalty",
@@ -4177,6 +4219,111 @@
               "minimum": 0.0
             }
           }
+        }
+      }
+    },
+    "get_current_nym_node_version": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CurrentNymNodeVersionResponse",
+      "type": "object",
+      "properties": {
+        "version": {
+          "anyOf": [
+            {
+              "$ref": "#/definitions/HistoricalNymNodeVersionEntry"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "HistoricalNymNodeVersion": {
+          "type": "object",
+          "required": [
+            "difference_since_genesis",
+            "introduced_at_height",
+            "semver"
+          ],
+          "properties": {
+            "difference_since_genesis": {
+              "description": "The absolute version difference as compared against the first version introduced into the contract.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/TotalVersionDifference"
+                }
+              ]
+            },
+            "introduced_at_height": {
+              "description": "Block height of when this version has been added to the contract",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "semver": {
+              "description": "Version of the nym node that is going to be used for determining the version score of a node. note: value stored here is pre-validated `semver::Version`",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "HistoricalNymNodeVersionEntry": {
+          "type": "object",
+          "required": [
+            "id",
+            "version_information"
+          ],
+          "properties": {
+            "id": {
+              "description": "The unique, ordered, id of this particular entry",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "version_information": {
+              "description": "Data associated with this particular version",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/HistoricalNymNodeVersion"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "TotalVersionDifference": {
+          "type": "object",
+          "required": [
+            "major",
+            "minor",
+            "patch",
+            "prerelease"
+          ],
+          "properties": {
+            "major": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "minor": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "patch": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "prerelease": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
         }
       }
     },
@@ -7116,6 +7263,119 @@
         "Uint128": {
           "description": "A thin wrapper around u128 that is using strings for JSON encoding/decoding, such that the full u128 range can be used for clients that convert JSON numbers to floats, like JavaScript and jq.\n\n# Examples\n\nUse `from` to create instances of this and `u128` to get the value out:\n\n``` # use cosmwasm_std::Uint128; let a = Uint128::from(123u128); assert_eq!(a.u128(), 123);\n\nlet b = Uint128::from(42u64); assert_eq!(b.u128(), 42);\n\nlet c = Uint128::from(70u32); assert_eq!(c.u128(), 70); ```",
           "type": "string"
+        }
+      }
+    },
+    "get_nym_node_version_history": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NymNodeVersionHistoryResponse",
+      "type": "object",
+      "required": [
+        "history"
+      ],
+      "properties": {
+        "history": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HistoricalNymNodeVersionEntry"
+          }
+        },
+        "start_next_after": {
+          "description": "Field indicating paging information for the following queries if the caller wishes to get further entries.",
+          "type": [
+            "integer",
+            "null"
+          ],
+          "format": "uint32",
+          "minimum": 0.0
+        }
+      },
+      "additionalProperties": false,
+      "definitions": {
+        "HistoricalNymNodeVersion": {
+          "type": "object",
+          "required": [
+            "difference_since_genesis",
+            "introduced_at_height",
+            "semver"
+          ],
+          "properties": {
+            "difference_since_genesis": {
+              "description": "The absolute version difference as compared against the first version introduced into the contract.",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/TotalVersionDifference"
+                }
+              ]
+            },
+            "introduced_at_height": {
+              "description": "Block height of when this version has been added to the contract",
+              "type": "integer",
+              "format": "uint64",
+              "minimum": 0.0
+            },
+            "semver": {
+              "description": "Version of the nym node that is going to be used for determining the version score of a node. note: value stored here is pre-validated `semver::Version`",
+              "type": "string"
+            }
+          },
+          "additionalProperties": false
+        },
+        "HistoricalNymNodeVersionEntry": {
+          "type": "object",
+          "required": [
+            "id",
+            "version_information"
+          ],
+          "properties": {
+            "id": {
+              "description": "The unique, ordered, id of this particular entry",
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "version_information": {
+              "description": "Data associated with this particular version",
+              "allOf": [
+                {
+                  "$ref": "#/definitions/HistoricalNymNodeVersion"
+                }
+              ]
+            }
+          },
+          "additionalProperties": false
+        },
+        "TotalVersionDifference": {
+          "type": "object",
+          "required": [
+            "major",
+            "minor",
+            "patch",
+            "prerelease"
+          ],
+          "properties": {
+            "major": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "minor": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "patch": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "prerelease": {
+              "type": "integer",
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
         }
       }
     },
@@ -10554,15 +10814,10 @@
         "ConfigScoreParams": {
           "type": "object",
           "required": [
-            "current_nym_node_semver",
             "version_score_formula_params",
             "version_weights"
           ],
           "properties": {
-            "current_nym_node_semver": {
-              "description": "Current version of the nym node that is going to be used for determining the version score of a node. note: value stored here is pre-validated `semver::Version`",
-              "type": "string"
-            },
             "version_score_formula_params": {
               "description": "Defines the parameters of the formula for calculating the version score",
               "allOf": [
@@ -10752,7 +11007,7 @@
           "type": "string"
         },
         "VersionScoreFormulaParams": {
-          "description": "Given the formula of version_score = penalty ^ (num_versions_behind ^ penalty_scaling) define the relevant parameters",
+          "description": "Given the formula of version_score = penalty ^ (versions_behind_factor ^ penalty_scaling) define the relevant parameters",
           "type": "object",
           "required": [
             "penalty",
@@ -10826,15 +11081,10 @@
         "ConfigScoreParams": {
           "type": "object",
           "required": [
-            "current_nym_node_semver",
             "version_score_formula_params",
             "version_weights"
           ],
           "properties": {
-            "current_nym_node_semver": {
-              "description": "Current version of the nym node that is going to be used for determining the version score of a node. note: value stored here is pre-validated `semver::Version`",
-              "type": "string"
-            },
             "version_score_formula_params": {
               "description": "Defines the parameters of the formula for calculating the version score",
               "allOf": [
@@ -10988,7 +11238,7 @@
           "type": "string"
         },
         "VersionScoreFormulaParams": {
-          "description": "Given the formula of version_score = penalty ^ (num_versions_behind ^ penalty_scaling) define the relevant parameters",
+          "description": "Given the formula of version_score = penalty ^ (versions_behind_factor ^ penalty_scaling) define the relevant parameters",
           "type": "object",
           "required": [
             "penalty",

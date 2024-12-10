@@ -1,37 +1,42 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: GPL-3.0-only
+// SPDX-License-Identifier: Apache-2.0
 
-use axum::{
-    extract::{ConnectInfo, Request},
-    http::{
-        header::{HOST, USER_AGENT},
-        HeaderValue,
-    },
-    middleware::Next,
-    response::IntoResponse,
-};
-use colored::*;
-use std::net::SocketAddr;
-use tokio::time::Instant;
+use axum::extract::Request;
+use axum::http::header::{HOST, USER_AGENT};
+use axum::http::HeaderValue;
+use axum::middleware::Next;
+use axum::response::IntoResponse;
+use axum_client_ip::InsecureClientIp;
+use colored::Colorize;
+use std::time::Instant;
 use tracing::info;
 
 /// Simple logger for requests
 pub async fn logger(
-    ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    req: Request,
+    InsecureClientIp(addr): InsecureClientIp,
+    request: Request,
     next: Next,
 ) -> impl IntoResponse {
-    let method = req.method().to_string().green();
-    let uri = req.uri().to_string().blue();
+    // TODO dz use `OriginalUri` extractor to get full URI even for nested
+    // routers if routes aren't logged correctly in handlers
+    fn header_map(header: Option<&HeaderValue>, msg: String) -> String {
+        header
+            .map(|x| x.to_str().unwrap_or(&msg).to_string())
+            .unwrap_or(msg)
+    }
+
+    let method = request.method().to_string().green();
+    let uri = request.uri().to_string().blue();
     let agent = header_map(
-        req.headers().get(USER_AGENT),
+        request.headers().get(USER_AGENT),
         "Unknown User Agent".to_string(),
     );
 
-    let host = header_map(req.headers().get(HOST), "Unknown Host".to_string());
+    let host = header_map(request.headers().get(HOST), "Unknown Host".to_string());
 
     let start = Instant::now();
-    let res = next.run(req).await;
+    // run request through all middleware, incl. extractors
+    let res = next.run(request).await;
     let time_taken = start.elapsed();
     let status = res.status();
     let print_status = if status.is_client_error() || status.is_server_error() {
@@ -52,13 +57,8 @@ pub async fn logger(
     };
 
     let agent_str = "agent".bold();
+
     info!("[{addr} -> {host}] {method} '{uri}': {print_status} {time_taken} {agent_str}: {agent}");
 
     res
-}
-
-fn header_map(header: Option<&HeaderValue>, msg: String) -> String {
-    header
-        .map(|x| x.to_str().unwrap_or(&msg).to_string())
-        .unwrap_or(msg)
 }

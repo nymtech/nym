@@ -1,13 +1,12 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::cli::{try_load_current_config, version_check};
+use crate::cli::try_load_current_config;
 use crate::{
     cli::{override_config, OverrideConfig},
     error::NetworkRequesterError,
 };
 use clap::Args;
-use log::error;
 use nym_client_core::cli_helpers::client_run::CommonClientRunArgs;
 
 #[allow(clippy::struct_excessive_bools)]
@@ -56,11 +55,6 @@ pub(crate) async fn execute(args: &Run) -> Result<(), NetworkRequesterError> {
                 CAN MAKE REQUESTS FROM YOUR MACHINE. PLEASE QUIT IF YOU DON'T UNDERSTAND WHAT \
                 YOU'RE DOING.\n\n"
         );
-    }
-
-    if !version_check(&config) {
-        error!("failed the local version check");
-        return Err(NetworkRequesterError::FailedLocalVersionCheck);
     }
 
     log::info!("Starting socks5 service provider");

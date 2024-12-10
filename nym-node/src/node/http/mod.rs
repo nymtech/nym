@@ -14,7 +14,6 @@ pub use router::{api, HttpServerConfig, NymNodeRouter};
 
 pub mod error;
 pub mod helpers;
-pub mod middleware;
 pub mod router;
 pub mod state;
 

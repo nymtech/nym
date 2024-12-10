@@ -104,6 +104,23 @@ pub trait NymApiClientExt: ApiClient {
 
     #[deprecated]
     #[instrument(level = "debug", skip(self))]
+    async fn get_gateways_detailed_unfiltered(
+        &self,
+    ) -> Result<Vec<GatewayBondAnnotated>, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::GATEWAYS,
+                routes::DETAILED_UNFILTERED,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[deprecated]
+    #[instrument(level = "debug", skip(self))]
     async fn get_mixnodes_detailed_unfiltered(
         &self,
     ) -> Result<Vec<MixNodeBondAnnotated>, NymAPIError> {
@@ -188,16 +205,7 @@ pub trait NymApiClientExt: ApiClient {
 
     #[deprecated]
     #[tracing::instrument(level = "debug", skip_all)]
-    async fn get_basic_mixnodes(
-        &self,
-        semver_compatibility: Option<String>,
-    ) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
-        let params = if let Some(semver_compatibility) = &semver_compatibility {
-            vec![("semver_compatibility", semver_compatibility.as_str())]
-        } else {
-            vec![]
-        };
-
+    async fn get_basic_mixnodes(&self) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
@@ -206,23 +214,14 @@ pub trait NymApiClientExt: ApiClient {
                 "mixnodes",
                 "skimmed",
             ],
-            &params,
+            NO_PARAMS,
         )
         .await
     }
 
     #[deprecated]
     #[instrument(level = "debug", skip(self))]
-    async fn get_basic_gateways(
-        &self,
-        semver_compatibility: Option<String>,
-    ) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
-        let params = if let Some(semver_compatibility) = &semver_compatibility {
-            vec![("semver_compatibility", semver_compatibility.as_str())]
-        } else {
-            vec![]
-        };
-
+    async fn get_basic_gateways(&self) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
@@ -231,7 +230,7 @@ pub trait NymApiClientExt: ApiClient {
                 "gateways",
                 "skimmed",
             ],
-            &params,
+            NO_PARAMS,
         )
         .await
     }
@@ -241,16 +240,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_entry_assigned_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -283,16 +277,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_active_mixing_assigned_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -325,16 +314,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_mixing_capable_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -365,16 +349,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))

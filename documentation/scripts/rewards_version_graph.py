@@ -6,14 +6,19 @@ import numpy as np
 
 plt.style.use('dark_background')
 
-a = 0.8
-b = 2
+a = 0.995
+b = 1.65
 
 # make data
-x = [0,1,2,3,4,5]
-y = [a**(n**b) for n in x]
-#x2 = np.linspace(0, 10, 25)
-#y2 = 4 + 1 * np.sin(2 * x2)
+x1 = [0,1,2,3,4,5]
+x2 = x1
+x3 = x1
+x4 = x1
+
+y1 = [a**((v*1)**b) for v in x1]
+y2 = [a**((v*10)**b) for v in x1]
+y3 = [a**((v*100)**b) for v in x1]
+y4 = [a**((11)**b) for v in x1]
 
 f = plt.figure()
 f.set_figwidth(12)
@@ -21,8 +26,9 @@ f.set_figheight(9)
 
 # plot
 #fig, ax = plt.subplots()
-plt.plot(x,y, label=f'version_config_score_multiplier = {a} ^ (version_behind ^ {b})')
-
+plt.plot(x1,y1, label=f'Patches behind:             config_score_multiplier = {a} ^ ((1 * versions_behind) ^ {b})')
+plt.plot(x2,y2, label=f'Minor versions behind:  config_score_multiplier = {a} ^ ((10 * versions_behind) ^ {b})')
+plt.plot(x3,y3, label=f'Major versions behind:  config_score_multiplier = {a} ^ ((100 * versions_behind) ^ {b})')
 #ax.plot(x, y, linewidth=2.0)
 
 

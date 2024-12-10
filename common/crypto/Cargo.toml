@@ -18,7 +18,7 @@ digest = { workspace = true, optional = true }
 generic-array = { workspace = true, optional = true }
 hkdf = { workspace = true, optional = true }
 hmac = { workspace = true, optional = true }
-cipher = { workspace = true, optional = true }
+cipher = { workspace = true, features = ["zeroize"], optional = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"], optional = true }
 ed25519-dalek = { workspace = true, features = ["rand_core"], optional = true }
 rand = { workspace = true, optional = true }

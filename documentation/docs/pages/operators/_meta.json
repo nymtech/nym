@@ -10,6 +10,7 @@
   "tokenomics": "Tokenomics",
   "faq": "FAQ",
   "community-counsel": "Community Counsel",
+  "nymvpncli": "Nym VPN CLI",
   "---": {
     "type": "separator"
   },

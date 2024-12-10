@@ -1,0 +1,52 @@
+import { Callout } from 'nextra/components'
+
+# Nym VPN CLI
+
+This is a short guide to setting up and using the `nym-vpn-cli` tool. Download and run instructions for the GUIs can be found [here](https://nymvpn.com/en/download/linux).
+
+## Download & Extract Binary
+```sh
+wget -q https://github.com/nymtech/nym-vpn-client/releases/download/nym-vpn-core-v1.1.0-beta.2/nym-vpn-core-v1.1.0-beta.2_<YOUR_OPERATING_SYSTEM>.tar.gz &&
+tar -xzf nym-vpn-core-v1.1.0-beta.2_<YOUR_OPERATING_SYSTEM>.tar.gz &&
+cd nym-vpn-core-v1.1.0-beta.2_<YOUR_OPERATING_SYSTEM>/ &&
+chmod u+x *
+```
+
+## Build from Source
+### Prerequisites
+All operating systems require both [Rust](https://www.rust-lang.org/tools/install) and [Go](https://go.dev/doc/install).
+
+**Ubuntu24 specific packages:**
+```sh
+apt install gcc make protobuf-compiler pkconfig libdbus-1-dev build-essential clang
+```
+
+<Callout type="warning" emoji="⚠️">
+  Older Ubuntu versions need to manually install `protobuf-compiler` >= v3.21.12
+</Callout>
+
+**Arch specific packages:**
+```sh
+yay -S gcc make protobuf base-devel clang
+```
+
+### Clone & `make`
+```sh
+git clone https://github.com/nymtech/nym-vpn-client.git
+cd nym-vpn-client/
+make
+```
+
+## Mnemonic Generation
+Create an account at [nymvpn.com](nymvpn.com) to obtain your mnemonic.
+
+## Start the daemon
+```sh
+sudo ./nym-vpnd
+```
+
+## Run the CLI
+```sh
+sudo ./nym-vpn-cli store-account --mnemonic "<MNEMONIC_FROM_GENERATION_STEP>"
+sudo ./nym-vpn-cli run --wireguard-mode
+```

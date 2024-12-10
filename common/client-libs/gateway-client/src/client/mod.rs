@@ -103,7 +103,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 
     // Callback on the fd as soon as the connection has been established
     #[cfg(unix)]
-    connection_fd_callback: Option<Box<dyn Fn(RawFd) + Send + Sync>>,
+    connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 
     /// Listen to shutdown messages and send notifications back to the task manager
     task_client: TaskClient,
@@ -120,7 +120,7 @@ impl<C, St> GatewayClient<C, St> {
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
-        #[cfg(unix)] connection_fd_callback: Option<Box<dyn Fn(RawFd) + Send + Sync>>,
+        #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         task_client: TaskClient,
     ) -> Self {
         GatewayClient {

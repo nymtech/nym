@@ -190,7 +190,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     setup_method: GatewaySetup,
 
     #[cfg(unix)]
-    connection_fd_callback: Option<Box<dyn Fn(RawFd) + Send + Sync>>,
+    connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
 }
 
 impl<'a, C, S> BaseClientBuilder<'a, C, S>
@@ -269,7 +269,7 @@ where
     #[cfg(unix)]
     pub fn with_connection_fd_callback(
         mut self,
-        callback: Box<dyn Fn(RawFd) + Send + Sync>,
+        callback: Arc<dyn Fn(RawFd) + Send + Sync>,
     ) -> Self {
         self.connection_fd_callback = Some(callback);
         self
@@ -374,7 +374,7 @@ where
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
-        #[cfg(unix)] connection_fd_callback: Option<Box<dyn Fn(RawFd) + Send + Sync>>,
+        #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         shutdown: TaskClient,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
@@ -480,7 +480,7 @@ where
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
-        #[cfg(unix)] connection_fd_callback: Option<Box<dyn Fn(RawFd) + Send + Sync>>,
+        #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         mut shutdown: TaskClient,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where

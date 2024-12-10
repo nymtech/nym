@@ -28,7 +28,6 @@ tsify = { workspace = true, features = ["js"], optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 ## internal
-nym-bin-common = { path = "../bin-common" }
 nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto", features = ["sphinx", "outfox"] }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }

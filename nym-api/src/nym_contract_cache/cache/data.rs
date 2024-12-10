@@ -7,14 +7,16 @@ use nym_api_requests::models::{ConfigScoreDataResponse, RewardedSetResponse};
 use nym_contracts_common::ContractBuildInformation;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, NodeId, NymNodeDetails,
-    RewardedSet, RewardingParams,
+    ConfigScoreParams, EpochId, EpochRewardedSet, HistoricalNymNodeVersionEntry, Interval, NodeId,
+    NymNodeDetails, RewardedSet, RewardingParams,
 };
 use nym_validator_client::nyxd::AccountId;
 use std::collections::{HashMap, HashSet};
 
 #[derive(Default, Clone)]
 pub(crate) struct CachedRewardedSet {
+    pub(crate) epoch_id: EpochId,
+
     pub(crate) entry_gateways: HashSet<NodeId>,
 
     pub(crate) exit_gateways: HashSet<NodeId>,
@@ -28,28 +30,32 @@ pub(crate) struct CachedRewardedSet {
     pub(crate) standby: HashSet<NodeId>,
 }
 
-impl From<RewardedSet> for CachedRewardedSet {
-    fn from(value: RewardedSet) -> Self {
+impl From<EpochRewardedSet> for CachedRewardedSet {
+    fn from(value: EpochRewardedSet) -> Self {
         CachedRewardedSet {
-            entry_gateways: value.entry_gateways.into_iter().collect(),
-            exit_gateways: value.exit_gateways.into_iter().collect(),
-            layer1: value.layer1.into_iter().collect(),
-            layer2: value.layer2.into_iter().collect(),
-            layer3: value.layer3.into_iter().collect(),
-            standby: value.standby.into_iter().collect(),
+            epoch_id: value.epoch_id,
+            entry_gateways: value.assignment.entry_gateways.into_iter().collect(),
+            exit_gateways: value.assignment.exit_gateways.into_iter().collect(),
+            layer1: value.assignment.layer1.into_iter().collect(),
+            layer2: value.assignment.layer2.into_iter().collect(),
+            layer3: value.assignment.layer3.into_iter().collect(),
+            standby: value.assignment.standby.into_iter().collect(),
         }
     }
 }
 
-impl From<CachedRewardedSet> for RewardedSet {
+impl From<CachedRewardedSet> for EpochRewardedSet {
     fn from(value: CachedRewardedSet) -> Self {
-        RewardedSet {
-            entry_gateways: value.entry_gateways.into_iter().collect(),
-            exit_gateways: value.exit_gateways.into_iter().collect(),
-            layer1: value.layer1.into_iter().collect(),
-            layer2: value.layer2.into_iter().collect(),
-            layer3: value.layer3.into_iter().collect(),
-            standby: value.standby.into_iter().collect(),
+        EpochRewardedSet {
+            epoch_id: value.epoch_id,
+            assignment: RewardedSet {
+                entry_gateways: value.entry_gateways.into_iter().collect(),
+                exit_gateways: value.exit_gateways.into_iter().collect(),
+                layer1: value.layer1.into_iter().collect(),
+                layer2: value.layer2.into_iter().collect(),
+                layer3: value.layer3.into_iter().collect(),
+                standby: value.standby.into_iter().collect(),
+            },
         }
     }
 }
@@ -57,6 +63,7 @@ impl From<CachedRewardedSet> for RewardedSet {
 impl From<&CachedRewardedSet> for RewardedSetResponse {
     fn from(value: &CachedRewardedSet) -> Self {
         RewardedSetResponse {
+            epoch_id: value.epoch_id,
             entry_gateways: value.entry_gateways.iter().copied().collect(),
             exit_gateways: value.exit_gateways.iter().copied().collect(),
             layer1: value.layer1.iter().copied().collect(),

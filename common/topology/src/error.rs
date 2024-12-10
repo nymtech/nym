@@ -4,18 +4,25 @@
 use std::array::TryFromSliceError;
 
 use crate::MixLayer;
+use nym_sphinx_addressing::NodeIdentity;
 use nym_sphinx_types::NymPacketError;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum NymTopologyError {
-    #[error("The provided network topology is empty - there are no mixnodes and no gateways on it - the network request(s) probably failed")]
+    #[error("the provided network topology is empty - there are no valid nodes on it - the network request(s) probably failed")]
     EmptyNetworkTopology,
 
+    #[error("no node with identity {node_identity} is known")]
+    NonExistentNode { node_identity: NodeIdentity },
+
+    //
+    //
+    //
     #[error("The provided network topology has no gateways available")]
     NoGatewaysAvailable,
 
-    #[error("The provided network topology has no mixnodes available")]
+    #[error("The provided network topology has no valid mixnodes available")]
     NoMixnodesAvailable,
 
     #[error("Gateway with identity key {identity_key} doesn't exist")]

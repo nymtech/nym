@@ -119,7 +119,7 @@ where
         .collect();
 
     let route =
-        topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, full_address.gateway())?;
+        topology.random_route_to_egress(rng, DEFAULT_NUM_MIX_HOPS, full_address.gateway())?;
     let delays = nym_sphinx_routing::generate_hop_delays(average_packet_delay, route.len());
     let destination = full_address.as_sphinx_destination();
 

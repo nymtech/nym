@@ -6562,7 +6562,6 @@ dependencies = [
  "bs58",
  "log",
  "nym-api-requests",
- "nym-bin-common",
  "nym-config",
  "nym-crypto",
  "nym-mixnet-contract-common",

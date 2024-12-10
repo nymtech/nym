@@ -20,7 +20,9 @@ use nym_crypto::asymmetric::x25519::{
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent};
+use nym_mixnet_contract_common::{
+    EpochId, GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent,
+};
 use nym_network_defaults::{DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT};
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::Wireguard;
@@ -1342,6 +1344,10 @@ impl NodeRefreshBody {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct RewardedSetResponse {
+    #[serde(default)]
+    #[schema(value_type = u32)]
+    pub epoch_id: EpochId,
+
     pub entry_gateways: Vec<NodeId>,
 
     pub exit_gateways: Vec<NodeId>,

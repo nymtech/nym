@@ -1,19 +1,16 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-#![allow(unknown_lints)]
-// clippy::to_string_trait_impl is not on stable as of 1.77
-
 pub use error::NymTopologyError;
 use log::{debug, info, warn};
 use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
 use nym_config::defaults::var_names::NYM_API;
-use nym_mixnet_contract_common::{IdentityKeyRef, NodeId};
+use nym_mixnet_contract_common::{EpochRewardedSet, IdentityKeyRef, NodeId, RewardedSet};
 use nym_sphinx_addressing::nodes::NodeIdentity;
-use nym_sphinx_types::Node as SphinxNode;
+use nym_sphinx_types::{Node as SphinxNode, Node};
 use rand::prelude::SliceRandom;
 use rand::{CryptoRng, Rng};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap, HashSet};
 use std::convert::Infallible;
 use std::fmt::{self, Display, Formatter};
 use std::io;
@@ -31,6 +28,7 @@ pub mod random_route_provider;
 #[cfg(feature = "provider-trait")]
 pub mod provider_trait;
 
+mod node;
 #[cfg(feature = "serializable")]
 pub(crate) mod serde;
 
@@ -39,9 +37,11 @@ pub use crate::serde::{
     SerializableGateway, SerializableMixNode, SerializableNymTopology, SerializableTopologyError,
 };
 
+use crate::node::RoutingNode;
 #[cfg(feature = "provider-trait")]
 pub use provider_trait::{HardcodedTopologyProvider, TopologyProvider};
 
+#[deprecated]
 #[derive(Debug, Default, Clone)]
 pub enum NodeVersion {
     Explicit(semver::Version),
@@ -113,6 +113,160 @@ impl Display for NetworkAddress {
 
 pub type MixLayer = u8;
 
+pub struct NymTopologyNew {
+    // for the purposes of future VRF, everyone will need the same view of the network, regardless of performance filtering
+    // so we use the same 'master' rewarded set information for that
+    //
+    // how do we solve the problem of "we have to go through a node that we want to filter out?"
+    // ¯\_(ツ)_/¯ that's a future problem
+    rewarded_set: EpochRewardedSet,
+
+    node_details: HashMap<NodeId, RoutingNode>,
+}
+
+const unused: &str = r#"there shall be a config setting, like debug.topology.use_extended = true/false (so that node_details would also include standby/inactive nodes)
+        and another one for debug.topology.ignore_epoch_roles = true/false (to say send final packet to epoch mixnode)
+    "#;
+
+impl NymTopologyNew {
+    pub fn new(rewarded_set: EpochRewardedSet, node_details: Vec<RoutingNode>) -> Self {
+        NymTopologyNew {
+            rewarded_set,
+            node_details: node_details.into_iter().map(|n| (n.node_id, n)).collect(),
+        }
+    }
+
+    pub fn add_additional_nodes<N>(&mut self, nodes: impl Iterator<Item = N>)
+    where
+        N: TryInto<RoutingNode>,
+        <N as TryInto<RoutingNode>>::Error: Display,
+    {
+        for node in nodes {
+            match node.try_into() {
+                Ok(node_details) => {
+                    let node_id = node_details.node_id;
+                    if self.node_details.insert(node_id, node_details).is_some() {
+                        debug!("overwriting node details for node {node_id}")
+                    }
+                }
+                Err(err) => {
+                    debug!("malformed node details: {err}")
+                }
+            }
+        }
+    }
+
+    fn get_sphinx_node(&self, node_id: NodeId) -> Option<SphinxNode> {
+        self.node_details.get(&node_id).map(Into::into)
+    }
+
+    fn find_valid_mix_hop<R>(
+        &self,
+        rng: &mut R,
+        id_choices: Vec<NodeId>,
+    ) -> Result<SphinxNode, NymTopologyError>
+    where
+        R: Rng + CryptoRng + ?Sized,
+    {
+        let mut id_choices = id_choices;
+        while !id_choices.is_empty() {
+            let index = rng.gen_range(0..id_choices.len());
+
+            // SAFETY: this is not run if the vector is empty
+            let candidate_id = id_choices[index];
+            match self.get_sphinx_node(candidate_id) {
+                Some(node) => {
+                    return Ok(node);
+                }
+                // this will mess with VRF, but that's a future problem
+                None => {
+                    id_choices.remove(index);
+                    continue;
+                }
+            }
+        }
+
+        Err(NymTopologyError::NoMixnodesAvailable)
+    }
+
+    fn choose_mixing_node<R>(
+        &self,
+        rng: &mut R,
+        assigned_nodes: &[NodeId],
+    ) -> Result<SphinxNode, NymTopologyError>
+    where
+        R: Rng + CryptoRng + ?Sized,
+    {
+        // try first choice without cloning the ids (because I reckon, more often than not, it will actually work)
+        let Some(candidate) = assigned_nodes.choose(rng) else {
+            return Err(NymTopologyError::NoMixnodesAvailable);
+        };
+
+        match self.get_sphinx_node(*candidate) {
+            Some(node) => Ok(node),
+            None => {
+                let remaining_choices = assigned_nodes
+                    .iter()
+                    .filter(|&n| n != candidate)
+                    .copied()
+                    .collect();
+                self.find_valid_mix_hop(rng, remaining_choices)
+            }
+        }
+    }
+
+    fn find_node_by_identity(&self, node_identity: NodeIdentity) -> Option<&RoutingNode> {
+        self.node_details
+            .values()
+            .find(|n| n.identity_key == node_identity)
+    }
+
+    fn sphinx_node_by_identity(
+        &self,
+        node_identity: NodeIdentity,
+    ) -> Result<SphinxNode, NymTopologyError> {
+        let Some(node) = self.find_node_by_identity(node_identity) else {
+            return Err(NymTopologyError::NonExistentNode { node_identity });
+        };
+
+        Ok(node.into())
+    }
+
+    pub fn random_mix_route<R>(&self, rng: &mut R) -> Result<Vec<SphinxNode>, NymTopologyError>
+    where
+        R: Rng + CryptoRng + ?Sized,
+    {
+        if self.rewarded_set.assignment.is_empty() || self.node_details.is_empty() {
+            return Err(NymTopologyError::EmptyNetworkTopology);
+        }
+
+        // we reserve an additional item in the route because we'll have to push an egress
+        let mut mix_route = Vec::with_capacity(4);
+
+        mix_route.push(self.choose_mixing_node(rng, &self.rewarded_set.assignment.layer1)?);
+        mix_route.push(self.choose_mixing_node(rng, &self.rewarded_set.assignment.layer2)?);
+        mix_route.push(self.choose_mixing_node(rng, &self.rewarded_set.assignment.layer3)?);
+
+        Ok(mix_route)
+    }
+
+    /// Tries to create a route to the egress point, such that it goes through mixnode on layer 1,
+    /// mixnode on layer2, .... mixnode on layer n and finally the target egress, which can be any known node
+    pub fn random_route_to_egress<R>(
+        &self,
+        rng: &mut R,
+        egress_identity: NodeIdentity,
+    ) -> Result<Vec<SphinxNode>, NymTopologyError>
+    where
+        R: Rng + CryptoRng + ?Sized,
+    {
+        let egress = self.sphinx_node_by_identity(egress_identity)?;
+        let mut mix_route = self.random_mix_route(rng)?;
+        mix_route.push(egress);
+        Ok(mix_route)
+    }
+}
+
 // the reason for those having `Legacy` prefix is that eventually they should be using
 // exactly the same types
 #[derive(Debug, Clone, Default)]
@@ -122,6 +276,7 @@ pub struct NymTopology {
 }
 
 impl NymTopology {
+    #[deprecated]
     pub async fn new_from_env() -> Result<Self, NymTopologyError> {
         let api_url = std::env::var(NYM_API)?;
 
@@ -157,6 +312,7 @@ impl NymTopology {
         NymTopology { mixes, gateways }
     }
 
+    #[deprecated]
     pub fn new_unordered(
         unordered_mixes: Vec<mix::LegacyNode>,
         gateways: Vec<gateway::LegacyNode>,
@@ -338,20 +494,20 @@ impl NymTopology {
         Ok(route)
     }
 
-    pub fn random_path_to_gateway<R>(
+    pub fn random_path_to_egress<R>(
         &self,
         rng: &mut R,
         num_mix_hops: u8,
-        gateway_identity: &NodeIdentity,
+        egress_identity: &NodeIdentity,
     ) -> Result<(Vec<mix::LegacyNode>, gateway::LegacyNode), NymTopologyError>
     where
         R: Rng + CryptoRng + ?Sized,
     {
-        let gateway = self.get_gateway(gateway_identity).ok_or(
-            NymTopologyError::NonExistentGatewayError {
-                identity_key: gateway_identity.to_base58_string(),
-            },
-        )?;
+        let gateway =
+            self.get_gateway(egress_identity)
+                .ok_or(NymTopologyError::NonExistentGatewayError {
+                    identity_key: egress_identity.to_base58_string(),
+                })?;
 
         let path = self.random_mix_route(rng, num_mix_hops)?;
 
@@ -360,20 +516,20 @@ impl NymTopology {
 
     /// Tries to create a route to the specified gateway, such that it goes through mixnode on layer 1,
     /// mixnode on layer2, .... mixnode on layer n and finally the target gateway
-    pub fn random_route_to_gateway<R>(
+    pub fn random_route_to_egress<R>(
         &self,
         rng: &mut R,
         num_mix_hops: u8,
-        gateway_identity: &NodeIdentity,
+        egress_identity: &NodeIdentity,
     ) -> Result<Vec<SphinxNode>, NymTopologyError>
     where
         R: Rng + CryptoRng + ?Sized,
     {
-        let gateway = self.get_gateway(gateway_identity).ok_or(
-            NymTopologyError::NonExistentGatewayError {
-                identity_key: gateway_identity.to_base58_string(),
-            },
-        )?;
+        let gateway =
+            self.get_gateway(egress_identity)
+                .ok_or(NymTopologyError::NonExistentGatewayError {
+                    identity_key: egress_identity.to_base58_string(),
+                })?;
 
         Ok(self
             .random_mix_route(rng, num_mix_hops)?

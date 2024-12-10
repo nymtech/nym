@@ -162,7 +162,7 @@ impl NetworkAccount {
 
     fn hydrate_route(&self, fragment: SentFragment) -> anyhow::Result<HydratedRoute> {
         let mut rng = ChaCha8Rng::seed_from_u64(fragment.seed() as u64);
-        let (nodes, gw) = self.topology.random_path_to_gateway(
+        let (nodes, gw) = self.topology.random_path_to_egress(
             &mut rng,
             fragment.mixnet_params().hops(),
             fragment.mixnet_params().destination(),

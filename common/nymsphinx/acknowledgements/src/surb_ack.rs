@@ -50,7 +50,7 @@ impl SurbAck {
         R: RngCore + CryptoRng,
     {
         let route =
-            topology.random_route_to_gateway(rng, DEFAULT_NUM_MIX_HOPS, recipient.gateway())?;
+            topology.random_route_to_egress(rng, DEFAULT_NUM_MIX_HOPS, recipient.gateway())?;
         let delays = nym_sphinx_routing::generate_hop_delays(average_delay, route.len());
         let destination = recipient.as_sphinx_destination();
 

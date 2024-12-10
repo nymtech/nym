@@ -3,6 +3,7 @@
 
 use crate::config_score::{ConfigScoreParams, OutdatedVersionWeights, VersionScoreFormulaParams};
 use crate::nym_node::Role;
+use crate::EpochId;
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
 use cosmwasm_std::Coin;
@@ -29,6 +30,23 @@ impl RoleAssignment {
 
     pub fn is_final_assignment(&self) -> bool {
         self.role.is_standby()
+    }
+}
+
+#[cw_serde]
+#[derive(Default)]
+pub struct EpochRewardedSet {
+    pub epoch_id: EpochId,
+
+    pub assignment: RewardedSet,
+}
+
+impl From<(EpochId, RewardedSet)> for EpochRewardedSet {
+    fn from((epoch_id, assignment): (EpochId, RewardedSet)) -> Self {
+        EpochRewardedSet {
+            epoch_id,
+            assignment,
+        }
     }
 }
 

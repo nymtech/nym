@@ -11,8 +11,8 @@ use nym_api_requests::legacy::{
 use nym_api_requests::models::MixnodeStatus;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, NodeId, NymNodeDetails,
-    RewardedSet, RewardingParams,
+    ConfigScoreParams, EpochRewardedSet, HistoricalNymNodeVersionEntry, Interval, NodeId,
+    NymNodeDetails, RewardedSet, RewardingParams,
 };
 use std::{
     collections::HashSet,
@@ -80,7 +80,7 @@ impl NymContractCache {
         mixnodes: Vec<LegacyMixNodeDetailsWithLayer>,
         gateways: Vec<LegacyGatewayBondWithId>,
         nym_nodes: Vec<NymNodeDetails>,
-        rewarded_set: RewardedSet,
+        rewarded_set: EpochRewardedSet,
         config_score_params: ConfigScoreParams,
         nym_node_version_history: Vec<HistoricalNymNodeVersionEntry>,
         rewarding_params: RewardingParams,

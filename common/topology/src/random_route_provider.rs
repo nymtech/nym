@@ -25,6 +25,6 @@ where
         destination: &Recipient,
     ) -> Result<Vec<Node>, NymTopologyError> {
         self.inner
-            .random_route_to_gateway(&mut self.rng, hops, destination.gateway())
+            .random_route_to_egress(&mut self.rng, hops, destination.gateway())
     }
 }

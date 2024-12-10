@@ -6,7 +6,9 @@ use crate::support::caching::Cache;
 use cosmwasm_std::{Decimal, Fraction};
 use nym_api_requests::models::NodeAnnotation;
 use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance, WorkFactor};
-use nym_mixnet_contract_common::{ExecuteMsg, NodeId, RewardedSet, RewardingParams};
+use nym_mixnet_contract_common::{
+    EpochRewardedSet, ExecuteMsg, NodeId, RewardedSet, RewardingParams,
+};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::RwLockReadGuard;
@@ -93,11 +95,12 @@ impl EpochAdvancer {
 
     pub(crate) async fn load_nodes_for_rewarding(
         &self,
-        nodes: &RewardedSet,
+        nodes: &EpochRewardedSet,
         // we only need reward parameters for active set work factor and rewarded/active set sizes;
         // we do not need exact values of reward pool, staking supply, etc., so it's fine if it's slightly out of sync
         global_rewarding_params: RewardingParams,
     ) -> Vec<RewardedNodeWithParams> {
+        let nodes = &nodes.assignment;
         // currently we are using constant omega for nodes, but that will change with tickets
         // or different reward split between entry, exit, etc. at that point this will have to be calculated elsewhere
         let active_node_work_factor = global_rewarding_params.active_node_work();

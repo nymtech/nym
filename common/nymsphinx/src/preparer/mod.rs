@@ -245,11 +245,11 @@ pub trait FragmentPreparer {
             log::trace!("using deterministic route selection");
             let seed = fragment_header.seed().wrapping_mul(self.nonce());
             let mut rng = ChaCha8Rng::seed_from_u64(seed as u64);
-            topology.random_route_to_gateway(&mut rng, hops, destination)?
+            topology.random_route_to_egress(&mut rng, hops, destination)?
         } else {
             log::trace!("using pseudorandom route selection");
             let mut rng = self.rng();
-            topology.random_route_to_gateway(&mut rng, hops, destination)?
+            topology.random_route_to_egress(&mut rng, hops, destination)?
         };
 
         let destination = packet_recipient.as_sphinx_destination();

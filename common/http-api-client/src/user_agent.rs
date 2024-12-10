@@ -16,10 +16,8 @@ pub struct UserAgent {
 }
 
 #[derive(Clone, Debug, thiserror::Error)]
-pub enum UserAgentError {
-    #[error("invalid user agent string: {0}")]
-    InvalidUserAgent(String),
-}
+#[error("invalid user agent string: {0}")]
+pub struct UserAgentError(String);
 
 impl FromStr for UserAgent {
     type Err = UserAgentError;
@@ -27,7 +25,7 @@ impl FromStr for UserAgent {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let parts: Vec<&str> = s.split('/').collect();
         if parts.len() != 4 {
-            return Err(Self::Err::InvalidUserAgent(s.to_string()));
+            return Err(UserAgentError(s.to_string()));
         }
 
         Ok(UserAgent {

@@ -203,7 +203,7 @@ async fn batch_redeem_tickets(
 
     // 5. check if **every** serial number included in the request has been verified by us
     // if we have more than requested, tough luck, they're going to lose them
-    let verified = state.get_redeemable_tickets(provider_info).await?;
+    let verified = state.get_redeemable_tickets(&provider_info).await?;
     let verified_tickets: HashSet<_> = verified.iter().map(|sn| sn.deref()).collect();
 
     for sn in &received {
@@ -215,8 +215,14 @@ async fn batch_redeem_tickets(
         }
     }
 
+    // 6. vote on the proposal
     // TODO: offload it to separate task with work queue and batching (of tx messages) to vote for multiple proposals in the same tx
+    // similarly to what we do inside the credential proxy
     state.accept_proposal(proposal_id).await?;
+
+    // 7. update the time of the last verification for this provider
+    state.update_last_batch_verification(&provider_info).await?;
+
     Ok(Json(EcashBatchTicketRedemptionResponse {
         proposal_accepted: true,
     }))

@@ -6058,7 +6058,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node-status-api"
-version = "1.0.0-rc.6"
+version = "1.0.0-rc.7"
 dependencies = [
  "anyhow",
  "axum 0.7.7",

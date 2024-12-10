@@ -82,6 +82,11 @@ pub trait EcashStorageManagerExt {
         provider_id: i64,
         since: OffsetDateTime,
     ) -> Result<Vec<SerialNumberWrapper>, sqlx::Error>;
+    async fn update_last_batch_verification(
+        &self,
+        provider_id: i64,
+        last_batch_verification: OffsetDateTime,
+    ) -> Result<(), sqlx::Error>;
 
     async fn get_spent_tickets_on(
         &self,
@@ -215,15 +220,15 @@ impl EcashStorageManagerExt for StorageManager {
             "#,
             expiration_date
         )
-        .fetch_all(&self.connection_pool)
-        .await?
-        .into_iter()
-        .filter_map(|r| r.merkle_leaf.try_into().inspect_err(|_| error!("possible database corruption: one of the stored merkle leaves is not a valid 32byte hash")).ok().map(|merkle_leaf| IssuedHash {
-            deposit_id: r.deposit_id,
-            merkle_leaf,
-            merkle_index: r.merkle_index as usize,
-        }))
-        .collect())
+            .fetch_all(&self.connection_pool)
+            .await?
+            .into_iter()
+            .filter_map(|r| r.merkle_leaf.try_into().inspect_err(|_| error!("possible database corruption: one of the stored merkle leaves is not a valid 32byte hash")).ok().map(|merkle_leaf| IssuedHash {
+                deposit_id: r.deposit_id,
+                merkle_leaf,
+                merkle_index: r.merkle_index as usize,
+            }))
+            .collect())
     }
 
     /// Store the provided issued credential information.
@@ -344,8 +349,8 @@ impl EcashStorageManagerExt for StorageManager {
             verified_at,
             provider_id
         )
-        .execute(&self.connection_pool)
-        .await?;
+            .execute(&self.connection_pool)
+            .await?;
 
         Ok(())
     }
@@ -380,6 +385,25 @@ impl EcashStorageManagerExt for StorageManager {
         )
         .fetch_all(&self.connection_pool)
         .await
+    }
+
+    async fn update_last_batch_verification(
+        &self,
+        provider_id: i64,
+        last_batch_verification: OffsetDateTime,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                UPDATE ticket_providers
+                SET last_batch_verification = ?
+                WHERE id = ?
+            "#,
+            last_batch_verification,
+            provider_id
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
     }
 
     async fn get_spent_tickets_on(
@@ -510,8 +534,8 @@ impl EcashStorageManagerExt for StorageManager {
             epoch_id,
             data
         )
-        .execute(&self.connection_pool)
-        .await?;
+            .execute(&self.connection_pool)
+            .await?;
         Ok(())
     }
 
@@ -544,8 +568,8 @@ impl EcashStorageManagerExt for StorageManager {
             epoch_id,
             data
         )
-        .execute(&self.connection_pool)
-        .await?;
+            .execute(&self.connection_pool)
+            .await?;
         Ok(())
     }
 

@@ -112,6 +112,11 @@ pub trait EcashStorageExt {
         provider_id: i64,
         since: OffsetDateTime,
     ) -> Result<Vec<SerialNumberWrapper>, NymApiStorageError>;
+    async fn update_last_batch_verification(
+        &self,
+        provider_id: i64,
+        last_batch_verification: OffsetDateTime,
+    ) -> Result<(), NymApiStorageError>;
 
     async fn get_all_spent_tickets_on(
         &self,
@@ -393,6 +398,17 @@ impl EcashStorageExt for NymApiStorage {
             .get_provider_ticket_serial_numbers(provider_id, since)
             .await
             .map_err(Into::into)
+    }
+
+    async fn update_last_batch_verification(
+        &self,
+        provider_id: i64,
+        last_batch_verification: OffsetDateTime,
+    ) -> Result<(), NymApiStorageError> {
+        Ok(self
+            .manager
+            .update_last_batch_verification(provider_id, last_batch_verification)
+            .await?)
     }
 
     async fn get_all_spent_tickets_on(

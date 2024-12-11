@@ -15,10 +15,9 @@
     "@mui/icons-material": "^5.16.11",
     "@mui/material": "^6.1.10",
     "@mui/material-nextjs": "^6.1.9",
-    "@types/react-copy-to-clipboard": "^5.0.7",
+    "@uidotdev/usehooks": "^2.4.1",
     "next": "15.0.3",
     "react": "19.0.0-rc-66855b96-20241106",
-    "react-copy-to-clipboard": "^5.1.0",
     "react-dom": "19.0.0-rc-66855b96-20241106"
   },
   "devDependencies": {

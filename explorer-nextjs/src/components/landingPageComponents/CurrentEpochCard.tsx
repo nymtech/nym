@@ -1,5 +1,7 @@
 import type { ExplorerData } from "@/app/api";
-import { MonoCard } from "../cards/MonoCard";
+import ExplorerCard from "../Cards/ExplorerCard";
+import ExplorerListItem from "../List/ListItem";
+import { DynamicProgressBar } from "../progressBars/DynamicProgressBar";
 
 interface ICurrentEpochCardProps {
   explorerData: ExplorerData | null;
@@ -15,5 +17,11 @@ export const CurrentEpochCard = (props: ICurrentEpochCardProps) => {
     start: currentEpochStart || "",
     showEpoch: true,
   };
-  return <MonoCard progressBar={progressBar} overTitle="Current NGM epoch" />;
+  return (
+    <div>
+      <ExplorerCard title="Current NGM epoch">
+        <ExplorerListItem value={<DynamicProgressBar {...progressBar} />} />
+      </ExplorerCard>
+    </div>
+  );
 };

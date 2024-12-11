@@ -16,10 +16,12 @@ const ExplorerListItem = ({
   label,
   value,
   row,
+  divider,
 }: {
-  label: string;
+  label?: string;
   value: string | React.ReactNode;
   row?: boolean;
+  divider?: boolean;
 }) => {
   return (
     <>
@@ -29,9 +31,11 @@ const ExplorerListItem = ({
         justifyContent="space-between"
         gap={1}
       >
-        <Typography variant="h6" sx={listItemLabelStyle}>
-          {label}
-        </Typography>
+        {label && (
+          <Typography variant="h6" sx={listItemLabelStyle}>
+            {label}
+          </Typography>
+        )}
         {typeof value === "string" ? (
           <Typography variant="body3" sx={listItemValueStyle}>
             {value}
@@ -40,7 +44,7 @@ const ExplorerListItem = ({
           value
         )}
       </Stack>
-      <Divider variant="fullWidth" sx={{ my: 2 }} />
+      {divider && <Divider variant="fullWidth" sx={{ my: 2 }} />}
     </>
   );
 };

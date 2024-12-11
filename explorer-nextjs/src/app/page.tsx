@@ -158,7 +158,7 @@ export default function Home() {
     <div>
       <main>
         <Wrapper>
-          <Container maxWidth="md">
+          <Container maxWidth="lg">
             <Stack spacing={4}>
               <ExplorerCard title="Explorer Card" subtitle="Cryptosailors">
                 <ExplorerListItem

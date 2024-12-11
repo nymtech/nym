@@ -3,14 +3,7 @@ import { colours } from "@/theme/colours";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import StarIcon from "@mui/icons-material/Star";
-import {
-  Box,
-  Button,
-  Card,
-  CardContent,
-  Typography,
-  colors,
-} from "@mui/material";
+import { Box, Button, Card, CardContent, Typography } from "@mui/material";
 import { CopyToClipboard } from "@nymproject/react/clipboard/CopyToClipboard";
 import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
@@ -220,15 +213,6 @@ const CardRatings = (props: ICardRatingsProps) => {
   return (
     <Box>
       {ratings.map((rating, i) => {
-        const Stars = () => {
-          const stars = [];
-          for (let i = 0; i < rating.numberOfStars; i++) {
-            stars.push(
-              <StarIcon sx={{ color: "#14E76F" }} fontSize="small" key={i} />,
-            );
-          }
-          return stars;
-        };
         const RatingTitle = () => {
           switch (rating.numberOfStars) {
             case 1:
@@ -407,7 +391,11 @@ export const MonoCard: FC<ContentCardProps> = ({
           <DynamicProgressBar {...progressBar} />
         </Box>
       )}
-      {paragraph && <Typography mb={3}>{paragraph}</Typography>}
+      {paragraph && (
+        <Typography variant="subtitle1" sx={{ color: "pine.950" }} mb={3}>
+          {paragraph}
+        </Typography>
+      )}
       {/* {comments && (
         <Box mb={3}>
           <Remark42Comments />

@@ -65,7 +65,9 @@ const Row = (props: IAccontStatsRowProps) => {
               width: "25%",
             }}
           >
-            <Typography>{type}</Typography>
+            <Typography variant="body4" sx={{ color: "pine.950" }}>
+              {type}
+            </Typography>
           </TableCell>
           <TableCell
             align="right"
@@ -77,7 +79,9 @@ const Row = (props: IAccontStatsRowProps) => {
             }}
           >
             <Box>
-              <Typography>{allocation}%</Typography>
+              <Typography variant="body4" sx={{ color: "pine.950" }}>
+                {allocation}%
+              </Typography>
               <StaticProgressBar
                 value={allocation}
                 color={progressBarColor || "green"}
@@ -93,7 +97,9 @@ const Row = (props: IAccontStatsRowProps) => {
               width: "20%",
             }}
           >
-            {amount} NYM
+            <Typography variant="body4" sx={{ color: "pine.950" }}>
+              {amount} NYM
+            </Typography>
           </TableCell>
           <TableCell
             align="right"
@@ -104,7 +110,12 @@ const Row = (props: IAccontStatsRowProps) => {
               width: "20%",
             }}
           >
-            $ {value}
+            <Typography
+              variant="subtitle2"
+              sx={{ color: "pine.950", fontWeight: 700 }}
+            >
+              ${value}
+            </Typography>
           </TableCell>
           <TableCell
             sx={{
@@ -189,9 +200,18 @@ const Row = (props: IAccontStatsRowProps) => {
                 borderBottom: "none", // Explicitly remove border
               }}
             >
-              <span style={{ marginRight: 8 }}>•</span>
-              {historyRow.type}
+              <Typography variant="body4" sx={{ color: "pine.950" }}>
+                <span style={{ marginRight: 8 }}>•</span>
+                {historyRow.type}
+              </Typography>
             </TableCell>
+            {tablet && (
+              <TableCell
+                sx={{
+                  borderBottom: "none", // Explicitly remove border
+                }}
+              />
+            )}
 
             <TableCell
               align="right"
@@ -199,16 +219,16 @@ const Row = (props: IAccontStatsRowProps) => {
                 borderBottom: "none", // Explicitly remove border
               }}
             >
-              {historyRow.amount}
+              <Typography variant="body4" sx={{ color: "pine.950" }}>
+                {historyRow.amount} NYM
+              </Typography>
             </TableCell>
 
             <TableCell
               sx={{
                 borderBottom: "none", // Explicitly remove border
               }}
-            >
-              {/* Any additional content */}
-            </TableCell>
+            />
           </TableRow>
         ))}
     </React.Fragment>
@@ -242,7 +262,7 @@ export const AccountStatsCard = (props: IAccountStatsCardProps) => {
   const progressValues = getProgressValues();
 
   return (
-    <Card sx={{ height: "100%", borderRadius: "unset" }}>
+    <Card sx={{ height: "100%", borderRadius: "unset", padding: 1 }}>
       <CardContent>
         {overTitle && (
           <Typography
@@ -255,7 +275,7 @@ export const AccountStatsCard = (props: IAccountStatsCardProps) => {
           </Typography>
         )}
         {priceTitle && (
-          <Typography fontSize={24} mb={3}>
+          <Typography variant="h3" sx={{ color: "pine.950" }} mb={3}>
             ${priceTitle}
           </Typography>
         )}
@@ -266,28 +286,36 @@ export const AccountStatsCard = (props: IAccountStatsCardProps) => {
               {tablet ? (
                 <TableRow>
                   <TableCell>
-                    <Typography textTransform={"uppercase"}>Type</Typography>
+                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                      Type
+                    </Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Typography textTransform={"uppercase"}>
+                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
                       Allocation
                     </Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Typography textTransform={"uppercase"}>Amount</Typography>
+                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                      Amount
+                    </Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Typography textTransform={"uppercase"}>Value</Typography>
+                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                      Value
+                    </Typography>
                   </TableCell>
                   <TableCell />
                 </TableRow>
               ) : (
                 <TableRow>
                   <TableCell>
-                    <Typography textTransform={"uppercase"}>Type</Typography>
+                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                      Type
+                    </Typography>
                   </TableCell>
                   <TableCell align="right">
-                    <Typography textTransform={"uppercase"}>
+                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
                       Amount / Value
                     </Typography>
                   </TableCell>

@@ -180,11 +180,16 @@ export default function Home() {
                 <TokenomicsCard />
               </Grid>
             </Grid>
-            <Grid container gap={2} alignItems={"flex-start"}>
+            <Grid
+              container
+              rowSpacing={3}
+              columnSpacing={2}
+              alignItems={"flex-start"}
+            >
               <Grid size={{ xs: 12, md: 5 }}>
                 <MonoCard {...explorerCard} />
               </Grid>
-              <Grid container size={{ xs: 6 }}>
+              <Grid container size={{ xs: 12, md: 6 }}>
                 <Grid size={{ xs: 12 }}>
                   <TwoSidedSwitch
                     leftLabel="Account"

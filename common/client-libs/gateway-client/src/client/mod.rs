@@ -311,7 +311,7 @@ impl<C, St> GatewayClient<C, St> {
 
     // If we want to send a message (with response), we need to have a full control over the socket,
     // as we need to be able to write the request and read the subsequent response
-    async fn send_websocket_message(
+    pub async fn send_websocket_message(
         &mut self,
         msg: impl Into<Message>,
     ) -> Result<ServerResponse, GatewayClientError> {

@@ -20,6 +20,9 @@ pub enum ClientRequest {
         hkdf_salt: Vec<u8>,
         derived_key_digest: Vec<u8>,
     },
+    ForgetMe {
+        also_from_stats: bool,
+    },
 }
 
 impl ClientRequest {

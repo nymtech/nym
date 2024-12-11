@@ -1,4 +1,4 @@
-import { StarOutlineRounded, StarRounded } from "@mui/icons-material/";
+import { StarOutlineRounded, StarRounded } from "@mui/icons-material";
 import { Rating } from "@mui/material";
 
 const StarRating = ({

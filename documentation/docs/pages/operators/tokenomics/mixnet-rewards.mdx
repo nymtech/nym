@@ -139,7 +139,7 @@ The algorithm choosing nodes into the active set takes into account these parame
 
 1. [Config score](#config-score-calculation)
 2. [Performance](#performance-calculation)
-3. [Stake saturation](../tolkenomics.mdx#stake-saturation)
+3. [Stake saturation](../tokenomics.mdx#stake-saturation)
 
 Besides these values, the API is also looking whther the node is bonded in Mixnet smart contract as a Nym Node or legacy node (Mixnode or Gateway). **Only nodes bonded as Nym Node in Mixnet smart contract can be selected to the Rewrded set, if you haven't migrated your node yet, please [follow these steps](../nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)!**
 
@@ -154,7 +154,7 @@ Besides these values, the API is also looking whther the node is bonded in Mixne
 The nodes selection to the active set has a new parameter - `config_score`. Config score currently looks into three paramteres:
 
 1. If the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`)
-2. If [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) are accepted.
+2. If [Terms & Conditions](../nodes/nym-node/setup.mdx#terms--conditions) are accepted.
 3. Version of `nym-node` binary
 
 **The `config_score` parameter calculation formula:**
@@ -188,7 +188,7 @@ one marked as `Latest` in our repository. From that one we count the parameter `
 > **X = 100;     for major versions**
 </Callout>
 
-> The exact parameters are live accessible on `/v1/status/config-score-details`
+> The exact parameters are live accessible on [`/v1/status/config-score-details`](https://validator.nymtech.net/api/swagger/index.html#/Status/config_score_details).
 
 Our versioning convention is: `major_version . minor_version . patch`
 
@@ -213,7 +213,7 @@ As you can see on above, the algorithm is designed to give maximum probability (
 
 Performance is measured by Nym Network Monitor which sends thousands of packages through different routes every 15 minutes and measures how many were dropped on the way. Test result represents percentage of packets succesfully returned (can be anything between 0 and 1). Performance value is nodes average of these tests in last 24h.
 
-Good performance is much more essential than [stake saturation](../tolkenomics.mdx#stake-saturation), because it's lifted to 20th power in the selection formula.
+Good performance is much more essential than [stake saturation](../tokenomics.mdx#stake-saturation), because it's lifted to 20th power in the selection formula.
 
 For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them `config_score` = 1):
 

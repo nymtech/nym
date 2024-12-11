@@ -51,7 +51,7 @@ export const headings = {
   },
   h5: {
     fontFamily: labGrotesqueMono?.style?.fontFamily,
-    fontSize: 20,
+    fontSize: 16,
     lineHeight: "24px",
     letterSpacing: "5%",
     textTransform: "uppercase" as const,
@@ -61,7 +61,7 @@ export const headings = {
   },
   h6: {
     fontFamily: labGrotesqueMono?.style?.fontFamily,
-    fontSize: 20,
+    fontSize: 14,
     lineHeight: "24px",
     letterSpacing: "5%",
     textTransform: "uppercase" as const,

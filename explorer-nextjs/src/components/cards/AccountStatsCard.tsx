@@ -1,5 +1,6 @@
 "use client";
 
+import { TABLET_WIDTH } from "@/app/constants";
 import CircleIcon from "@mui/icons-material/Circle";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
@@ -35,8 +36,6 @@ const progressBarColours = [
   "#004650",
   "#FEECB3",
 ];
-
-const TABLET_WIDTH = "(min-width:700px)";
 
 const Row = (props: IAccontStatsRowProps) => {
   const tablet = useMediaQuery(TABLET_WIDTH);

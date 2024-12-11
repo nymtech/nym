@@ -6,12 +6,18 @@ import {
   AccountStatsCard,
   type IAccountStatsCardProps,
 } from "@/components/cards/AccountStatsCard";
+import { CurrentEpochCard } from "@/components/landingPageComponents/CurrentEpochCard";
+import { NetworkStakeCard } from "@/components/landingPageComponents/NetworkStakeCard";
+import { NoiseCard } from "@/components/landingPageComponents/NoiseCard";
+import { RewardsCard } from "@/components/landingPageComponents/RewardsCard";
+import { TokenomicsCard } from "@/components/landingPageComponents/TokenomicsCard";
 import TwoSidedSwitch from "@/components/twoSidedSwitchButton";
 import { Wrapper } from "@/components/wrapper";
 import { Box, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { type ContentCardProps, MonoCard } from "../components/cards/MonoCard";
+import { type ExplorerData, getCacheExplorerData } from "./api";
 
 const explorerCard: ContentCardProps = {
   overTitle: "SINGLE",
@@ -79,7 +85,7 @@ const explorerCard: ContentCardProps = {
     ],
   },
   progressBar: {
-    title: "Current NGM epoch",
+    overTitle: "Current NGM epoch",
     start: "2024-12-08T12:26:19Z",
     showEpoch: true,
   },
@@ -133,14 +139,47 @@ const accountStatsCard: IAccountStatsCardProps = {
 };
 
 export default function Home() {
+  const [explorerData, setExplorerData] = useState<ExplorerData>();
+
+  useEffect(() => {
+    async function fetchData() {
+      const data = await getCacheExplorerData();
+      setExplorerData(data);
+    }
+    fetchData();
+  }, []);
+
   return (
     <div>
       <main>
         <Box sx={{ p: 5 }}>
           <Wrapper>
-            <Typography fontWeight="light">
-              🚀 EXPLORER 2.0, Let&apos;s go! 🚀
+            <Typography variant="h1" textTransform={"uppercase"} mb={5}>
+              Mixnet in your hands
             </Typography>
+            <Grid container rowSpacing={3} columnSpacing={2} mb={2}>
+              <Grid size={{ xs: 12, md: 3 }}>
+                {explorerData && <NoiseCard explorerData={explorerData} />}
+              </Grid>
+              <Grid container rowSpacing={3} size={{ xs: 12, md: 3 }}>
+                <Grid size={{ xs: 12 }}>
+                  <RewardsCard />
+                </Grid>
+                <Grid size={{ xs: 12 }}>
+                  {explorerData && (
+                    <CurrentEpochCard explorerData={explorerData} />
+                  )}
+                </Grid>
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                {explorerData && (
+                  <NetworkStakeCard explorerData={explorerData} />
+                )}
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <TokenomicsCard />
+              </Grid>
+            </Grid>
             <Grid container gap={2} alignItems={"flex-start"}>
               <Grid size={{ xs: 12, md: 5 }}>
                 <MonoCard {...explorerCard} />

@@ -29,11 +29,14 @@ const CardUpDownPriceLine = (
   return (
     <Box display={"flex"} alignItems={"center"}>
       {numberWentUp ? (
-        <ArrowUpwardIcon sx={{ color: "#00CA33" }} fontSize="small" />
+        <ArrowUpwardIcon sx={{ color: "#00CA33", fontSize: 13 }} />
       ) : (
-        <ArrowDownwardIcon sx={{ color: "#DF1400" }} fontSize="small" />
+        <ArrowDownwardIcon sx={{ color: "#DF1400", fontSize: 13 }} />
       )}
-      <Typography sx={{ color: numberWentUp ? "#00CA33" : "#DF1400" }}>
+      <Typography
+        fontSize={13}
+        sx={{ color: numberWentUp ? "#00CA33" : "#DF1400" }}
+      >
         {percentage}% (24H)
       </Typography>
     </Box>
@@ -72,14 +75,18 @@ export const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
         return (
           <Box
             key={row.key}
-            paddingTop={2}
-            paddingBottom={2}
+            paddingTop={1}
+            paddingBottom={1}
             display={"flex"}
             justifyContent={"space-between"}
             borderBottom={i === 0 ? "1px solid #C3D7D7" : "none"}
           >
-            <Typography>{row.key}</Typography>
-            <Typography>{row.value}</Typography>
+            <Typography fontSize={14} textTransform={"uppercase"}>
+              {row.key}
+            </Typography>
+            <Typography fontSize={14} textTransform={"uppercase"}>
+              {row.value}
+            </Typography>
           </Box>
         );
       })}
@@ -268,30 +275,40 @@ export const MonoCard: FC<ContentCardProps> = ({
   // comments,
   stakeButton,
 }) => (
-  <Card sx={{ height: "100%", borderRadius: "unset", padding: 3 }}>
-    <CardContent>
-      {overTitle && (
-        <Typography fontSize={14} mb={3} textTransform={"uppercase"}>
-          {overTitle}
-        </Typography>
-      )}
-      {profileImage && <CardProfileImage {...profileImage} />}
-      {title && (
-        <Typography fontSize={24} mb={3}>
-          {title}
-        </Typography>
-      )}
-      {profileCountry && (
-        <Box mb={3}>
-          <CardProfileCountry {...profileCountry} />
-        </Box>
-      )}
-      {upDownLine && (
-        <Box mb={3}>
-          <CardUpDownPriceLine {...upDownLine} />
-        </Box>
-      )}
-      {titlePrice && <CardTitlePrice {...titlePrice} />}
+  <Card sx={{ height: "100%", borderRadius: "unset", padding: 1 }}>
+    <CardContent
+      sx={{
+        paddingBottom: "0px !important",
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "space-between",
+      }}
+    >
+      <Box>
+        {overTitle && (
+          <Typography fontSize={14} mb={3} textTransform={"uppercase"}>
+            {overTitle}
+          </Typography>
+        )}
+        {profileImage && <CardProfileImage {...profileImage} />}
+        {title && (
+          <Typography fontSize={24} mb={upDownLine ? 0 : 3}>
+            {title}
+          </Typography>
+        )}
+        {profileCountry && (
+          <Box mb={3}>
+            <CardProfileCountry {...profileCountry} />
+          </Box>
+        )}
+        {upDownLine && (
+          <Box mb={3}>
+            <CardUpDownPriceLine {...upDownLine} />
+          </Box>
+        )}
+        {titlePrice && <CardTitlePrice {...titlePrice} />}
+      </Box>
       {qrCode && (
         <Box mb={3}>
           <CardQRCode {...qrCode} />

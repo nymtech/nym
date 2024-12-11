@@ -105,8 +105,8 @@ export const LineChart = ({
           enableSlices="x"
           margin={{
             bottom: 24,
-            left: 36,
-            right: 16,
+            left: 30,
+            right: 12,
             top: 20,
           }}
           theme={{
@@ -144,7 +144,7 @@ export const LineChart = ({
             format: "%b %d",
             legendOffset: -12,
             tickValues:
-              chartData[0].data.length > 7 ? "every 4 days" : "every day",
+              chartData[0].data.length > 7 ? "every 5 days" : "every day",
           }}
         />
       )}

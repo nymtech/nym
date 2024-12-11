@@ -6,13 +6,13 @@ import LinearProgress from "@mui/material/LinearProgress";
 import * as React from "react";
 
 export interface IDynamicProgressBarProps {
-  title?: string;
+  overTitle?: string;
   start: string; // Start timestamp as ISO 8601 string
   showEpoch: boolean;
 }
 
 export const DynamicProgressBar = (props: IDynamicProgressBarProps) => {
-  const { start, showEpoch, title } = props;
+  const { start, showEpoch, overTitle } = props;
   const [progress, setProgress] = React.useState(0);
 
   React.useEffect(() => {
@@ -68,9 +68,9 @@ export const DynamicProgressBar = (props: IDynamicProgressBarProps) => {
 
   return (
     <Box sx={{ width: "100%" }}>
-      {title && (
-        <Typography mb={2} textTransform={"uppercase"}>
-          {title}
+      {overTitle && (
+        <Typography fontSize={14} mb={2} textTransform={"uppercase"}>
+          {overTitle}
         </Typography>
       )}
 
@@ -87,12 +87,20 @@ export const DynamicProgressBar = (props: IDynamicProgressBarProps) => {
       {showEpoch && (
         <Box mt={2}>
           <Box display={"flex"} justifyContent={"space-between"}>
-            <Typography textTransform={"uppercase"}>START:</Typography>
-            <Typography> {startTime ? formatDate(startTime) : ""}</Typography>
+            <Typography fontSize={14} textTransform={"uppercase"}>
+              START:
+            </Typography>
+            <Typography fontSize={14}>
+              {startTime ? formatDate(startTime) : ""}
+            </Typography>
           </Box>
           <Box display={"flex"} justifyContent={"space-between"}>
-            <Typography textTransform={"uppercase"}>END:</Typography>
-            <Typography> {endTime ? formatDate(endTime) : ""}</Typography>
+            <Typography fontSize={14} textTransform={"uppercase"}>
+              END:
+            </Typography>
+            <Typography fontSize={14}>
+              {endTime ? formatDate(endTime) : ""}
+            </Typography>
           </Box>
         </Box>
       )}

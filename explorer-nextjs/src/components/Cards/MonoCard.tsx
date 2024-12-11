@@ -10,8 +10,8 @@ import type React from "react";
 import type { FC, ReactElement } from "react";
 import Flag from "react-world-flags";
 import profileImagePlaceholder from "../../../public/profileImagePlaceholder.png";
-// import { Remark42Comments } from "../comments";
 import { NymTokenSVG } from "../icons/NymTokenSVG";
+// import { Remark42Comments } from "../comments";
 import { type ILineChartData, LineChart } from "../lineChart";
 import {
   DynamicProgressBar,

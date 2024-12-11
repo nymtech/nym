@@ -13,6 +13,7 @@ export const colours = {
   },
   pine: {
     200: "#CAD6D7",
+    600: "#4C666A",
     800: "#3E4A4C",
     950: "#242B2D",
   },

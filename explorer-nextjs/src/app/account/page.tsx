@@ -2,24 +2,24 @@ import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Wrapper } from "@/components/wrapper";
 import { Box, Typography } from "@mui/material";
 
-export default function ExplorerPage() {
+export default function AccountPage() {
   return (
     <div>
       <main>
         <Box sx={{ p: 5 }}>
           <Wrapper>
-            <Typography fontWeight="light">Explorer page</Typography>
+            <Typography fontWeight="light">Account page</Typography>
             <ExplorerButtonGroup
               options={[
                 {
                   label: "Node",
-                  link: "/explorer",
-                  isSelected: true,
+                  link: "/node",
+                  isSelected: false,
                 },
                 {
                   label: "Account",
-                  link: "/stake",
-                  isSelected: false,
+                  link: "/account",
+                  isSelected: true,
                 },
               ]}
             />

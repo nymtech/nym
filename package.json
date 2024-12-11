@@ -13,7 +13,6 @@
     "ts-packages/*",
     "nym-wallet",
     "explorer",
-    "explorer-nextjs",
     "types",
     "clients/validator",
     "sdk/typescript/packages/**",

@@ -18,7 +18,7 @@ x4 = x1
 y1 = [a**((v*1)**b) for v in x1]
 y2 = [a**((v*10)**b) for v in x1]
 y3 = [a**((v*100)**b) for v in x1]
-y4 = [a**((11)**b) for v in x1]
+# y4 = [a**((11)**b) for v in x1]
 
 f = plt.figure()
 f.set_figwidth(12)

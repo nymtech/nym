@@ -5,10 +5,35 @@ import ProgressBar from "@/components/RatingMeter/RatingMeter";
 import StarRarating from "@/components/StarRating/StarRating";
 import CopyFile from "@/components/icons/CopyFile";
 import Gateway from "@/components/icons/Gateway";
+("use client");
+import TwoSidedSwitch from "@/components/TwoSidedButtonSwitch";
+import {
+  AccountStatsCard,
+  type IAccountStatsCardProps,
+} from "@/components/cards/AccountStatsCard";
+import { CurrentEpochCard } from "@/components/landingPageComponents/CurrentEpochCard";
+import { NetworkStakeCard } from "@/components/landingPageComponents/NetworkStakeCard";
+import { NoiseCard } from "@/components/landingPageComponents/NoiseCard";
+import { RewardsCard } from "@/components/landingPageComponents/RewardsCard";
+import { TokenomicsCard } from "@/components/landingPageComponents/TokenomicsCard";
 import { Wrapper } from "@/components/wrapper";
 import { Container, Grid2, IconButton, Stack, Typography } from "@mui/material";
+import Grid from "@mui/material/Grid2";
+import React, { useEffect, useState } from "react";
+import { type ContentCardProps, MonoCard } from "../components/cards/MonoCard";
+import { type ExplorerData, getCacheExplorerData } from "./api";
 
 export default function Home() {
+  const [explorerData, setExplorerData] = useState<ExplorerData>();
+
+  useEffect(() => {
+    async function fetchData() {
+      const data = await getCacheExplorerData();
+      setExplorerData(data);
+    }
+    fetchData();
+  }, []);
+
   return (
     <div>
       <main>
@@ -42,6 +67,46 @@ export default function Home() {
                   value={<ProgressBar value={50} color="secondary" />}
                 />
               </ExplorerCard>
+              <Typography variant="h1" textTransform={"uppercase"} mb={5}>
+                Mixnet in your hands
+              </Typography>
+              <Grid container rowSpacing={3} columnSpacing={2} mb={2}>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  {explorerData && <NoiseCard explorerData={explorerData} />}
+                </Grid>
+                <Grid container rowSpacing={3} size={{ xs: 12, md: 3 }}>
+                  <Grid size={{ xs: 12 }}>
+                    <RewardsCard />
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    {explorerData && (
+                      <CurrentEpochCard explorerData={explorerData} />
+                    )}
+                  </Grid>
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  {explorerData && (
+                    <NetworkStakeCard explorerData={explorerData} />
+                  )}
+                </Grid>
+                <Grid size={{ xs: 12, md: 3 }}>
+                  <TokenomicsCard />
+                </Grid>
+              </Grid>
+              <Grid container gap={2} alignItems={"flex-start"}>
+                <Grid size={{ xs: 12, md: 5 }}>
+                  <MonoCard {...explorerCard} />
+                </Grid>
+                <Grid container size={{ xs: 6 }}>
+                  <Grid size={{ xs: 12 }}>
+                    <TwoSidedSwitch
+                      leftLabel="Account"
+                      rightLabel="Mixnode"
+                      // onSwitch={() => console.log("object :>> ")}
+                    />
+                  </Grid>
+                </Grid>
+              </Grid>
               <Grid2 container spacing={4}>
                 <Grid2 size={6}>
                   <ExplorerHeroCard

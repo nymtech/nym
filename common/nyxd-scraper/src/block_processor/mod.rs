@@ -414,7 +414,10 @@ impl BlockProcessor {
             // make sure we don't request blocks we'd have to prune anyway
             let keep_recent = self.config.pruning_options.strategy_keep_recent();
             let last_to_keep = latest_block - keep_recent;
-            self.last_processed_height = max(self.last_processed_height, last_to_keep);
+
+            if !self.config.pruning_options.strategy.is_nothing() {
+                self.last_processed_height = max(self.last_processed_height, last_to_keep);
+            }
 
             let request_range = self.last_processed_height + 1..latest_block + 1;
             info!(

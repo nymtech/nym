@@ -23,6 +23,47 @@ import React, { useEffect, useState } from "react";
 import { type ContentCardProps, MonoCard } from "../components/cards/MonoCard";
 import { type ExplorerData, getCacheExplorerData } from "./api";
 
+const accountStatsCard: IAccountStatsCardProps = {
+  overTitle: "Total value",
+  priceTitle: 1990.0174,
+  rows: [
+    { type: "Spendable", allocation: 15.53, amount: 12800, value: 1200 },
+    {
+      type: "Delegated",
+      allocation: 15.53,
+      amount: 12800,
+      value: 1200,
+      history: [
+        { type: "Liquid", amount: 6900 },
+        { type: "Locked", amount: 6900 },
+      ],
+    },
+    {
+      type: "Claimable",
+      allocation: 15.53,
+      amount: 12800,
+      value: 1200,
+      history: [
+        { type: "Unlocked", amount: 6900 },
+        { type: "Staking rewards", amount: 6900 },
+        { type: "Operator comission", amount: 6900 },
+      ],
+    },
+    {
+      type: "Self bonded",
+      allocation: 15.53,
+      amount: 12800,
+      value: 1200,
+    },
+    {
+      type: "Locked",
+      allocation: 15.53,
+      amount: 12800,
+      value: 1200,
+    },
+  ],
+};
+
 export default function Home() {
   const [explorerData, setExplorerData] = useState<ExplorerData>();
 

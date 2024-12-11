@@ -1,9 +1,10 @@
 "use client";
 import type { ExplorerData, IPacketsAndStakingData } from "@/app/api";
-import { formatBigNum } from "@/app/utils/formatBigNumbers";
+import { Box, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { MonoCard } from "../cards/MonoCard";
-import type { ILineChartData } from "../lineChart";
+import ExplorerCard from "../Cards/ExplorerCard";
+import ExplorerListItem from "../List/ListItem";
+import { type ILineChartData, LineChart } from "../lineChart";
 
 interface INetworkStakeCardProps {
   explorerData: ExplorerData | null;
@@ -45,5 +46,31 @@ export const NetworkStakeCard = (props: INetworkStakeCardProps) => {
     title: `${currentStake} NYM` || "",
     graph: stakeLineGraphData,
   };
-  return <MonoCard {...stakeCard} />;
+  const subtitle = `${currentStake} NYM` || "";
+  return (
+    <div>
+      <ExplorerCard title="Current network stake">
+        <ExplorerListItem
+          value={
+            <Box mt={3} width={"100%"} height={"100%"}>
+              <Typography
+                variant="h3"
+                sx={{ color: "pine.400", wordWrap: "break-word" }}
+                maxWidth={"95%"}
+              >
+                {subtitle}
+              </Typography>
+              {stakeLineGraphData && (
+                <LineChart
+                  data={stakeLineGraphData.data}
+                  color={stakeLineGraphData.color}
+                  label={stakeLineGraphData.label}
+                />
+              )}
+            </Box>
+          }
+        />
+      </ExplorerCard>
+    </div>
+  );
 };

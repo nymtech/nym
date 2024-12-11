@@ -190,7 +190,13 @@ export default function Home() {
               <Typography variant="h1" textTransform={"uppercase"} mb={5}>
                 Mixnet in your hands
               </Typography>
-              <Grid container rowSpacing={3} columnSpacing={2} mb={2}>
+              <Grid
+                container
+                rowSpacing={3}
+                columnSpacing={2}
+                mb={2}
+                alignItems="stretch"
+              >
                 <Grid size={{ xs: 12, md: 3 }}>
                   {explorerData && <NoiseCard explorerData={explorerData} />}
                 </Grid>
@@ -204,7 +210,7 @@ export default function Home() {
                     )}
                   </Grid>
                 </Grid>
-                <Grid size={{ xs: 12, md: 3 }}>
+                <Grid size={{ xs: 12, md: 3 }} height={"100%"}>
                   {explorerData && (
                     <NetworkStakeCard explorerData={explorerData} />
                   )}

@@ -2,6 +2,12 @@ import { Card, CardContent, CardHeader, type SxProps } from "@mui/material";
 
 const cardStyles = {
   p: 3,
+  height: "100%",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between",
+  alignItems: "stretch",
+  flexGrow: 1,
 };
 
 const cardTitleStyles: SxProps = {
@@ -10,7 +16,7 @@ const cardTitleStyles: SxProps = {
   letterSpacing: 0.7,
 };
 const cardSubtitleStyles: SxProps = {
-  variant: "h2",
+  variant: "h3",
   mt: 3,
   color: "pine.400",
 };

@@ -47,7 +47,16 @@ This page displays a full list of all the changes during our release cycle from 
 - [Github CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.14-crunch/CHANGELOG.md)
 
 ```sh
-
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2024-12-11T13:49:11.974104790Z
+Build Version:      1.2.0
+Commit SHA:         a491e6a71a8cf862d77defd740a4ee8d65d8292a
+Commit Date:        2024-12-11T10:28:47.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.83.0
+rustc Channel:      stable
+cargo Profile:      release
 ```
 
 ### Features
@@ -81,7 +90,7 @@ This page displays a full list of all the changes during our release cycle from 
 | [web-sys](https://github.com/rustwasm/wasm-bindgen) | `0.3.70` | `0.3.72` |   
 | Updates `anyhow` | `1.0.89` | `1.0.90` |
 
-[[Product Data] Introduce data persistence on gateways](https://github.com/nymtech/nym/pull/5022): This PR builds on top of [\#4974](https://github.com/nymtech/nym/pull/4974), not changing the behavior of the data collection, but persisting them in a sqlite database so they can be kept across restarts and crashes. It also leave the door open for other stats module to use that storage if needed. Here are some points of interest:
+- [[Product Data] Introduce data persistence on gateways](https://github.com/nymtech/nym/pull/5022): This PR builds on top of [\#4974](https://github.com/nymtech/nym/pull/4974), not changing the behavior of the data collection, but persisting them in a sqlite database so they can be kept across restarts and crashes. It also leave the door open for other stats module to use that storage if needed. Here are some points of interest:
     - New [`gateway_stats_storage`](https://github.com/nymtech/nym/tree/simon/gateway_stats_persistence/common/gateway-stats-storage) crate
     - [Config migration](https://github.com/nymtech/nym/blob/simon/gateway_stats_persistence/nym-node/src/config/old_configs/old_config_v4.rs) resulting from the added database.
     - Resulting changes in the [`statistics`](https://github.com/nymtech/nym/tree/simon/gateway_stats_persistence/gateway/src/node/statistics) module to account the new storage system 
@@ -106,7 +115,7 @@ This page displays a full list of all the changes during our release cycle from 
  
 - [Add granular log on nym-node](https://github.com/nymtech/nym/pull/5111) and make use of it for `defguard_wireguard_rs` big info logs
 
-[Rewarding for ticketbook issuance](https://github.com/nymtech/nym/pull/5112): Revamps the current validator rewarder to allow for rewards for issuing the zk-nym ticketbooks. 
+- [Rewarding for ticketbook issuance](https://github.com/nymtech/nym/pull/5112): Revamps the current validator rewarder to allow for rewards for issuing the zk-nym ticketbooks. 
  
 - [[Product Data] Add stats reporting configuration in client config ](https://github.com/nymtech/nym/pull/5115): Adds the stats reporting address to client configs. It can be set in the config file, as a CLI argument and as an env var in a `.env` file. As the stats reporting config in now in the `DebugConfig`, the `StatsReportingConfig` is no longer required, making the propagation of these changes more readable 
 

@@ -3,7 +3,7 @@ import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import StarIcon from "@mui/icons-material/Star";
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
-import { CopyToClipboard } from "@nymproject/react/clipboard/CopyToClipboard";
+// import { CopyToClipboard } from "@nymproject/react/clipboard/CopyToClipboard";
 import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
 import type React from "react";
@@ -151,12 +151,12 @@ const CardCopyAddress = (props: ICardCopyAddressProps) => {
           {address}
         </Typography>
 
-        <CopyToClipboard
+        {/* <CopyToClipboard
           sx={{ mr: 0.5, color: "grey.400" }}
           smallIcons
           value={address}
           tooltip={`Copy identity key ${address} to clipboard`}
-        />
+        />*/}
       </Box>
     </Box>
   );

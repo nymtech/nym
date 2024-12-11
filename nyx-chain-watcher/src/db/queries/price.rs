@@ -1,5 +1,7 @@
 use crate::db::models::{PriceHistory, PriceRecord};
 use crate::db::DbPool;
+use chrono::Local;
+use std::ops::Sub;
 
 pub(crate) async fn insert_nym_prices(
     pool: &DbPool,
@@ -38,9 +40,47 @@ pub(crate) async fn get_latest_price(pool: &DbPool) -> anyhow::Result<PriceHisto
 
     Ok(PriceHistory {
         timestamp: result.timestamp,
-        chf: result.chf as f32,
-        usd: result.usd as f32,
-        eur: result.eur as f32,
-        btc: result.btc as f32,
+        chf: result.chf,
+        usd: result.usd,
+        eur: result.eur,
+        btc: result.btc,
     })
+}
+
+pub(crate) async fn get_average_price(pool: &DbPool) -> anyhow::Result<PriceHistory> {
+    // now less 1 day
+    let earliest_timestamp = Local::now().sub(chrono::Duration::days(1)).timestamp();
+
+    let result = sqlx::query!(
+        "SELECT timestamp, chf, usd, eur, btc FROM price_history WHERE timestamp >= $1;",
+        earliest_timestamp
+    )
+    .fetch_all(pool)
+    .await?;
+
+    let count = result.len() as f64;
+
+    let mut price = PriceHistory {
+        timestamp: Local::now().timestamp(),
+        chf: 0f64,
+        usd: 0f64,
+        eur: 0f64,
+        btc: 0f64,
+    };
+
+    for p in &result {
+        price.chf += p.chf;
+        price.usd += p.usd;
+        price.eur += p.eur;
+        price.btc += p.btc;
+    }
+
+    if count > 0f64 {
+        price.chf /= count;
+        price.usd /= count;
+        price.eur /= count;
+        price.btc /= count;
+    }
+
+    Ok(price)
 }

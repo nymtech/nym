@@ -15,6 +15,7 @@ readme.workspace = true
 
 [dependencies]
 anyhow = { workspace = true }
+async-trait.workspace = true
 axum = { workspace = true, features = ["tokio"] }
 chrono = { workspace = true }
 clap = { workspace = true, features = ["cargo", "derive", "env"] }

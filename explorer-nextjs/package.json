@@ -12,6 +12,7 @@
     "@emotion/cache": "^11.13.5",
     "@emotion/react": "^11.13.5",
     "@emotion/styled": "^11.13.5",
+    "@mui/icons-material": "^5.16.11",
     "@mui/material": "^6.1.10",
     "@mui/material-nextjs": "^6.1.9",
     "@types/react-copy-to-clipboard": "^5.0.7",

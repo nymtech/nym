@@ -1,11 +1,13 @@
-import { Box, Button, ButtonGroup } from "@mui/material";
+import { Button, ButtonGroup } from "@mui/material";
 import { Link } from "../muiLink";
 
-type Options = {
+type Option = {
   label: string;
   isSelected: boolean;
   link: string;
-}[];
+};
+
+type Options = [Option, Option];
 
 const ExplorerButtonGroup = ({
   size = "small",
@@ -28,11 +30,9 @@ const ExplorerButtonGroup = ({
                 ? "primary.contrastText"
                 : "text.primary",
               "&:hover": {
-                bgcolor: option.isSelected
-                  ? "primary.main"
-                  : "background.paper",
+                bgcolor: option.isSelected ? "primary.main" : "",
               },
-              bgcolor: option.isSelected ? "primary.main" : "background.paper",
+              bgcolor: option.isSelected ? "primary.main" : "transparent",
             }}
             variant="outlined"
           >

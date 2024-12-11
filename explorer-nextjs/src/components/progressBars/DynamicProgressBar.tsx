@@ -69,7 +69,7 @@ export const DynamicProgressBar = (props: IDynamicProgressBarProps) => {
   return (
     <Box sx={{ width: "100%" }}>
       {overTitle && (
-        <Typography fontSize={14} mb={2} textTransform={"uppercase"}>
+        <Typography variant="subtitle2" sx={{ color: "pine.600" }} mb={2}>
           {overTitle}
         </Typography>
       )}
@@ -87,18 +87,18 @@ export const DynamicProgressBar = (props: IDynamicProgressBarProps) => {
       {showEpoch && (
         <Box mt={2}>
           <Box display={"flex"} justifyContent={"space-between"}>
-            <Typography fontSize={14} textTransform={"uppercase"}>
+            <Typography variant="h6" sx={{ color: "pine.600" }}>
               START:
             </Typography>
-            <Typography fontSize={14}>
+            <Typography variant="h6" sx={{ color: "pine.600" }}>
               {startTime ? formatDate(startTime) : ""}
             </Typography>
           </Box>
           <Box display={"flex"} justifyContent={"space-between"}>
-            <Typography fontSize={14} textTransform={"uppercase"}>
+            <Typography variant="h6" sx={{ color: "pine.600" }}>
               END:
             </Typography>
-            <Typography fontSize={14}>
+            <Typography variant="h6" sx={{ color: "pine.600" }}>
               {endTime ? formatDate(endTime) : ""}
             </Typography>
           </Box>

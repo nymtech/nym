@@ -245,7 +245,12 @@ export const AccountStatsCard = (props: IAccountStatsCardProps) => {
     <Card sx={{ height: "100%", borderRadius: "unset" }}>
       <CardContent>
         {overTitle && (
-          <Typography fontSize={14} mb={3} textTransform={"uppercase"}>
+          <Typography
+            mb={3}
+            textTransform={"uppercase"}
+            variant="h5"
+            sx={{ color: "pine.600", letterSpacing: 0.7 }}
+          >
             {overTitle}
           </Typography>
         )}

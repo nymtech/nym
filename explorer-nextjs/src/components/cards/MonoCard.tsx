@@ -1,8 +1,16 @@
 "use client";
+import { colours } from "@/theme/colours";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import StarIcon from "@mui/icons-material/Star";
-import { Box, Button, Card, CardContent, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Card,
+  CardContent,
+  Typography,
+  colors,
+} from "@mui/material";
 import { CopyToClipboard } from "@nymproject/react/clipboard/CopyToClipboard";
 import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
@@ -17,6 +25,7 @@ import {
   DynamicProgressBar,
   type IDynamicProgressBarProps,
 } from "../progressBars/DynamicProgressBar";
+import { StarRating } from "../starRating";
 
 interface ICardUpDownPriceLineProps {
   percentage: number;
@@ -29,13 +38,15 @@ const CardUpDownPriceLine = (
   return (
     <Box display={"flex"} alignItems={"center"}>
       {numberWentUp ? (
-        <ArrowUpwardIcon sx={{ color: "#00CA33", fontSize: 13 }} />
+        <ArrowUpwardIcon sx={{ color: colours.alert.success, fontSize: 12 }} />
       ) : (
-        <ArrowDownwardIcon sx={{ color: "#DF1400", fontSize: 13 }} />
+        <ArrowDownwardIcon sx={{ color: colours.alert.error, fontSize: 12 }} />
       )}
       <Typography
-        fontSize={13}
-        sx={{ color: numberWentUp ? "#00CA33" : "#DF1400" }}
+        variant="subtitle3"
+        sx={{
+          color: numberWentUp ? colours.alert.success : colours.alert.error,
+        }}
       >
         {percentage}% (24H)
       </Typography>
@@ -54,9 +65,13 @@ const CardTitlePrice = (props: ICardTitlePriceProps): React.ReactNode => {
       <Box display={"flex"} justifyContent={"space-between"} width={"100%"}>
         <Box display={"flex"} gap={1} alignItems={"center"}>
           <NymTokenSVG />
-          <Typography>NYM</Typography>
+          <Typography variant="h3" sx={{ color: "pine.400" }}>
+            NYM
+          </Typography>
         </Box>
-        <Typography>${price}</Typography>
+        <Typography variant="h3" sx={{ color: "pine.400" }}>
+          ${price}
+        </Typography>
       </Box>
       <CardUpDownPriceLine {...upDownLine} />
     </Box>
@@ -81,10 +96,10 @@ export const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
             justifyContent={"space-between"}
             borderBottom={i === 0 ? "1px solid #C3D7D7" : "none"}
           >
-            <Typography fontSize={14} textTransform={"uppercase"}>
+            <Typography variant="h6" sx={{ color: "pine.600" }}>
               {row.key}
             </Typography>
-            <Typography fontSize={14} textTransform={"uppercase"}>
+            <Typography variant="h6" sx={{ color: "pine.600" }}>
               {row.value}
             </Typography>
           </Box>
@@ -105,7 +120,7 @@ const CardProfileImage = (props: ICardProileImage) => {
       ) : (
         <Image
           src={profileImagePlaceholder}
-          alt="linkedIn"
+          alt="profile picture"
           width={80}
           height={80}
         />
@@ -122,9 +137,16 @@ interface ICardProfileCountry {
 const CardProfileCountry = (props: ICardProfileCountry) => {
   const { countryCode, countryName } = props;
   return (
-    <Box display={"flex"} justifyContent={"flex-start"} gap={2}>
-      <Flag code={countryCode} width="20" />
-      <Typography textTransform={"uppercase"}>{countryName}</Typography>
+    <Box
+      display={"flex"}
+      justifyContent={"flex-start"}
+      gap={1}
+      alignItems={"center"}
+    >
+      <Flag code={countryCode} width="19" />
+      <Typography variant="subtitle2" sx={{ color: "pine.950" }}>
+        {countryName}
+      </Typography>
     </Box>
   );
 };
@@ -145,9 +167,15 @@ const CardCopyAddress = (props: ICardCopyAddressProps) => {
       gap={2}
       borderBottom={"1px solid #C3D7D7"}
     >
-      <Typography textTransform={"uppercase"}>{title}</Typography>
+      <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+        {title}
+      </Typography>
       <Box display={"flex"} justifyContent={"space-between"}>
-        <Typography maxWidth={"90%"} sx={{ wordWrap: "break-word" }}>
+        <Typography
+          variant="body4"
+          maxWidth={"90%"}
+          sx={{ wordWrap: "break-word", color: "pine.950" }}
+        >
           {address}
         </Typography>
 
@@ -171,7 +199,7 @@ const CardQRCode = (props: ICardQRCodeProps) => {
   return (
     <Box display={"flex"} justifyContent={"flex-start"}>
       <Box
-        padding={2}
+        padding={1}
         border={"1px solid #C3D7D7"}
         display={"block"}
         width={"unset"}
@@ -204,14 +232,35 @@ const CardRatings = (props: ICardRatingsProps) => {
         const RatingTitle = () => {
           switch (rating.numberOfStars) {
             case 1:
+              return (
+                <Typography variant="body4" sx={{ color: "pine.950" }}>
+                  Bad
+                </Typography>
+              );
             case 2:
-              return <Typography>Bad</Typography>;
+              return (
+                <Typography variant="body4" sx={{ color: "pine.950" }}>
+                  Bad
+                </Typography>
+              );
             case 3:
-              return <Typography>ok</Typography>;
+              return (
+                <Typography variant="body4" sx={{ color: "pine.950" }}>
+                  ok
+                </Typography>
+              );
             case 4:
-              return <Typography>Good</Typography>;
+              return (
+                <Typography variant="body4" sx={{ color: "pine.950" }}>
+                  Good
+                </Typography>
+              );
             default:
-              return <Typography>Excellent</Typography>;
+              return (
+                <Typography variant="body4" sx={{ color: "pine.950" }}>
+                  Excellent
+                </Typography>
+              );
           }
         };
         return (
@@ -223,9 +272,11 @@ const CardRatings = (props: ICardRatingsProps) => {
             justifyContent={"space-between"}
             borderBottom={i < ratings.length - 1 ? "1px solid #C3D7D7" : "none"}
           >
-            <Typography>{rating.title}</Typography>
+            <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+              {rating.title}
+            </Typography>
             <Box display={"flex"} gap={1} alignItems={"center"}>
-              <Stars />
+              <StarRating value={rating.numberOfStars} />
               <RatingTitle />
             </Box>
           </Box>
@@ -287,13 +338,21 @@ export const MonoCard: FC<ContentCardProps> = ({
     >
       <Box>
         {overTitle && (
-          <Typography fontSize={14} mb={3} textTransform={"uppercase"}>
+          <Typography
+            mb={3}
+            variant="h5"
+            sx={{ color: "pine.600", letterSpacing: 0.7 }}
+          >
             {overTitle}
           </Typography>
         )}
         {profileImage && <CardProfileImage {...profileImage} />}
         {title && (
-          <Typography fontSize={24} mb={upDownLine ? 0 : 3}>
+          <Typography
+            variant="h3"
+            mb={upDownLine ? 0 : 3}
+            sx={{ color: "pine.950" }}
+          >
             {title}
           </Typography>
         )}

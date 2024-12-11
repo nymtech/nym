@@ -2,15 +2,18 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
+use crate::ecash::state::EcashState;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::{CachedRewardedSet, NymContractCache};
+use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
 use crate::support::storage;
+use axum::extract::FromRef;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
 use nym_mixnet_contract_common::NodeId;
 use nym_task::TaskManager;
@@ -80,6 +83,21 @@ pub(crate) struct AppState {
     pub(crate) described_nodes_cache: SharedCache<DescribedNodes>,
     pub(crate) network_details: NetworkDetails,
     pub(crate) node_info_cache: unstable::NodeInfoCache,
+    pub(crate) api_status: ApiStatusState,
+    // todo: refactor it into inner: Arc<EcashStateInner>
+    pub(crate) ecash_state: Arc<EcashState>,
+}
+
+impl FromRef<AppState> for ApiStatusState {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.api_status.clone()
+    }
+}
+
+impl FromRef<AppState> for Arc<EcashState> {
+    fn from_ref(app_state: &AppState) -> Self {
+        app_state.ecash_state.clone()
+    }
 }
 
 #[derive(Clone)]

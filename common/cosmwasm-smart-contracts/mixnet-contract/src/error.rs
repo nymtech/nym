@@ -275,6 +275,9 @@ pub enum MixnetContractError {
 
     #[error("the provided nym-node version is not a valid semver. got: {provided}")]
     InvalidNymNodeSemver { provided: String },
+
+    #[error("the provided nym-node version is not greater than the current one. got: {provided}. current: {current}")]
+    NonIncreasingSemver { provided: String, current: String },
 }
 
 impl MixnetContractError {

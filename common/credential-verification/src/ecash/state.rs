@@ -6,7 +6,7 @@ use crate::Error;
 use cosmwasm_std::{from_binary, CosmosMsg, WasmMsg};
 use nym_credentials_interface::VerificationKeyAuth;
 use nym_ecash_contract_common::msg::ExecuteMsg;
-use nym_gateway_storage::Storage;
+use nym_gateway_storage::GatewayStorage;
 use nym_validator_client::coconut::all_ecash_api_clients;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{
@@ -23,20 +23,17 @@ use tracing::{error, trace, warn};
 
 // state shared by different subtasks dealing with credentials
 #[derive(Clone)]
-pub(crate) struct SharedState<S> {
+pub(crate) struct SharedState {
     pub(crate) nyxd_client: Arc<RwLock<DirectSigningHttpRpcNyxdClient>>,
     pub(crate) address: AccountId,
     pub(crate) epoch_data: Arc<RwLock<BTreeMap<EpochId, EpochState>>>,
-    pub(crate) storage: S,
+    pub(crate) storage: GatewayStorage,
 }
 
-impl<S> SharedState<S>
-where
-    S: Storage + Clone,
-{
+impl SharedState {
     pub(crate) async fn new(
         nyxd_client: DirectSigningHttpRpcNyxdClient,
-        storage: S,
+        storage: GatewayStorage,
     ) -> Result<Self, Error> {
         let address = nyxd_client.address();
 

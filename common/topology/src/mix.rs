@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{filter, NetworkAddress, NodeVersion};
+use crate::{NetworkAddress, NodeVersion};
 use nym_api_requests::nym_nodes::{NodeRole, SkimmedNode};
 use nym_crypto::asymmetric::{encryption, identity};
 pub use nym_mixnet_contract_common::LegacyMixLayer;
@@ -86,13 +86,6 @@ impl LegacyNode {
                 source: err,
             }
         })?[0])
-    }
-}
-
-impl filter::Versioned for LegacyNode {
-    fn version(&self) -> String {
-        // TODO: return semver instead
-        self.version.to_string()
     }
 }
 

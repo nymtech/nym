@@ -1,7 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::{filter, NetworkAddress, NodeVersion};
+use crate::{NetworkAddress, NodeVersion};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_contract_common::NodeId;
@@ -123,13 +123,6 @@ impl LegacyNode {
 impl fmt::Display for LegacyNode {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "legacy gateway {} @ {}", self.node_id, self.host)
-    }
-}
-
-impl filter::Versioned for LegacyNode {
-    fn version(&self) -> String {
-        // TODO: return semver instead
-        self.version.to_string()
     }
 }
 

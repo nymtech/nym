@@ -24,7 +24,7 @@ struct LocalApisCtx<'a> {
     signers: Vec<EcashSignerWithPaths>,
 }
 
-impl<'a> ProgressCtx for LocalApisCtx<'a> {
+impl ProgressCtx for LocalApisCtx<'_> {
     fn progress_tracker(&self) -> &ProgressTracker {
         &self.progress
     }
@@ -168,7 +168,7 @@ impl NetworkManager {
             let id = ctx.signer_id(signer);
 
             cmds.push(format!(
-                "{bin_canon_display} -c {env_canon_display} run --id {id}"
+                "{bin_canon_display} -c {env_canon_display} run --id {id} --allow-illegal-ips"
             ));
         }
         Ok(RunCommands(cmds))

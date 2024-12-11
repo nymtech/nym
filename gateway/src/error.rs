@@ -3,7 +3,7 @@
 
 use nym_authenticator::error::AuthenticatorError;
 use nym_gateway_stats_storage::error::StatsStorageError;
-use nym_gateway_storage::error::StorageError;
+use nym_gateway_storage::error::GatewayStorageError;
 use nym_ip_packet_router::error::IpPacketRouterError;
 use nym_network_requester::error::{ClientCoreError, NetworkRequesterError};
 use nym_validator_client::nyxd::error::NyxdError;
@@ -38,7 +38,7 @@ pub enum GatewayError {
     #[error("storage failure: {source}")]
     StorageError {
         #[from]
-        source: StorageError,
+        source: GatewayStorageError,
     },
 
     #[error("stats storage failure: {source}")]
@@ -74,14 +74,8 @@ pub enum GatewayError {
         source: AuthenticatorError,
     },
 
-    #[error("failed to startup local network requester")]
-    NetworkRequesterStartupFailure,
-
-    #[error("failed to startup local ip packet router")]
-    IpPacketRouterStartupFailure,
-
-    #[error("failed to startup local authenticator")]
-    AuthenticatorStartupFailure,
+    #[error("failed to startup local {typ}")]
+    ServiceProviderStartupFailure { typ: &'static str },
 
     #[error("there are no nym API endpoints available")]
     NoNymApisAvailable,

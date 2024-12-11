@@ -12,7 +12,7 @@
 #![warn(clippy::dbg_macro)]
 
 use nym_crypto::asymmetric::ed25519;
-use sha2::Digest;
+use sha2::{Digest, Sha256};
 
 /// Client specific statistics interfaces and events.
 pub mod clients;
@@ -35,4 +35,8 @@ fn generate_stats_id<M: AsRef<[u8]>>(prefix: &str, id_seed: M) -> String {
     hasher.update(&id_seed);
     let output = hasher.finalize();
     format!("{:x}", output)
+}
+
+pub fn hash_identifier<M: AsRef<[u8]>>(identifier: M) -> String {
+    format!("{:x}", Sha256::digest(identifier))
 }

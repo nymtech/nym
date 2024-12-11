@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Alert, AlertTitle, Box, CircularProgress, Grid } from '@mui/material'
 import { useParams } from 'next/navigation'
-import { GatewayBond } from '@/app/typeDefs/explorer-api'
+import {GatewayBond, LocatedGateway} from '@/app/typeDefs/explorer-api'
 import { ColumnsType, DetailTable } from '@/app/components/DetailTable'
 import {
   gatewayEnrichedToGridRow,
@@ -31,13 +31,6 @@ const columns: ColumnsType[] = [
     field: 'bond',
     title: 'Bond',
     headerAlign: 'left',
-  },
-  {
-    field: 'node_performance',
-    title: 'Routing Score',
-    headerAlign: 'left',
-    tooltipInfo:
-      "Gateway's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test",
   },
   {
     field: 'avgUptime',
@@ -74,7 +67,7 @@ const columns: ColumnsType[] = [
 const PageGatewayDetailsWithState = ({
   selectedGateway,
 }: {
-  selectedGateway: GatewayBond | undefined
+  selectedGateway: LocatedGateway | undefined
 }) => {
   const [enrichGateway, setEnrichGateway] =
     React.useState<GatewayEnrichedRowType>()
@@ -97,7 +90,13 @@ const PageGatewayDetailsWithState = ({
 
   return (
     <Box component="main">
-      <Title text="Gateway Detail" />
+      <Title text="Legacy Gateway Detail" />
+
+      <Alert variant="filled" severity="warning" sx={{ my : 2, pt: 2 }}>
+        <AlertTitle>
+          Please update to the latest <code>nym-node</code> binary and migrate your bond and delegations from the wallet
+        </AlertTitle>
+      </Alert>
 
       <Grid container>
         <Grid item xs={12}>
@@ -146,7 +145,7 @@ const PageGatewayDetailsWithState = ({
  * Guard component to handle loadingW and not found states
  */
 const PageGatewayDetailGuard = () => {
-  const [selectedGateway, setSelectedGateway] = React.useState<GatewayBond>()
+  const [selectedGateway, setSelectedGateway] = React.useState<LocatedGateway>()
   const { gateways } = useMainContext()
   const { id } = useParams()
 

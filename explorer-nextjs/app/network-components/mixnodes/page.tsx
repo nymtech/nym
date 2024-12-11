@@ -29,7 +29,7 @@ import { useMainContext } from '@/app/context/main'
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard'
 import { splice } from '@/app/utils'
 import { currencyToString } from '@/app/utils/currency'
-import { NYM_BIG_DIPPER } from '@/app/api/constants'
+import { EXPLORER_FOR_ACCOUNTS } from '@/app/api/constants'
 import {
   MixnodeStatusWithAll,
   toMixnodeStatus,
@@ -230,24 +230,6 @@ export default function MixnodesPage() {
             ),
           },
           {
-            id: 'node_performance',
-            accessorKey: 'node_performance',
-            size: 200,
-            header: 'Routing Score',
-            Header: () => (
-              <CustomColumnHeading
-                headingTitle="Routing Score"
-                tooltipInfo="Mixnode's most recent score (measured in the last 15 minutes). Routing score is relative to that of the network. Each time a gateway is tested, the test packets have to go through the full path of the network (gateway + 3 nodes). If a node in the path drop packets it will affect the score of the gateway and other nodes in the test."
-              />
-            ),
-            Cell: ({ row }) => (
-              <StyledLink
-                to={`/network-components/mixnodes/${row.original.mix_id}`}
-                color={useGetMixNodeStatusColor(row.original.status)}
-              >{`${row.original.node_performance}%`}</StyledLink>
-            ),
-          },
-          {
             id: 'owner',
             accessorKey: 'owner',
             size: 150,
@@ -255,7 +237,7 @@ export default function MixnodesPage() {
             Header: () => <CustomColumnHeading headingTitle="Owner" />,
             Cell: ({ row }) => (
               <StyledLink
-                to={`${NYM_BIG_DIPPER}/account/${row.original.owner}`}
+                to={`${EXPLORER_FOR_ACCOUNTS}/account/${row.original.owner}`}
                 color={useGetMixNodeStatusColor(row.original.status)}
                 target="_blank"
                 data-testid="big-dipper-link"
@@ -326,7 +308,7 @@ export default function MixnodesPage() {
   return (
     <DelegationsProvider>
       <Box mb={2}>
-        <Title text="Mixnodes" />
+        <Title text="Legacy Mixnodes" />
       </Box>
       <Grid container>
         <Grid item xs={12}>

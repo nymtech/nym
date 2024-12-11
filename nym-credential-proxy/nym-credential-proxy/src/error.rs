@@ -115,6 +115,9 @@ pub enum VpnApiError {
 
     #[error("timed out while attempting to obtain partial wallet from {client_repr}")]
     EcashApiRequestTimeout { client_repr: String },
+
+    #[error("failed to create deposit")]
+    DepositFailure,
 }
 
 impl VpnApiError {

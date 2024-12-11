@@ -104,7 +104,6 @@ members = [
     "explorer-api/explorer-client",
     "gateway",
     "integrations/bity",
-    "mixnode",
     "sdk/ffi/cpp",
     "sdk/ffi/go",
     "sdk/ffi/shared",
@@ -123,8 +122,8 @@ members = [
     "nym-data-observatory",
     "nym-network-monitor",
     "nym-node",
-    "nym-node/nym-node-http-api",
     "nym-node/nym-node-requests",
+    "nym-node/nym-node-metrics",
     "nym-node-status-api/nym-node-status-agent",
     "nym-node-status-api/nym-node-status-api",
     "nym-node-status-api/nym-node-status-client",
@@ -149,15 +148,13 @@ members = [
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
     "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/internal/testnet-manager/dkg-bypass-contract", "common/verloc", "tools/internal/mixnet-connectivity-check",
 ]
 
 default-members = [
     "clients/native",
     "clients/socks5",
     "explorer-api",
-    "gateway",
-    "mixnode",
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-data-observatory",
@@ -263,6 +260,7 @@ http-body-util = "0.1"
 httpcodec = "0.2.3"
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
+human-repr = "1.1.0"
 hyper = "1.4.1"
 hyper-util = "0.1"
 indicatif = "0.17.8"

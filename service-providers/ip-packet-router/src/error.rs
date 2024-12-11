@@ -23,9 +23,6 @@ pub enum IpPacketRouterError {
     #[error("failed to validate the loaded config")]
     ConfigValidationFailure,
 
-    #[error("failed local version check, client and config mismatch")]
-    FailedLocalVersionCheck,
-
     #[error("failed to setup mixnet client: {source}")]
     FailedToSetupMixnetClient { source: nym_sdk::Error },
 

@@ -30,7 +30,7 @@ struct LocalClientCtx<'a> {
     network: &'a LoadedNetwork,
 }
 
-impl<'a> ProgressCtx for LocalClientCtx<'a> {
+impl ProgressCtx for LocalClientCtx<'_> {
     fn progress_tracker(&self) -> &ProgressTracker {
         &self.progress
     }
@@ -96,7 +96,7 @@ impl NetworkManager {
         let wait_fut = async {
             let inner_fut = async {
                 loop {
-                    let mut nodes = match api_client.get_all_basic_nodes(None).await {
+                    let nodes = match api_client.get_all_basic_nodes().await {
                         Ok(nodes) => nodes,
                         Err(err) => {
                             ctx.println(format!(
@@ -121,9 +121,13 @@ impl NetworkManager {
                     }
 
                     // otherwise look for ANY node
-                    if let Some(node) = nodes.pop() {
-                        return SocketAddr::new(node.ip_addresses[0], node.entry.unwrap().ws_port);
+                    if let Some(node) = nodes.iter().find(|n| n.supported_roles.entry) {
+                        return SocketAddr::new(
+                            node.ip_addresses[0],
+                            node.entry.as_ref().unwrap().ws_port,
+                        );
                     }
+
                     sleep(Duration::from_secs(10)).await;
                 }
             };

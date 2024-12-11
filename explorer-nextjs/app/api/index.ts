@@ -3,7 +3,6 @@ import {
   API_BASE_URL,
   BLOCK_API,
   COUNTRY_DATA_API,
-  GATEWAYS_API,
   UPTIME_STORY_API_GATEWAY,
   MIXNODE_API,
   MIXNODE_PING,
@@ -12,7 +11,11 @@ import {
   UPTIME_STORY_API,
   VALIDATORS_API,
   SERVICE_PROVIDERS,
-  GATEWAYS_EXPLORER_API,
+  TEMP_UNSTABLE_NYM_NODES,
+  NYM_API_NODE_UPTIME,
+  NYM_API_NODE_PERFORMANCE,
+  TEMP_UNSTABLE_ACCOUNT,
+  LEGACY_MIXNODES_API, LEGACY_GATEWAYS_API,
 } from './constants';
 
 import {
@@ -59,7 +62,14 @@ export class Api {
       return cache;
     }
     const res = await fetch(`${OVERVIEW_API}/summary`);
-    const json = await res.json();
+    const json: SummaryOverviewResponse = await res.json();
+
+    if (json.nymnodes?.roles) {
+      json.mixnodes.count += json.nymnodes.roles.mixnode;
+      json.gateways.count += json.nymnodes.roles.entry;
+      json.gateways.count += Math.max(json.nymnodes.roles.exit_ipr, json.nymnodes.roles.exit_nr);
+    }
+
     storeInCache('overview-summary', JSON.stringify(json));
     return json;
   };
@@ -70,7 +80,7 @@ export class Api {
       return cachedMixnodes;
     }
 
-    const res = await fetch(MIXNODES_API);
+    const res = await fetch(LEGACY_MIXNODES_API);
     const json = await res.json();
     storeInCache('mixnodes', JSON.stringify(json));
     return json;
@@ -98,17 +108,21 @@ export class Api {
     return response.json();
   };
 
-  static fetchGateways = async (): Promise<GatewayBond[]> => {
-    const res = await fetch(GATEWAYS_API);
-    const gatewaysAnnotated: GatewayBondAnnotated[] = await res.json();
-    const res2 = await fetch(GATEWAYS_EXPLORER_API);
-    const locatedGateways: LocatedGateway[] = await res2.json();
-    const locatedGatewaysByOwner = keyBy(locatedGateways, 'owner');
-    return gatewaysAnnotated.map(({ gateway_bond, node_performance }) => ({
-      ...gateway_bond,
-      node_performance,
-      location: locatedGatewaysByOwner[gateway_bond.owner]?.location,
-    }));
+  static fetchGateways = async (): Promise<LocatedGateway[]> => {
+    // const res = await fetch(GATEWAYS_API);
+    // const gatewaysAnnotated: GatewayBondAnnotated[] = await res.json();
+    // const res2 = await fetch(GATEWAYS_EXPLORER_API);
+    // const locatedGateways: LocatedGateway[] = await res2.json();
+    // const locatedGatewaysByOwner = keyBy(locatedGateways, 'owner');
+    // return gatewaysAnnotated.map(({ gateway_bond, node_performance }) => ({
+    //   ...gateway_bond,
+    //   node_performance,
+    //   location: locatedGatewaysByOwner[gateway_bond.owner]?.location,
+    // }));
+
+    const res = await fetch(LEGACY_GATEWAYS_API);
+    const locatedGateways: LocatedGateway[] = await res.json();
+    return locatedGateways;
   };
 
   static fetchGatewayUptimeStoryById = async (id: string): Promise<UptimeStoryResponse> =>
@@ -165,6 +179,36 @@ export class Api {
     const json = await res.json();
     return json;
   };
+
+  static fetchNodes = async () => {
+    const res = await fetch(TEMP_UNSTABLE_NYM_NODES);
+    const json = await res.json();
+    return json;
+  }
+
+  static fetchNodeById = async (id: number) => {
+    const res = await fetch(`${TEMP_UNSTABLE_NYM_NODES}/${id}`);
+    const json = await res.json();
+    return json;
+  }
+
+  static fetchNymNodeUptimeHistoryById = async (id: number | string) => {
+    const res = await fetch(`${NYM_API_NODE_UPTIME}/${id}`)
+    const json = await res.json();
+    return json;
+  }
+
+  static fetchNymNodePerformanceById = async (id: number | string) => {
+    const res = await fetch(`${NYM_API_NODE_PERFORMANCE}/${id}`)
+    const json = await res.json();
+    return json;
+  }
+
+  static fetchAccountById = async (id: string) => {
+    const res = await fetch(`${TEMP_UNSTABLE_ACCOUNT}/${id}`);
+    const json = await res.json();
+    return json;
+  }
 }
 
 export const getEnvironment = (): Environment => {

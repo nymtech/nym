@@ -514,15 +514,10 @@ where
                     min_gateway_performance: config_topology.minimum_gateway_performance,
                 },
                 nym_api_urls,
-                env!("CARGO_PKG_VERSION").to_string(),
                 user_agent,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
-                Box::new(GeoAwareTopologyProvider::new(
-                    nym_api_urls,
-                    env!("CARGO_PKG_VERSION").to_string(),
-                    group_by,
-                ))
+                Box::new(GeoAwareTopologyProvider::new(nym_api_urls, group_by))
             }
         })
     }

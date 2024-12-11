@@ -1,8 +1,8 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_node::error::NymNodeError;
-use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
+use crate::error::NymNodeError;
+use nym_node_requests::api::v1::node::models::NodeDescription;
 use std::fs;
 use std::fs::create_dir_all;
 use std::path::Path;

@@ -119,7 +119,7 @@ impl IpPacketRouter {
             log::error!("ip packet router service provider is not yet supported on this platform");
             Ok(())
         } else {
-            todo!("service provider is not yet supported on this platform")
+            unimplemented!("service provider is not yet supported on this platform")
         }
     }
 

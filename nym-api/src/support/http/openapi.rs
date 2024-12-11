@@ -17,6 +17,11 @@ use utoipauto::utoipauto;
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Nym API"),
+    servers(
+        (url = "/api", description = "Main Nym Api Server"),
+        (url = "/", description = "Auxiliary Nym Api Instances"),
+        (url = "/", description = "Local Development Server")
+    ),
     tags(),
     components(schemas(
         models::CirculatingSupplyResponse,

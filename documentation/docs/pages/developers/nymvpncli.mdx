@@ -1,0 +1,278 @@
+import { Callout } from 'nextra/components'
+
+# Nym VPN CLI
+
+This is a short guide to setting up and using the `nym-vpnc` tool, which is used in conjunction with the `nym-vpnd` daemon.
+
+<Callout type="warning" emoji="⚠️">
+  These binaries have superceded the older `nym-vpn-cli` binary. This still operates for the moment as it is being used in testing scenarios but will go out of date quickly.
+</Callout>
+
+Download and run instructions for the GUIs can be found [here](https://nymvpn.com/en/download/linux).
+
+## Download & Extract Binary
+Check the [release page](https://github.com/nymtech/nym-vpn-client/releases/) page for the latest release version and modify the instructions accordingly. These instructions use the latest as of the time of writing.
+```sh
+wget -q https://github.com/nymtech/nym-vpn-client/releases/download/nym-vpn-core-v1.1.0-beta.3/nym-vpn-core-v1.1.0-beta.3_<YOUR_OPERATING_SYSTEM>.tar.gz &&
+tar -xzf nym-vpn-core-v1.1.0-beta.3_<YOUR_OPERATING_SYSTEM>.tar.gz &&
+cd nym-vpn-core-v1.1.0-beta.3_<YOUR_OPERATING_SYSTEM>/ &&
+chmod u+x *
+```
+
+## Build from Source
+### Prerequisites
+All operating systems require both [Rust](https://www.rust-lang.org/tools/install) and [Go](https://go.dev/doc/install).
+
+**Arch specific packages:**
+```sh
+yay -S gcc make protobuf base-devel clang
+```
+
+**Ubuntu24 specific packages:**
+```sh
+apt install gcc make protobuf-compiler pkconfig libdbus-1-dev build-essential clang
+```
+
+<Callout type="warning" emoji="⚠️">
+  Older Debian/Ubuntu versions need to manually install `protobuf-compiler` >= v3.21.12
+</Callout>
+
+### Clone & `make`
+```sh
+git clone https://github.com/nymtech/nym-vpn-client.git
+cd nym-vpn-client/
+make
+```
+
+## Mnemonic Generation
+Create an account at [nymvpn.com](nymvpn.com) to obtain your mnemonic.
+
+## Start the daemon
+```sh
+sudo ./PATH/TO/nym-vpnd
+```
+
+If you are running for the first time you will see the following:
+
+```sh
+2024-12-11T11:03:58.202159Z  INFO nym_vpnd::environment: Setting up environment by discovering the network: mainnet
+2024-12-11T11:03:58.202205Z  INFO nym_vpn_network_config::discovery: No discovery file found, writing default discovery file
+2024-12-11T11:03:59.905505Z  INFO nym_vpnd::command_interface::start: Starting command interface
+2024-12-11T11:03:59.905660Z  INFO nym_vpnd::service::vpn_service: Starting VPN service
+2024-12-11T11:03:59.905879Z  INFO nym_vpnd::command_interface::start: Starting socket listener on: /var/run/nym-vpn.sock
+2024-12-11T11:03:59.906227Z  INFO nym_vpn_account_controller::controller: Starting account controller
+2024-12-11T11:03:59.906285Z  INFO nym_vpn_account_controller::controller: Account controller: data directory: "/var/lib/nym-vpnd/mainnet"
+2024-12-11T11:03:59.906313Z  INFO nym_vpn_account_controller::controller: Account controller: credential mode: false
+2024-12-11T11:03:59.913215Z  INFO nym_vpnd::command_interface::listener: Removed previous command interface socket: "/var/run/nym-vpn.sock"
+2024-12-11T11:03:59.977206Z  INFO nym_vpnd::service::vpn_service: VPN service initialized successfully
+2024-12-11T11:03:59.979246Z  INFO nym_vpn_account_controller::controller: Account id: (unset)
+2024-12-11T11:03:59.979265Z  INFO nym_vpn_account_controller::controller: Device id: BZWA5MRnEvRYD8WWrH9KULdj2Q1uTssu6idjgWFae9dv
+2024-12-11T11:03:59.979762Z  INFO nym_vpn_account_controller::storage: Ticketbooks stored: 0
+2024-12-11T11:03:59.982125Z  INFO nym_vpn_account_controller::controller: Received command: UpdateAccountState
+2024-12-11T11:03:59.982181Z  INFO nym_vpn_account_controller::shared_state: Setting mnemonic state to NotStored
+2024-12-11T11:03:59.982200Z  WARN nym_vpn_account_controller::commands: Returning error: NoAccountStored
+2024-12-11T11:03:59.982218Z  INFO nym_vpn_account_controller::controller: Received command: UpdateDeviceState
+2024-12-11T11:03:59.982230Z  INFO nym_vpn_account_controller::shared_state: Setting mnemonic state to NotStored
+2024-12-11T11:03:59.982240Z  WARN nym_vpn_account_controller::commands: Returning error: NoAccountStored
+```
+
+Ignore the `NoAccountStored` errors: these will disappear after the next step. **Leave the daemon running and run the following commands in another terminal window** or create an init file for `nym-vpnd`.
+
+## Run VPN
+We have to first store the account we have created online:
+```sh
+./PATH/TO/nym-vpn-cli store-account --mnemonic "<MNEMONIC_FROM_GENERATION_STEP>"
+```
+
+You will see this registration in the daemon logs:
+
+```sh
+2024-12-11T11:04:31.918455Z  INFO grpc_vpnd: ← StoreAccount ()
+2024-12-11T11:04:31.919296Z  INFO nym_vpnd::service::vpn_service: Storing account
+2024-12-11T11:04:31.919531Z  INFO nym_vpn_store::mnemonic::on_disk: Storing mnemonic to: /var/lib/nym-vpnd/mainnet/mnemonic.json
+2024-12-11T11:04:31.920327Z  INFO nym_vpn_account_controller::controller: Received command: UpdateAccountState
+2024-12-11T11:04:31.950720Z  INFO nym_vpn_account_controller::shared_state: Setting mnemonic state to Stored { id: "n1nghj6qnmfww22tq6wyntnf709lr90qjem0uezz" }
+2024-12-11T11:04:34.616249Z  INFO nym_vpn_account_controller::shared_state: Setting account to Registered
+2024-12-11T11:04:34.616363Z  INFO nym_vpn_account_controller::shared_state: Setting account summary to AccountSummary { account: Active, subscription: Active, device_summary: DeviceSummary { active: 0, max: 10, remaining: 10 }, fair_usage: FairUsage { used_gb: None, limit_gb: None, resets_on_utc: Some("2025-01-09 15:43:37.223Z") } }
+2024-12-11T11:04:34.981875Z  INFO nym_vpn_account_controller::controller: Received command: RegisterDevice
+2024-12-11T11:04:35.008575Z  INFO register_device: nym_vpn_account_controller::shared_state: Setting device registration result to InProgress id=09876a3a
+2024-12-11T11:04:35.008611Z  INFO register_device: nym_vpn_account_controller::commands::register_device: Registering device: Device { identity_key: BZWA5MRnEvRYD8WWrH9KULdj2Q1uTssu6idjgWFae9dv } id=09876a3a
+2024-12-11T11:04:36.765850Z  INFO register_device: nym_vpn_account_controller::commands::register_device: Response: NymVpnDevice {
+    created_on_utc: "2024-12-11 11:04:36.432Z",
+    last_updated_utc: "2024-12-11 11:04:36.432Z",
+    device_identity_key: "BZWA5MRnEvRYD8WWrH9KULdj2Q1uTssu6idjgWFae9dv",
+    status: Active,
+} id=09876a3a
+2024-12-11T11:04:36.765998Z  INFO register_device: nym_vpn_account_controller::commands::register_device: Device registered: BZWA5MRnEvRYD8WWrH9KULdj2Q1uTssu6idjgWFae9dv id=09876a3a
+```
+
+You can then connect `nym-vpnc` (in this case, with 2 hop wireguard mode enabled):
+```sh
+./PATH/TO/nym-vpn-cli nym-vpnc connect --enable-two-hop
+```
+
+Which shows as such in the daemon logs:
+```sh
+2024-12-11T11:05:25.727784Z  INFO grpc_vpnd: ← VpnConnect ()
+2024-12-11T11:05:25.728107Z  INFO grpc_vpnd: nym_vpnd::command_interface::listener: Got connect request: Request { metadata: MetadataMap { headers: {"te": "trailers", "content-type": "application/grpc", "user-agent": "tonic/0.11.0"} }, message: ConnectRequest { entry: None, exit: None, dns: None, disable_routing: false, enable_two_hop: true, netstack: false, disable_poisson_rate: false, disable_background_cover_traffic: false, enable_credentials_mode: false, user_agent: Some(UserAgent { application: "nym-vpnc", version: "1.1.0-beta.3 (1.1.0-beta.3)", platform: "Manjaro Linux; Linux 24.2.0 Manjaro Linux; x86_64", git_commit: "59c0714f1dac1a2d8bf77f3d2705a5c9bb57a5be (59c0714f1dac1a2d8bf77f3d2705a5c9bb57a5be)" }), min_mixnode_performance: None, min_gateway_mixnet_performance: None, min_gateway_vpn_performance: None }, extensions: Extensions }
+2024-12-11T11:05:25.728225Z  INFO grpc_vpnd: nym_vpnd::command_interface::connection_handler: Starting VPN
+2024-12-11T11:05:25.728430Z  INFO nym_vpnd::service::vpn_service: Using entry point: None
+2024-12-11T11:05:25.728450Z  INFO nym_vpnd::service::vpn_service: Using exit point: None
+2024-12-11T11:05:25.728468Z  INFO nym_vpnd::service::vpn_service: Using options: ConnectOptions { dns: None, disable_routing: false, enable_two_hop: true, netstack: false, disable_poisson_rate: false, disable_background_cover_traffic: true, enable_credentials_mode: false, min_mixnode_performance: None, min_gateway_mixnet_performance: None, min_gateway_vpn_performance: None }
+2024-12-11T11:05:25.729112Z  INFO nym_vpnd::service::config: Config file updated at "/etc/nym/mainnet/nym-vpnd.toml"
+2024-12-11T11:05:25.729161Z  INFO nym_vpnd::service::vpn_service: Using config: entry point: Random, exit point: Random
+2024-12-11T11:05:25.729611Z  INFO nym_vpnd::service::vpn_service: Tunnel event: Connecting
+2024-12-11T11:05:25.730108Z  INFO nym_gateway_directory::gateway_client: Fetching gateways from nym-vpn-api...
+2024-12-11T11:05:26.387699Z  INFO nym_vpn_lib::tunnel_state_machine::tunnel::gateway_selector: Found 113 entry gateways
+2024-12-11T11:05:26.387744Z  INFO nym_vpn_lib::tunnel_state_machine::tunnel::gateway_selector: Found 113 exit gateways
+2024-12-11T11:05:26.387752Z  INFO nym_gateway_directory::entries::exit_point: Selecting a random exit gateway
+2024-12-11T11:05:26.387794Z  INFO nym_vpn_lib::tunnel_state_machine::tunnel::gateway_selector: Using entry gateway: CcYinhLeFU8n6xs78FG6Rz3wvosGTCU2hLB1CZyfkMVe, location: IN, performance: 96%
+2024-12-11T11:05:26.387814Z  INFO nym_vpn_lib::tunnel_state_machine::tunnel::gateway_se
+lector: Using exit gateway: Atcji22Wnfwi6nEkGC5BmgbqNPLYdhx5r4NxTqXAzFeq, location: GB, performance: 99%
+2024-12-11T11:05:26.387852Z  INFO nym_vpn_lib::tunnel_state_machine::tunnel::gateway_selector: Using exit router address 3MJSnmUeH54a7DJ8C4C8oZPkCjtENSfwcMLJ39zUk9Ys.59h9HKGTM4MPXVJRDfaJYFg1aoAdeBGjLHMFxQ6fBsfF@Atcji22Wnfwi6nEkGC5BmgbqNPLYdhx5r4NxTqXAzFeq
+2024-12-11T11:05:26.388144Z  INFO nym_vpn_lib::mixnet::connect: mixnet client poisson rate limiting: disabled
+2024-12-11T11:05:26.388154Z  INFO nym_vpn_lib::mixnet::connect: mixnet client background loop cover traffic stream: disabled
+2024-12-11T11:05:26.388158Z  INFO nym_vpn_lib::mixnet::connect: mixnet client minimum mixnode performance: 50
+2024-12-11T11:05:26.388163Z  INFO nym_vpn_lib::mixnet::connect: mixnet client minimum gateway performance: 50
+2024-12-11T11:05:26.388434Z  INFO nym_client_core::client::base_client::non_wasm_helpers: loading existing surb database
+2024-12-11T11:05:26.391135Z  INFO nym_client_core_surb_storage::backend::fs_backend::manager: Database migration finished!
+2024-12-11T11:05:26.503966Z  INFO nym_client_core::init::helpers: nym-api reports 195 valid gateways
+2024-12-11T11:05:27.888231Z  INFO nym_client_core::client::base_client: Starting nym client
+2024-12-11T11:05:27.894924Z  INFO nym_client_core::client::base_client: Starting statistics control...
+2024-12-11T11:05:27.895105Z  INFO nym_client_core::client::base_client: Obtaining initial network topology
+2024-12-11T11:05:28.047235Z  INFO nym_client_core::client::base_client: Starting topology refresher...
+2024-12-11T11:05:29.024114Z  INFO perform_initial_authentication: nym_gateway_client::bandwidth: remaining bandwidth: 0.00 B gateway=CcYinhLeFU8n6xs78FG6Rz3wvosGTCU2hLB1CZyfkMVe gateway_address=wss://gateway4.lunardao.net:9001/
+2024-12-11T11:05:29.024375Z  INFO nym_gateway_client::client: Claiming more bandwidth with existing credentials. Stop the process now if you don't want that to happen.
+2024-12-11T11:05:29.024413Z  WARN nym_gateway_client::client: Not enough bandwidth. Trying to get more bandwidth, this might take a while
+2024-12-11T11:05:29.024430Z  INFO nym_gateway_client::client: The client is running in disabled credentials mode - attempting to claim bandwidth without a credential
+2024-12-11T11:05:29.171514Z  INFO nym_gateway_client::client: managed to claim testnet bandwidth
+2024-12-11T11:05:29.175555Z  INFO nym_client_core::client::base_client: Starting received messages buffer controller...
+2024-12-11T11:05:29.175648Z  INFO nym_client_core::client::base_client: Starting mix traffic controller...
+2024-12-11T11:05:29.175698Z  INFO nym_client_core::client::base_client: Starting real traffic stream...
+2024-12-11T11:05:29.176182Z  INFO nym_task::manager: Starting status message listener
+2024-12-11T11:05:29.189388Z  INFO nym_vpn_lib::bandwidth_controller: Registering with wireguard gateway
+2024-12-11T11:05:29.189449Z  INFO nym_gateway_directory::gateway_client: Fetching gateway ip from nym-vpn-api...
+2024-12-11T11:05:32.373749Z  INFO nym_vpn_lib::bandwidth_controller: Registering with wireguard gateway
+2024-12-11T11:05:32.373860Z  INFO nym_gateway_directory::gateway_client: Fetching gateway ip from nym-vpn-api...
+2024-12-11T11:05:36.675679Z  INFO nym_vpn_lib::tunnel_state_machine::tunnel_monitor: Created entry tun device: tun0
+2024-12-11T11:05:36.679774Z  INFO nym_vpn_lib::tunnel_state_machine::tunnel_monitor: Created exit tun device: tun1
+2024-12-11T11:05:36.681435Z  INFO nym_dns: Setting DNS servers: Tunnel DNS: {1.1.1.1, 1.0.0.1, 2606:4700:4700::1111, 2606:4700:4700::1001} Non-tunnel DNS: {}
+2024-12-11T11:05:36.690464Z  INFO nym_vpnd::service::vpn_service: Tunnel event: Connecting WireGuard tunnel with entry 213.210.21.111:51822 and exit 45.140.167.83:51822
+2024-12-11T11:05:36.690577Z  INFO nym_vpnd::service::vpn_service: Tunnel event: Connected WireGuard tunnel with entry 213.210.21.111:51822 and exit 45.140.167.83:51822
+2024-12-11T11:05:37.734615Z  INFO nym_wg_gateway_client: Remaining wireguard bandwidth with gateway CcYinhLeFU8n6xs78FG6Rz3wvosGTCU2hLB1CZyfkMVe for today: 256000.00 MB
+2024-12-11T11:05:39.240143Z  INFO nym_wg_gateway_client: Remaining wireguard bandwidth with gateway Atcji22Wnfwi6nEkGC5BmgbqNPLYdhx5r4NxTqXAzFeq for today: 256000.00 MB
+```
+
+You should see the `Remaining wireguard bandwidth` decrease as you use your allowance.
+
+There are a lot of configuration options available to you regarding how to connect:
+
+```sh
+❯ ./nym-vpn-core/target/debug/nym-vpnc connect --help
+Connect to the Nym network
+
+Usage: nym-vpnc connect [OPTIONS]
+
+Options:
+      --entry-gateway-id <ENTRY_GATEWAY_ID>
+          Mixnet public ID of the entry gateway
+      --entry-gateway-country <ENTRY_GATEWAY_COUNTRY>
+          Auto-select entry gateway by country ISO
+      --entry-gateway-low-latency
+          Auto-select entry gateway by latency
+      --entry-gateway-random
+          Auto-select entry gateway randomly
+      --exit-router-address <EXIT_ROUTER_ADDRESS>
+          Mixnet recipient address
+      --exit-gateway-id <EXIT_GATEWAY_ID>
+          Mixnet public ID of the exit gateway
+      --exit-gateway-country <EXIT_GATEWAY_COUNTRY>
+          Auto-select exit gateway by country ISO
+      --exit-gateway-random
+          Auto-select exit gateway randomly
+      --dns <DNS>
+          Set the IP address of the DNS server to use
+      --disable-routing
+          Disable routing all traffic through the nym TUN device. When the flag is set,
+          the nym TUN device will be created, but to route traffic through it you will
+          need to do it manually, e.g. ping -Itun0
+      --enable-two-hop
+          Enable two-hop wireguard traffic. This means that traffic jumps directly from
+          entry gateway to exit gateway using Wireguard protocol
+  -w, --wait-until-connected
+          Blocks until the connection is established or failed
+      --netstack
+          Use netstack based implementation for two-hop wireguard
+      --enable-credentials-mode
+          Enable credentials mode
+      --min-gateway-mixnet-performance <MIN_GATEWAY_MIXNET_PERFORMANCE>
+          An integer between 0 and 100 representing the minimum gateway performance
+          required to consider a gateway for routing traffic
+      --min-gateway-vpn-performance <MIN_GATEWAY_VPN_PERFORMANCE>
+          An integer between 0 and 100 representing the minimum gateway performance
+          required to consider a gateway for routing traffic
+  -h, --help
+          Print help
+```
+
+## Command Reference
+```sh
+❯ ./nym-vpn-core/target/debug/nym-vpnc --help
+NymVPN commandline client
+
+Usage: nym-vpnc [OPTIONS] <COMMAND>
+
+Commands:
+  connect               Connect to the Nym network
+  disconnect            Disconnect from the Nym network
+  status                Get the current status of the connection
+  info                  Get info about the current client. Things like version and
+                        network details
+  set-network           Set the network to be used. This requires a restart of the
+                        daemon (`nym-vpnd`)
+  store-account         Store the account recovery phrase
+  is-account-stored     Check if the account is stored
+  forget-account        Forget the stored account. This removes the stores recovery
+                        phrase, device and mixnet keys, stored local credentials, etc
+  get-account-id        Get the account ID
+  get-account-state     Get the current account state
+  get-account-links     Get URLs for managing your nym-vpn account
+  get-device-id         Get the device ID
+  list-entry-gateways   List the set of entry gateways for mixnet mode
+  list-exit-gateways    List the set of exit gateways for mixnet mode
+  list-vpn-gateways     List the set of entry and exit gateways for dVPN mode
+  list-entry-countries  List the set of countries with available entry gateways for
+                        mixnet mode
+  list-exit-countries   List the set of countries with available exit gateways for
+                        mixnet mode
+  list-vpn-countries    List the set of countries with available entry and exit
+                        gateways for dVPN mode
+  help                  Print this message or the help of the given subcommand(s)
+
+Options:
+      --http     Use HTTP instead of socket file for IPC with the daemon
+      --verbose
+  -h, --help     Print help
+  -V, --version  Print version
+```
+
+```sh
+❯ ./nym-vpn-core/target/debug/nym-vpnd --help
+NymVPN daemon
+
+Usage: nym-vpnd [OPTIONS]
+
+Options:
+  -c, --config-env-file <CONFIG_ENV_FILE>
+          Path pointing to an env file describing the network
+      --enable-http-listener
+
+      --disable-socket-listener
+
+      --run-as-service
+
+  -h, --help
+          Print help
+  -V, --version
+          Print version
+```

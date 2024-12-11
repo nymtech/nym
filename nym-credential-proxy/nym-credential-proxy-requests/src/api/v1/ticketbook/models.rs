@@ -268,6 +268,9 @@ pub struct WebhookTicketbookWalletSharesRequest {
 pub struct TicketbookObtainQueryParams {
     pub output: Option<Output>,
 
+    #[serde(default)]
+    pub skip_webhook: bool,
+
     pub include_master_verification_key: bool,
 
     pub include_coin_index_signatures: bool,

@@ -27,7 +27,7 @@ use nym_validator_client::EcashApiClient;
 
 #[async_trait]
 pub trait Client {
-    async fn address(&self) -> AccountId;
+    async fn address(&self) -> Result<AccountId>;
 
     async fn dkg_contract_address(&self) -> Result<AccountId>;
 

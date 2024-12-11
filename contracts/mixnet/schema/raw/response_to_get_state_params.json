@@ -54,15 +54,10 @@
     "ConfigScoreParams": {
       "type": "object",
       "required": [
-        "current_nym_node_semver",
         "version_score_formula_params",
         "version_weights"
       ],
       "properties": {
-        "current_nym_node_semver": {
-          "description": "Current version of the nym node that is going to be used for determining the version score of a node. note: value stored here is pre-validated `semver::Version`",
-          "type": "string"
-        },
         "version_score_formula_params": {
           "description": "Defines the parameters of the formula for calculating the version score",
           "allOf": [
@@ -216,7 +211,7 @@
       "type": "string"
     },
     "VersionScoreFormulaParams": {
-      "description": "Given the formula of version_score = penalty ^ (num_versions_behind ^ penalty_scaling) define the relevant parameters",
+      "description": "Given the formula of version_score = penalty ^ (versions_behind_factor ^ penalty_scaling) define the relevant parameters",
       "type": "object",
       "required": [
         "penalty",

@@ -22,7 +22,6 @@ async fn main() {
         // We filter on the version of the mixnodes. Be prepared to manually update
         // this to keep this example working, as we can't (currently) fetch to current
         // latest version.
-        "1.1.31".to_string(),
         group_by,
     );
 

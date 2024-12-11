@@ -4,10 +4,4 @@
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum WireguardError {
-    #[error("the client is currently not in the process of being registered")]
-    RegistrationNotInProgress,
-
-    #[error("the client mac failed to get verified correctly")]
-    MacVerificationFailure,
-}
+pub enum WireguardError {}

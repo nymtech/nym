@@ -4,37 +4,20 @@
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::status::ApiStatusState;
 use crate::support::http::state::AppState;
+use axum::extract::State;
 use axum::Json;
 use axum::Router;
 use nym_api_requests::models::{ApiHealthResponse, SignerInformationResponse};
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_compact_ecash::Base58;
-use std::sync::Arc;
 
 pub(crate) fn api_status_routes() -> Router<AppState> {
-    let api_status_state = Arc::new(ApiStatusState::new());
-
     Router::new()
-        .route(
-            "/health",
-            axum::routing::get({
-                let state = Arc::clone(&api_status_state);
-                || health(state)
-            }),
-        )
-        .route(
-            "/build-information",
-            axum::routing::get({
-                let state = Arc::clone(&api_status_state);
-                || build_information(state)
-            }),
-        )
+        .route("/health", axum::routing::get(health))
+        .route("/build-information", axum::routing::get(build_information))
         .route(
             "/signer-information",
-            axum::routing::get({
-                let state = Arc::clone(&api_status_state);
-                || signer_information(state)
-            }),
+            axum::routing::get(signer_information),
         )
 }
 
@@ -46,7 +29,7 @@ pub(crate) fn api_status_routes() -> Router<AppState> {
         (status = 200, body = ApiHealthResponse)
     )
 )]
-async fn health(state: Arc<ApiStatusState>) -> Json<ApiHealthResponse> {
+async fn health(State(state): State<ApiStatusState>) -> Json<ApiHealthResponse> {
     let uptime = state.startup_time.elapsed();
     let health = ApiHealthResponse::new_healthy(uptime);
     Json(health)
@@ -60,7 +43,9 @@ async fn health(state: Arc<ApiStatusState>) -> Json<ApiHealthResponse> {
         (status = 200, body = BinaryBuildInformationOwned)
     )
 )]
-async fn build_information(state: Arc<ApiStatusState>) -> Json<BinaryBuildInformationOwned> {
+async fn build_information(
+    State(state): State<ApiStatusState>,
+) -> Json<BinaryBuildInformationOwned> {
     Json(state.build_information.to_owned())
 }
 
@@ -73,7 +58,7 @@ async fn build_information(state: Arc<ApiStatusState>) -> Json<BinaryBuildInform
     )
 )]
 async fn signer_information(
-    state: Arc<ApiStatusState>,
+    State(state): State<ApiStatusState>,
 ) -> AxumResult<Json<SignerInformationResponse>> {
     let signer_state = state.signer_information.as_ref().ok_or_else(|| {
         AxumErrorResponse::internal_msg("this api does not expose zk-nym signing functionalities")

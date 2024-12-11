@@ -46,7 +46,8 @@ pub(crate) fn ws_fd(_conn: &WsConn) -> Option<RawFd> {
     #[cfg(unix)]
     match _conn.get_ref() {
         MaybeTlsStream::Plain(stream) => Some(stream.as_raw_fd()),
-        &_ => None,
+        MaybeTlsStream::Rustls(tls_stream) => Some(tls_stream.as_raw_fd()),
+        _ => None,
     }
     #[cfg(not(unix))]
     None
@@ -109,6 +110,11 @@ impl PartiallyDelegatedRouter {
                 }
             }
         };
+
+        if self.stream_return.is_canceled() {
+            // nothing to do, receiver has been dropped
+            return;
+        }
 
         let return_res = match ret {
             Err(err) => self.stream_return.send(Err(err)),

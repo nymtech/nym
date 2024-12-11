@@ -1,16 +1,16 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::helpers::UnsupportedGatewayAddresses;
+use crate::node::http::error::NymNodeHttpError;
 use crate::wireguard::error::WireguardError;
 use nym_ip_packet_router::error::ClientCoreError;
-use nym_node_http_api::NymNodeHttpError;
 use std::io;
 use std::net::IpAddr;
 use std::path::PathBuf;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
+#[allow(clippy::enum_variant_names)]
 pub enum KeyIOFailure {
     #[error("failed to load {keys} keys from {:?} (private key) and {:?} (public key): {err}", .paths.private_key_path, .paths.public_key_path)]
     KeyPairLoadFailure {
@@ -55,9 +55,6 @@ pub enum NymNodeError {
 
     #[error("could not derive path to data directory of this nym node")]
     DataDirDerivationFailure,
-
-    #[error("could not derive path to config directory of this nym node")]
-    ConfigDirDerivationFailure,
 
     #[error(transparent)]
     HttpFailure(#[from] NymNodeHttpError),
@@ -116,6 +113,9 @@ pub enum NymNodeError {
         source: WireguardError,
     },
 
+    #[error("wireguard data is no longer available - has it been reused?")]
+    WireguardDataUnavailable,
+
     #[deprecated]
     #[error(transparent)]
     KeyRecoveryError {
@@ -129,9 +129,6 @@ pub enum NymNodeError {
     #[error("could not initialise nym-node as '--{name}' has not been specified which is required for a first time setup. (config section: {section})")]
     MissingInitArg { section: String, name: String },
 
-    #[error("failed to migrate {node_type}: {message}")]
-    MigrationFailure { node_type: String, message: String },
-
     #[error("there was an issue with wireguard IP network: {source}")]
     IpNetworkError {
         #[from]
@@ -139,13 +136,16 @@ pub enum NymNodeError {
     },
 
     #[error(transparent)]
-    MixnodeFailure(#[from] MixnodeError),
+    GatewayFailure(#[from] nym_gateway::GatewayError),
+
+    #[error(transparent)]
+    GatewayTasksStartupFailure(Box<dyn std::error::Error + Send + Sync>),
 
     #[error(transparent)]
     EntryGatewayFailure(#[from] EntryGatewayError),
 
     #[error(transparent)]
-    ExitGatewayFailure(#[from] ExitGatewayError),
+    ServiceProvidersFailure(#[from] ServiceProvidersError),
 
     // TODO: more granular errors
     #[error(transparent)]
@@ -153,15 +153,6 @@ pub enum NymNodeError {
 
     #[error("failed upgrade")]
     FailedUpgrade,
-}
-
-#[derive(Debug, Error)]
-pub enum MixnodeError {
-    #[error("currently it's not supported to have different ip addresses for verloc and mixnet ({verloc_bind_ip} and {mix_bind_ip} were used)")]
-    UnsupportedAddresses {
-        verloc_bind_ip: IpAddr,
-        mix_bind_ip: IpAddr,
-    },
 }
 
 #[derive(Debug, Error)]
@@ -193,25 +184,16 @@ pub enum EntryGatewayError {
         source: bip39::Error,
     },
 
-    #[error(transparent)]
-    UnsupportedAddresses(#[from] UnsupportedGatewayAddresses),
-
     #[error("entry gateway failure: {0}")]
     External(#[from] nym_gateway::GatewayError),
 }
 
 #[derive(Debug, Error)]
-pub enum ExitGatewayError {
+pub enum ServiceProvidersError {
     #[error(transparent)]
     KeyFailure(#[from] KeyIOFailure),
-
-    #[error(transparent)]
-    UnsupportedAddresses(#[from] UnsupportedGatewayAddresses),
 
     // TODO: more granular errors
     #[error(transparent)]
     ExternalClientCore(#[from] ClientCoreError),
-
-    #[error("exit gateway failure: {0}")]
-    External(#[from] nym_gateway::GatewayError),
 }

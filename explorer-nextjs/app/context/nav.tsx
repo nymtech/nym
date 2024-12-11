@@ -2,7 +2,7 @@
 
 import * as React from 'react'
 import { DelegateIcon } from '@/app/icons/DelevateSVG'
-import { BIG_DIPPER } from '@/app/api/constants'
+import { BLOCK_EXPLORER_BASE_URL } from '@/app/api/constants'
 import { OverviewSVG } from '@/app/icons/OverviewSVG'
 import { NodemapSVG } from '@/app/icons/NodemapSVG'
 import { NetworkComponentsSVG } from '@/app/icons/NetworksSVG'
@@ -28,21 +28,21 @@ export const originalNavOptions: NavOptionType[] = [
     Icon: <NetworkComponentsSVG />,
     nested: [
       {
+        url: '/network-components/nodes',
+        title: 'Nodes',
+      },
+      {
         url: '/network-components/mixnodes',
-        title: 'Mixnodes',
+        title: 'Mixnodes (legacy)',
       },
       {
         url: '/network-components/gateways',
-        title: 'Gateways',
+        title: 'Gateways (legacy)',
       },
       {
-        url: `${BIG_DIPPER}/validators`,
+        url: `${BLOCK_EXPLORER_BASE_URL}/validators`,
         title: 'Validators',
         isExternal: true,
-      },
-      {
-        url: '/network-components/service-providers',
-        title: 'Service Providers',
       },
     ],
   },

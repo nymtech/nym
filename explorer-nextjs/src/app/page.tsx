@@ -24,7 +24,7 @@ export default function Home() {
                 <ExplorerListItem
                   label="Nym Address"
                   value={
-                    <Stack direction="row" gap={0.1} alignItems="center">
+                    <Stack direction="row" gap={0.5} alignItems="center">
                       <Typography variant="body4">
                         n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su
                       </Typography>

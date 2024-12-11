@@ -1,0 +1,61 @@
+<svg
+  width="33"
+  height="32"
+  viewBox="0 0 33 32"
+  fill="none"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <rect
+    width="6.4"
+    height="6.38019"
+    transform="matrix(1 1.74846e-07 1.74846e-07 -1 7.06641 25.5204)"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+  <rect
+    width="6.4"
+    height="6.38019"
+    transform="matrix(1 1.74846e-07 1.74846e-07 -1 0.666504 31.9006)"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+  <rect
+    width="6.4"
+    height="6.38019"
+    transform="matrix(1 1.74846e-07 1.74846e-07 -1 13.4663 19.1406)"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+  <rect
+    width="6.4"
+    height="6.38019"
+    transform="matrix(1 1.74846e-07 1.74846e-07 -1 19.8667 12.761)"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+  <path
+    d="M32.6663 32L26.2663 32L26.2663 6.38018L0.708989 6.38017L0.70899 -1.52588e-05L24.9863 -1.1014e-05C29.2278 -1.02724e-05 32.6663 3.43845 32.6663 7.68L32.6663 32Z"
+    fill="#242B2D"
+    style="
+      fill: #242b2d;
+      fill: color(display-p3 0.1412 0.1686 0.1765);
+      fill-opacity: 1;
+    "
+  />
+</svg>

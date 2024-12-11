@@ -6,7 +6,7 @@ const lightMode = {
   mode: "light" as const,
   accent: colours.green[500],
   primary: colours.pine[950],
-  background: colours.haze[300],
+  background: colours.haze[200],
   medium: colours.haze[200],
   light: colours.base.white,
 };
@@ -65,7 +65,8 @@ const createDesignTokens = (mode: "light" | "dark") => {
         black: colours.base.black,
         transparent: colours.base.transparent,
       },
-      ...colours.gray,
+      grey: colours.gray,
+      pine: colours.pine,
     },
     typography: {
       fontFamily: labGrotesque?.style?.fontFamily,
@@ -147,6 +148,7 @@ const createDesignTokens = (mode: "light" | "dark") => {
 // Function to create MUI theme with additional options
 const getTheme = (mode: "light" | "dark"): ThemeOptions => {
   const designTokens = createDesignTokens(mode);
+
   return {
     ...designTokens,
     components: {

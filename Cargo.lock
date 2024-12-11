@@ -6938,6 +6938,7 @@ name = "nyx-chain-watcher"
 version = "0.1.5"
 dependencies = [
  "anyhow",
+ "async-trait",
  "axum 0.7.7",
  "chrono",
  "clap 4.5.20",

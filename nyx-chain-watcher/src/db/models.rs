@@ -24,10 +24,10 @@ pub(crate) struct PriceRecord {
 #[derive(Serialize, Deserialize, Debug, ToSchema)]
 pub(crate) struct PriceHistory {
     pub(crate) timestamp: i64,
-    pub(crate) chf: f32,
-    pub(crate) usd: f32,
-    pub(crate) eur: f32,
-    pub(crate) btc: f32,
+    pub(crate) chf: f64,
+    pub(crate) usd: f64,
+    pub(crate) eur: f64,
+    pub(crate) btc: f64,
 }
 
 #[derive(Serialize, Deserialize, Debug, ToSchema)]

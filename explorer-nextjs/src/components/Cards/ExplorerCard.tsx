@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, type SxProps } from "@mui/material";
 
 const cardStyles = {
-  p: 2,
+  p: 3,
 };
 
 const cardTitleStyles: SxProps = {
@@ -31,8 +31,9 @@ const ExplorerCard = ({
         titleTypographyProps={cardTitleStyles}
         subheader={subtitle}
         subheaderTypographyProps={cardSubtitleStyles}
+        sx={{ padding: 0 }}
       />
-      <CardContent>{children}</CardContent>
+      <CardContent sx={{ padding: 0 }}>{children}</CardContent>
     </Card>
   );
 };

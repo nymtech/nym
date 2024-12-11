@@ -1,4 +1,5 @@
 import type { ExplorerData } from "@/app/api";
+import { Box } from "@mui/material";
 import ExplorerCard from "../Cards/ExplorerCard";
 import ExplorerListItem from "../List/ListItem";
 import { DynamicProgressBar } from "../progressBars/DynamicProgressBar";
@@ -18,10 +19,14 @@ export const CurrentEpochCard = (props: ICurrentEpochCardProps) => {
     showEpoch: true,
   };
   return (
-    <div>
-      <ExplorerCard title="Current NGM epoch">
-        <ExplorerListItem value={<DynamicProgressBar {...progressBar} />} />
-      </ExplorerCard>
-    </div>
+    <ExplorerCard title="Current NGM epoch">
+      <ExplorerListItem
+        value={
+          <Box mt={3} width={"100%"}>
+            <DynamicProgressBar {...progressBar} />
+          </Box>
+        }
+      />
+    </ExplorerCard>
   );
 };

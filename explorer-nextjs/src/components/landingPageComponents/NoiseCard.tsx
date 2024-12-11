@@ -1,9 +1,14 @@
 "use client";
 import type { ExplorerData, IPacketsAndStakingData } from "@/app/api";
 import { formatBigNum } from "@/app/utils/formatBigNumbers";
+import { Box } from "@mui/material";
 import { useEffect, useState } from "react";
+import ExplorerCard from "../Cards/ExplorerCard";
+import ExplorerListItem from "../List/ListItem";
 import { MonoCard } from "../cards/MonoCard";
-import type { ILineChartData } from "../lineChart";
+import { type ILineChartData, LineChart } from "../lineChart";
+import { CardUpDownPriceLine } from "../prices/UpDownPriceLine";
+import { DynamicProgressBar } from "../progressBars/DynamicProgressBar";
 
 interface INoiseCardProps {
   explorerData: ExplorerData;
@@ -67,13 +72,28 @@ export const NoiseCard = (props: INoiseCardProps) => {
   }, [explorerData]);
 
   const noiseCard = {
-    overTitle: "Noise generated last 24h",
-    title: formatBigNum(noiseLast24H) || "",
-    upDownLine: {
-      percentage: Math.abs(percentage) || 0,
-      numberWentUp: percentage > 0,
-    },
-    graph: noiseLineGraphData,
+    percentage: Math.abs(percentage) || 0,
+    numberWentUp: percentage > 0,
   };
-  return <MonoCard {...noiseCard} />;
+  const graph = noiseLineGraphData;
+
+  const subtitle = formatBigNum(noiseLast24H)?.toString();
+  return (
+    <ExplorerCard title="Noise generated last 24h" subtitle={subtitle}>
+      <ExplorerListItem
+        value={
+          <Box width={"100%"}>
+            <CardUpDownPriceLine {...noiseCard} />
+            {noiseLineGraphData && (
+              <LineChart
+                data={noiseLineGraphData.data}
+                color={noiseLineGraphData.color}
+                label={noiseLineGraphData.label}
+              />
+            )}
+          </Box>
+        }
+      />
+    </ExplorerCard>
+  );
 };

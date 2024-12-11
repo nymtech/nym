@@ -13,7 +13,6 @@ use crate::{
         models::{CommitSignature, Validator},
     },
 };
-use manager::TransactionWithBlock;
 use sqlx::{
     sqlite::{SqliteAutoVacuum, SqliteSynchronous},
     types::time::OffsetDateTime,
@@ -220,17 +219,6 @@ impl ScraperStorage {
 
     pub async fn get_pruned_height(&self) -> Result<i64, ScraperError> {
         Ok(self.manager.get_pruned_height().await?)
-    }
-
-    pub async fn get_transactions_after_height(
-        &self,
-        min_height: i64,
-        message_type: Option<&str>,
-    ) -> Result<Vec<TransactionWithBlock>, ScraperError> {
-        Ok(self
-            .manager
-            .get_transactions_after_height(min_height, message_type)
-            .await?)
     }
 }
 

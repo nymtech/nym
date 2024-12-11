@@ -47,18 +47,15 @@ pub(crate) async fn execute(args: Args, http_port: u16) -> Result<(), NyxChainWa
 
     // Spawn the payment listener task
     let payment_listener_handle = tokio::spawn({
-        let obs_pool = watcher_pool.clone();
-        let chain_scraper = run_chain_scraper(&config).await?;
-        let chain_storage = chain_scraper.storage();
+        let price_scraper_pool = storage.pool_owned().await;
+        let scraper_pool = storage.pool_owned().await;
+        run_chain_scraper(&config, scraper_pool).await?;
         let payment_watcher_config = config.payment_watcher_config.unwrap_or_default();
 
         async move {
-            if let Err(e) = payment_listener::run_payment_listener(
-                payment_watcher_config,
-                obs_pool,
-                chain_storage,
-            )
-            .await
+            if let Err(e) =
+                payment_listener::run_payment_listener(payment_watcher_config, price_scraper_pool)
+                    .await
             {
                 error!("Payment listener error: {}", e);
             }

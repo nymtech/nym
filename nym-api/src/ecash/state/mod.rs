@@ -139,7 +139,9 @@ impl EcashState {
             .local
             .active_signer
             .get_or_init(epoch_id, || async {
-                let address = self.aux.client.address().await;
+                let Ok(address) = self.aux.client.address().await else {
+                    return Ok(false);
+                };
                 let ecash_signers = self.aux.comm_channel.ecash_clients(epoch_id).await?;
 
                 // check if any ecash signers for this epoch has the same cosmos address as this api
@@ -246,7 +248,7 @@ impl EcashState {
                 let threshold = self.aux.comm_channel.ecash_threshold(epoch_id).await?;
 
                 // let mut shares = Mutex::new(Vec::with_capacity(all_apis.len()));
-                let cosmos_address = self.aux.client.address().await;
+                let cosmos_address = self.aux.client.address().await.ok();
 
                 let get_partial_signatures = |api: EcashApiClient| async {
                     // move the api into the closure
@@ -256,7 +258,7 @@ impl EcashState {
 
                     // check if we're attempting to query ourselves, in that case just get local signature
                     // rather than making the http query
-                    let partial = if api.cosmos_address == cosmos_address {
+                    let partial = if Some(api.cosmos_address) == cosmos_address {
                         self.partial_coin_index_signatures(Some(epoch_id))
                             .await?
                             .signatures
@@ -380,7 +382,7 @@ impl EcashState {
                 let all_apis = self.aux.comm_channel.ecash_clients(epoch_id).await?;
                 let threshold = self.aux.comm_channel.ecash_threshold(epoch_id).await?;
 
-                let cosmos_address = self.aux.client.address().await;
+                let cosmos_address = self.aux.client.address().await.ok();
 
                 let get_partial_signatures = |api: EcashApiClient| async {
                     // move the api into the closure
@@ -390,7 +392,7 @@ impl EcashState {
 
                     // check if we're attempting to query ourselves, in that case just get local signature
                     // rather than making the http query
-                    let partial = if api.cosmos_address == cosmos_address {
+                    let partial = if Some(api.cosmos_address) == cosmos_address {
                         self.partial_expiration_date_signatures(expiration_date)
                             .await?
                             .signatures
@@ -888,7 +890,7 @@ impl EcashState {
 
     pub async fn get_redeemable_tickets(
         &self,
-        provider_info: TicketProvider,
+        provider_info: &TicketProvider,
     ) -> Result<Vec<SerialNumberWrapper>> {
         let since = provider_info
             .last_batch_verification
@@ -899,6 +901,14 @@ impl EcashState {
             .get_verified_tickets_since(provider_info.id, since)
             .await
             .map_err(Into::into)
+    }
+
+    pub async fn update_last_batch_verification(&self, provider: &TicketProvider) -> Result<()> {
+        Ok(self
+            .aux
+            .storage
+            .update_last_batch_verification(provider.id, OffsetDateTime::now_utc())
+            .await?)
     }
 
     pub async fn get_ticket_data_by_serial_number(

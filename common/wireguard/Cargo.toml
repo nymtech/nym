@@ -26,6 +26,8 @@ log.workspace = true
 thiserror = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread", "net", "io-util"] }
 tokio-stream = { workspace = true }
+time = { workspace = true }
+tracing = { workspace = true }
 
 nym-authenticator-requests = { path = "../authenticator-requests" }
 nym-credential-verification = { path = "../credential-verification" }

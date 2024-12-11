@@ -74,3 +74,17 @@ pub(crate) struct SummaryHistory {
     pub value_json: serde_json::Value,
     pub timestamp_utc: String,
 }
+
+#[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
+pub struct SessionStats {
+    pub gateway_identity_key: String,
+    pub node_id: u32,
+    #[serde(with = "nym_serde_helpers::date")]
+    pub day: time::Date,
+    pub unique_active_clients: i64,
+    pub session_started: i64,
+    pub users_hashes: Option<serde_json::Value>,
+    pub vpn_sessions: Option<serde_json::Value>,
+    pub mixnet_sessions: Option<serde_json::Value>,
+    pub unknown_sessions: Option<serde_json::Value>,
+}

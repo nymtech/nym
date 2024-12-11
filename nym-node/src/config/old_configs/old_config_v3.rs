@@ -3,45 +3,19 @@
 
 #![allow(dead_code)]
 
-use crate::{config::*, error::KeyIOFailure};
+use crate::config::*;
 use nym_client_core_config_types::DebugConfig as ClientDebugConfig;
 use nym_config::serde_helpers::de_maybe_port;
-use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_network_requester::{
-    set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
-    GatewayDetails,
-};
-use nym_pemstore::{store_key, store_keypair};
-use nym_sphinx_acknowledgements::AckKey;
 use old_configs::old_config_v4::*;
 use persistence::*;
-use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
+use tracing::instrument;
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
 pub struct WireguardPathsV3 {
     pub private_diffie_hellman_key_file: PathBuf,
     pub public_diffie_hellman_key_file: PathBuf,
-}
-
-impl WireguardPathsV3 {
-    pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        let data_dir = data_dir.as_ref();
-        WireguardPathsV3 {
-            private_diffie_hellman_key_file: data_dir
-                .join(persistence::DEFAULT_X25519_WG_DH_KEY_FILENAME),
-            public_diffie_hellman_key_file: data_dir
-                .join(persistence::DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME),
-        }
-    }
-
-    pub fn x25519_wireguard_storage_paths(&self) -> nym_pemstore::KeyPairPath {
-        nym_pemstore::KeyPairPath::new(
-            &self.private_diffie_hellman_key_file,
-            &self.public_diffie_hellman_key_file,
-        )
-    }
 }
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Serialize)]
@@ -810,77 +784,7 @@ pub struct ConfigV3 {
     pub logging: LoggingSettingsV3,
 }
 
-impl NymConfigTemplate for ConfigV3 {
-    fn template(&self) -> &'static str {
-        CONFIG_TEMPLATE
-    }
-}
-
 impl ConfigV3 {
-    pub fn save(&self) -> Result<(), NymNodeError> {
-        let save_location = self.save_location();
-        debug!(
-            "attempting to save config file to '{}'",
-            save_location.display()
-        );
-        save_formatted_config_to_file(self, &save_location).map_err(|source| {
-            NymNodeError::ConfigSaveFailure {
-                id: self.id.clone(),
-                path: save_location,
-                source,
-            }
-        })
-    }
-
-    pub fn save_location(&self) -> PathBuf {
-        self.save_path
-            .clone()
-            .unwrap_or(self.default_save_location())
-    }
-
-    pub fn default_save_location(&self) -> PathBuf {
-        default_config_filepath(&self.id)
-    }
-
-    pub fn default_data_directory<P: AsRef<Path>>(config_path: P) -> Result<PathBuf, NymNodeError> {
-        let config_path = config_path.as_ref();
-
-        // we got a proper path to the .toml file
-        let Some(config_dir) = config_path.parent() else {
-            error!(
-                "'{}' does not have a parent directory. Have you pointed to the fs root?",
-                config_path.display()
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        };
-
-        let Some(config_dir_name) = config_dir.file_name() else {
-            error!(
-                "could not obtain parent directory name of '{}'. Have you used relative paths?",
-                config_path.display()
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        };
-
-        if config_dir_name != DEFAULT_CONFIG_DIR {
-            error!(
-                "the parent directory of '{}' ({}) is not {DEFAULT_CONFIG_DIR}. currently this is not supported",
-                config_path.display(), config_dir_name.to_str().unwrap_or("UNKNOWN")
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        }
-
-        let Some(node_dir) = config_dir.parent() else {
-            error!(
-                "'{}' does not have a parent directory. Have you pointed to the fs root?",
-                config_dir.display()
-            );
-            return Err(NymNodeError::DataDirDerivationFailure);
-        };
-
-        Ok(node_dir.join(DEFAULT_DATA_DIR))
-    }
-
     // simple wrapper that reads config file and assigns path location
     fn read_from_path<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
         let path = path.as_ref();
@@ -893,63 +797,21 @@ impl ConfigV3 {
         debug!("loaded config file from {}", path.display());
         Ok(loaded)
     }
-
-    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
-        Self::read_from_path(path)
-    }
 }
 
-pub async fn initialise(
-    paths: &AuthenticatorPaths,
-    public_key: nym_crypto::asymmetric::identity::PublicKey,
-) -> Result<(), NymNodeError> {
-    let mut rng = OsRng;
-    let ed25519_keys = ed25519::KeyPair::new(&mut rng);
-    let x25519_keys = x25519::KeyPair::new(&mut rng);
-    let aes128ctr_key = AckKey::new(&mut rng);
-    let gateway_details = GatewayDetails::Custom(CustomGatewayDetails::new(public_key)).into();
-
-    store_keypair(&ed25519_keys, &paths.ed25519_identity_storage_paths()).map_err(|e| {
-        KeyIOFailure::KeyPairStoreFailure {
-            keys: "ed25519-identity".to_string(),
-            paths: paths.ed25519_identity_storage_paths(),
-            err: e,
-        }
-    })?;
-    store_keypair(&x25519_keys, &paths.x25519_diffie_hellman_storage_paths()).map_err(|e| {
-        KeyIOFailure::KeyPairStoreFailure {
-            keys: "x25519-dh".to_string(),
-            paths: paths.x25519_diffie_hellman_storage_paths(),
-            err: e,
-        }
-    })?;
-    store_key(&aes128ctr_key, &paths.ack_key_file).map_err(|e| KeyIOFailure::KeyStoreFailure {
-        key: "ack".to_string(),
-        path: paths.ack_key_file.clone(),
-        err: e,
-    })?;
-
-    // insert all required information into the gateways store
-    // (I hate that we have to do it, but that's currently the simplest thing to do)
-    let storage = setup_fs_gateways_storage(&paths.gateway_registrations).await?;
-    store_gateway_details(&storage, &gateway_details).await?;
-    set_active_gateway(&storage, &gateway_details.gateway_id().to_base58_string()).await?;
-
-    Ok(())
-}
-
+#[instrument(skip_all)]
 pub async fn try_upgrade_config_v3<P: AsRef<Path>>(
     path: P,
     prev_config: Option<ConfigV3>,
 ) -> Result<ConfigV4, NymNodeError> {
-    tracing::debug!("Updating from 1.1.4");
+    debug!("attempting to load v3 config...");
     let old_cfg = if let Some(prev_config) = prev_config {
         prev_config
     } else {
-        ConfigV3::read_from_path(&path)?
+        ConfigV3::read_from_path(&path).inspect_err(|err| debug!("failed: {err}"))?
     };
 
-    let exit_gateway_paths = ExitGatewayPaths::new(
+    let exit_gateway_paths = ServiceProvidersPaths::new(
         old_cfg
             .exit_gateway
             .storage_paths

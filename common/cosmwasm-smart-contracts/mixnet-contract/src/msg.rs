@@ -25,6 +25,7 @@ use std::time::Duration;
 
 #[cfg(feature = "schema")]
 use crate::{
+    config_score::{CurrentNymNodeVersionResponse, NymNodeVersionHistoryResponse},
     delegation::{
         NodeDelegationResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
         PagedNodeDelegationsResponse,
@@ -422,6 +423,20 @@ pub enum QueryMsg {
     /// Gets the current state of the contract.
     #[cfg_attr(feature = "schema", returns(ContractState))]
     GetState {},
+
+    /// Get the current expected version of a Nym Node.
+    #[cfg_attr(feature = "schema", returns(CurrentNymNodeVersionResponse))]
+    GetCurrentNymNodeVersion {},
+
+    /// Get the version history of Nym Node.
+    #[cfg_attr(feature = "schema", returns(NymNodeVersionHistoryResponse))]
+    GetNymNodeVersionHistory {
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<u32>,
+    },
 
     /// Gets the current parameters used for reward calculation.
     #[cfg_attr(feature = "schema", returns(RewardingParams))]

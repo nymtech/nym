@@ -32,7 +32,7 @@ pub(crate) mod string_rfc3339_offset_date_time {
 
     struct Rfc3339OffsetDateTimeVisitor;
 
-    impl<'de> Visitor<'de> for Rfc3339OffsetDateTimeVisitor {
+    impl Visitor<'_> for Rfc3339OffsetDateTimeVisitor {
         type Value = OffsetDateTime;
 
         fn expecting(&self, formatter: &mut Formatter<'_>) -> std::fmt::Result {

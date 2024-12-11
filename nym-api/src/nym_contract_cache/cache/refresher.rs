@@ -178,6 +178,7 @@ impl NymContractCacheRefresher {
         }
 
         let config_score_params = self.nyxd_client.get_config_score_params().await?;
+        let nym_node_version_history = self.nyxd_client.get_nym_node_version_history().await?;
         let contract_info = self.get_nym_contracts_info().await?;
 
         info!(
@@ -194,6 +195,7 @@ impl NymContractCacheRefresher {
                 nym_nodes,
                 rewarded_set,
                 config_score_params,
+                nym_node_version_history,
                 rewarding_params,
                 current_interval,
                 contract_info,
@@ -213,25 +215,6 @@ impl NymContractCacheRefresher {
             .await
             .unwrap_or_default()
     }
-
-    // fn collect_rewarded_and_active_set_details(
-    //     all_mixnodes: &[MixNodeDetails],
-    //     rewarded_set_nodes: RewardedSet,
-    // ) -> (Vec<MixNodeDetails>, Vec<MixNodeDetails>) {
-    //     let mut active_set = Vec::new();
-    //     let mut rewarded_set = Vec::new();
-    //
-    //     for mix in all_mixnodes {
-    //         if let Some(status) = rewarded_set_nodes.get(&mix.mix_id()) {
-    //             rewarded_set.push(mix.clone());
-    //             if status.is_active() {
-    //                 active_set.push(mix.clone())
-    //             }
-    //         }
-    //     }
-    //
-    //     (rewarded_set, active_set)
-    // }
 
     pub(crate) async fn run(&self, mut shutdown: TaskClient) {
         let mut interval = time::interval(self.caching_interval);

@@ -9,10 +9,11 @@ use nym_network_requester::{GatewayPacketRouter, PacketRouter};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::DestinationAddressBytes;
 use nym_task::TaskClient;
+use tokio::task::JoinHandle;
 use tracing::{debug, error, trace};
 
 #[derive(Debug)]
-pub(crate) struct LocalEmbeddedClientHandle {
+pub struct LocalEmbeddedClientHandle {
     /// Nym address of the embedded client.
     pub(crate) address: Recipient,
 
@@ -52,8 +53,8 @@ impl MessageRouter {
         }
     }
 
-    pub(crate) fn start_with_shutdown(self, shutdown: TaskClient) {
-        tokio::spawn(self.run_with_shutdown(shutdown));
+    pub(crate) fn start_with_shutdown(self, shutdown: TaskClient) -> JoinHandle<()> {
+        tokio::spawn(self.run_with_shutdown(shutdown))
     }
 
     fn handle_received_messages(&self, messages: Vec<Vec<u8>>) {

@@ -3104,7 +3104,6 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "schemars",
- "semver",
  "serde",
  "utoipa",
  "vergen",

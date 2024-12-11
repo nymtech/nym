@@ -4,7 +4,7 @@
 use crate::network_monitor::monitor::preparer::PacketPreparer;
 use crate::network_monitor::monitor::processor::ReceivedProcessor;
 use crate::network_monitor::monitor::sender::PacketSender;
-use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestSummary};
+use crate::network_monitor::monitor::summary_producer::{SummaryProducer, TestReport, TestSummary};
 use crate::network_monitor::test_packet::NodeTestMessage;
 use crate::network_monitor::test_route::TestRoute;
 use crate::storage::NymApiStorage;
@@ -17,15 +17,14 @@ use std::collections::{HashMap, HashSet};
 use tokio::time::{sleep, Duration, Instant};
 use tracing::{debug, error, info, trace};
 
-pub(crate) mod gateway_clients_cache;
-pub(crate) mod gateways_pinger;
+pub(crate) mod gateway_client_handle;
 pub(crate) mod preparer;
 pub(crate) mod processor;
 pub(crate) mod receiver;
 pub(crate) mod sender;
 pub(crate) mod summary_producer;
 
-pub(super) struct Monitor<R: MessageReceiver + Send + 'static> {
+pub(super) struct Monitor<R: MessageReceiver + Send + Sync + 'static> {
     test_nonce: u64,
     packet_preparer: PacketPreparer,
     packet_sender: PacketSender,
@@ -33,7 +32,6 @@ pub(super) struct Monitor<R: MessageReceiver + Send + 'static> {
     summary_producer: SummaryProducer,
     node_status_storage: NymApiStorage,
     run_interval: Duration,
-    gateway_ping_interval: Duration,
     packet_delivery_timeout: Duration,
 
     /// Number of test packets sent via each "random" route to verify whether they work correctly.
@@ -49,7 +47,7 @@ pub(super) struct Monitor<R: MessageReceiver + Send + 'static> {
     packet_type: PacketType,
 }
 
-impl<R: MessageReceiver + Send> Monitor<R> {
+impl<R: MessageReceiver + Send + Sync> Monitor<R> {
     pub(super) fn new(
         config: &config::NetworkMonitor,
         packet_preparer: PacketPreparer,
@@ -67,7 +65,6 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             summary_producer,
             node_status_storage,
             run_interval: config.debug.run_interval,
-            gateway_ping_interval: config.debug.gateway_ping_interval,
             packet_delivery_timeout: config.debug.packet_delivery_timeout,
             route_test_packets: config.debug.route_test_packets,
             test_routes: config.debug.test_routes,
@@ -78,10 +75,10 @@ impl<R: MessageReceiver + Send> Monitor<R> {
 
     // while it might have been cleaner to put this into a separate `Notifier` structure,
     // I don't see much point considering it's only a single, small, method
-    async fn submit_new_node_statuses(&mut self, test_summary: TestSummary) {
+    async fn submit_new_node_statuses(&mut self, test_summary: TestSummary, report: TestReport) {
         // indicate our run has completed successfully and should be used in any future
         // uptime calculations
-        if let Err(err) = self
+        let monitor_run_id = match self
             .node_status_storage
             .insert_monitor_run_results(
                 test_summary.mixnode_results,
@@ -94,8 +91,22 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             )
             .await
         {
-            error!("Failed to submit monitor run information to the database: {err}",);
+            Ok(id) => id,
+            Err(err) => {
+                error!("Failed to submit monitor run information to the database: {err}",);
+                return;
+            }
+        };
+
+        if let Err(err) = self
+            .node_status_storage
+            .insert_monitor_run_report(report, monitor_run_id)
+            .await
+        {
+            error!("failed to submit monitor run report to the database: {err}",);
         }
+
+        info!("finished persisting monitor run with id {monitor_run_id}");
     }
 
     fn analyse_received_test_route_packets(
@@ -135,11 +146,14 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             packets.push(gateway_packets);
         }
 
-        self.received_processor.set_route_test_nonce().await;
-        self.packet_sender.send_packets(packets).await;
+        self.received_processor.set_route_test_nonce();
+        let gateway_clients = self.packet_sender.send_packets(packets).await;
 
         // give the packets some time to traverse the network
         sleep(self.packet_delivery_timeout).await;
+
+        // start all the disconnections in the background
+        drop(gateway_clients);
 
         let received = self.received_processor.return_received().await;
         let mut results = self.analyse_received_test_route_packets(&received);
@@ -197,7 +211,7 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             // the actual target
             let candidates = match self
                 .packet_preparer
-                .prepare_test_routes(remaining * 2, &mut blacklist)
+                .prepare_test_routes(remaining * 2)
                 .await
             {
                 Some(candidates) => candidates,
@@ -247,12 +261,11 @@ impl<R: MessageReceiver + Send> Monitor<R> {
             .flat_map(|packets| packets.packets.iter())
             .count();
 
-        self.received_processor
-            .set_new_test_nonce(self.test_nonce)
-            .await;
+        self.received_processor.set_new_test_nonce(self.test_nonce);
 
         info!("Sending packets to all gateways...");
-        self.packet_sender
+        let gateway_clients = self
+            .packet_sender
             .send_packets(prepared_packets.packets)
             .await;
 
@@ -263,6 +276,9 @@ impl<R: MessageReceiver + Send> Monitor<R> {
 
         // give the packets some time to traverse the network
         sleep(self.packet_delivery_timeout).await;
+
+        // start all the disconnections in the background
+        drop(gateway_clients);
 
         let received = self.received_processor.return_received().await;
         let total_received = received.len();
@@ -279,9 +295,13 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         );
 
         let report = summary.create_report(total_sent, total_received);
-        info!("{report}");
 
-        self.submit_new_node_statuses(summary).await;
+        let display_report = summary
+            .create_report(total_sent, total_received)
+            .to_display_report(&summary.route_results);
+        info!("{display_report}");
+
+        self.submit_new_node_statuses(summary, report).await;
     }
 
     async fn test_run(&mut self) {
@@ -310,9 +330,6 @@ impl<R: MessageReceiver + Send> Monitor<R> {
         self.packet_preparer
             .wait_for_validator_cache_initial_values(self.minimum_test_routes)
             .await;
-
-        self.packet_sender
-            .spawn_gateways_pinger(self.gateway_ping_interval, shutdown.clone());
 
         let mut run_interval = tokio::time::interval(self.run_interval);
         while !shutdown.is_shutdown() {

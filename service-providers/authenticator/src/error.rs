@@ -23,9 +23,6 @@ pub enum AuthenticatorError {
     #[error("received too short packet")]
     ShortPacket,
 
-    #[error("failed local version check, client and config mismatch")]
-    FailedLocalVersionCheck,
-
     #[error("failed to connect to mixnet: {source}")]
     FailedToConnectToMixnet { source: nym_sdk::Error },
 
@@ -45,7 +42,7 @@ pub enum AuthenticatorError {
     FailedToSetupMixnetClient { source: nym_sdk::Error },
 
     #[error("{0}")]
-    GatewayStorageError(#[from] nym_gateway_storage::error::StorageError),
+    GatewayStorageError(#[from] nym_gateway_storage::error::GatewayStorageError),
 
     #[error("internal error: {0}")]
     InternalError(String),

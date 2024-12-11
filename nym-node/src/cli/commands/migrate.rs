@@ -1,9 +1,9 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::error::NymNodeError;
 use colored::Color::TrueColor;
 use colored::Colorize;
-use nym_node::error::NymNodeError;
 
 #[derive(clap::Args, Debug)]
 pub(crate) struct Args {

@@ -86,6 +86,54 @@
       "additionalProperties": false
     },
     {
+      "description": "Get the current expected version of a Nym Node.",
+      "type": "object",
+      "required": [
+        "get_current_nym_node_version"
+      ],
+      "properties": {
+        "get_current_nym_node_version": {
+          "type": "object",
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
+      "description": "Get the version history of Nym Node.",
+      "type": "object",
+      "required": [
+        "get_nym_node_version_history"
+      ],
+      "properties": {
+        "get_nym_node_version_history": {
+          "type": "object",
+          "properties": {
+            "limit": {
+              "description": "Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            },
+            "start_after": {
+              "description": "Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.",
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "uint32",
+              "minimum": 0.0
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    {
       "description": "Gets the current parameters used for reward calculation.",
       "type": "object",
       "required": [

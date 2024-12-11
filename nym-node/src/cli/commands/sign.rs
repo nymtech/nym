@@ -2,11 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::helpers::ConfigArgs;
+use crate::config::upgrade_helpers::try_load_current_config;
+use crate::error::NymNodeError;
 use crate::node::helpers::load_ed25519_identity_keypair;
 use nym_bin_common::output_format::OutputFormat;
 use nym_crypto::asymmetric::identity;
-use nym_node::config::upgrade_helpers::try_load_current_config;
-use nym_node::error::NymNodeError;
 use nym_types::helpers::ConsoleSigningOutput;
 
 // I don't think it makes sense to expose 'text' and 'contract-msg' as env variables

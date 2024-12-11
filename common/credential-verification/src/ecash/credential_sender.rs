@@ -13,12 +13,11 @@ use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{BatchRedeemTicketsBody, VerifyEcashTicketBody};
 use nym_credentials_interface::Bandwidth;
 use nym_credentials_interface::{ClientTicket, TicketType};
-use nym_gateway_storage::Storage;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{
     EcashSigningClient, MultisigQueryClient, MultisigSigningClient, PagedMultisigQueryClient,
 };
-use nym_validator_client::nyxd::cosmwasm_client::ToSingletonContractData;
+use nym_validator_client::nyxd::cosmwasm_client::ContractResponseData;
 use nym_validator_client::nyxd::cw3::Status;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;
@@ -126,21 +125,18 @@ pub struct CredentialHandlerConfig {
     pub maximum_time_between_redemption: Duration,
 }
 
-pub(crate) struct CredentialHandler<St: Storage> {
+pub(crate) struct CredentialHandler {
     config: CredentialHandlerConfig,
     multisig_threshold: f32,
     ticket_receiver: UnboundedReceiver<ClientTicket>,
-    shared_state: SharedState<St>,
+    shared_state: SharedState,
     pending_tickets: Vec<PendingVerification>,
     pending_redemptions: Vec<PendingRedemptionVote>,
 }
 
-impl<St> CredentialHandler<St>
-where
-    St: Storage + Clone + 'static,
-{
+impl CredentialHandler {
     async fn rebuild_pending_tickets(
-        shared_state: &SharedState<St>,
+        shared_state: &SharedState,
     ) -> Result<Vec<PendingVerification>, EcashTicketError> {
         // 1. get all tickets that were not fully verified
         let unverified = shared_state.storage.get_all_unverified_tickets().await?;
@@ -188,7 +184,7 @@ where
     }
 
     async fn rebuild_pending_votes(
-        shared_state: &SharedState<St>,
+        shared_state: &SharedState,
     ) -> Result<Vec<PendingRedemptionVote>, EcashTicketError> {
         // 1. get all tickets that were not fully verified
         let unverified = shared_state.storage.get_all_unresolved_proposals().await?;
@@ -259,7 +255,7 @@ where
     pub(crate) async fn new(
         config: CredentialHandlerConfig,
         ticket_receiver: UnboundedReceiver<ClientTicket>,
-        shared_state: SharedState<St>,
+        shared_state: SharedState,
     ) -> Result<Self, Error> {
         let multisig_threshold = shared_state
             .nyxd_client

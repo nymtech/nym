@@ -15,7 +15,6 @@ const-str = { workspace = true }
 log = { workspace = true }
 pretty_env_logger = { workspace = true }
 schemars = { workspace = true, features = ["preserve_order"], optional = true }
-semver.workspace = true
 serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true, optional = true }
 
@@ -44,5 +43,5 @@ tracing = [
     "tracing-opentelemetry",
     "opentelemetry",
 ]
-clap = [ "dep:clap", "dep:clap_complete", "dep:clap_complete_fig" ]
+clap = ["dep:clap", "dep:clap_complete", "dep:clap_complete_fig"]
 models = []

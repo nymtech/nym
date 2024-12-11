@@ -3,13 +3,13 @@
 
 use crate::error::Error;
 use crate::peer_controller::PeerControlRequest;
+use crate::peer_storage_manager::PeerStorageManager;
 use defguard_wireguard_rs::host::Peer;
 use defguard_wireguard_rs::{host::Host, key::Key};
 use futures::channel::oneshot;
 use nym_authenticator_requests::latest::registration::BANDWIDTH_CAP_PER_DAY;
 use nym_credential_verification::bandwidth_storage_manager::BandwidthStorageManager;
 use nym_gateway_storage::models::WireguardPeer;
-use nym_gateway_storage::Storage;
 use nym_task::TaskClient;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
 use std::sync::Arc;
@@ -17,26 +17,26 @@ use std::time::{Duration, SystemTime};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
 
-pub(crate) type SharedBandwidthStorageManager<St> = Arc<RwLock<BandwidthStorageManager<St>>>;
+pub(crate) type SharedBandwidthStorageManager = Arc<RwLock<BandwidthStorageManager>>;
 const AUTO_REMOVE_AFTER: Duration = Duration::from_secs(60 * 60 * 24 * 30); // 30 days
 
-pub struct PeerHandle<St> {
-    storage: St,
+pub struct PeerHandle {
     public_key: Key,
     host_information: Arc<RwLock<Host>>,
-    bandwidth_storage_manager: Option<SharedBandwidthStorageManager<St>>,
+    peer_storage_manager: PeerStorageManager,
+    bandwidth_storage_manager: Option<SharedBandwidthStorageManager>,
     request_tx: mpsc::Sender<PeerControlRequest>,
     timeout_check_interval: IntervalStream,
     task_client: TaskClient,
     startup_timestamp: SystemTime,
 }
 
-impl<St: Storage + Clone + 'static> PeerHandle<St> {
+impl PeerHandle {
     pub fn new(
-        storage: St,
         public_key: Key,
         host_information: Arc<RwLock<Host>>,
-        bandwidth_storage_manager: Option<SharedBandwidthStorageManager<St>>,
+        peer_storage_manager: PeerStorageManager,
+        bandwidth_storage_manager: Option<SharedBandwidthStorageManager>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         task_client: &TaskClient,
     ) -> Self {
@@ -46,9 +46,9 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
         let mut task_client = task_client.fork(format!("peer-{public_key}"));
         task_client.disarm();
         PeerHandle {
-            storage,
             public_key,
             host_information,
+            peer_storage_manager,
             bandwidth_storage_manager,
             request_tx,
             timeout_check_interval,
@@ -84,16 +84,19 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
                 .ok_or(Error::InconsistentConsumedBytes)?
                 .try_into()
                 .map_err(|_| Error::InconsistentConsumedBytes)?;
-            if spent_bandwidth > 0
-                && bandwidth_manager
+            if spent_bandwidth > 0 {
+                self.peer_storage_manager.update_trx(kernel_peer);
+                if bandwidth_manager
                     .write()
                     .await
                     .try_use_bandwidth(spent_bandwidth)
                     .await
                     .is_err()
-            {
-                let success = self.remove_peer().await?;
-                return Ok(!success);
+                {
+                    let success = self.remove_peer().await?;
+                    self.peer_storage_manager.remove_peer();
+                    return Ok(!success);
+                }
             }
         } else {
             if SystemTime::now().duration_since(self.startup_timestamp)? >= AUTO_REMOVE_AFTER {
@@ -132,7 +135,7 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
                             // the host information hasn't beed updated yet
                             continue;
                         };
-                    let Some(storage_peer) = self.storage.get_wireguard_peer(&self.public_key.to_string()).await? else {
+                    let Some(storage_peer) = self.peer_storage_manager.get_peer() else {
                         log::debug!("Peer {:?} not in storage anymore, shutting down handle", self.public_key);
                         return Ok(());
                     };
@@ -141,12 +144,18 @@ impl<St: Storage + Clone + 'static> PeerHandle<St> {
                         return Ok(());
                     } else {
                         // Update storage values
-                        self.storage.insert_wireguard_peer(&kernel_peer, self.bandwidth_storage_manager.is_some()).await?;
+                        self.peer_storage_manager.sync_storage_peer().await?;
                     }
                 }
 
                 _ = self.task_client.recv() => {
                     log::trace!("PeerHandle: Received shutdown");
+                    if let Some(bandwidth_manager) = &self.bandwidth_storage_manager {
+                        if let Err(e) = bandwidth_manager.write().await.sync_storage_bandwidth().await {
+                            log::error!("Storage sync failed - {e}, unaccounted bandwidth might have been consumed");
+                        }
+                    }
+                    log::trace!("PeerHandle: Finished shutdown");
                 }
             }
         }

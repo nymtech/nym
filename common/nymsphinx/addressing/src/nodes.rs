@@ -1,6 +1,13 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+//! Encoding and decoding node routing information.
+//!
+//! This module is responsible for encoding and decoding node routing information, so that
+//! they could be later put into an appropriate field in a sphinx header.
+//! Currently, that routing information is an IP address, but in principle it can be anything
+//!  for as long as it's going to fit in the field.
+
 use nym_crypto::asymmetric::identity;
 use nym_sphinx_types::{NodeAddressBytes, NODE_ADDRESS_LENGTH};
 
@@ -11,13 +18,6 @@ use thiserror::Error;
 // to work out
 pub type NodeIdentity = identity::PublicKey;
 pub const NODE_IDENTITY_SIZE: usize = identity::PUBLIC_KEY_LENGTH;
-
-/// Encodoing and decoding node routing information.
-///
-/// This module is responsible for encoding and decoding node routing information, so that
-/// they could be later put into an appropriate field in a sphinx header.
-/// Currently, that routing information is an IP address, but in principle it can be anything
-/// for as long as it's going to fit in the field.
 
 /// MAX_UNPADDED_LEN represents maximum length an unpadded address could have.
 /// In this case it's an ipv6 socket address (with version prefix)

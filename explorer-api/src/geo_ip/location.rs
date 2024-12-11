@@ -166,7 +166,7 @@ impl GeoIp {
     }
 }
 
-impl<'a> TryFrom<&City<'a>> for Location {
+impl TryFrom<&City<'_>> for Location {
     type Error = String;
 
     fn try_from(city: &City) -> Result<Self, Self::Error> {

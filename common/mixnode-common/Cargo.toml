@@ -26,7 +26,7 @@ url = { workspace = true }
 time.workspace = true
 thiserror = { workspace = true }
 
-nym-crypto = { path = "../crypto" }
+nym-crypto = { path = "../crypto", features = ["asymmetric"] }
 nym-network-defaults = { path = "../network-defaults" }
 nym-sphinx-acknowledgements = { path = "../nymsphinx/acknowledgements" }
 nym-sphinx-addressing = { path = "../nymsphinx/addressing" }
@@ -35,7 +35,5 @@ nym-sphinx-framing = { path = "../nymsphinx/framing" }
 nym-sphinx-params = { path = "../nymsphinx/params" }
 nym-sphinx-types = { path = "../nymsphinx/types" }
 nym-task = { path = "../task" }
-nym-validator-client = { path = "../client-libs/validator-client" }
-nym-bin-common = { path = "../bin-common" }
 nym-metrics = { path = "../nym-metrics" }
-nym-node-http-api = { path = "../../nym-node/nym-node-http-api" } 
+

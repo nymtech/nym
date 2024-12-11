@@ -141,6 +141,7 @@ pub const NEW_INTERVAL_OPERATING_COST_RANGE_KEY: &str = "new_interval_operating_
 pub const NEW_VERSION_WEIGHTS_RANGE_KEY: &str = "new_version_weights_range";
 pub const NEW_VERSION_SCORE_FORMULA_PARAMS_KEY: &str = "new_version_score_formula_params";
 pub const NYM_NODE_CURRENT_SEMVER_KEY: &str = "new_current_semver";
+pub const NYM_NODE_CURRENT_SEMVER_ID_KEY: &str = "new_current_semver_id";
 
 pub const OLD_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "old_rewarding_validator_address";
 pub const NEW_REWARDING_VALIDATOR_ADDRESS_KEY: &str = "new_rewarding_validator_address";
@@ -481,12 +482,6 @@ pub fn new_settings_update_event(update: &ContractStateParamsUpdate) -> Event {
 
     // check for config score params updates
     if let Some(config_score_update) = &update.config_score_params {
-        if let Some(current_nym_node_semver) = &config_score_update.current_nym_node_semver {
-            event.attributes.push(attr(
-                NYM_NODE_CURRENT_SEMVER_KEY,
-                current_nym_node_semver.to_string(),
-            ))
-        }
         if let Some(version_weights) = &config_score_update.version_weights {
             event.attributes.push(attr(
                 NEW_VERSION_WEIGHTS_RANGE_KEY,
@@ -506,9 +501,10 @@ pub fn new_settings_update_event(update: &ContractStateParamsUpdate) -> Event {
     event
 }
 
-pub fn new_update_nym_node_semver_event(new_version: &str) -> Event {
+pub fn new_update_nym_node_semver_event(new_version: &str, new_id: u32) -> Event {
     Event::new(MixnetEventType::NymNodeSemverUpdate)
         .add_attribute(NYM_NODE_CURRENT_SEMVER_KEY, new_version)
+        .add_attribute(NYM_NODE_CURRENT_SEMVER_ID_KEY, new_id.to_string())
 }
 
 pub fn new_not_found_node_operator_rewarding_event(interval: Interval, node_id: NodeId) -> Event {

@@ -6,6 +6,7 @@ use ed25519_dalek::{Signer, SigningKey};
 pub use ed25519_dalek::{Verifier, PUBLIC_KEY_LENGTH, SECRET_KEY_LENGTH, SIGNATURE_LENGTH};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use std::fmt::{self, Debug, Display, Formatter};
+use std::hash::{Hash, Hasher};
 use std::str::FromStr;
 use thiserror::Error;
 use zeroize::{Zeroize, ZeroizeOnDrop};
@@ -121,6 +122,14 @@ impl PemStorableKeyPair for KeyPair {
 /// ed25519 EdDSA Public Key
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct PublicKey(ed25519_dalek::VerifyingKey);
+
+impl Hash for PublicKey {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        // each public key has unique bytes representation which can be used
+        // for the hash implementation
+        self.to_bytes().hash(state)
+    }
+}
 
 impl Display for PublicKey {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {

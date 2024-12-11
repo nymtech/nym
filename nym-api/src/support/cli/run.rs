@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::circulating_supply_api::cache::CirculatingSupplyCache;
-use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::ecash::client::Client;
 use crate::ecash::comm::QueryCommunicationChannel;
 use crate::ecash::dkg::controller::keys::{
@@ -101,6 +100,9 @@ pub(crate) struct Args {
     /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
     #[clap(long)]
     pub(crate) bind_address: Option<SocketAddr>,
+
+    #[clap(hide = true, long, default_value_t = false)]
+    pub(crate) allow_illegal_ips: bool,
 }
 
 async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHandles> {
@@ -138,8 +140,6 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     let described_nodes_cache = SharedCache::<DescribedNodes>::new();
     let node_info_cache = unstable::NodeInfoCache::default();
 
-    let mut status_state = ApiStatusState::new();
-
     let ecash_contract = nyxd_client
         .get_ecash_contract_address()
         .await
@@ -161,8 +161,8 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
 
     // if ecash signer is enabled, there are additional constraints on the nym-api,
     // such as having sufficient token balance
-    let router = if config.ecash_signer.enabled {
-        let cosmos_address = nyxd_client.address().await;
+    let signer_information = if config.ecash_signer.enabled {
+        let cosmos_address = nyxd_client.address().await?;
 
         // make sure we have some tokens to cover multisig fees
         let balance = nyxd_client.balance(&mix_denom).await?;
@@ -177,16 +177,14 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
             .clone()
             .map(|u| u.to_string())
             .unwrap_or_default();
-        status_state.add_zk_nym_signer(SignerState {
+        Some(SignerState {
             cosmos_address: cosmos_address.to_string(),
             identity: encoded_identity,
             announce_address,
             ecash_keypair: ecash_keypair_wrapper.clone(),
-        });
-
-        router.nest("/v1/ecash", ecash_routes(Arc::new(ecash_state)))
+        })
     } else {
-        router
+        None
     };
 
     let router = router.with_state(AppState {
@@ -200,6 +198,8 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
         described_nodes_cache: described_nodes_cache.clone(),
         network_details,
         node_info_cache,
+        api_status: ApiStatusState::new(signer_information),
+        ecash_state: Arc::new(ecash_state),
     });
 
     let task_manager = TaskManager::new(TASK_MANAGER_TIMEOUT_S);
@@ -259,9 +259,10 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     // if the monitoring is enabled
     if config.network_monitor.enabled {
         network_monitor::start::<SphinxMessageReceiver>(
-            &config.network_monitor,
+            config,
             &nym_contract_cache_state,
             described_nodes_cache.clone(),
+            node_status_cache_state.clone(),
             &storage,
             nyxd_client.clone(),
             &task_manager,

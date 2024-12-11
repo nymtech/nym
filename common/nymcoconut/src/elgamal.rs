@@ -206,10 +206,10 @@ impl Deref for PublicKey {
     }
 }
 
-impl<'a, 'b> Mul<&'b Scalar> for &'a PublicKey {
+impl<'a> Mul<&'a Scalar> for &PublicKey {
     type Output = G1Projective;
 
-    fn mul(self, rhs: &'b Scalar) -> Self::Output {
+    fn mul(self, rhs: &'a Scalar) -> Self::Output {
         self.0 * rhs
     }
 }

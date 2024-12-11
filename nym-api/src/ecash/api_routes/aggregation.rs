@@ -6,7 +6,7 @@ use crate::ecash::error::EcashError;
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
-use axum::extract::Path;
+use axum::extract::{Query, State};
 use axum::{Json, Router};
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
@@ -21,28 +21,19 @@ use tracing::trace;
 use utoipa::IntoParams;
 
 /// routes with globally aggregated keys, signatures, etc.
-pub(crate) fn aggregation_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
+pub(crate) fn aggregation_routes() -> Router<AppState> {
     Router::new()
         .route(
             "/master-verification-key",
-            axum::routing::get({
-                let ecash_state = Arc::clone(&ecash_state);
-                |epoch_id| master_verification_key(epoch_id, ecash_state)
-            }),
+            axum::routing::get(master_verification_key),
         )
         .route(
             "/aggregated-expiration-date-signatures",
-            axum::routing::get({
-                let ecash_state = Arc::clone(&ecash_state);
-                |expiration_date| expiration_date_signatures(expiration_date, ecash_state)
-            }),
+            axum::routing::get(expiration_date_signatures),
         )
         .route(
             "/aggregated-coin-indices-signatures",
-            axum::routing::get({
-                let ecash_state = Arc::clone(&ecash_state);
-                |epoch_id| coin_indices_signatures(epoch_id, ecash_state)
-            }),
+            axum::routing::get(coin_indices_signatures),
         )
 }
 
@@ -58,8 +49,8 @@ pub(crate) fn aggregation_routes(ecash_state: Arc<EcashState>) -> Router<AppStat
     )
 )]
 async fn master_verification_key(
-    Path(EpochIdParam { epoch_id }): Path<EpochIdParam>,
-    state: Arc<EcashState>,
+    State(state): State<Arc<EcashState>>,
+    Query(EpochIdParam { epoch_id }): Query<EpochIdParam>,
 ) -> AxumResult<Json<VerificationKeyResponse>> {
     trace!("aggregated_verification_key request");
 
@@ -72,7 +63,6 @@ async fn master_verification_key(
 }
 
 #[derive(Deserialize, IntoParams)]
-#[into_params(parameter_in = Path)]
 struct ExpirationDateParam {
     expiration_date: Option<String>,
 }
@@ -89,8 +79,8 @@ struct ExpirationDateParam {
     )
 )]
 async fn expiration_date_signatures(
-    Path(ExpirationDateParam { expiration_date }): Path<ExpirationDateParam>,
-    state: Arc<EcashState>,
+    State(state): State<Arc<EcashState>>,
+    Query(ExpirationDateParam { expiration_date }): Query<ExpirationDateParam>,
 ) -> AxumResult<Json<AggregatedExpirationDateSignatureResponse>> {
     trace!("aggregated_expiration_date_signatures request");
 
@@ -126,8 +116,8 @@ async fn expiration_date_signatures(
     )
 )]
 async fn coin_indices_signatures(
-    Path(EpochIdParam { epoch_id }): Path<EpochIdParam>,
-    state: Arc<EcashState>,
+    Query(EpochIdParam { epoch_id }): Query<EpochIdParam>,
+    State(state): State<Arc<EcashState>>,
 ) -> AxumResult<Json<AggregatedCoinIndicesSignatureResponse>> {
     trace!("aggregated_coin_indices_signatures request");
 

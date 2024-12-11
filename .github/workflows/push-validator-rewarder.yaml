@@ -26,10 +26,10 @@ jobs:
           git config --global user.name "Lawrence Stalder"
 
       - name: Get version from cargo.toml
-        uses: mikefarah/yq@v4.44.5
+        uses: mikefarah/yq@v4.44.6
         id: get_version
         with:
-          cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/nym-credential-proxy/Cargo.toml
+          cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml
 
       - name: Remove existing tag if exists
         run: |

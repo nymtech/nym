@@ -1,16 +1,17 @@
+"use client";
+
+import {
+  AccountStatsCard,
+  type IAccountStatsCardProps,
+} from "@/components/Cards/AccountStatsCard";
 import ExplorerCard from "@/components/Cards/ExplorerCard";
 import ExplorerHeroCard from "@/components/Cards/ExplorerHeroCard";
 import ExplorerListItem from "@/components/List/ListItem";
 import ProgressBar from "@/components/RatingMeter/RatingMeter";
 import StarRarating from "@/components/StarRating/StarRating";
+import TwoSidedSwitch from "@/components/TwoSidedButtonSwitch";
 import CopyFile from "@/components/icons/CopyFile";
 import Gateway from "@/components/icons/Gateway";
-("use client");
-import TwoSidedSwitch from "@/components/TwoSidedButtonSwitch";
-import {
-  AccountStatsCard,
-  type IAccountStatsCardProps,
-} from "@/components/cards/AccountStatsCard";
 import { CurrentEpochCard } from "@/components/landingPageComponents/CurrentEpochCard";
 import { NetworkStakeCard } from "@/components/landingPageComponents/NetworkStakeCard";
 import { NoiseCard } from "@/components/landingPageComponents/NoiseCard";
@@ -22,6 +23,84 @@ import Grid from "@mui/material/Grid2";
 import React, { useEffect, useState } from "react";
 import { type ContentCardProps, MonoCard } from "../components/cards/MonoCard";
 import { type ExplorerData, getCacheExplorerData } from "./api";
+
+const explorerCard: ContentCardProps = {
+  overTitle: "SINGLE",
+  profileImage: {},
+  title: "SINGLE",
+  profileCountry: {
+    countryCode: "NO",
+    countryName: "Norway",
+  },
+  upDownLine: {
+    percentage: 10,
+    numberWentUp: true,
+  },
+  titlePrice: {
+    price: 1.15,
+    upDownLine: {
+      percentage: 10,
+      numberWentUp: true,
+    },
+  },
+  dataRows: {
+    rows: [
+      { key: "Market cap", value: "$ 1000000" },
+      { key: "24H VOL", value: "$ 1000000" },
+    ],
+  },
+  graph: {
+    data: [
+      {
+        date_utc: "2024-11-20",
+        numericData: 10,
+      },
+      {
+        date_utc: "2024-11-21",
+        numericData: 12,
+      },
+      {
+        date_utc: "2024-11-22",
+        numericData: 9,
+      },
+      {
+        date_utc: "2024-11-23",
+        numericData: 11,
+      },
+    ],
+    color: "#00CA33",
+    label: "Label",
+  },
+  nymAddress: {
+    address: "n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su",
+    title: "Nym address",
+  },
+  identityKey: {
+    address: "n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su",
+    title: "Nym address",
+  },
+  qrCode: {
+    url: "https://nymtech.net",
+  },
+  ratings: {
+    ratings: [
+      { title: "Rating-1", numberOfStars: 4 },
+      { title: "Rating-2", numberOfStars: 2 },
+      { title: "Rating-3", numberOfStars: 3 },
+    ],
+  },
+  progressBar: {
+    overTitle: "Current NGM epoch",
+    start: "2024-12-08T12:26:19Z",
+    showEpoch: true,
+  },
+  comments: true,
+  paragraph: "Additional line",
+  stakeButton: {
+    label: "Stake on node",
+    identityKey: "n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su",
+  },
+};
 
 const accountStatsCard: IAccountStatsCardProps = {
   overTitle: "Total value",
@@ -145,6 +224,9 @@ export default function Home() {
                       rightLabel="Mixnode"
                       // onSwitch={() => console.log("object :>> ")}
                     />
+                  </Grid>
+                  <Grid size={{ xs: 12 }}>
+                    <AccountStatsCard {...accountStatsCard} />
                   </Grid>
                 </Grid>
               </Grid>

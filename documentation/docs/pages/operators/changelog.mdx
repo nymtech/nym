@@ -43,6 +43,8 @@ This page displays a full list of all the changes during our release cycle from 
 
 - [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.14-crunch)
 - [`nym-node`](nodes/nym-node.mdx) version `1.2.0`
+- [Releae operators updates and tools](changelog#operators-updates--tools)
+- [Github CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.14-crunch/CHANGELOG.md)
 
 ```sh
 
@@ -50,16 +52,191 @@ This page displays a full list of all the changes during our release cycle from 
 
 ### Features
 
+- [Bump elliptic from `6.5.4` to `6.5.7` in /testnet-faucet](https://github.com/nymtech/nym/pull/4768): Bumps [elliptic](https://github.com/indutny/elliptic) from `6.5.4` to `6.5.7`.
+
+- [build(deps): bump micromatch from `4.0.4` to `4.0.8` in /nym-wallet/webdriver](https://github.com/nymtech/nym/pull/4789): Bumps [micromatch](https://github.com/micromatch/micromatch) from `4.0.4` to `4.0.8`. 
+
+- [build(deps): bump axios from 1.6.0 to 1.7.5 in /nym-api/tests](https://github.com/nymtech/nym/pull/4790) Bumps [axios](https://github.com/axios/axios) from 1.6.0 to 1.7.5.
+
+- [Sync code with `.env` in build.rs](https://github.com/nymtech/nym/pull/4876): Keep `dotenv` file always up to date
+
+- [build(deps): bump lazy_static from `1.4.0` to `1.5.0`](https://github.com/nymtech/nym/pull/4913): Bumps [lazy_static](https://github.com/rust-lang-nursery/lazy-static.rs) from `1.4.0` to `1.5.0`.
+
+- [Create TaskStatusEvent trait instead of piggybacking on Error](https://github.com/nymtech/nym/pull/4919)
+
+- [build(deps): bump once_cell from `1.19.0` to `1.20.2`](https://github.com/nymtech/nym/pull/4952): Bumps [`once_cell`](https://github.com/matklad/once_cell) from `1.19.0` to `1.20.2`
+
+- [Bump the patch-updates group across 1 directory with 10 updates](https://github.com/nymtech/nym/pull/5011): Bumps the patch-updates group with 9 updates in the / directory:
+
+| Package | From | To |
+| --- | --- | --- |
+| [anyhow](https://github.com/dtolnay/anyhow) | `1.0.89` | `1.0.90` |
+| [clap](https://github.com/clap-rs/clap) | `4.5.18` | `4.5.20` | 
+| [clap_complete](https://github.com/clap-rs/clap) | `4.5.29` | `4.5.33` | 
+| [pin-project](https://github.com/taiki-e/pin-project) | `1.1.5` | `1.1.6` | 
+| [serde](https://github.com/serde-rs/serde) | `1.0.210` | `1.0.211` | 
+| [serde_json](https://github.com/serde-rs/json) | `1.0.128` | `1.0.132` | 
+| [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) | `0.2.93` | `0.2.95` | 
+| [wasm-bindgen-futures](https://github.com/rustwasm/wasm-bindgen) | `0.4.43` | `0.4.45` | 
+| [web-sys](https://github.com/rustwasm/wasm-bindgen) | `0.3.70` | `0.3.72` |   
+| Updates `anyhow` | `1.0.89` | `1.0.90` |
+
+[[Product Data] Introduce data persistence on gateways](https://github.com/nymtech/nym/pull/5022): This PR builds on top of [\#4974](https://github.com/nymtech/nym/pull/4974), not changing the behavior of the data collection, but persisting them in a sqlite database so they can be kept across restarts and crashes. It also leave the door open for other stats module to use that storage if needed. Here are some points of interest:
+    - New [`gateway_stats_storage`](https://github.com/nymtech/nym/tree/simon/gateway_stats_persistence/common/gateway-stats-storage) crate
+    - [Config migration](https://github.com/nymtech/nym/blob/simon/gateway_stats_persistence/nym-node/src/config/old_configs/old_config_v4.rs) resulting from the added database.
+    - Resulting changes in the [`statistics`](https://github.com/nymtech/nym/tree/simon/gateway_stats_persistence/gateway/src/node/statistics) module to account the new storage system 
+    
+- [Integrate nym-credential-proxy into workspace](https://github.com/nymtech/nym/pull/5027): Integrate `nym-credential-proxy` into the main workspace
+
+- [Authenticator CLI client mode](https://github.com/nymtech/nym/pull/5044)
+
+- [Node Status API](https://github.com/nymtech/nym/pull/5050): merging a long-diverged feature branch - all commits here were their own merge requests 
+
+- [IPv6 support for wireguard](https://github.com/nymtech/nym/pull/5059)
+
+- [Add nym node GH workflow](https://github.com/nymtech/nym/pull/5080)
+
+- [[Product Data] Better unique user count on gateways](https://github.com/nymtech/nym/pull/5084): To avoid double counting clients across gateways, we add a user ID to the gateway session data.
+
+- [chore: ecash contract migration to remove unused 'redemption_gateway_share'](https://github.com/nymtech/nym/pull/5104)
+
+- [[Product Data] Client-side stats collection ](https://github.com/nymtech/nym/pull/5107): The goal is to anonymously gather stats from nym-clients. These stats will be sent through the mixnet to a Nym run service provider that will gather them. This PR sets the scene to send stats in a mixnet message to an address. The address can be set when the client is created. Current stats include some infos on sent packets along with platform information. If a receiving address is set, the client will send a mixnet packet every 5min to this address. Otherwise, nothing happens and the client runs as usual. 
+
+- [Send mixnet packet stats using task client](https://github.com/nymtech/nym/pull/5109)
+ 
+- [Add granular log on nym-node](https://github.com/nymtech/nym/pull/5111) and make use of it for `defguard_wireguard_rs` big info logs
+
+[Rewarding for ticketbook issuance](https://github.com/nymtech/nym/pull/5112): Revamps the current validator rewarder to allow for rewards for issuing the zk-nym ticketbooks. 
+ 
+- [[Product Data] Add stats reporting configuration in client config ](https://github.com/nymtech/nym/pull/5115): Adds the stats reporting address to client configs. It can be set in the config file, as a CLI argument and as an env var in a `.env` file. As the stats reporting config in now in the `DebugConfig`, the `StatsReportingConfig` is no longer required, making the propagation of these changes more readable 
+
+- [config score](https://github.com/nymtech/nym/pull/5117): introduces a concept of a `config_score` to a nym node which influences performance and thus rewarding amounts and chances of being in the rewarded set. Currently it's influenced by the following factors:
+    - Accepting terms and conditions (not accepted: 0)
+    - Exposing self-described API (not exposed: 0)
+    - Running "nym-node" binary (legacy binary: 0)
+    - Number of versions behind the core (`score = 0.995 ^ (X * versions_behind ^ 1.65)`)
+    - The old performance is now treated as `routing_score` 
+    - the "new" performance = `routing_score * config_score` 
+
+- [Add Dockerfile and add env vars for clap arguments](https://github.com/nymtech/nym/pull/5118)
+
+- [Aadd GH workflow for nym-validator-rewarder](https://github.com/nymtech/nym/pull/5119)
+
+- [[Product data] Data consumption with ecash ticket](https://github.com/nymtech/nym/pull/5120): Send an event each time an ecash ticket get successfully spent. This allows to approximate how much data each client is using.
+
+- [[Product Data] Config deserialization bug fix](https://github.com/nymtech/nym/pull/5126): Fixes a bug where a `None` value was serialized into an empty string, and incorrectly deserialized into a `Some` variant.
+
+- [NS Agent auth with NS API](https://github.com/nymtech/nym/pull/5127): NS Agent authenticates with key that was registered with NS API
+    - Added flag to Agent to generate keypairs
+    - Agent requests are signed by agent
+    - Server-side requests are checked for authentication
+    
+- [CI: reduce jobs running on cluster](https://github.com/nymtech/nym/pull/5132)
+
+- [Removed ci-nym-api-tests.yml which was running outdated (and broken) tests](https://github.com/nymtech/nym/pull/5133)
+
+- [[Product Data] Set up country reporting from vpn-client](https://github.com/nymtech/nym/pull/5134): Add the ability to report exit country, along with a small refactoring of a module.
+
+- [chore: remove standalone legacy mixnode/gateway binaries](https://github.com/nymtech/nym/pull/5135)
+
+- [Update `serde_json_path` due to compilation issue](https://github.com/nymtech/nym/pull/5144)
+
+- [Add version to clientStatsReport](https://github.com/nymtech/nym/pull/5147): Add a `kind` and `api_version` field for `ClientStatsReport`
+
+- [Start session collection for exit gateways](https://github.com/nymtech/nym/pull/5148): Apparently, exit gateways are also entry gateways so we need to start session stats for them as well
+
+- [build(deps): bump mikefarah/yq from `4.44.3` to `4.44.5`](https://github.com/nymtech/nym/pull/5149): Bumps [mikefarah/yq](https://github.com/mikefarah/yq) from `4.44.3` to `4.44.5`.
+
+- [build(deps): bump cross-spawn from `7.0.3` to `7.0.6` in /testnet-faucet](https://github.com/nymtech/nym/pull/5150): Bumps [cross-spawn](https://github.com/moxystudio/node-cross-spawn) from `7.0.3` to `7.0.6`.
+
+- [Add export_to_env to NymNetworkDetails](https://github.com/nymtech/nym/pull/5162): In `nym-vpn-core` we've started to read the network environment from a json file and then try to pass around `NymNetworkDetails` directly instead of relying on the exported environment. However we still need to bridge with old code so we need to export the network details instance to the environment.
+
+- [Add strum::EnumIter for TicketType](https://github.com/nymtech/nym/pull/5164)
+
+- [Fix env var name](https://github.com/nymtech/nym/pull/5165)
+
+- [Add support for DELETE to nym-http-api-client](https://github.com/nymtech/nym/pull/5166): Add delete support to `http-api-client`
+
+- [Add derive_extended_private_key to DirectSecp256k1HdWallet](https://github.com/nymtech/nym/pull/5167): Add `derive_extended_private_key` to `DirectSectp256k1HdWallet` to support seeding ecash keys
+
+- [Move two minor jobs to free tier github hosted runners](https://github.com/nymtech/nym/pull/5169): In an attempt to easy the load on the self-hosted runners, move two minor workflows over to GH hosted free tier runners.
+
+- [Remove peers with no allowed ip from storage](https://github.com/nymtech/nym/pull/5175)
+
+- [Add indexes to monitor run and testing route](https://github.com/nymtech/nym/pull/5181)
+
+- [Add `monitor_run` and testing_route indexes](https://github.com/nymtech/nym/pull/5182)
+
+- [`explorer-api`: add nym node endpoints + UI to show nym-nodes and account balances](https://github.com/nymtech/nym/pull/5183): Explorer API:
+    - Existing endpoints stay identical
+    - Adds new endpoints to get:
+    - `nym-nodes` (list + by id)
+    - account balance + delegations + rewarding + vesting
+ 
+  - Explorer UI (NextJS)
+    - List of nym-nodes
+    - Remove service providers routes (Harbour Master shows these)
+    - Updates summary page to show nym-nodes
+    - Adds legacy markers to old gateway and mixnode bond lists
+
+- [Add `monitor_run` and testing_route indexes](https://github.com/nymtech/nym/pull/5182)
+
+- [Bugfix/credential proxy sequencing](https://github.com/nymtech/nym/pull/5187)
+
+- [improvement: make internal gateway clients use the same topology cache](https://github.com/nymtech/nym/pull/5191): This should result in 66% reduction in queries for topology within `nym-node` as all the clients should rely on the same cache
+
+- [chore: apply 1.84 linter suggestions](https://github.com/nymtech/nym/pull/5192)
+
+- [Guard storage access with cache](https://github.com/nymtech/nym/pull/5193)
+
+- [Update Security disclosure email, public key and policy](https://github.com/nymtech/nym/pull/5195)
+
+- [merge crunch into develop](https://github.com/nymtech/nym/pull/5199)
+
+- [Fix backwards compat mac generation](https://github.com/nymtech/nym/pull/5202)
+
+- [adjusted config score penalty calculation](https://github.com/nymtech/nym/pull/5206)
+
+- [`nym-api` NMv1 adjustments](https://github.com/nymtech/nym/pull/5209)
+
+- [Nmv2 add debug config](https://github.com/nymtech/nym/pull/5212): Adds debug config to disable poisson process, cover traffic and min performance filtering 
+
+- [introduce UNSTABLE endpoints for returning network monitor run details](https://github.com/nymtech/nym/pull/5214)
+
+- [Don't consider legacy nodes for rewarded set selection](https://github.com/nymtech/nym/pull/5215)
+
+- [Derive serialize for UserAgent (#5210)](https://github.com/nymtech/nym/pull/5217): Cherry-pick PR [\#5210](https://github.com/nymtech/nym/pull/5210)
+
+- [Backport \#5218](https://github.com/nymtech/nym/pull/5220)
+
+- [Remove any filtering on node semver](https://github.com/nymtech/nym/pull/5224): Removed any filtering on version of nodes. however, the parameters can still be passed to `nym-api` queries to not break existing clients, but they will happily ignore them
+
+- [Further config score adjustments](https://github.com/nymtech/nym/pull/5225): I still want to add helper endpoints on `nym-api` to expose some of this data. but for now, I'll let this PR bake over the weekend.
 
 ### Bugfix
 
+- [Correct IPv6 address generation](https://github.com/nymtech/nym/pull/5113)
+
+- [bugfix: don't send empty BankMsg in ecash contract](https://github.com/nymtech/nym/pull/5121): If ticketbook prices were to be set so low the resultant redemption would have created `BankMsg` with value of 0, that message is no longer going to be sent 
+
+- [fix: validator-rewarder GH job](https://github.com/nymtech/nym/pull/5151)
+
+- [bugfix: correctly expose ecash-related data on nym-api](https://github.com/nymtech/nym/pull/5155): This PR makes fixes to ecash-related endpoints on `nym-api` 
+    - global data (such as aggregated signatures and keys) are actually always available by all apis
+    - global data (such as aggregated signatures and keys) are actually always available by all apis
+    
+- [bugfix: use default value for verloc config when deserialising missing values](https://github.com/nymtech/nym/pull/5177)
+
+- [bugfix: fixed nym-node config migrations (again)](https://github.com/nymtech/nym/pull/5179)
+
+- [bugfix: added explicit openapi servers to account for route prefixes](https://github.com/nymtech/nym/pull/5237)
 
 ### Operators Updates & Tools
 
 <Callout type="warning" emoji="⚠️">
-**Nym Network will now only allow nodes which [migrated](nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract) their node in Nym mixnet smart contract to Nym Node. All nodes which are still bonded as a legacy one (Mixnode or Gateway) in the wallet will have no chnance to taske part in the [Rewarded set selection](tokenomics/mixnet-rewards#rewarded-set-selection).**
+**Nym Network will now only allow nodes which [migrated](nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract) their node in Nym mixnet smart contract to Nym Node. All nodes which are still bonded as a legacy one (Mixnode or Gateway) in the wallet will have no chance to take part in the [Rewarded set selection](tokenomics/mixnet-rewards#rewarded-set-selection).**
 
-**Operators taking part in Delegation program or Service Grant program must migrate their nodes latest by December 13th, 08:00 UTC.**
+**Operators taking part in Delegation program or Service Grant program must migrate their nodes latest by December 16th, 08:00 UTC.**
 </Callout>
 
 #### Updates
@@ -74,6 +251,8 @@ This page displays a full list of all the changes during our release cycle from 
 - 300k NYM - Upgrading to magura + bonus for a quick patch upgrade - 102 nodes
 - No delegation - not upgrading in time - 2 nodes
 </AccordionTemplate>
+
+- `nym-node` has now implemented [IPv6 support for wireguard](https://github.com/nymtech/nym/pull/5059)
 
 - [`network_tunnel_manager.sh` updated](network): run the commands below to make sure 
 
@@ -109,15 +288,13 @@ $HOME/nym-binaries/network_tunnel_manager.sh joke_through_wg_tunnel
 ```
 </AccordionTemplate>
 
-
-
 #### Tools
 
 - **[New APIs documentation](../apis/introduction)** with interactive APIs generated from the OpenAPI specs of various API endpoints offered by bits of Nym infrastructure run both by Nym and community operators for both Mainnet and the Sandbox testnet.
 - [Nym Harbourmaster](https://harbourmaster.nymtech.net/) has a new tab called `CONTRACT EXPLORER` querying data from Nym mixnet contract in real time.
 - [Nym Explorer](https://explorer.nymtech.net) is updated to read migrated nodes correctly
 - [New community explorer by SpectreDAO](https://explorer.nym.spectredao.net/dashboard) offers Nym Network dashboard, Node overview and Account stats view functions for operators and delegators.
-
+- [`nym-vpnc`](../developers/nymvpncli) build and run documentation, for those who don't want to use the Nym VPN GUIs.
 
 ## `magura-drift`
 

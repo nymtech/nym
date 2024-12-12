@@ -697,8 +697,11 @@ pub struct MixnodeStatusReportResponse {
     pub mix_id: NodeId,
     pub identity: IdentityKey,
     pub owner: String,
+    #[schema(value_type = u8)]
     pub most_recent: Uptime,
+    #[schema(value_type = u8)]
     pub last_hour: Uptime,
+    #[schema(value_type = u8)]
     pub last_day: Uptime,
 }
 
@@ -1278,10 +1281,12 @@ pub struct NetworkMonitorRunDetailsResponse {
 pub struct NoiseDetails {
     #[schemars(with = "String")]
     #[serde(with = "bs58_x25519_pubkey")]
+    #[schema(value_type = String)]
     pub x25119_pubkey: x25519::PublicKey,
 
     pub mixnet_port: u16,
 
+    #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 }
 

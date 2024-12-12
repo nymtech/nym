@@ -1,13 +1,10 @@
 "use client";
 import CopyToClipboard from "@/components/copyToClipboard/CopyToClipboard";
-import { colours } from "@/theme/colours";
-import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
-import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
 import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
 import type React from "react";
-import type { FC, ReactElement } from "react";
+import type { FC } from "react";
 import Flag from "react-world-flags";
 import profileImagePlaceholder from "../../../public/profileImagePlaceholder.png";
 // import { Remark42Comments } from "../comments";

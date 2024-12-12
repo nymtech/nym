@@ -6,9 +6,8 @@ import {
 } from "@/app/api/urls";
 import { formatBigNum } from "@/app/utils/formatBigNumbers";
 import { Stack, Typography } from "@mui/material";
-import { useEffect } from "react";
 import ExplorerCard from "../cards/ExplorerCard";
-import { type ILineChartData, LineChart } from "../lineChart";
+import { LineChart } from "../lineChart";
 
 export const NetworkStakeCard = async () => {
   const epochRewards = await fetch(CURRENT_EPOCH_REWARDS, {

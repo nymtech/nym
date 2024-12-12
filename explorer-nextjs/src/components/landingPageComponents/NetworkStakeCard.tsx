@@ -1,6 +1,5 @@
 "use client";
 import type { ExplorerData, IPacketsAndStakingData } from "@/app/api";
-import { formatBigNum } from "@/app/utils/formatBigNumbers";
 import { useEffect, useState } from "react";
 import { MonoCard } from "../cards/MonoCard";
 import type { ILineChartData } from "../lineChart";

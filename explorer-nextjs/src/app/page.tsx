@@ -3,6 +3,7 @@ import {
   AccountStatsCard,
   type IAccountStatsCardProps,
 } from "@/components/cards/AccountStatsCard";
+import ExplorerHeroCard from "@/components/cards/ExplorerHeroCard";
 import Gateway from "@/components/icons/Gateway";
 import { CurrentEpochCard } from "@/components/landingPageComponents/CurrentEpochCard";
 import { NetworkStakeCard } from "@/components/landingPageComponents/NetworkStakeCard";
@@ -180,6 +181,7 @@ export default function Home() {
               rowSpacing={3}
               columnSpacing={2}
               alignItems={"flex-start"}
+              mb={2}
             >
               <Grid size={{ xs: 12, md: 5 }}>
                 <MonoCard {...explorerCard} />
@@ -211,6 +213,26 @@ export default function Home() {
                 <Grid size={{ xs: 12 }}>
                   <AccountStatsCard {...accountStatsCard} />
                 </Grid>
+              </Grid>
+            </Grid>
+            <Grid container rowSpacing={3} columnSpacing={2} mb={2}>
+              <Grid size={6}>
+                <ExplorerHeroCard
+                  label="Onboarding"
+                  title="How to select Nym vpn gateway?"
+                  description="Stake your tokens to well performing mix nodes, and earn a share of operator rewards!"
+                  image={<Gateway />}
+                  link={"/onboarding"}
+                />
+              </Grid>
+              <Grid size={6}>
+                <ExplorerHeroCard
+                  label="Onboarding"
+                  title="How to select Nym vpn gateway?"
+                  description="Stake your tokens to well performing mix nodes, and earn a share of operator rewards!"
+                  image={<Gateway />}
+                  link={"/onboarding"}
+                />
               </Grid>
             </Grid>
           </Wrapper>

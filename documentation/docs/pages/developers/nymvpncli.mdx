@@ -81,7 +81,7 @@ Ignore the `NoAccountStored` errors: these will disappear after the next step. *
 ## Run VPN
 We have to first store the account we have created online:
 ```sh
-./PATH/TO/nym-vpn-cli store-account --mnemonic "<MNEMONIC_FROM_GENERATION_STEP>"
+./PATH/TO/nym-vpnc store-account --mnemonic "<MNEMONIC_FROM_GENERATION_STEP>"
 ```
 
 You will see this registration in the daemon logs:
@@ -108,7 +108,7 @@ You will see this registration in the daemon logs:
 
 You can then connect `nym-vpnc` (in this case, with 2 hop wireguard mode enabled):
 ```sh
-./PATH/TO/nym-vpn-cli nym-vpnc connect --enable-two-hop
+./PATH/TO/nym-vpnc connect --enable-two-hop
 ```
 
 Which shows as such in the daemon logs:
@@ -168,7 +168,7 @@ You should see the `Remaining wireguard bandwidth` decrease as you use your allo
 There are a lot of configuration options available to you regarding how to connect:
 
 ```sh
-❯ ./nym-vpn-core/target/debug/nym-vpnc connect --help
+❯ ./PATH/TO/nym-vpnc connect --help
 Connect to the Nym network
 
 Usage: nym-vpnc connect [OPTIONS]
@@ -217,7 +217,7 @@ Options:
 
 ## Command Reference
 ```sh
-❯ ./nym-vpn-core/target/debug/nym-vpnc --help
+❯ ./PATH/TO/nym-vpnc --help
 NymVPN commandline client
 
 Usage: nym-vpnc [OPTIONS] <COMMAND>
@@ -257,7 +257,7 @@ Options:
 ```
 
 ```sh
-❯ ./nym-vpn-core/target/debug/nym-vpnd --help
+❯ ./PATH/TO/nym-vpnd --help
 NymVPN daemon
 
 Usage: nym-vpnd [OPTIONS]
@@ -276,3 +276,6 @@ Options:
   -V, --version
           Print version
 ```
+
+## Default Config Directories 
+Configurations are stored in `/etc/nym`. State stored between runs (keys, mnemonic, etc) are stored in `/var/lib/nym-vpnd`.

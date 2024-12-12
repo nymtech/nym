@@ -129,14 +129,17 @@ impl From<Uptime> for Performance {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 pub struct MixnodeStatusReport {
+    #[schema(value_type = u32)]
     pub(crate) mix_id: NodeId,
+    #[schema(value_type = String)]
     pub(crate) identity: IdentityKey,
-
+    #[schema(value_type = u8)]
     pub(crate) most_recent: Uptime,
-
+    #[schema(value_type = u8)]
     pub(crate) last_hour: Uptime,
+    #[schema(value_type = u8)]
     pub(crate) last_day: Uptime,
 }
 

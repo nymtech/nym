@@ -12,7 +12,7 @@ use nym_api_requests::nym_nodes::{CachedNodesResponse, FullFatNode};
     tag = "Unstable Nym Nodes",
     get,
     params(NodesParamsWithRole),
-    path = "/",
+    path = "",
     context_path = "/v1/unstable/nym-nodes/full-fat",
     responses(
     // (status = 200, body = CachedNodesResponse<FullFatNode>)

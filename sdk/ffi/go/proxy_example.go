@@ -118,7 +118,7 @@ func main() {
 	go runProxyServer()
 
 	// initialise a proxy client
-	build_err := bindings.NewProxyClient(proxyAddr, "127.0.0.1", clientPort, clientTimeout, &env_path)
+	build_err := bindings.NewProxyClient(proxyAddr, "127.0.0.1", clientPort, clientTimeout, &env_path, 2)
 	if build_err != nil {
 		fmt.Println(build_err)
 		return

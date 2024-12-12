@@ -7,7 +7,7 @@ use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
 
 #[derive(Error, Debug)]
@@ -22,8 +22,10 @@ pub enum RoutingNodeError {
     },
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct EntryDetails {
+    // to allow client to choose ipv6 preference, if available
+    pub ip_addresses: Vec<IpAddr>,
     pub clients_ws_port: u16,
     pub hostname: Option<String>,
     pub clients_wss_port: Option<u16>,
@@ -46,7 +48,7 @@ impl From<DeclaredRoles> for SupportedRoles {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone, Debug)]
 pub struct RoutingNode {
     pub node_id: NodeId,
 
@@ -65,23 +67,19 @@ impl RoutingNode {
         todo!()
     }
 
-    pub fn ws_entry_address_no_tls(&self) -> Option<String> {
+    pub fn ws_entry_address_no_tls(&self, prefer_ipv6: bool) -> Option<String> {
         todo!()
     }
 
-    pub fn ws_entry_address(&self) -> Option<String> {
+    pub fn ws_entry_address(&self, prefer_ipv6: bool) -> Option<String> {
         if let Some(tls) = self.ws_entry_address_tls() {
             return Some(tls);
         }
-        self.ws_entry_address_no_tls()
+        self.ws_entry_address_no_tls(prefer_ipv6)
     }
 
     pub fn identity(&self) -> ed25519::PublicKey {
         self.identity_key
-    }
-
-    pub fn mix_host(&self) -> Option<SocketAddr> {
-        todo!()
     }
 }
 

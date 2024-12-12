@@ -32,10 +32,10 @@ use time::Date;
 use url::Url;
 
 pub use crate::nym_api::NymApiClientExt;
+use nym_mixnet_contract_common::EpochRewardedSet;
 pub use nym_mixnet_contract_common::{
     mixnode::MixNodeDetails, GatewayBond, IdentityKey, IdentityKeyRef, NodeId, NymNodeDetails,
 };
-
 // re-export the type to not break existing imports
 pub use crate::coconut::EcashApiClient;
 
@@ -365,6 +365,10 @@ impl NymApiClient {
     #[deprecated(note = "use get_all_basic_entry_assigned_nodes instead")]
     pub async fn get_basic_gateways(&self) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
         Ok(self.nym_api.get_basic_gateways().await?.nodes)
+    }
+
+    pub async fn get_current_rewarded_set(&self) -> Result<EpochRewardedSet, ValidatorClientError> {
+        Ok(self.nym_api.get_rewarded_set().await?.into())
     }
 
     /// retrieve basic information for nodes are capable of operating as an entry gateway

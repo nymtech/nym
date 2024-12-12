@@ -12,14 +12,13 @@ documentation = { workspace = true }
 
 [dependencies]
 async-trait = { workspace = true, optional = true }
-bs58 = { workspace = true }
 log = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 semver = { workspace = true }
 thiserror = { workspace = true }
 
-# 'serializable' feature
+# 'serde' feature
 serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 
@@ -50,5 +49,5 @@ wasm-utils = { path = "../wasm/utils", default-features = false, optional = true
 default = ["provider-trait"]
 provider-trait = ["async-trait"]
 wasm-serde-types = ["tsify", "wasm-bindgen", "wasm-utils"]
-serializable = ["serde", "serde_json"]
+serde = ["dep:serde", "serde_json"]
 outfox = []

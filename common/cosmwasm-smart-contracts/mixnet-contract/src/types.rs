@@ -87,6 +87,29 @@ impl RewardedSet {
     pub fn rewarded_set_size(&self) -> usize {
         self.active_set_size() + self.standby.len()
     }
+
+    pub fn get_role(&self, node_id: NodeId) -> Option<Role> {
+        // given each role has ~100 entries in them, doing linear lookup with vec should be fine
+        if self.entry_gateways.contains(&node_id) {
+            return Some(Role::EntryGateway);
+        }
+        if self.exit_gateways.contains(&node_id) {
+            return Some(Role::ExitGateway);
+        }
+        if self.layer1.contains(&node_id) {
+            return Some(Role::Layer1);
+        }
+        if self.layer2.contains(&node_id) {
+            return Some(Role::Layer2);
+        }
+        if self.layer3.contains(&node_id) {
+            return Some(Role::Layer3);
+        }
+        if self.standby.contains(&node_id) {
+            return Some(Role::Standby);
+        }
+        None
+    }
 }
 
 #[cw_serde]

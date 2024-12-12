@@ -134,7 +134,6 @@ pub struct SkimmedNode {
     #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 
-    // TODO: to be deprecated in favour of well-known hardcoded port for everyone
     pub mix_port: u16,
 
     #[serde(with = "bs58_x25519_pubkey")]

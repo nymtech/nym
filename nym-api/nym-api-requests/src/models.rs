@@ -1361,6 +1361,22 @@ pub struct RewardedSetResponse {
     pub standby: Vec<NodeId>,
 }
 
+impl From<RewardedSetResponse> for nym_mixnet_contract_common::EpochRewardedSet {
+    fn from(res: RewardedSetResponse) -> Self {
+        nym_mixnet_contract_common::EpochRewardedSet {
+            epoch_id: res.epoch_id,
+            assignment: nym_mixnet_contract_common::RewardedSet {
+                entry_gateways: res.entry_gateways,
+                exit_gateways: res.exit_gateways,
+                layer1: res.layer1,
+                layer2: res.layer2,
+                layer3: res.layer3,
+                standby: res.standby,
+            },
+        }
+    }
+}
+
 pub use config_score::*;
 pub mod config_score {
     use nym_contracts_common::NaiveFloat;

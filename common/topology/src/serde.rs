@@ -66,37 +66,39 @@ impl TryFrom<SerializableNymTopology> for NymTopology {
     type Error = SerializableTopologyError;
 
     fn try_from(value: SerializableNymTopology) -> Result<Self, Self::Error> {
-        let mut converted_mixes = BTreeMap::new();
-
-        for (layer, nodes) in value.mixnodes {
-            let layer_nodes = nodes
-                .into_iter()
-                .map(TryInto::try_into)
-                .collect::<Result<_, _>>()?;
-
-            converted_mixes.insert(layer, layer_nodes);
-        }
-
-        let gateways = value
-            .gateways
-            .into_iter()
-            .map(TryInto::try_into)
-            .collect::<Result<_, _>>()?;
-
-        Ok(NymTopology::new(converted_mixes, gateways))
+        todo!()
+        // let mut converted_mixes = BTreeMap::new();
+        //
+        // for (layer, nodes) in value.mixnodes {
+        //     let layer_nodes = nodes
+        //         .into_iter()
+        //         .map(TryInto::try_into)
+        //         .collect::<Result<_, _>>()?;
+        //
+        //     converted_mixes.insert(layer, layer_nodes);
+        // }
+        //
+        // let gateways = value
+        //     .gateways
+        //     .into_iter()
+        //     .map(TryInto::try_into)
+        //     .collect::<Result<_, _>>()?;
+        //
+        // Ok(NymTopology::new(converted_mixes, gateways))
     }
 }
 
 impl From<NymTopology> for SerializableNymTopology {
     fn from(value: NymTopology) -> Self {
-        SerializableNymTopology {
-            mixnodes: value
-                .mixes()
-                .iter()
-                .map(|(&l, nodes)| (l, nodes.iter().map(Into::into).collect()))
-                .collect(),
-            gateways: value.gateways().iter().map(Into::into).collect(),
-        }
+        todo!()
+        // SerializableNymTopology {
+        //     mixnodes: value
+        //         .mixes()
+        //         .iter()
+        //         .map(|(&l, nodes)| (l, nodes.iter().map(Into::into).collect()))
+        //         .collect(),
+        //     gateways: value.gateways().iter().map(Into::into).collect(),
+        // }
     }
 }
 

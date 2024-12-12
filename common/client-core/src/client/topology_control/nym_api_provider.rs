@@ -4,10 +4,11 @@
 use async_trait::async_trait;
 use log::{debug, error, warn};
 use nym_topology::provider_trait::TopologyProvider;
-use nym_topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymTopologyError, NymTopologyNew};
 use nym_validator_client::UserAgent;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
+use std::cmp::min;
 use url::Url;
 
 // the same values as our current (10.06.24) blacklist
@@ -18,6 +19,15 @@ pub const DEFAULT_MIN_GATEWAY_PERFORMANCE: u8 = 50;
 pub struct Config {
     pub min_mixnode_performance: u8,
     pub min_gateway_performance: u8,
+    pub use_extended_topology: bool,
+    pub ignore_epoch_roles: bool,
+}
+
+impl Config {
+    // if we're using 'extended' topology, filter the nodes based on the lowest set performance
+    fn min_node_performance(&self) -> u8 {
+        min(self.min_mixnode_performance, self.min_gateway_performance)
+    }
 }
 
 impl Default for Config {
@@ -26,6 +36,8 @@ impl Default for Config {
         Config {
             min_mixnode_performance: DEFAULT_MIN_MIXNODE_PERFORMANCE,
             min_gateway_performance: DEFAULT_MIN_GATEWAY_PERFORMANCE,
+            use_extended_topology: false,
+            ignore_epoch_roles: false,
         }
     }
 }
@@ -70,70 +82,69 @@ impl NymApiTopologyProvider {
             .change_nym_api(self.nym_api_urls[self.currently_used_api].clone())
     }
 
-    /// Verifies whether nodes a reasonably distributed among all mix layers.
-    ///
-    /// In ideal world we would have 33% nodes on layer 1, 33% on layer 2 and 33% on layer 3.
-    /// However, this is a rather unrealistic expectation, instead we check whether there exists
-    /// a layer with more than 66% of nodes or with fewer than 15% and if so, we trigger a failure.
-    ///
-    /// # Arguments
-    ///
-    /// * `topology`: active topology constructed from validator api data
-    fn check_layer_distribution(
-        &self,
-        active_topology: &NymTopology,
-    ) -> Result<(), NymTopologyError> {
-        let lower_threshold = 0.15;
-        let upper_threshold = 0.66;
-        active_topology.ensure_even_layer_distribution(lower_threshold, upper_threshold)
-    }
-
-    async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
-        let mixnodes = match self
+    async fn get_current_compatible_topology(&mut self) -> Option<NymTopologyNew> {
+        let rewarded_set = self
             .validator_client
-            .get_all_basic_active_mixing_assigned_nodes()
+            .get_current_rewarded_set()
             .await
-        {
-            Err(err) => {
-                error!("failed to get network mixnodes - {err}");
-                return None;
-            }
-            Ok(mixes) => mixes,
-        };
+            .inspect_err(|err| error!("failed to get current rewarded set: {err}"))
+            .ok()?;
 
-        let gateways = match self
-            .validator_client
-            .get_all_basic_entry_assigned_nodes()
-            .await
-        {
-            Err(err) => {
-                error!("failed to get network gateways - {err}");
-                return None;
-            }
-            Ok(gateways) => gateways,
-        };
+        let mut topology = NymTopologyNew::new_empty(rewarded_set);
 
-        debug!(
-            "there are {} mixnodes and {} gateways in total (before performance filtering)",
-            mixnodes.len(),
-            gateways.len()
-        );
+        if self.config.use_extended_topology {
+            let all_nodes = self
+                .validator_client
+                .get_all_basic_nodes()
+                .await
+                .inspect_err(|err| error!("failed to get network nodes: {err}"))
+                .ok()?;
 
-        let topology = NymTopology::from_unordered(
-            mixnodes.iter().filter(|m| {
-                m.performance.round_to_integer() >= self.config.min_mixnode_performance
-            }),
-            gateways.iter().filter(|g| {
-                g.performance.round_to_integer() >= self.config.min_gateway_performance
-            }),
-        );
-        if let Err(err) = self.check_layer_distribution(&topology) {
-            warn!("The current filtered active topology has extremely skewed layer distribution. It cannot be used: {err}");
-            self.use_next_nym_api();
-            None
+            debug!(
+                "there are {} nodes on the network (before filtering)",
+                all_nodes.len()
+            );
+            topology.add_additional_nodes(all_nodes.iter().filter(|n| {
+                n.performance.round_to_integer() >= self.config.min_node_performance()
+            }));
         } else {
-            Some(topology)
+            // if we're not using extended topology, we're only getting active set mixnodes and gateways
+
+            let mixnodes = self
+                .validator_client
+                .get_all_basic_active_mixing_assigned_nodes()
+                .await
+                .inspect_err(|err| error!("failed to get network mixnodes: {err}"))
+                .ok()?;
+
+            // TODO: we really should be getting ACTIVE gateways only
+            let gateways = self
+                .validator_client
+                .get_all_basic_entry_assigned_nodes()
+                .await
+                .inspect_err(|err| error!("failed to get network gateways: {err}"))
+                .ok()?;
+
+            debug!(
+                "there are {} mixnodes and {} gateways in total (before performance filtering)",
+                mixnodes.len(),
+                gateways.len()
+            );
+
+            topology.add_additional_nodes(mixnodes.iter().filter(|m| {
+                m.performance.round_to_integer() >= self.config.min_mixnode_performance
+            }));
+            topology.add_additional_nodes(gateways.iter().filter(|m| {
+                m.performance.round_to_integer() >= self.config.min_gateway_performance
+            }));
+        };
+
+        if !topology.is_minimally_routable() {
+            error!("the current filtered active topology can't be used to construct any packets");
+            return None;
         }
+
+        Some(topology)
     }
 }
 
@@ -141,8 +152,12 @@ impl NymApiTopologyProvider {
 #[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 impl TopologyProvider for NymApiTopologyProvider {
-    async fn get_new_topology(&mut self) -> Option<NymTopology> {
-        self.get_current_compatible_topology().await
+    async fn get_new_topology(&mut self) -> Option<NymTopologyNew> {
+        let Some(topology) = self.get_current_compatible_topology().await else {
+            self.use_next_nym_api();
+            return None;
+        };
+        Some(topology)
     }
 }
 

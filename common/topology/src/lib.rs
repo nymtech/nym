@@ -17,22 +17,23 @@ use std::io;
 use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
 use std::str::FromStr;
 
-#[cfg(feature = "serializable")]
+#[cfg(feature = "serde")]
 use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
+use nym_mixnet_contract_common::nym_node::Role;
 
 pub mod error;
 pub mod gateway;
 pub mod mix;
+pub mod node;
 pub mod random_route_provider;
 
 #[cfg(feature = "provider-trait")]
 pub mod provider_trait;
 
-mod node;
-#[cfg(feature = "serializable")]
+#[cfg(feature = "serde")]
 pub(crate) mod serde;
 
-#[cfg(feature = "serializable")]
+#[cfg(feature = "serde")]
 pub use crate::serde::{
     SerializableGateway, SerializableMixNode, SerializableNymTopology, SerializableTopologyError,
 };
@@ -73,6 +74,7 @@ impl<'a> From<&'a str> for NodeVersion {
     }
 }
 
+#[deprecated]
 #[derive(Debug, Clone)]
 pub enum NetworkAddress {
     IpAddr(IpAddr),
@@ -113,7 +115,8 @@ impl Display for NetworkAddress {
 
 pub type MixLayer = u8;
 
-pub struct NymTopologyNew {
+#[derive(Clone, Debug)]
+pub struct NymTopology {
     // for the purposes of future VRF, everyone will need the same view of the network, regardless of performance filtering
     // so we use the same 'master' rewarded set information for that
     //
@@ -128,12 +131,25 @@ const unused: &str = r#"there shall be a config setting, like debug.topology.use
         and another one for debug.topology.ignore_epoch_roles = true/false (to say send final packet to epoch mixnode)
     "#;
 
-impl NymTopologyNew {
+impl NymTopology {
+    pub fn new_empty(rewarded_set: EpochRewardedSet) -> Self {
+        NymTopology {
+            rewarded_set,
+            node_details: Default::default(),
+        }
+    }
+
     pub fn new(rewarded_set: EpochRewardedSet, node_details: Vec<RoutingNode>) -> Self {
-        NymTopologyNew {
+        NymTopology {
             rewarded_set,
             node_details: node_details.into_iter().map(|n| (n.node_id, n)).collect(),
         }
+    }
+
+    #[cfg(feature = "serde")]
+    pub fn new_from_file<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
+        let file = std::fs::File::open(path)?;
+        serde_json::from_reader(file).map_err(Into::into)
     }
 
     pub fn add_additional_nodes<N>(&mut self, nodes: impl Iterator<Item = N>)
@@ -154,6 +170,30 @@ impl NymTopologyNew {
                 }
             }
         }
+    }
+
+    fn node_exists(&self, ids: &[NodeId]) -> bool {
+        for id in ids {
+            if self.node_details.contains_key(id) {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn is_minimally_routable(&self) -> bool {
+        self.node_exists(&self.rewarded_set.assignment.layer1)
+            && self.node_exists(&self.rewarded_set.assignment.layer2)
+            && self.node_exists(&self.rewarded_set.assignment.layer3)
+
+        // TODO: we should also include gateways in that check, but right now we're allowing ALL gateways, even inactive
+    }
+
+    pub fn ensure_minimally_routable(&self) -> Result<(), NymTopologyError> {
+        if !self.is_minimally_routable() {
+            return Err(NymTopologyError::InsufficientMixingNodes);
+        }
+        Ok(())
     }
 
     fn get_sphinx_node(&self, node_id: NodeId) -> Option<SphinxNode> {
@@ -221,15 +261,35 @@ impl NymTopologyNew {
             .find(|n| n.identity_key == node_identity)
     }
 
-    fn sphinx_node_by_identity(
+    pub fn egress_by_identity(
         &self,
         node_identity: NodeIdentity,
-    ) -> Result<SphinxNode, NymTopologyError> {
+        ignore_epoch_roles: bool,
+    ) -> Result<&RoutingNode, NymTopologyError> {
         let Some(node) = self.find_node_by_identity(node_identity) else {
             return Err(NymTopologyError::NonExistentNode { node_identity });
         };
 
-        Ok(node.into())
+        // a 'valid' egress is one assigned to either entry role (i.e. entry for another client)
+        // or exit role (as a service provider)
+        if !ignore_epoch_roles {
+            let Some(role) = self.rewarded_set.assignment.get_role(node.node_id) else {
+                return Err(NymTopologyError::InvalidEgressRole { node_identity });
+            };
+            if !matches!(role, Role::EntryGateway | Role::ExitGateway) {
+                return Err(NymTopologyError::InvalidEgressRole { node_identity });
+            }
+        }
+        Ok(node)
+    }
+
+    fn egress_node_by_identity(
+        &self,
+        node_identity: NodeIdentity,
+        ignore_epoch_roles: bool,
+    ) -> Result<SphinxNode, NymTopologyError> {
+        self.egress_by_identity(node_identity, ignore_epoch_roles)
+            .map(Into::into)
     }
 
     pub fn random_mix_route<R>(&self, rng: &mut R) -> Result<Vec<SphinxNode>, NymTopologyError>
@@ -256,26 +316,50 @@ impl NymTopologyNew {
         &self,
         rng: &mut R,
         egress_identity: NodeIdentity,
+        ignore_epoch_roles: bool,
     ) -> Result<Vec<SphinxNode>, NymTopologyError>
     where
         R: Rng + CryptoRng + ?Sized,
     {
-        let egress = self.sphinx_node_by_identity(egress_identity)?;
+        let egress = self.egress_node_by_identity(egress_identity, ignore_epoch_roles)?;
         let mut mix_route = self.random_mix_route(rng)?;
         mix_route.push(egress);
         Ok(mix_route)
     }
 }
 
+#[cfg(feature = "serde")]
+impl Serialize for NymTopology {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        todo!()
+        // crate::serde::SerializableNymTopology::from(self.clone()).serialize(serializer)
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for NymTopology {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        todo!()
+        // let serializable = crate::serde::SerializableNymTopology::deserialize(deserializer)?;
+        // serializable.try_into().map_err(::serde::de::Error::custom)
+    }
+}
+
 // the reason for those having `Legacy` prefix is that eventually they should be using
 // exactly the same types
 #[derive(Debug, Clone, Default)]
-pub struct NymTopology {
+pub struct NymTopologyOld {
     mixes: BTreeMap<MixLayer, Vec<mix::LegacyNode>>,
     gateways: Vec<gateway::LegacyNode>,
 }
 
-impl NymTopology {
+impl NymTopologyOld {
     #[deprecated]
     pub async fn new_from_env() -> Result<Self, NymTopologyError> {
         let api_url = std::env::var(NYM_API)?;
@@ -301,7 +385,7 @@ impl NymTopology {
             .map(gateway::LegacyNode::try_from)
             .filter(Result::is_ok)
             .collect::<Result<Vec<_>, _>>()?;
-        let topology = NymTopology::new_unordered(mixnodes, gateways);
+        let topology = Self::new_unordered(mixnodes, gateways);
         Ok(topology)
     }
 
@@ -309,7 +393,7 @@ impl NymTopology {
         mixes: BTreeMap<MixLayer, Vec<mix::LegacyNode>>,
         gateways: Vec<gateway::LegacyNode>,
     ) -> Self {
-        NymTopology { mixes, gateways }
+        NymTopologyOld { mixes, gateways }
     }
 
     #[deprecated]
@@ -324,7 +408,7 @@ impl NymTopology {
             layer_entry.push(node)
         }
 
-        NymTopology { mixes, gateways }
+        NymTopologyOld { mixes, gateways }
     }
 
     pub fn from_unordered<MI, GI, M, G>(unordered_mixes: MI, unordered_gateways: GI) -> Self
@@ -356,17 +440,19 @@ impl NymTopology {
             }
         }
 
-        NymTopology::new(mixes, gateways)
+        NymTopologyOld::new(mixes, gateways)
     }
 
-    #[cfg(feature = "serializable")]
+    #[cfg(feature = "serde")]
     pub fn new_from_file<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
-        let file = std::fs::File::open(path)?;
-        serde_json::from_reader(file).map_err(Into::into)
+        todo!()
+        // let file = std::fs::File::open(path)?;
+        // serde_json::from_reader(file).map_err(Into::into)
     }
 
     pub fn from_basic(basic_mixes: &[SkimmedNode], basic_gateways: &[SkimmedNode]) -> Self {
-        nym_topology_from_basic_info(basic_mixes, basic_gateways)
+        todo!()
+        // nym_topology_from_basic_info(basic_mixes, basic_gateways)
     }
 
     pub fn find_mix(&self, mix_id: NodeId) -> Option<&mix::LegacyNode> {
@@ -621,24 +707,26 @@ impl NymTopology {
     }
 }
 
-#[cfg(feature = "serializable")]
-impl Serialize for NymTopology {
+#[cfg(feature = "serde")]
+impl Serialize for NymTopologyOld {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
-        crate::serde::SerializableNymTopology::from(self.clone()).serialize(serializer)
+        todo!()
+        // crate::serde::SerializableNymTopology::from(self.clone()).serialize(serializer)
     }
 }
 
-#[cfg(feature = "serializable")]
-impl<'de> Deserialize<'de> for NymTopology {
+#[cfg(feature = "serde")]
+impl<'de> Deserialize<'de> for NymTopologyOld {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
-        let serializable = crate::serde::SerializableNymTopology::deserialize(deserializer)?;
-        serializable.try_into().map_err(::serde::de::Error::custom)
+        todo!()
+        // let serializable = crate::serde::SerializableNymTopology::deserialize(deserializer)?;
+        // serializable.try_into().map_err(::serde::de::Error::custom)
     }
 }
 
@@ -646,35 +734,37 @@ pub fn nym_topology_from_basic_info(
     basic_mixes: &[SkimmedNode],
     basic_gateways: &[SkimmedNode],
 ) -> NymTopology {
-    let mut mixes = BTreeMap::new();
-    for mix in basic_mixes {
-        let Some(layer) = mix.get_mix_layer() else {
-            warn!("node {} doesn't have any assigned mix layer!", mix.node_id);
-            continue;
-        };
-
-        let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
-        match mix.try_into() {
-            Ok(mix) => layer_entry.push(mix),
-            Err(err) => {
-                warn!("node (mixnode) {} is malformed: {err}", mix.node_id);
-                continue;
-            }
-        }
-    }
-
-    let mut gateways = Vec::with_capacity(basic_gateways.len());
-    for gateway in basic_gateways {
-        match gateway.try_into() {
-            Ok(gate) => gateways.push(gate),
-            Err(err) => {
-                warn!("node (gateway) {} is malformed: {err}", gateway.node_id);
-                continue;
-            }
-        }
-    }
-
-    NymTopology::new(mixes, gateways)
+    todo!()
+    // let mut mixes = BTreeMap::new();
+    // for mix in basic_mixes {
+    //     let Some(layer) = mix.get_mix_layer() else {
+    //         warn!("node {} doesn't have any assigned mix layer!", mix.node_id);
+    //         continue;
+    //     };
+    //
+    //     let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
+    //     match mix.try_into() {
+    //         Ok(mix) => layer_entry.push(mix),
+    //         Err(err) => {
+    //             warn!("node (mixnode) {} is malformed: {err}", mix.node_id);
+    //             continue;
+    //         }
+    //     }
+    // }
+    //
+    // let mut gateways = Vec::with_capacity(basic_gateways.len());
+    // for gateway in basic_gateways {
+    //     match gateway.try_into() {
+    //         Ok(gate) => gateways.push(gate),
+    //         Err(err) => {
+    //             warn!("node (gateway) {} is malformed: {err}", gateway.node_id);
+    //             continue;
+    //         }
+    //     }
+    // }
+    //
+    // // NymTopology::new(mixes, gateways)
+    // todo!()
 }
 
 #[cfg(test)]

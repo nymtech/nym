@@ -131,8 +131,8 @@ impl Recipient {
         &self.client_encryption_key
     }
 
-    pub fn gateway(&self) -> &NodeIdentity {
-        &self.gateway
+    pub fn gateway(&self) -> NodeIdentity {
+        self.gateway
     }
 
     pub fn to_bytes(self) -> RecipientBytes {

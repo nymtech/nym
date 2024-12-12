@@ -53,6 +53,7 @@ impl<'a> TopologyReadPermit<'a> {
         &'a self,
         ack_recipient: &Recipient,
         packet_recipient: Option<&Recipient>,
+        ignore_epoch_roles: bool,
     ) -> Result<&'a NymTopology, NymTopologyError> {
         // 1. Have we managed to get anything from the refresher, i.e. have the nym-api queries gone through?
         let topology = self
@@ -60,25 +61,15 @@ impl<'a> TopologyReadPermit<'a> {
             .as_ref()
             .ok_or(NymTopologyError::EmptyNetworkTopology)?;
 
-        // 2. does it have any mixnode at all?
-        // 3. does it have any gateways at all?
-        // 4. does it have a mixnode on each layer?
-        topology.ensure_can_construct_path_through(DEFAULT_NUM_MIX_HOPS)?;
+        // 2. does the topology have a node on each mixing layer?
+        topology.ensure_minimally_routable()?;
 
-        // 5. does it contain OUR gateway (so that we could create an ack packet)?
-        if !topology.gateway_exists(ack_recipient.gateway()) {
-            return Err(NymTopologyError::NonExistentGatewayError {
-                identity_key: ack_recipient.gateway().to_base58_string(),
-            });
-        }
+        // 3. does it contain OUR gateway (so that we could create an ack packet)?
+        let _ = topology.egress_by_identity(ack_recipient.gateway(), ignore_epoch_roles)?;
 
-        // 6. for our target recipient, does it contain THEIR gateway (so that we could create
+        // 4. for our target recipient, does it contain THEIR gateway (so that we send anything over?)
         if let Some(recipient) = packet_recipient {
-            if !topology.gateway_exists(recipient.gateway()) {
-                return Err(NymTopologyError::NonExistentGatewayError {
-                    identity_key: recipient.gateway().to_base58_string(),
-                });
-            }
+            let _ = topology.egress_by_identity(recipient.gateway(), ignore_epoch_roles)?;
         }
 
         Ok(topology)

@@ -33,6 +33,7 @@ nym-bin-common = { path = "../common/bin-common" }
 nym-client-core = { path = "../common/client-core" }
 nym-crypto = { path = "../common/crypto" }
 nym-network-defaults = { path = "../common/network-defaults" }
+nym-gateway-requests = { path = "../common/gateway-requests" }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-topology = { path = "../common/topology" }

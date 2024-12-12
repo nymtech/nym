@@ -154,31 +154,39 @@ mod api_regression {
     use super::*;
     use std::{env::var, sync::LazyLock};
 
-    static IPINFO_TOKEN: LazyLock<String> = LazyLock::new(|| var("IPINFO_API_TOKEN").unwrap());
+    static IPINFO_TOKEN: LazyLock<Option<String>> = LazyLock::new(|| var("IPINFO_API_TOKEN").ok());
+    static CI: LazyLock<Option<String>> = LazyLock::new(|| var("CI").ok());
 
     #[tokio::test]
     async fn should_parse_response() {
-        let client = IpInfoClient::new(&(*IPINFO_TOKEN));
-        let my_ip = reqwest::get("https://api.ipify.org")
-            .await
-            .expect("Couldn't get own IP")
-            .text()
-            .await
-            .unwrap();
+        if CI.is_none() {
+            return;
+        }
+        if let Some(token) = &*IPINFO_TOKEN {
+            let client = IpInfoClient::new(token);
+            let my_ip = reqwest::get("https://api.ipify.org")
+                .await
+                .expect("Couldn't get own IP")
+                .text()
+                .await
+                .unwrap();
 
-        let location_result = client.locate_ip(my_ip).await;
-        assert!(location_result.is_ok(), "Did ipinfo response change?");
+            let location_result = client.locate_ip(my_ip).await;
+            assert!(location_result.is_ok(), "Did ipinfo response change?");
 
-        assert!(
-            client.check_remaining_bandwidth().await.is_ok(),
-            "Failed to check remaining bandwidth?"
-        );
+            assert!(
+                client.check_remaining_bandwidth().await.is_ok(),
+                "Failed to check remaining bandwidth?"
+            );
 
-        // when serialized, these fields should be present because they're exposed over API
-        let location_result = location_result.unwrap();
-        let json = serde_json::to_value(&location_result).unwrap();
-        assert!(json.get("two_letter_iso_country_code").is_some());
-        assert!(json.get("latitude").is_some());
-        assert!(json.get("longitude").is_some());
+            // when serialized, these fields should be present because they're exposed over API
+            let location_result = location_result.unwrap();
+            let json = serde_json::to_value(&location_result).unwrap();
+            assert!(json.get("two_letter_iso_country_code").is_some());
+            assert!(json.get("latitude").is_some());
+            assert!(json.get("longitude").is_some());
+        } else {
+            panic!("IPINFO_API_TOKEN not set");
+        }
     }
 }

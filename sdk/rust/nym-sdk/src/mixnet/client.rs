@@ -59,6 +59,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     gateway_endpoint_config_path: Option<PathBuf>,
 
     storage: S,
+    forget_me: bool,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -93,6 +94,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             custom_gateway_transceiver: None,
             force_tls: false,
             user_agent: None,
+            forget_me: false,
         })
     }
 }
@@ -122,6 +124,7 @@ where
             user_agent: None,
             gateway_endpoint_config_path: None,
             storage,
+            forget_me: false,
         }
     }
 
@@ -140,6 +143,7 @@ where
             user_agent: self.user_agent,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
+            forget_me: self.forget_me,
         }
     }
 
@@ -150,6 +154,12 @@ where
         storage: OnDiskPersistent,
     ) -> MixnetClientBuilder<OnDiskPersistent> {
         self.set_storage(storage)
+    }
+
+    #[must_use]
+    pub fn with_forget_me(mut self, forget_me: bool) -> Self {
+        self.forget_me = forget_me;
+        self
     }
 
     /// Request a specific gateway instead of a random one.
@@ -265,7 +275,7 @@ where
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
         client.user_agent = self.user_agent;
-
+        client.forget_me = self.forget_me;
         Ok(client)
     }
 }
@@ -314,6 +324,8 @@ where
     custom_shutdown: Option<TaskClient>,
 
     user_agent: Option<UserAgent>,
+
+    forget_me: bool,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -363,6 +375,7 @@ where
             force_tls: false,
             custom_shutdown: None,
             user_agent: None,
+            forget_me: false,
         })
     }
 
@@ -577,7 +590,8 @@ where
 
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway);
+                .with_wait_for_gateway(self.wait_for_gateway)
+                .with_forget_me(self.forget_me);
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);

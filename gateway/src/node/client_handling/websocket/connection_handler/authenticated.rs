@@ -327,6 +327,13 @@ impl<R, S> AuthenticatedHandler<R, S> {
         }
     }
 
+    async fn handle_forget_me(
+        &mut self,
+        _also_from_stats: bool,
+    ) -> Result<ServerResponse, RequestHandlingError> {
+        unimplemented!()
+    }
+
     async fn handle_key_upgrade(
         &mut self,
         hkdf_salt: Vec<u8>,
@@ -370,6 +377,9 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 hkdf_salt,
                 derived_key_digest,
             } => self.handle_key_upgrade(hkdf_salt, derived_key_digest).await,
+            ClientRequest::ForgetMe { also_from_stats } => {
+                self.handle_forget_me(also_from_stats).await
+            }
             _ => Err(RequestHandlingError::UnknownEncryptedTextRequest),
         }
     }

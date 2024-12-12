@@ -56,7 +56,11 @@ async fn make_clients(
                 loop {
                     if Arc::strong_count(&dropped_client) == 1 {
                         if let Some(client) = Arc::into_inner(dropped_client) {
-                            client.into_inner().disconnect().await;
+                            // let forget_me = ClientRequest::ForgetMe {
+                            //     also_from_stats: true,
+                            // };
+                            let client_handle = client.into_inner();
+                            client_handle.disconnect().await;
                         } else {
                             warn!("Failed to drop client, client had more then one strong ref")
                         }
@@ -89,6 +93,7 @@ async fn make_client(topology: NymTopology) -> Result<MixnetClient> {
         .network_details(net)
         .custom_topology_provider(topology_provider)
         .debug_config(mixnet_debug_config(0))
+        .with_forget_me(true)
         // .enable_credentials_mode()
         .build()?;
 

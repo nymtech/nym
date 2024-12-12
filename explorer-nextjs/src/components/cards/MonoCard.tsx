@@ -84,10 +84,10 @@ export const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
           <Box
             key={row.key}
             paddingTop={1}
-            paddingBottom={1}
+            paddingBottom={i < rows.length - 1 ? 1 : 0}
             display={"flex"}
             justifyContent={"space-between"}
-            borderBottom={i === 0 ? "1px solid #C3D7D7" : "none"}
+            borderBottom={i < rows.length - 1 ? "1px solid #C3D7D7" : "none"}
           >
             <Typography variant="h6" sx={{ color: "pine.600" }}>
               {row.key}
@@ -107,7 +107,7 @@ interface ICardProileImage {
 const CardProfileImage = (props: ICardProileImage) => {
   const { url } = props;
   return (
-    <Box display={"flex"} justifyContent={"flex-start"} mb={3}>
+    <Box display={"flex"} justifyContent={"flex-start"}>
       {url ? (
         <Image src={url} alt="linkedIn" width={80} height={80} />
       ) : (
@@ -153,7 +153,7 @@ const CardCopyAddress = (props: ICardCopyAddressProps) => {
   const { title, address } = props;
   return (
     <Box
-      paddingTop={2}
+      paddingTop={1}
       paddingBottom={2}
       display={"flex"}
       flexDirection={"column"}
@@ -313,7 +313,6 @@ export const MonoCard: FC<ContentCardProps> = ({
   <Card sx={{ height: "100%", borderRadius: "unset", padding: 1 }}>
     <CardContent
       sx={{
-        paddingBottom: "0px !important",
         height: "100%",
         display: "flex",
         flexDirection: "column",
@@ -323,62 +322,65 @@ export const MonoCard: FC<ContentCardProps> = ({
       <Box>
         {overTitle && (
           <Typography
-            mb={3}
             variant="h5"
             sx={{ color: "pine.600", letterSpacing: 0.7 }}
           >
             {overTitle}
           </Typography>
         )}
-        {profileImage && <CardProfileImage {...profileImage} />}
+        {profileImage && (
+          <Box mt={3}>
+            <CardProfileImage {...profileImage} />
+          </Box>
+        )}
         {title && (
-          <Typography
-            variant="h3"
-            mb={upDownLine ? 0 : 3}
-            sx={{ color: "pine.950" }}
-          >
+          <Typography variant="h3" mt={3} sx={{ color: "pine.950" }}>
             {title}
           </Typography>
         )}
-        {profileCountry && (
-          <Box mb={3}>
-            <CardProfileCountry {...profileCountry} />
-          </Box>
-        )}
         {upDownLine && (
-          <Box mb={3}>
+          <Box>
             <CardUpDownPriceLine {...upDownLine} />
           </Box>
         )}
-        {titlePrice && <CardTitlePrice {...titlePrice} />}
+        {profileCountry && (
+          <Box mt={3}>
+            <CardProfileCountry {...profileCountry} />
+          </Box>
+        )}
+        {titlePrice && (
+          <Box mt={3}>
+            <CardTitlePrice {...titlePrice} />
+          </Box>
+        )}
       </Box>
       {qrCode && (
-        <Box mb={3}>
+        <Box mt={3}>
           <CardQRCode {...qrCode} />
         </Box>
       )}
       {nymAddress && (
-        <Box mb={3}>
+        <Box mt={3}>
           <CardCopyAddress {...nymAddress} />
         </Box>
       )}
       {identityKey && (
-        <Box mb={3}>
+        <Box mt={3}>
           <CardCopyAddress {...identityKey} />
         </Box>
       )}
       {dataRows && (
-        <Box mb={3}>
+        <Box mt={3}>
           <CardDataRows {...dataRows} />
         </Box>
       )}
       {ratings && (
-        <Box mb={3}>
+        <Box mt={3}>
           <CardRatings {...ratings} />
         </Box>
       )}
       {graph && (
-        <Box mb={3}>
+        <Box mt={3}>
           <LineChart
             data={graph.data}
             color={graph.color}
@@ -387,22 +389,22 @@ export const MonoCard: FC<ContentCardProps> = ({
         </Box>
       )}
       {progressBar && (
-        <Box mb={3}>
+        <Box mt={3}>
           <DynamicProgressBar {...progressBar} />
         </Box>
       )}
       {paragraph && (
-        <Typography variant="subtitle1" sx={{ color: "pine.950" }} mb={3}>
+        <Typography variant="subtitle1" sx={{ color: "pine.950" }} mt={3}>
           {paragraph}
         </Typography>
       )}
       {/* {comments && (
-        <Box mb={3}>
+        <Box mt={3}>
           <Remark42Comments />
         </Box>
       )} */}
       {stakeButton && (
-        <Box mb={3}>
+        <Box mt={3}>
           <Button
             onClick={() =>
               console.log(

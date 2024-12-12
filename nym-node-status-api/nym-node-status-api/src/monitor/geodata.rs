@@ -159,10 +159,10 @@ mod api_regression {
 
     #[tokio::test]
     async fn should_parse_response() {
+        if CI.is_none() {
+            return;
+        }
         if let Some(token) = &*IPINFO_TOKEN {
-            if CI.is_none() {
-                return;
-            }
             let client = IpInfoClient::new(token);
             let my_ip = reqwest::get("https://api.ipify.org")
                 .await

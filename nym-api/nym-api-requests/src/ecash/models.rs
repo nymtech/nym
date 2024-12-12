@@ -44,6 +44,7 @@ pub struct VerifyEcashCredentialBody {
 
     /// Cosmos address of the sender of the credential
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub gateway_cosmos_addr: AccountId,
 
     /// Multisig proposal for releasing funds for the provided bandwidth credential
@@ -91,15 +92,15 @@ pub enum EcashTicketVerificationRejection {
     InvalidSpentDate {
         #[schemars(with = "String")]
         #[serde(with = "crate::helpers::date_serde")]
-        #[schema(value_type = String)]
+        #[schema(value_type = String, example = "1970-01-01")]
         today: Date,
         #[schemars(with = "String")]
         #[serde(with = "crate::helpers::date_serde")]
-        #[schema(value_type = String)]
+        #[schema(value_type = String, example = "1970-01-01")]
         yesterday: Date,
         #[schemars(with = "String")]
         #[serde(with = "crate::helpers::date_serde")]
-        #[schema(value_type = String)]
+        #[schema(value_type = String, example = "1970-01-01")]
         received: Date,
     },
 
@@ -138,7 +139,7 @@ pub struct BlindSignRequestBody {
 
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
-    #[schema(value_type = String)]
+    #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
 
     #[schemars(with = "String")]
@@ -270,7 +271,7 @@ pub struct PartialExpirationDateSignatureResponse {
 
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
-    #[schema(value_type = String)]
+    #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
     pub signatures: Vec<AnnotatedExpirationDateSignature>,
@@ -289,6 +290,7 @@ pub struct AggregatedExpirationDateSignatureResponse {
 
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
 
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
@@ -348,18 +350,8 @@ pub struct BatchRedeemTicketsBody {
     pub included_serial_numbers: Vec<SerialNumberWrapper>,
     pub proposal_id: u64,
     #[schemars(with = "String")]
-    #[schema(value_type = AccountIdSchema)]
+    #[schema(value_type = String)]
     pub gateway_cosmos_addr: AccountId,
-}
-
-#[allow(dead_code)] // not dead, used in OpenAPI schema
-#[derive(ToSchema)]
-#[schema(title = "AccountId")]
-pub struct AccountIdSchema {
-    /// Account ID encoded as Bech32
-    bech32: String,
-    /// Length of the human-readable prefix of the address
-    hrp_length: usize,
 }
 
 impl BatchRedeemTicketsBody {
@@ -429,6 +421,7 @@ pub struct CommitedDeposit {
 pub struct IssuedTicketbooksForResponseBody {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
+    #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
     pub deposits: Vec<CommitedDeposit>,
     pub merkle_root: Option<[u8; 32]>,
@@ -472,7 +465,7 @@ impl IssuedTicketbooksForResponse {
 pub struct IssuedTicketbooksChallengeRequest {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
-    #[schema(value_type = String)]
+    #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
     #[schema(value_type = Vec<u32>)]
     pub deposits: Vec<DepositId>,
@@ -483,7 +476,7 @@ pub struct IssuedTicketbooksChallengeRequest {
 pub struct IssuedTicketbooksChallengeResponseBody {
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
-    #[schema(value_type = String)]
+    #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
 
     #[schema(value_type = BTreeMap<u32, IssuedTicketbook>)]

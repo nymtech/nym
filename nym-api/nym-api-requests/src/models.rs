@@ -1265,10 +1265,12 @@ pub type GatewayTestResultResponse = PaginatedResponse<PartialTestResult>;
 pub struct NoiseDetails {
     #[schemars(with = "String")]
     #[serde(with = "bs58_x25519_pubkey")]
+    #[schema(value_type = String)]
     pub x25119_pubkey: x25519::PublicKey,
 
     pub mixnet_port: u16,
 
+    #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 }
 

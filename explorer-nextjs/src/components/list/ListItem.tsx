@@ -16,10 +16,12 @@ const ExplorerListItem = ({
   label,
   value,
   row,
+  divider,
 }: {
   label: string;
   value: string | React.ReactNode;
   row?: boolean;
+  divider?: boolean;
 }) => {
   return (
     <>
@@ -40,7 +42,7 @@ const ExplorerListItem = ({
           value
         )}
       </Stack>
-      <Divider variant="fullWidth" sx={{ my: 2 }} />
+      {divider && <Divider variant="fullWidth" sx={{ my: 2 }} />}
     </>
   );
 };

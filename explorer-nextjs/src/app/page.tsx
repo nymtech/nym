@@ -1,88 +1,67 @@
-import ExplorerCard from "@/components/cards/ExplorerCard";
 import ExplorerHeroCard from "@/components/cards/ExplorerHeroCard";
-import CopyToClipboard from "@/components/copyToClipboard/CopyToClipboard";
 import Gateway from "@/components/icons/Gateway";
-import ExplorerListItem from "@/components/list/ListItem";
-import ProgressBar from "@/components/progressBar/ProgressBar";
-import StarRarating from "@/components/starRating/StarRating";
-import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
+import { NetworkStakeCard } from "@/components/landingPageComponents/NetworkStakeCard";
+import { NoiseCard } from "@/components/landingPageComponents/NoiseCard";
+import { RewardsCard } from "@/components/landingPageComponents/RewardsCard";
+import { TokenomicsCard } from "@/components/landingPageComponents/TokenomicsCard";
 import { Wrapper } from "@/components/wrapper";
-import { Container, Grid2, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
+import Grid from "@mui/material/Grid2";
 
 export default function Home() {
   return (
     <div>
       <main>
-        <Wrapper>
-          <Container maxWidth="md">
-            <Stack spacing={4}>
-              <ExplorerCard title="Explorer Card" subtitle="Cryptosailors">
-                <ExplorerListItem
-                  label="Identity Key"
-                  value="n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su"
+        <Box sx={{ p: 10 }}>
+          <Wrapper>
+            <Typography variant="h1" textTransform={"uppercase"} mb={10}>
+              Mixnet in your hands
+            </Typography>
+            <Grid container columnSpacing={5} rowSpacing={5}>
+              <Grid size={12}>
+                <Typography variant="h2">
+                  Noise Generating Mixnet Overview
+                </Typography>
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <NoiseCard />
+              </Grid>
+              <Grid container rowSpacing={3} size={{ xs: 12, md: 3 }}>
+                <Stack gap={5}>
+                  <RewardsCard />
+                  {/* <CurrentEpochCard /> */}
+                </Stack>
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <NetworkStakeCard />
+              </Grid>
+              <Grid size={{ xs: 12, md: 3 }}>
+                <TokenomicsCard />
+              </Grid>
+              <Grid size={12}>
+                <Typography variant="h2">Onboarding</Typography>
+              </Grid>
+              <Grid size={6}>
+                <ExplorerHeroCard
+                  label="Onboarding"
+                  title="How to select Nym vpn gateway?"
+                  description="Stake your tokens to well performing mix nodes, and earn a share of operator rewards!"
+                  image={<Gateway />}
+                  link={"/onboarding"}
                 />
-                <ExplorerListItem
-                  label="Nym Address"
-                  value={
-                    <Stack direction="row" gap={0.5} alignItems="center">
-                      <Typography variant="body4">
-                        n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su
-                      </Typography>
-                      <CopyToClipboard text="n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su" />
-                    </Stack>
-                  }
+              </Grid>
+              <Grid size={6}>
+                <ExplorerHeroCard
+                  label="Onboarding"
+                  title="How to select Nym vpn gateway?"
+                  description="Stake your tokens to well performing mix nodes, and earn a share of operator rewards!"
+                  image={<Gateway />}
+                  link={"/onboarding"}
                 />
-                <ExplorerListItem
-                  label="Star Rating"
-                  value={<StarRarating value={3} />}
-                />
-                <ExplorerListItem
-                  label="Progress bar"
-                  value={<ProgressBar value={50} color="secondary" />}
-                />
-                <ExplorerListItem
-                  label="Button group"
-                  value={
-                    <ExplorerButtonGroup
-                      options={[
-                        {
-                          label: "Node",
-                          link: "/node",
-                          isSelected: true,
-                        },
-                        {
-                          label: "Account",
-                          link: "/account",
-                          isSelected: false,
-                        },
-                      ]}
-                    />
-                  }
-                />
-              </ExplorerCard>
-              <Grid2 container spacing={4}>
-                <Grid2 size={6}>
-                  <ExplorerHeroCard
-                    label="Onboarding"
-                    title="How to select Nym vpn gateway?"
-                    description="Stake your tokens to well performing mix nodes, and earn a share of operator rewards!"
-                    image={<Gateway />}
-                    link={"/onboarding"}
-                  />
-                </Grid2>
-                <Grid2 size={6}>
-                  <ExplorerHeroCard
-                    label="Onboarding"
-                    title="How to select Nym vpn gateway?"
-                    description="Stake your tokens to well performing mix nodes, and earn a share of operator rewards!"
-                    image={<Gateway />}
-                    link={"/onboarding"}
-                  />
-                </Grid2>
-              </Grid2>
-            </Stack>
-          </Container>
-        </Wrapper>
+              </Grid>
+            </Grid>
+          </Wrapper>
+        </Box>
       </main>
     </div>
   );

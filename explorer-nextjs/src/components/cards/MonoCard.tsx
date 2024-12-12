@@ -5,8 +5,9 @@ import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
 import type React from "react";
 import type { FC } from "react";
-import Flag from "react-world-flags";
 import profileImagePlaceholder from "../../../public/profileImagePlaceholder.png";
+import CardProfileCountry from "../countryFlag/CountryFlag";
+import type { ICountryFlag } from "../countryFlag/CountryFlag";
 // import { Remark42Comments } from "../comments";
 import { NymTokenSVG } from "../icons/NymTokenSVG";
 import { type ILineChartData, LineChart } from "../lineChart";
@@ -14,10 +15,7 @@ import {
   type IUpDownPriceIndicatorProps,
   UpDownPriceIndicator,
 } from "../price/UpDownPriceIndicator";
-import {
-  DynamicProgressBar,
-  type IDynamicProgressBarProps,
-} from "../progressBars/DynamicProgressBar";
+import type { IDynamicProgressBarProps } from "../progressBars/EpochProgressBar";
 import { StarRating } from "../starRating";
 
 interface ICardTitlePriceProps {
@@ -90,28 +88,6 @@ const CardProfileImage = (props: ICardProileImage) => {
           height={80}
         />
       )}
-    </Box>
-  );
-};
-
-interface ICardProfileCountry {
-  countryCode: string;
-  countryName: string;
-}
-
-const CardProfileCountry = (props: ICardProfileCountry) => {
-  const { countryCode, countryName } = props;
-  return (
-    <Box
-      display={"flex"}
-      justifyContent={"flex-start"}
-      gap={1}
-      alignItems={"center"}
-    >
-      <Flag code={countryCode} width="19" />
-      <Typography variant="subtitle2" sx={{ color: "pine.950" }}>
-        {countryName}
-      </Typography>
     </Box>
   );
 };
@@ -241,7 +217,7 @@ export type ContentCardProps = {
   overTitle?: string;
   profileImage?: ICardProileImage;
   title?: string | number;
-  profileCountry?: ICardProfileCountry;
+  profileCountry?: ICountryFlag;
   upDownLine?: IUpDownPriceIndicatorProps;
   titlePrice?: ICardTitlePriceProps;
   dataRows?: ICardDataRowsProps;

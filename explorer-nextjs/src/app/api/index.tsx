@@ -1,7 +1,6 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   CIRCULATING_NYM_SUPPLY,
-  CURRENT_EPOCH,
-  CURRENT_EPOCH_REWARDS,
   HARBOURMASTER_API_MIXNODES_STATS,
   HARBOURMASTER_API_SUMMARY,
 } from "./urls";
@@ -74,41 +73,18 @@ export interface ExplorerData {
   };
 }
 
-export interface ExplorerCache {
-  data?: ExplorerData;
-  lastUpdated?: Date;
-}
-
-// declare global {
-//   // Extend the global object with our custom property
-//   let explorerCache: ExplorerCache | undefined;
-// }
-
 const CACHE_TIME_SECONDS = 60 * 5; // 5 minutes
+
+export interface ExplorerCache {
+  explorerCache?: {
+    data?: ExplorerData;
+    lastUpdated?: Date;
+  };
+}
 
 const getExplorerData = async () => {
   // FETCH NYMNODES
   const fetchNymNodes = await fetch(HARBOURMASTER_API_SUMMARY, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    // refresh event list cache at given interval
-    next: { revalidate: Number(process.env.NEXT_PUBLIC_REVALIDATE_CACHE) },
-  });
-
-  // FETCH CURRENT EPOCH
-  const fetchCurrentEpoch = await fetch(CURRENT_EPOCH, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    // refresh event list cache at given interval
-    next: { revalidate: Number(process.env.NEXT_PUBLIC_REVALIDATE_CACHE) },
-  });
-
-  // FETCH CURRENT EPOCH REWARDS
-  const fetchCurrentEpochRewards = await fetch(CURRENT_EPOCH_REWARDS, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -137,54 +113,34 @@ const getExplorerData = async () => {
     next: { revalidate: Number(process.env.NEXT_PUBLIC_REVALIDATE_CACHE) },
   });
 
-  const [
-    circulatingNymSupplyRes,
-    nymNodesRes,
-    packetsAndStakingRes,
-    currentEpochRes,
-    currentEpochRewardsRes,
-  ] = await Promise.all([
-    fetchCirculatingNymSupply,
-    fetchNymNodes,
-    fetchPacketsAndStaking,
-    fetchCurrentEpoch,
-    fetchCurrentEpochRewards,
-  ]);
+  const [circulatingNymSupplyRes, nymNodesRes, packetsAndStakingRes] =
+    await Promise.all([
+      fetchCirculatingNymSupply,
+      fetchNymNodes,
+      fetchPacketsAndStaking,
+    ]);
 
-  const [
-    circulatingNymSupplyData,
-    nymNodesData,
-    packetsAndStakingData,
-    currentEpochData,
-    currentEpochRewardsData,
-  ] = await Promise.all([
-    circulatingNymSupplyRes.json(),
-    nymNodesRes.json(),
-    packetsAndStakingRes.json(),
-    currentEpochRes.json(),
-    currentEpochRewardsRes.json(),
-  ]);
+  const [circulatingNymSupplyData, nymNodesData, packetsAndStakingData] =
+    await Promise.all([
+      circulatingNymSupplyRes.json(),
+      nymNodesRes.json(),
+      packetsAndStakingRes.json(),
+    ]);
 
-  return [
-    circulatingNymSupplyData,
-    nymNodesData,
-    packetsAndStakingData,
-    currentEpochData,
-    currentEpochRewardsData,
-  ];
+  return [circulatingNymSupplyData, nymNodesData, packetsAndStakingData];
 };
 
 export async function ensureCacheExists() {
   // makes sure the cache exists in global memory
   let doUpdate = false;
   const now = new Date();
-  if (!global.explorerCache) {
-    global.explorerCache = {};
+  if (!(global as ExplorerCache).explorerCache) {
+    (global as any).explorerCache = {};
     doUpdate = true;
   }
   if (
-    global.explorerCache.lastUpdated &&
-    now.getDate() - global.explorerCache.lastUpdated.getDate() >
+    (global as ExplorerCache)?.explorerCache?.lastUpdated &&
+    now.getDate() - (global as any).explorerCache.lastUpdated.getDate() >
       CACHE_TIME_SECONDS
   ) {
     doUpdate = true;
@@ -202,44 +158,23 @@ export async function ensureCacheExists() {
 
     packetsAndStakingData.pop();
 
-    global.explorerCache.data = {
+    (global as any).explorerCache.data = {
       circulatingNymSupplyData,
       nymNodesData,
       packetsAndStakingData,
       currentEpochData,
       currentEpochRewardsData,
     };
-    global.explorerCache.lastUpdated = now;
+    (global as any).explorerCache.lastUpdated = now;
   }
 }
 
 export async function getCacheExplorerData() {
   await ensureCacheExists();
 
-  if (!global.explorerCache?.data) {
+  if (!(global as ExplorerCache).explorerCache?.data) {
     return null;
   }
 
-  console.log("global.explorerCache.data :>> ", global.explorerCache.data);
-  return global.explorerCache.data || null;
+  return (global as ExplorerCache)?.explorerCache?.data || null;
 }
-
-/**
- * This is a custom API route that returns metadata from Strapi about images: height, width, strapi download url.
- *
- * The response from Strapi is cached in memory for CACHE_TIME_SECONDS.
- */
-// export default async function handler(
-//   req: NextApiRequest,
-//   res: NextApiResponse
-// ) {
-//   // return cached data
-//   const data = await getCacheExplorerData();
-//   if (data) {
-//     res.status(200).json(data);
-//     res.end();
-//   }
-
-//   // catch-all
-//   res.status(404).end();
-// }

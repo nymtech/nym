@@ -1,26 +1,35 @@
-import type { ExplorerData } from "@/app/api";
+import type { CurrentEpochData } from "@/app/api";
+import { CURRENT_EPOCH } from "@/app/api/urls";
 import { Stack } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
-import { DynamicProgressBar } from "../progressBars/DynamicProgressBar";
+import EpochProgressBar from "../progressBars/EpochProgressBar";
 
-interface ICurrentEpochCardProps {
-  explorerData: ExplorerData | undefined;
-}
+export const CurrentEpochCard = async () => {
+  const data = await fetch(CURRENT_EPOCH, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+    // refresh event list cache at given interval
+  });
 
-export const CurrentEpochCard = (props: ICurrentEpochCardProps) => {
-  const { explorerData } = props;
+  const currentEpochData: CurrentEpochData = await data.json();
 
-  const currentEpochStart =
-    explorerData?.currentEpochData.current_epoch_start || "";
+  if (!currentEpochData) {
+    return null;
+  }
+
+  const currentEpochStart = currentEpochData.current_epoch_start || "";
 
   const progressBar = {
     start: currentEpochStart || "",
     showEpoch: true,
   };
   return (
-    <ExplorerCard title="Current NGM epoch">
+    <ExplorerCard label="Current NGM epoch">
       <Stack>
-        <DynamicProgressBar {...progressBar} />
+        <EpochProgressBar {...progressBar} />
       </Stack>
     </ExplorerCard>
   );

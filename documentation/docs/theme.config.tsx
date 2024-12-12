@@ -8,7 +8,6 @@ const config: DocsThemeConfig = {
   head: function useHead() {
     const config = useConfig()
     const { route } = useRouter()
-    const isDefault = route === '/' || !config.title
     const image = 'https://nymtech.net/nym_logo.jpg'
 
     const description =
@@ -19,17 +18,25 @@ const config: DocsThemeConfig = {
     return (
       <>
         <title>{title}</title>
+        <meta name="author" content="Nym" />
+        <link rel="canonical" href={"https://nym.com/docs/" + route} />
+
         <meta property="og:title" content={title} />
+        <meta property="og:site_name" content="Nym docs"></meta>
         <meta name="description" content={description} />
         <meta property="og:description" content={description} />
         <meta property="og:image" content={image} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={"https://nym.com/docs/" + route}></meta>
 
-        <meta name="msapplication-TileColor" content="#fff" />
-        <meta httpEquiv="Content-Language" content="en" />
+        <meta property="twitter:title" content={title}></meta>
+        <meta property="twitter:description" content={description}></meta>
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:site:domain" content="nym.com" />
-        <meta name="twitter:url" content={"https://nym.com/" + route} />
-        <meta name="apple-mobile-web-app-title" content="Nextra" />
+        <meta name="twitter:site" content="@nymproject" />
+        <meta name="twitter:site:domain" content="nym.com/docs/" />
+        <meta name="twitter:url" content={"https://nym.com/docs/" + route} />
+
+        <meta name="apple-mobile-web-app-title" content="Nym docs" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
         <link rel="icon" href="/favicon.png" type="image/png" />
         <link

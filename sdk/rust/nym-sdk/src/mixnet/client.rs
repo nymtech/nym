@@ -28,6 +28,7 @@ use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
+use nym_client_core::ForgetMe;
 use nym_credentials_interface::TicketType;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::{TaskClient, TaskHandle, TaskStatus};
@@ -59,7 +60,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     gateway_endpoint_config_path: Option<PathBuf>,
 
     storage: S,
-    forget_me: bool,
+    forget_me: ForgetMe,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -94,7 +95,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             custom_gateway_transceiver: None,
             force_tls: false,
             user_agent: None,
-            forget_me: false,
+            forget_me: Default::default(),
         })
     }
 }
@@ -124,7 +125,7 @@ where
             user_agent: None,
             gateway_endpoint_config_path: None,
             storage,
-            forget_me: false,
+            forget_me: Default::default(),
         }
     }
 
@@ -157,7 +158,7 @@ where
     }
 
     #[must_use]
-    pub fn with_forget_me(mut self, forget_me: bool) -> Self {
+    pub fn with_forget_me(mut self, forget_me: ForgetMe) -> Self {
         self.forget_me = forget_me;
         self
     }
@@ -325,7 +326,7 @@ where
 
     user_agent: Option<UserAgent>,
 
-    forget_me: bool,
+    forget_me: ForgetMe,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -375,7 +376,7 @@ where
             force_tls: false,
             custom_shutdown: None,
             user_agent: None,
-            forget_me: false,
+            forget_me: Default::default(),
         })
     }
 
@@ -591,7 +592,7 @@ where
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
-                .with_forget_me(self.forget_me);
+                .with_forget_me(&self.forget_me);
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);

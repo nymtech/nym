@@ -32,7 +32,7 @@ use crate::init::{
     setup_gateway,
     types::{GatewaySetup, InitialisationResult},
 };
-use crate::{config, spawn_future};
+use crate::{config, spawn_future, ForgetMe};
 use futures::channel::mpsc;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
@@ -188,7 +188,7 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     user_agent: Option<UserAgent>,
 
     setup_method: GatewaySetup,
-    forget_me: bool,
+    forget_me: ForgetMe,
 }
 
 impl<'a, C, S> BaseClientBuilder<'a, C, S>
@@ -211,13 +211,13 @@ where
             shutdown: None,
             user_agent: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
-            forget_me: false,
+            forget_me: Default::default(),
         }
     }
 
     #[must_use]
-    pub fn with_forget_me(mut self, forget_me: bool) -> Self {
-        self.forget_me = forget_me;
+    pub fn with_forget_me(mut self, forget_me: &ForgetMe) -> Self {
+        self.forget_me = forget_me.clone();
         self
     }
 
@@ -623,24 +623,11 @@ where
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown: TaskClient,
+        forget_me: ForgetMe,
     ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
-        let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_transceiver);
-        mix_traffic_controller.start_with_shutdown(shutdown);
-        mix_tx
-    }
-
-    fn start_mix_traffic_controller_with_forget_me(
-        gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
-        shutdown: TaskClient,
-        forget_me: bool,
-    ) -> BatchMixMessageSender {
-        info!(
-            "Starting mix traffic controller with forget me: {}...",
-            forget_me
-        );
         let (mix_traffic_controller, mix_tx) =
-            MixTrafficController::new_with_forget_me(gateway_transceiver, forget_me);
+            MixTrafficController::new(gateway_transceiver, forget_me);
         mix_traffic_controller.start_with_shutdown(shutdown);
         mix_tx
     }
@@ -821,18 +808,11 @@ where
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
 
-        let message_sender = if self.forget_me {
-            Self::start_mix_traffic_controller_with_forget_me(
-                gateway_transceiver,
-                shutdown.fork("mix_traffic_controller"),
-                self.forget_me,
-            )
-        } else {
-            Self::start_mix_traffic_controller(
-                gateway_transceiver,
-                shutdown.fork("mix_traffic_controller"),
-            )
-        };
+        let message_sender = Self::start_mix_traffic_controller(
+            gateway_transceiver,
+            shutdown.fork("mix_traffic_controller"),
+            self.forget_me,
+        );
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.

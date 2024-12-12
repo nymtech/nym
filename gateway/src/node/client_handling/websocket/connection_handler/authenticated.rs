@@ -333,14 +333,19 @@ impl<R, S> AuthenticatedHandler<R, S> {
 
     async fn handle_forget_me(
         &mut self,
-        _also_from_stats: bool,
+        client: bool,
+        stats: bool,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        self.inner()
-            .shared_state()
-            .storage()
-            .handle_forget_me(self.client.address)
-            .await?;
-        self.send_metrics(GatewaySessionEvent::new_session_delete(self.client.address));
+        if client {
+            self.inner()
+                .shared_state()
+                .storage()
+                .handle_forget_me(self.client.address)
+                .await?;
+        }
+        if stats {
+            self.send_metrics(GatewaySessionEvent::new_session_delete(self.client.address));
+        }
         Ok(SensitiveServerResponse::ForgetMeAck {}.encrypt(&self.client.shared_keys)?)
     }
 
@@ -387,9 +392,7 @@ impl<R, S> AuthenticatedHandler<R, S> {
                 hkdf_salt,
                 derived_key_digest,
             } => self.handle_key_upgrade(hkdf_salt, derived_key_digest).await,
-            ClientRequest::ForgetMe { also_from_stats } => {
-                self.handle_forget_me(also_from_stats).await
-            }
+            ClientRequest::ForgetMe { client, stats } => self.handle_forget_me(client, stats).await,
             _ => Err(RequestHandlingError::UnknownEncryptedTextRequest),
         }
     }

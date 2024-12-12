@@ -1,21 +1,20 @@
-import { Box } from "@mui/material";
-import type { BoxProps } from "@mui/system";
+import { Container, type SxProps } from "@mui/material";
 
-export type WrapperProps = BoxProps;
-
-export function Wrapper({ children, sx, ...props }: WrapperProps) {
+export function Wrapper({
+  children,
+  sx,
+}: {
+  children: React.ReactNode;
+  sx?: SxProps;
+}) {
   return (
-    <Box
+    <Container
+      maxWidth="xl"
       sx={{
-        mx: "auto",
-        maxWidth: "1378px",
-        width: "100%",
-        px: "30px",
         ...sx,
       }}
-      {...props}
     >
       {children}
-    </Box>
+    </Container>
   );
 }

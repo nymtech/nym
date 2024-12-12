@@ -21,7 +21,8 @@ pub enum ClientRequest {
         derived_key_digest: Vec<u8>,
     },
     ForgetMe {
-        also_from_stats: bool,
+        client: bool,
+        stats: bool,
     },
 }
 

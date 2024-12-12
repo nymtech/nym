@@ -145,7 +145,7 @@ where
     ) -> Result<(), GatewayClientError> {
         if let Some(shared_key) = self.gateway_client.shared_key() {
             self.gateway_client
-                .send_websocket_message(message.encrypt(shared_key.unwrap_legacy())?)
+                .send_websocket_message(message.encrypt(&*shared_key)?)
                 .await?;
             Ok(())
         } else {

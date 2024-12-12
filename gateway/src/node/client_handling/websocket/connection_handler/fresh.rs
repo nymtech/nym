@@ -114,6 +114,10 @@ pub(crate) struct FreshHandler<R, S> {
 }
 
 impl<R, S> FreshHandler<R, S> {
+    pub(crate) fn shared_state(&self) -> &CommonHandlerState {
+        &self.shared_state
+    }
+
     // for time being we assume handle is always constructed from raw socket.
     // if we decide we want to change it, that's not too difficult
     // also at this point I'm not entirely sure how to deal with this warning without

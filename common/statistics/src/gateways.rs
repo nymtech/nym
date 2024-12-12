@@ -58,6 +58,10 @@ pub enum GatewaySessionEvent {
         /// Address of the remote client opening the connection
         client: DestinationAddressBytes,
     },
+    SessionDelete {
+        /// Address of the remote client opening the connection
+        client: DestinationAddressBytes,
+    },
 }
 
 impl GatewaySessionEvent {
@@ -86,5 +90,9 @@ impl GatewaySessionEvent {
             ticket_type,
             client,
         }
+    }
+
+    pub fn new_session_delete(client: DestinationAddressBytes) -> GatewaySessionEvent {
+        GatewaySessionEvent::SessionDelete { client }
     }
 }

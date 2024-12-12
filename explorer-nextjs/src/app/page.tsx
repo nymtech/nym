@@ -1,16 +1,15 @@
-import CopyToClipboard from "@/components/copyToClipboard/CopyToClipboard";
-import Gateway from "@/components/icons/Gateway";
-import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 "use client";
 import {
   AccountStatsCard,
   type IAccountStatsCardProps,
 } from "@/components/cards/AccountStatsCard";
+import Gateway from "@/components/icons/Gateway";
 import { CurrentEpochCard } from "@/components/landingPageComponents/CurrentEpochCard";
 import { NetworkStakeCard } from "@/components/landingPageComponents/NetworkStakeCard";
 import { NoiseCard } from "@/components/landingPageComponents/NoiseCard";
 import { RewardsCard } from "@/components/landingPageComponents/RewardsCard";
 import { TokenomicsCard } from "@/components/landingPageComponents/TokenomicsCard";
+import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import TwoSidedSwitch from "@/components/twoSidedSwitchButton";
 import { Wrapper } from "@/components/wrapper";
 import { Box, Typography } from "@mui/material";
@@ -195,6 +194,22 @@ export default function Home() {
                     leftLabel="Account"
                     rightLabel="Mixnode"
                     // onSwitch={() => console.log("object :>> ")}
+                  />
+                </Grid>
+                <Grid>
+                  <ExplorerButtonGroup
+                    options={[
+                      {
+                        label: "Node",
+                        link: "/node",
+                        isSelected: true,
+                      },
+                      {
+                        label: "Account",
+                        link: "/account",
+                        isSelected: false,
+                      },
+                    ]}
                   />
                 </Grid>
                 <Grid size={{ xs: 12 }}>

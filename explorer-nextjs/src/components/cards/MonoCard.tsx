@@ -1,10 +1,9 @@
 "use client";
+import CopyToClipboard from "@/components/copyToClipboard/CopyToClipboard";
 import { colours } from "@/theme/colours";
 import ArrowDownwardIcon from "@mui/icons-material/ArrowDownward";
 import ArrowUpwardIcon from "@mui/icons-material/ArrowUpward";
-import StarIcon from "@mui/icons-material/Star";
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
-import { CopyToClipboard } from "@nymproject/react/clipboard/CopyToClipboard";
 import Image from "next/image";
 import { QRCodeCanvas } from "qrcode.react";
 import type React from "react";
@@ -172,12 +171,7 @@ const CardCopyAddress = (props: ICardCopyAddressProps) => {
           {address}
         </Typography>
 
-        <CopyToClipboard
-          sx={{ mr: 0.5, color: "grey.400" }}
-          smallIcons
-          value={address}
-          tooltip={`Copy identity key ${address} to clipboard`}
-        />
+        <CopyToClipboard text={`Copy identity key ${address} to clipboard`} />
       </Box>
     </Box>
   );
@@ -334,7 +328,11 @@ export const MonoCard: FC<ContentCardProps> = ({
           </Box>
         )}
         {title && (
-          <Typography variant="h3" mt={3} sx={{ color: "pine.950" }}>
+          <Typography
+            variant="h3"
+            mt={3}
+            sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
+          >
             {title}
           </Typography>
         )}

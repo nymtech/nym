@@ -206,8 +206,7 @@ For example `nym-node` on version `1.2.0` is on 1st major version, 2nd minor and
 
 ![](/images/operators/tokenomics/reward_version_graph.png)
 
-As you can see on above, the algorithm is designed to give maximum probability (`1`) to the latest version and exponentialy dicrease the probability to non-upgraded nodes where the more important version the node is behind, the faster the cliff. This eliminates any older nodes despite their saturation and performance to take place in the Rewarded set and gives a priority to the operators running up-to-date nodes, ensuring as strong network as possible.
-
+As you can see above, the algorithm is designed to give maximum selection score (`1`) to the latest version, while non-upgraded nodes receive a lower score. The score decreases faster when the node has failed to make a major version upgrade, and slower when the node is behind only with minor updates. This scoring de-prioritizes the selection of outdated nodes, even if their saturation and performance are high. Nodes are selected probabilistically in each epoch (60 min), according to their scores, to be part of the Rewarded set. This scoring mechanism gives priority to the operators running up-to-date nodes, ensuring that the network is as updated as possible.
 
 #### Performance Calculation
 
@@ -218,7 +217,7 @@ Good performance is much more essential than [stake saturation](../tokenomics.md
 For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them `config_score` = 1):
 
 <br />
-<AccordionTemplate name="✏️  Example: Reward set selection algorithm calculation">
+<AccordionTemplate name="✏️  Example: Performance ^ 20 \* stake saturation calculation">
 > node_1 = 1.00 ^ 20 \* 1.0 = 1 <br />
 > node_2 = 1.00 ^ 20 \* 0.5 = 0.5 <br />
 > node_3 = 0.99 ^ 20 \* 1.0 = 0.818 <br />
@@ -226,8 +225,9 @@ For a comparison we made an example with 5 nodes, where first number is node per
 > node_5 = 0.90 ^ 20 \* 1.0 = 0.122 <br />
 </AccordionTemplate>
 
-As you can see the performance (also known as *Routing score*) is much more important during the active set selection. A node with 100% performance but only 50% stake saturation has much bigger chance to be chosen than a node with 95% performance but full stake saturation and incomparably bigger chance than 90% performing node with 100% stake saturation.
+As you can see the performance (also known as *Routing score*) is much more important during the Rewarded set selection. A node with 100% performance but only 50% stake saturation has much bigger chance to be chosen than a node with 95% performance but full stake saturation and incomparably bigger chance than 90% performing node with 100% stake saturation.
 
+The nodes are chosen probababilistically in each epoch (60 min), so even nodes with lower performance will eventually be chosen, just much less often, as their chances decrease.
 
 ### Layer Distribution
 

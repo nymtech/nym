@@ -184,7 +184,12 @@ impl MixnetListener {
                     v2::response::AuthenticatorResponse::new_pending_registration_success(
                         v2::registration::RegistrationData {
                             nonce: registration_data.nonce,
-                            gateway_data: registration_data.gateway_data.clone().into(),
+                            gateway_data: v2::registration::GatewayClient::new(
+                                self.keypair().private_key(),
+                                remote_public.inner(),
+                                registration_data.gateway_data.private_ips.ipv4.into(),
+                                registration_data.nonce,
+                            ),
                             wg_port: registration_data.wg_port,
                         },
                         request_id,
@@ -199,7 +204,12 @@ impl MixnetListener {
                     v3::response::AuthenticatorResponse::new_pending_registration_success(
                         v3::registration::RegistrationData {
                             nonce: registration_data.nonce,
-                            gateway_data: registration_data.gateway_data.clone().into(),
+                            gateway_data: v3::registration::GatewayClient::new(
+                                self.keypair().private_key(),
+                                remote_public.inner(),
+                                registration_data.gateway_data.private_ips.ipv4.into(),
+                                registration_data.nonce,
+                            ),
                             wg_port: registration_data.wg_port,
                         },
                         request_id,

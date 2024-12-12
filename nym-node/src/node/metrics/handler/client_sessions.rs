@@ -73,6 +73,14 @@ impl GatewaySessionStatsHandler {
         Ok(())
     }
 
+    async fn handle_session_delete(
+        &mut self,
+        client: DestinationAddressBytes,
+    ) -> Result<(), StatsStorageError> {
+        self.storage.delete_active_session(client).await?;
+        Ok(())
+    }
+
     async fn handle_session_event(
         &mut self,
         event: GatewaySessionEvent,
@@ -90,6 +98,11 @@ impl GatewaySessionStatsHandler {
                 ticket_type,
                 client,
             } => self.handle_ecash_ticket(ticket_type, client).await,
+
+            // As long as delete is sent before stop, everything should work as expected
+            GatewaySessionEvent::SessionDelete { client } => {
+                self.handle_session_delete(client).await
+            }
         }
     }
 

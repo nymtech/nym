@@ -157,6 +157,10 @@ impl<R, S> Drop for AuthenticatedHandler<R, S> {
 }
 
 impl<R, S> AuthenticatedHandler<R, S> {
+    pub(crate) fn inner(&self) -> &FreshHandler<R, S> {
+        &self.inner
+    }
+
     /// Upgrades `FreshHandler` into the Authenticated variant implying the client is now authenticated
     /// and thus allowed to perform more actions with the gateway, such as redeeming bandwidth or
     /// sending sphinx packets.
@@ -331,7 +335,13 @@ impl<R, S> AuthenticatedHandler<R, S> {
         &mut self,
         _also_from_stats: bool,
     ) -> Result<ServerResponse, RequestHandlingError> {
-        unimplemented!()
+        self.inner()
+            .shared_state()
+            .storage()
+            .handle_forget_me(self.client.address)
+            .await?;
+        self.send_metrics(GatewaySessionEvent::new_session_delete(self.client.address));
+        Ok(SensitiveServerResponse::ForgetMeAck {}.encrypt(&self.client.shared_keys)?)
     }
 
     async fn handle_key_upgrade(

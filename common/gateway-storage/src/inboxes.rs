@@ -133,4 +133,17 @@ impl InboxManager {
             .await?;
         Ok(())
     }
+
+    pub(crate) async fn remove_messages_for_client(
+        &self,
+        client_address_bs58: &str,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            "DELETE FROM message_store WHERE client_address_bs58 = ?",
+            client_address_bs58
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
 }

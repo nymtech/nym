@@ -21,3 +21,9 @@ pub(crate) struct CommonHandlerState {
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) active_clients_store: ActiveClientsStore,
 }
+
+impl CommonHandlerState {
+    pub(crate) fn storage(&self) -> &GatewayStorage {
+        &self.storage
+    }
+}

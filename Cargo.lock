@@ -5991,7 +5991,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "anyhow",
  "async-trait",

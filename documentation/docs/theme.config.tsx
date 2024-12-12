@@ -1,14 +1,51 @@
 import React from "react";
-import { DocsThemeConfig } from "nextra-theme-docs";
+import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
 import { Footer } from "./components/footer";
 import { Matrix } from "./components/matrix-link";
 import { useRouter } from "next/router";
 
 const config: DocsThemeConfig = {
-  useNextSeoProps() {
-    return {
-      titleTemplate: "%s – Nym Docs",
-    };
+  head: function useHead() {
+    const config = useConfig()
+    const { route } = useRouter()
+    const isDefault = route === '/' || !config.title
+    const image = 'https://nymtech.net/nym_logo.jpg'
+
+    const description =
+      config.frontMatter.description ||
+      'Join the privacy ecosystem'
+    const title = config.title + (route === '/' ? '' : ' - Nym docs')
+
+    return (
+      <>
+        <title>{title}</title>
+        <meta property="og:title" content={title} />
+        <meta name="description" content={description} />
+        <meta property="og:description" content={description} />
+        <meta property="og:image" content={image} />
+
+        <meta name="msapplication-TileColor" content="#fff" />
+        <meta httpEquiv="Content-Language" content="en" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:site:domain" content="nym.com" />
+        <meta name="twitter:url" content={"https://nym.com/" + route} />
+        <meta name="apple-mobile-web-app-title" content="Nextra" />
+        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+        <link rel="icon" href="/favicon.png" type="image/png" />
+        <link
+          rel="icon"
+          href="/favicon-dark.svg"
+          type="image/svg+xml"
+          media="(prefers-color-scheme: dark)"
+        />
+        <link
+          rel="icon"
+          href="/favicon-dark.png"
+          type="image/png"
+          media="(prefers-color-scheme: dark)"
+        />
+      </>
+    )
   },
   logo: <span>Nym Docs</span>,
   project: {

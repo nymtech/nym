@@ -52,7 +52,7 @@ export const NetworkStakeCard = async () => {
   const title = `${formatBigNum(currentStake)} NYM`;
 
   return (
-    <ExplorerCard title="Current network stake" sx={{ height: "100%" }}>
+    <ExplorerCard label="Current network stake" sx={{ height: "100%" }}>
       <Stack>
         <Typography
           variant="h3"

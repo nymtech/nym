@@ -50,7 +50,7 @@ export const NoiseCard = async () => {
   });
 
   return (
-    <ExplorerCard title="Noise generated last 24h" sx={{ height: "100%" }}>
+    <ExplorerCard label="Noise generated last 24h" sx={{ height: "100%" }}>
       <Stack>
         <Typography
           variant="h3"

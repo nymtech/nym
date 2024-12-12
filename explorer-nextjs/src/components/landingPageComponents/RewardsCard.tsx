@@ -4,7 +4,7 @@ import ExplorerCard from "../cards/ExplorerCard";
 
 export const RewardsCard = () => {
   return (
-    <ExplorerCard title="Operator rewards this month">
+    <ExplorerCard label="Operator rewards this month">
       <Stack>
         <Typography
           variant="h3"

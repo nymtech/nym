@@ -79,10 +79,10 @@ export interface ExplorerCache {
   lastUpdated?: Date;
 }
 
-declare global {
-  // Extend the global object with our custom property
-  let explorerCache: ExplorerCache | undefined;
-}
+// declare global {
+//   // Extend the global object with our custom property
+//   let explorerCache: ExplorerCache | undefined;
+// }
 
 const CACHE_TIME_SECONDS = 60 * 5; // 5 minutes
 

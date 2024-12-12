@@ -1,9 +1,17 @@
-import { MonoCard } from "../cards/MonoCard";
+import { Stack, Typography } from "@mui/material";
+import ExplorerCard from "../cards/ExplorerCard";
 
 export const RewardsCard = () => {
-  const rewardsCard = {
-    overTitle: "Operator rewards this month",
-    title: "198.841720 NYM",
-  };
-  return <MonoCard {...rewardsCard} />;
+  return (
+    <ExplorerCard title="Operator rewards this month">
+      <Stack>
+        <Typography
+          variant="h3"
+          sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
+        >
+          {"198.841720 NYM"}
+        </Typography>
+      </Stack>
+    </ExplorerCard>
+  );
 };

@@ -14,41 +14,18 @@ import profileImagePlaceholder from "../../../public/profileImagePlaceholder.png
 import { NymTokenSVG } from "../icons/NymTokenSVG";
 import { type ILineChartData, LineChart } from "../lineChart";
 import {
+  type IUpDownPriceIndicatorProps,
+  UpDownPriceIndicator,
+} from "../price/UpDownPriceIndicator";
+import {
   DynamicProgressBar,
   type IDynamicProgressBarProps,
 } from "../progressBars/DynamicProgressBar";
 import { StarRating } from "../starRating";
 
-interface ICardUpDownPriceLineProps {
-  percentage: number;
-  numberWentUp: boolean;
-}
-const CardUpDownPriceLine = (
-  props: ICardUpDownPriceLineProps,
-): ReactElement => {
-  const { percentage, numberWentUp } = props;
-  return (
-    <Box display={"flex"} alignItems={"center"}>
-      {numberWentUp ? (
-        <ArrowUpwardIcon sx={{ color: colours.alert.success, fontSize: 12 }} />
-      ) : (
-        <ArrowDownwardIcon sx={{ color: colours.alert.error, fontSize: 12 }} />
-      )}
-      <Typography
-        variant="subtitle3"
-        sx={{
-          color: numberWentUp ? colours.alert.success : colours.alert.error,
-        }}
-      >
-        {percentage}% (24H)
-      </Typography>
-    </Box>
-  );
-};
-
 interface ICardTitlePriceProps {
   price: number;
-  upDownLine: ICardUpDownPriceLineProps;
+  upDownLine: IUpDownPriceIndicatorProps;
 }
 const CardTitlePrice = (props: ICardTitlePriceProps): React.ReactNode => {
   const { price, upDownLine } = props;
@@ -65,7 +42,7 @@ const CardTitlePrice = (props: ICardTitlePriceProps): React.ReactNode => {
           ${price}
         </Typography>
       </Box>
-      <CardUpDownPriceLine {...upDownLine} />
+      <UpDownPriceIndicator {...upDownLine} />
     </Box>
   );
 };
@@ -82,11 +59,10 @@ export const CardDataRows = (props: ICardDataRowsProps): React.ReactNode => {
         return (
           <Box
             key={row.key}
-            paddingTop={1}
-            paddingBottom={i < rows.length - 1 ? 1 : 0}
             display={"flex"}
             justifyContent={"space-between"}
             borderBottom={i < rows.length - 1 ? "1px solid #C3D7D7" : "none"}
+            sx={{ pt: 1, pb: i < rows.length - 1 ? 1 : 0 }}
           >
             <Typography variant="h6" sx={{ color: "pine.600" }}>
               {row.key}
@@ -269,7 +245,7 @@ export type ContentCardProps = {
   profileImage?: ICardProileImage;
   title?: string | number;
   profileCountry?: ICardProfileCountry;
-  upDownLine?: ICardUpDownPriceLineProps;
+  upDownLine?: IUpDownPriceIndicatorProps;
   titlePrice?: ICardTitlePriceProps;
   dataRows?: ICardDataRowsProps;
   graph?: { data: Array<ILineChartData>; color: string; label: string };
@@ -338,7 +314,7 @@ export const MonoCard: FC<ContentCardProps> = ({
         )}
         {upDownLine && (
           <Box>
-            <CardUpDownPriceLine {...upDownLine} />
+            <UpDownPriceIndicator {...upDownLine} />
           </Box>
         )}
         {profileCountry && (

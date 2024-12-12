@@ -1,9 +1,11 @@
 "use client";
 import type { ExplorerData, IPacketsAndStakingData } from "@/app/api";
 import { formatBigNum } from "@/app/utils/formatBigNumbers";
+import { Stack, Typography } from "@mui/material";
 import { useEffect, useState } from "react";
-import { MonoCard } from "../cards/MonoCard";
-import type { ILineChartData } from "../lineChart";
+import ExplorerCard from "../cards/ExplorerCard";
+import { type ILineChartData, LineChart } from "../lineChart";
+import { UpDownPriceIndicator } from "../price/UpDownPriceIndicator";
 
 interface INoiseCardProps {
   explorerData: ExplorerData | undefined;
@@ -75,5 +77,20 @@ export const NoiseCard = (props: INoiseCardProps) => {
     },
     graph: noiseLineGraphData,
   };
-  return <MonoCard {...noiseCard} />;
+  const subtitle = formatBigNum(noiseLast24H)?.toString() || "";
+  return (
+    <ExplorerCard title="Noise generated last 24h">
+      <Stack>
+        <Typography
+          variant="h3"
+          sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
+        >
+          {subtitle}
+        </Typography>
+      </Stack>
+      <UpDownPriceIndicator {...noiseCard.upDownLine} />
+      {noiseLineGraphData && <LineChart {...noiseLineGraphData} />}
+    </ExplorerCard>
+  );
+  // return <MonoCard {...noiseCard} />;
 };

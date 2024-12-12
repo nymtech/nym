@@ -21,7 +21,7 @@ const ExplorerCard = ({
   children,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   children: React.ReactNode;
 }) => {
   return (

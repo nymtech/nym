@@ -3,17 +3,22 @@ import {
   AccountStatsCard,
   type IAccountStatsCardProps,
 } from "@/components/cards/AccountStatsCard";
+import ExplorerCard from "@/components/cards/ExplorerCard";
 import ExplorerHeroCard from "@/components/cards/ExplorerHeroCard";
+import CopyFile from "@/components/icons/CopyFile";
 import Gateway from "@/components/icons/Gateway";
 import { CurrentEpochCard } from "@/components/landingPageComponents/CurrentEpochCard";
 import { NetworkStakeCard } from "@/components/landingPageComponents/NetworkStakeCard";
 import { NoiseCard } from "@/components/landingPageComponents/NoiseCard";
 import { RewardsCard } from "@/components/landingPageComponents/RewardsCard";
 import { TokenomicsCard } from "@/components/landingPageComponents/TokenomicsCard";
+import ExplorerListItem from "@/components/list/ListItem";
+import ProgressBar from "@/components/progressBar/ProgressBar";
+import { StarRating } from "@/components/starRating";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import TwoSidedSwitch from "@/components/twoSidedSwitchButton";
 import { Wrapper } from "@/components/wrapper";
-import { Box, Typography } from "@mui/material";
+import { Box, IconButton, Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import React, { useEffect, useState } from "react";
 import { type ContentCardProps, MonoCard } from "../components/cards/MonoCard";
@@ -183,8 +188,38 @@ export default function Home() {
               alignItems={"flex-start"}
               mb={2}
             >
-              <Grid size={{ xs: 12, md: 5 }}>
-                <MonoCard {...explorerCard} />
+              <Grid size={{ xs: 12, md: 6 }}>
+                <ExplorerCard title="Explorer Card" subtitle="Cryptosailors">
+                  <ExplorerListItem
+                    label="Identity Key"
+                    value="n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su"
+                    divider
+                  />
+                  <ExplorerListItem
+                    label="Nym Address"
+                    divider
+                    value={
+                      <Stack direction="row" gap={0.1} alignItems="center">
+                        <Typography variant="body4">
+                          n1w7tfthyfkhh3au3mqpy294p4dk65dzal2h04su
+                        </Typography>
+                        <IconButton size="small">
+                          <CopyFile />
+                        </IconButton>
+                      </Stack>
+                    }
+                  />
+                  <ExplorerListItem
+                    label="Star Rating"
+                    value={<StarRating value={3} />}
+                    divider
+                  />
+                  <ExplorerListItem
+                    label="Progress bar"
+                    value={<ProgressBar value={50} color="secondary" />}
+                    divider
+                  />
+                </ExplorerCard>
               </Grid>
               <Grid container size={{ xs: 12, md: 6 }}>
                 <Grid size={{ xs: 12 }}>
@@ -213,6 +248,9 @@ export default function Home() {
                 <Grid size={{ xs: 12 }}>
                   <AccountStatsCard {...accountStatsCard} />
                 </Grid>
+              </Grid>
+              <Grid size={{ xs: 12, md: 5 }}>
+                <MonoCard {...explorerCard} />
               </Grid>
             </Grid>
             <Grid container rowSpacing={3} columnSpacing={2} mb={2}>

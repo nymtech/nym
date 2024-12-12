@@ -21,7 +21,7 @@ const ExplorerListItem = ({
   label: string;
   value: string | React.ReactNode;
   row?: boolean;
-  divider: boolean;
+  divider?: boolean;
 }) => {
   return (
     <>

@@ -13,6 +13,7 @@ cosmwasm-std = { workspace = true }
 cosmwasm-schema = { workspace = true }
 cw-storage-plus = { workspace = true }
 schemars = { workspace = true }
+utoipa = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
@@ -24,3 +25,4 @@ vergen = { workspace = true, features = ["build", "git", "gitcl", "rustc", "carg
 
 [features]
 naive_float = []
+utoipa = ["dep:utoipa"]

@@ -21,31 +21,37 @@ pub type WorkFactor = Decimal;
 )]
 #[cw_serde]
 #[derive(Copy)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct IntervalRewardParams {
     /// Current value of the rewarding pool.
     /// It is expected to be constant throughout the interval.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub reward_pool: Decimal,
 
     /// Current value of the staking supply.
     /// It is expected to be constant throughout the interval.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub staking_supply: Decimal,
 
     /// Defines the percentage of stake needed to reach saturation for all of the nodes in the rewarded set.
     /// Also known as `beta`.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub staking_supply_scale_factor: Percent,
 
     // computed values
     /// Current value of the computed reward budget per epoch, per node.
     /// It is expected to be constant throughout the interval.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub epoch_reward_budget: Decimal,
 
     /// Current value of the stake saturation point.
     /// It is expected to be constant throughout the interval.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub stake_saturation_point: Decimal,
 
     // constants(-ish)
@@ -54,6 +60,7 @@ pub struct IntervalRewardParams {
     /// It is not really expected to be changing very often.
     /// As a matter of fact, unless there's a very specific reason, it should remain constant.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub sybil_resistance: Percent,
 
     // default: 10
@@ -61,6 +68,7 @@ pub struct IntervalRewardParams {
     /// It is not really expected to be changing very often.
     /// As a matter of fact, unless there's a very specific reason, it should remain constant.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub active_set_work_factor: Decimal,
 
     // default: 2%
@@ -70,6 +78,7 @@ pub struct IntervalRewardParams {
     /// It is not really expected to be changing very often.
     /// As a matter of fact, unless there's a very specific reason, it should remain constant.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub interval_pool_emission: Percent,
 }
 
@@ -90,6 +99,7 @@ impl IntervalRewardParams {
 )]
 #[cw_serde]
 #[derive(Copy)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct RewardingParams {
     /// Parameters that should remain unchanged throughout an interval.
     pub interval: IntervalRewardParams,
@@ -254,6 +264,7 @@ impl RewardingParams {
 )]
 #[cw_serde]
 #[derive(Copy)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct RewardedSetParams {
     /// The expected number of nodes assigned entry gateway role (i.e. [`Role::EntryGateway`])
     pub entry_gateways: u32,

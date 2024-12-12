@@ -7,13 +7,24 @@ use crate::helpers::{g1_tuple_to_bytes, recover_g1_tuple};
 use bls12_381::{G1Projective, Scalar};
 use serde::{Deserialize, Serialize};
 use subtle::Choice;
+use utoipa::ToSchema;
 
 pub type SignerIndex = u64;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct Signature {
+    #[schema(value_type = G1ProjectiveSchema)]
     pub(crate) h: G1Projective,
+    #[schema(value_type = G1ProjectiveSchema)]
     pub(crate) s: G1Projective,
+}
+
+#[derive(ToSchema)]
+#[schema(title = "G1Projective")]
+pub struct G1ProjectiveSchema {
+    pub x: [u64; 6],
+    pub y: [u64; 6],
+    pub z: [u64; 6],
 }
 
 pub type PartialSignature = Signature;
@@ -66,9 +77,11 @@ impl Signature {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct BlindedSignature {
+    #[schema(value_type = G1ProjectiveSchema)]
     pub(crate) h: G1Projective,
+    #[schema(value_type = G1ProjectiveSchema)]
     pub(crate) c: G1Projective,
 }
 

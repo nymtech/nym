@@ -373,7 +373,8 @@ async fn get_node_performance_history(
     path = "/uptime-history/{node_id}",
     context_path = "/v1/nym-nodes",
     responses(
-        (status = 200, body = PerformanceHistoryResponse)
+        (status = 200, body = PerformanceHistoryResponse),
+        (status = 400, body = ErrorResponse)
     ),
     params(PaginationRequest, NodeIdParam)
 )]

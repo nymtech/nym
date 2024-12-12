@@ -282,7 +282,7 @@ impl Client {
         }
     }
 
-    pub async fn create_delete_request<K, V>(
+    pub fn create_delete_request<K, V>(
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,

@@ -93,6 +93,7 @@ async fn make_client(topology: NymTopology) -> Result<MixnetClient> {
         .network_details(net)
         .custom_topology_provider(topology_provider)
         .debug_config(mixnet_debug_config(0))
+        .with_forget_me(true)
         // .enable_credentials_mode()
         .build()?;
 

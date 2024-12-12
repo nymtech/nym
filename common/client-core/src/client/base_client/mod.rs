@@ -191,6 +191,8 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
 
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+
+    forget_me: bool,
 }
 
 impl<'a, C, S> BaseClientBuilder<'a, C, S>
@@ -215,7 +217,14 @@ where
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
             connection_fd_callback: None,
+            forget_me: false,
         }
+    }
+
+    #[must_use]
+    pub fn with_forget_me(mut self, forget_me: bool) -> Self {
+        self.forget_me = forget_me;
+        self
     }
 
     #[must_use]
@@ -643,6 +652,21 @@ where
         mix_tx
     }
 
+    fn start_mix_traffic_controller_with_forget_me(
+        gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
+        shutdown: TaskClient,
+        forget_me: bool,
+    ) -> BatchMixMessageSender {
+        info!(
+            "Starting mix traffic controller with forget me: {}...",
+            forget_me
+        );
+        let (mix_traffic_controller, mix_tx) =
+            MixTrafficController::new_with_forget_me(gateway_transceiver, forget_me);
+        mix_traffic_controller.start_with_shutdown(shutdown);
+        mix_tx
+    }
+
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
     async fn setup_persistent_reply_storage(
         backend: S::ReplyStore,
@@ -820,10 +844,19 @@ where
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
-        let message_sender = Self::start_mix_traffic_controller(
-            gateway_transceiver,
-            shutdown.fork("mix_traffic_controller"),
-        );
+
+        let message_sender = if self.forget_me {
+            Self::start_mix_traffic_controller_with_forget_me(
+                gateway_transceiver,
+                shutdown.fork("mix_traffic_controller"),
+                self.forget_me,
+            )
+        } else {
+            Self::start_mix_traffic_controller(
+                gateway_transceiver,
+                shutdown.fork("mix_traffic_controller"),
+            )
+        };
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
         // controller that connections are closed.

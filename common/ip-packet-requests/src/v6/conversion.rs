@@ -67,3 +67,19 @@ impl From<v7::response::InfoLevel> for v6::response::InfoLevel {
         }
     }
 }
+
+impl From<v7::response::UnrequestedDisconnectReason> for v6::response::UnrequestedDisconnectReason {
+    fn from(reason: v7::response::UnrequestedDisconnectReason) -> Self {
+        match reason {
+            v7::response::UnrequestedDisconnectReason::ClientMixnetTrafficTimeout => {
+                v6::response::UnrequestedDisconnectReason::ClientMixnetTrafficTimeout
+            }
+            v7::response::UnrequestedDisconnectReason::ClientTunTrafficTimeout => {
+                v6::response::UnrequestedDisconnectReason::ClientTunTrafficTimeout
+            }
+            v7::response::UnrequestedDisconnectReason::Other(reason) => {
+                v6::response::UnrequestedDisconnectReason::Other(reason)
+            }
+        }
+    }
+}

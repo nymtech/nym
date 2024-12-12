@@ -58,7 +58,7 @@ const config: DocsThemeConfig = {
   },
   logo: <span>Nym Docs</span>,
   project: {
-    link: "ub.com/nymtech/nym",
+    link: "https://github.com/nymtech/nym",
   },
   docsRepositoryBase:
     "https://github.com/nymtech/nym/tree/develop/documentation/docs/",

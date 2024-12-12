@@ -19,13 +19,15 @@ const ExplorerCard = ({
   title,
   subtitle,
   children,
+  sx,
 }: {
   title: string;
   subtitle?: string;
   children: React.ReactNode;
+  sx?: SxProps;
 }) => {
   return (
-    <Card elevation={0} sx={cardStyles}>
+    <Card elevation={0} sx={{ ...cardStyles, ...sx }}>
       <CardHeader
         title={title}
         titleTypographyProps={cardTitleStyles}

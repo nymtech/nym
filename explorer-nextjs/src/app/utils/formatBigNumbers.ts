@@ -1,14 +1,15 @@
-export const formatBigNum = (num: number) => {
-  if (typeof num === "number") {
-    if (num >= 1000000000) {
-      return `${(num / 1000000000).toFixed(1).replace(/\.0$/, "")}B`;
-    }
-    if (num >= 1000000) {
-      return `${(num / 1000000).toFixed(1).replace(/\.0$/, "")}M`;
-    }
-    if (num >= 1000) {
-      return `${(num / 1000).toFixed(1).replace(/\.0$/, "")}K`;
-    }
-    return num;
-  }
+const defaultOptions: Intl.NumberFormatOptions = {
+  maximumFractionDigits: 2,
+  notation: "compact",
+  compactDisplay: "short",
+};
+
+const defaultLocale = "en-US";
+
+export const formatBigNum = (
+  num: number,
+  locale = defaultLocale,
+  opts = defaultOptions,
+) => {
+  return new Intl.NumberFormat(locale, opts || defaultOptions).format(num);
 };

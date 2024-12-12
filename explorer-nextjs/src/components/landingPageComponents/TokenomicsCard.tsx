@@ -1,8 +1,5 @@
-import type { ExplorerData, IPacketsAndStakingData } from "@/app/api";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Stack } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
-import { MonoCard } from "../cards/MonoCard";
-import { type ILineChartData, LineChart } from "../lineChart";
 import ExplorerListItem from "../list/ListItem";
 import { TitlePrice } from "../price/TitlePrice";
 
@@ -20,8 +17,8 @@ export const TokenomicsCard = () => {
   ];
 
   return (
-    <ExplorerCard title="Tokenomics overview">
-      <Stack>
+    <ExplorerCard title="Tokenomics overview" sx={{ height: "100%" }}>
+      <Stack gap={3} height="100%">
         <TitlePrice {...titlePrice} />
         <Box>
           {dataRows.map((row, i) => (

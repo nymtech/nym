@@ -1,3 +1,5 @@
+"use client";
+
 import { useTheme } from "@mui/material/styles";
 import * as React from "react";
 

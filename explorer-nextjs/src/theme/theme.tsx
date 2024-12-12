@@ -6,7 +6,7 @@ const lightMode = {
   mode: "light" as const,
   accent: colours.green[500],
   primary: colours.pine[950],
-  background: colours.haze[200],
+  background: colours.gray[200],
   medium: colours.haze[200],
   light: colours.base.white,
 };

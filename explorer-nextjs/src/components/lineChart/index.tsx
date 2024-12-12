@@ -67,13 +67,6 @@ export const LineChart = ({
       };
 
       lineData.data.push(axesGreenLineData);
-
-      // const axesPurpleLineData: IAxes = {
-      //   x: new Date(item.date_utc),
-      //   y: item.purpleLineNumericData,
-      // };
-
-      // purpleLineData.data.push(axesPurpleLineData);
     });
     return [{ ...lineData }];
   };
@@ -98,10 +91,11 @@ export const LineChart = ({
     <Box width={"100%"} height={isDesktop ? 200 : 150}>
       {chartData && (
         <NivoLineChart
-          curve="monotoneX"
+          curve="basis"
           colors={[color]}
           data={chartData}
           animate
+          enablePoints={false}
           enableSlices="x"
           margin={{
             bottom: 24,

@@ -1,3 +1,4 @@
+import { formatBigNum } from "@/app/utils/formatBigNumbers";
 import { Stack, Typography } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
 
@@ -9,7 +10,7 @@ export const RewardsCard = () => {
           variant="h3"
           sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
         >
-          {"198.841720 NYM"}
+          {`${formatBigNum(10_000_111)} NYM`}
         </Typography>
       </Stack>
     </ExplorerCard>

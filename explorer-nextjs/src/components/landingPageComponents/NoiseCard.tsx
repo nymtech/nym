@@ -1,39 +1,32 @@
-"use client";
-import type { ExplorerData, IPacketsAndStakingData } from "@/app/api";
+import type { IPacketsAndStakingData } from "@/app/api";
+import { HARBOURMASTER_API_MIXNODES_STATS } from "@/app/api/urls";
 import { formatBigNum } from "@/app/utils/formatBigNumbers";
 import { Stack, Typography } from "@mui/material";
-import { useEffect, useState } from "react";
 import ExplorerCard from "../cards/ExplorerCard";
-import { type ILineChartData, LineChart } from "../lineChart";
+import { LineChart } from "../lineChart";
 import { UpDownPriceIndicator } from "../price/UpDownPriceIndicator";
 
-interface INoiseCardProps {
-  explorerData: ExplorerData | undefined;
-}
-export const NoiseCard = (props: INoiseCardProps) => {
-  const { explorerData } = props;
-  const [noiseLineGraphData, setNoiseLineGraphData] = useState<{
-    color: string;
-    label: string;
-    data: ILineChartData[];
-  }>();
-  const noiseLast24H = explorerData
-    ? explorerData.packetsAndStakingData[
-        explorerData.packetsAndStakingData.length - 1
-      ].total_packets_sent +
-      explorerData.packetsAndStakingData[
-        explorerData.packetsAndStakingData.length - 1
-      ].total_packets_received
-    : 0;
+export const NoiseCard = async () => {
+  const response = await fetch(HARBOURMASTER_API_MIXNODES_STATS, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
 
-  const noisePrevious24H = explorerData
-    ? explorerData.packetsAndStakingData[
-        explorerData.packetsAndStakingData.length - 2
-      ].total_packets_sent +
-      explorerData.packetsAndStakingData[
-        explorerData.packetsAndStakingData.length - 2
-      ].total_packets_received
-    : 0;
+  const data: IPacketsAndStakingData[] = await response.json();
+
+  if (!data) {
+    return null;
+  }
+
+  const todaysData = data[data.length - 1];
+  const yesterdaysData = data[data.length - 2];
+
+  const noiseLast24H =
+    todaysData.total_packets_sent + todaysData.total_packets_received;
+  const noisePrevious24H =
+    yesterdaysData.total_packets_sent + yesterdaysData.total_packets_received;
 
   const calculatePercentageChange = (last24H: number, previous24H: number) => {
     if (previous24H === 0) {
@@ -47,49 +40,36 @@ export const NoiseCard = (props: INoiseCardProps) => {
 
   const percentage = calculatePercentageChange(noiseLast24H, noisePrevious24H);
 
-  useEffect(() => {
-    const getPacketsData = () => {
-      const data: Array<ILineChartData> = [];
-      explorerData?.packetsAndStakingData.map(
-        (item: IPacketsAndStakingData) => {
-          data.push({
-            date_utc: item.date_utc,
-            numericData: item.total_packets_sent + item.total_packets_received,
-          });
-        },
-      );
-      return data;
-    };
-    const noiseLineGraphData = {
-      color: "#8482FD",
-      label: "Total packets sent and received",
-      data: getPacketsData(),
-    };
-    setNoiseLineGraphData(noiseLineGraphData);
-  }, [explorerData]);
+  const noiseLast24HFormatted = formatBigNum(noiseLast24H)?.toString() || "";
 
-  const noiseCard = {
-    overTitle: "Noise generated last 24h",
-    title: formatBigNum(noiseLast24H) || "",
-    upDownLine: {
-      percentage: Math.abs(percentage) || 0,
-      numberWentUp: percentage > 0,
-    },
-    graph: noiseLineGraphData,
-  };
-  const subtitle = formatBigNum(noiseLast24H)?.toString() || "";
+  const noiseLineGraphData = data.map((item: IPacketsAndStakingData) => {
+    return {
+      date_utc: item.date_utc,
+      numericData: item.total_packets_sent + item.total_packets_received,
+    };
+  });
+
   return (
-    <ExplorerCard title="Noise generated last 24h">
+    <ExplorerCard title="Noise generated last 24h" sx={{ height: "100%" }}>
       <Stack>
         <Typography
           variant="h3"
           sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
         >
-          {subtitle}
+          {noiseLast24HFormatted}
         </Typography>
       </Stack>
-      <UpDownPriceIndicator {...noiseCard.upDownLine} />
-      {noiseLineGraphData && <LineChart {...noiseLineGraphData} />}
+      <UpDownPriceIndicator
+        percentage={Math.abs(percentage) || 0}
+        numberWentUp={percentage > 0}
+      />
+      {noiseLineGraphData && (
+        <LineChart
+          color="#8482FD"
+          label="Total packets sent and received"
+          data={noiseLineGraphData}
+        />
+      )}
     </ExplorerCard>
   );
   // return <MonoCard {...noiseCard} />;

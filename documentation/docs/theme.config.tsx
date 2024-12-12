@@ -39,20 +39,6 @@ const config: DocsThemeConfig = {
         <meta name="twitter:url" content={url + route} />
 
         <meta name="apple-mobile-web-app-title" content="Nym docs" />
-        <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-        <link rel="icon" href="/favicon.png" type="image/png" />
-        <link
-          rel="icon"
-          href="/favicon-dark.svg"
-          type="image/svg+xml"
-          media="(prefers-color-scheme: dark)"
-        />
-        <link
-          rel="icon"
-          href="/favicon-dark.png"
-          type="image/png"
-          media="(prefers-color-scheme: dark)"
-        />
       </>
     )
   },

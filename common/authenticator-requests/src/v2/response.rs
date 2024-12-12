@@ -100,28 +100,28 @@ impl AuthenticatorResponse {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum AuthenticatorResponseData {
     PendingRegistration(PendingRegistrationResponse),
     Registered(RegisteredResponse),
     RemainingBandwidth(RemainingBandwidthResponse),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PendingRegistrationResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
     pub reply: RegistrationData,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RegisteredResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
     pub reply: RegistredData,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RemainingBandwidthResponse {
     pub request_id: u64,
     pub reply_to: Recipient,

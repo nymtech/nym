@@ -8,6 +8,7 @@ pub mod v3;
 pub mod v4;
 
 mod error;
+mod util;
 
 pub use error::Error;
 pub use v4 as latest;

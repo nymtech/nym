@@ -29,7 +29,7 @@ pub type Taken = Option<SystemTime>;
 
 pub const BANDWIDTH_CAP_PER_DAY: u64 = 1024 * 1024 * 1024; // 1 GB
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct InitMessage {
     /// Base64 encoded x25519 public key
     pub pub_key: PeerPublicKey,
@@ -41,7 +41,7 @@ impl InitMessage {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct FinalMessage {
     /// Gateway client data
     pub gateway_client: GatewayClient,
@@ -50,28 +50,28 @@ pub struct FinalMessage {
     pub credential: Option<CredentialSpendingData>,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RegistrationData {
     pub nonce: u64,
     pub gateway_data: GatewayClient,
     pub wg_port: u16,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RegistredData {
     pub pub_key: PeerPublicKey,
     pub private_ip: IpAddr,
     pub wg_port: u16,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RemainingBandwidthData {
     pub available_bandwidth: i64,
 }
 
 /// Client that wants to register sends its PublicKey bytes mac digest encrypted with a DH shared secret.
 /// Gateway/Nym node can then verify pub_key payload using the same process
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GatewayClient {
     /// Base64 encoded x25519 public key
     pub pub_key: PeerPublicKey,
@@ -147,7 +147,7 @@ impl GatewayClient {
 
 // TODO: change the inner type into generic array of size HmacSha256::OutputSize
 // TODO2: rely on our internal crypto/hmac
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ClientMac(Vec<u8>);
 
 impl fmt::Display for ClientMac {

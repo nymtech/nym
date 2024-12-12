@@ -8,18 +8,19 @@ const config: DocsThemeConfig = {
   head: function useHead() {
     const config = useConfig()
     const { route } = useRouter()
-    const image = 'https://nymtech.net/nym_logo.jpg'
+    const url = process.env.NEXT_PUBLIC_SITE_URL
+    const image = url + '/nym_logo.jpg'
 
     const description =
       config.frontMatter.description ||
-      'Join the privacy ecosystem'
+      'Nym is a privacy platform. It provides strong network-level privacy against sophisticated end-to-end attackers, and anonymous access control using blinded, re-randomizable, decentralized credentials.'
     const title = config.title + (route === '/' ? '' : ' - Nym docs')
 
     return (
       <>
         <title>{title}</title>
         <meta name="author" content="Nym" />
-        <link rel="canonical" href={"https://nym.com/docs/" + route} />
+        <link rel="canonical" href={url + route} />
 
         <meta property="og:title" content={title} />
         <meta property="og:site_name" content="Nym docs"></meta>
@@ -27,14 +28,15 @@ const config: DocsThemeConfig = {
         <meta property="og:description" content={description} />
         <meta property="og:image" content={image} />
         <meta property="og:type" content="website" />
-        <meta property="og:url" content={"https://nym.com/docs/" + route}></meta>
+        <meta property="og:url" content={url + route}></meta>
 
         <meta property="twitter:title" content={title}></meta>
         <meta property="twitter:description" content={description}></meta>
         <meta name="twitter:card" content="summary_large_image" />
+        <meta property="twitter:image" content={image}></meta>
         <meta name="twitter:site" content="@nymproject" />
-        <meta name="twitter:site:domain" content="nym.com/docs/" />
-        <meta name="twitter:url" content={"https://nym.com/docs/" + route} />
+        <meta name="twitter:site:domain" content={url} />
+        <meta name="twitter:url" content={url + route} />
 
         <meta name="apple-mobile-web-app-title" content="Nym docs" />
         <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
@@ -56,7 +58,7 @@ const config: DocsThemeConfig = {
   },
   logo: <span>Nym Docs</span>,
   project: {
-    link: "https://github.com/nymtech/nym",
+    link: "ub.com/nymtech/nym",
   },
   docsRepositoryBase:
     "https://github.com/nymtech/nym/tree/develop/documentation/docs/",

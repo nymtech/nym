@@ -6,7 +6,7 @@ import { MonoCard } from "../cards/MonoCard";
 import type { ILineChartData } from "../lineChart";
 
 interface INoiseCardProps {
-  explorerData: ExplorerData;
+  explorerData: ExplorerData | undefined;
 }
 export const NoiseCard = (props: INoiseCardProps) => {
   const { explorerData } = props;
@@ -15,27 +15,27 @@ export const NoiseCard = (props: INoiseCardProps) => {
     label: string;
     data: ILineChartData[];
   }>();
-  const noiseLast24H =
-    explorerData.packetsAndStakingData[
-      explorerData.packetsAndStakingData.length - 1
-    ].total_packets_sent +
-    explorerData.packetsAndStakingData[
-      explorerData.packetsAndStakingData.length - 1
-    ].total_packets_received;
+  const noiseLast24H = explorerData
+    ? explorerData.packetsAndStakingData[
+        explorerData.packetsAndStakingData.length - 1
+      ].total_packets_sent +
+      explorerData.packetsAndStakingData[
+        explorerData.packetsAndStakingData.length - 1
+      ].total_packets_received
+    : 0;
 
-  const noisePrevious24H =
-    explorerData.packetsAndStakingData[
-      explorerData.packetsAndStakingData.length - 2
-    ].total_packets_sent +
-    explorerData.packetsAndStakingData[
-      explorerData.packetsAndStakingData.length - 2
-    ].total_packets_received;
+  const noisePrevious24H = explorerData
+    ? explorerData.packetsAndStakingData[
+        explorerData.packetsAndStakingData.length - 2
+      ].total_packets_sent +
+      explorerData.packetsAndStakingData[
+        explorerData.packetsAndStakingData.length - 2
+      ].total_packets_received
+    : 0;
 
   const calculatePercentageChange = (last24H: number, previous24H: number) => {
     if (previous24H === 0) {
-      throw new Error(
-        "Cannot calculate percentage change when yesterday's value is zero.",
-      );
+      return previous24H;
     }
 
     const change = ((last24H - previous24H) / previous24H) * 100;

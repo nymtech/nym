@@ -158,22 +158,18 @@ export default function Home() {
             </Typography>
             <Grid container rowSpacing={3} columnSpacing={2} mb={2}>
               <Grid size={{ xs: 12, md: 3 }}>
-                {explorerData && <NoiseCard explorerData={explorerData} />}
+                <NoiseCard explorerData={explorerData} />
               </Grid>
               <Grid container rowSpacing={3} size={{ xs: 12, md: 3 }}>
                 <Grid size={{ xs: 12 }}>
                   <RewardsCard />
                 </Grid>
                 <Grid size={{ xs: 12 }}>
-                  {explorerData && (
-                    <CurrentEpochCard explorerData={explorerData} />
-                  )}
+                  <CurrentEpochCard explorerData={explorerData} />
                 </Grid>
               </Grid>
               <Grid size={{ xs: 12, md: 3 }}>
-                {explorerData && (
-                  <NetworkStakeCard explorerData={explorerData} />
-                )}
+                <NetworkStakeCard explorerData={explorerData} />
               </Grid>
               <Grid size={{ xs: 12, md: 3 }}>
                 <TokenomicsCard />

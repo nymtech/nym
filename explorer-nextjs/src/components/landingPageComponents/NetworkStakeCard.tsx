@@ -6,7 +6,7 @@ import { MonoCard } from "../cards/MonoCard";
 import type { ILineChartData } from "../lineChart";
 
 interface INetworkStakeCardProps {
-  explorerData: ExplorerData | null;
+  explorerData: ExplorerData | undefined;
 }
 export const NetworkStakeCard = (props: INetworkStakeCardProps) => {
   const { explorerData } = props;

@@ -2,7 +2,7 @@ import type { ExplorerData } from "@/app/api";
 import { MonoCard } from "../cards/MonoCard";
 
 interface ICurrentEpochCardProps {
-  explorerData: ExplorerData | null;
+  explorerData: ExplorerData | undefined;
 }
 
 export const CurrentEpochCard = (props: ICurrentEpochCardProps) => {

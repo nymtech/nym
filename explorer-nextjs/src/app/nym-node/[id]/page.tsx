@@ -1,23 +1,22 @@
-import type NodeData from "@/app/api/types";
-import { NYM_NODES } from "@/app/api/urls";
+import type { IBondInfo, INodeDescription } from "@/app/api";
+import { NYM_NODE_BONDED, NYM_NODE_DESCRIPTION } from "@/app/api/urls";
+import ExplorerCard from "@/components/cards/ExplorerCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
+import ExplorerListItem from "@/components/list/ListItem";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
-import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
-import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
-import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
-import { QualityIndicatorsCard } from "@/components/nymNodePageComponents/QualityIndicatorsCard";
+import { StarRating } from "@/components/starRating";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Grid2 } from "@mui/material";
 
 export default async function NymNode({
   params,
 }: {
-  params: Promise<{ id: string; account?: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  const id = Number((await params).id);
+  const id = (await params).id;
 
-  const response = await fetch(NYM_NODES, {
+  const descriptionData = await fetch(NYM_NODE_DESCRIPTION, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -25,18 +24,37 @@ export default async function NymNode({
     next: { revalidate: 60 },
     // refresh event list cache at given interval
   });
+  const nymNodesDescription = await descriptionData.json();
 
-  const nymNodes: NodeData[] = await response.json();
-
-  if (!nymNodes) {
+  if (!nymNodesDescription) {
     return null;
   }
 
-  const nymNode = nymNodes.find((node) => node.node_id === id);
+  console.log("id :>> ", id);
 
-  if (!nymNode) {
+  const bondedData = await fetch(NYM_NODE_BONDED, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+    // refresh event list cache at given interval
+  });
+  const nymbondedData = await bondedData.json();
+
+  if (!bondedData) {
     return null;
   }
+
+  const nodeBondInfo = nymbondedData.data.filter(
+    (item: IBondInfo) => item.bond_information.node_id === 5,
+  );
+
+  const nodeDescriptionInfo = nymNodesDescription.data.filter(
+    (item: INodeDescription) => item.node_id === 5,
+  );
+
+  console.log("nodeDescriptionInfo :>> ", nodeDescriptionInfo);
 
   return (
     <ContentLayout>
@@ -67,16 +85,10 @@ export default async function NymNode({
             nodeDescription={nymNode.description}
           />
         </Grid2>
-        <Grid2
-          size={{
-            xs: 12,
-            md: 4,
-          }}
-        >
+        <Grid2 size={4}>
           <BasicInfoCard
-            bondInfo={nymNode.bond_information}
-            nodeDescription={nymNode.description}
-            rewardDetails={nymNode.rewarding_details}
+            bondInfo={nodeBondInfo[0]}
+            nodeDescription={nodeDescriptionInfo[0]}
           />
         </Grid2>
         <Grid2

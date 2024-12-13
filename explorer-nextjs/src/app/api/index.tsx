@@ -2,6 +2,8 @@
 import {
   CIRCULATING_NYM_SUPPLY,
   HARBOURMASTER_API_MIXNODES_STATS,
+  HARBOURMASTER_API_SUMMARY,
+  NYM_NODE_DESCRIPTION,
   NYM_NODES_DESCRIBED,
   NYM_NODE_DESCRIPTION,
 } from "./urls";
@@ -100,36 +102,21 @@ export interface IBondInfo {
     };
     owner: string;
   };
-  rewarding_details: {
-    cost_params: {
-      profit_margin_percent: string;
-      interval_operating_cost: {
-        denom: string;
-        amount: string;
-      };
-    };
-    delegates: string;
-    last_rewarded_epoch: number;
-    operator: string;
-    total_unit_reward: string;
-    unique_delegations: number;
-    unit_delegation: string;
-  };
 }
 
 export interface INodeDescription {
   contract_node_type: string;
   description: {
     authenticator: object;
+
     address: string;
-    auxiliary_details: {
-      location: string;
-      accepted_operator_terms_and_conditions: boolean;
-      announce_ports: {
-        verloc_port: number | null;
-        mix_port: number | null;
-      };
+    auxiliary_details: object;
+    accepted_operator_terms_and_conditions: boolean;
+    announce_ports: {
+      verloc_port: number | null;
+      mix_port: number | null;
     };
+    location: string;
     build_information: {
       binary_name: string;
       build_timestamp: string;

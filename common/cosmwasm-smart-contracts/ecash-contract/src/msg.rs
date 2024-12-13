@@ -1,4 +1,4 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
 use cosmwasm_schema::cw_serde;
@@ -7,7 +7,7 @@ use cosmwasm_std::Coin;
 #[cfg(feature = "schema")]
 use crate::blacklist::{BlacklistedAccountResponse, PagedBlacklistedAccountResponse};
 #[cfg(feature = "schema")]
-use crate::deposit::{DepositResponse, PagedDepositsResponse};
+use crate::deposit::{DepositResponse, LatestDepositResponse, PagedDepositsResponse};
 #[cfg(feature = "schema")]
 use cosmwasm_schema::QueryResponses;
 
@@ -72,6 +72,9 @@ pub enum QueryMsg {
 
     #[cfg_attr(feature = "schema", returns(DepositResponse))]
     GetDeposit { deposit_id: u32 },
+
+    #[cfg_attr(feature = "schema", returns(LatestDepositResponse))]
+    GetLatestDeposit {},
 
     #[cfg_attr(feature = "schema", returns(PagedDepositsResponse))]
     GetDepositsPaged {

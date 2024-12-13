@@ -1,9 +1,8 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::{
-    packet_statistics_control::{PacketStatisticsEvent, PacketStatisticsReporter},
-    replies::{reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys},
+use crate::client::replies::{
+    reply_controller::ReplyControllerSender, reply_storage::SentReplyKeys,
 };
 use crate::spawn_future;
 use futures::channel::mpsc;
@@ -20,6 +19,7 @@ use nym_sphinx::anonymous_replies::{encryption_key::EncryptionKeyDigest, SurbEnc
 use nym_sphinx::message::{NymMessage, PlainMessage};
 use nym_sphinx::params::ReplySurbKeyDigestAlgorithm;
 use nym_sphinx::receiver::{MessageReceiver, MessageRecoveryError, ReconstructedMessage};
+use nym_statistics_common::clients::{packet_statistics::PacketStatisticsEvent, ClientStatsSender};
 use std::collections::HashSet;
 use std::sync::Arc;
 
@@ -46,7 +46,7 @@ struct ReceivedMessagesBufferInner<R: MessageReceiver> {
     // and every now and then remove ids older than X
     recently_reconstructed: HashSet<i32>,
 
-    stats_tx: PacketStatisticsReporter,
+    stats_tx: ClientStatsSender,
 }
 
 impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
@@ -61,16 +61,12 @@ impl<R: MessageReceiver> ReceivedMessagesBufferInner<R> {
             // received and sent packets due to the sphinx layers being removed by the exit gateway
             // before it reaches the mixnet client.
             self.stats_tx
-                .report(PacketStatisticsEvent::CoverPacketReceived(
-                    fragment_data_size,
-                ));
+                .report(PacketStatisticsEvent::CoverPacketReceived(fragment_data_size).into());
             return None;
         }
 
         self.stats_tx
-            .report(PacketStatisticsEvent::RealPacketReceived(
-                fragment_data_size,
-            ));
+            .report(PacketStatisticsEvent::RealPacketReceived(fragment_data_size).into());
 
         let fragment = match self.message_receiver.recover_fragment(fragment_data) {
             Err(err) => {
@@ -163,7 +159,7 @@ impl<R: MessageReceiver> ReceivedMessagesBuffer<R> {
         local_encryption_keypair: Arc<encryption::KeyPair>,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
-        stats_tx: PacketStatisticsReporter,
+        stats_tx: ClientStatsSender,
     ) -> Self {
         ReceivedMessagesBuffer {
             inner: Arc::new(Mutex::new(ReceivedMessagesBufferInner {
@@ -504,13 +500,13 @@ impl<R: MessageReceiver + Clone + Send + 'static> ReceivedMessagesBufferControll
         mixnet_packet_receiver: MixnetMessageReceiver,
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
-        packet_statistics_reporter: PacketStatisticsReporter,
+        metrics_reporter: ClientStatsSender,
     ) -> Self {
         let received_buffer = ReceivedMessagesBuffer::new(
             local_encryption_keypair,
             reply_key_storage,
             reply_controller_sender,
-            packet_statistics_reporter,
+            metrics_reporter,
         );
 
         ReceivedMessagesBufferController {

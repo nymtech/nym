@@ -18,9 +18,9 @@ nym-sphinx-anonymous-replies = { path = "../../../common/nymsphinx/anonymous-rep
 nym-ffi-shared = { path = "../shared" }
 # Async runtime
 tokio = { version = "1", features = ["full"] }
-lazy_static = "1.4.0"
+lazy_static = "1.5.0"
 # error handling
-anyhow = "1.0.79"
+anyhow = "1.0.90"
 thiserror = "1.0.64"
 
 [build-dependencies]

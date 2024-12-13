@@ -8,9 +8,7 @@ use crate::helpers::{
     BlacklistKey, Config, MultisigReply, BLACKLIST_PAGE_DEFAULT_LIMIT, BLACKLIST_PAGE_MAX_LIMIT,
     CONTRACT_NAME, CONTRACT_VERSION, DEPOSITS_PAGE_DEFAULT_LIMIT, DEPOSITS_PAGE_MAX_LIMIT,
 };
-use cosmwasm_std::{
-    coin, BankMsg, Coin, Decimal, Event, Order, Reply, Response, StdResult, Uint128,
-};
+use cosmwasm_std::{coin, BankMsg, Coin, Event, Order, Reply, Response, StdResult};
 use cw4::Cw4Contract;
 use cw_controllers::Admin;
 use cw_storage_plus::{Bound, Item, Map};
@@ -19,7 +17,9 @@ use nym_ecash_contract_common::blacklist::{
     BlacklistedAccount, BlacklistedAccountResponse, Blacklisting, PagedBlacklistedAccountResponse,
 };
 use nym_ecash_contract_common::counters::PoolCounters;
-use nym_ecash_contract_common::deposit::{DepositData, DepositResponse, PagedDepositsResponse};
+use nym_ecash_contract_common::deposit::{
+    DepositData, DepositResponse, LatestDepositResponse, PagedDepositsResponse,
+};
 use nym_ecash_contract_common::events::{
     DEPOSITED_FUNDS_EVENT_TYPE, DEPOSIT_ID, PROPOSAL_ID_ATTRIBUTE_NAME,
 };
@@ -30,6 +30,7 @@ use sylvia::{contract, entry_points};
 
 mod helpers;
 
+mod queued_migrations;
 #[cfg(test)]
 mod test;
 
@@ -105,7 +106,6 @@ impl NymEcashContract<'_> {
             &Config {
                 group_addr,
                 holding_account,
-                redemption_gateway_share: Decimal::percent(5),
                 deposit_amount,
             },
         )?;
@@ -176,6 +176,25 @@ impl NymEcashContract<'_> {
         Ok(DepositResponse {
             id: deposit_id,
             deposit: self.deposits.try_load_by_id(ctx.deps.storage, deposit_id)?,
+        })
+    }
+
+    #[msg(query)]
+    pub fn get_latest_deposit(
+        &self,
+        ctx: QueryCtx,
+    ) -> Result<LatestDepositResponse, EcashContractError> {
+        let Some(latest_id) = self.deposits.latest_deposit(ctx.deps.storage)? else {
+            return Ok(LatestDepositResponse::default());
+        };
+
+        let maybe_deposit = self.deposits.try_load_by_id(ctx.deps.storage, latest_id)?;
+
+        Ok(LatestDepositResponse {
+            deposit: maybe_deposit.map(|deposit| DepositData {
+                id: latest_id,
+                deposit,
+            }),
         })
     }
 
@@ -283,30 +302,20 @@ impl NymEcashContract<'_> {
             .assert_admin(ctx.deps.as_ref(), &ctx.info.sender)?;
 
         let config = self.config.load(ctx.deps.storage)?;
-
-        // TODO: we need unit tests for this
-        let deposit_amount = config.deposit_amount.amount;
-        let ticketbook_size = Uint128::new(self.get_ticketbook_size(ctx.deps.storage)? as u128);
-        let tickets = Uint128::new(n as u128);
-
-        // how many tickets from a ticketbook you redeemed
-        let book_ratio = Decimal::from_ratio(tickets, ticketbook_size);
-
-        // return = ticketbook_price * (tickets / ticketbook_size)
-        let return_amount = book_ratio * deposit_amount;
+        let to_return = self.tickets_redemption_amount(ctx.deps.storage, &config, n)?;
+        if to_return.amount.is_zero() {
+            return Ok(Response::new());
+        }
 
         self.pool_counters
             .update(ctx.deps.storage, |mut counters| -> StdResult<_> {
-                counters.total_redeemed.amount += return_amount;
+                counters.total_redeemed.amount += to_return.amount;
                 Ok(counters)
             })?;
 
         Ok(Response::new().add_message(BankMsg::Send {
             to_address: config.holding_account.to_string(),
-            amount: vec![Coin {
-                denom: config.deposit_amount.denom,
-                amount: return_amount,
-            }],
+            amount: vec![to_return],
         }))
     }
 
@@ -446,6 +455,8 @@ impl NymEcashContract<'_> {
     pub fn migrate(&self, ctx: MigrateCtx) -> Result<Response, EcashContractError> {
         set_build_information!(ctx.deps.storage)?;
         cw2::ensure_from_older_version(ctx.deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+        queued_migrations::remove_redemption_gateway_share(ctx.deps)?;
 
         Ok(Response::new())
     }

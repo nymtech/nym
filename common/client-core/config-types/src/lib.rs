@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_config::defaults::NymNetworkDetails;
+use nym_config::serde_helpers::{de_maybe_stringified, ser_maybe_stringified};
 use nym_sphinx_addressing::Recipient;
 use nym_sphinx_params::{PacketSize, PacketType};
 use serde::{Deserialize, Serialize};
@@ -60,6 +61,11 @@ const DEFAULT_MAXIMUM_REPLY_SURB_AGE: Duration = Duration::from_secs(12 * 60 * 6
 
 // 24 hours
 const DEFAULT_MAXIMUM_REPLY_KEY_AGE: Duration = Duration::from_secs(24 * 60 * 60);
+
+// stats reporting related
+
+/// Time interval between reporting statistics to the given provider if it exist
+const STATS_REPORT_INTERVAL_SECS: Duration = Duration::from_secs(300);
 
 use crate::error::InvalidTrafficModeFailure;
 pub use nym_country_group::CountryGroup;
@@ -130,6 +136,12 @@ impl Config {
 
     pub fn with_packet_type(mut self, packet_type: PacketType) -> Self {
         self.debug.traffic.packet_type = packet_type;
+        self
+    }
+
+    pub fn with_enabled_stats_reporting_address(mut self, address: Recipient) -> Self {
+        self.debug.stats_reporting.provider_address = Some(address);
+        self.debug.stats_reporting.enabled = true; //since we are overriding the address, we assume the reporting should be enabled
         self
     }
 
@@ -642,6 +654,34 @@ impl Default for ReplySurbs {
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
 #[serde(default, deny_unknown_fields)]
+pub struct StatsReporting {
+    /// Is stats reporting enabled
+    pub enabled: bool,
+
+    /// Address of the stats collector. If this is none, no reporting will happen, regardless of `enabled`
+    #[serde(
+        serialize_with = "ser_maybe_stringified",
+        deserialize_with = "de_maybe_stringified"
+    )]
+    pub provider_address: Option<Recipient>,
+
+    /// With what frequence will statistics be sent
+    #[serde(with = "humantime_serde")]
+    pub reporting_interval: Duration,
+}
+
+impl Default for StatsReporting {
+    fn default() -> Self {
+        StatsReporting {
+            enabled: true,
+            provider_address: None,
+            reporting_interval: STATS_REPORT_INTERVAL_SECS,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
+#[serde(default, deny_unknown_fields)]
 pub struct DebugConfig {
     /// Defines all configuration options related to traffic streams.
     pub traffic: Traffic,
@@ -660,6 +700,9 @@ pub struct DebugConfig {
 
     /// Defines all configuration options related to reply SURBs.
     pub reply_surbs: ReplySurbs,
+
+    /// Defines all configuration options related to stats reporting.
+    pub stats_reporting: StatsReporting,
 }
 
 impl DebugConfig {
@@ -681,6 +724,7 @@ impl Default for DebugConfig {
             acknowledgements: Default::default(),
             topology: Default::default(),
             reply_surbs: Default::default(),
+            stats_reporting: Default::default(),
         }
     }
 }

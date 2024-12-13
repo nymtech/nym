@@ -13,7 +13,7 @@
 //    and hence this might be a good place for it.
 
 use crate::node_describe_cache::DescribedNodes;
-use crate::node_status_api::ONE_DAY;
+use crate::node_status_api::{NodeStatusCache, ONE_DAY};
 use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
 use crate::support::nyxd::Client;
@@ -40,6 +40,7 @@ pub struct EpochAdvancer {
     nyxd_client: Client,
     nym_contract_cache: NymContractCache,
     described_cache: SharedCache<DescribedNodes>,
+    status_cache: NodeStatusCache,
     storage: NymApiStorage,
 }
 
@@ -53,6 +54,7 @@ impl EpochAdvancer {
     pub(crate) fn new(
         nyxd_client: Client,
         nym_contract_cache: NymContractCache,
+        status_cache: NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: NymApiStorage,
     ) -> Self {
@@ -60,6 +62,7 @@ impl EpochAdvancer {
             nyxd_client,
             nym_contract_cache,
             described_cache,
+            status_cache,
             storage,
         }
     }
@@ -97,7 +100,7 @@ impl EpochAdvancer {
     // /// 7. it purges old (older than 48h) measurement data
     // /// 8. the whole process repeats once the new epoch finishes
     async fn perform_epoch_operations(&mut self, interval: Interval) -> Result<(), RewardingError> {
-        let mut rewards = self.nodes_to_reward(interval).await?;
+        let mut rewards = self.nodes_to_reward().await?;
         rewards.sort_by_key(|a| a.node_id);
 
         info!("The current epoch has finished.");
@@ -117,23 +120,21 @@ impl EpochAdvancer {
 
         let epoch_end = interval.current_epoch_end();
 
-        let legacy_mixnodes = self.nym_contract_cache.legacy_mixnodes_filtered().await;
-        let legacy_gateways = self.nym_contract_cache.legacy_gateways_filtered().await;
-
-        // TODO: for the purposes of rewarding, this might have to grab some pre-filtered nodes instead,
-        // such as ones that use up to date version or have correct 'peanut' score
         let nym_nodes = self.nym_contract_cache.nym_nodes().await;
 
-        if legacy_mixnodes.is_empty() && legacy_gateways.is_empty() && nym_nodes.is_empty() {
+        if nym_nodes.is_empty() {
             // that's a bit weird, but ok
             warn!("there don't seem to be any nodes on the network!")
         }
 
         let epoch_status = self.nyxd_client.get_current_epoch_status().await?;
         if !epoch_status.is_in_progress() {
-            if epoch_status.being_advanced_by.as_str()
-                != self.nyxd_client.client_address().await.as_ref()
-            {
+            // SAFETY: before `EpochAdvancer` is started, `ensure_rewarding_permission` is called
+            // which is not allowed to progress if this instance is not using a signing client
+            #[allow(clippy::unwrap_used)]
+            let address = self.nyxd_client.client_address().await.unwrap();
+
+            if epoch_status.being_advanced_by.as_str() != address.as_ref() {
                 // another nym-api is already handling
                 error!("another nym-api ({}) is already advancing the epoch... but we shouldn't have other nym-apis yet!", epoch_status.being_advanced_by);
                 return Ok(());
@@ -154,13 +155,8 @@ impl EpochAdvancer {
         // note: those operations don't really have to be atomic, so it's fine to send them
         // as separate transactions
         self.reconcile_epoch_events().await?;
-        self.update_rewarded_set_and_advance_epoch(
-            interval,
-            &legacy_mixnodes,
-            &legacy_gateways,
-            &nym_nodes,
-        )
-        .await?;
+        self.update_rewarded_set_and_advance_epoch(&nym_nodes)
+            .await?;
 
         info!("Purging old node statuses from the storage...");
         let cutoff = (epoch_end - 2 * ONE_DAY).unix_timestamp();
@@ -298,6 +294,7 @@ impl EpochAdvancer {
     pub(crate) fn start(
         nyxd_client: Client,
         nym_contract_cache: &NymContractCache,
+        status_cache: &NodeStatusCache,
         described_cache: SharedCache<DescribedNodes>,
         storage: &NymApiStorage,
         shutdown: &TaskManager,
@@ -305,6 +302,7 @@ impl EpochAdvancer {
         let mut rewarded_set_updater = EpochAdvancer::new(
             nyxd_client,
             nym_contract_cache.to_owned(),
+            status_cache.to_owned(),
             described_cache,
             storage.to_owned(),
         );
@@ -318,8 +316,10 @@ impl EpochAdvancer {
 pub(crate) async fn ensure_rewarding_permission(
     nyxd_client: &Client,
 ) -> Result<(), RewardingError> {
+    let Some(our_address) = nyxd_client.client_address().await else {
+        return Err(RewardingError::ChainSignerNotEnabled);
+    };
     let allowed_address = nyxd_client.get_rewarding_validator_address().await?;
-    let our_address = nyxd_client.client_address().await;
     if allowed_address != our_address {
         Err(RewardingError::Unauthorised {
             our_address,

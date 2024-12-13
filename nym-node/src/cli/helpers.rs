@@ -265,14 +265,6 @@ pub(crate) struct WireguardArgs {
     )]
     pub(crate) wireguard_bind_address: Option<SocketAddr>,
 
-    /// Private IP address of the wireguard gateway.
-    /// default: `10.1.0.1`
-    #[clap(
-        long,
-        env = NYMNODE_WG_IP_ARG,
-    )]
-    pub(crate) wireguard_private_ip: Option<IpAddr>,
-
     /// Port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
     #[clap(
@@ -312,12 +304,8 @@ impl WireguardArgs {
             section.announced_port = announced_port
         }
 
-        if let Some(private_ip) = self.wireguard_private_ip {
-            section.private_ip = private_ip
-        }
-
         if let Some(private_network_prefix) = self.wireguard_private_network_prefix {
-            section.private_network_prefix = private_network_prefix
+            section.private_network_prefix_v4 = private_network_prefix
         }
 
         section

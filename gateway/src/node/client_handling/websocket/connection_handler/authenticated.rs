@@ -26,7 +26,7 @@ use nym_gateway_requests::{
 };
 use nym_gateway_storage::{error::StorageError, Storage};
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_statistics_common::events;
+use nym_statistics_common::gateways;
 use nym_task::TaskClient;
 use nym_validator_client::coconut::EcashApiError;
 use rand::{random, CryptoRng, Rng};
@@ -259,11 +259,9 @@ where
         trace!("available total bandwidth: {available_total}");
 
         if let Ok(ticket_type) = maybe_ticket_type {
-            if let Err(e) = self.inner.shared_state.stats_event_sender.unbounded_send(
-                events::StatsEvent::new_ecash_ticket(self.client.address, ticket_type),
-            ) {
-                warn!("Failed to send session stop event to collector : {e}")
-            };
+            self.inner.shared_state.stats_event_reporter.report(
+                gateways::GatewayStatsEvent::new_ecash_ticket(self.client.address, ticket_type),
+            );
         } else {
             error!("Somehow verified a ticket with an unknown ticket type");
         }
@@ -555,7 +553,7 @@ where
         while !shutdown.is_shutdown() {
             tokio::select! {
                 _ = shutdown.recv() => {
-                    log::trace!("client_handling::AuthenticatedHandler: received shutdown");
+                    trace!("client_handling::AuthenticatedHandler: received shutdown");
                 },
                 // Received a request to ping the client to check if it's still active
                 tx = self.is_active_request_receiver.next() => {

@@ -7,7 +7,8 @@ use async_trait::async_trait;
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    VerifyEcashTicketBody,
+    IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
+    IssuedTicketbooksForResponse, VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
@@ -18,25 +19,22 @@ use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
 use nym_api_requests::pagination::PaginatedResponse;
 pub use nym_api_requests::{
     ecash::{
-        models::{
-            EpochCredentialsResponse, IssuedCredentialResponse, IssuedCredentialsResponse,
-            IssuedTicketbook, IssuedTicketbookBody, SpentCredentialsResponse,
-        },
-        BlindSignRequestBody, BlindedSignatureResponse, CredentialsRequestBody,
+        models::SpentCredentialsResponse, BlindSignRequestBody, BlindedSignatureResponse,
         PartialCoinIndicesSignatureResponse, PartialExpirationDateSignatureResponse,
         VerifyEcashCredentialBody,
     },
     models::{
         ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
-        GatewayStatusReportResponse, GatewayUptimeHistoryResponse, InclusionProbabilityResponse,
-        LegacyDescribedGateway, MixNodeBondAnnotated, MixnodeCoreStatusResponse,
-        MixnodeStatusReportResponse, MixnodeStatusResponse, MixnodeUptimeHistoryResponse,
-        RewardEstimationResponse, StakeSaturationResponse, UptimeResponse,
+        GatewayStatusReportResponse, GatewayUptimeHistoryResponse, LegacyDescribedGateway,
+        MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatusReportResponse,
+        MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
+        StakeSaturationResponse, UptimeResponse,
     },
     nym_nodes::{CachedNodesResponse, SkimmedNode},
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_contracts_common::IdentityKey;
+use nym_ecash_contract_common::deposit::DepositId;
 pub use nym_http_api_client::Client;
 use nym_http_api_client::{ApiClient, NO_PARAMS};
 use nym_mixnet_contract_common::mixnode::MixNodeDetails;
@@ -98,6 +96,23 @@ pub trait NymApiClientExt: ApiClient {
                 routes::STATUS,
                 routes::GATEWAYS,
                 routes::DETAILED,
+            ],
+            NO_PARAMS,
+        )
+        .await
+    }
+
+    #[deprecated]
+    #[instrument(level = "debug", skip(self))]
+    async fn get_gateways_detailed_unfiltered(
+        &self,
+    ) -> Result<Vec<GatewayBondAnnotated>, NymAPIError> {
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::STATUS,
+                routes::GATEWAYS,
+                routes::DETAILED_UNFILTERED,
             ],
             NO_PARAMS,
         )
@@ -190,16 +205,7 @@ pub trait NymApiClientExt: ApiClient {
 
     #[deprecated]
     #[tracing::instrument(level = "debug", skip_all)]
-    async fn get_basic_mixnodes(
-        &self,
-        semver_compatibility: Option<String>,
-    ) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
-        let params = if let Some(semver_compatibility) = &semver_compatibility {
-            vec![("semver_compatibility", semver_compatibility.as_str())]
-        } else {
-            vec![]
-        };
-
+    async fn get_basic_mixnodes(&self) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
@@ -208,23 +214,14 @@ pub trait NymApiClientExt: ApiClient {
                 "mixnodes",
                 "skimmed",
             ],
-            &params,
+            NO_PARAMS,
         )
         .await
     }
 
     #[deprecated]
     #[instrument(level = "debug", skip(self))]
-    async fn get_basic_gateways(
-        &self,
-        semver_compatibility: Option<String>,
-    ) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
-        let params = if let Some(semver_compatibility) = &semver_compatibility {
-            vec![("semver_compatibility", semver_compatibility.as_str())]
-        } else {
-            vec![]
-        };
-
+    async fn get_basic_gateways(&self) -> Result<CachedNodesResponse<SkimmedNode>, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
@@ -233,7 +230,7 @@ pub trait NymApiClientExt: ApiClient {
                 "gateways",
                 "skimmed",
             ],
-            &params,
+            NO_PARAMS,
         )
         .await
     }
@@ -243,16 +240,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_entry_assigned_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -285,16 +277,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_active_mixing_assigned_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -327,16 +314,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_basic_mixing_capable_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -363,20 +345,15 @@ pub trait NymApiClientExt: ApiClient {
         )
         .await
     }
-    #[instrument(level = "debug", skip(self))]
 
+    #[instrument(level = "debug", skip(self))]
     async fn get_basic_nodes(
         &self,
-        semver_compatibility: Option<String>,
         no_legacy: bool,
         page: Option<u32>,
         per_page: Option<u32>,
     ) -> Result<PaginatedCachedNodesResponse<SkimmedNode>, NymAPIError> {
         let mut params = Vec::new();
-
-        if let Some(arg) = &semver_compatibility {
-            params.push(("semver_compatibility", arg.clone()))
-        }
 
         if no_legacy {
             params.push(("no_legacy", "true".to_string()))
@@ -673,11 +650,12 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[deprecated]
+    #[allow(deprecated)]
     #[instrument(level = "debug", skip(self))]
     async fn get_mixnode_inclusion_probability(
         &self,
         mix_id: NodeId,
-    ) -> Result<InclusionProbabilityResponse, NymAPIError> {
+    ) -> Result<nym_api_requests::models::InclusionProbabilityResponse, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
@@ -927,7 +905,7 @@ pub trait NymApiClientExt: ApiClient {
             &[
                 routes::API_VERSION,
                 routes::ECASH_ROUTES,
-                routes::ecash::MASTER_VERIFICATION_KEY,
+                ecash::MASTER_VERIFICATION_KEY,
             ],
             &params,
         )
@@ -946,55 +924,37 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    #[instrument(level = "debug", skip(self))]
-    async fn epoch_credentials(
+    async fn issued_ticketbooks_for(
         &self,
-        dkg_epoch: EpochId,
-    ) -> Result<EpochCredentialsResponse, NymAPIError> {
+        expiration_date: Date,
+    ) -> Result<IssuedTicketbooksForResponse, NymAPIError> {
         self.get_json(
             &[
                 routes::API_VERSION,
                 routes::ECASH_ROUTES,
-                routes::ECASH_EPOCH_CREDENTIALS,
-                &dkg_epoch.to_string(),
+                routes::ECASH_ISSUED_TICKETBOOKS_FOR,
+                &expiration_date.to_string(),
             ],
             NO_PARAMS,
         )
         .await
     }
 
-    #[instrument(level = "debug", skip(self))]
-    async fn issued_credential(
+    async fn issued_ticketbooks_challenge(
         &self,
-        credential_id: i64,
-    ) -> Result<IssuedCredentialResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::API_VERSION,
-                routes::ECASH_ROUTES,
-                routes::ECASH_ISSUED_CREDENTIAL,
-                &credential_id.to_string(),
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
-    #[instrument(level = "debug", skip(self))]
-    async fn issued_credentials(
-        &self,
-        credential_ids: Vec<i64>,
-    ) -> Result<IssuedCredentialsResponse, NymAPIError> {
+        expiration_date: Date,
+        deposits: Vec<DepositId>,
+    ) -> Result<IssuedTicketbooksChallengeResponse, NymAPIError> {
         self.post_json(
             &[
                 routes::API_VERSION,
                 routes::ECASH_ROUTES,
-                routes::ECASH_ISSUED_CREDENTIALS,
+                routes::ECASH_ISSUED_TICKETBOOKS_CHALLENGE,
             ],
             NO_PARAMS,
-            &CredentialsRequestBody {
-                credential_ids,
-                pagination: None,
+            &IssuedTicketbooksChallengeRequest {
+                expiration_date,
+                deposits,
             },
         )
         .await

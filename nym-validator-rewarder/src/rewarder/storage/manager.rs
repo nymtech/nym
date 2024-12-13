@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::rewarder::epoch::Epoch;
-use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
+use time::{Date, OffsetDateTime};
 
 #[derive(Clone)]
 pub(crate) struct StorageManager {
@@ -10,11 +10,13 @@ pub(crate) struct StorageManager {
 }
 
 impl StorageManager {
-    pub(crate) async fn load_last_rewarding_epoch(&self) -> Result<Option<Epoch>, sqlx::Error> {
+    pub(crate) async fn load_last_block_signing_rewarding_epoch(
+        &self,
+    ) -> Result<Option<Epoch>, sqlx::Error> {
         sqlx::query_as(
             r#"
                     SELECT id, start_time, end_time
-                    FROM rewarding_epoch
+                    FROM block_signing_rewarding_epoch
                     ORDER BY id DESC
                     LIMIT 1
                 "#,
@@ -23,54 +25,159 @@ impl StorageManager {
         .await
     }
 
-    pub(crate) async fn insert_rewarding_epoch(
+    pub(crate) async fn load_last_ticketbook_issuance_expiration_date(
+        &self,
+    ) -> Result<Option<Date>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"
+                SELECT expiration_date as "expiration_date: Date"
+                FROM ticketbook_issuance_epoch
+                ORDER BY expiration_date DESC
+                LIMIT 1
+            "#,
+        )
+        .fetch_optional(&self.connection_pool)
+        .await?
+        .map(|record| record.expiration_date))
+    }
+
+    pub(crate) async fn load_banned_ticketbook_issuers(&self) -> Result<Vec<String>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"
+                SELECT operator_account
+                FROM banned_ticketbook_issuer
+            "#,
+        )
+        .fetch_all(&self.connection_pool)
+        .await?
+        .into_iter()
+        .map(|record| record.operator_account)
+        .collect())
+    }
+
+    pub(crate) async fn insert_block_signing_rewarding_epoch(
         &self,
         epoch: Epoch,
-        rewarding_budget: String,
-        total_spent: String,
-        rewarding_tx: Option<String>,
-        rewarding_error: Option<String>,
+        block_signing_budget: String,
+        disabled: bool,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO rewarding_epoch (id, start_time, end_time, budget, spent, rewarding_tx, rewarding_error)
-                VALUES (?, ?, ? ,?, ?, ?, ?)
+                INSERT INTO block_signing_rewarding_epoch (id, start_time, end_time, budget, disabled)
+                VALUES (?, ?, ?, ?, ?)
             "#,
             epoch.id,
             epoch.start_time,
             epoch.end_time,
-            rewarding_budget,
-            total_spent: String,
-            rewarding_tx,
-            rewarding_error
+            block_signing_budget,
+            disabled
         ).execute(&self.connection_pool).await?;
 
         Ok(())
     }
 
-    pub(crate) async fn insert_rewarding_epoch_block_signing(
+    pub(crate) async fn insert_ticketbook_issuance_epoch(
         &self,
-        epoch: i64,
-        total_voting_power_at_epoch_start: i64,
-        num_blocks: i64,
-        budget: String,
+        expiration_date: Date,
+        total_budget: String,
+        whitelist_size: u32,
+        budget_per_operator: String,
+        disabled: bool,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO epoch_block_signing (rewarding_epoch_id, total_voting_power_at_epoch_start, num_blocks, budget)
-                VALUES (?, ?, ?, ?)
+                INSERT INTO ticketbook_issuance_epoch(
+                    expiration_date,
+                    total_budget,
+                    whitelist_size,
+                    budget_per_operator,
+                    disabled
+                ) VALUES (?, ?, ?, ?, ?)
             "#,
-            epoch,
-            total_voting_power_at_epoch_start,
-            num_blocks,
-            budget,
-        ).execute(&self.connection_pool).await?;
+            expiration_date,
+            total_budget,
+            whitelist_size,
+            budget_per_operator,
+            disabled
+        )
+        .execute(&self.connection_pool)
+        .await?;
 
         Ok(())
     }
 
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn insert_rewarding_epoch_block_signing_reward(
+    pub(crate) async fn insert_block_signing_rewarding_details(
+        &self,
+        epoch: i64,
+        total_voting_power_at_epoch_start: i64,
+        num_blocks: i64,
+        total_spent: String,
+        rewarding_tx: Option<String>,
+        rewarding_error: Option<String>,
+        monitor_only: bool,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO block_signing_rewarding_details(
+                    rewarding_epoch_id,
+                    total_voting_power_at_epoch_start,
+                    num_blocks,
+                    spent,
+                    rewarding_tx,
+                    rewarding_error,
+                    monitor_only
+               ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            "#,
+            epoch,
+            total_voting_power_at_epoch_start,
+            num_blocks,
+            total_spent,
+            rewarding_tx,
+            rewarding_error,
+            monitor_only
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn insert_ticketbook_issuance_rewarding_details(
+        &self,
+        ticketbook_expiration_date: Date,
+        approximate_deposits: i64,
+        total_spent: String,
+        rewarding_tx: Option<String>,
+        rewarding_error: Option<String>,
+        monitor_only: bool,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO ticketbook_issuance_rewarding_details(
+                    ticketbook_expiration_date,
+                    approximate_deposits,
+                    spent,
+                    rewarding_tx,
+                    rewarding_error,
+                    monitor_only
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            "#,
+            ticketbook_expiration_date,
+            approximate_deposits,
+            total_spent,
+            rewarding_tx,
+            rewarding_error,
+            monitor_only
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) async fn insert_block_signing_reward(
         &self,
         epoch: i64,
         consensus_address: String,
@@ -112,209 +219,82 @@ impl StorageManager {
         Ok(())
     }
 
-    pub(crate) async fn insert_rewarding_epoch_credential_issuance(
-        &self,
-        epoch: i64,
-        starting_dkg_epoch: i64,
-        ending_dkg_epoch: i64,
-        total_issued_partial_credentials: i64,
-        budget: String,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO epoch_credential_issuance (
-                    rewarding_epoch_id,
-                    starting_dkg_epoch, 
-                    ending_dkg_epoch, 
-                    total_issued_partial_credentials,
-                    budget
-                )
-                VALUES (?, ?, ?, ?, ?)
-            "#,
-            epoch,
-            starting_dkg_epoch,
-            ending_dkg_epoch,
-            total_issued_partial_credentials,
-            budget,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-
-        Ok(())
-    }
-
     #[allow(clippy::too_many_arguments)]
-    pub(crate) async fn insert_rewarding_epoch_credential_issuance_reward(
+    pub(crate) async fn insert_ticketbook_issuance_reward(
         &self,
-        epoch: i64,
+        ticketbook_expiration_date: Date,
+        api_endpoint: String,
         operator_account: String,
         whitelisted: bool,
+        banned: bool,
         amount: String,
-        api_endpoint: String,
-        issued_partial_credentials: u32,
-        issued_credentials_share: String,
-        validated_issued_credentials: u32,
+        issued_partial_ticketbooks: u32,
+        share_of_issued_ticketbooks: f32,
+        skipped_verification: bool,
+        subsample_size: u32,
     ) -> Result<(), sqlx::Error> {
         sqlx::query!(
             r#"
-                INSERT INTO credential_issuance_reward (
-                    rewarding_epoch_id,
+                INSERT INTO ticketbook_issuance_reward(
+                    ticketbook_expiration_date,
+                    api_endpoint,
                     operator_account,
                     whitelisted,
+                    banned,
                     amount,
-                    api_endpoint,
-                    issued_partial_credentials,
-                    issued_credentials_share,
-                    validated_issued_credentials
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    issued_partial_ticketbooks,
+                    share_of_issued_ticketbooks,
+                    skipped_verification,
+                    subsample_size
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             "#,
-            epoch,
+            ticketbook_expiration_date,
+            api_endpoint,
             operator_account,
             whitelisted,
+            banned,
             amount,
+            issued_partial_ticketbooks,
+            share_of_issued_ticketbooks,
+            skipped_verification,
+            subsample_size,
+        )
+        .execute(&self.connection_pool)
+        .await?;
+
+        Ok(())
+    }
+
+    pub(crate) async fn insert_banned_ticketbook_issuer(
+        &self,
+        operator_account: String,
+        api_endpoint: String,
+        banned_on: OffsetDateTime,
+        associated_ticketbook_expiration_date: Date,
+        reason: String,
+        evidence: Vec<u8>,
+    ) -> Result<(), sqlx::Error> {
+        sqlx::query!(
+            r#"
+                INSERT INTO banned_ticketbook_issuer(
+                    operator_account,
+                    api_endpoint,
+                    banned_on,
+                    associated_ticketbook_expiration_date,
+                    reason,
+                    evidence
+                ) VALUES (?, ?, ?, ?, ?, ?)
+            "#,
+            operator_account,
             api_endpoint,
-            issued_partial_credentials,
-            issued_credentials_share,
-            validated_issued_credentials,
+            banned_on,
+            associated_ticketbook_expiration_date,
+            reason,
+            evidence,
         )
         .execute(&self.connection_pool)
         .await?;
 
-        Ok(())
-    }
-
-    pub(crate) async fn insert_validated_deposit(
-        &self,
-        operator_identity_bs58: String,
-        credential_id: i64,
-        deposit_id: DepositId,
-        signed_plaintext: Vec<u8>,
-        signature_bs58: String,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO validated_deposit (
-                    operator_identity_bs58,
-                    credential_id,
-                    deposit_id,
-                    signed_plaintext,
-                    signature_bs58
-                ) VALUES (?, ?, ?, ?, ?)
-            "#,
-            operator_identity_bs58,
-            credential_id,
-            deposit_id,
-            signed_plaintext,
-            signature_bs58
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn get_deposit_credential_id(
-        &self,
-        operator_identity_bs58: String,
-        deposit_id: DepositId,
-    ) -> Result<Option<i64>, sqlx::Error> {
-        Ok(sqlx::query!(
-            r#"
-                SELECT credential_id
-                FROM validated_deposit
-                WHERE operator_identity_bs58 = ? AND deposit_id = ?
-            "#,
-            operator_identity_bs58,
-            deposit_id
-        )
-        .fetch_optional(&self.connection_pool)
-        .await?
-        .map(|record| record.credential_id))
-    }
-
-    pub(crate) async fn insert_double_signing_evidence(
-        &self,
-        operator_identity_bs58: String,
-        credential_id: i64,
-        original_credential_id: i64,
-        deposit_id: DepositId,
-        signed_plaintext: Vec<u8>,
-        signature_bs58: String,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO double_signing_evidence (
-                    operator_identity_bs58,
-                    credential_id,
-                    original_credential_id,
-                    deposit_id,
-                    signed_plaintext,
-                    signature_bs58
-                ) VALUES (?, ?, ?, ?, ?, ?)
-            "#,
-            operator_identity_bs58,
-            credential_id,
-            original_credential_id,
-            deposit_id,
-            signed_plaintext,
-            signature_bs58
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn insert_foul_play_evidence(
-        &self,
-        operator_account: String,
-        operator_identity_bs58: String,
-        credential_id: i64,
-        signed_plaintext: Vec<u8>,
-        signature_bs58: String,
-        failure_message: String,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO issuance_evidence (
-                    operator_account,
-                    operator_identity_bs58,
-                    credential_id,
-                    signed_plaintext,
-                    signature_bs58,
-                    failure_message
-                ) VALUES (?, ?, ?, ?, ?, ?)
-            "#,
-            operator_account,
-            operator_identity_bs58,
-            credential_id,
-            signed_plaintext,
-            signature_bs58,
-            failure_message,
-        )
-        .execute(&self.connection_pool)
-        .await?;
-        Ok(())
-    }
-
-    pub(crate) async fn insert_validation_failure_info(
-        &self,
-        operator_account: String,
-        operator_identity_bs58: String,
-        failure_message: String,
-    ) -> Result<(), sqlx::Error> {
-        sqlx::query!(
-            r#"
-                INSERT INTO issuance_validation_failure (
-                    operator_account,
-                    operator_identity_bs58,
-                    failure_message
-                ) VALUES (?, ?, ?)
-            "#,
-            operator_account,
-            operator_identity_bs58,
-            failure_message,
-        )
-        .execute(&self.connection_pool)
-        .await?;
         Ok(())
     }
 }

@@ -1,44 +1,36 @@
 // Copyright 2020-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use self::helpers::load_ip_packet_router_config;
 use crate::config::Config;
 use crate::error::GatewayError;
-use crate::helpers::{
-    load_identity_keys, override_ip_packet_router_config, override_network_requester_config,
-    OverrideIpPacketRouterConfig, OverrideNetworkRequesterConfig,
-};
-use crate::http::HttpApiBuilder;
 use crate::node::client_handling::active_clients::ActiveClientsStore;
 use crate::node::client_handling::embedded_clients::{LocalEmbeddedClientHandle, MessageRouter};
 use crate::node::client_handling::websocket;
-use crate::node::helpers::{
-    initialise_main_storage, load_network_requester_config, GatewayTopologyProvider,
-};
+use crate::node::helpers::GatewayTopologyProvider;
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
 use futures::channel::{mpsc, oneshot};
-use nym_bin_common::bin_info;
 use nym_credential_verification::ecash::{
     credential_sender::CredentialHandlerConfig, EcashManager,
 };
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_client::forwarder::{MixForwardingSender, PacketForwarder};
 use nym_network_defaults::NymNetworkDetails;
-use nym_network_requester::{LocalGateway, NRServiceProviderBuilder, RequestFilter};
+use nym_network_requester::{LocalGateway, NRServiceProviderBuilder};
 use nym_node_http_api::state::metrics::SharedSessionStats;
-use nym_statistics_common::events::{self, StatsEventSender};
+use nym_statistics_common::gateways::{self, GatewayStatsReporter};
 use nym_task::{TaskClient, TaskHandle, TaskManager};
 use nym_topology::NetworkAddress;
-use nym_types::gateway::GatewayNodeDetailsResponse;
 use nym_validator_client::client::NodeId;
 use nym_validator_client::nyxd::{Coin, CosmWasmClient};
-use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient};
+use nym_validator_client::{nyxd, DirectSigningHttpRpcNyxdClient, UserAgent};
 use rand::seq::SliceRandom;
 use rand::thread_rng;
 use statistics::GatewayStatisticsCollector;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::path::PathBuf;
+use std::process;
 use std::sync::Arc;
+use std::time::Duration;
 use tracing::*;
 
 pub(crate) mod client_handling;
@@ -46,13 +38,11 @@ pub(crate) mod helpers;
 pub(crate) mod mixnet_handling;
 pub(crate) mod statistics;
 
+pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{PersistentStorage, Storage};
 
 // TODO: should this struct live here?
 struct StartedNetworkRequester {
-    /// Request filter, either an exit policy or the allow list, used by the network requester.
-    used_request_filter: RequestFilter,
-
     /// Handle to interact with the local network requester
     handle: LocalEmbeddedClientHandle,
 }
@@ -64,54 +54,6 @@ struct StartedAuthenticator {
 
     /// Handle to interact with the local authenticator
     handle: LocalEmbeddedClientHandle,
-}
-
-/// Wire up and create Gateway instance
-pub async fn create_gateway(
-    config: Config,
-    nr_config_override: Option<OverrideNetworkRequesterConfig>,
-    ip_config_override: Option<OverrideIpPacketRouterConfig>,
-    custom_mixnet: Option<PathBuf>,
-) -> Result<Gateway, GatewayError> {
-    // don't attempt to read config if NR is disabled
-    let network_requester_config = if config.network_requester.enabled {
-        if let Some(path) = &config.storage_paths.network_requester_config {
-            let cfg = load_network_requester_config(&config.gateway.id, path).await?;
-            Some(override_network_requester_config(cfg, nr_config_override))
-        } else {
-            // if NR is enabled, the config path must be specified
-            return Err(GatewayError::UnspecifiedNetworkRequesterConfig);
-        }
-    } else {
-        None
-    };
-
-    // don't attempt to read config if NR is disabled
-    let ip_packet_router_config = if config.ip_packet_router.enabled {
-        if let Some(path) = &config.storage_paths.ip_packet_router_config {
-            let cfg = load_ip_packet_router_config(&config.gateway.id, path).await?;
-            Some(override_ip_packet_router_config(cfg, ip_config_override))
-        } else {
-            // if IPR is enabled, the config path must be specified
-            return Err(GatewayError::UnspecifiedIpPacketRouterConfig);
-        }
-    } else {
-        None
-    };
-
-    let storage = initialise_main_storage(&config).await?;
-
-    let nr_opts = network_requester_config.map(|config| LocalNetworkRequesterOpts {
-        config: config.clone(),
-        custom_mixnet_path: custom_mixnet.clone(),
-    });
-
-    let ip_opts = ip_packet_router_config.map(|config| LocalIpPacketRouterOpts {
-        config,
-        custom_mixnet_path: custom_mixnet.clone(),
-    });
-
-    Gateway::new(config, nr_opts, ip_opts, storage)
 }
 
 #[derive(Debug, Clone)]
@@ -152,39 +94,21 @@ pub struct Gateway<St = PersistentStorage> {
     /// x25519 keypair used for Diffie-Hellman. Currently only used for sphinx key derivation.
     sphinx_keypair: Arc<encryption::KeyPair>,
 
-    storage: St,
+    client_storage: St,
+
+    user_agent: UserAgent,
+
+    stats_storage: PersistentStatsStorage,
 
     wireguard_data: Option<nym_wireguard::WireguardData>,
 
     session_stats: Option<SharedSessionStats>,
 
-    run_http_server: bool,
     task_client: Option<TaskClient>,
 }
 
 impl<St> Gateway<St> {
-    /// Construct from the given `Config` instance.
-    pub fn new(
-        config: Config,
-        network_requester_opts: Option<LocalNetworkRequesterOpts>,
-        ip_packet_router_opts: Option<LocalIpPacketRouterOpts>,
-        storage: St,
-    ) -> Result<Self, GatewayError> {
-        Ok(Gateway {
-            storage,
-            identity_keypair: Arc::new(load_identity_keys(&config)?),
-            sphinx_keypair: Arc::new(helpers::load_sphinx_keys(&config)?),
-            config,
-            network_requester_opts,
-            ip_packet_router_opts,
-            authenticator_opts: None,
-            wireguard_data: None,
-            session_stats: None,
-            run_http_server: true,
-            task_client: None,
-        })
-    }
-
+    #[allow(clippy::too_many_arguments)]
     pub fn new_loaded(
         config: Config,
         network_requester_opts: Option<LocalNetworkRequesterOpts>,
@@ -192,7 +116,9 @@ impl<St> Gateway<St> {
         authenticator_opts: Option<LocalAuthenticatorOpts>,
         identity_keypair: Arc<identity::KeyPair>,
         sphinx_keypair: Arc<encryption::KeyPair>,
-        storage: St,
+        client_storage: St,
+        user_agent: UserAgent,
+        stats_storage: PersistentStatsStorage,
     ) -> Self {
         Gateway {
             config,
@@ -201,16 +127,13 @@ impl<St> Gateway<St> {
             authenticator_opts,
             identity_keypair,
             sphinx_keypair,
-            storage,
+            client_storage,
+            user_agent,
+            stats_storage,
             wireguard_data: None,
             session_stats: None,
-            run_http_server: true,
             task_client: None,
         }
-    }
-
-    pub fn disable_http_server(&mut self) {
-        self.run_http_server = false
     }
 
     pub fn set_task_client(&mut self, task_client: TaskClient) {
@@ -225,15 +148,13 @@ impl<St> Gateway<St> {
         self.wireguard_data = Some(wireguard_data)
     }
 
-    pub async fn node_details(&self) -> Result<GatewayNodeDetailsResponse, GatewayError> {
-        // TODO: this is doing redundant key loads, but I guess that's fine for now
-        crate::helpers::node_details(&self.config).await
-    }
-
     fn gateway_topology_provider(&self) -> GatewayTopologyProvider {
+        // TODO: make topology ttl configurable
+        // (to be done in reeses with the final smooshing)
         GatewayTopologyProvider::new(
             self.as_topology_node(),
-            bin_info!().into(),
+            Duration::from_secs(5 * 60),
+            self.user_agent.clone(),
             self.config.gateway.nym_api_urls.clone(),
         )
     }
@@ -278,7 +199,7 @@ impl<St> Gateway<St> {
 
         let connection_handler = ConnectionHandler::new(
             packet_processor,
-            self.storage.clone(),
+            self.client_storage.clone(),
             ack_sender,
             active_clients_store,
         );
@@ -314,22 +235,28 @@ impl<St> Gateway<St> {
             forwarding_channel,
             router_tx,
         );
-        let all_peers = self.storage.get_all_wireguard_peers().await?;
-        let used_private_network_ips = all_peers
-            .iter()
-            .cloned()
-            .map(|wireguard_peer| {
-                defguard_wireguard_rs::host::Peer::try_from(wireguard_peer).map(|mut peer| {
-                    peer.allowed_ips
-                        .pop()
-                        .ok_or(Box::new(GatewayError::InternalWireguardError(format!(
-                            "no private IP set for peer {}",
-                            peer.public_key
-                        ))))
-                        .map(|p| p.ip)
-                })
-            })
-            .collect::<Result<Result<Vec<_>, _>, _>>()??;
+        let mut used_private_network_ips = vec![];
+        let mut all_peers = vec![];
+        for wireguard_peer in self
+            .client_storage
+            .get_all_wireguard_peers()
+            .await?
+            .into_iter()
+        {
+            let mut peer = defguard_wireguard_rs::host::Peer::try_from(wireguard_peer.clone())?;
+            let Some(peer) = peer.allowed_ips.pop() else {
+                tracing::warn!(
+                    "Peer {} has empty allowed ips. It will be removed",
+                    peer.public_key
+                );
+                self.client_storage
+                    .remove_wireguard_peer(&peer.public_key.to_string())
+                    .await?;
+                continue;
+            };
+            used_private_network_ips.push(peer.ip);
+            all_peers.push(wireguard_peer);
+        }
 
         if let Some(wireguard_data) = self.wireguard_data.take() {
             let (on_start_tx, on_start_rx) = oneshot::channel();
@@ -352,7 +279,7 @@ impl<St> Gateway<St> {
 
             tokio::spawn(async move {
                 if let Err(e) = authenticator_server.run_service_provider().await {
-                    log::error!("Run authenticator server - {e}");
+                    error!("Run authenticator server - {e}");
                 }
             });
 
@@ -370,7 +297,7 @@ impl<St> Gateway<St> {
                 .start_with_shutdown(router_shutdown);
 
             let wg_api = nym_wireguard::start_wireguard(
-                self.storage.clone(),
+                self.client_storage.clone(),
                 all_peers,
                 shutdown,
                 wireguard_data,
@@ -405,7 +332,7 @@ impl<St> Gateway<St> {
         active_clients_store: ActiveClientsStore,
         shutdown: TaskClient,
         ecash_verifier: Arc<EcashManager<St>>,
-        stats_event_sender: StatsEventSender,
+        stats_event_reporter: GatewayStatsReporter,
     ) where
         St: Storage + Send + Sync + Clone + 'static,
     {
@@ -418,11 +345,11 @@ impl<St> Gateway<St> {
 
         let shared_state = websocket::CommonHandlerState {
             ecash_verifier,
-            storage: self.storage.clone(),
+            storage: self.client_storage.clone(),
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.only_coconut_credentials,
             bandwidth_cfg: (&self.config).into(),
-            stats_event_sender,
+            stats_event_reporter,
         };
 
         websocket::Listener::new(listening_address, shared_state).start(
@@ -452,11 +379,11 @@ impl<St> Gateway<St> {
         &self,
         shared_session_stats: SharedSessionStats,
         shutdown: TaskClient,
-    ) -> events::StatsEventSender {
+    ) -> gateways::GatewayStatsReporter {
         info!("Starting gateway stats collector...");
 
         let (mut stats_collector, stats_event_sender) =
-            GatewayStatisticsCollector::new(shared_session_stats);
+            GatewayStatisticsCollector::new(shared_session_stats, self.stats_storage.clone());
         tokio::spawn(async move { stats_collector.run(shutdown).await });
         stats_event_sender
     }
@@ -523,7 +450,6 @@ impl<St> Gateway<St> {
 
         info!("the local network requester is running on {address}",);
         Ok(StartedNetworkRequester {
-            used_request_filter: start_data.request_filter,
             handle: LocalEmbeddedClientHandle::new(address, nr_mix_sender),
         })
     }
@@ -592,15 +518,6 @@ impl<St> Gateway<St> {
         Ok(LocalEmbeddedClientHandle::new(address, ipr_mix_sender))
     }
 
-    fn random_api_client(&self) -> Result<nym_validator_client::NymApiClient, GatewayError> {
-        let endpoints = self.config.get_nym_api_endpoints();
-        let nym_api = endpoints
-            .choose(&mut thread_rng())
-            .ok_or(GatewayError::NoNymApisAvailable)?;
-
-        Ok(nym_validator_client::NymApiClient::new(nym_api.clone()))
-    }
-
     fn random_nyxd_client(&self) -> Result<DirectSigningHttpRpcNyxdClient, GatewayError> {
         let endpoints = self.config.get_nyxd_urls();
         let validator_nyxd = endpoints
@@ -618,21 +535,27 @@ impl<St> Gateway<St> {
         .map_err(Into::into)
     }
 
-    async fn check_if_bonded(&self) -> Result<bool, GatewayError> {
+    async fn check_if_bonded(&self) -> bool {
         // TODO: if anything, this should be getting data directly from the contract
         // as opposed to the validator API
-        let validator_client = self.random_api_client()?;
-        let existing_nodes = match validator_client.get_all_basic_nodes(None).await {
-            Ok(nodes) => nodes,
-            Err(err) => {
-                error!("failed to grab initial network gateways - {err}\n Please try to startup again in few minutes");
-                return Err(GatewayError::NetworkGatewaysQueryFailure { source: err });
+        for api_url in self.config.get_nym_api_endpoints() {
+            let client = nym_validator_client::NymApiClient::new(api_url.clone());
+            match client.get_all_basic_nodes().await {
+                Ok(nodes) => {
+                    return nodes.iter().any(|node| {
+                        &node.ed25519_identity_pubkey == self.identity_keypair.public_key()
+                    })
+                }
+                Err(err) => {
+                    error!("failed to grab initial network gateways from {api_url}: {err}",);
+                }
             }
-        };
+        }
 
-        Ok(existing_nodes
-            .iter()
-            .any(|node| &node.ed25519_identity_pubkey == self.identity_keypair.public_key()))
+        error!(
+            "failed to grab initial network gateways from any of the available apis. Please try to startup again in few minutes",
+        );
+        process::exit(1);
     }
 
     pub async fn run(mut self) -> Result<(), GatewayError>
@@ -641,7 +564,7 @@ impl<St> Gateway<St> {
     {
         info!("Starting nym gateway!");
 
-        if self.check_if_bonded().await? {
+        if self.check_if_bonded().await {
             warn!("You seem to have bonded your gateway before starting it - that's highly unrecommended as in the future it might result in slashing");
         }
 
@@ -701,7 +624,7 @@ impl<St> Gateway<St> {
                 nyxd_client,
                 self.identity_keypair.public_key().to_bytes(),
                 shutdown.fork("EcashVerifier"),
-                self.storage.clone(),
+                self.client_storage.clone(),
             )
             .await?,
         );
@@ -723,7 +646,7 @@ impl<St> Gateway<St> {
             stats_event_sender.clone(),
         );
 
-        let nr_request_filter = if self.config.network_requester.enabled {
+        if self.config.network_requester.enabled {
             let embedded_nr = self
                 .start_network_requester(
                     mix_forwarding_channel.clone(),
@@ -733,10 +656,8 @@ impl<St> Gateway<St> {
                 .await?;
             // insert information about embedded NR to the active clients store
             active_clients_store.insert_embedded(embedded_nr.handle);
-            Some(embedded_nr.used_request_filter)
         } else {
             info!("embedded network requester is disabled");
-            None
         };
 
         if self.config.ip_packet_router.enabled {
@@ -767,18 +688,6 @@ impl<St> Gateway<St> {
         } else {
             None
         };
-
-        if self.run_http_server {
-            HttpApiBuilder::new(
-                &self.config,
-                self.identity_keypair.as_ref(),
-                self.sphinx_keypair.clone(),
-            )
-            .with_maybe_network_requester(self.network_requester_opts.as_ref().map(|o| &o.config))
-            .with_maybe_network_request_filter(nr_request_filter)
-            .with_maybe_ip_packet_router(self.ip_packet_router_opts.as_ref().map(|o| &o.config))
-            .start(shutdown.fork("http-api"))?;
-        }
 
         info!("Finished nym gateway startup procedure - it should now be able to receive mix and client traffic!");
 

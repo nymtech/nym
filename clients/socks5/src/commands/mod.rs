@@ -19,6 +19,7 @@ use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_client_core::client::topology_control::geo_aware_provider::CountryGroup;
 use nym_client_core::config::{GroupBy, TopologyStructure};
 use nym_config::OptionalSet;
+use nym_sphinx::addressing::Recipient;
 use nym_sphinx::params::{PacketSize, PacketType};
 use std::error::Error;
 use std::net::IpAddr;
@@ -111,6 +112,7 @@ pub(crate) struct OverrideConfig {
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
     outfox: bool,
+    stats_reporting_address: Option<Recipient>,
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -195,6 +197,11 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_optional_base(
             BaseClientConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
+        )
+        .with_optional_base_env(
+            BaseClientConfig::with_enabled_stats_reporting_address,
+            args.stats_reporting_address,
+            nym_network_defaults::var_names::CLIENT_STATS_COLLECTION_PROVIDER,
         )
 }
 

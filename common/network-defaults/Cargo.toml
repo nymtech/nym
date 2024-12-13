@@ -23,3 +23,7 @@ default = ["env", "network"]
 env = ["dotenvy", "log"]
 network = ["schemars", "serde", "url"]
 utoipa = [ "dep:utoipa" ]
+
+[build-dependencies]
+regex = { workspace = true }
+cargo_metadata = { version = "0.18" }

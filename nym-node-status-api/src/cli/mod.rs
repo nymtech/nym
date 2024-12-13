@@ -56,7 +56,7 @@ pub(crate) struct Cli {
 
     #[clap(
         long,
-        default_value = "600",
+        default_value = "300",
         env = "NODE_STATUS_API_MONITOR_REFRESH_INTERVAL"
     )]
     #[arg(value_parser = parse_duration)]
@@ -64,11 +64,22 @@ pub(crate) struct Cli {
 
     #[clap(
         long,
-        default_value = "600",
+        default_value = "300",
         env = "NODE_STATUS_API_TESTRUN_REFRESH_INTERVAL"
     )]
     #[arg(value_parser = parse_duration)]
     pub(crate) testruns_refresh_interval: Duration,
+
+    #[clap(env = "NODE_STATUS_API_AGENT_KEY_LIST")]
+    #[arg(value_delimiter = ',')]
+    pub(crate) agent_key_list: Vec<String>,
+
+    #[clap(
+        long,
+        default_value_t = 40,
+        env = "NYM_NODE_STATUS_API_MAX_AGENT_COUNT"
+    )]
+    pub(crate) max_agent_count: i64,
 }
 
 fn parse_duration(arg: &str) -> Result<std::time::Duration, std::num::ParseIntError> {

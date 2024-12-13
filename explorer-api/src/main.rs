@@ -22,12 +22,12 @@ mod http;
 mod location;
 mod mix_node;
 pub(crate) mod mix_nodes;
-mod nym_nodes;
 mod overview;
 mod ping;
 pub(crate) mod service_providers;
 mod state;
 mod tasks;
+mod unstable;
 mod validators;
 
 const COUNTRY_DATA_REFRESH_INTERVAL: u64 = 60 * 15; // every 15 minutes

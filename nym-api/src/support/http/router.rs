@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::circulating_supply_api::handlers::circulating_supply_routes;
+use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::network::handlers::nym_network_routes;
-use crate::node_status_api::handlers::node_status_routes;
+use crate::node_status_api::handlers::status_routes;
 use crate::nym_contract_cache::handlers::nym_contract_cache_routes;
 use crate::nym_nodes::handlers::legacy::legacy_nym_node_routes;
 use crate::nym_nodes::handlers::nym_node_routes;
@@ -16,7 +17,7 @@ use axum::response::Redirect;
 use axum::routing::get;
 use axum::Router;
 use core::net::SocketAddr;
-use nym_http_api_common::logging::logger;
+use nym_http_api_common::middleware::logging::logger;
 use tokio::net::TcpListener;
 use tokio_util::sync::WaitForCancellationFutureOwned;
 use tower_http::cors::CorsLayer;
@@ -58,10 +59,11 @@ impl RouterBuilder {
                     .merge(nym_contract_cache_routes())
                     .merge(legacy_nym_node_routes())
                     .nest("/circulating-supply", circulating_supply_routes())
-                    .nest("/status", node_status_routes(network_monitor))
+                    .nest("/status", status_routes(network_monitor))
                     .nest("/network", nym_network_routes())
                     .nest("/api-status", status::handlers::api_status_routes())
                     .nest("/nym-nodes", nym_node_routes())
+                    .nest("/ecash", ecash_routes())
                     .nest("/unstable", unstable_routes()), // CORS layer needs to be "outside" of routes
             );
 
@@ -70,6 +72,7 @@ impl RouterBuilder {
         }
     }
 
+    #[allow(dead_code)]
     pub(crate) fn nest(self, path: &str, router: Router<AppState>) -> Self {
         Self {
             unfinished_router: self.unfinished_router.nest(path, router),

@@ -5,6 +5,8 @@ use crate::config::persistence::paths::ValidatorRewarderPaths;
 use crate::config::r#override::ConfigOverride;
 use crate::config::template::CONFIG_TEMPLATE;
 use crate::error::NymRewarderError;
+use crate::rewarder::ticketbook_issuance;
+use cosmwasm_std::{Decimal, Uint128};
 use nym_config::{
     must_get_home, read_config_from_toml_file, save_formatted_config_to_file, NymConfigTemplate,
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
@@ -16,7 +18,7 @@ use serde_with::{serde_as, DisplayFromStr};
 use std::io;
 use std::path::{Path, PathBuf};
 use std::time::Duration;
-use tracing::debug;
+use tracing::{debug, info};
 use url::Url;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
@@ -27,13 +29,16 @@ mod template;
 const DEFAULT_REWARDER_DIR: &str = "validators-rewarder";
 
 #[allow(clippy::inconsistent_digit_grouping)]
-const DEFAULT_MIX_REWARDING_BUDGET: u128 = 1000_000000;
-const DEFAULT_MIX_REWARDING_DENOM: &str = "unym";
+const DEFAULT_DAILY_REWARDING_BUDGET: u128 = 24000_000000;
 
-const DEFAULT_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
-const DEFAULT_MONITOR_RUN_INTERVAL: Duration = Duration::from_secs(10 * 60);
-const DEFAULT_MONITOR_MIN_VALIDATE: usize = 10;
-const DEFAULT_MONITOR_SAMPLING_RATE: f64 = 0.10;
+// #[allow(clippy::inconsistent_digit_grouping)]
+// const DEFAULT_MIX_REWARDING_BUDGET: u128 = 1000_000000;
+const DEFAULT_REWARDING_DENOM: &str = "unym";
+
+const DEFAULT_BLOCK_SIGNING_EPOCH_DURATION: Duration = Duration::from_secs(60 * 60);
+const DEFAULT_TICKETBOOK_ISSUANCE_MIN_VALIDATE: usize = 10;
+const DEFAULT_TICKETBOOK_ISSUANCE_SAMPLING_RATE: f64 = 0.10;
+const DEFAULT_TICKETBOOK_ISSUANCE_FULL_VERIFICATION_RATIO: f64 = 0.60;
 
 // 'worst' case scenario
 pub const TYPICAL_BLOCK_TIME: f32 = 5.;
@@ -79,7 +84,7 @@ pub struct Config {
 
     #[zeroize(skip)]
     #[serde(default)]
-    pub issuance_monitor: IssuanceMonitor,
+    pub ticketbook_issuance: TicketbookIssuance,
 
     #[zeroize(skip)]
     pub nyxd_scraper: NyxdScraper,
@@ -103,7 +108,7 @@ impl Config {
             save_path: None,
             rewarding: Rewarding::default(),
             block_signing: Default::default(),
-            issuance_monitor: IssuanceMonitor::default(),
+            ticketbook_issuance: TicketbookIssuance::default(),
             nyxd_scraper: NyxdScraper {
                 websocket_url,
                 pruning: Default::default(),
@@ -125,9 +130,18 @@ impl Config {
         }
     }
 
+    pub fn verification_config(&self) -> ticketbook_issuance::VerificationConfig {
+        ticketbook_issuance::VerificationConfig {
+            min_validate_per_issuer: self.ticketbook_issuance.min_validate_per_issuer,
+            sampling_rate: self.ticketbook_issuance.sampling_rate,
+            full_verification_ratio: self.ticketbook_issuance.full_verification_ratio,
+        }
+    }
+
     pub fn validate(&self) -> Result<(), NymRewarderError> {
         self.rewarding.ratios.validate()?;
-        self.nyxd_scraper.validate(self.rewarding.epoch_duration)?;
+        self.nyxd_scraper
+            .validate(self.block_signing.epoch_duration)?;
         Ok(())
     }
 
@@ -171,6 +185,58 @@ impl Config {
     pub fn save_to_path<P: AsRef<Path>>(&self, path: P) -> io::Result<()> {
         save_formatted_config_to_file(self, path)
     }
+
+    pub fn will_attempt_to_send_rewards(&self) -> bool {
+        (self.block_signing.enabled && !self.block_signing.monitor_only)
+            || (self.ticketbook_issuance.enabled && !self.ticketbook_issuance.monitor_only)
+    }
+
+    /// Returns the total rewarding budget for block signing for given epoch
+    pub fn block_signing_epoch_budget(&self) -> Coin {
+        // it doesn't have to be exact to sub micronym precision
+        let daily_block_signing_budget =
+            self.rewarding.daily_budget.amount as f64 * self.rewarding.ratios.block_signing;
+
+        // how many epochs per day are there?
+        let epoch_ratio = self.block_signing.epoch_duration.as_secs_f64() / (24. * 60. * 60.);
+
+        let epoch_budget = (daily_block_signing_budget * epoch_ratio) as u128;
+        Coin::new(epoch_budget, &self.rewarding.daily_budget.denom)
+    }
+
+    /// Returns the total rewarding budget for ticketbook issuance for given day
+    pub fn ticketbook_issuance_daily_budget(&self) -> Coin {
+        // it doesn't have to be exact to sub micronym precision
+        let daily_ticketbook_issuance_budget =
+            self.rewarding.daily_budget.amount as f64 * self.rewarding.ratios.ticketbook_issuance;
+
+        let ticketbook_issuance_budget = daily_ticketbook_issuance_budget as u128;
+        Coin::new(
+            ticketbook_issuance_budget,
+            &self.rewarding.daily_budget.denom,
+        )
+    }
+
+    /// Returns the total rewarding budget for ticketbook issuance for an individual operator for given day
+    pub fn ticketbook_per_operator_daily_budget(&self) -> Coin {
+        let ticketbook_total_budget = self.ticketbook_issuance_daily_budget();
+
+        let whitelist_size = self.ticketbook_issuance.whitelist.len();
+
+        let amount = if self.ticketbook_issuance.whitelist.is_empty() {
+            Uint128::zero()
+        } else {
+            Uint128::new(ticketbook_total_budget.amount)
+                * Decimal::from_ratio(1u32, whitelist_size as u64)
+        };
+
+        let per_operator = Coin::new(amount.u128(), &ticketbook_total_budget.denom);
+
+        let total_budget = &self.rewarding.daily_budget;
+        info!("ISSUANCE BUDGET: with the total daily budget of {total_budget} ({ticketbook_total_budget} for ticketbook issuance) and with whitelist size of {whitelist_size}, the per operator budget is set to {per_operator}");
+
+        per_operator
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize, Zeroize, ZeroizeOnDrop)]
@@ -185,13 +251,11 @@ pub struct Base {
 
 #[serde_as]
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(deny_unknown_fields)]
 pub struct Rewarding {
-    /// Specifies total budget for the epoch
+    /// Specifies total budget for a 24h period
     #[serde_as(as = "DisplayFromStr")]
-    pub epoch_budget: Coin,
-
-    #[serde(with = "humantime_serde")]
-    pub epoch_duration: Duration,
+    pub daily_budget: Coin,
 
     pub ratios: RewardingRatios,
 }
@@ -199,8 +263,7 @@ pub struct Rewarding {
 impl Default for Rewarding {
     fn default() -> Self {
         Rewarding {
-            epoch_budget: Coin::new(DEFAULT_MIX_REWARDING_BUDGET, DEFAULT_MIX_REWARDING_DENOM),
-            epoch_duration: DEFAULT_EPOCH_DURATION,
+            daily_budget: Coin::new(DEFAULT_DAILY_REWARDING_BUDGET, DEFAULT_REWARDING_DENOM),
             ratios: RewardingRatios::default(),
         }
     }
@@ -211,11 +274,13 @@ pub struct RewardingRatios {
     /// The percent of the epoch reward being awarded for block signing.
     pub block_signing: f64,
 
-    /// The percent of the epoch reward being awarded for credential issuance.
-    pub credential_issuance: f64,
+    /// The percent of the epoch reward being awarded for ticketbook issuance.
+    #[serde(alias = "credential_issuance")]
+    pub ticketbook_issuance: f64,
 
-    /// The percent of the epoch reward being awarded for credential verification.
-    pub credential_verification: f64,
+    /// The percent of the epoch reward being awarded for ticketbook verification.
+    #[serde(alias = "credential_verification")]
+    pub ticketbook_verification: f64,
     // /// The percent of the epoch reward given to Nym.
     // pub nym: f64,
 }
@@ -224,8 +289,8 @@ impl Default for RewardingRatios {
     fn default() -> Self {
         RewardingRatios {
             block_signing: 0.67,
-            credential_issuance: 0.33,
-            credential_verification: 0.0,
+            ticketbook_issuance: 0.33,
+            ticketbook_verification: 0.0,
             // nym: 0.0,
         }
     }
@@ -233,7 +298,7 @@ impl Default for RewardingRatios {
 
 impl RewardingRatios {
     pub fn validate(&self) -> Result<(), NymRewarderError> {
-        if self.block_signing + self.credential_verification + self.credential_issuance != 1.0 {
+        if self.block_signing + self.ticketbook_verification + self.ticketbook_issuance != 1.0 {
             return Err(NymRewarderError::InvalidRewardingRatios { ratios: *self });
         }
         Ok(())
@@ -287,6 +352,10 @@ pub struct BlockSigning {
     /// Specifies whether rewards for block signing is enabled.
     pub enabled: bool,
 
+    /// Duration of block signing epoch.
+    #[serde(with = "humantime_serde")]
+    pub epoch_duration: Duration,
+
     /// Specifies whether to only monitor and not send rewards.
     pub monitor_only: bool,
 
@@ -299,6 +368,7 @@ impl Default for BlockSigning {
     fn default() -> Self {
         BlockSigning {
             enabled: true,
+            epoch_duration: DEFAULT_BLOCK_SIGNING_EPOCH_DURATION,
             monitor_only: false,
             whitelist: vec![],
         }
@@ -306,32 +376,51 @@ impl Default for BlockSigning {
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize)]
-pub struct IssuanceMonitor {
-    /// Specifies whether credential issuance monitoring (and associated rewards) are enabled.
+pub struct TicketbookIssuance {
+    /// Specifies whether rewarding for ticketbook issuance is enabled.
     pub enabled: bool,
 
-    #[serde(with = "humantime_serde")]
-    pub run_interval: Duration,
+    /// Specifies whether to only monitor and not send rewards.
+    pub monitor_only: bool,
 
-    /// Defines the minimum number of credentials the monitor will validate
+    /// Defines the minimum number of ticketbooks the rewarder will validate
     /// regardless of the sampling rate
+    #[serde(default = "default_ticketbook_issuance_min_validate")]
     pub min_validate_per_issuer: usize,
 
-    /// The sampling rate of the issued credentials
+    /// The sampling rate of the issued ticketbooks
+    #[serde(default = "default_ticketbook_issuance_sampling_rate")]
     pub sampling_rate: f64,
 
-    /// List of validators that will receive rewards for credential issuance.
-    /// If not on the list, the validator will be treated as if it hadn't issued a single credential.
+    /// Ratio of issuers that will undergo full verification as opposed to being let through.
+    #[serde(default = "default_ticketbook_issuance_full_verification_ratio")]
+    pub full_verification_ratio: f64,
+
+    /// List of validators that will receive rewards for ticketbook issuance.
+    /// If not on the list, the validator will be treated as if it hadn't issued a single ticketbook.
     pub whitelist: Vec<AccountId>,
 }
 
-impl Default for IssuanceMonitor {
+fn default_ticketbook_issuance_min_validate() -> usize {
+    TicketbookIssuance::default().min_validate_per_issuer
+}
+
+fn default_ticketbook_issuance_sampling_rate() -> f64 {
+    TicketbookIssuance::default().sampling_rate
+}
+
+fn default_ticketbook_issuance_full_verification_ratio() -> f64 {
+    TicketbookIssuance::default().full_verification_ratio
+}
+
+impl Default for TicketbookIssuance {
     fn default() -> Self {
-        IssuanceMonitor {
+        TicketbookIssuance {
             enabled: false,
-            run_interval: DEFAULT_MONITOR_RUN_INTERVAL,
-            min_validate_per_issuer: DEFAULT_MONITOR_MIN_VALIDATE,
-            sampling_rate: DEFAULT_MONITOR_SAMPLING_RATE,
+            monitor_only: false,
+            min_validate_per_issuer: DEFAULT_TICKETBOOK_ISSUANCE_MIN_VALIDATE,
+            sampling_rate: DEFAULT_TICKETBOOK_ISSUANCE_SAMPLING_RATE,
+            full_verification_ratio: DEFAULT_TICKETBOOK_ISSUANCE_FULL_VERIFICATION_RATIO,
             whitelist: vec![],
         }
     }

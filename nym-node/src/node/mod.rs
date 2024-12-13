@@ -8,7 +8,7 @@ use crate::node::helpers::{
     store_x25519_sphinx_keypair, DisplayDetails,
 };
 use crate::node::http::{sign_host_details, system_info::get_system_info};
-use nym_bin_common::bin_info_owned;
+use nym_bin_common::{bin_info, bin_info_owned};
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::Gateway;
 use nym_mixnode::MixNode;
@@ -72,6 +72,7 @@ impl MixnodeData {
 pub struct EntryGatewayData {
     mnemonic: Zeroizing<bip39::Mnemonic>,
     client_storage: nym_gateway::node::PersistentStorage,
+    stats_storage: nym_gateway::node::PersistentStatsStorage,
     sessions_stats: SharedSessionStats,
 }
 
@@ -99,6 +100,11 @@ impl EntryGatewayData {
             )
             .await
             .map_err(nym_gateway::GatewayError::from)?,
+            stats_storage: nym_gateway::node::PersistentStatsStorage::init(
+                &config.storage_paths.stats_storage,
+            )
+            .await
+            .map_err(nym_gateway::GatewayError::from)?,
             sessions_stats: SharedSessionStats::new(),
         })
     }
@@ -119,6 +125,7 @@ pub struct ExitGatewayData {
     auth_x25519: x25519::PublicKey,
 
     client_storage: nym_gateway::node::PersistentStorage,
+    stats_storage: nym_gateway::node::PersistentStatsStorage,
 }
 
 impl ExitGatewayData {
@@ -267,6 +274,11 @@ impl ExitGatewayData {
         .await
         .map_err(nym_gateway::GatewayError::from)?;
 
+        let stats_storage =
+            nym_gateway::node::PersistentStatsStorage::init(&config.storage_paths.stats_storage)
+                .await
+                .map_err(nym_gateway::GatewayError::from)?;
+
         Ok(ExitGatewayData {
             nr_ed25519,
             nr_x25519,
@@ -275,6 +287,7 @@ impl ExitGatewayData {
             auth_ed25519,
             auth_x25519,
             client_storage,
+            stats_storage,
         })
     }
 }
@@ -555,20 +568,14 @@ impl NymNode {
         let config = ephemeral_mixnode_config(self.config.clone())?;
         let mut mixnode = MixNode::new_loaded(
             config,
-            Default::default(),
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
         );
-        mixnode.disable_http_server();
         mixnode.set_task_client(task_client);
         mixnode.set_mixing_stats(self.mixnode.mixing_stats.clone());
         mixnode.set_verloc_stats(self.verloc_stats.clone());
 
-        tokio::spawn(async move {
-            if let Err(err) = mixnode.run().await {
-                error!("the mixnode subtask has failed with the following message: {err}")
-            }
-        });
+        tokio::spawn(async move { mixnode.run().await });
         Ok(())
     }
 
@@ -585,8 +592,9 @@ impl NymNode {
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
             self.entry_gateway.client_storage.clone(),
+            bin_info!().into(),
+            self.entry_gateway.stats_storage.clone(),
         );
-        entry_gateway.disable_http_server();
         entry_gateway.set_task_client(task_client);
         entry_gateway.set_session_stats(self.entry_gateway.sessions_stats.clone());
         if self.config.wireguard.enabled {
@@ -615,8 +623,9 @@ impl NymNode {
             self.ed25519_identity_keys.clone(),
             self.x25519_sphinx_keys.clone(),
             self.exit_gateway.client_storage.clone(),
+            bin_info!().into(),
+            self.exit_gateway.stats_storage.clone(),
         );
-        exit_gateway.disable_http_server();
         exit_gateway.set_task_client(task_client);
         exit_gateway.set_session_stats(self.entry_gateway.sessions_stats.clone()); //Weird naming I'll give you that, but Andrew is gonna rework it anyway
         if self.config.wireguard.enabled {

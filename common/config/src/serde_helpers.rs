@@ -1,7 +1,7 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use serde::{Deserialize, Deserializer};
+use serde::{Deserialize, Deserializer, Serializer};
 use std::fmt::Display;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -17,6 +17,17 @@ where
         Ok(None)
     } else {
         Ok(Some(raw.parse().map_err(serde::de::Error::custom)?))
+    }
+}
+
+pub fn ser_maybe_stringified<S, T>(field: &Option<T>, serializer: S) -> Result<S::Ok, S::Error>
+where
+    S: Serializer,
+    T: Display,
+{
+    match field {
+        Some(inner) => serializer.serialize_str(&inner.to_string()),
+        None => serializer.serialize_str(""),
     }
 }
 

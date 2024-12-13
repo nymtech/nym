@@ -43,6 +43,7 @@ nym-gateway-requests = { path = "../gateway-requests" }
 nym-metrics = { path = "../nym-metrics" }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
+nym-statistics-common = { path = "../statistics" }
 nym-pemstore = { path = "../pemstore" }
 nym-topology = { path = "../topology", features = ["serializable"] }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }

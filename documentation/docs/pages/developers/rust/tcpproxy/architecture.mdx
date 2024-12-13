@@ -1,0 +1,208 @@
+import { Callout } from 'nextra/components'
+
+# Architecture
+
+## Motivations
+The motivation behind the creation of the `TcpProxy` module is to allow developers to interact with the Mixnet in a way that is far more familiar to them: simply setting up a connection with a transport, being returned a socket, and then being able to stream data to/from it, similar to something like the Tor [`arti`](https://gitlab.torproject.org/tpo/core/arti/-/tree/main/crates/arti-client) client.
+
+<Callout type="info" emoji="ℹ️">
+  This is an initial version of the module which we are releasing to developers to experiment with. If you run into problems or any functionality that is missing, do reach out on Matrix and let us know.
+
+  Furthermore we will be working on optimisations to the module over time - most of this will occur under the hood (e.g. implementing a configurable connection pool for the `ProxyClient`), but all updates will occur according to SemVer, so don't worry about breaking changes!
+</Callout>
+
+## Clients
+Each of the sub-modules exposed by the `TcpProxy` deal with Nym clients in a different way.
+- the `NymProxyClient` creates an ephemeral client per new TCP connection, which is closed according to the configurable timeout: we map one ephemeral client per TCP connection. This is to deal with multiple simultaneous streams. In the future, this will be superceded by a connection pool in order to speed up new connections.
+- the `NymProxyServer` has a single Nym client with a persistent identity.
+
+## Framing
+We are currently relying on the [`tokio::Bytecodec`](https://docs.rs/tokio-util/latest/tokio_util/codec/struct.BytesCodec.html) and [`framedRead`](https://docs.rs/tokio-util/latest/tokio_util/codec/struct.Framed.html) to frame bytes moving through the `NymProxyClient` and `NymProxyServer`.
+
+> For those interested, under the hood the client uses our own [`NymCodec`](https://github.com/nymtech/nym/blob/27ac34522cf0f8bfe1ca265e0b57ee52f2ded0d2/common/nymsphinx/framing/src/codec.rs) to frame message bytes as Sphinx packet payloads.
+
+## Sessions & Message Ordering
+We have implemented session management and message ordering, where messages are wrapped in a session ID per connection, with individual messages being given an incrememting message ID. Once all the messages have been sent, the `NymProxyClient` then sends a `Close` message as the last outgoing message. This is to notify the `NymProxyServer` that there are no more outbound messages for this session, and that it can trigger the session timeout.
+
+> Session management and message IDs are necessary since *the Mixnet guarantees message delivery but not message ordering*: in the case of trying to e.g. send gRPC protobuf through the Mixnet, ordering is required so that a buffer is not split across Sphinx packet payloads, and that the 2nd half of the frame is not passed upstream to the gRPC parser before the 1st half, even if it is received first.
+
+Lets step through a full request/response path between a client process communicating with a remote host via the proxies:
+
+### Outgoing Client Request
+The `NymProxyClient` instance, once initialised and running, listens out for incoming TCP connections on its localhost port.
+
+On receiving one, it will create a new session ID and packetise the incoming bytes into messages of the following structure:
+
+```rust
+pub struct ProxiedMessage {
+    message: Payload,
+    session_id: Uuid,
+    message_id: u16,
+}
+```
+
+> This code can be found [here](https://github.com/nymtech/nym/blob/develop/sdk/rust/nym-sdk/src/tcp_proxy/utils.rs#L147C1-L152C2)
+
+And then send these to the Nym address of the `NymProxyServer` instance. Not much to see here regarding message ordering, as the potential for reordering only starts once packets are travelling through the Mixnet.
+
+```mermaid
+---
+config:
+  theme: neo-dark
+  layout: elk
+---
+sequenceDiagram
+    box Local Machine
+    participant Client Process
+    participant NymProxyClient
+    end
+    Client Process->>NymProxyClient: Request bytes
+    NymProxyClient->>NymProxyClient: New session
+    NymProxyClient->>EntryGateway: Sphinx Packets: Message 1
+    EntryGateway-->>NymProxyClient: Acks
+    NymProxyClient->>EntryGateway: Sphinx Packets: Message 2
+    EntryGateway-->>NymProxyClient: Acks
+    NymProxyClient->>EntryGateway: Sphinx Packets: Message 3
+    EntryGateway-->>NymProxyClient: Acks
+    NymProxyClient->>EntryGateway: Sphinx Packets: Close Message
+    NymProxyClient->>NymProxyClient: Start Client Close timeout
+    EntryGateway-->>NymProxyClient: Acks
+```
+
+### Server Receives Request & Responds
+
+Here is a diagrammatic representation of a situation in which the request arrives out of order, and how the message buffer deals with this so as not to pass a malformed request upstream to the process running on the same remote host:
+
+```mermaid
+---
+config:
+  theme: neo-dark
+  layout: elk
+---
+sequenceDiagram
+    Exit Gateway->>NymProxyServer: Sphinx Packets: Message 2
+    NymProxyServer-->>Exit Gateway: Acks
+    Exit Gateway->>NymProxyServer: Sphinx Packets: Message 3
+    NymProxyServer-->>Exit Gateway: Acks
+    loop Message Buffer
+        NymProxyServer->>NymProxyServer: Wait for Message 1
+        Exit Gateway->>NymProxyServer: Sphinx Packets: Message 1
+        NymProxyServer-->>Exit Gateway: Acks
+        NymProxyServer->>NymProxyServer: Message Received: trigger upstream send
+    end
+    Note right of NymProxyServer: Note this happens **per session**
+    NymProxyServer->>Upstream Process: Reconstructed request bytes
+    Upstream Process->>Upstream Process: Do something with request
+    Exit Gateway->>NymProxyServer: Sphinx Packets: Message Close
+    NymProxyServer-->>Exit Gateway: Acks
+    NymProxyServer->>NymProxyServer: Trigger Client timeout start for session
+    Upstream Process->>NymProxyServer: Response bytes
+    NymProxyServer->>NymProxyServer: Write to provided SURB payloads
+    NymProxyServer->>Exit Gateway: Anonymous replies
+
+    box Remote Host
+    participant NymProxyServer
+    participant Upstream Process
+    end
+```
+
+> Note that this is per-session, with a session mapped to a single TCP connection. Both the `NymProxyClient` and `Server` are able to handle multiple concurrent connections.
+
+### Client Receives Response
+
+The `ProxyClient` deals with incoming traffic in the same way as the `ProxyServer`, with a per-session message queue:
+
+```mermaid
+---
+config:
+  theme: neo-dark
+  layout: elk
+---
+sequenceDiagram
+    box Local Machine
+    participant Client Process
+    participant NymProxyClient
+    end
+    Entry Gateway--xNymProxyClient: Sphinx Packets: Reply Message 1 dropped: No Ack!
+    Entry Gateway->>NymProxyClient: Sphinx Packets: Reply Message 2
+    NymProxyClient-->Entry Gateway: Ack
+    Entry Gateway->>NymProxyClient: Sphinx Packets: Reply Message 3
+    NymProxyClient-->Entry Gateway: Ack
+    Loop Message Buffer:
+        NymProxyClient->>NymProxyClient: Wait for Message 1
+        Entry Gateway->>NymProxyClient: Sphinx Packets: Message 1
+        NymProxyClient-->>Entry Gateway: Acks
+        NymProxyClient->>NymProxyClient: Message Received: trigger send
+        NymProxyClient->>Client Process: Response bytes
+    end
+    Note right of NymProxyClient: Note this happens **per session**
+```
+
+After receiving the packets, it can then forward the recoded bytes to the requesting process.
+
+### Full Flow Diagram
+```mermaid
+---
+config:
+  theme: neo-dark
+  layout: elk
+---
+sequenceDiagram
+    box Local Machine
+    participant Client Process
+    participant NymProxyClient
+    end
+    Client Process->>NymProxyClient: Request bytes
+    NymProxyClient->>NymProxyClient: New session
+    NymProxyClient->>Entry Gateway: Sphinx Packets: Message 1
+    Entry Gateway-->>NymProxyClient: Acks
+    NymProxyClient->>Entry Gateway: Sphinx Packets: Message 2
+    Entry Gateway-->>NymProxyClient: Acks
+    NymProxyClient->>Entry Gateway: Sphinx Packets: Message 3
+    Entry Gateway-->>NymProxyClient: Acks
+    NymProxyClient->>Entry Gateway: Sphinx Packets: Close Message
+    Entry Gateway-->>NymProxyClient: Acks
+
+    Entry Gateway-->>Mix Nodes: All Packets, Acks, etc
+    Note right of Mix Nodes: We are omitting the 3 hops etc for brevity here
+    Mix Nodes-->> Exit Gateway: All Packets, Acks, etc
+
+    Exit Gateway->>NymProxyServer: Sphinx Packets: Message 2
+    NymProxyServer-->>Exit Gateway: Acks
+    Exit Gateway->>NymProxyServer: Sphinx Packets: Message 3
+    NymProxyServer-->>Exit Gateway: Acks
+    loop Message Buffer
+        NymProxyServer->>NymProxyServer: Wait for Message 1
+        Exit Gateway->>NymProxyServer: Sphinx Packets: Message 1
+        NymProxyServer-->>Exit Gateway: Acks
+        NymProxyServer->>NymProxyServer: Message Received: trigger upstream send
+    end
+    Note right of NymProxyServer: Note this happens **per session**
+    NymProxyServer->>Upstream Process: Reconstructed request bytes
+    Upstream Process->>Upstream Process: Do something with request
+    Exit Gateway->>NymProxyServer: Sphinx Packets: Close Message
+    NymProxyServer-->>Exit Gateway: Acks
+    NymProxyServer->>NymProxyServer: Trigger Client timeout start for session
+    Upstream Process->>NymProxyServer: Response bytes
+    NymProxyServer->>NymProxyServer: Write to provided SURB payloads
+    NymProxyServer->>Exit Gateway: Anonymous replies
+    box Remote Host
+    participant NymProxyServer
+    participant Upstream Process
+    end
+
+
+    Entry Gateway--xNymProxyClient: Sphinx Packets: Reply Message 1 dropped: No Ack!
+    Entry Gateway->>NymProxyClient: Sphinx Packets: Reply Message 2
+    NymProxyClient-->Entry Gateway: Ack
+    Entry Gateway->>NymProxyClient: Sphinx Packets: Reply Message 3
+    NymProxyClient-->Entry Gateway: Ack
+    Loop Message Buffer:
+        NymProxyClient->>NymProxyClient: Wait for Message 1
+        Entry Gateway->>NymProxyClient: Sphinx Packets: Message 1
+        NymProxyClient-->>Entry Gateway: Acks
+        NymProxyClient->>NymProxyClient: Message Received: trigger send
+        NymProxyClient->>Client Process: Response bytes
+    end
+    Note right of NymProxyClient: Note this happens **per session**
+```

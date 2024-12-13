@@ -18,8 +18,14 @@ services:
       dockerfile: nym-data-observatory/Dockerfile
     container_name: nym-data-observatory
     environment:
-      NYM_DATA_OBSERVATORY_CONNECTION_URL: "postgres://postgres:password@postgres:5432"
+      NYM_DATA_OBSERVATORY_CONNECTION_USERNAME: "postgres"
+      NYM_DATA_OBSERVATORY_CONNECTION_PASSWORD: "password"
+      NYM_DATA_OBSERVATORY_CONNECTION_HOST: "postgres"
+      NYM_DATA_OBSERVATORY_CONNECTION_PORT: "5432"
+      NYM_DATA_OBSERVATORY_CONNECTION_DB: ""
       NYM_DATA_OBSERVATORY_HTTP_PORT: 8000
+    env_file:
+      - ../envs/qa.env
 
 volumes:
   pgdata:

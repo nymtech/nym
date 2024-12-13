@@ -12,8 +12,11 @@ use crate::reward_params::{
     ActiveSetUpdate, IntervalRewardParams, IntervalRewardingParamsUpdate, NodeRewardingParameters,
     Performance, RewardedSetParams, RewardingParams, WorkFactor,
 };
-use crate::types::{ContractStateParams, NodeId};
-use crate::{NymNode, RoleAssignment};
+use crate::types::NodeId;
+use crate::{
+    ContractStateParamsUpdate, NymNode, OutdatedVersionWeights, RoleAssignment,
+    VersionScoreFormulaParams,
+};
 use crate::{OperatingCostRange, ProfitMarginRange};
 use contracts_common::{signing::MessageSignature, IdentityKey, Percent};
 use cosmwasm_schema::cw_serde;
@@ -22,6 +25,7 @@ use std::time::Duration;
 
 #[cfg(feature = "schema")]
 use crate::{
+    config_score::{CurrentNymNodeVersionResponse, NymNodeVersionHistoryResponse},
     delegation::{
         NodeDelegationResponse, PagedAllDelegationsResponse, PagedDelegatorDelegationsResponse,
         PagedNodeDelegationsResponse,
@@ -47,7 +51,7 @@ use crate::{
         PendingIntervalEventResponse, PendingIntervalEventsResponse,
     },
     rewarding::{EstimatedCurrentEpochRewardResponse, PendingRewardResponse},
-    types::ContractState,
+    types::{ContractState, ContractStateParams},
 };
 #[cfg(feature = "schema")]
 use contracts_common::{signing::Nonce, ContractBuildInformation};
@@ -63,6 +67,14 @@ pub struct InstantiateMsg {
     pub epochs_in_interval: u32,
     pub epoch_duration: Duration,
     pub initial_rewarding_params: InitialRewardingParams,
+
+    pub current_nym_node_version: String,
+
+    #[serde(default)]
+    pub version_score_weights: OutdatedVersionWeights,
+
+    #[serde(default)]
+    pub version_score_params: VersionScoreFormulaParams,
 
     #[serde(default)]
     pub profit_margin: ProfitMarginRange,
@@ -126,7 +138,10 @@ pub enum ExecuteMsg {
         address: String,
     },
     UpdateContractStateParams {
-        updated_parameters: ContractStateParams,
+        update: ContractStateParamsUpdate,
+    },
+    UpdateCurrentNymNodeSemver {
+        current_version: String,
     },
     UpdateActiveSetDistribution {
         update: ActiveSetUpdate,
@@ -295,6 +310,9 @@ impl ExecuteMsg {
             ExecuteMsg::UpdateContractStateParams { .. } => {
                 "updating mixnet state parameters".into()
             }
+            ExecuteMsg::UpdateCurrentNymNodeSemver { current_version } => {
+                format!("updating current nym-node semver to {current_version}")
+            }
             ExecuteMsg::UpdateActiveSetDistribution {
                 force_immediately, ..
             } => format!("updating active set distribution. forced: {force_immediately}"),
@@ -405,6 +423,20 @@ pub enum QueryMsg {
     /// Gets the current state of the contract.
     #[cfg_attr(feature = "schema", returns(ContractState))]
     GetState {},
+
+    /// Get the current expected version of a Nym Node.
+    #[cfg_attr(feature = "schema", returns(CurrentNymNodeVersionResponse))]
+    GetCurrentNymNodeVersion {},
+
+    /// Get the version history of Nym Node.
+    #[cfg_attr(feature = "schema", returns(NymNodeVersionHistoryResponse))]
+    GetNymNodeVersionHistory {
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<u32>,
+    },
 
     /// Gets the current parameters used for reward calculation.
     #[cfg_attr(feature = "schema", returns(RewardingParams))]
@@ -829,6 +861,13 @@ pub enum QueryMsg {
 
 #[cw_serde]
 pub struct MigrateMsg {
-    pub vesting_contract_address: Option<String>,
     pub unsafe_skip_state_updates: Option<bool>,
+    pub vesting_contract_address: Option<String>,
+    pub current_nym_node_semver: String,
+
+    #[serde(default)]
+    pub version_score_weights: OutdatedVersionWeights,
+
+    #[serde(default)]
+    pub version_score_params: VersionScoreFormulaParams,
 }

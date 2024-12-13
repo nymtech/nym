@@ -1,21 +1,24 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use std::net::IpAddr;
-
 use nym_credentials_interface::CredentialSpendingData;
 use nym_crypto::asymmetric::x25519::PrivateKey;
 use nym_service_provider_requests_common::{Protocol, ServiceProviderType};
 use nym_sphinx::addressing::clients::Recipient;
 use nym_wireguard_types::PeerPublicKey;
 
-use crate::{v1, v2, v3, Error};
+use crate::{
+    v1, v2, v3,
+    v4::{self, registration::IpPair},
+    Error,
+};
 
 #[derive(Copy, Clone, Debug)]
 pub enum AuthenticatorVersion {
     V1,
     V2,
     V3,
+    V4,
     UNKNOWN,
 }
 
@@ -29,6 +32,8 @@ impl From<Protocol> for AuthenticatorVersion {
             AuthenticatorVersion::V2
         } else if value.version == v3::VERSION {
             AuthenticatorVersion::V3
+        } else if value.version == v4::VERSION {
+            AuthenticatorVersion::V4
         } else {
             AuthenticatorVersion::UNKNOWN
         }
@@ -57,10 +62,16 @@ impl InitMessage for v3::registration::InitMessage {
     }
 }
 
+impl InitMessage for v4::registration::InitMessage {
+    fn pub_key(&self) -> PeerPublicKey {
+        self.pub_key
+    }
+}
+
 pub trait FinalMessage {
     fn pub_key(&self) -> PeerPublicKey;
     fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error>;
-    fn private_ip(&self) -> IpAddr;
+    fn private_ips(&self) -> IpPair;
     fn credential(&self) -> Option<CredentialSpendingData>;
 }
 
@@ -73,8 +84,8 @@ impl FinalMessage for v1::GatewayClient {
         self.verify(private_key, nonce)
     }
 
-    fn private_ip(&self) -> IpAddr {
-        self.private_ip
+    fn private_ips(&self) -> IpPair {
+        self.private_ip.into()
     }
 
     fn credential(&self) -> Option<CredentialSpendingData> {
@@ -91,8 +102,8 @@ impl FinalMessage for v2::registration::FinalMessage {
         self.gateway_client.verify(private_key, nonce)
     }
 
-    fn private_ip(&self) -> IpAddr {
-        self.gateway_client.private_ip
+    fn private_ips(&self) -> IpPair {
+        self.gateway_client.private_ip.into()
     }
 
     fn credential(&self) -> Option<CredentialSpendingData> {
@@ -109,8 +120,26 @@ impl FinalMessage for v3::registration::FinalMessage {
         self.gateway_client.verify(private_key, nonce)
     }
 
-    fn private_ip(&self) -> IpAddr {
-        self.gateway_client.private_ip
+    fn private_ips(&self) -> IpPair {
+        self.gateway_client.private_ip.into()
+    }
+
+    fn credential(&self) -> Option<CredentialSpendingData> {
+        self.credential.clone()
+    }
+}
+
+impl FinalMessage for v4::registration::FinalMessage {
+    fn pub_key(&self) -> PeerPublicKey {
+        self.gateway_client.pub_key
+    }
+
+    fn verify(&self, private_key: &PrivateKey, nonce: u64) -> Result<(), Error> {
+        self.gateway_client.verify(private_key, nonce)
+    }
+
+    fn private_ips(&self) -> IpPair {
+        self.gateway_client.private_ips
     }
 
     fn credential(&self) -> Option<CredentialSpendingData> {
@@ -134,6 +163,16 @@ pub trait TopUpMessage {
 }
 
 impl TopUpMessage for v3::topup::TopUpMessage {
+    fn pub_key(&self) -> PeerPublicKey {
+        self.pub_key
+    }
+
+    fn credential(&self) -> CredentialSpendingData {
+        self.credential.clone()
+    }
+}
+
+impl TopUpMessage for v4::topup::TopUpMessage {
     fn pub_key(&self) -> PeerPublicKey {
         self.pub_key
     }
@@ -257,6 +296,41 @@ impl From<v3::request::AuthenticatorRequest> for AuthenticatorRequest {
                 }
             }
             v3::request::AuthenticatorRequestData::TopUpBandwidth(top_up_message) => {
+                Self::TopUpBandwidth {
+                    msg: top_up_message,
+                    protocol: value.protocol,
+                    reply_to: value.reply_to,
+                    request_id: value.request_id,
+                }
+            }
+        }
+    }
+}
+
+impl From<v4::request::AuthenticatorRequest> for AuthenticatorRequest {
+    fn from(value: v4::request::AuthenticatorRequest) -> Self {
+        match value.data {
+            v4::request::AuthenticatorRequestData::Initial(init_message) => Self::Initial {
+                msg: Box::new(init_message),
+                protocol: value.protocol,
+                reply_to: value.reply_to,
+                request_id: value.request_id,
+            },
+            v4::request::AuthenticatorRequestData::Final(final_message) => Self::Final {
+                msg: final_message,
+                protocol: value.protocol,
+                reply_to: value.reply_to,
+                request_id: value.request_id,
+            },
+            v4::request::AuthenticatorRequestData::QueryBandwidth(peer_public_key) => {
+                Self::QueryBandwidth {
+                    msg: Box::new(peer_public_key),
+                    protocol: value.protocol,
+                    reply_to: value.reply_to,
+                    request_id: value.request_id,
+                }
+            }
+            v4::request::AuthenticatorRequestData::TopUpBandwidth(top_up_message) => {
                 Self::TopUpBandwidth {
                     msg: top_up_message,
                     protocol: value.protocol,

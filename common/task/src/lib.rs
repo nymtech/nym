@@ -2,12 +2,14 @@
 // SPDX-License-Identifier: Apache-2.0
 
 pub mod connections;
+pub mod event;
 pub mod manager;
 #[cfg(not(target_arch = "wasm32"))]
 pub mod signal;
 pub mod spawn;
 
-pub use manager::{StatusReceiver, StatusSender, TaskClient, TaskHandle, TaskManager};
+pub use event::{StatusReceiver, StatusSender, TaskStatus, TaskStatusEvent};
+pub use manager::{TaskClient, TaskHandle, TaskManager};
 #[cfg(not(target_arch = "wasm32"))]
 pub use signal::wait_for_signal_and_error;
 

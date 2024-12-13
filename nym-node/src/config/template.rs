@@ -123,15 +123,23 @@ bind_address = '{{ wireguard.bind_address }}'
 
 # Private IP address of the wireguard gateway.
 # default: `10.1.0.1`
-private_ip = '{{ wireguard.private_ip }}'
+private_ipv4 = '{{ wireguard.private_ipv4 }}'
+
+# Private IP address of the wireguard gateway.
+# default: `fc01::1`
+private_ipv6 = '{{ wireguard.private_ipv6 }}'
 
 # Port announced to external clients wishing to connect to the wireguard interface.
 # Useful in the instances where the node is behind a proxy.
 announced_port = {{ wireguard.announced_port }}
 
-# The prefix denoting the maximum number of the clients that can be connected via Wireguard.
-# The maximum value for IPv4 is 32 and for IPv6 is 128
-private_network_prefix = {{ wireguard.private_network_prefix }}
+# The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.
+# The maximum value for IPv4 is 32
+private_network_prefix_v4 = {{ wireguard.private_network_prefix_v4 }}
+
+# The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv6.
+# The maximum value for IPv6 is 128
+private_network_prefix_v6 = {{ wireguard.private_network_prefix_v6 }}
 
 [wireguard.storage_paths]
 # Path to file containing wireguard x25519 diffie hellman private key.
@@ -185,6 +193,9 @@ announce_wss_port = {{#if entry_gateway.announce_wss_port }} {{ entry_gateway.an
 # derived shared keys, available client bandwidths and wireguard peers.
 clients_storage = '{{ entry_gateway.storage_paths.clients_storage }}'
 
+# Path to sqlite database containing all persistent stats data.
+stats_storage = '{{ entry_gateway.storage_paths.stats_storage }}'
+
 # Path to file containing cosmos account mnemonic used for zk-nym redemption.
 cosmos_mnemonic = '{{ entry_gateway.storage_paths.cosmos_mnemonic }}'
 
@@ -236,6 +247,10 @@ upstream_exit_policy_url = '{{ exit_gateway.upstream_exit_policy_url }}'
 # Path to sqlite database containing all persistent data: messages for offline clients,
 # derived shared keys, available client bandwidths and wireguard peers.
 clients_storage = '{{ exit_gateway.storage_paths.clients_storage }}'
+
+# Path to sqlite database containing all persistent stats data.
+stats_storage = '{{ exit_gateway.storage_paths.stats_storage }}'
+
 
 [exit_gateway.storage_paths.network_requester]
 # Path to file containing network requester ed25519 identity private key.

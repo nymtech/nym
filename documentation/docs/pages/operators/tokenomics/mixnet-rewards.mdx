@@ -1,0 +1,332 @@
+import { Callout } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
+import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
+import { VarInfo } from 'components/variable-info.tsx';
+import { MigrateTabs } from 'components/operators/nodes/node-migrate-command-tabs';
+import NyxPercentStake from 'components/outputs/nyx-outputs/nyx-percent-stake.md';
+import NyxTotalStake from 'components/outputs/nyx-outputs/nyx-total-stake.md';
+import { TimeNow } from 'components/time-now.tsx';
+import { AccordionTemplate } from 'components/accordion-template.tsx';
+import { Clt } from 'components/callout-custom/CalloutCustom.jsx';
+
+# Nym Operators Rewards
+
+<TimeNow />
+
+* Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)
+* For a more comprehensive overview, live data and supply graphs, visit [*nymtech.net/about/token*](https://nymtech.net/about/token)
+
+We are working on the final architecture of [*Fair Mixnet*](#fair-mixnet) tokenomics implementation and its detailed documentation. **The current design is called [*Naive rewarding*](#naive-rewarding).** It is an intermediate step, allowing operators to migrate to `nym-node` in Mixnet smart contract and for the first time recieve delegations and earn rewards for any `nym-node` functionality, in opposite to the past system, where only Mixnodes were able to recieve delegations and rewards.
+
+**Please read the [roadmap section below](#roadmap) to see the planned development.**
+
+{/*
+
+**Formulas and Examples Annotation**
+
+To make it easier for the reader, we use a highlighting line on the left side, with a specific color:
+
+<Clt borderColor='#008080' backgroundColor='#20b2aa' pointPosition='right' pointOffset='3rem' pointAlignment='center'>
+> **Turquoise with red pin for formulas.**
+</Clt>
+
+<Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
+<AccordionTemplate name="Example">
+> Purple collapsible for examples.
+</AccordionTemplate>
+</Callout>
+*/}
+
+<Callout type="info" emoji="ℹ️">
+Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://github.com/nymtech/nym/pull/5129) - read more on [Nym operators forum](https://forum.nymtech.net/t/vesting-accounts-are-no-longer-supported/827).
+</Callout>
+
+## Overview
+
+This is a quick summary, to understand the full picture, please see detailed [*Rewards Logic & Calculation*](#rewards-logic--calculation) chapter below.
+
+* The operators of `nym-node` get rewarded from Mixmining pool, which emits around 6000 NYM per hour.
+* A [rewarded set](../tokenomics.mdx#active-set) of `nym-nodes` selected for Nym network routing and mixing can be is currently 240 nodes in total and it's selected for each new epoch (60 min). The number can be adjusted - look here for the current value: [validator.nymtech.net/api/v1/epoch/reward_params](https://validator.nymtech.net/api/v1/epoch/reward_params)
+* `nym-nodes` can run in mode `entry-gateway`, `exit-gateway` and `mixnode`, which are positioned into layers
+* NymVPN users can chose to route through Nym Network in two ways:
+	- Mixnet: 5 layers routing and mixing - full privacy
+	- Wireguard: 2 layers routing, skipping 3 mixing layers - fast mode
+* **The current reward system is *Native rewarding* - an intermediate step -  where each layer get's rewarded the same**
+* In the final model, nodes will get rewarded based on their layer position and the work they do (collected user tickets), where and the reward distribution per layer will be according to a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
+    - 5-hop: 16%-16%-16%-16%-36%
+    - 2-hop: 33%-67%
+* Currently Gateways earn rewards only from taking a part in the rewarded set. The operators can sign up to a grant program as a substitution for 2-hop routing.
+* To read more about the final design and future implementation, see [*Roadmap*](#roadmap) chapter for more details.
+
+## Rewards Logic & Calculation
+
+**Note that in the current intermediate model we use one active set to reward all nodes and they are asign same (naive) work factor of 1 / 240, whether they work as Mixnode or Gateway of any kind, in both 2-hop and 5-hop mode. In reality it means that all nodes are rewarded within 5-hop reward scheme only.**
+
+**However NymVPN client can chose any `nym-node --mode entry-gateway` and `--mode exit-gateway` in the network to route through the mixnet and as well as any of those which passed [wireguard probing test](https://harbourmaster.nymtech.net) to route as dVPN nodes.**
+
+### Nym Network rewarded set distribution
+
+<div>
+  <Tabs items={[
+    <strong>Mixnet mode (5-hop)</strong>,
+    <strong>dVPN mode (2-hop)</strong>,
+    ]} defaultIndex="0">
+    <MyTab>
+
+```ascii
+
+ Network
+ layer:           1.           2.           3.           4.           5.
+
+ --------
+                            ┌► mixnode ─┐   mixnode      mixnode
+                            │           │
+ Node             entry     │           │                             exit
+ type:            gateway ──┘  mixnode  │   mixnode  ┌─► mixnode ───► gateway
+                                        │            │
+                                        │            │
+                               mixnode  └─► mixnode ─┘   mixnode
+
+```
+
+| **Network layer** | **1** | **2** | **3** | **4** | **5** |
+| :-- | :---: | :---: | :---: | :---: | :---: |
+| Node functionality in layer | Entry Gateway | Mixnode | Mixnode | Mixnode | Exit Gateway |
+| Nodes in [active set](tokenomics.mdx#active-set) |  50  | 40 | 40 | 40 | 70 |
+| Naive rewarding: Rewards distribution per node | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 |
+| Final model: Rewards distribution per node | 0.16 / 240 | 0.16 / 240 | 0.16 / 240 | 0.16 / 240 | 0.36 / 240 |
+
+    </MyTab>
+    <MyTab>
+
+
+```ascii
+
+ Network
+ layer:           1.                                                  2.
+
+ --------
+
+ Node             entry                                               exit
+ type:            gateway ──────────────────────────────────────────► gateway
+
+```
+
+| **Network layer** | **1** | **2** |
+| :-- | :---: | :---: |
+| Node functionality in layer | Entry Gateway  | Exit Gateway |
+| Naive rewarding: Nodes in [active set](tokenomics.mdx#active-set) |  50  | 70 |
+| Naive rewarding: Rewards distribution per node | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 | 1 / 240 |
+| Final model: Active nodes | All following criteria for eligibility | All following criteria for eligibility |
+| Final model: Rewards distribution per node | 0.33 \* collected_user_tickets | 0.67 \* collected_user_tickets |
+
+    </MyTab>
+  </Tabs>
+</div>
+
+
+### Active Set Selection
+
+*Performance matters!*
+
+For a node to be rewarded, the node must be part of a [Rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (which currently = active set) in the first place. The active set is selected in the beginning of each epoch (every 60min) where total of 240 Nym nodes - represented by 120 mixnodes and 120 gateways, are randomly allocated across the layers.
+
+The algorithm choosing nodes into the active set takes into account node's performance and [stake saturation](../tolkenomics.mdx#stake-saturation), both values being between 0 and 1 and config score which is either 0 or 1.
+
+**Config score is introduced:** The nodes selection to the active set has a new parameter - `config_score`. Config score currently looks if the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`) **AND** if [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) are accepted. Config score has binary values of either 0 or 1, with a following logic:
+
+| **Run `nym-node` binary** | **T&C's accepted** | **`config_score`** |
+| :--                       | :--                | ---:               |
+| True                      | False              | 0                  |
+| False                     | True               | 0                  |
+| False                     | False              | 0                  |
+| True                      | True               | 1                  |
+
+
+The entire active set selection probablity:
+
+<Callout type="info" emoji="📌">
+> **active_set_selection_probability = config_score \* stake_saturation \* node_performance ^ 20**
+</Callout>
+
+For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them `config_score` = 1 and not 0):
+
+<br />
+<AccordionTemplate name="✏️  Example: Reward set selection">
+> node_1 = 1.00 ^ 20 \* 1.0 = 1 <br />
+> node_2 = 1.00 ^ 20 \* 0.5 = 0.5 <br />
+> node_3 = 0.99 ^ 20 \* 1.0 = 0.818 <br />
+> node_4 = 0.95 ^ 20 \* 1.0 = 0.358 <br />
+> node_5 = 0.90 ^ 20 \* 1.0 = 0.122 <br />
+</AccordionTemplate>
+
+As you can see the performance (also known as *Routing score*) is much more important during the active set selection. A node with 100% performance but only 50% stake saturation has much bigger chance to be chosen than a node with 95% performance but full stake saturation and incomparably bigger chance than 90% performing node with 100% stake saturation.
+
+
+### Layer Distribution
+
+Once the rewarded set (currently 120 Mixnodes and 120 Gateways) is selected, the nodes can start to route and mix packets in the Nym Network. Each hour a total of 6000 NYM is distributed between the layers from Mixmining pool. Currently in our *Naive rewarding* intermediate design, all layers get a same portion, therefore each node is *naively* assigned same working factor and therefore earns 1/240 of the rewards per epoch.
+
+We are working on the final design with the ratio implementing a [decision made by the operators](https://forum.nymtech.net/t/poll-what-should-be-the-split-of-mixmining-rewards-among-the-layers-of-the-nym-mixnet/407) as follows:
+
+<Callout type="info" borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+>5-hop mixnet mode: <br />
+> 16%; 16%; 16%; 16%; 36% <br/>
+> <br/>
+> 2-hop dVPN mode: <br />
+> 33%; 67%
+</Callout>
+
+{/*
+In real numbers: If hourly revenue to all 240 nodes is 6000 NYM, the layer compartmentalisation is 960 NYM for Entry Gateway layer and each Mixnode layer and 2160 NYM for Exit Gateway layer. The calculation is in the example below:
+
+<Callout borderColor="#966fd6" backgroundColor="#b19cd9" emoji="">
+<AccordionTemplate name="Example">
+> Purple collapsible for examples.
+5-hop mixnet mode:
+$0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.16 * 6000 = 960; 0.36 * 6000 2160$
+2-hop wireguard mode:
+$33\% - 67\%$
+</AccordionTemplate>
+</Callout>
+
+### Node Rewards within Same Layer
+
+
+### Operation Cost, Profit Margin & Delegation
+
+### APR Calculation
+*/}
+
+## Roadmap
+
+We are working on the final architecture of [*Fair Mixnet*](#fair-mixnet) tokenomics implementation. The current design is called [*Naive rewarding*](#naive-rewarding). This is an intermediate step, allowing operators to migrate to `nym-node` in Mixnet smart contract and for the first time recieve delegations and earn rewards for any `nym-node` functionality, in opposite to the past system, where only Mixnodes were able to recieve delegations and rewards.
+
+On November 5th, we presented a release roadmap in live [Operators Townhall](https://www.youtube.com/watch?v=3G1pJqvO2VM) where we explained in detail the steps of Nym node and tokenomics development and the effect it will have on node operators and put it into a rough timeline.
+
+![](/images/operators/tokenomics/roadmap_24-q4.png)
+
+### Naive Rewarding
+
+***Naive rewarding* is the current tokenomics design.** The table below lists features and logic of this design.
+
+![](/images/operators/tokenomics/roadmap_naive.png)
+
+### Fair Mixnet
+
+***Fair Mixnet* is the final architecture model that we work towards.** The table below lists features and logic of the design once implemented.
+
+![](/images/operators/tokenomics/roadmap_fair.png)
+
+
+{/*
+## Stats
+
+NYM token is capped at 1b. Below is a table with actual\* token supply distribution.
+
+mdrun cd ../../../scripts/cdmrun && ./api_targets.py s --api mainnet --endpoint circulating-supply --format
+
+
+ADD MIXNET STATS GRAPHS
+
+
+DROPPING THIS FROM THE MAINTENANCE PAGE - NEEDS REWORK
+
+## Mix Node Reward Estimation API endpoint
+
+THIS NEEDS REDO
+
+The Reward Estimation API endpoint allows Mix Node operators to estimate the rewards they could earn for running a Nym Mix Node with a specific `MIX_ID`.
+
+> The `<MIX_ID>` can be found in the "Mix ID" column of the [Harbourmaster](https://harbourmaster/nymtech.net).
+
+The endpoint is a particularly common for Mix Node operators as it can provide an estimate of potential earnings based on factors such as the amount of traffic routed through the Mix Node, the quality of the Mix Node's performance, and the overall demand for Mix Nodes in the network. This information can be useful for Mix Node operators in deciding whether or not to run a Mix Node and in optimizing its operations for maximum profitability.
+
+
+
+We have available API endpoints which can be accessed via [Swagger UI page](https://validator.nymtech.net/api/swagger/index.html). Or by querying the endpoints directly:
+
+```sh
+curl -X 'GET' \
+  'https://validator.nymtech.net/api/v1/status/mixnode/<MIX_ID>/reward-estimation' \
+  -H 'accept: application/json'sh
+```
+
+Query response will look like this:
+
+```sh
+    "estimation": {
+        "total_node_reward": "942035.916721770541325331",
+        "operator": "161666.263307386408152071",
+        "delegates": "780369.65341438413317326",
+        "operating_cost": "54444.444444444444444443"
+    },
+```
+
+> The unit of value is measured in `uNYM`.
+
+<Callout borderColor="#008080" backgroundColor="#20b2aa" emoji="📌">
+$1 \ NYM = 1 \_ 000 \_ 000 \ uNYM$
+</Callout>
+
+- `estimated_total_node_reward` - An estimate of the total amount of rewards that a particular Mix Node can expect to receive during the current epoch. This value is calculated by the Nym Validator based on a number of factors, including the current state of the network, the number of Mix Nodes currently active in the network, and the amount of network traffic being processed by the Mix Node.
+
+- `estimated_operator_reward` - An estimate of the amount of rewards that a particular Mix Node operator can expect to receive. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the Mix Node, the quality of service provided by the Mix Node, and the operator's stake in the network.
+
+- `estimated_delegators_reward` - An estimate of the amount of rewards that Mix Node delegators can expect to receive individually. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the Mix Node, the quality of service provided by the Mix Node, and the delegator's stake in the network.
+
+- `estimated_node_profit` - An estimate of the profit that a particular Mix node operator can expect to earn. This value is calculated by subtracting the Mix Node operator's `operating_costs` from their `estimated_operator_reward` for the current epoch.
+
+- `estimated_operator_cost` - An estimate of the total cost that a particular Mix Node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a Mix Node, such as server hosting fees, and other expenses associated with operating the Mix Node.
+*/}
+
+
+
+{/*
+?DROPPING THIS FROM THE OLD MAINTENANCE PAGE
+
+### Mix Node Reward Estimation API endpoint
+
+The Reward Estimation API endpoint allows Mix Node operators to estimate the rewards they could earn for running a Nym Mix Node with a specific `MIX_ID`.
+
+> The `<MIX_ID>` can be found in the "Mix ID" column of the [Network Explorer](https://explorer.nymtech.net/network-components/mixnodes/active).
+
+The endpoint is a particularly common for Mix Node operators as it can provide an estimate of potential earnings based on factors such as the amount of traffic routed through the Mix Node, the quality of the Mix Node's performance, and the overall demand for Mix Nodes in the network. This information can be useful for Mix Node operators in deciding whether or not to run a Mix Node and in optimizing its operations for maximum profitability.
+
+Using this API endpoint returns information about the Reward Estimation:
+
+```sh
+/status/mixnode/<MIX_ID>/reward-estimation
+```
+
+Query Response:
+
+```sh
+    "estimation": {
+        "total_node_reward": "942035.916721770541325331",
+        "operator": "161666.263307386408152071",
+        "delegates": "780369.65341438413317326",
+        "operating_cost": "54444.444444444444444443"
+    },
+```
+
+> The unit of value is measured in `uNYM`.
+
+- `estimated_total_node_reward` - An estimate of the total amount of rewards that a particular Mix Node can expect to receive during the current epoch. This value is calculated by the Nym Validator based on a number of factors, including the current state of the network, the number of Mix Nodes currently active in the network, and the amount of network traffic being processed by the Mix Node.
+
+- `estimated_operator_reward` - An estimate of the amount of rewards that a particular Mix Node operator can expect to receive. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the Mix Node, the quality of service provided by the Mix Node, and the operator's stake in the network.
+
+- `estimated_delegators_reward` - An estimate of the amount of rewards that Mix Node delegators can expect to receive individually. This value is calculated by the Nym Validator based on a number of factors, including the amount of traffic being processed by the Mix Node, the quality of service provided by the Mix Node, and the delegator's stake in the network.
+
+- `estimated_node_profit` - An estimate of the profit that a particular Mix node operator can expect to earn. This value is calculated by subtracting the Mix Node operator's `operating_costs` from their `estimated_operator_reward` for the current epoch.
+
+- `estimated_operator_cost` - An estimate of the total cost that a particular Mix Node operator can expect to incur for their participation. This value is calculated by the Nym Validator based on a number of factors, including the cost of running a Mix Node, such as server hosting fees, and other expenses associated with operating the Mix Node.
+
+### Validator: Installing and configuring nginx for HTTPS
+#### Setup
+[Nginx](https://www.nginx.com/resources/glossary/nginx) is an open source software used for operating high-performance web servers. It allows us to set up reverse proxying on our validator server to improve performance and security.
+
+Install `nginx` and allow the 'Nginx Full' rule in your firewall:
+
+*/}

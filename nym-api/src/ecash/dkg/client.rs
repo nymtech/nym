@@ -35,7 +35,7 @@ impl DkgClient {
         }
     }
 
-    pub(crate) async fn get_address(&self) -> AccountId {
+    pub(crate) async fn get_address(&self) -> Result<AccountId, EcashError> {
         self.inner.address().await
     }
 
@@ -53,7 +53,7 @@ impl DkgClient {
 
     pub(crate) async fn group_member(&self) -> Result<MemberResponse, EcashError> {
         self.inner
-            .group_member(self.get_address().await.to_string())
+            .group_member(self.get_address().await?.to_string())
             .await
     }
 
@@ -126,7 +126,7 @@ impl DkgClient {
         &self,
         epoch_id: EpochId,
     ) -> Result<Option<ContractVKShare>, EcashError> {
-        let address = self.inner.address().await;
+        let address = self.inner.address().await?;
         self.get_verification_key_share(epoch_id, address).await
     }
 
@@ -138,7 +138,7 @@ impl DkgClient {
     }
 
     pub(crate) async fn get_vote(&self, proposal_id: u64) -> Result<VoteResponse, EcashError> {
-        let address = self.get_address().await.to_string();
+        let address = self.get_address().await?.to_string();
         self.inner.get_vote(proposal_id, address).await
     }
 

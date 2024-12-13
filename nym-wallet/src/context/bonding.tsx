@@ -136,13 +136,14 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       if (bondedNode && isNymNode(bondedNode)) tx = await unbondNymNodeRequest(fee?.fee);
       if (bondedNode && isMixnode(bondedNode) && !bondedNode.proxy) tx = await unbondMixnodeRequest(fee?.fee);
       if (bondedNode && isGateway(bondedNode) && !bondedNode.proxy) tx = await unbondGatewayRequest(fee?.fee);
+      return tx;
     } catch (e) {
       Console.warn(e);
       setError(`an error occurred: ${e as string}`);
     } finally {
       setIsLoading(false);
     }
-    return tx;
+    return undefined;
   };
 
   const updateNymNodeConfig = async (data: NodeConfigUpdate) => {
@@ -153,13 +154,14 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       if (clientDetails?.client_address) {
         await getNodeDetails(clientDetails?.client_address);
       }
+      return tx;
     } catch (e) {
       Console.warn(e);
       setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);
     }
-    return tx;
+    return undefined;
   };
 
   const redeemRewards = async (fee?: FeeDetails) => {
@@ -168,12 +170,13 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
     try {
       if (bondedNode && !isNymNode(bondedNode)) tx = await vestingClaimOperatorReward(fee?.fee);
       else tx = await claimOperatorReward(fee?.fee);
+      return tx;
     } catch (e: any) {
       setError(`an error occurred: ${e}`);
     } finally {
       setIsLoading(false);
     }
-    return tx;
+    return undefined;
   };
 
   const updateBondAmount = async (data: TUpdateBondArgs) => {
@@ -225,6 +228,7 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       Console.error(e);
       setError(`an error occurred: ${e}`);
     }
+    return undefined;
   };
 
   const migrateLegacyNode = async () => {
@@ -243,8 +247,8 @@ export const BondingContextProvider: FCWithChildren = ({ children }): JSX.Elemen
       Console.error(e);
       setError(`an error occurred: ${e}`);
     }
-
     setIsLoading(false);
+    return undefined;
   };
 
   const memoizedValue = useMemo(

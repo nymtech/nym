@@ -23,9 +23,6 @@ pub enum AuthenticatorError {
     #[error("received too short packet")]
     ShortPacket,
 
-    #[error("failed local version check, client and config mismatch")]
-    FailedLocalVersionCheck,
-
     #[error("failed to connect to mixnet: {source}")]
     FailedToConnectToMixnet { source: nym_sdk::Error },
 
@@ -91,6 +88,18 @@ pub enum AuthenticatorError {
 
     #[error("unknown version number")]
     UnknownVersion,
+
+    #[error("{0}")]
+    PublicKey(#[from] nym_wireguard_types::Error),
+
+    #[error("{0}")]
+    IpAddr(#[from] std::net::AddrParseError),
+
+    #[error("{0}")]
+    AuthenticatorRequests(#[from] nym_authenticator_requests::Error),
+
+    #[error("{0}")]
+    RecipientFormatting(#[from] nym_sdk::mixnet::RecipientFormattingError),
 }
 
 pub type Result<T> = std::result::Result<T, AuthenticatorError>;

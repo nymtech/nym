@@ -45,13 +45,15 @@ pub mod nyx {
 }
 
 pub mod wireguard {
-    use std::net::{IpAddr, Ipv4Addr};
+    use std::net::{Ipv4Addr, Ipv6Addr};
 
     pub const WG_PORT: u16 = 51822;
 
     // The interface used to route traffic
     pub const WG_TUN_BASE_NAME: &str = "nymwg";
     pub const WG_TUN_DEVICE_ADDRESS: &str = "10.1.0.1";
-    pub const WG_TUN_DEVICE_IP_ADDRESS: IpAddr = IpAddr::V4(Ipv4Addr::new(10, 1, 0, 1));
-    pub const WG_TUN_DEVICE_NETMASK: &str = "255.255.255.0";
+    pub const WG_TUN_DEVICE_IP_ADDRESS_V4: Ipv4Addr = Ipv4Addr::new(10, 1, 0, 1);
+    pub const WG_TUN_DEVICE_NETMASK_V4: u8 = 16;
+    pub const WG_TUN_DEVICE_IP_ADDRESS_V6: Ipv6Addr = Ipv6Addr::new(0xfc01, 0, 0, 0, 0, 0, 0, 0x1); // fc01::1
+    pub const WG_TUN_DEVICE_NETMASK_V6: u8 = 112;
 }

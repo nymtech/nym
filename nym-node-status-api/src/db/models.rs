@@ -306,9 +306,10 @@ pub struct TestRunDto {
     pub id: i64,
     pub gateway_id: i64,
     pub status: i64,
-    pub timestamp_utc: i64,
+    pub created_utc: i64,
     pub ip_address: String,
     pub log: String,
+    pub last_assigned_utc: Option<i64>,
 }
 
 #[derive(Debug, Clone, strum_macros::Display, EnumString, FromRepr, PartialEq)]

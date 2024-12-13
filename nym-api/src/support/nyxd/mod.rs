@@ -29,8 +29,8 @@ use nym_mixnet_contract_common::mixnode::MixNodeDetails;
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::RewardingParams;
 use nym_mixnet_contract_common::{
-    CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond, IdentityKey, NymNodeDetails,
-    RewardedSet, RoleAssignment,
+    ConfigScoreParams, CurrentIntervalResponse, EpochStatus, ExecuteMsg, GatewayBond,
+    HistoricalNymNodeVersionEntry, IdentityKey, NymNodeDetails, RewardedSet, RoleAssignment,
 };
 use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nyxd::contract_traits::mixnet_query_client::MixnetQueryClientExt;
@@ -73,16 +73,6 @@ macro_rules! nyxd_query {
         match &*guard {
             $crate::support::nyxd::ClientInner::Signing(client) => client.$($op)*,
             $crate::support::nyxd::ClientInner::Query(client) => client.$($op)*,
-        }
-    }};
-}
-
-macro_rules! nyxd_signing_shared {
-    ($self:expr, $($op:tt)*) => {{
-        let guard = $self.inner.read().await;
-        match &*guard {
-            $crate::support::nyxd::ClientInner::Signing(client) => client.$($op)*,
-            $crate::support::nyxd::ClientInner::Query(_) => panic!("attempted to use a signing method on a query client"),
         }
     }};
 }
@@ -140,13 +130,19 @@ impl Client {
         self.inner.read().await
     }
 
-    pub(crate) async fn client_address(&self) -> AccountId {
-        nyxd_signing_shared!(self, address())
+    pub(crate) async fn client_address(&self) -> Option<AccountId> {
+        let guard = self.inner.read().await;
+        match &*guard {
+            ClientInner::Signing(client) => Some(client.address()),
+            ClientInner::Query(_) => None,
+        }
     }
 
     pub(crate) async fn balance<S: Into<String>>(&self, denom: S) -> Result<Coin, NyxdError> {
-        let address = self.client_address().await;
         let denom = denom.into();
+        let Some(address) = self.client_address().await else {
+            return Ok(Coin::new(0, denom));
+        };
         let balance = nyxd_query!(self, get_balance(&address, denom.clone()).await?);
 
         match balance {
@@ -229,6 +225,17 @@ impl Client {
 
     pub(crate) async fn get_gateway_ids(&self) -> Result<Vec<PreassignedId>, NyxdError> {
         nyxd_query!(self, get_all_preassigned_gateway_ids().await)
+    }
+
+    pub(crate) async fn get_config_score_params(&self) -> Result<ConfigScoreParams, NyxdError> {
+        nyxd_query!(self, get_mixnet_contract_state_params().await)
+            .map(|state| state.config_score_params)
+    }
+
+    pub(crate) async fn get_nym_node_version_history(
+        &self,
+    ) -> Result<Vec<HistoricalNymNodeVersionEntry>, NyxdError> {
+        nyxd_query!(self, get_full_nym_node_version_history().await)
     }
 
     pub(crate) async fn get_current_interval(&self) -> Result<CurrentIntervalResponse, NyxdError> {
@@ -389,8 +396,10 @@ impl Client {
 
 #[async_trait]
 impl crate::ecash::client::Client for Client {
-    async fn address(&self) -> AccountId {
-        self.client_address().await
+    async fn address(&self) -> Result<AccountId, EcashError> {
+        self.client_address()
+            .await
+            .ok_or(EcashError::ChainSignerNotEnabled)
     }
 
     async fn dkg_contract_address(&self) -> Result<AccountId, EcashError> {
@@ -476,7 +485,7 @@ impl crate::ecash::client::Client for Client {
     async fn get_self_registered_dealer_details(
         &self,
     ) -> crate::ecash::error::Result<DealerDetailsResponse> {
-        let self_address = &self.address().await;
+        let self_address = &self.address().await?;
         Ok(nyxd_query!(self, get_dealer_details(self_address).await?))
     }
 

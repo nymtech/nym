@@ -1,6 +1,7 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::config_score::{ConfigScoreParams, OutdatedVersionWeights, VersionScoreFormulaParams};
 use crate::nym_node::Role;
 use contracts_common::Percent;
 use cosmwasm_schema::cw_serde;
@@ -161,19 +162,74 @@ pub struct ContractState {
 /// Contract parameters that could be adjusted in a transaction by the contract admin.
 #[cw_serde]
 pub struct ContractStateParams {
+    /// Parameters to do with delegations.
+    pub delegations_params: DelegationsParams,
+
+    /// Parameters to do with node operators.
+    pub operators_params: OperatorsParams,
+
+    /// Parameters to do with the config score
+    pub config_score_params: ConfigScoreParams,
+}
+
+#[cw_serde]
+pub struct ContractStateParamsUpdate {
+    pub delegations_params: Option<DelegationsParams>,
+    pub operators_params: Option<OperatorsParamsUpdate>,
+    pub config_score_params: Option<ConfigScoreParamsUpdate>,
+}
+
+impl ContractStateParamsUpdate {
+    pub fn contains_updates(&self) -> bool {
+        self.delegations_params.is_some()
+            || self.operators_params.is_some()
+            || self.config_score_params.is_some()
+    }
+}
+
+#[cw_serde]
+pub struct DelegationsParams {
     /// Minimum amount a delegator must stake in orders for his delegation to get accepted.
     pub minimum_delegation: Option<Coin>,
+}
 
+#[cw_serde]
+pub struct OperatorsParams {
     /// Minimum amount a node must pledge to get into the system.
     pub minimum_pledge: Coin,
 
     /// Defines the allowed profit margin range of operators.
     /// default: 0% - 100%
-    #[serde(default)]
     pub profit_margin: ProfitMarginRange,
 
     /// Defines the allowed interval operating cost range of operators.
     /// default: 0 - 1'000'000'000'000'000 (1 Billion native tokens - the total supply)
-    #[serde(default)]
     pub interval_operating_cost: OperatingCostRange,
+}
+
+#[cw_serde]
+pub struct OperatorsParamsUpdate {
+    pub minimum_pledge: Option<Coin>,
+    pub profit_margin: Option<ProfitMarginRange>,
+    pub interval_operating_cost: Option<OperatingCostRange>,
+}
+
+impl OperatorsParamsUpdate {
+    pub fn contains_updates(&self) -> bool {
+        self.minimum_pledge.is_some()
+            || self.profit_margin.is_some()
+            || self.interval_operating_cost.is_some()
+    }
+}
+
+#[cw_serde]
+pub struct ConfigScoreParamsUpdate {
+    pub version_weights: Option<OutdatedVersionWeights>,
+    pub version_score_formula_params: Option<VersionScoreFormulaParams>,
+}
+
+impl ConfigScoreParamsUpdate {
+    pub fn contains_updates(&self) -> bool {
+        self.version_weights.is_some() || self.version_score_formula_params.is_some()
+    }
 }

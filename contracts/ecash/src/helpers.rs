@@ -3,8 +3,7 @@
 
 use crate::constants::{BLACKLIST_PROPOSAL_REPLY_ID, REDEMPTION_PROPOSAL_REPLY_ID};
 use cosmwasm_std::{
-    to_binary, Addr, Coin, CosmosMsg, Decimal, Reply, StdError, StdResult, SubMsg, SubMsgResult,
-    WasmMsg,
+    to_binary, Addr, Coin, CosmosMsg, Reply, StdError, StdResult, SubMsg, SubMsgResult, WasmMsg,
 };
 use cw4::Cw4Contract;
 use nym_contracts_common::events::try_find_attribute;
@@ -22,8 +21,6 @@ pub(crate) const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 pub struct Config {
     pub group_addr: Cw4Contract,
     pub holding_account: Addr,
-
-    pub redemption_gateway_share: Decimal,
     pub deposit_amount: Coin,
 }
 

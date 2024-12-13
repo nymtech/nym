@@ -6,26 +6,30 @@ use crate::ecash::api_routes::handlers::ecash_routes;
 use crate::ecash::error::{EcashError, Result};
 use crate::ecash::keys::KeyPairWithEpoch;
 use crate::ecash::state::EcashState;
-use crate::ecash::storage::EcashStorageExt;
 use crate::network::models::NetworkDetails;
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::NodeStatusCache;
 use crate::nym_contract_cache::cache::NymContractCache;
+use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
+use crate::support::config;
 use crate::support::http::state::{AppState, ForcedRefresh};
 use crate::support::storage::NymApiStorage;
 use async_trait::async_trait;
 use axum::Router;
 use axum_test::http::StatusCode;
-use axum_test::TestServer;
+use axum_test::{TestResponse, TestServer};
 use cosmwasm_std::testing::{mock_env, mock_info};
 use cosmwasm_std::{
     from_binary, to_binary, Addr, Binary, BlockInfo, CosmosMsg, Decimal, MessageInfo, WasmMsg,
 };
 use cw3::{Proposal, ProposalResponse, Vote, VoteInfo, VoteResponse, Votes};
 use cw4::{Cw4Contract, MemberResponse};
-use nym_api_requests::ecash::models::{IssuedCredentialResponse, IssuedTicketbookBody};
+use nym_api_requests::ecash::models::{
+    IssuedTicketbooksChallengeRequest, IssuedTicketbooksChallengeResponse,
+    IssuedTicketbooksForResponse,
+};
 use nym_api_requests::ecash::{BlindSignRequestBody, BlindedSignatureResponse};
 use nym_coconut_dkg_common::dealer::{
     DealerDetails, DealerDetailsResponse, DealerType, RegisteredDealerDetails,
@@ -50,7 +54,10 @@ use nym_crypto::asymmetric::identity;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
-use nym_validator_client::nym_api::routes::{API_VERSION, ECASH_BLIND_SIGN, ECASH_ROUTES};
+use nym_validator_client::nym_api::routes::{
+    API_VERSION, ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE,
+    ECASH_ISSUED_TICKETBOOKS_FOR, ECASH_ROUTES,
+};
 use nym_validator_client::nyxd::cosmwasm_client::logs::Log;
 use nym_validator_client::nyxd::cosmwasm_client::types::ExecuteResult;
 use nym_validator_client::nyxd::{AccountId, ExecTxResult, Fee, Hash, TxResponse};
@@ -63,11 +70,12 @@ use std::str::FromStr;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use tempfile::{tempdir, TempDir};
+use time::Date;
 use tokio::sync::RwLock;
 
 pub(crate) mod fixtures;
 pub(crate) mod helpers;
-mod issued_credentials;
+mod issued_ticketbooks;
 
 const TEST_COIN_DENOM: &str = "unym";
 const TEST_REWARDING_VALIDATOR_ADDRESS: &str = "n19lc9u84cz0yz3fww5283nucc9yvr8gsjmgeul0";
@@ -517,8 +525,8 @@ impl DummyClient {
 
 #[async_trait]
 impl super::client::Client for DummyClient {
-    async fn address(&self) -> AccountId {
-        self.validator_address.clone()
+    async fn address(&self) -> Result<AccountId> {
+        Ok(self.validator_address.clone())
     }
 
     async fn dkg_contract_address(&self) -> Result<AccountId> {
@@ -548,9 +556,7 @@ impl super::client::Client for DummyClient {
             .proposals
             .get(&proposal_id)
             .cloned()
-            .ok_or(EcashError::IncorrectProposal {
-                reason: String::from("proposal not found"),
-            })?;
+            .expect("proposal not found");
 
         // replicate behaviour from `query_proposal` of cw3
         Ok(proposal_to_response(
@@ -852,9 +858,7 @@ impl super::client::Client for DummyClient {
         let voter = self.validator_address.to_string();
         let mut chain = self.state.lock().unwrap();
         if !chain.multisig_contract.proposals.contains_key(&proposal_id) {
-            return Err(EcashError::IncorrectProposal {
-                reason: String::from("proposal not found"),
-            });
+            panic!("proposal not found");
         }
 
         // for now we assume every group member is a voter
@@ -898,9 +902,7 @@ impl super::client::Client for DummyClient {
         let multisig_address: AccountId = chain.multisig_contract.address.as_str().parse().unwrap();
 
         let Some(proposal) = chain.multisig_contract.proposals.get_mut(&proposal_id) else {
-            return Err(EcashError::ProposalIdError {
-                reason: String::from("proposal id not found"),
-            });
+            panic!("proposal not found");
         };
 
         if proposal.status != cw3::Status::Passed {
@@ -1049,7 +1051,7 @@ impl super::client::Client for DummyClient {
         let epoch_id = chain.dkg_contract.epoch.epoch_id;
         let Some(dealer_details) = chain.dkg_contract.get_dealer_details(&address, epoch_id) else {
             // Just throw some error, not really the correct one
-            return Err(EcashError::DepositInfoNotFound);
+            return Err(EcashError::NotASigner);
         };
 
         let dkg_contract = chain.dkg_contract.address.clone();
@@ -1116,6 +1118,7 @@ impl super::client::Client for DummyClient {
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct DummyCommunicationChannel {
     current_epoch: Arc<AtomicU64>,
@@ -1242,6 +1245,7 @@ pub fn voucher_fixture(deposit_id: Option<DepositId>) -> IssuanceTicketBook {
     IssuanceTicketBook::new(deposit_id, identifier, id_priv, TicketType::V1MixnetEntry)
 }
 
+#[allow(unused)]
 fn dummy_signature() -> identity::Signature {
     "3vUCc6MCN5AC2LNgDYjRB1QeErZSN1S8f6K14JHjpUcKWXbjGYFExA8DbwQQBki9gyUqrpBF94Drttb4eMcGQXkp"
         .parse()
@@ -1259,7 +1263,7 @@ struct TestFixture {
 }
 
 impl TestFixture {
-    fn build_app_state(storage: NymApiStorage) -> AppState {
+    fn build_app_state(storage: NymApiStorage, ecash_state: EcashState) -> AppState {
         AppState {
             forced_refresh: ForcedRefresh::new(true),
             nym_contract_cache: NymContractCache::new(),
@@ -1272,6 +1276,8 @@ impl TestFixture {
                 NymNetworkDetails::new_empty(),
             ),
             node_info_cache: unstable::NodeInfoCache::default(),
+            api_status: ApiStatusState::new(None),
+            ecash_state: Arc::new(ecash_state),
         }
     }
 
@@ -1316,14 +1322,17 @@ impl TestFixture {
             .parse()
             .unwrap();
 
+        let mut config = config::Config::new("test");
+        config.ecash_signer.enabled = true;
+
         let ecash_state = EcashState::new(
+            &config,
             ecash_contract,
             nyxd_client,
             identity,
             staged_key_pair,
             comm_channel,
             storage.clone(),
-            false,
         )
         .await
         .unwrap();
@@ -1331,8 +1340,8 @@ impl TestFixture {
         TestFixture {
             axum: TestServer::new(
                 Router::new()
-                    .nest("/v1/ecash", ecash_routes(Arc::new(ecash_state)))
-                    .with_state(Self::build_app_state(storage.clone())),
+                    .nest("/v1/ecash", ecash_routes())
+                    .with_state(Self::build_app_state(storage.clone(), ecash_state)),
             )
             .unwrap(),
             storage,
@@ -1343,6 +1352,7 @@ impl TestFixture {
         }
     }
 
+    #[allow(dead_code)]
     async fn set_epoch(&self, epoch: u64) {
         let current_epoch = self.epoch.load(Ordering::Relaxed);
         self.epoch.store(epoch, Ordering::Relaxed);
@@ -1359,7 +1369,7 @@ impl TestFixture {
         self.chain_state.lock().unwrap().txs.insert(hash, tx);
     }
 
-    fn add_deposit(&self, voucher_data: &IssuanceTicketBook) {
+    fn add_chain_deposit(&self, voucher_data: &IssuanceTicketBook) {
         let mut chain = self.chain_state.lock().unwrap();
         let deposit = Deposit {
             bs58_encoded_ed25519_pubkey: voucher_data
@@ -1374,6 +1384,7 @@ impl TestFixture {
         assert!(existing.is_none());
     }
 
+    #[allow(dead_code)]
     async fn issue_dummy_credential(&self) {
         let mut rng = OsRng;
         let deposit_id = rng.next_u32();
@@ -1383,14 +1394,14 @@ impl TestFixture {
         let signing_data = voucher.prepare_for_signing();
         let req = voucher.create_blind_sign_request_body(&signing_data);
 
-        self.add_deposit(&voucher);
-        self.issue_credential(req).await;
+        self.add_chain_deposit(&voucher);
+        self.issue_ticketbook(req).await;
     }
 
-    async fn issue_credential(&self, req: BlindSignRequestBody) -> BlindedSignatureResponse {
+    async fn issue_ticketbook(&self, req: BlindSignRequestBody) -> BlindedSignatureResponse {
         let response = self
             .axum
-            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}",))
+            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
             .json(&req)
             .await;
 
@@ -1398,31 +1409,57 @@ impl TestFixture {
         response.json()
     }
 
-    async fn issued_credential(&self, id: i64) -> Option<IssuedCredentialResponse> {
+    async fn issued_ticketbooks_for_unchecked(
+        &self,
+        expiration_date: Date,
+    ) -> IssuedTicketbooksForResponse {
         let response = self
             .axum
             .get(&format!(
-                "/{API_VERSION}/{ECASH_ROUTES}/issued-credential/{id}"
+                "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_FOR}/{expiration_date}"
             ))
             .await;
+
         assert_eq!(response.status_code(), StatusCode::OK);
         response.json()
     }
 
-    async fn issued_unchecked(&self, id: i64) -> IssuedTicketbookBody {
-        self.issued_credential(id)
+    async fn issued_ticketbooks_challenge(
+        &self,
+        expiration_date: Date,
+        deposits: Vec<DepositId>,
+    ) -> TestResponse {
+        self.axum
+            .post(&format!(
+                "/{API_VERSION}/{ECASH_ROUTES}/{ECASH_ISSUED_TICKETBOOKS_CHALLENGE}"
+            ))
+            .json(&IssuedTicketbooksChallengeRequest {
+                expiration_date,
+                deposits,
+            })
             .await
-            .unwrap()
-            .credential
-            .unwrap()
+    }
+
+    async fn issued_ticketbooks_challenge_unchecked(
+        &self,
+        expiration_date: Date,
+        deposits: Vec<DepositId>,
+    ) -> IssuedTicketbooksChallengeResponse {
+        let response = self
+            .issued_ticketbooks_challenge(expiration_date, deposits)
+            .await;
+
+        assert_eq!(response.status_code(), StatusCode::OK);
+        response.json()
     }
 }
 
 #[cfg(test)]
 mod credential_tests {
     use super::*;
+    use crate::ecash::storage::EcashStorageExt;
     use axum::http::StatusCode;
-    use nym_compact_ecash::ttp_keygen;
+    use nym_ticketbooks_merkle::MerkleLeaf;
 
     #[tokio::test]
     async fn already_issued() {
@@ -1433,28 +1470,31 @@ mod credential_tests {
         let deposit_id = request_body.deposit_id;
 
         let test_fixture = TestFixture::new().await;
-        test_fixture.add_deposit(&voucher);
+        test_fixture.add_chain_deposit(&voucher);
 
         let sig = blinded_signature_fixture();
-        let commitments = request_body.encode_commitments();
+        let commitments = request_body.encode_join_commitments();
         let expiration_date = request_body.expiration_date;
         test_fixture
             .storage
-            .store_issued_credential(
-                42,
+            .store_issued_ticketbook(
                 deposit_id,
-                &sig,
-                dummy_signature(),
-                commitments,
+                42,
+                &sig.to_bytes(),
+                &commitments,
                 expiration_date,
                 voucher.ticketbook_type(),
+                MerkleLeaf {
+                    hash: vec![42u8; 32],
+                    index: 0,
+                },
             )
             .await
             .unwrap();
 
         let response = test_fixture
             .axum
-            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}",))
+            .post(&format!("/{API_VERSION}/{ECASH_ROUTES}/{ECASH_BLIND_SIGN}"))
             .json(&request_body)
             .await;
 
@@ -1494,7 +1534,11 @@ mod credential_tests {
             .await;
         staged_key_pair.validate();
 
+        let mut config = config::Config::new("test");
+        config.ecash_signer.enabled = true;
+
         let state = EcashState::new(
+            &config,
             "n16a32stm6kknhq5cc8rx77elr66pygf2hfszw7wvpq746x3uffylqkjar4l"
                 .parse()
                 .unwrap(),
@@ -1503,7 +1547,6 @@ mod credential_tests {
             staged_key_pair,
             comm_channel,
             storage.clone(),
-            false,
         )
         .await
         .unwrap();
@@ -1515,18 +1558,21 @@ mod credential_tests {
         let signing_data = voucher.prepare_for_signing();
         let request_body = voucher.create_blind_sign_request_body(&signing_data);
 
-        let commitments = request_body.encode_commitments();
+        let commitments = request_body.encode_join_commitments();
         let expiration_date = request_body.expiration_date;
         let sig = blinded_signature_fixture();
         storage
-            .store_issued_credential(
-                42,
+            .store_issued_ticketbook(
                 deposit_id,
-                &sig,
-                dummy_signature(),
-                commitments.clone(),
+                42,
+                &sig.to_bytes(),
+                &commitments,
                 expiration_date,
                 voucher.ticketbook_type(),
+                MerkleLeaf {
+                    hash: vec![42u8; 32],
+                    index: 0,
+                },
             )
             .await
             .unwrap();
@@ -1553,14 +1599,17 @@ mod credential_tests {
 
         // Check that the new payload is not stored if there was already something signed for tx_hash
         let storage_err = storage
-            .store_issued_credential(
-                42,
+            .store_issued_ticketbook(
                 deposit_id,
-                &blinded_signature,
-                dummy_signature(),
-                commitments.clone(),
+                42,
+                &blinded_signature.to_bytes(),
+                &commitments,
                 expiration_date,
                 voucher.ticketbook_type(),
+                MerkleLeaf {
+                    hash: vec![42u8; 32],
+                    index: 1,
+                },
             )
             .await;
         assert!(storage_err.is_err());
@@ -1569,14 +1618,17 @@ mod credential_tests {
         let deposit_id = 69;
 
         storage
-            .store_issued_credential(
-                42,
+            .store_issued_ticketbook(
                 deposit_id,
-                &blinded_signature,
-                dummy_signature(),
-                commitments.clone(),
+                42,
+                &blinded_signature.to_bytes(),
+                &commitments,
                 expiration_date,
                 voucher.ticketbook_type(),
+                MerkleLeaf {
+                    hash: vec![42u8; 32],
+                    index: 2,
+                },
             )
             .await
             .unwrap();

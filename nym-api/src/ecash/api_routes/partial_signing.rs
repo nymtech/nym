@@ -7,7 +7,7 @@ use crate::ecash::helpers::blind_sign;
 use crate::ecash::state::EcashState;
 use crate::node_status_api::models::AxumResult;
 use crate::support::http::state::AppState;
-use axum::extract::Query;
+use axum::extract::{Query, State};
 use axum::{Json, Router};
 use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
@@ -22,28 +22,16 @@ use time::Date;
 use tracing::{debug, trace};
 use utoipa::IntoParams;
 
-pub(crate) fn partial_signing_routes(ecash_state: Arc<EcashState>) -> Router<AppState> {
+pub(crate) fn partial_signing_routes() -> Router<AppState> {
     Router::new()
-        .route(
-            "/blind-sign",
-            axum::routing::post({
-                let ecash_state = Arc::clone(&ecash_state);
-                |body| post_blind_sign(body, ecash_state)
-            }),
-        )
+        .route("/blind-sign", axum::routing::post(post_blind_sign))
         .route(
             "/partial-expiration-date-signatures",
-            axum::routing::get({
-                let ecash_state = Arc::clone(&ecash_state);
-                |expiration_date| partial_expiration_date_signatures(expiration_date, ecash_state)
-            }),
+            axum::routing::get(partial_expiration_date_signatures),
         )
         .route(
             "/partial-coin-indices-signatures",
-            axum::routing::get({
-                let ecash_state = Arc::clone(&ecash_state);
-                |epoch_id| partial_coin_indices_signatures(epoch_id, ecash_state)
-            }),
+            axum::routing::get(partial_coin_indices_signatures),
         )
 }
 
@@ -59,8 +47,8 @@ pub(crate) fn partial_signing_routes(ecash_state: Arc<EcashState>) -> Router<App
     )
 )]
 async fn post_blind_sign(
+    State(state): State<Arc<EcashState>>,
     Json(blind_sign_request_body): Json<BlindSignRequestBody>,
-    state: Arc<EcashState>,
 ) -> AxumResult<Json<BlindedSignatureResponse>> {
     state.ensure_signer().await?;
 
@@ -109,7 +97,7 @@ async fn post_blind_sign(
     // store the information locally
     debug!("storing the issued credential in the database");
     state
-        .store_issued_credential(blind_sign_request_body, &blinded_signature)
+        .store_issued_ticketbook(blind_sign_request_body, &blinded_signature)
         .await?;
 
     // finally return the credential to the client
@@ -134,8 +122,8 @@ struct ExpirationDateParam {
     )
 )]
 async fn partial_expiration_date_signatures(
+    State(state): State<Arc<EcashState>>,
     Query(ExpirationDateParam { expiration_date }): Query<ExpirationDateParam>,
-    state: Arc<EcashState>,
 ) -> AxumResult<Json<PartialExpirationDateSignatureResponse>> {
     state.ensure_signer().await?;
 
@@ -172,8 +160,8 @@ async fn partial_expiration_date_signatures(
     )
 )]
 async fn partial_coin_indices_signatures(
+    State(state): State<Arc<EcashState>>,
     Query(EpochIdParam { epoch_id }): Query<EpochIdParam>,
-    state: Arc<EcashState>,
 ) -> AxumResult<Json<PartialCoinIndicesSignatureResponse>> {
     state.ensure_signer().await?;
 

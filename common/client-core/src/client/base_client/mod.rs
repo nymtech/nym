@@ -1,8 +1,8 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use super::packet_statistics_control::PacketStatisticsReporter;
 use super::received_buffer::ReceivedBufferMessage;
+use super::statistics_control::StatisticsControl;
 use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
@@ -12,7 +12,6 @@ use crate::client::key_manager::persistence::KeyStore;
 use crate::client::key_manager::ClientKeys;
 use crate::client::mix_traffic::transceiver::{GatewayReceiver, GatewayTransceiver, RemoteGateway};
 use crate::client::mix_traffic::{BatchMixMessageSender, MixTrafficController};
-use crate::client::packet_statistics_control::PacketStatisticsControl;
 use crate::client::real_messages_control;
 use crate::client::real_messages_control::RealMessagesController;
 use crate::client::received_buffer::{
@@ -49,6 +48,8 @@ use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::addressing::nodes::NodeIdentity;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::receiver::{ReconstructedMessage, SphinxMessageReceiver};
+use nym_statistics_common::clients::ClientStatsSender;
+use nym_statistics_common::generate_client_stats_id;
 use nym_task::connections::{ConnectionCommandReceiver, ConnectionCommandSender, LaneQueueLengths};
 use nym_task::{TaskClient, TaskHandle};
 use nym_topology::provider_trait::TopologyProvider;
@@ -59,6 +60,7 @@ use std::fmt::Debug;
 use std::os::raw::c_int as RawFd;
 use std::path::Path;
 use std::sync::Arc;
+use tokio::sync::mpsc::Sender;
 use url::Url;
 
 #[cfg(all(
@@ -273,7 +275,7 @@ where
         self_address: Recipient,
         topology_accessor: TopologyAccessor,
         mix_tx: BatchMixMessageSender,
-        stats_tx: PacketStatisticsReporter,
+        stats_tx: ClientStatsSender,
         shutdown: TaskClient,
     ) {
         info!("Starting loop cover traffic stream...");
@@ -306,7 +308,7 @@ where
         client_connection_rx: ConnectionCommandReceiver,
         shutdown: TaskClient,
         packet_type: PacketType,
-        stats_tx: PacketStatisticsReporter,
+        stats_tx: ClientStatsSender,
     ) {
         info!("Starting real traffic stream...");
 
@@ -335,7 +337,7 @@ where
         reply_key_storage: SentReplyKeys,
         reply_controller_sender: ReplyControllerSender,
         shutdown: TaskClient,
-        packet_statistics_control: PacketStatisticsReporter,
+        metrics_reporter: ClientStatsSender,
     ) {
         info!("Starting received messages buffer controller...");
         let controller: ReceivedMessagesBufferController<SphinxMessageReceiver> =
@@ -345,7 +347,7 @@ where
                 mixnet_receiver,
                 reply_key_storage,
                 reply_controller_sender,
-                packet_statistics_control,
+                metrics_reporter,
             );
         controller.start_with_shutdown(shutdown)
     }
@@ -356,6 +358,7 @@ where
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
+        stats_reporter: ClientStatsSender,
         shutdown: TaskClient,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
@@ -371,7 +374,12 @@ where
 
         let mut gateway_client =
             if let Some(existing_client) = initialisation_result.authenticated_ephemeral_client {
-                existing_client.upgrade(packet_router, bandwidth_controller, shutdown)
+                existing_client.upgrade(
+                    packet_router,
+                    bandwidth_controller,
+                    stats_reporter,
+                    shutdown,
+                )
             } else {
                 let cfg = GatewayConfig::new(
                     details.gateway_id,
@@ -392,6 +400,7 @@ where
                     Some(details.shared_key),
                     packet_router,
                     bandwidth_controller,
+                    stats_reporter,
                     shutdown,
                 )
             };
@@ -444,6 +453,7 @@ where
         Ok(gateway_client)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn setup_gateway_transceiver(
         custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send>>,
         config: &Config,
@@ -451,6 +461,7 @@ where
         bandwidth_controller: Option<BandwidthController<C, S::CredentialStore>>,
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
+        stats_reporter: ClientStatsSender,
         mut shutdown: TaskClient,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
@@ -481,6 +492,7 @@ where
             bandwidth_controller,
             details_store,
             packet_router,
+            stats_reporter,
             shutdown,
         )
         .await?;
@@ -502,15 +514,10 @@ where
                     min_gateway_performance: config_topology.minimum_gateway_performance,
                 },
                 nym_api_urls,
-                env!("CARGO_PKG_VERSION").to_string(),
                 user_agent,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
-                Box::new(GeoAwareTopologyProvider::new(
-                    nym_api_urls,
-                    env!("CARGO_PKG_VERSION").to_string(),
-                    group_by,
-                ))
+                Box::new(GeoAwareTopologyProvider::new(nym_api_urls, group_by))
             }
         })
     }
@@ -586,11 +593,23 @@ where
         Ok(())
     }
 
-    fn start_packet_statistics_control(shutdown: TaskClient) -> PacketStatisticsReporter {
-        info!("Starting packet statistics control...");
-        let (packet_statistics_control, packet_stats_reporter) = PacketStatisticsControl::new();
-        packet_statistics_control.start_with_shutdown(shutdown);
-        packet_stats_reporter
+    fn start_statistics_control(
+        config: &Config,
+        user_agent: Option<UserAgent>,
+        client_stats_id: String,
+        input_sender: Sender<InputMessage>,
+        shutdown: TaskClient,
+    ) -> ClientStatsSender {
+        info!("Starting statistics control...");
+        StatisticsControl::create_and_start_with_shutdown(
+            config.debug.stats_reporting,
+            user_agent
+                .map(|u| u.application)
+                .unwrap_or("unknown".to_string()),
+            client_stats_id,
+            input_sender.clone(),
+            shutdown.with_suffix("controller"),
+        )
     }
 
     fn start_mix_traffic_controller(
@@ -720,6 +739,14 @@ where
             self.user_agent.clone(),
         );
 
+        let stats_reporter = Self::start_statistics_control(
+            self.config,
+            self.user_agent.clone(),
+            generate_client_stats_id(*self_address.identity()),
+            input_sender.clone(),
+            shutdown.fork("statistics_control"),
+        );
+
         // needs to be started as the first thing to block if required waiting for the gateway
         Self::start_topology_refresher(
             topology_provider,
@@ -730,9 +757,6 @@ where
             shutdown.fork("topology_refresher"),
         )
         .await?;
-
-        let packet_stats_reporter =
-            Self::start_packet_statistics_control(shutdown.fork("packet_statistics_control"));
 
         let gateway_packet_router = PacketRouter::new(
             ack_sender,
@@ -747,6 +771,7 @@ where
             bandwidth_controller,
             &details_store,
             gateway_packet_router,
+            stats_reporter.clone(),
             shutdown.fork("gateway_transceiver"),
         )
         .await?;
@@ -765,7 +790,7 @@ where
             reply_storage.key_storage(),
             reply_controller_sender.clone(),
             shutdown.fork("received_messages_buffer"),
-            packet_stats_reporter.clone(),
+            stats_reporter.clone(),
         );
 
         // The message_sender is the transmitter for any component generating sphinx packets
@@ -804,7 +829,7 @@ where
             client_connection_rx,
             shutdown.fork("real_traffic_controller"),
             self.config.debug.traffic.packet_type,
-            packet_stats_reporter.clone(),
+            stats_reporter.clone(),
         );
 
         if !self
@@ -819,7 +844,7 @@ where
                 self_address,
                 shared_topology_accessor.clone(),
                 message_sender,
-                packet_stats_reporter,
+                stats_reporter.clone(),
                 shutdown.fork("cover_traffic_stream"),
             );
         }
@@ -847,6 +872,7 @@ where
                 topology_accessor: shared_topology_accessor,
                 gateway_connection: GatewayConnection { gateway_ws_fd },
             },
+            stats_reporter,
             task_handle: shutdown,
         })
     }
@@ -858,6 +884,7 @@ pub struct BaseClient {
     pub client_input: ClientInputStatus,
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,
+    pub stats_reporter: ClientStatsSender,
 
     pub task_handle: TaskHandle,
 }

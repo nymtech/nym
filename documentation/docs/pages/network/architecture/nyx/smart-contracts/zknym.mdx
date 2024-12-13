@@ -1,0 +1,25 @@
+import { Callout } from 'nextra/components'
+
+# Zk-Nym Contract
+
+<Callout type="info" emoji="ℹ️">
+Note that within the monorepo contract repo this contract is referred to as `ecash`. This is a historical artifact that hasn't yet been changed.
+</Callout>
+
+This contract is a hub for zk-nym related actions, being called by either:
+- the zk-nym payment backend
+- nodes running in Gateway mode
+- the multisig contract
+
+### Functionality
+
+- The following functionality is controlled by the multisig contract:
+  - getting the list of blacklisted addresses who have tried to double-spend a zk-nym.
+  - proposing to add an address to the blacklist.
+  - executing an open proposal.
+
+- The the zk-nym [payment backend](../../../cryptography/zk-nym/zk-nym-overview) can deposit funds with information used to identify the deposit.
+
+- Finally, nodes running as Gateways can create a proposal to redeem a set of spend zk-nyms.
+
+> The addresses of deployed smart contracts can be found in the [`network-defaults`](https://github.com/nymtech/nym/blob/master/common/network-defaults/src/mainnet.rs) directory of the codebase alongside other network default values.

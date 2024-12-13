@@ -15,6 +15,7 @@ use crate::{
 use log::info;
 use nym_client_core_gateways_storage::GatewayDetails;
 use nym_crypto::asymmetric::identity;
+use nym_sphinx::addressing::Recipient;
 use nym_topology::NymTopology;
 use nym_validator_client::UserAgent;
 use rand::rngs::OsRng;
@@ -88,6 +89,10 @@ pub struct CommonClientInitArgs {
     /// Disable loop cover traffic and the Poisson rate limiter (for debugging only)
     #[cfg_attr(feature = "cli", clap(long, hide = true))]
     pub no_cover: bool,
+
+    /// Sets the address to report statistics
+    #[cfg_attr(feature = "cli", clap(long, hide = true))]
+    pub stats_reporting_address: Option<Recipient>,
 }
 
 pub struct InitResultsWithConfig<T> {

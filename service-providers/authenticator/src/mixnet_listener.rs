@@ -6,24 +6,19 @@ use std::{
     time::{Duration, SystemTime},
 };
 
+use crate::{config::Config, error::*};
 use crate::{error::AuthenticatorError, peer_manager::PeerManager};
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
+use nym_authenticator_requests::latest::registration::RegistrationData;
 use nym_authenticator_requests::{
+    latest::registration::{GatewayClient, PendingRegistrations, PrivateIPs},
     traits::{
         AuthenticatorRequest, AuthenticatorVersion, FinalMessage, InitMessage,
         QueryBandwidthMessage, TopUpMessage,
     },
-    v1, v2,
-    v3::{
-        self,
-        registration::{
-            GatewayClient, PendingRegistrations, PrivateIPs, RegistrationData,
-            RemainingBandwidthData,
-        },
-    },
-    CURRENT_VERSION,
+    v1, v2, v3, v4, CURRENT_VERSION,
 };
 use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, ecash::EcashManager,
@@ -42,8 +37,6 @@ use nym_wireguard_types::PeerPublicKey;
 use rand::{prelude::IteratorRandom, thread_rng};
 use tokio::sync::RwLock;
 use tokio_stream::wrappers::IntervalStream;
-
-use crate::{config::Config, error::*};
 
 type AuthenticatorHandleResult = Result<(Vec<u8>, Recipient)>;
 const DEFAULT_REGISTRATION_TIMEOUT_CHECK: Duration = Duration::from_secs(60); // 1 minute
@@ -118,10 +111,10 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         for reg in registred_values {
             let ip = registred_and_free
                 .free_private_network_ips
-                .get_mut(&reg.gateway_data.private_ip)
+                .get_mut(&reg.gateway_data.private_ips)
                 .ok_or(AuthenticatorError::InternalDataCorruption(format!(
-                    "IP {} should be present",
-                    reg.gateway_data.private_ip
+                    "IPs {} should be present",
+                    reg.gateway_data.private_ips
                 )))?;
 
             let Some(timestamp) = ip else {
@@ -175,7 +168,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                             nonce: registration_data.nonce,
                             gateway_data: v1::GatewayClient {
                                 pub_key: gateway_data.pub_key,
-                                private_ip: gateway_data.private_ip,
+                                private_ip: gateway_data.private_ips.ipv4.into(),
                                 mac: v1::ClientMac::new(gateway_data.mac.to_vec()),
                             },
                             wg_port: registration_data.wg_port,
@@ -207,6 +200,21 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                     v3::response::AuthenticatorResponse::new_pending_registration_success(
                         v3::registration::RegistrationData {
                             nonce: registration_data.nonce,
+                            gateway_data: registration_data.gateway_data.clone().into(),
+                            wg_port: registration_data.wg_port,
+                        },
+                        request_id,
+                        reply_to,
+                    )
+                    .to_bytes()
+                    .map_err(|err| {
+                        AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                    })?
+                }
+                AuthenticatorVersion::V4 => {
+                    v4::response::AuthenticatorResponse::new_pending_registration_success(
+                        v4::registration::RegistrationData {
+                            nonce: registration_data.nonce,
                             gateway_data: registration_data.gateway_data.clone(),
                             wg_port: registration_data.wg_port,
                         },
@@ -225,16 +233,30 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
         let peer = self.peer_manager.query_peer(remote_public).await?;
         if let Some(peer) = peer {
-            let Some(allowed_ip) = peer.allowed_ips.first() else {
+            let private_ipv4 = peer
+                .allowed_ips
+                .iter()
+                .find_map(|ip_mask| match ip_mask.ip {
+                    std::net::IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
+                    _ => None,
+                });
+            let private_ipv6 = peer
+                .allowed_ips
+                .iter()
+                .find_map(|ip_mask| match ip_mask.ip {
+                    std::net::IpAddr::V6(ipv6_addr) => Some(ipv6_addr),
+                    _ => None,
+                });
+            let (Some(allowed_ipv4), Some(allowed_ipv6)) = (private_ipv4, private_ipv6) else {
                 return Err(AuthenticatorError::InternalError(
-                    "private ip list should not be empty".to_string(),
+                    "there should be one private IP pair in the list".to_string(),
                 ));
             };
             let bytes = match AuthenticatorVersion::from(protocol) {
                 AuthenticatorVersion::V1 => v1::response::AuthenticatorResponse::new_registered(
                     v1::registration::RegistredData {
                         pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
-                        private_ip: allowed_ip.ip,
+                        private_ip: allowed_ipv4.into(),
                         wg_port: self.config.authenticator.announced_port,
                     },
                     reply_to,
@@ -247,7 +269,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 AuthenticatorVersion::V2 => v2::response::AuthenticatorResponse::new_registered(
                     v2::registration::RegistredData {
                         pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
-                        private_ip: allowed_ip.ip,
+                        private_ip: allowed_ipv4.into(),
                         wg_port: self.config.authenticator.announced_port,
                     },
                     reply_to,
@@ -260,7 +282,20 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_registered(
                     v3::registration::RegistredData {
                         pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
-                        private_ip: allowed_ip.ip,
+                        private_ip: allowed_ipv4.into(),
+                        wg_port: self.config.authenticator.announced_port,
+                    },
+                    reply_to,
+                    request_id,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?,
+                AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::new_registered(
+                    v4::registration::RegistredData {
+                        pub_key: PeerPublicKey::new(self.keypair().public_key().to_bytes().into()),
+                        private_ips: (allowed_ipv4, allowed_ipv6).into(),
                         wg_port: self.config.authenticator.announced_port,
                     },
                     reply_to,
@@ -281,6 +316,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             .filter(|r| r.1.is_none())
             .choose(&mut thread_rng())
             .ok_or(AuthenticatorError::NoFreeIp)?;
+        let private_ips = *private_ip_ref.0;
         // mark it as used, even though it's not final
         *private_ip_ref.1 = Some(SystemTime::now());
         let gateway_data = GatewayClient::new(
@@ -302,11 +338,12 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 v1::response::AuthenticatorResponse::new_pending_registration_success(
                     v1::registration::RegistrationData {
                         nonce: registration_data.nonce,
-                        gateway_data: v1::GatewayClient {
-                            pub_key: gateway_data.pub_key,
-                            private_ip: gateway_data.private_ip,
-                            mac: v1::ClientMac::new(gateway_data.mac.to_vec()),
-                        },
+                        gateway_data: v1::registration::GatewayClient::new(
+                            self.keypair().private_key(),
+                            remote_public.inner(),
+                            private_ips.ipv4.into(),
+                            nonce,
+                        ),
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
@@ -321,7 +358,12 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
                 v2::response::AuthenticatorResponse::new_pending_registration_success(
                     v2::registration::RegistrationData {
                         nonce: registration_data.nonce,
-                        gateway_data: registration_data.gateway_data.into(),
+                        gateway_data: v2::registration::GatewayClient::new(
+                            self.keypair().private_key(),
+                            remote_public.inner(),
+                            private_ips.ipv4.into(),
+                            nonce,
+                        ),
                         wg_port: registration_data.wg_port,
                     },
                     request_id,
@@ -335,6 +377,26 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             AuthenticatorVersion::V3 => {
                 v3::response::AuthenticatorResponse::new_pending_registration_success(
                     v3::registration::RegistrationData {
+                        nonce: registration_data.nonce,
+                        gateway_data: v3::registration::GatewayClient::new(
+                            self.keypair().private_key(),
+                            remote_public.inner(),
+                            private_ips.ipv4.into(),
+                            nonce,
+                        ),
+                        wg_port: registration_data.wg_port,
+                    },
+                    request_id,
+                    reply_to,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?
+            }
+            AuthenticatorVersion::V4 => {
+                v4::response::AuthenticatorResponse::new_pending_registration_success(
+                    v4::registration::RegistrationData {
                         nonce: registration_data.nonce,
                         gateway_data: registration_data.gateway_data,
                         wg_port: registration_data.wg_port,
@@ -376,7 +438,11 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
 
         let mut peer = Peer::new(Key::new(final_message.pub_key().to_bytes()));
         peer.allowed_ips
-            .push(IpAddrMask::new(final_message.private_ip(), 32));
+            .push(IpAddrMask::new(final_message.private_ips().ipv4.into(), 32));
+        peer.allowed_ips.push(IpAddrMask::new(
+            final_message.private_ips().ipv6.into(),
+            128,
+        ));
 
         // If gateway does ecash verification and client sends a credential, we do the additional
         // credential verification. Later this will become mandatory.
@@ -418,7 +484,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             AuthenticatorVersion::V1 => v1::response::AuthenticatorResponse::new_registered(
                 v1::registration::RegistredData {
                     pub_key: registration_data.gateway_data.pub_key,
-                    private_ip: registration_data.gateway_data.private_ip,
+                    private_ip: registration_data.gateway_data.private_ips.ipv4.into(),
                     wg_port: registration_data.wg_port,
                 },
                 reply_to,
@@ -429,7 +495,7 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             AuthenticatorVersion::V2 => v2::response::AuthenticatorResponse::new_registered(
                 v2::registration::RegistredData {
                     pub_key: registration_data.gateway_data.pub_key,
-                    private_ip: registration_data.gateway_data.private_ip,
+                    private_ip: registration_data.gateway_data.private_ips.ipv4.into(),
                     wg_port: registration_data.wg_port,
                 },
                 reply_to,
@@ -440,7 +506,18 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_registered(
                 v3::registration::RegistredData {
                     pub_key: registration_data.gateway_data.pub_key,
-                    private_ip: registration_data.gateway_data.private_ip,
+                    private_ip: registration_data.gateway_data.private_ips.ipv4.into(),
+                    wg_port: registration_data.wg_port,
+                },
+                reply_to,
+                request_id,
+            )
+            .to_bytes()
+            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
+            AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::new_registered(
+                v4::registration::RegistredData {
+                    pub_key: registration_data.gateway_data.pub_key,
+                    private_ips: registration_data.gateway_data.private_ips,
                     wg_port: registration_data.wg_port,
                 },
                 reply_to,
@@ -522,7 +599,22 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
             }
             AuthenticatorVersion::V3 => {
                 v3::response::AuthenticatorResponse::new_remaining_bandwidth(
-                    bandwidth_data,
+                    bandwidth_data.map(|data| v3::registration::RemainingBandwidthData {
+                        available_bandwidth: data.available_bandwidth,
+                    }),
+                    reply_to,
+                    request_id,
+                )
+                .to_bytes()
+                .map_err(|err| {
+                    AuthenticatorError::FailedToSerializeResponsePacket { source: err }
+                })?
+            }
+            AuthenticatorVersion::V4 => {
+                v4::response::AuthenticatorResponse::new_remaining_bandwidth(
+                    bandwidth_data.map(|data| v4::registration::RemainingBandwidthData {
+                        available_bandwidth: data.available_bandwidth,
+                    }),
                     reply_to,
                     request_id,
                 )
@@ -576,8 +668,17 @@ impl<S: Storage + Clone + 'static> MixnetListener<S> {
         let available_bandwidth = verifier.verify().await?;
 
         let bytes = match AuthenticatorVersion::from(protocol) {
+            AuthenticatorVersion::V4 => v4::response::AuthenticatorResponse::new_topup_bandwidth(
+                v4::registration::RemainingBandwidthData {
+                    available_bandwidth,
+                },
+                reply_to,
+                request_id,
+            )
+            .to_bytes()
+            .map_err(|err| AuthenticatorError::FailedToSerializeResponsePacket { source: err })?,
             AuthenticatorVersion::V3 => v3::response::AuthenticatorResponse::new_topup_bandwidth(
-                RemainingBandwidthData {
+                v3::registration::RemainingBandwidthData {
                     available_bandwidth,
                 },
                 reply_to,
@@ -711,6 +812,7 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
                     .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
                         source: err,
                     })
+                    .map(Into::<v3::request::AuthenticatorRequest>::into)
                     .map(Into::into)
             } else {
                 Err(AuthenticatorError::InvalidPacketType(request_type))
@@ -719,6 +821,17 @@ fn deserialize_request(reconstructed: &ReconstructedMessage) -> Result<Authentic
         [3, request_type] => {
             if request_type == ServiceProviderType::Authenticator as u8 {
                 v3::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
+                    .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
+                        source: err,
+                    })
+                    .map(Into::into)
+            } else {
+                Err(AuthenticatorError::InvalidPacketType(request_type))
+            }
+        }
+        [4, request_type] => {
+            if request_type == ServiceProviderType::Authenticator as u8 {
+                v4::request::AuthenticatorRequest::from_reconstructed_message(reconstructed)
                     .map_err(|err| AuthenticatorError::FailedToDeserializeTaggedPacket {
                         source: err,
                     })

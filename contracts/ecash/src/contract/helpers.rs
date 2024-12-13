@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::contract::NymEcashContract;
-use crate::helpers::{create_batch_redemption_proposal, create_blacklist_proposal, ProposalId};
+use crate::helpers::{
+    create_batch_redemption_proposal, create_blacklist_proposal, Config, ProposalId,
+};
 use cosmwasm_schema::cw_serde;
-use cosmwasm_std::{to_binary, Addr, Deps, Storage, SubMsg};
+use cosmwasm_std::{to_binary, Addr, Coin, Decimal, Deps, Storage, SubMsg, Uint128};
 use cw3::ProposalResponse;
 use nym_ecash_contract_common::EcashContractError;
 use nym_multisig_contract_common::msg::QueryMsg as MultisigQueryMsg;
@@ -29,6 +31,28 @@ impl NymEcashContract<'_> {
             });
         }
         Ok(TICKETBOOK_SIZE)
+    }
+
+    pub(crate) fn tickets_redemption_amount(
+        &self,
+        storage: &dyn Storage,
+        config: &Config,
+        number_of_tickets: u16,
+    ) -> Result<Coin, EcashContractError> {
+        let deposit_amount = config.deposit_amount.amount;
+        let ticketbook_size = Uint128::new(self.get_ticketbook_size(storage)? as u128);
+        let tickets = Uint128::new(number_of_tickets as u128);
+
+        // how many tickets from a ticketbook you redeemed
+        let book_ratio = Decimal::from_ratio(tickets, ticketbook_size);
+
+        // return = ticketbook_price * (tickets / ticketbook_size)
+        let return_amount = book_ratio * deposit_amount;
+
+        Ok(Coin {
+            denom: config.deposit_amount.denom.clone(),
+            amount: return_amount,
+        })
     }
 
     fn must_get_multisig_addr(&self, deps: Deps) -> Result<Addr, EcashContractError> {
@@ -91,5 +115,174 @@ impl NymEcashContract<'_> {
             }),
         )?;
         Ok(proposal_response)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::support::tests::TestSetupSimple;
+
+    #[test]
+    fn ticket_redemption_amount() -> anyhow::Result<()> {
+        // make sure the ticketbook size hasn't changed so that our tests are still valid
+        assert_eq!(TICKETBOOK_SIZE, 50);
+
+        // ticketbook price of 100nym
+        let test = TestSetupSimple::new().with_deposit_amount(100_000_000);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 1)?;
+        assert_eq!(res.amount.u128(), 2_000_000);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 2)?;
+        assert_eq!(res.amount.u128(), 4_000_000);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 5)?;
+        assert_eq!(res.amount.u128(), 10_000_000);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 10)?;
+        assert_eq!(res.amount.u128(), 20_000_000);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 30)?;
+        assert_eq!(res.amount.u128(), 60_000_000);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 50)?;
+        assert_eq!(res.amount.u128(), 100_000_000);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 123)?;
+        assert_eq!(res.amount.u128(), 246_000_000);
+
+        // ticketbook price of 1.5unym per ticket
+        let test = TestSetupSimple::new().with_deposit_amount(75);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 1)?;
+        assert_eq!(res.amount.u128(), 1);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 2)?;
+        assert_eq!(res.amount.u128(), 3);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 5)?;
+        assert_eq!(res.amount.u128(), 7);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 10)?;
+        assert_eq!(res.amount.u128(), 15);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 30)?;
+        assert_eq!(res.amount.u128(), 45);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 50)?;
+        assert_eq!(res.amount.u128(), 75);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 123)?;
+        assert_eq!(res.amount.u128(), 184);
+
+        // ticketbook price of 1unym per ticket
+        let test = TestSetupSimple::new().with_deposit_amount(50);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 1)?;
+        assert_eq!(res.amount.u128(), 1);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 2)?;
+        assert_eq!(res.amount.u128(), 2);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 5)?;
+        assert_eq!(res.amount.u128(), 5);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 10)?;
+        assert_eq!(res.amount.u128(), 10);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 30)?;
+        assert_eq!(res.amount.u128(), 30);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 50)?;
+        assert_eq!(res.amount.u128(), 50);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 123)?;
+        assert_eq!(res.amount.u128(), 123);
+
+        // ticketbook price of 1unym in total
+        let test = TestSetupSimple::new().with_deposit_amount(1);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 1)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 2)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 5)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 10)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 30)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 50)?;
+        assert_eq!(res.amount.u128(), 1);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 123)?;
+        assert_eq!(res.amount.u128(), 2);
+
+        // ticketbook price of 0unym
+        let test = TestSetupSimple::new().with_deposit_amount(0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 1)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 2)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 5)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 10)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 30)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 50)?;
+        assert_eq!(res.amount.u128(), 0);
+        let res =
+            test.contract()
+                .tickets_redemption_amount(test.deps().storage, &test.config(), 123)?;
+        assert_eq!(res.amount.u128(), 0);
+
+        Ok(())
     }
 }

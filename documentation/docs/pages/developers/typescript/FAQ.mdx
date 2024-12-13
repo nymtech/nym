@@ -1,0 +1,22 @@
+# TS SDK FAQ
+
+## Why and when does the mixnet client complain about insufficient topology?
+
+It will in one of the following cases:
+- There are empty mix layers - although this is rare;
+- The gateway you've registered with does not appear in the network topology -> it is either unbonded or was blacklisted;
+- The gateway you want to send packets to does not appear in the network topology -> it is either unbonded or was blacklisted;
+
+To avoid the last two, you need to make sure the gateway you are calling is bonded and whitelisted.
+
+## How can I check whether the gateway I am connecting to is bonded and not blacklisted?
+
+The easiest way of checking what gateway you're registered with is to look at your client address.
+Client addresses are in the format of:
+`client-id . client-dh @ gateway-id. `
+
+To illustrate this: `DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko.ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx@2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh `
+
+- `DpB3cHAchJiNBQi5FrZx2csXb1mrHkpYh9Wzf8Rjsuko`: is the client's identity key;
+- `ANNWrvHqMYuertHGHUrZdBntQhpzfbWekB39qez9U2Vx`: is the client's Diffie Hellman key;
+- `2BuMSfMW3zpeAjKXyKLhmY4QW1DXurrtSPEJ6CjX3SEh`: is the gateway's identity, which is what you'll need to check the state of the gateway in the [Nym Explorer](https://explorer.nymtech.net/network-components/gateways).

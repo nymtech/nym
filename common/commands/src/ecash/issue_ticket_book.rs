@@ -6,6 +6,7 @@ use crate::utils::CommonConfigsWrapper;
 use anyhow::{anyhow, bail};
 use clap::ArgGroup;
 use clap::Parser;
+use log::info;
 use nym_credential_storage::initialise_persistent_storage;
 use nym_credential_storage::storage::Storage;
 use nym_credential_utils::utils;
@@ -150,6 +151,7 @@ async fn issue_to_file(args: Args, client: SigningClient) -> anyhow::Result<()> 
         exported = exported.with_master_verification_key(&EpochVerificationKey { epoch_id, key });
     }
 
+    info!("the issued ticketbook has expiration of {expiration_date}");
     let data = exported.pack().data;
 
     if args.bs58_output {

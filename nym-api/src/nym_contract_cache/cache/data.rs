@@ -3,9 +3,13 @@
 
 use crate::support::caching::Cache;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
+use nym_api_requests::models::{ConfigScoreDataResponse, RewardedSetResponse};
 use nym_contracts_common::ContractBuildInformation;
 use nym_mixnet_contract_common::nym_node::Role;
-use nym_mixnet_contract_common::{Interval, NodeId, NymNodeDetails, RewardedSet, RewardingParams};
+use nym_mixnet_contract_common::{
+    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, NodeId, NymNodeDetails,
+    RewardedSet, RewardingParams,
+};
 use nym_validator_client::nyxd::AccountId;
 use std::collections::{HashMap, HashSet};
 
@@ -46,6 +50,19 @@ impl From<CachedRewardedSet> for RewardedSet {
             layer2: value.layer2.into_iter().collect(),
             layer3: value.layer3.into_iter().collect(),
             standby: value.standby.into_iter().collect(),
+        }
+    }
+}
+
+impl From<&CachedRewardedSet> for RewardedSetResponse {
+    fn from(value: &CachedRewardedSet) -> Self {
+        RewardedSetResponse {
+            entry_gateways: value.entry_gateways.iter().copied().collect(),
+            exit_gateways: value.exit_gateways.iter().copied().collect(),
+            layer1: value.layer1.iter().copied().collect(),
+            layer2: value.layer2.iter().copied().collect(),
+            layer3: value.layer3.iter().copied().collect(),
+            standby: value.standby.iter().copied().collect(),
         }
     }
 }
@@ -110,7 +127,26 @@ impl CachedRewardedSet {
     }
 }
 
-pub(crate) struct ValidatorCacheData {
+#[derive(Clone)]
+pub(crate) struct ConfigScoreData {
+    pub(crate) config_score_params: ConfigScoreParams,
+    pub(crate) nym_node_version_history: Vec<HistoricalNymNodeVersionEntry>,
+}
+
+impl From<ConfigScoreData> for ConfigScoreDataResponse {
+    fn from(value: ConfigScoreData) -> Self {
+        ConfigScoreDataResponse {
+            parameters: value.config_score_params.into(),
+            version_history: value
+                .nym_node_version_history
+                .into_iter()
+                .map(Into::into)
+                .collect(),
+        }
+    }
+}
+
+pub(crate) struct ContractCacheData {
     pub(crate) legacy_mixnodes: Cache<Vec<LegacyMixNodeDetailsWithLayer>>,
     pub(crate) legacy_gateways: Cache<Vec<LegacyGatewayBondWithId>>,
     pub(crate) nym_nodes: Cache<Vec<NymNodeDetails>>,
@@ -121,15 +157,16 @@ pub(crate) struct ValidatorCacheData {
     pub(crate) legacy_mixnodes_blacklist: Cache<HashSet<NodeId>>,
     pub(crate) legacy_gateways_blacklist: Cache<HashSet<NodeId>>,
 
+    pub(crate) config_score_data: Cache<Option<ConfigScoreData>>,
     pub(crate) current_reward_params: Cache<Option<RewardingParams>>,
     pub(crate) current_interval: Cache<Option<Interval>>,
 
     pub(crate) contracts_info: Cache<CachedContractsInfo>,
 }
 
-impl ValidatorCacheData {
+impl ContractCacheData {
     pub(crate) fn new() -> Self {
-        ValidatorCacheData {
+        ContractCacheData {
             legacy_mixnodes: Cache::default(),
             legacy_gateways: Cache::default(),
             nym_nodes: Default::default(),
@@ -140,6 +177,7 @@ impl ValidatorCacheData {
             current_interval: Cache::default(),
             current_reward_params: Cache::default(),
             contracts_info: Cache::default(),
+            config_score_data: Default::default(),
         }
     }
 }

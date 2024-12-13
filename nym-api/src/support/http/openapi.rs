@@ -1,6 +1,8 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+#![allow(deprecated)]
+
 use crate::network::handlers::ContractVersionSchemaResponse;
 use nym_api_requests::models;
 use utoipa::OpenApi;
@@ -15,6 +17,11 @@ use utoipauto::utoipauto;
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Nym API"),
+    servers(
+        (url = "/api", description = "Main Nym Api Server"),
+        (url = "/", description = "Auxiliary Nym Api Instances"),
+        (url = "/", description = "Local Development Server")
+    ),
     tags(),
     components(schemas(
         models::CirculatingSupplyResponse,
@@ -64,17 +71,22 @@ use utoipauto::utoipauto;
         nym_api_requests::ecash::VerificationKeyResponse,
         nym_api_requests::ecash::models::AggregatedExpirationDateSignatureResponse,
         nym_api_requests::ecash::models::AggregatedCoinIndicesSignatureResponse,
-        nym_api_requests::ecash::models::EpochCredentialsResponse,
-        nym_api_requests::ecash::models::IssuedCredentialResponse,
-        nym_api_requests::ecash::models::IssuedTicketbookBody,
+        nym_api_requests::ecash::models::MasterVerificationKeyResponse,
         nym_api_requests::ecash::models::BlindedSignatureResponse,
+        nym_api_requests::ecash::models::BlindSignRequestBody,
         nym_api_requests::ecash::models::PartialExpirationDateSignatureResponse,
         nym_api_requests::ecash::models::PartialCoinIndicesSignatureResponse,
         nym_api_requests::ecash::models::EcashTicketVerificationResponse,
         nym_api_requests::ecash::models::EcashTicketVerificationRejection,
         nym_api_requests::ecash::models::EcashBatchTicketRedemptionResponse,
-        nym_api_requests::ecash::models::SpentCredentialsResponse,
-        nym_api_requests::ecash::models::IssuedCredentialsResponse,
+        nym_api_requests::ecash::models::VerifyEcashTicketBody,
+        nym_api_requests::ecash::models::VerifyEcashCredentialBody,
+        nym_api_requests::ecash::models::CommitedDeposit,
+        nym_api_requests::ecash::models::IssuedTicketbooksForResponseBody,
+        nym_api_requests::ecash::models::IssuedTicketbooksForResponse,
+        nym_api_requests::ecash::models::IssuedTicketbooksChallengeRequest,
+        nym_api_requests::ecash::models::IssuedTicketbooksChallengeResponseBody,
+        nym_api_requests::ecash::models::IssuedTicketbooksChallengeResponse,
         nym_api_requests::nym_nodes::SkimmedNode,
         nym_api_requests::nym_nodes::SemiSkimmedNode,
         nym_api_requests::nym_nodes::FullFatNode,

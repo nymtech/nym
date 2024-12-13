@@ -78,6 +78,9 @@ pub use nym_sphinx::{
     anonymous_replies::requests::AnonymousSenderTag,
     receiver::ReconstructedMessage,
 };
+pub use nym_statistics_common::clients::{
+    connection::ConnectionStatsEvent, ClientStatsEvents, ClientStatsSender,
+};
 pub use nym_task::connections::TransmissionLane;
 pub use nym_topology::{provider_trait::TopologyProvider, NymTopology};
 pub use paths::StoragePaths;

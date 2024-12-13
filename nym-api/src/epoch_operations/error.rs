@@ -11,6 +11,9 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum RewardingError {
+    #[error("this instance is running without on-chain signing capabilities so no transactions can be sent")]
+    ChainSignerNotEnabled,
+
     #[error("Our account ({our_address}) is not permitted to update rewarded set and perform rewarding. The allowed address is {allowed_address}")]
     Unauthorised {
         our_address: AccountId,

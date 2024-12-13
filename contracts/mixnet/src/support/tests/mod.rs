@@ -17,7 +17,6 @@ pub mod test_helpers {
         perform_pending_epoch_actions, perform_pending_interval_actions, try_begin_epoch_transition,
     };
     use crate::interval::{pending_events, storage as interval_storage};
-    use crate::mixnet_contract_settings::queries::query_contract_settings_params;
     use crate::mixnet_contract_settings::storage::{
         self as mixnet_params_storage, minimum_node_pledge,
     };
@@ -76,12 +75,12 @@ pub mod test_helpers {
     use mixnet_contract_common::rewarding::simulator::Simulator;
     use mixnet_contract_common::rewarding::RewardDistribution;
     use mixnet_contract_common::{
-        ContractStateParams, Delegation, EpochEventId, EpochState, EpochStatus, ExecuteMsg,
+        ContractStateParamsUpdate, Delegation, EpochEventId, EpochState, EpochStatus, ExecuteMsg,
         Gateway, GatewayBondingPayload, IdentityKey, InitialRewardingParams, InstantiateMsg,
         Interval, MixNode, MixNodeBond, MixNodeDetails, MixnodeBondingPayload, NodeId, NymNode,
-        NymNodeBond, NymNodeBondingPayload, NymNodeDetails, OperatingCostRange, Percent,
-        ProfitMarginRange, RoleAssignment, SignableGatewayBondingMsg, SignableMixNodeBondingMsg,
-        SignableNymNodeBondingMsg,
+        NymNodeBond, NymNodeBondingPayload, NymNodeDetails, OperatingCostRange,
+        OperatorsParamsUpdate, Percent, ProfitMarginRange, RoleAssignment,
+        SignableGatewayBondingMsg, SignableMixNodeBondingMsg, SignableNymNodeBondingMsg,
     };
     use nym_contracts_common::signing::{
         ContractMessageContent, MessageSignature, SignableMessage, SigningAlgorithm, SigningPurpose,
@@ -404,14 +403,17 @@ pub mod test_helpers {
         }
 
         pub fn update_profit_margin_range(&mut self, range: ProfitMarginRange) {
-            let current = query_contract_settings_params(self.deps()).unwrap();
-
             self.execute(
                 self.owner(),
                 ExecuteMsg::UpdateContractStateParams {
-                    updated_parameters: ContractStateParams {
-                        profit_margin: range,
-                        ..current
+                    update: ContractStateParamsUpdate {
+                        delegations_params: None,
+                        operators_params: Some(OperatorsParamsUpdate {
+                            minimum_pledge: None,
+                            profit_margin: Some(range),
+                            interval_operating_cost: None,
+                        }),
+                        config_score_params: None,
                     },
                 },
             )
@@ -419,14 +421,17 @@ pub mod test_helpers {
         }
 
         pub fn update_operating_cost_range(&mut self, range: OperatingCostRange) {
-            let current = query_contract_settings_params(self.deps()).unwrap();
-
             self.execute(
                 self.owner(),
                 ExecuteMsg::UpdateContractStateParams {
-                    updated_parameters: ContractStateParams {
-                        interval_operating_cost: range,
-                        ..current
+                    update: ContractStateParamsUpdate {
+                        delegations_params: None,
+                        operators_params: Some(OperatorsParamsUpdate {
+                            minimum_pledge: None,
+                            profit_margin: None,
+                            interval_operating_cost: Some(range),
+                        }),
+                        config_score_params: None,
                     },
                 },
             )
@@ -1825,6 +1830,9 @@ pub mod test_helpers {
             epochs_in_interval: 720,
             epoch_duration: Duration::from_secs(60 * 60),
             initial_rewarding_params: initial_rewarding_params(),
+            current_nym_node_version: "1.1.10".to_string(),
+            version_score_weights: Default::default(),
+            version_score_params: Default::default(),
             profit_margin: Default::default(),
             interval_operating_cost: Default::default(),
         };

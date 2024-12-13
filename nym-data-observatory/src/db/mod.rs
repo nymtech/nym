@@ -14,9 +14,7 @@ pub(crate) struct Storage {
 }
 
 impl Storage {
-    pub async fn init(connection_url: Option<String>) -> Result<Self> {
-        let connection_url =
-            connection_url.ok_or_else(|| anyhow!("Missing the connection url for database!"))?;
+    pub async fn init(connection_url: String) -> Result<Self> {
         let connect_options =
             PgConnectOptions::from_str(&connection_url)?.disable_statement_logging();
 

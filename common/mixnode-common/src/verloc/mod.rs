@@ -6,7 +6,6 @@ use crate::verloc::sender::{PacketSender, TestedNode};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use log::*;
-use nym_bin_common::version_checker::{self, parse_version};
 use nym_crypto::asymmetric::identity;
 use nym_network_defaults::mainnet::NYM_API;
 use nym_node_http_api::state::metrics::{SharedVerlocStats, VerlocNodeResult};
@@ -30,9 +29,6 @@ pub(crate) mod measurement;
 pub(crate) mod packet;
 pub(crate) mod sender;
 
-// TODO: MUST BE UPDATED BEFORE ACTUAL RELEASE!!
-pub const MINIMUM_NODE_VERSION: &str = "0.10.1";
-
 // by default all of those are overwritten by config data from mixnodes directly
 const DEFAULT_VERLOC_PORT: u16 = 1790;
 const DEFAULT_PACKETS_PER_NODE: usize = 100;
@@ -45,9 +41,6 @@ const DEFAULT_RETRY_TIMEOUT: Duration = Duration::from_secs(60 * 30);
 
 #[derive(Clone, Debug)]
 pub struct Config {
-    /// Minimum semver version of a node (gateway or mixnode) that is capable of replying to echo packets.
-    minimum_compatible_node_version: version_checker::Version,
-
     /// Socket address of this node on which it will be listening for the measurement packets.
     listening_address: SocketAddr,
 
@@ -89,11 +82,6 @@ pub struct ConfigBuilder(Config);
 impl ConfigBuilder {
     pub fn new() -> ConfigBuilder {
         Self::default()
-    }
-
-    pub fn minimum_compatible_node_version(mut self, version: version_checker::Version) -> Self {
-        self.0.minimum_compatible_node_version = version;
-        self
     }
 
     pub fn listening_address(mut self, listening_address: SocketAddr) -> Self {
@@ -154,7 +142,6 @@ impl ConfigBuilder {
 impl Default for ConfigBuilder {
     fn default() -> Self {
         ConfigBuilder(Config {
-            minimum_compatible_node_version: parse_version(MINIMUM_NODE_VERSION).unwrap(),
             listening_address: format!("[::]:{DEFAULT_VERLOC_PORT}").parse().unwrap(),
             packets_per_node: DEFAULT_PACKETS_PER_NODE,
             packet_timeout: DEFAULT_PACKET_TIMEOUT,

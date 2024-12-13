@@ -40,7 +40,7 @@ impl SqliteStorageManager {
         sqlx::query_as!(
             MinimalWalletShare,
             r#"
-                SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date
+                SELECT t1.node_id, t1.blinded_signature, t1.epoch_id, t1.expiration_date as "expiration_date!: Date"
                 FROM partial_blinded_wallet as t1
                 JOIN ticketbook_deposit as t2
                     on t1.corresponding_deposit = t2.deposit_id
@@ -52,6 +52,23 @@ impl SqliteStorageManager {
         )
         .fetch_all(&self.connection_pool)
         .await
+    }
+
+    pub(crate) async fn load_shares_error_by_device_by_shares_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<String>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"
+                SELECT error_message
+                FROM blinded_shares
+                WHERE id = ?;
+            "#,
+            id,
+        )
+        .fetch_one(&self.connection_pool)
+        .await?
+        .error_message)
     }
 
     pub(crate) async fn load_blinded_shares_status_by_device_and_credential_id(
@@ -79,14 +96,15 @@ impl SqliteStorageManager {
         device_id: &str,
         credential_id: &str,
     ) -> Result<Vec<MinimalWalletShare>, sqlx::Error> {
+        // https://docs.rs/sqlx/latest/sqlx/macro.query.html#force-a-differentcustom-type
         sqlx::query_as!(
             MinimalWalletShare,
             r#"
-                SELECT 
+                SELECT
                     t1.node_id as "node_id!",
                     t1.blinded_signature as "blinded_signature!",
                     t1.epoch_id as "epoch_id!",
-                    t1.expiration_date as "expiration_date!"
+                    t1.expiration_date as "expiration_date!: Date"
                 FROM partial_blinded_wallet as t1
                 JOIN ticketbook_deposit as t2
                     on t1.corresponding_deposit = t2.deposit_id
@@ -99,6 +117,25 @@ impl SqliteStorageManager {
         )
         .fetch_all(&self.connection_pool)
         .await
+    }
+
+    pub(crate) async fn load_shares_error_by_device_and_credential_id(
+        &self,
+        device_id: &str,
+        credential_id: &str,
+    ) -> Result<Option<String>, sqlx::Error> {
+        Ok(sqlx::query!(
+            r#"
+                SELECT error_message
+                FROM blinded_shares
+                WHERE device_id = ? AND credential_id = ?;
+            "#,
+            device_id,
+            credential_id
+        )
+        .fetch_one(&self.connection_pool)
+        .await?
+        .error_message)
     }
 
     pub(crate) async fn insert_new_pending_async_shares_request(

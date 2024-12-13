@@ -17,6 +17,7 @@ thiserror = { workspace = true }
 
 nym-credentials-interface = { path = "../credentials-interface" }
 nym-crypto = { path = "../crypto", features = ["asymmetric"] }
+nym-network-defaults = { path = "../network-defaults" }
 nym-service-provider-requests-common = { path = "../service-provider-requests-common" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-wireguard-types = { path = "../wireguard-types" }

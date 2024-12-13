@@ -1,42 +1,61 @@
-# Nym Documentation
-Documentation for the Nym privacy platform built using the [mdBook](https://rust-lang.github.io/mdBook/) docs framework.
+# Nym Docs v2
 
-Documentation can be viewed at https://nymtech.net/docs
+This is v2 of the nym docs, condensed from various mdbooks projects that we had previously.
 
-## Contributing
-Contributions to our documentation are very welcome. Please work on your contribution in either a `feature/<feature-name>` or `chore/<chore-name>` branch from `master` and target your pull request at `master`.
+These docs are hosted at [nymtech.net/docs](www.nymtech.net/docs).
 
-Since these docs autogenerate command output and import docs from binaries in `target/release` on `build` make sure you're branching off of `master` when making your branch.
+## Doc projects
+`docs/pages/` contains several subdirs, each hosting a subsection of the docs:
+* `network` contains key concepts, cryptosystems, architecture.
+* `developers` contains key concepts for developers, required architecture, and Rust/Typescript SDK docs.
+* `operators` contains node setup and maintenance guides.
 
-Changes merged to `master` will be autodeployed to the production site.
+## Local development
+### Dependencies
+Our `prebuild` script relies on the following:
+- `python`
+- `pip`
+- [`pandas`](https://pandas.pydata.org/)
+- [`tabulate`](https://pypi.org/project/tabulate/)
+- `jq`
 
-### Contributing a new translation
-To contribute tranlsations in a new language, please get in touch via [Matrix](https://matrix.to/#/#general:nymtech.chat) or [Discord](https://nymtech.net/go/discord).
+Otherwise make sure to have `node` installed.
 
-### Variables
-There are some variables that are shared across the entire docs site, such as the current latest software version.
+### Serve Local (Hot Reload)
+```sh
+pnpm i
+pnpm run dev
+```
 
-Variables are denoted in the `.md` files wrapped in `{{}}` (e.g `{{wallet_release_version}}`), and are located in the `book.toml` file under the `[preprocessor.variables.variables]` heading. If you are changing something like the software release version, minimum code versions in prerequisites, etc, **check in here first!**
+Open `http://localhost:3000`.
 
-### Diagrams
-Most diagrams are simply ascii. Copies are kept in `/diagrams/` for ease of reproducability. Created using [textik](https://textik.com/#).
+## Build
+```sh
+pnpm run build
+```
 
-### Importing files and auto-generated command output
+## Contribution
+* If you wish to add to the documentation please create a PR against this repo, with a `patch` against `develop`.
 
-Example files are inserted as per normal with mdbook.
+## Scripts
+* `generate:commands`: generates command output files for clients and binaries. This script runs the `autodoc` rust binary, moves the files to their required places, and then if there is an update, commits them to git. We commit the files as our remote deployments pull from a git repo. **Only run this script on branches where you want to push e.g. the build info of a binary to production docs**; it will build the monorepo binaries and use their command output for the produced markdown files.
+* `generate:tables`: generates various information tables containing some repo-wide variables and information about ISPs.
 
-Some binary command outputs are generated using the [`cmdrun`](https://docs.rs/mdbook-cmdrun/latest/mdbook_cmdrun/) mdbook plugin.
+### Autodoc
+`autodoc` is a script that generates markdown files containing commands and their output (both command and `--help` output). For the moment the binaries and their commands are manually configured in the script.
 
-## Building
-When working locally, it is recommended that you use `mdbook serve` to have a local version of the docs served on `localhost:3000`, with hot reloading on any changes made to files in the `src/` directory.
+> **Only run this script on branches where you want to push e.g. the build info of a binary to production docs**; it will build the monorepo binaries and use their command output for the produced markdown files.
 
-You can find other commands in the [mdBook CLI tool docs](https://rust-lang.github.io/mdBook/cli/index.html).
+## CI/CD
+TODO
 
-### I tried to edit files in `theme/` and they aren't taking effect / `mdbook serve` causes a looping reload on file changes after changing fields in `[preprocessor.theme]` config
+## Licensing and copyright information
+This is a monorepo and components that make up Nym as a system are licensed individually, so for accurate information, please check individual files.
 
-Looping reload is a known issue with the `mdbook-theme` preprocessor used for the table of contents and layout of these docs. As outlined in the `mdbook-theme` [readme](https://github.com/zjp-CN/mdbook-theme#avoid-repeating-call-on-this-tool-when-mdbook-watch) one way to mitigate this is to set `turn-off = true` under `[preprocessor.theme]`. This means that `mdbook serve` or `mdbook watch` ignores changes to the `theme/` directory, which is the source of the looping reload. If you have changed or commented out this line, reintroduce it to remove the looping reload. If you are trying to edit the theme of the docs and want to apply the change, see [here](https://github.com/zjp-CN/mdbook-theme#avoid-repeating-call-on-this-tool-when-mdbook-watch) for more info on how to remove the block, change the theme, and reintroduce the block.
+As a general approach, licensing is as follows this pattern:
 
-### Checking the mdBook version
-To check the version of mdBook installed on your system, you can use the `mdbook --version` command. This will print the version number of mdBook installed on your system in the terminal.
+* <p xmlns:cc="http://creativecommons.org/ns#" xmlns:dct="http://purl.org/dc/terms/"><a property="dct:title" rel="cc:attributionURL" href="https://nymtech.net/docs">Nym Documentation</a> by <a rel="cc:attributionURL dct:creator" property="cc:attributionName" href="https://nymtech.net">Nym Technologies</a> is licensed under <a href="http://creativecommons.org/licenses/by-nc-sa/4.0/?ref=chooser-v1" target="_blank" rel="license noopener noreferrer" style="display:inline-block;">CC BY-NC-SA 4.0<img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/cc.svg?ref=chooser-v1"><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/by.svg?ref=chooser-v1"><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/nc.svg?ref=chooser-v1"><img style="height:22px!important;margin-left:3px;vertical-align:text-bottom;" src="https://mirrors.creativecommons.org/presskit/icons/sa.svg?ref=chooser-v1"></a></p>
 
-The latest release of the binary of the pre-compiled binaries can be found on [GitHub](https://github.com/rust-lang/mdBook/releases).
+* Nym applications and binaries are [GPL-3.0-only](https://www.gnu.org/licenses/)
+
+* Used libraries and different components are [Apache 2.0](https://www.apache.org/licenses/LICENSE-2.0.html) or [MIT](https://mit-license.org/)

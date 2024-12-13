@@ -13,6 +13,7 @@ use clap::{Parser, Subcommand};
 use log::{error, info};
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
+use nym_client::client::Recipient;
 use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
 use nym_config::OptionalSet;
@@ -104,6 +105,7 @@ pub(crate) struct OverrideConfig {
     no_cover: bool,
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
+    stats_reporting_address: Option<Recipient>,
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -148,6 +150,11 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
         .with_optional_ext(
             BaseClientConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
+        )
+        .with_optional_env_ext(
+            BaseClientConfig::with_enabled_stats_reporting_address,
+            args.stats_reporting_address,
+            nym_network_defaults::var_names::CLIENT_STATS_COLLECTION_PROVIDER,
         )
 }
 

@@ -5,7 +5,7 @@ use crate::error::VpnApiError;
 use clap::Args;
 use reqwest::header::AUTHORIZATION;
 use serde::Serialize;
-use tracing::{debug, error, instrument, span, Level};
+use tracing::{debug, error, instrument, span, Instrument, Level};
 use url::Url;
 use uuid::Uuid;
 
@@ -46,30 +46,33 @@ impl ZkNymWebHookConfig {
     pub async fn try_trigger<T: Serialize + ?Sized>(&self, original_uuid: Uuid, payload: &T) {
         let url = self.unchecked_client_url();
         let span = span!(Level::DEBUG, "webhook", uuid = %original_uuid, url = %url);
-        let _entered = span.enter();
 
-        debug!("🕸️ about to trigger the webhook");
+        async move {
+            debug!("🕸️ about to trigger the webhook");
 
-        match reqwest::Client::new()
-            .post(url.clone())
-            .header(AUTHORIZATION, self.bearer_token())
-            .json(payload)
-            .send()
-            .await
-        {
-            Ok(res) => {
-                if !res.status().is_success() {
-                    error!("❌🕸️ failed to call webhook: {res:?}");
-                } else {
-                    debug!("✅🕸️ webhook triggered successfully: {res:?}");
-                    if let Ok(body) = res.text().await {
-                        debug!("body = {body}");
+            match reqwest::Client::new()
+                .post(url.clone())
+                .header(AUTHORIZATION, self.bearer_token())
+                .json(payload)
+                .send()
+                .await
+            {
+                Ok(res) => {
+                    if !res.status().is_success() {
+                        error!("❌🕸️ failed to call webhook: {res:?}");
+                    } else {
+                        debug!("✅🕸️ webhook triggered successfully: {res:?}");
+                        if let Ok(body) = res.text().await {
+                            debug!("body = {body}");
+                        }
                     }
                 }
-            }
-            Err(err) => {
-                error!("failed to call webhook: {err}")
+                Err(err) => {
+                    error!("failed to call webhook: {err}")
+                }
             }
         }
+        .instrument(span)
+        .await
     }
 }

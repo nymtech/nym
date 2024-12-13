@@ -111,7 +111,7 @@ impl<S: Storage + Clone + 'static> BandwidthStorageManager<S> {
     }
 
     #[instrument(level = "trace", skip_all)]
-    async fn sync_storage_bandwidth(&mut self) -> Result<()> {
+    pub async fn sync_storage_bandwidth(&mut self) -> Result<()> {
         trace!("syncing client bandwidth with the underlying storage");
         let updated = self
             .storage

@@ -25,6 +25,8 @@ use nym_gateway_requests::{
     CREDENTIAL_UPDATE_V2_PROTOCOL_VERSION, CURRENT_PROTOCOL_VERSION,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
+use nym_statistics_common::clients::connection::ConnectionStatsEvent;
+use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::DkgQueryClient;
 use rand::rngs::OsRng;
@@ -94,6 +96,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     connection: SocketState,
     packet_router: PacketRouter,
     bandwidth_controller: Option<BandwidthController<C, St>>,
+    stats_reporter: ClientStatsSender,
 
     // currently unused (but populated)
     negotiated_protocol: Option<u8>,
@@ -103,6 +106,7 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 }
 
 impl<C, St> GatewayClient<C, St> {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         cfg: GatewayClientConfig,
         gateway_config: GatewayConfig,
@@ -111,6 +115,7 @@ impl<C, St> GatewayClient<C, St> {
         shared_key: Option<Arc<SharedGatewayKey>>,
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
+        stats_reporter: ClientStatsSender,
         task_client: TaskClient,
     ) -> Self {
         GatewayClient {
@@ -124,6 +129,7 @@ impl<C, St> GatewayClient<C, St> {
             connection: SocketState::NotConnected,
             packet_router,
             bandwidth_controller,
+            stats_reporter,
             negotiated_protocol: None,
             task_client,
         }
@@ -131,6 +137,10 @@ impl<C, St> GatewayClient<C, St> {
 
     pub fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway_identity
+    }
+
+    pub fn shared_key(&self) -> Option<Arc<SharedGatewayKey>> {
+        self.shared_key.clone()
     }
 
     pub fn ws_fd(&self) -> Option<RawFd> {
@@ -402,7 +412,7 @@ impl<C, St> GatewayClient<C, St> {
             }
 
             Some(_) => {
-                info!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
+                debug!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
                 Ok(())
             }
         }
@@ -714,6 +724,7 @@ impl<C, St> GatewayClient<C, St> {
     {
         // TODO: make it configurable
         const TICKETS_TO_SPEND: u32 = 1;
+        const MIXNET_TICKET: TicketType = TicketType::V1MixnetEntry;
 
         if !self.authenticated {
             return Err(GatewayClientError::NotAuthenticated);
@@ -750,14 +761,23 @@ impl<C, St> GatewayClient<C, St> {
         let prepared_credential = self
             .unchecked_bandwidth_controller()
             .prepare_ecash_ticket(
-                TicketType::V1MixnetEntry,
+                MIXNET_TICKET,
                 self.gateway_identity.to_bytes(),
                 TICKETS_TO_SPEND,
             )
             .await?;
 
         match self.claim_ecash_bandwidth(prepared_credential.data).await {
-            Ok(_) => Ok(()),
+            Ok(_) => {
+                self.stats_reporter.report(
+                    ConnectionStatsEvent::TicketSpent {
+                        typ: MIXNET_TICKET,
+                        amount: TICKETS_TO_SPEND,
+                    }
+                    .into(),
+                );
+                Ok(())
+            }
             Err(err) => {
                 error!("failed to claim ecash bandwidth with the gateway...: {err}");
                 if err.is_ticket_replay() {
@@ -976,24 +996,6 @@ impl<C, St> GatewayClient<C, St> {
         }
         Ok(())
     }
-
-    #[deprecated(note = "this method does not deal with upgraded keys for legacy clients")]
-    pub async fn authenticate_and_start(
-        &mut self,
-    ) -> Result<AuthenticationResponse, GatewayClientError>
-    where
-        C: DkgQueryClient + Send + Sync,
-        St: CredentialStorage,
-        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
-    {
-        let shared_key = self.perform_initial_authentication().await?;
-        self.claim_initial_bandwidth().await?;
-
-        // this call is NON-blocking
-        self.start_listening_for_mixnet_messages()?;
-
-        Ok(shared_key)
-    }
 }
 
 // type alias for an ease of use
@@ -1030,6 +1032,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             connection: SocketState::NotConnected,
             packet_router,
             bandwidth_controller: None,
+            stats_reporter: ClientStatsSender::new(None),
             negotiated_protocol: None,
             task_client,
         }
@@ -1039,6 +1042,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
         self,
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
+        stats_reporter: ClientStatsSender,
         task_client: TaskClient,
     ) -> GatewayClient<C, St> {
         // invariants that can't be broken
@@ -1058,6 +1062,7 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             connection: self.connection,
             packet_router,
             bandwidth_controller,
+            stats_reporter,
             negotiated_protocol: self.negotiated_protocol,
             task_client,
         }

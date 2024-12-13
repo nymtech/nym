@@ -18,30 +18,16 @@ rust-version = "1.76"
 [lib]
 path = "src/lib.rs"
 
-[[bin]]
-name = "nym-gateway"
-required-features = ["bin-deps"]
-path = "src/main.rs"
-
 [dependencies]
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 bip39 = { workspace = true }
 bs58 = { workspace = true }
-clap = { workspace = true, features = ["cargo", "derive"], optional = true }
-colored = { workspace = true }
 dashmap = { workspace = true }
-dirs = { workspace = true }
-dotenvy = { workspace = true }
 futures = { workspace = true }
-humantime-serde = { workspace = true }
 ipnetwork = { workspace = true }
-once_cell = { workspace = true }
 rand = { workspace = true }
-serde = { workspace = true, features = ["derive"] }
-serde_json = { workspace = true }
-si-scale = { workspace = true }
-subtle-encoding = { workspace = true, features = ["bech32-preview"] }
+sha2 = { workspace = true }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = [
@@ -59,23 +45,20 @@ url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true }
 
 # internal
-
 nym-authenticator = { path = "../service-providers/authenticator" }
 nym-api-requests = { path = "../nym-api/nym-api-requests" }
-nym-bin-common = { path = "../common/bin-common" }
-nym-config = { path = "../common/config" }
 nym-credentials = { path = "../common/credentials" }
 nym-credentials-interface = { path = "../common/credentials-interface" }
 nym-credential-verification = { path = "../common/credential-verification" }
 nym-crypto = { path = "../common/crypto" }
 nym-gateway-storage = { path = "../common/gateway-storage" }
+nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
 nym-gateway-requests = { path = "../common/gateway-requests" }
 nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-mixnode-common = { path = "../common/mixnode-common" }
 nym-network-defaults = { path = "../common/network-defaults" }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-node-http-api = { path = "../nym-node/nym-node-http-api" }
-nym-pemstore = { path = "../common/pemstore" }
 nym-sdk = { path = "../sdk/rust/nym-sdk" }
 nym-sphinx = { path = "../common/nymsphinx" }
 nym-statistics-common = { path = "../common/statistics" }
@@ -99,12 +82,3 @@ sqlx = { workspace = true, features = [
     "macros",
     "migrate",
 ] }
-
-[features]
-bin-deps = ["clap", 'nym-bin-common/output_format']
-
-[package.metadata.deb]
-name = "nym-gateway"
-maintainer-scripts = "debian"
-depends = "curl"
-systemd-units = { enable = false }

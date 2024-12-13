@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use self::manager::{AvgGatewayReliability, AvgMixnodeReliability};
+use crate::network_monitor::monitor::summary_producer::TestReport;
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_status_api::models::{
     GatewayStatusReport, GatewayUptimeHistory, HistoricalUptime as ApiHistoricalUptime,
@@ -11,7 +12,8 @@ use crate::node_status_api::{ONE_DAY, ONE_HOUR};
 use crate::storage::manager::StorageManager;
 use crate::storage::models::{NodeStatus, TestingRoute};
 use crate::support::storage::models::{
-    GatewayDetails, HistoricalUptime, MixnodeDetails, TestedGatewayStatus, TestedMixnodeStatus,
+    GatewayDetails, HistoricalUptime, MixnodeDetails, MonitorRunReport, MonitorRunScore,
+    TestedGatewayStatus, TestedMixnodeStatus,
 };
 use dashmap::DashMap;
 use nym_mixnet_contract_common::NodeId;
@@ -26,6 +28,7 @@ use tracing::{error, info, warn};
 
 pub(crate) mod manager;
 pub(crate) mod models;
+pub(crate) mod runtime_migrations;
 
 #[derive(Default)]
 pub(crate) struct DbIdCache {
@@ -331,37 +334,71 @@ impl NymApiStorage {
         Ok(self.manager.get_gateway_historical_uptimes(node_id).await?)
     }
 
+    pub(crate) async fn get_average_mixnode_reliability_in_the_last_24hrs(
+        &self,
+        node_id: NodeId,
+        end_ts_secs: i64,
+    ) -> Result<f32, NymApiStorageError> {
+        let start = end_ts_secs - 86400;
+        let reliability = self
+            .get_average_mixnode_reliability_in_time_interval(node_id, start, end_ts_secs)
+            .await?;
+        Ok(reliability)
+    }
+
+    pub(crate) async fn get_average_gateway_reliability_in_the_last_24hrs(
+        &self,
+        node_id: NodeId,
+        end_ts_secs: i64,
+    ) -> Result<f32, NymApiStorageError> {
+        let start = end_ts_secs - 86400;
+        let reliability = self
+            .get_average_gateway_reliability_in_time_interval(node_id, start, end_ts_secs)
+            .await?;
+        Ok(reliability)
+    }
+
+    pub(crate) async fn get_average_node_reliability_in_the_last_24hrs(
+        &self,
+        node_id: NodeId,
+        end_ts_secs: i64,
+    ) -> Result<f32, NymApiStorageError> {
+        let start = end_ts_secs - 86400;
+        let reliability = self
+            .get_average_node_reliability_in_time_interval(node_id, start, end_ts_secs)
+            .await?;
+        Ok(reliability)
+    }
+
+    #[allow(unused)]
     pub(crate) async fn get_average_mixnode_uptime_in_the_last_24hrs(
         &self,
         node_id: NodeId,
         end_ts_secs: i64,
     ) -> Result<Uptime, NymApiStorageError> {
-        let start = end_ts_secs - 86400;
-        let reliability = self
-            .get_average_mixnode_reliability_in_time_interval(node_id, start, end_ts_secs)
-            .await?;
-        Ok(Uptime::new(reliability))
+        self.get_average_mixnode_reliability_in_the_last_24hrs(node_id, end_ts_secs)
+            .await
+            .map(Uptime::new)
     }
 
+    #[allow(unused)]
     pub(crate) async fn get_average_gateway_uptime_in_the_last_24hrs(
         &self,
         node_id: NodeId,
         end_ts_secs: i64,
     ) -> Result<Uptime, NymApiStorageError> {
-        let start = end_ts_secs - 86400;
-        let reliability = self
-            .get_average_gateway_reliability_in_time_interval(node_id, start, end_ts_secs)
-            .await?;
-        Ok(Uptime::new(reliability))
+        self.get_average_gateway_reliability_in_the_last_24hrs(node_id, end_ts_secs)
+            .await
+            .map(Uptime::new)
     }
 
+    #[allow(unused)]
     pub(crate) async fn get_average_node_uptime_in_the_last_24hrs(
         &self,
         node_id: NodeId,
         end_ts_secs: i64,
     ) -> Result<Uptime, NymApiStorageError> {
-        let start = end_ts_secs - 86400;
-        self.get_average_node_reliability_in_time_interval(node_id, start, end_ts_secs)
+        self.get_average_node_reliability_in_the_last_24hrs(node_id, end_ts_secs)
             .await
             .map(Uptime::new)
     }
@@ -464,17 +501,22 @@ impl NymApiStorage {
         start: i64,
         end: i64,
     ) -> Result<f32, NymApiStorageError> {
-        if let Ok(result_as_mix) = self
+        let result_as_mix = self
             .get_average_mixnode_reliability_in_time_interval(node_id, start, end)
-            .await
-        {
-            if result_as_mix != 0. {
-                return Ok(result_as_mix);
-            }
-        }
+            .await?;
 
-        self.get_average_gateway_reliability_in_time_interval(node_id, start, end)
-            .await
+        let result_as_gateway = self
+            .get_average_gateway_reliability_in_time_interval(node_id, start, end)
+            .await?;
+
+        // give the benefit of the doubt if one of the scores is 0
+        if result_as_mix == 0. {
+            return Ok(result_as_gateway);
+        }
+        if result_as_gateway == 0. {
+            return Ok(result_as_mix);
+        }
+        Ok((result_as_mix + result_as_gateway) / 2.)
     }
 
     /// Obtain status reports of mixnodes that were active in the specified time interval.
@@ -690,7 +732,7 @@ impl NymApiStorage {
         mixnode_results: Vec<NodeResult>,
         gateway_results: Vec<NodeResult>,
         test_routes: Vec<TestRoute>,
-    ) -> Result<(), NymApiStorageError> {
+    ) -> Result<i64, NymApiStorageError> {
         info!("Submitting new node results to the database. There are {} mixnode results and {} gateway results", mixnode_results.len(), gateway_results.len());
 
         let now = OffsetDateTime::now_utc().unix_timestamp();
@@ -709,7 +751,61 @@ impl NymApiStorage {
             self.insert_test_route(monitor_run_id, test_route).await?;
         }
 
+        Ok(monitor_run_id)
+    }
+
+    pub(crate) async fn insert_monitor_run_report(
+        &self,
+        report: TestReport,
+        monitor_run_id: i64,
+    ) -> Result<(), NymApiStorageError> {
+        self.manager
+            .insert_monitor_run_report(
+                monitor_run_id,
+                report.network_reliability,
+                report.total_sent as u32,
+                report.total_received as u32,
+            )
+            .await?;
+
+        let mut scores = Vec::new();
+        for (score, count) in report.mixnode_results {
+            scores.push(MonitorRunScore {
+                typ: "mixnode".to_string(),
+                monitor_run_id,
+                rounded_score: score,
+                nodes_count: count as u32,
+            })
+        }
+        for (score, count) in report.gateway_results {
+            scores.push(MonitorRunScore {
+                typ: "gateway".to_string(),
+                monitor_run_id,
+                rounded_score: score,
+                nodes_count: count as u32,
+            })
+        }
+
+        self.manager.insert_monitor_run_scores(scores).await?;
+
         Ok(())
+    }
+
+    pub(crate) async fn get_monitor_run_report(
+        &self,
+        monitor_run_id: i64,
+    ) -> Result<Option<(MonitorRunReport, Vec<MonitorRunScore>)>, NymApiStorageError> {
+        let Some(report) = self.manager.get_monitor_run_report(monitor_run_id).await? else {
+            return Ok(None);
+        };
+        let scores = self.manager.get_monitor_run_scores(monitor_run_id).await?;
+        Ok(Some((report, scores)))
+    }
+
+    pub(crate) async fn get_latest_monitor_run_id(
+        &self,
+    ) -> Result<Option<i64>, NymApiStorageError> {
+        Ok(self.manager.get_latest_monitor_run_id().await?)
     }
 
     pub(crate) async fn submit_mixnode_statuses_v2(

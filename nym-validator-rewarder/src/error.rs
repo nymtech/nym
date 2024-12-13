@@ -48,6 +48,9 @@ pub enum NymRewarderError {
     #[error("there already exists a config file at: {}. if you want to overwrite its content, use --force flag", path.display())]
     ExistingConfig { path: PathBuf },
 
+    #[error("neither block signing nor ticketbook issuance is enabled")]
+    RewardingModulesDisabled,
+
     // TODO: I think this one should get split into more, explicit, variants
     #[error(transparent)]
     NyxdFailure(#[from] NyxdError),
@@ -159,7 +162,7 @@ pub enum NymRewarderError {
         on_chain: String,
     },
 
-    #[error("the current rewarder balance is insufficient to start the process. The epoch budget is: {} while we currently have {}. (the minimum is set to {})", .0.epoch_budget, .0.balance, .0.minimum)]
+    #[error("the current rewarder balance is insufficient to start the process. The daily budget is: {} while we currently have {}. (the minimum is set to {})", .0.daily_budget, .0.balance, .0.minimum)]
     InsufficientRewarderBalance(Box<InsufficientBalance>),
 
     #[error("the scraper websocket endpoint hasn't been provided")]
@@ -168,11 +171,14 @@ pub enum NymRewarderError {
     #[error("block signing rewarding is enabled, but the validator whitelist is empty")]
     EmptyBlockSigningWhitelist,
 
-    #[error("credential issuance rewarding is enabled, but the validator whitelist is empty")]
-    EmptyCredentialIssuanceWhitelist,
+    #[error("ticketbook issuance rewarding is enabled, but the validator whitelist is empty")]
+    EmptyTicketbookIssuanceWhitelist,
 
     #[error("there were no validators to reward in this epoch")]
     NoValidatorsToReward,
+
+    #[error("there were no ticketbook signers to reward in this epoch")]
+    NoSignersToReward,
 
     #[error("the current pruning strategy is set to 'everything' - we won't have any block data for rewarding")]
     EverythingPruningStrategy,
@@ -186,7 +192,7 @@ pub enum NymRewarderError {
 
 #[derive(Debug)]
 pub struct InsufficientBalance {
-    pub epoch_budget: Coin,
+    pub daily_budget: Coin,
     pub balance: Coin,
     pub minimum: Coin,
 }

@@ -17,9 +17,6 @@ pub enum ClientError {
     #[error("Failed to validate the loaded config")]
     ConfigValidationFailure,
 
-    #[error("Failed local version check, client and config mismatch")]
-    FailedLocalVersionCheck,
-
     #[error("Attempted to start the client in invalid socket mode")]
     InvalidSocketMode,
 

@@ -26,7 +26,6 @@ pub(crate) mod nym_contract_cache;
 pub(crate) mod nym_nodes;
 mod status;
 pub(crate) mod support;
-mod v3_migration;
 
 // TODO rocket: remove all such Todos once rocket is phased out completely
 #[tokio::main]

@@ -10,7 +10,9 @@ use clap::ValueEnum;
 use nym_bin_common::logging::LoggingSettings;
 use nym_config::defaults::{
     mainnet, var_names, DEFAULT_MIX_LISTENING_PORT, DEFAULT_NYM_NODE_HTTP_PORT, WG_PORT,
+    WG_TUN_DEVICE_IP_ADDRESS_V4, WG_TUN_DEVICE_IP_ADDRESS_V6,
 };
+use nym_config::defaults::{WG_TUN_DEVICE_NETMASK_V4, WG_TUN_DEVICE_NETMASK_V6};
 use nym_config::helpers::inaddr_any;
 use nym_config::serde_helpers::de_maybe_port;
 use nym_config::serde_helpers::de_maybe_stringified;
@@ -21,7 +23,7 @@ use nym_config::{
 use serde::{Deserialize, Serialize};
 use std::env;
 use std::fmt::{Display, Formatter};
-use std::net::{IpAddr, Ipv4Addr, SocketAddr};
+use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
 use std::path::{Path, PathBuf};
 use std::time::Duration;
 use tracing::{debug, error};
@@ -43,9 +45,6 @@ pub use crate::config::mixnode::MixnodeConfig;
 
 const DEFAULT_NYMNODES_DIR: &str = "nym-nodes";
 
-pub const DEFAULT_WIREGUARD_PORT: u16 = WG_PORT;
-pub const DEFAULT_WIREGUARD_IP: IpAddr = IpAddr::V4(Ipv4Addr::new(10, 1, 0, 1));
-pub const DEFAULT_WIREGUARD_PREFIX: u8 = 16;
 pub const DEFAULT_HTTP_PORT: u16 = DEFAULT_NYM_NODE_HTTP_PORT;
 pub const DEFAULT_MIXNET_PORT: u16 = DEFAULT_MIX_LISTENING_PORT;
 
@@ -518,17 +517,25 @@ pub struct Wireguard {
     /// default: `0.0.0.0:51822`
     pub bind_address: SocketAddr,
 
-    /// Private IP address of the wireguard gateway.
+    /// Private IPv4 address of the wireguard gateway.
     /// default: `10.1.0.1`
-    pub private_ip: IpAddr,
+    pub private_ipv4: Ipv4Addr,
+
+    /// Private IPv6 address of the wireguard gateway.
+    /// default: `fc01::1`
+    pub private_ipv6: Ipv6Addr,
 
     /// Port announced to external clients wishing to connect to the wireguard interface.
     /// Useful in the instances where the node is behind a proxy.
     pub announced_port: u16,
 
-    /// The prefix denoting the maximum number of the clients that can be connected via Wireguard.
-    /// The maximum value for IPv4 is 32 and for IPv6 is 128
-    pub private_network_prefix: u8,
+    /// The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv4.
+    /// The maximum value for IPv4 is 32
+    pub private_network_prefix_v4: u8,
+
+    /// The prefix denoting the maximum number of the clients that can be connected via Wireguard using IPv6.
+    /// The maximum value for IPv6 is 128
+    pub private_network_prefix_v6: u8,
 
     /// Paths for wireguard keys, client registries, etc.
     pub storage_paths: persistence::WireguardPaths,
@@ -538,13 +545,12 @@ impl Wireguard {
     pub fn new_default<P: AsRef<Path>>(data_dir: P) -> Self {
         Wireguard {
             enabled: false,
-            bind_address: SocketAddr::new(
-                IpAddr::V4(Ipv4Addr::UNSPECIFIED),
-                DEFAULT_WIREGUARD_PORT,
-            ),
-            private_ip: DEFAULT_WIREGUARD_IP,
-            announced_port: DEFAULT_WIREGUARD_PORT,
-            private_network_prefix: DEFAULT_WIREGUARD_PREFIX,
+            bind_address: SocketAddr::new(IpAddr::V4(Ipv4Addr::UNSPECIFIED), WG_PORT),
+            private_ipv4: WG_TUN_DEVICE_IP_ADDRESS_V4,
+            private_ipv6: WG_TUN_DEVICE_IP_ADDRESS_V6,
+            announced_port: WG_PORT,
+            private_network_prefix_v4: WG_TUN_DEVICE_NETMASK_V4,
+            private_network_prefix_v6: WG_TUN_DEVICE_NETMASK_V6,
             storage_paths: persistence::WireguardPaths::new(data_dir),
         }
     }
@@ -554,9 +560,11 @@ impl From<Wireguard> for nym_wireguard_types::Config {
     fn from(value: Wireguard) -> Self {
         nym_wireguard_types::Config {
             bind_address: value.bind_address,
-            private_ip: value.private_ip,
+            private_ipv4: value.private_ipv4,
+            private_ipv6: value.private_ipv6,
             announced_port: value.announced_port,
-            private_network_prefix: value.private_network_prefix,
+            private_network_prefix_v4: value.private_network_prefix_v4,
+            private_network_prefix_v6: value.private_network_prefix_v6,
         }
     }
 }
@@ -565,9 +573,11 @@ impl From<Wireguard> for nym_authenticator::config::Authenticator {
     fn from(value: Wireguard) -> Self {
         nym_authenticator::config::Authenticator {
             bind_address: value.bind_address,
-            private_ip: value.private_ip,
+            private_ipv4: value.private_ipv4,
+            private_ipv6: value.private_ipv6,
             announced_port: value.announced_port,
-            private_network_prefix: value.private_network_prefix,
+            private_network_prefix_v4: value.private_network_prefix_v4,
+            private_network_prefix_v6: value.private_network_prefix_v6,
         }
     }
 }

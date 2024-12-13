@@ -23,15 +23,14 @@ use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::{
     base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
 };
-use nym_client_core::config::DebugConfig;
+use nym_client_core::config::{DebugConfig, StatsReporting};
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_credentials_interface::TicketType;
 use nym_socks5_client_core::config::Socks5;
-use nym_task::manager::TaskStatus;
-use nym_task::{TaskClient, TaskHandle};
+use nym_task::{TaskClient, TaskHandle, TaskStatus};
 use nym_topology::provider_trait::TopologyProvider;
 use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
@@ -229,6 +228,12 @@ where
     #[must_use]
     pub fn with_user_agent(mut self, user_agent: UserAgent) -> Self {
         self.user_agent = Some(user_agent);
+        self
+    }
+
+    #[must_use]
+    pub fn with_statistics_reporting(mut self, config: StatsReporting) -> Self {
+        self.config.debug_config.stats_reporting = config;
         self
     }
 
@@ -655,6 +660,7 @@ where
                 .next()
                 .await
                 .ok_or(Error::Socks5NotStarted)?
+                .as_any()
                 .downcast_ref::<TaskStatus>()
                 .ok_or(Error::Socks5NotStarted)?
             {
@@ -708,6 +714,7 @@ where
         let mut client_output = started_client.client_output.register_consumer();
         let client_state: nym_client_core::client::base_client::ClientState =
             started_client.client_state;
+        let stats_events_reporter = started_client.stats_reporter;
 
         let identity_keys = started_client.identity_keys.clone();
         let reconstructed_receiver = client_output.register_receiver()?;
@@ -719,6 +726,7 @@ where
             client_output,
             client_state,
             reconstructed_receiver,
+            stats_events_reporter,
             started_client.task_handle,
             None,
         ))

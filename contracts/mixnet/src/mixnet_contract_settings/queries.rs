@@ -3,9 +3,14 @@
 
 use super::storage;
 use crate::mixnet_contract_settings::storage::ADMIN;
-use cosmwasm_std::{Deps, StdResult};
+use cosmwasm_std::{Deps, Order, StdResult};
 use cw_controllers::AdminResponse;
-use mixnet_contract_common::{ContractBuildInformation, ContractState, ContractStateParams};
+use cw_storage_plus::Bound;
+use mixnet_contract_common::error::MixnetContractError;
+use mixnet_contract_common::{
+    ContractBuildInformation, ContractState, ContractStateParams, CurrentNymNodeVersionResponse,
+    HistoricalNymNodeVersionEntry, NymNodeVersionHistoryResponse,
+};
 use nym_contracts_common::get_build_information;
 
 pub(crate) fn query_admin(deps: Deps<'_>) -> StdResult<AdminResponse> {
@@ -32,11 +37,42 @@ pub(crate) fn query_contract_version() -> ContractBuildInformation {
     get_build_information!()
 }
 
+pub(crate) fn query_nym_node_version_history_paged(
+    deps: Deps<'_>,
+    start_after: Option<u32>,
+    limit: Option<u32>,
+) -> StdResult<NymNodeVersionHistoryResponse> {
+    let limit = limit.unwrap_or(100).min(200) as usize;
+    let start = start_after.map(Bound::exclusive);
+
+    let history = storage::NymNodeVersionHistory::new()
+        .version_history
+        .range(deps.storage, start, None, Order::Ascending)
+        .take(limit)
+        .map(|r| r.map(Into::<HistoricalNymNodeVersionEntry>::into))
+        .collect::<StdResult<Vec<_>>>()?;
+
+    let start_next_after = history.last().map(|entry| entry.id);
+
+    Ok(NymNodeVersionHistoryResponse {
+        history,
+        start_next_after,
+    })
+}
+
+pub(crate) fn query_current_nym_node_version(
+    deps: Deps<'_>,
+) -> Result<CurrentNymNodeVersionResponse, MixnetContractError> {
+    let version = storage::NymNodeVersionHistory::new().current_version(deps.storage)?;
+    Ok(CurrentNymNodeVersionResponse { version })
+}
+
 #[cfg(test)]
 pub(crate) mod tests {
     use super::*;
     use crate::support::tests::test_helpers;
     use cosmwasm_std::{coin, Addr};
+    use mixnet_contract_common::{ConfigScoreParams, DelegationsParams, OperatorsParams};
 
     #[test]
     fn query_for_contract_settings_works() {
@@ -49,10 +85,18 @@ pub(crate) mod tests {
             vesting_contract_address: Addr::unchecked("foomp"),
             rewarding_denom: "unym".to_string(),
             params: ContractStateParams {
-                minimum_delegation: None,
-                minimum_pledge: coin(123u128, "unym"),
-                profit_margin: Default::default(),
-                interval_operating_cost: Default::default(),
+                delegations_params: DelegationsParams {
+                    minimum_delegation: None,
+                },
+                operators_params: OperatorsParams {
+                    minimum_pledge: coin(123u128, "unym"),
+                    profit_margin: Default::default(),
+                    interval_operating_cost: Default::default(),
+                },
+                config_score_params: ConfigScoreParams {
+                    version_weights: Default::default(),
+                    version_score_formula_params: Default::default(),
+                },
             },
         };
 

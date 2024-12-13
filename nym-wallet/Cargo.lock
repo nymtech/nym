@@ -2865,9 +2865,9 @@ checksum = "2532096657941c2fea9c289d370a250971c689d4f143798ff67113ec042024a5"
 
 [[package]]
 name = "memchr"
-version = "2.5.0"
+version = "2.7.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
+checksum = "78ca9ab1a0babb1e7d5695e3530886289c18cf2f87ec19a575a0abdce112e3a3"
 
 [[package]]
 name = "memoffset"
@@ -3077,6 +3077,7 @@ dependencies = [
  "ecdsa",
  "getset",
  "nym-compact-ecash",
+ "nym-contracts-common",
  "nym-credentials-interface",
  "nym-crypto",
  "nym-ecash-time",
@@ -3084,6 +3085,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-node-requests",
  "nym-serde-helpers",
+ "nym-ticketbooks-merkle",
  "schemars",
  "serde",
  "serde_json",
@@ -3102,7 +3104,6 @@ dependencies = [
  "log",
  "pretty_env_logger",
  "schemars",
- "semver",
  "serde",
  "utoipa",
  "vergen",
@@ -3279,9 +3280,9 @@ dependencies = [
  "cw-controllers",
  "cw-storage-plus",
  "humantime-serde",
- "log",
  "nym-contracts-common",
  "schemars",
+ "semver",
  "serde",
  "serde-json-wasm",
  "serde_repr",
@@ -3309,8 +3310,10 @@ dependencies = [
 name = "nym-network-defaults"
 version = "0.1.0"
 dependencies = [
+ "cargo_metadata",
  "dotenvy",
  "log",
+ "regex",
  "schemars",
  "serde",
  "url",
@@ -3378,6 +3381,19 @@ dependencies = [
  "serde_json",
  "thiserror",
  "zeroize",
+]
+
+[[package]]
+name = "nym-ticketbooks-merkle"
+version = "0.1.0"
+dependencies = [
+ "nym-credentials-interface",
+ "nym-serde-helpers",
+ "rs_merkle",
+ "schemars",
+ "serde",
+ "sha2 0.10.8",
+ "time",
 ]
 
 [[package]]
@@ -4348,14 +4364,14 @@ dependencies = [
 
 [[package]]
 name = "regex"
-version = "1.9.3"
+version = "1.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "81bc1d4caf89fac26a70747fe603c130093b53c773888797a6329091246d651a"
+checksum = "b544ef1b4eac5dc2db33ea63606ae9ffcfac26c1416a2806ae0bf5f56b201191"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-automata 0.3.6",
- "regex-syntax 0.7.4",
+ "regex-automata 0.4.9",
+ "regex-syntax 0.8.5",
 ]
 
 [[package]]
@@ -4369,13 +4385,13 @@ dependencies = [
 
 [[package]]
 name = "regex-automata"
-version = "0.3.6"
+version = "0.4.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fed1ceff11a1dddaee50c9dc8e4938bd106e9d89ae372f192311e7da498e3b69"
+checksum = "809e8dc61f6de73b46c85f4c96486310fe304c434cfa43669d7b40f711150908"
 dependencies = [
  "aho-corasick",
  "memchr",
- "regex-syntax 0.7.4",
+ "regex-syntax 0.8.5",
 ]
 
 [[package]]
@@ -4386,9 +4402,9 @@ checksum = "f162c6dd7b008981e4d40210aca20b4bd0f9b60ca9271061b07f78537722f2e1"
 
 [[package]]
 name = "regex-syntax"
-version = "0.7.4"
+version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e5ea92a5b6195c6ef2a0295ea818b312502c6fc94dde986c5553242e18fd4ce2"
+checksum = "2b15c43186be67a4fd63bee50d0303afffcef381492ebe2c5d87f324e1b8815c"
 
 [[package]]
 name = "reqwest"
@@ -4532,6 +4548,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bd124222d17ad93a644ed9d011a40f4fb64aa54275c08cc216524a9ea82fb09f"
 dependencies = [
  "digest 0.10.7",
+]
+
+[[package]]
+name = "rs_merkle"
+version = "1.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b241d2e59b74ef9e98d94c78c47623d04c8392abaf82014dfd372a16041128f"
+dependencies = [
+ "sha2 0.10.8",
 ]
 
 [[package]]

@@ -4,7 +4,7 @@
 [package]
 name = "nym-api"
 license = "GPL-3.0"
-version = "1.1.46"
+version = "1.1.47"
 authors.workspace = true
 edition = "2021"
 rust-version.workspace = true
@@ -32,6 +32,7 @@ pin-project = { workspace = true }
 rand = { workspace = true }
 rand_chacha = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
+semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
@@ -104,7 +105,7 @@ nym-gateway-client = { path = "../common/client-libs/gateway-client" }
 nym-inclusion-probability = { path = "../common/inclusion-probability" }
 nym-mixnet-contract-common = { path = "../common/cosmwasm-smart-contracts/mixnet-contract", features = ["utoipa"] }
 nym-vesting-contract-common = { path = "../common/cosmwasm-smart-contracts/vesting-contract" }
-nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common" }
+nym-contracts-common = { path = "../common/cosmwasm-smart-contracts/contracts-common", features = ["naive_float"] }
 nym-multisig-contract-common = { path = "../common/cosmwasm-smart-contracts/multisig-contract" }
 nym-coconut = { path = "../common/nymcoconut", features = ["key-zeroize"] }
 nym-sphinx = { path = "../common/nymsphinx" }
@@ -119,6 +120,8 @@ nym-node-requests = { path = "../nym-node/nym-node-requests" }
 nym-types = { path = "../common/types" }
 nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
 nym-serde-helpers = { path = "../common/serde-helpers", features = ["date"] }
+nym-ticketbooks-merkle = { path = "../common/ticketbooks-merkle" }
+nym-statistics-common = { path = "../common/statistics" }
 
 [features]
 no-reward = []

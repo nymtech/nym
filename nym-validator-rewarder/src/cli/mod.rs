@@ -5,7 +5,7 @@ use crate::config::Config;
 use crate::error::NymRewarderError;
 use clap::{Parser, Subcommand};
 use nym_bin_common::bin_info;
-use nym_validator_client::nyxd::Coin;
+use nym_validator_client::nyxd::{AccountId, Coin};
 use std::path::PathBuf;
 use std::sync::OnceLock;
 use tracing::{debug, error};
@@ -53,44 +53,52 @@ impl Cli {
 
 #[derive(Debug, clap::Args)]
 pub struct ConfigOverridableArgs {
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_DISABLE_BLOCK_SIGNING_REWARDING")]
     pub disable_block_signing_rewarding: bool,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNING_MONITORING_ONLY")]
     pub block_signing_monitoring_only: bool,
 
-    #[clap(long)]
-    pub disable_credential_issuance_rewarding: bool,
+    #[clap(long, env = "NYM_VALIDATOR_TICKETBOOK_ISSUANCE_MONITORING_ONLY")]
+    pub ticketbook_issuance_monitoring_only: bool,
 
-    #[clap(long)]
-    pub credential_monitor_run_interval: Option<humantime::Duration>,
+    #[clap(
+        long,
+        env = "NYM_VALIDATOR_REWARDER_DISABLE_TICKETBOOK_ISSUANCE_REWARDING"
+    )]
+    pub disable_ticketbook_issuance_rewarding: bool,
 
-    #[clap(long)]
-    pub credential_monitor_min_validation: Option<usize>,
-
-    #[clap(long)]
-    pub credential_monitor_sampling_rate: Option<f64>,
-
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_SCRAPER_ENDPOINT")]
     pub scraper_endpoint: Option<Url>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_NYXD_ENDPOINT")]
     pub nyxd_endpoint: Option<Url>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_EPOCH_BUDGET")]
     pub epoch_budget: Option<Coin>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_EPOCH_DURATION")]
     pub epoch_duration: Option<humantime::Duration>,
 
-    #[clap(long)]
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNING_REWARD_RATIO")]
     pub block_signing_reward_ratio: Option<f64>,
 
-    #[clap(long)]
-    pub credential_issuance_reward_ratio: Option<f64>,
+    #[clap(long, env = "NYM_VALIDATOR_REWARDER_TICKETBOOK_ISSUANCE_REWARD_RATIO")]
+    pub ticketbook_issuance_reward_ratio: Option<f64>,
 
-    #[clap(long)]
-    pub credential_verification_reward_ratio: Option<f64>,
+    #[clap(
+        long,
+        value_delimiter = ',',
+        env = "NYM_VALIDATOR_REWARDER_BLOCK_SIGNING_WHITELIST"
+    )]
+    pub block_signing_whitelist: Option<Vec<AccountId>>,
+
+    #[clap(
+        long,
+        value_delimiter = ',',
+        env = "NYM_VALIDATOR_REWARDER_ISSUANCE_MONITOR_WHITELIST"
+    )]
+    pub issuance_monitor_whitelist: Option<Vec<AccountId>>,
 }
 
 #[derive(Subcommand, Debug)]

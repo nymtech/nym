@@ -3,7 +3,6 @@
 
 use crate::error::EntryGatewayError;
 use nym_client_core_config_types::disk_persistence::{ClientKeysPaths, CommonClientPaths};
-use nym_mixnode::config::persistence::paths::DEFAULT_DESCRIPTION_FILENAME;
 use serde::{Deserialize, Serialize};
 use std::fs::create_dir_all;
 use std::path::{Path, PathBuf};
@@ -20,10 +19,13 @@ pub const DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME: &str = "x25519_noise";
 pub const DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME: &str = "x25519_noise.pub";
 pub const DEFAULT_NYMNODE_DESCRIPTION_FILENAME: &str = "description.toml";
 
+pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
+
 // Mixnode:
 
 // Entry Gateway:
 pub const DEFAULT_CLIENTS_STORAGE_FILENAME: &str = "clients.sqlite";
+pub const DEFAULT_STATS_STORAGE_FILENAME: &str = "stats.sqlite";
 pub const DEFAULT_MNEMONIC_FILENAME: &str = "cosmos_mnemonic";
 
 // Exit Gateway:
@@ -147,6 +149,9 @@ pub struct EntryGatewayPaths {
     /// derived shared keys, available client bandwidths and wireguard peers.
     pub clients_storage: PathBuf,
 
+    /// Path to sqlite database containing all persistent stats data.
+    pub stats_storage: PathBuf,
+
     /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
     pub cosmos_mnemonic: PathBuf,
 
@@ -157,6 +162,7 @@ impl EntryGatewayPaths {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
         EntryGatewayPaths {
             clients_storage: data_dir.as_ref().join(DEFAULT_CLIENTS_STORAGE_FILENAME),
+            stats_storage: data_dir.as_ref().join(DEFAULT_STATS_STORAGE_FILENAME),
             cosmos_mnemonic: data_dir.as_ref().join(DEFAULT_MNEMONIC_FILENAME),
             authenticator: AuthenticatorPaths::new(data_dir),
         }
@@ -206,6 +212,9 @@ pub struct ExitGatewayPaths {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys, available client bandwidths and wireguard peers.
     pub clients_storage: PathBuf,
+
+    /// Path to sqlite database containing all persistent stats data.
+    pub stats_storage: PathBuf,
 
     pub network_requester: NetworkRequesterPaths,
 
@@ -459,6 +468,7 @@ impl ExitGatewayPaths {
         let data_dir = data_dir.as_ref();
         ExitGatewayPaths {
             clients_storage: data_dir.join(DEFAULT_CLIENTS_STORAGE_FILENAME),
+            stats_storage: data_dir.join(DEFAULT_STATS_STORAGE_FILENAME),
             network_requester: NetworkRequesterPaths::new(data_dir),
             ip_packet_router: IpPacketRouterPaths::new(data_dir),
             authenticator: AuthenticatorPaths::new(data_dir),

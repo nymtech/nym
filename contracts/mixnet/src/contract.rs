@@ -5,29 +5,27 @@ use crate::constants::INITIAL_PLEDGE_AMOUNT;
 use crate::interval::storage as interval_storage;
 use crate::mixnet_contract_settings::storage as mixnet_params_storage;
 use crate::nodes::storage as nymnodes_storage;
-use crate::queued_migrations::migrate_to_nym_nodes_usage;
 use crate::rewards::storage::RewardingStorage;
 use cosmwasm_std::{
     entry_point, to_binary, Addr, Coin, Deps, DepsMut, Env, MessageInfo, QueryResponse, Response,
 };
 use mixnet_contract_common::error::MixnetContractError;
 use mixnet_contract_common::{
-    ContractState, ContractStateParams, ExecuteMsg, InstantiateMsg, Interval, MigrateMsg,
-    OperatingCostRange, ProfitMarginRange, QueryMsg,
+    ConfigScoreParams, ContractState, ContractStateParams, DelegationsParams, ExecuteMsg,
+    InstantiateMsg, Interval, MigrateMsg, OperatorsParams, QueryMsg,
 };
 use nym_contracts_common::set_build_information;
+use std::str::FromStr;
 
 // version info for migration info
 const CONTRACT_NAME: &str = "crate:nym-mixnet-contract";
 const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
 fn default_initial_state(
+    msg: &InstantiateMsg,
     owner: Addr,
     rewarding_validator_address: Addr,
-    rewarding_denom: String,
     vesting_contract_address: Addr,
-    profit_margin: ProfitMarginRange,
-    interval_operating_cost: OperatingCostRange,
 ) -> ContractState {
     // we have to temporarily preserve this functionalities until it can be removed
     #[allow(deprecated)]
@@ -35,15 +33,24 @@ fn default_initial_state(
         owner: Some(owner),
         rewarding_validator_address,
         vesting_contract_address,
-        rewarding_denom: rewarding_denom.clone(),
+        rewarding_denom: msg.rewarding_denom.clone(),
         params: ContractStateParams {
-            minimum_delegation: None,
-            minimum_pledge: Coin {
-                denom: rewarding_denom.clone(),
-                amount: INITIAL_PLEDGE_AMOUNT,
+            delegations_params: DelegationsParams {
+                minimum_delegation: None,
             },
-            profit_margin,
-            interval_operating_cost,
+            operators_params: OperatorsParams {
+                minimum_pledge: Coin {
+                    denom: msg.rewarding_denom.clone(),
+                    amount: INITIAL_PLEDGE_AMOUNT,
+                },
+                profit_margin: msg.profit_margin,
+                interval_operating_cost: msg.interval_operating_cost,
+            },
+
+            config_score_params: ConfigScoreParams {
+                version_weights: msg.version_score_weights,
+                version_score_formula_params: msg.version_score_params,
+            },
         },
     }
 }
@@ -68,15 +75,19 @@ pub fn instantiate(
         return Err(MixnetContractError::EpochDurationZero);
     }
 
+    if semver::Version::from_str(&msg.current_nym_node_version).is_err() {
+        return Err(MixnetContractError::InvalidNymNodeSemver {
+            provided: msg.current_nym_node_version,
+        });
+    }
+
     let rewarding_validator_address = deps.api.addr_validate(&msg.rewarding_validator_address)?;
     let vesting_contract_address = deps.api.addr_validate(&msg.vesting_contract_address)?;
     let state = default_initial_state(
+        &msg,
         info.sender.clone(),
         rewarding_validator_address.clone(),
-        msg.rewarding_denom,
         vesting_contract_address,
-        msg.profit_margin,
-        msg.interval_operating_cost,
     );
     let starting_interval =
         Interval::init_interval(msg.epochs_in_interval, msg.epoch_duration, &env);
@@ -89,7 +100,13 @@ pub fn instantiate(
         starting_interval,
         rewarding_validator_address,
     )?;
-    mixnet_params_storage::initialise_storage(deps.branch(), state, info.sender)?;
+    mixnet_params_storage::initialise_storage(
+        deps.branch(),
+        &env,
+        state,
+        info.sender,
+        msg.current_nym_node_version,
+    )?;
     RewardingStorage::new().initialise(deps.storage, reward_params)?;
     nymnodes_storage::initialise_storage(deps.storage)?;
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
@@ -118,11 +135,17 @@ pub fn execute(
                 deps, info, address,
             )
         }
-        ExecuteMsg::UpdateContractStateParams { updated_parameters } => {
+        ExecuteMsg::UpdateContractStateParams { update } => {
             crate::mixnet_contract_settings::transactions::try_update_contract_settings(
+                deps, info, update,
+            )
+        }
+        ExecuteMsg::UpdateCurrentNymNodeSemver { current_version } => {
+            crate::mixnet_contract_settings::transactions::try_update_current_nym_node_semver(
                 deps,
+                env,
                 info,
-                updated_parameters,
+                current_version,
             )
         }
         ExecuteMsg::UpdateActiveSetDistribution {
@@ -317,6 +340,16 @@ pub fn query(
         QueryMsg::GetState {} => {
             to_binary(&crate::mixnet_contract_settings::queries::query_contract_state(deps)?)
         }
+        QueryMsg::GetCurrentNymNodeVersion {} => to_binary(
+            &crate::mixnet_contract_settings::queries::query_current_nym_node_version(deps)?,
+        ),
+        QueryMsg::GetNymNodeVersionHistory { limit, start_after } => to_binary(
+            &crate::mixnet_contract_settings::queries::query_nym_node_version_history_paged(
+                deps,
+                start_after,
+                limit,
+            )?,
+        ),
         QueryMsg::Admin {} => to_binary(&crate::mixnet_contract_settings::queries::query_admin(
             deps,
         )?),
@@ -570,7 +603,7 @@ pub fn query(
 #[entry_point]
 pub fn migrate(
     mut deps: DepsMut<'_>,
-    _env: Env,
+    env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     set_build_information!(deps.storage)?;
@@ -579,11 +612,7 @@ pub fn migrate(
     let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
 
     if !skip_state_updates {
-        // remove all family-related things
-        crate::queued_migrations::families_purge(deps.branch())?;
-
-        // prepare the ground for using nym-nodes rather than standalone mixnodes/gateways
-        migrate_to_nym_nodes_usage(deps.branch(), &msg)?;
+        crate::queued_migrations::add_config_score_params(deps.branch(), env, &msg)?;
     }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
@@ -608,7 +637,9 @@ mod tests {
     use mixnet_contract_common::reward_params::{
         IntervalRewardParams, RewardedSetParams, RewardingParams,
     };
-    use mixnet_contract_common::{InitialRewardingParams, Percent};
+    use mixnet_contract_common::{
+        InitialRewardingParams, OperatingCostRange, Percent, ProfitMarginRange,
+    };
     use std::time::Duration;
 
     #[test]
@@ -636,6 +667,9 @@ mod tests {
                     standby: 0,
                 },
             },
+            current_nym_node_version: "1.1.10".to_string(),
+            version_score_weights: Default::default(),
+            version_score_params: Default::default(),
             profit_margin: ProfitMarginRange {
                 minimum: "0.05".parse().unwrap(),
                 maximum: "0.95".parse().unwrap(),
@@ -657,18 +691,26 @@ mod tests {
             vesting_contract_address: Addr::unchecked("bar456"),
             rewarding_denom: "uatom".into(),
             params: ContractStateParams {
-                minimum_delegation: None,
-                minimum_pledge: Coin {
-                    denom: "uatom".into(),
-                    amount: INITIAL_PLEDGE_AMOUNT,
+                delegations_params: DelegationsParams {
+                    minimum_delegation: None,
                 },
-                profit_margin: ProfitMarginRange {
-                    minimum: Percent::from_percentage_value(5).unwrap(),
-                    maximum: Percent::from_percentage_value(95).unwrap(),
+                operators_params: OperatorsParams {
+                    minimum_pledge: Coin {
+                        denom: "uatom".into(),
+                        amount: INITIAL_PLEDGE_AMOUNT,
+                    },
+                    profit_margin: ProfitMarginRange {
+                        minimum: Percent::from_percentage_value(5).unwrap(),
+                        maximum: Percent::from_percentage_value(95).unwrap(),
+                    },
+                    interval_operating_cost: OperatingCostRange {
+                        minimum: Uint128::new(1000),
+                        maximum: Uint128::new(10000),
+                    },
                 },
-                interval_operating_cost: OperatingCostRange {
-                    minimum: Uint128::new(1000),
-                    maximum: Uint128::new(10000),
+                config_score_params: ConfigScoreParams {
+                    version_weights: Default::default(),
+                    version_score_formula_params: Default::default(),
                 },
             },
         };

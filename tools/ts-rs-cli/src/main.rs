@@ -1,3 +1,5 @@
+#![allow(deprecated)]
+
 use nym_api_requests::models::{
     AnnotationResponse, DeclaredRoles, DescribedNodeType, GatewayCoreStatusResponse,
     HistoricalPerformanceResponse, HistoricalUptimeResponse, InclusionProbabilityResponse,

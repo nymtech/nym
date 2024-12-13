@@ -248,7 +248,7 @@ mod tests {
             data: IpPacketRequestData::StaticConnect(
                 StaticConnectRequest {
                     request_id: 123,
-                    ips: IpPair::new(Ipv4Addr::from_str("10.0.0.1").unwrap(), Ipv6Addr::from_str("2001:db8:a160::1").unwrap()),
+                    ips: IpPair::new(Ipv4Addr::from_str("10.0.0.1").unwrap(), Ipv6Addr::from_str("fc00::1").unwrap()),
                     reply_to: Recipient::try_from_base58_string("D1rrpsysCGCYXy9saP8y3kmNpGtJZUXN9SvFoUcqAsM9.9Ssso1ea5NfkbMASdiseDSjTN1fSWda5SgEVjdSN4CvV@GJqd3ZxpXWSNxTfx7B1pPtswpetH4LnJdFeLeuY5KUuN").unwrap(),
                     reply_to_hops: None,
                     reply_to_avg_mix_delays: None,

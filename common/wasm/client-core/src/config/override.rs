@@ -9,14 +9,14 @@
 
 use super::{
     AcknowledgementsWasm, CoverTrafficWasm, DebugWasm, GatewayConnectionWasm, ReplySurbsWasm,
-    TopologyWasm, TrafficWasm,
+    StatsReportingWasm, TopologyWasm, TrafficWasm,
 };
 use crate::config::ConfigDebug;
 use serde::{Deserialize, Serialize};
 use tsify::Tsify;
 
 // just a helper structure to more easily pass through the JS boundary
-#[derive(Tsify, Debug, Copy, Clone, Serialize, Deserialize)]
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
 #[tsify(into_wasm_abi, from_wasm_abi)]
 #[serde(rename_all = "camelCase")]
 pub struct DebugWasmOverride {
@@ -43,6 +43,10 @@ pub struct DebugWasmOverride {
     /// Defines all configuration options related to reply SURBs.
     #[tsify(optional)]
     pub reply_surbs: Option<ReplySurbsWasmOverride>,
+
+    /// Defines all configuration options related to stats reporting.
+    #[tsify(optional)]
+    pub stats_reporting: Option<StatsReportingWasmOverride>,
 }
 
 impl From<DebugWasmOverride> for DebugWasm {
@@ -54,6 +58,7 @@ impl From<DebugWasmOverride> for DebugWasm {
             acknowledgements: value.acknowledgements.map(Into::into).unwrap_or_default(),
             topology: value.topology.map(Into::into).unwrap_or_default(),
             reply_surbs: value.reply_surbs.map(Into::into).unwrap_or_default(),
+            stats_reporting: value.stats_reporting.map(Into::into).unwrap_or_default(),
         }
     }
 }
@@ -375,6 +380,37 @@ impl From<ReplySurbsWasmOverride> for ReplySurbsWasm {
                 .maximum_reply_key_age_ms
                 .unwrap_or(def.maximum_reply_key_age_ms),
             surb_mix_hops: value.surb_mix_hops,
+        }
+    }
+}
+
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
+pub struct StatsReportingWasmOverride {
+    /// Is stats reporting enabled
+    #[tsify(optional)]
+    pub enabled: Option<bool>,
+
+    /// Address of the stats collector. If this is none, no reporting will happen, regardless of `enabled`
+    #[tsify(optional)]
+    pub provider_address: Option<Option<String>>,
+
+    /// With what frequence will statistics be sent
+    #[tsify(optional)]
+    pub reporting_interval_ms: Option<u32>,
+}
+
+impl From<StatsReportingWasmOverride> for StatsReportingWasm {
+    fn from(value: StatsReportingWasmOverride) -> Self {
+        let def = StatsReportingWasm::default();
+
+        StatsReportingWasm {
+            enabled: value.enabled.unwrap_or(def.enabled),
+            provider_address: value.provider_address.unwrap_or(def.provider_address),
+            reporting_interval_ms: value
+                .reporting_interval_ms
+                .unwrap_or(def.reporting_interval_ms),
         }
     }
 }

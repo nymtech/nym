@@ -19,7 +19,9 @@ use nym_validator_client::nyxd::Coin;
 use sqlx::ConnectOptions;
 use std::fmt::Debug;
 use std::path::Path;
+use std::time::Duration;
 use time::{Date, OffsetDateTime};
+use tracing::log::LevelFilter;
 use tracing::{debug, error, info, instrument};
 use uuid::Uuid;
 use zeroize::Zeroizing;
@@ -40,9 +42,15 @@ impl VpnApiStorage {
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .filename(database_path)
             .create_if_missing(true)
-            .disable_statement_logging();
+            .log_statements(LevelFilter::Trace)
+            .log_slow_statements(LevelFilter::Warn, Duration::from_millis(250));
 
-        let connection_pool = match sqlx::SqlitePool::connect_with(opts).await {
+        let pool_opts = sqlx::sqlite::SqlitePoolOptions::new()
+            .min_connections(5)
+            .max_connections(25)
+            .acquire_timeout(Duration::from_secs(60));
+
+        let connection_pool = match pool_opts.connect_with(opts).await {
             Ok(db) => db,
             Err(err) => {
                 error!("Failed to connect to SQLx database: {err}");
@@ -83,6 +91,16 @@ impl VpnApiStorage {
             .await?)
     }
 
+    pub(crate) async fn load_shares_error_by_shares_id(
+        &self,
+        id: i64,
+    ) -> Result<Option<String>, VpnApiError> {
+        Ok(self
+            .storage_manager
+            .load_shares_error_by_device_by_shares_id(id)
+            .await?)
+    }
+
     #[allow(dead_code)]
     pub(crate) async fn load_blinded_shares_status_by_device_and_credential_id(
         &self,
@@ -103,6 +121,17 @@ impl VpnApiStorage {
         Ok(self
             .storage_manager
             .load_wallet_shares_by_device_and_credential_id(device_id, credential_id)
+            .await?)
+    }
+
+    pub(crate) async fn load_shares_error_by_device_and_credential_id(
+        &self,
+        device_id: &str,
+        credential_id: &str,
+    ) -> Result<Option<String>, VpnApiError> {
+        Ok(self
+            .storage_manager
+            .load_shares_error_by_device_and_credential_id(device_id, credential_id)
             .await?)
     }
 

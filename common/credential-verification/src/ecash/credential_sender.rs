@@ -18,7 +18,7 @@ use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{
     EcashSigningClient, MultisigQueryClient, MultisigSigningClient, PagedMultisigQueryClient,
 };
-use nym_validator_client::nyxd::cosmwasm_client::ToSingletonContractData;
+use nym_validator_client::nyxd::cosmwasm_client::ContractResponseData;
 use nym_validator_client::nyxd::cw3::Status;
 use nym_validator_client::nyxd::AccountId;
 use nym_validator_client::EcashApiClient;

@@ -12,7 +12,7 @@ fn generate_random_ips_within_subnet<R: rand::Rng>(rng: &mut R) -> IpPair {
     let before_last_byte = (last_bytes >> 8) as u8;
     let last_byte = (last_bytes & 255) as u8;
     let ipv4 = Ipv4Addr::new(10, 0, before_last_byte, last_byte);
-    let ipv6 = Ipv6Addr::new(0x2001, 0x0db8, 0xa160, 0, 0, 0, 0, last_bytes);
+    let ipv6 = Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, last_bytes);
     IpPair::new(ipv4, ipv6)
 }
 

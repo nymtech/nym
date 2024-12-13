@@ -1,103 +1,15 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::config::Config;
-use crate::error::GatewayError;
 use async_trait::async_trait;
-use nym_crypto::asymmetric::encryption;
-use nym_gateway_storage::PersistentStorage;
-use nym_pemstore::traits::PemStorableKeyPair;
-use nym_pemstore::KeyPairPath;
 use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 use nym_topology::{gateway, NymTopology, TopologyProvider};
-use std::path::Path;
 use std::sync::Arc;
+use std::time::Duration;
+use time::OffsetDateTime;
 use tokio::sync::Mutex;
 use tracing::debug;
 use url::Url;
-
-pub async fn load_network_requester_config<P: AsRef<Path>>(
-    id: &str,
-    path: P,
-) -> Result<nym_network_requester::Config, GatewayError> {
-    let path = path.as_ref();
-    if let Ok(cfg) = read_network_requester_config(id, path) {
-        return Ok(cfg);
-    }
-
-    nym_network_requester::config::helpers::try_upgrade_config(path).await?;
-    read_network_requester_config(id, path)
-}
-
-pub async fn load_ip_packet_router_config<P: AsRef<Path>>(
-    id: &str,
-    path: P,
-) -> Result<nym_ip_packet_router::Config, GatewayError> {
-    let path = path.as_ref();
-    if let Ok(cfg) = read_ip_packet_router_config(id, path) {
-        return Ok(cfg);
-    }
-
-    nym_ip_packet_router::config::helpers::try_upgrade_config(path).await?;
-    read_ip_packet_router_config(id, path)
-}
-
-pub fn read_network_requester_config<P: AsRef<Path>>(
-    id: &str,
-    path: P,
-) -> Result<nym_network_requester::Config, GatewayError> {
-    let path = path.as_ref();
-    nym_network_requester::Config::read_from_toml_file(path).map_err(|err| {
-        GatewayError::NetworkRequesterConfigLoadFailure {
-            id: id.to_string(),
-            path: path.to_path_buf(),
-            source: err,
-        }
-    })
-}
-
-pub fn read_ip_packet_router_config<P: AsRef<Path>>(
-    id: &str,
-    path: P,
-) -> Result<nym_ip_packet_router::Config, GatewayError> {
-    let path = path.as_ref();
-    nym_ip_packet_router::Config::read_from_toml_file(path).map_err(|err| {
-        GatewayError::IpPacketRouterConfigLoadFailure {
-            id: id.to_string(),
-            path: path.to_path_buf(),
-            source: err,
-        }
-    })
-}
-
-pub(crate) async fn initialise_main_storage(
-    config: &Config,
-) -> Result<PersistentStorage, GatewayError> {
-    let path = &config.storage_paths.clients_storage;
-    let retrieval_limit = config.debug.message_retrieval_limit;
-
-    Ok(PersistentStorage::init(path, retrieval_limit).await?)
-}
-
-pub fn load_keypair<T: PemStorableKeyPair>(
-    paths: KeyPairPath,
-    name: impl Into<String>,
-) -> Result<T, GatewayError> {
-    nym_pemstore::load_keypair(&paths).map_err(|err| GatewayError::KeyPairLoadFailure {
-        keys: name.into(),
-        paths,
-        err,
-    })
-}
-
-/// Loads Sphinx keys stored on disk
-pub(crate) fn load_sphinx_keys(config: &Config) -> Result<encryption::KeyPair, GatewayError> {
-    let sphinx_paths = KeyPairPath::new(
-        config.storage_paths.keys.private_encryption_key(),
-        config.storage_paths.keys.public_encryption_key(),
-    );
-    load_keypair(sphinx_paths, "gateway sphinx")
-}
 
 #[derive(Clone)]
 pub struct GatewayTopologyProvider {
@@ -107,6 +19,7 @@ pub struct GatewayTopologyProvider {
 impl GatewayTopologyProvider {
     pub fn new(
         gateway_node: gateway::LegacyNode,
+        cache_ttl: Duration,
         user_agent: UserAgent,
         nym_api_url: Vec<Url>,
     ) -> GatewayTopologyProvider {
@@ -118,9 +31,11 @@ impl GatewayTopologyProvider {
                         min_gateway_performance: 0,
                     },
                     nym_api_url,
-                    env!("CARGO_PKG_VERSION").to_string(),
                     Some(user_agent),
                 ),
+                cache_ttl,
+                cached_at: OffsetDateTime::UNIX_EPOCH,
+                cached: None,
                 gateway_node,
             })),
         }
@@ -129,25 +44,53 @@ impl GatewayTopologyProvider {
 
 struct GatewayTopologyProviderInner {
     inner: NymApiTopologyProvider,
+    cache_ttl: Duration,
+    cached_at: OffsetDateTime,
+    cached: Option<NymTopology>,
     gateway_node: gateway::LegacyNode,
+}
+
+impl GatewayTopologyProviderInner {
+    fn cached_topology(&self) -> Option<NymTopology> {
+        if let Some(cached_topology) = &self.cached {
+            if self.cached_at + self.cache_ttl > OffsetDateTime::now_utc() {
+                return Some(cached_topology.clone());
+            }
+        }
+
+        None
+    }
+
+    async fn update_cache(&mut self) -> Option<NymTopology> {
+        let updated_cache = match self.inner.get_new_topology().await {
+            None => None,
+            Some(mut base) => {
+                if !base.gateway_exists(&self.gateway_node.identity_key) {
+                    debug!(
+                        "{} didn't exist in topology. inserting it.",
+                        self.gateway_node.identity_key
+                    );
+                    base.insert_gateway(self.gateway_node.clone());
+                }
+                Some(base)
+            }
+        };
+
+        self.cached_at = OffsetDateTime::now_utc();
+        self.cached = updated_cache.clone();
+
+        updated_cache
+    }
 }
 
 #[async_trait]
 impl TopologyProvider for GatewayTopologyProvider {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
         let mut guard = self.inner.lock().await;
-        match guard.inner.get_new_topology().await {
-            None => None,
-            Some(mut base) => {
-                if !base.gateway_exists(&guard.gateway_node.identity_key) {
-                    debug!(
-                        "{} didn't exist in topology. inserting it.",
-                        guard.gateway_node.identity_key
-                    );
-                    base.insert_gateway(guard.gateway_node.clone());
-                }
-                Some(base)
-            }
+        // check the cache
+        if let Some(cached) = guard.cached_topology() {
+            return Some(cached);
         }
+        guard.update_cache().await
     }
 }

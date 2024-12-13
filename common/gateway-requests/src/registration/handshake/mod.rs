@@ -37,7 +37,7 @@ pub struct GatewayHandshake<'a> {
     handshake_future: BoxFuture<'a, Result<SharedGatewayKey, HandshakeError>>,
 }
 
-impl<'a> Future for GatewayHandshake<'a> {
+impl Future for GatewayHandshake<'_> {
     type Output = Result<SharedGatewayKey, HandshakeError>;
 
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {

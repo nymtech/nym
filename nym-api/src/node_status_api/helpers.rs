@@ -8,12 +8,11 @@ use crate::support::caching::Cache;
 use crate::{NodeStatusCache, NymContractCache};
 use cosmwasm_std::Decimal;
 use nym_api_requests::models::{
-    AllInclusionProbabilitiesResponse, ComputeRewardEstParam, GatewayBondAnnotated,
-    GatewayCoreStatusResponse, GatewayStatusReportResponse, GatewayUptimeHistoryResponse,
-    GatewayUptimeResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
-    MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusReportResponse, MixnodeStatusResponse,
-    MixnodeUptimeHistoryResponse, RewardEstimationResponse, StakeSaturationResponse,
-    UptimeResponse,
+    ComputeRewardEstParam, GatewayBondAnnotated, GatewayCoreStatusResponse,
+    GatewayStatusReportResponse, GatewayUptimeHistoryResponse, GatewayUptimeResponse,
+    MixNodeBondAnnotated, MixnodeCoreStatusResponse, MixnodeStatus, MixnodeStatusReportResponse,
+    MixnodeStatusResponse, MixnodeUptimeHistoryResponse, RewardEstimationResponse,
+    StakeSaturationResponse, UptimeResponse,
 };
 use nym_mixnet_contract_common::NodeId;
 
@@ -341,16 +340,17 @@ pub(crate) async fn _get_mixnode_stake_saturation(
     })
 }
 
+#[allow(deprecated)]
 pub(crate) async fn _get_mixnode_inclusion_probability(
     cache: &NodeStatusCache,
     mix_id: NodeId,
-) -> AxumResult<InclusionProbabilityResponse> {
+) -> AxumResult<nym_api_requests::models::InclusionProbabilityResponse> {
     cache
         .inclusion_probabilities()
         .await
         .map(Cache::into_inner)
         .and_then(|p| p.node(mix_id).cloned())
-        .map(|p| InclusionProbabilityResponse {
+        .map(|p| nym_api_requests::models::InclusionProbabilityResponse {
             in_active: p.in_active.into(),
             in_reserve: p.in_reserve.into(),
         })
@@ -383,20 +383,23 @@ pub(crate) async fn _get_gateway_avg_uptime(
     })
 }
 
+#[allow(deprecated)]
 pub(crate) async fn _get_mixnode_inclusion_probabilities(
     cache: &NodeStatusCache,
-) -> AxumResult<AllInclusionProbabilitiesResponse> {
+) -> AxumResult<nym_api_requests::models::AllInclusionProbabilitiesResponse> {
     if let Some(prob) = cache.inclusion_probabilities().await {
         let as_at = prob.timestamp();
         let prob = prob.into_inner();
-        Ok(AllInclusionProbabilitiesResponse {
-            inclusion_probabilities: prob.inclusion_probabilities,
-            samples: prob.samples,
-            elapsed: prob.elapsed,
-            delta_max: prob.delta_max,
-            delta_l2: prob.delta_l2,
-            as_at: as_at.unix_timestamp(),
-        })
+        Ok(
+            nym_api_requests::models::AllInclusionProbabilitiesResponse {
+                inclusion_probabilities: prob.inclusion_probabilities,
+                samples: prob.samples,
+                elapsed: prob.elapsed,
+                delta_max: prob.delta_max,
+                delta_l2: prob.delta_l2,
+                as_at: as_at.unix_timestamp(),
+            },
+        )
     } else {
         Err(AxumErrorResponse::service_unavailable())
     }

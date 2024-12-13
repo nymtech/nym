@@ -11,10 +11,23 @@ const config: DocsThemeConfig = {
     const url = process.env.NEXT_PUBLIC_SITE_URL
     const image = url + '/nym_logo.jpg'
 
+    // Define descriptions for different "books"
+    const bookDescriptions: Record<string, string> = {
+      '/developers': "Nym's developer documentation covering core concepts of integrating with the Mixnet, interacting with the Nyx blockchain, an overview of the avaliable tools, and our SDK docs.",
+      '/network': "Nym's network documentation covering network architecture, node types, tokenomics, and cryptography.",
+      '/operators': "Nym's Operators guide containing information and setup guides for the various components of Nym network and Nyx blockchain validators.",
+      '/apis': "Interactive APIs generated from the OpenAPI specs of various API endpoints offered by bits of Nym infrastructure run both by Nym and community operators for both Mainnet and the Sandbox testnet."
+    }
+
+    const defaultDescription = 'Nym is a privacy platform. It provides strong network-level privacy against sophisticated end-to-end attackers, and anonymous access control using blinded, re-randomizable, decentralized credentials.'
+
+    const topLevel = '/' + route.split('/')[1]
     const description =
       config.frontMatter.description ||
-      'Nym is a privacy platform. It provides strong network-level privacy against sophisticated end-to-end attackers, and anonymous access control using blinded, re-randomizable, decentralized credentials.'
-    const title = config.title + (route === '/' ? '' : ' - Nym docs')
+      bookDescriptions[topLevel] ||
+      defaultDescription
+
+      const title = config.title + (route === '/' ? '' : ' - Nym docs')
 
     return (
       <>

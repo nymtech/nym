@@ -14,7 +14,8 @@ use axum::routing::{get, post};
 use axum::Json;
 use axum::Router;
 use nym_api_requests::models::{
-    MixNodeBondAnnotated, MixnodeStatusResponse, StakeSaturationResponse,
+    AllInclusionProbabilitiesResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
+    MixnodeStatusResponse, StakeSaturationResponse,
 };
 use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::MonitorMessage;
@@ -63,9 +64,9 @@ pub(super) fn mandatory_routes() -> Router<AppState> {
     path = "/v1/status/submit-gateway-monitoring-results",
     responses(
         (status = 200),
-        (status = 400, body = ErrorResponse, description = "TBD"),
-        (status = 403, body = ErrorResponse, description = "TBD"),
-        (status = 500, body = ErrorResponse, description = "TBD"),
+        (status = 400, body = String, description = "TBD"),
+        (status = 403, body = String, description = "TBD"),
+        (status = 500, body = String, description = "TBD"),
     ),
 )]
 pub(crate) async fn submit_gateway_monitoring_results(
@@ -107,9 +108,9 @@ pub(crate) async fn submit_gateway_monitoring_results(
     path = "/v1/status/submit-node-monitoring-results",
     responses(
         (status = 200),
-        (status = 400, body = ErrorResponse, description = "TBD"),
-        (status = 403, body = ErrorResponse, description = "TBD"),
-        (status = 500, body = ErrorResponse, description = "TBD"),
+        (status = 400, body = String, description = "TBD"),
+        (status = 403, body = String, description = "TBD"),
+        (status = 500, body = String, description = "TBD"),
     ),
 )]
 pub(crate) async fn submit_node_monitoring_results(
@@ -206,7 +207,7 @@ async fn get_mixnode_stake_saturation(
 async fn get_mixnode_inclusion_probability(
     Path(mix_id): Path<NodeId>,
     State(state): State<AppState>,
-) -> AxumResult<Json<nym_api_requests::models::InclusionProbabilityResponse>> {
+) -> AxumResult<Json<InclusionProbabilityResponse>> {
     Ok(Json(
         _get_mixnode_inclusion_probability(state.node_status_cache(), mix_id).await?,
     ))
@@ -224,7 +225,7 @@ async fn get_mixnode_inclusion_probability(
 #[allow(deprecated)]
 async fn get_mixnode_inclusion_probabilities(
     State(state): State<AppState>,
-) -> AxumResult<Json<nym_api_requests::models::AllInclusionProbabilitiesResponse>> {
+) -> AxumResult<Json<AllInclusionProbabilitiesResponse>> {
     Ok(Json(
         _get_mixnode_inclusion_probabilities(state.node_status_cache()).await?,
     ))

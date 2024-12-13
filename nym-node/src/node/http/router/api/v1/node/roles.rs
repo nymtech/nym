@@ -13,8 +13,8 @@ use nym_node_requests::api::v1::node::models::NodeRoles;
     tag = "Node",
     responses(
         (status = 200, content(
-            ("application/json" = NodeRoles),
-            ("application/yaml" = NodeRoles)
+            (NodeRoles = "application/json"),
+            (NodeRoles = "application/yaml")
         ))
     ),
     params(OutputParams)

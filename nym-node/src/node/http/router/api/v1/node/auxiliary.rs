@@ -14,8 +14,8 @@ use nym_node_requests::api::v1::node::models::AuxiliaryDetails;
     tag = "Node",
     responses(
         (status = 200, content(
-            ("application/json" = AuxiliaryDetails),
-            ("application/yaml" = AuxiliaryDetails)
+            (AuxiliaryDetails = "application/json"),
+            (AuxiliaryDetails = "application/yaml")
         )),
     ),
     params(OutputParams)

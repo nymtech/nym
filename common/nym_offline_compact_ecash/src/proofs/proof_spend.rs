@@ -8,6 +8,7 @@ use crate::scheme::PayInfo;
 use bls12_381::{G1Projective, G2Projective, Scalar};
 use group::GroupEncoding;
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -62,17 +63,27 @@ pub struct InstanceCommitments {
     pub tt_kappa_k: Vec<G2Projective>,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct SpendProof {
+    #[schema(value_type = [u64; 4], content_encoding = "base16")]
     challenge: Scalar,
+    #[schema(value_type = [u64; 4], content_encoding = "base16")]
     response_r: Scalar,
+    #[schema(value_type = [u64; 4], content_encoding = "base16")]
     response_r_e: Scalar,
+    #[schema(value_type = Vec<[u64; 4]>, content_encoding = "base16")]
     responses_r_k: Vec<Scalar>,
+    #[schema(value_type = Vec<[u64; 4]>, content_encoding = "base16")]
     responses_l: Vec<Scalar>,
+    #[schema(value_type = Vec<[u64; 4]>, content_encoding = "base16")]
     responses_o_a: Vec<Scalar>,
+    #[schema(value_type = [u64; 4], content_encoding = "base16")]
     response_o_c: Scalar,
+    #[schema(value_type = Vec<[u64; 4]>, content_encoding = "base16")]
     responses_mu: Vec<Scalar>,
+    #[schema(value_type = Vec<[u64; 4]>, content_encoding = "base16")]
     responses_o_mu: Vec<Scalar>,
+    #[schema(value_type = Vec<[u64; 4]>, content_encoding = "base16")]
     responses_attributes: Vec<Scalar>,
 }
 

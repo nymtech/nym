@@ -17,10 +17,12 @@ pub mod simulator;
 )]
 #[cw_serde]
 #[derive(Copy, Default)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct RewardEstimate {
     /// The amount of **decimal** coins that are going to get distributed to the node,
     /// i.e. the operator and all its delegators.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub total_node_reward: Decimal,
 
     // note that operator reward includes the operating_cost,
@@ -28,14 +30,17 @@ pub struct RewardEstimate {
     // in that case the operator reward would still be `1nym` as opposed to 0
     /// The share of the reward that is going to get distributed to the node operator.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub operator: Decimal,
 
     /// The share of the reward that is going to get distributed among the node delegators.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub delegates: Decimal,
 
     /// The operating cost of this node. Note: it's already included in the operator reward.
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub operating_cost: Decimal,
 }
 

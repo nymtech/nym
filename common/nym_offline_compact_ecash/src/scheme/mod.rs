@@ -12,6 +12,7 @@ use crate::scheme::setup::{GroupParameters, Parameters};
 use crate::traits::Bytable;
 use crate::utils::{
     batch_verify_signatures, check_bilinear_pairing, hash_to_scalar, try_deserialize_scalar,
+    G2ProjectiveSchema,
 };
 use crate::{constants, ecash_group_parameters};
 use crate::{Base58, EncodedDate, EncodedTicketType};
@@ -19,6 +20,7 @@ use bls12_381::{G1Projective, G2Prepared, G2Projective, Scalar};
 use group::Curve;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::borrow::Borrow;
+use utoipa::ToSchema;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 pub mod aggregation;
@@ -624,8 +626,9 @@ fn compute_kappa(
 ///
 /// * `payinfo_bytes` - An array of bytes representing the payment information.
 ///
-#[derive(PartialEq, Eq, Debug, Clone, Copy)]
+#[derive(PartialEq, Eq, Debug, Clone, Copy, ToSchema)]
 pub struct PayInfo {
+    #[schema(content_encoding = "base16")]
     pub pay_info_bytes: [u8; 72],
 }
 
@@ -675,18 +678,25 @@ impl Bytable for PayInfo {
 
 impl Base58 for PayInfo {}
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
 pub struct Payment {
+    #[schema(value_type = G2ProjectiveSchema)]
     pub kappa: G2Projective,
+    #[schema(value_type = G2ProjectiveSchema)]
     pub kappa_e: G2Projective,
     pub sig: Signature,
     pub sig_exp: ExpirationDateSignature,
+    #[schema(value_type = Vec<G2ProjectiveSchema>)]
     pub kappa_k: Vec<G2Projective>,
     pub omega: Vec<CoinIndexSignature>,
+    #[schema(value_type = Vec<G2ProjectiveSchema>)]
     pub ss: Vec<G1Projective>,
+    #[schema(value_type = Vec<G2ProjectiveSchema>)]
     pub tt: Vec<G1Projective>,
+    #[schema(value_type = Vec<G2ProjectiveSchema>)]
     pub aa: Vec<G1Projective>,
     pub spend_value: u64,
+    #[schema(value_type = G2ProjectiveSchema)]
     pub cc: G1Projective,
     pub t_type: EncodedTicketType,
     pub zk_proof: SpendProof,

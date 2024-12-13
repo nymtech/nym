@@ -42,12 +42,6 @@ async fn build_response(verloc_stats: &SharedVerlocStats) -> VerlocStats {
                 .iter()
                 .map(|r| VerlocNodeResult {
                     node_identity: r.node_identity,
-                    latest_measurement: r.latest_measurement.map(|l| VerlocMeasurement {
-                        minimum: l.minimum,
-                        mean: l.mean,
-                        maximum: l.maximum,
-                        standard_deviation: l.standard_deviation,
-                    }),
                 })
                 .collect(),
         }

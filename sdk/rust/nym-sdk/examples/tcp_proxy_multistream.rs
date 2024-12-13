@@ -49,7 +49,7 @@ async fn main() -> anyhow::Result<()> {
 
     let listen_port = env::args().nth(3).expect("Port not specified");
 
-    // Within the TcpProxyClient, individual client shutdown is triggered by the timeout. The final argument is how many clients to keep in reserve in the client pool.
+    // Within the TcpProxyClient, individual client shutdown is triggered by the timeout. The final argument is how many clients to keep in reserve in the client pool when running the TcpProxy.
     let proxy_client =
         tcp_proxy::NymProxyClient::new(server, "127.0.0.1", &listen_port, 45, Some(env), 2).await?;
 
@@ -58,7 +58,6 @@ async fn main() -> anyhow::Result<()> {
         Ok::<(), anyhow::Error>(())
     });
 
-    // TODO change this to wait on the actual client to be ready (pool -> client ready state kickback via oneshot)
     println!("waiting for everything to be set up..");
     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
     println!("done. sending bytes");

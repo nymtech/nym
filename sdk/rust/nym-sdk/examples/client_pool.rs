@@ -5,6 +5,7 @@ use anyhow::Result;
 use nym_network_defaults::setup_env;
 use nym_sdk::client_pool::ClientPool;
 use nym_sdk::mixnet::{MixnetClientBuilder, NymNetworkDetails};
+use tokio::signal::ctrl_c;
 
 // This client pool is used internally by the TcpProxyClient but can also be used by the Mixnet module, in case you're quickly swapping clients in and out but won't want to use the TcpProxy module for whatever reason.
 //
@@ -14,12 +15,15 @@ async fn main() -> Result<()> {
     nym_bin_common::logging::setup_logging();
     setup_env(std::env::args().nth(1));
 
-    let conn_pool = ClientPool::new(1); // Start the client pool with 1 client always being kept in reserve
+    let conn_pool = ClientPool::new(2); // Start the client pool with 1 client always being kept in reserve
     let client_maker = conn_pool.clone();
     tokio::spawn(async move {
         client_maker.start().await?;
         Ok::<(), anyhow::Error>(())
     });
+
+    println!("\n\nWaiting a few seconds to fill pool\n\n");
+    tokio::time::sleep(tokio::time::Duration::from_secs(15)).await;
 
     let pool_clone_one = conn_pool.clone();
     let pool_clone_two = conn_pool.clone();
@@ -46,7 +50,7 @@ async fn main() -> Result<()> {
             }
         };
         let our_address = client_one.nym_address();
-        println!("Client 1: {our_address}");
+        println!("\n\nClient 1: {our_address}\n\n");
         client_one.disconnect().await;
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await; // Emulate doing something
         return Ok::<(), anyhow::Error>(());
@@ -74,13 +78,20 @@ async fn main() -> Result<()> {
             }
         };
         let our_address = *client_two.nym_address();
-        println!("Client 2: {our_address}");
+        println!("\n\nClient 2: {our_address}\n\n");
         client_two.disconnect().await;
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await; // Emulate doing something
         return Ok::<(), anyhow::Error>(());
     });
 
-    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-    // TODO clientpool disconnect rest
+    wait_for_ctrl_c(conn_pool).await?;
+    Ok(())
+}
+
+async fn wait_for_ctrl_c(pool: ClientPool) -> Result<()> {
+    println!("\n\nPress CTRL_C to disconnect pool\n\n");
+    ctrl_c().await?;
+    println!("CTRL_C received. Killing client pool");
+    pool.disconnect_pool().await;
     Ok(())
 }

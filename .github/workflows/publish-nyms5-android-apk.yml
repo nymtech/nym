@@ -56,14 +56,6 @@ jobs:
           rustup target add aarch64-linux-android \
             x86_64-linux-android
 
-      - name: Build lib nym-socks5-listener
-        working-directory: sdk/lib/socks5-listener/
-        env:
-          RELEASE: true
-          RUSTFLAGS: "-C link-args=-Wl,--hash-style=gnu"
-        # build for arm64 and x86_64
-        run: ./build-android.sh aarch64 x86_64
-
       - name: Build APKs (unsigned)
         working-directory: nym-connect/native/android
         env:

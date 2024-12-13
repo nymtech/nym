@@ -86,7 +86,6 @@ impl Display for AddressPolicyAction {
 /// ```
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "openapi", aliases(ExitPolicy))]
 pub struct AddressPolicy {
     /// A list of rules to apply to find out whether an address is
     /// contained by this policy.

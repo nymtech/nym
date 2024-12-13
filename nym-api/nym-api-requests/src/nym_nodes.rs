@@ -14,19 +14,19 @@ use std::net::IpAddr;
 use time::OffsetDateTime;
 use utoipa::ToSchema;
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
-pub struct CachedNodesResponse<T> {
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+pub struct CachedNodesResponse<T: ToSchema> {
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: Vec<T>,
 }
 
-impl<T> From<Vec<T>> for CachedNodesResponse<T> {
+impl<T: ToSchema> From<Vec<T>> for CachedNodesResponse<T> {
     fn from(nodes: Vec<T>) -> Self {
         CachedNodesResponse::new(nodes)
     }
 }
 
-impl<T> CachedNodesResponse<T> {
+impl<T: ToSchema> CachedNodesResponse<T> {
     pub fn new(nodes: Vec<T>) -> Self {
         CachedNodesResponse {
             refreshed_at: OffsetDateTime::now_utc().into(),
@@ -35,7 +35,7 @@ impl<T> CachedNodesResponse<T> {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
 pub struct PaginatedCachedNodesResponse<T> {
     pub refreshed_at: OffsetDateTimeJsonSchemaWrapper,
     pub nodes: PaginatedResponse<T>,
@@ -129,6 +129,7 @@ pub struct SkimmedNode {
 
     #[serde(with = "bs58_ed25519_pubkey")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub ed25519_identity_pubkey: ed25519::PublicKey,
 
     #[schema(value_type = Vec<String>)]
@@ -139,6 +140,7 @@ pub struct SkimmedNode {
 
     #[serde(with = "bs58_x25519_pubkey")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub x25519_sphinx_pubkey: x25519::PublicKey,
 
     #[serde(alias = "epoch_role")]

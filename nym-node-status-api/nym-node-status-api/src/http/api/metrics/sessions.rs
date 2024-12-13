@@ -35,7 +35,7 @@ pub(crate) struct SessionQueryParams {
     ),
     path = "/v2/metrics/sessions",
     responses(
-        (status = 200, body = PagedSessionStats)
+        (status = 200, body = PagedResult<SessionStats>)
     )
 )]
 #[instrument(level = tracing::Level::DEBUG, skip(state))]

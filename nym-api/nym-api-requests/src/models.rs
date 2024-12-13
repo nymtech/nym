@@ -70,7 +70,7 @@ impl Display for RequestError {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -396,12 +396,15 @@ pub struct MixNodeBondAnnotated {
     #[schema(value_type = String)]
     pub performance: Performance,
     pub node_performance: NodePerformance,
+    #[schema(value_type = String)]
     pub estimated_operator_apy: Decimal,
+    #[schema(value_type = String)]
     pub estimated_delegators_apy: Decimal,
     pub blacklisted: bool,
 
     // a rather temporary thing until we query self-described endpoints of mixnodes
     #[serde(default)]
+    #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 }
 
@@ -470,11 +473,13 @@ pub struct GatewayBondAnnotated {
     pub self_described: Option<GatewayDescription>,
 
     // NOTE: the performance field is deprecated in favour of node_performance
+    #[schema(value_type = String)]
     pub performance: Performance,
     pub node_performance: NodePerformance,
     pub blacklisted: bool,
 
     #[serde(default)]
+    #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 }
 
@@ -525,21 +530,24 @@ impl GatewayBondAnnotated {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct GatewayDescription {
     // for now only expose what we need. this struct will evolve in the future (or be incorporated into nym-node properly)
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema, IntoParams)]
 pub struct ComputeRewardEstParam {
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
+    #[param(value_type = Option<String>)]
     pub performance: Option<Performance>,
     pub active_in_rewarded_set: Option<bool>,
     pub pledge_amount: Option<u64>,
     pub total_delegation: Option<u64>,
-    #[schema(value_type = CoinSchema)]
+    #[schema(value_type = Option<CoinSchema>)]
+    #[param(value_type = Option<CoinSchema>)]
     pub interval_operating_cost: Option<Coin>,
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
+    #[param(value_type = Option<String>)]
     pub profit_margin_percent: Option<Percent>,
 }
 
@@ -902,7 +910,7 @@ pub struct OffsetDateTimeJsonSchemaWrapper(
         default = "unix_epoch",
         with = "crate::helpers::overengineered_offset_date_time_serde"
     )]
-    #[schema(value_type = String)]
+    #[schema(inline)]
     pub OffsetDateTime,
 );
 
@@ -1240,13 +1248,13 @@ pub struct SignerInformationResponse {
     pub verification_key: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, Default, ToSchema)]
 pub struct TestNode {
     pub node_id: Option<u32>,
     pub identity_key: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct TestRoute {
     pub gateway: TestNode,
     pub layer1: TestNode,

@@ -52,7 +52,7 @@ impl From<LegacyMixNodeBondWithLayer> for MixNodeBond {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct LegacyMixNodeDetailsWithLayer {
     /// Basic bond information of this mixnode, such as owner address, original pledge, etc.
     pub bond_information: LegacyMixNodeBondWithLayer,

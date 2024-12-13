@@ -3,7 +3,7 @@
 set -eu
 export ENVIRONMENT=${ENVIRONMENT:-"sandbox"}
 
-probe_git_ref="nym-vpn-core-v1.0.0-rc.14"
+probe_git_ref="nym-vpn-core-v1.1.0-beta.2"
 
 crate_root=$(dirname $(realpath "$0"))
 monorepo_root=$(realpath "${crate_root}/../..")

@@ -16,6 +16,7 @@ use group::{Curve, Group};
 use itertools::Itertools;
 use std::borrow::Borrow;
 use std::ops::Neg;
+use utoipa::ToSchema;
 
 pub struct Polynomial {
     coefficients: Vec<Scalar>,
@@ -49,6 +50,17 @@ impl Polynomial {
                 .sum()
         }
     }
+}
+
+#[derive(ToSchema)]
+#[schema(title = "G2Projective")]
+pub struct G2ProjectiveSchema {
+    #[schema(content_encoding = "base16")]
+    pub x: [u64; 6],
+    #[schema(content_encoding = "base16")]
+    pub y: [u64; 6],
+    #[schema(content_encoding = "base16")]
+    pub z: [u64; 6],
 }
 
 #[inline]

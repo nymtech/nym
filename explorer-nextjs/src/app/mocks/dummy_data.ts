@@ -67,7 +67,6 @@ const explorerCard: ContentCardProps = {
     ],
   },
   progressBar: {
-    overTitle: "Current NGM epoch",
     start: "2024-12-08T12:26:19Z",
     showEpoch: true,
   },

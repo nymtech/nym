@@ -242,7 +242,6 @@ export const MonoCard: FC<ContentCardProps> = ({
   upDownLine,
   dataRows,
   graph,
-  progressBar,
   paragraph,
   profileImage,
   profileCountry,
@@ -333,11 +332,6 @@ export const MonoCard: FC<ContentCardProps> = ({
             color={graph.color}
             label={graph.label}
           />
-        </Box>
-      )}
-      {progressBar && (
-        <Box mt={3}>
-          <DynamicProgressBar {...progressBar} />
         </Box>
       )}
       {paragraph && (

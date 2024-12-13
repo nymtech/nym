@@ -275,7 +275,7 @@ where
             specification: GatewaySelectionSpecification::UniformRemote {
                 must_use_tls: false,
             },
-            available_gateways: current_gateways(&mut rng, &nym_apis, None).await?,
+            available_gateways: current_gateways(&mut rng, &nym_apis, None, 50).await?,
         });
 
     eprintln!("starting the socks5 client");

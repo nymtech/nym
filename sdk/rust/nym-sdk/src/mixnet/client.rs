@@ -457,7 +457,16 @@ where
         let user_agent = self.user_agent.clone();
 
         let mut rng = OsRng;
-        let available_gateways = current_gateways(&mut rng, &nym_api_endpoints, user_agent).await?;
+        let available_gateways = current_gateways(
+            &mut rng,
+            &nym_api_endpoints,
+            user_agent,
+            self.config
+                .debug_config
+                .topology
+                .minimum_gateway_performance,
+        )
+        .await?;
 
         Ok(GatewaySetup::New {
             specification: selection_spec,

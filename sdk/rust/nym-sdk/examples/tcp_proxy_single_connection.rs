@@ -64,7 +64,7 @@ async fn main() -> anyhow::Result<()> {
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
     // The final argument is how many clients to keep in reserve in the client pool when running the TcpProxy.
     let proxy_client =
-        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 3)
+        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 0)
             .await?;
 
     // For our disconnect() logic below

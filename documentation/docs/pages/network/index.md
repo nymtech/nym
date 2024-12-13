@@ -1,7 +1,3 @@
----
-description: Nym's network documentation covering network architecture, node types, tokenomics, and cryptography.
----
-
 # Introduction
 Nym's network documentation covering network architecture, node types, tokenomics, and crypto systems.
 

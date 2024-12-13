@@ -464,7 +464,6 @@ impl MixnetListener {
                 let (forward_from_tun_tx, close_tx, handle) =
                     connected_client_handler::ConnectedClientHandler::start(
                         reply_to,
-                        reply_to_hops,
                         buffer_timeout,
                         client_version,
                         self.mixnet_client.split_sender(),
@@ -474,7 +473,6 @@ impl MixnetListener {
                 self.connected_clients.connect(
                     requested_ips,
                     reply_to,
-                    reply_to_hops,
                     forward_from_tun_tx,
                     close_tx,
                     handle,
@@ -518,7 +516,6 @@ impl MixnetListener {
 
         let request_id = connect_request.request_id;
         let reply_to = connect_request.reply_to;
-        let reply_to_hops = connect_request.reply_to_hops;
         // TODO: add to connect request
         let buffer_timeout = nym_ip_packet_requests::codec::BUFFER_TIMEOUT;
         // TODO: ignoring reply_to_avg_mix_delays for now

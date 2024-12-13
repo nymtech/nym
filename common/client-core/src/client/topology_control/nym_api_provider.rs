@@ -4,41 +4,36 @@
 use async_trait::async_trait;
 use log::{debug, error, warn};
 use nym_topology::provider_trait::TopologyProvider;
-use nym_topology::{NymTopologyError, NymTopologyNew};
+use nym_topology::NymTopology;
 use nym_validator_client::UserAgent;
 use rand::prelude::SliceRandom;
 use rand::thread_rng;
 use std::cmp::min;
 use url::Url;
 
-// the same values as our current (10.06.24) blacklist
-pub const DEFAULT_MIN_MIXNODE_PERFORMANCE: u8 = 50;
-pub const DEFAULT_MIN_GATEWAY_PERFORMANCE: u8 = 50;
-
 #[derive(Debug)]
 pub struct Config {
     pub min_mixnode_performance: u8,
     pub min_gateway_performance: u8,
     pub use_extended_topology: bool,
-    pub ignore_epoch_roles: bool,
+    pub ignore_egress_epoch_role: bool,
+}
+
+impl From<nym_client_core_config_types::Topology> for Config {
+    fn from(value: nym_client_core_config_types::Topology) -> Self {
+        Config {
+            min_mixnode_performance: value.minimum_mixnode_performance,
+            min_gateway_performance: value.minimum_gateway_performance,
+            use_extended_topology: value.use_extended_topology,
+            ignore_egress_epoch_role: value.ignore_egress_epoch_role,
+        }
+    }
 }
 
 impl Config {
     // if we're using 'extended' topology, filter the nodes based on the lowest set performance
     fn min_node_performance(&self) -> u8 {
         min(self.min_mixnode_performance, self.min_gateway_performance)
-    }
-}
-
-impl Default for Config {
-    fn default() -> Self {
-        // old values that decided on blacklist membership
-        Config {
-            min_mixnode_performance: DEFAULT_MIN_MIXNODE_PERFORMANCE,
-            min_gateway_performance: DEFAULT_MIN_GATEWAY_PERFORMANCE,
-            use_extended_topology: false,
-            ignore_epoch_roles: false,
-        }
     }
 }
 
@@ -51,7 +46,11 @@ pub struct NymApiTopologyProvider {
 }
 
 impl NymApiTopologyProvider {
-    pub fn new(config: Config, mut nym_api_urls: Vec<Url>, user_agent: Option<UserAgent>) -> Self {
+    pub fn new(
+        config: impl Into<Config>,
+        mut nym_api_urls: Vec<Url>,
+        user_agent: Option<UserAgent>,
+    ) -> Self {
         nym_api_urls.shuffle(&mut thread_rng());
 
         let validator_client = if let Some(user_agent) = user_agent {
@@ -64,7 +63,7 @@ impl NymApiTopologyProvider {
         };
 
         NymApiTopologyProvider {
-            config,
+            config: config.into(),
             validator_client,
             nym_api_urls,
             currently_used_api: 0,
@@ -82,7 +81,7 @@ impl NymApiTopologyProvider {
             .change_nym_api(self.nym_api_urls[self.currently_used_api].clone())
     }
 
-    async fn get_current_compatible_topology(&mut self) -> Option<NymTopologyNew> {
+    async fn get_current_compatible_topology(&mut self) -> Option<NymTopology> {
         let rewarded_set = self
             .validator_client
             .get_current_rewarded_set()
@@ -90,7 +89,7 @@ impl NymApiTopologyProvider {
             .inspect_err(|err| error!("failed to get current rewarded set: {err}"))
             .ok()?;
 
-        let mut topology = NymTopologyNew::new_empty(rewarded_set);
+        let mut topology = NymTopology::new_empty(rewarded_set);
 
         if self.config.use_extended_topology {
             let all_nodes = self
@@ -152,7 +151,7 @@ impl NymApiTopologyProvider {
 #[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 impl TopologyProvider for NymApiTopologyProvider {
-    async fn get_new_topology(&mut self) -> Option<NymTopologyNew> {
+    async fn get_new_topology(&mut self) -> Option<NymTopology> {
         let Some(topology) = self.get_current_compatible_topology().await else {
             self.use_next_nym_api();
             return None;

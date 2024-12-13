@@ -69,11 +69,11 @@ pub mod monitoring {
         }
     }
 
-    pub fn fragment_sent(fragment: &Fragment, client_nonce: i32, destination: PublicKey, hops: u8) {
+    pub fn fragment_sent(fragment: &Fragment, client_nonce: i32, destination: PublicKey) {
         if enabled() {
             let id = fragment.fragment_identifier().set_id();
             let mut entry = FRAGMENTS_SENT.entry(id).or_default();
-            let s = SentFragment::new(fragment.header(), now!(), client_nonce, destination, hops);
+            let s = SentFragment::new(fragment.header(), now!(), client_nonce, destination);
             entry.push(s);
         }
     }
@@ -82,16 +82,11 @@ pub mod monitoring {
 #[derive(Debug, Clone)]
 pub struct FragmentMixParams {
     destination: PublicKey,
-    hops: u8,
 }
 
 impl FragmentMixParams {
     pub fn destination(&self) -> &PublicKey {
         &self.destination
-    }
-
-    pub fn hops(&self) -> u8 {
-        self.hops
     }
 }
 
@@ -105,14 +100,8 @@ pub struct SentFragment {
 }
 
 impl SentFragment {
-    fn new(
-        header: FragmentHeader,
-        at: u64,
-        client_nonce: i32,
-        destination: PublicKey,
-        hops: u8,
-    ) -> Self {
-        let mixnet_params = FragmentMixParams { destination, hops };
+    fn new(header: FragmentHeader, at: u64, client_nonce: i32, destination: PublicKey) -> Self {
+        let mixnet_params = FragmentMixParams { destination };
         SentFragment {
             header,
             at,

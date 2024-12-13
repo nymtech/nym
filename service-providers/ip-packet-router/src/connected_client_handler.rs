@@ -22,9 +22,6 @@ pub(crate) struct ConnectedClientHandler {
     // The address of the client that this handler is connected to
     nym_address: Recipient,
 
-    // The number of hops the packet should take before reaching the client
-    mix_hops: Option<u8>,
-
     // Channel to receive packets from the tun_listener
     forward_from_tun_rx: tokio::sync::mpsc::UnboundedReceiver<Vec<u8>>,
 
@@ -47,7 +44,6 @@ pub(crate) struct ConnectedClientHandler {
 impl ConnectedClientHandler {
     pub(crate) fn start(
         reply_to: Recipient,
-        reply_to_hops: Option<u8>,
         buffer_timeout: std::time::Duration,
         client_version: SupportedClientVersion,
         mixnet_client_sender: nym_sdk::mixnet::MixnetClientSender,
@@ -67,7 +63,6 @@ impl ConnectedClientHandler {
 
         let connected_client_handler = ConnectedClientHandler {
             nym_address: reply_to,
-            mix_hops: reply_to_hops,
             forward_from_tun_rx,
             mixnet_client_sender,
             close_rx,
@@ -98,7 +93,7 @@ impl ConnectedClientHandler {
         }
         .map_err(|err| IpPacketRouterError::FailedToSerializeResponsePacket { source: err })?;
 
-        let input_message = create_input_message(self.nym_address, response_packet, self.mix_hops);
+        let input_message = create_input_message(self.nym_address, response_packet);
 
         self.mixnet_client_sender
             .send(input_message)

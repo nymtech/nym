@@ -31,6 +31,8 @@ impl NymNodeTopologyProvider {
                     NymApiTopologyProviderConfig {
                         min_mixnode_performance: 50,
                         min_gateway_performance: 0,
+                        use_extended_topology: false,
+                        ignore_egress_epoch_role: true,
                     },
                     nym_api_url,
                     Some(user_agent),

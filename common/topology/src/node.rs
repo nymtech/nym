@@ -2,9 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_api_requests::models::DeclaredRoles;
-use nym_api_requests::nym_nodes::SkimmedNode;
+use nym_api_requests::nym_nodes::{BasicEntryInformation, SkimmedNode};
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_mixnet_contract_common::NodeId;
+use nym_mixnet_contract_common::{NaiveFloat, NodeId};
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
 use std::net::{IpAddr, SocketAddr};
@@ -100,12 +100,31 @@ impl<'a> TryFrom<&'a SkimmedNode> for RoutingNode {
     type Error = RoutingNodeError;
 
     fn try_from(value: &'a SkimmedNode) -> Result<Self, Self::Error> {
-        if value.ip_addresses.is_empty() {
+        let Some(first_ip) = value.ip_addresses.first() else {
             return Err(RoutingNodeError::NoIpAddressesProvided {
                 node_id: value.node_id,
                 identity: value.ed25519_identity_pubkey,
             });
-        }
-        todo!()
+        };
+
+        let entry = match &value.entry {
+            None => None,
+            Some(entry) => Some(EntryDetails {
+                ip_addresses: value.ip_addresses.clone(),
+                clients_ws_port: entry.ws_port,
+                hostname: entry.hostname.clone(),
+                clients_wss_port: entry.wss_port,
+            }),
+        };
+
+        Ok(RoutingNode {
+            node_id: value.node_id,
+            mix_host: SocketAddr::new(*first_ip, value.mix_port),
+            entry,
+            identity_key: value.ed25519_identity_pubkey,
+            sphinx_key: value.x25519_sphinx_pubkey,
+            supported_roles: value.supported_roles.into(),
+            performance: value.performance.naive_to_f64(),
+        })
     }
 }

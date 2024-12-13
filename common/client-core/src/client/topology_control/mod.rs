@@ -27,7 +27,7 @@ pub use nym_topology::provider_trait::TopologyProvider;
 const MAX_FAILURE_COUNT: usize = 10;
 
 pub struct TopologyRefresherConfig {
-    refresh_rate: Duration,
+    pub refresh_rate: Duration,
 }
 
 impl TopologyRefresherConfig {
@@ -96,28 +96,24 @@ impl TopologyRefresher {
         self.topology_accessor.ensure_is_routable().await
     }
 
-    pub async fn ensure_contains_gateway(
+    pub async fn ensure_contains_routable_egress(
         &self,
-        gateway: &NodeIdentity,
+        egress: NodeIdentity,
     ) -> Result<(), NymTopologyError> {
         let topology = self
             .topology_accessor
-            .current_topology()
+            .current_route_provider()
             .await
             .ok_or(NymTopologyError::EmptyNetworkTopology)?;
 
-        if !topology.gateway_exists(gateway) {
-            return Err(NymTopologyError::NonExistentGatewayError {
-                identity_key: gateway.to_base58_string(),
-            });
-        }
+        let _ = topology.egress_by_identity(egress)?;
 
         Ok(())
     }
 
     pub async fn wait_for_gateway(
         &mut self,
-        gateway: &NodeIdentity,
+        gateway: NodeIdentity,
         timeout_duration: Duration,
     ) -> Result<(), NymTopologyError> {
         info!(
@@ -135,7 +131,7 @@ impl TopologyRefresher {
                     })
                 }
                 _ = self.try_refresh() => {
-                    if self.ensure_contains_gateway(gateway).await.is_ok() {
+                    if self.ensure_contains_routable_egress(gateway).await.is_ok() {
                         return Ok(())
                     }
                     info!("gateway '{gateway}' is still not online...");

@@ -19,7 +19,7 @@ use nym_sphinx::params::{PacketSize, PacketType, DEFAULT_NUM_MIX_HOPS};
 use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
 use nym_task::connections::TransmissionLane;
-use nym_topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -216,7 +216,7 @@ where
     fn get_topology<'a>(
         &self,
         permit: &'a TopologyReadPermit<'a>,
-    ) -> Result<&'a NymTopology, PreparationError> {
+    ) -> Result<&'a NymRouteProvider, PreparationError> {
         match permit.try_get_valid_topology_ref(&self.config.sender_address, None) {
             Ok(topology_ref) => Ok(topology_ref),
             Err(err) => {
@@ -424,10 +424,9 @@ where
         message: Vec<u8>,
         lane: TransmissionLane,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<(), PreparationError> {
         let message = NymMessage::new_plain(message);
-        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type, mix_hops)
+        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type)
             .await
     }
 
@@ -437,7 +436,6 @@ where
         recipient: Recipient,
         lane: TransmissionLane,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<(), PreparationError> {
         debug!("Sending non-reply message with packet type {packet_type}");
         // TODO: I really dislike existence of this assertion, it implies code has to be re-organised
@@ -470,7 +468,6 @@ where
                 &self.config.ack_key,
                 &recipient,
                 packet_type,
-                mix_hops,
             )?;
 
             let real_message = RealMessage::new(
@@ -478,8 +475,7 @@ where
                 Some(fragment.fragment_identifier()),
             );
             let delay = prepared_fragment.total_delay;
-            let pending_ack =
-                PendingAcknowledgement::new_known(fragment, delay, recipient, mix_hops);
+            let pending_ack = PendingAcknowledgement::new_known(fragment, delay, recipient);
 
             real_messages.push(real_message);
             pending_acks.push(pending_ack);
@@ -496,7 +492,6 @@ where
         recipient: Recipient,
         amount: u32,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<(), PreparationError> {
         debug!("Sending additional reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
@@ -513,7 +508,6 @@ where
             recipient,
             TransmissionLane::AdditionalReplySurbs,
             packet_type,
-            mix_hops,
         )
         .await?;
 
@@ -530,7 +524,6 @@ where
         num_reply_surbs: u32,
         lane: TransmissionLane,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<(), SurbWrappedPreparationError> {
         debug!("Sending message with reply SURBs with packet type {packet_type}");
         let sender_tag = self.get_or_create_sender_tag(&recipient);
@@ -541,7 +534,7 @@ where
         let message =
             NymMessage::new_repliable(RepliableMessage::new_data(message, sender_tag, reply_surbs));
 
-        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type, mix_hops)
+        self.try_split_and_send_non_reply_message(message, recipient, lane, packet_type)
             .await?;
 
         log::trace!("storing {} reply keys", reply_keys.len());
@@ -555,7 +548,6 @@ where
         recipient: Recipient,
         chunk: Fragment,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<PreparedFragment, PreparationError> {
         debug!("Sending single chunk with packet type {packet_type}");
         let topology_permit = self.topology_access.get_read_permit().await;
@@ -569,7 +561,6 @@ where
                 &self.config.ack_key,
                 &recipient,
                 packet_type,
-                mix_hops,
             )
             .unwrap();
 

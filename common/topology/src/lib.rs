@@ -25,7 +25,6 @@ pub mod error;
 pub mod gateway;
 pub mod mix;
 pub mod node;
-pub mod random_route_provider;
 
 #[cfg(feature = "provider-trait")]
 pub mod provider_trait;
@@ -115,7 +114,7 @@ impl Display for NetworkAddress {
 
 pub type MixLayer = u8;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct NymTopology {
     // for the purposes of future VRF, everyone will need the same view of the network, regardless of performance filtering
     // so we use the same 'master' rewarded set information for that
@@ -127,9 +126,68 @@ pub struct NymTopology {
     node_details: HashMap<NodeId, RoutingNode>,
 }
 
-const unused: &str = r#"there shall be a config setting, like debug.topology.use_extended = true/false (so that node_details would also include standby/inactive nodes)
-        and another one for debug.topology.ignore_epoch_roles = true/false (to say send final packet to epoch mixnode)
-    "#;
+#[derive(Clone, Debug)]
+pub struct NymRouteProvider {
+    pub topology: NymTopology,
+
+    /// Allow constructing routes with final hop at nodes that are not entry/exit gateways in the current epoch
+    pub ignore_egress_epoch_roles: bool,
+}
+
+impl From<NymTopology> for NymRouteProvider {
+    fn from(topology: NymTopology) -> Self {
+        NymRouteProvider {
+            topology,
+            ignore_egress_epoch_roles: false,
+        }
+    }
+}
+
+impl NymRouteProvider {
+    pub fn new_empty(ignore_egress_epoch_roles: bool) -> NymRouteProvider {
+        let this: Self = NymTopology::default().into();
+        this.with_ignore_egress_epoch_roles(ignore_egress_epoch_roles)
+    }
+
+    pub fn update(&mut self, new_topology: NymTopology) {
+        self.topology = new_topology;
+    }
+
+    pub fn clear_topology(&mut self) {
+        self.topology = Default::default();
+    }
+
+    pub fn with_ignore_egress_epoch_roles(mut self, ignore_egress_epoch_roles: bool) -> Self {
+        self.ignore_egress_epoch_roles(ignore_egress_epoch_roles);
+        self
+    }
+
+    pub fn ignore_egress_epoch_roles(&mut self, ignore_egress_epoch_roles: bool) {
+        self.ignore_egress_epoch_roles = ignore_egress_epoch_roles;
+    }
+
+    pub fn egress_by_identity(
+        &self,
+        node_identity: NodeIdentity,
+    ) -> Result<&RoutingNode, NymTopologyError> {
+        self.topology
+            .egress_by_identity(node_identity, self.ignore_egress_epoch_roles)
+    }
+
+    /// Tries to create a route to the egress point, such that it goes through mixnode on layer 1,
+    /// mixnode on layer2, .... mixnode on layer n and finally the target egress, which can be any known node
+    pub fn random_route_to_egress<R>(
+        &self,
+        rng: &mut R,
+        egress_identity: NodeIdentity,
+    ) -> Result<Vec<SphinxNode>, NymTopologyError>
+    where
+        R: Rng + CryptoRng + ?Sized,
+    {
+        self.topology
+            .random_route_to_egress(rng, egress_identity, self.ignore_egress_epoch_roles)
+    }
+}
 
 impl NymTopology {
     pub fn new_empty(rewarded_set: EpochRewardedSet) -> Self {
@@ -192,6 +250,17 @@ impl NymTopology {
     pub fn ensure_minimally_routable(&self) -> Result<(), NymTopologyError> {
         if !self.is_minimally_routable() {
             return Err(NymTopologyError::InsufficientMixingNodes);
+        }
+        Ok(())
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.rewarded_set.assignment.is_empty() || self.node_details.is_empty()
+    }
+
+    pub fn ensure_not_empty(&self) -> Result<(), NymTopologyError> {
+        if self.is_empty() {
+            return Err(NymTopologyError::EmptyNetworkTopology);
         }
         Ok(())
     }

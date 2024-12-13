@@ -52,18 +52,12 @@ where
         packet_recipient: Recipient,
         chunk_data: Fragment,
         packet_type: PacketType,
-        mix_hops: Option<u8>,
     ) -> Result<PreparedFragment, PreparationError> {
         debug!("retransmitting normal packet...");
 
         // TODO: Figure out retransmission packet type signaling
         self.message_handler
-            .try_prepare_single_chunk_for_sending(
-                packet_recipient,
-                chunk_data,
-                packet_type,
-                mix_hops,
-            )
+            .try_prepare_single_chunk_for_sending(packet_recipient, chunk_data, packet_type)
             .await
     }
 
@@ -110,7 +104,6 @@ where
                     **recipient,
                     timed_out_ack.message_chunk.clone(),
                     packet_type,
-                    timed_out_ack.mix_hops,
                 )
                 .await
             }

@@ -24,7 +24,7 @@ use crate::client::replies::reply_storage::{
 };
 use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
-    nym_api_provider, TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
+    TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
@@ -539,10 +539,7 @@ where
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| match config_topology.topology_structure {
             config::TopologyStructure::NymApi => Box::new(NymApiTopologyProvider::new(
-                nym_api_provider::Config {
-                    min_mixnode_performance: config_topology.minimum_mixnode_performance,
-                    min_gateway_performance: config_topology.minimum_gateway_performance,
-                },
+                config_topology,
                 nym_api_urls,
                 user_agent,
             )),
@@ -558,7 +555,7 @@ where
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
         topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
-        local_gateway: &NodeIdentity,
+        local_gateway: NodeIdentity,
         wait_for_gateway: bool,
         mut shutdown: TaskClient,
     ) -> Result<(), ClientCoreError> {
@@ -590,7 +587,7 @@ where
         };
 
         if let Err(err) = topology_refresher
-            .ensure_contains_gateway(local_gateway)
+            .ensure_contains_routable_egress(local_gateway)
             .await
         {
             if let Some(waiting_timeout) = gateway_wait_timeout {
@@ -740,7 +737,8 @@ where
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
-        let shared_topology_accessor = TopologyAccessor::new();
+        let shared_topology_accessor =
+            TopologyAccessor::new(self.config.debug.topology.ignore_egress_epoch_role);
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = self

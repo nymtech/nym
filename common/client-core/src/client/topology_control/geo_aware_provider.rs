@@ -15,8 +15,6 @@ use url::Url;
 
 pub use nym_country_group::CountryGroup;
 
-const MIN_NODES_PER_LAYER: usize = 1;
-
 fn create_explorer_client() -> Option<ExplorerClient> {
     let Ok(explorer_api_url) = std::env::var(EXPLORER_API) else {
         error!("Missing EXPLORER_API");
@@ -63,21 +61,9 @@ fn log_mixnode_distribution(mixnodes: &HashMap<CountryGroup, Vec<NodeId>>) {
 }
 
 fn check_layer_integrity(topology: NymTopology) -> Result<(), ()> {
-    let mixes = topology.mixes();
-    if mixes.keys().len() < 3 {
+    if topology.ensure_minimally_routable().is_err() {
         error!("Layer is missing in topology!");
         return Err(());
-    }
-    for (layer, mixnodes) in mixes {
-        debug!("Layer {:?} has {} mixnodes", layer, mixnodes.len());
-        if mixnodes.len() < MIN_NODES_PER_LAYER {
-            error!(
-                "There are only {} mixnodes in layer {:?}",
-                mixnodes.len(),
-                layer
-            );
-            return Err(());
-        }
     }
     Ok(())
 }

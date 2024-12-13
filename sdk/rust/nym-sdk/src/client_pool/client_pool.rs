@@ -21,7 +21,7 @@ impl fmt::Debug for ClientPool {
                         .iter()
                         .enumerate()
                         .map(|(i, client)| {
-                            format!("\n      {}: {}", i, client.nym_address().to_string())
+                            format!("\n      {}: {}", i, client.nym_address())
                         })
                         .collect::<Vec<_>>()
                         .join(",")
@@ -112,7 +112,7 @@ impl ClientPool {
     pub fn clone(&self) -> Self {
         Self {
             clients: Arc::clone(&self.clients),
-            client_pool_reserve_number: *&self.client_pool_reserve_number,
+            client_pool_reserve_number: self.client_pool_reserve_number,
         }
     }
 }

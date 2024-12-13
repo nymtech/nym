@@ -1,0 +1,249 @@
+# This file instructs Redocly's linter to ignore the rules contained for specific parts of your API.
+# See https://redocly.com/docs/cli/ for more information.
+formatted-openapi.json:
+  no-empty-servers:
+    - '#/openapi'
+  struct:
+    - >-
+      /components/schemas/EcashTicketVerificationResult/oneOf/0/properties/Ok/nullable
+    - >-
+      #/paths/~1v1~1epoch~1current/get/responses/200/content/application~1json/schema/nullable
+    - >-
+      #/paths/~1v1~1epoch~1reward_params/get/responses/200/content/application~1json/schema/nullable
+    - >-
+      #/components/schemas/ContractInformationContractVersion/properties/details/nullable
+    - >-
+      #/components/schemas/ContractInformationBuildInformation/properties/details/nullable
+    - '#/components/schemas/AnnotationResponse/properties/annotation/nullable'
+    - '#/components/schemas/NodeAnnotation/properties/current_role/nullable'
+    - >-
+      #/components/schemas/GatewayBondAnnotated/properties/self_described/nullable
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/0/schema/nullable
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/4/schema/nullable
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/5/schema/nullable
+    - >-
+      #/paths/~1v1~1unstable~1nym-nodes~1full-fat~1/get/parameters/0/schema/nullable
+    - >-
+      #/paths/~1v1~1unstable~1nym-nodes~1semi-skimmed~1/get/parameters/0/schema/nullable
+    - >-
+      #/paths/~1v1~1unstable~1nym-nodes~1skimmed~1/get/parameters/0/schema/nullable
+    - '#/components/schemas/SkimmedNode/properties/entry/nullable'
+    - '#/components/schemas/FullFatNode/properties/self_described/nullable'
+    - '#/components/schemas/NymNodeData/properties/authenticator/nullable'
+    - '#/components/schemas/NymNodeData/properties/ip_packet_router/nullable'
+    - '#/components/schemas/NymNodeData/properties/network_requester/nullable'
+    - '#/components/schemas/NymNodeData/properties/wireguard/nullable'
+    - >-
+      #/components/schemas/LegacyDescribedGateway/properties/self_described/nullable
+    - >-
+      #/components/schemas/LegacyDescribedMixNode/properties/self_described/nullable
+  no-unresolved-refs:
+    # - >-
+    #   #/paths/~1v1~1gateways/get/responses/200/content/application~1json/schema/items
+    # - >-
+    #   #/paths/~1v1~1gateways~1described/get/responses/200/content/application~1json/schema/items
+    # - >-
+    #   #/paths/~1v1~1mixnodes/get/responses/200/content/application~1json/schema/items
+    # - >-
+    #   #/paths/~1v1~1mixnodes~1active/get/responses/200/content/application~1json/schema/items
+    # - >-
+    #   #/components/schemas/MixNodeBondAnnotated/properties/estimated_delegators_apy
+    # - >-
+    #   #/components/schemas/MixNodeBondAnnotated/properties/estimated_operator_apy
+    # - '#/components/schemas/MixNodeBondAnnotated/properties/ip_addresses/items'
+    # - >-
+    #   #/paths/~1v1~1mixnodes~1described/get/responses/200/content/application~1json/schema/items
+    # - >-
+    #   #/paths/~1v1~1mixnodes~1rewarded/get/responses/200/content/application~1json/schema/items
+    # - >-
+    #   #/paths/~1v1~1nym-nodes~1bonded/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1nym-nodes~1described/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1nym-nodes~1noise/get/responses/200/content/application~1json/schema
+    # - '#/components/schemas/PerformanceHistoryResponse/properties/history'
+    # - '#/components/schemas/LegacyGatewayBondWithId/allOf/0'
+    # - '#/components/schemas/GatewayBondAnnotated/properties/ip_addresses/items'
+    # - '#/components/schemas/GatewayBondAnnotated/properties/performance'
+    # - >-
+    #   #/components/schemas/GatewayBondAnnoctated/properties/self_described/allOf/0
+    # - >-
+    #   #/paths/~1v1~1status~1gateways~1unstable~1{identity}~1test-results/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/0/schema/allOf/0
+    # - >-
+    #   #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/4/schema/allOf/0
+    # - >-
+    #   #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/5/schema/allOf/0
+    # - '#/components/schemas/RewardEstimationResponse/properties/estimation'
+    # - '#/components/schemas/MixnodeStatusReportResponse/properties/identity'
+    # - '#/components/schemas/MixnodeStatusResponse/properties/status'
+    # - >-
+    #   #/paths/~1v1~1status~1mixnodes~1unstable~1{mix_id}~1test-results/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1status~1submit-gateway-monitoring-results/post/requestBody/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1status~1submit-node-monitoring-results/post/requestBody/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1unstable~1nym-nodes~1gateways~1skimmed/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1unstable~1nym-nodes~1mixnodes~1skimmed/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1unstable~1nym-nodes~1skimmed~1/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1unstable~1nym-nodes~1skimmed~1active/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1unstable~1nym-nodes~1skimmed~1entry-gateways~1active/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1unstable~1nym-nodes~1skimmed~1entry-gateways~1all/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1unstable~1nym-nodes~1skimmed~1exit-gateways~1active/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1unstable~1nym-nodes~1skimmed~1exit-gateways~1all/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1unstable~1nym-nodes~1skimmed~1mixnodes~1active/get/responses/200/content/application~1json/schema
+    # - >-
+    #   #/paths/~1v1~1unstable~1nym-nodes~1skimmed~1mixnodes~1all/get/responses/200/content/application~1json/schema
+    # - '#/components/schemas/AuxiliaryDetails/properties/announce_ports'
+    # - '#/components/schemas/SkimmedNode/properties/ed25519_identity_pubkey'
+    # - '#/components/schemas/SkimmedNode/properties/x25519_sphinx_pubkey'
+    # - '#/components/schemas/HistoricalUptimeResponse/properties/uptime'
+    # - '#/components/schemas/LegacyDescribedGateway/properties/bond'
+    # - '#/components/schemas/LegacyMixNodeBondWithLayer/allOf/0'
+    # - '#/components/schemas/LegacyMixNodeBondWithLayer/allOf/1/properties/layer'
+    # - '#/components/schemas/PartialTestResult/properties/test_routes'
+    # - '#/components/schemas/UptimeHistoryResponse/properties/history'
+    # - '#/components/schemas/VerifyEcashCredentialBody/properties/credential'
+  path-parameters-defined:
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/0/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/1/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/2/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/3/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/4/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/5/name
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1active/get/parameters/0/name'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1active/get/parameters/1/name'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1active/get/parameters/2/name'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1active/get/parameters/3/name'
+  operation-operationId-unique:
+    - >-
+      #/paths/~1v1~1status~1mixnodes~1active~1detailed/get/get_active_set_detailed
+    - '#/paths/~1v1~1status~1mixnodes~1detailed/get/get_mixnodes_detailed'
+    - >-
+      #/paths/~1v1~1status~1mixnodes~1rewarded~1detailed/get/get_rewarded_set_detailed
+  no-path-trailing-slash:
+    - '#/paths/~1v1~1unstable~1nym-nodes~1full-fat~1'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1semi-skimmed~1'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1'
+  no-unused-components:
+    - '#/components/schemas/DateQuery'
+    - '#/components/schemas/EcashTicketVerificationRejection'
+    - '#/components/schemas/ExpirationDatePathParam'
+    - '#/components/schemas/FullFatNode'
+    - '#/components/schemas/HistoricalPerformanceResponse'
+    - '#/components/schemas/HistoricalUptimeResponse'
+    - '#/components/schemas/LegacyDescribedGateway'
+    - '#/components/schemas/LegacyDescribedMixNode'
+    - '#/components/schemas/MasterVerificationKeyResponse'
+    - '#/components/schemas/MixnodeStatusReport'
+    - '#/components/schemas/NodeRoleQueryParam'
+    - '#/components/schemas/NoiseDetails'
+    - '#/components/schemas/NymNodeDescription'
+    - '#/components/schemas/Pagination'
+    - '#/components/schemas/PaginationRequest'
+    - '#/components/schemas/PartialCoinIndicesSignatureResponse'
+    - '#/components/schemas/PartialTestResult'
+    - '#/components/schemas/SpentCredentialsResponse'
+    - '#/components/schemas/UptimeHistoryResponse'
+    - '#/components/schemas/VerifyEcashCredentialBody'
+    - '#/components/responses/AxumErrorResponse'
+    - '#/components/responses/CirculatingSupplyResponse'
+    - '#/components/responses/RequestError'
+  security-defined:
+    - '#/paths/~1v1~1api-status~1build-information/get'
+    - '#/paths/~1v1~1api-status~1health/get'
+    - '#/paths/~1v1~1api-status~1signer-information/get'
+    - '#/paths/~1v1~1circulating-supply/get'
+    - '#/paths/~1v1~1circulating-supply~1circulating-supply-value/get'
+    - '#/paths/~1v1~1circulating-supply~1total-supply-value/get'
+    - '#/paths/~1v1~1ecash~1aggregated-coin-indices-signatures/get'
+    - '#/paths/~1v1~1ecash~1aggregated-expiration-date-signatures/get'
+    - '#/paths/~1v1~1ecash~1batch-redeem-ecash-tickets/post'
+    - '#/paths/~1v1~1ecash~1blind-sign/post'
+    - '#/paths/~1v1~1ecash~1double-spending-filter-v1/get'
+    - '#/paths/~1v1~1ecash~1issued-ticketbooks-challenge/post'
+    - '#/paths/~1v1~1ecash~1issued-ticketbooks-for~1{expiration_date}/get'
+    - '#/paths/~1v1~1ecash~1master-verification-key/get'
+    - '#/paths/~1v1~1ecash~1partial-coin-indices-signatures/get'
+    - '#/paths/~1v1~1ecash~1partial-expiration-date-signatures/get'
+    - '#/paths/~1v1~1ecash~1verify-ecash-ticket/post'
+    - '#/paths/~1v1~1epoch~1current/get'
+    - '#/paths/~1v1~1epoch~1reward_params/get'
+    - '#/paths/~1v1~1gateways/get'
+    - '#/paths/~1v1~1gateways~1blacklisted/get'
+    - '#/paths/~1v1~1gateways~1described/get'
+    - '#/paths/~1v1~1mixnodes/get'
+    - '#/paths/~1v1~1mixnodes~1active/get'
+    - '#/paths/~1v1~1mixnodes~1active~1detailed/get'
+    - '#/paths/~1v1~1mixnodes~1blacklisted/get'
+    - '#/paths/~1v1~1mixnodes~1described/get'
+    - '#/paths/~1v1~1mixnodes~1detailed/get'
+    - '#/paths/~1v1~1mixnodes~1rewarded/get'
+    - '#/paths/~1v1~1mixnodes~1rewarded~1detailed/get'
+    - '#/paths/~1v1~1network~1details/get'
+    - '#/paths/~1v1~1network~1nym-contracts/get'
+    - '#/paths/~1v1~1network~1nym-contracts-detailed/get'
+    - '#/paths/~1v1~1nym-nodes~1annotation~1{node_id}/get'
+    - '#/paths/~1v1~1nym-nodes~1bonded/get'
+    - '#/paths/~1v1~1nym-nodes~1described/get'
+    - '#/paths/~1v1~1nym-nodes~1historical-performance~1{node_id}/get'
+    - '#/paths/~1v1~1nym-nodes~1noise/get'
+    - '#/paths/~1v1~1nym-nodes~1performance-history~1{node_id}/get'
+    - '#/paths/~1v1~1nym-nodes~1performance~1{node_id}/get'
+    - '#/paths/~1v1~1nym-nodes~1refresh-described/post'
+    - '#/paths/~1v1~1nym-nodes~1uptime-history~1{node_id}/get'
+    - '#/paths/~1v1~1status~1gateway~1{identity}~1avg_uptime/get'
+    - '#/paths/~1v1~1status~1gateway~1{identity}~1core-status-count/get'
+    - '#/paths/~1v1~1status~1gateway~1{identity}~1history/get'
+    - '#/paths/~1v1~1status~1gateway~1{identity}~1report/get'
+    - '#/paths/~1v1~1status~1gateways~1detailed/get'
+    - '#/paths/~1v1~1status~1gateways~1detailed-unfiltered/get'
+    - '#/paths/~1v1~1status~1gateways~1unstable~1{identity}~1test-results/get'
+    - '#/paths/~1v1~1status~1mixnode~1{mix_id}~1avg_uptime/get'
+    - '#/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post'
+    - '#/paths/~1v1~1status~1mixnode~1{mix_id}~1core-status-count/get'
+    - '#/paths/~1v1~1status~1mixnode~1{mix_id}~1history/get'
+    - '#/paths/~1v1~1status~1mixnode~1{mix_id}~1inclusion-probability/get'
+    - '#/paths/~1v1~1status~1mixnode~1{mix_id}~1report/get'
+    - '#/paths/~1v1~1status~1mixnode~1{mix_id}~1reward-estimation/get'
+    - '#/paths/~1v1~1status~1mixnode~1{mix_id}~1stake-saturation/get'
+    - '#/paths/~1v1~1status~1mixnode~1{mix_id}~1status/get'
+    - '#/paths/~1v1~1status~1mixnodes~1active~1detailed/get'
+    - '#/paths/~1v1~1status~1mixnodes~1detailed/get'
+    - '#/paths/~1v1~1status~1mixnodes~1detailed-unfiltered/get'
+    - '#/paths/~1v1~1status~1mixnodes~1inclusion-probability/get'
+    - '#/paths/~1v1~1status~1mixnodes~1rewarded~1detailed/get'
+    - '#/paths/~1v1~1status~1mixnodes~1unstable~1{mix_id}~1test-results/get'
+    - '#/paths/~1v1~1status~1submit-gateway-monitoring-results/post'
+    - '#/paths/~1v1~1status~1submit-node-monitoring-results/post'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1full-fat~1/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1gateways~1skimmed/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1mixnodes~1skimmed/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1semi-skimmed~1/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1active/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1entry-gateways~1active/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1entry-gateways~1all/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1exit-gateways~1active/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1exit-gateways~1all/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1mixnodes~1active/get'
+    - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1mixnodes~1all/get'

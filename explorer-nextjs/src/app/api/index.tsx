@@ -108,7 +108,6 @@ export interface INodeDescription {
   contract_node_type: string;
   description: {
     authenticator: object;
-
     address: string;
     auxiliary_details: object;
     accepted_operator_terms_and_conditions: boolean;

@@ -1,35 +1,30 @@
-import type { NodeDescription } from "@/app/api/types";
+import type { IBondInfo, INodeDescription } from "@/app/api";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
 interface INodeMetricsCardProps {
-  nodeDescription: NodeDescription;
-  nodeId: number;
+  nodeDescription: INodeDescription;
 }
 
 export const NodeMetricsCard = (props: INodeMetricsCardProps) => {
-  const { nodeDescription, nodeId } = props;
+  const { nodeDescription } = props;
   return (
     <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
       <ExplorerListItem
         row
         divider
         label="Node ID."
-        value={nodeId.toString()}
+        value={nodeDescription.node_id.toString()}
       />
       <ExplorerListItem
         row
         divider
         label="Host"
-        value={nodeDescription.host_information.ip_address.toString()}
+        value={nodeDescription.description.host_information.ip_address.toString()}
       />
-      <ExplorerListItem
-        row
-        divider
-        label="Version"
-        value={nodeDescription.build_information.build_version}
-      />
-      <ExplorerListItem row label="Active set Prob." value="High" />
+      <ExplorerListItem row divider label="Staker rew." value="10,000 NYM" />
+      <ExplorerListItem row divider label="Version" value="1.1.1.1" />
+      <ExplorerListItem row divider label="Active set Prob." value="High" />
     </ExplorerCard>
   );
 };

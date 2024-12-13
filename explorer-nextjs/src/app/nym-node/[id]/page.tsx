@@ -5,6 +5,7 @@ import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerListItem from "@/components/list/ListItem";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
+import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
 import { StarRating } from "@/components/starRating";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Grid2 } from "@mui/material";
@@ -107,16 +108,8 @@ export default async function NymNode({
         >
           <NodeRewardsCard rewardDetails={nymNode.rewarding_details} />
         </Grid2>
-        <Grid2
-          size={{
-            xs: 12,
-            md: 6,
-          }}
-        >
-          <NodeMetricsCard
-            nodeDescription={nymNode.description}
-            nodeId={nymNode.bond_information.node_id}
-          />
+        <Grid2 size={6}>
+          <NodeMetricsCard nodeDescription={nodeDescriptionInfo[0]} />
         </Grid2>
       </Grid2>
     </ContentLayout>

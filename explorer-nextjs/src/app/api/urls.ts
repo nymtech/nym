@@ -22,3 +22,7 @@ export const CURRENT_EPOCH_REWARDS =
   "https://validator.nymtech.net/api/v1/epoch/reward_params";
 export const CIRCULATING_NYM_SUPPLY =
   "https://validator.nymtech.net/api/v1/circulating-supply";
+export const NYM_NODE_DESCRIPTION =
+  "https://nym-api.swiss-staking.ch/v1/nym-nodes/described";
+export const NYM_NODE_BONDED =
+  "https://nym-api.swiss-staking.ch/v1/nym-nodes/bonded";

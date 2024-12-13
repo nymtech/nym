@@ -1,12 +1,61 @@
+import type { IBondInfo, INodeDescription } from "@/app/api";
+import { NYM_NODE_BONDED, NYM_NODE_DESCRIPTION } from "@/app/api/urls";
 import ExplorerCard from "@/components/cards/ExplorerCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerListItem from "@/components/list/ListItem";
+import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
 import { StarRating } from "@/components/starRating";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Grid2, Stack } from "@mui/material";
 
-export default function NymNode() {
+export default async function NymNode({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const id = (await params).id;
+
+  const descriptionData = await fetch(NYM_NODE_DESCRIPTION, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+    // refresh event list cache at given interval
+  });
+  const nymNodesDescription = await descriptionData.json();
+
+  if (!nymNodesDescription) {
+    return null;
+  }
+
+  console.log("id :>> ", id);
+
+  const bondedData = await fetch(NYM_NODE_BONDED, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+    // refresh event list cache at given interval
+  });
+  const nymbondedData = await bondedData.json();
+
+  if (!bondedData) {
+    return null;
+  }
+
+  const nodeBondInfo = nymbondedData.data.filter(
+    (item: IBondInfo) => item.bond_information.node_id === 5,
+  );
+
+  const nodeDescriptionInfo = nymNodesDescription.data.filter(
+    (item: INodeDescription) => item.node_id === 5,
+  );
+
+  console.log("nodeDescriptionInfo :>> ", nodeDescriptionInfo);
+
   return (
     <ContentLayout>
       <Grid2 container columnSpacing={5} rowSpacing={5}>
@@ -33,28 +82,10 @@ export default function NymNode() {
           </ExplorerCard>
         </Grid2>
         <Grid2 size={4}>
-          <ExplorerCard label="Basic info">
-            <Stack gap={1}>
-              <ExplorerListItem
-                divider
-                label="NYM Address"
-                value="0x1234567890"
-              />
-              <ExplorerListItem
-                divider
-                label="Identity Key"
-                value="0x1234567890"
-              />
-              <ExplorerListItem
-                row
-                divider
-                label="Node bonded"
-                value="24/11/2024"
-              />
-              <ExplorerListItem row divider label="Nr. of stakes" value="56" />
-              <ExplorerListItem row label="Self bonded" value="10,000 NYM" />
-            </Stack>
-          </ExplorerCard>
+          <BasicInfoCard
+            bondInfo={nodeBondInfo[0]}
+            nodeDescription={nodeDescriptionInfo[0]}
+          />
         </Grid2>
         <Grid2 size={4}>
           <ExplorerCard

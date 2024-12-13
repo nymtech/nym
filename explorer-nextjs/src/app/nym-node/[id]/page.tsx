@@ -5,6 +5,7 @@ import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerListItem from "@/components/list/ListItem";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
+import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
 import { StarRating } from "@/components/starRating";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Grid2, Stack } from "@mui/material";
@@ -148,23 +149,7 @@ export default async function NymNode({
           </ExplorerCard>
         </Grid2>
         <Grid2 size={6}>
-          <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
-            <ExplorerListItem row divider label="Node ID." value="209" />
-            <ExplorerListItem row divider label="Host" value="45.10.145.123" />
-            <ExplorerListItem
-              row
-              divider
-              label="Staker rew."
-              value="10,000 NYM"
-            />
-            <ExplorerListItem row divider label="Version" value="1.1.1.1" />
-            <ExplorerListItem
-              row
-              divider
-              label="Active set Prob."
-              value="High"
-            />
-          </ExplorerCard>
+          <NodeMetricsCard nodeDescription={nodeDescriptionInfo[0]} />
         </Grid2>
       </Grid2>
     </ContentLayout>

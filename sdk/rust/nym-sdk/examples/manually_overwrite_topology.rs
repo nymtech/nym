@@ -3,8 +3,7 @@
 
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use nym_topology::mix::LegacyMixLayer;
-use nym_topology::{mix, NymTopology};
+use nym_topology::node::LegacyMixLayer;
 use std::collections::BTreeMap;
 
 #[tokio::main]
@@ -13,7 +12,7 @@ async fn main() {
 
     // Passing no config makes the client fire up an ephemeral session and figure shit out on its own
     let mut client = mixnet::MixnetClient::connect_new().await.unwrap();
-    let starting_topology = client.read_current_topology().await.unwrap();
+    let starting_topology = client.read_current_route_provider().await.unwrap();
 
     // but we don't like our default topology, we want to use only those very specific, hardcoded, nodes:
     let mut mixnodes = BTreeMap::new();

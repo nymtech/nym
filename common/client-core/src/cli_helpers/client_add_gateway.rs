@@ -112,7 +112,7 @@ where
                 source,
             }
         })?;
-        hardcoded_topology.get_gateways()
+        hardcoded_topology.entry_capable_nodes().cloned().collect()
     } else {
         let mut rng = rand::thread_rng();
         crate::init::helpers::current_gateways(
@@ -128,7 +128,7 @@ where
     // make sure the list of available gateways doesn't overlap the list of known gateways
     let available_gateways = available_gateways
         .into_iter()
-        .filter(|g| !registered_gateways.contains(g.identity()))
+        .filter(|g| !registered_gateways.contains(&g.identity()))
         .collect::<Vec<_>>();
 
     if available_gateways.is_empty() {

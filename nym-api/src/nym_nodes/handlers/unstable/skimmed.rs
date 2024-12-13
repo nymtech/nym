@@ -3,7 +3,6 @@
 
 use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
-use crate::nym_contract_cache::cache::CachedRewardedSet;
 use crate::nym_nodes::handlers::unstable::helpers::{refreshed_at, LegacyAnnotation};
 use crate::nym_nodes::handlers::unstable::{NodesParams, NodesParamsWithRole};
 use crate::support::caching::Cache;
@@ -15,6 +14,7 @@ use nym_api_requests::nym_nodes::{
     CachedNodesResponse, NodeRole, NodeRoleQueryParam, PaginatedCachedNodesResponse, SkimmedNode,
 };
 use nym_mixnet_contract_common::NodeId;
+use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
 use std::future::Future;
 use tokio::sync::RwLockReadGuard;
@@ -24,7 +24,7 @@ pub type PaginatedSkimmedNodes = AxumResult<Json<PaginatedCachedNodesResponse<Sk
 
 /// Given all relevant caches, build part of response for JUST Nym Nodes
 fn build_nym_nodes_response<'a, NI>(
-    rewarded_set: &CachedRewardedSet,
+    rewarded_set: &CachedEpochRewardedSet,
     nym_nodes_subset: NI,
     annotations: &HashMap<NodeId, NodeAnnotation>,
     active_only: bool,
@@ -55,7 +55,7 @@ where
 /// Given all relevant caches, add appropriate legacy nodes to the part of the response
 fn add_legacy<LN>(
     nodes: &mut Vec<SkimmedNode>,
-    rewarded_set: &CachedRewardedSet,
+    rewarded_set: &CachedEpochRewardedSet,
     describe_cache: &DescribedNodes,
     annotated_legacy_nodes: &HashMap<NodeId, LN>,
     active_only: bool,

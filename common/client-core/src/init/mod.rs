@@ -20,6 +20,7 @@ use nym_client_core_gateways_storage::GatewaysDetailsStore;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewayRegistration};
 use nym_gateway_client::client::InitGatewayClient;
 use nym_topology::gateway;
+use nym_topology::node::RoutingNode;
 use rand::rngs::OsRng;
 use rand::{CryptoRng, RngCore};
 use serde::Serialize;
@@ -50,7 +51,7 @@ async fn setup_new_gateway<K, D>(
     key_store: &K,
     details_store: &D,
     selection_specification: GatewaySelectionSpecification,
-    available_gateways: Vec<gateway::LegacyNode>,
+    available_gateways: Vec<RoutingNode>,
 ) -> Result<InitialisationResult, ClientCoreError>
 where
     K: KeyStore,

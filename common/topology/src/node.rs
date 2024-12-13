@@ -2,13 +2,16 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_api_requests::models::DeclaredRoles;
-use nym_api_requests::nym_nodes::{BasicEntryInformation, SkimmedNode};
+use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_mixnet_contract_common::{NaiveFloat, NodeId};
+use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
+use serde::{Deserialize, Serialize};
 use std::net::{IpAddr, SocketAddr};
 use thiserror::Error;
+
+pub use nym_mixnet_contract_common::LegacyMixLayer;
 
 #[derive(Error, Debug)]
 pub enum RoutingNodeError {
@@ -22,7 +25,7 @@ pub enum RoutingNodeError {
     },
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EntryDetails {
     // to allow client to choose ipv6 preference, if available
     pub ip_addresses: Vec<IpAddr>,
@@ -31,7 +34,7 @@ pub struct EntryDetails {
     pub clients_wss_port: Option<u16>,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 pub struct SupportedRoles {
     pub mixnode: bool,
     pub mixnet_entry: bool,
@@ -48,7 +51,7 @@ impl From<DeclaredRoles> for SupportedRoles {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct RoutingNode {
     pub node_id: NodeId,
 
@@ -59,16 +62,32 @@ pub struct RoutingNode {
     pub sphinx_key: x25519::PublicKey,
 
     pub supported_roles: SupportedRoles,
-    pub performance: f64,
 }
 
 impl RoutingNode {
     pub fn ws_entry_address_tls(&self) -> Option<String> {
-        todo!()
+        let entry = self.entry.as_ref()?;
+        let hostname = entry.hostname.as_ref()?;
+        let wss_port = entry.clients_wss_port?;
+
+        Some(format!("wss://{hostname}:{wss_port}"))
     }
 
     pub fn ws_entry_address_no_tls(&self, prefer_ipv6: bool) -> Option<String> {
-        todo!()
+        let entry = self.entry.as_ref()?;
+
+        if let Some(hostname) = entry.hostname.as_ref() {
+            return Some(format!("ws://{hostname}:{}", entry.clients_ws_port));
+        }
+
+        if prefer_ipv6 {
+            if let Some(ipv6) = entry.ip_addresses.iter().find(|ip| ip.is_ipv6()) {
+                return Some(format!("ws://{ipv6}:{}", entry.clients_ws_port));
+            }
+        }
+
+        let any_ip = entry.ip_addresses.first()?;
+        Some(format!("ws://{any_ip}:{}", entry.clients_ws_port))
     }
 
     pub fn ws_entry_address(&self, prefer_ipv6: bool) -> Option<String> {
@@ -100,6 +119,10 @@ impl<'a> TryFrom<&'a SkimmedNode> for RoutingNode {
     type Error = RoutingNodeError;
 
     fn try_from(value: &'a SkimmedNode) -> Result<Self, Self::Error> {
+        // IF YOU EVER ADD "performance" TO RoutingNode,
+        // MAKE SURE TO UPDATE THE LAZY IMPLEMENTATION OF
+        // `impl NodeDescriptionTopologyExt for NymNodeDescription`!!!
+
         let Some(first_ip) = value.ip_addresses.first() else {
             return Err(RoutingNodeError::NoIpAddressesProvided {
                 node_id: value.node_id,
@@ -124,7 +147,6 @@ impl<'a> TryFrom<&'a SkimmedNode> for RoutingNode {
             identity_key: value.ed25519_identity_pubkey,
             sphinx_key: value.x25519_sphinx_pubkey,
             supported_roles: value.supported_roles.into(),
-            performance: value.performance.naive_to_f64(),
         })
     }
 }

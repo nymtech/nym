@@ -10,6 +10,25 @@ use nym_mixnet_contract_common::{
     Gateway, GatewayBond, LegacyMixLayer, MixNode, MixNodeBond, NymNodeDetails,
 };
 use rand::prelude::SliceRandom;
+use std::net::{IpAddr, ToSocketAddrs};
+use std::str::FromStr;
+
+pub(crate) fn legacy_host_to_ips_and_hostname(
+    legacy: &str,
+) -> Option<(Vec<IpAddr>, Option<String>)> {
+    if let Ok(ip) = IpAddr::from_str(legacy) {
+        return Some((vec![ip], None));
+    }
+
+    let resolved = (legacy, 1789u16)
+        .to_socket_addrs()
+        .ok()?
+        .collect::<Vec<_>>();
+    Some((
+        resolved.into_iter().map(|s| s.ip()).collect(),
+        Some(legacy.to_string()),
+    ))
+}
 
 pub(crate) fn to_legacy_mixnode(
     nym_node: &NymNodeDetails,

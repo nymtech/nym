@@ -5,26 +5,26 @@ use crate::network_monitor::monitor::sender::GatewayPackets;
 use crate::network_monitor::test_route::TestRoute;
 use crate::node_describe_cache::{DescribedNodes, NodeDescriptionTopologyExt};
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::{CachedRewardedSet, NymContractCache};
+use crate::nym_contract_cache::cache::NymContractCache;
 use crate::support::caching::cache::SharedCache;
+use crate::support::legacy_helpers::legacy_host_to_ips_and_hostname;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer};
 use nym_api_requests::models::{NodeAnnotation, NymNodeDescription};
 use nym_contracts_common::NaiveFloat;
 use nym_crypto::asymmetric::{encryption, identity};
 use nym_mixnet_contract_common::{LegacyMixLayer, NodeId};
-use nym_node_tester_utils::node::TestableNode;
+use nym_node_tester_utils::node::{NodeType, TestableNode};
 use nym_node_tester_utils::NodeTester;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::forwarding::packet::MixPacket;
 use nym_sphinx::params::{PacketSize, PacketType};
-use nym_topology::gateway::GatewayConversionError;
-use nym_topology::mix::MixnodeConversionError;
-use nym_topology::{gateway, mix};
+use nym_topology::node::{EntryDetails, RoutingNode, SupportedRoles};
 use rand::prelude::SliceRandom;
 use rand::{rngs::ThreadRng, thread_rng, Rng};
 use std::collections::HashMap;
 use std::fmt::{self, Display, Formatter};
+use std::net::SocketAddr;
 use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error, info, trace};
@@ -135,7 +135,7 @@ impl PacketPreparer {
 
     // when we're testing mixnodes, the recipient is going to stay constant, so we can specify it ahead of time
     fn ephemeral_mix_tester(&self, test_route: &TestRoute) -> NodeTester<ThreadRng> {
-        let self_address = self.create_packet_sender(test_route.gateway());
+        let self_address = self.create_packet_sender(&test_route.gateway());
         self.ephemeral_tester(test_route, Some(self_address))
     }
 
@@ -210,75 +210,87 @@ impl PacketPreparer {
         (mixnodes, gateways)
     }
 
-    pub(crate) fn try_parse_mix_bond(
+    pub(crate) fn try_parse_legacy_mix_bond(
         &self,
         bond: &LegacyMixNodeBondWithLayer,
-    ) -> Result<mix::LegacyNode, String> {
-        fn parse_bond(
-            bond: &LegacyMixNodeBondWithLayer,
-        ) -> Result<mix::LegacyNode, MixnodeConversionError> {
-            let host = mix::LegacyNode::parse_host(&bond.mix_node.host)?;
+    ) -> Result<RoutingNode, String> {
+        fn parse_bond(bond: &LegacyMixNodeBondWithLayer) -> Option<RoutingNode> {
+            let (ips, _) = legacy_host_to_ips_and_hostname(&bond.mix_node.host)?;
 
-            // try to completely resolve the host in the mix situation to avoid doing it every
-            // single time we want to construct a path
-            let mix_host = mix::LegacyNode::extract_mix_host(&host, bond.mix_node.mix_port)?;
-
-            Ok(mix::LegacyNode {
-                mix_id: bond.mix_id,
-                host,
-                mix_host,
-                identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)?,
-                sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)?,
-                layer: bond.layer,
-                version: bond.mix_node.version.as_str().into(),
+            Some(RoutingNode {
+                node_id: bond.mix_id,
+                mix_host: SocketAddr::new(*ips.first()?, bond.mix_node.mix_port),
+                entry: None,
+                identity_key: identity::PublicKey::from_base58_string(&bond.mix_node.identity_key)
+                    .ok()?,
+                sphinx_key: encryption::PublicKey::from_base58_string(&bond.mix_node.sphinx_key)
+                    .ok()?,
+                supported_roles: SupportedRoles {
+                    mixnode: true,
+                    mixnet_entry: false,
+                    mixnet_exit: false,
+                },
             })
         }
 
         let identity = bond.mix_node.identity_key.clone();
-        parse_bond(bond).map_err(|_| identity)
+        parse_bond(bond).ok_or(identity)
     }
 
-    pub(crate) fn try_parse_gateway_bond(
+    pub(crate) fn try_parse_legacy_gateway_bond(
         &self,
         gateway: &LegacyGatewayBondWithId,
-    ) -> Result<gateway::LegacyNode, String> {
-        fn parse_bond(
-            bond: &LegacyGatewayBondWithId,
-        ) -> Result<gateway::LegacyNode, GatewayConversionError> {
-            let host = gateway::LegacyNode::parse_host(&bond.gateway.host)?;
+    ) -> Result<RoutingNode, String> {
+        fn parse_bond(bond: &LegacyGatewayBondWithId) -> Option<RoutingNode> {
+            let (ips, hostname) = legacy_host_to_ips_and_hostname(&bond.gateway.host)?;
 
-            // try to completely resolve the host in the mix situation to avoid doing it every
-            // single time we want to construct a path
-            let mix_host = gateway::LegacyNode::extract_mix_host(&host, bond.gateway.mix_port)?;
-
-            Ok(gateway::LegacyNode {
+            Some(RoutingNode {
                 node_id: bond.node_id,
-                host,
-                mix_host,
-                clients_ws_port: bond.gateway.clients_port,
-                clients_wss_port: None,
-                identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)?,
-                sphinx_key: encryption::PublicKey::from_base58_string(&bond.gateway.sphinx_key)?,
-                version: bond.gateway.version.as_str().into(),
+                mix_host: SocketAddr::new(*ips.first()?, bond.gateway.mix_port),
+                entry: Some(EntryDetails {
+                    ip_addresses: ips,
+                    clients_ws_port: bond.gateway.clients_port,
+                    hostname,
+                    clients_wss_port: None,
+                }),
+                identity_key: identity::PublicKey::from_base58_string(&bond.gateway.identity_key)
+                    .ok()?,
+                sphinx_key: encryption::PublicKey::from_base58_string(&bond.gateway.sphinx_key)
+                    .ok()?,
+                supported_roles: SupportedRoles {
+                    mixnode: false,
+                    mixnet_entry: true,
+                    mixnet_exit: false,
+                },
             })
         }
 
         let identity = gateway.gateway.identity_key.clone();
-        parse_bond(gateway).map_err(|_| identity)
+        parse_bond(gateway).ok_or(identity)
+    }
+
+    fn random_legacy_layer<R: Rng>(&self, rng: &mut R) -> LegacyMixLayer {
+        let layer_choices = [
+            LegacyMixLayer::One,
+            LegacyMixLayer::Two,
+            LegacyMixLayer::Three,
+        ];
+
+        // SAFETY: the slice is not empty so the unwrap is fine
+        #[allow(clippy::unwrap_used)]
+        layer_choices.choose(rng).copied().unwrap()
     }
 
     fn to_legacy_layered_mixes<'a, R: Rng>(
         &self,
         rng: &mut R,
-        rewarded_set: &CachedRewardedSet,
         node_statuses: &HashMap<NodeId, NodeAnnotation>,
         mixing_nym_nodes: impl Iterator<Item = &'a NymNodeDescription> + 'a,
-    ) -> HashMap<LegacyMixLayer, Vec<(mix::LegacyNode, f64)>> {
+    ) -> HashMap<LegacyMixLayer, Vec<(RoutingNode, f64)>> {
         let mut layered_mixes = HashMap::new();
 
         for mixing_nym_node in mixing_nym_nodes {
-            let Some(parsed_node) = self.nym_node_to_legacy_mix(rng, rewarded_set, mixing_nym_node)
-            else {
+            let Some(parsed_node) = self.nym_node_to_routing_node(mixing_nym_node) else {
                 continue;
             };
             // if the node is not present, default to 0.5
@@ -286,7 +298,7 @@ impl PacketPreparer {
                 .get(&mixing_nym_node.node_id)
                 .map(|node| node.last_24h_performance.naive_to_f64())
                 .unwrap_or(0.5);
-            let layer = parsed_node.layer;
+            let layer = self.random_legacy_layer(rng);
             let layer_mixes = layered_mixes.entry(layer).or_insert_with(Vec::new);
             layer_mixes.push((parsed_node, weight))
         }
@@ -298,11 +310,11 @@ impl PacketPreparer {
         &self,
         node_statuses: &HashMap<NodeId, NodeAnnotation>,
         gateway_capable_nym_nodes: impl Iterator<Item = &'a NymNodeDescription> + 'a,
-    ) -> Vec<(gateway::LegacyNode, f64)> {
+    ) -> Vec<(RoutingNode, f64)> {
         let mut gateways = Vec::new();
 
         for gateway_capable_node in gateway_capable_nym_nodes {
-            let Some(parsed_node) = self.nym_node_to_legacy_gateway(gateway_capable_node) else {
+            let Some(parsed_node) = self.nym_node_to_routing_node(gateway_capable_node) else {
                 continue;
             };
             // if the node is not present, default to 0.5
@@ -321,8 +333,6 @@ impl PacketPreparer {
     // if generated fewer than n, blacklist will be updated by external function with correctly generated
     // routes so that they wouldn't be reused
     pub(crate) async fn prepare_test_routes(&self, n: usize) -> Option<Vec<TestRoute>> {
-        let rewarded_set = self.contract_cache.rewarded_set().await?;
-
         let descriptions = self.described_cache.get().await.ok()?;
         let statuses = self.node_status_cache.node_annotations().await?;
 
@@ -333,8 +343,7 @@ impl PacketPreparer {
         let mut rng = thread_rng();
 
         // separate mixes into layers for easier selection alongside the selection weights
-        let layered_mixes =
-            self.to_legacy_layered_mixes(&mut rng, &rewarded_set, &statuses, mixing_nym_nodes);
+        let layered_mixes = self.to_legacy_layered_mixes(&mut rng, &statuses, mixing_nym_nodes);
         let gateways = self.to_legacy_gateway_nodes(&statuses, gateway_capable_nym_nodes);
 
         // get all nodes from each layer...
@@ -394,7 +403,7 @@ impl PacketPreparer {
         Some(routes)
     }
 
-    fn create_packet_sender(&self, gateway: &gateway::LegacyNode) -> Recipient {
+    fn create_packet_sender(&self, gateway: &RoutingNode) -> Recipient {
         Recipient::new(
             self.self_public_identity,
             self.self_public_encryption,
@@ -410,7 +419,8 @@ impl PacketPreparer {
         _packet_type: PacketType,
     ) -> GatewayPackets {
         let mut tester = self.ephemeral_mix_tester(route);
-        let topology = route.topology();
+        let topology = route.testable_route_provider();
+
         let plaintexts = route.self_test_messages(num);
 
         // the unwrap here is fine as:
@@ -419,7 +429,7 @@ impl PacketPreparer {
         // 3. the test message is not too long, i.e. when serialized it will fit in a single sphinx packet
         let mix_packets = plaintexts
             .into_iter()
-            .map(|p| tester.wrap_plaintext_data(p, topology, None).unwrap())
+            .map(|p| tester.wrap_plaintext_data(p, &topology, None).unwrap())
             .map(MixPacket::from)
             .collect();
 
@@ -433,11 +443,11 @@ impl PacketPreparer {
     fn filter_outdated_and_malformed_mixnodes(
         &self,
         nodes: Vec<LegacyMixNodeBondWithLayer>,
-    ) -> (Vec<mix::LegacyNode>, Vec<InvalidNode>) {
+    ) -> (Vec<RoutingNode>, Vec<InvalidNode>) {
         let mut parsed_nodes = Vec::new();
         let mut invalid_nodes = Vec::new();
         for mixnode in nodes {
-            if let Ok(parsed_node) = self.try_parse_mix_bond(&mixnode) {
+            if let Ok(parsed_node) = self.try_parse_legacy_mix_bond(&mixnode) {
                 parsed_nodes.push(parsed_node)
             } else {
                 invalid_nodes.push(InvalidNode::Malformed {
@@ -451,12 +461,12 @@ impl PacketPreparer {
     fn filter_outdated_and_malformed_gateways(
         &self,
         nodes: Vec<LegacyGatewayBondWithId>,
-    ) -> (Vec<(gateway::LegacyNode, NodeId)>, Vec<InvalidNode>) {
+    ) -> (Vec<RoutingNode>, Vec<InvalidNode>) {
         let mut parsed_nodes = Vec::new();
         let mut invalid_nodes = Vec::new();
         for gateway in nodes {
-            if let Ok(parsed_node) = self.try_parse_gateway_bond(&gateway) {
-                parsed_nodes.push((parsed_node, gateway.node_id))
+            if let Ok(parsed_node) = self.try_parse_legacy_gateway_bond(&gateway) {
+                parsed_nodes.push(parsed_node)
             } else {
                 invalid_nodes.push(InvalidNode::Malformed {
                     node: TestableNode::new_gateway(
@@ -469,41 +479,8 @@ impl PacketPreparer {
         (parsed_nodes, invalid_nodes)
     }
 
-    fn nym_node_to_legacy_mix<R: Rng>(
-        &self,
-        rng: &mut R,
-        rewarded_set: &CachedRewardedSet,
-        mixing_nym_node: &NymNodeDescription,
-    ) -> Option<mix::LegacyNode> {
-        let maybe_explicit_layer = rewarded_set
-            .try_get_mix_layer(&mixing_nym_node.node_id)
-            .and_then(|layer| LegacyMixLayer::try_from(layer).ok());
-
-        let layer = match maybe_explicit_layer {
-            Some(layer) => layer,
-            None => {
-                let layer_choices = [
-                    LegacyMixLayer::One,
-                    LegacyMixLayer::Two,
-                    LegacyMixLayer::Three,
-                ];
-
-                // if nym-node doesn't have a layer assigned, since it's either standby or inactive,
-                // we have to choose one randomly for the testing purposes
-                // SAFETY: the slice is not empty so the unwrap is fine
-                #[allow(clippy::unwrap_used)]
-                layer_choices.choose(rng).copied().unwrap()
-            }
-        };
-
-        mixing_nym_node.try_to_topology_mix_node(layer).ok()
-    }
-
-    fn nym_node_to_legacy_gateway(
-        &self,
-        gateway_capable_node: &NymNodeDescription,
-    ) -> Option<gateway::LegacyNode> {
-        gateway_capable_node.try_to_topology_gateway().ok()
+    fn nym_node_to_routing_node(&self, description: &NymNodeDescription) -> Option<RoutingNode> {
+        description.try_to_topology_node().ok()
     }
 
     pub(super) async fn prepare_test_packets(
@@ -514,7 +491,6 @@ impl PacketPreparer {
         _packet_type: PacketType,
     ) -> PreparedPackets {
         let (mixnodes, gateways) = self.all_legacy_mixnodes_and_gateways().await;
-        let rewarded_set = self.contract_cache.rewarded_set().await;
 
         let descriptions = self
             .described_cache
@@ -532,28 +508,32 @@ impl PacketPreparer {
         // summary of nodes that got tested
         let mut mixnodes_under_test = mixnodes_to_test_details
             .iter()
-            .map(|node| node.into())
+            .map(|node| TestableNode::new_routing(node, NodeType::Mixnode))
             .collect::<Vec<_>>();
         let mut gateways_under_test = gateways_to_test_details
             .iter()
-            .map(|node| node.into())
+            .map(|node| TestableNode::new_routing(node, NodeType::Gateway))
             .collect::<Vec<_>>();
 
         // try to add nym-nodes into the fold
-        if let Some(rewarded_set) = rewarded_set {
-            let mut rng = thread_rng();
-            for mix in mixing_nym_nodes {
-                if let Some(parsed) = self.nym_node_to_legacy_mix(&mut rng, &rewarded_set, mix) {
-                    mixnodes_under_test.push(TestableNode::from(&parsed));
-                    mixnodes_to_test_details.push(parsed);
-                }
+        for mix in mixing_nym_nodes {
+            if let Some(parsed) = self.nym_node_to_routing_node(mix) {
+                mixnodes_under_test.push(TestableNode::new_routing(&parsed, NodeType::Mixnode));
+                mixnodes_to_test_details.push(parsed);
             }
         }
 
+        // assign random layer to each node
+        let mut rng = thread_rng();
+        let mixnodes_to_test_details = mixnodes_to_test_details
+            .into_iter()
+            .map(|node| (self.random_legacy_layer(&mut rng), node))
+            .collect::<Vec<_>>();
+
         for gateway in gateway_capable_nym_nodes {
-            if let Some(parsed) = self.nym_node_to_legacy_gateway(gateway) {
-                gateways_under_test.push((&parsed, gateway.node_id).into());
-                gateways_to_test_details.push((parsed, gateway.node_id));
+            if let Some(parsed) = self.nym_node_to_routing_node(gateway) {
+                gateways_under_test.push(TestableNode::new_routing(&parsed, NodeType::Gateway));
+                gateways_to_test_details.push(parsed);
             }
         }
 
@@ -594,10 +574,10 @@ impl PacketPreparer {
             gateway_packets.push_packets(mix_packets);
 
             // and generate test packets for gateways (note the variable recipient)
-            for (gateway, node_id) in &gateways_to_test_details {
+            for gateway in &gateways_to_test_details {
                 let recipient = self.create_packet_sender(gateway);
                 let gateway_identity = gateway.identity_key;
-                let gateway_address = gateway.clients_address();
+                let gateway_address = gateway.ws_entry_address(false);
 
                 // the unwrap here is fine as:
                 // 1. the topology is definitely valid (otherwise we wouldn't be here)
@@ -607,7 +587,6 @@ impl PacketPreparer {
                 let gateway_test_packets = mix_tester
                     .legacy_gateway_test_packets(
                         gateway,
-                        *node_id,
                         route_ext,
                         self.per_node_test_packets as u32,
                         Some(recipient),

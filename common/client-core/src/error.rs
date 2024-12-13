@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::transceiver::ErasedGatewayError;
+use nym_crypto::asymmetric::ed25519;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
 use nym_topology::gateway::GatewayConversionError;
-use nym_topology::NymTopologyError;
+use nym_topology::{NodeId, NymTopologyError};
 use nym_validator_client::ValidatorClientError;
 use std::error::Error;
 use std::path::PathBuf;
@@ -158,6 +159,12 @@ pub enum ClientCoreError {
 
     #[error("the specified gateway '{gateway}' does not support the wss protocol")]
     UnsupportedWssProtocol { gateway: String },
+
+    #[error("node {id} ({identity}) does not support mixnet entry mode")]
+    UnsupportedEntry {
+        id: NodeId,
+        identity: ed25519::PublicKey,
+    },
 
     #[error(
     "failed to load custom topology using path '{}'. detailed message: {source}", file_path.display()

@@ -14,7 +14,7 @@ use nym_sphinx_anonymous_replies::reply_surb::ReplySurb;
 use nym_sphinx_chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_params::packet_sizes::PacketSize;
-use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx_params::{PacketType, ReplySurbKeyDigestAlgorithm};
 use nym_sphinx_types::{Delay, NymPacket};
 use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng, SeedableRng};
@@ -54,7 +54,6 @@ pub trait FragmentPreparer {
     fn deterministic_route_selection(&self) -> bool;
     fn rng(&mut self) -> &mut Self::Rng;
     fn nonce(&self) -> i32;
-    fn num_mix_hops(&self) -> u8;
     fn average_packet_delay(&self) -> Duration;
     fn average_ack_delay(&self) -> Duration;
 
@@ -130,9 +129,8 @@ pub trait FragmentPreparer {
             .expect("the message has been incorrectly fragmented");
 
         // this is not going to be accurate by any means. but that's the best estimation we can do
-        let expected_forward_delay = Delay::new_from_millis(
-            (self.average_packet_delay().as_millis() * self.num_mix_hops() as u128) as u64,
-        );
+        let expected_forward_delay =
+            Delay::new_from_millis((self.average_packet_delay().as_millis() * 3) as u64);
 
         let fragment_identifier = fragment.fragment_identifier();
 
@@ -333,10 +331,6 @@ pub struct MessagePreparer<R> {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
-    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
-    /// Note that it does not include gateway hops.
-    num_mix_hops: u8,
-
     nonce: i32,
 }
 
@@ -359,15 +353,8 @@ where
             sender_address,
             average_packet_delay,
             average_ack_delay,
-            num_mix_hops: DEFAULT_NUM_MIX_HOPS,
             nonce,
         }
-    }
-
-    /// Allows setting non-default number of expected mix hops in the network.
-    pub fn with_mix_hops(mut self, hops: u8) -> Self {
-        self.num_mix_hops = hops;
-        self
     }
 
     /// Overwrites existing sender address with the provided value.
@@ -477,10 +464,6 @@ impl<R: CryptoRng + Rng> FragmentPreparer for MessagePreparer<R> {
 
     fn nonce(&self) -> i32 {
         self.nonce
-    }
-
-    fn num_mix_hops(&self) -> u8 {
-        self.num_mix_hops
     }
 
     fn average_packet_delay(&self) -> Duration {

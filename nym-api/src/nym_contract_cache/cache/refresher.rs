@@ -9,7 +9,7 @@ use anyhow::Result;
 use nym_api_requests::legacy::{
     LegacyGatewayBondWithId, LegacyMixNodeBondWithLayer, LegacyMixNodeDetailsWithLayer,
 };
-use nym_mixnet_contract_common::{EpochRewardedSet, LegacyMixLayer, RewardedSet};
+use nym_mixnet_contract_common::{EpochRewardedSet, LegacyMixLayer};
 use nym_task::TaskClient;
 use nym_validator_client::nyxd::contract_traits::{
     MixnetQueryClient, NymContractsProvider, VestingQueryClient,

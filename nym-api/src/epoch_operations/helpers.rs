@@ -6,9 +6,7 @@ use crate::support::caching::Cache;
 use cosmwasm_std::{Decimal, Fraction};
 use nym_api_requests::models::NodeAnnotation;
 use nym_mixnet_contract_common::reward_params::{NodeRewardingParameters, Performance, WorkFactor};
-use nym_mixnet_contract_common::{
-    EpochRewardedSet, ExecuteMsg, NodeId, RewardedSet, RewardingParams,
-};
+use nym_mixnet_contract_common::{EpochRewardedSet, ExecuteMsg, NodeId, RewardingParams};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use tokio::sync::RwLockReadGuard;

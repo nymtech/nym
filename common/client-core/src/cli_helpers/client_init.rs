@@ -167,7 +167,7 @@ where
                 source,
             }
         })?;
-        hardcoded_topology.get_gateways()
+        hardcoded_topology.entry_capable_nodes().cloned().collect()
     } else {
         let mut rng = rand::thread_rng();
         crate::init::helpers::current_gateways(

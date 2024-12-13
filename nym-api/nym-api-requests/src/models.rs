@@ -1377,6 +1377,20 @@ impl From<RewardedSetResponse> for nym_mixnet_contract_common::EpochRewardedSet 
     }
 }
 
+impl From<nym_mixnet_contract_common::EpochRewardedSet> for RewardedSetResponse {
+    fn from(r: nym_mixnet_contract_common::EpochRewardedSet) -> Self {
+        RewardedSetResponse {
+            epoch_id: r.epoch_id,
+            entry_gateways: r.assignment.entry_gateways,
+            exit_gateways: r.assignment.exit_gateways,
+            layer1: r.assignment.layer1,
+            layer2: r.assignment.layer2,
+            layer3: r.assignment.layer3,
+            standby: r.assignment.standby,
+        }
+    }
+}
+
 pub use config_score::*;
 pub mod config_score {
     use nym_contracts_common::NaiveFloat;

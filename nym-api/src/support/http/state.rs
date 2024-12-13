@@ -8,7 +8,7 @@ use crate::node_describe_cache::DescribedNodes;
 use crate::node_status_api::handlers::unstable;
 use crate::node_status_api::models::AxumErrorResponse;
 use crate::node_status_api::NodeStatusCache;
-use crate::nym_contract_cache::cache::{CachedRewardedSet, NymContractCache};
+use crate::nym_contract_cache::cache::NymContractCache;
 use crate::status::ApiStatusState;
 use crate::support::caching::cache::SharedCache;
 use crate::support::caching::Cache;
@@ -17,6 +17,7 @@ use axum::extract::FromRef;
 use nym_api_requests::models::{GatewayBondAnnotated, MixNodeBondAnnotated, NodeAnnotation};
 use nym_mixnet_contract_common::NodeId;
 use nym_task::TaskManager;
+use nym_topology::CachedEpochRewardedSet;
 use std::collections::HashMap;
 use std::sync::Arc;
 use time::OffsetDateTime;
@@ -166,7 +167,7 @@ impl AppState {
 
     pub(crate) async fn rewarded_set(
         &self,
-    ) -> Result<RwLockReadGuard<Cache<CachedRewardedSet>>, AxumErrorResponse> {
+    ) -> Result<RwLockReadGuard<Cache<CachedEpochRewardedSet>>, AxumErrorResponse> {
         self.nym_contract_cache()
             .rewarded_set()
             .await

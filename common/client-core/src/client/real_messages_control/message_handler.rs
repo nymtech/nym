@@ -15,11 +15,11 @@ use nym_sphinx::anonymous_replies::requests::{AnonymousSenderTag, RepliableMessa
 use nym_sphinx::anonymous_replies::{ReplySurb, SurbEncryptionKey};
 use nym_sphinx::chunking::fragment::{Fragment, FragmentIdentifier};
 use nym_sphinx::message::NymMessage;
-use nym_sphinx::params::{PacketSize, PacketType, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx::params::{PacketSize, PacketType};
 use nym_sphinx::preparer::{MessagePreparer, PreparedFragment};
 use nym_sphinx::Delay;
 use nym_task::connections::TransmissionLane;
-use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError};
+use nym_topology::{NymRouteProvider, NymTopologyError};
 use rand::{CryptoRng, Rng};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -100,10 +100,6 @@ pub(crate) struct Config {
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
 
-    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
-    /// Note that it does not include gateway hops.
-    num_mix_hops: u8,
-
     /// Primary predefined packet size used for the encapsulated messages.
     primary_packet_size: PacketSize,
 
@@ -125,17 +121,9 @@ impl Config {
             deterministic_route_selection,
             average_packet_delay,
             average_ack_delay,
-            num_mix_hops: DEFAULT_NUM_MIX_HOPS,
             primary_packet_size: PacketSize::default(),
             secondary_packet_size: None,
         }
-    }
-
-    /// Allows setting non-default number of expected mix hops in the network.
-    #[allow(dead_code)]
-    pub fn with_mix_hops(mut self, hops: u8) -> Self {
-        self.num_mix_hops = hops;
-        self
     }
 
     /// Allows setting non-default size of the sphinx packets sent out.
@@ -185,9 +173,7 @@ where
             config.sender_address,
             config.average_packet_delay,
             config.average_ack_delay,
-        )
-        .with_mix_hops(config.num_mix_hops);
-
+        );
         MessageHandler {
             config,
             rng,
@@ -233,9 +219,8 @@ where
             return self.config.primary_packet_size;
         };
 
-        let primary_count =
-            msg.required_packets(self.config.primary_packet_size, self.config.num_mix_hops);
-        let secondary_count = msg.required_packets(secondary_packet, self.config.num_mix_hops);
+        let primary_count = msg.required_packets(self.config.primary_packet_size);
+        let secondary_count = msg.required_packets(secondary_packet);
 
         trace!("This message would require: {primary_count} primary packets or {secondary_count} secondary packets...");
         // if there would be no benefit in using the secondary packet - use the primary (duh)
@@ -553,16 +538,13 @@ where
         let topology_permit = self.topology_access.get_read_permit().await;
         let topology = self.get_topology(&topology_permit)?;
 
-        let prepared_fragment = self
-            .message_preparer
-            .prepare_chunk_for_sending(
-                chunk,
-                topology,
-                &self.config.ack_key,
-                &recipient,
-                packet_type,
-            )
-            .unwrap();
+        let prepared_fragment = self.message_preparer.prepare_chunk_for_sending(
+            chunk,
+            topology,
+            &self.config.ack_key,
+            &recipient,
+            packet_type,
+        )?;
 
         Ok(prepared_fragment)
     }
@@ -615,16 +597,13 @@ where
             Err(err) => return Err(err.return_surbs(vec![reply_surb])),
         };
 
-        let prepared_fragment = self
-            .message_preparer
-            .prepare_reply_chunk_for_sending(
-                chunk,
-                topology,
-                &self.config.ack_key,
-                reply_surb,
-                PacketType::Mix,
-            )
-            .unwrap();
+        let prepared_fragment = self.message_preparer.prepare_reply_chunk_for_sending(
+            chunk,
+            topology,
+            &self.config.ack_key,
+            reply_surb,
+            PacketType::Mix,
+        )?;
 
         Ok(prepared_fragment)
     }

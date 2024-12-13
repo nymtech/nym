@@ -51,6 +51,7 @@ impl IpPacketRequest {
         )
     }
 
+    #[allow(deprecated)]
     pub fn new_dynamic_connect_request(
         reply_to: Recipient,
         reply_to_hops: Option<u8>,

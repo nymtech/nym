@@ -1,10 +1,10 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::{RoutingNode, SupportedRoles};
 use crate::{NetworkAddress, NodeVersion};
 use nym_api_requests::nym_nodes::{NodeRole, SkimmedNode};
 use nym_crypto::asymmetric::{encryption, identity};
-pub use nym_mixnet_contract_common::LegacyMixLayer;
 use nym_mixnet_contract_common::NodeId;
 use nym_sphinx_addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx_types::Node as SphinxNode;
@@ -55,6 +55,23 @@ pub struct LegacyNode {
     pub version: NodeVersion,
 }
 
+impl From<LegacyNode> for RoutingNode {
+    fn from(node: LegacyNode) -> Self {
+        RoutingNode {
+            node_id: node.mix_id,
+            mix_host: node.mix_host,
+            entry: None,
+            identity_key: node.identity_key,
+            sphinx_key: node.sphinx_key,
+            supported_roles: SupportedRoles {
+                mixnode: true,
+                mixnet_entry: false,
+                mixnet_exit: false,
+            },
+        }
+    }
+}
+
 impl std::fmt::Debug for LegacyNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("mix::Node")
@@ -66,26 +83,6 @@ impl std::fmt::Debug for LegacyNode {
             .field("layer", &self.layer)
             .field("version", &self.version)
             .finish()
-    }
-}
-
-impl LegacyNode {
-    pub fn parse_host(raw: &str) -> Result<NetworkAddress, MixnodeConversionError> {
-        // safety: this conversion is infallible
-        // (but we retain result return type for legacy reasons)
-        Ok(raw.parse().unwrap())
-    }
-
-    pub fn extract_mix_host(
-        host: &NetworkAddress,
-        mix_port: u16,
-    ) -> Result<SocketAddr, MixnodeConversionError> {
-        Ok(host.to_socket_addrs(mix_port).map_err(|err| {
-            MixnodeConversionError::InvalidAddress {
-                value: host.to_string(),
-                source: err,
-            }
-        })?[0])
     }
 }
 

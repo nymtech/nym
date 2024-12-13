@@ -32,7 +32,7 @@ nym-sphinx = { path = "../../nymsphinx" }
 nym-sphinx-acknowledgements = { path = "../../nymsphinx/acknowledgements", features = ["serde"] }
 nym-statistics-common = { path = "../../statistics" }
 nym-task = { path = "../../task" }
-nym-topology = { path = "../../topology", features = ["serde", "wasm-serde-types"] }
+nym-topology = { path = "../../topology", features = ["wasm-serde-types"] }
 nym-validator-client = { path = "../../client-libs/validator-client", default-features = false }
 wasm-utils = { path = "../utils" }
 wasm-storage = { path = "../storage" }

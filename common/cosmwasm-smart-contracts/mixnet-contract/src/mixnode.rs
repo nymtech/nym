@@ -7,6 +7,7 @@
 use crate::constants::{TOKEN_SUPPLY, UNIT_DELEGATION_BASE};
 use crate::error::MixnetContractError;
 use crate::helpers::IntoBaseDecimal;
+use crate::nym_node::Role;
 use crate::reward_params::{NodeRewardingParameters, RewardingParams};
 use crate::rewarding::helpers::truncate_reward;
 use crate::rewarding::RewardDistribution;
@@ -609,6 +610,16 @@ pub enum LegacyMixLayer {
     One = 1,
     Two = 2,
     Three = 3,
+}
+
+impl From<LegacyMixLayer> for Role {
+    fn from(layer: LegacyMixLayer) -> Self {
+        match layer {
+            LegacyMixLayer::One => Role::Layer1,
+            LegacyMixLayer::Two => Role::Layer2,
+            LegacyMixLayer::Three => Role::Layer3,
+        }
+    }
 }
 
 impl From<LegacyMixLayer> for String {

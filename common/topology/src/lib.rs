@@ -1,77 +1,40 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-pub use error::NymTopologyError;
-use log::{debug, info, warn};
-use nym_api_requests::nym_nodes::{CachedNodesResponse, SkimmedNode};
-use nym_config::defaults::var_names::NYM_API;
-use nym_mixnet_contract_common::{EpochRewardedSet, IdentityKeyRef, NodeId, RewardedSet};
+use crate::node::RoutingNode;
+use ::serde::{Deserialize, Serialize};
+use log::{debug, warn};
+use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_sphinx_addressing::nodes::NodeIdentity;
-use nym_sphinx_types::{Node as SphinxNode, Node};
-use rand::prelude::SliceRandom;
+use nym_sphinx_types::Node as SphinxNode;
+use rand::prelude::IteratorRandom;
 use rand::{CryptoRng, Rng};
-use std::collections::{BTreeMap, HashMap, HashSet};
-use std::convert::Infallible;
-use std::fmt::{self, Display, Formatter};
-use std::io;
-use std::net::{IpAddr, SocketAddr, ToSocketAddrs};
-use std::str::FromStr;
+use std::collections::{HashMap, HashSet};
+use std::fmt::Display;
+use std::net::IpAddr;
 
-#[cfg(feature = "serde")]
-use ::serde::{Deserialize, Deserializer, Serialize, Serializer};
-use nym_mixnet_contract_common::nym_node::Role;
+pub use error::NymTopologyError;
+pub use nym_mixnet_contract_common::nym_node::Role;
+pub use nym_mixnet_contract_common::{EpochRewardedSet, NodeId};
+pub use rewarded_set::CachedEpochRewardedSet;
 
 pub mod error;
-pub mod gateway;
-pub mod mix;
+
+// #[deprecated]
+// pub mod gateway;
+//
+// #[deprecated]
+// pub mod mix;
 pub mod node;
+pub mod rewarded_set;
 
 #[cfg(feature = "provider-trait")]
 pub mod provider_trait;
+#[cfg(feature = "wasm-serde-types")]
+pub(crate) mod wasm_helpers;
 
-#[cfg(feature = "serde")]
-pub(crate) mod serde;
-
-#[cfg(feature = "serde")]
-pub use crate::serde::{
-    SerializableGateway, SerializableMixNode, SerializableNymTopology, SerializableTopologyError,
-};
-
-use crate::node::RoutingNode;
 #[cfg(feature = "provider-trait")]
 pub use provider_trait::{HardcodedTopologyProvider, TopologyProvider};
-
-#[deprecated]
-#[derive(Debug, Default, Clone)]
-pub enum NodeVersion {
-    Explicit(semver::Version),
-
-    #[default]
-    Unknown,
-}
-
-// this is only implemented for backwards compatibility so we wouldn't need to change everything at once
-// (also I intentionally implemented `ToString` as opposed to `Display`)
-#[allow(clippy::to_string_trait_impl)]
-impl ToString for NodeVersion {
-    fn to_string(&self) -> String {
-        match self {
-            NodeVersion::Explicit(semver) => semver.to_string(),
-            NodeVersion::Unknown => String::new(),
-        }
-    }
-}
-
-// this is also for backwards compat.
-impl<'a> From<&'a str> for NodeVersion {
-    fn from(value: &'a str) -> Self {
-        if let Ok(semver) = value.parse() {
-            NodeVersion::Explicit(semver)
-        } else {
-            NodeVersion::Unknown
-        }
-    }
-}
 
 #[deprecated]
 #[derive(Debug, Clone)]
@@ -80,48 +43,67 @@ pub enum NetworkAddress {
     Hostname(String),
 }
 
-impl NetworkAddress {
-    pub fn to_socket_addrs(&self, port: u16) -> io::Result<Vec<SocketAddr>> {
-        match self {
-            NetworkAddress::IpAddr(addr) => Ok(vec![SocketAddr::new(*addr, port)]),
-            NetworkAddress::Hostname(hostname) => {
-                Ok((hostname.as_str(), port).to_socket_addrs()?.collect())
+#[allow(deprecated)]
+mod deprecated_network_address_impls {
+    use crate::NetworkAddress;
+    use std::convert::Infallible;
+    use std::fmt::{Display, Formatter};
+    use std::net::{SocketAddr, ToSocketAddrs};
+    use std::str::FromStr;
+    use std::{fmt, io};
+
+    impl NetworkAddress {
+        pub fn as_hostname(self) -> Option<String> {
+            match self {
+                NetworkAddress::IpAddr(_) => None,
+                NetworkAddress::Hostname(s) => Some(s),
             }
         }
     }
-}
 
-impl FromStr for NetworkAddress {
-    type Err = Infallible;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        if let Ok(ip_addr) = s.parse() {
-            Ok(NetworkAddress::IpAddr(ip_addr))
-        } else {
-            Ok(NetworkAddress::Hostname(s.to_string()))
+    impl NetworkAddress {
+        pub fn to_socket_addrs(&self, port: u16) -> io::Result<Vec<SocketAddr>> {
+            match self {
+                NetworkAddress::IpAddr(addr) => Ok(vec![SocketAddr::new(*addr, port)]),
+                NetworkAddress::Hostname(hostname) => {
+                    Ok((hostname.as_str(), port).to_socket_addrs()?.collect())
+                }
+            }
         }
     }
-}
 
-impl Display for NetworkAddress {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            NetworkAddress::IpAddr(ip_addr) => ip_addr.fmt(f),
-            NetworkAddress::Hostname(hostname) => hostname.fmt(f),
+    impl FromStr for NetworkAddress {
+        type Err = Infallible;
+
+        fn from_str(s: &str) -> Result<Self, Self::Err> {
+            if let Ok(ip_addr) = s.parse() {
+                Ok(NetworkAddress::IpAddr(ip_addr))
+            } else {
+                Ok(NetworkAddress::Hostname(s.to_string()))
+            }
+        }
+    }
+
+    impl Display for NetworkAddress {
+        fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+            match self {
+                NetworkAddress::IpAddr(ip_addr) => ip_addr.fmt(f),
+                NetworkAddress::Hostname(hostname) => hostname.fmt(f),
+            }
         }
     }
 }
 
 pub type MixLayer = u8;
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
 pub struct NymTopology {
     // for the purposes of future VRF, everyone will need the same view of the network, regardless of performance filtering
     // so we use the same 'master' rewarded set information for that
     //
     // how do we solve the problem of "we have to go through a node that we want to filter out?"
     // ¯\_(ツ)_/¯ that's a future problem
-    rewarded_set: EpochRewardedSet,
+    rewarded_set: CachedEpochRewardedSet,
 
     node_details: HashMap<NodeId, RoutingNode>,
 }
@@ -144,6 +126,13 @@ impl From<NymTopology> for NymRouteProvider {
 }
 
 impl NymRouteProvider {
+    pub fn new(topology: NymTopology, ignore_egress_epoch_roles: bool) -> Self {
+        NymRouteProvider {
+            topology,
+            ignore_egress_epoch_roles,
+        }
+    }
+
     pub fn new_empty(ignore_egress_epoch_roles: bool) -> NymRouteProvider {
         let this: Self = NymTopology::default().into();
         this.with_ignore_egress_epoch_roles(ignore_egress_epoch_roles)
@@ -190,21 +179,24 @@ impl NymRouteProvider {
 }
 
 impl NymTopology {
-    pub fn new_empty(rewarded_set: EpochRewardedSet) -> Self {
+    pub fn new_empty(rewarded_set: impl Into<CachedEpochRewardedSet>) -> Self {
         NymTopology {
-            rewarded_set,
+            rewarded_set: rewarded_set.into(),
             node_details: Default::default(),
         }
     }
 
-    pub fn new(rewarded_set: EpochRewardedSet, node_details: Vec<RoutingNode>) -> Self {
+    pub fn new(
+        rewarded_set: impl Into<CachedEpochRewardedSet>,
+        node_details: Vec<RoutingNode>,
+    ) -> Self {
         NymTopology {
-            rewarded_set,
+            rewarded_set: rewarded_set.into(),
             node_details: node_details.into_iter().map(|n| (n.node_id, n)).collect(),
         }
     }
 
-    #[cfg(feature = "serde")]
+    #[cfg(feature = "persistence")]
     pub fn new_from_file<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
         let file = std::fs::File::open(path)?;
         serde_json::from_reader(file).map_err(Into::into)
@@ -230,7 +222,7 @@ impl NymTopology {
         }
     }
 
-    fn node_exists(&self, ids: &[NodeId]) -> bool {
+    fn node_details_exists(&self, ids: &HashSet<NodeId>) -> bool {
         for id in ids {
             if self.node_details.contains_key(id) {
                 return true;
@@ -240,9 +232,11 @@ impl NymTopology {
     }
 
     pub fn is_minimally_routable(&self) -> bool {
-        self.node_exists(&self.rewarded_set.assignment.layer1)
-            && self.node_exists(&self.rewarded_set.assignment.layer2)
-            && self.node_exists(&self.rewarded_set.assignment.layer3)
+        self.node_details_exists(&self.rewarded_set.layer1)
+            && self.node_details_exists(&self.rewarded_set.layer2)
+            && self.node_details_exists(&self.rewarded_set.layer3)
+            && (!self.rewarded_set.exit_gateways.is_empty()
+                || !self.rewarded_set.entry_gateways.is_empty())
 
         // TODO: we should also include gateways in that check, but right now we're allowing ALL gateways, even inactive
     }
@@ -255,7 +249,7 @@ impl NymTopology {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.rewarded_set.assignment.is_empty() || self.node_details.is_empty()
+        self.rewarded_set.is_empty() || self.node_details.is_empty()
     }
 
     pub fn ensure_not_empty(&self) -> Result<(), NymTopologyError> {
@@ -301,13 +295,15 @@ impl NymTopology {
     fn choose_mixing_node<R>(
         &self,
         rng: &mut R,
-        assigned_nodes: &[NodeId],
+        assigned_nodes: &HashSet<NodeId>,
     ) -> Result<SphinxNode, NymTopologyError>
     where
         R: Rng + CryptoRng + ?Sized,
     {
         // try first choice without cloning the ids (because I reckon, more often than not, it will actually work)
-        let Some(candidate) = assigned_nodes.choose(rng) else {
+        // HashSet's iterator implements `ExactSizeIterator` so choosing **one**  random element
+        // is actually not that expensive
+        let Some(candidate) = assigned_nodes.iter().choose(rng) else {
             return Err(NymTopologyError::NoMixnodesAvailable);
         };
 
@@ -324,10 +320,14 @@ impl NymTopology {
         }
     }
 
-    fn find_node_by_identity(&self, node_identity: NodeIdentity) -> Option<&RoutingNode> {
+    pub fn find_node_by_identity(&self, node_identity: NodeIdentity) -> Option<&RoutingNode> {
         self.node_details
             .values()
             .find(|n| n.identity_key == node_identity)
+    }
+
+    pub fn find_node(&self, node_id: NodeId) -> Option<&RoutingNode> {
+        self.node_details.get(&node_id)
     }
 
     pub fn egress_by_identity(
@@ -342,7 +342,7 @@ impl NymTopology {
         // a 'valid' egress is one assigned to either entry role (i.e. entry for another client)
         // or exit role (as a service provider)
         if !ignore_epoch_roles {
-            let Some(role) = self.rewarded_set.assignment.get_role(node.node_id) else {
+            let Some(role) = self.rewarded_set.role(node.node_id) else {
                 return Err(NymTopologyError::InvalidEgressRole { node_identity });
             };
             if !matches!(role, Role::EntryGateway | Role::ExitGateway) {
@@ -365,16 +365,16 @@ impl NymTopology {
     where
         R: Rng + CryptoRng + ?Sized,
     {
-        if self.rewarded_set.assignment.is_empty() || self.node_details.is_empty() {
+        if self.rewarded_set.is_empty() || self.node_details.is_empty() {
             return Err(NymTopologyError::EmptyNetworkTopology);
         }
 
         // we reserve an additional item in the route because we'll have to push an egress
         let mut mix_route = Vec::with_capacity(4);
 
-        mix_route.push(self.choose_mixing_node(rng, &self.rewarded_set.assignment.layer1)?);
-        mix_route.push(self.choose_mixing_node(rng, &self.rewarded_set.assignment.layer2)?);
-        mix_route.push(self.choose_mixing_node(rng, &self.rewarded_set.assignment.layer3)?);
+        mix_route.push(self.choose_mixing_node(rng, &self.rewarded_set.layer1)?);
+        mix_route.push(self.choose_mixing_node(rng, &self.rewarded_set.layer2)?);
+        mix_route.push(self.choose_mixing_node(rng, &self.rewarded_set.layer3)?);
 
         Ok(mix_route)
     }
@@ -395,409 +395,440 @@ impl NymTopology {
         mix_route.push(egress);
         Ok(mix_route)
     }
-}
 
-#[cfg(feature = "serde")]
-impl Serialize for NymTopology {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        todo!()
-        // crate::serde::SerializableNymTopology::from(self.clone()).serialize(serializer)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for NymTopology {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        todo!()
-        // let serializable = crate::serde::SerializableNymTopology::deserialize(deserializer)?;
-        // serializable.try_into().map_err(::serde::de::Error::custom)
-    }
-}
-
-// the reason for those having `Legacy` prefix is that eventually they should be using
-// exactly the same types
-#[derive(Debug, Clone, Default)]
-pub struct NymTopologyOld {
-    mixes: BTreeMap<MixLayer, Vec<mix::LegacyNode>>,
-    gateways: Vec<gateway::LegacyNode>,
-}
-
-impl NymTopologyOld {
-    #[deprecated]
-    pub async fn new_from_env() -> Result<Self, NymTopologyError> {
-        let api_url = std::env::var(NYM_API)?;
-
-        info!("Generating topology from {api_url}");
-
-        let mixnodes = reqwest::get(&format!("{api_url}/v1/unstable/nym-nodes/mixnodes/skimmed",))
-            .await?
-            .json::<CachedNodesResponse<SkimmedNode>>()
-            .await?
-            .nodes
-            .iter()
-            .map(mix::LegacyNode::try_from)
-            .filter(Result::is_ok)
-            .collect::<Result<Vec<_>, _>>()?;
-
-        let gateways = reqwest::get(&format!("{api_url}/v1/unstable/nym-nodes/gateways/skimmed",))
-            .await?
-            .json::<CachedNodesResponse<SkimmedNode>>()
-            .await?
-            .nodes
-            .iter()
-            .map(gateway::LegacyNode::try_from)
-            .filter(Result::is_ok)
-            .collect::<Result<Vec<_>, _>>()?;
-        let topology = Self::new_unordered(mixnodes, gateways);
-        Ok(topology)
+    pub fn nodes_with_role<'a>(&'a self, role: Role) -> impl Iterator<Item = &'a RoutingNode> + 'a {
+        self.node_details.values().filter(move |node| match role {
+            Role::EntryGateway => self.rewarded_set.entry_gateways.contains(&node.node_id),
+            Role::Layer1 => self.rewarded_set.layer1.contains(&node.node_id),
+            Role::Layer2 => self.rewarded_set.layer2.contains(&node.node_id),
+            Role::Layer3 => self.rewarded_set.layer3.contains(&node.node_id),
+            Role::ExitGateway => self.rewarded_set.exit_gateways.contains(&node.node_id),
+            Role::Standby => self.rewarded_set.standby.contains(&node.node_id),
+        })
     }
 
-    pub fn new(
-        mixes: BTreeMap<MixLayer, Vec<mix::LegacyNode>>,
-        gateways: Vec<gateway::LegacyNode>,
-    ) -> Self {
-        NymTopologyOld { mixes, gateways }
-    }
-
-    #[deprecated]
-    pub fn new_unordered(
-        unordered_mixes: Vec<mix::LegacyNode>,
-        gateways: Vec<gateway::LegacyNode>,
-    ) -> Self {
-        let mut mixes = BTreeMap::new();
-        for node in unordered_mixes.into_iter() {
-            let layer = node.layer as MixLayer;
-            let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
-            layer_entry.push(node)
+    pub fn set_testable_node(&mut self, role: Role, node: impl Into<RoutingNode>) {
+        fn init_set(node: NodeId) -> HashSet<NodeId> {
+            let mut set = HashSet::new();
+            set.insert(node);
+            set
         }
 
-        NymTopologyOld { mixes, gateways }
-    }
+        let node = node.into();
+        let node_id = node.node_id;
+        self.node_details.insert(node.node_id, node);
 
-    pub fn from_unordered<MI, GI, M, G>(unordered_mixes: MI, unordered_gateways: GI) -> Self
-    where
-        MI: Iterator<Item = M>,
-        GI: Iterator<Item = G>,
-        G: TryInto<gateway::LegacyNode>,
-        M: TryInto<mix::LegacyNode>,
-        <G as TryInto<gateway::LegacyNode>>::Error: Display,
-        <M as TryInto<mix::LegacyNode>>::Error: Display,
-    {
-        let mut mixes = BTreeMap::new();
-        let mut gateways = Vec::new();
-
-        for node in unordered_mixes.into_iter() {
-            match node.try_into() {
-                Ok(mixnode) => mixes
-                    .entry(mixnode.layer as MixLayer)
-                    .or_insert_with(Vec::new)
-                    .push(mixnode),
-                Err(err) => debug!("malformed mixnode: {err}"),
+        match role {
+            Role::EntryGateway => self.rewarded_set.entry_gateways = init_set(node_id),
+            Role::Layer1 => self.rewarded_set.layer1 = init_set(node_id),
+            Role::Layer2 => self.rewarded_set.layer2 = init_set(node_id),
+            Role::Layer3 => self.rewarded_set.layer3 = init_set(node_id),
+            Role::ExitGateway => self.rewarded_set.exit_gateways = init_set(node_id),
+            Role::Standby => {
+                warn!("attempting to test node in 'standby' mode - are you sure that's what you meant to do?");
+                self.rewarded_set.standby = init_set(node_id)
             }
         }
-
-        for node in unordered_gateways.into_iter() {
-            match node.try_into() {
-                Ok(gateway) => gateways.push(gateway),
-                Err(err) => debug!("malformed gateway: {err}"),
-            }
-        }
-
-        NymTopologyOld::new(mixes, gateways)
     }
 
-    #[cfg(feature = "serde")]
-    pub fn new_from_file<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
-        todo!()
-        // let file = std::fs::File::open(path)?;
-        // serde_json::from_reader(file).map_err(Into::into)
+    pub fn entry_gateways(&self) -> impl Iterator<Item = &RoutingNode> {
+        self.node_details
+            .values()
+            .filter(|n| self.rewarded_set.entry_gateways.contains(&n.node_id))
     }
 
-    pub fn from_basic(basic_mixes: &[SkimmedNode], basic_gateways: &[SkimmedNode]) -> Self {
-        todo!()
-        // nym_topology_from_basic_info(basic_mixes, basic_gateways)
+    // ideally this shouldn't exist...
+    pub fn entry_capable_nodes(&self) -> impl Iterator<Item = &RoutingNode> {
+        self.node_details
+            .values()
+            .filter(|n| n.supported_roles.mixnet_entry)
     }
 
-    pub fn find_mix(&self, mix_id: NodeId) -> Option<&mix::LegacyNode> {
-        for nodes in self.mixes.values() {
-            for node in nodes {
-                if node.mix_id == mix_id {
-                    return Some(node);
-                }
-            }
-        }
-        None
-    }
-
-    pub fn find_mix_by_identity(
-        &self,
-        mixnode_identity: IdentityKeyRef,
-    ) -> Option<&mix::LegacyNode> {
-        for nodes in self.mixes.values() {
-            for node in nodes {
-                if node.identity_key.to_base58_string() == mixnode_identity {
-                    return Some(node);
-                }
-            }
-        }
-        None
-    }
-
-    pub fn find_gateway(&self, gateway_identity: IdentityKeyRef) -> Option<&gateway::LegacyNode> {
-        self.gateways
-            .iter()
-            .find(|&gateway| gateway.identity_key.to_base58_string() == gateway_identity)
-    }
-
-    pub fn mixes(&self) -> &BTreeMap<MixLayer, Vec<mix::LegacyNode>> {
-        &self.mixes
-    }
-
-    pub fn num_mixnodes(&self) -> usize {
-        self.mixes.values().map(|m| m.len()).sum()
-    }
-
-    pub fn mixes_as_vec(&self) -> Vec<mix::LegacyNode> {
-        let mut mixes: Vec<mix::LegacyNode> = vec![];
-
-        for layer in self.mixes().values() {
-            mixes.extend(layer.to_owned())
-        }
-        mixes
-    }
-
-    pub fn mixes_in_layer(&self, layer: MixLayer) -> Vec<mix::LegacyNode> {
-        assert!([1, 2, 3].contains(&layer));
-        self.mixes.get(&layer).unwrap().to_owned()
-    }
-
-    pub fn gateways(&self) -> &[gateway::LegacyNode] {
-        &self.gateways
-    }
-
-    pub fn get_gateways(&self) -> Vec<gateway::LegacyNode> {
-        self.gateways.clone()
-    }
-
-    pub fn get_gateway(&self, gateway_identity: &NodeIdentity) -> Option<&gateway::LegacyNode> {
-        self.gateways
-            .iter()
-            .find(|gateway| gateway.identity() == gateway_identity)
-    }
-
-    pub fn gateway_exists(&self, gateway_identity: &NodeIdentity) -> bool {
-        self.get_gateway(gateway_identity).is_some()
-    }
-
-    pub fn insert_gateway(&mut self, gateway: gateway::LegacyNode) {
-        self.gateways.push(gateway)
-    }
-
-    pub fn set_gateways(&mut self, gateways: Vec<gateway::LegacyNode>) {
-        self.gateways = gateways
-    }
-
-    pub fn random_gateway<R>(&self, rng: &mut R) -> Result<&gateway::LegacyNode, NymTopologyError>
-    where
-        R: Rng + CryptoRng,
-    {
-        self.gateways
-            .choose(rng)
-            .ok_or(NymTopologyError::NoGatewaysAvailable)
-    }
-
-    /// Returns a vec of size of `num_mix_hops` of mixnodes, such that each subsequent node is on
-    /// next layer, starting from layer 1
-    pub fn random_mix_route<R>(
-        &self,
-        rng: &mut R,
-        num_mix_hops: u8,
-    ) -> Result<Vec<mix::LegacyNode>, NymTopologyError>
-    where
-        R: Rng + CryptoRng + ?Sized,
-    {
-        if self.mixes.len() < num_mix_hops as usize {
-            return Err(NymTopologyError::InvalidNumberOfHopsError {
-                available: self.mixes.len(),
-                requested: num_mix_hops as usize,
-            });
-        }
-        let mut route = Vec::with_capacity(num_mix_hops as usize);
-
-        // there is no "layer 0"
-        for layer in 1..=num_mix_hops {
-            // get all mixes on particular layer
-            let layer_mixes = self
-                .mixes
-                .get(&layer)
-                .ok_or(NymTopologyError::EmptyMixLayer { layer })?;
-
-            // choose a random mix from the above list
-            // this can return a 'None' only if slice is empty
-            let random_mix = layer_mixes
-                .choose(rng)
-                .ok_or(NymTopologyError::EmptyMixLayer { layer })?;
-            route.push(random_mix.clone());
-        }
-
-        Ok(route)
-    }
-
-    pub fn random_path_to_egress<R>(
-        &self,
-        rng: &mut R,
-        num_mix_hops: u8,
-        egress_identity: &NodeIdentity,
-    ) -> Result<(Vec<mix::LegacyNode>, gateway::LegacyNode), NymTopologyError>
-    where
-        R: Rng + CryptoRng + ?Sized,
-    {
-        let gateway =
-            self.get_gateway(egress_identity)
-                .ok_or(NymTopologyError::NonExistentGatewayError {
-                    identity_key: egress_identity.to_base58_string(),
-                })?;
-
-        let path = self.random_mix_route(rng, num_mix_hops)?;
-
-        Ok((path, gateway.clone()))
-    }
-
-    /// Tries to create a route to the specified gateway, such that it goes through mixnode on layer 1,
-    /// mixnode on layer2, .... mixnode on layer n and finally the target gateway
-    pub fn random_route_to_egress<R>(
-        &self,
-        rng: &mut R,
-        num_mix_hops: u8,
-        egress_identity: &NodeIdentity,
-    ) -> Result<Vec<SphinxNode>, NymTopologyError>
-    where
-        R: Rng + CryptoRng + ?Sized,
-    {
-        let gateway =
-            self.get_gateway(egress_identity)
-                .ok_or(NymTopologyError::NonExistentGatewayError {
-                    identity_key: egress_identity.to_base58_string(),
-                })?;
-
-        Ok(self
-            .random_mix_route(rng, num_mix_hops)?
-            .into_iter()
-            .map(|node| SphinxNode::from(&node))
-            .chain(std::iter::once(gateway.into()))
-            .collect())
-    }
-
-    /// Overwrites the existing nodes in the specified layer
-    pub fn set_mixes_in_layer(&mut self, layer: u8, mixes: Vec<mix::LegacyNode>) {
-        self.mixes.insert(layer, mixes);
-    }
-
-    /// Checks if a mixnet path can be constructed using the specified number of hops
-    pub fn ensure_can_construct_path_through(
-        &self,
-        num_mix_hops: u8,
-    ) -> Result<(), NymTopologyError> {
-        let mixnodes = self.mixes();
-        // 1. is it completely empty?
-        if mixnodes.is_empty() && self.gateways().is_empty() {
-            return Err(NymTopologyError::EmptyNetworkTopology);
-        }
-
-        // 2. does it have any mixnode at all?
-        if mixnodes.is_empty() {
-            return Err(NymTopologyError::NoMixnodesAvailable);
-        }
-
-        // 3. does it have any gateways at all?
-        if self.gateways().is_empty() {
-            return Err(NymTopologyError::NoGatewaysAvailable);
-        }
-
-        // 4. does it have a mixnode on each layer?
-        for layer in 1..=num_mix_hops {
-            match mixnodes.get(&layer) {
-                None => return Err(NymTopologyError::EmptyMixLayer { layer }),
-                Some(layer_nodes) => {
-                    if layer_nodes.is_empty() {
-                        return Err(NymTopologyError::EmptyMixLayer { layer });
-                    }
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    pub fn ensure_even_layer_distribution(
-        &self,
-        lower_threshold: f32,
-        upper_threshold: f32,
-    ) -> Result<(), NymTopologyError> {
-        let mixnodes_count = self.num_mixnodes();
-
-        let layers = self
-            .mixes
-            .iter()
-            .map(|(k, v)| (*k, v.len()))
-            .collect::<Vec<_>>();
-
-        if self.gateways.is_empty() {
-            return Err(NymTopologyError::NoGatewaysAvailable);
-        }
-
-        if layers.is_empty() {
-            return Err(NymTopologyError::NoMixnodesAvailable);
-        }
-
-        let upper_bound = (mixnodes_count as f32 * upper_threshold) as usize;
-        let lower_bound = (mixnodes_count as f32 * lower_threshold) as usize;
-
-        for (layer, nodes) in &layers {
-            if nodes < &lower_bound || nodes > &upper_bound {
-                return Err(NymTopologyError::UnevenLayerDistribution {
-                    layer: *layer,
-                    nodes: *nodes,
-                    lower_bound,
-                    upper_bound,
-                    total_nodes: mixnodes_count,
-                    layer_distribution: layers,
-                });
-            }
-        }
-
-        Ok(())
+    pub fn mixnodes(&self) -> impl Iterator<Item = &RoutingNode> {
+        self.node_details
+            .values()
+            .filter(|n| self.rewarded_set.is_active_mixnode(&n.node_id))
     }
 }
 
-#[cfg(feature = "serde")]
-impl Serialize for NymTopologyOld {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        todo!()
-        // crate::serde::SerializableNymTopology::from(self.clone()).serialize(serializer)
-    }
-}
-
-#[cfg(feature = "serde")]
-impl<'de> Deserialize<'de> for NymTopologyOld {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        todo!()
-        // let serializable = crate::serde::SerializableNymTopology::deserialize(deserializer)?;
-        // serializable.try_into().map_err(::serde::de::Error::custom)
-    }
-}
+// // the reason for those having `Legacy` prefix is that eventually they should be using
+// // exactly the same types
+// #[derive(Debug, Clone, Default)]
+// pub struct NymTopologyOld {
+//     mixes: BTreeMap<MixLayer, Vec<mix::LegacyNode>>,
+//     gateways: Vec<gateway::LegacyNode>,
+// }
+//
+// impl NymTopologyOld {
+//     #[deprecated]
+//     pub async fn new_from_env() -> Result<Self, NymTopologyError> {
+//         let api_url = std::env::var(NYM_API)?;
+//
+//         info!("Generating topology from {api_url}");
+//
+//         let mixnodes = reqwest::get(&format!("{api_url}/v1/unstable/nym-nodes/mixnodes/skimmed",))
+//             .await?
+//             .json::<CachedNodesResponse<SkimmedNode>>()
+//             .await?
+//             .nodes
+//             .iter()
+//             .map(mix::LegacyNode::try_from)
+//             .filter(Result::is_ok)
+//             .collect::<Result<Vec<_>, _>>()?;
+//
+//         let gateways = reqwest::get(&format!("{api_url}/v1/unstable/nym-nodes/gateways/skimmed",))
+//             .await?
+//             .json::<CachedNodesResponse<SkimmedNode>>()
+//             .await?
+//             .nodes
+//             .iter()
+//             .map(gateway::LegacyNode::try_from)
+//             .filter(Result::is_ok)
+//             .collect::<Result<Vec<_>, _>>()?;
+//         let topology = Self::new_unordered(mixnodes, gateways);
+//         Ok(topology)
+//     }
+//
+//     pub fn new(
+//         mixes: BTreeMap<MixLayer, Vec<mix::LegacyNode>>,
+//         gateways: Vec<gateway::LegacyNode>,
+//     ) -> Self {
+//         NymTopologyOld { mixes, gateways }
+//     }
+//
+//     #[deprecated]
+//     pub fn new_unordered(
+//         unordered_mixes: Vec<mix::LegacyNode>,
+//         gateways: Vec<gateway::LegacyNode>,
+//     ) -> Self {
+//         let mut mixes = BTreeMap::new();
+//         for node in unordered_mixes.into_iter() {
+//             let layer = node.layer as MixLayer;
+//             let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
+//             layer_entry.push(node)
+//         }
+//
+//         NymTopologyOld { mixes, gateways }
+//     }
+//
+//     pub fn from_unordered<MI, GI, M, G>(unordered_mixes: MI, unordered_gateways: GI) -> Self
+//     where
+//         MI: Iterator<Item = M>,
+//         GI: Iterator<Item = G>,
+//         G: TryInto<gateway::LegacyNode>,
+//         M: TryInto<mix::LegacyNode>,
+//         <G as TryInto<gateway::LegacyNode>>::Error: Display,
+//         <M as TryInto<mix::LegacyNode>>::Error: Display,
+//     {
+//         let mut mixes = BTreeMap::new();
+//         let mut gateways = Vec::new();
+//
+//         for node in unordered_mixes.into_iter() {
+//             match node.try_into() {
+//                 Ok(mixnode) => mixes
+//                     .entry(mixnode.layer as MixLayer)
+//                     .or_insert_with(Vec::new)
+//                     .push(mixnode),
+//                 Err(err) => debug!("malformed mixnode: {err}"),
+//             }
+//         }
+//
+//         for node in unordered_gateways.into_iter() {
+//             match node.try_into() {
+//                 Ok(gateway) => gateways.push(gateway),
+//                 Err(err) => debug!("malformed gateway: {err}"),
+//             }
+//         }
+//
+//         NymTopologyOld::new(mixes, gateways)
+//     }
+//
+//     #[cfg(feature = "serde")]
+//     pub fn new_from_file<P: AsRef<std::path::Path>>(path: P) -> std::io::Result<Self> {
+//         todo!()
+//         // let file = std::fs::File::open(path)?;
+//         // serde_json::from_reader(file).map_err(Into::into)
+//     }
+//
+//     pub fn from_basic(basic_mixes: &[SkimmedNode], basic_gateways: &[SkimmedNode]) -> Self {
+//         todo!()
+//         // nym_topology_from_basic_info(basic_mixes, basic_gateways)
+//     }
+//
+//     pub fn find_mix(&self, mix_id: NodeId) -> Option<&mix::LegacyNode> {
+//         for nodes in self.mixes.values() {
+//             for node in nodes {
+//                 if node.mix_id == mix_id {
+//                     return Some(node);
+//                 }
+//             }
+//         }
+//         None
+//     }
+//
+//     pub fn find_mix_by_identity(
+//         &self,
+//         mixnode_identity: IdentityKeyRef,
+//     ) -> Option<&mix::LegacyNode> {
+//         for nodes in self.mixes.values() {
+//             for node in nodes {
+//                 if node.identity_key.to_base58_string() == mixnode_identity {
+//                     return Some(node);
+//                 }
+//             }
+//         }
+//         None
+//     }
+//
+//     pub fn find_gateway(&self, gateway_identity: IdentityKeyRef) -> Option<&gateway::LegacyNode> {
+//         self.gateways
+//             .iter()
+//             .find(|&gateway| gateway.identity_key.to_base58_string() == gateway_identity)
+//     }
+//
+//     pub fn mixes(&self) -> &BTreeMap<MixLayer, Vec<mix::LegacyNode>> {
+//         &self.mixes
+//     }
+//
+//     pub fn num_mixnodes(&self) -> usize {
+//         self.mixes.values().map(|m| m.len()).sum()
+//     }
+//
+//     pub fn mixes_as_vec(&self) -> Vec<mix::LegacyNode> {
+//         let mut mixes: Vec<mix::LegacyNode> = vec![];
+//
+//         for layer in self.mixes().values() {
+//             mixes.extend(layer.to_owned())
+//         }
+//         mixes
+//     }
+//
+//     pub fn mixes_in_layer(&self, layer: MixLayer) -> Vec<mix::LegacyNode> {
+//         assert!([1, 2, 3].contains(&layer));
+//         self.mixes.get(&layer).unwrap().to_owned()
+//     }
+//
+//     pub fn gateways(&self) -> &[gateway::LegacyNode] {
+//         &self.gateways
+//     }
+//
+//     pub fn get_gateways(&self) -> Vec<gateway::LegacyNode> {
+//         self.gateways.clone()
+//     }
+//
+//     pub fn get_gateway(&self, gateway_identity: &NodeIdentity) -> Option<&gateway::LegacyNode> {
+//         self.gateways
+//             .iter()
+//             .find(|gateway| gateway.identity() == gateway_identity)
+//     }
+//
+//     pub fn gateway_exists(&self, gateway_identity: &NodeIdentity) -> bool {
+//         self.get_gateway(gateway_identity).is_some()
+//     }
+//
+//     pub fn insert_gateway(&mut self, gateway: gateway::LegacyNode) {
+//         self.gateways.push(gateway)
+//     }
+//
+//     pub fn set_gateways(&mut self, gateways: Vec<gateway::LegacyNode>) {
+//         self.gateways = gateways
+//     }
+//
+//     pub fn random_gateway<R>(&self, rng: &mut R) -> Result<&gateway::LegacyNode, NymTopologyError>
+//     where
+//         R: Rng + CryptoRng,
+//     {
+//         self.gateways
+//             .choose(rng)
+//             .ok_or(NymTopologyError::NoGatewaysAvailable)
+//     }
+//
+//     /// Returns a vec of size of `num_mix_hops` of mixnodes, such that each subsequent node is on
+//     /// next layer, starting from layer 1
+//     pub fn random_mix_route<R>(
+//         &self,
+//         rng: &mut R,
+//         num_mix_hops: u8,
+//     ) -> Result<Vec<mix::LegacyNode>, NymTopologyError>
+//     where
+//         R: Rng + CryptoRng + ?Sized,
+//     {
+//         if self.mixes.len() < num_mix_hops as usize {
+//             return Err(NymTopologyError::InvalidNumberOfHopsError {
+//                 available: self.mixes.len(),
+//                 requested: num_mix_hops as usize,
+//             });
+//         }
+//         let mut route = Vec::with_capacity(num_mix_hops as usize);
+//
+//         // there is no "layer 0"
+//         for layer in 1..=num_mix_hops {
+//             // get all mixes on particular layer
+//             let layer_mixes = self
+//                 .mixes
+//                 .get(&layer)
+//                 .ok_or(NymTopologyError::EmptyMixLayer { layer })?;
+//
+//             // choose a random mix from the above list
+//             // this can return a 'None' only if slice is empty
+//             let random_mix = layer_mixes
+//                 .choose(rng)
+//                 .ok_or(NymTopologyError::EmptyMixLayer { layer })?;
+//             route.push(random_mix.clone());
+//         }
+//
+//         Ok(route)
+//     }
+//
+//     pub fn random_path_to_egress<R>(
+//         &self,
+//         rng: &mut R,
+//         num_mix_hops: u8,
+//         egress_identity: &NodeIdentity,
+//     ) -> Result<(Vec<mix::LegacyNode>, gateway::LegacyNode), NymTopologyError>
+//     where
+//         R: Rng + CryptoRng + ?Sized,
+//     {
+//         let gateway =
+//             self.get_gateway(egress_identity)
+//                 .ok_or(NymTopologyError::NonExistentGatewayError {
+//                     identity_key: egress_identity.to_base58_string(),
+//                 })?;
+//
+//         let path = self.random_mix_route(rng, num_mix_hops)?;
+//
+//         Ok((path, gateway.clone()))
+//     }
+//
+//     /// Tries to create a route to the specified gateway, such that it goes through mixnode on layer 1,
+//     /// mixnode on layer2, .... mixnode on layer n and finally the target gateway
+//     pub fn random_route_to_egress<R>(
+//         &self,
+//         rng: &mut R,
+//         num_mix_hops: u8,
+//         egress_identity: &NodeIdentity,
+//     ) -> Result<Vec<SphinxNode>, NymTopologyError>
+//     where
+//         R: Rng + CryptoRng + ?Sized,
+//     {
+//         let gateway =
+//             self.get_gateway(egress_identity)
+//                 .ok_or(NymTopologyError::NonExistentGatewayError {
+//                     identity_key: egress_identity.to_base58_string(),
+//                 })?;
+//
+//         Ok(self
+//             .random_mix_route(rng, num_mix_hops)?
+//             .into_iter()
+//             .map(|node| SphinxNode::from(&node))
+//             .chain(std::iter::once(gateway.into()))
+//             .collect())
+//     }
+//
+//     /// Overwrites the existing nodes in the specified layer
+//     pub fn set_mixes_in_layer(&mut self, layer: u8, mixes: Vec<mix::LegacyNode>) {
+//         self.mixes.insert(layer, mixes);
+//     }
+//
+//     /// Checks if a mixnet path can be constructed using the specified number of hops
+//     pub fn ensure_can_construct_path_through(
+//         &self,
+//         num_mix_hops: u8,
+//     ) -> Result<(), NymTopologyError> {
+//         let mixnodes = self.mixes();
+//         // 1. is it completely empty?
+//         if mixnodes.is_empty() && self.gateways().is_empty() {
+//             return Err(NymTopologyError::EmptyNetworkTopology);
+//         }
+//
+//         // 2. does it have any mixnode at all?
+//         if mixnodes.is_empty() {
+//             return Err(NymTopologyError::NoMixnodesAvailable);
+//         }
+//
+//         // 3. does it have any gateways at all?
+//         if self.gateways().is_empty() {
+//             return Err(NymTopologyError::NoGatewaysAvailable);
+//         }
+//
+//         // 4. does it have a mixnode on each layer?
+//         for layer in 1..=num_mix_hops {
+//             match mixnodes.get(&layer) {
+//                 None => return Err(NymTopologyError::EmptyMixLayer { layer }),
+//                 Some(layer_nodes) => {
+//                     if layer_nodes.is_empty() {
+//                         return Err(NymTopologyError::EmptyMixLayer { layer });
+//                     }
+//                 }
+//             }
+//         }
+//
+//         Ok(())
+//     }
+//
+//     pub fn ensure_even_layer_distribution(
+//         &self,
+//         lower_threshold: f32,
+//         upper_threshold: f32,
+//     ) -> Result<(), NymTopologyError> {
+//         let mixnodes_count = self.num_mixnodes();
+//
+//         let layers = self
+//             .mixes
+//             .iter()
+//             .map(|(k, v)| (*k, v.len()))
+//             .collect::<Vec<_>>();
+//
+//         if self.gateways.is_empty() {
+//             return Err(NymTopologyError::NoGatewaysAvailable);
+//         }
+//
+//         if layers.is_empty() {
+//             return Err(NymTopologyError::NoMixnodesAvailable);
+//         }
+//
+//         let upper_bound = (mixnodes_count as f32 * upper_threshold) as usize;
+//         let lower_bound = (mixnodes_count as f32 * lower_threshold) as usize;
+//
+//         for (layer, nodes) in &layers {
+//             if nodes < &lower_bound || nodes > &upper_bound {
+//                 return Err(NymTopologyError::UnevenLayerDistribution {
+//                     layer: *layer,
+//                     nodes: *nodes,
+//                     lower_bound,
+//                     upper_bound,
+//                     total_nodes: mixnodes_count,
+//                     layer_distribution: layers,
+//                 });
+//             }
+//         }
+//
+//         Ok(())
+//     }
+// }
+//
+// #[cfg(feature = "serde")]
+// impl Serialize for NymTopologyOld {
+//     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+//     where
+//         S: Serializer,
+//     {
+//         todo!()
+//         // crate::serde::SerializableNymTopology::from(self.clone()).serialize(serializer)
+//     }
+// }
+//
+// #[cfg(feature = "serde")]
+// impl<'de> Deserialize<'de> for NymTopologyOld {
+//     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+//     where
+//         D: Deserializer<'de>,
+//     {
+//         todo!()
+//         // let serializable = crate::serde::SerializableNymTopology::deserialize(deserializer)?;
+//         // serializable.try_into().map_err(::serde::de::Error::custom)
+//     }
+// }
 
 pub fn nym_topology_from_basic_info(
     basic_mixes: &[SkimmedNode],

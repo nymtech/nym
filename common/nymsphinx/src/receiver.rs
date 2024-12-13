@@ -14,7 +14,6 @@ use nym_sphinx_chunking::reconstruction::MessageReconstructor;
 use nym_sphinx_chunking::ChunkingError;
 use nym_sphinx_params::{
     PacketEncryptionAlgorithm, PacketHkdfAlgorithm, ReplySurbEncryptionAlgorithm,
-    DEFAULT_NUM_MIX_HOPS,
 };
 use thiserror::Error;
 
@@ -79,7 +78,6 @@ pub enum MessageRecoveryError {
 pub trait MessageReceiver {
     fn new() -> Self;
     fn reconstructor(&mut self) -> &mut MessageReconstructor;
-    fn num_mix_hops(&self) -> u8;
 
     fn decrypt_raw_message<C>(
         &self,
@@ -143,7 +141,7 @@ pub trait MessageReceiver {
         fragment: Fragment,
     ) -> Result<Option<(NymMessage, Vec<i32>)>, MessageRecoveryError> {
         if let Some((message, used_sets)) = self.reconstructor().insert_new_fragment(fragment) {
-            match PaddedMessage::new_reconstructed(message).remove_padding(self.num_mix_hops()) {
+            match PaddedMessage::new_reconstructed(message).remove_padding() {
                 Ok(message) => Ok(Some((message, used_sets))),
                 Err(err) => Err(MessageRecoveryError::MalformedReconstructedMessage {
                     source: err,
@@ -161,23 +159,6 @@ pub struct SphinxMessageReceiver {
     /// High level public structure used to buffer all received data [`Fragment`]s and eventually
     /// returning original messages that they encapsulate.
     reconstructor: MessageReconstructor,
-
-    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
-    /// Note that it does not include gateway hops.
-    num_mix_hops: u8,
-}
-
-impl SphinxMessageReceiver {
-    /// Allows setting non-default number of expected mix hops in the network.
-    // IMPORTANT NOTE: this is among others used to deserialize SURBs. Meaning that this is a
-    // global setting and currently always set to the default value. The implication is that it is
-    // not currently possible to have different number of hops for different SURB messages. So,
-    // don't try to use <3 mix hops for SURBs until this is refactored.
-    #[must_use]
-    pub fn with_mix_hops(mut self, hops: u8) -> Self {
-        self.num_mix_hops = hops;
-        self
-    }
 }
 
 impl MessageReceiver for SphinxMessageReceiver {
@@ -201,17 +182,12 @@ impl MessageReceiver for SphinxMessageReceiver {
     fn reconstructor(&mut self) -> &mut MessageReconstructor {
         &mut self.reconstructor
     }
-
-    fn num_mix_hops(&self) -> u8 {
-        self.num_mix_hops
-    }
 }
 
 impl Default for SphinxMessageReceiver {
     fn default() -> Self {
         SphinxMessageReceiver {
             reconstructor: Default::default(),
-            num_mix_hops: DEFAULT_NUM_MIX_HOPS,
         }
     }
 }

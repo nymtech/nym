@@ -35,7 +35,7 @@ const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 pub(crate) struct GatewayPackets {
     /// Network address of the target gateway if wanted to be accessed by the client.
     /// It is a websocket address.
-    pub(crate) clients_address: String,
+    pub(crate) clients_address: Option<String>,
 
     /// Public key of the target gateway.
     pub(crate) pub_key: ed25519::PublicKey,
@@ -46,7 +46,7 @@ pub(crate) struct GatewayPackets {
 
 impl GatewayPackets {
     pub(crate) fn new(
-        clients_address: String,
+        clients_address: Option<String>,
         pub_key: ed25519::PublicKey,
         packets: Vec<MixPacket>,
     ) -> Self {
@@ -57,15 +57,17 @@ impl GatewayPackets {
         }
     }
 
-    pub(crate) fn gateway_config(&self) -> GatewayConfig {
-        GatewayConfig {
-            gateway_identity: self.pub_key,
-            gateway_owner: None,
-            gateway_listener: self.clients_address.clone(),
-        }
+    pub(crate) fn gateway_config(&self) -> Option<GatewayConfig> {
+        self.clients_address
+            .clone()
+            .map(|gateway_listener| GatewayConfig {
+                gateway_identity: self.pub_key,
+                gateway_owner: None,
+                gateway_listener,
+            })
     }
 
-    pub(crate) fn empty(clients_address: String, pub_key: ed25519::PublicKey) -> Self {
+    pub(crate) fn empty(clients_address: Option<String>, pub_key: ed25519::PublicKey) -> Self {
         GatewayPackets {
             clients_address,
             pub_key,
@@ -355,16 +357,21 @@ impl PacketSender {
         fresh_gateway_client_data: Arc<FreshGatewayClientData>,
         max_sending_rate: usize,
     ) -> Option<GatewayClientHandle> {
+        let identity = packets.pub_key;
+
+        let Some(gateway_config) = packets.gateway_config() else {
+            warn!("gateway {identity} didn't provide valid entry information");
+            return None;
+        };
+
         let (mut client, gateway_channels) =
             Self::create_new_gateway_client_handle_and_authenticate(
-                packets.gateway_config(),
+                gateway_config,
                 &fresh_gateway_client_data,
                 gateway_connection_timeout,
                 gateway_bandwidth_claim_timeout,
             )
             .await?;
-
-        let identity = client.gateway_identity();
 
         let estimated_time =
             Duration::from_secs_f64(packets.packets.len() as f64 / max_sending_rate as f64);

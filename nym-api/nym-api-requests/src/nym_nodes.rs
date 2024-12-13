@@ -72,7 +72,7 @@ pub enum NodeRoleQueryParam {
     ExitGateway,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, Default)]
 pub enum NodeRole {
     // a properly active mixnode
     Mixnode {
@@ -88,6 +88,7 @@ pub enum NodeRole {
     // equivalent of node that's in rewarded set but not in the inactive set
     Standby,
 
+    #[default]
     Inactive,
 }
 

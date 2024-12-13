@@ -1,6 +1,7 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
 use crate::{NetworkAddress, NodeVersion};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -68,6 +69,28 @@ pub struct LegacyNode {
     pub version: NodeVersion,
 }
 
+impl From<LegacyNode> for RoutingNode {
+    fn from(gateway: LegacyNode) -> Self {
+        RoutingNode {
+            node_id: gateway.node_id,
+            mix_host: gateway.mix_host,
+            entry: Some(EntryDetails {
+                ip_addresses: vec![gateway.mix_host.ip()],
+                clients_ws_port: gateway.clients_ws_port,
+                hostname: gateway.host.as_hostname(),
+                clients_wss_port: gateway.clients_wss_port,
+            }),
+            identity_key: gateway.identity_key,
+            sphinx_key: gateway.sphinx_key,
+            supported_roles: SupportedRoles {
+                mixnode: false,
+                mixnet_entry: true,
+                mixnet_exit: false,
+            },
+        }
+    }
+}
+
 impl std::fmt::Debug for LegacyNode {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("gateway::Node")
@@ -83,24 +106,6 @@ impl std::fmt::Debug for LegacyNode {
 }
 
 impl LegacyNode {
-    pub fn parse_host(raw: &str) -> Result<NetworkAddress, GatewayConversionError> {
-        // safety: this conversion is infallible
-        // (but we retain result return type for legacy reasons)
-        Ok(raw.parse().unwrap())
-    }
-
-    pub fn extract_mix_host(
-        host: &NetworkAddress,
-        mix_port: u16,
-    ) -> Result<SocketAddr, GatewayConversionError> {
-        Ok(host.to_socket_addrs(mix_port).map_err(|err| {
-            GatewayConversionError::InvalidAddress {
-                value: host.to_string(),
-                source: err,
-            }
-        })?[0])
-    }
-
     pub fn identity(&self) -> &NodeIdentity {
         &self.identity_key
     }

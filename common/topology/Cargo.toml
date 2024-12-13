@@ -16,10 +16,10 @@ log = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
 semver = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
 # 'serde' feature
-serde = { workspace = true, features = ["derive"], optional = true }
 serde_json = { workspace = true, optional = true }
 
 # 'wasm-serde-types' feature
@@ -49,5 +49,5 @@ wasm-utils = { path = "../wasm/utils", default-features = false, optional = true
 default = ["provider-trait"]
 provider-trait = ["async-trait"]
 wasm-serde-types = ["tsify", "wasm-bindgen", "wasm-utils"]
-serde = ["dep:serde", "serde_json"]
+persistence = ["serde_json"]
 outfox = []

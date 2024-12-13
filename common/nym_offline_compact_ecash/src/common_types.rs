@@ -22,8 +22,11 @@ pub struct Signature {
 #[derive(ToSchema)]
 #[schema(title = "G1Projective")]
 pub struct G1ProjectiveSchema {
+    #[schema(content_encoding = "base16")]
     pub x: [u64; 6],
+    #[schema(content_encoding = "base16")]
     pub y: [u64; 6],
+    #[schema(content_encoding = "base16")]
     pub z: [u64; 6],
 }
 

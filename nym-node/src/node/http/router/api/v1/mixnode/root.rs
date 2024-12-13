@@ -15,8 +15,8 @@ use nym_node_requests::api::v1::mixnode::models::Mixnode;
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            ("application/json" = Mixnode),
-            ("application/yaml" = Mixnode)
+            (Mixnode = "application/json"),
+            (Mixnode = "application/yaml")
         ))
     ),
     params(OutputParams)

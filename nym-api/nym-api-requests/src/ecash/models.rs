@@ -3,6 +3,7 @@
 
 use crate::helpers::PlaceholderJsonSchemaImpl;
 use cosmrs::AccountId;
+use nym_compact_ecash::common_types::G1ProjectiveSchema;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::utils::try_deserialize_g1_projective;

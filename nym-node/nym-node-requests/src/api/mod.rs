@@ -1,15 +1,14 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::api::v1::node::models::{
-    HostInformation, LegacyHostInformation, LegacyHostInformationV2,
-};
+use crate::api::v1::node::models::{LegacyHostInformation, LegacyHostInformationV2};
 use crate::error::Error;
 use nym_crypto::asymmetric::identity;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
+use utoipa::ToSchema;
 
 #[cfg(feature = "client")]
 pub mod client;
@@ -19,12 +18,16 @@ pub mod v1;
 pub use client::Client;
 
 // create the type alias manually if openapi is not enabled
-#[cfg(not(feature = "openapi"))]
-pub type SignedHostInformation = SignedData<HostInformation>;
+pub type SignedHostInformation = SignedData<crate::api::v1::node::models::HostInformation>;
+
+#[derive(ToSchema)]
+pub struct SignedDataHostInfo {
+    // #[serde(flatten)]
+    pub data: crate::api::v1::node::models::HostInformation,
+    pub signature: String,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "openapi", aliases(SignedHostInformation = SignedData<HostInformation>))]
 pub struct SignedData<T> {
     // #[serde(flatten)]
     pub data: T,

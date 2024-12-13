@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::common_types::{BlindedSignature, Signature, SignerIndex};
+use crate::common_types::{BlindedSignature, G1ProjectiveSchema, Signature, SignerIndex};
 use crate::error::{CompactEcashError, Result};
 use crate::helpers::{date_scalar, type_scalar};
 use crate::proofs::proof_withdrawal::{

@@ -35,7 +35,7 @@ pub(crate) struct ServicesQueryParams {
     ),
     path = "/v2/services",
     responses(
-        (status = 200, body = PagedService)
+        (status = 200, body = PagedResult<Service>)
     )
 )]
 #[instrument(level = tracing::Level::DEBUG, skip(state))]

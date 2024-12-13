@@ -175,6 +175,14 @@ where
     }
 }
 
+#[cfg(feature = "utoipa")]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
+#[cfg_attr(feature = "utoipa", schema(title = "Coin"))]
+pub struct CoinSchema {
+    pub denom: String,
+    pub amount: String,
+}
+
 /// The current state of the mixnet contract.
 #[cw_serde]
 pub struct ContractState {

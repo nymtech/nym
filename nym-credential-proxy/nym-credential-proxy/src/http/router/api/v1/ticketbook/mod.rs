@@ -48,14 +48,14 @@ pub type FormattedTicketbookWalletSharesAsyncResponse =
     ),
     responses(
         (status = 200, content(
-            ("application/json" = TicketbookWalletSharesResponse),
-            ("application/yaml" = TicketbookWalletSharesResponse),
+            (TicketbookWalletSharesResponse = "application/json"),
+            (TicketbookWalletSharesResponse = "application/yaml"),
         )),
         (status = 400, description = "the provided request hasn't been created against correct attributes"),
         (status = 401, description = "authentication token is missing or is invalid"),
         (status = 422, description = "provided request was malformed"),
-        (status = 500, body = ErrorResponse, description = "failed to obtain a ticketbook"),
-        (status = 503, body = ErrorResponse, description = "ticketbooks can't be issued at this moment: the epoch transition is probably taking place"),
+        (status = 500, body = String, description = "failed to obtain a ticketbook"),
+        (status = 503, body = String, description = "ticketbooks can't be issued at this moment: the epoch transition is probably taking place"),
     ),
     params(TicketbookObtainQueryParams),
     security(
@@ -138,15 +138,15 @@ pub(crate) async fn obtain_ticketbook_shares(
     ),
     responses(
         (status = 200, content(
-            ("application/json" = TicketbookWalletSharesAsyncResponse),
-            ("application/yaml" = TicketbookWalletSharesAsyncResponse),
+            (TicketbookWalletSharesAsyncResponse = "application/json"),
+            (TicketbookWalletSharesAsyncResponse = "application/yaml"),
         )),
         (status = 400, description = "the provided request hasn't been created against correct attributes"),
         (status = 401, description = "authentication token is missing or is invalid"),
         (status = 409, description = "shares were already requested"),
         (status = 422, description = "provided request was malformed"),
-        (status = 500, body = ErrorResponse, description = "failed to obtain a ticketbook"),
-        (status = 503, body = ErrorResponse, description = "ticketbooks can't be issued at this moment: the epoch transition is probably taking place"),
+        (status = 500, body = String, description = "failed to obtain a ticketbook"),
+        (status = 503, body = String, description = "ticketbooks can't be issued at this moment: the epoch transition is probably taking place"),
     ),
     params(TicketbookObtainQueryParams),
     security(
@@ -235,11 +235,11 @@ pub(crate) async fn obtain_ticketbook_shares_async(
     tag = "Ticketbook",
     responses(
         (status = 200, content(
-            ("application/json" = DepositResponse),
-            ("application/yaml" = DepositResponse),
+            (DepositResponse = "application/json"),
+            (DepositResponse = "application/yaml"),
         )),
         (status = 401, description = "authentication token is missing or is invalid"),
-        (status = 500, body = ErrorResponse, description = "failed to obtain current deposit information"),
+        (status = 500, body = String, description = "failed to obtain current deposit information"),
     ),
     params(OutputParams),
     security(
@@ -270,12 +270,12 @@ pub(crate) async fn current_deposit(
     tag = "Ticketbook",
     responses(
         (status = 200, content(
-            ("application/json" = PartialVerificationKeysResponse),
-            ("application/yaml" = PartialVerificationKeysResponse),
+            (PartialVerificationKeysResponse = "application/json"),
+            (PartialVerificationKeysResponse = "application/yaml"),
         )),
         (status = 401, description = "authentication token is missing or is invalid"),
-        (status = 500, body = ErrorResponse, description = "failed to obtain current epoch information"),
-        (status = 503, body = ErrorResponse, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),
+        (status = 500, body = String, description = "failed to obtain current epoch information"),
+        (status = 503, body = String, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),
     ),
     params(OutputParams),
     security(
@@ -320,12 +320,12 @@ pub(crate) async fn partial_verification_keys(
     tag = "Ticketbook",
     responses(
         (status = 200, content(
-            ("application/json" = MasterVerificationKeyResponse),
-            ("application/yaml" = MasterVerificationKeyResponse),
+            (MasterVerificationKeyResponse = "application/json"),
+            (MasterVerificationKeyResponse = "application/yaml"),
         )),
         (status = 401, description = "authentication token is missing or is invalid"),
-        (status = 500, body = ErrorResponse, description = "failed to obtain current epoch information"),
-        (status = 503, body = ErrorResponse, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),
+        (status = 500, body = String, description = "failed to obtain current epoch information"),
+        (status = 503, body = String, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),
     ),
     params(OutputParams),
     security(
@@ -365,12 +365,12 @@ pub(crate) async fn master_verification_key(
     tag = "Ticketbook",
     responses(
         (status = 200, content(
-            ("application/json" = CurrentEpochResponse),
-            ("application/yaml" = CurrentEpochResponse),
+            (CurrentEpochResponse = "application/json"),
+            (CurrentEpochResponse = "application/yaml"),
         )),
         (status = 401, description = "authentication token is missing or is invalid"),
-        (status = 500, body = ErrorResponse, description = "failed to obtain current epoch information"),
-        (status = 503, body = ErrorResponse, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),
+        (status = 500, body = String, description = "failed to obtain current epoch information"),
+        (status = 503, body = String, description = "credentials can't be issued at this moment: the epoch transition is probably taking place"),
     ),
     params(OutputParams),
     security(

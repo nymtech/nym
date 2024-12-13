@@ -90,7 +90,6 @@ pub(crate) struct ApiDoc;
             api_requests::v1::ticketbook::models::SharesQueryParams,
             api_requests::v1::ticketbook::models::PlaceholderJsonSchemaImpl,
         ),
-        responses(RequestError),
     ),
     modifiers(&SecurityAddon),
 )]

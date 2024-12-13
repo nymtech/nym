@@ -92,8 +92,6 @@ impl NymProxyClient {
             }
         });
 
-        // TODO add 'ready' marker for upstream lib to know when to start sending
-
         loop {
             tokio::select! {
                 stream = listener.accept() => {

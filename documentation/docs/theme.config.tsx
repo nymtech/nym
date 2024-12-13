@@ -1,14 +1,46 @@
 import React from "react";
-import { DocsThemeConfig } from "nextra-theme-docs";
+import { DocsThemeConfig, useConfig } from "nextra-theme-docs";
 import { Footer } from "./components/footer";
 import { Matrix } from "./components/matrix-link";
 import { useRouter } from "next/router";
 
 const config: DocsThemeConfig = {
-  useNextSeoProps() {
-    return {
-      titleTemplate: "%s – Nym Docs",
-    };
+  head: function useHead() {
+    const config = useConfig()
+    const { route } = useRouter()
+    const url = process.env.NEXT_PUBLIC_SITE_URL
+    const image = url + '/nym_logo.jpg'
+
+    const description =
+      config.frontMatter.description ||
+      'Nym is a privacy platform. It provides strong network-level privacy against sophisticated end-to-end attackers, and anonymous access control using blinded, re-randomizable, decentralized credentials.'
+    const title = config.title + (route === '/' ? '' : ' - Nym docs')
+
+    return (
+      <>
+        <title>{title}</title>
+        <meta name="author" content="Nym" />
+        <link rel="canonical" href={url + route} />
+
+        <meta property="og:title" content={title} />
+        <meta property="og:site_name" content="Nym docs"></meta>
+        <meta name="description" content={description} />
+        <meta property="og:description" content={description} />
+        <meta property="og:image" content={image} />
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content={url + route}></meta>
+
+        <meta property="twitter:title" content={title}></meta>
+        <meta property="twitter:description" content={description}></meta>
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta property="twitter:image" content={image}></meta>
+        <meta name="twitter:site" content="@nymproject" />
+        <meta name="twitter:site:domain" content={url} />
+        <meta name="twitter:url" content={url + route} />
+
+        <meta name="apple-mobile-web-app-title" content="Nym docs" />
+      </>
+    )
   },
   logo: <span>Nym Docs</span>,
   project: {

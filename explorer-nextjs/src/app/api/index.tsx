@@ -15,6 +15,14 @@ export interface IPacketsAndStakingData {
   total_stake: number;
 }
 
+export interface CurrentEpochData {
+  id: number;
+  current_epoch_id: number;
+  current_epoch_start: string;
+  epoch_length: { secs: number; nanos: number };
+  epochs_in_interval: number;
+  total_elapsed_epochs: number;
+}
 export interface ExplorerData {
   circulatingNymSupplyData: {
     circulating_supply: { denom: Denom; amount: string };
@@ -45,14 +53,7 @@ export interface ExplorerData {
     };
   };
   packetsAndStakingData: IPacketsAndStakingData[];
-  currentEpochData: {
-    id: number;
-    current_epoch_id: number;
-    current_epoch_start: string;
-    epoch_length: { secs: number; nanos: number };
-    epochs_in_interval: number;
-    total_elapsed_epochs: number;
-  };
+
   currentEpochRewardsData: {
     interval: {
       reward_pool: string;

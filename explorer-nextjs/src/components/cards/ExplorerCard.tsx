@@ -16,22 +16,22 @@ const cardSubtitleStyles: SxProps = {
 };
 
 const ExplorerCard = ({
+  label,
   title,
-  subtitle,
   children,
   sx,
 }: {
-  title: string;
-  subtitle?: string;
+  label: string;
+  title?: string;
   children: React.ReactNode;
   sx?: SxProps;
 }) => {
   return (
     <Card elevation={0} sx={{ ...cardStyles, ...sx }}>
       <CardHeader
-        title={title}
+        title={label}
         titleTypographyProps={cardTitleStyles}
-        subheader={subtitle}
+        subheader={title}
         subheaderTypographyProps={cardSubtitleStyles}
       />
       <CardContent>{children}</CardContent>

@@ -17,7 +17,7 @@ export const TokenomicsCard = () => {
   ];
 
   return (
-    <ExplorerCard title="Tokenomics overview" sx={{ height: "100%" }}>
+    <ExplorerCard label="Tokenomics overview" sx={{ height: "100%" }}>
       <Stack gap={3} height="100%">
         <TitlePrice {...titlePrice} />
         <Box>

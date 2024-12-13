@@ -11,7 +11,7 @@ const ProgressBar = ({
     <LinearProgress
       variant="determinate"
       value={value}
-      sx={{ height: 8, borderRadius: 5, width: "100%" }}
+      sx={{ height: 6, borderRadius: 5, width: "100%" }}
       color={color}
     />
   );

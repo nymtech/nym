@@ -117,10 +117,9 @@ async fn main() -> anyhow::Result<()> {
         Ok::<(), anyhow::Error>(())
     });
 
-    // Just wait for Nym clients to connect, TCP clients to bind, etc.
-    // TODO change this to wait on the actual client to be ready (pool -> client ready state kickback)
+    // Just wait for Nym clients to connect, TCP clients to bind, etc. If there isn't a client in the pool (or you started it with 0) already then the TcpProxyClient just spins up an ephemeral client itself.
     println!("waiting for everything to be set up..");
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
     println!("done. sending bytes");
 
     // Now the client and server proxies are running we can create and pipe traffic to/from

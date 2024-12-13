@@ -6,10 +6,11 @@ use tokio::sync::RwLock;
 use tracing::{debug, info, warn};
 
 pub struct ClientPool {
-    clients: Arc<RwLock<Vec<Arc<MixnetClient>>>>, // collection of clients waiting to be used which are popped off in get_mixnet_client()
-    client_pool_reserve_number: usize, // default # of clients to have available in pool in reserve waiting for incoming connections
+    clients: Arc<RwLock<Vec<Arc<MixnetClient>>>>, // Collection of clients waiting to be used which are popped off in get_mixnet_client()
+    client_pool_reserve_number: usize, // Default # of clients to have available in pool in reserve waiting for incoming connections
 }
 
+// This is only necessary for when you're wanting to check the addresses of the clients that are currently in the pool.
 impl fmt::Debug for ClientPool {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let clients_debug = match self.clients.try_read() {
@@ -55,6 +56,7 @@ impl ClientPool {
         }
     }
 
+    // The loop here is simple: if there aren't enough clients, create more. If you set clients to 0, repeatedly just sleep.
     pub async fn start(&self) -> Result<()> {
         loop {
             let spawned_clients = self.clients.read().await.len();

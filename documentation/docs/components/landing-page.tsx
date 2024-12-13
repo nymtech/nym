@@ -10,12 +10,6 @@ import networkDocs from "../public/images/landing/network-docs.png";
 import developerDocs from "../public/images/landing/developer-docs.png";
 import sdkDocs from "../public/images/landing/sdk-docs.png";
 import operatorGuide from "../public/images/landing/operator-guide.png";
-import { t } from "nextra/dist/types-c8e621b7";
-// import networkDocs from "./images/network-docs.png";
-// import developerDocs from "./images/developer-docs.png";
-// import sdkDocs from "./images/sdk-docs.png";
-// import operatorGuide from "./images/operator-guide.png";
-
 export const LandingPage = () => {
   const theme = useTheme();
   const isTablet = useMediaQuery(theme.breakpoints.up("md"));
@@ -38,18 +32,24 @@ export const LandingPage = () => {
     },
     {
       text: "Developer Portal",
-      description:
-        "Conceptual overview, clients, and tools for developers and integrations",
+      description: "Conceptual overview, clients, tools and SDKs",
 
       href: "/developers",
-      icon: networkDocs,
-    },
-    {
-      text: "SDKs",
-      description: "Rust and Typescript SDK docs",
-
-      href: "/developers/rust",
       icon: sdkDocs,
+    },
+    // {
+    //   text: "SDKs",
+    //   description: "Rust and Typescript SDK docs",
+
+    //   href: "/developers/rust",
+    //   icon: sdkDocs,
+    // },
+    {
+      text: "APIs",
+      description: "Interactive API specs for Nym infrastructure",
+
+      href: "/apis/introduction",
+      icon: networkDocs,
     },
   ];
 

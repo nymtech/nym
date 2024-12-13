@@ -301,8 +301,10 @@ chmod +x network_tunnel_manager.sh && \
 
 ###### 3. Setup IP tables rules
 
-- Apply the rules for IPv4 and IPv6:
+- Delete IP tables rules for IPv4 and IPv6 and apply new ones:
 ```sh
+./network_tunnel_manager.sh remove_duplicate_rules nymtun0
+
 ./network_tunnel_manager.sh apply_iptables_rules
 ```
 
@@ -363,9 +365,11 @@ operation check_nymtun_iptables completed successfully.
 ```
 </AccordionTemplate>
 
-###### 5. Apply rules for wireguad routing
+###### 5. Remove old and apply new rules for wireguad routing
 
 ```sh
+/network_tunnel_manager.sh remove_duplicate_rules nymwg
+
 ./network_tunnel_manager.sh apply_iptables_rules_wg
 ```
 
@@ -374,8 +378,15 @@ operation check_nymtun_iptables completed successfully.
 ```sh
 ./network_tunnel_manager.sh configure_dns_and_icmp_wg
 ```
+###### 7. Adjust and validate IP forwarding
 
-###### 7. Check `nymtun0` interface and test routing configuration
+```sh
+./network_tunnel_manager.sh adjust_ip_forwarding
+
+./network_tunnel_manager.sh check_ipv6_ipv4_forwarding
+```
+
+###### 8. Check `nymtun0` interface and test routing configuration
 
 ```sh
 ip addr show nymtun0
@@ -409,7 +420,7 @@ ip addr show nymtun0
 - **Note:** WireGuard will return only IPv4 joke, not IPv6. WG IPv6 is under development. Running IPR joke through the mixnet with `./network_tunnel_manager.sh joke_through_the_mixnet` should work with both IPv4 and IPv6!
 
 
-###### 8. Enable wireguard
+###### 9. Enable wireguard
 
 Now you can run your node with the `--wireguard-enabled true` flag or add it to your [systemd service config](#systemd). Restart your `nym-node` or [systemd](#2-following-steps-for-nym-nodes-running-as-systemd-service) service (recommended):
 

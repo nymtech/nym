@@ -20,7 +20,7 @@ fn generate_random() -> u64 {
     rng.next_u64()
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AuthenticatorRequest {
     pub protocol: Protocol,
     pub data: AuthenticatorRequestData,
@@ -106,7 +106,7 @@ impl AuthenticatorRequest {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum AuthenticatorRequestData {
     Initial(InitMessage),
     Final(Box<FinalMessage>),

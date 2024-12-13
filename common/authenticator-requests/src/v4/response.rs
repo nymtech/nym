@@ -10,7 +10,7 @@ use crate::make_bincode_serializer;
 
 use super::VERSION;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct AuthenticatorResponse {
     pub protocol: Protocol,
     pub data: AuthenticatorResponseData,
@@ -120,7 +120,7 @@ impl AuthenticatorResponse {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum AuthenticatorResponseData {
     PendingRegistration(PendingRegistrationResponse),
     Registered(RegisteredResponse),
@@ -128,28 +128,28 @@ pub enum AuthenticatorResponseData {
     TopUpBandwidth(TopUpBandwidthResponse),
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct PendingRegistrationResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
     pub reply: RegistrationData,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RegisteredResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
     pub reply: RegistredData,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct RemainingBandwidthResponse {
     pub request_id: u64,
     pub reply_to: Recipient,
     pub reply: Option<RemainingBandwidthData>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub struct TopUpBandwidthResponse {
     pub request_id: u64,
     pub reply_to: Recipient,

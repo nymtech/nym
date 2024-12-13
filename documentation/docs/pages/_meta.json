@@ -27,5 +27,9 @@
   "operators": {
     "title": "Operators",
     "type": "page"
+  },
+  "apis": {
+    "title": "APIs",
+    "type": "page"
   }
 }

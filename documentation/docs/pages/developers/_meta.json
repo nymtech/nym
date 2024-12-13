@@ -5,6 +5,7 @@
   "integrations": "Integration Options",
   "clients": "Clients",
   "tools": "Tools",
+  "nymvpncli": "Nym VPN CLI",
   "chain": "Interacting with Nyx",
   "--": {
     "type": "separator"

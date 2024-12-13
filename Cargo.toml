@@ -98,7 +98,7 @@ members = [
     "common/wasm/utils",
     "common/wireguard",
     "common/wireguard-types",
-    # "documentation/autodoc",
+    "documentation/autodoc",
     "explorer-api",
     "explorer-api/explorer-api-requests",
     "explorer-api/explorer-client",
@@ -107,7 +107,6 @@ members = [
     "sdk/ffi/cpp",
     "sdk/ffi/go",
     "sdk/ffi/shared",
-    "sdk/lib/socks5-listener",
     "sdk/rust/nym-sdk",
     "service-providers/authenticator",
     "service-providers/common",
@@ -416,10 +415,6 @@ web-sys = "0.3.72"
 # using an optimized build
 [profile.dev.package.sqlx-macros]
 opt-level = 3
-
-[profile.release.package.nym-socks5-listener]
-strip = true
-codegen-units = 1
 
 [profile.release.package.nym-client-wasm]
 # lto = true

@@ -1,13 +1,13 @@
 ```sh
 
 Binary Name:        nym-socks5-client
-Build Timestamp:    2024-10-29T09:48:31.988049207Z
-Build Version:      1.1.42
-Commit SHA:         299552881810511273af13eb135297a4cf7a38de
-Commit Date:        2024-10-29T10:48:07.000000000+01:00
-Commit Branch:      max/new-docs-framework
-rustc Version:      1.80.0
-rustc Channel:      stable
+Build Timestamp:    2024-12-10T11:37:07.839071360Z
+Build Version:      1.1.44
+Commit SHA:         62045d76b32265f6a5e6358ab7aebbc827d47dcd
+Commit Date:        2024-11-26T11:53:05.000000000+01:00
+Commit Branch:      master
+rustc Version:      1.84.0-nightly
+rustc Channel:      nightly
 cargo Profile:      release
 
 ```

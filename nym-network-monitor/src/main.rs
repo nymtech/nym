@@ -2,7 +2,7 @@ use crate::http::HttpServer;
 use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
-use log::{info, warn};
+use log::{error, info, warn};
 use nym_client_core::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
 use nym_network_defaults::setup_env;
@@ -22,6 +22,7 @@ use std::{
 };
 use tokio::sync::OnceCell;
 use tokio::{signal::ctrl_c, sync::RwLock};
+use tokio_postgres::NoTls;
 use tokio_util::sync::CancellationToken;
 
 static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
@@ -136,7 +137,10 @@ struct Args {
     generate_key_pair: bool,
 
     #[arg(long)]
-    private_key: String,
+    private_key: Option<String>,
+
+    #[arg(long, env = "DATABASE_URL")]
+    database_url: Option<String>,
 }
 
 fn generate_key_pair() -> Result<()> {
@@ -174,8 +178,10 @@ async fn main() -> Result<()> {
         std::process::exit(0);
     }
 
-    let pk = PrivateKey::from_base58_string(&args.private_key)?;
-    PRIVATE_KEY.set(pk).ok();
+    if let Some(private_key) = args.private_key {
+        let pk = PrivateKey::from_base58_string(&private_key)?;
+        PRIVATE_KEY.set(pk).ok();
+    }
 
     TOPOLOGY
         .set(if let Some(topology_file) = args.topology {
@@ -203,16 +209,31 @@ async fn main() -> Result<()> {
 
     info!("Waiting for message (ctrl-c to exit)");
 
+    let client = if let Some(database_url) = args.database_url {
+        let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
+
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                error!("Postgres connection error: {}", e);
+            }
+        });
+
+        Some(Arc::new(client))
+    } else {
+        None
+    };
+
     loop {
+        let client = client.as_ref().map(Arc::clone);
         match tokio::time::timeout(Duration::from_secs(600), ctrl_c()).await {
             Ok(_) => {
                 info!("Received kill signal, shutting down, submitting final batch of metrics");
-                submit_metrics().await?;
+                submit_metrics(client).await?;
                 break;
             }
             Err(_) => {
                 info!("Submitting metrics, cleaning metric buffers");
-                submit_metrics().await?;
+                submit_metrics(client).await?;
             }
         };
     }

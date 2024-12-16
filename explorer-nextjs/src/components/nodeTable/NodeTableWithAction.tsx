@@ -1,4 +1,5 @@
 import type NymNode from "@/app/api/types";
+import { ClientOnly } from "../clientOnly/ClientOnly";
 import NodeTable from "./NodeTable";
 import getNymNodes from "./actions";
 
@@ -21,7 +22,11 @@ const NodeTableWithAction = async () => {
   try {
     const nodes = await getNymNodes();
     const data = mappedNymNodes(nodes);
-    return <NodeTable nodes={data} />;
+    return (
+      <ClientOnly>
+        <NodeTable nodes={data} />
+      </ClientOnly>
+    );
   } catch (error) {
     console.error(error);
     return [];

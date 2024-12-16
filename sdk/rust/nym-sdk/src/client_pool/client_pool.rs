@@ -48,6 +48,16 @@ impl fmt::Debug for ClientPool {
     }
 }
 
+impl std::clone::Clone for ClientPool {
+    fn clone(&self) -> Self {
+        Self {
+            clients: Arc::clone(&self.clients),
+            client_pool_reserve_number: self.client_pool_reserve_number,
+            cancel_token: self.cancel_token.clone(),
+        }
+    }
+}
+
 impl ClientPool {
     pub fn new(client_pool_reserve_number: usize) -> Self {
         ClientPool {
@@ -128,13 +138,5 @@ impl ClientPool {
 
     pub async fn get_pool_reserve(&self) -> usize {
         self.client_pool_reserve_number
-    }
-
-    pub fn clone(&self) -> Self {
-        Self {
-            clients: Arc::clone(&self.clients),
-            client_pool_reserve_number: self.client_pool_reserve_number,
-            cancel_token: self.cancel_token.clone(),
-        }
     }
 }

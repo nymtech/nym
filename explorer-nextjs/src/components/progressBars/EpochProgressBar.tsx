@@ -1,7 +1,6 @@
 import { Stack } from "@mui/material";
 import Box from "@mui/material/Box";
 import { addHours, differenceInMinutes, format } from "date-fns";
-import * as React from "react";
 import ListItem from "../list/ListItem";
 import ProgressBar from "../progressBar/ProgressBar";
 
@@ -10,18 +9,18 @@ export interface IDynamicProgressBarProps {
   showEpoch: boolean;
 }
 
-const EpochProgressBar = ({ start, showEpoch }: IDynamicProgressBarProps) => {
-  const startTime = format(new Date(start), "HH:mm dd-MM-yyyy");
-  const endTime = format(addHours(new Date(start), 1), "HH:mm dd-MM-yyyy");
-  const totalEpochTime = differenceInMinutes(
-    new Date(endTime),
-    new Date(startTime),
-  );
+const EpochProgressBar = async ({
+  start,
+  showEpoch,
+}: IDynamicProgressBarProps) => {
+  const startDate = new Date(start);
+  const endDate = addHours(new Date(start), 1);
+  const startTime = format(startDate, "HH:mm dd-MM-yyyy");
+  const endTime = format(endDate, "HH:mm dd-MM-yyyy");
+  const totalEpochTime = differenceInMinutes(endDate, startDate);
 
   const progress =
-    (differenceInMinutes(new Date(), startTime) / totalEpochTime) * 100;
-
-  console.log(progress);
+    (differenceInMinutes(new Date(), startDate) / totalEpochTime) * 100;
 
   return (
     <Box sx={{ width: "100%" }}>

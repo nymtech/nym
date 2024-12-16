@@ -2,7 +2,7 @@ import { formatBigNum } from "@/app/utils/formatBigNumbers";
 import { Stack, Typography } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
 
-export const RewardsCard = () => {
+export const RewardsCard = async () => {
   return (
     <ExplorerCard label="Operator rewards this month">
       <Stack>

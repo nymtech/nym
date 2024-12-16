@@ -1,11 +1,10 @@
-"use client";
 import type { ExplorerData, IPacketsAndStakingData } from "@/app/api";
 import {
   CURRENT_EPOCH_REWARDS,
   HARBOURMASTER_API_MIXNODES_STATS,
 } from "@/app/api/urls";
 import { formatBigNum } from "@/app/utils/formatBigNumbers";
-import { Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";
 
@@ -60,7 +59,11 @@ export const NetworkStakeCard = async () => {
         >
           {title}
         </Typography>
-        {stakeLineGraphData && <LineChart {...stakeLineGraphData} />}
+        {stakeLineGraphData && (
+          <Box height={225}>
+            <LineChart {...stakeLineGraphData} />
+          </Box>
+        )}
       </Stack>
     </ExplorerCard>
   );

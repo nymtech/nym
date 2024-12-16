@@ -1,6 +1,5 @@
 import type { CurrentEpochData } from "@/app/api";
 import { CURRENT_EPOCH } from "@/app/api/urls";
-import { Stack } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
 import EpochProgressBar from "../progressBars/EpochProgressBar";
 
@@ -26,11 +25,10 @@ export const CurrentEpochCard = async () => {
     start: currentEpochStart || "",
     showEpoch: true,
   };
+
   return (
     <ExplorerCard label="Current NGM epoch">
-      <Stack>
-        <EpochProgressBar {...progressBar} />
-      </Stack>
+      <EpochProgressBar {...progressBar} />
     </ExplorerCard>
   );
 };

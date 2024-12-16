@@ -101,6 +101,21 @@ export interface IBondInfo {
     };
     owner: string;
   };
+  rewarding_details: {
+    cost_params: {
+      profit_margin_percent: string;
+      interval_operating_cost: {
+        denom: string;
+        amount: string;
+      };
+    };
+    delegates: string;
+    last_rewarded_epoch: number;
+    operator: string;
+    total_unit_reward: string;
+    unique_delegations: number;
+    unit_delegation: string;
+  };
 }
 
 export interface INodeDescription {

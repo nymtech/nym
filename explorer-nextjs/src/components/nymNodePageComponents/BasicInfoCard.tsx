@@ -17,6 +17,8 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
     "dd/MM/yyyy",
   );
 
+  const selfBond = Number(bondInfo.rewarding_details.unit_delegation) / 1000000;
+  const selfBondFormated = `${selfBond} NYM`;
   return (
     <ExplorerCard label="Basic info">
       <Stack gap={1}>
@@ -31,8 +33,13 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
           value={bondInfo.bond_information.node.identity_key}
         />
         <ExplorerListItem row divider label="Node bonded" value={timeBonded} />
-        <ExplorerListItem row divider label="Nr. of stakes" value="56" />
-        <ExplorerListItem row label="Self bonded" value="10,000 NYM" />
+        <ExplorerListItem
+          row
+          divider
+          label="Nr. of stakes"
+          value={bondInfo.rewarding_details.unique_delegations.toString()}
+        />
+        <ExplorerListItem row label="Self bonded" value={selfBondFormated} />
       </Stack>
     </ExplorerCard>
   );

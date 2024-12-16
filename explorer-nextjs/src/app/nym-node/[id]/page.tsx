@@ -6,9 +6,10 @@ import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerListItem from "@/components/list/ListItem";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
 import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
+import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
 import { StarRating } from "@/components/starRating";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
-import { Box, Grid2, Stack } from "@mui/material";
+import { Box, Grid2 } from "@mui/material";
 
 export default async function NymNode({
   params,
@@ -16,6 +17,7 @@ export default async function NymNode({
   params: Promise<{ id: string }>;
 }) {
   const id = (await params).id;
+  console.log("id :>> ", id);
 
   const descriptionData = await fetch(NYM_NODE_DESCRIPTION, {
     headers: {
@@ -27,12 +29,6 @@ export default async function NymNode({
   });
   const nymNodesDescription = await descriptionData.json();
 
-  if (!nymNodesDescription) {
-    return null;
-  }
-
-  console.log("id :>> ", id);
-
   const bondedData = await fetch(NYM_NODE_BONDED, {
     headers: {
       Accept: "application/json",
@@ -43,7 +39,7 @@ export default async function NymNode({
   });
   const nymbondedData = await bondedData.json();
 
-  if (!bondedData) {
+  if (!bondedData || !nymNodesDescription) {
     return null;
   }
 
@@ -54,8 +50,6 @@ export default async function NymNode({
   const nodeDescriptionInfo = nymNodesDescription.data.filter(
     (item: INodeDescription) => item.node_id === 5,
   );
-
-  console.log("nodeDescriptionInfo :>> ", nodeDescriptionInfo);
 
   return (
     <ContentLayout>
@@ -89,10 +83,7 @@ export default async function NymNode({
           />
         </Grid2>
         <Grid2 size={4}>
-          <ExplorerCard
-            label="Node Rewards (Last Epoch/Hour)"
-            sx={{ height: "100%" }}
-          >
+          <ExplorerCard label="Quality indicatiors" sx={{ height: "100%" }}>
             <ExplorerListItem row divider label="Role" value="Gateway" />
             <ExplorerListItem
               row
@@ -115,38 +106,7 @@ export default async function NymNode({
           </ExplorerCard>
         </Grid2>
         <Grid2 size={6}>
-          <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
-            <ExplorerListItem
-              row
-              divider
-              label="Total rew."
-              value="10,000 NYM"
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Operator rew."
-              value="10,000 NYM"
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Staker rew."
-              value="10,000 NYM"
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Profit margin rew."
-              value="40 NYM"
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Operating cost."
-              value="40 NYM"
-            />
-          </ExplorerCard>
+          <NodeRewardsCard bondInfo={nodeBondInfo[0]} />
         </Grid2>
         <Grid2 size={6}>
           <NodeMetricsCard nodeDescription={nodeDescriptionInfo[0]} />

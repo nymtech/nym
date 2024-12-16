@@ -24,7 +24,7 @@ export const NodeMetricsCard = (props: INodeMetricsCardProps) => {
       />
       <ExplorerListItem row divider label="Staker rew." value="10,000 NYM" />
       <ExplorerListItem row divider label="Version" value="1.1.1.1" />
-      <ExplorerListItem row divider label="Active set Prob." value="High" />
+      <ExplorerListItem row label="Active set Prob." value="High" />
     </ExplorerCard>
   );
 };

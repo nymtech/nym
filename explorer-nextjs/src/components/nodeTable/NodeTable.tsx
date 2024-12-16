@@ -18,7 +18,7 @@ const ColumnHeading = ({
   children: string | React.ReactNode;
 }) => {
   return (
-    <Typography sx={{ py: 2 }} variant="h5">
+    <Typography sx={{ py: 2, textAlign: "center" }} variant="h5">
       {children}
     </Typography>
   );
@@ -119,6 +119,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
             Stake
           </Button>
         ),
+        enableSorting: false,
       },
       {
         id: "Favorite",
@@ -165,13 +166,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       shape: "circular",
     },
     sortingFns: {
-      Favorite: (a, b) => {
-        if (favorites.includes(a.original.bondInformation.node.identity_key)) {
-          return -1;
-        }
-        if (favorites.includes(b.original.bondInformation.node.identity_key)) {
-          return 1;
-        }
+      Favorite: () => {
+        // TODO implement sorting by favorite
         return 0;
       },
     },

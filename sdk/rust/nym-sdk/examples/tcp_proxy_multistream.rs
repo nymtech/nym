@@ -124,8 +124,9 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
+    // TODO CHANGE make this a task listening for ctrl_c, add cancel token to loops + call client.disconnect() on ctrl_c
     signal::ctrl_c().await?;
-    println!("CTRL+C received, shutting down");
+    println!("CTRL_C received, shutting down");
     Ok(())
 }
 

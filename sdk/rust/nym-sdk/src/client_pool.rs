@@ -139,6 +139,6 @@
 //!     }
 //! }
 
-mod client_pool;
+mod mixnet_client_pool;
 
-pub use client_pool::ClientPool;
+pub use mixnet_client_pool::ClientPool;

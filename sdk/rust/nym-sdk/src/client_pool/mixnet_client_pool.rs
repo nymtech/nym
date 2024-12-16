@@ -12,7 +12,7 @@ pub struct ClientPool {
     cancel_token: CancellationToken,
 }
 
-// This is only necessary for when you're wanting to check the addresses of the clients that are currently in the pool.
+// This is only necessary for when you're wanting to check the addresses of the clients that are currently in the pool via logging.
 impl fmt::Debug for ClientPool {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         let clients_debug = match self.clients.try_read() {
@@ -48,7 +48,7 @@ impl fmt::Debug for ClientPool {
     }
 }
 
-impl std::clone::Clone for ClientPool {
+impl Clone for ClientPool {
     fn clone(&self) -> Self {
         Self {
             clients: Arc::clone(&self.clients),

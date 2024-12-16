@@ -6,6 +6,7 @@ import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerListItem from "@/components/list/ListItem";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
 import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
+import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
 import { StarRating } from "@/components/starRating";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Grid2 } from "@mui/material";
@@ -16,6 +17,7 @@ export default async function NymNode({
   params: Promise<{ id: string }>;
 }) {
   const id = (await params).id;
+  console.log("id :>> ", id);
 
   const descriptionData = await fetch(NYM_NODE_DESCRIPTION, {
     headers: {
@@ -27,12 +29,6 @@ export default async function NymNode({
   });
   const nymNodesDescription = await descriptionData.json();
 
-  if (!nymNodesDescription) {
-    return null;
-  }
-
-  console.log("id :>> ", id);
-
   const bondedData = await fetch(NYM_NODE_BONDED, {
     headers: {
       Accept: "application/json",
@@ -43,7 +39,7 @@ export default async function NymNode({
   });
   const nymbondedData = await bondedData.json();
 
-  if (!bondedData) {
+  if (!bondedData || !nymNodesDescription) {
     return null;
   }
 
@@ -54,8 +50,6 @@ export default async function NymNode({
   const nodeDescriptionInfo = nymNodesDescription.data.filter(
     (item: INodeDescription) => item.node_id === 5,
   );
-
-  console.log("nodeDescriptionInfo :>> ", nodeDescriptionInfo);
 
   return (
     <ContentLayout>
@@ -92,21 +86,31 @@ export default async function NymNode({
             nodeDescription={nodeDescriptionInfo[0]}
           />
         </Grid2>
-        <Grid2
-          size={{
-            xs: 12,
-            md: 4,
-          }}
-        >
-          <QualityIndicatorsCard nodeDescription={nymNode.description} />
+        <Grid2 size={4}>
+          <ExplorerCard label="Quality indicatiors" sx={{ height: "100%" }}>
+            <ExplorerListItem row divider label="Role" value="Gateway" />
+            <ExplorerListItem
+              row
+              divider
+              label="Quality of service"
+              value={<StarRating value={5} />}
+            />
+            <ExplorerListItem
+              row
+              divider
+              label="Config score"
+              value={<StarRating value={4} />}
+            />
+            <ExplorerListItem
+              row
+              divider
+              label="Probe score"
+              value={<StarRating value={5} />}
+            />
+          </ExplorerCard>
         </Grid2>
-        <Grid2
-          size={{
-            xs: 12,
-            md: 6,
-          }}
-        >
-          <NodeRewardsCard rewardDetails={nymNode.rewarding_details} />
+        <Grid2 size={6}>
+          <NodeRewardsCard bondInfo={nodeBondInfo[0]} />
         </Grid2>
         <Grid2 size={6}>
           <NodeMetricsCard nodeDescription={nodeDescriptionInfo[0]} />

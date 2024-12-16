@@ -22,6 +22,7 @@ const DEFAULT_LISTEN_HOST: &str = "127.0.0.1";
 const DEFAULT_LISTEN_PORT: &str = "8080";
 const DEFAULT_CLIENT_POOL_SIZE: usize = 2;
 
+#[derive(Clone)]
 pub struct NymProxyClient {
     server_address: Recipient,
     listen_address: String,
@@ -32,17 +33,6 @@ pub struct NymProxyClient {
 }
 
 impl NymProxyClient {
-    pub fn clone(&self) -> Self {
-        Self {
-            server_address: self.server_address,
-            listen_address: self.listen_address.clone(),
-            listen_port: self.listen_port.clone(),
-            close_timeout: self.close_timeout,
-            conn_pool: self.conn_pool.clone(),
-            cancel_token: self.cancel_token.clone(),
-        }
-    }
-
     pub async fn new(
         server_address: Recipient,
         listen_address: &str,

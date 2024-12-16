@@ -93,7 +93,6 @@ impl<T> Deref for SignedData<T> {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ErrorResponse {
     pub message: String,
 }

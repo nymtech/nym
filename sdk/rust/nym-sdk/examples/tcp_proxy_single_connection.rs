@@ -10,6 +10,7 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
+use tokio_util::sync::CancellationToken;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -66,6 +67,9 @@ async fn main() -> anyhow::Result<()> {
         tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 1)
             .await?;
 
+    // For our disconnect() logic below
+    let proxy_clone = proxy_client.clone();
+
     tokio::spawn(async move {
         proxy_server.run_with_shutdown().await?;
         Ok::<(), anyhow::Error>(())
@@ -76,10 +80,28 @@ async fn main() -> anyhow::Result<()> {
         Ok::<(), anyhow::Error>(())
     });
 
+    let example_cancel_token = CancellationToken::new();
+    let server_cancel_token = example_cancel_token.clone();
+    let client_cancel_token = example_cancel_token.clone();
+    let watcher_cancel_token = example_cancel_token.clone();
+
+    // Cancel listener thread
+    tokio::spawn(async move {
+        signal::ctrl_c().await?;
+        println!(":: CTRL_C received, shutting down + cleanup up proxy server config files");
+        fs::remove_dir_all(conf_path)?;
+        watcher_cancel_token.cancel();
+        proxy_clone.disconnect().await;
+        Ok::<(), anyhow::Error>(())
+    });
+
     // 'Server side' thread: echo back incoming as response to the messages sent in the 'client side' thread below
     tokio::spawn(async move {
         let listener = TcpListener::bind(upstream_tcp_addr).await?;
         loop {
+            if server_cancel_token.is_cancelled() {
+                break;
+            }
             let (socket, _) = listener.accept().await.unwrap();
             let (read, mut write) = socket.into_split();
             let codec = codec::BytesCodec::new();
@@ -139,6 +161,9 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(async move {
         let mut rng = SmallRng::from_entropy();
         for i in 0..10 {
+            if client_cancel_token.is_cancelled() {
+                break;
+            }
             let random_bytes = gen_bytes_fixed(i as usize);
             let msg = ExampleMessage {
                 message_id: i,
@@ -178,11 +203,6 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
-    // TODO CHANGE make this a task listening for ctrl_c, add cancel token to loops + call client.disconnect() on ctrl_c
-    signal::ctrl_c().await?;
-    println!(":: CTRL_C received, shutting down + cleanup up proxy server config files");
-    fs::remove_dir_all(conf_path)?;
     Ok(())
 }
 

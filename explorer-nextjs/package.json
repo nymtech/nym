@@ -1,12 +1,15 @@
 {
-  "name": "@nymproject/explorer_v2",
+  "name": "@nymproject/explorer-nextjs",
   "version": "0.1.0",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "build:prod": "yarn --cwd .. build && next build",
+    "build:prod": "yarn build",
     "start": "next start",
     "lint": "biome check --fix"
+  },
+  "engines": {
+    "node": ">=20.0.0"
   },
   "dependencies": {
     "@emotion/cache": "^11.13.5",
@@ -15,10 +18,13 @@
     "@mui/icons-material": "^5.16.11",
     "@mui/material": "^6.1.10",
     "@mui/material-nextjs": "^6.1.9",
+    "@mui/x-date-pickers": "^7.23.2",
     "@nivo/line": "^0.88.0",
+    "@tanstack/react-table": "^8.20.6",
     "@uidotdev/usehooks": "^2.4.1",
     "cldr-compact-number": "^0.4.0",
     "date-fns": "^4.1.0",
+    "material-react-table": "^3.0.3",
     "next": "15.0.3",
     "qrcode.react": "^4.1.0",
     "react": "19.0.0-rc-66855b96-20241106",

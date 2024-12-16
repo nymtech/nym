@@ -1,5 +1,11 @@
 export const HARBOURMASTER_API_SUMMARY =
   "https://harbourmaster.nymtech.net/v2/summary";
+export const NYM_NODES_DESCRIBED =
+  "https://validator.nymtech.net/api/v1/nym-nodes/described";
+export const BONDED_NODES =
+  "https://validator.nymtech.net/api/v1/nym-nodes/bonded";
+export const NYM_NODES =
+  "https://explorer.nymtech.net/api/v1/tmp/unstable/nym-nodes";
 export const EXPLORER_API = "https://explorer.nymtech.net/api/v1/countries";
 export const VALIDATOR_API_SUPPLY =
   "https://validator.nymtech.net/api/v1/circulating-supply";

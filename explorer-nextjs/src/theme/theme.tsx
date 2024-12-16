@@ -164,7 +164,13 @@ const getTheme = (mode: "light" | "dark"): ThemeOptions => {
           root: {
             fontSize: "16px",
             backgroundColor: colours.base.white,
-            color: designTokens.palette.background.main,
+          },
+        },
+      },
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: "32px",
           },
         },
       },
@@ -258,6 +264,7 @@ const getTheme = (mode: "light" | "dark"): ThemeOptions => {
                     borderStyle: "solid",
                   },
                   "&:active": {
+                    color: "black",
                     outline: "none",
                     borderColor: "transparent",
                   },

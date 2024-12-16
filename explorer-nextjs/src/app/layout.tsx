@@ -2,6 +2,7 @@ import { Header } from "@/components/header";
 import { Wrapper } from "@/components/wrapper";
 import ThemeProvider from "@/providers/ThemeProvider";
 import type { Metadata } from "next";
+import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Create Next App",

@@ -60,4 +60,4 @@ A connection abstraction which exposes a local TCP socket which developers are a
 | `proxy_server_address_internal()`                                                                                                       | `NymProxyServer.nym_address()`                                                        |
 
 ## Client Pool
-There are currently no FFI bindings for the Client Pool. This will be coming in the future.
+There are currently no FFI bindings for the Client Pool. This will be coming in the future. The bindings for the TcpProxy have been updated to be able to use the Client Pool under the hood, but the standalone Pool is not yet exposed to FFI.

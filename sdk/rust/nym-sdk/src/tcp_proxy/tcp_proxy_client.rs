@@ -38,7 +38,7 @@ pub struct NymProxyClient {
 impl NymProxyClient {
     pub fn clone(&self) -> Self {
         Self {
-            server_address: self.server_address.clone(),
+            server_address: self.server_address,
             listen_address: self.listen_address.clone(),
             listen_port: self.listen_port.clone(),
             close_timeout: self.close_timeout,

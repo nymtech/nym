@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::router::api;
-use crate::http::types::RequestError;
 use axum::Router;
 use nym_credential_proxy_requests::api as api_requests;
 use nym_credential_proxy_requests::routes::api::{v1, v1_absolute};

@@ -16,8 +16,8 @@ use nym_node_requests::api::v1::metrics::models::LegacyMixingStats;
     tag = "Metrics",
     responses(
         (status = 200, content(
-            ("application/json" = LegacyMixingStats),
-            ("application/yaml" = LegacyMixingStats)
+            (LegacyMixingStats = "application/json"),
+            (LegacyMixingStats = "application/yaml")
         ))
     ),
     params(OutputParams),

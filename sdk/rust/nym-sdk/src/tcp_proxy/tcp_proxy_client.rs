@@ -81,17 +81,6 @@ impl NymProxyClient {
             Ok::<(), anyhow::Error>(())
         });
 
-        let cancel_token = CancellationToken::new();
-
-        tokio::spawn({
-            let token = cancel_token.clone();
-            async move {
-                tokio::signal::ctrl_c().await.unwrap();
-                info!("Shutdown signal triggered");
-                token.cancel();
-            }
-        });
-
         loop {
             tokio::select! {
                 stream = listener.accept() => {
@@ -150,7 +139,7 @@ impl NymProxyClient {
                 client
             }
             None => {
-                warn!("Not enough clients in pool, creating ephemeral client");
+                info!("Not enough clients in pool, creating ephemeral client");
                 let net = NymNetworkDetails::new_from_env();
                 let client = MixnetClientBuilder::new_ephemeral()
                     .network_details(net)

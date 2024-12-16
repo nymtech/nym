@@ -14,7 +14,7 @@ use tokio::{
 use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, info, instrument};
 use utils::{MessageBuffer, Payload, ProxiedMessage};
 
 const DEFAULT_CLOSE_TIMEOUT: u64 = 60; // seconds
@@ -28,6 +28,7 @@ pub struct NymProxyClient {
     listen_port: String,
     close_timeout: u64,
     conn_pool: ClientPool,
+    cancel_token: CancellationToken,
 }
 
 impl NymProxyClient {
@@ -47,6 +48,7 @@ impl NymProxyClient {
             listen_port: listen_port.to_string(),
             close_timeout,
             conn_pool: ClientPool::new(default_client_amount),
+            cancel_token: CancellationToken::new(),
         })
     }
 
@@ -75,17 +77,6 @@ impl NymProxyClient {
             Ok::<(), anyhow::Error>(())
         });
 
-        let cancel_token = CancellationToken::new();
-
-        tokio::spawn({
-            let token = cancel_token.clone();
-            async move {
-                tokio::signal::ctrl_c().await.unwrap();
-                info!("Shutdown signal triggered");
-                token.cancel();
-            }
-        });
-
         loop {
             tokio::select! {
                 stream = listener.accept() => {
@@ -95,14 +86,19 @@ impl NymProxyClient {
                             self.server_address,
                             self.close_timeout,
                             self.conn_pool.clone(),
-                            cancel_token.clone(),
+                            self.cancel_token.clone(),
                         ));
                 }
-                _ = cancel_token.cancelled() => {
+                _ = self.cancel_token.cancelled() => {
                     break Ok(());
                 }
             }
         }
+    }
+
+    pub async fn disconnect(&self) {
+        self.cancel_token.cancel();
+        self.conn_pool.disconnect_pool().await;
     }
 
     // The main body of our logic, triggered on each accepted incoming tcp connection. To deal with assumptions about
@@ -139,14 +135,14 @@ impl NymProxyClient {
                 client
             }
             None => {
-                warn!("Not enough clients in pool, creating ephemeral client");
+                info!("Not enough clients in pool, creating ephemeral client");
                 let net = NymNetworkDetails::new_from_env();
                 let client = MixnetClientBuilder::new_ephemeral()
                     .network_details(net)
                     .build()?
                     .connect_to_mixnet()
                     .await?;
-                warn!(
+                info!(
                     "Using {} for the moment, created outside of the connection pool",
                     client.nym_address()
                 );
@@ -259,8 +255,8 @@ impl NymProxyClient {
                         return Ok::<(), anyhow::Error>(())
                     },
                     _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {
-                        info!(" Closing write end of session: {}", session_id);
-                        info!(" Triggering client shutdown");
+                        info!("Closing write end of session: {}", session_id);
+                        info!("Triggering client shutdown");
                         client.disconnect().await;
                         return Ok::<(), anyhow::Error>(())
                     },

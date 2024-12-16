@@ -98,9 +98,9 @@ impl NymProxyServer {
     // IDs to deal with the fact that the mixnet does not enforce message ordering.
     //
     // There is an initial thread which does a bunch of setup logic:
-    //      - Create a TcpStream connecting to our upstream server process.
-    //      - Split incoming TcpStream into OwnedReadHalf and OwnedWriteHalf for concurrent read/write.
-    //      - Create an Arc to store our session SURB - used for anonymous replies.
+    // - Create a TcpStream connecting to our upstream server process.
+    // - Split incoming TcpStream into OwnedReadHalf and OwnedWriteHalf for concurrent read/write.
+    // - Create an Arc to store our session SURB - used for anonymous replies.
     //
     // Then we spawn 2 tasks:
     // - 'Incoming' thread => deals with parsing and storing the SURB (used in Mixnet replies), deserialising and passing the incoming data from the Mixnet to the upstream server.

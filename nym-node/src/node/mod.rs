@@ -41,7 +41,6 @@ use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
 use nym_task::{TaskClient, TaskManager};
-use nym_topology::NetworkAddress;
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::NodeRefreshBody;
 use nym_validator_client::{NymApiClient, UserAgent};
@@ -535,8 +534,10 @@ impl NymNode {
         ))
     }
 
-    fn as_gateway_topology_node(&self) -> Result<nym_topology::gateway::LegacyNode, NymNodeError> {
-        let Some(ip) = self.config.host.public_ips.first() else {
+    fn as_gateway_topology_node(&self) -> Result<nym_topology::RoutingNode, NymNodeError> {
+        let ip_addresses = self.config.host.public_ips.clone();
+
+        let Some(ip) = ip_addresses.first() else {
             return Err(NymNodeError::NoPublicIps);
         };
 
@@ -553,15 +554,22 @@ impl NymNode {
             .announce_ws_port
             .unwrap_or(self.config.gateway_tasks.bind_address.port());
 
-        Ok(nym_topology::gateway::LegacyNode {
+        Ok(nym_topology::RoutingNode {
             node_id: u32::MAX,
             mix_host,
-            host: NetworkAddress::IpAddr(*ip),
-            clients_ws_port,
-            clients_wss_port: self.config.gateway_tasks.announce_wss_port,
+            entry: Some(nym_topology::EntryDetails {
+                ip_addresses,
+                clients_ws_port,
+                hostname: self.config.host.hostname.clone(),
+                clients_wss_port: self.config.gateway_tasks.announce_wss_port,
+            }),
             sphinx_key: *self.x25519_sphinx_key(),
             identity_key: *self.ed25519_identity_key(),
-            version: env!("CARGO_PKG_VERSION").into(),
+            supported_roles: nym_topology::SupportedRoles {
+                mixnode: false,
+                mixnet_entry: true,
+                mixnet_exit: true,
+            },
         })
     }
 

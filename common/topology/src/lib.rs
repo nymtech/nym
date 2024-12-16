@@ -1,7 +1,6 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::node::RoutingNode;
 use ::serde::{Deserialize, Serialize};
 use log::{debug, warn};
 use nym_api_requests::nym_nodes::SkimmedNode;
@@ -13,6 +12,7 @@ use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::net::IpAddr;
 
+pub use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
 pub use error::NymTopologyError;
 pub use nym_mixnet_contract_common::nym_node::Role;
 pub use nym_mixnet_contract_common::{EpochRewardedSet, NodeId};
@@ -220,6 +220,25 @@ impl NymTopology {
                 }
             }
         }
+    }
+
+    pub fn has_node_details(&self, node_id: NodeId) -> bool {
+        self.node_details.contains_key(&node_id)
+    }
+
+    pub fn insert_node_details(&mut self, node_details: RoutingNode) {
+        self.node_details.insert(node_details.node_id, node_details);
+    }
+
+    pub fn force_set_active(&mut self, node_id: NodeId, role: Role) {
+        match role {
+            Role::EntryGateway => self.rewarded_set.entry_gateways.insert(node_id),
+            Role::Layer1 => self.rewarded_set.layer1.insert(node_id),
+            Role::Layer2 => self.rewarded_set.layer2.insert(node_id),
+            Role::Layer3 => self.rewarded_set.layer3.insert(node_id),
+            Role::ExitGateway => self.rewarded_set.exit_gateways.insert(node_id),
+            Role::Standby => self.rewarded_set.standby.insert(node_id),
+        };
     }
 
     fn node_details_exists(&self, ids: &HashSet<NodeId>) -> bool {

@@ -13,7 +13,6 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_client::client::InitGatewayClient;
 use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::addressing::clients::Recipient;
-use nym_topology::gateway;
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::nyxd::AccountId;
@@ -42,13 +41,20 @@ impl SelectedGateway {
         node: RoutingNode,
         must_use_tls: bool,
     ) -> Result<Self, ClientCoreError> {
+        // for now, let's use 'old' behaviour, if you want to change it, you can pass it up the enum stack yourself : )
+        let prefer_ipv6 = false;
+
         let gateway_listener = if must_use_tls {
-            node.clients_address_tls()
+            node.ws_entry_address_tls()
                 .ok_or(ClientCoreError::UnsupportedWssProtocol {
                     gateway: node.identity_key.to_base58_string(),
                 })?
         } else {
-            node.clients_address()
+            node.ws_entry_address(prefer_ipv6)
+                .ok_or(ClientCoreError::UnsupportedEntry {
+                    id: node.node_id,
+                    identity: node.identity_key,
+                })?
         };
 
         let gateway_listener =

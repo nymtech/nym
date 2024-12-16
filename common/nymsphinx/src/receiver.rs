@@ -194,6 +194,7 @@ impl Default for SphinxMessageReceiver {
 
 #[cfg(test)]
 mod message_receiver {
+
     use super::*;
     use nym_crypto::asymmetric::identity;
     use nym_mixnet_contract_common::LegacyMixLayer;

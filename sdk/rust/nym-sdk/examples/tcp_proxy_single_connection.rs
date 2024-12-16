@@ -207,7 +207,6 @@ async fn main() -> anyhow::Result<()> {
 }
 
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
-    // let amounts = vec![1, 10, 50, 100, 150, 200, 350, 500, 750, 1000];
     let amounts = [158, 1088, 505, 1001, 150, 200, 3500, 500, 750, 100];
     let len = amounts[i];
     let mut rng = rand::thread_rng();

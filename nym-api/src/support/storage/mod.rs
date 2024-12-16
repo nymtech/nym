@@ -18,6 +18,7 @@ use crate::support::storage::models::{
 use dashmap::DashMap;
 use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::NodeResult;
+use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use sqlx::ConnectOptions;
 use std::path::Path;
 use std::sync::Arc;
@@ -68,6 +69,8 @@ impl NymApiStorage {
         // struct. Maybe different pool size or timeout intervals?
         let connect_opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
             .log_statements(LevelFilter::Trace)

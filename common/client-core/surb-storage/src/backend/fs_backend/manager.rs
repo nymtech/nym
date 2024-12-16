@@ -9,7 +9,10 @@ use crate::backend::fs_backend::{
     },
 };
 use log::{error, info};
-use sqlx::ConnectOptions;
+use sqlx::{
+    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
+    ConnectOptions,
+};
 use std::path::Path;
 
 #[derive(Debug, Clone)]
@@ -32,6 +35,8 @@ impl StorageManager {
 
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(fresh)
             .disable_statement_logging();

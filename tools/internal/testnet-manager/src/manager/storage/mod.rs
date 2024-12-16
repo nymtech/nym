@@ -10,7 +10,10 @@ use crate::{
         storage::manager::StorageManager,
     },
 };
-use sqlx::ConnectOptions;
+use sqlx::{
+    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
+    ConnectOptions,
+};
 use std::path::Path;
 use tracing::{error, info};
 use url::Url;
@@ -40,6 +43,8 @@ impl NetworkManagerStorage {
         // struct. Maybe different pool size or timeout intervals?
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();

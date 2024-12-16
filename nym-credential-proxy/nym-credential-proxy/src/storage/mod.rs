@@ -16,6 +16,7 @@ use nym_validator_client::ecash::BlindedSignatureResponse;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::ecash_query_client::DepositId;
 use nym_validator_client::nyxd::Coin;
+use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use sqlx::ConnectOptions;
 use std::fmt::Debug;
 use std::path::Path;
@@ -41,6 +42,8 @@ impl VpnApiStorage {
 
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
             .log_statements(LevelFilter::Trace)

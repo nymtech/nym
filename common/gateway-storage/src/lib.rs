@@ -12,7 +12,10 @@ use nym_credentials_interface::ClientTicket;
 use nym_gateway_requests::shared_key::SharedGatewayKey;
 use nym_sphinx::DestinationAddressBytes;
 use shared_keys::SharedKeysManager;
-use sqlx::ConnectOptions;
+use sqlx::{
+    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
+    ConnectOptions,
+};
 use std::path::Path;
 use tickets::TicketStorageManager;
 use time::OffsetDateTime;
@@ -86,6 +89,9 @@ impl GatewayStorage {
         // TODO: we can inject here more stuff based on our gateway global config
         // struct. Maybe different pool size or timeout intervals?
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();

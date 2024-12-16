@@ -7,6 +7,7 @@ use crate::{
     rewarder::{epoch::Epoch, storage::manager::StorageManager, RewardingResult},
 };
 use nym_contracts_common::types::NaiveFloat;
+use sqlx::sqlite::{SqliteAutoVacuum, SqliteSynchronous};
 use sqlx::ConnectOptions;
 use std::{fmt::Debug, path::Path};
 use time::{Date, OffsetDateTime};
@@ -23,6 +24,9 @@ impl RewarderStorage {
     #[instrument]
     pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, NymRewarderError> {
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();

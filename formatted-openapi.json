@@ -1,5 +1,5 @@
 {
-  "openapi": "3.0.3",
+  "openapi": "3.1.0",
   "info": {
     "title": "Nym API",
     "description": "",
@@ -11,6 +11,20 @@
     },
     "version": "1.1.47"
   },
+  "servers": [
+    {
+      "url": "/api",
+      "description": "Main Nym Api Server"
+    },
+    {
+      "url": "/",
+      "description": "Auxiliary Nym Api Instances"
+    },
+    {
+      "url": "/",
+      "description": "Local Development Server"
+    }
+  ],
   "paths": {
     "/v1/api-status/build-information": {
       "get": {
@@ -152,9 +166,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int64",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -185,8 +201,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -234,9 +252,9 @@
           "400": {
             "description": "this nym-api is not an ecash signer in the current epoch",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -274,9 +292,9 @@
           "400": {
             "description": "this nym-api is not an ecash signer in the current epoch",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -294,9 +312,9 @@
           "500": {
             "description": "bloomfilters got disabled",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -335,9 +353,9 @@
           "400": {
             "description": "this nym-api is not an ecash signer in the current epoch",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -376,9 +394,9 @@
           "400": {
             "description": "this nym-api is not an ecash signer in the current epoch",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -398,9 +416,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int64",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -431,9 +451,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int64",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -452,9 +474,9 @@
           "400": {
             "description": "this nym-api is not an ecash signer in the current epoch",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -474,8 +496,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           }
         ],
@@ -493,9 +517,9 @@
           "400": {
             "description": "this nym-api is not an ecash signer in the current epoch",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -533,9 +557,9 @@
           "400": {
             "description": "this nym-api is not an ecash signer in the current epoch",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -555,12 +579,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
                     {
                       "$ref": "#/components/schemas/Interval"
                     }
-                  ],
-                  "nullable": true
+                  ]
                 }
               }
             }
@@ -580,12 +606,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "allOf": [
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
                     {
                       "$ref": "#/components/schemas/RewardingParams"
                     }
-                  ],
-                  "nullable": true
+                  ]
                 }
               }
             }
@@ -629,12 +657,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
+                  "type": [
+                    "array",
+                    "null"
+                  ],
                   "items": {
                     "type": "string"
                   },
-                  "uniqueItems": true,
-                  "nullable": true
+                  "uniqueItems": true
                 }
               }
             }
@@ -657,7 +687,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/DescribedGateway"
+                    "$ref": "#/components/schemas/LegacyDescribedGateway"
                   }
                 }
               }
@@ -751,12 +781,14 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "array",
+                  "type": [
+                    "array",
+                    "null"
+                  ],
                   "items": {
-                    "$ref": "#/components/schemas/NodeId"
+                    "$ref": "#/components/schemas/u32"
                   },
-                  "uniqueItems": true,
-                  "nullable": true
+                  "uniqueItems": true
                 }
               }
             }
@@ -779,7 +811,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/DescribedMixNode"
+                    "$ref": "#/components/schemas/LegacyDescribedMixNode"
                   }
                 }
               }
@@ -896,6 +928,9 @@
                   "type": "object",
                   "additionalProperties": {
                     "$ref": "#/components/schemas/ContractInformationContractVersion"
+                  },
+                  "propertyNames": {
+                    "type": "string"
                   }
                 }
               }
@@ -919,6 +954,9 @@
                   "type": "object",
                   "additionalProperties": {
                     "$ref": "#/components/schemas/ContractInformationBuildInformation"
+                  },
+                  "propertyNames": {
+                    "type": "string"
                   }
                 }
               }
@@ -939,7 +977,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -969,9 +1007,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -980,9 +1020,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -993,7 +1035,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse"
+                  "$ref": "#/components/schemas/PaginatedResponse_NymNodeDetails"
                 }
               }
             }
@@ -1013,9 +1055,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -1024,9 +1068,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -1037,7 +1083,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse"
+                  "$ref": "#/components/schemas/PaginatedResponse_NymNodeDescription"
                 }
               }
             }
@@ -1066,7 +1112,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1096,9 +1142,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -1107,9 +1155,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -1120,7 +1170,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponse"
+                  "$ref": "#/components/schemas/PaginatedResponse_NoiseDetails"
                 }
               }
             }
@@ -1140,9 +1190,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -1151,9 +1203,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -1162,7 +1216,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1192,7 +1246,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1229,6 +1283,36 @@
         "responses": {}
       }
     },
+    "/v1/nym-nodes/rewarded-set": {
+      "get": {
+        "tags": [
+          "Nym Nodes"
+        ],
+        "operationId": "rewarded_set",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NodeRefreshBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RewardedSetResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/v1/nym-nodes/uptime-history/{node_id}": {
       "get": {
         "tags": [
@@ -1241,9 +1325,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -1252,9 +1338,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -1263,7 +1351,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1274,6 +1362,26 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/PerformanceHistoryResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/status/config-score-details": {
+      "get": {
+        "tags": [
+          "Status"
+        ],
+        "operationId": "config_score_details",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ConfigScoreDataResponse"
                 }
               }
             }
@@ -1324,9 +1432,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "format": "int64",
-              "nullable": true
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
             }
           },
           {
@@ -1469,9 +1579,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -1480,9 +1592,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -1501,7 +1615,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/GatewayTestResultResponse"
+                  "$ref": "#/components/schemas/PaginatedResponse"
                 }
               }
             }
@@ -1521,7 +1635,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1552,12 +1666,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Performance"
-                }
-              ],
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -1565,8 +1677,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -1574,9 +1688,11 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int64",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -1585,9 +1701,11 @@
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int64",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -1596,12 +1714,14 @@
             "in": "path",
             "required": true,
             "schema": {
-              "allOf": [
+              "oneOf": [
                 {
-                  "$ref": "#/components/schemas/Coin"
+                  "type": "null"
+                },
+                {
+                  "$ref": "#/components/schemas/CoinSchema"
                 }
-              ],
-              "nullable": true
+              ]
             }
           },
           {
@@ -1609,12 +1729,10 @@
             "in": "path",
             "required": true,
             "schema": {
-              "allOf": [
-                {
-                  "$ref": "#/components/schemas/Percent"
-                }
-              ],
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -1622,7 +1740,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1663,7 +1781,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           },
           {
@@ -1671,9 +1789,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
-              "format": "int64",
-              "nullable": true
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int64"
             }
           }
         ],
@@ -1704,7 +1824,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1735,7 +1855,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1766,7 +1886,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1797,7 +1917,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1828,7 +1948,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1859,7 +1979,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           }
         ],
@@ -1995,7 +2115,7 @@
             "in": "path",
             "required": true,
             "schema": {
-              "$ref": "#/components/schemas/NodeId"
+              "$ref": "#/components/schemas/u32"
             }
           },
           {
@@ -2003,9 +2123,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2014,9 +2136,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2027,7 +2151,112 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/MixnodeTestResultResponse"
+                  "$ref": "#/components/schemas/PaginatedResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/status/network-monitor/unstable/run/latest/details": {
+      "get": {
+        "tags": [
+          "UNSTABLE - DO **NOT** USE"
+        ],
+        "operationId": "latest_monitor_run_report",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkMonitorRunDetailsResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/v1/status/network-monitor/unstable/run/{monitor_run_id}/details": {
+      "get": {
+        "tags": [
+          "UNSTABLE - DO **NOT** USE"
+        ],
+        "operationId": "monitor_run_report",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "per_page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "integer",
+                "null"
+              ],
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          {
+            "name": "monitor_run_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int64"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkMonitorRunDetailsResponse"
                 }
               }
             }
@@ -2042,7 +2271,6 @@
         ],
         "operationId": "submit_gateway_monitoring_results",
         "requestBody": {
-          "description": "",
           "content": {
             "application/json": {
               "schema": {
@@ -2059,9 +2287,9 @@
           "400": {
             "description": "TBD",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -2069,9 +2297,9 @@
           "403": {
             "description": "TBD",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -2079,9 +2307,9 @@
           "500": {
             "description": "TBD",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -2096,7 +2324,6 @@
         ],
         "operationId": "submit_node_monitoring_results",
         "requestBody": {
-          "description": "",
           "content": {
             "application/json": {
               "schema": {
@@ -2113,9 +2340,9 @@
           "400": {
             "description": "TBD",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -2123,9 +2350,9 @@
           "403": {
             "description": "TBD",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -2133,9 +2360,9 @@
           "500": {
             "description": "TBD",
             "content": {
-              "application/json": {
+              "text/plain": {
                 "schema": {
-                  "$ref": "#/components/schemas/ErrorResponse"
+                  "type": "string"
                 }
               }
             }
@@ -2155,7 +2382,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "allOf": [
+              "oneOf": [
+                {
+                  "type": "null"
+                },
                 {
                   "type": "string",
                   "enum": [
@@ -2164,8 +2394,7 @@
                     "exit-gateway"
                   ]
                 }
-              ],
-              "nullable": true
+              ]
             }
           },
           {
@@ -2173,8 +2402,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2182,8 +2413,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2191,9 +2424,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2202,9 +2437,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2229,8 +2466,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2238,8 +2477,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2247,9 +2488,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2258,9 +2501,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2271,7 +2516,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CachedNodesResponse"
+                  "$ref": "#/components/schemas/CachedNodesResponse_SkimmedNode"
                 }
               }
             }
@@ -2293,8 +2538,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2302,8 +2549,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2311,9 +2560,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2322,9 +2573,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2335,7 +2588,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CachedNodesResponse"
+                  "$ref": "#/components/schemas/CachedNodesResponse_SkimmedNode"
                 }
               }
             }
@@ -2356,7 +2609,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "allOf": [
+              "oneOf": [
+                {
+                  "type": "null"
+                },
                 {
                   "type": "string",
                   "enum": [
@@ -2365,8 +2621,7 @@
                     "exit-gateway"
                   ]
                 }
-              ],
-              "nullable": true
+              ]
             }
           },
           {
@@ -2374,8 +2629,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2383,8 +2640,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2392,9 +2651,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2403,9 +2664,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2422,8 +2685,7 @@
         "tags": [
           "Unstable Nym Nodes"
         ],
-        "summary": "Return all Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)",
-        "description": "that are currently bonded.",
+        "summary": "Return all Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)\nthat are currently bonded.",
         "operationId": "nodes_basic_all",
         "parameters": [
           {
@@ -2431,7 +2693,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "allOf": [
+              "oneOf": [
+                {
+                  "type": "null"
+                },
                 {
                   "type": "string",
                   "enum": [
@@ -2440,8 +2705,7 @@
                     "exit-gateway"
                   ]
                 }
-              ],
-              "nullable": true
+              ]
             }
           },
           {
@@ -2449,8 +2713,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2458,8 +2724,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2467,9 +2735,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2478,9 +2748,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2504,47 +2776,54 @@
         "tags": [
           "Unstable Nym Nodes"
         ],
-        "summary": "Return Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)",
-        "description": "that are currently bonded and are in the **active set**",
+        "summary": "Return Nym Nodes and optionally legacy mixnodes/gateways (if `no-legacy` flag is not used)\nthat are currently bonded and are in the **active set**",
         "operationId": "nodes_basic_active",
         "parameters": [
           {
             "name": "semver_compatibility",
-            "in": "path",
-            "required": true,
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
             "name": "no_legacy",
-            "in": "path",
-            "required": true,
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
             "name": "page",
-            "in": "path",
-            "required": true,
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
           {
             "name": "per_page",
-            "in": "path",
-            "required": true,
+            "in": "query",
+            "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2568,8 +2847,7 @@
         "tags": [
           "Unstable Nym Nodes"
         ],
-        "summary": "Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)",
-        "description": "that are currently bonded and are in the active set with the entry role.",
+        "summary": "Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)\nthat are currently bonded and are in the active set with the entry role.",
         "operationId": "entry_gateways_basic_active",
         "parameters": [
           {
@@ -2577,8 +2855,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2586,8 +2866,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2595,9 +2877,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2606,9 +2890,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2632,8 +2918,7 @@
         "tags": [
           "Unstable Nym Nodes"
         ],
-        "summary": "Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)",
-        "description": "that are currently bonded and support entry gateway role.",
+        "summary": "Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)\nthat are currently bonded and support entry gateway role.",
         "operationId": "entry_gateways_basic_all",
         "parameters": [
           {
@@ -2641,8 +2926,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2650,8 +2937,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2659,9 +2948,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2670,9 +2961,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2696,8 +2989,7 @@
         "tags": [
           "Unstable Nym Nodes"
         ],
-        "summary": "Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)",
-        "description": "that are currently bonded and are in the active set with the exit role.",
+        "summary": "Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)\nthat are currently bonded and are in the active set with the exit role.",
         "operationId": "exit_gateways_basic_active",
         "parameters": [
           {
@@ -2705,8 +2997,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2714,8 +3008,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2723,9 +3019,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2734,9 +3032,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2760,8 +3060,7 @@
         "tags": [
           "Unstable Nym Nodes"
         ],
-        "summary": "Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)",
-        "description": "that are currently bonded and support exit gateway role.",
+        "summary": "Returns Nym Nodes and optionally legacy gateways (if `no-legacy` flag is not used)\nthat are currently bonded and support exit gateway role.",
         "operationId": "exit_gateways_basic_all",
         "parameters": [
           {
@@ -2769,8 +3068,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2778,8 +3079,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2787,9 +3090,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2798,9 +3103,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2824,8 +3131,7 @@
         "tags": [
           "Unstable Nym Nodes"
         ],
-        "summary": "Returns Nym Nodes and optionally legacy mixnodes (if `no-legacy` flag is not used)",
-        "description": "that are currently bonded and are in the active set with one of the mixing roles.",
+        "summary": "Returns Nym Nodes and optionally legacy mixnodes (if `no-legacy` flag is not used)\nthat are currently bonded and are in the active set with one of the mixing roles.",
         "operationId": "mixnodes_basic_active",
         "parameters": [
           {
@@ -2833,8 +3139,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2842,8 +3150,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2851,9 +3161,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2862,9 +3174,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -2888,8 +3202,7 @@
         "tags": [
           "Unstable Nym Nodes"
         ],
-        "summary": "Returns Nym Nodes and optionally legacy mixnodes (if `no-legacy` flag is not used)",
-        "description": "that are currently bonded and support mixing role.",
+        "summary": "Returns Nym Nodes and optionally legacy mixnodes (if `no-legacy` flag is not used)\nthat are currently bonded and support mixing role.",
         "operationId": "mixnodes_basic_all",
         "parameters": [
           {
@@ -2897,8 +3210,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "nullable": true
+              "type": [
+                "string",
+                "null"
+              ]
             }
           },
           {
@@ -2906,8 +3221,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "boolean",
-              "nullable": true
+              "type": [
+                "boolean",
+                "null"
+              ]
             }
           },
           {
@@ -2915,9 +3232,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           },
@@ -2926,9 +3245,11 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "integer",
+              "type": [
+                "integer",
+                "null"
+              ],
               "format": "int32",
-              "nullable": true,
               "minimum": 0
             }
           }
@@ -3082,15 +3403,38 @@
         ],
         "properties": {
           "annotation": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/NodeAnnotation"
               }
-            ],
-            "nullable": true
+            ]
           },
           "node_id": {
             "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "AnnouncePorts": {
+        "type": "object",
+        "properties": {
+          "mix_port": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "verloc_port": {
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32",
             "minimum": 0
           }
@@ -3143,10 +3487,30 @@
             "$ref": "#/components/schemas/AnnouncePorts"
           },
           "location": {
-            "type": "string",
+            "type": [
+              "string",
+              "null"
+            ],
             "description": "Optional ISO 3166 alpha-2 two-letter country code of the node's **physical** location",
-            "example": "PL",
-            "nullable": true
+            "example": "PL"
+          }
+        }
+      },
+      "AxumErrorResponse": {
+        "type": "object",
+        "title": "ErrorResponse",
+        "required": [
+          "message",
+          "status"
+        ],
+        "properties": {
+          "message": {
+            "$ref": "#/components/schemas/RequestError"
+          },
+          "status": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           }
         }
       },
@@ -3157,8 +3521,10 @@
         ],
         "properties": {
           "hostname": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "ws_port": {
             "type": "integer",
@@ -3166,9 +3532,11 @@
             "minimum": 0
           },
           "wss_port": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32",
-            "nullable": true,
             "minimum": 0
           }
         }
@@ -3183,8 +3551,12 @@
         ],
         "properties": {
           "digest": {
-            "type": "string",
-            "format": "binary"
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
           },
           "gateway_cosmos_addr": {
             "type": "string"
@@ -3320,6 +3692,77 @@
           }
         }
       },
+      "CachedNodesResponse_SkimmedNode": {
+        "type": "object",
+        "required": [
+          "refreshed_at",
+          "nodes"
+        ],
+        "properties": {
+          "nodes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "node_id",
+                "ed25519_identity_pubkey",
+                "ip_addresses",
+                "mix_port",
+                "x25519_sphinx_pubkey",
+                "role",
+                "performance"
+              ],
+              "properties": {
+                "ed25519_identity_pubkey": {
+                  "type": "string"
+                },
+                "entry": {
+                  "oneOf": [
+                    {
+                      "type": "null"
+                    },
+                    {
+                      "$ref": "#/components/schemas/BasicEntryInformation"
+                    }
+                  ]
+                },
+                "ip_addresses": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "mix_port": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "node_id": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "performance": {
+                  "type": "string",
+                  "description": "Average node performance in last 24h period"
+                },
+                "role": {
+                  "$ref": "#/components/schemas/NodeRole"
+                },
+                "supported_roles": {
+                  "$ref": "#/components/schemas/DeclaredRoles"
+                },
+                "x25519_sphinx_pubkey": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "refreshed_at": {
+            "$ref": "#/components/schemas/OffsetDateTimeJsonSchemaWrapper"
+          }
+        }
+      },
       "ChainDetails": {
         "type": "object",
         "required": [
@@ -3398,35 +3841,49 @@
       },
       "ComputeRewardEstParam": {
         "type": "object",
-        "required": [
-          "performance",
-          "interval_operating_cost",
-          "profit_margin_percent"
-        ],
         "properties": {
           "active_in_rewarded_set": {
-            "type": "boolean",
-            "nullable": true
+            "type": [
+              "boolean",
+              "null"
+            ]
           },
           "interval_operating_cost": {
-            "$ref": "#/components/schemas/CoinSchema"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/CoinSchema"
+              }
+            ]
           },
           "performance": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "pledge_amount": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64",
-            "nullable": true,
             "minimum": 0
           },
           "profit_margin_percent": {
-            "type": "string"
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "total_delegation": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int64",
-            "nullable": true,
             "minimum": 0
           }
         }
@@ -3455,10 +3912,47 @@
             "type": "boolean"
           },
           "versions_behind": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32",
-            "nullable": true,
             "minimum": 0
+          }
+        }
+      },
+      "ConfigScoreDataResponse": {
+        "type": "object",
+        "required": [
+          "parameters",
+          "version_history"
+        ],
+        "properties": {
+          "parameters": {
+            "$ref": "#/components/schemas/ConfigScoreParams"
+          },
+          "version_history": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/HistoricalNymNodeVersionEntry"
+            }
+          }
+        }
+      },
+      "ConfigScoreParams": {
+        "type": "object",
+        "required": [
+          "version_weights",
+          "version_score_formula_params"
+        ],
+        "properties": {
+          "version_score_formula_params": {
+            "$ref": "#/components/schemas/VersionScoreFormulaParams",
+            "description": "Defines the parameters of the formula for calculating the version score"
+          },
+          "version_weights": {
+            "$ref": "#/components/schemas/OutdatedVersionWeights",
+            "description": "Defines weights for calculating numbers of versions behind the current release."
           }
         }
       },
@@ -3516,16 +4010,20 @@
         "type": "object",
         "properties": {
           "address": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "details": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/ContractBuildInformation"
               }
-            ],
-            "nullable": true
+            ]
           }
         }
       },
@@ -3533,16 +4031,20 @@
         "type": "object",
         "properties": {
           "address": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "details": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/ContractVersionSchemaResponse"
               }
-            ],
-            "nullable": true
+            ]
           }
         }
       },
@@ -3561,6 +4063,33 @@
           "version": {
             "type": "string",
             "description": "version is any string that this implementation knows. It may be simple counter \"1\", \"2\".\nor semantic version on release tags \"v0.7.0\", or some custom feature flag list.\nthe only code that needs to understand the version parsing is code that knows how to\nmigrate from the given contract (and is tied to it's implementation somehow)"
+          }
+        }
+      },
+      "CredentialSpendingData": {
+        "type": "object",
+        "required": [
+          "payment",
+          "pay_info",
+          "spend_date",
+          "epoch_id"
+        ],
+        "properties": {
+          "epoch_id": {
+            "type": "integer",
+            "format": "int64",
+            "description": "The (DKG) epoch id under which the credential has been issued so that the verifier could use correct verification key for validation.",
+            "minimum": 0
+          },
+          "pay_info": {
+            "$ref": "#/components/schemas/PayInfo"
+          },
+          "payment": {
+            "$ref": "#/components/schemas/Payment"
+          },
+          "spend_date": {
+            "type": "string",
+            "format": "date"
           }
         }
       },
@@ -3749,8 +4278,7 @@
             ],
             "properties": {
               "Ok": {
-                "default": null,
-                "nullable": true
+                "default": null
               }
             }
           },
@@ -3762,24 +4290,6 @@
           }
         ],
         "description": "Used exclusively as part of OpenAPI docs"
-      },
-      "ErrorResponse": {
-        "type": "object",
-        "title": "ErrorResponse",
-        "required": [
-          "message",
-          "status"
-        ],
-        "properties": {
-          "message": {
-            "$ref": "#/components/schemas/RequestError"
-          },
-          "status": {
-            "type": "integer",
-            "format": "int32",
-            "minimum": 0
-          }
-        }
       },
       "ExpirationDatePathParam": {
         "type": "object",
@@ -3803,12 +4313,14 @@
             "$ref": "#/components/schemas/SemiSkimmedNode"
           },
           "self_described": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/NymNodeData"
               }
-            ],
-            "nullable": true
+            ]
           }
         }
       },
@@ -3827,7 +4339,8 @@
               "type": "integer",
               "format": "int64",
               "minimum": 0
-            }
+            },
+            "contentEncoding": "base16"
           },
           "y": {
             "type": "array",
@@ -3835,7 +4348,8 @@
               "type": "integer",
               "format": "int64",
               "minimum": 0
-            }
+            },
+            "contentEncoding": "base16"
           },
           "z": {
             "type": "array",
@@ -3843,9 +4357,132 @@
               "type": "integer",
               "format": "int64",
               "minimum": 0
-            }
+            },
+            "contentEncoding": "base16"
           }
         }
+      },
+      "G2ProjectiveSchema": {
+        "type": "object",
+        "title": "G2Projective",
+        "required": [
+          "x",
+          "y",
+          "z"
+        ],
+        "properties": {
+          "x": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "contentEncoding": "base16"
+          },
+          "y": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "contentEncoding": "base16"
+          },
+          "z": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "contentEncoding": "base16"
+          }
+        }
+      },
+      "Gateway": {
+        "type": "object",
+        "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
+        "required": [
+          "host",
+          "mix_port",
+          "clients_port",
+          "location",
+          "sphinx_key",
+          "identity_key",
+          "version"
+        ],
+        "properties": {
+          "clients_port": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Port used by this gateway for listening for client requests.",
+            "minimum": 0
+          },
+          "host": {
+            "type": "string",
+            "description": "Network address of this gateway, for example 1.1.1.1 or foo.gateway.com"
+          },
+          "identity_key": {
+            "type": "string",
+            "description": "Base58 encoded ed25519 EdDSA public key of the gateway used to derive shared keys with clients"
+          },
+          "location": {
+            "type": "string",
+            "description": "The physical, self-reported, location of this gateway."
+          },
+          "mix_port": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Port used by this gateway for listening for mix packets.",
+            "minimum": 0
+          },
+          "sphinx_key": {
+            "type": "string",
+            "description": "Base58-encoded x25519 public key used for sphinx key derivation."
+          },
+          "version": {
+            "type": "string",
+            "description": "The self-reported semver version of this gateway."
+          }
+        },
+        "additionalProperties": false
+      },
+      "GatewayBond": {
+        "type": "object",
+        "description": "Basic gateway information provided by the node operator.",
+        "required": [
+          "pledge_amount",
+          "owner",
+          "block_height",
+          "gateway",
+          "proxy"
+        ],
+        "properties": {
+          "block_height": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Block height at which this gateway has been bonded.",
+            "minimum": 0
+          },
+          "gateway": {
+            "$ref": "#/components/schemas/Gateway",
+            "description": "Information provided by the operator for the purposes of bonding."
+          },
+          "owner": {
+            "type": "string",
+            "description": "Address of the owner of this gateway."
+          },
+          "pledge_amount": {
+            "$ref": "#/components/schemas/CoinSchema",
+            "description": "Original amount pledged by the operator of this node."
+          },
+          "proxy": {
+            "type": "string",
+            "description": "Entity who bonded this gateway on behalf of the owner.\nIf exists, it's most likely the address of the vesting contract."
+          }
+        },
+        "additionalProperties": false
       },
       "GatewayBondAnnotated": {
         "type": "object",
@@ -3865,22 +4502,24 @@
           "ip_addresses": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/IpAddr"
+              "type": "string"
             }
           },
           "node_performance": {
             "$ref": "#/components/schemas/NodePerformance"
           },
           "performance": {
-            "$ref": "#/components/schemas/Performance"
+            "type": "string"
           },
           "self_described": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/GatewayDescription"
               }
-            ],
-            "nullable": true
+            ]
           }
         }
       },
@@ -3899,6 +4538,9 @@
             "type": "string"
           }
         }
+      },
+      "GatewayDescription": {
+        "type": "object"
       },
       "GatewayStatusReportResponse": {
         "type": "object",
@@ -3976,6 +4618,44 @@
           }
         }
       },
+      "HistoricalNymNodeVersion": {
+        "type": "object",
+        "required": [
+          "semver",
+          "introduced_at_height"
+        ],
+        "properties": {
+          "introduced_at_height": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Block height of when this version has been added to the contract",
+            "minimum": 0
+          },
+          "semver": {
+            "type": "string",
+            "description": "Version of the nym node that is going to be used for determining the version score of a node.\nnote: value stored here is pre-validated `semver::Version`"
+          }
+        }
+      },
+      "HistoricalNymNodeVersionEntry": {
+        "type": "object",
+        "required": [
+          "id",
+          "version_information"
+        ],
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32",
+            "description": "The unique, ordered, id of this particular entry",
+            "minimum": 0
+          },
+          "version_information": {
+            "$ref": "#/components/schemas/HistoricalNymNodeVersion",
+            "description": "Data associated with this particular version"
+          }
+        }
+      },
       "HistoricalPerformanceResponse": {
         "type": "object",
         "required": [
@@ -4005,7 +4685,7 @@
             "example": "1970-01-01"
           },
           "uptime": {
-            "$ref": "#/components/schemas/Uptime"
+            "$ref": "#/components/schemas/u8"
           }
         }
       },
@@ -4017,8 +4697,10 @@
         ],
         "properties": {
           "hostname": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "ip_address": {
             "type": "array",
@@ -4209,8 +4891,12 @@
         ],
         "properties": {
           "blindedPartialCredential": {
-            "type": "string",
-            "format": "binary"
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
           },
           "depositId": {
             "type": "integer",
@@ -4226,8 +4912,12 @@
             "type": "string"
           },
           "joinedEncodedPrivateAttributesCommitments": {
-            "type": "string",
-            "format": "binary"
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
           },
           "ticketbookType": {
             "type": "string"
@@ -4289,6 +4979,11 @@
             "type": "object",
             "additionalProperties": {
               "$ref": "#/components/schemas/IssuedTicketbook"
+            },
+            "propertyNames": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
             }
           }
         }
@@ -4327,9 +5022,15 @@
             "example": "1970-01-01"
           },
           "merkleRoot": {
-            "type": "string",
-            "format": "binary",
-            "nullable": true
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
           }
         }
       },
@@ -4352,8 +5053,12 @@
             "type": "string"
           },
           "root": {
-            "type": "string",
-            "format": "binary"
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
           },
           "total_leaves": {
             "type": "integer",
@@ -4371,12 +5076,14 @@
             "$ref": "#/components/schemas/GatewayBond"
           },
           "self_described": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/NymNodeData"
               }
-            ],
-            "nullable": true
+            ]
           }
         }
       },
@@ -4390,12 +5097,14 @@
             "$ref": "#/components/schemas/LegacyMixNodeBondWithLayer"
           },
           "self_described": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/NymNodeData"
               }
-            ],
-            "nullable": true
+            ]
           }
         }
       },
@@ -4411,10 +5120,18 @@
             ],
             "properties": {
               "node_id": {
-                "$ref": "#/components/schemas/NodeId"
+                "$ref": "#/components/schemas/u32"
               }
             }
           }
+        ]
+      },
+      "LegacyMixLayer": {
+        "type": "string",
+        "enum": [
+          "One",
+          "Two",
+          "Three"
         ]
       },
       "LegacyMixNodeBondWithLayer": {
@@ -4434,6 +5151,27 @@
             }
           }
         ]
+      },
+      "LegacyMixNodeDetailsWithLayer": {
+        "type": "object",
+        "required": [
+          "bond_information",
+          "rewarding_details"
+        ],
+        "properties": {
+          "bond_information": {
+            "$ref": "#/components/schemas/LegacyMixNodeBondWithLayer",
+            "description": "Basic bond information of this mixnode, such as owner address, original pledge, etc."
+          },
+          "pending_changes": {
+            "$ref": "#/components/schemas/LegacyPendingMixNodeChanges",
+            "description": "Adjustments to the mixnode that are ought to happen during future epoch transitions."
+          },
+          "rewarding_details": {
+            "$ref": "#/components/schemas/NodeRewarding",
+            "description": "Details used for computation of rewarding related data."
+          }
+        }
       },
       "LegacyMixNodeDetailsWithLayerSchema": {
         "type": "object",
@@ -4461,6 +5199,19 @@
           }
         }
       },
+      "LegacyPendingMixNodeChanges": {
+        "type": "object",
+        "properties": {
+          "pledge_change": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
       "MasterVerificationKeyResponse": {
         "type": "object",
         "required": [
@@ -4480,12 +5231,113 @@
         ],
         "properties": {
           "hash": {
-            "type": "string",
-            "format": "binary"
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
           },
           "index": {
             "type": "integer",
             "minimum": 0
+          }
+        }
+      },
+      "MixNode": {
+        "type": "object",
+        "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
+        "required": [
+          "host",
+          "mix_port",
+          "verloc_port",
+          "http_api_port",
+          "sphinx_key",
+          "identity_key",
+          "version"
+        ],
+        "properties": {
+          "host": {
+            "type": "string",
+            "description": "Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com"
+          },
+          "http_api_port": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Port used by this mixnode for its http(s) API",
+            "minimum": 0
+          },
+          "identity_key": {
+            "$ref": "#/components/schemas/String",
+            "description": "Base58-encoded ed25519 EdDSA public key."
+          },
+          "mix_port": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Port used by this mixnode for listening for mix packets.",
+            "minimum": 0
+          },
+          "sphinx_key": {
+            "$ref": "#/components/schemas/String",
+            "description": "Base58-encoded x25519 public key used for sphinx key derivation."
+          },
+          "verloc_port": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Port used by this mixnode for listening for verloc requests.",
+            "minimum": 0
+          },
+          "version": {
+            "type": "string",
+            "description": "The self-reported semver version of this mixnode."
+          }
+        },
+        "additionalProperties": false
+      },
+      "MixNodeBond": {
+        "type": "object",
+        "description": "Basic mixnode information provided by the node operator.",
+        "required": [
+          "mix_id",
+          "owner",
+          "original_pledge",
+          "mix_node",
+          "bonding_height",
+          "is_unbonding"
+        ],
+        "properties": {
+          "bonding_height": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Block height at which this mixnode has been bonded.",
+            "minimum": 0
+          },
+          "is_unbonding": {
+            "type": "boolean",
+            "description": "Flag to indicate whether this node is in the process of unbonding,\nthat will conclude upon the epoch finishing."
+          },
+          "mix_id": {
+            "$ref": "#/components/schemas/u32",
+            "description": "Unique id assigned to the bonded mixnode."
+          },
+          "mix_node": {
+            "$ref": "#/components/schemas/MixNode",
+            "description": "Information provided by the operator for the purposes of bonding."
+          },
+          "original_pledge": {
+            "$ref": "#/components/schemas/CoinSchema",
+            "description": "Original amount pledged by the operator of this node."
+          },
+          "owner": {
+            "type": "string",
+            "description": "Address of the owner of this mixnode."
+          },
+          "proxy": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Entity who bonded this mixnode on behalf of the owner.\nIf exists, it's most likely the address of the vesting contract."
           }
         }
       },
@@ -4506,15 +5358,15 @@
             "type": "boolean"
           },
           "estimated_delegators_apy": {
-            "$ref": "#/components/schemas/Decimal"
+            "type": "string"
           },
           "estimated_operator_apy": {
-            "$ref": "#/components/schemas/Decimal"
+            "type": "string"
           },
           "ip_addresses": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/IpAddr"
+              "type": "string"
             }
           },
           "mixnode_details": {
@@ -4546,9 +5398,18 @@
             "format": "int32"
           },
           "mix_id": {
-            "$ref": "#/components/schemas/NodeId"
+            "$ref": "#/components/schemas/u32"
           }
         }
+      },
+      "MixnodeStatus": {
+        "type": "string",
+        "enum": [
+          "active",
+          "standby",
+          "inactive",
+          "not_found"
+        ]
       },
       "MixnodeStatusReport": {
         "type": "object",
@@ -4597,7 +5458,7 @@
         ],
         "properties": {
           "identity": {
-            "$ref": "#/components/schemas/IdentityKey"
+            "$ref": "#/components/schemas/String"
           },
           "last_day": {
             "type": "integer",
@@ -4610,7 +5471,7 @@
             "minimum": 0
           },
           "mix_id": {
-            "$ref": "#/components/schemas/NodeId"
+            "$ref": "#/components/schemas/u32"
           },
           "most_recent": {
             "type": "integer",
@@ -4652,10 +5513,37 @@
             "type": "string"
           },
           "mix_id": {
-            "$ref": "#/components/schemas/NodeId"
+            "$ref": "#/components/schemas/u32"
           },
           "owner": {
             "type": "string"
+          }
+        }
+      },
+      "MonitorMessage": {
+        "type": "object",
+        "required": [
+          "results",
+          "signature",
+          "signer",
+          "timestamp"
+        ],
+        "properties": {
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NodeResult"
+            }
+          },
+          "signature": {
+            "type": "string"
+          },
+          "signer": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "integer",
+            "format": "int64"
           }
         }
       },
@@ -4671,6 +5559,59 @@
           },
           "network": {
             "$ref": "#/components/schemas/NymNetworkDetails"
+          }
+        }
+      },
+      "NetworkMonitorRunDetailsResponse": {
+        "type": "object",
+        "required": [
+          "monitor_run_id",
+          "network_reliability",
+          "total_sent",
+          "total_received",
+          "mixnode_results",
+          "gateway_results"
+        ],
+        "properties": {
+          "gateway_results": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          "mixnode_results": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "propertyNames": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            }
+          },
+          "monitor_run_id": {
+            "type": "integer",
+            "format": "int64"
+          },
+          "network_reliability": {
+            "type": "number",
+            "format": "double"
+          },
+          "total_received": {
+            "type": "integer",
+            "minimum": 0
+          },
+          "total_sent": {
+            "type": "integer",
+            "minimum": 0
           }
         }
       },
@@ -4699,12 +5640,14 @@
         ],
         "properties": {
           "current_role": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/DisplayRole"
               }
-            ],
-            "nullable": true
+            ]
           },
           "detailed_performance": {
             "$ref": "#/components/schemas/DetailedNodePerformance"
@@ -4713,6 +5656,25 @@
             "type": "string"
           }
         }
+      },
+      "NodeCostParams": {
+        "type": "object",
+        "description": "The cost parameters, or the cost function, defined for the particular mixnode that influences\nhow the rewards should be split between the node operator and its delegators.",
+        "required": [
+          "profit_margin_percent",
+          "interval_operating_cost"
+        ],
+        "properties": {
+          "interval_operating_cost": {
+            "$ref": "#/components/schemas/CoinSchema",
+            "description": "Operating cost of the associated node per the entire interval."
+          },
+          "profit_margin_percent": {
+            "type": "string",
+            "description": "The profit margin of the associated node, i.e. the desired percent of the reward to be distributed to the operator."
+          }
+        },
+        "additionalProperties": false
       },
       "NodeDatePerformanceResponse": {
         "type": "object",
@@ -4731,9 +5693,11 @@
             "minimum": 0
           },
           "performance": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           }
         }
       },
@@ -4782,9 +5746,11 @@
             "minimum": 0
           },
           "performance": {
-            "type": "number",
-            "format": "double",
-            "nullable": true
+            "type": [
+              "number",
+              "null"
+            ],
+            "format": "double"
           }
         }
       },
@@ -4807,6 +5773,73 @@
             "type": "string"
           }
         }
+      },
+      "NodeResult": {
+        "type": "object",
+        "required": [
+          "node_id",
+          "identity",
+          "reliability"
+        ],
+        "properties": {
+          "identity": {
+            "type": "string"
+          },
+          "node_id": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "reliability": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "NodeRewarding": {
+        "type": "object",
+        "required": [
+          "cost_params",
+          "operator",
+          "delegates",
+          "total_unit_reward",
+          "unit_delegation",
+          "last_rewarded_epoch",
+          "unique_delegations"
+        ],
+        "properties": {
+          "cost_params": {
+            "$ref": "#/components/schemas/NodeCostParams",
+            "description": "Information provided by the operator that influence the cost function."
+          },
+          "delegates": {
+            "type": "string",
+            "description": "Total delegation and compounded reward earned by all node delegators."
+          },
+          "last_rewarded_epoch": {
+            "$ref": "#/components/schemas/u32",
+            "description": "Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt\nto reward it multiple times in the same epoch."
+          },
+          "operator": {
+            "type": "string",
+            "description": "Total pledge and compounded reward earned by the node operator."
+          },
+          "total_unit_reward": {
+            "type": "string",
+            "description": "Cumulative reward earned by the \"unit delegation\" since the block 0."
+          },
+          "unique_delegations": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "unit_delegation": {
+            "type": "string",
+            "description": "Value of the theoretical \"unit delegation\" that has delegated to this node at block 0."
+          }
+        },
+        "additionalProperties": false
       },
       "NodeRole": {
         "oneOf": [
@@ -4893,28 +5926,40 @@
         "type": "object",
         "properties": {
           "coconut_dkg_contract_address": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "ecash_contract_address": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "group_contract_address": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "mixnet_contract_address": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "multisig_contract_address": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "vesting_contract_address": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -4940,17 +5985,91 @@
             }
           },
           "explorer_api": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "network_name": {
             "type": "string"
           },
           "nym_vpn_api_url": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
+      },
+      "NymNode": {
+        "type": "object",
+        "description": "Information provided by the node operator during bonding that are used to allow other entities to use the services of this node.",
+        "required": [
+          "host",
+          "identity_key"
+        ],
+        "properties": {
+          "custom_http_port": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "description": "Allow specifying custom port for accessing the http, and thus self-described, api\nof this node for the capabilities discovery.",
+            "minimum": 0
+          },
+          "host": {
+            "type": "string",
+            "description": "Network address of this nym-node, for example 1.1.1.1 or foo.mixnode.com\nthat is used to discover other capabilities of this node."
+          },
+          "identity_key": {
+            "type": "string",
+            "description": "Base58-encoded ed25519 EdDSA public key."
+          }
+        },
+        "additionalProperties": false
+      },
+      "NymNodeBond": {
+        "type": "object",
+        "required": [
+          "node_id",
+          "owner",
+          "original_pledge",
+          "bonding_height",
+          "is_unbonding",
+          "node"
+        ],
+        "properties": {
+          "bonding_height": {
+            "type": "integer",
+            "format": "int64",
+            "description": "Block height at which this nym-node has been bonded.",
+            "minimum": 0
+          },
+          "is_unbonding": {
+            "type": "boolean",
+            "description": "Flag to indicate whether this node is in the process of unbonding,\nthat will conclude upon the epoch finishing."
+          },
+          "node": {
+            "$ref": "#/components/schemas/NymNode",
+            "description": "Information provided by the operator for the purposes of bonding."
+          },
+          "node_id": {
+            "type": "integer",
+            "format": "int32",
+            "description": "Unique id assigned to the bonded node.",
+            "minimum": 0
+          },
+          "original_pledge": {
+            "$ref": "#/components/schemas/CoinSchema",
+            "description": "Original amount pledged by the operator of this node."
+          },
+          "owner": {
+            "type": "string",
+            "description": "Address of the owner of this nym-node."
+          }
+        },
+        "additionalProperties": false
       },
       "NymNodeData": {
         "type": "object",
@@ -4961,12 +6080,14 @@
         ],
         "properties": {
           "authenticator": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/AuthenticatorDetails"
               }
-            ],
-            "nullable": true
+            ]
           },
           "auxiliary_details": {
             "$ref": "#/components/schemas/AuxiliaryDetails"
@@ -4981,12 +6102,14 @@
             "$ref": "#/components/schemas/HostInformation"
           },
           "ip_packet_router": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/IpPacketRouterDetails"
               }
-            ],
-            "nullable": true
+            ]
           },
           "last_polled": {
             "$ref": "#/components/schemas/OffsetDateTimeJsonSchemaWrapper"
@@ -4995,20 +6118,24 @@
             "$ref": "#/components/schemas/WebSockets"
           },
           "network_requester": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/NetworkRequesterDetails"
               }
-            ],
-            "nullable": true
+            ]
           },
           "wireguard": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/WireguardDetails"
               }
-            ],
-            "nullable": true
+            ]
           }
         }
       },
@@ -5033,6 +6160,30 @@
           }
         }
       },
+      "NymNodeDetails": {
+        "type": "object",
+        "description": "Full details associated with given node.",
+        "required": [
+          "bond_information",
+          "rewarding_details",
+          "pending_changes"
+        ],
+        "properties": {
+          "bond_information": {
+            "$ref": "#/components/schemas/NymNodeBond",
+            "description": "Basic bond information of this node, such as owner address, original pledge, etc."
+          },
+          "pending_changes": {
+            "$ref": "#/components/schemas/PendingNodeChanges",
+            "description": "Adjustments to the node that are scheduled to happen during future epoch/interval transitions."
+          },
+          "rewarding_details": {
+            "$ref": "#/components/schemas/NodeRewarding",
+            "description": "Details used for computation of rewarding related data."
+          }
+        },
+        "additionalProperties": false
+      },
       "OffsetDateTimeJsonSchemaWrapper": {
         "type": "string",
         "format": "date-time"
@@ -5054,6 +6205,38 @@
           }
         }
       },
+      "OutdatedVersionWeights": {
+        "type": "object",
+        "description": "Defines weights for calculating numbers of versions behind the current release.",
+        "required": [
+          "major",
+          "minor",
+          "patch",
+          "prerelease"
+        ],
+        "properties": {
+          "major": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "minor": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "patch": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          },
+          "prerelease": {
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
       "PaginatedCachedNodesResponseSchema": {
         "type": "object",
         "title": "PaginatedCachedNodesResponse",
@@ -5067,6 +6250,201 @@
           },
           "refreshed_at": {
             "$ref": "#/components/schemas/OffsetDateTimeJsonSchemaWrapper"
+          }
+        }
+      },
+      "PaginatedResponse": {
+        "type": "object",
+        "required": [
+          "pagination",
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PartialTestResult"
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "PaginatedResponse_HistoricalPerformanceResponse": {
+        "type": "object",
+        "required": [
+          "pagination",
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "date",
+                "performance"
+              ],
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "example": "1970-01-01"
+                },
+                "performance": {
+                  "type": "number",
+                  "format": "double"
+                }
+              }
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "PaginatedResponse_HistoricalUptimeResponse": {
+        "type": "object",
+        "required": [
+          "pagination",
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "date",
+                "uptime"
+              ],
+              "properties": {
+                "date": {
+                  "type": "string",
+                  "example": "1970-01-01"
+                },
+                "uptime": {
+                  "$ref": "#/components/schemas/u8"
+                }
+              }
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "PaginatedResponse_NoiseDetails": {
+        "type": "object",
+        "required": [
+          "pagination",
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "x25119_pubkey",
+                "mixnet_port",
+                "ip_addresses"
+              ],
+              "properties": {
+                "ip_addresses": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "mixnet_port": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                },
+                "x25119_pubkey": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "PaginatedResponse_NymNodeDescription": {
+        "type": "object",
+        "required": [
+          "pagination",
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "node_id",
+                "contract_node_type",
+                "description"
+              ],
+              "properties": {
+                "contract_node_type": {
+                  "$ref": "#/components/schemas/DescribedNodeType"
+                },
+                "description": {
+                  "$ref": "#/components/schemas/NymNodeData"
+                },
+                "node_id": {
+                  "type": "integer",
+                  "format": "int32",
+                  "minimum": 0
+                }
+              }
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
+          }
+        }
+      },
+      "PaginatedResponse_NymNodeDetails": {
+        "type": "object",
+        "required": [
+          "pagination",
+          "data"
+        ],
+        "properties": {
+          "data": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Full details associated with given node.",
+              "required": [
+                "bond_information",
+                "rewarding_details",
+                "pending_changes"
+              ],
+              "properties": {
+                "bond_information": {
+                  "$ref": "#/components/schemas/NymNodeBond",
+                  "description": "Basic bond information of this node, such as owner address, original pledge, etc."
+                },
+                "pending_changes": {
+                  "$ref": "#/components/schemas/PendingNodeChanges",
+                  "description": "Adjustments to the node that are scheduled to happen during future epoch/interval transitions."
+                },
+                "rewarding_details": {
+                  "$ref": "#/components/schemas/NodeRewarding",
+                  "description": "Details used for computation of rewarding related data."
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "pagination": {
+            "$ref": "#/components/schemas/Pagination"
           }
         }
       },
@@ -5097,15 +6475,19 @@
         "type": "object",
         "properties": {
           "page": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32",
-            "nullable": true,
             "minimum": 0
           },
           "per_page": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32",
-            "nullable": true,
             "minimum": 0
           }
         }
@@ -5168,9 +6550,11 @@
             "format": "int64"
           },
           "overall_reliability_for_all_routes_in_monitor_run": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32",
-            "nullable": true,
             "minimum": 0
           },
           "test_routes": {
@@ -5182,6 +6566,122 @@
           }
         }
       },
+      "PayInfo": {
+        "type": "object",
+        "description": "Represents the unique payment information associated with the payment.\n\nThe bytes representing the payment information encode the public key of the\nprovider with whom you are spending the payment, timestamp and a unique random 32 bytes.\n\n# Fields\n\n* `payinfo_bytes` - An array of bytes representing the payment information.\n",
+        "required": [
+          "pay_info_bytes"
+        ],
+        "properties": {
+          "pay_info_bytes": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32",
+              "minimum": 0
+            },
+            "contentEncoding": "base16"
+          }
+        }
+      },
+      "Payment": {
+        "type": "object",
+        "required": [
+          "kappa",
+          "kappa_e",
+          "sig",
+          "sig_exp",
+          "kappa_k",
+          "omega",
+          "ss",
+          "tt",
+          "aa",
+          "spend_value",
+          "cc",
+          "t_type",
+          "zk_proof"
+        ],
+        "properties": {
+          "aa": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/G2ProjectiveSchema"
+            }
+          },
+          "cc": {
+            "$ref": "#/components/schemas/G2ProjectiveSchema"
+          },
+          "kappa": {
+            "$ref": "#/components/schemas/G2ProjectiveSchema"
+          },
+          "kappa_e": {
+            "$ref": "#/components/schemas/G2ProjectiveSchema"
+          },
+          "kappa_k": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/G2ProjectiveSchema"
+            }
+          },
+          "omega": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Signature"
+            }
+          },
+          "sig": {
+            "$ref": "#/components/schemas/Signature"
+          },
+          "sig_exp": {
+            "$ref": "#/components/schemas/Signature"
+          },
+          "spend_value": {
+            "type": "integer",
+            "format": "int64",
+            "minimum": 0
+          },
+          "ss": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/G2ProjectiveSchema"
+            }
+          },
+          "t_type": {
+            "$ref": "#/components/schemas/u8"
+          },
+          "tt": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/G2ProjectiveSchema"
+            }
+          },
+          "zk_proof": {
+            "$ref": "#/components/schemas/SpendProof"
+          }
+        }
+      },
+      "PendingNodeChanges": {
+        "type": "object",
+        "properties": {
+          "cost_params_change": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          },
+          "pledge_change": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        },
+        "additionalProperties": false
+      },
       "PerformanceHistoryResponse": {
         "type": "object",
         "required": [
@@ -5190,7 +6690,7 @@
         ],
         "properties": {
           "history": {
-            "$ref": "#/components/schemas/PaginatedResponse"
+            "$ref": "#/components/schemas/PaginatedResponse_HistoricalPerformanceResponse"
           },
           "node_id": {
             "type": "integer",
@@ -5209,6 +6709,34 @@
             "type": "string"
           }
         }
+      },
+      "RewardEstimate": {
+        "type": "object",
+        "required": [
+          "total_node_reward",
+          "operator",
+          "delegates",
+          "operating_cost"
+        ],
+        "properties": {
+          "delegates": {
+            "type": "string",
+            "description": "The share of the reward that is going to get distributed among the node delegators."
+          },
+          "operating_cost": {
+            "type": "string",
+            "description": "The operating cost of this node. Note: it's already included in the operator reward."
+          },
+          "operator": {
+            "type": "string",
+            "description": "The share of the reward that is going to get distributed to the node operator."
+          },
+          "total_node_reward": {
+            "type": "string",
+            "description": "The amount of **decimal** coins that are going to get distributed to the node,\ni.e. the operator and all its delegators."
+          }
+        },
+        "additionalProperties": false
       },
       "RewardEstimationResponse": {
         "type": "object",
@@ -5270,6 +6798,55 @@
         },
         "additionalProperties": false
       },
+      "RewardedSetResponse": {
+        "type": "object",
+        "required": [
+          "entry_gateways",
+          "exit_gateways",
+          "layer1",
+          "layer2",
+          "layer3",
+          "standby"
+        ],
+        "properties": {
+          "entry_gateways": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/u32"
+            }
+          },
+          "exit_gateways": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/u32"
+            }
+          },
+          "layer1": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/u32"
+            }
+          },
+          "layer2": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/u32"
+            }
+          },
+          "layer3": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/u32"
+            }
+          },
+          "standby": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/u32"
+            }
+          }
+        }
+      },
       "RewardingParams": {
         "type": "object",
         "description": "Parameters used for reward calculation.",
@@ -5279,7 +6856,8 @@
         ],
         "properties": {
           "interval": {
-            "$ref": "#/components/schemas/IntervalRewardParams"
+            "$ref": "#/components/schemas/IntervalRewardParams",
+            "description": "Parameters that should remain unchanged throughout an interval."
           },
           "rewarded_set": {
             "$ref": "#/components/schemas/RewardedSetParams"
@@ -5325,8 +6903,12 @@
         }
       },
       "SerialNumberWrapper": {
-        "type": "string",
-        "format": "binary"
+        "type": "array",
+        "items": {
+          "type": "integer",
+          "format": "int32",
+          "minimum": 0
+        }
       },
       "Signature": {
         "type": "object",
@@ -5361,8 +6943,10 @@
             "type": "string"
           },
           "verification_key": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -5379,15 +6963,17 @@
         ],
         "properties": {
           "ed25519_identity_pubkey": {
-            "$ref": "#/components/schemas/ed25519.PublicKey"
+            "type": "string"
           },
           "entry": {
-            "allOf": [
+            "oneOf": [
+              {
+                "type": "null"
+              },
               {
                 "$ref": "#/components/schemas/BasicEntryInformation"
               }
-            ],
-            "nullable": true
+            ]
           },
           "ip_addresses": {
             "type": "array",
@@ -5416,7 +7002,132 @@
             "$ref": "#/components/schemas/DeclaredRoles"
           },
           "x25519_sphinx_pubkey": {
-            "$ref": "#/components/schemas/x25519.PublicKey"
+            "type": "string"
+          }
+        }
+      },
+      "SpendProof": {
+        "type": "object",
+        "required": [
+          "challenge",
+          "response_r",
+          "response_r_e",
+          "responses_r_k",
+          "responses_l",
+          "responses_o_a",
+          "response_o_c",
+          "responses_mu",
+          "responses_o_mu",
+          "responses_attributes"
+        ],
+        "properties": {
+          "challenge": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "contentEncoding": "base16"
+          },
+          "response_o_c": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "contentEncoding": "base16"
+          },
+          "response_r": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "contentEncoding": "base16"
+          },
+          "response_r_e": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int64",
+              "minimum": 0
+            },
+            "contentEncoding": "base16"
+          },
+          "responses_attributes": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              }
+            },
+            "contentEncoding": "base16"
+          },
+          "responses_l": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              }
+            },
+            "contentEncoding": "base16"
+          },
+          "responses_mu": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              }
+            },
+            "contentEncoding": "base16"
+          },
+          "responses_o_a": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              }
+            },
+            "contentEncoding": "base16"
+          },
+          "responses_o_mu": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              }
+            },
+            "contentEncoding": "base16"
+          },
+          "responses_r_k": {
+            "type": "array",
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int64",
+                "minimum": 0
+              }
+            },
+            "contentEncoding": "base16"
           }
         }
       },
@@ -5451,6 +7162,51 @@
           }
         }
       },
+      "String": {
+        "type": "string"
+      },
+      "TestNode": {
+        "type": "object",
+        "properties": {
+          "identity_key": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "node_id": {
+            "type": [
+              "integer",
+              "null"
+            ],
+            "format": "int32",
+            "minimum": 0
+          }
+        }
+      },
+      "TestRoute": {
+        "type": "object",
+        "required": [
+          "gateway",
+          "layer1",
+          "layer2",
+          "layer3"
+        ],
+        "properties": {
+          "gateway": {
+            "$ref": "#/components/schemas/TestNode"
+          },
+          "layer1": {
+            "$ref": "#/components/schemas/TestNode"
+          },
+          "layer2": {
+            "$ref": "#/components/schemas/TestNode"
+          },
+          "layer3": {
+            "$ref": "#/components/schemas/TestNode"
+          }
+        }
+      },
       "UptimeHistoryResponse": {
         "type": "object",
         "required": [
@@ -5459,7 +7215,7 @@
         ],
         "properties": {
           "history": {
-            "$ref": "#/components/schemas/PaginatedResponse"
+            "$ref": "#/components/schemas/PaginatedResponse_HistoricalUptimeResponse"
           },
           "node_id": {
             "type": "integer",
@@ -5498,15 +7254,19 @@
         ],
         "properties": {
           "api_url": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           },
           "nyxd_url": {
             "type": "string"
           },
           "websocket_url": {
-            "type": "string",
-            "nullable": true
+            "type": [
+              "string",
+              "null"
+            ]
           }
         }
       },
@@ -5555,7 +7315,8 @@
         ],
         "properties": {
           "credential": {
-            "$ref": "#/components/schemas/CredentialSpendingData"
+            "$ref": "#/components/schemas/CredentialSpendingData",
+            "description": "The cryptographic material required for spending the underlying credential."
           },
           "gateway_cosmos_addr": {
             "type": "string",
@@ -5586,6 +7347,24 @@
           }
         }
       },
+      "VersionScoreFormulaParams": {
+        "type": "object",
+        "description": "Given the formula of version_score = penalty ^ (versions_behind_factor ^ penalty_scaling)\ndefine the relevant parameters",
+        "required": [
+          "penalty",
+          "penalty_scaling"
+        ],
+        "properties": {
+          "penalty": {
+            "type": "number",
+            "format": "double"
+          },
+          "penalty_scaling": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
       "WebSockets": {
         "type": "object",
         "required": [
@@ -5598,9 +7377,11 @@
             "minimum": 0
           },
           "wss_port": {
-            "type": "integer",
+            "type": [
+              "integer",
+              "null"
+            ],
             "format": "int32",
-            "nullable": true,
             "minimum": 0
           }
         }
@@ -5697,6 +7478,16 @@
             "$ref": "#/components/schemas/WithdrawalReqProof"
           }
         }
+      },
+      "u32": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
+      },
+      "u8": {
+        "type": "integer",
+        "format": "int32",
+        "minimum": 0
       }
     },
     "responses": {

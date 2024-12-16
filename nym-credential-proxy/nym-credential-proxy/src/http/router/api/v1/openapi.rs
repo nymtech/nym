@@ -68,7 +68,6 @@ pub(crate) struct ApiDoc;
         schemas(
             api::Output,
             api::OutputParams,
-            api_requests::v1::ErrorResponse,
             api_requests::v1::ticketbook::models::DepositResponse,
             api_requests::v1::ticketbook::models::PartialVerificationKeysResponse,
             api_requests::v1::ticketbook::models::CurrentEpochResponse,

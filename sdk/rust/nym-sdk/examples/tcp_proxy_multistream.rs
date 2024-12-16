@@ -10,6 +10,7 @@ use tokio::net::TcpStream;
 use tokio::signal;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
+use tokio_util::sync::CancellationToken;
 use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -53,8 +54,24 @@ async fn main() -> anyhow::Result<()> {
     let proxy_client =
         tcp_proxy::NymProxyClient::new(server, "127.0.0.1", &listen_port, 45, Some(env), 2).await?;
 
+    // For our disconnect() logic below
+    let proxy_clone = proxy_client.clone();
+
     tokio::spawn(async move {
         proxy_client.run().await?;
+        Ok::<(), anyhow::Error>(())
+    });
+
+    let example_cancel_token = CancellationToken::new();
+    let client_cancel_token = example_cancel_token.clone();
+    let watcher_cancel_token = example_cancel_token.clone();
+
+    // Cancel listener thread
+    tokio::spawn(async move {
+        signal::ctrl_c().await?;
+        println!(":: CTRL_C received, shutting down + cleanup up proxy server config files");
+        watcher_cancel_token.cancel();
+        proxy_clone.disconnect().await;
         Ok::<(), anyhow::Error>(())
     });
 
@@ -64,6 +81,10 @@ async fn main() -> anyhow::Result<()> {
 
     // In the info traces you will see the different session IDs being set up, one for each TcpStream.
     for i in 0..8 {
+        let client_cancel_inner_token = client_cancel_token.clone();
+        if client_cancel_token.is_cancelled() {
+            break;
+        }
         let conn_id = i;
         let local_tcp_addr = format!("127.0.0.1:{}", listen_port.clone());
         tokio::spawn(async move {
@@ -81,6 +102,9 @@ async fn main() -> anyhow::Result<()> {
             // Lets just send a bunch of messages to the server with variable delays between them, with a message and tcp connection ids to keep track of ordering on the server side (for illustrative purposes **only**; keeping track of anonymous replies is handled by the proxy under the hood with Single Use Reply Blocks (SURBs); for this illustration we want some kind of app-level message id, but irl most of the time you'll probably be parsing on e.g. the incoming response type instead)
             tokio::spawn(async move {
                 for i in 0..8 {
+                    if client_cancel_inner_token.is_cancelled() {
+                        break;
+                    }
                     let mut rng = SmallRng::from_entropy();
                     let delay: f64 = rng.gen_range(2.5..5.0);
                     tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
@@ -123,10 +147,6 @@ async fn main() -> anyhow::Result<()> {
         tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
     }
 
-    // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
-    // TODO CHANGE make this a task listening for ctrl_c, add cancel token to loops + call client.disconnect() on ctrl_c
-    signal::ctrl_c().await?;
-    println!("CTRL_C received, shutting down");
     Ok(())
 }
 

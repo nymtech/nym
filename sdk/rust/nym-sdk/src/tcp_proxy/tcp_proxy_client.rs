@@ -20,7 +20,7 @@ use utils::{MessageBuffer, Payload, ProxiedMessage};
 const DEFAULT_CLOSE_TIMEOUT: u64 = 60; // seconds
 const DEFAULT_LISTEN_HOST: &str = "127.0.0.1";
 const DEFAULT_LISTEN_PORT: &str = "8080";
-const DEFAULT_CLIENT_POOL_SIZE: usize = 4;
+const DEFAULT_CLIENT_POOL_SIZE: usize = 2;
 
 pub struct NymProxyClient {
     server_address: Recipient,

@@ -22,15 +22,6 @@ lazy_static! {
     static ref RUNTIME: Runtime = Runtime::new().unwrap();
 }
 
-// TODO create get_client() to use in fns and remove code repetition
-fn get_client_as_ref() -> bool {
-    NYM_CLIENT.lock().unwrap().as_ref().is_some()
-}
-
-fn get_client_guard() -> bool {
-    todo!()
-}
-
 pub fn init_ephemeral_internal() -> Result<(), Error> {
     if NYM_CLIENT.lock().unwrap().as_ref().is_some() {
         bail!("client already exists");
@@ -46,20 +37,6 @@ pub fn init_ephemeral_internal() -> Result<(), Error> {
             Ok::<(), Error>(())
         })?;
     }
-    // if get_client_as_ref() {
-    //     RUNTIME.block_on(async move {
-    //         let init_client = MixnetClient::connect_new().await?;
-    //         let mut client = NYM_CLIENT.try_lock();
-    //         if let Ok(ref mut client) = client {
-    //             **client = Some(init_client);
-    //         } else {
-    //             return Err(anyhow!("couldnt lock ephemeral NYM_CLIENT"));
-    //         }
-    //         Ok::<(), Error>(())
-    //     })?;
-    // } else {
-    //     bail!("client already exists: no need to reinitialise");
-    // }
     Ok(())
 }
 

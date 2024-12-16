@@ -32,6 +32,24 @@ a {
     color-scheme: dark;
   }
 }
+
 .MuiCardActionArea-focusHighlight {
   background: transparent;
+}
+
+::-webkit-scrollbar-track {
+  background-color: transparent;
+}
+
+::-webkit-scrollbar {
+  right: 0;
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #aaa;
+  border-radius: 8px;
+  width: 8px;
+  height: 8px;
 }

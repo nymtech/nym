@@ -346,7 +346,7 @@ where
 
     /// Callback on the websocket fd as soon as the connection has been established
     connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
-    
+
     forget_me: ForgetMe,
 }
 

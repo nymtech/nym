@@ -164,6 +164,10 @@ impl TopologyProvider for NymApiTopologyProvider {
 #[async_trait(?Send)]
 impl TopologyProvider for NymApiTopologyProvider {
     async fn get_new_topology(&mut self) -> Option<NymTopology> {
-        self.get_current_compatible_topology().await
+        let Some(topology) = self.get_current_compatible_topology().await else {
+            self.use_next_nym_api();
+            return None;
+        };
+        Some(topology)
     }
 }

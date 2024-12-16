@@ -67,11 +67,13 @@ fn check_layer_integrity(topology: NymTopology) -> Result<(), ()> {
     Ok(())
 }
 
+#[deprecated(note = "use NymApiTopologyProvider instead as explorer API will soon be removed")]
 pub struct GeoAwareTopologyProvider {
     validator_client: nym_validator_client::client::NymApiClient,
     filter_on: GroupBy,
 }
 
+#[allow(deprecated)]
 impl GeoAwareTopologyProvider {
     pub fn new(mut nym_api_urls: Vec<Url>, filter_on: GroupBy) -> GeoAwareTopologyProvider {
         log::info!(
@@ -181,8 +183,8 @@ impl GeoAwareTopologyProvider {
             .filter(|m| filtered_mixnode_ids.contains(&m.node_id))
             .collect::<Vec<_>>();
 
-        topology.add_additional_nodes(mixnodes.iter());
-        topology.add_additional_nodes(gateways.iter());
+        topology.add_skimmed_nodes(&mixnodes);
+        topology.add_skimmed_nodes(&gateways);
 
         // TODO: return real error type
         check_layer_integrity(topology.clone()).ok()?;
@@ -191,6 +193,7 @@ impl GeoAwareTopologyProvider {
     }
 }
 
+#[allow(deprecated)]
 #[cfg(not(target_arch = "wasm32"))]
 #[async_trait]
 impl TopologyProvider for GeoAwareTopologyProvider {
@@ -200,6 +203,7 @@ impl TopologyProvider for GeoAwareTopologyProvider {
     }
 }
 
+#[allow(deprecated)]
 #[cfg(target_arch = "wasm32")]
 #[async_trait(?Send)]
 impl TopologyProvider for GeoAwareTopologyProvider {

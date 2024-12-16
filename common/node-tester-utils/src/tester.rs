@@ -9,13 +9,14 @@ use nym_sphinx::message::NymMessage;
 use nym_sphinx::params::PacketSize;
 use nym_sphinx::preparer::{FragmentPreparer, PreparedFragment};
 use nym_sphinx_params::PacketType;
-use nym_topology::node::LegacyMixLayer;
 use nym_topology::node::RoutingNode;
 use nym_topology::{NymRouteProvider, NymTopology, Role};
 use rand::{CryptoRng, Rng};
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
+
+pub use nym_topology::node::LegacyMixLayer;
 
 pub struct NodeTester<R> {
     rng: R,

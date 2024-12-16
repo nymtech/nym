@@ -387,6 +387,15 @@ pub struct TopologyWasm {
     /// Specifies a minimum performance of a gateway that is used on route construction.
     /// This setting is only applicable when `NymApi` topology is used.
     pub minimum_gateway_performance: u8,
+
+    /// Specifies whether this client should attempt to retrieve all available network nodes
+    /// as opposed to just active mixnodes/gateways.
+    /// Useless without `ignore_epoch_roles = true`
+    pub use_extended_topology: bool,
+
+    /// Specifies whether this client should ignore the current epoch role of the target egress node
+    /// when constructing the final hop packets.
+    pub ignore_egress_epoch_role: bool,
 }
 
 impl Default for TopologyWasm {
@@ -409,6 +418,8 @@ impl From<TopologyWasm> for ConfigTopology {
             topology_structure: Default::default(),
             minimum_mixnode_performance: topology.minimum_mixnode_performance,
             minimum_gateway_performance: topology.minimum_gateway_performance,
+            use_extended_topology: topology.use_extended_topology,
+            ignore_egress_epoch_role: topology.ignore_egress_epoch_role,
         }
     }
 }
@@ -424,6 +435,8 @@ impl From<ConfigTopology> for TopologyWasm {
             disable_refreshing: topology.disable_refreshing,
             minimum_mixnode_performance: topology.minimum_mixnode_performance,
             minimum_gateway_performance: topology.minimum_gateway_performance,
+            use_extended_topology: topology.use_extended_topology,
+            ignore_egress_epoch_role: topology.ignore_egress_epoch_role,
         }
     }
 }

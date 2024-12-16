@@ -42,6 +42,7 @@ pub use client::{DisconnectedMixnetClient, IncludedSurbs, MixnetClientBuilder};
 pub use config::Config;
 pub use native_client::MixnetClient;
 pub use native_client::MixnetClientSender;
+#[allow(deprecated)]
 pub use nym_client_core::{
     client::{
         base_client::storage::{

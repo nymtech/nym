@@ -15,14 +15,8 @@ pub use nym_mixnet_contract_common::LegacyMixLayer;
 
 #[derive(Error, Debug)]
 pub enum RoutingNodeError {
-    #[error("this node has no mixing information available")]
-    NoMixingInformationAvailable,
-
     #[error("node {node_id} ('{identity}') has not provided any valid ip addresses")]
-    NoIpAddressesProvided {
-        node_id: NodeId,
-        identity: ed25519::PublicKey,
-    },
+    NoIpAddressesProvided { node_id: NodeId, identity: String },
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -126,19 +120,16 @@ impl<'a> TryFrom<&'a SkimmedNode> for RoutingNode {
         let Some(first_ip) = value.ip_addresses.first() else {
             return Err(RoutingNodeError::NoIpAddressesProvided {
                 node_id: value.node_id,
-                identity: value.ed25519_identity_pubkey,
+                identity: value.ed25519_identity_pubkey.to_string(),
             });
         };
 
-        let entry = match &value.entry {
-            None => None,
-            Some(entry) => Some(EntryDetails {
-                ip_addresses: value.ip_addresses.clone(),
-                clients_ws_port: entry.ws_port,
-                hostname: entry.hostname.clone(),
-                clients_wss_port: entry.wss_port,
-            }),
-        };
+        let entry = value.entry.as_ref().map(|entry| EntryDetails {
+            ip_addresses: value.ip_addresses.clone(),
+            clients_ws_port: entry.ws_port,
+            hostname: entry.hostname.clone(),
+            clients_wss_port: entry.wss_port,
+        });
 
         Ok(RoutingNode {
             node_id: value.node_id,

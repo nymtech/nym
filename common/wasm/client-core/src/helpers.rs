@@ -15,7 +15,8 @@ use nym_client_core::init::{
 };
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
-use nym_topology::{gateway, NymTopology, SerializableNymTopology};
+use nym_topology::wasm_helpers::WasmFriendlyNymTopology;
+use nym_topology::{NymTopology, RoutingNode};
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::NymApiClient;
 use rand::thread_rng;
@@ -55,7 +56,7 @@ pub fn parse_sender_tag(tag: &str) -> Result<AnonymousSenderTag, WasmCoreError> 
 
 pub async fn current_network_topology_async(
     nym_api_url: String,
-) -> Result<SerializableNymTopology, WasmCoreError> {
+) -> Result<WasmFriendlyNymTopology, WasmCoreError> {
     let url: Url = match nym_api_url.parse() {
         Ok(url) => url,
         Err(source) => {
@@ -67,12 +68,17 @@ pub async fn current_network_topology_async(
     };
 
     let api_client = NymApiClient::new(url);
+    let rewarded_set = api_client.get_current_rewarded_set().await?;
     let mixnodes = api_client
         .get_all_basic_active_mixing_assigned_nodes()
         .await?;
     let gateways = api_client.get_all_basic_entry_assigned_nodes().await?;
 
-    Ok(NymTopology::from_basic(&mixnodes, &gateways).into())
+    let mut topology = NymTopology::new_empty(rewarded_set);
+    topology.add_skimmed_nodes(&mixnodes);
+    topology.add_skimmed_nodes(&gateways);
+
+    Ok(topology.into())
 }
 
 #[wasm_bindgen(js_name = "currentNetworkTopology")]
@@ -90,7 +96,7 @@ pub async fn setup_gateway_wasm(
     client_store: &ClientStorage,
     force_tls: bool,
     chosen_gateway: Option<IdentityKey>,
-    gateways: &[gateway::LegacyNode],
+    gateways: Vec<RoutingNode>,
 ) -> Result<InitialisationResult, WasmCoreError> {
     // TODO: so much optimization and extra features could be added here, but that's for the future
 
@@ -107,7 +113,7 @@ pub async fn setup_gateway_wasm(
 
         GatewaySetup::New {
             specification: selection_spec,
-            available_gateways: gateways.to_vec(),
+            available_gateways: gateways,
         }
     };
 
@@ -125,7 +131,7 @@ pub async fn setup_gateway_from_api(
 ) -> Result<InitialisationResult, WasmCoreError> {
     let mut rng = thread_rng();
     let gateways = current_gateways(&mut rng, nym_apis, None, minimum_performance).await?;
-    setup_gateway_wasm(client_store, force_tls, chosen_gateway, &gateways).await
+    setup_gateway_wasm(client_store, force_tls, chosen_gateway, gateways).await
 }
 
 pub async fn setup_from_topology(
@@ -134,6 +140,6 @@ pub async fn setup_from_topology(
     topology: &NymTopology,
     client_store: &ClientStorage,
 ) -> Result<InitialisationResult, WasmCoreError> {
-    let gateways = topology.gateways();
+    let gateways = topology.entry_capable_nodes().cloned().collect::<Vec<_>>();
     setup_gateway_wasm(client_store, force_tls, explicit_gateway, gateways).await
 }

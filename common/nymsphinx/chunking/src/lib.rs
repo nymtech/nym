@@ -85,8 +85,8 @@ pub struct FragmentMixParams {
 }
 
 impl FragmentMixParams {
-    pub fn destination(&self) -> &PublicKey {
-        &self.destination
+    pub fn destination(&self) -> PublicKey {
+        self.destination
     }
 }
 

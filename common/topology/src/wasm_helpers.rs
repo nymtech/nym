@@ -5,8 +5,7 @@
 #![allow(clippy::empty_docs)]
 
 use crate::node::{EntryDetails, RoutingNode, RoutingNodeError, SupportedRoles};
-use crate::NymTopology;
-use nym_mixnet_contract_common::EpochRewardedSet;
+use crate::{CachedEpochRewardedSet, NymTopology};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -39,7 +38,7 @@ impl From<SerializableTopologyError> for JsValue {
 #[serde(rename_all = "camelCase")]
 #[serde(deny_unknown_fields)]
 pub struct WasmFriendlyNymTopology {
-    pub rewarded_set: EpochRewardedSet,
+    pub rewarded_set: CachedEpochRewardedSet,
 
     pub node_details: HashMap<u32, WasmFriendlyRoutingNode>,
 }
@@ -50,11 +49,24 @@ impl TryFrom<WasmFriendlyNymTopology> for NymTopology {
     fn try_from(value: WasmFriendlyNymTopology) -> Result<Self, Self::Error> {
         let node_details = value
             .node_details
-            .into_iter()
-            .map(|(_, details)| details.try_into())
+            .into_values()
+            .map(|details| details.try_into())
             .collect::<Result<_, _>>()?;
 
         Ok(NymTopology::new(value.rewarded_set, node_details))
+    }
+}
+
+impl From<NymTopology> for WasmFriendlyNymTopology {
+    fn from(value: NymTopology) -> Self {
+        WasmFriendlyNymTopology {
+            rewarded_set: value.rewarded_set,
+            node_details: value
+                .node_details
+                .into_iter()
+                .map(|(k, v)| (k, v.into()))
+                .collect(),
+        }
     }
 }
 
@@ -72,7 +84,6 @@ pub struct WasmFriendlyRoutingNode {
     pub sphinx_key: String,
 
     pub supported_roles: SupportedRoles,
-    pub performance: f64,
 }
 
 impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
@@ -94,7 +105,19 @@ impl TryFrom<WasmFriendlyRoutingNode> for RoutingNode {
                 }
             })?,
             supported_roles: value.supported_roles,
-            performance: value.performance,
         })
+    }
+}
+
+impl From<RoutingNode> for WasmFriendlyRoutingNode {
+    fn from(node: RoutingNode) -> Self {
+        WasmFriendlyRoutingNode {
+            node_id: node.node_id,
+            mix_host: node.mix_host,
+            entry: node.entry,
+            identity_key: node.identity_key.to_string(),
+            sphinx_key: node.sphinx_key.to_string(),
+            supported_roles: node.supported_roles,
+        }
     }
 }

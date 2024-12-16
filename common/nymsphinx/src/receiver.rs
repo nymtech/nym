@@ -154,7 +154,7 @@ pub trait MessageReceiver {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct SphinxMessageReceiver {
     /// High level public structure used to buffer all received data [`Fragment`]s and eventually
     /// returning original messages that they encapsulate.
@@ -181,109 +181,5 @@ impl MessageReceiver for SphinxMessageReceiver {
 
     fn reconstructor(&mut self) -> &mut MessageReconstructor {
         &mut self.reconstructor
-    }
-}
-
-impl Default for SphinxMessageReceiver {
-    fn default() -> Self {
-        SphinxMessageReceiver {
-            reconstructor: Default::default(),
-        }
-    }
-}
-
-#[cfg(test)]
-mod message_receiver {
-
-    use super::*;
-    use nym_crypto::asymmetric::identity;
-    use nym_mixnet_contract_common::LegacyMixLayer;
-    use nym_topology::{gateway, mix, NymTopology};
-    use std::collections::BTreeMap;
-
-    // TODO: is it somehow maybe possible to move it to `topology` and have if conditionally
-    // available to other modules?
-    /// Returns a hardcoded, valid instance of [`NymTopology`] that is to be used in
-    /// tests requiring instance of topology.
-    #[allow(dead_code)]
-    fn topology_fixture() -> NymTopology {
-        let mut mixes = BTreeMap::new();
-        mixes.insert(
-            1,
-            vec![mix::LegacyNode {
-                mix_id: 123,
-                host: "10.20.30.40".parse().unwrap(),
-                mix_host: "10.20.30.40:1789".parse().unwrap(),
-                identity_key: identity::PublicKey::from_base58_string(
-                    "3ebjp1Fb9hdcS1AR6AZihgeJiMHkB5jjJUsvqNnfQwU7",
-                )
-                .unwrap(),
-                sphinx_key: encryption::PublicKey::from_base58_string(
-                    "B3GzG62aXAZNg14RoMCp3BhELNBrySLr2JqrwyfYFzRc",
-                )
-                .unwrap(),
-                layer: LegacyMixLayer::One,
-                version: "0.8.0-dev".into(),
-            }],
-        );
-
-        mixes.insert(
-            2,
-            vec![mix::LegacyNode {
-                mix_id: 234,
-                host: "11.21.31.41".parse().unwrap(),
-                mix_host: "11.21.31.41:1789".parse().unwrap(),
-                identity_key: identity::PublicKey::from_base58_string(
-                    "D6YaMzLSY7mANtSQRKXsmMZpqgqiVkeiagKM4V4oFPFr",
-                )
-                .unwrap(),
-                sphinx_key: encryption::PublicKey::from_base58_string(
-                    "5Z1VqYwM2xeKxd8H7fJpGWasNiDFijYBAee7MErkZ5QT",
-                )
-                .unwrap(),
-                layer: LegacyMixLayer::Two,
-                version: "0.8.0-dev".into(),
-            }],
-        );
-
-        mixes.insert(
-            3,
-            vec![mix::LegacyNode {
-                mix_id: 456,
-                host: "12.22.32.42".parse().unwrap(),
-                mix_host: "12.22.32.42:1789".parse().unwrap(),
-                identity_key: identity::PublicKey::from_base58_string(
-                    "GkWDysw4AjESv1KiAiVn7JzzCMJeksxNSXVfr1PpX8wD",
-                )
-                .unwrap(),
-                sphinx_key: encryption::PublicKey::from_base58_string(
-                    "9EyjhCggr2QEA2nakR88YHmXgpy92DWxoe2draDRkYof",
-                )
-                .unwrap(),
-                layer: LegacyMixLayer::Three,
-                version: "0.8.0-dev".into(),
-            }],
-        );
-
-        NymTopology::new(
-            // currently coco_nodes don't really exist so this is still to be determined
-            mixes,
-            vec![gateway::LegacyNode {
-                node_id: 789,
-                host: "1.2.3.4".parse().unwrap(),
-                mix_host: "1.2.3.4:1789".parse().unwrap(),
-                clients_ws_port: 9000,
-                clients_wss_port: None,
-                identity_key: identity::PublicKey::from_base58_string(
-                    "FioFa8nMmPpQnYi7JyojoTuwGLeyNS8BF4ChPr29zUML",
-                )
-                .unwrap(),
-                sphinx_key: encryption::PublicKey::from_base58_string(
-                    "EB42xvMFMD5rUCstE2CDazgQQJ22zLv8SPm1Luxni44c",
-                )
-                .unwrap(),
-                version: "0.8.0-dev".into(),
-            }],
-        )
     }
 }

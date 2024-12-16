@@ -53,7 +53,7 @@ impl SelectedGateway {
             node.ws_entry_address(prefer_ipv6)
                 .ok_or(ClientCoreError::UnsupportedEntry {
                     id: node.node_id,
-                    identity: node.identity_key,
+                    identity: node.identity_key.to_base58_string(),
                 })?
         };
 

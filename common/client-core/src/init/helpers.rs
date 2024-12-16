@@ -145,7 +145,7 @@ where
     let Some(addr) = gateway.clients_address(false) else {
         return Err(ClientCoreError::UnsupportedEntry {
             id: gateway.node_id(),
-            identity: gateway.identity(),
+            identity: gateway.identity().to_string(),
         });
     };
     trace!(
@@ -291,7 +291,7 @@ pub(super) fn get_specified_gateway(
     let Some(entry_details) = gateway.entry.as_ref() else {
         return Err(ClientCoreError::UnsupportedEntry {
             id: gateway.node_id,
-            identity: gateway.identity(),
+            identity: gateway.identity().to_string(),
         });
     };
 

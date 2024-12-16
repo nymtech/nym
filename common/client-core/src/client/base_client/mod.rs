@@ -3,7 +3,6 @@
 
 use super::received_buffer::ReceivedBufferMessage;
 use super::statistics_control::StatisticsControl;
-use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
@@ -464,8 +463,8 @@ where
             details_store
                 .upgrade_stored_remote_gateway_key(gateway_client.gateway_identity(), &updated_key)
                 .await.map_err(|err| {
-                    error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
-                    ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
+                error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
+                ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
             })?
         }
 
@@ -544,7 +543,10 @@ where
                 user_agent,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
-                Box::new(GeoAwareTopologyProvider::new(nym_api_urls, group_by))
+                warn!("using deprecated 'GeoAware' topology provider - this option will be removed very soon");
+
+                #[allow(deprecated)]
+                Box::new(crate::client::topology_control::GeoAwareTopologyProvider::new(nym_api_urls, group_by))
             }
         })
     }

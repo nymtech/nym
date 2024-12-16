@@ -14,10 +14,10 @@ pub enum NymTopologyError {
     EmptyNetworkTopology,
 
     #[error("no node with identity {node_identity} is known")]
-    NonExistentNode { node_identity: NodeIdentity },
+    NonExistentNode { node_identity: Box<NodeIdentity> },
 
     #[error("could not use node with identity {node_identity} as egress since it didn't get assigned valid role in the current epoch")]
-    InvalidEgressRole { node_identity: NodeIdentity },
+    InvalidEgressRole { node_identity: Box<NodeIdentity> },
 
     #[error("one (or more) of mixing layers does not have any valid nodes available")]
     InsufficientMixingNodes,

@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::transceiver::ErasedGatewayError;
-use nym_crypto::asymmetric::ed25519;
 use nym_crypto::asymmetric::identity::Ed25519RecoveryError;
 use nym_gateway_client::error::GatewayClientError;
 use nym_topology::node::RoutingNodeError;
@@ -78,7 +77,7 @@ pub enum ClientCoreError {
     #[error("the node is malformed: {source}")]
     MalformedGateway {
         #[from]
-        source: RoutingNodeError,
+        source: Box<RoutingNodeError>,
     },
 
     #[error("failed to establish connection to gateway: {source}")]
@@ -161,10 +160,7 @@ pub enum ClientCoreError {
     UnsupportedWssProtocol { gateway: String },
 
     #[error("node {id} ({identity}) does not support mixnet entry mode")]
-    UnsupportedEntry {
-        id: NodeId,
-        identity: ed25519::PublicKey,
-    },
+    UnsupportedEntry { id: NodeId, identity: String },
 
     #[error(
     "failed to load custom topology using path '{}'. detailed message: {source}", file_path.display()

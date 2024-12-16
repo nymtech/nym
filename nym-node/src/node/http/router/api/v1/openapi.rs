@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::http::router::api;
-use crate::node::http::router::types::ErrorResponse;
 use axum::Router;
 use nym_node_requests::api as api_requests;
 use nym_node_requests::routes::api::{v1, v1_absolute};
@@ -35,7 +34,6 @@ use utoipa_swagger_ui::SwaggerUi;
     ),
     components(
         schemas(
-            ErrorResponse,
             nym_http_api_common::Output,
             nym_http_api_common::OutputParams,
             api_requests::v1::health::models::NodeHealth,

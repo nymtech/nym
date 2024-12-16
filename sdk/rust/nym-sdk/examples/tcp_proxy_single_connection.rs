@@ -61,9 +61,9 @@ async fn main() -> anyhow::Result<()> {
 
     // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
-    // The final argument is how many clients to keep in reserve in the client pool when running the TcpProxy: since we're only expecting 1 connection in total, we can start with no clients in the pool, and the TcpProxyClient will just spin up an ephemeral client outside of the pool to use.
+    // The final argument is how many clients to keep in reserve in the client pool when running the TcpProxy.
     let proxy_client =
-        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 0)
+        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 1)
             .await?;
 
     tokio::spawn(async move {
@@ -179,8 +179,9 @@ async fn main() -> anyhow::Result<()> {
     }
 
     // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
+    // TODO CHANGE make this a task listening for ctrl_c, add cancel token to loops + call client.disconnect() on ctrl_c
     signal::ctrl_c().await?;
-    println!(":: CTRL+C received, shutting down + cleanup up proxy server config files");
+    println!(":: CTRL_C received, shutting down + cleanup up proxy server config files");
     fs::remove_dir_all(conf_path)?;
     Ok(())
 }

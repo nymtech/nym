@@ -1,6 +1,8 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// we want to mark the routes as deprecated in swagger, but still expose them
+#![allow(deprecated)]
 use crate::node_status_api::handlers::MixIdParam;
 use crate::node_status_api::helpers::{
     _get_active_set_legacy_mixnodes_detailed, _get_legacy_mixnodes_detailed,
@@ -14,15 +16,12 @@ use axum::routing::{get, post};
 use axum::Json;
 use axum::Router;
 use nym_api_requests::models::{
-    AllInclusionProbabilitiesResponse, InclusionProbabilityResponse, MixNodeBondAnnotated,
-    MixnodeStatusResponse, StakeSaturationResponse,
+    MixNodeBondAnnotated, MixnodeStatusResponse, StakeSaturationResponse,
 };
 use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::MonitorMessage;
 use tracing::error;
 
-// we want to mark the routes as deprecated in swagger, but still expose them
-#[allow(deprecated)]
 pub(super) fn mandatory_routes() -> Router<AppState> {
     Router::new()
         .route(
@@ -199,7 +198,7 @@ async fn get_mixnode_stake_saturation(
     ),
     path = "/v1/status/mixnode/{mix_id}/inclusion-probability",
     responses(
-        (status = 200, body = InclusionProbabilityResponse)
+        (status = 200, body = nym_api_requests::models::InclusionProbabilityResponse)
     )
 )]
 #[deprecated]
@@ -207,7 +206,7 @@ async fn get_mixnode_stake_saturation(
 async fn get_mixnode_inclusion_probability(
     Path(mix_id): Path<NodeId>,
     State(state): State<AppState>,
-) -> AxumResult<Json<InclusionProbabilityResponse>> {
+) -> AxumResult<Json<nym_api_requests::models::InclusionProbabilityResponse>> {
     Ok(Json(
         _get_mixnode_inclusion_probability(state.node_status_cache(), mix_id).await?,
     ))
@@ -218,14 +217,14 @@ async fn get_mixnode_inclusion_probability(
     get,
     path = "/v1/status/mixnodes/inclusion-probability",
     responses(
-        (status = 200, body = AllInclusionProbabilitiesResponse)
+        (status = 200, body = nym_api_requests::models::AllInclusionProbabilitiesResponse)
     )
 )]
 #[deprecated]
 #[allow(deprecated)]
 async fn get_mixnode_inclusion_probabilities(
     State(state): State<AppState>,
-) -> AxumResult<Json<AllInclusionProbabilitiesResponse>> {
+) -> AxumResult<Json<nym_api_requests::models::AllInclusionProbabilitiesResponse>> {
     Ok(Json(
         _get_mixnode_inclusion_probabilities(state.node_status_cache()).await?,
     ))

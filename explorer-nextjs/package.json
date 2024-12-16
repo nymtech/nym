@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "biome check --fix"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "@emotion/cache": "^11.13.5",
     "@emotion/react": "^11.13.5",

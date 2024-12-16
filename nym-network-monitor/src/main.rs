@@ -3,7 +3,6 @@ use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
 use log::{error, info, warn};
-use log::{info, warn};
 use nym_client_core::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
 use nym_network_defaults::setup_env;

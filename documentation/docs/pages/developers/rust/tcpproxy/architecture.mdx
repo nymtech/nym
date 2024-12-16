@@ -13,7 +13,7 @@ The motivation behind the creation of the `TcpProxy` module is to allow develope
 
 ## Clients
 Each of the sub-modules exposed by the `TcpProxy` deal with Nym clients in a different way.
-- the `NymProxyClient` creates an ephemeral client per new TCP connection, which is closed according to the configurable timeout: we map one ephemeral client per TCP connection. This is to deal with multiple simultaneous streams. In the future, this will be superceded by a connection pool in order to speed up new connections.
+- the `NymProxyClient` relies on the [`Client Pool`](../client-pool) to create clients and keep a certain number of them in reserve. If the amount of incoming TCP connections rises quicker than the Client Pool can create clients, or you have the pool size set to `0`, the `TcpProxyClient` creates an ephemeral client per new TCP connection, which is closed according to the configurable timeout: we map one ephemeral client per TCP connection. This is to deal with multiple simultaneous streams. In the future, this will be superceded by a connection pool in order to speed up new connections.
 - the `NymProxyServer` has a single Nym client with a persistent identity.
 
 ## Framing

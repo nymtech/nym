@@ -22,7 +22,7 @@ The main functionality of exposed functions will be imported from `sdk/ffi/share
 
 Furthermore, the `shared/` code makes sure that client access is thread-safe, and that client actions happen in blocking threads on the Rust side of the FFI boundary.
 
-### Mixnet Module
+## Mixnet Module
 This is the basic mixnet component of the SDK, exposing client functionality with which people can build custom interfaces with the Mixnet. These functions are exposed to both Go and C/C++ via the `sdk/ffi/shared/` crate.
 
 | `shared/lib.rs` function                                      | Rust Function                                                           |
@@ -36,13 +36,13 @@ This is the basic mixnet component of the SDK, exposing client functionality wit
 
 > We have also implemented `listen_for_incoming_internal()` which is a wrapper around the Mixnet client's `wait_for_messages()`. This is a helper method for listening out for and handling incoming messages.
 
-#### Currently Unsupported Functionality
+### Currently Unsupported Functionality
 At the time of writing the following functionality is not exposed to the shared FFI library:
 - `split_sender()`: the ability to [split a client into sender and receiver](./mixnet/examples/split-send) for concurrent send/receive.
 - The use of [custom network topologies](./mixnet/examples/custom-topology).
 - `Socks5::new()`: creation and use of the [socks5/4a/4 proxy client](./mixnet/examples/socks).
 
-### TcpProxy Module
+## TcpProxy Module
 A connection abstraction which exposes a local TCP socket which developers are able to interact with basically as expected, being able to read/write to/from a bytestream, without really having to take into account the workings of the Mixnet/Sphinx/the [message-based](../concepts/messages) format of the underlying client.
 
 <Callout type="info" emoji="ℹ️">
@@ -58,3 +58,6 @@ A connection abstraction which exposes a local TCP socket which developers are a
 | `proxy_server_new_internal(upstream_address: &str, config_dir: &str, env: Option<String>)`                                              | `NymProxyServer::new(upstream_address, config_dir, env)`                              |
 | `proxy_server_run_internal()`                                                                                                           | `NymProxyServer.run_with_shutdown()`                                                  |
 | `proxy_server_address_internal()`                                                                                                       | `NymProxyServer.nym_address()`                                                        |
+
+## Client Pool
+There are currently no FFI bindings for the Client Pool. This will be coming in the future.

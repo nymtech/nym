@@ -3,7 +3,6 @@
 
 use ::serde::{Deserialize, Serialize};
 use log::{debug, warn};
-use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
 use rand::prelude::IteratorRandom;
@@ -849,42 +848,42 @@ impl NymTopology {
 //     }
 // }
 
-pub fn nym_topology_from_basic_info(
-    basic_mixes: &[SkimmedNode],
-    basic_gateways: &[SkimmedNode],
-) -> NymTopology {
-    todo!()
-    // let mut mixes = BTreeMap::new();
-    // for mix in basic_mixes {
-    //     let Some(layer) = mix.get_mix_layer() else {
-    //         warn!("node {} doesn't have any assigned mix layer!", mix.node_id);
-    //         continue;
-    //     };
-    //
-    //     let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
-    //     match mix.try_into() {
-    //         Ok(mix) => layer_entry.push(mix),
-    //         Err(err) => {
-    //             warn!("node (mixnode) {} is malformed: {err}", mix.node_id);
-    //             continue;
-    //         }
-    //     }
-    // }
-    //
-    // let mut gateways = Vec::with_capacity(basic_gateways.len());
-    // for gateway in basic_gateways {
-    //     match gateway.try_into() {
-    //         Ok(gate) => gateways.push(gate),
-    //         Err(err) => {
-    //             warn!("node (gateway) {} is malformed: {err}", gateway.node_id);
-    //             continue;
-    //         }
-    //     }
-    // }
-    //
-    // // NymTopology::new(mixes, gateways)
-    // todo!()
-}
+// pub fn nym_topology_from_basic_info(
+//     basic_mixes: &[SkimmedNode],
+//     basic_gateways: &[SkimmedNode],
+// ) -> NymTopology {
+//     todo!()
+//     // let mut mixes = BTreeMap::new();
+//     // for mix in basic_mixes {
+//     //     let Some(layer) = mix.get_mix_layer() else {
+//     //         warn!("node {} doesn't have any assigned mix layer!", mix.node_id);
+//     //         continue;
+//     //     };
+//     //
+//     //     let layer_entry = mixes.entry(layer).or_insert_with(Vec::new);
+//     //     match mix.try_into() {
+//     //         Ok(mix) => layer_entry.push(mix),
+//     //         Err(err) => {
+//     //             warn!("node (mixnode) {} is malformed: {err}", mix.node_id);
+//     //             continue;
+//     //         }
+//     //     }
+//     // }
+//     //
+//     // let mut gateways = Vec::with_capacity(basic_gateways.len());
+//     // for gateway in basic_gateways {
+//     //     match gateway.try_into() {
+//     //         Ok(gate) => gateways.push(gate),
+//     //         Err(err) => {
+//     //             warn!("node (gateway) {} is malformed: {err}", gateway.node_id);
+//     //             continue;
+//     //         }
+//     //     }
+//     // }
+//     //
+//     // // NymTopology::new(mixes, gateways)
+//     // todo!()
+// }
 
 #[cfg(test)]
 mod converting_mixes_to_vec {

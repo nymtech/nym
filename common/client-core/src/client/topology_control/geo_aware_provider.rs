@@ -3,7 +3,6 @@ use log::{debug, error};
 use nym_explorer_client::{ExplorerClient, PrettyDetailedMixNodeBond};
 use nym_network_defaults::var_names::EXPLORER_API;
 use nym_topology::{
-    nym_topology_from_basic_info,
     provider_trait::{async_trait, TopologyProvider},
     NymTopology,
 };
@@ -90,6 +89,15 @@ impl GeoAwareTopologyProvider {
     }
 
     async fn get_topology(&self) -> Option<NymTopology> {
+        let rewarded_set = self
+            .validator_client
+            .get_current_rewarded_set()
+            .await
+            .inspect_err(|err| error!("failed to get current rewarded set: {err}"))
+            .ok()?;
+
+        let mut topology = NymTopology::new_empty(rewarded_set);
+
         let mixnodes = match self
             .validator_client
             .get_all_basic_active_mixing_assigned_nodes()
@@ -173,7 +181,8 @@ impl GeoAwareTopologyProvider {
             .filter(|m| filtered_mixnode_ids.contains(&m.node_id))
             .collect::<Vec<_>>();
 
-        let topology = nym_topology_from_basic_info(&mixnodes, &gateways);
+        topology.add_additional_nodes(mixnodes.iter());
+        topology.add_additional_nodes(gateways.iter());
 
         // TODO: return real error type
         check_layer_integrity(topology.clone()).ok()?;

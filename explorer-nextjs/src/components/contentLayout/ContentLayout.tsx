@@ -2,14 +2,13 @@ import { Box, type BoxProps } from "@mui/material";
 
 export const ContentLayout = ({
   children,
-  component = "div",
   className,
   sx,
   ...rest
 }: BoxProps) => {
   return (
     <Box
-      component={component}
+      component={"main"}
       sx={{
         display: "flex",
         flexDirection: "column",

@@ -16,7 +16,7 @@ import { Suspense } from "react";
 
 export default function Home() {
   return (
-    <ContentLayout component="main">
+    <ContentLayout>
       <Stack gap={5}>
         <Typography variant="h1" textTransform={"uppercase"}>
           Mixnet in your hands

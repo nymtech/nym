@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use ::serde::{Deserialize, Serialize};
-use log::{debug, warn};
 use nym_api_requests::nym_nodes::SkimmedNode;
 use nym_sphinx_addressing::nodes::NodeIdentity;
 use nym_sphinx_types::Node as SphinxNode;
@@ -12,6 +11,7 @@ use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::net::IpAddr;
+use tracing::{debug, warn};
 
 pub use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
 pub use error::NymTopologyError;
@@ -287,13 +287,22 @@ impl NymTopology {
     }
 
     pub fn is_minimally_routable(&self) -> bool {
-        self.node_details_exists(&self.rewarded_set.layer1)
-            && self.node_details_exists(&self.rewarded_set.layer2)
-            && self.node_details_exists(&self.rewarded_set.layer3)
-            && (!self.rewarded_set.exit_gateways.is_empty()
-                || !self.rewarded_set.entry_gateways.is_empty())
+        let has_layer1 = self.node_details_exists(&self.rewarded_set.layer1);
+        let has_layer2 = self.node_details_exists(&self.rewarded_set.layer2);
+        let has_layer3 = self.node_details_exists(&self.rewarded_set.layer3);
+        let has_exit_gateways = !self.rewarded_set.exit_gateways.is_empty();
+        let has_entry_gateways = !self.rewarded_set.entry_gateways.is_empty();
 
-        // TODO: we should also include gateways in that check, but right now we're allowing ALL gateways, even inactive
+        debug!(
+            has_layer1 = %has_layer1,
+            has_layer2 = %has_layer2,
+            has_layer3 = %has_layer3,
+            has_entry_gateways = %has_entry_gateways,
+            has_exit_gateways = %has_exit_gateways,
+            "network status"
+        );
+
+        has_layer1 && has_layer2 && has_layer3 && (has_exit_gateways || has_entry_gateways)
     }
 
     pub fn ensure_minimally_routable(&self) -> Result<(), NymTopologyError> {

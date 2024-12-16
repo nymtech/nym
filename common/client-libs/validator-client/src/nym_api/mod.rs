@@ -921,6 +921,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn force_refresh_describe_cache(
         &self,
         request: &NodeRefreshBody,
@@ -933,6 +934,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn issued_ticketbooks_for(
         &self,
         expiration_date: Date,
@@ -949,6 +951,7 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
+    #[instrument(level = "debug", skip(self))]
     async fn issued_ticketbooks_challenge(
         &self,
         expiration_date: Date,

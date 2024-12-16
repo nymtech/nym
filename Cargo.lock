@@ -6559,7 +6559,6 @@ name = "nym-topology"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "log",
  "nym-api-requests",
  "nym-config",
  "nym-crypto",
@@ -6569,10 +6568,10 @@ dependencies = [
  "nym-sphinx-types",
  "rand",
  "reqwest 0.12.4",
- "semver 1.0.23",
  "serde",
  "serde_json",
  "thiserror",
+ "tracing",
  "tsify",
  "wasm-bindgen",
  "wasm-utils",

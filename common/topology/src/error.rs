@@ -22,9 +22,6 @@ pub enum NymTopologyError {
     #[error("one (or more) of mixing layers does not have any valid nodes available")]
     InsufficientMixingNodes,
 
-    //
-    //
-    //
     #[error("The provided network topology has no gateways available")]
     NoGatewaysAvailable,
 

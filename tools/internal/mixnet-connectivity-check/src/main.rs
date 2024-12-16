@@ -88,6 +88,8 @@ async fn connectivity_test(args: ConnectivityArgs) -> anyhow::Result<()> {
     let mixnet_client = if let Some(gateway) = args.gateway {
         client_builder
             .request_gateway(gateway.to_string())
+            .with_ignore_epoch_roles(true)
+            .with_extended_topology(true)
             .build()?
     } else {
         client_builder.build()?

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT last_pruned_height FROM pruning\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "last_pruned_height",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3bdf81a9db6075f6f77224c30553f419a849d4ec45af40b052a4cbf09b44f3ec"
+}

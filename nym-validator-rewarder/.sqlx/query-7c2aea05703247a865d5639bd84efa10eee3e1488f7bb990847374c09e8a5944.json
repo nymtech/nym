@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM pre_commit WHERE height < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "7c2aea05703247a865d5639bd84efa10eee3e1488f7bb990847374c09e8a5944"
+}

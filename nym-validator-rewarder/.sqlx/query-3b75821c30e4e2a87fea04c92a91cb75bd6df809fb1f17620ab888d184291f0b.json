@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO block_signing_rewarding_epoch (id, start_time, end_time, budget, disabled)\n                VALUES (?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "3b75821c30e4e2a87fea04c92a91cb75bd6df809fb1f17620ab888d184291f0b"
+}

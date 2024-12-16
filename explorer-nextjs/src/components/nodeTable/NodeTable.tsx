@@ -12,8 +12,6 @@ import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite, UnFavorite } from "../favorite/Favorite";
 import type { MappedNymNode, MappedNymNodes } from "./NodeTableWithAction";
 
-// const columnHelper = createColumnHelper<Node>();
-
 const ColumnHeading = ({
   children,
 }: {
@@ -68,7 +66,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         align: "center",
         accessorKey: "qos",
         Header: <ColumnHeading>Quality of Service</ColumnHeading>,
-        Cell: ({ row }) => <Typography variant="body4">Unavailable</Typography>,
+        Cell: () => <Typography variant="body4">Unavailable</Typography>,
       },
       {
         id: "location",
@@ -98,7 +96,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Stake saturation",
         accessorKey: "stakeSaturation",
         Header: <ColumnHeading>Stake saturation</ColumnHeading>,
-        Cell: ({ row }) => <Typography variant="body4">Unavailable</Typography>,
+        Cell: () => <Typography variant="body4">Unavailable</Typography>,
       },
       {
         id: "profitMarginPercentage",

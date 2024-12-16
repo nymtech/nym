@@ -36,6 +36,7 @@ use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
+use std::sync::Arc;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -54,6 +55,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_shutdown: Option<TaskClient>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
+    connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
@@ -93,6 +95,8 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             custom_gateway_transceiver: None,
             force_tls: false,
             user_agent: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
         })
     }
 }
@@ -120,6 +124,8 @@ where
             custom_shutdown: None,
             force_tls: false,
             user_agent: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
             gateway_endpoint_config_path: None,
             storage,
         }
@@ -138,6 +144,8 @@ where
             custom_shutdown: self.custom_shutdown,
             force_tls: self.force_tls,
             user_agent: self.user_agent,
+            #[cfg(unix)]
+            connection_fd_callback: self.connection_fd_callback,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
         }
@@ -237,6 +245,15 @@ where
         self
     }
 
+    #[must_use]
+    pub fn with_connection_fd_callback(
+        mut self,
+        connection_fd_callback: Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>,
+    ) -> Self {
+        self.connection_fd_callback = Some(connection_fd_callback);
+        self
+    }
+
     /// Use custom mixnet sender that might not be the default websocket gateway connection.
     /// only for advanced use
     #[must_use]
@@ -265,6 +282,7 @@ where
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
         client.user_agent = self.user_agent;
+        client.connection_fd_callback = self.connection_fd_callback;
 
         Ok(client)
     }
@@ -314,6 +332,9 @@ where
     custom_shutdown: Option<TaskClient>,
 
     user_agent: Option<UserAgent>,
+
+    /// Callback on the websocket fd as soon as the connection has been established
+    connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -363,6 +384,7 @@ where
             force_tls: false,
             custom_shutdown: None,
             user_agent: None,
+            connection_fd_callback: None,
         })
     }
 
@@ -602,6 +624,11 @@ where
 
         if let Some(gateway_transceiver) = self.custom_gateway_transceiver {
             base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);
+        }
+
+        #[cfg(unix)]
+        if let Some(connection_fd_callback) = self.connection_fd_callback {
+            base_builder = base_builder.with_connection_fd_callback(connection_fd_callback);
         }
 
         let started_client = base_builder.start_base().await?;

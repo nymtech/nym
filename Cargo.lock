@@ -5782,6 +5782,7 @@ dependencies = [
  "nym-bin-common",
  "nym-client-core",
  "nym-crypto",
+ "nym-gateway-requests",
  "nym-network-defaults",
  "nym-sdk",
  "nym-sphinx",

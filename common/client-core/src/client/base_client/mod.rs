@@ -32,7 +32,7 @@ use crate::init::{
     setup_gateway,
     types::{GatewaySetup, InitialisationResult},
 };
-use crate::{config, spawn_future};
+use crate::{config, spawn_future, ForgetMe};
 use futures::channel::mpsc;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
@@ -191,6 +191,8 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
 
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+
+    forget_me: ForgetMe,
 }
 
 impl<'a, C, S> BaseClientBuilder<'a, C, S>
@@ -215,7 +217,14 @@ where
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
             connection_fd_callback: None,
+            forget_me: Default::default(),
         }
+    }
+
+    #[must_use]
+    pub fn with_forget_me(mut self, forget_me: &ForgetMe) -> Self {
+        self.forget_me = forget_me.clone();
+        self
     }
 
     #[must_use]
@@ -636,9 +645,11 @@ where
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown: TaskClient,
+        forget_me: ForgetMe,
     ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
-        let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_transceiver);
+        let (mix_traffic_controller, mix_tx) =
+            MixTrafficController::new(gateway_transceiver, forget_me);
         mix_traffic_controller.start_with_shutdown(shutdown);
         mix_tx
     }
@@ -820,9 +831,11 @@ where
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
+
         let message_sender = Self::start_mix_traffic_controller(
             gateway_transceiver,
             shutdown.fork("mix_traffic_controller"),
+            self.forget_me,
         );
 
         // Channels that the websocket listener can use to signal downstream to the real traffic

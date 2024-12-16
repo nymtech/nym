@@ -28,6 +28,7 @@ use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
+use nym_client_core::ForgetMe;
 use nym_credentials_interface::TicketType;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::{TaskClient, TaskHandle, TaskStatus};
@@ -61,6 +62,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     gateway_endpoint_config_path: Option<PathBuf>,
 
     storage: S,
+    forget_me: ForgetMe,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -97,6 +99,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             user_agent: None,
             #[cfg(unix)]
             connection_fd_callback: None,
+            forget_me: Default::default(),
         })
     }
 }
@@ -128,6 +131,7 @@ where
             connection_fd_callback: None,
             gateway_endpoint_config_path: None,
             storage,
+            forget_me: Default::default(),
         }
     }
 
@@ -148,6 +152,7 @@ where
             connection_fd_callback: self.connection_fd_callback,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
+            forget_me: self.forget_me,
         }
     }
 
@@ -158,6 +163,12 @@ where
         storage: OnDiskPersistent,
     ) -> MixnetClientBuilder<OnDiskPersistent> {
         self.set_storage(storage)
+    }
+
+    #[must_use]
+    pub fn with_forget_me(mut self, forget_me: ForgetMe) -> Self {
+        self.forget_me = forget_me;
+        self
     }
 
     /// Request a specific gateway instead of a random one.
@@ -283,7 +294,7 @@ where
         client.force_tls = self.force_tls;
         client.user_agent = self.user_agent;
         client.connection_fd_callback = self.connection_fd_callback;
-
+        client.forget_me = self.forget_me;
         Ok(client)
     }
 }
@@ -335,6 +346,8 @@ where
 
     /// Callback on the websocket fd as soon as the connection has been established
     connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
+
+    forget_me: ForgetMe,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -385,6 +398,7 @@ where
             custom_shutdown: None,
             user_agent: None,
             connection_fd_callback: None,
+            forget_me: Default::default(),
         })
     }
 
@@ -608,7 +622,8 @@ where
 
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway);
+                .with_wait_for_gateway(self.wait_for_gateway)
+                .with_forget_me(&self.forget_me);
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);

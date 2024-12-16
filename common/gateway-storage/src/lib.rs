@@ -41,6 +41,33 @@ pub struct GatewayStorage {
 }
 
 impl GatewayStorage {
+    #[allow(dead_code)]
+    pub(crate) fn client_manager(&self) -> &ClientManager {
+        &self.client_manager
+    }
+
+    pub(crate) fn shared_key_manager(&self) -> &SharedKeysManager {
+        &self.shared_key_manager
+    }
+
+    pub(crate) fn inbox_manager(&self) -> &InboxManager {
+        &self.inbox_manager
+    }
+
+    pub(crate) fn bandwidth_manager(&self) -> &BandwidthManager {
+        &self.bandwidth_manager
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn ticket_manager(&self) -> &TicketStorageManager {
+        &self.ticket_manager
+    }
+
+    #[allow(dead_code)]
+    pub(crate) fn wireguard_peer_manager(&self) -> &wireguard_peers::WgPeerManager {
+        &self.wireguard_peer_manager
+    }
+
     /// Initialises `PersistentStorage` using the provided path.
     ///
     /// # Arguments
@@ -99,6 +126,21 @@ impl GatewayStorage {
             .shared_key_manager
             .client_id(&client_address.as_base58_string())
             .await?)
+    }
+
+    pub async fn handle_forget_me(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), GatewayStorageError> {
+        let client_id = self.get_mixnet_client_id(client_address).await?;
+        self.inbox_manager()
+            .remove_messages_for_client(&client_address.as_base58_string())
+            .await?;
+        self.bandwidth_manager().remove_client(client_id).await?;
+        self.shared_key_manager()
+            .remove_shared_keys(&client_address.as_base58_string())
+            .await?;
+        Ok(())
     }
 
     pub async fn insert_shared_keys(

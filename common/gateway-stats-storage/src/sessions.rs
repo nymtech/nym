@@ -71,6 +71,16 @@ impl SessionManager {
         Ok(())
     }
 
+    pub(crate) async fn delete_unique_user(&self, client_address_b58: String) -> Result<()> {
+        sqlx::query!(
+            "DELETE FROM sessions_unique_users WHERE client_address = ?",
+            client_address_b58
+        )
+        .execute(&self.connection_pool)
+        .await?;
+        Ok(())
+    }
+
     pub(crate) async fn get_unique_users(&self, date: Date) -> Result<Vec<String>> {
         sqlx::query_scalar!(
             "SELECT client_address as count FROM sessions_unique_users WHERE day = ?",

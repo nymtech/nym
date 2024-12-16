@@ -116,6 +116,16 @@ impl PersistentStatsStorage {
             .await?)
     }
 
+    pub async fn delete_unique_user(
+        &self,
+        client_address: DestinationAddressBytes,
+    ) -> Result<(), StatsStorageError> {
+        Ok(self
+            .session_manager
+            .delete_unique_user(client_address.as_base58_string())
+            .await?)
+    }
+
     pub async fn insert_active_session(
         &self,
         client_address: DestinationAddressBytes,

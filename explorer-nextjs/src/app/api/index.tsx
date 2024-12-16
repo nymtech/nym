@@ -2,7 +2,7 @@
 import {
   CIRCULATING_NYM_SUPPLY,
   HARBOURMASTER_API_MIXNODES_STATS,
-  HARBOURMASTER_API_SUMMARY,
+  NYM_NODES_DESCRIBED,
 } from "./urls";
 
 type Denom = "unym" | "nym";
@@ -85,7 +85,7 @@ export interface ExplorerCache {
 
 const getExplorerData = async () => {
   // FETCH NYMNODES
-  const fetchNymNodes = await fetch(HARBOURMASTER_API_SUMMARY, {
+  const fetchNymNodes = await fetch(NYM_NODES_DESCRIBED, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",

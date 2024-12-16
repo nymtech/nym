@@ -1,7 +1,7 @@
 import type { IPacketsAndStakingData } from "@/app/api";
 import { HARBOURMASTER_API_MIXNODES_STATS } from "@/app/api/urls";
 import { formatBigNum } from "@/app/utils/formatBigNumbers";
-import { Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";
 import { UpDownPriceIndicator } from "../price/UpDownPriceIndicator";
@@ -64,11 +64,13 @@ export const NoiseCard = async () => {
         numberWentUp={percentage > 0}
       />
       {noiseLineGraphData && (
-        <LineChart
-          color="#8482FD"
-          label="Total packets sent and received"
-          data={noiseLineGraphData}
-        />
+        <Box height={225}>
+          <LineChart
+            color="#8482FD"
+            label="Total packets sent and received"
+            data={noiseLineGraphData}
+          />
+        </Box>
       )}
     </ExplorerCard>
   );

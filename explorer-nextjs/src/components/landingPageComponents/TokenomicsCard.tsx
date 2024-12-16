@@ -3,7 +3,7 @@ import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import { TitlePrice } from "../price/TitlePrice";
 
-export const TokenomicsCard = () => {
+export const TokenomicsCard = async () => {
   const titlePrice = {
     price: 1.15,
     upDownLine: {

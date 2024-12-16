@@ -1,5 +1,5 @@
 {
-  "name": "@nymproject/network-explorer",
+  "name": "@nymproject/network-explorer_legacy",
   "version": "1.0.0",
   "scripts": {
     "dev": "next dev",

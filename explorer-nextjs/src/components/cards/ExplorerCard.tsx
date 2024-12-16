@@ -21,7 +21,7 @@ const ExplorerCard = ({
   children,
   sx,
 }: {
-  label: string;
+  label: string | React.ReactNode;
   title?: string;
   children: React.ReactNode;
   sx?: SxProps;

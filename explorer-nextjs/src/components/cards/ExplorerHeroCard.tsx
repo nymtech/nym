@@ -4,6 +4,7 @@ import {
   CardContent,
   CardHeader,
   Stack,
+  type SxProps,
   Typography,
 } from "@mui/material";
 import { Link } from "../muiLink";
@@ -28,16 +29,18 @@ const ExplorerHeroCard = ({
   description,
   image,
   link,
+  sx,
 }: {
   title: string;
   label: string;
   description: string;
   image: React.ReactNode;
   link: string;
+  sx?: SxProps;
 }) => {
   return (
     <Link href={link} sx={{ textDecoration: "none" }}>
-      <Card sx={cardStyles} elevation={0}>
+      <Card sx={{ ...cardStyles, ...sx }} elevation={0}>
         <CardHeader
           title={
             <Stack direction="row" justifyContent="space-between">

@@ -8,7 +8,7 @@ import { Box, Grid2, Stack } from "@mui/material";
 
 export default function NymNode() {
   return (
-    <ContentLayout component="main">
+    <ContentLayout>
       <Grid2 container columnSpacing={5} rowSpacing={5}>
         <Grid2 size={6}>
           <SectionHeading title="Nym Node Details" />

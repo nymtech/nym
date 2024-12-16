@@ -13,8 +13,8 @@ export const ContentLayout = ({
       sx={{
         display: "flex",
         flexDirection: "column",
-        gap: { xs: "30px", md: "200px" },
-        py: { xs: "30px", md: "100px" },
+        gap: { xs: 3, md: 10 },
+        py: { xs: 3, md: 10 },
         ...sx,
       }}
       className={className}

@@ -165,6 +165,7 @@ impl NymClientBuilder {
                 self.force_tls,
                 user_chosen,
                 &nym_api_endpoints,
+                self.config.base.debug.topology.minimum_gateway_performance,
             )
             .await?
         };

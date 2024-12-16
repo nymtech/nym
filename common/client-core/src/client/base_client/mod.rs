@@ -32,7 +32,7 @@ use crate::init::{
     setup_gateway,
     types::{GatewaySetup, InitialisationResult},
 };
-use crate::{config, spawn_future};
+use crate::{config, spawn_future, ForgetMe};
 use futures::channel::mpsc;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
@@ -188,6 +188,11 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
     user_agent: Option<UserAgent>,
 
     setup_method: GatewaySetup,
+
+    #[cfg(unix)]
+    connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+
+    forget_me: ForgetMe,
 }
 
 impl<'a, C, S> BaseClientBuilder<'a, C, S>
@@ -210,7 +215,16 @@ where
             shutdown: None,
             user_agent: None,
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
+            #[cfg(unix)]
+            connection_fd_callback: None,
+            forget_me: Default::default(),
         }
+    }
+
+    #[must_use]
+    pub fn with_forget_me(mut self, forget_me: &ForgetMe) -> Self {
+        self.forget_me = forget_me.clone();
+        self
     }
 
     #[must_use]
@@ -259,6 +273,15 @@ where
         self.custom_topology_provider =
             Some(Box::new(HardcodedTopologyProvider::new_from_file(file)?));
         Ok(self)
+    }
+
+    #[cfg(unix)]
+    pub fn with_connection_fd_callback(
+        mut self,
+        callback: Arc<dyn Fn(RawFd) + Send + Sync>,
+    ) -> Self {
+        self.connection_fd_callback = Some(callback);
+        self
     }
 
     // note: do **NOT** make this method public as its only valid usage is from within `start_base`
@@ -352,6 +375,7 @@ where
         controller.start_with_shutdown(shutdown)
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn start_gateway_client(
         config: &Config,
         initialisation_result: InitialisationResult,
@@ -359,6 +383,7 @@ where
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
+        #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         shutdown: TaskClient,
     ) -> Result<GatewayClient<C, S::CredentialStore>, ClientCoreError>
     where
@@ -401,6 +426,8 @@ where
                     packet_router,
                     bandwidth_controller,
                     stats_reporter,
+                    #[cfg(unix)]
+                    connection_fd_callback,
                     shutdown,
                 )
             };
@@ -462,6 +489,7 @@ where
         details_store: &S::GatewaysDetailsStore,
         packet_router: PacketRouter,
         stats_reporter: ClientStatsSender,
+        #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         mut shutdown: TaskClient,
     ) -> Result<Box<dyn GatewayTransceiver + Send>, ClientCoreError>
     where
@@ -493,6 +521,8 @@ where
             details_store,
             packet_router,
             stats_reporter,
+            #[cfg(unix)]
+            connection_fd_callback,
             shutdown,
         )
         .await?;
@@ -514,15 +544,10 @@ where
                     min_gateway_performance: config_topology.minimum_gateway_performance,
                 },
                 nym_api_urls,
-                env!("CARGO_PKG_VERSION").to_string(),
                 user_agent,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
-                Box::new(GeoAwareTopologyProvider::new(
-                    nym_api_urls,
-                    env!("CARGO_PKG_VERSION").to_string(),
-                    group_by,
-                ))
+                Box::new(GeoAwareTopologyProvider::new(nym_api_urls, group_by))
             }
         })
     }
@@ -620,9 +645,11 @@ where
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown: TaskClient,
+        forget_me: ForgetMe,
     ) -> BatchMixMessageSender {
         info!("Starting mix traffic controller...");
-        let (mix_traffic_controller, mix_tx) = MixTrafficController::new(gateway_transceiver);
+        let (mix_traffic_controller, mix_tx) =
+            MixTrafficController::new(gateway_transceiver, forget_me);
         mix_traffic_controller.start_with_shutdown(shutdown);
         mix_tx
     }
@@ -777,6 +804,8 @@ where
             &details_store,
             gateway_packet_router,
             stats_reporter.clone(),
+            #[cfg(unix)]
+            self.connection_fd_callback,
             shutdown.fork("gateway_transceiver"),
         )
         .await?;
@@ -802,9 +831,11 @@ where
         // that are to be sent to the mixnet. They are used by cover traffic stream and real
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
+
         let message_sender = Self::start_mix_traffic_controller(
             gateway_transceiver,
             shutdown.fork("mix_traffic_controller"),
+            self.forget_me,
         );
 
         // Channels that the websocket listener can use to signal downstream to the real traffic

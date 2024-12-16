@@ -6,15 +6,17 @@ use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::helpers::PaginationRequest;
 use crate::support::http::state::AppState;
 use crate::support::storage::NymApiStorage;
+use anyhow::bail;
 use axum::extract::{Path, Query, State};
 use axum::Json;
 use nym_api_requests::models::{
-    GatewayTestResultResponse, MixnodeTestResultResponse, PartialTestResult, TestNode, TestRoute,
+    GatewayTestResultResponse, MixnodeTestResultResponse, NetworkMonitorRunDetailsResponse,
+    PartialTestResult, TestNode, TestRoute,
 };
 use nym_api_requests::pagination::Pagination;
 use nym_mixnet_contract_common::NodeId;
 use std::cmp::min;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{error, trace};
@@ -298,6 +300,91 @@ pub async fn gateway_test_results(
         Ok(res) => Ok(Json(res)),
         Err(err) => Err(AxumErrorResponse::internal_msg(format!(
             "failed to retrieve mixnode test results for gateway {gateway_identity}: {err}"
+        ))),
+    }
+}
+
+async fn _monitor_run_report(
+    monitor_run_id: i64,
+    storage: &NymApiStorage,
+) -> anyhow::Result<NetworkMonitorRunDetailsResponse> {
+    let Some((raw_report, raw_scores)) = storage.get_monitor_run_report(monitor_run_id).await?
+    else {
+        bail!("no results found for monitor run {monitor_run_id}");
+    };
+
+    let mut mixnode_results = BTreeMap::new();
+    let mut gateway_results = BTreeMap::new();
+
+    for score in raw_scores {
+        if score.typ == "mixnode" {
+            mixnode_results.insert(score.rounded_score, score.nodes_count as usize);
+        } else if score.typ == "gateway" {
+            gateway_results.insert(score.rounded_score, score.nodes_count as usize);
+        }
+    }
+
+    Ok(NetworkMonitorRunDetailsResponse {
+        monitor_run_id,
+        network_reliability: raw_report.network_reliability,
+        total_sent: raw_report.packets_sent as usize,
+        total_received: raw_report.packets_received as usize,
+        mixnode_results,
+        gateway_results,
+    })
+}
+
+async fn _latest_monitor_run_report(
+    storage: &NymApiStorage,
+) -> anyhow::Result<NetworkMonitorRunDetailsResponse> {
+    let Some(latest_id) = storage.get_latest_monitor_run_id().await? else {
+        bail!("no network monitor run found");
+    };
+
+    _monitor_run_report(latest_id, storage).await
+}
+
+#[utoipa::path(
+    tag = "UNSTABLE - DO **NOT** USE",
+    get,
+    params(
+        PaginationRequest
+    ),
+    path = "/v1/status/network-monitor/unstable/run/{monitor_run_id}/details",
+    responses(
+        (status = 200, body = NetworkMonitorRunDetailsResponse)
+    )
+)]
+pub async fn monitor_run_report(
+    Path(monitor_run_id): Path<i64>,
+    State(state): State<AppState>,
+) -> AxumResult<Json<NetworkMonitorRunDetailsResponse>> {
+    match _monitor_run_report(monitor_run_id, state.storage()).await {
+        Ok(res) => Ok(Json(res)),
+        Err(err) => Err(AxumErrorResponse::internal_msg(format!(
+            "failed to retrieve monitor run report for run {monitor_run_id}: {err}"
+        ))),
+    }
+}
+
+#[utoipa::path(
+    tag = "UNSTABLE - DO **NOT** USE",
+    get,
+    params(
+        PaginationRequest
+    ),
+    path = "/v1/status/network-monitor/unstable/run/latest/details",
+    responses(
+        (status = 200, body = NetworkMonitorRunDetailsResponse)
+    )
+)]
+pub async fn latest_monitor_run_report(
+    State(state): State<AppState>,
+) -> AxumResult<Json<NetworkMonitorRunDetailsResponse>> {
+    match _latest_monitor_run_report(state.storage()).await {
+        Ok(res) => Ok(Json(res)),
+        Err(err) => Err(AxumErrorResponse::internal_msg(format!(
+            "failed to retrieve the latest monitor run report: {err}"
         ))),
     }
 }

@@ -46,6 +46,7 @@ nym-sphinx = { path = "../nymsphinx" }
 nym-statistics-common = { path = "../statistics" }
 nym-pemstore = { path = "../pemstore" }
 nym-topology = { path = "../topology", features = ["serializable"] }
+nym-mixnet-client = { path = "../client-libs/mixnet-client", default-features = false }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 nym-task = { path = "../task" }
 nym-credentials-interface = { path = "../credentials-interface" }

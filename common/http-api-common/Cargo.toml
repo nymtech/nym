@@ -15,12 +15,15 @@ axum-client-ip.workspace = true
 axum.workspace = true
 bytes = { workspace = true }
 colored.workspace = true
+futures = { workspace = true }
 mime = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_yaml = { workspace = true }
+tower = { workspace = true }
 tracing.workspace = true
 utoipa = { workspace = true, optional = true }
+zeroize = { workspace = true }
 
 [features]
 utoipa = ["dep:utoipa"]

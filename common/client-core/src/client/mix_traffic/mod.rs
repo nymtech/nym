@@ -2,8 +2,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::transceiver::GatewayTransceiver;
-use crate::spawn_future;
+use crate::{spawn_future, ForgetMe};
 use log::*;
+use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
@@ -26,10 +27,14 @@ pub struct MixTrafficController {
     // TODO: this is temporary work-around.
     // in long run `gateway_client` will be moved away from `MixTrafficController` anyway.
     consecutive_gateway_failure_count: usize,
+    forget_me: ForgetMe,
 }
 
 impl MixTrafficController {
-    pub fn new<T>(gateway_transceiver: T) -> (MixTrafficController, BatchMixMessageSender)
+    pub fn new<T>(
+        gateway_transceiver: T,
+        forget_me: ForgetMe,
+    ) -> (MixTrafficController, BatchMixMessageSender)
     where
         T: GatewayTransceiver + Send + 'static,
     {
@@ -40,6 +45,7 @@ impl MixTrafficController {
                 gateway_transceiver: Box::new(gateway_transceiver),
                 mix_rx: message_receiver,
                 consecutive_gateway_failure_count: 0,
+                forget_me,
             },
             message_sender,
         )
@@ -47,6 +53,7 @@ impl MixTrafficController {
 
     pub fn new_dynamic(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
+        forget_me: ForgetMe,
     ) -> (MixTrafficController, BatchMixMessageSender) {
         let (message_sender, message_receiver) =
             tokio::sync::mpsc::channel(MIX_MESSAGE_RECEIVER_BUFFER_SIZE);
@@ -55,6 +62,7 @@ impl MixTrafficController {
                 gateway_transceiver,
                 mix_rx: message_receiver,
                 consecutive_gateway_failure_count: 0,
+                forget_me,
             },
             message_sender,
         )
@@ -111,7 +119,27 @@ impl MixTrafficController {
                 }
             }
             shutdown.recv_timeout().await;
+
+            if self.forget_me.any() {
+                log::info!("Sending forget me request to the gateway");
+                match self
+                    .gateway_transceiver
+                    .send_client_request(ClientRequest::ForgetMe {
+                        client: self.forget_me.client(),
+                        stats: self.forget_me.stats(),
+                    })
+                    .await
+                {
+                    Ok(_) => {
+                        log::info!("Successfully sent forget me request to the gateway");
+                    }
+                    Err(err) => {
+                        log::error!("Failed to send forget me request to the gateway: {err}");
+                    }
+                }
+            }
+
             log::debug!("MixTrafficController: Exiting");
-        })
+        });
     }
 }

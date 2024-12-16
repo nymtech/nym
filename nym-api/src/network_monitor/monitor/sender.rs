@@ -1,35 +1,34 @@
 // Copyright 2021-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::network_monitor::monitor::gateway_clients_cache::{
-    ActiveGatewayClients, GatewayClientHandle,
-};
-use crate::network_monitor::monitor::gateways_pinger::GatewayPinger;
+use crate::network_monitor::monitor::gateway_client_handle::GatewayClientHandle;
 use crate::network_monitor::monitor::receiver::{GatewayClientUpdate, GatewayClientUpdateSender};
+use crate::support::config::Config;
 use crate::support::nyxd;
+use dashmap::DashMap;
 use futures::channel::mpsc;
 use futures::stream::{self, FuturesUnordered, StreamExt};
 use futures::task::Context;
 use futures::{Future, Stream};
 use nym_bandwidth_controller::BandwidthController;
 use nym_credential_storage::persistent_storage::PersistentStorage;
-use nym_crypto::asymmetric::identity::{self, PUBLIC_KEY_LENGTH};
+use nym_crypto::asymmetric::ed25519;
 use nym_gateway_client::client::config::GatewayClientConfig;
 use nym_gateway_client::client::GatewayConfig;
 use nym_gateway_client::error::GatewayClientError;
 use nym_gateway_client::{
-    AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter,
+    AcknowledgementReceiver, GatewayClient, MixnetMessageReceiver, PacketRouter, SharedGatewayKey,
 };
 use nym_sphinx::forwarding::packet::MixPacket;
-use nym_task::TaskClient;
 use pin_project::pin_project;
+use sqlx::__rt::timeout;
 use std::mem;
 use std::num::NonZeroUsize;
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::Poll;
 use std::time::Duration;
-use tracing::{debug, info, trace, warn};
+use tracing::{debug, error, info, trace, warn};
 
 const TIME_CHUNK_SIZE: Duration = Duration::from_millis(50);
 
@@ -39,7 +38,7 @@ pub(crate) struct GatewayPackets {
     pub(crate) clients_address: String,
 
     /// Public key of the target gateway.
-    pub(crate) pub_key: identity::PublicKey,
+    pub(crate) pub_key: ed25519::PublicKey,
 
     /// All the packets that are going to get sent to the gateway.
     pub(crate) packets: Vec<MixPacket>,
@@ -48,7 +47,7 @@ pub(crate) struct GatewayPackets {
 impl GatewayPackets {
     pub(crate) fn new(
         clients_address: String,
-        pub_key: identity::PublicKey,
+        pub_key: ed25519::PublicKey,
         packets: Vec<MixPacket>,
     ) -> Self {
         GatewayPackets {
@@ -66,7 +65,7 @@ impl GatewayPackets {
         }
     }
 
-    pub(crate) fn empty(clients_address: String, pub_key: identity::PublicKey) -> Self {
+    pub(crate) fn empty(clients_address: String, pub_key: ed25519::PublicKey) -> Self {
         GatewayPackets {
             clients_address,
             pub_key,
@@ -89,94 +88,61 @@ impl GatewayPackets {
 // struct consisting of all external data required to construct a fresh gateway client
 struct FreshGatewayClientData {
     gateways_status_updater: GatewayClientUpdateSender,
-    local_identity: Arc<identity::KeyPair>,
+    local_identity: Arc<ed25519::KeyPair>,
     gateway_response_timeout: Duration,
     bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
     disabled_credentials_mode: bool,
+    gateways_key_cache: DashMap<ed25519::PublicKey, Arc<SharedGatewayKey>>,
 }
 
 impl FreshGatewayClientData {
-    fn notify_connection_failure(
-        self: Arc<FreshGatewayClientData>,
-        raw_gateway_id: [u8; PUBLIC_KEY_LENGTH],
-    ) {
-        // if this unwrap failed it means something extremely weird is going on
-        // and we got some solar flare bitflip type of corruption
-        let gateway_key = identity::PublicKey::from_bytes(&raw_gateway_id)
-            .expect("failed to recover gateways public key from valid bytes");
-
-        // remove the gateway listener channels
-        self.gateways_status_updater
-            .unbounded_send(GatewayClientUpdate::Failure(gateway_key))
-            .expect("packet receiver seems to have died!");
-    }
-
     fn notify_new_connection(
         self: Arc<FreshGatewayClientData>,
-        gateway_id: identity::PublicKey,
-        gateway_channels: Option<(MixnetMessageReceiver, AcknowledgementReceiver)>,
+        gateway_id: ed25519::PublicKey,
+        gateway_channels: (MixnetMessageReceiver, AcknowledgementReceiver),
     ) {
-        self.gateways_status_updater
-            .unbounded_send(GatewayClientUpdate::New(
-                gateway_id,
-                gateway_channels.expect("we created a new client, yet the channels are a None!"),
-            ))
-            .expect("packet receiver seems to have died!")
+        if self
+            .gateways_status_updater
+            .unbounded_send(GatewayClientUpdate::New(gateway_id, gateway_channels))
+            .is_err()
+        {
+            error!("packet receiver seems to have died!")
+        }
     }
 }
 
 pub(crate) struct PacketSender {
-    // TODO: this has a potential long-term issue. If we keep those clients cached between runs,
-    // malicious gateways could figure out which traffic comes from the network monitor and always
-    // forward that traffic while dropping the rest. However, at the current stage such sophisticated
-    // behaviour is unlikely.
-    active_gateway_clients: ActiveGatewayClients,
-
     fresh_gateway_client_data: Arc<FreshGatewayClientData>,
     gateway_connection_timeout: Duration,
+    gateway_bandwidth_claim_timeout: Duration,
     max_concurrent_clients: usize,
     max_sending_rate: usize,
 }
 
 impl PacketSender {
-    // at this point I'm not entirely sure how to deal with this warning without
-    // some considerable refactoring
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
+        config: &Config,
         gateways_status_updater: GatewayClientUpdateSender,
-        local_identity: Arc<identity::KeyPair>,
-        gateway_response_timeout: Duration,
-        gateway_connection_timeout: Duration,
-        max_concurrent_clients: usize,
-        max_sending_rate: usize,
+        local_identity: Arc<ed25519::KeyPair>,
         bandwidth_controller: BandwidthController<nyxd::Client, PersistentStorage>,
-        disabled_credentials_mode: bool,
     ) -> Self {
         PacketSender {
-            active_gateway_clients: ActiveGatewayClients::new(),
             fresh_gateway_client_data: Arc::new(FreshGatewayClientData {
                 gateways_status_updater,
                 local_identity,
-                gateway_response_timeout,
+                gateway_response_timeout: config.network_monitor.debug.gateway_response_timeout,
                 bandwidth_controller,
-                disabled_credentials_mode,
+                disabled_credentials_mode: config.network_monitor.debug.disabled_credentials_mode,
+                gateways_key_cache: Default::default(),
             }),
-            gateway_connection_timeout,
-            max_concurrent_clients,
-            max_sending_rate,
+            gateway_connection_timeout: config.network_monitor.debug.gateway_connection_timeout,
+            gateway_bandwidth_claim_timeout: config
+                .network_monitor
+                .debug
+                .gateway_bandwidth_claim_timeout,
+            max_concurrent_clients: config.network_monitor.debug.max_concurrent_gateway_clients,
+            max_sending_rate: config.network_monitor.debug.gateway_sending_rate,
         }
-    }
-
-    pub(crate) fn spawn_gateways_pinger(&self, pinging_interval: Duration, shutdown: TaskClient) {
-        let gateway_pinger = GatewayPinger::new(
-            self.active_gateway_clients.clone(),
-            self.fresh_gateway_client_data
-                .gateways_status_updater
-                .clone(),
-            pinging_interval,
-        );
-
-        tokio::spawn(async move { gateway_pinger.run(shutdown).await });
     }
 
     fn new_gateway_client_handle(
@@ -190,8 +156,6 @@ impl PacketSender {
         let task_client =
             nym_task::TaskClient::dummy().named(format!("gateway-{}", config.gateway_identity));
 
-        // TODO: future optimization: if we're remaking client for a gateway to which we used to be connected in the past,
-        // use old shared keys
         let (message_sender, message_receiver) = mpsc::unbounded();
 
         // currently we do not care about acks at all, but we must keep the channel alive
@@ -204,21 +168,30 @@ impl PacketSender {
             task_client.fork("packet-router"),
         );
 
+        let shared_keys = fresh_gateway_client_data
+            .gateways_key_cache
+            .get(&config.gateway_identity)
+            .map(|k| k.value().clone());
+
         let gateway_client = GatewayClient::new(
             GatewayClientConfig::new_default()
                 .with_disabled_credentials_mode(fresh_gateway_client_data.disabled_credentials_mode)
                 .with_response_timeout(fresh_gateway_client_data.gateway_response_timeout),
             config,
             Arc::clone(&fresh_gateway_client_data.local_identity),
-            None,
+            shared_keys,
             gateway_packet_router,
             Some(fresh_gateway_client_data.bandwidth_controller.clone()),
             nym_statistics_common::clients::ClientStatsSender::new(None),
+            None,
             task_client,
         );
 
         (
-            GatewayClientHandle::new(gateway_client),
+            GatewayClientHandle::new(
+                gateway_client,
+                fresh_gateway_client_data.gateways_status_updater.clone(),
+            ),
             (message_receiver, ack_receiver),
         )
     }
@@ -228,11 +201,11 @@ impl PacketSender {
         mut mix_packets: Vec<MixPacket>,
         max_sending_rate: usize,
     ) -> Result<(), GatewayClientError> {
-        let gateway_id = client.gateway_identity().to_base58_string();
+        let gateway_id = client.gateway_identity();
+
         info!(
-            "Got {} packets to send to gateway {}",
+            "Got {} packets to send to gateway {gateway_id}",
             mix_packets.len(),
-            gateway_id
         );
 
         if mix_packets.len() <= max_sending_rate {
@@ -282,47 +255,79 @@ impl PacketSender {
         Ok(())
     }
 
+    async fn client_startup(
+        connection_timeout: Duration,
+        bandwidth_claim_timeout: Duration,
+        client: &mut GatewayClientHandle,
+    ) -> Option<Arc<SharedGatewayKey>> {
+        let gateway_identity = client.gateway_identity();
+
+        // 1. attempt to authenticate
+        let shared_key =
+            match timeout(connection_timeout, client.perform_initial_authentication()).await {
+                Err(_timeout) => {
+                    warn!("timed out while trying to authenticate with gateway {gateway_identity}");
+                    return None;
+                }
+                Ok(Err(err)) => {
+                    warn!("failed to authenticate with gateway ({gateway_identity}): {err}");
+                    return None;
+                }
+                Ok(Ok(res)) => res.initial_shared_key,
+            };
+
+        // 2. maybe claim bandwidth
+        match timeout(bandwidth_claim_timeout, client.claim_initial_bandwidth()).await {
+            Err(_timeout) => {
+                warn!("timed out while trying to claim initial bandwidth with gateway {gateway_identity}");
+                return None;
+            }
+            Ok(Err(err)) => {
+                warn!("failed to claim bandwidth with gateway ({gateway_identity}): {err}");
+                return None;
+            }
+            Ok(Ok(_)) => (),
+        }
+
+        // 3. start internal listener
+        if let Err(err) = client.start_listening_for_mixnet_messages() {
+            warn!("failed to start message listener for {gateway_identity}: {err}");
+            return None;
+        }
+
+        Some(shared_key)
+    }
+
     async fn create_new_gateway_client_handle_and_authenticate(
         config: GatewayConfig,
         fresh_gateway_client_data: &FreshGatewayClientData,
         gateway_connection_timeout: Duration,
+        gateway_bandwidth_claim_timeout: Duration,
     ) -> Option<(
         GatewayClientHandle,
         (MixnetMessageReceiver, AcknowledgementReceiver),
     )> {
         let gateway_identity = config.gateway_identity;
-        let (new_client, (message_receiver, ack_receiver)) =
+        let (mut new_client, (message_receiver, ack_receiver)) =
             Self::new_gateway_client_handle(config, fresh_gateway_client_data);
 
-        // Put this in timeout in case the gateway has incorrectly set their ulimit and our connection
-        // gets stuck in their TCP queue and just hangs on our end but does not terminate
-        // (an actual bug we experienced)
-        //
-        // Note: locking the client in unchecked manner is fine here as we just created the lock
-        // and it wasn't shared with anyone, therefore we're the only one holding reference to it
-        // and hence it's impossible to fail to obtain the permit.
-        let mut unlocked_client = new_client.lock_client_unchecked();
-
-        // SAFETY: it's fine to use the deprecated method here as we're creating brand new clients each time,
-        // and there's no need to deal with any key upgrades
-        #[allow(deprecated)]
-        match tokio::time::timeout(
+        match Self::client_startup(
             gateway_connection_timeout,
-            unlocked_client.get_mut_unchecked().authenticate_and_start(),
+            gateway_bandwidth_claim_timeout,
+            &mut new_client,
         )
         .await
         {
-            Ok(Ok(_)) => {
-                drop(unlocked_client);
+            Some(shared_key) => {
+                fresh_gateway_client_data
+                    .gateways_key_cache
+                    .insert(gateway_identity, shared_key);
                 Some((new_client, (message_receiver, ack_receiver)))
             }
-            Ok(Err(err)) => {
-                warn!("failed to authenticate with new gateway ({gateway_identity}): {err}",);
-                // we failed to create a client, can't do much here
-                None
-            }
-            Err(_) => {
-                warn!("timed out while trying to authenticate with new gateway {gateway_identity}",);
+            None => {
+                fresh_gateway_client_data
+                    .gateways_key_cache
+                    .remove(&gateway_identity);
                 None
             }
         }
@@ -345,123 +350,63 @@ impl PacketSender {
     // than just concurrently?
     async fn send_gateway_packets(
         gateway_connection_timeout: Duration,
+        gateway_bandwidth_claim_timeout: Duration,
         packets: GatewayPackets,
         fresh_gateway_client_data: Arc<FreshGatewayClientData>,
-        client: Option<GatewayClientHandle>,
         max_sending_rate: usize,
     ) -> Option<GatewayClientHandle> {
-        let existing_client = client.is_some();
+        let (mut client, gateway_channels) =
+            Self::create_new_gateway_client_handle_and_authenticate(
+                packets.gateway_config(),
+                &fresh_gateway_client_data,
+                gateway_connection_timeout,
+                gateway_bandwidth_claim_timeout,
+            )
+            .await?;
 
-        // Note that in the worst case scenario we will only wait for a second or two to obtain the lock
-        // as other possibly entity holding the lock (the gateway pinger) is attempting to send
-        // the ping messages with a maximum timeout.
-        let (client, gateway_channels) = if let Some(client) = client {
-            if client.is_invalid().await {
-                warn!("Our existing client was invalid - two test runs happened back to back without cleanup");
-                return None;
-            }
-            (client, None)
-        } else {
-            let (client, gateway_channels) =
-                Self::create_new_gateway_client_handle_and_authenticate(
-                    packets.gateway_config(),
-                    &fresh_gateway_client_data,
-                    gateway_connection_timeout,
-                )
-                .await?;
-            (client, Some(gateway_channels))
-        };
+        let identity = client.gateway_identity();
 
         let estimated_time =
             Duration::from_secs_f64(packets.packets.len() as f64 / max_sending_rate as f64);
         // give some leeway
         let timeout = estimated_time * 3;
 
-        let mut guard = client.lock_client().await;
-        let unwrapped_client = guard.get_mut_unchecked();
-
-        if let Err(err) = Self::check_remaining_bandwidth(unwrapped_client).await {
-            warn!(
-                "Failed to claim additional bandwidth for {} - {err}",
-                unwrapped_client.gateway_identity().to_base58_string(),
-            );
-            if existing_client {
-                guard.invalidate();
-                fresh_gateway_client_data.notify_connection_failure(packets.pub_key.to_bytes());
-            }
+        if let Err(err) = Self::check_remaining_bandwidth(&mut client).await {
+            warn!("Failed to claim additional bandwidth for {identity}: {err}",);
             return None;
         }
 
         match tokio::time::timeout(
             timeout,
-            Self::attempt_to_send_packets(unwrapped_client, packets.packets, max_sending_rate),
+            Self::attempt_to_send_packets(&mut client, packets.packets, max_sending_rate),
         )
         .await
         {
             Err(_timeout) => {
-                warn!(
-                    "failed to send packets to {} - we timed out",
-                    packets.pub_key.to_base58_string(),
-                );
-                // if this was a fresh client, there's no need to do anything as it was never
-                // registered to get read
-                if existing_client {
-                    guard.invalidate();
-                    fresh_gateway_client_data.notify_connection_failure(packets.pub_key.to_bytes());
-                }
+                warn!("failed to send packets to {identity} - we timed out",);
                 return None;
             }
             Ok(Err(err)) => {
-                warn!(
-                    "failed to send packets to {} - {:?}",
-                    packets.pub_key.to_base58_string(),
-                    err
-                );
-                // if this was a fresh client, there's no need to do anything as it was never
-                // registered to get read
-                if existing_client {
-                    guard.invalidate();
-                    fresh_gateway_client_data.notify_connection_failure(packets.pub_key.to_bytes());
-                }
+                warn!("failed to send packets to {identity}: {err}",);
                 return None;
             }
             Ok(Ok(_)) => {
-                if !existing_client {
-                    fresh_gateway_client_data
-                        .notify_new_connection(packets.pub_key, gateway_channels);
-                }
+                fresh_gateway_client_data.notify_new_connection(identity, gateway_channels)
             }
         }
 
-        drop(guard);
         Some(client)
     }
 
-    // point of this is to basically insert handles of fresh clients that didn't exist here before
-    async fn merge_client_handles(&self, handles: Vec<GatewayClientHandle>) {
-        let mut guard = self.active_gateway_clients.lock().await;
-        for handle in handles {
-            let raw_identity = handle.raw_identity();
-            if let Some(existing) = guard.get(&raw_identity) {
-                if !handle.ptr_eq(existing) {
-                    panic!("Duplicate client detected!")
-                }
-
-                if handle.is_invalid().await {
-                    guard.remove(&raw_identity);
-                }
-            } else {
-                // client never existed -> just insert it
-                guard.insert(raw_identity, handle);
-            }
-        }
-    }
-
-    pub(super) async fn send_packets(&mut self, packets: Vec<GatewayPackets>) {
+    pub(super) async fn send_packets(
+        &mut self,
+        packets: Vec<GatewayPackets>,
+    ) -> Vec<GatewayClientHandle> {
         // we know that each of the elements in the packets array will only ever access a single,
         // unique element from the existing clients
 
         let gateway_connection_timeout = self.gateway_connection_timeout;
+        let gateway_bandwidth_claim_timeout = self.gateway_bandwidth_claim_timeout;
         let max_concurrent_clients = if self.max_concurrent_clients > 0 {
             Some(self.max_concurrent_clients)
         } else {
@@ -469,41 +414,24 @@ impl PacketSender {
         };
         let max_sending_rate = self.max_sending_rate;
 
-        let guard = self.active_gateway_clients.lock().await;
-        // this clippy warning is a false positive as we cannot get rid of the collect by moving
-        // everything into a single iterator as it would require us to hold the lock the entire time
-        // and that is exactly what we want to avoid
-        #[allow(clippy::needless_collect)]
         let stream_data = packets
             .into_iter()
-            .map(|packets| {
-                let existing_client = guard
-                    .get(&packets.pub_key.to_bytes())
-                    .map(|client| client.clone_data_pointer());
-                (
-                    packets,
-                    Arc::clone(&self.fresh_gateway_client_data),
-                    existing_client,
-                )
-            })
+            .map(|packets| (packets, Arc::clone(&self.fresh_gateway_client_data)))
             .collect::<Vec<_>>();
-
-        // drop the guard immediately so that the other task (gateway pinger) would not need to wait until
-        // we're done sending packets (note: without this drop, we wouldn't be able to ping gateways that
-        // we're not interacting with right now)
-        drop(guard);
 
         // can't chain it all nicely together as there's no adapter method defined on Stream directly
         // for ForEachConcurrentClientUse
-        let used_clients = ForEachConcurrentClientUse::new(
+        //
+        // we need to keep clients alive until the test finishes so that we could keep receiving
+        ForEachConcurrentClientUse::new(
             stream::iter(stream_data.into_iter()),
             max_concurrent_clients,
-            |(packets, fresh_data, client)| async move {
+            |(packets, fresh_data)| async move {
                 Self::send_gateway_packets(
                     gateway_connection_timeout,
+                    gateway_bandwidth_claim_timeout,
                     packets,
                     fresh_data,
-                    client,
                     max_sending_rate,
                 )
                 .await
@@ -512,9 +440,7 @@ impl PacketSender {
         .await
         .into_iter()
         .flatten()
-        .collect();
-
-        self.merge_client_handles(used_clients).await;
+        .collect()
     }
 }
 

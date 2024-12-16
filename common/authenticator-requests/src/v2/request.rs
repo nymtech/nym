@@ -87,7 +87,7 @@ impl AuthenticatorRequest {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum AuthenticatorRequestData {
     Initial(InitMessage),
     Final(Box<FinalMessage>),

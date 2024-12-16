@@ -19,8 +19,8 @@ use nym_api_requests::ecash::{
     PartialExpirationDateSignatureResponse, VerificationKeyResponse,
 };
 use nym_api_requests::models::{
-    ApiHealthResponse, GatewayCoreStatusResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
-    NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
+    ApiHealthResponse, GatewayBondAnnotated, GatewayCoreStatusResponse, MixnodeCoreStatusResponse,
+    MixnodeStatusResponse, NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
 };
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::SkimmedNode;
@@ -257,6 +257,13 @@ impl<C, S> Client<C, S> {
         Ok(self.nym_api.get_gateways().await?)
     }
 
+    #[deprecated]
+    pub async fn get_cached_gateways_detailed_unfiltered(
+        &self,
+    ) -> Result<Vec<GatewayBondAnnotated>, ValidatorClientError> {
+        Ok(self.nym_api.get_gateways_detailed_unfiltered().await?)
+    }
+
     // TODO: combine with NymApiClient...
     pub async fn get_all_cached_described_nodes(
         &self,
@@ -351,34 +358,19 @@ impl NymApiClient {
     }
 
     #[deprecated(note = "use get_all_basic_active_mixing_assigned_nodes instead")]
-    pub async fn get_basic_mixnodes(
-        &self,
-        semver_compatibility: Option<String>,
-    ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
-        Ok(self
-            .nym_api
-            .get_basic_mixnodes(semver_compatibility)
-            .await?
-            .nodes)
+    pub async fn get_basic_mixnodes(&self) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+        Ok(self.nym_api.get_basic_mixnodes().await?.nodes)
     }
 
     #[deprecated(note = "use get_all_basic_entry_assigned_nodes instead")]
-    pub async fn get_basic_gateways(
-        &self,
-        semver_compatibility: Option<String>,
-    ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
-        Ok(self
-            .nym_api
-            .get_basic_gateways(semver_compatibility)
-            .await?
-            .nodes)
+    pub async fn get_basic_gateways(&self) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+        Ok(self.nym_api.get_basic_gateways().await?.nodes)
     }
 
     /// retrieve basic information for nodes are capable of operating as an entry gateway
     /// this includes legacy gateways and nym-nodes
     pub async fn get_all_basic_entry_assigned_nodes(
         &self,
-        semver_compatibility: Option<String>,
     ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
         // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
         let mut page = 0;
@@ -387,12 +379,7 @@ impl NymApiClient {
         loop {
             let mut res = self
                 .nym_api
-                .get_basic_entry_assigned_nodes(
-                    semver_compatibility.clone(),
-                    false,
-                    Some(page),
-                    None,
-                )
+                .get_basic_entry_assigned_nodes(false, Some(page), None)
                 .await?;
 
             nodes.append(&mut res.nodes.data);
@@ -410,7 +397,6 @@ impl NymApiClient {
     /// this includes legacy mixnodes and nym-nodes
     pub async fn get_all_basic_active_mixing_assigned_nodes(
         &self,
-        semver_compatibility: Option<String>,
     ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
         // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
         let mut page = 0;
@@ -419,12 +405,7 @@ impl NymApiClient {
         loop {
             let mut res = self
                 .nym_api
-                .get_basic_active_mixing_assigned_nodes(
-                    semver_compatibility.clone(),
-                    false,
-                    Some(page),
-                    None,
-                )
+                .get_basic_active_mixing_assigned_nodes(false, Some(page), None)
                 .await?;
 
             nodes.append(&mut res.nodes.data);
@@ -442,7 +423,6 @@ impl NymApiClient {
     /// this includes legacy mixnodes and nym-nodes
     pub async fn get_all_basic_mixing_capable_nodes(
         &self,
-        semver_compatibility: Option<String>,
     ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
         // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
         let mut page = 0;
@@ -451,12 +431,7 @@ impl NymApiClient {
         loop {
             let mut res = self
                 .nym_api
-                .get_basic_mixing_capable_nodes(
-                    semver_compatibility.clone(),
-                    false,
-                    Some(page),
-                    None,
-                )
+                .get_basic_mixing_capable_nodes(false, Some(page), None)
                 .await?;
 
             nodes.append(&mut res.nodes.data);
@@ -471,10 +446,7 @@ impl NymApiClient {
     }
 
     /// retrieve basic information for all bonded nodes on the network
-    pub async fn get_all_basic_nodes(
-        &self,
-        semver_compatibility: Option<String>,
-    ) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
+    pub async fn get_all_basic_nodes(&self) -> Result<Vec<SkimmedNode>, ValidatorClientError> {
         // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
         let mut page = 0;
         let mut nodes = Vec::new();
@@ -482,7 +454,7 @@ impl NymApiClient {
         loop {
             let mut res = self
                 .nym_api
-                .get_basic_nodes(semver_compatibility.clone(), false, Some(page), None)
+                .get_basic_nodes(false, Some(page), None)
                 .await?;
 
             nodes.append(&mut res.nodes.data);

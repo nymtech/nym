@@ -68,9 +68,9 @@ pub async fn current_network_topology_async(
 
     let api_client = NymApiClient::new(url);
     let mixnodes = api_client
-        .get_all_basic_active_mixing_assigned_nodes(None)
+        .get_all_basic_active_mixing_assigned_nodes()
         .await?;
-    let gateways = api_client.get_all_basic_entry_assigned_nodes(None).await?;
+    let gateways = api_client.get_all_basic_entry_assigned_nodes().await?;
 
     Ok(NymTopology::from_basic(&mixnodes, &gateways).into())
 }
@@ -121,9 +121,10 @@ pub async fn setup_gateway_from_api(
     force_tls: bool,
     chosen_gateway: Option<IdentityKey>,
     nym_apis: &[Url],
+    minimum_performance: u8,
 ) -> Result<InitialisationResult, WasmCoreError> {
     let mut rng = thread_rng();
-    let gateways = current_gateways(&mut rng, nym_apis, None).await?;
+    let gateways = current_gateways(&mut rng, nym_apis, None, minimum_performance).await?;
     setup_gateway_wasm(client_store, force_tls, chosen_gateway, &gateways).await
 }
 

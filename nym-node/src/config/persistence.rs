@@ -19,8 +19,6 @@ pub const DEFAULT_X25519_PRIVATE_NOISE_KEY_FILENAME: &str = "x25519_noise";
 pub const DEFAULT_X25519_PUBLIC_NOISE_KEY_FILENAME: &str = "x25519_noise.pub";
 pub const DEFAULT_NYMNODE_DESCRIPTION_FILENAME: &str = "description.toml";
 
-pub const DEFAULT_DESCRIPTION_FILENAME: &str = "description.toml";
-
 // Mixnode:
 
 // Entry Gateway:
@@ -72,7 +70,7 @@ impl NymNodePaths {
 
         NymNodePaths {
             keys: KeysPaths::new(data_dir),
-            description: data_dir.join(DEFAULT_DESCRIPTION_FILENAME),
+            description: data_dir.join(DEFAULT_NYMNODE_DESCRIPTION_FILENAME),
         }
     }
 }
@@ -140,11 +138,7 @@ impl KeysPaths {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct MixnodePaths {}
-
-#[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
-#[serde(deny_unknown_fields)]
-pub struct EntryGatewayPaths {
+pub struct GatewayTasksPaths {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys, available client bandwidths and wireguard peers.
     pub clients_storage: PathBuf,
@@ -154,17 +148,14 @@ pub struct EntryGatewayPaths {
 
     /// Path to file containing cosmos account mnemonic used for zk-nym redemption.
     pub cosmos_mnemonic: PathBuf,
-
-    pub authenticator: AuthenticatorPaths,
 }
 
-impl EntryGatewayPaths {
+impl GatewayTasksPaths {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
-        EntryGatewayPaths {
+        GatewayTasksPaths {
             clients_storage: data_dir.as_ref().join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             stats_storage: data_dir.as_ref().join(DEFAULT_STATS_STORAGE_FILENAME),
             cosmos_mnemonic: data_dir.as_ref().join(DEFAULT_MNEMONIC_FILENAME),
-            authenticator: AuthenticatorPaths::new(data_dir),
         }
     }
 
@@ -208,7 +199,7 @@ impl EntryGatewayPaths {
 
 #[derive(Debug, Clone, Deserialize, PartialEq, Eq, Serialize)]
 #[serde(deny_unknown_fields)]
-pub struct ExitGatewayPaths {
+pub struct ServiceProvidersPaths {
     /// Path to sqlite database containing all persistent data: messages for offline clients,
     /// derived shared keys, available client bandwidths and wireguard peers.
     pub clients_storage: PathBuf,
@@ -463,10 +454,10 @@ impl AuthenticatorPaths {
     }
 }
 
-impl ExitGatewayPaths {
+impl ServiceProvidersPaths {
     pub fn new<P: AsRef<Path>>(data_dir: P) -> Self {
         let data_dir = data_dir.as_ref();
-        ExitGatewayPaths {
+        ServiceProvidersPaths {
             clients_storage: data_dir.join(DEFAULT_CLIENTS_STORAGE_FILENAME),
             stats_storage: data_dir.join(DEFAULT_STATS_STORAGE_FILENAME),
             network_requester: NetworkRequesterPaths::new(data_dir),

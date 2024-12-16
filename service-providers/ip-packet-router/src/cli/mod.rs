@@ -1,8 +1,8 @@
 use crate::cli::ecash::Ecash;
 use clap::{CommandFactory, Parser, Subcommand};
 use log::error;
+use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
-use nym_bin_common::{bin_info, version_checker};
 use nym_client_core::cli_helpers::CliClient;
 use nym_ip_packet_router::config::helpers::try_upgrade_config;
 use nym_ip_packet_router::config::{BaseClientConfig, Config};
@@ -166,32 +166,4 @@ async fn try_load_current_config(id: &str) -> Result<Config, IpPacketRouterError
     }
 
     Ok(config)
-}
-
-// this only checks compatibility between config the binary. It does not take into consideration
-// network version. It might do so in the future.
-fn version_check(cfg: &Config) -> bool {
-    let binary_version = env!("CARGO_PKG_VERSION");
-    let config_version = &cfg.base.client.version;
-    if binary_version == config_version {
-        true
-    } else {
-        log::warn!(
-            "The native-client binary has different version than what is specified \
-            in config file! {binary_version} and {config_version}",
-        );
-        if version_checker::is_minor_version_compatible(binary_version, config_version) {
-            log::info!(
-                "but they are still semver compatible. \
-                However, consider running the `upgrade` command"
-            );
-            true
-        } else {
-            log::error!(
-                "and they are semver incompatible! - \
-                please run the `upgrade` command before attempting `run` again"
-            );
-            false
-        }
-    }
 }

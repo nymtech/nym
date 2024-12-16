@@ -1,33 +1,19 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::config::NodeModes;
+use crate::error::{KeyIOFailure, NymNodeError};
 use nym_crypto::asymmetric::{ed25519, x25519};
-use nym_node::config::NodeMode;
-use nym_node::error::{KeyIOFailure, NymNodeError};
-use nym_node_http_api::api::api_requests::v1::node::models::NodeDescription;
+use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use nym_pemstore::KeyPairPath;
-use semver::{BuildMetadata, Version};
 use serde::Serialize;
 use std::fmt::{Display, Formatter};
 use std::path::Path;
 
-#[allow(clippy::unwrap_used)]
-pub fn bonding_version() -> String {
-    // SAFETY:
-    // the value has been put there by cargo
-    let raw = env!("CARGO_PKG_VERSION");
-    let mut semver: Version = raw.parse().unwrap();
-
-    // if it's not empty, then we messed up our own versioning
-    assert!(semver.build.is_empty());
-    semver.build = BuildMetadata::new("nymnode").unwrap();
-    semver.to_string()
-}
-
 #[derive(Debug, Serialize)]
 pub(crate) struct DisplayDetails {
-    pub(crate) current_mode: NodeMode,
+    pub(crate) current_modes: NodeModes,
 
     pub(crate) description: NodeDescription,
 
@@ -43,7 +29,7 @@ pub(crate) struct DisplayDetails {
 
 impl Display for DisplayDetails {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "current mode: {}", self.current_mode)?;
+        writeln!(f, "current mode: {:#?}", self.current_modes)?;
         writeln!(f, "moniker: '{}'", self.description.moniker)?;
         writeln!(f, "website: '{}'", self.description.website)?;
         writeln!(
@@ -150,12 +136,6 @@ pub(crate) fn load_x25519_wireguard_keypair(
     paths: KeyPairPath,
 ) -> Result<x25519::KeyPair, NymNodeError> {
     Ok(load_keypair(paths, "x25519-wireguard")?)
-}
-
-pub(crate) fn load_x25519_sphinx_public_key<P: AsRef<Path>>(
-    path: P,
-) -> Result<x25519::PublicKey, NymNodeError> {
-    Ok(load_key(path, "x25519-sphinx-public-key")?)
 }
 
 pub(crate) fn store_ed25519_identity_keypair(

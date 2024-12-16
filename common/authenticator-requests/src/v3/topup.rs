@@ -5,7 +5,7 @@ use nym_credentials_interface::CredentialSpendingData;
 use nym_wireguard_types::PeerPublicKey;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct TopUpMessage {
     /// Base64 encoded x25519 public key
     pub pub_key: PeerPublicKey,

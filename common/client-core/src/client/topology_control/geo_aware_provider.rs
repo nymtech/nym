@@ -85,15 +85,10 @@ fn check_layer_integrity(topology: NymTopology) -> Result<(), ()> {
 pub struct GeoAwareTopologyProvider {
     validator_client: nym_validator_client::client::NymApiClient,
     filter_on: GroupBy,
-    client_version: String,
 }
 
 impl GeoAwareTopologyProvider {
-    pub fn new(
-        mut nym_api_urls: Vec<Url>,
-        client_version: String,
-        filter_on: GroupBy,
-    ) -> GeoAwareTopologyProvider {
+    pub fn new(mut nym_api_urls: Vec<Url>, filter_on: GroupBy) -> GeoAwareTopologyProvider {
         log::info!(
             "Creating geo-aware topology provider with filter on {}",
             filter_on
@@ -105,14 +100,13 @@ impl GeoAwareTopologyProvider {
                 nym_api_urls[0].clone(),
             ),
             filter_on,
-            client_version,
         }
     }
 
     async fn get_topology(&self) -> Option<NymTopology> {
         let mixnodes = match self
             .validator_client
-            .get_all_basic_active_mixing_assigned_nodes(Some(self.client_version.clone()))
+            .get_all_basic_active_mixing_assigned_nodes()
             .await
         {
             Err(err) => {
@@ -124,7 +118,7 @@ impl GeoAwareTopologyProvider {
 
         let gateways = match self
             .validator_client
-            .get_all_basic_entry_assigned_nodes(Some(self.client_version.clone()))
+            .get_all_basic_entry_assigned_nodes()
             .await
         {
             Err(err) => {

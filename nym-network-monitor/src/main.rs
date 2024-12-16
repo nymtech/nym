@@ -3,6 +3,8 @@ use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
 use log::{error, info, warn};
+use log::{info, warn};
+use nym_client_core::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
 use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
@@ -57,7 +59,11 @@ async fn make_clients(
                 loop {
                     if Arc::strong_count(&dropped_client) == 1 {
                         if let Some(client) = Arc::into_inner(dropped_client) {
-                            client.into_inner().disconnect().await;
+                            // let forget_me = ClientRequest::ForgetMe {
+                            //     also_from_stats: true,
+                            // };
+                            let client_handle = client.into_inner();
+                            client_handle.disconnect().await;
                         } else {
                             warn!("Failed to drop client, client had more then one strong ref")
                         }
@@ -89,6 +95,8 @@ async fn make_client(topology: NymTopology) -> Result<MixnetClient> {
     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .network_details(net)
         .custom_topology_provider(topology_provider)
+        .debug_config(mixnet_debug_config(0))
+        .with_forget_me(ForgetMe::new_all())
         // .enable_credentials_mode()
         .build()?;
 
@@ -236,4 +244,15 @@ async fn main() -> Result<()> {
     server_handle.await??;
 
     Ok(())
+}
+
+fn mixnet_debug_config(min_gateway_performance: u8) -> nym_client_core::config::DebugConfig {
+    let mut debug_config = nym_client_core::config::DebugConfig::default();
+    debug_config
+        .traffic
+        .disable_main_poisson_packet_distribution = true;
+    debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
+    debug_config.topology.minimum_gateway_performance = min_gateway_performance;
+    debug_config.traffic.deterministic_route_selection = true;
+    debug_config
 }

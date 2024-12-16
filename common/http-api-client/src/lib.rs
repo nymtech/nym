@@ -282,7 +282,7 @@ impl Client {
         }
     }
 
-    pub async fn create_delete_request<K, V>(
+    pub fn create_delete_request<K, V>(
         &self,
         path: PathSegments<'_>,
         params: Params<'_, K, V>,
@@ -321,6 +321,56 @@ impl Client {
         #[cfg(not(target_arch = "wasm32"))]
         {
             Ok(self.reqwest_client.delete(url).send().await?)
+        }
+    }
+
+    pub fn create_patch_request<B, K, V>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: &B,
+    ) -> RequestBuilder
+    where
+        B: Serialize + ?Sized,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let url = sanitize_url(&self.base_url, path, params);
+        self.reqwest_client.patch(url).json(json_body)
+    }
+
+    pub async fn send_patch_request<B, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: &B,
+    ) -> Result<Response, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized,
+        K: AsRef<str>,
+        V: AsRef<str>,
+        E: Display,
+    {
+        let url = sanitize_url(&self.base_url, path, params);
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            Ok(wasmtimer::tokio::timeout(
+                self.request_timeout,
+                self.reqwest_client.patch(url).json(json_body).send(),
+            )
+            .await
+            .map_err(|_timeout| HttpClientError::RequestTimeout)??)
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Ok(self
+                .reqwest_client
+                .patch(url)
+                .json(json_body)
+                .send()
+                .await?)
         }
     }
 
@@ -370,6 +420,23 @@ impl Client {
     {
         let res = self.send_delete_request(path, params).await?;
         parse_response(res, false).await
+    }
+
+    pub async fn patch_json<B, T, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: &B,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized,
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str>,
+        V: AsRef<str>,
+        E: Display + DeserializeOwned,
+    {
+        let res = self.send_patch_request(path, params, json_body).await?;
+        parse_response(res, true).await
     }
 
     #[instrument(level = "debug", skip_all)]
@@ -465,6 +532,42 @@ impl Client {
         };
 
         parse_response(res, false).await
+    }
+
+    pub async fn patch_json_endpoint<B, T, S, E>(
+        &self,
+        endpoint: S,
+        json_body: &B,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized,
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str>,
+    {
+        #[cfg(target_arch = "wasm32")]
+        let res = {
+            wasmtimer::tokio::timeout(
+                self.request_timeout,
+                self.reqwest_client
+                    .patch(self.base_url.join(endpoint.as_ref())?)
+                    .json(json_body)
+                    .send(),
+            )
+            .await
+            .map_err(|_timeout| HttpClientError::RequestTimeout)??
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let res = {
+            self.reqwest_client
+                .patch(self.base_url.join(endpoint.as_ref())?)
+                .json(json_body)
+                .send()
+                .await?
+        };
+
+        parse_response(res, true).await
     }
 }
 

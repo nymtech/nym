@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::mixnet_handling::receiver::connection_handler::ConnectionHandler;
-use nym_gateway_storage::Storage;
 use nym_task::TaskClient;
 use std::net::SocketAddr;
 use std::process;
@@ -20,10 +19,7 @@ impl Listener {
         Listener { address, shutdown }
     }
 
-    pub(crate) async fn run<St>(&mut self, connection_handler: ConnectionHandler<St>)
-    where
-        St: Storage + Clone + 'static,
-    {
+    pub(crate) async fn run(&mut self, connection_handler: ConnectionHandler) {
         info!("Starting mixnet listener at {}", self.address);
         let tcp_listener = match tokio::net::TcpListener::bind(self.address).await {
             Ok(listener) => listener,
@@ -52,10 +48,7 @@ impl Listener {
         }
     }
 
-    pub(crate) fn start<St>(mut self, connection_handler: ConnectionHandler<St>) -> JoinHandle<()>
-    where
-        St: Storage + Clone + 'static,
-    {
+    pub(crate) fn start(mut self, connection_handler: ConnectionHandler) -> JoinHandle<()> {
         info!("Running mix listener on {:?}", self.address.to_string());
 
         tokio::spawn(async move { self.run(connection_handler).await })

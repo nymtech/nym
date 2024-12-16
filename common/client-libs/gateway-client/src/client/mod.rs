@@ -101,6 +101,10 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
     // currently unused (but populated)
     negotiated_protocol: Option<u8>,
 
+    // Callback on the fd as soon as the connection has been established
+    #[cfg(unix)]
+    connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
+
     /// Listen to shutdown messages and send notifications back to the task manager
     task_client: TaskClient,
 }
@@ -116,6 +120,7 @@ impl<C, St> GatewayClient<C, St> {
         packet_router: PacketRouter,
         bandwidth_controller: Option<BandwidthController<C, St>>,
         stats_reporter: ClientStatsSender,
+        #[cfg(unix)] connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
         task_client: TaskClient,
     ) -> Self {
         GatewayClient {
@@ -131,12 +136,18 @@ impl<C, St> GatewayClient<C, St> {
             bandwidth_controller,
             stats_reporter,
             negotiated_protocol: None,
+            #[cfg(unix)]
+            connection_fd_callback,
             task_client,
         }
     }
 
     pub fn gateway_identity(&self) -> identity::PublicKey {
         self.gateway_identity
+    }
+
+    pub fn shared_key(&self) -> Option<Arc<SharedGatewayKey>> {
+        self.shared_key.clone()
     }
 
     pub fn ws_fd(&self) -> Option<RawFd> {
@@ -201,6 +212,12 @@ impl<C, St> GatewayClient<C, St> {
         };
 
         self.connection = SocketState::Available(Box::new(ws_stream));
+
+        #[cfg(unix)]
+        if let (Some(callback), Some(fd)) = (self.connection_fd_callback.as_ref(), self.ws_fd()) {
+            callback.as_ref()(fd);
+        }
+
         Ok(())
     }
 
@@ -307,7 +324,7 @@ impl<C, St> GatewayClient<C, St> {
 
     // If we want to send a message (with response), we need to have a full control over the socket,
     // as we need to be able to write the request and read the subsequent response
-    async fn send_websocket_message(
+    pub async fn send_websocket_message(
         &mut self,
         msg: impl Into<Message>,
     ) -> Result<ServerResponse, GatewayClientError> {
@@ -408,7 +425,7 @@ impl<C, St> GatewayClient<C, St> {
             }
 
             Some(_) => {
-                info!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
+                debug!("the gateway is using exactly the same (or older) protocol version as we are. We're good to continue!");
                 Ok(())
             }
         }
@@ -992,24 +1009,6 @@ impl<C, St> GatewayClient<C, St> {
         }
         Ok(())
     }
-
-    #[deprecated(note = "this method does not deal with upgraded keys for legacy clients")]
-    pub async fn authenticate_and_start(
-        &mut self,
-    ) -> Result<AuthenticationResponse, GatewayClientError>
-    where
-        C: DkgQueryClient + Send + Sync,
-        St: CredentialStorage,
-        <St as CredentialStorage>::StorageError: Send + Sync + 'static,
-    {
-        let shared_key = self.perform_initial_authentication().await?;
-        self.claim_initial_bandwidth().await?;
-
-        // this call is NON-blocking
-        self.start_listening_for_mixnet_messages()?;
-
-        Ok(shared_key)
-    }
 }
 
 // type alias for an ease of use
@@ -1048,6 +1047,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             bandwidth_controller: None,
             stats_reporter: ClientStatsSender::new(None),
             negotiated_protocol: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
             task_client,
         }
     }
@@ -1078,6 +1079,8 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             bandwidth_controller,
             stats_reporter,
             negotiated_protocol: self.negotiated_protocol,
+            #[cfg(unix)]
+            connection_fd_callback: self.connection_fd_callback,
             task_client,
         }
     }

@@ -87,8 +87,10 @@ impl ClientBandwidth {
 
         if remaining < 0 {
             tracing::warn!("OUT OF BANDWIDTH. remaining: {remaining_bi2}");
-        } else {
+        } else if remaining < 1_000_000 {
             tracing::info!("remaining bandwidth: {remaining_bi2}");
+        } else {
+            tracing::debug!("remaining bandwidth: {remaining_bi2}");
         }
 
         self.inner

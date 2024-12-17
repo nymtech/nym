@@ -37,6 +37,7 @@ use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
+#[cfg(unix)]
 use std::sync::Arc;
 use url::Url;
 use zeroize::Zeroizing;
@@ -56,6 +57,7 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_shutdown: Option<TaskClient>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
+    #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
@@ -256,6 +258,7 @@ where
         self
     }
 
+    #[cfg(unix)]
     #[must_use]
     pub fn with_connection_fd_callback(
         mut self,
@@ -293,7 +296,10 @@ where
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
         client.user_agent = self.user_agent;
-        client.connection_fd_callback = self.connection_fd_callback;
+        #[cfg(unix)]
+        if self.connection_fd_callback.is_some() {
+            client.connection_fd_callback = self.connection_fd_callback;
+        }
         client.forget_me = self.forget_me;
         Ok(client)
     }
@@ -345,6 +351,7 @@ where
     user_agent: Option<UserAgent>,
 
     /// Callback on the websocket fd as soon as the connection has been established
+    #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
 
     forget_me: ForgetMe,
@@ -397,6 +404,7 @@ where
             force_tls: false,
             custom_shutdown: None,
             user_agent: None,
+            #[cfg(unix)]
             connection_fd_callback: None,
             forget_me: Default::default(),
         })

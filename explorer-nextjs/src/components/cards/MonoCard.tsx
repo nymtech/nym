@@ -2,7 +2,6 @@
 import CopyToClipboard from "@/components/copyToClipboard/CopyToClipboard";
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
 import Image from "next/image";
-import { QRCodeCanvas } from "qrcode.react";
 import type React from "react";
 import type { FC } from "react";
 import profileImagePlaceholder from "../../../public/profileImagePlaceholder.png";

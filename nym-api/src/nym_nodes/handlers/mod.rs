@@ -51,7 +51,6 @@ pub(crate) fn nym_node_routes() -> Router<AppState> {
 #[utoipa::path(
     tag = "Nym Nodes",
     get,
-    request_body = NodeRefreshBody,
     path = "/rewarded-set",
     context_path = "/v1/nym-nodes",
     responses(

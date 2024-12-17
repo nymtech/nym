@@ -1,9 +1,7 @@
 "use client";
 import type { IAccountInfo } from "@/app/account/[id]/page";
-import ExplorerCard from "../cards/ExplorerCard";
-
-import { runTurboTracing } from "next/dist/build/swc/generated-native";
 import { AccountBalancesTable } from "../cards/AccountBalancesTable";
+import ExplorerCard from "../cards/ExplorerCard";
 
 export interface IAccontStatsRowProps {
   type: string;

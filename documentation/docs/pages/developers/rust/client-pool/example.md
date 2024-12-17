@@ -17,7 +17,7 @@ async fn main() -> Result<()> {
     nym_bin_common::logging::setup_logging();
     setup_env(std::env::args().nth(1));
 
-    let conn_pool = ClientPool::new(2); // Start the client pool with 1 client always being kept in reserve
+    let conn_pool = ClientPool::new(2); // Start the Client Pool with 2 Clients always being kept in reserve
     let client_maker = conn_pool.clone();
     tokio::spawn(async move {
         client_maker.start().await?;

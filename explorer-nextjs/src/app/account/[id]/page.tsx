@@ -37,10 +37,10 @@ export interface IAccountInfo {
   balances: IAmountDetails[];
   claimable_rewards: IAmountDetails;
   delegations: IDelegationDetails[];
-  operator_rewards: null | any;
+  operator_rewards?: null | IAmountDetails;
   total_delegations: ITotalDetails;
   total_value: ITotalDetails;
-  vesting_account: null | any;
+  vesting_account?: null | string;
 }
 
 export default async function Account({

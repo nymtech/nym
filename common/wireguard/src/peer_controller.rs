@@ -266,6 +266,13 @@ impl PeerController {
                         log::error!("Can't read wireguard kernel data");
                         continue;
                     };
+                    let peers = host.peers.len();
+                    let total_rx = host.peers.values().fold(0, |acc, peer| acc + peer.rx_bytes);
+                    let total_tx = host.peers.values().fold(0, |acc, peer| acc + peer.tx_bytes);
+
+                    println!("peers: {peers}, ↑↓ total_rx: {total_rx}, total_tx: {total_tx}");
+
+
                     *self.host_information.write().await = host;
                 }
                 _ = self.task_client.recv() => {

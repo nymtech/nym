@@ -26,8 +26,8 @@ const ConnectWallet = ({ ...buttonProps }: ButtonPropsWithOnClick) => {
 
   if (isWalletConnected) {
     return (
-      <Stack direction="row" spacing={3}>
-        {address && <WalletBalance address={address} />}
+      <Stack direction="row" spacing={1}>
+        <WalletBalance />
         <WalletAddress address={address} />
         <IconButton
           size="small"

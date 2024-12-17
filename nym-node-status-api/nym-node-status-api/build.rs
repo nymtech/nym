@@ -1,6 +1,8 @@
 use anyhow::{anyhow, Result};
 use sqlx::{Connection, SqliteConnection};
+#[cfg(target_family = "unix")]
 use std::fs::Permissions;
+#[cfg(target_family = "unix")]
 use std::os::unix::fs::PermissionsExt;
 use tokio::{fs::File, io::AsyncWriteExt};
 
@@ -39,7 +41,10 @@ async fn write_db_path_to_file(out_dir: &str, db_filename: &str) -> anyhow::Resu
     file.write_all(format!("sqlite3 {}/{}", out_dir, db_filename).as_bytes())
         .await?;
 
+    #[cfg(target_family = "unix")]
     file.set_permissions(Permissions::from_mode(0o755))
         .await
-        .map_err(From::from)
+        .map_err(anyhow::Error::from)?;
+
+    Ok(())
 }

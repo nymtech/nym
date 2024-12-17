@@ -1,8 +1,10 @@
 import { Header } from "@/components/header";
 import { Wrapper } from "@/components/wrapper";
-import ThemeProvider from "@/providers/ThemeProvider";
+import Providers from "@/providers";
 import type { Metadata } from "next";
+
 import "./globals.css";
+import "@interchain-ui/react/styles";
 
 export const metadata: Metadata = {
   title: "Create Next App",
@@ -17,10 +19,10 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <ThemeProvider>
+        <Providers>
           <Header />
           <Wrapper>{children}</Wrapper>
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

@@ -22,3 +22,7 @@ export const CURRENT_EPOCH_REWARDS =
   "https://validator.nymtech.net/api/v1/epoch/reward_params";
 export const CIRCULATING_NYM_SUPPLY =
   "https://validator.nymtech.net/api/v1/circulating-supply";
+export const VALIDATOR_BASE_URL =
+  process.env.NEXT_PUBLIC_VALIDATOR_URL || "https://rpc.nymtech.net";
+export const COSMOS_KIT_USE_CHAIN =
+  process.env.NEXT_PUBLIC_COSMOS_KIT_USE_CHAIN || "sandbox";

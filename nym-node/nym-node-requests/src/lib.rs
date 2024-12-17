@@ -66,12 +66,18 @@ pub mod routes {
 
                 pub const LEGACY_MIXING: &str = "/mixing";
                 pub const PACKETS_STATS: &str = "/packets-stats";
+                pub const WIREGUARD_STATS: &str = "/wireguard-stats";
                 pub const SESSIONS: &str = "/sessions";
                 pub const VERLOC: &str = "/verloc";
                 pub const PROMETHEUS: &str = "/prometheus";
 
                 absolute_route!(legacy_mixing_absolute, metrics_absolute(), LEGACY_MIXING);
                 absolute_route!(packets_stats_absolute, metrics_absolute(), PACKETS_STATS);
+                absolute_route!(
+                    wireguard_stats_absolute,
+                    metrics_absolute(),
+                    WIREGUARD_STATS
+                );
                 absolute_route!(sessions_absolute, metrics_absolute(), SESSIONS);
                 absolute_route!(verloc_absolute, metrics_absolute(), VERLOC);
                 absolute_route!(prometheus_absolute, metrics_absolute(), PROMETHEUS);

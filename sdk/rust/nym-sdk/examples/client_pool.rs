@@ -39,9 +39,11 @@ async fn main() -> Result<()> {
                 let net = NymNetworkDetails::new_from_env();
                 let client = MixnetClientBuilder::new_ephemeral()
                     .network_details(net)
-                    .build()?
+                    .build()
+                    .unwrap()
                     .connect_to_mixnet()
-                    .await?;
+                    .await
+                    .unwrap();
                 println!(
                     "Using {} for the moment, created outside of the connection pool",
                     client.nym_address()
@@ -67,9 +69,11 @@ async fn main() -> Result<()> {
                 let net = NymNetworkDetails::new_from_env();
                 let client = MixnetClientBuilder::new_ephemeral()
                     .network_details(net)
-                    .build()?
+                    .build()
+                    .unwrap()
                     .connect_to_mixnet()
-                    .await?;
+                    .await
+                    .unwrap();
                 println!(
                     "Using {} for the moment, created outside of the connection pool",
                     client.nym_address()

@@ -106,3 +106,11 @@ type NodeData = {
 };
 
 export default NodeData;
+
+export interface CurrencyRates {
+  btc: number;
+  chf: number;
+  eur: number;
+  timestamp: number;
+  usd: number;
+}

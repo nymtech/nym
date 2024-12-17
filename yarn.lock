@@ -3915,6 +3915,12 @@
   version "1.4.1"
   resolved "https://registry.yarnpkg.com/@nymproject/contract-clients/-/contract-clients-1.4.1.tgz#ae2644387b518eb13e8825fa8021d4c81ffe7852"
   integrity sha512-HuJZ4Hv+Rl6ZZEtCHKgurNLJapM+QQRJlGkevFH2a4UdqUqF9omUkUi3AVes4679dPoSFgvA7plyVSDBdbgV6w==
+<<<<<<< HEAD
+=======
+
+"@nymproject/contract-clients@file:sdk/typescript/codegen/contract-clients":
+  version "1.3.0-rc.0"
+>>>>>>> 2b303d2bd (fix build)
 
 "@nymproject/mix-fetch-node-commonjs@^1.2.1-rc.2":
   version "1.2.3"

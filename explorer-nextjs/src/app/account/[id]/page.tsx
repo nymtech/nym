@@ -1,3 +1,4 @@
+import type { CurrencyRates } from "@/app/api/types";
 import { NYM_ACCOUNT_ADDRESS, NYM_PRICES_API } from "@/app/api/urls";
 import { AccountBalancesCard } from "@/components/accountPageComponents/AccountBalancesCard";
 import { AccountInfoCard } from "@/components/accountPageComponents/AccountInfoCard";
@@ -48,6 +49,7 @@ export default async function Account({
   params: Promise<{ address: string }>;
 }) {
   // const address = (await params).address;
+  console.log("(await params).address :>> ", (await params).address);
   const address = "n1z0msxu8c098umdhnthpr2ac3ck2n3an97dm8pn";
 
   const nymAccountAddress = `${NYM_ACCOUNT_ADDRESS}${address}`;
@@ -74,7 +76,7 @@ export default async function Account({
     // refresh event list cache at given interval
   });
 
-  const nymPriceData = await nymPrice.json();
+  const nymPriceData: CurrencyRates = await nymPrice.json();
 
   console.log("nymPriceData :>> ", nymPriceData);
 

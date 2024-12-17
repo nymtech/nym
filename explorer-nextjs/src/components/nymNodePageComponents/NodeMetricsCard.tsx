@@ -1,4 +1,4 @@
-import type { IBondInfo, INodeDescription } from "@/app/api";
+import type { INodeDescription } from "@/app/api";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 

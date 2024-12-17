@@ -104,7 +104,7 @@ impl ConsoleLogger {
         // only log wireguard if we have transmitted ANY bytes
         if self.at_last_update.wg_rx != 0 {
             info!(
-                "↑↓ Wireguard tx/rx: {}({}) / {}({})",
+                "↑↓ Wireguard tx/rx: {} ({}) / {} ({})",
                 wg_tx.human_count_bytes(),
                 wg_tx_rate.human_throughput_bytes(),
                 wg_rx.human_count_bytes(),

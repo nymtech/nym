@@ -17,7 +17,7 @@ pub mod packets_stats;
 pub mod prometheus;
 pub mod sessions;
 pub mod verloc;
-mod wireguard;
+pub mod wireguard;
 
 #[derive(Debug, Clone, Default)]
 pub struct Config {

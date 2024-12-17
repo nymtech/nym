@@ -83,6 +83,7 @@ pub struct PeerController {
 }
 
 impl PeerController {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         storage: GatewayStorage,
         metrics: NymNodeMetrics,

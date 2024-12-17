@@ -12,7 +12,7 @@ pub mod entry;
 pub mod events;
 pub mod mixnet;
 pub mod network;
-mod wireguard;
+pub mod wireguard;
 
 #[derive(Clone, Default)]
 pub struct NymNodeMetrics {

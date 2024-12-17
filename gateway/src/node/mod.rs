@@ -105,6 +105,7 @@ impl Drop for GatewayTasksBuilder {
 }
 
 impl GatewayTasksBuilder {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         config: Config,
         identity: Arc<ed25519::KeyPair>,

@@ -8,6 +8,7 @@ use utoipa_swagger_ui::SwaggerUi;
 use crate::http::{api_docs, server::HttpServer, state::AppState};
 
 pub(crate) mod price;
+pub(crate) mod watcher;
 
 pub(crate) struct RouterBuilder {
     unfinished_router: Router<AppState>,
@@ -24,7 +25,8 @@ impl RouterBuilder {
                 "/",
                 axum::routing::get(|| async { Redirect::permanent("/swagger") }),
             )
-            .nest("/v1", Router::new().nest("/price", price::routes()));
+            .nest("/v1", Router::new().nest("/price", price::routes()))
+            .nest("/v1", Router::new().nest("/watcher", watcher::routes()));
 
         Self {
             unfinished_router: router,

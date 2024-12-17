@@ -85,6 +85,7 @@ pub struct WireguardData {
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     storage: nym_gateway_storage::GatewayStorage,
+    metrics: NymNodeMetrics,
     all_peers: Vec<nym_gateway_storage::models::WireguardPeer>,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
@@ -175,6 +176,7 @@ pub async fn start_wireguard(
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
     let mut controller = PeerController::new(
         storage,
+        metrics,
         wg_api.clone(),
         host,
         peer_bandwidth_managers,

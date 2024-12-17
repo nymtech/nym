@@ -37,6 +37,7 @@ mod internal_service_providers;
 pub use client_handling::active_clients::ActiveClientsStore;
 pub use nym_gateway_stats_storage::PersistentStatsStorage;
 pub use nym_gateway_storage::{error::GatewayStorageError, GatewayStorage};
+use nym_node_metrics::NymNodeMetrics;
 pub use nym_sdk::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
 
 #[derive(Debug, Clone)]
@@ -81,6 +82,8 @@ pub struct GatewayTasksBuilder {
 
     metrics_sender: MetricEventsSender,
 
+    metrics: NymNodeMetrics,
+
     mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
 
     shutdown: TaskClient,
@@ -108,6 +111,7 @@ impl GatewayTasksBuilder {
         storage: GatewayStorage,
         mix_packet_sender: MixForwardingSender,
         metrics_sender: MetricEventsSender,
+        metrics: NymNodeMetrics,
         mnemonic: Arc<Zeroizing<bip39::Mnemonic>>,
         shutdown: TaskClient,
     ) -> GatewayTasksBuilder {
@@ -121,6 +125,7 @@ impl GatewayTasksBuilder {
             storage,
             mix_packet_sender,
             metrics_sender,
+            metrics,
             mnemonic,
             shutdown,
             ecash_manager: None,
@@ -443,6 +448,7 @@ impl GatewayTasksBuilder {
     pub async fn try_start_wireguard(
         &mut self,
     ) -> Result<Arc<nym_wireguard::WgApiWrapper>, Box<dyn std::error::Error + Send + Sync>> {
+        let _ = self.metrics.clone();
         unimplemented!("wireguard is not supported on this platform")
     }
 
@@ -460,6 +466,7 @@ impl GatewayTasksBuilder {
 
         let wg_handle = nym_wireguard::start_wireguard(
             self.storage.clone(),
+            self.metrics.clone(),
             all_peers,
             self.shutdown.fork("wireguard"),
             wireguard_data,

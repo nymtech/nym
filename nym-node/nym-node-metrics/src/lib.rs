@@ -4,6 +4,7 @@
 use crate::entry::EntryStats;
 use crate::mixnet::MixingStats;
 use crate::network::NetworkStats;
+use crate::wireguard::WireguardStats;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -11,6 +12,7 @@ pub mod entry;
 pub mod events;
 pub mod mixnet;
 pub mod network;
+mod wireguard;
 
 #[derive(Clone, Default)]
 pub struct NymNodeMetrics {
@@ -34,6 +36,7 @@ impl Deref for NymNodeMetrics {
 pub struct NymNodeMetricsInner {
     pub mixnet: MixingStats,
     pub entry: EntryStats,
+    pub wireguard: WireguardStats,
 
     pub network: NetworkStats,
 }

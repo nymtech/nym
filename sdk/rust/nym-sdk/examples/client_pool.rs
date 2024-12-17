@@ -55,7 +55,7 @@ async fn main() -> Result<()> {
         println!("\n\nClient 1: {our_address}\n\n");
         client_one.disconnect().await;
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await; // Emulate doing something
-        Ok::<(), anyhow::Error>(());
+        Ok::<(), anyhow::Error>(())
     });
 
     tokio::spawn(async move {
@@ -85,7 +85,7 @@ async fn main() -> Result<()> {
         println!("\n\nClient 2: {our_address}\n\n");
         client_two.disconnect().await;
         tokio::time::sleep(tokio::time::Duration::from_secs(10)).await; // Emulate doing something
-        Ok::<(), anyhow::Error>(());
+        Ok::<(), anyhow::Error>(())
     });
 
     wait_for_ctrl_c(conn_pool).await?;

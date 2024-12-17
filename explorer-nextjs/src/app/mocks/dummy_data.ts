@@ -1,4 +1,4 @@
-import type { IAccountStatsCardProps } from "@/components/cards/AccountStatsCard";
+import type { IAccountBalancesTableProps } from "@/components/cards/AccountBalancesTable";
 import type { ContentCardProps } from "@/components/cards/MonoCard";
 
 const explorerCard: ContentCardProps = {
@@ -78,7 +78,7 @@ const explorerCard: ContentCardProps = {
   },
 };
 
-const accountStatsCard: IAccountStatsCardProps = {
+const accountStatsCard: IAccountBalancesTableProps = {
   overTitle: "Total value",
   priceTitle: 1990.0174,
   rows: [

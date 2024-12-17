@@ -1,7 +1,8 @@
 import type { IBondInfo, INodeDescription } from "@/app/api";
-import { Stack } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import { format } from "date-fns";
 import ExplorerCard from "../cards/ExplorerCard";
+import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
 
 interface IBasicInfoCardProps {
@@ -25,12 +26,40 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
         <ExplorerListItem
           divider
           label="NYM Address"
-          value={bondInfo.bond_information.owner}
+          value={
+            <Stack
+              direction="row"
+              gap={0.1}
+              alignItems="center"
+              justifyContent="space-between"
+              width="100%"
+            >
+              <Typography variant="body4">
+                {bondInfo.bond_information.owner}
+              </Typography>
+              <CopyToClipboard text={bondInfo.bond_information.owner} />
+            </Stack>
+          }
         />
         <ExplorerListItem
           divider
           label="Identity Key"
-          value={bondInfo.bond_information.node.identity_key}
+          value={
+            <Stack
+              direction="row"
+              gap={0.1}
+              alignItems="center"
+              justifyContent="space-between"
+              width="100%"
+            >
+              <Typography variant="body4">
+                {bondInfo.bond_information.node.identity_key}
+              </Typography>
+              <CopyToClipboard
+                text={bondInfo.bond_information.node.identity_key}
+              />
+            </Stack>
+          }
         />
         <ExplorerListItem row divider label="Node bonded" value={timeBonded} />
         <ExplorerListItem

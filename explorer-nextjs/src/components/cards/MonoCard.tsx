@@ -16,6 +16,7 @@ import {
   UpDownPriceIndicator,
 } from "../price/UpDownPriceIndicator";
 import type { IDynamicProgressBarProps } from "../progressBars/EpochProgressBar";
+import { CardQRCode, type ICardQRCodeProps } from "../qrCode/QrCode";
 import { StarRating } from "../starRating";
 
 interface ICardTitlePriceProps {
@@ -121,26 +122,6 @@ const CardCopyAddress = (props: ICardCopyAddressProps) => {
         </Typography>
 
         <CopyToClipboard text={`Copy identity key ${address} to clipboard`} />
-      </Box>
-    </Box>
-  );
-};
-
-interface ICardQRCodeProps {
-  url: string;
-}
-
-const CardQRCode = (props: ICardQRCodeProps) => {
-  const { url } = props;
-  return (
-    <Box display={"flex"} justifyContent={"flex-start"}>
-      <Box
-        padding={1}
-        border={"1px solid #C3D7D7"}
-        display={"block"}
-        width={"unset"}
-      >
-        <QRCodeCanvas value={url} />
       </Box>
     </Box>
   );

@@ -12,8 +12,9 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@cosmjs/cosmwasm-stargate": "^0.32.4",
-    "@cosmjs/proto-signing": "^0.32.4",
+    "@chain-registry/types": "^0.50.36",
+    "@cosmos-kit/keplr-extension": "^2.14.0",
+    "@cosmos-kit/react": "^2.20.1",
     "@emotion/cache": "^11.13.5",
     "@emotion/react": "^11.13.5",
     "@emotion/styled": "^11.13.5",
@@ -25,6 +26,7 @@
     "@nymproject/contract-clients": "^1.4.1",
     "@tanstack/react-table": "^8.20.6",
     "@uidotdev/usehooks": "^2.4.1",
+    "chain-registry": "^1.69.64",
     "cldr-compact-number": "^0.4.0",
     "date-fns": "^4.1.0",
     "material-react-table": "^3.0.3",

@@ -6,6 +6,7 @@ import { Wrapper } from "@/components/wrapper";
 import { subtitles } from "@/theme/typography";
 import { Box, Button, Divider } from "@mui/material";
 import type React from "react";
+import ConnectWallet from "../wallet/ConnectWallet";
 
 const DUMMY_MENU_DATA = [
   {
@@ -95,9 +96,7 @@ export const DesktopHeader = () => {
             </Button>
           ))}
         </Box>
-        <Button variant="contained" size="small">
-          Connect Wallet
-        </Button>
+        <ConnectWallet />
       </Wrapper>
       <Divider variant="fullWidth" sx={{ width: "100%" }} />
     </Box>

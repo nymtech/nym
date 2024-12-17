@@ -5447,7 +5447,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ffi-shared"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "bs58",
@@ -5608,7 +5608,7 @@ dependencies = [
 
 [[package]]
 name = "nym-go-ffi"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "lazy_static",

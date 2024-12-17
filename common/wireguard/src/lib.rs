@@ -85,7 +85,7 @@ pub struct WireguardData {
 #[cfg(target_os = "linux")]
 pub async fn start_wireguard(
     storage: nym_gateway_storage::GatewayStorage,
-    metrics: NymNodeMetrics,
+    metrics: nym_node_metrics::NymNodeMetrics,
     all_peers: Vec<nym_gateway_storage::models::WireguardPeer>,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,

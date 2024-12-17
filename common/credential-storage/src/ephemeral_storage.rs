@@ -43,6 +43,10 @@ impl Debug for EphemeralStorage {
 impl Storage for EphemeralStorage {
     type StorageError = StorageError;
 
+    async fn close(&self) {
+        // nothing to do here
+    }
+
     async fn cleanup_expired(&self) -> Result<(), Self::StorageError> {
         self.storage_manager.cleanup_expired().await;
         Ok(())

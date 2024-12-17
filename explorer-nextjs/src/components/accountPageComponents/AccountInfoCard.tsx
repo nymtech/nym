@@ -1,5 +1,5 @@
 "use client";
-import type { IAccountBalancesInfo } from "@/app/api/types";
+import type { IAccountInfo } from "@/app/account/[id]/page";
 import { Box, Stack, Typography } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
@@ -7,7 +7,7 @@ import ExplorerListItem from "../list/ListItem";
 import { CardQRCode } from "../qrCode/QrCode";
 
 interface IAccountInfoCardProps {
-  accountInfo: IAccountBalancesInfo;
+  accountInfo: IAccountInfo;
 }
 
 export const AccountInfoCard = (props: IAccountInfoCardProps) => {

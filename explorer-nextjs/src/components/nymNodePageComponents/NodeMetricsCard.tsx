@@ -22,7 +22,6 @@ export const NodeMetricsCard = (props: INodeMetricsCardProps) => {
         label="Host"
         value={nodeDescription.description.host_information.ip_address.toString()}
       />
-      <ExplorerListItem row divider label="Staker rew." value="10,000 NYM" />
       <ExplorerListItem row divider label="Version" value="1.1.1.1" />
       <ExplorerListItem row label="Active set Prob." value="High" />
     </ExplorerCard>

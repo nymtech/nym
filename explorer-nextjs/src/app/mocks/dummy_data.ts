@@ -79,8 +79,8 @@ const explorerCard: ContentCardProps = {
 };
 
 const accountStatsCard: IAccountBalancesTableProps = {
-  // overTitle: "Total value",
-  // priceTitle: 1990.0174,
+  overTitle: "Total value",
+  priceTitle: 1990.0174,
   rows: [
     { type: "Spendable", allocation: 15.53, amount: 12800, value: 1200 },
     {

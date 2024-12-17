@@ -1,7 +1,9 @@
 "use client";
-import type { IAccountBalancesInfo, IRewardDetails } from "@/app/api/types";
-import { AccountBalancesTable } from "../cards/AccountBalancesTable";
+import type { IAccountInfo } from "@/app/account/[id]/page";
 import ExplorerCard from "../cards/ExplorerCard";
+
+import { runTurboTracing } from "next/dist/build/swc/generated-native";
+import { AccountBalancesTable } from "../cards/AccountBalancesTable";
 
 export interface IAccontStatsRowProps {
   type: string;
@@ -14,7 +16,7 @@ export interface IAccontStatsRowProps {
 }
 
 interface IAccountBalancesCardProps {
-  accountInfo: IAccountBalancesInfo;
+  accountInfo: IAccountInfo;
   nymPrice: number;
 }
 
@@ -31,18 +33,6 @@ const getPriceInUSD = (unyms: number, usdPrice: number) => {
 const getAllocation = (unyms: number, totalUnyms: number): number => {
   const allocationPercentage = (unyms * 100) / totalUnyms;
   return Number(allocationPercentage.toFixed(2));
-};
-
-const calculateStakingRewards = (
-  accumulatedRewards: IRewardDetails[],
-): number => {
-  const totalRewards = accumulatedRewards.reduce((total, rewardDetail) => {
-    return total + Number.parseFloat(rewardDetail.rewards.amount);
-  }, 0);
-
-  const result = getNymsFormated(totalRewards);
-
-  return result;
 };
 
 export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
@@ -87,11 +77,6 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
     Number(accountInfo.total_value.amount),
   );
 
-  const stakingRewards =
-    accountInfo.accumulated_rewards.length > 0
-      ? calculateStakingRewards(accountInfo.accumulated_rewards)
-      : 0;
-
   const tableRows = [
     {
       type: "Spendable",
@@ -104,10 +89,10 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
       allocation: delegationsAllocation,
       amount: delegationsNYM,
       value: delegationsUSD,
-      // history: [
-      //   { type: "Liquid", amount: 6900 },
-      //   { type: "Locked", amount: 6900 },
-      // ],
+      history: [
+        { type: "Liquid", amount: 6900 },
+        { type: "Locked", amount: 6900 },
+      ],
     },
     {
       type: "Claimable",
@@ -115,19 +100,22 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
       amount: claimableNYM,
       value: claimableUSD,
       history: [
-        // { type: "Unlocked", amount: 6900 },
-        {
-          type: "Staking rewards",
-          amount: stakingRewards,
-        },
-        { type: "Operator comission", amount: 0 },
+        { type: "Unlocked", amount: 6900 },
+        { type: "Staking rewards", amount: 6900 },
+        { type: "Operator comission", amount: 6900 },
       ],
     },
     {
       type: "Self bonded",
-      allocation: 0,
-      amount: 0,
-      value: 0,
+      allocation: 15.53,
+      amount: 12800,
+      value: 1200,
+    },
+    {
+      type: "Locked",
+      allocation: 15.53,
+      amount: 12800,
+      value: 1200,
     },
   ];
 

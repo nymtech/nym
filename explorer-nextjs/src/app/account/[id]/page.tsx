@@ -1,10 +1,46 @@
-import { NYM_ACCOUNT_ADDRESS } from "@/app/api/urls";
-import ExplorerCard from "@/components/cards/ExplorerCard";
+import { NYM_ACCOUNT_ADDRESS, NYM_PRICES_API } from "@/app/api/urls";
+import { AccountBalancesCard } from "@/components/accountPageComponents/AccountBalancesCard";
+import { AccountInfoCard } from "@/components/accountPageComponents/AccountInfoCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
-import ExplorerListItem from "@/components/list/ListItem";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
-import { Box, Grid2, Stack } from "@mui/material";
+import { Box, Grid2 } from "@mui/material";
+
+interface IRewardDetails {
+  amount_staked: IAmountDetails;
+  node_id: number;
+  node_still_fully_bonded: boolean;
+  rewards: IAmountDetails;
+}
+
+interface IAmountDetails {
+  denom: string;
+  amount: string;
+}
+
+interface IDelegationDetails {
+  node_id: number;
+  delegated: IAmountDetails;
+  height: number;
+  proxy: null | string;
+}
+
+interface ITotalDetails {
+  amount: string;
+  denom: string;
+}
+
+export interface IAccountInfo {
+  accumulated_rewards: IRewardDetails[];
+  address: string;
+  balances: IAmountDetails[];
+  claimable_rewards: IAmountDetails;
+  delegations: IDelegationDetails[];
+  operator_rewards: null | any;
+  total_delegations: ITotalDetails;
+  total_value: ITotalDetails;
+  vesting_account: null | any;
+}
 
 export default async function Account({
   params,
@@ -12,7 +48,7 @@ export default async function Account({
   params: Promise<{ address: string }>;
 }) {
   // const address = (await params).address;
-  const address = "n17hllefp8rn3ayk23rsgp7agtxkv56mazv3w637";
+  const address = "n1z0msxu8c098umdhnthpr2ac3ck2n3an97dm8pn";
 
   const nymAccountAddress = `${NYM_ACCOUNT_ADDRESS}${address}`;
   const accountData = await fetch(nymAccountAddress, {
@@ -23,11 +59,24 @@ export default async function Account({
     next: { revalidate: 60 },
     // refresh event list cache at given interval
   });
-  const nymAccountData = await accountData.json();
+  const nymAccountData: IAccountInfo = await accountData.json();
 
   if (!nymAccountData) {
     return null;
   }
+
+  const nymPrice = await fetch(NYM_PRICES_API, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+    // refresh event list cache at given interval
+  });
+
+  const nymPriceData = await nymPrice.json();
+
+  console.log("nymPriceData :>> ", nymPriceData);
 
   console.log("nymAccountData :>> ", nymAccountData);
   return (
@@ -51,33 +100,13 @@ export default async function Account({
           </Box>
         </Grid2>
         <Grid2 size={4}>
-          <ExplorerCard label="Action" sx={{ height: "100%" }}>
-            <div />
-          </ExplorerCard>
+          <AccountInfoCard accountInfo={nymAccountData} />
         </Grid2>
         <Grid2 size={8}>
-          <ExplorerCard label="Basic info">
-            <Stack gap={1}>
-              <ExplorerListItem
-                divider
-                label="NYM Address"
-                value="0x1234567890"
-              />
-              <ExplorerListItem
-                divider
-                label="Identity Key"
-                value="0x1234567890"
-              />
-              <ExplorerListItem
-                row
-                divider
-                label="Node bonded"
-                value="24/11/2024"
-              />
-              <ExplorerListItem row divider label="Nr. of stakes" value="56" />
-              <ExplorerListItem row label="Self bonded" value="10,000 NYM" />
-            </Stack>
-          </ExplorerCard>
+          <AccountBalancesCard
+            accountInfo={nymAccountData}
+            nymPrice={nymPriceData.usd}
+          />
         </Grid2>
       </Grid2>
     </ContentLayout>

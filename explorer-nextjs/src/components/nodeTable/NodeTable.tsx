@@ -1,5 +1,10 @@
 "use client";
 
+import { COSMOS_KIT_USE_CHAIN } from "@/app/api/urls";
+import SimpleModal, {
+  type SimpleModalProps,
+} from "@/components/modal/SimpleModal";
+import { useChain } from "@cosmos-kit/react";
 import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
 import { useLocalStorage } from "@uidotdev/usehooks";
 import {
@@ -8,9 +13,10 @@ import {
   useMaterialReactTable,
 } from "material-react-table";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite, UnFavorite } from "../favorite/Favorite";
+import ConnectWallet from "../wallet/ConnectWallet";
 import type { MappedNymNode, MappedNymNodes } from "./NodeTableWithAction";
 
 const ColumnHeading = ({
@@ -30,21 +36,60 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
   const [favorites, saveFavorites] = useLocalStorage<string[]>(
     "nym-node-favorites",
-    [],
+    []
+  );
+
+  const [nodeSelectedForStaking, setNodeSelectedForStaking] =
+    useState<MappedNymNode>();
+
+  const [infoModalProps, setInfoModalProps] = useState<SimpleModalProps>({
+    open: false,
+  });
+
+  const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
+
+  const handleOnDelegate = useCallback(
+    (node: MappedNymNode) => {
+      if (!isWalletConnected) {
+        setInfoModalProps({
+          open: true,
+          title: "Connect Wallet",
+          children: (
+            <Typography variant="body2">
+              Connect your wallet to stake
+            </Typography>
+          ),
+          Actions: (
+            <ConnectWallet
+              fullWidth
+              onClick={() =>
+                setInfoModalProps({
+                  open: false,
+                })
+              }
+            />
+          ),
+          onClose: () => setInfoModalProps({ open: false }),
+        });
+        return;
+      }
+      setNodeSelectedForStaking(node);
+    },
+    [isWalletConnected]
   );
 
   const handleFavorite = useCallback(
     (address: string) => {
       saveFavorites([...favorites, address]);
     },
-    [favorites, saveFavorites],
+    [favorites, saveFavorites]
   );
 
   const handleUnfavorite = useCallback(
     (address: string) => {
       saveFavorites(favorites.filter((favorite) => favorite !== address));
     },
-    [favorites, saveFavorites],
+    [favorites, saveFavorites]
   );
 
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
@@ -117,8 +162,13 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Action",
         accessorKey: "Action",
         Header: <ColumnHeading>Action</ColumnHeading>,
-        Cell: () => (
-          <Button size="small" variant="outlined">
+        hidden: !isWalletConnected,
+        Cell: ({ row }) => (
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => handleOnDelegate(row.original)}
+          >
             Stake
           </Button>
         ),
@@ -146,7 +196,13 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           ),
       },
     ],
-    [favorites, handleFavorite, handleUnfavorite],
+    [
+      isWalletConnected,
+      handleOnDelegate,
+      favorites,
+      handleUnfavorite,
+      handleFavorite,
+    ]
   );
   const table = useMaterialReactTable({
     columns,
@@ -214,7 +270,17 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       },
     }),
   });
-  return <MaterialReactTable table={table} />;
+  return (
+    <>
+      <SimpleModal
+        open={!!nodeSelectedForStaking}
+        title="Stake"
+        onClose={() => setNodeSelectedForStaking(undefined)}
+      />
+      <SimpleModal {...infoModalProps} />
+      <MaterialReactTable table={table} />
+    </>
+  );
 };
 
 export default NodeTable;

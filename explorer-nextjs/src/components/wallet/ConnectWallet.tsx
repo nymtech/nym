@@ -2,17 +2,21 @@
 
 import { COSMOS_KIT_USE_CHAIN } from "@/app/api/urls";
 import { useChain } from "@cosmos-kit/react";
-import CloseIcon from "@mui/icons-material/Close";
-import { Button, IconButton, Stack } from "@mui/material";
+import { Button, type ButtonProps, IconButton, Stack } from "@mui/material";
 import Cross from "../icons/Cross";
 import { WalletAddress } from "./WalletAddress";
 import { WalletBalance } from "./WalletBalance";
 
-const ConnectWallet = () => {
+interface ButtonPropsWithOnClick extends ButtonProps {
+  onClick?: () => void;
+}
+
+const ConnectWallet = ({ ...buttonProps }: ButtonPropsWithOnClick) => {
   const { connect, disconnect, address, isWalletConnected } =
     useChain(COSMOS_KIT_USE_CHAIN);
 
   const handleConnectWallet = async () => {
+    buttonProps.onClick?.();
     await connect();
   };
 
@@ -22,8 +26,8 @@ const ConnectWallet = () => {
 
   if (isWalletConnected) {
     return (
-      <Stack direction="row" spacing={1}>
-        <WalletBalance />
+      <Stack direction="row" spacing={3}>
+        {address && <WalletBalance address={address} />}
         <WalletAddress address={address} />
         <IconButton
           size="small"
@@ -38,7 +42,12 @@ const ConnectWallet = () => {
   }
 
   return (
-    <Button variant="contained" size="small" onClick={handleConnectWallet}>
+    <Button
+      fullWidth={buttonProps.fullWidth}
+      variant="contained"
+      size={buttonProps.size}
+      onClick={handleConnectWallet}
+    >
       Connect Wallet
     </Button>
   );

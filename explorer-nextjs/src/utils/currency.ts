@@ -38,7 +38,7 @@ export const unymToNym = (unym: string | number | Big, dp = 4) => {
 
 export const validateAmount = async (
   majorAmountAsString: DecCoin["amount"],
-  minimumAmountAsString: DecCoin["amount"],
+  minimumAmountAsString: DecCoin["amount"]
 ): Promise<boolean> => {
   // tests basic coin value requirements, like no more than 6 decimal places, value lower than total supply, etc
   if (!Number(majorAmountAsString)) {

@@ -1,8 +1,9 @@
 use nym_ip_packet_requests::IpPair;
+use nym_network_defaults::constants::mixnet_vpn::{
+    NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6,
+};
 use std::net::Ipv6Addr;
 use std::{collections::HashMap, net::Ipv4Addr};
-
-use crate::constants::{TUN_DEVICE_ADDRESS_V4, TUN_DEVICE_ADDRESS_V6};
 
 // Find an available IP address in self.connected_clients
 // TODO: make this nicer
@@ -36,7 +37,7 @@ pub(crate) fn find_new_ips<T>(
     let mut rng = rand::thread_rng();
     let mut new_ips = generate_random_ips_within_subnet(&mut rng);
     let mut tries = 0;
-    let tun_ips = IpPair::new(TUN_DEVICE_ADDRESS_V4, TUN_DEVICE_ADDRESS_V6);
+    let tun_ips = IpPair::new(NYM_TUN_DEVICE_ADDRESS_V4, NYM_TUN_DEVICE_ADDRESS_V6);
 
     while is_ip_taken(
         connected_clients_ipv4,

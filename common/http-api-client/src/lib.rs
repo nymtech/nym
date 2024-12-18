@@ -192,6 +192,28 @@ impl Client {
         &self.base_url
     }
 
+    pub fn create_request<B, K, V>(
+        &self,
+        method: reqwest::Method,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: Option<&B>,
+    ) -> RequestBuilder
+    where
+        B: Serialize + ?Sized,
+        K: AsRef<str>,
+        V: AsRef<str>,
+    {
+        let url = sanitize_url(&self.base_url, path, params);
+        let mut request = self.reqwest_client.request(method.clone(), url);
+
+        if let Some(body) = json_body {
+            request = request.json(body);
+        }
+
+        request
+    }
+
     pub fn create_get_request<K, V>(
         &self,
         path: PathSegments<'_>,
@@ -203,38 +225,6 @@ impl Client {
     {
         let url = sanitize_url(&self.base_url, path, params);
         self.reqwest_client.get(url)
-    }
-
-    #[instrument(level = "debug", skip_all, fields(path=?path))]
-    async fn send_get_request<K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-    ) -> Result<Response, HttpClientError<E>>
-    where
-        K: AsRef<str>,
-        V: AsRef<str>,
-        E: Display,
-    {
-        tracing::trace!("Sending GET request");
-        let url = sanitize_url(&self.base_url, path, params);
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            Ok(
-                wasmtimer::tokio::timeout(
-                    self.request_timeout,
-                    self.reqwest_client.get(url).send(),
-                )
-                .await
-                .map_err(|_timeout| HttpClientError::RequestTimeout)??,
-            )
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            Ok(self.reqwest_client.get(url).send().await?)
-        }
     }
 
     pub fn create_post_request<B, K, V>(
@@ -252,36 +242,6 @@ impl Client {
         self.reqwest_client.post(url).json(json_body)
     }
 
-    async fn send_post_request<B, K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-        json_body: &B,
-    ) -> Result<Response, HttpClientError<E>>
-    where
-        B: Serialize + ?Sized,
-        K: AsRef<str>,
-        V: AsRef<str>,
-        E: Display,
-    {
-        let url = sanitize_url(&self.base_url, path, params);
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            Ok(wasmtimer::tokio::timeout(
-                self.request_timeout,
-                self.reqwest_client.post(url).json(json_body).send(),
-            )
-            .await
-            .map_err(|_timeout| HttpClientError::RequestTimeout)??)
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            Ok(self.reqwest_client.post(url).json(json_body).send().await?)
-        }
-    }
-
     pub fn create_delete_request<K, V>(
         &self,
         path: PathSegments<'_>,
@@ -293,35 +253,6 @@ impl Client {
     {
         let url = sanitize_url(&self.base_url, path, params);
         self.reqwest_client.delete(url)
-    }
-
-    pub async fn send_delete_request<K, V, E>(
-        &self,
-        path: PathSegments<'_>,
-        params: Params<'_, K, V>,
-    ) -> Result<Response, HttpClientError<E>>
-    where
-        K: AsRef<str>,
-        V: AsRef<str>,
-        E: Display,
-    {
-        tracing::trace!("Sending DELETE request");
-        let url = sanitize_url(&self.base_url, path, params);
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            Ok(wasmtimer::tokio::timeout(
-                self.request_timeout,
-                self.reqwest_client.delete(url).send(),
-            )
-            .await
-            .map_err(|_timeout| HttpClientError::RequestTimeout)??)
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            Ok(self.reqwest_client.delete(url).send().await?)
-        }
     }
 
     pub fn create_patch_request<B, K, V>(
@@ -339,6 +270,87 @@ impl Client {
         self.reqwest_client.patch(url).json(json_body)
     }
 
+    async fn send_request<B, K, V, E>(
+        &self,
+        method: reqwest::Method,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: Option<&B>,
+    ) -> Result<Response, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized,
+        K: AsRef<str>,
+        V: AsRef<str>,
+        E: Display,
+    {
+        let url = sanitize_url(&self.base_url, path, params);
+
+        let mut request = self.reqwest_client.request(method.clone(), url);
+
+        if let Some(body) = json_body {
+            request = request.json(body);
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        {
+            Ok(
+                wasmtimer::tokio::timeout(self.request_timeout, request.send())
+                    .await
+                    .map_err(|_timeout| HttpClientError::RequestTimeout)??,
+            )
+        }
+
+        #[cfg(not(target_arch = "wasm32"))]
+        {
+            Ok(request.send().await?)
+        }
+    }
+
+    #[instrument(level = "debug", skip_all, fields(path=?path))]
+    async fn send_get_request<K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<Response, HttpClientError<E>>
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+        E: Display,
+    {
+        self.send_request(reqwest::Method::GET, path, params, None::<&()>)
+            .await
+    }
+
+    async fn send_post_request<B, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: &B,
+    ) -> Result<Response, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized,
+        K: AsRef<str>,
+        V: AsRef<str>,
+        E: Display,
+    {
+        self.send_request(reqwest::Method::POST, path, params, Some(json_body))
+            .await
+    }
+
+    pub async fn send_delete_request<K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+    ) -> Result<Response, HttpClientError<E>>
+    where
+        K: AsRef<str>,
+        V: AsRef<str>,
+        E: Display,
+    {
+        self.send_request(reqwest::Method::DELETE, path, params, None::<&()>)
+            .await
+    }
+
     pub async fn send_patch_request<B, K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -351,27 +363,8 @@ impl Client {
         V: AsRef<str>,
         E: Display,
     {
-        let url = sanitize_url(&self.base_url, path, params);
-
-        #[cfg(target_arch = "wasm32")]
-        {
-            Ok(wasmtimer::tokio::timeout(
-                self.request_timeout,
-                self.reqwest_client.patch(url).json(json_body).send(),
-            )
+        self.send_request(reqwest::Method::PATCH, path, params, Some(json_body))
             .await
-            .map_err(|_timeout| HttpClientError::RequestTimeout)??)
-        }
-
-        #[cfg(not(target_arch = "wasm32"))]
-        {
-            Ok(self
-                .reqwest_client
-                .patch(url)
-                .json(json_body)
-                .send()
-                .await?)
-        }
     }
 
     #[instrument(level = "debug", skip_all)]
@@ -439,6 +432,39 @@ impl Client {
         parse_response(res, true).await
     }
 
+    async fn call_json_endpoint<B, T, S, E>(
+        &self,
+        method: reqwest::Method,
+        endpoint: S,
+        json_body: Option<&B>,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized,
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str>,
+    {
+        let mut request = self
+            .reqwest_client
+            .request(method.clone(), self.base_url.join(endpoint.as_ref())?);
+
+        if let Some(body) = json_body {
+            request = request.json(body);
+        }
+
+        #[cfg(target_arch = "wasm32")]
+        let res = {
+            wasmtimer::tokio::timeout(self.request_timeout, request.send())
+                .await
+                .map_err(|_timeout| HttpClientError::RequestTimeout)??
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let res = { request.send().await? };
+
+        parse_response(res, false).await
+    }
+
     #[instrument(level = "debug", skip_all)]
     pub async fn get_json_endpoint<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
@@ -446,27 +472,8 @@ impl Client {
         E: Display + DeserializeOwned,
         S: AsRef<str>,
     {
-        #[cfg(target_arch = "wasm32")]
-        let res = {
-            wasmtimer::tokio::timeout(
-                self.request_timeout,
-                self.reqwest_client
-                    .get(self.base_url.join(endpoint.as_ref())?)
-                    .send(),
-            )
+        self.call_json_endpoint(reqwest::Method::GET, endpoint, None::<&()>)
             .await
-            .map_err(|_timeout| HttpClientError::RequestTimeout)??
-        };
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let res = {
-            self.reqwest_client
-                .get(self.base_url.join(endpoint.as_ref())?)
-                .send()
-                .await?
-        };
-
-        parse_response(res, false).await
     }
 
     pub async fn post_json_endpoint<B, T, S, E>(
@@ -480,29 +487,8 @@ impl Client {
         E: Display + DeserializeOwned,
         S: AsRef<str>,
     {
-        #[cfg(target_arch = "wasm32")]
-        let res = {
-            wasmtimer::tokio::timeout(
-                self.request_timeout,
-                self.reqwest_client
-                    .post(self.base_url.join(endpoint.as_ref())?)
-                    .json(json_body)
-                    .send(),
-            )
+        self.call_json_endpoint(reqwest::Method::POST, endpoint, Some(json_body))
             .await
-            .map_err(|_timeout| HttpClientError::RequestTimeout)??
-        };
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let res = {
-            self.reqwest_client
-                .post(self.base_url.join(endpoint.as_ref())?)
-                .json(json_body)
-                .send()
-                .await?
-        };
-
-        parse_response(res, true).await
     }
 
     pub async fn delete_json_endpoint<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
@@ -511,27 +497,8 @@ impl Client {
         E: Display + DeserializeOwned,
         S: AsRef<str>,
     {
-        #[cfg(target_arch = "wasm32")]
-        let res = {
-            wasmtimer::tokio::timeout(
-                self.request_timeout,
-                self.reqwest_client
-                    .delete(self.base_url.join(endpoint.as_ref())?)
-                    .send(),
-            )
+        self.call_json_endpoint(reqwest::Method::DELETE, endpoint, None::<&()>)
             .await
-            .map_err(|_timeout| HttpClientError::RequestTimeout)??
-        };
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let res = {
-            self.reqwest_client
-                .delete(self.base_url.join(endpoint.as_ref())?)
-                .send()
-                .await?
-        };
-
-        parse_response(res, false).await
     }
 
     pub async fn patch_json_endpoint<B, T, S, E>(
@@ -545,29 +512,8 @@ impl Client {
         E: Display + DeserializeOwned,
         S: AsRef<str>,
     {
-        #[cfg(target_arch = "wasm32")]
-        let res = {
-            wasmtimer::tokio::timeout(
-                self.request_timeout,
-                self.reqwest_client
-                    .patch(self.base_url.join(endpoint.as_ref())?)
-                    .json(json_body)
-                    .send(),
-            )
+        self.call_json_endpoint(reqwest::Method::PATCH, endpoint, Some(json_body))
             .await
-            .map_err(|_timeout| HttpClientError::RequestTimeout)??
-        };
-
-        #[cfg(not(target_arch = "wasm32"))]
-        let res = {
-            self.reqwest_client
-                .patch(self.base_url.join(endpoint.as_ref())?)
-                .json(json_body)
-                .send()
-                .await?
-        };
-
-        parse_response(res, true).await
     }
 }
 
@@ -612,6 +558,19 @@ pub trait ApiClient {
         V: AsRef<str> + Sync,
         E: Display + DeserializeOwned;
 
+    async fn patch_json<B, T, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: &B,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized + Sync,
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
+        E: Display + DeserializeOwned;
+
     /// `get` json data from the provided absolute endpoint, i.e. for example `"/api/v1/mixnodes?since=12345"`
     async fn get_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
@@ -632,6 +591,17 @@ pub trait ApiClient {
 
     async fn delete_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str> + Sync + Send;
+
+    async fn patch_json_data_at<B, T, S, E>(
+        &self,
+        endpoint: S,
+        json_body: &B,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized + Sync,
         for<'a> T: Deserialize<'a>,
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send;
@@ -684,6 +654,22 @@ impl ApiClient for Client {
         self.delete_json(path, params).await
     }
 
+    async fn patch_json<B, T, K, V, E>(
+        &self,
+        path: PathSegments<'_>,
+        params: Params<'_, K, V>,
+        json_body: &B,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized + Sync,
+        for<'a> T: Deserialize<'a>,
+        K: AsRef<str> + Sync,
+        V: AsRef<str> + Sync,
+        E: Display + DeserializeOwned,
+    {
+        self.patch_json(path, params, json_body).await
+    }
+
     async fn get_json_from<T, S, E>(&self, endpoint: S) -> Result<T, HttpClientError<E>>
     where
         for<'a> T: Deserialize<'a>,
@@ -714,6 +700,20 @@ impl ApiClient for Client {
         S: AsRef<str> + Sync + Send,
     {
         self.delete_json_endpoint(endpoint).await
+    }
+
+    async fn patch_json_data_at<B, T, S, E>(
+        &self,
+        endpoint: S,
+        json_body: &B,
+    ) -> Result<T, HttpClientError<E>>
+    where
+        B: Serialize + ?Sized + Sync,
+        for<'a> T: Deserialize<'a>,
+        E: Display + DeserializeOwned,
+        S: AsRef<str> + Sync + Send,
+    {
+        self.patch_json_endpoint(endpoint, json_body).await
     }
 }
 

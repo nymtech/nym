@@ -14,8 +14,11 @@ export const WalletBalance = ({ address }: { address: string }) => {
       const account = await getCosmWasmClient();
       const uNYMBalance = await account.getBalance(address, "unym");
       const NYMBalance = unymToNym(uNYMBalance.amount);
-
-      return NYMBalance;
+      if (!NYMBalance) {
+        return undefined;
+      }
+      const formattedBalance = Intl.NumberFormat().format(+NYMBalance);
+      return formattedBalance;
     },
     [getCosmWasmClient],
   );

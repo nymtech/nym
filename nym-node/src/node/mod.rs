@@ -751,7 +751,8 @@ impl NymNode {
             .with_authenticator_details(auth_details)
             .with_used_exit_policy(exit_policy_details)
             .with_description(self.description.clone())
-            .with_auxiliary_details(auxiliary_details);
+            .with_auxiliary_details(auxiliary_details)
+            .with_prometheus_bearer_token(self.config.http.access_token.clone());
 
         if self.config.http.expose_system_info {
             config = config.with_system_info(get_system_info(
@@ -772,8 +773,7 @@ impl NymNode {
             config.api.v1_config.node.roles.ip_packet_router_enabled = true;
         }
 
-        let app_state = AppState::new(self.metrics.clone(), self.verloc_stats.clone())
-            .with_metrics_key(self.config.http.access_token.clone());
+        let app_state = AppState::new(self.metrics.clone(), self.verloc_stats.clone());
 
         Ok(NymNodeRouter::new(config, app_state)
             .build_server(&self.config.http.bind_address)

@@ -89,6 +89,10 @@ impl PersistentStorage {
 impl Storage for PersistentStorage {
     type StorageError = StorageError;
 
+    async fn close(&self) {
+        self.storage_manager.close().await
+    }
+
     /// remove all expired ticketbooks and expiration date signatures
     async fn cleanup_expired(&self) -> Result<(), Self::StorageError> {
         let ecash_yesterday = ecash_today().date().previous_day().unwrap();

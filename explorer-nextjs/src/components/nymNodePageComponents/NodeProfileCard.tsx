@@ -1,7 +1,6 @@
 "use client";
 import type { IBondInfo, INodeDescription } from "@/app/api";
 import { Box, Button, Stack, Typography } from "@mui/material";
-import { format } from "date-fns";
 import { RandomAvatar } from "react-random-avatars";
 import ExplorerCard from "../cards/ExplorerCard";
 import CountryFlag from "../countryFlag/CountryFlag";
@@ -15,6 +14,7 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
   const { bondInfo, nodeDescription } = props;
 
   console.log("nodeDescription :>> ", nodeDescription);
+  console.log("bondInfo :>> ", bondInfo);
 
   return (
     <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>

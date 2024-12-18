@@ -57,3 +57,14 @@ pub mod wireguard {
     pub const WG_TUN_DEVICE_IP_ADDRESS_V6: Ipv6Addr = Ipv6Addr::new(0xfc01, 0, 0, 0, 0, 0, 0, 0x1); // fc01::1
     pub const WG_TUN_DEVICE_NETMASK_V6: u8 = 112;
 }
+
+pub mod mixnet_vpn {
+    use std::net::{Ipv4Addr, Ipv6Addr};
+
+    // The interface used to route traffic
+    pub const NYM_TUN_BASE_NAME: &str = "nymtun";
+    pub const NYM_TUN_DEVICE_ADDRESS_V4: Ipv4Addr = Ipv4Addr::new(10, 0, 0, 1);
+    pub const NYM_TUN_DEVICE_NETMASK_V4: Ipv4Addr = Ipv4Addr::new(255, 255, 0, 0);
+    pub const NYM_TUN_DEVICE_ADDRESS_V6: Ipv6Addr = Ipv6Addr::new(0xfc00, 0, 0, 0, 0, 0, 0, 0x1); // fc00::1
+    pub const NYM_TUN_DEVICE_NETMASK_V6: &str = "112";
+}

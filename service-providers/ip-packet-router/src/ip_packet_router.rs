@@ -119,7 +119,7 @@ impl IpPacketRouter {
             log::error!("ip packet router service provider is not yet supported on this platform");
             Ok(())
         } else {
-            unimplemented!("service provider is not yet supported on this platform")
+            todo!("service provider is not yet supported on this platform")
         }
     }
 
@@ -145,11 +145,12 @@ impl IpPacketRouter {
 
         // Create the TUN device that we interact with the rest of the world with
         let config = nym_tun::tun_device::TunDeviceConfig {
-            base_name: crate::constants::TUN_BASE_NAME.to_string(),
-            ipv4: crate::constants::TUN_DEVICE_ADDRESS_V4,
-            netmaskv4: crate::constants::TUN_DEVICE_NETMASK_V4,
-            ipv6: crate::constants::TUN_DEVICE_ADDRESS_V6,
-            netmaskv6: crate::constants::TUN_DEVICE_NETMASK_V6.to_string(),
+            base_name: nym_network_defaults::constants::mixnet_vpn::NYM_TUN_BASE_NAME.to_string(),
+            ipv4: nym_network_defaults::constants::mixnet_vpn::NYM_TUN_DEVICE_ADDRESS_V4,
+            netmaskv4: nym_network_defaults::constants::mixnet_vpn::NYM_TUN_DEVICE_NETMASK_V4,
+            ipv6: nym_network_defaults::constants::mixnet_vpn::NYM_TUN_DEVICE_ADDRESS_V6,
+            netmaskv6: nym_network_defaults::constants::mixnet_vpn::NYM_TUN_DEVICE_NETMASK_V6
+                .to_string(),
         };
         let (tun_reader, tun_writer) =
             tokio::io::split(nym_tun::tun_device::TunDevice::new_device_only(config)?);

@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::{
+    net::IpAddr,
     sync::Arc,
     time::{Duration, SystemTime},
 };
@@ -11,7 +12,9 @@ use crate::{error::AuthenticatorError, peer_manager::PeerManager};
 use defguard_wireguard_rs::net::IpAddrMask;
 use defguard_wireguard_rs::{host::Peer, key::Key};
 use futures::StreamExt;
-use nym_authenticator_requests::latest::registration::RegistrationData;
+use nym_authenticator_requests::{
+    latest::registration::RegistrationData, v4::registration::IpPair,
+};
 use nym_authenticator_requests::{
     latest::registration::{GatewayClient, PendingRegistrations, PrivateIPs},
     traits::{
@@ -242,25 +245,24 @@ impl MixnetListener {
 
         let peer = self.peer_manager.query_peer(remote_public).await?;
         if let Some(peer) = peer {
-            let private_ipv4 = peer
+            let allowed_ipv4 = peer
                 .allowed_ips
                 .iter()
                 .find_map(|ip_mask| match ip_mask.ip {
                     std::net::IpAddr::V4(ipv4_addr) => Some(ipv4_addr),
                     _ => None,
-                });
-            let private_ipv6 = peer
+                })
+                .ok_or(AuthenticatorError::InternalError(
+                    "there should be one private IPv4 in the list".to_string(),
+                ))?;
+            let allowed_ipv6 = peer
                 .allowed_ips
                 .iter()
                 .find_map(|ip_mask| match ip_mask.ip {
                     std::net::IpAddr::V6(ipv6_addr) => Some(ipv6_addr),
                     _ => None,
-                });
-            let (Some(allowed_ipv4), Some(allowed_ipv6)) = (private_ipv4, private_ipv6) else {
-                return Err(AuthenticatorError::InternalError(
-                    "there should be one private IP pair in the list".to_string(),
-                ));
-            };
+                })
+                .unwrap_or(IpPair::from(IpAddr::from(allowed_ipv4)).ipv6);
             let bytes = match AuthenticatorVersion::from(protocol) {
                 AuthenticatorVersion::V1 => v1::response::AuthenticatorResponse::new_registered(
                     v1::registration::RegistredData {

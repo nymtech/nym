@@ -3284,10 +3284,7 @@
             "minimum": 0
           },
           "signatures": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AnnotatedCoinIndexSignature"
-            }
+            "$ref": "#/components/schemas/Signature"
           }
         }
       },
@@ -3648,7 +3645,7 @@
             "minimum": 0
           },
           "ecash_pubkey": {
-            "$ref": "#/components/schemas/G1ProjectiveSchema"
+            "$ref": "#/components/schemas/PublicKeyUser"
           },
           "expiration_date": {
             "type": "string",
@@ -3674,10 +3671,10 @@
         ],
         "properties": {
           "c": {
-            "$ref": "#/components/schemas/G1ProjectiveSchema"
+            "type": "string"
           },
           "h": {
-            "$ref": "#/components/schemas/G1ProjectiveSchema"
+            "type": "string"
           }
         }
       },
@@ -4082,7 +4079,12 @@
             "minimum": 0
           },
           "pay_info": {
-            "$ref": "#/components/schemas/PayInfo"
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "binary",
+              "minimum": 0
+            }
           },
           "payment": {
             "$ref": "#/components/schemas/Payment"
@@ -4321,44 +4323,6 @@
                 "$ref": "#/components/schemas/NymNodeData"
               }
             ]
-          }
-        }
-      },
-      "G1ProjectiveSchema": {
-        "type": "object",
-        "title": "G1Projective",
-        "required": [
-          "x",
-          "y",
-          "z"
-        ],
-        "properties": {
-          "x": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 0
-            },
-            "contentEncoding": "base16"
-          },
-          "y": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 0
-            },
-            "contentEncoding": "base16"
-          },
-          "z": {
-            "type": "array",
-            "items": {
-              "type": "integer",
-              "format": "int64",
-              "minimum": 0
-            },
-            "contentEncoding": "base16"
           }
         }
       },
@@ -6505,10 +6469,7 @@
             "minimum": 0
           },
           "signatures": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AnnotatedCoinIndexSignature"
-            }
+            "$ref": "#/components/schemas/AnnotatedCoinIndexSignature"
           }
         }
       },
@@ -6530,10 +6491,7 @@
             "example": "1970-01-01"
           },
           "signatures": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AnnotatedExpirationDateSignature"
-            }
+            "$ref": "#/components/schemas/AnnotatedExpirationDateSignature"
           }
         }
       },
@@ -6568,7 +6526,6 @@
       },
       "PayInfo": {
         "type": "object",
-        "description": "Represents the unique payment information associated with the payment.\n\nThe bytes representing the payment information encode the public key of the\nprovider with whom you are spending the payment, timestamp and a unique random 32 bytes.\n\n# Fields\n\n* `payinfo_bytes` - An array of bytes representing the payment information.\n",
         "required": [
           "pay_info_bytes"
         ],
@@ -6605,22 +6562,22 @@
           "aa": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/G2ProjectiveSchema"
+              "type": "string"
             }
           },
           "cc": {
-            "$ref": "#/components/schemas/G2ProjectiveSchema"
+            "type": "string"
           },
           "kappa": {
-            "$ref": "#/components/schemas/G2ProjectiveSchema"
+            "type": "string"
           },
           "kappa_e": {
-            "$ref": "#/components/schemas/G2ProjectiveSchema"
+            "type": "string"
           },
           "kappa_k": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/G2ProjectiveSchema"
+              "type": "string"
             }
           },
           "omega": {
@@ -6643,16 +6600,18 @@
           "ss": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/G2ProjectiveSchema"
+              "type": "string"
             }
           },
           "t_type": {
-            "$ref": "#/components/schemas/u8"
+            "type": "integer",
+            "format": "int32",
+            "minimum": 0
           },
           "tt": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/G2ProjectiveSchema"
+              "type": "string"
             }
           },
           "zk_proof": {
@@ -6696,6 +6655,17 @@
             "type": "integer",
             "format": "int32",
             "minimum": 0
+          }
+        }
+      },
+      "PublicKeyUser": {
+        "type": "object",
+        "required": [
+          "pk"
+        ],
+        "properties": {
+          "pk": {
+            "type": "string"
           }
         }
       },
@@ -6918,10 +6888,10 @@
         ],
         "properties": {
           "h": {
-            "$ref": "#/components/schemas/G1ProjectiveSchema"
+            "type": "string"
           },
           "s": {
-            "$ref": "#/components/schemas/G1ProjectiveSchema"
+            "type": "string"
           }
         }
       },
@@ -7025,37 +6995,33 @@
             "type": "array",
             "items": {
               "type": "integer",
-              "format": "int64",
+              "format": "binary",
               "minimum": 0
-            },
-            "contentEncoding": "base16"
+            }
           },
           "response_o_c": {
             "type": "array",
             "items": {
               "type": "integer",
-              "format": "int64",
+              "format": "binary",
               "minimum": 0
-            },
-            "contentEncoding": "base16"
+            }
           },
           "response_r": {
             "type": "array",
             "items": {
               "type": "integer",
-              "format": "int64",
+              "format": "binary",
               "minimum": 0
-            },
-            "contentEncoding": "base16"
+            }
           },
           "response_r_e": {
             "type": "array",
             "items": {
               "type": "integer",
-              "format": "int64",
+              "format": "binary",
               "minimum": 0
-            },
-            "contentEncoding": "base16"
+            }
           },
           "responses_attributes": {
             "type": "array",
@@ -7063,11 +7029,10 @@
               "type": "array",
               "items": {
                 "type": "integer",
-                "format": "int64",
+                "format": "binary",
                 "minimum": 0
               }
-            },
-            "contentEncoding": "base16"
+            }
           },
           "responses_l": {
             "type": "array",
@@ -7075,11 +7040,10 @@
               "type": "array",
               "items": {
                 "type": "integer",
-                "format": "int64",
+                "format": "binary",
                 "minimum": 0
               }
-            },
-            "contentEncoding": "base16"
+            }
           },
           "responses_mu": {
             "type": "array",
@@ -7087,11 +7051,10 @@
               "type": "array",
               "items": {
                 "type": "integer",
-                "format": "int64",
+                "format": "binary",
                 "minimum": 0
               }
-            },
-            "contentEncoding": "base16"
+            }
           },
           "responses_o_a": {
             "type": "array",
@@ -7099,11 +7062,10 @@
               "type": "array",
               "items": {
                 "type": "integer",
-                "format": "int64",
+                "format": "binary",
                 "minimum": 0
               }
-            },
-            "contentEncoding": "base16"
+            }
           },
           "responses_o_mu": {
             "type": "array",
@@ -7111,11 +7073,10 @@
               "type": "array",
               "items": {
                 "type": "integer",
-                "format": "int64",
+                "format": "binary",
                 "minimum": 0
               }
-            },
-            "contentEncoding": "base16"
+            }
           },
           "responses_r_k": {
             "type": "array",
@@ -7123,11 +7084,10 @@
               "type": "array",
               "items": {
                 "type": "integer",
-                "format": "int64",
+                "format": "binary",
                 "minimum": 0
               }
-            },
-            "contentEncoding": "base16"
+            }
           }
         }
       },
@@ -7279,18 +7239,18 @@
         ],
         "properties": {
           "alpha": {
-            "$ref": "#/components/schemas/G1ProjectiveSchema"
+            "type": "string"
           },
           "beta_g1": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/G1ProjectiveSchema"
+              "type": "string"
             }
           },
           "beta_g2": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/G1ProjectiveSchema"
+              "type": "string"
             }
           }
         }
@@ -7416,7 +7376,7 @@
             "type": "array",
             "items": {
               "type": "integer",
-              "format": "int64",
+              "format": "binary",
               "minimum": 0
             }
           },
@@ -7426,7 +7386,7 @@
               "type": "array",
               "items": {
                 "type": "integer",
-                "format": "int64",
+                "format": "binary",
                 "minimum": 0
               }
             }
@@ -7435,7 +7395,7 @@
             "type": "array",
             "items": {
               "type": "integer",
-              "format": "int64",
+              "format": "binary",
               "minimum": 0
             }
           },
@@ -7445,7 +7405,7 @@
               "type": "array",
               "items": {
                 "type": "integer",
-                "format": "int64",
+                "format": "binary",
                 "minimum": 0
               }
             }
@@ -7454,7 +7414,6 @@
       },
       "WithdrawalRequest": {
         "type": "object",
-        "description": "Represents a withdrawal request generate by the client who wants to obtain a zk-nym credential.\n\nThis struct encapsulates the necessary components for a withdrawal request, including the joined commitment hash, the joined commitment,\nindividual Pedersen commitments for private attributes, and a zero-knowledge proof for the withdrawal request.\n\n# Fields\n\n* `joined_commitment_hash` - The joined commitment hash represented as a G1Projective element.\n* `joined_commitment` - The joined commitment represented as a G1Projective element.\n* `private_attributes_commitments` - A vector of individual Pedersen commitments for private attributes represented as G1Projective elements.\n* `zk_proof` - The zero-knowledge proof for the withdrawal request.\n\n# Derives\n\nThe struct derives `Debug` and `PartialEq` to provide debug output and basic comparison functionality.\n",
         "required": [
           "joined_commitment_hash",
           "joined_commitment",
@@ -7463,15 +7422,15 @@
         ],
         "properties": {
           "joined_commitment": {
-            "$ref": "#/components/schemas/G1ProjectiveSchema"
+            "type": "string"
           },
           "joined_commitment_hash": {
-            "$ref": "#/components/schemas/G1ProjectiveSchema"
+            "type": "string"
           },
           "private_attributes_commitments": {
             "type": "array",
             "items": {
-              "$ref": "#/components/schemas/G1ProjectiveSchema"
+              "type": "string"
             }
           },
           "zk_proof": {

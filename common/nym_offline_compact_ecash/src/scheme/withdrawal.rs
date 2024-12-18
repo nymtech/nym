@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::common_types::{BlindedSignature, G1ProjectiveSchema, Signature, SignerIndex};
+use crate::common_types::{BlindedSignature, Signature, SignerIndex};
 use crate::error::{CompactEcashError, Result};
 use crate::helpers::{date_scalar, type_scalar};
 use crate::proofs::proof_withdrawal::{
@@ -16,7 +16,6 @@ use bls12_381::{multi_miller_loop, G1Projective, G2Prepared, G2Projective, Scala
 use group::{Curve, Group, GroupEncoding};
 use serde::{Deserialize, Serialize};
 use std::ops::Neg;
-use utoipa::ToSchema;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 /// Represents a withdrawal request generate by the client who wants to obtain a zk-nym credential.
@@ -35,13 +34,10 @@ use zeroize::{Zeroize, ZeroizeOnDrop};
 ///
 /// The struct derives `Debug` and `PartialEq` to provide debug output and basic comparison functionality.
 ///
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct WithdrawalRequest {
-    #[schema(value_type = G1ProjectiveSchema)]
     joined_commitment_hash: G1Projective,
-    #[schema(value_type = G1ProjectiveSchema)]
     joined_commitment: G1Projective,
-    #[schema(value_type = Vec<G1ProjectiveSchema>)]
     private_attributes_commitments: Vec<G1Projective>,
     zk_proof: WithdrawalReqProof,
 }

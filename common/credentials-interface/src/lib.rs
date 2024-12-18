@@ -29,7 +29,6 @@ pub use nym_compact_ecash::{
     PartialWallet, PayInfo, PublicKeyUser, SecretKeyUser, VerificationKeyAuth, WithdrawalRequest,
 };
 pub use nym_ecash_time::{ecash_today, EcashTime};
-use utoipa::ToSchema;
 
 #[derive(Debug, Clone)]
 pub struct CredentialSigningData {
@@ -44,7 +43,7 @@ pub struct CredentialSigningData {
     pub ticketbook_type: TicketType,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct CredentialSpendingData {
     pub payment: Payment,
 

@@ -80,9 +80,9 @@ impl NetworkManager {
             .join(DEFAULT_CONFIG_FILENAME)
     }
 
-    async fn wait_for_api_gateway<'a>(
+    async fn wait_for_api_gateway(
         &self,
-        ctx: &LocalClientCtx<'a>,
+        ctx: &LocalClientCtx<'_>,
     ) -> Result<SocketAddr, NetworkManagerError> {
         // create api client
         // hehe, that's disgusting, but it's not meant to be used by users
@@ -145,9 +145,9 @@ impl NetworkManager {
         }
     }
 
-    async fn wait_for_gateway_endpoint<'a>(
+    async fn wait_for_gateway_endpoint(
         &self,
-        ctx: &LocalClientCtx<'a>,
+        ctx: &LocalClientCtx<'_>,
         gateway: SocketAddr,
     ) -> Result<(), NetworkManagerError> {
         ctx.set_pb_message(format!(
@@ -177,17 +177,14 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn wait_for_gateway<'a>(
-        &self,
-        ctx: &LocalClientCtx<'a>,
-    ) -> Result<(), NetworkManagerError> {
+    async fn wait_for_gateway(&self, ctx: &LocalClientCtx<'_>) -> Result<(), NetworkManagerError> {
         let endpoint = self.wait_for_api_gateway(ctx).await?;
         self.wait_for_gateway_endpoint(ctx, endpoint).await
     }
 
-    async fn prepare_nym_client<'a>(
+    async fn prepare_nym_client(
         &self,
-        ctx: &LocalClientCtx<'a>,
+        ctx: &LocalClientCtx<'_>,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "🔏 {}Initialising local nym-client...",

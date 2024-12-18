@@ -67,9 +67,9 @@ impl NetworkManager {
             .join(DEFAULT_CONFIG_FILENAME)
     }
 
-    async fn initialise_api<'a>(
+    async fn initialise_api(
         &self,
-        ctx: &LocalApisCtx<'a>,
+        ctx: &LocalApisCtx<'_>,
         info: &EcashSignerWithPaths,
     ) -> Result<(), NetworkManagerError> {
         let address = &info.data.cosmos_account.address;
@@ -139,7 +139,7 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn initialise_apis<'a>(&self, ctx: &LocalApisCtx<'a>) -> Result<(), NetworkManagerError> {
+    async fn initialise_apis(&self, ctx: &LocalApisCtx<'_>) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "🔏 {}Initialising local nym-apis...",
             style("[1/1]").bold().dim()

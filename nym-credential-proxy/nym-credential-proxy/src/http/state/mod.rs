@@ -710,7 +710,7 @@ pub(crate) struct ChainWritePermit<'a> {
     inner: RwLockWriteGuard<'a, DirectSigningHttpRpcNyxdClient>,
 }
 
-impl<'a> ChainWritePermit<'a> {
+impl ChainWritePermit<'_> {
     pub(crate) async fn make_deposits(
         self,
         short_sha: &'static str,

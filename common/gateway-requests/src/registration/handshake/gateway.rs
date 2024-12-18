@@ -10,7 +10,7 @@ use crate::registration::handshake::{error::HandshakeError, WsItem};
 use futures::{Sink, Stream};
 use tungstenite::Message as WsMessage;
 
-impl<'a, S, R> State<'a, S, R> {
+impl<S, R> State<'_, S, R> {
     async fn gateway_handshake_inner(
         &mut self,
         raw_init_message: Vec<u8>,

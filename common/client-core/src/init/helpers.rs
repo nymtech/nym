@@ -190,7 +190,7 @@ where
     Ok(GatewayWithLatency::new(gateway, avg))
 }
 
-pub async fn choose_gateway_by_latency<'a, R: Rng, G: ConnectableGateway + Clone>(
+pub async fn choose_gateway_by_latency<R: Rng, G: ConnectableGateway + Clone>(
     rng: &mut R,
     gateways: &[G],
     must_use_tls: bool,

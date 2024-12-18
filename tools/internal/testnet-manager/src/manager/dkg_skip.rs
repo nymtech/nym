@@ -168,9 +168,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn validate_existing_contracts<'a>(
+    async fn validate_existing_contracts(
         &self,
-        ctx: &DkgSkipCtx<'a>,
+        ctx: &DkgSkipCtx<'_>,
     ) -> Result<ContractCodeId, NetworkManagerError> {
         ctx.println(format!(
             "🔬 {}Validating the current DKG and group contracts...",
@@ -215,9 +215,9 @@ impl NetworkManager {
         Ok(current_code)
     }
 
-    async fn persist_dkg_keys<'a, P: AsRef<Path>>(
+    async fn persist_dkg_keys<P: AsRef<Path>>(
         &self,
-        ctx: &mut DkgSkipCtx<'a>,
+        ctx: &mut DkgSkipCtx<'_>,
         output_dir: P,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
@@ -272,9 +272,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn upload_bypass_contract<'a, P: AsRef<Path>>(
+    async fn upload_bypass_contract<P: AsRef<Path>>(
         &self,
-        ctx: &DkgSkipCtx<'a>,
+        ctx: &DkgSkipCtx<'_>,
         dkg_bypass_contract: P,
     ) -> Result<ContractCodeId, NetworkManagerError> {
         ctx.println(format!(
@@ -297,9 +297,9 @@ impl NetworkManager {
         Ok(res.code_id)
     }
 
-    async fn migrate_to_bypass_contract<'a>(
+    async fn migrate_to_bypass_contract(
         &self,
-        ctx: &DkgSkipCtx<'a>,
+        ctx: &DkgSkipCtx<'_>,
         code_id: ContractCodeId,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
@@ -336,9 +336,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn restore_dkg_contract<'a>(
+    async fn restore_dkg_contract(
         &self,
-        ctx: &DkgSkipCtx<'a>,
+        ctx: &DkgSkipCtx<'_>,
         code_id: ContractCodeId,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
@@ -363,7 +363,7 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn add_group_members<'a>(&self, ctx: &DkgSkipCtx<'a>) -> Result<(), NetworkManagerError> {
+    async fn add_group_members(&self, ctx: &DkgSkipCtx<'_>) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "👪 {}Adding all the cw4 group members...",
             style("[7/8]").bold().dim()
@@ -387,9 +387,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn transfer_signer_tokens<'a>(
+    async fn transfer_signer_tokens(
         &self,
-        ctx: &DkgSkipCtx<'a>,
+        ctx: &DkgSkipCtx<'_>,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "💸 {}Transferring tokens to the new signers...",

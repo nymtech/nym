@@ -4,6 +4,7 @@ use crate::mixnet::{
 };
 use anyhow::Result;
 use dashmap::DashSet;
+use nym_crypto::asymmetric::ed25519;
 use nym_network_defaults::setup_env;
 use nym_sphinx::addressing::Recipient;
 use std::path::PathBuf;
@@ -33,20 +34,31 @@ impl NymProxyServer {
         upstream_address: &str,
         config_dir: &str,
         env: Option<String>,
+        gateway: Option<ed25519::PublicKey>,
     ) -> Result<Self> {
         info!("Creating client");
 
         // We're wanting to build a client with a constant address, vs the ephemeral in-memory data storage of the NymProxyClient clients.
         // Following a builder pattern, having to manually connect to the mixnet below.
+        // Optional selectable Gateway to use.
         let config_dir = PathBuf::from(config_dir);
         debug!("Loading env file: {:?}", env);
         setup_env(env); // Defaults to mainnet if empty
         let net = NymNetworkDetails::new_from_env();
         let storage_paths = StoragePaths::new_from_dir(&config_dir)?;
-        let client = MixnetClientBuilder::new_with_default_storage(storage_paths)
-            .await?
-            .network_details(net)
-            .build()?;
+
+        let client = if let Some(gateway) = gateway {
+            MixnetClientBuilder::new_with_default_storage(storage_paths)
+                .await?
+                .network_details(net)
+                .request_gateway(gateway.to_string())
+                .build()?
+        } else {
+            MixnetClientBuilder::new_with_default_storage(storage_paths)
+                .await?
+                .network_details(net)
+                .build()?
+        };
 
         let client = client.connect_to_mixnet().await?;
 

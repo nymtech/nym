@@ -23,6 +23,11 @@ impl SqliteEcashTicketbookManager {
         SqliteEcashTicketbookManager { connection_pool }
     }
 
+    /// Closes the connection pool.
+    pub async fn close(&self) {
+        self.connection_pool.close().await
+    }
+
     pub(crate) async fn cleanup_expired(&self, deadline: Date) -> Result<(), sqlx::Error> {
         sqlx::query!(
             "DELETE FROM ecash_ticketbook WHERE expiration_date <= ?",

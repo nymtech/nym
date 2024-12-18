@@ -6,18 +6,34 @@ use crate::node::metrics::handler::{
     MetricsHandler, OnStartMetricsHandler, OnUpdateMetricsHandler,
 };
 use async_trait::async_trait;
-use nym_metrics::set_metric;
-use nym_node_metrics::mixnet::IngressMixingStats;
+use nym_node_metrics::prometheus_wrapper::{
+    NymNodePrometheusMetrics, PrometheusMetric, PROMETHEUS_METRICS,
+};
 use nym_node_metrics::NymNodeMetrics;
-use time::OffsetDateTime;
 
 mod at_last_update;
+
+const CLIENT_SESSION_DURATION_BUCKETS: &[f64] = &[
+    // sub 3s (implicitly)
+    3.,      // 3s - 15s
+    15.,     // 15s - 70s
+    70.,     // 70s - 2min
+    120.,    // 2 min - 5 min
+    300.,    // 5min - 15min
+    900.,    // 15min - 1h
+    3600.,   // 1h - 12h
+    43200.,  // 12h - 23.5h
+    88200.,  // 23.5h - 24.5h
+    86400.,  // 24.5h - 72h
+    259200., // 72h+ (implicitly)
+];
 
 // it can be anything, we just need a unique type_id to register our handler
 pub struct GlobalPrometheusData;
 
 pub struct PrometheusGlobalNodeMetricsRegistryUpdater {
     metrics: NymNodeMetrics,
+    prometheus_wrapper: &'static NymNodePrometheusMetrics,
     at_last_update: AtLastUpdate,
 }
 
@@ -25,6 +41,7 @@ impl PrometheusGlobalNodeMetricsRegistryUpdater {
     pub(crate) fn new(metrics: NymNodeMetrics) -> Self {
         Self {
             metrics,
+            prometheus_wrapper: &PROMETHEUS_METRICS,
             at_last_update: Default::default(),
         }
     }
@@ -40,130 +57,82 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
 
         // # MIXNET
         // ## INGRESS
-        set_metric!(
-            "mixnet_ingress_forward_hop_packets_received",
-            self.metrics.mixnet.ingress.forward_hop_packets_received()
-        );
-        set_metric!(
-            "mixnet_ingress_final_hop_packets_received",
-            self.metrics.mixnet.ingress.final_hop_packets_received()
-        );
-        set_metric!(
-            "mixnet_ingress_malformed_packets_received",
-            self.metrics.mixnet.ingress.malformed_packets_received()
-        );
-        set_metric!(
-            "mixnet_ingress_excessive_delay_packets",
-            self.metrics.mixnet.ingress.excessive_delay_packets()
-        );
-        set_metric!(
-            "mixnet_ingress_forward_hop_packets_dropped",
-            self.metrics.mixnet.ingress.forward_hop_packets_dropped()
-        );
-        set_metric!(
-            "mixnet_ingress_final_hop_packets_dropped",
-            self.metrics.mixnet.ingress.final_hop_packets_dropped()
-        );
-        // set_metric!("mixnet_ingress_senders", )
+        PrometheusMetric::MixnetIngressForwardPacketsReceived
+            .set(self.metrics.mixnet.ingress.forward_hop_packets_received() as i64);
+        PrometheusMetric::MixnetIngressFinalHopPacketsReceived
+            .set(self.metrics.mixnet.ingress.final_hop_packets_received() as i64);
+        PrometheusMetric::MixnetIngressMalformedPacketsReceived
+            .set(self.metrics.mixnet.ingress.malformed_packets_received() as i64);
+        PrometheusMetric::MixnetIngressExcessiveDelayPacketsReceived
+            .set(self.metrics.mixnet.ingress.excessive_delay_packets() as i64);
+        PrometheusMetric::MixnetEgressForwardPacketsDropped
+            .set(self.metrics.mixnet.ingress.forward_hop_packets_dropped() as i64);
+        PrometheusMetric::MixnetIngressFinalHopPacketsDropped
+            .set(self.metrics.mixnet.ingress.final_hop_packets_dropped() as i64);
 
         // ## EGRESS
-        set_metric!(
-            "mixnet_egress_forward_hop_packets_sent",
-            self.metrics.mixnet.egress.forward_hop_packets_sent()
-        );
-        set_metric!(
-            "mixnet_egress_ack_packets_sent",
-            self.metrics.mixnet.egress.ack_packets_sent()
-        );
-        set_metric!(
-            "mixnet_egress_forward_hop_packets_dropped",
-            self.metrics.mixnet.egress.forward_hop_packets_dropped()
-        );
-        // set_metric!("mixnet_egress_forward_recipients", )
+        PrometheusMetric::MixnetEgressForwardPacketsSent
+            .set(self.metrics.mixnet.egress.forward_hop_packets_sent() as i64);
+        PrometheusMetric::MixnetEgressAckSent
+            .set(self.metrics.mixnet.egress.ack_packets_sent() as i64);
+        PrometheusMetric::MixnetEgressForwardPacketsDropped
+            .set(self.metrics.mixnet.egress.forward_hop_packets_dropped() as i64);
 
         // # ENTRY
-        set_metric!(
-            "entry_client_sessions_unique_users",
-            entry_guard.unique_users.len()
-        );
-        set_metric!(
-            "entry_client_sessions_sessions_started",
-            entry_guard.sessions_started
-        );
-        set_metric!(
-            "entry_client_sessions_finished_sessions",
-            entry_guard.finished_sessions.len()
-        );
-        // histograms for finished sessions duration/typ
+        PrometheusMetric::EntryClientUniqueUsers.set(entry_guard.unique_users.len() as i64);
+        PrometheusMetric::EntryClientSessionsStarted.set(entry_guard.sessions_started as i64);
+        PrometheusMetric::EntryClientSessionsFinished
+            .set(entry_guard.finished_sessions.len() as i64);
+
+        for session in &entry_guard.finished_sessions {
+            let typ = session.typ.to_string();
+            let duration = session.duration.as_secs_f64();
+            PrometheusMetric::EntryClientSessionsDurations { typ }.observe_histogram(duration);
+        }
 
         // # WIREGUARD
-        set_metric!("wireguard_bytes_rx", self.metrics.wireguard.bytes_rx());
-        set_metric!("wireguard_bytes_tx", self.metrics.wireguard.bytes_tx());
-        set_metric!(
-            "wireguard_bytes_total_peers",
-            self.metrics.wireguard.total_peers()
-        );
-        set_metric!(
-            "wireguard_bytes_active_peers",
-            self.metrics.wireguard.active_peers()
-        );
+        PrometheusMetric::WireguardBytesRx.set(self.metrics.wireguard.bytes_rx() as i64);
+        PrometheusMetric::WireguardBytesTx.set(self.metrics.wireguard.bytes_tx() as i64);
+        PrometheusMetric::WireguardTotalPeers.set(self.metrics.wireguard.total_peers() as i64);
+        PrometheusMetric::WireguardActivePeers.set(self.metrics.wireguard.active_peers() as i64);
 
         // # NETWORK
-        set_metric!(
-            "network_active_ingress_mixnet_connections",
+        PrometheusMetric::NetworkActiveIngressMixnetConnections.set(
             self.metrics
                 .network
-                .active_ingress_mixnet_connections_count()
+                .active_ingress_mixnet_connections_count() as i64,
         );
 
         let updated = AtLastUpdate::from(&self.metrics);
 
         // # RATES
-
         if !self.at_last_update.is_initial() {
             let diff = updated.rates(&self.at_last_update);
-            set_metric!(
-                "mixnet_ingress_forward_hop_packets_received_rate",
-                diff.mixnet.ingress.forward_hop_packets_received_sec
-            );
-            set_metric!(
-                "mixnet_ingress_final_hop_packets_received_rate",
-                diff.mixnet.ingress.final_hop_packets_received_sec
-            );
-            set_metric!(
-                "mixnet_ingress_malformed_packets_received_rate",
-                diff.mixnet.ingress.malformed_packets_received_sec
-            );
-            set_metric!(
-                "mixnet_ingress_excessive_delay_packets_rate",
-                diff.mixnet.ingress.excessive_delay_packets_sec
-            );
-            set_metric!(
-                "mixnet_ingress_forward_hop_packets_dropped_rate",
-                diff.mixnet.ingress.forward_hop_packets_dropped_sec
-            );
-            set_metric!(
-                "mixnet_ingress_final_hop_packets_dropped_rate",
-                diff.mixnet.ingress.final_hop_packets_dropped_sec
-            );
+
+            PrometheusMetric::MixnetIngressForwardPacketsReceivedRate
+                .set_float(diff.mixnet.ingress.forward_hop_packets_received_sec);
+            PrometheusMetric::MixnetIngressFinalHopPacketsReceivedRate
+                .set_float(diff.mixnet.ingress.final_hop_packets_received_sec);
+            PrometheusMetric::MixnetIngressMalformedPacketsReceivedRate
+                .set_float(diff.mixnet.ingress.malformed_packets_received_sec);
+            PrometheusMetric::MixnetIngressExcessiveDelayPacketsReceivedRate
+                .set_float(diff.mixnet.ingress.excessive_delay_packets_sec);
+            PrometheusMetric::MixnetIngressForwardPacketsDroppedRate
+                .set_float(diff.mixnet.ingress.forward_hop_packets_dropped_sec);
+            PrometheusMetric::MixnetIngressFinalHopPacketsDroppedRate
+                .set_float(diff.mixnet.ingress.final_hop_packets_dropped_sec);
 
             // ## EGRESS
-            set_metric!(
-                "mixnet_egress_forward_hop_packets_sent_rate",
-                diff.mixnet.egress.forward_hop_packets_sent_sec
-            );
-            set_metric!(
-                "mixnet_egress_ack_packets_sent_rate",
-                diff.mixnet.egress.ack_packets_sent_sec
-            );
-            set_metric!(
-                "mixnet_egress_forward_hop_packets_dropped_rate",
-                diff.mixnet.egress.forward_hop_packets_dropped_sec
-            );
+            PrometheusMetric::MixnetEgressForwardPacketsSentRate
+                .set_float(diff.mixnet.egress.forward_hop_packets_sent_sec);
+            PrometheusMetric::MixnetEgressAckSentRate
+                .set_float(diff.mixnet.egress.ack_packets_sent_sec);
+            PrometheusMetric::MixnetEgressForwardPacketsDroppedRate
+                .set_float(diff.mixnet.egress.forward_hop_packets_dropped_sec);
 
             // # WIREGUARD
-            set_metric!("wireguard_bytes_rx_rate", diff.wireguard.bytes_rx_sec);
-            set_metric!("wireguard_bytes_tx_rate", diff.wireguard.bytes_tx_sec);
+            PrometheusMetric::WireguardBytesRxRate.set_float(diff.wireguard.bytes_rx_sec);
+            PrometheusMetric::WireguardBytesTxRate.set_float(diff.wireguard.bytes_tx_sec);
         }
         self.at_last_update = updated;
     }

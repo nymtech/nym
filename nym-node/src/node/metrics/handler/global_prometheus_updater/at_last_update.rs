@@ -60,8 +60,8 @@ struct LastMixnet {
 impl LastMixnet {
     fn rates(&self, previous: &Self, time_delta_secs: f64) -> MixnetRateSinceUpdate {
         MixnetRateSinceUpdate {
-            ingres_sec: self.ingres.rates(&previous.ingres, time_delta_secs),
-            egress_sec: self.egress.rates(&previous.egress, time_delta_secs),
+            ingress: self.ingres.rates(&previous.ingres, time_delta_secs),
+            egress: self.egress.rates(&previous.egress, time_delta_secs),
         }
     }
 }
@@ -194,12 +194,12 @@ pub(crate) struct RateSinceUpdate {
     pub(crate) wireguard: WireguardRateSinceUpdate,
 }
 
-struct MixnetRateSinceUpdate {
+pub(crate) struct MixnetRateSinceUpdate {
     pub(crate) ingress: MixnetIngressRateSinceUpdate,
     pub(crate) egress: MixnetEgressRateSinceUpdate,
 }
 
-struct MixnetIngressRateSinceUpdate {
+pub(crate) struct MixnetIngressRateSinceUpdate {
     pub(crate) forward_hop_packets_received_sec: f64,
     pub(crate) final_hop_packets_received_sec: f64,
     pub(crate) malformed_packets_received_sec: f64,
@@ -208,14 +208,13 @@ struct MixnetIngressRateSinceUpdate {
     pub(crate) final_hop_packets_dropped_sec: f64,
 }
 
-struct MixnetEgressRateSinceUpdate {
+pub(crate) struct MixnetEgressRateSinceUpdate {
     pub(crate) forward_hop_packets_sent_sec: f64,
     pub(crate) ack_packets_sent_sec: f64,
     pub(crate) forward_hop_packets_dropped_sec: f64,
 }
 
-#[derive(Debug, Default)]
-struct WireguardRateSinceUpdate {
+pub(crate) struct WireguardRateSinceUpdate {
     pub(crate) bytes_tx_sec: f64,
     pub(crate) bytes_rx_sec: f64,
 }

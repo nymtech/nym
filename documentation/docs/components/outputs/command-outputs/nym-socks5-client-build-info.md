@@ -1,7 +1,7 @@
 ```sh
 
 Binary Name:        nym-socks5-client
-Build Timestamp:    2024-12-10T11:37:07.839071360Z
+Build Timestamp:    2024-12-18T10:26:40.905460408Z
 Build Version:      1.1.44
 Commit SHA:         62045d76b32265f6a5e6358ab7aebbc827d47dcd
 Commit Date:        2024-11-26T11:53:05.000000000+01:00

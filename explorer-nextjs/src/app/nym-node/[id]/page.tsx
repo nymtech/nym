@@ -48,7 +48,7 @@ export default async function NymNode({
   );
 
   const nodeDescriptionInfo = nymNodesDescription.data.filter(
-    (item: INodeDescription) => item.node_id === 5,
+    (item: INodeDescription) => item.node_id === id,
   );
 
   return (

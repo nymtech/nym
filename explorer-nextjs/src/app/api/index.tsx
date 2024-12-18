@@ -122,13 +122,14 @@ export interface INodeDescription {
   description: {
     authenticator: object;
     address: string;
-    auxiliary_details: object;
-    accepted_operator_terms_and_conditions: boolean;
-    announce_ports: {
-      verloc_port: number | null;
-      mix_port: number | null;
+    auxiliary_details: {
+      location: string;
+      accepted_operator_terms_and_conditions: boolean;
+      announce_ports: {
+        verloc_port: number | null;
+        mix_port: number | null;
+      };
     };
-    location: string;
     build_information: {
       binary_name: string;
       build_timestamp: string;

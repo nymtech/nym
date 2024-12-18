@@ -6,6 +6,7 @@ import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerListItem from "@/components/list/ListItem";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
 import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
+import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
 import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
 import { StarRating } from "@/components/starRating";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
@@ -71,9 +72,10 @@ export default async function NymNode({
           </Box>
         </Grid2>
         <Grid2 size={4}>
-          <ExplorerCard label="Action" sx={{ height: "100%" }}>
-            <div />
-          </ExplorerCard>
+          <NodeProfileCard
+            bondInfo={nodeBondInfo[0]}
+            nodeDescription={nodeDescriptionInfo[0]}
+          />
         </Grid2>
         <Grid2 size={4}>
           <BasicInfoCard

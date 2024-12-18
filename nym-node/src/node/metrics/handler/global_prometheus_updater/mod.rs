@@ -1,23 +1,32 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::node::metrics::handler::global_prometheus_updater::at_last_update::AtLastUpdate;
 use crate::node::metrics::handler::{
     MetricsHandler, OnStartMetricsHandler, OnUpdateMetricsHandler,
 };
 use async_trait::async_trait;
 use nym_metrics::set_metric;
+use nym_node_metrics::mixnet::IngressMixingStats;
 use nym_node_metrics::NymNodeMetrics;
+use time::OffsetDateTime;
+
+mod at_last_update;
 
 // it can be anything, we just need a unique type_id to register our handler
 pub struct GlobalPrometheusData;
 
 pub struct PrometheusGlobalNodeMetricsRegistryUpdater {
     metrics: NymNodeMetrics,
+    at_last_update: AtLastUpdate,
 }
 
 impl PrometheusGlobalNodeMetricsRegistryUpdater {
     pub(crate) fn new(metrics: NymNodeMetrics) -> Self {
-        Self { metrics }
+        Self {
+            metrics,
+            at_last_update: Default::default(),
+        }
     }
 }
 
@@ -88,7 +97,7 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
         // histograms for finished sessions duration/typ
 
         // # WIREGUARD
-        set_metric!("wireguard_bytes_rx", self.metrics.wireguard.bytes_tx());
+        set_metric!("wireguard_bytes_rx", self.metrics.wireguard.bytes_rx());
         set_metric!("wireguard_bytes_tx", self.metrics.wireguard.bytes_tx());
         set_metric!(
             "wireguard_bytes_total_peers",
@@ -105,7 +114,58 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
             self.metrics
                 .network
                 .active_ingress_mixnet_connections_count()
-        )
+        );
+
+        let updated = AtLastUpdate::from(&self.metrics);
+
+        // # RATES
+
+        if !self.at_last_update.is_initial() {
+            let diff = updated.rates(&self.at_last_update);
+            set_metric!(
+                "mixnet_ingress_forward_hop_packets_received_rate",
+                diff.mixnet.ingress.forward_hop_packets_received_sec
+            );
+            set_metric!(
+                "mixnet_ingress_final_hop_packets_received_rate",
+                diff.mixnet.ingress.final_hop_packets_received_sec
+            );
+            set_metric!(
+                "mixnet_ingress_malformed_packets_received_rate",
+                diff.mixnet.ingress.malformed_packets_received_sec
+            );
+            set_metric!(
+                "mixnet_ingress_excessive_delay_packets_rate",
+                diff.mixnet.ingress.excessive_delay_packets_sec
+            );
+            set_metric!(
+                "mixnet_ingress_forward_hop_packets_dropped_rate",
+                diff.mixnet.ingress.forward_hop_packets_dropped_sec
+            );
+            set_metric!(
+                "mixnet_ingress_final_hop_packets_dropped_rate",
+                diff.mixnet.ingress.final_hop_packets_dropped_sec
+            );
+
+            // ## EGRESS
+            set_metric!(
+                "mixnet_egress_forward_hop_packets_sent_rate",
+                diff.mixnet.egress.forward_hop_packets_sent_sec
+            );
+            set_metric!(
+                "mixnet_egress_ack_packets_sent_rate",
+                diff.mixnet.egress.ack_packets_sent_sec
+            );
+            set_metric!(
+                "mixnet_egress_forward_hop_packets_dropped_rate",
+                diff.mixnet.egress.forward_hop_packets_dropped_sec
+            );
+
+            // # WIREGUARD
+            set_metric!("wireguard_bytes_rx_rate", diff.wireguard.bytes_rx_sec);
+            set_metric!("wireguard_bytes_tx_rate", diff.wireguard.bytes_tx_sec);
+        }
+        self.at_last_update = updated;
     }
 }
 

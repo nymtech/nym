@@ -1,10 +1,10 @@
 ```sh
 
 Binary Name:        nym-api
-Build Timestamp:    2024-12-18T10:26:40.905460408Z
-Build Version:      1.1.46
-Commit SHA:         62045d76b32265f6a5e6358ab7aebbc827d47dcd
-Commit Date:        2024-11-26T11:53:05.000000000+01:00
+Build Timestamp:    2024-12-18T17:18:44.233208652Z
+Build Version:      1.1.47
+Commit SHA:         b628a5f8148f74c646915292c8b6dc0a46202a27
+Commit Date:        2024-12-13T11:49:27.000000000+01:00
 Commit Branch:      master
 rustc Version:      1.84.0-nightly
 rustc Channel:      nightly

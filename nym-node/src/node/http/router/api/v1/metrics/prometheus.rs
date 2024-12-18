@@ -4,7 +4,7 @@
 use crate::node::http::state::metrics::MetricsAppState;
 use axum::extract::State;
 use axum::http::StatusCode;
-use nym_metrics::metrics;
+use nym_metrics::{inc, metrics};
 
 /// Returns `prometheus` compatible metrics
 #[utoipa::path(

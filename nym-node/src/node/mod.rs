@@ -21,8 +21,10 @@ use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
 use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
+use crate::node::metrics::handler::global_prometheus_updater::PrometheusGlobalNodeMetricsRegistryUpdater;
 use crate::node::metrics::handler::legacy_packet_data::LegacyMixingStatsUpdater;
 use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
+use crate::node::metrics::handler::prometheus_events_handler::PrometheusEventsHandler;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
@@ -875,6 +877,20 @@ impl NymNode {
             MixnetMetricsCleaner::new(self.metrics.clone()),
             self.config.metrics.debug.stale_mixnet_metrics_cleaner_rate,
         );
+
+        // handler for updating the prometheus registry from the global atomic metrics counters
+        // such as number of packets received
+        metrics_aggregator.register_handler(
+            PrometheusGlobalNodeMetricsRegistryUpdater::new(self.metrics.clone()),
+            self.config
+                .metrics
+                .debug
+                .global_prometheus_counters_update_rate,
+        );
+
+        // handler for handling prometheus metrics events
+        let todo = "";
+        // metrics_aggregator.register_handler(PrometheusEventsHandler{}, None);
 
         // note: we're still measuring things such as number of mixed packets,
         // but since they're stored as atomic integers, they are incremented directly at source

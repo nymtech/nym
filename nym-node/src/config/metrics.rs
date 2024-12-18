@@ -25,6 +25,10 @@ pub struct Debug {
     #[serde(with = "humantime_serde")]
     pub stale_mixnet_metrics_cleaner_rate: Duration,
 
+    /// Specify the target rate of updating global prometheus counters.
+    #[serde(with = "humantime_serde")]
+    pub global_prometheus_counters_update_rate: Duration,
+
     /// Specify the rate of updating clients sessions
     #[serde(with = "humantime_serde")]
     pub clients_sessions_update_rate: Duration,
@@ -42,8 +46,9 @@ impl Debug {
     const DEFAULT_CONSOLE_LOGGING_INTERVAL: Duration = Duration::from_millis(60_000);
     const DEFAULT_LEGACY_MIXING_UPDATE_RATE: Duration = Duration::from_millis(30_000);
     const DEFAULT_AGGREGATOR_UPDATE_RATE: Duration = Duration::from_secs(5);
-    const DEFAULT_STALE_MIXNET_ETRICS_UPDATE_RATE: Duration = Duration::from_secs(3600);
+    const DEFAULT_STALE_MIXNET_METRICS_UPDATE_RATE: Duration = Duration::from_secs(3600);
     const DEFAULT_CLIENT_SESSIONS_UPDATE_RATE: Duration = Duration::from_secs(3600);
+    const GLOBAL_PROMETHEUS_COUNTERS_UPDATE_INTERVAL: Duration = Duration::from_secs(30);
 }
 
 impl Default for Debug {
@@ -53,7 +58,9 @@ impl Default for Debug {
             console_logging_update_interval: Self::DEFAULT_CONSOLE_LOGGING_INTERVAL,
             legacy_mixing_metrics_update_rate: Self::DEFAULT_LEGACY_MIXING_UPDATE_RATE,
             aggregator_update_rate: Self::DEFAULT_AGGREGATOR_UPDATE_RATE,
-            stale_mixnet_metrics_cleaner_rate: Self::DEFAULT_STALE_MIXNET_ETRICS_UPDATE_RATE,
+            stale_mixnet_metrics_cleaner_rate: Self::DEFAULT_STALE_MIXNET_METRICS_UPDATE_RATE,
+            global_prometheus_counters_update_rate:
+                Self::GLOBAL_PROMETHEUS_COUNTERS_UPDATE_INTERVAL,
             clients_sessions_update_rate: Self::DEFAULT_CLIENT_SESSIONS_UPDATE_RATE,
         }
     }

@@ -4,7 +4,9 @@ use log::{debug, warn};
 use std::fmt;
 pub use std::time::Instant;
 
-use prometheus::{core::Collector, Encoder as _, IntCounter, IntGauge, Registry, TextEncoder};
+use prometheus::{
+    core::Collector, Encoder as _, Gauge, IntCounter, IntGauge, Registry, TextEncoder,
+};
 
 #[macro_export]
 macro_rules! prepend_package_name {
@@ -43,6 +45,13 @@ macro_rules! metrics {
 }
 
 #[macro_export]
+macro_rules! set_metric {
+    ($name:literal, $x:expr) => {
+        $crate::REGISTRY.set($crate::prepend_package_name!($name), $x as i64);
+    };
+}
+
+#[macro_export]
 macro_rules! nanos {
     ( $name:literal, $x:expr ) => {{
         let start = $crate::Instant::now();
@@ -66,8 +75,37 @@ pub struct MetricsController {
 }
 
 enum Metric {
-    C(Box<IntCounter>),
-    G(Box<IntGauge>),
+    IntCounter(Box<IntCounter>),
+    IntGauge(Box<IntGauge>),
+    FloatGauge(Box<Gauge>),
+}
+
+impl Metric {
+    fn as_collector(&self) -> Box<dyn Collector> {
+        match self {
+            Metric::IntCounter(c) => c.clone(),
+            Metric::IntGauge(g) => g.clone(),
+            Metric::FloatGauge(g) => g.clone(),
+        }
+    }
+}
+
+impl From<IntCounter> for Metric {
+    fn from(v: IntCounter) -> Self {
+        Metric::IntCounter(Box::new(v))
+    }
+}
+
+impl From<IntGauge> for Metric {
+    fn from(v: IntGauge) -> Self {
+        Metric::IntGauge(Box::new(v))
+    }
+}
+
+impl From<Gauge> for Metric {
+    fn from(v: Gauge) -> Self {
+        Metric::FloatGauge(Box::new(v))
+    }
 }
 
 fn fq_name(c: &dyn Collector) -> String {
@@ -81,34 +119,58 @@ impl Metric {
     #[inline(always)]
     fn fq_name(&self) -> String {
         match self {
-            Metric::C(c) => fq_name(c.as_ref()),
-            Metric::G(g) => fq_name(g.as_ref()),
+            Metric::IntCounter(c) => fq_name(c.as_ref()),
+            Metric::IntGauge(g) => fq_name(g.as_ref()),
+            Metric::FloatGauge(g) => fq_name(g.as_ref()),
         }
     }
 
     #[inline(always)]
     fn inc(&self) {
         match self {
-            Metric::C(c) => c.inc(),
-            Metric::G(g) => g.inc(),
+            Metric::IntCounter(c) => c.inc(),
+            Metric::IntGauge(g) => g.inc(),
+            Metric::FloatGauge(g) => g.inc(),
         }
     }
 
     #[inline(always)]
     fn inc_by(&self, value: i64) {
         match self {
-            Metric::C(c) => c.inc_by(value as u64),
-            Metric::G(g) => g.add(value),
+            Metric::IntCounter(c) => c.inc_by(value as u64),
+            Metric::IntGauge(g) => g.add(value),
+            Metric::FloatGauge(g) => {
+                warn!("attempted to increment a float gauge ('{}') by an integer - this is most likely a bug", self.fq_name());
+                g.add(value as f64)
+            }
         }
     }
 
     #[inline(always)]
     fn set(&self, value: i64) {
         match self {
-            Metric::C(_c) => {
+            Metric::IntCounter(_c) => {
                 warn!("Cannot set value for counter {:?}", self.fq_name());
             }
-            Metric::G(g) => g.set(value),
+            Metric::IntGauge(g) => g.set(value),
+            Metric::FloatGauge(g) => {
+                warn!("attempted to set a float gauge ('{}') to an integer value - this is most likely a bug", self.fq_name());
+                g.set(value as f64)
+            }
+        }
+    }
+
+    #[inline(always)]
+    fn set_float(&self, value: f64) {
+        match self {
+            Metric::IntCounter(_c) => {
+                warn!("Cannot set value for counter {:?}", self.fq_name());
+            }
+            Metric::IntGauge(g) => {
+                warn!("attempted to set a integer gauge ('{}') to a float value - this is most likely a bug", self.fq_name());
+                g.set(value as i64)
+            }
+            Metric::FloatGauge(g) => g.set(value),
         }
     }
 }
@@ -156,8 +218,24 @@ impl MetricsController {
                     return;
                 }
             };
-            self.register_gauge(Box::new(gauge));
+            self.register_metric(gauge);
             self.set(name, value)
+        }
+    }
+
+    pub fn set_float(&self, name: &str, value: f64) {
+        if let Some(metric) = self.registry_index.get(name) {
+            metric.set_float(value);
+        } else {
+            let gauge = match Gauge::new(sanitize_metric_name(name), name) {
+                Ok(g) => g,
+                Err(e) => {
+                    debug!("Failed to create gauge {:?}:\n{}", name, e);
+                    return;
+                }
+            };
+            self.register_metric(gauge);
+            self.set_float(name, value)
         }
     }
 
@@ -172,7 +250,7 @@ impl MetricsController {
                     return;
                 }
             };
-            self.register_counter(Box::new(counter));
+            self.register_metric(counter);
             self.inc(name)
         }
     }
@@ -188,50 +266,25 @@ impl MetricsController {
                     return;
                 }
             };
-            self.register_counter(Box::new(counter));
+            self.register_metric(counter);
             self.inc_by(name, value)
         }
     }
 
-    fn register_gauge(&self, metric: Box<IntGauge>) {
-        let fq_name = metric
-            .desc()
-            .first()
-            .map(|d| d.fq_name.clone())
-            .unwrap_or_default();
+    fn register_metric(&self, metric: impl Into<Metric>) {
+        let m = metric.into();
+        let fq_name = m.fq_name();
 
         if self.registry_index.contains_key(&fq_name) {
             return;
         }
 
-        match self.registry.register(metric.clone()) {
+        match self.registry.register(m.as_collector()) {
             Ok(_) => {
-                self.registry_index
-                    .insert(fq_name, Metric::G(metric.clone()));
+                self.registry_index.insert(fq_name, m);
             }
-            Err(e) => {
-                debug!("Failed to register {:?}:\n{}", fq_name, e)
-            }
-        }
-    }
-
-    fn register_counter(&self, metric: Box<IntCounter>) {
-        let fq_name = metric
-            .desc()
-            .first()
-            .map(|d| d.fq_name.clone())
-            .unwrap_or_default();
-
-        if self.registry_index.contains_key(&fq_name) {
-            return;
-        }
-        match self.registry.register(metric.clone()) {
-            Ok(_) => {
-                self.registry_index
-                    .insert(fq_name, Metric::C(metric.clone()));
-            }
-            Err(e) => {
-                debug!("Failed to register {:?}:\n{}", fq_name, e)
+            Err(err) => {
+                debug!("Failed to register '{fq_name}': {err}")
             }
         }
     }

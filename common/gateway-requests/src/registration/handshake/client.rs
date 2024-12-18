@@ -9,7 +9,7 @@ use futures::{Sink, Stream};
 use rand::{CryptoRng, RngCore};
 use tungstenite::Message as WsMessage;
 
-impl<'a, S, R> State<'a, S, R> {
+impl<S, R> State<'_, S, R> {
     async fn client_handshake_inner(&mut self) -> Result<(), HandshakeError>
     where
         S: Stream<Item = WsItem> + Sink<WsMessage> + Unpin,

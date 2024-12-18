@@ -428,7 +428,7 @@ impl PacketStatisticsControl {
         while self
             .history
             .front()
-            .map_or(false, |&(t, _)| t < recording_window)
+            .is_some_and(|&(t, _)| t < recording_window)
         {
             self.history.pop_front();
         }
@@ -462,7 +462,7 @@ impl PacketStatisticsControl {
         while self
             .rates
             .front()
-            .map_or(false, |&(t, _)| t < recording_window)
+            .is_some_and(|&(t, _)| t < recording_window)
         {
             self.rates.pop_front();
         }

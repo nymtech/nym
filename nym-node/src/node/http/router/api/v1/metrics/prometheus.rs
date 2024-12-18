@@ -25,7 +25,7 @@ use nym_metrics::metrics;
         ("prometheus_token" = [])
     )
 )]
-pub(crate) async fn prometheus_metrics<'a>(
+pub(crate) async fn prometheus_metrics(
     TypedHeader(authorization): TypedHeader<Authorization<Bearer>>,
     State(state): State<MetricsAppState>,
 ) -> Result<String, StatusCode> {

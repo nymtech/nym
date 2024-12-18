@@ -106,9 +106,7 @@ impl ThreadsafeMixNodesCache {
             .read()
             .await
             .get(&mix_id)
-            .map_or(false, |cache_item| {
-                cache_item.valid_until > SystemTime::now()
-            })
+            .is_some_and(|cache_item| cache_item.valid_until > SystemTime::now())
     }
 
     pub(crate) async fn get_locations(&self) -> MixnodeLocationCache {

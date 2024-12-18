@@ -120,9 +120,7 @@ impl ThreadsafeGatewayCache {
             .read()
             .await
             .get(&identity_key)
-            .map_or(false, |cache_item| {
-                cache_item.valid_until > SystemTime::now()
-            })
+            .is_some_and(|cache_item| cache_item.valid_until > SystemTime::now())
     }
 
     pub(crate) async fn get_locations(&self) -> GatewayLocationCache {

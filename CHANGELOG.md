@@ -4,6 +4,11 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2024.14-crunch-patched] (2024-12-17)
+
+- Fixes an issue to allow previously registred clients to connect to latest nym-nodes
+- Fixes compatibility issues between nym-nodes and older clients
+
 ## [2024.14-crunch] (2024-12-11)
 
 - Merge/release/2024.14-crunch ([#5242])

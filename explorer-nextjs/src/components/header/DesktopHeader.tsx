@@ -96,7 +96,7 @@ export const DesktopHeader = () => {
             </Button>
           ))}
         </Box>
-        <ConnectWallet />
+        <ConnectWallet size="small" />
       </Wrapper>
       <Divider variant="fullWidth" sx={{ width: "100%" }} />
     </Box>

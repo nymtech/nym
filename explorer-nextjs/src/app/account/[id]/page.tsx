@@ -1,4 +1,4 @@
-import type { CurrencyRates } from "@/app/api/types";
+import type { CurrencyRates, IAccountBalancesInfo } from "@/app/api/types";
 import { NYM_ACCOUNT_ADDRESS, NYM_PRICES_API } from "@/app/api/urls";
 import { AccountBalancesCard } from "@/components/accountPageComponents/AccountBalancesCard";
 import { AccountInfoCard } from "@/components/accountPageComponents/AccountInfoCard";
@@ -6,42 +6,6 @@ import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Grid2 } from "@mui/material";
-
-interface IRewardDetails {
-  amount_staked: IAmountDetails;
-  node_id: number;
-  node_still_fully_bonded: boolean;
-  rewards: IAmountDetails;
-}
-
-interface IAmountDetails {
-  denom: string;
-  amount: string;
-}
-
-interface IDelegationDetails {
-  node_id: number;
-  delegated: IAmountDetails;
-  height: number;
-  proxy: null | string;
-}
-
-interface ITotalDetails {
-  amount: string;
-  denom: string;
-}
-
-export interface IAccountInfo {
-  accumulated_rewards: IRewardDetails[];
-  address: string;
-  balances: IAmountDetails[];
-  claimable_rewards: IAmountDetails;
-  delegations: IDelegationDetails[];
-  operator_rewards?: null | IAmountDetails;
-  total_delegations: ITotalDetails;
-  total_value: ITotalDetails;
-  vesting_account?: null | string;
-}
 
 export default async function Account({
   params,
@@ -61,12 +25,12 @@ export default async function Account({
     next: { revalidate: 60 },
     // refresh event list cache at given interval
   });
-  const nymAccountData: IAccountInfo = await accountData.json();
+  const nymAccountBalancesData: IAccountBalancesInfo = await accountData.json();
 
-  if (!nymAccountData) {
+  if (!nymAccountBalancesData) {
     return null;
   }
-
+  console.log("nymAccountBalancesData :>> ", nymAccountBalancesData);
   const nymPrice = await fetch(NYM_PRICES_API, {
     headers: {
       Accept: "application/json",
@@ -80,7 +44,7 @@ export default async function Account({
 
   console.log("nymPriceData :>> ", nymPriceData);
 
-  console.log("nymAccountData :>> ", nymAccountData);
+  console.log("nymAccountData :>> ", nymAccountBalancesData);
   return (
     <ContentLayout>
       <Grid2 container columnSpacing={5} rowSpacing={5}>
@@ -102,11 +66,11 @@ export default async function Account({
           </Box>
         </Grid2>
         <Grid2 size={4}>
-          <AccountInfoCard accountInfo={nymAccountData} />
+          <AccountInfoCard accountInfo={nymAccountBalancesData} />
         </Grid2>
         <Grid2 size={8}>
           <AccountBalancesCard
-            accountInfo={nymAccountData}
+            accountInfo={nymAccountBalancesData}
             nymPrice={nymPriceData.usd}
           />
         </Grid2>

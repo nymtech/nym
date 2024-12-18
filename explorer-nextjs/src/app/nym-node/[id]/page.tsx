@@ -16,8 +16,7 @@ export default async function NymNode({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const id = (await params).id;
-  console.log("id :>> ", id);
+  const id = Number((await params).id);
 
   const descriptionData = await fetch(NYM_NODE_DESCRIPTION, {
     headers: {
@@ -44,7 +43,7 @@ export default async function NymNode({
   }
 
   const nodeBondInfo = nymbondedData.data.filter(
-    (item: IBondInfo) => item.bond_information.node_id === 5,
+    (item: IBondInfo) => item.bond_information.node_id === id,
   );
 
   const nodeDescriptionInfo = nymNodesDescription.data.filter(

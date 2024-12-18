@@ -147,7 +147,7 @@ const Row = (props: IAccontStatsRowProps) => {
             }}
           >
             <Box display={"flex"} gap={1} alignItems={"center"}>
-              <CircleIcon sx={{ color: progressBarColor }} fontSize="small" />
+              <CircleIcon sx={{ color: progressBarColor, fontSize: 12 }} />
               {type}
             </Box>
           </TableCell>

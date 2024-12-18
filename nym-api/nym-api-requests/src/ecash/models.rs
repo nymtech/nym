@@ -3,7 +3,6 @@
 
 use crate::helpers::PlaceholderJsonSchemaImpl;
 use cosmrs::AccountId;
-use nym_compact_ecash::common_types::G1ProjectiveSchema;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
 use nym_compact_ecash::utils::try_deserialize_g1_projective;
@@ -41,6 +40,7 @@ pub struct VerifyEcashTicketBody {
 pub struct VerifyEcashCredentialBody {
     /// The cryptographic material required for spending the underlying credential.
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = openapi_schema::CredentialSpendingData)]
     pub credential: CredentialSpendingData,
 
     /// Cosmos address of the sender of the credential
@@ -124,6 +124,7 @@ pub enum EcashTicketVerificationRejection {
 #[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema, ToSchema)]
 pub struct BlindSignRequestBody {
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = openapi_schema::WithdrawalRequest)]
     pub inner_sign_request: WithdrawalRequest,
 
     /// the id of the associated deposit
@@ -135,7 +136,7 @@ pub struct BlindSignRequestBody {
     pub signature: identity::Signature,
 
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
-    #[schema(value_type = G1ProjectiveSchema)]
+    #[schema(value_type = openapi_schema::PublicKeyUser)]
     pub ecash_pubkey: PublicKeyUser,
 
     #[schemars(with = "String")]
@@ -202,6 +203,7 @@ impl BlindSignRequestBody {
 #[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct BlindedSignatureResponse {
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = openapi_schema::BlindedSignature)]
     pub blinded_signature: BlindedSignature,
 }
 
@@ -233,6 +235,7 @@ impl BlindedSignatureResponse {
 #[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct MasterVerificationKeyResponse {
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = openapi_schema::VerificationKeyAuth)]
     pub key: VerificationKeyAuth,
 }
 
@@ -245,6 +248,7 @@ impl MasterVerificationKeyResponse {
 #[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct VerificationKeyResponse {
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = openapi_schema::VerificationKeyAuth)]
     pub key: VerificationKeyAuth,
 }
 
@@ -275,6 +279,7 @@ pub struct PartialExpirationDateSignatureResponse {
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = openapi_schema::AnnotatedExpirationDateSignature)]
     pub signatures: Vec<AnnotatedExpirationDateSignature>,
 }
 
@@ -282,6 +287,7 @@ pub struct PartialExpirationDateSignatureResponse {
 pub struct PartialCoinIndicesSignatureResponse {
     pub epoch_id: u64,
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = openapi_schema::AnnotatedCoinIndexSignature)]
     pub signatures: Vec<AnnotatedCoinIndexSignature>,
 }
 
@@ -295,6 +301,7 @@ pub struct AggregatedExpirationDateSignatureResponse {
     pub expiration_date: Date,
 
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = Vec<openapi_schema::AnnotatedExpirationDateSignature>)]
     pub signatures: Vec<AnnotatedExpirationDateSignature>,
 }
 
@@ -302,7 +309,153 @@ pub struct AggregatedExpirationDateSignatureResponse {
 pub struct AggregatedCoinIndicesSignatureResponse {
     pub epoch_id: u64,
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = openapi_schema::Signature)]
     pub signatures: Vec<AnnotatedCoinIndexSignature>,
+}
+
+/// duplicate types from `nym-compact-ecash`, but these do derive `ToSchema```
+pub mod openapi_schema {
+    #![allow(dead_code)]
+    use nym_compact_ecash::common_types::{G2Projective, Scalar};
+
+    use super::*;
+
+    #[derive(ToSchema)]
+    pub struct AnnotatedExpirationDateSignature {
+        pub signature: Signature,
+        pub expiration_timestamp: u32,
+        pub spending_timestamp: u32,
+    }
+
+    #[derive(ToSchema)]
+    pub struct AnnotatedCoinIndexSignature {
+        pub signature: Signature,
+        pub index: u64,
+    }
+
+    #[derive(ToSchema)]
+    pub struct Signature {
+        #[schema(value_type = String)]
+        pub(crate) h: G1Projective,
+        #[schema(value_type = String)]
+        pub(crate) s: G1Projective,
+    }
+
+    #[derive(ToSchema)]
+    pub struct PublicKeyUser {
+        #[schema(value_type = String)]
+        pub(crate) pk: G1Projective,
+    }
+
+    #[derive(ToSchema)]
+    pub struct BlindedSignature {
+        #[schema(value_type = String)]
+        pub h: G1Projective,
+        #[schema(value_type = String)]
+        pub c: G1Projective,
+    }
+
+    #[derive(ToSchema)]
+    pub struct VerificationKeyAuth {
+        #[schema(value_type = String)]
+        pub(crate) alpha: G2Projective,
+        #[schema(value_type = Vec<String>)]
+        pub(crate) beta_g1: Vec<G1Projective>,
+        #[schema(value_type = Vec<String>)]
+        pub(crate) beta_g2: Vec<G2Projective>,
+    }
+
+    #[derive(ToSchema)]
+    pub struct WithdrawalRequest {
+        #[schema(value_type = String)]
+        joined_commitment_hash: G1Projective,
+        #[schema(value_type = String)]
+        joined_commitment: G1Projective,
+        #[schema(value_type = Vec<String>)]
+        private_attributes_commitments: Vec<G1Projective>,
+        zk_proof: WithdrawalReqProof,
+    }
+
+    #[derive(ToSchema)]
+    pub struct WithdrawalReqProof {
+        #[schema(value_type = [u64; 4], format = Binary)]
+        challenge: Scalar,
+        #[schema(value_type = [u64; 4], format = Binary)]
+        response_opening: Scalar,
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        response_openings: Vec<Scalar>,
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        response_attributes: Vec<Scalar>,
+    }
+
+    #[derive(ToSchema)]
+    pub struct CredentialSpendingData {
+        pub payment: Payment,
+
+        #[schema(value_type = [u8; 72], format = Binary)]
+        pub pay_info: PayInfo,
+
+        pub spend_date: Date,
+
+        // pub value: u64,
+        /// The (DKG) epoch id under which the credential has been issued so that the verifier could use correct verification key for validation.
+        pub epoch_id: u64,
+    }
+
+    #[derive(ToSchema)]
+    pub struct Payment {
+        #[schema(value_type = String)]
+        pub kappa: G2Projective,
+        #[schema(value_type = String)]
+        pub kappa_e: G2Projective,
+        pub sig: Signature,
+
+        pub sig_exp: Signature,
+        #[schema(value_type = Vec<String>)]
+        pub kappa_k: Vec<G2Projective>,
+        pub omega: Vec<Signature>,
+        #[schema(value_type = Vec<String>)]
+        pub ss: Vec<G1Projective>,
+        #[schema(value_type = Vec<String>)]
+        pub tt: Vec<G1Projective>,
+        #[schema(value_type = Vec<String>)]
+        pub aa: Vec<G1Projective>,
+        pub spend_value: u64,
+        #[schema(value_type = String)]
+        pub cc: G1Projective,
+        pub t_type: u8,
+        pub zk_proof: SpendProof,
+    }
+
+    #[derive(PartialEq, Eq, Debug, Clone, Copy, ToSchema)]
+    pub struct PayInfo {
+        #[schema(content_encoding = "base16")]
+        pub pay_info_bytes: [u8; 72],
+    }
+
+    #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
+    pub struct SpendProof {
+        #[schema(value_type = [u64; 4], format = Binary)]
+        challenge: Scalar,
+        #[schema(value_type = [u64; 4], format = Binary)]
+        response_r: Scalar,
+        #[schema(value_type = [u64; 4], format = Binary)]
+        response_r_e: Scalar,
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        responses_r_k: Vec<Scalar>,
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        responses_l: Vec<Scalar>,
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        responses_o_a: Vec<Scalar>,
+        #[schema(value_type = [u64; 4], format = Binary)]
+        response_o_c: Scalar,
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        responses_mu: Vec<Scalar>,
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        responses_o_mu: Vec<Scalar>,
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        responses_attributes: Vec<Scalar>,
+    }
 }
 
 #[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]

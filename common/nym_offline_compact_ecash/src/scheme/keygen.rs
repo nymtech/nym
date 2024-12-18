@@ -1,7 +1,6 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::common_types::G1ProjectiveSchema;
 use crate::error::{CompactEcashError, Result};
 use crate::scheme::aggregation::aggregate_verification_keys;
 use crate::scheme::SignerIndex;
@@ -19,7 +18,6 @@ use core::ops::{Add, Mul};
 use group::{Curve, GroupEncoding};
 use nym_pemstore::traits::{PemStorableKey, PemStorableKeyPair};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use zeroize::{Zeroize, ZeroizeOnDrop};
 
 #[derive(Debug, PartialEq, Clone, Zeroize, ZeroizeOnDrop)]
@@ -126,13 +124,10 @@ impl SecretKeyAuth {
     }
 }
 
-#[derive(Debug, PartialEq, Clone, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, PartialEq, Clone, Serialize, Deserialize)]
 pub struct VerificationKeyAuth {
-    #[schema(value_type = G1ProjectiveSchema)]
     pub(crate) alpha: G2Projective,
-    #[schema(value_type = Vec<G1ProjectiveSchema>)]
     pub(crate) beta_g1: Vec<G1Projective>,
-    #[schema(value_type = Vec<G1ProjectiveSchema>)]
     pub(crate) beta_g2: Vec<G2Projective>,
 }
 

@@ -12,14 +12,12 @@ use bls12_381::{G1Projective, Scalar};
 use itertools::Itertools;
 use serde::{Deserialize, Serialize};
 use std::borrow::Borrow;
-use utoipa::ToSchema;
 
 pub type CoinIndexSignature = Signature;
 pub type PartialCoinIndexSignature = CoinIndexSignature;
 
-#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub struct AnnotatedCoinIndexSignature {
-    #[schema(value_type = Signature)]
     pub signature: CoinIndexSignature,
     pub index: u64,
 }

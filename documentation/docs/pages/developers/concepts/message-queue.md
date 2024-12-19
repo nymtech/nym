@@ -1,5 +1,6 @@
 # Message Queue
 
+## Sphinx Packet Streams
 Clients, once connected to the Mixnet, **are always sending traffic into the Mixnet**; as well as the packets that you as a developer are sending from your application logic, they send [cover traffic](../../network/concepts/cover-traffic) at a constant rate defined by a Poisson process. This is part of the network's mitigation of timing attacks.
 
 There are two constant streams of sphinx packets leaving the client at the rate defined by the Poisson process.

@@ -69,6 +69,16 @@ const completion: Fig.Spec = {
           },
         },
         {
+          name: "--stats-reporting-address",
+          description: "Sets the address to report statistics",
+          hidden: true,
+          isRepeatable: true,
+          args: {
+            name: "stats_reporting_address",
+            isOptional: true,
+          },
+        },
+        {
           name: "--disable-socket",
           description: "Whether to not start the websocket",
           isRepeatable: true,
@@ -199,6 +209,16 @@ const completion: Fig.Spec = {
               "true",
               "false",
             ],
+          },
+        },
+        {
+          name: "--stats-reporting-address",
+          description: "Sets the address to report statistics",
+          hidden: true,
+          isRepeatable: true,
+          args: {
+            name: "stats_reporting_address",
+            isOptional: true,
           },
         },
         {

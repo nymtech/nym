@@ -271,6 +271,17 @@ pub struct TopologyWasmOverride {
     /// This setting is only applicable when `NymApi` topology is used.
     #[tsify(optional)]
     pub minimum_gateway_performance: Option<u8>,
+
+    /// Specifies whether this client should attempt to retrieve all available network nodes
+    /// as opposed to just active mixnodes/gateways.
+    /// Useless without `ignore_epoch_roles = true`
+    #[tsify(optional)]
+    pub use_extended_topology: Option<bool>,
+
+    /// Specifies whether this client should ignore the current epoch role of the target egress node
+    /// when constructing the final hop packets.
+    #[tsify(optional)]
+    pub ignore_egress_epoch_role: Option<bool>,
 }
 
 impl From<TopologyWasmOverride> for TopologyWasm {
@@ -294,6 +305,12 @@ impl From<TopologyWasmOverride> for TopologyWasm {
             minimum_gateway_performance: value
                 .minimum_gateway_performance
                 .unwrap_or(def.minimum_gateway_performance),
+            use_extended_topology: value
+                .use_extended_topology
+                .unwrap_or(def.use_extended_topology),
+            ignore_egress_epoch_role: value
+                .ignore_egress_epoch_role
+                .unwrap_or(def.ignore_egress_epoch_role),
         }
     }
 }

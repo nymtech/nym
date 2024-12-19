@@ -180,6 +180,18 @@ where
         self
     }
 
+    #[must_use]
+    pub fn with_extended_topology(mut self, use_extended_topology: bool) -> Self {
+        self.config.debug_config.topology.use_extended_topology = use_extended_topology;
+        self
+    }
+
+    #[must_use]
+    pub fn with_ignore_epoch_roles(mut self, ignore_epoch_roles: bool) -> Self {
+        self.config.debug_config.topology.ignore_egress_epoch_role = ignore_epoch_roles;
+        self
+    }
+
     /// Use a specific network instead of the default (mainnet) one.
     #[must_use]
     pub fn network_details(mut self, network_details: NymNetworkDetails) -> Self {

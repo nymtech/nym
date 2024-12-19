@@ -3,7 +3,6 @@
 
 use super::received_buffer::ReceivedBufferMessage;
 use super::statistics_control::StatisticsControl;
-use super::topology_control::geo_aware_provider::GeoAwareTopologyProvider;
 use crate::client::base_client::storage::helpers::store_client_keys;
 use crate::client::base_client::storage::MixnetClientStorage;
 use crate::client::cover_traffic_stream::LoopCoverTrafficStream;
@@ -24,7 +23,7 @@ use crate::client::replies::reply_storage::{
 };
 use crate::client::topology_control::nym_api_provider::NymApiTopologyProvider;
 use crate::client::topology_control::{
-    nym_api_provider, TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
+    TopologyAccessor, TopologyRefresher, TopologyRefresherConfig,
 };
 use crate::config::{Config, DebugConfig};
 use crate::error::ClientCoreError;
@@ -464,8 +463,8 @@ where
             details_store
                 .upgrade_stored_remote_gateway_key(gateway_client.gateway_identity(), &updated_key)
                 .await.map_err(|err| {
-                    error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
-                    ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
+                error!("failed to store upgraded gateway key! this connection might be forever broken now: {err}");
+                ClientCoreError::GatewaysDetailsStoreError { source: Box::new(err) }
             })?
         }
 
@@ -539,15 +538,15 @@ where
         // if no custom provider was ... provided ..., create one using nym-api
         custom_provider.unwrap_or_else(|| match config_topology.topology_structure {
             config::TopologyStructure::NymApi => Box::new(NymApiTopologyProvider::new(
-                nym_api_provider::Config {
-                    min_mixnode_performance: config_topology.minimum_mixnode_performance,
-                    min_gateway_performance: config_topology.minimum_gateway_performance,
-                },
+                config_topology,
                 nym_api_urls,
                 user_agent,
             )),
             config::TopologyStructure::GeoAware(group_by) => {
-                Box::new(GeoAwareTopologyProvider::new(nym_api_urls, group_by))
+                warn!("using deprecated 'GeoAware' topology provider - this option will be removed very soon");
+
+                #[allow(deprecated)]
+                Box::new(crate::client::topology_control::GeoAwareTopologyProvider::new(nym_api_urls, group_by))
             }
         })
     }
@@ -558,7 +557,7 @@ where
         topology_provider: Box<dyn TopologyProvider + Send + Sync>,
         topology_config: config::Topology,
         topology_accessor: TopologyAccessor,
-        local_gateway: &NodeIdentity,
+        local_gateway: NodeIdentity,
         wait_for_gateway: bool,
         mut shutdown: TaskClient,
     ) -> Result<(), ClientCoreError> {
@@ -590,7 +589,7 @@ where
         };
 
         if let Err(err) = topology_refresher
-            .ensure_contains_gateway(local_gateway)
+            .ensure_contains_routable_egress(local_gateway)
             .await
         {
             if let Some(waiting_timeout) = gateway_wait_timeout {
@@ -740,7 +739,8 @@ where
 
         // channels responsible for controlling ack messages
         let (ack_sender, ack_receiver) = mpsc::unbounded();
-        let shared_topology_accessor = TopologyAccessor::new();
+        let shared_topology_accessor =
+            TopologyAccessor::new(self.config.debug.topology.ignore_egress_epoch_role);
 
         // Shutdown notifier for signalling tasks to stop
         let shutdown = self

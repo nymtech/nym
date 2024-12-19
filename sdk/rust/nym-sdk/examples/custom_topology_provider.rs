@@ -4,7 +4,7 @@
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
 use nym_topology::provider_trait::{async_trait, TopologyProvider};
-use nym_topology::{nym_topology_from_basic_info, NymTopology};
+use nym_topology::NymTopology;
 use url::Url;
 
 struct MyTopologyProvider {
@@ -19,6 +19,14 @@ impl MyTopologyProvider {
     }
 
     async fn get_topology(&self) -> NymTopology {
+        let rewarded_set = self
+            .validator_client
+            .get_current_rewarded_set()
+            .await
+            .unwrap();
+
+        let mut base_topology = NymTopology::new_empty(rewarded_set);
+
         let mixnodes = self
             .validator_client
             .get_all_basic_active_mixing_assigned_nodes()
@@ -39,7 +47,9 @@ impl MyTopologyProvider {
             .await
             .unwrap();
 
-        nym_topology_from_basic_info(&filtered_mixnodes, &gateways)
+        base_topology.add_skimmed_nodes(&filtered_mixnodes);
+        base_topology.add_skimmed_nodes(&gateways);
+        base_topology
     }
 }
 

@@ -3,6 +3,7 @@ use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
 use log::{error, info, warn};
+use nym_bin_common::bin_info;
 use nym_client_core::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
 use nym_network_defaults::setup_env;
@@ -158,6 +159,26 @@ fn generate_key_pair() -> Result<()> {
     Ok(())
 }
 
+async fn nym_topology_from_env() -> anyhow::Result<NymTopology> {
+    let api_url = std::env::var(NYM_API)?;
+
+    info!("Generating topology from {api_url}");
+    let client = nym_validator_client::client::NymApiClient::new_with_user_agent(
+        api_url.parse()?,
+        bin_info!(),
+    );
+
+    let rewarded_set = client.get_current_rewarded_set().await?;
+
+    // just get all nodes to make our lives easier because it's just one query for the whole duration of the monitor (?)
+    let nodes = client.get_all_basic_nodes().await?;
+
+    let mut topology = NymTopology::new_empty(rewarded_set);
+    topology.add_skimmed_nodes(&nodes);
+
+    Ok(topology)
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     nym_bin_common::logging::setup_logging();
@@ -187,7 +208,7 @@ async fn main() -> Result<()> {
         .set(if let Some(topology_file) = args.topology {
             NymTopology::new_from_file(topology_file)?
         } else {
-            NymTopology::new_from_env().await?
+            nym_topology_from_env().await?
         })
         .ok();
 

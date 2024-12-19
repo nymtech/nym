@@ -20,7 +20,9 @@ use nym_crypto::asymmetric::x25519::{
 use nym_mixnet_contract_common::nym_node::Role;
 use nym_mixnet_contract_common::reward_params::{Performance, RewardingParams};
 use nym_mixnet_contract_common::rewarding::RewardEstimate;
-use nym_mixnet_contract_common::{GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent};
+use nym_mixnet_contract_common::{
+    EpochId, GatewayBond, IdentityKey, Interval, MixNode, NodeId, Percent,
+};
 use nym_network_defaults::{DEFAULT_MIX_LISTENING_PORT, DEFAULT_VERLOC_LISTENING_PORT};
 use nym_node_requests::api::v1::authenticator::models::Authenticator;
 use nym_node_requests::api::v1::gateway::models::Wireguard;
@@ -1342,6 +1344,10 @@ impl NodeRefreshBody {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct RewardedSetResponse {
+    #[serde(default)]
+    #[schema(value_type = u32)]
+    pub epoch_id: EpochId,
+
     pub entry_gateways: Vec<NodeId>,
 
     pub exit_gateways: Vec<NodeId>,
@@ -1353,6 +1359,36 @@ pub struct RewardedSetResponse {
     pub layer3: Vec<NodeId>,
 
     pub standby: Vec<NodeId>,
+}
+
+impl From<RewardedSetResponse> for nym_mixnet_contract_common::EpochRewardedSet {
+    fn from(res: RewardedSetResponse) -> Self {
+        nym_mixnet_contract_common::EpochRewardedSet {
+            epoch_id: res.epoch_id,
+            assignment: nym_mixnet_contract_common::RewardedSet {
+                entry_gateways: res.entry_gateways,
+                exit_gateways: res.exit_gateways,
+                layer1: res.layer1,
+                layer2: res.layer2,
+                layer3: res.layer3,
+                standby: res.standby,
+            },
+        }
+    }
+}
+
+impl From<nym_mixnet_contract_common::EpochRewardedSet> for RewardedSetResponse {
+    fn from(r: nym_mixnet_contract_common::EpochRewardedSet) -> Self {
+        RewardedSetResponse {
+            epoch_id: r.epoch_id,
+            entry_gateways: r.assignment.entry_gateways,
+            exit_gateways: r.assignment.exit_gateways,
+            layer1: r.assignment.layer1,
+            layer2: r.assignment.layer2,
+            layer3: r.assignment.layer3,
+            standby: r.assignment.standby,
+        }
+    }
 }
 
 pub use config_score::*;

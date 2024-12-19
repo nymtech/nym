@@ -550,6 +550,15 @@ pub struct Topology {
     /// Specifies a minimum performance of a gateway that is used on route construction.
     /// This setting is only applicable when `NymApi` topology is used.
     pub minimum_gateway_performance: u8,
+
+    /// Specifies whether this client should attempt to retrieve all available network nodes
+    /// as opposed to just active mixnodes/gateways.
+    /// Useless without `ignore_epoch_roles = true`
+    pub use_extended_topology: bool,
+
+    /// Specifies whether this client should ignore the current epoch role of the target egress node
+    /// when constructing the final hop packets.
+    pub ignore_egress_epoch_role: bool,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -586,6 +595,8 @@ impl Default for Topology {
             topology_structure: TopologyStructure::default(),
             minimum_mixnode_performance: DEFAULT_MIN_MIXNODE_PERFORMANCE,
             minimum_gateway_performance: DEFAULT_MIN_GATEWAY_PERFORMANCE,
+            use_extended_topology: false,
+            ignore_egress_epoch_role: false,
         }
     }
 }

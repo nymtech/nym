@@ -8,7 +8,7 @@ use wasm_bindgen_futures::future_to_promise;
 use wasm_client_core::client::base_client::{ClientInput, ClientState};
 use wasm_client_core::client::inbound_messages::InputMessage;
 use wasm_client_core::error::WasmCoreError;
-use wasm_client_core::topology::SerializableNymTopology;
+use wasm_client_core::topology::{Role, WasmFriendlyNymTopology};
 use wasm_client_core::NymTopology;
 use wasm_utils::error::simple_js_error;
 use wasm_utils::{check_promise_result, console_log};
@@ -36,7 +36,7 @@ pub struct NymClientTestRequest {
 #[cfg(feature = "node-tester")]
 #[wasm_bindgen]
 impl NymClientTestRequest {
-    pub fn injectable_topology(&self) -> SerializableNymTopology {
+    pub fn injectable_topology(&self) -> WasmFriendlyNymTopology {
         self.testable_topology.clone().into()
     }
 }
@@ -78,7 +78,7 @@ impl InputSender for Arc<ClientInput> {
 
 pub(crate) trait WasmTopologyExt {
     /// Changes the current network topology to the provided value.
-    fn change_hardcoded_topology(&self, topology: SerializableNymTopology) -> Promise;
+    fn change_hardcoded_topology(&self, topology: WasmFriendlyNymTopology) -> Promise;
 
     /// Returns the current network topology.
     fn current_topology(&self) -> Promise;
@@ -96,7 +96,7 @@ pub(crate) trait WasmTopologyTestExt {
 }
 
 impl WasmTopologyExt for Arc<ClientState> {
-    fn change_hardcoded_topology(&self, topology: SerializableNymTopology) -> Promise {
+    fn change_hardcoded_topology(&self, topology: WasmFriendlyNymTopology) -> Promise {
         let nym_topology: NymTopology = check_promise_result!(topology.try_into());
 
         let this = Arc::clone(self);
@@ -112,11 +112,11 @@ impl WasmTopologyExt for Arc<ClientState> {
     fn current_topology(&self) -> Promise {
         let this = Arc::clone(self);
         future_to_promise(async move {
-            match this.topology_accessor.current_topology().await {
-                Some(topology) => Ok(serde_wasm_bindgen::to_value(&SerializableNymTopology::from(
-                    topology,
-                ))
-                .expect("SerializableNymTopology failed serialization")),
+            match this.topology_accessor.current_route_provider().await {
+                Some(route_provider) => Ok(serde_wasm_bindgen::to_value(
+                    &WasmFriendlyNymTopology::from(route_provider.topology.clone()),
+                )
+                .expect("WasmFriendlyNymTopology failed serialization")),
                 None => Err(WasmCoreError::UnavailableNetworkTopology.into()),
             }
         })
@@ -135,20 +135,25 @@ impl WasmTopologyTestExt for Arc<ClientState> {
 
         let this = Arc::clone(self);
         future_to_promise(async move {
-            let Some(current_topology) = this.topology_accessor.current_topology().await else {
+            let Some(current_topology) = this.topology_accessor.current_route_provider().await
+            else {
                 return Err(WasmCoreError::UnavailableNetworkTopology.into());
             };
 
-            let Some(mix) = current_topology.find_mix_by_identity(&mixnode_identity) else {
+            let Ok(node_identity) = mixnode_identity.parse() else {
                 return Err(WasmCoreError::NonExistentMixnode { mixnode_identity }.into());
             };
+
+            let Some(mix) = current_topology.node_by_identity(node_identity) else {
+                return Err(WasmCoreError::NonExistentMixnode { mixnode_identity }.into());
+            };
+
+            let mut updated = current_topology.topology.clone();
+            updated.set_testable_node(Role::Layer2, mix.clone());
 
             let ext = WasmTestMessageExt::new(test_id);
             let test_msgs = NodeTestMessage::mix_plaintexts(mix, num_test_packets, ext)
                 .map_err(crate::error::WasmClientError::from)?;
-
-            let mut updated = current_topology.clone();
-            updated.set_mixes_in_layer(mix.layer.into(), vec![mix.to_owned()]);
 
             Ok(JsValue::from(NymClientTestRequest {
                 test_msgs,

@@ -230,6 +230,7 @@ where
                 // poisson delay, but is it really a problem?
                 let topology_permit = self.topology_access.get_read_permit().await;
                 // the ack is sent back to ourselves (and then ignored)
+
                 let topology_ref = match topology_permit.try_get_valid_topology_ref(
                     &self.config.our_full_destination,
                     Some(&self.config.our_full_destination),

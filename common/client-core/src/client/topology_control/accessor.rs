@@ -2,8 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use nym_sphinx::addressing::clients::Recipient;
-use nym_sphinx::params::DEFAULT_NUM_MIX_HOPS;
-use nym_topology::{NymTopology, NymTopologyError};
+use nym_topology::{NymRouteProvider, NymTopology, NymTopologyError};
 use std::ops::Deref;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -17,29 +16,36 @@ pub struct TopologyAccessorInner {
     // few seconds, while reads are needed every single packet generated.
     // However, proper benchmarks will be needed to determine if `RwLock` is indeed a better
     // approach than a `Mutex`
-    topology: RwLock<Option<NymTopology>>,
+    topology: RwLock<NymRouteProvider>,
 }
 
 impl TopologyAccessorInner {
-    fn new() -> Self {
+    fn new(initial: NymRouteProvider) -> Self {
         TopologyAccessorInner {
             controlled_manually: AtomicBool::new(false),
             released_manual_control: Notify::new(),
-            topology: RwLock::new(None),
+            topology: RwLock::new(initial),
         }
     }
 
     async fn update(&self, new: Option<NymTopology>) {
-        *self.topology.write().await = new;
+        let mut guard = self.topology.write().await;
+
+        match new {
+            Some(updated) => {
+                guard.update(updated);
+            }
+            None => guard.clear_topology(),
+        }
     }
 }
 
 pub struct TopologyReadPermit<'a> {
-    permit: RwLockReadGuard<'a, Option<NymTopology>>,
+    permit: RwLockReadGuard<'a, NymRouteProvider>,
 }
 
 impl Deref for TopologyReadPermit<'_> {
-    type Target = Option<NymTopology>;
+    type Target = NymRouteProvider;
 
     fn deref(&self) -> &Self::Target {
         &self.permit
@@ -53,43 +59,31 @@ impl<'a> TopologyReadPermit<'a> {
         &'a self,
         ack_recipient: &Recipient,
         packet_recipient: Option<&Recipient>,
-    ) -> Result<&'a NymTopology, NymTopologyError> {
+    ) -> Result<&'a NymRouteProvider, NymTopologyError> {
+        let route_provider = self.permit.deref();
+        let topology = &route_provider.topology;
+
         // 1. Have we managed to get anything from the refresher, i.e. have the nym-api queries gone through?
-        let topology = self
-            .permit
-            .as_ref()
-            .ok_or(NymTopologyError::EmptyNetworkTopology)?;
+        topology.ensure_not_empty()?;
 
-        // 2. does it have any mixnode at all?
-        // 3. does it have any gateways at all?
-        // 4. does it have a mixnode on each layer?
-        topology.ensure_can_construct_path_through(DEFAULT_NUM_MIX_HOPS)?;
+        // 2. does the topology have a node on each mixing layer?
+        topology.ensure_minimally_routable()?;
 
-        // 5. does it contain OUR gateway (so that we could create an ack packet)?
-        if !topology.gateway_exists(ack_recipient.gateway()) {
-            return Err(NymTopologyError::NonExistentGatewayError {
-                identity_key: ack_recipient.gateway().to_base58_string(),
-            });
-        }
+        // 3. does it contain OUR gateway (so that we could create an ack packet)?
+        let _ = route_provider.egress_by_identity(ack_recipient.gateway())?;
 
-        // 6. for our target recipient, does it contain THEIR gateway (so that we could create
+        // 4. for our target recipient, does it contain THEIR gateway (so that we send anything over?)
         if let Some(recipient) = packet_recipient {
-            if !topology.gateway_exists(recipient.gateway()) {
-                return Err(NymTopologyError::NonExistentGatewayError {
-                    identity_key: recipient.gateway().to_base58_string(),
-                });
-            }
+            let _ = route_provider.egress_by_identity(recipient.gateway())?;
         }
 
-        Ok(topology)
+        Ok(route_provider)
     }
 }
 
-impl<'a> From<RwLockReadGuard<'a, Option<NymTopology>>> for TopologyReadPermit<'a> {
-    fn from(read_permit: RwLockReadGuard<'a, Option<NymTopology>>) -> Self {
-        TopologyReadPermit {
-            permit: read_permit,
-        }
+impl<'a> From<RwLockReadGuard<'a, NymRouteProvider>> for TopologyReadPermit<'a> {
+    fn from(permit: RwLockReadGuard<'a, NymRouteProvider>) -> Self {
+        TopologyReadPermit { permit }
     }
 }
 
@@ -99,9 +93,11 @@ pub struct TopologyAccessor {
 }
 
 impl TopologyAccessor {
-    pub fn new() -> Self {
+    pub fn new(ignore_egress_epoch_roles: bool) -> Self {
         TopologyAccessor {
-            inner: Arc::new(TopologyAccessorInner::new()),
+            inner: Arc::new(TopologyAccessorInner::new(NymRouteProvider::new_empty(
+                ignore_egress_epoch_roles,
+            ))),
         }
     }
 
@@ -121,8 +117,21 @@ impl TopologyAccessor {
         self.inner.released_manual_control.notified().await
     }
 
+    #[deprecated(note = "use .current_route_provider instead")]
     pub async fn current_topology(&self) -> Option<NymTopology> {
-        self.inner.topology.read().await.clone()
+        self.current_route_provider()
+            .await
+            .as_ref()
+            .map(|p| p.topology.clone())
+    }
+
+    pub async fn current_route_provider(&self) -> Option<RwLockReadGuard<NymRouteProvider>> {
+        let provider = self.inner.topology.read().await;
+        if provider.topology.is_empty() {
+            None
+        } else {
+            Some(provider)
+        }
     }
 
     pub async fn manually_change_topology(&self, new_topology: NymTopology) {
@@ -140,15 +149,11 @@ impl TopologyAccessor {
     // only used by the client at startup to get a slightly more reasonable error message
     // (currently displays as unused because health checker is disabled due to required changes)
     pub async fn ensure_is_routable(&self) -> Result<(), NymTopologyError> {
-        match self.inner.topology.read().await.deref() {
-            None => Err(NymTopologyError::EmptyNetworkTopology),
-            Some(ref topology) => topology.ensure_can_construct_path_through(DEFAULT_NUM_MIX_HOPS),
-        }
-    }
-}
-
-impl Default for TopologyAccessor {
-    fn default() -> Self {
-        TopologyAccessor::new()
+        self.inner
+            .topology
+            .read()
+            .await
+            .topology
+            .ensure_minimally_routable()
     }
 }

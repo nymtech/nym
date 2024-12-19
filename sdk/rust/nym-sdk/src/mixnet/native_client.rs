@@ -18,10 +18,11 @@ use nym_task::{
     connections::{ConnectionCommandSender, LaneQueueLengths},
     TaskHandle,
 };
-use nym_topology::NymTopology;
+use nym_topology::{NymRouteProvider, NymTopology};
 use std::pin::Pin;
 use std::sync::Arc;
 use std::task::{Context, Poll};
+use tokio::sync::RwLockReadGuard;
 
 /// Client connected to the Nym mixnet.
 pub struct MixnetClient {
@@ -159,8 +160,11 @@ impl MixnetClient {
     }
 
     /// Gets the value of the currently used network topology.
-    pub async fn read_current_topology(&self) -> Option<NymTopology> {
-        self.client_state.topology_accessor.current_topology().await
+    pub async fn read_current_route_provider(&self) -> Option<RwLockReadGuard<NymRouteProvider>> {
+        self.client_state
+            .topology_accessor
+            .current_route_provider()
+            .await
     }
 
     /// Restore default topology refreshing behaviour of this client.

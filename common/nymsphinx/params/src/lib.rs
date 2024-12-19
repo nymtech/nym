@@ -16,10 +16,6 @@ pub mod packet_sizes;
 pub mod packet_types;
 pub mod packet_version;
 
-// If somebody can provide an argument why it might be reasonable to have more than 255 mix hops,
-// I will change this to [`usize`]
-pub const DEFAULT_NUM_MIX_HOPS: u8 = 3;
-
 // TODO: not entirely sure how to feel about those being defined here, ideally it'd be where [`Fragment`]
 // is defined, but that'd introduce circular dependencies as the acknowledgements crate also needs
 // access to that

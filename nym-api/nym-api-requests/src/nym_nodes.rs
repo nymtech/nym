@@ -72,7 +72,7 @@ pub enum NodeRoleQueryParam {
     ExitGateway,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, Default)]
 pub enum NodeRole {
     // a properly active mixnode
     Mixnode {
@@ -88,6 +88,7 @@ pub enum NodeRole {
     // equivalent of node that's in rewarded set but not in the inactive set
     Standby,
 
+    #[default]
     Inactive,
 }
 
@@ -134,7 +135,6 @@ pub struct SkimmedNode {
     #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 
-    // TODO: to be deprecated in favour of well-known hardcoded port for everyone
     pub mix_port: u16,
 
     #[serde(with = "bs58_x25519_pubkey")]

@@ -3,7 +3,7 @@ name = "nym-client-core"
 version = "1.1.15"
 authors = ["Dave Hrycyszyn <futurechimp@users.noreply.github.com>"]
 edition = "2021"
-rust-version = "1.70"
+rust-version = "1.76"
 license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -45,7 +45,7 @@ nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
 nym-statistics-common = { path = "../statistics" }
 nym-pemstore = { path = "../pemstore" }
-nym-topology = { path = "../topology", features = ["serializable"] }
+nym-topology = { path = "../topology", features = ["persistence"] }
 nym-mixnet-client = { path = "../client-libs/mixnet-client", default-features = false }
 nym-validator-client = { path = "../client-libs/validator-client", default-features = false }
 nym-task = { path = "../task" }

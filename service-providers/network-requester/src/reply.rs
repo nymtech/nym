@@ -191,7 +191,6 @@ impl MixnetAddress {
                     recipient: *recipient,
                     data: message,
                     lane: TransmissionLane::ConnectionId(connection_id),
-                    mix_hops: None,
                 }),
                 packet_type,
             },

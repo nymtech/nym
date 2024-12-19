@@ -6,7 +6,7 @@ use crate::node_status_api::helpers::RewardedSetStatus;
 use crate::node_status_api::models::Uptime;
 use crate::node_status_api::reward_estimate::{compute_apy_from_reward, compute_reward_estimate};
 use crate::nym_contract_cache::cache::data::ConfigScoreData;
-use crate::nym_contract_cache::cache::CachedRewardedSet;
+use crate::support::legacy_helpers::legacy_host_to_ips_and_hostname;
 use crate::support::storage::NymApiStorage;
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_api_requests::models::DescribedNodeType::{LegacyGateway, LegacyMixnode, NymNode};
@@ -17,10 +17,8 @@ use nym_api_requests::models::{
 use nym_contracts_common::NaiveFloat;
 use nym_mixnet_contract_common::{Interval, NodeId, VersionScoreFormulaParams};
 use nym_mixnet_contract_common::{NymNodeDetails, RewardingParams};
-use nym_topology::NetworkAddress;
+use nym_topology::CachedEpochRewardedSet;
 use std::collections::{HashMap, HashSet};
-use std::net::ToSocketAddrs;
-use std::str::FromStr;
 use tracing::trace;
 
 pub(super) async fn get_mixnode_reliability_from_storage(
@@ -148,7 +146,10 @@ fn calculate_config_score(
 }
 
 // TODO: this might have to be moved to a different file if other places also rely on this functionality
-fn get_rewarded_set_status(rewarded_set: &CachedRewardedSet, node_id: NodeId) -> RewardedSetStatus {
+fn get_rewarded_set_status(
+    rewarded_set: &CachedEpochRewardedSet,
+    node_id: NodeId,
+) -> RewardedSetStatus {
     if rewarded_set.is_standby(&node_id) {
         RewardedSetStatus::Standby
     } else if rewarded_set.is_active_mixnode(&node_id) {
@@ -164,7 +165,7 @@ pub(super) async fn annotate_legacy_mixnodes_nodes_with_details(
     mixnodes: Vec<LegacyMixNodeDetailsWithLayer>,
     interval_reward_params: RewardingParams,
     current_interval: Interval,
-    rewarded_set: &CachedRewardedSet,
+    rewarded_set: &CachedEpochRewardedSet,
     blacklist: &HashSet<NodeId>,
 ) -> HashMap<NodeId, MixNodeBondAnnotated> {
     let mut annotated = HashMap::new();
@@ -203,21 +204,11 @@ pub(super) async fn annotate_legacy_mixnodes_nodes_with_details(
             .ok()
             .unwrap_or_default();
 
-        // safety: this conversion is infallible
-        let ip_addresses =
-            match NetworkAddress::from_str(&mixnode.bond_information.mix_node.host).unwrap() {
-                NetworkAddress::IpAddr(ip) => vec![ip],
-                NetworkAddress::Hostname(hostname) => {
-                    // try to resolve it
-                    (
-                        hostname.as_str(),
-                        mixnode.bond_information.mix_node.mix_port,
-                    )
-                        .to_socket_addrs()
-                        .map(|iter| iter.map(|s| s.ip()).collect::<Vec<_>>())
-                        .unwrap_or_default()
-                }
-            };
+        let Some((ip_addresses, _)) =
+            legacy_host_to_ips_and_hostname(&mixnode.bond_information.mix_node.host)
+        else {
+            continue;
+        };
 
         let (estimated_operator_apy, estimated_delegators_apy) =
             compute_apy_from_reward(&mixnode, reward_estimate, current_interval);
@@ -263,17 +254,10 @@ pub(crate) async fn annotate_legacy_gateways_with_details(
             .ok()
             .unwrap_or_default();
 
-        // safety: this conversion is infallible
-        let ip_addresses = match NetworkAddress::from_str(&gateway_bond.bond.gateway.host).unwrap()
-        {
-            NetworkAddress::IpAddr(ip) => vec![ip],
-            NetworkAddress::Hostname(hostname) => {
-                // try to resolve it
-                (hostname.as_str(), gateway_bond.bond.gateway.mix_port)
-                    .to_socket_addrs()
-                    .map(|iter| iter.map(|s| s.ip()).collect::<Vec<_>>())
-                    .unwrap_or_default()
-            }
+        let Some((ip_addresses, _)) =
+            legacy_host_to_ips_and_hostname(&gateway_bond.bond.gateway.host)
+        else {
+            continue;
         };
 
         annotated.insert(
@@ -298,7 +282,7 @@ pub(crate) async fn produce_node_annotations(
     legacy_mixnodes: &[LegacyMixNodeDetailsWithLayer],
     legacy_gateways: &[LegacyGatewayBondWithId],
     nym_nodes: &[NymNodeDetails],
-    rewarded_set: &CachedRewardedSet,
+    rewarded_set: &CachedEpochRewardedSet,
     current_interval: Interval,
     described_nodes: &DescribedNodes,
 ) -> HashMap<NodeId, NodeAnnotation> {

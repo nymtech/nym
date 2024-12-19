@@ -19,7 +19,6 @@ use nym_mixnet_contract_common::reward_params::Performance;
 use nym_mixnet_contract_common::NymNodeDetails;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
-use std::ops::Deref;
 use std::time::Duration;
 use time::{Date, OffsetDateTime};
 use utoipa::{IntoParams, ToSchema};
@@ -62,9 +61,13 @@ async fn rewarded_set(State(state): State<AppState>) -> AxumResult<Json<Rewarded
         .nym_contract_cache()
         .rewarded_set()
         .await
-        .ok_or(UninitialisedCache)?;
+        .map(|cache| cache.clone_cache())
+        .ok_or(UninitialisedCache)?
+        .into_inner();
 
-    Ok(Json(cached_rewarded_set.deref().deref().into()))
+    Ok(Json(
+        nym_mixnet_contract_common::EpochRewardedSet::from(cached_rewarded_set).into(),
+    ))
 }
 
 #[utoipa::path(

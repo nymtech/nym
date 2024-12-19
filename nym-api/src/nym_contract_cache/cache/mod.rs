@@ -11,9 +11,10 @@ use nym_api_requests::legacy::{
 use nym_api_requests::models::MixnodeStatus;
 use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{
-    ConfigScoreParams, HistoricalNymNodeVersionEntry, Interval, NodeId, NymNodeDetails,
-    RewardedSet, RewardingParams,
+    ConfigScoreParams, EpochRewardedSet, HistoricalNymNodeVersionEntry, Interval, NodeId,
+    NymNodeDetails, RewardingParams,
 };
+use nym_topology::CachedEpochRewardedSet;
 use std::{
     collections::HashSet,
     sync::{
@@ -28,8 +29,6 @@ use tracing::{debug, error};
 
 pub(crate) mod data;
 pub(crate) mod refresher;
-
-pub(crate) use self::data::CachedRewardedSet;
 
 const CACHE_TIMEOUT_MS: u64 = 100;
 
@@ -80,7 +79,7 @@ impl NymContractCache {
         mixnodes: Vec<LegacyMixNodeDetailsWithLayer>,
         gateways: Vec<LegacyGatewayBondWithId>,
         nym_nodes: Vec<NymNodeDetails>,
-        rewarded_set: RewardedSet,
+        rewarded_set: EpochRewardedSet,
         config_score_params: ConfigScoreParams,
         nym_node_version_history: Vec<HistoricalNymNodeVersionEntry>,
         rewarding_params: RewardingParams,
@@ -264,11 +263,11 @@ impl NymContractCache {
             .into_inner()
     }
 
-    pub async fn rewarded_set(&self) -> Option<RwLockReadGuard<Cache<CachedRewardedSet>>> {
+    pub async fn rewarded_set(&self) -> Option<RwLockReadGuard<Cache<CachedEpochRewardedSet>>> {
         self.get(|cache| &cache.rewarded_set).await
     }
 
-    pub async fn rewarded_set_owned(&self) -> Cache<CachedRewardedSet> {
+    pub async fn rewarded_set_owned(&self) -> Cache<CachedEpochRewardedSet> {
         self.get_owned(|cache| cache.rewarded_set.clone_cache())
             .await
             .unwrap_or_default()

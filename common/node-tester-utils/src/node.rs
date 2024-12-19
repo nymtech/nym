@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::NodeId;
-use nym_topology::{gateway, mix};
+use nym_topology::node::RoutingNode;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -24,6 +24,14 @@ impl TestableNode {
         }
     }
 
+    pub fn new_routing(routing_node: &RoutingNode, typ: NodeType) -> Self {
+        TestableNode::new(
+            routing_node.identity_key.to_base58_string(),
+            typ,
+            routing_node.node_id,
+        )
+    }
+
     pub fn new_mixnode(encoded_identity: String, node_id: NodeId) -> Self {
         TestableNode::new(encoded_identity, NodeType::Mixnode, node_id)
     }
@@ -34,38 +42,6 @@ impl TestableNode {
 
     pub fn is_mixnode(&self) -> bool {
         self.typ.is_mixnode()
-    }
-}
-
-impl<'a> From<&'a mix::LegacyNode> for TestableNode {
-    fn from(value: &'a mix::LegacyNode) -> Self {
-        TestableNode {
-            encoded_identity: value.identity_key.to_base58_string(),
-            typ: NodeType::Mixnode,
-            node_id: value.mix_id,
-        }
-    }
-}
-
-impl<'a> From<(&'a gateway::LegacyNode, NodeId)> for TestableNode {
-    fn from((gateway, node_id): (&'a gateway::LegacyNode, NodeId)) -> Self {
-        (&(gateway, node_id)).into()
-    }
-}
-
-impl<'a> From<&'a (gateway::LegacyNode, NodeId)> for TestableNode {
-    fn from((gateway, node_id): &'a (gateway::LegacyNode, NodeId)) -> Self {
-        (gateway, *node_id).into()
-    }
-}
-
-impl<'a, 'b> From<&'a (&'b gateway::LegacyNode, NodeId)> for TestableNode {
-    fn from((gateway, node_id): &'a (&'b gateway::LegacyNode, NodeId)) -> Self {
-        TestableNode {
-            encoded_identity: gateway.identity_key.to_base58_string(),
-            typ: NodeType::Gateway,
-            node_id: *node_id,
-        }
     }
 }
 

@@ -10,6 +10,7 @@ pub mod mixnet;
 pub mod tcp_proxy;
 
 pub use error::{Error, Result};
+#[allow(deprecated)]
 pub use nym_client_core::{
     client::{
         mix_traffic::transceiver::*,

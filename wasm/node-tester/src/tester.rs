@@ -13,6 +13,7 @@ use crate::types::{NodeTestResult, WasmTestMessageExt};
 use futures::channel::mpsc;
 use js_sys::Promise;
 use nym_node_tester_utils::receiver::SimpleMessageReceiver;
+use nym_node_tester_utils::tester::LegacyMixLayer;
 use nym_node_tester_utils::{NodeTester, PacketSize, PreparedFragment};
 use nym_task::TaskManager;
 use rand::rngs::OsRng;
@@ -32,7 +33,7 @@ use wasm_client_core::helpers::{
     current_network_topology_async, setup_from_topology, EphemeralCredentialStorage,
 };
 use wasm_client_core::storage::ClientStorage;
-use wasm_client_core::topology::SerializableNymTopology;
+use wasm_client_core::topology::WasmFriendlyNymTopology;
 use wasm_client_core::{
     nym_task, BandwidthController, ClientKeys, ClientStatsSender, GatewayClient,
     GatewayClientConfig, GatewayConfig, IdentityKey, InitialisationResult, NodeIdentity,
@@ -103,7 +104,7 @@ pub struct NymNodeTesterOpts {
     nym_api: Option<String>,
 
     #[tsify(optional)]
-    topology: Option<SerializableNymTopology>,
+    topology: Option<WasmFriendlyNymTopology>,
 
     #[tsify(optional)]
     gateway: Option<String>,
@@ -332,6 +333,7 @@ impl NymNodeTester {
         tester_permit
             .existing_identity_mixnode_test_packets(
                 mixnode_identity,
+                LegacyMixLayer::Two,
                 test_ext,
                 num_test_packets,
                 None,

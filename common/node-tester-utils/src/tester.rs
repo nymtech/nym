@@ -2,20 +2,21 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::error::NetworkTestingError;
-use crate::Empty;
-use crate::NodeId;
 use crate::TestMessage;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::message::NymMessage;
-use nym_sphinx::params::{PacketSize, DEFAULT_NUM_MIX_HOPS};
+use nym_sphinx::params::PacketSize;
 use nym_sphinx::preparer::{FragmentPreparer, PreparedFragment};
 use nym_sphinx_params::PacketType;
-use nym_topology::{gateway, mix, NymTopology};
+use nym_topology::node::RoutingNode;
+use nym_topology::{NymRouteProvider, NymTopology, Role};
 use rand::{CryptoRng, Rng};
 use serde::Serialize;
 use std::sync::Arc;
 use std::time::Duration;
+
+pub use nym_topology::node::LegacyMixLayer;
 
 pub struct NodeTester<R> {
     rng: R,
@@ -37,10 +38,6 @@ pub struct NodeTester<R> {
 
     /// Average delay an acknowledgement packet is going to get delay at a single mixnode.
     average_ack_delay: Duration,
-
-    /// Number of mix hops each packet ('real' message, ack, reply) is expected to take.
-    /// Note that it does not include gateway hops.
-    num_mix_hops: u8,
 
     // while acks are going to be ignored they still need to be constructed
     // so that the gateway would be able to correctly process and forward the message
@@ -70,41 +67,27 @@ where
             deterministic_route_selection,
             average_packet_delay,
             average_ack_delay,
-            num_mix_hops: DEFAULT_NUM_MIX_HOPS,
             ack_key,
         }
     }
 
-    /// Allows setting non-default number of expected mix hops in the network.
-    #[allow(dead_code)]
-    pub fn with_mix_hops(mut self, hops: u8) -> Self {
-        self.num_mix_hops = hops;
-        self
-    }
-
-    pub fn testable_mix_topology(&self, node: &mix::LegacyNode) -> NymTopology {
+    pub fn testable_mix_topology(&self, layer: LegacyMixLayer, node: &RoutingNode) -> NymTopology {
         let mut topology = self.base_topology.clone();
-        topology.set_mixes_in_layer(node.layer as u8, vec![node.clone()]);
+        topology.set_testable_node(layer.into(), node.clone());
         topology
     }
 
-    pub fn testable_gateway_topology(&self, gateway: &gateway::LegacyNode) -> NymTopology {
+    pub fn testable_gateway_topology(&self, node: &RoutingNode) -> NymTopology {
         let mut topology = self.base_topology.clone();
-        topology.set_gateways(vec![gateway.clone()]);
+        topology.set_testable_node(Role::EntryGateway, node.clone());
+        topology.set_testable_node(Role::ExitGateway, node.clone());
         topology
-    }
-
-    pub fn simple_mixnode_test_packets(
-        &mut self,
-        mix: &mix::LegacyNode,
-        test_packets: u32,
-    ) -> Result<Vec<PreparedFragment>, NetworkTestingError> {
-        self.mixnode_test_packets(mix, Empty, test_packets, None)
     }
 
     pub fn mixnode_test_packets<T>(
         &mut self,
-        mix: &mix::LegacyNode,
+        mix: &RoutingNode,
+        legacy_mix_layer: LegacyMixLayer,
         msg_ext: T,
         test_packets: u32,
         custom_recipient: Option<Recipient>,
@@ -112,7 +95,9 @@ where
     where
         T: Serialize + Clone,
     {
-        let ephemeral_topology = self.testable_mix_topology(mix);
+        let ephemeral_topology =
+            NymRouteProvider::from(self.testable_mix_topology(legacy_mix_layer, mix))
+                .with_ignore_egress_epoch_roles(true);
 
         let mut packets = Vec::with_capacity(test_packets as usize);
         for plaintext in TestMessage::mix_plaintexts(mix, test_packets, msg_ext)? {
@@ -128,7 +113,7 @@ where
 
     pub fn mixnodes_test_packets<T>(
         &mut self,
-        nodes: &[mix::LegacyNode],
+        nodes: &[(LegacyMixLayer, RoutingNode)],
         msg_ext: T,
         test_packets: u32,
         custom_recipient: Option<Recipient>,
@@ -137,9 +122,10 @@ where
         T: Serialize + Clone,
     {
         let mut packets = Vec::new();
-        for node in nodes {
+        for (layer, node) in nodes {
             packets.append(&mut self.mixnode_test_packets(
                 node,
+                *layer,
                 msg_ext.clone(),
                 test_packets,
                 custom_recipient,
@@ -149,26 +135,10 @@ where
         Ok(packets)
     }
 
-    pub fn existing_mixnode_test_packets<T>(
-        &mut self,
-        mix_id: NodeId,
-        msg_ext: T,
-        test_packets: u32,
-        custom_recipient: Option<Recipient>,
-    ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
-    where
-        T: Serialize + Clone,
-    {
-        let Some(node) = self.base_topology.find_mix(mix_id) else {
-            return Err(NetworkTestingError::NonExistentMixnode { mix_id });
-        };
-
-        self.mixnode_test_packets(&node.clone(), msg_ext, test_packets, custom_recipient)
-    }
-
     pub fn existing_identity_mixnode_test_packets<T>(
         &mut self,
         encoded_mix_identity: String,
+        layer: LegacyMixLayer,
         msg_ext: T,
         test_packets: u32,
         custom_recipient: Option<Recipient>,
@@ -176,22 +146,30 @@ where
     where
         T: Serialize + Clone,
     {
-        let Some(node) = self
-            .base_topology
-            .find_mix_by_identity(&encoded_mix_identity)
-        else {
+        let Ok(identity) = encoded_mix_identity.parse() else {
             return Err(NetworkTestingError::NonExistentMixnodeIdentity {
                 mix_identity: encoded_mix_identity,
             });
         };
 
-        self.mixnode_test_packets(&node.clone(), msg_ext, test_packets, custom_recipient)
+        let Some(node) = self.base_topology.find_node_by_identity(identity) else {
+            return Err(NetworkTestingError::NonExistentMixnodeIdentity {
+                mix_identity: encoded_mix_identity,
+            });
+        };
+
+        self.mixnode_test_packets(
+            &node.clone(),
+            layer,
+            msg_ext,
+            test_packets,
+            custom_recipient,
+        )
     }
 
     pub fn legacy_gateway_test_packets<T>(
         &mut self,
-        gateway: &gateway::LegacyNode,
-        node_id: NodeId,
+        gateway: &RoutingNode,
         msg_ext: T,
         test_packets: u32,
         custom_recipient: Option<Recipient>,
@@ -199,12 +177,11 @@ where
     where
         T: Serialize + Clone,
     {
-        let ephemeral_topology = self.testable_gateway_topology(gateway);
+        let ephemeral_topology = NymRouteProvider::from(self.testable_gateway_topology(gateway))
+            .with_ignore_egress_epoch_roles(true);
 
         let mut packets = Vec::with_capacity(test_packets as usize);
-        for plaintext in
-            TestMessage::legacy_gateway_plaintexts(gateway, node_id, test_packets, msg_ext)?
-        {
+        for plaintext in TestMessage::legacy_gateway_plaintexts(gateway, test_packets, msg_ext)? {
             packets.push(self.wrap_plaintext_data(
                 plaintext,
                 &ephemeral_topology,
@@ -215,36 +192,10 @@ where
         Ok(packets)
     }
 
-    pub fn existing_gateway_test_packets<T>(
-        &mut self,
-        node_id: NodeId,
-        encoded_gateway_identity: String,
-        msg_ext: T,
-        test_packets: u32,
-        custom_recipient: Option<Recipient>,
-    ) -> Result<Vec<PreparedFragment>, NetworkTestingError>
-    where
-        T: Serialize + Clone,
-    {
-        let Some(node) = self.base_topology.find_gateway(&encoded_gateway_identity) else {
-            return Err(NetworkTestingError::NonExistentGateway {
-                gateway_identity: encoded_gateway_identity,
-            });
-        };
-
-        self.legacy_gateway_test_packets(
-            &node.clone(),
-            node_id,
-            msg_ext,
-            test_packets,
-            custom_recipient,
-        )
-    }
-
     pub fn wrap_plaintext_data(
         &mut self,
         plaintext: Vec<u8>,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
         custom_recipient: Option<Recipient>,
     ) -> Result<PreparedFragment, NetworkTestingError> {
         let message = NymMessage::new_plain(plaintext);
@@ -274,14 +225,13 @@ where
             &address,
             &address,
             PacketType::Mix,
-            None,
         )?)
     }
 
     pub fn create_test_packet<T>(
         &mut self,
         message: &TestMessage<T>,
-        topology: &NymTopology,
+        topology: &NymRouteProvider,
         custom_recipient: Option<Recipient>,
     ) -> Result<PreparedFragment, NetworkTestingError>
     where
@@ -305,10 +255,6 @@ impl<R: CryptoRng + Rng> FragmentPreparer for NodeTester<R> {
 
     fn nonce(&self) -> i32 {
         1
-    }
-
-    fn num_mix_hops(&self) -> u8 {
-        self.num_mix_hops
     }
 
     fn average_packet_delay(&self) -> Duration {

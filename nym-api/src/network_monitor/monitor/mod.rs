@@ -181,8 +181,8 @@ impl<R: MessageReceiver + Send + Sync> Monitor<R> {
     }
 
     fn blacklist_route_nodes(&self, route: &TestRoute, blacklist: &mut HashSet<NodeId>) {
-        for mix in route.topology().mixes_as_vec() {
-            blacklist.insert(mix.mix_id);
+        for mix in route.topology().mixnodes() {
+            blacklist.insert(mix.node_id);
         }
         blacklist.insert(route.gateway().node_id);
     }

@@ -12,15 +12,13 @@ documentation = { workspace = true }
 
 [dependencies]
 async-trait = { workspace = true, optional = true }
-bs58 = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
 rand = { workspace = true }
 reqwest = { workspace = true, features = ["json"] }
-semver = { workspace = true }
+serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
-# 'serializable' feature
-serde = { workspace = true, features = ["derive"], optional = true }
+# 'serde' feature
 serde_json = { workspace = true, optional = true }
 
 # 'wasm-serde-types' feature
@@ -28,7 +26,6 @@ tsify = { workspace = true, features = ["js"], optional = true }
 wasm-bindgen = { workspace = true, optional = true }
 
 ## internal
-nym-bin-common = { path = "../bin-common" }
 nym-config = { path = "../config" }
 nym-crypto = { path = "../crypto", features = ["sphinx", "outfox"] }
 nym-mixnet-contract-common = { path = "../cosmwasm-smart-contracts/mixnet-contract" }
@@ -51,5 +48,5 @@ wasm-utils = { path = "../wasm/utils", default-features = false, optional = true
 default = ["provider-trait"]
 provider-trait = ["async-trait"]
 wasm-serde-types = ["tsify", "wasm-bindgen", "wasm-utils"]
-serializable = ["serde", "serde_json"]
+persistence = ["serde_json"]
 outfox = []

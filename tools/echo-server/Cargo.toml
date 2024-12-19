@@ -9,6 +9,11 @@ edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
 
+
+[[bin]]
+name = "echo-server"
+path = "src/echo-server.rs"
+
 [dependencies]
 anyhow.workspace = true
 dashmap.workspace = true
@@ -24,3 +29,9 @@ bytecodec = { workspace = true }
 nym-sdk = { path = "../../sdk/rust/nym-sdk/" }
 bytes.workspace = true
 dirs.workspace = true
+clap.workspace = true
+nym-bin-common = { path = "../../common/bin-common", features = [
+    "basic_tracing",
+    "output_format",
+] }
+nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }

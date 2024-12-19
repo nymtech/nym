@@ -137,16 +137,15 @@ impl<C> PacketForwarder<C> {
                     // and hence it can't happen that ALL senders are dropped
                     #[allow(clippy::unwrap_used)]
                     self.handle_new_packet(new_packet.unwrap());
-                    let queue_len = self.packet_sender.len();
+                    let channel_len = self.packet_sender.len();
                     if processed % 1000 == 0 {
-                        let queue_len = self.packet_sender.len();
-                        match queue_len {
+                        match channel_len {
                             n if n > 200 => error!("there are currently {n} mix packets waiting to get forwarded!"),
                             n if n > 50 => warn!("there are currently {n} mix packets waiting to get forwarded"),
                             n => trace!("there are currently {n} mix packets waiting to get forwarded"),
                         }
                     }
-                    self.update_channel_size_metric(queue_len);
+                    self.update_channel_size_metric(channel_len);
                     processed += 1;
                 }
             }

@@ -145,6 +145,12 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
             ProcessPacketForwarderQueueSize,
             self.metrics.process.packet_forwarder_queue_size() as i64,
         );
+        self.prometheus_wrapper.set(
+            ProcessFinalHopPacketsPendingDelivery,
+            self.metrics
+                .process
+                .final_hop_packets_pending_delivery_count() as i64,
+        );
 
         let updated = AtLastUpdate::from(&self.metrics);
 

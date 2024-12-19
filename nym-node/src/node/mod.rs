@@ -24,6 +24,7 @@ use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
 use crate::node::metrics::handler::global_prometheus_updater::PrometheusGlobalNodeMetricsRegistryUpdater;
 use crate::node::metrics::handler::legacy_packet_data::LegacyMixingStatsUpdater;
 use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
+use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgressPacketsUpdater;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
@@ -845,7 +846,11 @@ impl NymNode {
         tokio::spawn(async move { verloc_measurer.run().await });
     }
 
-    pub(crate) fn setup_metrics_backend(&self, shutdown: TaskClient) -> MetricEventsSender {
+    pub(crate) fn setup_metrics_backend(
+        &self,
+        active_clients_store: ActiveClientsStore,
+        shutdown: TaskClient,
+    ) -> MetricEventsSender {
         info!("setting up node metrics...");
 
         // aggregator (to listen for any metrics events)
@@ -871,10 +876,16 @@ impl NymNode {
             self.config.metrics.debug.clients_sessions_update_rate,
         );
 
-        // handler for periodically cleaning up stale recipient/sender darta
+        // handler for periodically cleaning up stale recipient/sender data
         metrics_aggregator.register_handler(
             MixnetMetricsCleaner::new(self.metrics.clone()),
             self.config.metrics.debug.stale_mixnet_metrics_cleaner_rate,
+        );
+
+        // handler for updating the value of final hop packets pending delivery
+        metrics_aggregator.register_handler(
+            PendingEgressPacketsUpdater::new(self.metrics.clone(), active_clients_store),
+            self.config.metrics.debug.pending_egress_packets_update_rate,
         );
 
         // handler for updating the prometheus registry from the global atomic metrics counters
@@ -1000,8 +1011,11 @@ impl NymNode {
 
         self.start_verloc_measurements(task_manager.subscribe_named("verloc-measurements"));
 
-        let metrics_sender = self.setup_metrics_backend(task_manager.subscribe_named("metrics"));
         let active_clients_store = ActiveClientsStore::new();
+        let metrics_sender = self.setup_metrics_backend(
+            active_clients_store.clone(),
+            task_manager.subscribe_named("metrics"),
+        );
 
         let mix_packet_sender = self.start_mixnet_listener(
             &active_clients_store,

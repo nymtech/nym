@@ -12,6 +12,7 @@ pub(crate) mod client_sessions;
 pub(crate) mod global_prometheus_updater;
 pub(crate) mod legacy_packet_data;
 pub(crate) mod mixnet_data_cleaner;
+pub(crate) mod pending_egress_packets_updater;
 pub(crate) mod prometheus_events_handler;
 
 pub(crate) trait RegistrableHandler:

@@ -154,6 +154,11 @@ pub enum PrometheusMetric {
         help = "The latency distribution of attempting to retrieve network topology (from nym-api)"
     ))]
     ProcessTopologyQueryResolutionLatency,
+
+    #[strum(props(
+        help = "The current number of final hop packets stuck in channels waiting to get delivered to appropriate websocket connections"
+    ))]
+    ProcessFinalHopPacketsPendingDelivery,
 }
 
 impl PrometheusMetric {
@@ -258,6 +263,9 @@ impl PrometheusMetric {
             PrometheusMetric::ProcessTopologyQueryResolutionLatency => {
                 Metric::new_histogram(&name, help, None)
             }
+            PrometheusMetric::ProcessFinalHopPacketsPendingDelivery => {
+                Metric::new_int_gauge(&name, help)
+            }
         }
     }
 
@@ -347,7 +355,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(35, PrometheusMetric::COUNT)
+        assert_eq!(36, PrometheusMetric::COUNT)
     }
 
     #[test]

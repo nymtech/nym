@@ -29,6 +29,10 @@ pub struct Debug {
     #[serde(with = "humantime_serde")]
     pub global_prometheus_counters_update_rate: Duration,
 
+    /// Specify the target rate of updating egress packets pending delivery counter.
+    #[serde(with = "humantime_serde")]
+    pub pending_egress_packets_update_rate: Duration,
+
     /// Specify the rate of updating clients sessions
     #[serde(with = "humantime_serde")]
     pub clients_sessions_update_rate: Duration,
@@ -49,6 +53,7 @@ impl Debug {
     const DEFAULT_STALE_MIXNET_METRICS_UPDATE_RATE: Duration = Duration::from_secs(3600);
     const DEFAULT_CLIENT_SESSIONS_UPDATE_RATE: Duration = Duration::from_secs(3600);
     const GLOBAL_PROMETHEUS_COUNTERS_UPDATE_INTERVAL: Duration = Duration::from_secs(30);
+    const DEFAULT_PENDING_EGRESS_PACKETS_UPDATE_RATE: Duration = Duration::from_secs(30);
 }
 
 impl Default for Debug {
@@ -61,6 +66,7 @@ impl Default for Debug {
             stale_mixnet_metrics_cleaner_rate: Self::DEFAULT_STALE_MIXNET_METRICS_UPDATE_RATE,
             global_prometheus_counters_update_rate:
                 Self::GLOBAL_PROMETHEUS_COUNTERS_UPDATE_INTERVAL,
+            pending_egress_packets_update_rate: Self::DEFAULT_PENDING_EGRESS_PACKETS_UPDATE_RATE,
             clients_sessions_update_rate: Self::DEFAULT_CLIENT_SESSIONS_UPDATE_RATE,
         }
     }

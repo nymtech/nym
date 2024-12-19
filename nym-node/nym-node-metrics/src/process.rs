@@ -5,6 +5,8 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Default)]
 pub struct NodeStats {
+    pub final_hop_packets_pending_delivery: AtomicUsize,
+
     pub forward_hop_packets_being_delayed: AtomicUsize,
 
     // packets that haven't yet been delayed and are waiting for their chance
@@ -12,6 +14,16 @@ pub struct NodeStats {
 }
 
 impl NodeStats {
+    pub fn update_final_hop_packets_pending_delivery(&self, current: usize) {
+        self.final_hop_packets_pending_delivery
+            .store(current, Ordering::Relaxed);
+    }
+
+    pub fn final_hop_packets_pending_delivery_count(&self) -> usize {
+        self.final_hop_packets_pending_delivery
+            .load(Ordering::Relaxed)
+    }
+
     pub fn update_forward_hop_packets_being_delayed(&self, current: usize) {
         self.forward_hop_packets_being_delayed
             .store(current, Ordering::Relaxed);

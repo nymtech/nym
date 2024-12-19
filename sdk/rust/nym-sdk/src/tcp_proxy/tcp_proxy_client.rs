@@ -231,7 +231,7 @@ impl NymProxyClient {
                         msg_buffer.tick(&mut write).await?;
                     },
                     _ = cancel_token.cancelled() => {
-                        info!("CTRL_C triggered in thread, triggering loop shutdown");
+                        info!("Triggering loop shutdown");
                         break
                     },
                     _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
@@ -251,7 +251,7 @@ impl NymProxyClient {
                         msg_buffer.tick(&mut write).await?;
                     },
                     _ = cancel_token.cancelled() => {
-                        info!("CTRL_C triggered in thread, triggering client shutdown");
+                        info!("Triggering client shutdown");
                         client.disconnect().await;
                         return Ok::<(), anyhow::Error>(())
                     },

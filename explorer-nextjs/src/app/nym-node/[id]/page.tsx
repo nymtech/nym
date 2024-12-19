@@ -1,5 +1,5 @@
-import type { IBondInfo, INodeDescription } from "@/app/api";
-import { NYM_NODE_BONDED, NYM_NODE_DESCRIPTION } from "@/app/api/urls";
+import type NodeData from "@/app/api/types";
+import { NYM_NODES } from "@/app/api/urls";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
@@ -13,11 +13,11 @@ import { Box, Grid2 } from "@mui/material";
 export default async function NymNode({
   params,
 }: {
-  params: Promise<{ id: string }>;
+  params: Promise<{ id: string; account?: string }>;
 }) {
   const id = Number((await params).id);
 
-  const descriptionData = await fetch(NYM_NODE_DESCRIPTION, {
+  const response = await fetch(NYM_NODES, {
     headers: {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
@@ -25,29 +25,18 @@ export default async function NymNode({
     next: { revalidate: 60 },
     // refresh event list cache at given interval
   });
-  const nymNodesDescription = await descriptionData.json();
 
-  const bondedData = await fetch(NYM_NODE_BONDED, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    next: { revalidate: 60 },
-    // refresh event list cache at given interval
-  });
-  const nymbondedData = await bondedData.json();
+  const nymNodes: NodeData[] = await response.json();
 
-  if (!bondedData || !nymNodesDescription) {
+  if (!nymNodes) {
     return null;
   }
 
-  const nodeBondInfo = nymbondedData.data.filter(
-    (item: IBondInfo) => item.bond_information.node_id === id,
-  );
+  const nymNode = nymNodes.find((node) => node.node_id === id);
 
-  const nodeDescriptionInfo = nymNodesDescription.data.filter(
-    (item: INodeDescription) => item.node_id === id,
-  );
+  if (!nymNode) {
+    return null;
+  }
 
   return (
     <ContentLayout>
@@ -67,26 +56,55 @@ export default async function NymNode({
             />
           </Box>
         </Grid2>
-        <Grid2 size={4}>
+        <Grid2
+          size={{
+            xs: 12,
+            md: 4,
+          }}
+        >
           <NodeProfileCard
-            bondInfo={nodeBondInfo[0]}
-            nodeDescription={nodeDescriptionInfo[0]}
+            bondInfo={nymNode.bond_information}
+            nodeDescription={nymNode.description}
           />
         </Grid2>
-        <Grid2 size={4}>
+        <Grid2
+          size={{
+            xs: 12,
+            md: 4,
+          }}
+        >
           <BasicInfoCard
-            bondInfo={nodeBondInfo[0]}
-            nodeDescription={nodeDescriptionInfo[0]}
+            bondInfo={nymNode.bond_information}
+            nodeDescription={nymNode.description}
+            rewardDetails={nymNode.rewarding_details}
           />
         </Grid2>
-        <Grid2 size={4}>
-          <QualityIndicatorsCard nodeDescription={nodeDescriptionInfo[0]} />
+        <Grid2
+          size={{
+            xs: 12,
+            md: 4,
+          }}
+        >
+          <QualityIndicatorsCard nodeDescription={nymNode.description} />
         </Grid2>
-        <Grid2 size={6}>
-          <NodeRewardsCard bondInfo={nodeBondInfo[0]} />
+        <Grid2
+          size={{
+            xs: 12,
+            md: 6,
+          }}
+        >
+          <NodeRewardsCard rewardDetails={nymNode.rewarding_details} />
         </Grid2>
-        <Grid2 size={6}>
-          <NodeMetricsCard nodeDescription={nodeDescriptionInfo[0]} />
+        <Grid2
+          size={{
+            xs: 12,
+            md: 6,
+          }}
+        >
+          <NodeMetricsCard
+            nodeDescription={nymNode.description}
+            nodeId={nymNode.bond_information.node_id}
+          />
         </Grid2>
       </Grid2>
     </ContentLayout>

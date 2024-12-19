@@ -1,33 +1,30 @@
-import type { IBondInfo } from "@/app/api";
+import type { RewardingDetails } from "@/app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
 interface INodeRewardsCardProps {
-  bondInfo: IBondInfo;
+  rewardDetails: RewardingDetails;
 }
 
 export const NodeRewardsCard = (props: INodeRewardsCardProps) => {
-  const { bondInfo } = props;
+  const { rewardDetails } = props;
 
-  const totalRewards =
-    Number(bondInfo.rewarding_details.total_unit_reward) / 1000000;
+  const totalRewards = Number(rewardDetails.total_unit_reward) / 1000000;
   const totalRewardsFormated = `${totalRewards} NYM`;
 
-  const operatorRewards = Number(bondInfo.rewarding_details.operator) / 1000000;
+  const operatorRewards = Number(rewardDetails.operator) / 1000000;
   const operatorRewardsFormated = `${operatorRewards} NYM`;
 
-  const stakerRewards = Number(bondInfo.rewarding_details.delegates) / 1000000;
+  const stakerRewards = Number(rewardDetails.delegates) / 1000000;
   const stakerRewardsFormated = `${stakerRewards} NYM`;
 
   const profitMarginPercent =
-    Number(bondInfo.rewarding_details.cost_params.profit_margin_percent) * 100;
+    Number(rewardDetails.cost_params.profit_margin_percent) * 100;
 
   const profitMarginPercentFormated = `${profitMarginPercent}%`;
 
   const operatingCosts =
-    Number(
-      bondInfo.rewarding_details.cost_params.interval_operating_cost.amount,
-    ) / 1000000;
+    Number(rewardDetails.cost_params.interval_operating_cost.amount) / 1000000;
   const operatingCostsFormated = `${operatingCosts.toString()} NYM`;
 
   return (

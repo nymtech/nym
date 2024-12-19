@@ -1,10 +1,10 @@
-import type { INodeDescription } from "@/app/api";
+import type { NodeDescription } from "@/app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import StarRating from "../starRating/StarRating";
 
 interface IQualityIndicatorsCardProps {
-  nodeDescription: INodeDescription;
+  nodeDescription: NodeDescription;
 }
 
 interface IDeclaredRoles {
@@ -39,7 +39,7 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
   const { nodeDescription } = props;
 
   const nodeRoles = getNodeRoles({
-    declared_role: nodeDescription.description.declared_role,
+    declared_role: nodeDescription.declared_role,
   });
 
   return (

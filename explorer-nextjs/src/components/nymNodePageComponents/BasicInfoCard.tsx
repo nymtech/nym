@@ -1,4 +1,8 @@
-import type { IBondInfo, INodeDescription } from "@/app/api";
+import type {
+  BondInformation,
+  NodeDescription,
+  RewardingDetails,
+} from "@/app/api/types";
 import { Stack, Typography } from "@mui/material";
 import { format } from "date-fns";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -6,19 +10,20 @@ import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
 
 interface IBasicInfoCardProps {
-  bondInfo: IBondInfo;
-  nodeDescription: INodeDescription;
+  bondInfo: BondInformation;
+  nodeDescription: NodeDescription;
+  rewardDetails: RewardingDetails;
 }
 
 export const BasicInfoCard = (props: IBasicInfoCardProps) => {
-  const { bondInfo, nodeDescription } = props;
+  const { bondInfo, nodeDescription, rewardDetails } = props;
 
   const timeBonded = format(
-    new Date(nodeDescription.description.build_information.build_timestamp),
+    new Date(nodeDescription.build_information.build_timestamp),
     "dd/MM/yyyy",
   );
 
-  const selfBond = Number(bondInfo.rewarding_details.unit_delegation) / 1000000;
+  const selfBond = Number(rewardDetails.unit_delegation) / 1_000_000;
   const selfBondFormated = `${selfBond} NYM`;
   return (
     <ExplorerCard label="Basic info">
@@ -34,10 +39,8 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
               justifyContent="space-between"
               width="100%"
             >
-              <Typography variant="body4">
-                {bondInfo.bond_information.owner}
-              </Typography>
-              <CopyToClipboard text={bondInfo.bond_information.owner} />
+              <Typography variant="body4">{bondInfo.owner}</Typography>
+              <CopyToClipboard text={bondInfo.owner} />
             </Stack>
           }
         />
@@ -53,11 +56,9 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
               width="100%"
             >
               <Typography variant="body4">
-                {bondInfo.bond_information.node.identity_key}
+                {bondInfo.node.identity_key}
               </Typography>
-              <CopyToClipboard
-                text={bondInfo.bond_information.node.identity_key}
-              />
+              <CopyToClipboard text={bondInfo.node.identity_key} />
             </Stack>
           }
         />
@@ -66,7 +67,7 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
           row
           divider
           label="Nr. of stakes"
-          value={bondInfo.rewarding_details.unique_delegations.toString()}
+          value={rewardDetails.unique_delegations.toString()}
         />
         <ExplorerListItem row label="Self bonded" value={selfBondFormated} />
       </Stack>

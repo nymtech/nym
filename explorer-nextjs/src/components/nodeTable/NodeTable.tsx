@@ -7,6 +7,7 @@ import {
   MaterialReactTable,
   useMaterialReactTable,
 } from "material-react-table";
+import { useRouter } from "next/navigation";
 import { useCallback, useMemo } from "react";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite, UnFavorite } from "../favorite/Favorite";
@@ -25,6 +26,8 @@ const ColumnHeading = ({
 };
 
 const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
+  const router = useRouter();
+
   const [favorites, saveFavorites] = useLocalStorage<string[]>(
     "nym-node-favorites",
     [],
@@ -195,8 +198,11 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         border: "none",
       },
     },
-    muiTableBodyRowProps: {
-      hover: false,
+    muiTableBodyRowProps: ({ row }) => ({
+      onClick: () => {
+        router.push(`/nym-node/${row.original.nodeId}`);
+      },
+      hover: true,
       sx: {
         ":nth-child(odd)": {
           bgcolor: "#F3F7FB !important",
@@ -204,8 +210,9 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         ":nth-child(even)": {
           bgcolor: "white !important",
         },
+        cursor: "pointer",
       },
-    },
+    }),
   });
   return <MaterialReactTable table={table} />;
 };

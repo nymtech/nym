@@ -36,7 +36,6 @@ impl Metrics {
 
 pub struct NymEchoServer {
     client: Arc<Mutex<NymProxyServer>>,
-    client_address: Recipient,
     listen_addr: String,
     metrics: Arc<Metrics>,
     cancel_token: CancellationToken,
@@ -44,7 +43,6 @@ pub struct NymEchoServer {
 
 impl NymEchoServer {
     pub async fn new(
-        &mut self,
         gateway: Option<ed25519::PublicKey>,
         config_path: Option<&str>,
         env: String,
@@ -63,10 +61,8 @@ impl NymEchoServer {
                     Some(env.clone()),
                     gateway,
                 )
-                .await
-                .unwrap(),
+                .await?,
             )),
-            client_address: self.client.lock().await.nym_address().clone(),
             listen_addr,
             metrics: Arc::new(Metrics::new()),
             cancel_token: CancellationToken::new(),
@@ -98,12 +94,13 @@ impl NymEchoServer {
         });
 
         let listener = TcpListener::bind(self.listen_addr.clone()).await?;
+        info!("{listener:?}");
 
         loop {
             tokio::select! {
                 stream = listener.accept() => {
                     let (stream, _) = stream?;
-
+                    info!("Handling new stream");
                     let connection_metrics = Arc::clone(&self.metrics);
                     connection_metrics.total_conn.fetch_add(1, Ordering::Relaxed);
                     connection_metrics.active_conn.fetch_add(1, Ordering::Relaxed);
@@ -113,6 +110,7 @@ impl NymEchoServer {
                     ));
                 }
                 _ = self.cancel_token.cancelled() => {
+                    info!("Cancel token cancelled: {:?}", self.cancel_token.cancelled());
                     break Ok(());
                 }
             }
@@ -164,13 +162,13 @@ impl NymEchoServer {
         let client = Arc::clone(&self.client);
         client.lock().await.disconnect().await;
         while self.metrics.active_conn.load(Ordering::Relaxed) > 0 {
-            info!("Waiting on active connections to close: sleeping 100ms");
+            info!("Waiting on active connections to close: sleeping");
             tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
         }
     }
 
-    pub fn nym_address(&self) -> Recipient {
-        self.client_address
+    pub async fn nym_address(&self) -> Recipient {
+        self.client.lock().await.nym_address().clone()
     }
 
     pub fn listen_addr(&self) -> String {

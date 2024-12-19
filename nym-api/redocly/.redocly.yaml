@@ -1,0 +1,12 @@
+extends:
+  - minimal
+apis:
+  nym-api:
+    root: ./formatted-openapi.json
+rules:
+  # https://redocly.com/docs/cli/rules/oas/operation-summary
+  operation-summary: off
+  # https://redocly.com/docs/cli/rules/oas/security-defined
+  security-defined: off
+  # https://redocly.com/docs/cli/rules/oas/operation-2xx-response
+  operation-2xx-response: off

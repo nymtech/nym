@@ -2,22 +2,18 @@
 # See https://redocly.com/docs/cli/ for more information.
 formatted-openapi.json:
   path-parameters-defined:
-    # - >-
-    #   #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/0/name
-    # - >-
-    #   #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/1/name
-    # - >-
-    #   #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/2/name
-    # - >-
-    #   #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/3/name
-    # - >-
-    #   #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/4/name
-    # - >-
-    #   #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/5/name
-    # - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1active/get/parameters/0/name'
-    # - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1active/get/parameters/1/name'
-    # - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1active/get/parameters/2/name'
-    # - '#/paths/~1v1~1unstable~1nym-nodes~1skimmed~1active/get/parameters/3/name'
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/0/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/1/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/2/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/3/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/4/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/5/name
   operation-operationId-unique:
     - >-
       #/paths/~1v1~1status~1mixnodes~1active~1detailed/get/get_active_set_detailed
@@ -30,6 +26,7 @@ formatted-openapi.json:
     - '#/components/schemas/EcashTicketVerificationRejection'
     - '#/components/schemas/ExpirationDatePathParam'
     - '#/components/schemas/FullFatNode'
+    - '#/components/schemas/G2ProjectiveSchema'
     - '#/components/schemas/HistoricalPerformanceResponse'
     - '#/components/schemas/HistoricalUptimeResponse'
     - '#/components/schemas/MasterVerificationKeyResponse'
@@ -41,6 +38,7 @@ formatted-openapi.json:
     - '#/components/schemas/NymNodeDetails'
     - '#/components/schemas/PaginationRequest'
     - '#/components/schemas/PartialCoinIndicesSignatureResponse'
+    - '#/components/schemas/PayInfo'
     - '#/components/schemas/SpentCredentialsResponse'
     - '#/components/schemas/UptimeHistoryResponse'
     - '#/components/schemas/VerifyEcashCredentialBody'

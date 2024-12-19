@@ -13,6 +13,7 @@ use tokio::net::TcpStream;
 use tokio::sync::watch::Receiver;
 use tokio::sync::RwLock;
 use tokio_stream::StreamExt;
+use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info};
 #[allow(clippy::duplicate_mod)]
 #[path = "utils.rs"]
@@ -27,6 +28,7 @@ pub struct NymProxyServer {
     mixnet_client_sender: Arc<RwLock<MixnetClientSender>>,
     tx: tokio::sync::watch::Sender<Option<(ProxiedMessage, AnonymousSenderTag)>>,
     rx: tokio::sync::watch::Receiver<Option<(ProxiedMessage, AnonymousSenderTag)>>,
+    cancel_token: CancellationToken,
 }
 
 impl NymProxyServer {
@@ -78,6 +80,7 @@ impl NymProxyServer {
             mixnet_client_sender: sender,
             tx,
             rx,
+            cancel_token: CancellationToken::new(),
         })
     }
 
@@ -122,6 +125,7 @@ impl NymProxyServer {
         session_id: Uuid,
         mut rx: Receiver<Option<(ProxiedMessage, AnonymousSenderTag)>>,
         sender: Arc<RwLock<MixnetClientSender>>,
+        cancel_token: CancellationToken,
     ) -> Result<()> {
         let global_surb = Arc::new(RwLock::new(None));
         let stream = TcpStream::connect(upstream_address).await?;
@@ -193,6 +197,9 @@ impl NymProxyServer {
                             }
                         }
                     }
+                    _ = cancel_token.cancelled() => {
+                        break;
+                    }
                     _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
                         msg_buffer.tick(&mut write).await?;
                     }
@@ -222,6 +229,7 @@ impl NymProxyServer {
                     session_id,
                     self.rx(),
                     self.mixnet_client_sender(),
+                    self.cancel_token.clone(),
                 ));
                 info!("Spawned a new session handler: {}", message.session_id());
             }
@@ -235,7 +243,10 @@ impl NymProxyServer {
             }
         }
 
-        tokio::signal::ctrl_c().await?;
         Ok(())
+    }
+
+    pub async fn disconnect(&self) {
+        self.cancel_token.cancel();
     }
 }

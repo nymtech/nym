@@ -7,6 +7,7 @@ use nym_crypto::asymmetric::identity;
 use nym_gateway_storage::GatewayStorage;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_node_metrics::events::MetricEventsSender;
+use nym_node_metrics::NymNodeMetrics;
 use std::sync::Arc;
 
 // I can see this being possible expanded with say storage or client store
@@ -17,6 +18,7 @@ pub(crate) struct CommonHandlerState {
     pub(crate) local_identity: Arc<identity::KeyPair>,
     pub(crate) only_coconut_credentials: bool,
     pub(crate) bandwidth_cfg: BandwidthFlushingBehaviourConfig,
+    pub(crate) metrics: NymNodeMetrics,
     pub(crate) metrics_sender: MetricEventsSender,
     pub(crate) outbound_mix_sender: MixForwardingSender,
     pub(crate) active_clients_store: ActiveClientsStore,

@@ -24,17 +24,7 @@ impl AppState {
             // does it have to be?
             // also no.
             startup_time: Instant::now(),
-            metrics: MetricsAppState {
-                prometheus_access_token: None,
-                metrics,
-                verloc,
-            },
+            metrics: MetricsAppState { metrics, verloc },
         }
-    }
-
-    #[must_use]
-    pub fn with_metrics_key(mut self, bearer_token: impl Into<Option<String>>) -> Self {
-        self.metrics.prometheus_access_token = bearer_token.into();
-        self
     }
 }

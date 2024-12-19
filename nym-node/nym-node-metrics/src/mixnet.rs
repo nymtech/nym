@@ -131,13 +131,6 @@ impl MixingStats {
             .or_default()
             .dropped += 1;
     }
-
-    pub fn egress_dropped_final_hop_packet(&self) {
-        todo!()
-        // self.egress
-        //     .final_hop_packets_dropped
-        //     .fetch_add(1, Ordering::Relaxed);
-    }
 }
 
 #[derive(Clone, Copy, Default, PartialEq)]
@@ -148,6 +141,8 @@ pub struct EgressRecipientStats {
 
 #[derive(Default)]
 pub struct EgressMixingStats {
+    disk_persisted_packets: AtomicUsize,
+
     // this includes ACKS!
     forward_hop_packets_sent: AtomicUsize,
 
@@ -159,6 +154,14 @@ pub struct EgressMixingStats {
 }
 
 impl EgressMixingStats {
+    pub fn add_disk_persisted_packet(&self) {
+        self.disk_persisted_packets.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn disk_persisted_packets(&self) -> usize {
+        self.disk_persisted_packets.load(Ordering::Relaxed)
+    }
+
     pub fn forward_hop_packets_sent(&self) -> usize {
         self.forward_hop_packets_sent.load(Ordering::Relaxed)
     }

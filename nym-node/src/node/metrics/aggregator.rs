@@ -44,7 +44,7 @@ impl MetricsAggregator {
         self.event_sender.clone()
     }
 
-    pub fn register_handler<H>(&mut self, handler: H, update_interval: Duration)
+    pub fn register_handler<H>(&mut self, handler: H, update_interval: impl Into<Option<Duration>>)
     where
         H: MetricsHandler,
     {

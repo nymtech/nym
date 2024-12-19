@@ -12,6 +12,6 @@ license.workspace = true
 
 [dependencies]
 prometheus = { workspace = true }
-log = { workspace = true }
+tracing = { workspace = true }
 dashmap = { workspace = true }
 lazy_static = { workspace = true }

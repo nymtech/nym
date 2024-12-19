@@ -1,5 +1,5 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use futures::StreamExt;
 use nym_mixnet_client::forwarder::{
@@ -80,7 +80,7 @@ impl<C> PacketForwarder<C> {
         C: SendWithoutResponse,
     {
         let delayed_packet = packet.into_inner();
-        self.forward_packet(delayed_packet)
+        self.forward_packet(delayed_packet);
     }
 
     fn handle_new_packet(&mut self, new_packet: PacketToForward)
@@ -100,6 +100,18 @@ impl<C> PacketForwarder<C> {
         } else {
             self.forward_packet(new_packet.packet)
         }
+    }
+
+    fn update_queue_len_metric(&self) {
+        self.metrics
+            .process
+            .update_forward_hop_packets_being_delayed(self.delay_queue.len());
+    }
+
+    fn update_channel_size_metric(&self, channel_size: usize) {
+        self.metrics
+            .process
+            .update_packet_forwarder_queue_size(channel_size)
     }
 
     pub async fn run(&mut self)
@@ -125,18 +137,21 @@ impl<C> PacketForwarder<C> {
                     // and hence it can't happen that ALL senders are dropped
                     #[allow(clippy::unwrap_used)]
                     self.handle_new_packet(new_packet.unwrap());
+                    let channel_len = self.packet_sender.len();
                     if processed % 1000 == 0 {
-                        let queue_len = self.packet_sender.len();
-                        match queue_len {
+                        match channel_len {
                             n if n > 200 => error!("there are currently {n} mix packets waiting to get forwarded!"),
                             n if n > 50 => warn!("there are currently {n} mix packets waiting to get forwarded"),
                             n => trace!("there are currently {n} mix packets waiting to get forwarded"),
                         }
                     }
-
+                    self.update_channel_size_metric(channel_len);
                     processed += 1;
                 }
             }
+
+            // update the metrics on either new packet being inserted or packet being removed
+            self.update_queue_len_metric();
         }
         trace!("PacketForwarder: Exiting");
     }

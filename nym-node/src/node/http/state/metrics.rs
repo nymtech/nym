@@ -9,8 +9,6 @@ pub use nym_verloc::measurements::metrics::SharedVerlocStats;
 
 #[derive(Clone)]
 pub struct MetricsAppState {
-    pub(crate) prometheus_access_token: Option<String>,
-
     pub(crate) metrics: NymNodeMetrics,
 
     pub(crate) verloc: SharedVerlocStats,

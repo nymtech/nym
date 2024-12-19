@@ -20,6 +20,8 @@ use nym_node_requests::api::SignedHostInformation;
 use nym_node_requests::routes;
 use std::net::SocketAddr;
 use std::path::Path;
+use std::sync::Arc;
+use zeroize::Zeroizing;
 
 pub mod api;
 pub mod landing_page;
@@ -113,6 +115,11 @@ impl HttpServerConfig {
     #[must_use]
     pub fn with_authenticator_details(mut self, authenticator: Authenticator) -> Self {
         self.api.v1_config.authenticator.details = Some(authenticator);
+        self
+    }
+
+    pub fn with_prometheus_bearer_token(mut self, bearer_token: Option<String>) -> Self {
+        self.api.v1_config.metrics.bearer_token = bearer_token.map(|b| Arc::new(Zeroizing::new(b)));
         self
     }
 }

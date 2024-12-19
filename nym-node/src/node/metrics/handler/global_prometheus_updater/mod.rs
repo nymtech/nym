@@ -151,6 +151,12 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
                 .process
                 .final_hop_packets_pending_delivery_count() as i64,
         );
+        self.prometheus_wrapper.set(
+            ProcessForwardHopPacketsPendingDelivery,
+            self.metrics
+                .process
+                .forward_hop_packets_pending_delivery_count() as i64,
+        );
 
         let updated = AtLastUpdate::from(&self.metrics);
 

@@ -5687,10 +5687,12 @@ dependencies = [
 name = "nym-mixnet-client"
 version = "0.1.0"
 dependencies = [
+ "dashmap",
  "futures",
  "nym-sphinx",
  "nym-task",
  "tokio",
+ "tokio-stream",
  "tokio-util",
  "tracing",
 ]

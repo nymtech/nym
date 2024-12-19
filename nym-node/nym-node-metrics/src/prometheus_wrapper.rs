@@ -159,6 +159,11 @@ pub enum PrometheusMetric {
         help = "The current number of final hop packets stuck in channels waiting to get delivered to appropriate websocket connections"
     ))]
     ProcessFinalHopPacketsPendingDelivery,
+
+    #[strum(props(
+        help = "The current number of forward hop packets stuck in channels waiting to get delivered to appropriate TCP connections"
+    ))]
+    ProcessForwardHopPacketsPendingDelivery,
 }
 
 impl PrometheusMetric {
@@ -266,6 +271,9 @@ impl PrometheusMetric {
             PrometheusMetric::ProcessFinalHopPacketsPendingDelivery => {
                 Metric::new_int_gauge(&name, help)
             }
+            PrometheusMetric::ProcessForwardHopPacketsPendingDelivery => {
+                Metric::new_int_gauge(&name, help)
+            }
         }
     }
 
@@ -355,7 +363,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(36, PrometheusMetric::COUNT)
+        assert_eq!(37, PrometheusMetric::COUNT)
     }
 
     #[test]

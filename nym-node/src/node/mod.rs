@@ -32,6 +32,7 @@ use crate::node::shared_topology::NymNodeTopologyProvider;
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
+use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_requester::{
     set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
@@ -849,6 +850,7 @@ impl NymNode {
     pub(crate) fn setup_metrics_backend(
         &self,
         active_clients_store: ActiveClientsStore,
+        active_egress_mixnet_connections: ActiveConnections,
         shutdown: TaskClient,
     ) -> MetricEventsSender {
         info!("setting up node metrics...");
@@ -882,9 +884,13 @@ impl NymNode {
             self.config.metrics.debug.stale_mixnet_metrics_cleaner_rate,
         );
 
-        // handler for updating the value of final hop packets pending delivery
+        // handler for updating the value of forward/final hop packets pending delivery
         metrics_aggregator.register_handler(
-            PendingEgressPacketsUpdater::new(self.metrics.clone(), active_clients_store),
+            PendingEgressPacketsUpdater::new(
+                self.metrics.clone(),
+                active_clients_store,
+                active_egress_mixnet_connections,
+            ),
             self.config.metrics.debug.pending_egress_packets_update_rate,
         );
 
@@ -934,7 +940,7 @@ impl NymNode {
         &self,
         active_clients_store: &ActiveClientsStore,
         shutdown: TaskClient,
-    ) -> MixForwardingSender {
+    ) -> (MixForwardingSender, ActiveConnections) {
         let processing_config = ProcessingConfig::new(&self.config);
 
         // we're ALWAYS listening for mixnet packets, either for forward or final hops (or both)
@@ -957,6 +963,7 @@ impl NymNode {
                 .network
                 .active_egress_mixnet_connections_counter(),
         );
+        let active_connections = mixnet_client.active_connections();
 
         let mut packet_forwarder = PacketForwarder::new(
             mixnet_client,
@@ -981,7 +988,7 @@ impl NymNode {
         );
 
         mixnet::Listener::new(self.config.mixnet.bind_address, shared).start();
-        mix_packet_sender
+        (mix_packet_sender, active_connections)
     }
 
     pub(crate) async fn run(mut self) -> Result<(), NymNodeError> {
@@ -1012,14 +1019,16 @@ impl NymNode {
         self.start_verloc_measurements(task_manager.subscribe_named("verloc-measurements"));
 
         let active_clients_store = ActiveClientsStore::new();
-        let metrics_sender = self.setup_metrics_backend(
-            active_clients_store.clone(),
-            task_manager.subscribe_named("metrics"),
-        );
 
-        let mix_packet_sender = self.start_mixnet_listener(
+        let (mix_packet_sender, active_egress_mixnet_connections) = self.start_mixnet_listener(
             &active_clients_store,
             task_manager.subscribe_named("mixnet-traffic"),
+        );
+
+        let metrics_sender = self.setup_metrics_backend(
+            active_clients_store.clone(),
+            active_egress_mixnet_connections,
+            task_manager.subscribe_named("metrics"),
         );
 
         self.start_gateway_tasks(

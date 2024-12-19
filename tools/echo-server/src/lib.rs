@@ -159,18 +159,15 @@ impl NymEchoServer {
         info!("Connection closed");
     }
 
-    // TODO
-    // - make disconnect for proxy_server
-    // - make disconnect for this
-    // pub async fn disconnect(&self) {
-    //     self.cancel_token.cancel();
-    //     let client = Arc::clone(&self.client);
-    //     client.lock().await.disconnect_pool().await;
-    //     while metrics.active_conn.load(Ordering::Relaxed) > 0 {
-    //     info!("Waiting on active connections to close: sleeping 100ms");
-    //     tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-    // }
-    // }
+    pub async fn disconnect(&self) {
+        self.cancel_token.cancel();
+        let client = Arc::clone(&self.client);
+        client.lock().await.disconnect().await;
+        while self.metrics.active_conn.load(Ordering::Relaxed) > 0 {
+            info!("Waiting on active connections to close: sleeping 100ms");
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        }
+    }
 
     pub fn nym_address(&self) -> Recipient {
         self.client_address

@@ -16,6 +16,7 @@ export default async function NymNode({
   params: Promise<{ id: string; account?: string }>;
 }) {
   const id = Number((await params).id);
+  console.log("id :>> ", id);
 
   const response = await fetch(NYM_NODES, {
     headers: {
@@ -37,6 +38,8 @@ export default async function NymNode({
   if (!nymNode) {
     return null;
   }
+
+  const ownerAccount = nodeBondInfo[0].bond_information.owner;
 
   return (
     <ContentLayout>

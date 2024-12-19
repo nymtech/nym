@@ -70,6 +70,10 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
 
         // ## EGRESS
         self.prometheus_wrapper.set(
+            MixnetEgressStoredOnDiskFinalHopPackets,
+            self.metrics.mixnet.egress.disk_persisted_packets() as i64,
+        );
+        self.prometheus_wrapper.set(
             MixnetEgressForwardPacketsSent,
             self.metrics.mixnet.egress.forward_hop_packets_sent() as i64,
         );

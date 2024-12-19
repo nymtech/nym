@@ -148,6 +148,8 @@ pub struct EgressRecipientStats {
 
 #[derive(Default)]
 pub struct EgressMixingStats {
+    disk_persisted_packets: AtomicUsize,
+
     // this includes ACKS!
     forward_hop_packets_sent: AtomicUsize,
 
@@ -159,6 +161,14 @@ pub struct EgressMixingStats {
 }
 
 impl EgressMixingStats {
+    pub fn add_disk_persisted_packet(&self) {
+        self.disk_persisted_packets.fetch_add(1, Ordering::Relaxed);
+    }
+
+    pub fn disk_persisted_packets(&self) -> usize {
+        self.disk_persisted_packets.load(Ordering::Relaxed)
+    }
+
     pub fn forward_hop_packets_sent(&self) -> usize {
         self.forward_hop_packets_sent.load(Ordering::Relaxed)
     }

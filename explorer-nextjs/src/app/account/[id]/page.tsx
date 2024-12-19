@@ -1,11 +1,44 @@
-import ExplorerCard from "@/components/cards/ExplorerCard";
+import type { CurrencyRates, IAccountBalancesInfo } from "@/app/api/types";
+import { NYM_ACCOUNT_ADDRESS, NYM_PRICES_API } from "@/app/api/urls";
+import { AccountBalancesCard } from "@/components/accountPageComponents/AccountBalancesCard";
+import { AccountInfoCard } from "@/components/accountPageComponents/AccountInfoCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
-import ExplorerListItem from "@/components/list/ListItem";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
-import { Box, Grid2, Stack } from "@mui/material";
+import { Box, Grid2 } from "@mui/material";
 
-export default function Account() {
+export default async function Account({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const address = (await params).id;
+
+  const nymAccountAddress = `${NYM_ACCOUNT_ADDRESS}${address}`;
+  const accountData = await fetch(nymAccountAddress, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+    // refresh event list cache at given interval
+  });
+  const nymAccountBalancesData: IAccountBalancesInfo = await accountData.json();
+
+  if (!nymAccountBalancesData) {
+    return null;
+  }
+  const nymPrice = await fetch(NYM_PRICES_API, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+    // refresh event list cache at given interval
+  });
+
+  const nymPriceData: CurrencyRates = await nymPrice.json();
+
   return (
     <ContentLayout>
       <Grid2 container columnSpacing={5} rowSpacing={5}>
@@ -20,40 +53,20 @@ export default function Account() {
                 {
                   label: "Account",
                   isSelected: true,
-                  link: "/account/1",
+                  link: `/account/${address}`,
                 },
               ]}
             />
           </Box>
         </Grid2>
         <Grid2 size={4}>
-          <ExplorerCard label="Action" sx={{ height: "100%" }}>
-            <div />
-          </ExplorerCard>
+          <AccountInfoCard accountInfo={nymAccountBalancesData} />
         </Grid2>
         <Grid2 size={8}>
-          <ExplorerCard label="Basic info">
-            <Stack gap={1}>
-              <ExplorerListItem
-                divider
-                label="NYM Address"
-                value="0x1234567890"
-              />
-              <ExplorerListItem
-                divider
-                label="Identity Key"
-                value="0x1234567890"
-              />
-              <ExplorerListItem
-                row
-                divider
-                label="Node bonded"
-                value="24/11/2024"
-              />
-              <ExplorerListItem row divider label="Nr. of stakes" value="56" />
-              <ExplorerListItem row label="Self bonded" value="10,000 NYM" />
-            </Stack>
-          </ExplorerCard>
+          <AccountBalancesCard
+            accountInfo={nymAccountBalancesData}
+            nymPrice={nymPriceData.usd}
+          />
         </Grid2>
       </Grid2>
     </ContentLayout>

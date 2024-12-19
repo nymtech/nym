@@ -1,12 +1,57 @@
-import ExplorerCard from "@/components/cards/ExplorerCard";
+import type { IBondInfo, INodeDescription } from "@/app/api";
+import { NYM_NODE_BONDED, NYM_NODE_DESCRIPTION } from "@/app/api/urls";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
-import ExplorerListItem from "@/components/list/ListItem";
-import { StarRating } from "@/components/starRating";
+import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
+import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
+import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
+import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
+import { QualityIndicatorsCard } from "@/components/nymNodePageComponents/QualityIndicatorsCard";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
-import { Box, Grid2, Stack } from "@mui/material";
+import { Box, Grid2 } from "@mui/material";
 
-export default function NymNode() {
+export default async function NymNode({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const id = Number((await params).id);
+  console.log("id :>> ", id);
+
+  const descriptionData = await fetch(NYM_NODE_DESCRIPTION, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+    // refresh event list cache at given interval
+  });
+  const nymNodesDescription = await descriptionData.json();
+
+  const bondedData = await fetch(NYM_NODE_BONDED, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+    // refresh event list cache at given interval
+  });
+  const nymbondedData = await bondedData.json();
+
+  if (!nymbondedData || !nymNodesDescription) {
+    return null;
+  }
+
+  const nodeBondInfo = nymbondedData.data.filter(
+    (item: IBondInfo) => item.bond_information.node_id === id,
+  );
+
+  const nodeDescriptionInfo = nymNodesDescription.data.filter(
+    (item: INodeDescription) => item.node_id === id,
+  );
+
+  const ownerAccount = nodeBondInfo[0].bond_information.owner;
+
   return (
     <ContentLayout>
       <Grid2 container columnSpacing={5} rowSpacing={5}>
@@ -21,119 +66,32 @@ export default function NymNode() {
                 {
                   label: "Account",
                   isSelected: false,
-                  link: "/account/1",
+                  link: `/account/${ownerAccount}`,
                 },
               ]}
             />
           </Box>
         </Grid2>
         <Grid2 size={4}>
-          <ExplorerCard label="Action" sx={{ height: "100%" }}>
-            <div />
-          </ExplorerCard>
+          <NodeProfileCard
+            bondInfo={nodeBondInfo[0]}
+            nodeDescription={nodeDescriptionInfo[0]}
+          />
         </Grid2>
         <Grid2 size={4}>
-          <ExplorerCard label="Basic info">
-            <Stack gap={1}>
-              <ExplorerListItem
-                divider
-                label="NYM Address"
-                value="0x1234567890"
-              />
-              <ExplorerListItem
-                divider
-                label="Identity Key"
-                value="0x1234567890"
-              />
-              <ExplorerListItem
-                row
-                divider
-                label="Node bonded"
-                value="24/11/2024"
-              />
-              <ExplorerListItem row divider label="Nr. of stakes" value="56" />
-              <ExplorerListItem row label="Self bonded" value="10,000 NYM" />
-            </Stack>
-          </ExplorerCard>
+          <BasicInfoCard
+            bondInfo={nodeBondInfo[0]}
+            nodeDescription={nodeDescriptionInfo[0]}
+          />
         </Grid2>
         <Grid2 size={4}>
-          <ExplorerCard
-            label="Node Rewards (Last Epoch/Hour)"
-            sx={{ height: "100%" }}
-          >
-            <ExplorerListItem row divider label="Role" value="Gateway" />
-            <ExplorerListItem
-              row
-              divider
-              label="Quality of service"
-              value={<StarRating value={5} />}
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Config score"
-              value={<StarRating value={4} />}
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Probe score"
-              value={<StarRating value={5} />}
-            />
-          </ExplorerCard>
+          <QualityIndicatorsCard nodeDescription={nodeDescriptionInfo[0]} />
         </Grid2>
         <Grid2 size={6}>
-          <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
-            <ExplorerListItem
-              row
-              divider
-              label="Total rew."
-              value="10,000 NYM"
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Operator rew."
-              value="10,000 NYM"
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Staker rew."
-              value="10,000 NYM"
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Profit margin rew."
-              value="40 NYM"
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Operating cost."
-              value="40 NYM"
-            />
-          </ExplorerCard>
+          <NodeRewardsCard bondInfo={nodeBondInfo[0]} />
         </Grid2>
         <Grid2 size={6}>
-          <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
-            <ExplorerListItem row divider label="Node ID." value="209" />
-            <ExplorerListItem row divider label="Host" value="45.10.145.123" />
-            <ExplorerListItem
-              row
-              divider
-              label="Staker rew."
-              value="10,000 NYM"
-            />
-            <ExplorerListItem row divider label="Version" value="1.1.1.1" />
-            <ExplorerListItem
-              row
-              divider
-              label="Active set Prob."
-              value="High"
-            />
-          </ExplorerCard>
+          <NodeMetricsCard nodeDescription={nodeDescriptionInfo[0]} />
         </Grid2>
       </Grid2>
     </ContentLayout>

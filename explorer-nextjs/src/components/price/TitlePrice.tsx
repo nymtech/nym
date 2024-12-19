@@ -8,7 +8,7 @@ import {
 
 interface ITitlePriceProps {
   price: number;
-  upDownLine: IUpDownPriceIndicatorProps;
+  upDownLine?: IUpDownPriceIndicatorProps;
 }
 export const TitlePrice = (props: ITitlePriceProps): React.ReactNode => {
   const { price, upDownLine } = props;
@@ -25,7 +25,7 @@ export const TitlePrice = (props: ITitlePriceProps): React.ReactNode => {
           ${price}
         </Typography>
       </Box>
-      <UpDownPriceIndicator {...upDownLine} />
+      {upDownLine && <UpDownPriceIndicator {...upDownLine} />}
     </Box>
   );
 };

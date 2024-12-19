@@ -25,7 +25,14 @@ async fn main() -> Result<()> {
     // Create initial connection to ensure database exists
     let mut conn = SqliteConnection::connect_with(&connect_options).await?;
 
-    export_db_variables(&db_url)?;
+    // Platform specific database URL for environment variables, thanks to Windows
+    #[cfg(target_family = "unix")]
+    let env_db_url = format!("sqlite:{}", db_path.display());
+
+    #[cfg(target_family = "windows")]
+    let env_db_url = format!("sqlite:///{}", db_path.display());
+
+    export_db_variables(&env_db_url)?;
     println!("cargo:rustc-env=SQLX_OFFLINE=false");
 
     // Run migrations after ensuring database exists

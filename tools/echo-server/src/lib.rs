@@ -2,13 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Result;
-use bytes::Bytes;
 use nym_crypto::asymmetric::ed25519;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::tcp_proxy;
 use nym_sdk::tcp_proxy::NymProxyServer;
-use std::env;
-use std::fs;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;

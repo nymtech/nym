@@ -16,8 +16,8 @@ use nym_node_requests::api::v1::metrics::models::WireguardStats;
     tag = "Metrics",
     responses(
         (status = 200, content(
-            ("application/json" = WireguardStats),
-            ("application/yaml" = WireguardStats)
+            (WireguardStats = "application/json"),
+            (WireguardStats = "application/yaml")
         ))
     ),
     params(OutputParams),

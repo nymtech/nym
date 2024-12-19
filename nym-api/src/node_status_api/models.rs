@@ -22,7 +22,7 @@ use std::fmt::Display;
 use thiserror::Error;
 use time::{Date, OffsetDateTime};
 use tracing::error;
-use utoipa::{ToResponse, ToSchema};
+use utoipa::ToSchema;
 
 #[derive(Error, Debug)]
 #[error("Received uptime value was within 0-100 range (got {received})")]
@@ -320,11 +320,11 @@ impl From<HistoricalUptime> for OldHistoricalUptimeResponse {
 // TODO rocket remove smurf name after eliminating `rocket`
 pub(crate) type AxumResult<T> = Result<T, AxumErrorResponse>;
 
-#[derive(ToSchema, ToResponse)]
-#[schema(title = "ErrorResponse")]
+// #[derive(ToSchema, ToResponse)]
+// #[schema(title = "ErrorResponse")]
 pub(crate) struct AxumErrorResponse {
     message: RequestError,
-    #[schema(value_type = u16)]
+    // #[schema(value_type = u16)]
     status: StatusCode,
 }
 

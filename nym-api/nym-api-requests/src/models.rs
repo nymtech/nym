@@ -43,7 +43,7 @@ use thiserror::Error;
 use time::{Date, OffsetDateTime};
 use utoipa::{IntoParams, ToResponse, ToSchema};
 
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema, ToSchema, ToResponse)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
 pub struct RequestError {
     message: String,
 }

@@ -22,15 +22,15 @@ type SimpleModalPropsOpen = {
 
 export type SimpleModalProps = SimpleModalPropsClosed | SimpleModalPropsOpen;
 
-const SimpleModal = ({
-  open,
-  title,
-  children,
-  Actions,
-  onClose,
-}: SimpleModalProps) => {
+const SimpleModal = (props: SimpleModalProps) => {
+  if (!props.open) {
+    return null;
+  }
+
+  const { title, children, Actions, onClose } = props;
+
   return (
-    <Dialog open={open} maxWidth="sm" fullWidth onClose={onClose}>
+    <Dialog open maxWidth="sm" fullWidth onClose={onClose}>
       <Stack
         direction="row"
         justifyContent="space-between"

@@ -16,6 +16,7 @@ import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite, UnFavorite } from "../favorite/Favorite";
+import StakeModal from "../modal/StakeModal";
 import ConnectWallet from "../wallet/ConnectWallet";
 import type { MappedNymNode, MappedNymNodes } from "./NodeTableWithAction";
 
@@ -39,12 +40,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     []
   );
 
-  const [nodeSelectedForStaking, setNodeSelectedForStaking] =
-    useState<MappedNymNode>();
-
   const [infoModalProps, setInfoModalProps] = useState<SimpleModalProps>({
     open: false,
   });
+
+  const [selectedNodeForStaking, setSelectedNodeForStaking] =
+    useState<string>();
 
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
 
@@ -73,7 +74,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         });
         return;
       }
-      setNodeSelectedForStaking(node);
+      setSelectedNodeForStaking(node.bondInformation.node.identity_key);
     },
     [isWalletConnected]
   );
@@ -272,10 +273,9 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   });
   return (
     <>
-      <SimpleModal
-        open={!!nodeSelectedForStaking}
-        title="Stake"
-        onClose={() => setNodeSelectedForStaking(undefined)}
+      <StakeModal
+        identityKey={selectedNodeForStaking}
+        onClose={() => setSelectedNodeForStaking(undefined)}
       />
       <SimpleModal {...infoModalProps} />
       <MaterialReactTable table={table} />

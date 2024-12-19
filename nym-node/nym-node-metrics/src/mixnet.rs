@@ -131,13 +131,6 @@ impl MixingStats {
             .or_default()
             .dropped += 1;
     }
-
-    pub fn egress_dropped_final_hop_packet(&self) {
-        todo!()
-        // self.egress
-        //     .final_hop_packets_dropped
-        //     .fetch_add(1, Ordering::Relaxed);
-    }
 }
 
 #[derive(Clone, Copy, Default, PartialEq)]

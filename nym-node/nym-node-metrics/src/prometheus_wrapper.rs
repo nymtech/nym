@@ -6,7 +6,7 @@ use std::sync::LazyLock;
 use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator};
 
 pub static PROMETHEUS_METRICS: LazyLock<NymNodePrometheusMetrics> =
-    LazyLock::new(|| NymNodePrometheusMetrics::initialise());
+    LazyLock::new(NymNodePrometheusMetrics::initialise);
 
 const CLIENT_SESSION_DURATION_BUCKETS: &[f64] = &[
     // sub 3s (implicitly)
@@ -178,10 +178,11 @@ impl PrometheusMetric {
     }
 
     fn is_complex(&self) -> bool {
-        match self {
-            PrometheusMetric::EntryClientSessionsDurations { .. } => true,
-            _ => false,
-        }
+        matches!(self, PrometheusMetric::EntryClientSessionsDurations { .. })
+        // match self {
+        //     PrometheusMetric::EntryClientSessionsDurations { .. } => true,
+        //     _ => false,
+        // }
     }
 
     fn to_registrable_metric(&self) -> Option<Metric> {
@@ -244,7 +245,7 @@ impl PrometheusMetric {
             PrometheusMetric::EntryClientSessionsStarted => Metric::new_int_gauge(&name, help),
             PrometheusMetric::EntryClientSessionsFinished => Metric::new_int_gauge(&name, help),
             PrometheusMetric::EntryClientSessionsDurations { .. } => {
-                Metric::new_histogram(&name, help, Some(&CLIENT_SESSION_DURATION_BUCKETS))
+                Metric::new_histogram(&name, help, Some(CLIENT_SESSION_DURATION_BUCKETS))
             }
             PrometheusMetric::WireguardBytesTx => Metric::new_int_gauge(&name, help),
             PrometheusMetric::WireguardBytesRx => Metric::new_int_gauge(&name, help),

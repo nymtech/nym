@@ -404,7 +404,7 @@ impl MetricsController {
         self.register_metric(metric);
     }
 
-    pub fn set<'a>(&self, name: &str, value: i64) -> bool {
+    pub fn set(&self, name: &str, value: i64) -> bool {
         if let Some(metric) = self.registry_index.get(name) {
             metric.set(value);
             true
@@ -413,7 +413,7 @@ impl MetricsController {
         }
     }
 
-    pub fn set_float<'a>(&self, name: &str, value: f64) -> bool {
+    pub fn set_float(&self, name: &str, value: f64) -> bool {
         if let Some(metric) = self.registry_index.get(name) {
             metric.set_float(value);
             true
@@ -422,7 +422,7 @@ impl MetricsController {
         }
     }
 
-    pub fn add_to_histogram<'a>(&self, name: &str, value: f64) -> bool {
+    pub fn add_to_histogram(&self, name: &str, value: f64) -> bool {
         if let Some(metric) = self.registry_index.get(name) {
             metric.add_histogram_observation(value);
             true
@@ -431,13 +431,13 @@ impl MetricsController {
         }
     }
 
-    pub fn start_timer<'a>(&self, name: &str) -> Option<HistogramTimer> {
+    pub fn start_timer(&self, name: &str) -> Option<HistogramTimer> {
         self.registry_index
             .get(name)
             .and_then(|metric| metric.start_timer())
     }
 
-    pub fn inc<'a>(&self, name: &str) -> bool {
+    pub fn inc(&self, name: &str) -> bool {
         if let Some(metric) = self.registry_index.get(name) {
             metric.inc();
             true
@@ -446,7 +446,7 @@ impl MetricsController {
         }
     }
 
-    pub fn inc_by<'a>(&self, name: &str, value: i64) -> bool {
+    pub fn inc_by(&self, name: &str, value: i64) -> bool {
         if let Some(metric) = self.registry_index.get(name) {
             metric.inc_by(value);
             true

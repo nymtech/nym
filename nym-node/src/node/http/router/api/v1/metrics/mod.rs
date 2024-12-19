@@ -52,9 +52,7 @@ where
         .route(metrics::SESSIONS, get(sessions_stats))
         .route(metrics::VERLOC, get(verloc_stats));
 
-    let auth_middleware = config
-        .bearer_token
-        .map(|bearer_token| AuthLayer::new(bearer_token));
+    let auth_middleware = config.bearer_token.map(AuthLayer::new);
 
     // don't expose prometheus route without bearer token set
     if let Some(auth_middleware) = auth_middleware {

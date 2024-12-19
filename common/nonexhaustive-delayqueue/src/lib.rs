@@ -69,6 +69,10 @@ impl<T> NonExhaustiveDelayQueue<T> {
     pub fn len(&self) -> usize {
         self.inner.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
+    }
 }
 
 impl<T> Default for NonExhaustiveDelayQueue<T> {

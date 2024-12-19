@@ -3,6 +3,7 @@ import type {
   NodeDescription,
   RewardingDetails,
 } from "@/app/api/types";
+import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Stack, Typography } from "@mui/material";
 import { format } from "date-fns";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -23,7 +24,7 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
     "dd/MM/yyyy",
   );
 
-  const selfBond = Number(rewardDetails.operator) / 1_000_000;
+  const selfBond = formatBigNum(Number(rewardDetails.operator) / 1_000_000);
   const selfBondFormated = `${selfBond} NYM`;
   return (
     <ExplorerCard label="Basic info">

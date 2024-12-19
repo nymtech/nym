@@ -1,10 +1,27 @@
 import APITable from 'components/api-table.tsx';
+import { RedocStandalone } from 'redoc';
+import { Callout } from 'nextra/components'
 
 You can find the OpenAPI spec found at [https://validator.nymtech.net/api-docs/openapi.json](https://validator.nymtech.net/api-docs/openapi.json) which is also used to generate the Swagger docs deployed at [https://validator.nymtech.net/api/swagger/index.html](https://validator.nymtech.net/api/swagger/index.html).
 
+<Callout type="info" emoji="ℹ️">
 You can find the Swagger endpoints of other NymAPI instances at the following endpoints:
 <APITable endpoint="https://api.nymtech.net/cosmwasm/wasm/v1/contract/n19604yflqggs9mk2z26mqygq43q2kr3n932egxx630svywd5mpxjsztfpvx/smart/eyJnZXRfY3VycmVudF9kZWFsZXJzIjogeyJsaW1pdCI6IDMwfX0=" />
 
 There is also an overview of endpoints at [https://cosmos.directory/nyx](https://cosmos.directory/nyx).
+</Callout>
 
-> Interactive Redoc component coming soon
+<br /><br />
+
+<RedocStandalone
+  specUrl="http://localhost:8000/api-docs/openapi.json"
+  options={{
+    nativeScrollbars: true,
+    theme: {
+      sidebar: {
+        backgroundColor: '#273239',
+        textColor: '#FCFDFE'
+      }
+    }
+  }}
+/>

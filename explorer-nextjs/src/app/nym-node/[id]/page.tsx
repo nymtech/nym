@@ -8,6 +8,7 @@ import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard"
 import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
 import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
 import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
+import { QualityIndicatorsCard } from "@/components/nymNodePageComponents/QualityIndicatorsCard";
 import { StarRating } from "@/components/starRating";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Grid2 } from "@mui/material";
@@ -82,27 +83,7 @@ export default async function NymNode({
           />
         </Grid2>
         <Grid2 size={4}>
-          <ExplorerCard label="Quality indicatiors" sx={{ height: "100%" }}>
-            <ExplorerListItem row divider label="Role" value="Gateway" />
-            <ExplorerListItem
-              row
-              divider
-              label="Quality of service"
-              value={<StarRating value={5} />}
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Config score"
-              value={<StarRating value={4} />}
-            />
-            <ExplorerListItem
-              row
-              divider
-              label="Probe score"
-              value={<StarRating value={5} />}
-            />
-          </ExplorerCard>
+          <QualityIndicatorsCard nodeDescription={nodeDescriptionInfo[0]} />
         </Grid2>
         <Grid2 size={6}>
           <NodeRewardsCard bondInfo={nodeBondInfo[0]} />

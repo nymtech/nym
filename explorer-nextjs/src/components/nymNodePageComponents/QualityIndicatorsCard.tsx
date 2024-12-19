@@ -1,29 +1,35 @@
-import type { NodeDescription } from "@/app/api/types";
-import { Chip, Stack } from "@mui/material";
+import type { INodeDescription } from "@/app/api";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import StarRating from "../starRating/StarRating";
 
 interface IQualityIndicatorsCardProps {
-  nodeDescription: NodeDescription;
+  nodeDescription: INodeDescription;
 }
 
-type DelcaredRoleKey = keyof NodeDescription["declared_role"];
-type RoleString = "Entry Node" | "Exit IPR Node" | "Exit NR Node" | "Mix Node";
+interface IDeclaredRoles {
+  declared_role: {
+    entry: boolean;
+    exit_ipr: boolean;
+    exit_nr: boolean;
+    mixnode: boolean;
+  };
+}
 
-const roleMapping: Record<DelcaredRoleKey, RoleString> = {
-  entry: "Entry Node",
-  exit_ipr: "Exit IPR Node",
-  exit_nr: "Exit NR Node",
-  mixnode: "Mix Node",
-};
+function getNodeRoles(rolesObject: IDeclaredRoles): string {
+  const roleMapping: { [key: string]: string } = {
+    entry: "Entry Node",
+    exit_ipr: "Exit IPR Node",
+    exit_nr: "Exit NR Node",
+    mixnode: "Mix Node",
+  };
 
-function getNodeRoles(
-  declaredRoles: NodeDescription["declared_role"],
-): RoleString[] {
-  const activeRoles = Object.entries(declaredRoles)
-    .filter(([, isActive]) => isActive)
-    .map(([role]) => roleMapping[role as DelcaredRoleKey]);
+  const { declared_role } = rolesObject;
+
+  const activeRoles = Object.entries(declared_role)
+    .filter(([_, value]) => value) // Filter keys where value is true
+    .map(([key]) => roleMapping[key]) // Map keys to their corresponding strings
+    .join(", "); // Join with commas
 
   return activeRoles;
 }
@@ -31,25 +37,13 @@ function getNodeRoles(
 export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
   const { nodeDescription } = props;
 
-  const nodeRoles = getNodeRoles(nodeDescription.declared_role);
-  const NodeRoles = nodeRoles.map((role) => (
-    <Stack key={role} direction="row" gap={1}>
-      <Chip key={role} label={role} size="small" />
-    </Stack>
-  ));
+  const nodeRoles = getNodeRoles({
+    declared_role: nodeDescription.description.declared_role,
+  });
 
   return (
     <ExplorerCard label="Quality indicatiors" sx={{ height: "100%" }}>
-      <ExplorerListItem
-        row
-        divider
-        label="Role"
-        value={
-          <Stack direction="row" gap={1}>
-            {NodeRoles}
-          </Stack>
-        }
-      />
+      <ExplorerListItem row divider label="Role" value={nodeRoles} />
       <ExplorerListItem
         row
         divider

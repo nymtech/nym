@@ -1,7 +1,6 @@
 // Copyright 2023-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::helpers::PlaceholderJsonSchemaImpl;
 use cosmrs::AccountId;
 use nym_compact_ecash::scheme::coin_indices_signatures::AnnotatedCoinIndexSignature;
 use nym_compact_ecash::scheme::expiration_date_signatures::AnnotatedExpirationDateSignature;
@@ -14,7 +13,6 @@ use nym_credentials_interface::{
 };
 use nym_crypto::asymmetric::{ed25519, identity};
 use nym_ticketbooks_merkle::{IssuedTicketbook, IssuedTicketbooksFullMerkleProof};
-use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::collections::BTreeMap;
@@ -23,28 +21,24 @@ use thiserror::Error;
 use time::Date;
 use utoipa::ToSchema;
 
-#[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct VerifyEcashTicketBody {
     /// The cryptographic material required for spending the underlying credential.
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = String)]
     pub credential: CredentialSpendingData,
 
     /// Cosmos address of the sender of the credential
-    #[schemars(with = "String")]
     #[schema(value_type = String)]
     pub gateway_cosmos_addr: AccountId,
 }
 
-#[derive(Serialize, Deserialize, Clone, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, Clone, ToSchema)]
 pub struct VerifyEcashCredentialBody {
     /// The cryptographic material required for spending the underlying credential.
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = openapi_schema::CredentialSpendingData)]
     pub credential: CredentialSpendingData,
 
     /// Cosmos address of the sender of the credential
-    #[schemars(with = "String")]
     #[schema(value_type = String)]
     pub gateway_cosmos_addr: AccountId,
 
@@ -73,7 +67,7 @@ pub enum EcashTicketVerificationResult {
     EcashTicketVerificationRejection,
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct EcashTicketVerificationResponse {
     #[schema(value_type = EcashTicketVerificationResult)]
     pub verified: Result<(), EcashTicketVerificationRejection>,
@@ -87,19 +81,16 @@ impl EcashTicketVerificationResponse {
     }
 }
 
-#[derive(Debug, Error, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Error, Serialize, Deserialize, ToSchema)]
 pub enum EcashTicketVerificationRejection {
     #[error("invalid ticket spent date. expected either today's ({today}) or yesterday's* ({yesterday}) date but got {received} instead\n*assuming it's before 1AM UTC")]
     InvalidSpentDate {
-        #[schemars(with = "String")]
         #[serde(with = "crate::helpers::date_serde")]
         #[schema(value_type = String, example = "1970-01-01")]
         today: Date,
-        #[schemars(with = "String")]
         #[serde(with = "crate::helpers::date_serde")]
         #[schema(value_type = String, example = "1970-01-01")]
         yesterday: Date,
-        #[schemars(with = "String")]
         #[serde(with = "crate::helpers::date_serde")]
         #[schema(value_type = String, example = "1970-01-01")]
         received: Date,
@@ -121,9 +112,8 @@ pub enum EcashTicketVerificationRejection {
 }
 
 //  All strings are base58 encoded representations of structs
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 pub struct BlindSignRequestBody {
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = openapi_schema::WithdrawalRequest)]
     pub inner_sign_request: WithdrawalRequest,
 
@@ -131,20 +121,16 @@ pub struct BlindSignRequestBody {
     pub deposit_id: u32,
 
     /// Signature on the inner sign request and the tx hash
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = String)]
     pub signature: identity::Signature,
 
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = openapi_schema::PublicKeyUser)]
     pub ecash_pubkey: PublicKeyUser,
 
-    #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
 
-    #[schemars(with = "String")]
     #[schema(value_type = String)]
     pub ticketbook_type: TicketType,
 }
@@ -200,9 +186,8 @@ impl BlindSignRequestBody {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct BlindedSignatureResponse {
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = openapi_schema::BlindedSignature)]
     pub blinded_signature: BlindedSignature,
 }
@@ -232,9 +217,8 @@ impl BlindedSignatureResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct MasterVerificationKeyResponse {
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = openapi_schema::VerificationKeyAuth)]
     pub key: VerificationKeyAuth,
 }
@@ -245,9 +229,8 @@ impl MasterVerificationKeyResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct VerificationKeyResponse {
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = openapi_schema::VerificationKeyAuth)]
     pub key: VerificationKeyAuth,
 }
@@ -258,9 +241,8 @@ impl VerificationKeyResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize)]
 pub struct CosmosAddressResponse {
-    #[schemars(with = "String")]
     pub addr: AccountId,
 }
 
@@ -270,45 +252,39 @@ impl CosmosAddressResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct PartialExpirationDateSignatureResponse {
     pub epoch_id: u64,
 
-    #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = openapi_schema::AnnotatedExpirationDateSignature)]
     pub signatures: Vec<AnnotatedExpirationDateSignature>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct PartialCoinIndicesSignatureResponse {
     pub epoch_id: u64,
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = openapi_schema::AnnotatedCoinIndexSignature)]
     pub signatures: Vec<AnnotatedCoinIndexSignature>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct AggregatedExpirationDateSignatureResponse {
     pub epoch_id: u64,
 
-    #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
 
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = Vec<openapi_schema::AnnotatedExpirationDateSignature>)]
     pub signatures: Vec<AnnotatedExpirationDateSignature>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Serialize, Deserialize, ToSchema)]
 pub struct AggregatedCoinIndicesSignatureResponse {
     pub epoch_id: u64,
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = openapi_schema::Signature)]
     pub signatures: Vec<AnnotatedCoinIndexSignature>,
 }
@@ -378,13 +354,13 @@ pub mod openapi_schema {
 
     #[derive(ToSchema)]
     pub struct WithdrawalReqProof {
-        #[schema(value_type = [u64; 4], format = Binary)]
+        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
         challenge: Scalar,
-        #[schema(value_type = [u64; 4], format = Binary)]
+        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
         response_opening: Scalar,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
         response_openings: Vec<Scalar>,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
         response_attributes: Vec<Scalar>,
     }
 
@@ -435,30 +411,30 @@ pub mod openapi_schema {
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
     pub struct SpendProof {
-        #[schema(value_type = [u64; 4], format = Binary)]
+        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
         challenge: Scalar,
-        #[schema(value_type = [u64; 4], format = Binary)]
+        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
         response_r: Scalar,
-        #[schema(value_type = [u64; 4], format = Binary)]
+        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
         response_r_e: Scalar,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
         responses_r_k: Vec<Scalar>,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
         responses_l: Vec<Scalar>,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
         responses_o_a: Vec<Scalar>,
-        #[schema(value_type = [u64; 4], format = Binary)]
+        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
         response_o_c: Scalar,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
         responses_mu: Vec<Scalar>,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
         responses_o_mu: Vec<Scalar>,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary)]
+        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
         responses_attributes: Vec<Scalar>,
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug)]
 pub struct Pagination<T> {
     /// last_key is the last value returned in the previous query.
     /// it's used to indicate the start of the next (this) page.
@@ -470,12 +446,8 @@ pub struct Pagination<T> {
     pub limit: Option<u32>,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq, ToSchema)]
-pub struct SerialNumberWrapper(
-    #[serde(with = "nym_serde_helpers::bs58")]
-    #[schemars(with = "String")]
-    Vec<u8>,
-);
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, ToSchema)]
+pub struct SerialNumberWrapper(#[serde(with = "nym_serde_helpers::bs58")] Vec<u8>);
 
 impl Deref for SerialNumberWrapper {
     type Target = Vec<u8>;
@@ -496,14 +468,12 @@ impl From<Vec<u8>> for SerialNumberWrapper {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, PartialEq, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, ToSchema)]
 pub struct BatchRedeemTicketsBody {
     #[serde(with = "nym_serde_helpers::bs58")]
-    #[schemars(with = "String")]
     pub digest: Vec<u8>,
     pub included_serial_numbers: Vec<SerialNumberWrapper>,
     pub proposal_id: u64,
-    #[schemars(with = "String")]
     #[schema(value_type = String)]
     pub gateway_cosmos_addr: AccountId,
 }
@@ -540,16 +510,15 @@ impl BatchRedeemTicketsBody {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Debug, Serialize, Deserialize, ToSchema)]
 pub struct EcashBatchTicketRedemptionResponse {
     pub proposal_accepted: bool,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct SpentCredentialsResponse {
     #[serde(with = "nym_serde_helpers::base64")]
-    #[schemars(with = "String")]
     #[schema(value_type = String)]
     pub bitmap: Vec<u8>,
 }
@@ -562,7 +531,7 @@ impl SpentCredentialsResponse {
 
 pub type DepositId = u32;
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema, PartialEq, Eq)]
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema, PartialEq, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct CommitedDeposit {
     #[schema(value_type = u32)]
@@ -570,10 +539,9 @@ pub struct CommitedDeposit {
     pub merkle_index: usize,
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksForResponseBody {
-    #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
@@ -595,13 +563,12 @@ impl IssuedTicketbooksForResponseBody {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksForResponse {
     pub body: IssuedTicketbooksForResponseBody,
 
     /// Signature on the body
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = String)]
     pub signature: identity::Signature,
 }
@@ -614,10 +581,9 @@ impl IssuedTicketbooksForResponse {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksChallengeRequest {
-    #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
@@ -625,10 +591,9 @@ pub struct IssuedTicketbooksChallengeRequest {
     pub deposits: Vec<DepositId>,
 }
 
-#[derive(Serialize, Deserialize, JsonSchema, ToSchema, Clone, Debug)]
+#[derive(Serialize, Deserialize, ToSchema, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksChallengeResponseBody {
-    #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
     #[schema(value_type = String, example = "1970-01-01")]
     pub expiration_date: Date,
@@ -667,12 +632,11 @@ impl IssuedTicketbooksChallengeResponseBody {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbooksChallengeResponse {
     pub body: IssuedTicketbooksChallengeResponseBody,
 
-    #[schemars(with = "PlaceholderJsonSchemaImpl")]
     #[schema(value_type = String)]
     pub signature: identity::Signature,
 }

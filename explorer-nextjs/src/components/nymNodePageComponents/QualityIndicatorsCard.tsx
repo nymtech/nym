@@ -27,6 +27,7 @@ function getNodeRoles(rolesObject: IDeclaredRoles): string {
   const { declared_role } = rolesObject;
 
   const activeRoles = Object.entries(declared_role)
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     .filter(([_, value]) => value) // Filter keys where value is true
     .map(([key]) => roleMapping[key]) // Map keys to their corresponding strings
     .join(", "); // Join with commas

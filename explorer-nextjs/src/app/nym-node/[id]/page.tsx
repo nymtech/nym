@@ -1,15 +1,12 @@
 import type { IBondInfo, INodeDescription } from "@/app/api";
 import { NYM_NODE_BONDED, NYM_NODE_DESCRIPTION } from "@/app/api/urls";
-import ExplorerCard from "@/components/cards/ExplorerCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
-import ExplorerListItem from "@/components/list/ListItem";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
 import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
 import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
 import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
 import { QualityIndicatorsCard } from "@/components/nymNodePageComponents/QualityIndicatorsCard";
-import { StarRating } from "@/components/starRating";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Grid2 } from "@mui/material";
 

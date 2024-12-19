@@ -128,7 +128,7 @@ members = [
     "nym-node-status-api/nym-node-status-client",
     "nym-outfox",
     "nym-validator-rewarder",
-    "tools/echo-server",
+    # "tools/echo-server",
     "tools/internal/ssl-inject",
     # "tools/internal/sdk-version-bump",
     "tools/internal/testnet-manager",

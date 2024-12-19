@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO block (height, hash, num_txs, total_gas, proposer_address, timestamp)\n            VALUES (?, ?, ?, ?, ?, ?)\n            ON CONFLICT DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "84e200c64ff49be7241d43841d0e35e94e172738678c7299334c47a54caf5c50"
+}

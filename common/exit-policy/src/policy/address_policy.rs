@@ -86,7 +86,6 @@ impl Display for AddressPolicyAction {
 /// ```
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq, Eq)]
 #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-#[cfg_attr(feature = "openapi", aliases(ExitPolicy))]
 pub struct AddressPolicy {
     /// A list of rules to apply to find out whether an address is
     /// contained by this policy.
@@ -727,10 +726,10 @@ mod test {
         let policy = AddressPolicy::parse_from_torrc(
             r#"
 ExitPolicy reject 1.2.3.4/32:*
-ExitPolicy reject 1.2.3.5:* 
+ExitPolicy reject 1.2.3.5:*
 ExitPolicy reject 1.2.3.6/16:*
-ExitPolicy reject 1.2.3.6/16:123-456 
-ExitPolicy accept *:53 
+ExitPolicy reject 1.2.3.6/16:123-456
+ExitPolicy accept *:53
 ExitPolicy accept6 *6:119
 ExitPolicy accept *4:120
 ExitPolicy reject6 [FC00::]/7:*

@@ -80,12 +80,12 @@ async fn shares_to_response(
     tag = "Ticketbook Wallet Shares",
     responses(
         (status = 200, content(
-            ("application/json" = TicketbookWalletSharesResponse),
-            ("application/yaml" = TicketbookWalletSharesResponse),
+            (TicketbookWalletSharesResponse = "application/json"),
+            (TicketbookWalletSharesResponse = "application/yaml"),
         )),
         (status = 404, description = "share_id not found"),
         (status = 401, description = "authentication token is missing or is invalid"),
-        (status = 500, body = ErrorResponse, description = "failed to query for bandwidth blinded shares"),
+        (status = 500, body = String, description = "failed to query for bandwidth blinded shares"),
     ),
     params(OutputParams),
     security(
@@ -155,12 +155,12 @@ pub(crate) async fn query_for_shares_by_id(
     tag = "Ticketbook Wallet Shares",
     responses(
         (status = 200, content(
-            ("application/json" = TicketbookWalletSharesResponse),
-            ("application/yaml" = TicketbookWalletSharesResponse),
+            (TicketbookWalletSharesResponse = "application/json"),
+            (TicketbookWalletSharesResponse = "application/yaml"),
         )),
         (status = 404, description = "share_id not found"),
         (status = 401, description = "authentication token is missing or is invalid"),
-        (status = 500, body = ErrorResponse, description = "failed to query for bandwidth blinded shares"),
+        (status = 500, body = String, description = "failed to query for bandwidth blinded shares"),
     ),
     params(SharesQueryParams),
     security(

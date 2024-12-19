@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT height\n                FROM block\n                ORDER BY height ASC\n                LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "height",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "2561fb016951ea4cd29e43fb9a4a93e944b0d44ed1f7c1036f306e34372da11c"
+}

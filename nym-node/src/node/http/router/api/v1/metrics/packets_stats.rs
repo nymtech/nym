@@ -18,8 +18,8 @@ use nym_node_requests::api::v1::metrics::models::packets::{
     tag = "Metrics",
     responses(
         (status = 200, content(
-            ("application/json" = PacketsStats),
-            ("application/yaml" = PacketsStats)
+            (PacketsStats = "application/json"),
+            (PacketsStats = "application/yaml")
         ))
     ),
     params(OutputParams),

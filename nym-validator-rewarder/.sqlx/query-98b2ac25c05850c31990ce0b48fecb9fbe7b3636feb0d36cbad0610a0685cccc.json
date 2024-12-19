@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO message (transaction_hash, \"index\", type, height)\n            VALUES (?, ?, ?, ?)\n            ON CONFLICT (transaction_hash, \"index\") DO UPDATE\n                SET height = excluded.height,\n                type = excluded.type\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 4
+    },
+    "nullable": []
+  },
+  "hash": "98b2ac25c05850c31990ce0b48fecb9fbe7b3636feb0d36cbad0610a0685cccc"
+}

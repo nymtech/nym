@@ -5,10 +5,8 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 pub use nym_node_requests::api::ErrorResponse;
-use utoipa::ToResponse;
 
-#[derive(Debug, Clone, ToResponse)]
-#[response(description = "Error response with additional message")]
+#[derive(Debug, Clone)]
 pub(crate) struct RequestError {
     pub(crate) inner: ErrorResponse,
 

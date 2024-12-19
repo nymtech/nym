@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n            INSERT INTO validator (consensus_address, consensus_pubkey)\n            VALUES (?, ?)\n            ON CONFLICT DO NOTHING\n        ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": []
+  },
+  "hash": "dcb00d96a003c9ad0b6213ac6974f40adb4d74539bfe36432ae62a2b5268f5fd"
+}

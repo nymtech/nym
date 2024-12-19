@@ -15,8 +15,8 @@ use nym_node_requests::api::v1::gateway::models::Gateway;
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            ("application/json" = Gateway),
-            ("application/yaml" = Gateway)
+            (Gateway = "application/json"),
+            (Gateway = "application/yaml")
         ))
     ),
     params(OutputParams)

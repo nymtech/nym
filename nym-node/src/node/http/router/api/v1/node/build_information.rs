@@ -13,8 +13,8 @@ use nym_node_requests::api::v1::node::models::BinaryBuildInformationOwned;
     tag = "Node",
     responses(
         (status = 200, content(
-            ("application/json" = BinaryBuildInformationOwned),
-            ("application/yaml" = BinaryBuildInformationOwned)
+            (BinaryBuildInformationOwned = "application/json"),
+            (BinaryBuildInformationOwned = "application/yaml")
         ))
     ),
     params(OutputParams)

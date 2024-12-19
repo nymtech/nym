@@ -72,7 +72,7 @@ impl Display for RequestError {
     }
 }
 
-#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema)]
+#[derive(Clone, Copy, Debug, Serialize, Deserialize, PartialEq, Eq, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -145,7 +145,7 @@ pub struct NodePerformance {
     pub last_24h: Performance,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, Hash, JsonSchema)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, Hash, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
@@ -190,7 +190,7 @@ impl From<DisplayRole> for Role {
 // imo for now there's no point in exposing more than that,
 // nym-api shouldn't be calculating apy or stake saturation for you.
 // it should just return its own metrics (performance) and then you can do with it as you wish
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -202,13 +202,14 @@ impl From<DisplayRole> for Role {
 pub struct NodeAnnotation {
     #[cfg_attr(feature = "generate-ts", ts(type = "string"))]
     // legacy
+    #[schema(value_type = String)]
     pub last_24h_performance: Performance,
     pub current_role: Option<DisplayRole>,
 
     pub detailed_performance: DetailedNodePerformance,
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -244,7 +245,7 @@ impl DetailedNodePerformance {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -266,7 +267,7 @@ impl RoutingScore {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Copy, Debug, Default, Serialize, Deserialize, JsonSchema, ToSchema)]
 #[cfg_attr(feature = "generate-ts", derive(ts_rs::TS))]
 #[cfg_attr(
     feature = "generate-ts",
@@ -397,12 +398,15 @@ pub struct MixNodeBondAnnotated {
     #[schema(value_type = String)]
     pub performance: Performance,
     pub node_performance: NodePerformance,
+    #[schema(value_type = String)]
     pub estimated_operator_apy: Decimal,
+    #[schema(value_type = String)]
     pub estimated_delegators_apy: Decimal,
     pub blacklisted: bool,
 
     // a rather temporary thing until we query self-described endpoints of mixnodes
     #[serde(default)]
+    #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 }
 
@@ -471,11 +475,13 @@ pub struct GatewayBondAnnotated {
     pub self_described: Option<GatewayDescription>,
 
     // NOTE: the performance field is deprecated in favour of node_performance
+    #[schema(value_type = String)]
     pub performance: Performance,
     pub node_performance: NodePerformance,
     pub blacklisted: bool,
 
     #[serde(default)]
+    #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 }
 
@@ -526,21 +532,24 @@ impl GatewayBondAnnotated {
     }
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct GatewayDescription {
     // for now only expose what we need. this struct will evolve in the future (or be incorporated into nym-node properly)
 }
 
 #[derive(Debug, Serialize, Deserialize, JsonSchema, ToSchema, IntoParams)]
 pub struct ComputeRewardEstParam {
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
+    #[param(value_type = Option<String>)]
     pub performance: Option<Performance>,
     pub active_in_rewarded_set: Option<bool>,
     pub pledge_amount: Option<u64>,
     pub total_delegation: Option<u64>,
-    #[schema(value_type = CoinSchema)]
+    #[schema(value_type = Option<CoinSchema>)]
+    #[param(value_type = Option<CoinSchema>)]
     pub interval_operating_cost: Option<Coin>,
-    #[schema(value_type = String)]
+    #[schema(value_type = Option<String>)]
+    #[param(value_type = Option<String>)]
     pub profit_margin_percent: Option<Percent>,
 }
 
@@ -698,8 +707,11 @@ pub struct MixnodeStatusReportResponse {
     pub mix_id: NodeId,
     pub identity: IdentityKey,
     pub owner: String,
+    #[schema(value_type = u8)]
     pub most_recent: Uptime,
+    #[schema(value_type = u8)]
     pub last_hour: Uptime,
+    #[schema(value_type = u8)]
     pub last_day: Uptime,
 }
 
@@ -825,6 +837,7 @@ pub struct CirculatingSupplyResponse {
 
 #[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct HostInformation {
+    #[schema(value_type = Vec<String>)]
     pub ip_address: Vec<IpAddr>,
     pub hostname: Option<String>,
     pub keys: HostKeys,
@@ -844,15 +857,18 @@ impl From<nym_node_requests::api::v1::node::models::HostInformation> for HostInf
 pub struct HostKeys {
     #[serde(with = "bs58_ed25519_pubkey")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub ed25519: ed25519::PublicKey,
 
     #[serde(with = "bs58_x25519_pubkey")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub x25519: x25519::PublicKey,
 
     #[serde(default)]
     #[serde(with = "option_bs58_x25519_pubkey")]
     #[schemars(with = "Option<String>")]
+    #[schema(value_type = String)]
     pub x25519_noise: Option<x25519::PublicKey>,
 }
 
@@ -896,6 +912,7 @@ pub struct OffsetDateTimeJsonSchemaWrapper(
         default = "unix_epoch",
         with = "crate::helpers::overengineered_offset_date_time_serde"
     )]
+    #[schema(inline)]
     pub OffsetDateTime,
 );
 
@@ -1233,13 +1250,13 @@ pub struct SignerInformationResponse {
     pub verification_key: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, Default)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, Default, ToSchema)]
 pub struct TestNode {
     pub node_id: Option<u32>,
     pub identity_key: Option<String>,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema)]
 pub struct TestRoute {
     pub gateway: TestNode,
     pub layer1: TestNode,
@@ -1274,10 +1291,12 @@ pub struct NetworkMonitorRunDetailsResponse {
 pub struct NoiseDetails {
     #[schemars(with = "String")]
     #[serde(with = "bs58_x25519_pubkey")]
+    #[schema(value_type = String)]
     pub x25119_pubkey: x25519::PublicKey,
 
     pub mixnet_port: u16,
 
+    #[schema(value_type = Vec<String>)]
     pub ip_addresses: Vec<IpAddr>,
 }
 
@@ -1285,12 +1304,14 @@ pub struct NoiseDetails {
 pub struct NodeRefreshBody {
     #[serde(with = "bs58_ed25519_pubkey")]
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub node_identity: ed25519::PublicKey,
 
     // a poor man's nonce
     pub request_timestamp: i64,
 
     #[schemars(with = "PlaceholderJsonSchemaImpl")]
+    #[schema(value_type = String)]
     pub signature: ed25519::Signature,
 }
 

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT last_processed_height FROM metadata\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "last_processed_height",
+        "ordinal": 0,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c88d07fecc3f33deaa6e93db1469ce71582635df47f52dcf3fd1df4e7be6b96d"
+}

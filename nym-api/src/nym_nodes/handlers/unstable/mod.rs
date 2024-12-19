@@ -88,6 +88,7 @@ struct NodesParamsWithRole {
 }
 
 #[derive(Debug, Deserialize, utoipa::IntoParams)]
+#[into_params(parameter_in = Query)]
 struct NodesParams {
     #[allow(dead_code)]
     semver_compatibility: Option<String>,

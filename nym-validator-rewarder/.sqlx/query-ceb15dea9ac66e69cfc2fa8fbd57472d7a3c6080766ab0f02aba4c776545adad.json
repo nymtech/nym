@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT operator_account\n                FROM banned_ticketbook_issuer\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "operator_account",
+        "ordinal": 0,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "ceb15dea9ac66e69cfc2fa8fbd57472d7a3c6080766ab0f02aba4c776545adad"
+}

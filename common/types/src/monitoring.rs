@@ -3,6 +3,7 @@ use nym_mixnet_contract_common::NodeId;
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashSet, sync::LazyLock, time::SystemTime};
+use utoipa::ToSchema;
 
 static NETWORK_MONITORS: LazyLock<HashSet<String>> = LazyLock::new(|| {
     let mut nm = HashSet::new();
@@ -10,8 +11,9 @@ static NETWORK_MONITORS: LazyLock<HashSet<String>> = LazyLock::new(|| {
     nm
 });
 
-#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone)]
+#[derive(Debug, Serialize, Deserialize, JsonSchema, Clone, ToSchema)]
 pub struct NodeResult {
+    #[schema(value_type = u32)]
     pub node_id: NodeId,
     pub identity: String,
     pub reliability: u8,
@@ -34,7 +36,7 @@ pub enum MonitorResults {
     Gateway(Vec<NodeResult>),
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct MonitorMessage {
     results: Vec<NodeResult>,
     signature: String,

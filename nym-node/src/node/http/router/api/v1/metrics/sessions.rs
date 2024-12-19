@@ -17,8 +17,8 @@ use time::macros::time;
     tag = "Metrics",
     responses(
         (status = 200, content(
-            ("application/json" = SessionStats),
-            ("application/yaml" = SessionStats)
+            (SessionStats = "application/json"),
+            (SessionStats = "application/yaml")
         ))
     ),
     params(OutputParams),

@@ -15,8 +15,8 @@ use nym_node_requests::api::v1::network_requester::models::NetworkRequester;
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            ("application/json" = NetworkRequester),
-            ("application/yaml" = NetworkRequester)
+            (NetworkRequester = "application/json"),
+            (NetworkRequester = "application/yaml")
         ))
     ),
     params(OutputParams)

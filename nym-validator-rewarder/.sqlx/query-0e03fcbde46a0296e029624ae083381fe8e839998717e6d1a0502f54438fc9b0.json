@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "UPDATE pruning SET last_pruned_height = ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "0e03fcbde46a0296e029624ae083381fe8e839998717e6d1a0502f54438fc9b0"
+}

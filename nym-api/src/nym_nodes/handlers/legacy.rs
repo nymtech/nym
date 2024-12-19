@@ -27,7 +27,7 @@ pub(crate) fn legacy_nym_node_routes() -> Router<AppState> {
     get,
     path = "/v1/gateways/described",
     responses(
-        (status = 200, body = Vec<DescribedGateway>)
+        (status = 200, body = Vec<LegacyDescribedGateway>)
     )
 )]
 #[deprecated]
@@ -81,7 +81,7 @@ async fn get_gateways_described(
     get,
     path = "/v1/mixnodes/described",
     responses(
-        (status = 200, body = Vec<DescribedMixNode>)
+        (status = 200, body = Vec<LegacyDescribedMixNode>)
     )
 )]
 #[deprecated]

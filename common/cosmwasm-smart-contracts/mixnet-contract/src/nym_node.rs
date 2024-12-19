@@ -231,6 +231,7 @@ pub struct RoleMetadata {
 
 /// Full details associated with given node.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct NymNodeDetails {
     /// Basic bond information of this node, such as owner address, original pledge, etc.
     pub bond_information: NymNodeBond,
@@ -288,14 +289,19 @@ impl NymNodeDetails {
 }
 
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct NymNodeBond {
     /// Unique id assigned to the bonded node.
+    #[cfg_attr(feature = "utoipa", schema(value_type = u32))]
     pub node_id: NodeId,
 
     /// Address of the owner of this nym-node.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub owner: Addr,
 
     /// Original amount pledged by the operator of this node.
+
+    #[cfg_attr(feature = "utoipa", schema(value_type = crate::CoinSchema))]
     pub original_pledge: Coin,
 
     /// Block height at which this nym-node has been bonded.
@@ -348,6 +354,7 @@ impl NymNodeBond {
     feature = "generate-ts",
     ts(export, export_to = "ts-packages/types/src/types/rust/NymNode.ts")
 )]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct NymNode {
     /// Network address of this nym-node, for example 1.1.1.1 or foo.mixnode.com
     /// that is used to discover other capabilities of this node.
@@ -358,6 +365,7 @@ pub struct NymNode {
     pub custom_http_port: Option<u16>,
 
     /// Base58-encoded ed25519 EdDSA public key.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub identity_key: IdentityKey,
     // TODO: I don't think we want to include sphinx keys here,
     // given we want to rotate them and keeping that in sync with contract will be a PITA
@@ -435,8 +443,11 @@ pub struct NodeConfigUpdate {
         export_to = "ts-packages/types/src/types/rust/PendingNodeChanges.ts"
     )
 )]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct PendingNodeChanges {
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<u32>))]
     pub pledge_change: Option<EpochEventId>,
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<u32>))]
     pub cost_params_change: Option<IntervalEventId>,
 }
 

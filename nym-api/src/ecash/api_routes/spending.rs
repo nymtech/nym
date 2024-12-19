@@ -52,7 +52,7 @@ fn reject_ticket(
     path = "/v1/ecash/verify-ecash-ticket",
     responses(
         (status = 200, body = EcashTicketVerificationResponse),
-        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn verify_ticket(
@@ -155,7 +155,7 @@ async fn verify_ticket(
     path = "/v1/ecash/batch-redeem-ecash-tickets",
     responses(
         (status = 200, body = EcashBatchTicketRedemptionResponse),
-        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn batch_redeem_tickets(
@@ -235,7 +235,7 @@ async fn batch_redeem_tickets(
     get,
     path = "/v1/ecash/double-spending-filter-v1",
     responses(
-        (status = 500, body = ErrorResponse, description = "bloomfilters got disabled"),
+        (status = 500, body = String, description = "bloomfilters got disabled"),
     )
 )]
 #[deprecated]

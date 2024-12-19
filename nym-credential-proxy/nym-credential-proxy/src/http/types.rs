@@ -6,14 +6,11 @@ use axum::http::StatusCode;
 use axum::response::{IntoResponse, Response};
 use axum::Json;
 use nym_credential_proxy_requests::api::v1::ErrorResponse;
-use utoipa::ToResponse;
 use uuid::Uuid;
 
-#[derive(Debug, Clone, ToResponse)]
-#[response(description = "Error response with additional message")]
+#[derive(Debug, Clone)]
 pub struct RequestError {
     pub inner: ErrorResponse,
-
     pub status: StatusCode,
 }
 

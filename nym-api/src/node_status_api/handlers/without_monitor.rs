@@ -1,6 +1,8 @@
 // Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
+// we want to mark the routes as deprecated in swagger, but still expose them
+#![allow(deprecated)]
 use crate::node_status_api::handlers::MixIdParam;
 use crate::node_status_api::helpers::{
     _get_active_set_legacy_mixnodes_detailed, _get_legacy_mixnodes_detailed,
@@ -20,8 +22,6 @@ use nym_mixnet_contract_common::NodeId;
 use nym_types::monitoring::MonitorMessage;
 use tracing::error;
 
-// we want to mark the routes as deprecated in swagger, but still expose them
-#[allow(deprecated)]
 pub(super) fn mandatory_routes() -> Router<AppState> {
     Router::new()
         .route(
@@ -63,9 +63,9 @@ pub(super) fn mandatory_routes() -> Router<AppState> {
     path = "/v1/status/submit-gateway-monitoring-results",
     responses(
         (status = 200),
-        (status = 400, body = ErrorResponse, description = "TBD"),
-        (status = 403, body = ErrorResponse, description = "TBD"),
-        (status = 500, body = ErrorResponse, description = "TBD"),
+        (status = 400, body = String, description = "TBD"),
+        (status = 403, body = String, description = "TBD"),
+        (status = 500, body = String, description = "TBD"),
     ),
 )]
 pub(crate) async fn submit_gateway_monitoring_results(
@@ -107,9 +107,9 @@ pub(crate) async fn submit_gateway_monitoring_results(
     path = "/v1/status/submit-node-monitoring-results",
     responses(
         (status = 200),
-        (status = 400, body = ErrorResponse, description = "TBD"),
-        (status = 403, body = ErrorResponse, description = "TBD"),
-        (status = 500, body = ErrorResponse, description = "TBD"),
+        (status = 400, body = String, description = "TBD"),
+        (status = 403, body = String, description = "TBD"),
+        (status = 500, body = String, description = "TBD"),
     ),
 )]
 pub(crate) async fn submit_node_monitoring_results(
@@ -198,7 +198,7 @@ async fn get_mixnode_stake_saturation(
     ),
     path = "/v1/status/mixnode/{mix_id}/inclusion-probability",
     responses(
-        (status = 200, body = InclusionProbabilityResponse)
+        (status = 200, body = nym_api_requests::models::InclusionProbabilityResponse)
     )
 )]
 #[deprecated]
@@ -217,7 +217,7 @@ async fn get_mixnode_inclusion_probability(
     get,
     path = "/v1/status/mixnodes/inclusion-probability",
     responses(
-        (status = 200, body = AllInclusionProbabilitiesResponse)
+        (status = 200, body = nym_api_requests::models::AllInclusionProbabilitiesResponse)
     )
 )]
 #[deprecated]

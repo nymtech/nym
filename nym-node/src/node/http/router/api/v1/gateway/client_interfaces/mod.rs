@@ -45,8 +45,8 @@ pub(crate) fn routes<S: Send + Sync + 'static + Clone>(
     responses(
     (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            ("application/json" = ClientInterfaces),
-            ("application/yaml" = ClientInterfaces)
+            (ClientInterfaces = "application/json"),
+            (ClientInterfaces = "application/yaml")
         ))
     ),
     params(OutputParams)
@@ -71,8 +71,8 @@ pub type ClientInterfacesResponse = FormattedResponse<ClientInterfaces>;
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            ("application/json" = WebSockets),
-            ("application/yaml" = WebSockets)
+            (WebSockets = "application/json"),
+            (WebSockets = "application/yaml")
         ))
     ),
     params(OutputParams)
@@ -97,8 +97,8 @@ pub type MixnetWebSocketsResponse = FormattedResponse<WebSockets>;
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            ("application/json" = Wireguard),
-            ("application/yaml" = Wireguard)
+            (Wireguard = "application/json"),
+            (Wireguard = "application/yaml")
         ))
     ),
     params(OutputParams)

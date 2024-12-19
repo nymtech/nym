@@ -28,7 +28,7 @@ pub(crate) fn routes() -> Router<AppState> {
     ),
     path = "/v2/mixnodes",
     responses(
-        (status = 200, body = PagedMixnode)
+        (status = 200, body = PagedResult<Mixnode>)
     )
 )]
 #[instrument(level = tracing::Level::DEBUG, skip_all, fields(page=pagination.page, size=pagination.size))]

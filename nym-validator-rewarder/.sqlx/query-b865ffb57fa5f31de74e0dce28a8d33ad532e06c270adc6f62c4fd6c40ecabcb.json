@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO ticketbook_issuance_epoch(\n                    expiration_date,\n                    total_budget,\n                    whitelist_size,\n                    budget_per_operator,\n                    disabled\n                ) VALUES (?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 5
+    },
+    "nullable": []
+  },
+  "hash": "b865ffb57fa5f31de74e0dce28a8d33ad532e06c270adc6f62c4fd6c40ecabcb"
+}

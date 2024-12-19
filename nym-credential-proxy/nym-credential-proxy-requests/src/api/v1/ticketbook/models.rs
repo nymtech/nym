@@ -46,6 +46,7 @@ pub struct TicketbookRequest {
     // needs to be explicit in case user creates request at 23:59:59.999, but it reaches vpn-api at 00:00:00.001
     #[schemars(with = "String")]
     #[serde(with = "crate::helpers::date_serde")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub expiration_date: Date,
 
     #[schemars(with = "String")]
@@ -246,10 +247,12 @@ pub struct WebhookTicketbookWalletShares {
 
     #[schemars(with = "String")]
     #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub created: OffsetDateTime,
 
     #[schemars(with = "String")]
     #[serde(with = "time::serde::rfc3339")]
+    #[cfg_attr(feature = "openapi", schema(value_type = String))]
     pub updated: OffsetDateTime,
 }
 

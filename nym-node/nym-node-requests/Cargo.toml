@@ -35,7 +35,7 @@ async-trait = { workspace = true, optional = true }
 nym-http-api-client = { path = "../../common/http-api-client", optional = true }
 
 ## openapi:
-utoipa = { workspace = true, optional = true }
+utoipa = { workspace = true, features = ["time"], optional = true }
 nym-bin-common = { path = "../../common/bin-common", features = [
     "bin_info_schema",
 ] }

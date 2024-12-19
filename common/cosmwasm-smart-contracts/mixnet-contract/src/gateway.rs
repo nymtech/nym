@@ -42,9 +42,11 @@ pub struct Gateway {
 #[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct GatewayBond {
     /// Original amount pledged by the operator of this node.
+    #[cfg_attr(feature = "utoipa", schema(value_type = crate::CoinSchema))]
     pub pledge_amount: Coin,
 
     /// Address of the owner of this gateway.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub owner: Addr,
 
     /// Block height at which this gateway has been bonded.
@@ -55,6 +57,7 @@ pub struct GatewayBond {
 
     /// Entity who bonded this gateway on behalf of the owner.
     /// If exists, it's most likely the address of the vesting contract.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub proxy: Option<Addr>,
 }
 

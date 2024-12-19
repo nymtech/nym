@@ -1,0 +1,47 @@
+# This file instructs Redocly's linter to ignore the rules contained for specific parts of your API.
+# See https://redocly.com/docs/cli/ for more information.
+formatted-openapi.json:
+  path-parameters-defined:
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/0/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/1/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/2/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/3/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/4/name
+    - >-
+      #/paths/~1v1~1status~1mixnode~1{mix_id}~1compute-reward-estimation/post/parameters/5/name
+  operation-operationId-unique:
+    - >-
+      #/paths/~1v1~1status~1mixnodes~1active~1detailed/get/get_active_set_detailed
+    - '#/paths/~1v1~1status~1mixnodes~1detailed/get/get_mixnodes_detailed'
+    - >-
+      #/paths/~1v1~1status~1mixnodes~1rewarded~1detailed/get/get_rewarded_set_detailed
+  no-unused-components:
+    - '#/components/schemas/AxumErrorResponse'
+    - '#/components/schemas/DateQuery'
+    - '#/components/schemas/EcashTicketVerificationRejection'
+    - '#/components/schemas/ExpirationDatePathParam'
+    - '#/components/schemas/FullFatNode'
+    - '#/components/schemas/G2ProjectiveSchema'
+    - '#/components/schemas/HistoricalPerformanceResponse'
+    - '#/components/schemas/HistoricalUptimeResponse'
+    - '#/components/schemas/MasterVerificationKeyResponse'
+    - '#/components/schemas/MixnodeStatusReport'
+    - '#/components/schemas/NodeId'
+    - '#/components/schemas/NodeRoleQueryParam'
+    - '#/components/schemas/NoiseDetails'
+    - '#/components/schemas/NymNodeDescription'
+    - '#/components/schemas/NymNodeDetails'
+    - '#/components/schemas/PaginationRequest'
+    - '#/components/schemas/PartialCoinIndicesSignatureResponse'
+    - '#/components/schemas/PayInfo'
+    - '#/components/schemas/SpentCredentialsResponse'
+    - '#/components/schemas/UptimeHistoryResponse'
+    - '#/components/schemas/VerifyEcashCredentialBody'
+    - '#/components/responses/AxumErrorResponse'
+    - '#/components/responses/CirculatingSupplyResponse'
+    - '#/components/responses/RequestError'

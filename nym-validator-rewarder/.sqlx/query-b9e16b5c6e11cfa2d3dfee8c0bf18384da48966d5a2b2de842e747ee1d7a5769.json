@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO banned_ticketbook_issuer(\n                    operator_account,\n                    api_endpoint,\n                    banned_on,\n                    associated_ticketbook_expiration_date,\n                    reason,\n                    evidence\n                ) VALUES (?, ?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 6
+    },
+    "nullable": []
+  },
+  "hash": "b9e16b5c6e11cfa2d3dfee8c0bf18384da48966d5a2b2de842e747ee1d7a5769"
+}

@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT COUNT(*) as count FROM pre_commit\n                WHERE \n                    validator_address == ?\n                    AND height >= ? \n                    AND height <= ?\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "count",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d67b6b3fc1099b3ca48eed945d9873717ba4b9d8f83bcb05f8a39094f0ff7c32"
+}

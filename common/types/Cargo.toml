@@ -22,6 +22,7 @@ strum = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 ts-rs = { workspace = true }
 url = { workspace = true }
+utoipa = { workspace = true }
 x25519-dalek = { workspace = true, features = ["static_secrets"] }
 
 cosmwasm-std = { workspace = true }

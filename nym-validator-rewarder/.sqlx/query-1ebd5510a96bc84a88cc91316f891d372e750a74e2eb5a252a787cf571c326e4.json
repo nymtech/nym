@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "DELETE FROM \"transaction\" WHERE height < ?",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": []
+  },
+  "hash": "1ebd5510a96bc84a88cc91316f891d372e750a74e2eb5a252a787cf571c326e4"
+}

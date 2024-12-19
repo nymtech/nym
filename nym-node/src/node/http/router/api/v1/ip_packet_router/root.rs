@@ -15,8 +15,8 @@ use nym_node_requests::api::v1::ip_packet_router::models::IpPacketRouter;
     responses(
         (status = 501, description = "the endpoint hasn't been implemented yet"),
         (status = 200, content(
-            ("application/json" = IpPacketRouter),
-            ("application/yaml" = IpPacketRouter)
+            (IpPacketRouter = "application/json"),
+            (IpPacketRouter = "application/yaml")
         ))
     ),
     params(OutputParams)

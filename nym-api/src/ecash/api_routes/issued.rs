@@ -48,7 +48,7 @@ pub(crate) struct ExpirationDatePathParam {
     context_path = "/v1/ecash",
     responses(
         (status = 200, body = IssuedTicketbooksForResponse),
-        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn issued_ticketbooks_for(
@@ -73,7 +73,7 @@ async fn issued_ticketbooks_for(
     context_path = "/v1/ecash",
     responses(
         (status = 200, body = IssuedTicketbooksChallengeResponse),
-        (status = 400, body = ErrorResponse, description = "this nym-api is not an ecash signer in the current epoch"),
+        (status = 400, body = String, description = "this nym-api is not an ecash signer in the current epoch"),
     )
 )]
 async fn issued_ticketbooks_challenge(

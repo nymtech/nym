@@ -1,4 +1,4 @@
-use models::{Gateway, GatewaySkinny, Mixnode, Service, SessionStats};
+use utoipa::ToSchema;
 
 pub(crate) mod api;
 pub(crate) mod api_docs;
@@ -8,28 +8,14 @@ pub(crate) mod server;
 pub(crate) mod state;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
-// exclude generic from auto-discovery
-#[utoipauto::utoipa_ignore]
-// https://docs.rs/utoipa/latest/utoipa/derive.ToSchema.html#generic-schemas-with-aliases
-// Generic structs can only be included via aliases, not directly, because they
-// it would cause an error in generated Swagger docs.
-// Instead, you have to manually monomorphize each generic struct that
-// you wish to document
-#[aliases(
-    PagedGateway = PagedResult<Gateway>,
-    PagedGatewaySkinny = PagedResult<GatewaySkinny>,
-    PagedMixnode = PagedResult<Mixnode>,
-    PagedService = PagedResult<Service>,
-    PagedSessionStats = PagedResult<SessionStats>
-)]
-pub struct PagedResult<T> {
+pub struct PagedResult<T: ToSchema> {
     pub page: usize,
     pub size: usize,
     pub total: usize,
     pub items: Vec<T>,
 }
 
-impl<T: Clone> PagedResult<T> {
+impl<T: Clone + ToSchema> PagedResult<T> {
     pub fn paginate(pagination: Pagination, res: Vec<T>) -> Self {
         let total = res.len();
         let (size, mut page) = pagination.intoto_inner_values();

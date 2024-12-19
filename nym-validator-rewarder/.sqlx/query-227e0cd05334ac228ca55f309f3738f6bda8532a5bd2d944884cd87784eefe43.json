@@ -1,0 +1,26 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT * FROM validator \n                WHERE EXISTS (\n                    SELECT 1 FROM pre_commit\n                    WHERE height == ?\n                    AND pre_commit.validator_address = validator.consensus_address\n                )\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "consensus_address",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "consensus_pubkey",
+        "ordinal": 1,
+        "type_info": "Text"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false,
+      false
+    ]
+  },
+  "hash": "227e0cd05334ac228ca55f309f3738f6bda8532a5bd2d944884cd87784eefe43"
+}

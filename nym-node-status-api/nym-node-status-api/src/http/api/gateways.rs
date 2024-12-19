@@ -27,7 +27,7 @@ pub(crate) fn routes() -> Router<AppState> {
     ),
     path = "/v2/gateways",
     responses(
-        (status = 200, body = PagedGateway)
+        (status = 200, body = PagedResult<Gateway>)
     )
 )]
 async fn gateways(
@@ -48,7 +48,7 @@ async fn gateways(
     ),
     path = "/v2/gateways/skinny",
     responses(
-        (status = 200, body = PagedGatewaySkinny)
+        (status = 200, body = PagedResult<GatewaySkinny>)
     )
 )]
 async fn gateways_skinny(

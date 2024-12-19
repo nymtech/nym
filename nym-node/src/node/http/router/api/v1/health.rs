@@ -14,8 +14,8 @@ use nym_node_requests::api::v1::health::models::NodeHealth;
     tag = "Health",
     responses(
         (status = 200, content(
-            ("application/json" = Vec<NodeHealth>),
-            ("application/yaml" = Vec<NodeHealth>)
+            (Vec<NodeHealth> = "application/json"),
+            (Vec<NodeHealth> = "application/yaml")
         ),  description = "the api is available and healthy")
     ),
     params(OutputParams)

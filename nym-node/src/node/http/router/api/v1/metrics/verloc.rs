@@ -1,13 +1,14 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::http::state::metrics::MetricsAppState;
 use axum::extract::{Query, State};
 use nym_http_api_common::{FormattedResponse, OutputParams};
 use nym_node_requests::api::v1::metrics::models::{
-    VerlocMeasurement, VerlocNodeResult, VerlocResult, VerlocResultData, VerlocStats,
+    VerlocNodeResult, VerlocResult, VerlocResultData, VerlocStats,
 };
 use nym_verloc::measurements::SharedVerlocStats;
+
+use crate::node::http::state::metrics::MetricsAppState;
 
 /// If applicable, returns verloc statistics information of this node.
 #[utoipa::path(
@@ -17,8 +18,8 @@ use nym_verloc::measurements::SharedVerlocStats;
     tag = "Metrics",
     responses(
         (status = 200, content(
-            ("application/json" = VerlocStats),
-            ("application/yaml" = VerlocStats)
+            (VerlocStats = "application/json"),
+            (VerlocStats = "application/yaml")
         ))
     ),
     params(OutputParams),
@@ -42,12 +43,6 @@ async fn build_response(verloc_stats: &SharedVerlocStats) -> VerlocStats {
                 .iter()
                 .map(|r| VerlocNodeResult {
                     node_identity: r.node_identity,
-                    latest_measurement: r.latest_measurement.map(|l| VerlocMeasurement {
-                        minimum: l.minimum,
-                        mean: l.mean,
-                        maximum: l.maximum,
-                        standard_deviation: l.standard_deviation,
-                    }),
                 })
                 .collect(),
         }

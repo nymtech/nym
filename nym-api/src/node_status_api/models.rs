@@ -22,6 +22,7 @@ use std::fmt::Display;
 use thiserror::Error;
 use time::{Date, OffsetDateTime};
 use tracing::error;
+use utoipa::ToSchema;
 
 #[derive(Error, Debug)]
 #[error("Received uptime value was within 0-100 range (got {received})")]
@@ -128,14 +129,17 @@ impl From<Uptime> for Performance {
     }
 }
 
-#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, JsonSchema, ToSchema)]
 pub struct MixnodeStatusReport {
+    #[schema(value_type = u32)]
     pub(crate) mix_id: NodeId,
+    #[schema(value_type = String)]
     pub(crate) identity: IdentityKey,
-
+    #[schema(value_type = u8)]
     pub(crate) most_recent: Uptime,
-
+    #[schema(value_type = u8)]
     pub(crate) last_hour: Uptime,
+    #[schema(value_type = u8)]
     pub(crate) last_day: Uptime,
 }
 
@@ -315,8 +319,12 @@ impl From<HistoricalUptime> for OldHistoricalUptimeResponse {
 
 // TODO rocket remove smurf name after eliminating `rocket`
 pub(crate) type AxumResult<T> = Result<T, AxumErrorResponse>;
+
+// #[derive(ToSchema, ToResponse)]
+// #[schema(title = "ErrorResponse")]
 pub(crate) struct AxumErrorResponse {
     message: RequestError,
+    // #[schema(value_type = u16)]
     status: StatusCode,
 }
 

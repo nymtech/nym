@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::http::router::api;
-use crate::http::types::RequestError;
 use axum::Router;
 use nym_credential_proxy_requests::api as api_requests;
 use nym_credential_proxy_requests::routes::api::{v1, v1_absolute};
@@ -69,7 +68,6 @@ pub(crate) struct ApiDoc;
         schemas(
             api::Output,
             api::OutputParams,
-            api_requests::v1::ErrorResponse,
             api_requests::v1::ticketbook::models::DepositResponse,
             api_requests::v1::ticketbook::models::PartialVerificationKeysResponse,
             api_requests::v1::ticketbook::models::CurrentEpochResponse,
@@ -90,7 +88,6 @@ pub(crate) struct ApiDoc;
             api_requests::v1::ticketbook::models::SharesQueryParams,
             api_requests::v1::ticketbook::models::PlaceholderJsonSchemaImpl,
         ),
-        responses(RequestError),
     ),
     modifiers(&SecurityAddon),
 )]

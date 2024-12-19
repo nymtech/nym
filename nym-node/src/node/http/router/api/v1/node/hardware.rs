@@ -15,10 +15,10 @@ use nym_node_requests::api::v1::node::models::HostSystem;
     tag = "Node",
     responses(
         (status = 200, content(
-            ("application/json" = HostSystem),
-            ("application/yaml" = HostSystem)
+            (HostSystem = "application/json"),
+            (HostSystem = "application/yaml")
         )),
-        (status = 403, body = ErrorResponse, description = "the node does not wish to expose the system information")
+        (status = 403, body = String, description = "the node does not wish to expose the system information")
     ),
     params(OutputParams)
 )]

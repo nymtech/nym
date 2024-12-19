@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                SELECT expiration_date as \"expiration_date: Date\"\n                FROM ticketbook_issuance_epoch\n                ORDER BY expiration_date DESC\n                LIMIT 1\n            ",
+  "describe": {
+    "columns": [
+      {
+        "name": "expiration_date: Date",
+        "ordinal": 0,
+        "type_info": "Date"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "fa2ea62ed8ccb08d0ef70bc212cbb5ca4bbbb50e7a7fcaacc5361dde3157247a"
+}

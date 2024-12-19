@@ -1,7 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use nym_metrics::{metrics_registry, Metric};
+use nym_metrics::{metrics_registry, HistogramTimer, Metric};
 use std::sync::LazyLock;
 use strum::{Display, EnumCount, EnumIter, EnumProperty, IntoEnumIterator};
 
@@ -135,6 +135,20 @@ pub enum PrometheusMetric {
 
     #[strum(props(help = "The number of active egress mixnet connections"))]
     NetworkActiveEgressMixnetConnections,
+
+    // # PROCESS
+    #[strum(props(help = "The current number of packets being delayed"))]
+    ProcessForwardHopPacketsBeingDelayed,
+
+    #[strum(props(
+        help = "The current number of packets waiting in the queue to get delayed and sent into the mixnet"
+    ))]
+    ProcessPacketForwarderQueueSize,
+
+    #[strum(props(
+        help = "The latency distribution of attempting to retrieve network topology (from nym-api)"
+    ))]
+    ProcessTopologyQueryResolutionLatency,
 }
 
 impl PrometheusMetric {
@@ -231,6 +245,15 @@ impl PrometheusMetric {
             PrometheusMetric::NetworkActiveEgressMixnetConnections => {
                 Metric::new_int_counter(&name, help)
             }
+            PrometheusMetric::ProcessForwardHopPacketsBeingDelayed => {
+                Metric::new_int_counter(&name, help)
+            }
+            PrometheusMetric::ProcessPacketForwarderQueueSize => {
+                Metric::new_int_counter(&name, help)
+            }
+            PrometheusMetric::ProcessTopologyQueryResolutionLatency => {
+                Metric::new_histogram(&name, help, None)
+            }
         }
     }
 
@@ -258,6 +281,10 @@ impl PrometheusMetric {
                 reg.add_to_histogram(&self.name(), value);
             }
         }
+    }
+
+    fn start_timer(&self) -> Option<HistogramTimer> {
+        metrics_registry().start_timer(&self.name())
     }
 }
 
@@ -300,6 +327,10 @@ impl NymNodePrometheusMetrics {
     pub fn observe_histogram(&self, metric: PrometheusMetric, value: f64) {
         metric.observe_histogram(value)
     }
+
+    pub fn start_timer(&self, metric: PrometheusMetric) -> Option<HistogramTimer> {
+        metric.start_timer()
+    }
 }
 
 #[cfg(test)]
@@ -312,7 +343,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(31, PrometheusMetric::COUNT)
+        assert_eq!(34, PrometheusMetric::COUNT)
     }
 
     #[test]

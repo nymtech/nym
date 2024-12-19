@@ -96,15 +96,6 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
             entry_guard.finished_sessions.len() as i64,
         );
 
-        for session in &entry_guard.finished_sessions {
-            let typ = session.typ.to_string();
-            let duration = session.duration.as_secs_f64();
-            self.prometheus_wrapper.observe_histogram(
-                PrometheusMetric::EntryClientSessionsDurations { typ },
-                duration,
-            )
-        }
-
         // # WIREGUARD
         self.prometheus_wrapper
             .set(WireguardBytesRx, self.metrics.wireguard.bytes_rx() as i64);

@@ -65,6 +65,10 @@ impl<T> NonExhaustiveDelayQueue<T> {
     pub fn remove(&mut self, key: &QueueKey) -> Expired<T> {
         self.inner.remove(key)
     }
+
+    pub fn len(&self) -> usize {
+        self.inner.len()
+    }
 }
 
 impl<T> Default for NonExhaustiveDelayQueue<T> {

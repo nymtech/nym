@@ -7,6 +7,7 @@ use prometheus::{
     TextEncoder,
 };
 
+pub use prometheus::HistogramTimer;
 pub use std::time::Instant;
 
 #[macro_export]
@@ -325,6 +326,17 @@ impl Metric {
             _ => warn!("attempted to add histogram observation on a non-histogram metric"),
         }
     }
+
+    #[inline(always)]
+    fn start_timer(&self) -> Option<HistogramTimer> {
+        match self {
+            Metric::Histogram(h) => Some(h.start_timer()),
+            _ => {
+                warn!("attempted to start histogram observation on a non-histogram metric");
+                None
+            }
+        }
+    }
 }
 
 impl fmt::Display for MetricsController {
@@ -417,6 +429,12 @@ impl MetricsController {
         } else {
             false
         }
+    }
+
+    pub fn start_timer<'a>(&self, name: &str) -> Option<HistogramTimer> {
+        self.registry_index
+            .get(name)
+            .and_then(|metric| metric.start_timer())
     }
 
     pub fn inc<'a>(&self, name: &str) -> bool {

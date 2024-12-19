@@ -9,6 +9,7 @@
 use crate::entry::EntryStats;
 use crate::mixnet::MixingStats;
 use crate::network::NetworkStats;
+use crate::process::NodeStats;
 use crate::wireguard::WireguardStats;
 use std::ops::Deref;
 use std::sync::Arc;
@@ -17,6 +18,7 @@ pub mod entry;
 pub mod events;
 pub mod mixnet;
 pub mod network;
+pub mod process;
 pub mod prometheus_wrapper;
 pub mod wireguard;
 
@@ -45,4 +47,5 @@ pub struct NymNodeMetricsInner {
     pub wireguard: WireguardStats,
 
     pub network: NetworkStats,
+    pub process: NodeStats,
 }

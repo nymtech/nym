@@ -4065,6 +4065,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "mixnet-check-all-gateways"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "clap 4.5.20",
+ "echo-server",
+ "futures",
+ "nym-bin-common",
+ "nym-crypto",
+ "nym-sdk",
+ "reqwest 0.12.4",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "mixnet-connectivity-check"
 version = "0.1.0"
 dependencies = [

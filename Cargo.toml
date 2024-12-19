@@ -149,7 +149,7 @@ members = [
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
     "common/verloc",
-    "tools/internal/mixnet-connectivity-check",
+    "tools/internal/mixnet-connectivity-check", "tools/internal/mixnet-check-all-gateways",
 ]
 
 default-members = [

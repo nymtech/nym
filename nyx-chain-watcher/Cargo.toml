@@ -3,7 +3,7 @@
 
 [package]
 name = "nyx-chain-watcher"
-version = "0.1.7"
+version = "0.1.8"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true

@@ -16,7 +16,9 @@ use nym_credential_verification::{
     ClientBandwidth,
 };
 use nym_gateway_storage::GatewayStorage;
+use nym_node_metrics::NymNodeMetrics;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
+use std::time::{Duration, SystemTime};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
@@ -65,6 +67,11 @@ pub struct QueryBandwidthControlResponse {
 
 pub struct PeerController {
     storage: GatewayStorage,
+
+    // we have "all" metrics of a node, but they're behind a single Arc pointer,
+    // so the overhead is minimal
+    metrics: NymNodeMetrics,
+
     // used to receive commands from individual handles too
     request_tx: mpsc::Sender<PeerControlRequest>,
     request_rx: mpsc::Receiver<PeerControlRequest>,
@@ -76,8 +83,10 @@ pub struct PeerController {
 }
 
 impl PeerController {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         storage: GatewayStorage,
+        metrics: NymNodeMetrics,
         wg_api: Arc<WgApiWrapper>,
         initial_host_information: Host,
         bw_storage_managers: HashMap<Key, (Option<SharedBandwidthStorageManager>, Peer)>,
@@ -123,6 +132,7 @@ impl PeerController {
             request_rx,
             timeout_check_interval,
             task_client,
+            metrics,
         }
     }
 
@@ -257,6 +267,46 @@ impl PeerController {
         }))
     }
 
+    fn update_metrics(&self, new_host: &Host) {
+        let now = SystemTime::now();
+        const ACTIVITY_THRESHOLD: Duration = Duration::from_secs(60);
+
+        let total_peers = new_host.peers.len();
+        let mut active_peers = 0;
+        let mut total_rx = 0;
+        let mut total_tx = 0;
+
+        for peer in new_host.peers.values() {
+            total_rx += peer.rx_bytes;
+            total_tx += peer.tx_bytes;
+
+            // if a peer hasn't performed a handshake in last minute,
+            // I think it's reasonable to assume it's no longer active
+            let Some(last_handshake) = peer.last_handshake else {
+                continue;
+            };
+            let Ok(elapsed) = now.duration_since(last_handshake) else {
+                continue;
+            };
+            if elapsed < ACTIVITY_THRESHOLD {
+                active_peers += 1;
+            }
+        }
+
+        self.metrics.wireguard.update(
+            // if the conversion fails it means we're running not running on a 64bit system
+            // and that's a reason enough for this failure.
+            total_rx.try_into().expect(
+                "failed to convert bytes from u64 to usize - are you running on non 64bit system?",
+            ),
+            total_tx.try_into().expect(
+                "failed to convert bytes from u64 to usize - are you running on non 64bit system?",
+            ),
+            total_peers,
+            active_peers,
+        );
+    }
+
     pub async fn run(&mut self) {
         info!("started wireguard peer controller");
         loop {
@@ -266,6 +316,8 @@ impl PeerController {
                         log::error!("Can't read wireguard kernel data");
                         continue;
                     };
+                    self.update_metrics(&host);
+
                     *self.host_information.write().await = host;
                 }
                 _ = self.task_client.recv() => {

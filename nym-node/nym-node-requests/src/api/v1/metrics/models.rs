@@ -4,6 +4,19 @@
 pub use mixing::*;
 pub use session::*;
 pub use verloc::*;
+pub use wireguard::*;
+
+pub mod wireguard {
+    use serde::{Deserialize, Serialize};
+
+    #[derive(Serialize, Deserialize, Debug, Clone, Copy)]
+    #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+    pub struct WireguardStats {
+        pub bytes_tx: usize,
+
+        pub bytes_rx: usize,
+    }
+}
 
 pub mod packets {
     use serde::{Deserialize, Serialize};

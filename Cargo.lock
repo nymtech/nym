@@ -6804,6 +6804,7 @@ dependencies = [
  "nym-crypto",
  "nym-gateway-storage",
  "nym-network-defaults",
+ "nym-node-metrics",
  "nym-task",
  "nym-wireguard-types",
  "thiserror",

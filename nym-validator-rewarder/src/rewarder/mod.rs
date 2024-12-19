@@ -439,7 +439,7 @@ impl Rewarder {
         if let Some(epoch_signing) = &self.epoch_signing {
             if epoch_signing
                 .nyxd_scraper
-                .storage
+                .storage()
                 .get_first_block_height_after(epoch_start)
                 .await?
                 .is_none()
@@ -451,7 +451,7 @@ impl Rewarder {
 
             if epoch_signing
                 .nyxd_scraper
-                .storage
+                .storage()
                 .get_last_block_height_before(epoch_end)
                 .await?
                 .is_none()

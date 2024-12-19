@@ -11,7 +11,7 @@ use nym_sphinx::NymPacket;
 use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
@@ -56,6 +56,7 @@ pub trait SendWithoutResponse {
 
 pub struct Client {
     conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
+    connections_count: Arc<AtomicUsize>,
     config: Config,
 }
 
@@ -74,9 +75,10 @@ impl ConnectionSender {
 }
 
 impl Client {
-    pub fn new(config: Config) -> Client {
+    pub fn new(config: Config, connections_count: Arc<AtomicUsize>) -> Client {
         Client {
             conn_new: HashMap::new(),
+            connections_count,
             config,
         }
     }
@@ -86,6 +88,7 @@ impl Client {
         receiver: mpsc::Receiver<FramedNymPacket>,
         connection_timeout: Duration,
         current_reconnection: &AtomicU32,
+        connections_count: Arc<AtomicUsize>,
     ) {
         let connection_fut = TcpStream::connect(address);
 
@@ -120,9 +123,12 @@ impl Client {
         // Take whatever the receiver channel produces and put it on the connection.
         // We could have as well used conn.send_all(receiver.map(Ok)), but considering we don't care
         // about neither receiver nor the connection, it doesn't matter which one gets consumed
+
+        connections_count.fetch_add(1, Ordering::SeqCst);
         if let Err(err) = receiver.map(Ok).forward(conn).await {
             warn!("Failed to forward packets to {} - {err}", address);
         }
+        connections_count.fetch_sub(1, Ordering::SeqCst);
 
         debug!(
             "connection manager to {} is finished. Either the connection failed or mixnet client got dropped",
@@ -173,6 +179,7 @@ impl Client {
         // copy the value before moving into another task
         let initial_connection_timeout = self.config.initial_connection_timeout;
 
+        let connections_count = self.connections_count.clone();
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything
             if let Some(backoff) = backoff {
@@ -185,6 +192,7 @@ impl Client {
                 receiver,
                 initial_connection_timeout,
                 &current_reconnection_attempt,
+                connections_count,
             )
             .await
         });
@@ -252,12 +260,15 @@ mod tests {
     use super::*;
 
     fn dummy_client() -> Client {
-        Client::new(Config {
-            initial_reconnection_backoff: Duration::from_millis(10_000),
-            maximum_reconnection_backoff: Duration::from_millis(300_000),
-            initial_connection_timeout: Duration::from_millis(1_500),
-            maximum_connection_buffer_size: 128,
-        })
+        Client::new(
+            Config {
+                initial_reconnection_backoff: Duration::from_millis(10_000),
+                maximum_reconnection_backoff: Duration::from_millis(300_000),
+                initial_connection_timeout: Duration::from_millis(1_500),
+                maximum_connection_buffer_size: 128,
+            },
+            Default::default(),
+        )
     }
 
     #[test]

@@ -129,6 +129,12 @@ pub enum PrometheusMetric {
     // # NETWORK
     #[strum(props(help = "The number of active ingress mixnet connections"))]
     NetworkActiveIngressMixnetConnections,
+
+    #[strum(props(help = "The number of active ingress websocket connections"))]
+    NetworkActiveIngressWebSocketConnections,
+
+    #[strum(props(help = "The number of active egress mixnet connections"))]
+    NetworkActiveEgressMixnetConnections,
 }
 
 impl PrometheusMetric {
@@ -219,27 +225,39 @@ impl PrometheusMetric {
             PrometheusMetric::NetworkActiveIngressMixnetConnections => {
                 Metric::new_int_counter(&name, help)
             }
+            PrometheusMetric::NetworkActiveIngressWebSocketConnections => {
+                Metric::new_int_counter(&name, help)
+            }
+            PrometheusMetric::NetworkActiveEgressMixnetConnections => {
+                Metric::new_int_counter(&name, help)
+            }
         }
     }
 
-    pub fn set(&self, value: i64) {
+    fn set(&self, value: i64) {
         metrics_registry().set(&self.name(), value);
     }
 
-    pub fn set_float(&self, value: f64) {
+    fn set_float(&self, value: f64) {
         metrics_registry().set_float(&self.name(), value);
     }
 
-    pub fn inc(&self) {
+    fn inc(&self) {
         metrics_registry().inc(&self.name());
     }
 
-    pub fn inc_by(&self, value: i64) {
+    fn inc_by(&self, value: i64) {
         metrics_registry().inc_by(&self.name(), value);
     }
 
-    pub fn observe_histogram(&self, value: f64) {
-        metrics_registry().add_to_histogram(&self.name(), value);
+    fn observe_histogram(&self, value: f64) {
+        let reg = metrics_registry();
+        if !reg.add_to_histogram(&self.name(), value) {
+            if let Some(registrable) = self.to_registrable_metric() {
+                reg.register_metric(registrable);
+                reg.add_to_histogram(&self.name(), value);
+            }
+        }
     }
 }
 
@@ -262,6 +280,26 @@ impl NymNodePrometheusMetrics {
 
         NymNodePrometheusMetrics {}
     }
+
+    pub fn set(&self, metric: PrometheusMetric, value: i64) {
+        metric.set(value)
+    }
+
+    pub fn set_float(&self, metric: PrometheusMetric, value: f64) {
+        metric.set_float(value)
+    }
+
+    pub fn inc(&self, metric: PrometheusMetric) {
+        metric.inc()
+    }
+
+    pub fn inc_by(&self, metric: PrometheusMetric, value: i64) {
+        metric.inc_by(value)
+    }
+
+    pub fn observe_histogram(&self, metric: PrometheusMetric, value: f64) {
+        metric.observe_histogram(value)
+    }
 }
 
 #[cfg(test)]
@@ -274,7 +312,7 @@ mod tests {
         // a sanity check for anyone adding new metrics. if this test fails,
         // make sure any methods on `PrometheusMetric` enum don't need updating
         // or require custom Display impl
-        assert_eq!(27, PrometheusMetric::COUNT)
+        assert_eq!(31, PrometheusMetric::COUNT)
     }
 
     #[test]

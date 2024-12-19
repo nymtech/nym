@@ -24,7 +24,6 @@ use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
 use crate::node::metrics::handler::global_prometheus_updater::PrometheusGlobalNodeMetricsRegistryUpdater;
 use crate::node::metrics::handler::legacy_packet_data::LegacyMixingStatsUpdater;
 use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
-use crate::node::metrics::handler::prometheus_events_handler::PrometheusEventsHandler;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
@@ -889,7 +888,6 @@ impl NymNode {
         );
 
         // handler for handling prometheus metrics events
-        let todo = "";
         // metrics_aggregator.register_handler(PrometheusEventsHandler{}, None);
 
         // note: we're still measuring things such as number of mixed packets,
@@ -942,7 +940,12 @@ impl NymNode {
             self.config.mixnet.debug.initial_connection_timeout,
             self.config.mixnet.debug.maximum_connection_buffer_size,
         );
-        let mixnet_client = nym_mixnet_client::Client::new(mixnet_client_config);
+        let mixnet_client = nym_mixnet_client::Client::new(
+            mixnet_client_config,
+            self.metrics
+                .network
+                .active_egress_mixnet_connections_counter(),
+        );
 
         let mut packet_forwarder = PacketForwarder::new(
             mixnet_client,

@@ -4,7 +4,6 @@
 use nym_node_metrics::mixnet::{EgressMixingStats, IngressMixingStats, MixingStats};
 use nym_node_metrics::wireguard::WireguardStats;
 use nym_node_metrics::NymNodeMetrics;
-use std::time::Duration;
 use time::OffsetDateTime;
 
 // used to calculate traffic rates

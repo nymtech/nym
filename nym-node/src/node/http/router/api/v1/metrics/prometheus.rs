@@ -1,10 +1,7 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-use crate::node::http::state::metrics::MetricsAppState;
-use axum::extract::State;
-use axum::http::StatusCode;
-use nym_metrics::{inc, metrics};
+use nym_metrics::metrics;
 
 /// Returns `prometheus` compatible metrics
 #[utoipa::path(
@@ -22,10 +19,7 @@ use nym_metrics::{inc, metrics};
         ("prometheus_token" = [])
     )
 )]
-pub(crate) async fn prometheus_metrics(
-    State(state): State<MetricsAppState>,
-) -> Result<String, StatusCode> {
-    let _ = state;
-
-    Ok(metrics!())
+// the AuthLayer is protecting access to this endpoint
+pub(crate) async fn prometheus_metrics() -> String {
+    metrics!()
 }

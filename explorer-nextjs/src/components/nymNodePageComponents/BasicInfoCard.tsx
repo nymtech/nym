@@ -23,7 +23,7 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
     "dd/MM/yyyy",
   );
 
-  const selfBond = Number(rewardDetails.unit_delegation) / 1_000_000;
+  const selfBond = Number(rewardDetails.operator) / 1_000_000;
   const selfBondFormated = `${selfBond} NYM`;
   return (
     <ExplorerCard label="Basic info">

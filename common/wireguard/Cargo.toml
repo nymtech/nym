@@ -36,3 +36,4 @@ nym-gateway-storage = { path = "../gateway-storage" }
 nym-network-defaults = { path = "../network-defaults" }
 nym-task = { path = "../task" }
 nym-wireguard-types = { path = "../wireguard-types" }
+nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }

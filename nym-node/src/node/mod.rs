@@ -581,6 +581,7 @@ impl NymNode {
             self.entry_gateway.client_storage.clone(),
             mix_packet_sender,
             metrics_sender,
+            self.metrics.clone(),
             self.entry_gateway.mnemonic.clone(),
             task_client,
         );

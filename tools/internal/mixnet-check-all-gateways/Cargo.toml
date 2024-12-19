@@ -1,0 +1,29 @@
+[package]
+name = "mixnet-check-all-gateways"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+nym-bin-common = { path = "../../../common/bin-common", features = [
+    "basic_tracing",
+    "output_format",
+] }
+nym-crypto = { path = "../../../common/crypto", features = ["asymmetric"] }
+clap.workspace = true
+anyhow.workspace = true
+tracing.workspace = true
+tracing-subscriber = "0.3"
+nym-sdk = { path = "../../../sdk/rust/nym-sdk/" }
+echo-server = { path = "../../echo-server" }
+serde = { version = "1", features = ["derive"] }
+tokio = { workspace = true, features = ["full"] }
+reqwest = { workspace = true, features = ["json"] }
+serde_json.workspace = true
+futures = { workspace = true }

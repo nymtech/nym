@@ -84,13 +84,7 @@ impl TryFrom<Event> for BlockToProcess {
 
         // TODO: we're losing `result_begin_block` and `result_end_block` here but maybe that's fine?
         let maybe_block = match event.data {
-            // we don't care about `NewBlock` until CometBFT 0.38, i.e. until we upgrade to wasmd 0.50
-            EventData::NewBlock { .. } => {
-                return Err(ScraperError::InvalidSubscriptionEvent {
-                    query,
-                    kind: "NewBlock".to_string(),
-                })
-            }
+            EventData::NewBlock { block, .. } => block,
             EventData::LegacyNewBlock { block, .. } => block,
             EventData::Tx { .. } => {
                 return Err(ScraperError::InvalidSubscriptionEvent {

@@ -42,8 +42,43 @@ impl PendingSync {
     }
 }
 
+#[derive(Debug, Clone)]
+pub struct BlockProcessorConfig {
+    pub pruning_options: PruningOptions,
+    pub store_precommits: bool,
+    pub explicit_starting_block_height: Option<u32>,
+    pub use_best_effort_start_height: bool,
+}
+
+impl Default for BlockProcessorConfig {
+    fn default() -> Self {
+        Self {
+            pruning_options: PruningOptions::nothing(),
+            store_precommits: true,
+            explicit_starting_block_height: None,
+            use_best_effort_start_height: false,
+        }
+    }
+}
+
+impl BlockProcessorConfig {
+    pub fn new(
+        pruning_options: PruningOptions,
+        store_precommits: bool,
+        explicit_starting_block_height: Option<u32>,
+        use_best_effort_start_height: bool,
+    ) -> Self {
+        Self {
+            pruning_options,
+            store_precommits,
+            explicit_starting_block_height,
+            use_best_effort_start_height,
+        }
+    }
+}
+
 pub struct BlockProcessor {
-    pruning_options: PruningOptions,
+    config: BlockProcessorConfig,
     cancel: CancellationToken,
     synced: Arc<Notify>,
     last_processed_height: u32,
@@ -65,9 +100,10 @@ pub struct BlockProcessor {
     msg_modules: Vec<Box<dyn MsgModule + Send>>,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl BlockProcessor {
     pub async fn new(
-        pruning_options: PruningOptions,
+        config: BlockProcessorConfig,
         cancel: CancellationToken,
         synced: Arc<Notify>,
         incoming: UnboundedReceiver<BlockToProcess>,
@@ -81,8 +117,10 @@ impl BlockProcessor {
         let last_pruned = storage.get_pruned_height().await?;
         let last_pruned_height = last_pruned.try_into().unwrap_or_default();
 
+        debug!(last_processed_height = %last_processed_height, pruned_height = %last_pruned_height, "setting up block processor...");
+
         Ok(BlockProcessor {
-            pruning_options,
+            config,
             cancel,
             synced,
             last_processed_height,
@@ -101,7 +139,7 @@ impl BlockProcessor {
     }
 
     pub fn with_pruning(mut self, pruning_options: PruningOptions) -> Self {
-        self.pruning_options = pruning_options;
+        self.config.pruning_options = pruning_options;
         self
     }
 
@@ -128,7 +166,7 @@ impl BlockProcessor {
         // we won't end up with a corrupted storage.
         let mut tx = self.storage.begin_processing_tx().await?;
 
-        persist_block(&full_info, &mut tx).await?;
+        persist_block(&full_info, &mut tx, self.config.store_precommits).await?;
 
         // let the modules do whatever they want
         // the ones wanting the full block:
@@ -241,7 +279,7 @@ impl BlockProcessor {
 
     #[instrument(skip(self))]
     async fn prune_storage(&mut self) -> Result<(), ScraperError> {
-        let keep_recent = self.pruning_options.strategy_keep_recent();
+        let keep_recent = self.config.pruning_options.strategy_keep_recent();
         let last_to_keep = self.last_processed_height - keep_recent;
 
         info!(
@@ -282,12 +320,12 @@ impl BlockProcessor {
     async fn maybe_prune_storage(&mut self) -> Result<(), ScraperError> {
         debug!("checking for storage pruning");
 
-        if self.pruning_options.strategy.is_nothing() {
+        if self.config.pruning_options.strategy.is_nothing() {
             trace!("the current pruning strategy is 'nothing'");
             return Ok(());
         }
 
-        let interval = self.pruning_options.strategy_interval();
+        let interval = self.config.pruning_options.strategy_interval();
         if self.last_pruned_height + interval <= self.last_processed_height {
             self.prune_storage().await?;
         }
@@ -363,20 +401,69 @@ impl BlockProcessor {
     // but we need it to help the compiler figure out the future is `Send`
     async fn startup_resync(&mut self) -> Result<(), ScraperError> {
         assert!(self.pending_sync.is_empty());
+        info!("attempting to run startup resync...");
 
         self.maybe_prune_storage().await?;
 
         let latest_block = self.rpc_client.current_block_height().await? as u32;
+        info!("obtained latest block height: {latest_block}");
 
         if latest_block > self.last_processed_height && self.last_processed_height != 0 {
+            info!("we have already processed some blocks in the past - attempting to resume...");
             // in case we were offline for a while,
             // make sure we don't request blocks we'd have to prune anyway
-            let keep_recent = self.pruning_options.strategy_keep_recent();
+            let keep_recent = self.config.pruning_options.strategy_keep_recent();
             let last_to_keep = latest_block - keep_recent;
-            self.last_processed_height = max(self.last_processed_height, last_to_keep);
+
+            if !self.config.pruning_options.strategy.is_nothing() {
+                self.last_processed_height = max(self.last_processed_height, last_to_keep);
+            }
 
             let request_range = self.last_processed_height + 1..latest_block + 1;
-            info!("we need to request {request_range:?} to resync");
+            info!(
+                keep_recent = %keep_recent,
+                last_to_keep = %last_to_keep,
+                last_processed_height = %self.last_processed_height,
+                "we need to request {request_range:?} to resync"
+            );
+            self.request_missing_blocks(request_range).await?;
+            return Ok(());
+        }
+
+        // this is the first time starting up
+        if self.last_processed_height == 0 {
+            info!("this is the first time starting up");
+            let Some(starting_height) = self.config.explicit_starting_block_height else {
+                info!("no starting block height set - will use the default behaviour");
+                // nothing to do
+                return Ok(());
+            };
+
+            info!("attempting to start the scraper from block {starting_height}");
+            let earliest_available =
+                self.rpc_client.earliest_available_block_height().await? as u32;
+            info!("earliest available block height: {earliest_available}");
+
+            if earliest_available > starting_height && self.config.use_best_effort_start_height {
+                error!("the earliest available block is higher than the desired starting height");
+                return Err(ScraperError::BlocksUnavailable {
+                    height: starting_height,
+                });
+            }
+
+            let starting_height = if earliest_available > starting_height {
+                // add few additional blocks to account for all the startup waiting
+                // because the node might have pruned few blocks since
+                earliest_available + 10
+            } else {
+                starting_height
+            };
+
+            let request_range = starting_height..latest_block + 1;
+
+            info!("going to start the scraper from block {starting_height}");
+            info!("we need to request {request_range:?} before properly starting up");
+
             self.request_missing_blocks(request_range).await?;
         }
 
@@ -384,7 +471,7 @@ impl BlockProcessor {
     }
 
     pub(crate) async fn run(&mut self) {
-        info!("starting processing loop");
+        info!("starting block processor processing loop");
 
         // sure, we could be more efficient and reset it on every processed block,
         // but the overhead is so minimal that it doesn't matter

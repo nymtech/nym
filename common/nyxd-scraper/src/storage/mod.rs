@@ -54,6 +54,12 @@ pub(crate) fn log_db_operation_time(op_name: &str, start_time: Instant) {
 impl ScraperStorage {
     #[instrument]
     pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, ScraperError> {
+        let database_path = database_path.as_ref();
+        debug!(
+            "initialising scraper database path to '{}'",
+            database_path.display()
+        );
+
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
             .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
             .synchronous(SqliteSynchronous::Normal)
@@ -219,6 +225,7 @@ impl ScraperStorage {
 pub async fn persist_block(
     block: &FullBlockInformation,
     tx: &mut StorageTransaction,
+    store_precommits: bool,
 ) -> Result<(), ScraperError> {
     let total_gas = crate::helpers::tx_gas_sum(&block.transactions);
 
@@ -231,11 +238,12 @@ pub async fn persist_block(
     // persist block data
     persist_block_data(&block.block, total_gas, tx).await?;
 
-    // persist commits
-    if let Some(commit) = &block.block.last_commit {
-        persist_commits(commit, &block.validators, tx).await?;
-    } else {
-        warn!("no commits for block {}", block.block.header.height)
+    if store_precommits {
+        if let Some(commit) = &block.block.last_commit {
+            persist_commits(commit, &block.validators, tx).await?;
+        } else {
+            warn!("no commits for block {}", block.block.header.height)
+        }
     }
 
     // persist txs

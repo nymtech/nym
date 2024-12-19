@@ -31,7 +31,7 @@ impl EpochSigning {
             trace!("attempting to get pre-commit for {address} at height {height}");
             if let Some(precommit) = self
                 .nyxd_scraper
-                .storage
+                .storage()
                 .get_precommit(address, height)
                 .await?
             {
@@ -102,7 +102,11 @@ impl EpochSigning {
             current_epoch.end_rfc3339()
         );
 
-        let validators = self.nyxd_scraper.storage.get_all_known_validators().await?;
+        let validators = self
+            .nyxd_scraper
+            .storage()
+            .get_all_known_validators()
+            .await?;
         debug!("retrieved {} known validators", validators.len());
 
         let epoch_start = current_epoch.start_time;
@@ -110,7 +114,7 @@ impl EpochSigning {
 
         let Some(first_block) = self
             .nyxd_scraper
-            .storage
+            .storage()
             .get_first_block_height_after(epoch_start)
             .await?
         else {
@@ -121,7 +125,7 @@ impl EpochSigning {
 
         let Some(last_block) = self
             .nyxd_scraper
-            .storage
+            .storage()
             .get_last_block_height_before(epoch_end)
             .await?
         else {
@@ -168,7 +172,7 @@ impl EpochSigning {
 
             let signed = self
                 .nyxd_scraper
-                .storage
+                .storage()
                 .get_signed_between_times(&validator.consensus_address, epoch_start, epoch_end)
                 .await?;
             signed_in_epoch.insert(validator, RawValidatorResult::new(signed, vp, whitelisted));
@@ -176,7 +180,7 @@ impl EpochSigning {
 
         let total = self
             .nyxd_scraper
-            .storage
+            .storage()
             .get_blocks_between(epoch_start, epoch_end)
             .await?;
 

@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::block_processor::types::BlockToProcess;
-use crate::block_processor::BlockProcessor;
+use crate::block_processor::{BlockProcessor, BlockProcessorConfig};
 use crate::block_requester::{BlockRequest, BlockRequester};
 use crate::error::ScraperError;
 use crate::modules::{BlockModule, MsgModule, TxModule};
@@ -24,6 +24,15 @@ use url::Url;
 
 mod subscriber;
 
+#[derive(Default, Clone, Copy)]
+pub struct StartingBlockOpts {
+    pub start_block_height: Option<u32>,
+
+    /// If the scraper fails to start from the desired height, rather than failing,
+    /// attempt to use the next available height
+    pub use_best_effort_start_height: bool,
+}
+
 pub struct Config {
     /// Url to the websocket endpoint of a validator, for example `wss://rpc.nymtech.net/websocket`
     pub websocket_url: Url,
@@ -34,6 +43,10 @@ pub struct Config {
     pub database_path: PathBuf,
 
     pub pruning_options: PruningOptions,
+
+    pub store_precommits: bool,
+
+    pub start_block: StartingBlockOpts,
 }
 
 pub struct NyxdScraperBuilder {
@@ -60,8 +73,16 @@ impl NyxdScraperBuilder {
             req_rx,
             processing_tx.clone(),
         );
-        let mut block_processor = BlockProcessor::new(
+
+        let block_processor_config = BlockProcessorConfig::new(
             scraper.config.pruning_options,
+            scraper.config.store_precommits,
+            scraper.config.start_block.start_block_height,
+            scraper.config.start_block.use_best_effort_start_height,
+        );
+
+        let mut block_processor = BlockProcessor::new(
+            block_processor_config,
             scraper.cancel_token.clone(),
             scraper.startup_sync.clone(),
             processing_rx,
@@ -118,7 +139,7 @@ pub struct NyxdScraper {
     task_tracker: TaskTracker,
     cancel_token: CancellationToken,
     startup_sync: Arc<Notify>,
-    pub storage: ScraperStorage,
+    storage: ScraperStorage,
     rpc_client: RpcClient,
 }
 
@@ -142,6 +163,10 @@ impl NyxdScraper {
         })
     }
 
+    pub fn storage(&self) -> ScraperStorage {
+        self.storage.clone()
+    }
+
     fn start_tasks(
         &self,
         mut block_requester: BlockRequester,
@@ -158,7 +183,10 @@ impl NyxdScraper {
         self.task_tracker.close();
     }
 
-    pub async fn process_single_block(&self, height: u32) -> Result<(), ScraperError> {
+    // DO NOT USE UNLESS YOU KNOW EXACTLY WHAT YOU'RE DOING
+    // AS THIS WILL NOT USE ANY OF YOUR REGISTERED MODULES
+    // YOU WILL BE FIRED IF YOU USE IT : )
+    pub async fn unsafe_process_single_block(&self, height: u32) -> Result<(), ScraperError> {
         info!(height = height, "attempting to process a single block");
         if !self.task_tracker.is_empty() {
             return Err(ScraperError::ScraperAlreadyRunning);
@@ -177,7 +205,10 @@ impl NyxdScraper {
         block_processor.process_block(block.into()).await
     }
 
-    pub async fn process_block_range(
+    // DO NOT USE UNLESS YOU KNOW EXACTLY WHAT YOU'RE DOING
+    // AS THIS WILL NOT USE ANY OF YOUR REGISTERED MODULES
+    // YOU WILL BE FIRED IF YOU USE IT : )
+    pub async fn unsafe_process_block_range(
         &self,
         starting_height: Option<u32>,
         end_height: Option<u32>,
@@ -194,10 +225,10 @@ impl NyxdScraper {
             .await?
             .with_pruning(PruningOptions::nothing());
 
-        let current_height = self.rpc_client.current_block_height().await? as u32;
+        let mut current_height = self.rpc_client.current_block_height().await? as u32;
         let last_processed = block_processor.last_process_height();
 
-        let starting_height = match starting_height {
+        let mut starting_height = match starting_height {
             // always attempt to use whatever the user has provided
             Some(explicit) => explicit,
             None => {
@@ -211,7 +242,8 @@ impl NyxdScraper {
             }
         };
 
-        let end_height = match end_height {
+        let must_catch_up = end_height.is_none();
+        let mut end_height = match end_height {
             // always attempt to use whatever the user has provided
             Some(explicit) => explicit,
             None => {
@@ -226,32 +258,62 @@ impl NyxdScraper {
             }
         };
 
-        info!(
-            starting_height = starting_height,
-            end_height = end_height,
-            "attempting to process block range"
-        );
+        let mut last_processed = starting_height;
 
-        let range = (starting_height..=end_height).collect::<Vec<_>>();
+        while last_processed < current_height {
+            info!(
+                starting_height = starting_height,
+                end_height = end_height,
+                "attempting to process block range"
+            );
 
-        // the most likely bottleneck here are going to be the chain queries,
-        // so batch multiple requests
-        for batch in range.chunks(4) {
-            let batch_result = join_all(
-                batch
-                    .iter()
-                    .map(|height| self.rpc_client.get_basic_block_details(*height)),
-            )
-            .await;
-            for result in batch_result {
-                match result {
-                    Ok(block) => block_processor.process_block(block.into()).await?,
-                    Err(err) => {
-                        error!("failed to retrieve the block: {err}. stopping...");
-                        return Err(err);
+            let range = (starting_height..=end_height).collect::<Vec<_>>();
+
+            // the most likely bottleneck here are going to be the chain queries,
+            // so batch multiple requests
+            for batch in range.chunks(4) {
+                let batch_result = join_all(
+                    batch
+                        .iter()
+                        .map(|height| self.rpc_client.get_basic_block_details(*height)),
+                )
+                .await;
+                for result in batch_result {
+                    match result {
+                        Ok(block) => block_processor.process_block(block.into()).await?,
+                        Err(err) => {
+                            error!("failed to retrieve the block: {err}. stopping...");
+                            return Err(err);
+                        }
                     }
                 }
             }
+
+            // if we don't need to catch up, return early
+            if !must_catch_up {
+                return Ok(());
+            }
+
+            // check if we have caught up to the current block height
+            last_processed = end_height;
+            current_height = self.rpc_client.current_block_height().await? as u32;
+
+            info!(
+                last_processed = last_processed,
+                current_height = current_height,
+                "🏃 still need to catch up..."
+            );
+
+            starting_height = last_processed + 1;
+            end_height = current_height;
+        }
+
+        if must_catch_up {
+            info!(
+                last_processed = last_processed,
+                current_height = current_height,
+                "✅ block processing has caught up!"
+            );
         }
 
         Ok(())
@@ -275,8 +337,15 @@ impl NyxdScraper {
         req_tx: Sender<BlockRequest>,
         processing_rx: UnboundedReceiver<BlockToProcess>,
     ) -> Result<BlockProcessor, ScraperError> {
-        BlockProcessor::new(
+        let block_processor_config = BlockProcessorConfig::new(
             self.config.pruning_options,
+            self.config.store_precommits,
+            self.config.start_block.start_block_height,
+            self.config.start_block.use_best_effort_start_height,
+        );
+
+        BlockProcessor::new(
+            block_processor_config,
             self.cancel_token.clone(),
             self.startup_sync.clone(),
             processing_rx,

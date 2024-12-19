@@ -14,12 +14,8 @@ async fn main() -> Result<()> {
         std::fs::create_dir_all(parent)?;
     }
 
-    // Platform specific database URL for SQLite connection
-    #[cfg(target_family = "unix")]
-    let db_url = format!("sqlite:{}", db_path.display());
-
-    #[cfg(target_family = "windows")]
-    let db_url = format!("sqlite:///{}", db_path.display());
+    let db_path_str = db_path.display().to_string().replace('\\', "/");
+    let db_url = format!("sqlite:{}", db_path_str);
 
     // Ensure database file is created with proper permissions
     let connect_options = SqliteConnectOptions::from_str(&db_url)?

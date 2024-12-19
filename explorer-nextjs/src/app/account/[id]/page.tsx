@@ -10,11 +10,9 @@ import { Box, Grid2 } from "@mui/material";
 export default async function Account({
   params,
 }: {
-  params: Promise<{ address: string }>;
+  params: Promise<{ id: string }>;
 }) {
-  // const address = (await params).address;
-  console.log("(await params).address :>> ", (await params).address);
-  const address = "n1z0msxu8c098umdhnthpr2ac3ck2n3an97dm8pn";
+  const address = (await params).id;
 
   const nymAccountAddress = `${NYM_ACCOUNT_ADDRESS}${address}`;
   const accountData = await fetch(nymAccountAddress, {
@@ -30,7 +28,6 @@ export default async function Account({
   if (!nymAccountBalancesData) {
     return null;
   }
-  console.log("nymAccountBalancesData :>> ", nymAccountBalancesData);
   const nymPrice = await fetch(NYM_PRICES_API, {
     headers: {
       Accept: "application/json",
@@ -42,9 +39,6 @@ export default async function Account({
 
   const nymPriceData: CurrencyRates = await nymPrice.json();
 
-  console.log("nymPriceData :>> ", nymPriceData);
-
-  console.log("nymAccountData :>> ", nymAccountBalancesData);
   return (
     <ContentLayout>
       <Grid2 container columnSpacing={5} rowSpacing={5}>
@@ -59,7 +53,7 @@ export default async function Account({
                 {
                   label: "Account",
                   isSelected: true,
-                  link: "/account/1",
+                  link: `/account/${address}`,
                 },
               ]}
             />

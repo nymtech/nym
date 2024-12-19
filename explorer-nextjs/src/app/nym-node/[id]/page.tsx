@@ -16,6 +16,7 @@ export default async function NymNode({
   params: Promise<{ id: string }>;
 }) {
   const id = Number((await params).id);
+  console.log("id :>> ", id);
 
   const descriptionData = await fetch(NYM_NODE_DESCRIPTION, {
     headers: {
@@ -37,7 +38,7 @@ export default async function NymNode({
   });
   const nymbondedData = await bondedData.json();
 
-  if (!bondedData || !nymNodesDescription) {
+  if (!nymbondedData || !nymNodesDescription) {
     return null;
   }
 
@@ -48,6 +49,8 @@ export default async function NymNode({
   const nodeDescriptionInfo = nymNodesDescription.data.filter(
     (item: INodeDescription) => item.node_id === id,
   );
+
+  const ownerAccount = nodeBondInfo[0].bond_information.owner;
 
   return (
     <ContentLayout>
@@ -63,7 +66,7 @@ export default async function NymNode({
                 {
                   label: "Account",
                   isSelected: false,
-                  link: "/account/1",
+                  link: `/account/${ownerAccount}`,
                 },
               ]}
             />

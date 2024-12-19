@@ -106,3 +106,44 @@ type NodeData = {
 };
 
 export default NodeData;
+
+export interface CurrencyRates {
+  btc: number;
+  chf: number;
+  eur: number;
+  timestamp: number;
+  usd: number;
+}
+
+// ACCOUNT BALANCES
+
+export interface IRewardDetails {
+  amount_staked: IAmountDetails;
+  node_id: number;
+  node_still_fully_bonded: boolean;
+  rewards: IAmountDetails;
+}
+
+export interface IAmountDetails {
+  denom: string;
+  amount: string;
+}
+
+export interface IDelegationDetails {
+  node_id: number;
+  delegated: IAmountDetails;
+  height: number;
+  proxy: null | string;
+}
+
+export interface IAccountBalancesInfo {
+  accumulated_rewards: IRewardDetails[];
+  address: string;
+  balances: IAmountDetails[];
+  claimable_rewards: IAmountDetails;
+  delegations: IDelegationDetails[];
+  operator_rewards?: null | IAmountDetails;
+  total_delegations: IAmountDetails;
+  total_value: IAmountDetails;
+  vesting_account?: null | string;
+}

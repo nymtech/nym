@@ -6,7 +6,12 @@ import { IconButton } from "@mui/material";
 
 const Favorite = ({ onFavorite }: { onFavorite: () => void }) => {
   return (
-    <IconButton onClick={onFavorite}>
+    <IconButton
+      onClick={(e) => {
+        e.stopPropagation();
+        onFavorite();
+      }}
+    >
       <FavoriteBorderIcon sx={{ color: "accent.main" }} />
     </IconButton>
   );
@@ -14,7 +19,12 @@ const Favorite = ({ onFavorite }: { onFavorite: () => void }) => {
 
 const UnFavorite = ({ onUnfavorite }: { onUnfavorite: () => void }) => {
   return (
-    <IconButton onClick={onUnfavorite}>
+    <IconButton
+      onClick={(e) => {
+        e.stopPropagation();
+        onUnfavorite();
+      }}
+    >
       <FavoriteIcon sx={{ color: "accent.main" }} />
     </IconButton>
   );

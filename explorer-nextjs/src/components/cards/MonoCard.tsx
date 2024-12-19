@@ -2,7 +2,6 @@
 import CopyToClipboard from "@/components/copyToClipboard/CopyToClipboard";
 import { Box, Button, Card, CardContent, Typography } from "@mui/material";
 import Image from "next/image";
-import { QRCodeCanvas } from "qrcode.react";
 import type React from "react";
 import type { FC } from "react";
 import profileImagePlaceholder from "../../../public/profileImagePlaceholder.png";
@@ -16,6 +15,7 @@ import {
   UpDownPriceIndicator,
 } from "../price/UpDownPriceIndicator";
 import type { IDynamicProgressBarProps } from "../progressBars/EpochProgressBar";
+import { CardQRCode, type ICardQRCodeProps } from "../qrCode/QrCode";
 import { StarRating } from "../starRating";
 
 interface ICardTitlePriceProps {
@@ -121,26 +121,6 @@ const CardCopyAddress = (props: ICardCopyAddressProps) => {
         </Typography>
 
         <CopyToClipboard text={`Copy identity key ${address} to clipboard`} />
-      </Box>
-    </Box>
-  );
-};
-
-interface ICardQRCodeProps {
-  url: string;
-}
-
-const CardQRCode = (props: ICardQRCodeProps) => {
-  const { url } = props;
-  return (
-    <Box display={"flex"} justifyContent={"flex-start"}>
-      <Box
-        padding={1}
-        border={"1px solid #C3D7D7"}
-        display={"block"}
-        width={"unset"}
-      >
-        <QRCodeCanvas value={url} />
       </Box>
     </Box>
   );

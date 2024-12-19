@@ -83,12 +83,12 @@ pub enum PrometheusMetric {
     #[strum(props(
         help = "The current rate of sending/forwarding egress forward hop sphinx packets"
     ))]
-    MixnetEgressForwardPacketsSentRate,
+    MixnetEgressForwardPacketsSendRate,
 
     #[strum(props(
         help = "The current rate of sending/forwarding egress forward hop sphinx packets (acks only)"
     ))]
-    MixnetEgressAckSentRate,
+    MixnetEgressAckSendRate,
 
     #[strum(props(help = "The current rate of dropping egress forward hop sphinx packets"))]
     MixnetEgressForwardPacketsDroppedRate,
@@ -175,22 +175,22 @@ impl PrometheusMetric {
 
         match self {
             PrometheusMetric::MixnetIngressForwardPacketsReceived => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
             PrometheusMetric::MixnetIngressFinalHopPacketsReceived => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
             PrometheusMetric::MixnetIngressMalformedPacketsReceived => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
             PrometheusMetric::MixnetIngressExcessiveDelayPacketsReceived => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
             PrometheusMetric::MixnetIngressForwardPacketsDropped => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
             PrometheusMetric::MixnetIngressFinalHopPacketsDropped => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
             PrometheusMetric::MixnetIngressForwardPacketsReceivedRate => {
                 Metric::new_float_gauge(&name, help)
@@ -210,47 +210,43 @@ impl PrometheusMetric {
             PrometheusMetric::MixnetIngressFinalHopPacketsDroppedRate => {
                 Metric::new_float_gauge(&name, help)
             }
-            PrometheusMetric::MixnetEgressForwardPacketsSent => {
-                Metric::new_int_counter(&name, help)
-            }
-            PrometheusMetric::MixnetEgressAckSent => Metric::new_int_counter(&name, help),
+            PrometheusMetric::MixnetEgressForwardPacketsSent => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::MixnetEgressAckSent => Metric::new_int_gauge(&name, help),
             PrometheusMetric::MixnetEgressForwardPacketsDropped => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
-            PrometheusMetric::MixnetEgressForwardPacketsSentRate => {
+            PrometheusMetric::MixnetEgressForwardPacketsSendRate => {
                 Metric::new_float_gauge(&name, help)
             }
-            PrometheusMetric::MixnetEgressAckSentRate => Metric::new_float_gauge(&name, help),
+            PrometheusMetric::MixnetEgressAckSendRate => Metric::new_float_gauge(&name, help),
             PrometheusMetric::MixnetEgressForwardPacketsDroppedRate => {
                 Metric::new_float_gauge(&name, help)
             }
-            PrometheusMetric::EntryClientUniqueUsers => Metric::new_int_counter(&name, help),
-            PrometheusMetric::EntryClientSessionsStarted => Metric::new_int_counter(&name, help),
-            PrometheusMetric::EntryClientSessionsFinished => Metric::new_int_counter(&name, help),
+            PrometheusMetric::EntryClientUniqueUsers => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::EntryClientSessionsStarted => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::EntryClientSessionsFinished => Metric::new_int_gauge(&name, help),
             PrometheusMetric::EntryClientSessionsDurations { .. } => {
                 Metric::new_histogram(&name, help, Some(&CLIENT_SESSION_DURATION_BUCKETS))
             }
-            PrometheusMetric::WireguardBytesTx => Metric::new_int_counter(&name, help),
-            PrometheusMetric::WireguardBytesRx => Metric::new_int_counter(&name, help),
-            PrometheusMetric::WireguardTotalPeers => Metric::new_int_counter(&name, help),
-            PrometheusMetric::WireguardActivePeers => Metric::new_int_counter(&name, help),
+            PrometheusMetric::WireguardBytesTx => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::WireguardBytesRx => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::WireguardTotalPeers => Metric::new_int_gauge(&name, help),
+            PrometheusMetric::WireguardActivePeers => Metric::new_int_gauge(&name, help),
             PrometheusMetric::WireguardBytesTxRate => Metric::new_float_gauge(&name, help),
             PrometheusMetric::WireguardBytesRxRate => Metric::new_float_gauge(&name, help),
             PrometheusMetric::NetworkActiveIngressMixnetConnections => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
             PrometheusMetric::NetworkActiveIngressWebSocketConnections => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
             PrometheusMetric::NetworkActiveEgressMixnetConnections => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
             PrometheusMetric::ProcessForwardHopPacketsBeingDelayed => {
-                Metric::new_int_counter(&name, help)
+                Metric::new_int_gauge(&name, help)
             }
-            PrometheusMetric::ProcessPacketForwarderQueueSize => {
-                Metric::new_int_counter(&name, help)
-            }
+            PrometheusMetric::ProcessPacketForwarderQueueSize => Metric::new_int_gauge(&name, help),
             PrometheusMetric::ProcessTopologyQueryResolutionLatency => {
                 Metric::new_histogram(&name, help, None)
             }

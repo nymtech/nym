@@ -130,6 +130,18 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
                 .active_egress_mixnet_connections_count() as i64,
         );
 
+        // # PROCESS
+        self.prometheus_wrapper.set(
+            ProcessForwardHopPacketsBeingDelayed,
+            self.metrics
+                .process
+                .forward_hop_packets_being_delayed_count() as i64,
+        );
+        self.prometheus_wrapper.set(
+            ProcessPacketForwarderQueueSize,
+            self.metrics.process.packet_forwarder_queue_size() as i64,
+        );
+
         let updated = AtLastUpdate::from(&self.metrics);
 
         // # RATES
@@ -163,11 +175,11 @@ impl OnUpdateMetricsHandler for PrometheusGlobalNodeMetricsRegistryUpdater {
 
             // ## EGRESS
             self.prometheus_wrapper.set_float(
-                MixnetEgressForwardPacketsSentRate,
+                MixnetEgressForwardPacketsSendRate,
                 diff.mixnet.egress.forward_hop_packets_sent_sec,
             );
             self.prometheus_wrapper.set_float(
-                MixnetEgressAckSentRate,
+                MixnetEgressAckSendRate,
                 diff.mixnet.egress.ack_packets_sent_sec,
             );
             self.prometheus_wrapper.set_float(

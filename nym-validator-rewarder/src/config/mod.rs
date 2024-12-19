@@ -12,7 +12,7 @@ use nym_config::{
     DEFAULT_CONFIG_DIR, DEFAULT_CONFIG_FILENAME, DEFAULT_DATA_DIR, NYM_DIR,
 };
 use nym_validator_client::nyxd::{AccountId, Coin};
-use nyxd_scraper::PruningOptions;
+use nyxd_scraper::{PruningOptions, StartingBlockOpts};
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
 use std::io;
@@ -129,7 +129,10 @@ impl Config {
             database_path: self.storage_paths.nyxd_scraper.clone(),
             pruning_options: self.nyxd_scraper.pruning,
             store_precommits: self.nyxd_scraper.store_precommits,
-            start_block_height: None,
+            start_block: StartingBlockOpts {
+                start_block_height: None,
+                use_best_effort_start_height: true,
+            },
         }
     }
 

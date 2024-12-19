@@ -4957,7 +4957,6 @@ dependencies = [
  "sha2 0.9.9",
  "subtle 2.5.0",
  "thiserror",
- "utoipa",
  "zeroize",
 ]
 

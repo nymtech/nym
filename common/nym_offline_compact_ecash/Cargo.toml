@@ -20,7 +20,6 @@ rand = { workspace = true }
 thiserror = { workspace = true }
 sha2 = "0.9"
 bs58 = { workspace = true }
-utoipa = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 rayon = { workspace = true, optional = true }
 zeroize = { workspace = true, features = ["zeroize_derive"] }

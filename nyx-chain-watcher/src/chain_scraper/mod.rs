@@ -47,10 +47,6 @@ pub(crate) async fn run_chain_scraper(
         fs::remove_file(config.chain_scraper_database_path())?;
     }
 
-    if config.payment_watcher_config.is_none() {
-        anyhow::bail!("No payment watcher config found, not running chain scraper");
-    }
-
     let scraper = NyxdScraper::builder(nyxd_scraper::Config {
         websocket_url,
         rpc_url,

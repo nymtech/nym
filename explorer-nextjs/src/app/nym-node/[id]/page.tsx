@@ -39,8 +39,6 @@ export default async function NymNode({
     return null;
   }
 
-  const ownerAccount = nodeBondInfo[0].bond_information.owner;
-
   return (
     <ContentLayout>
       <Grid2 container columnSpacing={5} rowSpacing={5}>
@@ -49,7 +47,11 @@ export default async function NymNode({
             <SectionHeading title="Nym Node Details" />
             <ExplorerButtonGroup
               options={[
-                { label: "Nym Node", isSelected: true, link: "/nym-node/1" },
+                {
+                  label: "Nym Node",
+                  isSelected: true,
+                  link: `/nym-node/${id}`,
+                },
                 {
                   label: "Account",
                   isSelected: false,

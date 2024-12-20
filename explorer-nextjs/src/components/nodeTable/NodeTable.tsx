@@ -14,6 +14,7 @@ import {
 } from "material-react-table";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite, UnFavorite } from "../favorite/Favorite";
 import StakeModal from "../modal/StakeModal";

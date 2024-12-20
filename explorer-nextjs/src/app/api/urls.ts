@@ -34,3 +34,11 @@ export const VALIDATOR_BASE_URL =
   process.env.NEXT_PUBLIC_VALIDATOR_URL || "https://rpc.nymtech.net";
 export const COSMOS_KIT_USE_CHAIN =
   process.env.NEXT_PUBLIC_COSMOS_KIT_USE_CHAIN || "sandbox";
+export const NYM_NODE_DESCRIPTION =
+  "https://nym-api.swiss-staking.ch/v1/nym-nodes/described";
+export const NYM_NODE_BONDED =
+  "https://nym-api.swiss-staking.ch/v1/nym-nodes/bonded";
+export const NYM_ACCOUNT_ADDRESS =
+  "https://explorer.nymtech.net/api/v1/tmp/unstable/account/";
+export const NYM_PRICES_API =
+  "https://canary-nym-vpn-chain-payment-watcher.nymte.ch/v1/price/average";

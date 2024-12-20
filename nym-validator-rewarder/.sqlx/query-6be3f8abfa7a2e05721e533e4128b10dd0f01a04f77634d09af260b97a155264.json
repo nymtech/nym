@@ -1,0 +1,12 @@
+{
+  "db_name": "SQLite",
+  "query": "\n                INSERT INTO block_signing_reward (\n                    rewarding_epoch_id,\n                    validator_consensus_address,\n                    operator_account,\n                    whitelisted,\n                    amount,\n                    voting_power,\n                    voting_power_share,\n                    signed_blocks,\n                    signed_blocks_percent\n                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Right": 9
+    },
+    "nullable": []
+  },
+  "hash": "6be3f8abfa7a2e05721e533e4128b10dd0f01a04f77634d09af260b97a155264"
+}

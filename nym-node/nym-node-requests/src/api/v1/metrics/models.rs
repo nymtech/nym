@@ -97,6 +97,13 @@ pub mod verloc {
     use serde::{Deserialize, Serialize};
     use std::time::Duration;
     use time::OffsetDateTime;
+    #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
+    #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
+    pub struct VerlocNodeResult {
+        #[serde(with = "bs58_ed25519_pubkey")]
+        #[cfg_attr(feature = "openapi", schema(value_type = String))]
+        pub node_identity: ed25519::PublicKey,
+    }
 
     #[derive(Serialize, Deserialize, Default, Debug, Clone)]
     #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
@@ -127,15 +134,6 @@ pub mod verloc {
         pub run_finished: Option<OffsetDateTime>,
 
         pub results: Vec<VerlocNodeResult>,
-    }
-
-    #[derive(Serialize, Deserialize, Debug, Clone, Copy, Eq, PartialEq)]
-    #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
-    pub struct VerlocNodeResult {
-        #[serde(with = "bs58_ed25519_pubkey")]
-        pub node_identity: ed25519::PublicKey,
-
-        pub latest_measurement: Option<VerlocMeasurement>,
     }
 
     #[derive(Debug, Copy, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -174,6 +172,7 @@ pub mod session {
     #[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
     pub struct SessionStats {
         #[serde(with = "time::serde::rfc3339")]
+        #[cfg_attr(feature = "openapi", schema(value_type = String))]
         pub update_time: OffsetDateTime,
 
         pub unique_active_users: u32,

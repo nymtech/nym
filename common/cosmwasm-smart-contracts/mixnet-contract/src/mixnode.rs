@@ -82,20 +82,25 @@ impl MixNodeDetails {
 
 // currently this struct is shared between mixnodes and nymnodes
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct NodeRewarding {
     /// Information provided by the operator that influence the cost function.
     pub cost_params: NodeCostParams,
 
     /// Total pledge and compounded reward earned by the node operator.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub operator: Decimal,
 
     /// Total delegation and compounded reward earned by all node delegators.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub delegates: Decimal,
 
     /// Cumulative reward earned by the "unit delegation" since the block 0.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub total_unit_reward: Decimal,
 
     /// Value of the theoretical "unit delegation" that has delegated to this node at block 0.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub unit_delegation: Decimal,
 
     /// Marks the epoch when this node was last rewarded so that we wouldn't accidentally attempt
@@ -492,14 +497,17 @@ impl NodeRewarding {
     ::cosmwasm_schema::schemars::JsonSchema,
 )]
 #[schemars(crate = "::cosmwasm_schema::schemars")]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct MixNodeBond {
     /// Unique id assigned to the bonded mixnode.
     pub mix_id: NodeId,
 
     /// Address of the owner of this mixnode.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub owner: Addr,
 
     /// Original amount pledged by the operator of this node.
+    #[cfg_attr(feature = "utoipa", schema(value_type = crate::CoinSchema))]
     pub original_pledge: Coin,
 
     // REMOVED (but might be needed due to legacy things, idk yet)
@@ -510,6 +518,7 @@ pub struct MixNodeBond {
 
     /// Entity who bonded this mixnode on behalf of the owner.
     /// If exists, it's most likely the address of the vesting contract.
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<String>))]
     pub proxy: Option<Addr>,
 
     /// Block height at which this mixnode has been bonded.
@@ -545,6 +554,7 @@ impl MixNodeBond {
     feature = "generate-ts",
     ts(export, export_to = "ts-packages/types/src/types/rust/Mixnode.ts")
 )]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct MixNode {
     /// Network address of this mixnode, for example 1.1.1.1 or foo.mixnode.com
     pub host: String,
@@ -571,11 +581,14 @@ pub struct MixNode {
 /// The cost parameters, or the cost function, defined for the particular mixnode that influences
 /// how the rewards should be split between the node operator and its delegators.
 #[cw_serde]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct NodeCostParams {
     /// The profit margin of the associated node, i.e. the desired percent of the reward to be distributed to the operator.
+    #[cfg_attr(feature = "utoipa", schema(value_type = String))]
     pub profit_margin_percent: Percent,
 
     /// Operating cost of the associated node per the entire interval.
+    #[cfg_attr(feature = "utoipa", schema(value_type = crate::CoinSchema))]
     pub interval_operating_cost: Coin,
 }
 
@@ -680,7 +693,9 @@ pub struct PendingMixNodeChanges {
 }
 
 #[derive(Default, Copy, Clone, Debug, Serialize, Deserialize, JsonSchema)]
+#[cfg_attr(feature = "utoipa", derive(utoipa::ToSchema))]
 pub struct LegacyPendingMixNodeChanges {
+    #[cfg_attr(feature = "utoipa", schema(value_type = Option<u32>))]
     pub pledge_change: Option<EpochEventId>,
 }
 

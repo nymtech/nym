@@ -14,8 +14,8 @@ use nym_node_requests::api::v1::node::models::NodeDescription;
     tag = "Node",
     responses(
         (status = 200, content(
-            ("application/json" = NodeDescription),
-            ("application/yaml" = NodeDescription)
+            (NodeDescription = "application/json"),
+            (NodeDescription = "application/yaml")
         )),
     ),
     params(OutputParams)

@@ -14,15 +14,18 @@ use serde::{Deserialize, Serialize};
 use sha2::Digest;
 use std::fmt::{Debug, Formatter};
 use time::Date;
+use utoipa::ToSchema;
 
 // no point in importing the entire contract commons just for this one type
 pub type DepositId = u32;
 pub type DKGEpochId = u64;
 
-#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema)]
+#[derive(Clone, Serialize, Deserialize, Debug, PartialEq, JsonSchema, ToSchema)]
 #[serde(rename_all = "camelCase")]
 pub struct IssuedTicketbook {
+    #[schema(value_type = u32)]
     pub deposit_id: DepositId,
+    #[schema(value_type = u32)]
     pub epoch_id: DKGEpochId,
 
     // 96 bytes serialised 'BlindedSignature'
@@ -37,9 +40,11 @@ pub struct IssuedTicketbook {
 
     #[schemars(with = "String")]
     #[serde(with = "nym_serde_helpers::date")]
+    #[schema(value_type = String)]
     pub expiration_date: Date,
 
     #[schemars(with = "String")]
+    #[schema(value_type = String)]
     pub ticketbook_type: TicketType,
 }
 
@@ -80,7 +85,7 @@ pub struct InsertedMerkleLeaf {
     pub leaf: MerkleLeaf,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialOrd, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, JsonSchema, PartialOrd, PartialEq, Eq, ToSchema)]
 pub struct MerkleLeaf {
     #[schemars(with = "String")]
     #[serde(with = "nym_serde_helpers::hex")]
@@ -162,16 +167,14 @@ impl IssuedTicketbooksMerkleTree {
     }
 }
 
-#[derive(Serialize, Deserialize, JsonSchema)]
+#[derive(Serialize, Deserialize, JsonSchema, ToSchema)]
 pub struct IssuedTicketbooksFullMerkleProof {
     #[schemars(with = "String")]
     #[serde(with = "inner_proof_base64_serde")]
+    #[schema(value_type = String)]
     inner_proof: MerkleProof<Sha256>,
-
     included_leaves: Vec<MerkleLeaf>,
-
     total_leaves: usize,
-
     #[schemars(with = "String")]
     #[serde(with = "nym_serde_helpers::hex")]
     root: Vec<u8>,

@@ -3,7 +3,7 @@
 
 use axum::extract::Query;
 use nym_http_api_common::{FormattedResponse, OutputParams};
-use nym_node_requests::api::v1::node::models::SignedHostInformation;
+use nym_node_requests::api::{v1::node::models::SignedHostInformation, SignedDataHostInfo};
 
 /// Returns host information of this node.
 #[utoipa::path(
@@ -13,8 +13,8 @@ use nym_node_requests::api::v1::node::models::SignedHostInformation;
     tag = "Node",
     responses(
         (status = 200, content(
-            ("application/json" = SignedHostInformation),
-            ("application/yaml" = SignedHostInformation)
+            (SignedDataHostInfo = "application/json"),
+            (SignedDataHostInfo = "application/yaml")
         ))
     ),
     params(OutputParams)

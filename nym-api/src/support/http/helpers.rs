@@ -14,6 +14,8 @@ pub struct PaginationRequest {
 }
 
 #[derive(Deserialize, IntoParams, ToSchema)]
+#[schema(title = "NodeId")]
+#[schema(as = NodeId)]
 #[into_params(parameter_in = Path)]
 pub(crate) struct NodeIdParam {
     #[schema(value_type = u32)]

@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use utoipa::ToSchema;
 
-#[derive(Clone, Deserialize, Debug)]
+#[derive(Clone, Deserialize, Debug, ToSchema)]
 pub(crate) struct CurrencyPrices {
     pub(crate) chf: f32,
     pub(crate) usd: f32,

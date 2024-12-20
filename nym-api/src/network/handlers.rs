@@ -47,12 +47,19 @@ pub(crate) struct ContractVersionSchemaResponse {
     pub version: String,
 }
 
+#[allow(dead_code)] // not dead, used in OpenAPI docs
+#[derive(ToSchema)]
+pub struct ContractInformationContractVersion {
+    pub(crate) address: Option<String>,
+    pub(crate) details: Option<ContractVersionSchemaResponse>,
+}
+
 #[utoipa::path(
     tag = "network",
     get,
     path = "/v1/network/nym-contracts",
     responses(
-        (status = 200, body = HashMap<String, ContractInformation<ContractVersionSchemaResponse>>)
+        (status = 200, body = HashMap<String, ContractInformationContractVersion>)
     )
 )]
 async fn nym_contracts(
@@ -73,12 +80,19 @@ async fn nym_contracts(
         .into()
 }
 
+#[allow(dead_code)] // not dead, used in OpenAPI docs
+#[derive(ToSchema)]
+pub struct ContractInformationBuildInformation {
+    pub(crate) address: Option<String>,
+    pub(crate) details: Option<ContractBuildInformation>,
+}
+
 #[utoipa::path(
     tag = "network",
     get,
     path = "/v1/network/nym-contracts-detailed",
     responses(
-        (status = 200, body = HashMap<String, ContractInformation<ContractBuildInformation>>)
+        (status = 200, body = HashMap<String, ContractInformationBuildInformation>)
     )
 )]
 async fn nym_contracts_detailed(

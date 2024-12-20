@@ -10,9 +10,7 @@ use uuid::Uuid;
 pub mod ticketbook;
 
 #[derive(Serialize, Deserialize, Debug, Clone, JsonSchema)]
-#[cfg_attr(feature = "openapi", derive(utoipa::ToSchema))]
 pub struct ErrorResponse {
-    #[cfg_attr(feature = "openapi",schema(value_type = Option<String>, example = "c48f9ce3-a1e9-4886-8000-13f290f34501"))]
     pub uuid: Option<Uuid>,
     pub message: String,
 }

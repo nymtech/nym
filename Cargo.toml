@@ -347,9 +347,9 @@ tracing-log = "0.2"
 ts-rs = "10.0.0"
 tungstenite = { version = "0.20.1", default-features = false }
 url = "2.5"
-utoipa = "4.2"
-utoipa-swagger-ui = "7.1"
-utoipauto = "0.1"
+utoipa = "5.2"
+utoipa-swagger-ui = "8.0"
+utoipauto = "0.2"
 uuid = "*"
 vergen = { version = "=8.3.1", default-features = false }
 walkdir = "2"

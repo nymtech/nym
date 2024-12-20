@@ -61,7 +61,13 @@ impl Listener {
                                 remote_addr,
                                 shutdown,
                             );
-                            tokio::spawn(handle.start_handling());
+                            tokio::spawn(async move {
+                                // TODO: refactor it similarly to the mixnet listener on the nym-node
+                                let metrics_ref = handle.shared_state.metrics.clone();
+                                metrics_ref.network.new_ingress_websocket_client();
+                                handle.start_handling().await;
+                                metrics_ref.network.disconnected_ingress_websocket_client();
+                            });
                         }
                         Err(err) => warn!("failed to get client: {err}"),
                     }

@@ -163,4 +163,11 @@ impl ActiveClientsStore {
     pub(crate) fn size(&self) -> usize {
         self.inner.len()
     }
+
+    pub fn pending_packets(&self) -> usize {
+        self.inner
+            .iter()
+            .map(|client| client.get_sender_ref().len())
+            .sum()
+    }
 }

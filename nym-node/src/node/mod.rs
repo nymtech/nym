@@ -21,8 +21,10 @@ use crate::node::http::{HttpServerConfig, NymNodeHttpServer, NymNodeRouter};
 use crate::node::metrics::aggregator::MetricsAggregator;
 use crate::node::metrics::console_logger::ConsoleLogger;
 use crate::node::metrics::handler::client_sessions::GatewaySessionStatsHandler;
+use crate::node::metrics::handler::global_prometheus_updater::PrometheusGlobalNodeMetricsRegistryUpdater;
 use crate::node::metrics::handler::legacy_packet_data::LegacyMixingStatsUpdater;
 use crate::node::metrics::handler::mixnet_data_cleaner::MixnetMetricsCleaner;
+use crate::node::metrics::handler::pending_egress_packets_updater::PendingEgressPacketsUpdater;
 use crate::node::mixnet::packet_forwarding::PacketForwarder;
 use crate::node::mixnet::shared::ProcessingConfig;
 use crate::node::mixnet::SharedFinalHopData;
@@ -30,6 +32,7 @@ use crate::node::shared_topology::NymNodeTopologyProvider;
 use nym_bin_common::bin_info;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_gateway::node::{ActiveClientsStore, GatewayTasksBuilder};
+use nym_mixnet_client::client::ActiveConnections;
 use nym_mixnet_client::forwarder::MixForwardingSender;
 use nym_network_requester::{
     set_active_gateway, setup_fs_gateways_storage, store_gateway_details, CustomGatewayDetails,
@@ -751,7 +754,8 @@ impl NymNode {
             .with_authenticator_details(auth_details)
             .with_used_exit_policy(exit_policy_details)
             .with_description(self.description.clone())
-            .with_auxiliary_details(auxiliary_details);
+            .with_auxiliary_details(auxiliary_details)
+            .with_prometheus_bearer_token(self.config.http.access_token.clone());
 
         if self.config.http.expose_system_info {
             config = config.with_system_info(get_system_info(
@@ -772,8 +776,7 @@ impl NymNode {
             config.api.v1_config.node.roles.ip_packet_router_enabled = true;
         }
 
-        let app_state = AppState::new(self.metrics.clone(), self.verloc_stats.clone())
-            .with_metrics_key(self.config.http.access_token.clone());
+        let app_state = AppState::new(self.metrics.clone(), self.verloc_stats.clone());
 
         Ok(NymNodeRouter::new(config, app_state)
             .build_server(&self.config.http.bind_address)
@@ -844,7 +847,12 @@ impl NymNode {
         tokio::spawn(async move { verloc_measurer.run().await });
     }
 
-    pub(crate) fn setup_metrics_backend(&self, shutdown: TaskClient) -> MetricEventsSender {
+    pub(crate) fn setup_metrics_backend(
+        &self,
+        active_clients_store: ActiveClientsStore,
+        active_egress_mixnet_connections: ActiveConnections,
+        shutdown: TaskClient,
+    ) -> MetricEventsSender {
         info!("setting up node metrics...");
 
         // aggregator (to listen for any metrics events)
@@ -870,11 +878,34 @@ impl NymNode {
             self.config.metrics.debug.clients_sessions_update_rate,
         );
 
-        // handler for periodically cleaning up stale recipient/sender darta
+        // handler for periodically cleaning up stale recipient/sender data
         metrics_aggregator.register_handler(
             MixnetMetricsCleaner::new(self.metrics.clone()),
             self.config.metrics.debug.stale_mixnet_metrics_cleaner_rate,
         );
+
+        // handler for updating the value of forward/final hop packets pending delivery
+        metrics_aggregator.register_handler(
+            PendingEgressPacketsUpdater::new(
+                self.metrics.clone(),
+                active_clients_store,
+                active_egress_mixnet_connections,
+            ),
+            self.config.metrics.debug.pending_egress_packets_update_rate,
+        );
+
+        // handler for updating the prometheus registry from the global atomic metrics counters
+        // such as number of packets received
+        metrics_aggregator.register_handler(
+            PrometheusGlobalNodeMetricsRegistryUpdater::new(self.metrics.clone()),
+            self.config
+                .metrics
+                .debug
+                .global_prometheus_counters_update_rate,
+        );
+
+        // handler for handling prometheus metrics events
+        // metrics_aggregator.register_handler(PrometheusEventsHandler{}, None);
 
         // note: we're still measuring things such as number of mixed packets,
         // but since they're stored as atomic integers, they are incremented directly at source
@@ -909,7 +940,7 @@ impl NymNode {
         &self,
         active_clients_store: &ActiveClientsStore,
         shutdown: TaskClient,
-    ) -> MixForwardingSender {
+    ) -> (MixForwardingSender, ActiveConnections) {
         let processing_config = ProcessingConfig::new(&self.config);
 
         // we're ALWAYS listening for mixnet packets, either for forward or final hops (or both)
@@ -926,7 +957,13 @@ impl NymNode {
             self.config.mixnet.debug.initial_connection_timeout,
             self.config.mixnet.debug.maximum_connection_buffer_size,
         );
-        let mixnet_client = nym_mixnet_client::Client::new(mixnet_client_config);
+        let mixnet_client = nym_mixnet_client::Client::new(
+            mixnet_client_config,
+            self.metrics
+                .network
+                .active_egress_mixnet_connections_counter(),
+        );
+        let active_connections = mixnet_client.active_connections();
 
         let mut packet_forwarder = PacketForwarder::new(
             mixnet_client,
@@ -951,7 +988,7 @@ impl NymNode {
         );
 
         mixnet::Listener::new(self.config.mixnet.bind_address, shared).start();
-        mix_packet_sender
+        (mix_packet_sender, active_connections)
     }
 
     pub(crate) async fn run(mut self) -> Result<(), NymNodeError> {
@@ -981,12 +1018,17 @@ impl NymNode {
 
         self.start_verloc_measurements(task_manager.subscribe_named("verloc-measurements"));
 
-        let metrics_sender = self.setup_metrics_backend(task_manager.subscribe_named("metrics"));
         let active_clients_store = ActiveClientsStore::new();
 
-        let mix_packet_sender = self.start_mixnet_listener(
+        let (mix_packet_sender, active_egress_mixnet_connections) = self.start_mixnet_listener(
             &active_clients_store,
             task_manager.subscribe_named("mixnet-traffic"),
+        );
+
+        let metrics_sender = self.setup_metrics_backend(
+            active_clients_store.clone(),
+            active_egress_mixnet_connections,
+            task_manager.subscribe_named("metrics"),
         );
 
         self.start_gateway_tasks(

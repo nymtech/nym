@@ -3,7 +3,7 @@ import {
   CURRENT_EPOCH_REWARDS,
   HARBOURMASTER_API_MIXNODES_STATS,
 } from "@/app/api/urls";
-import { formatBigNum } from "@/app/utils/formatBigNumbers";
+import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Box, Stack, Typography } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";

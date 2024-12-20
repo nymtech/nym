@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "biome check --fix"
   },
+  "engines": {
+    "node": ">=20.0.0"
+  },
   "dependencies": {
     "@cosmjs/cosmwasm-stargate": "^0.32.4",
     "@cosmjs/proto-signing": "^0.32.4",

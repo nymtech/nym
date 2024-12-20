@@ -112,7 +112,14 @@ impl ConnectionHandler {
                     .await
                 {
                     Err(err) => error!("Failed to store client data - {err}"),
-                    Ok(_) => trace!("Stored packet for {client}"),
+                    Ok(_) => {
+                        self.shared
+                            .metrics
+                            .mixnet
+                            .egress
+                            .add_disk_persisted_packet();
+                        trace!("Stored packet for {client}")
+                    }
                 }
             }
             Ok(_) => trace!("Pushed received packet to {client}"),

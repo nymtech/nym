@@ -3,6 +3,7 @@
 
 use async_trait::async_trait;
 use nym_gateway::node::{NymApiTopologyProvider, NymApiTopologyProviderConfig, UserAgent};
+use nym_node_metrics::prometheus_wrapper::{PrometheusMetric, PROMETHEUS_METRICS};
 use nym_topology::{gateway, NymTopology, TopologyProvider};
 use std::sync::Arc;
 use std::time::Duration;
@@ -93,6 +94,10 @@ impl TopologyProvider for NymNodeTopologyProvider {
         if let Some(cached) = guard.cached_topology() {
             return Some(cached);
         }
+
+        // the observation will be included on drop
+        let _timer =
+            PROMETHEUS_METRICS.start_timer(PrometheusMetric::ProcessTopologyQueryResolutionLatency);
         guard.update_cache().await
     }
 }

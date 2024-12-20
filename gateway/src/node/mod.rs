@@ -252,6 +252,7 @@ impl GatewayTasksBuilder {
             local_identity: Arc::clone(&self.identity_keypair),
             only_coconut_credentials: self.config.gateway.enforce_zk_nyms,
             bandwidth_cfg: (&self.config).into(),
+            metrics: self.metrics.clone(),
             metrics_sender: self.metrics_sender.clone(),
             outbound_mix_sender: self.mix_packet_sender.clone(),
             active_clients_store: active_clients_store.clone(),

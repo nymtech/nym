@@ -1,5 +1,5 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
-// SPDX-License-Identifier: Apache-2.0
+// SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::metrics::handler::{
     MetricsHandler, OnStartMetricsHandler, OnUpdateMetricsHandler,
@@ -10,6 +10,8 @@ use nym_gateway_stats_storage::error::StatsStorageError;
 use nym_gateway_stats_storage::models::{TicketType, ToSessionType};
 use nym_node_metrics::entry::{ActiveSession, ClientSessions, FinishedSession};
 use nym_node_metrics::events::GatewaySessionEvent;
+use nym_node_metrics::prometheus_wrapper::PrometheusMetric::EntryClientSessionsDurations;
+use nym_node_metrics::prometheus_wrapper::PROMETHEUS_METRICS;
 use nym_node_metrics::NymNodeMetrics;
 use nym_sphinx_types::DestinationAddressBytes;
 use time::{Date, Duration, OffsetDateTime};
@@ -53,6 +55,13 @@ impl GatewaySessionStatsHandler {
     ) -> Result<(), StatsStorageError> {
         if let Some(session) = self.storage.get_active_session(client).await? {
             if let Some(finished_session) = session.end_at(stop_time) {
+                PROMETHEUS_METRICS.observe_histogram(
+                    EntryClientSessionsDurations {
+                        typ: finished_session.typ.to_string(),
+                    },
+                    finished_session.duration.as_secs_f64(),
+                );
+
                 self.storage
                     .insert_finished_session(self.current_day, finished_session)
                     .await?;

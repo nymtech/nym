@@ -4,7 +4,6 @@ import { TABLET_WIDTH } from "@/app/constants";
 import CircleIcon from "@mui/icons-material/Circle";
 import KeyboardArrowDownIcon from "@mui/icons-material/KeyboardArrowDown";
 import KeyboardArrowUpIcon from "@mui/icons-material/KeyboardArrowUp";
-import { Card, CardContent } from "@mui/material";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import Table from "@mui/material/Table";
@@ -148,7 +147,7 @@ const Row = (props: IAccontStatsRowProps) => {
             }}
           >
             <Box display={"flex"} gap={1} alignItems={"center"}>
-              <CircleIcon sx={{ color: progressBarColor }} fontSize="small" />
+              <CircleIcon sx={{ color: progressBarColor, fontSize: 12 }} />
               {type}
             </Box>
           </TableCell>
@@ -235,14 +234,12 @@ const Row = (props: IAccontStatsRowProps) => {
   );
 };
 
-export interface IAccountStatsCardProps {
+export interface IAccountBalancesTableProps {
   rows: Array<IAccontStatsRowProps>;
-  overTitle?: string;
-  priceTitle?: number;
 }
 
-export const AccountStatsCard = (props: IAccountStatsCardProps) => {
-  const { rows, overTitle, priceTitle } = props;
+export const AccountBalancesTable = (props: IAccountBalancesTableProps) => {
+  const { rows } = props;
   const tablet = useMediaQuery(TABLET_WIDTH);
   const progressBarPercentages = () => {
     return rows.map((row) => row.allocation);
@@ -262,80 +259,63 @@ export const AccountStatsCard = (props: IAccountStatsCardProps) => {
   const progressValues = getProgressValues();
 
   return (
-    <Card sx={{ height: "100%", borderRadius: "unset", padding: 1 }}>
-      <CardContent>
-        {overTitle && (
-          <Typography
-            mb={3}
-            textTransform={"uppercase"}
-            variant="h5"
-            sx={{ color: "pine.600", letterSpacing: 0.7 }}
-          >
-            {overTitle}
-          </Typography>
-        )}
-        {priceTitle && (
-          <Typography variant="h3" sx={{ color: "pine.950" }} mb={3}>
-            ${priceTitle}
-          </Typography>
-        )}
-        {!tablet && <MultiSegmentProgressBar values={progressValues} />}
-        <TableContainer>
-          <Table aria-label="collapsible table" sx={{ marginBottom: 3 }}>
-            <TableHead>
-              {tablet ? (
-                <TableRow>
-                  <TableCell>
-                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
-                      Type
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
-                      Allocation
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
-                      Amount
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
-                      Value
-                    </Typography>
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
-              ) : (
-                <TableRow>
-                  <TableCell>
-                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
-                      Type
-                    </Typography>
-                  </TableCell>
-                  <TableCell align="right">
-                    <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
-                      Amount / Value
-                    </Typography>
-                  </TableCell>
-                  <TableCell />
-                </TableRow>
-              )}
-            </TableHead>
-            <TableBody>
-              {rows.map((row, i) => (
-                <Row
-                  key={row.type}
-                  {...row}
-                  isLastRow={i === rows.length - 1}
-                  progressBarColor={progressBarColours[i]}
-                />
-              ))}
-            </TableBody>
-          </Table>
-        </TableContainer>
-      </CardContent>
-    </Card>
+    <Box>
+      {!tablet && <MultiSegmentProgressBar values={progressValues} />}
+      <TableContainer>
+        <Table aria-label="collapsible table" sx={{ marginBottom: 3 }}>
+          <TableHead>
+            {tablet ? (
+              <TableRow>
+                <TableCell>
+                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                    Type
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                    Allocation
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                    Amount
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                    Value
+                  </Typography>
+                </TableCell>
+                <TableCell />
+              </TableRow>
+            ) : (
+              <TableRow>
+                <TableCell>
+                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                    Type
+                  </Typography>
+                </TableCell>
+                <TableCell align="right">
+                  <Typography variant="subtitle2" sx={{ color: "pine.600" }}>
+                    Amount / Value
+                  </Typography>
+                </TableCell>
+                <TableCell />
+              </TableRow>
+            )}
+          </TableHead>
+          <TableBody>
+            {rows.map((row, i) => (
+              <Row
+                key={row.type}
+                {...row}
+                isLastRow={i === rows.length - 1}
+                progressBarColor={progressBarColours[i]}
+              />
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 };

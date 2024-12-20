@@ -1,4 +1,4 @@
-import { formatBigNum } from "@/app/utils/formatBigNumbers";
+import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Stack, Typography } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
 

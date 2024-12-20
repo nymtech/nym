@@ -8,7 +8,7 @@ use nym_bin_common::logging::setup_logging;
 use nym_crypto::asymmetric::ed25519;
 use nym_sdk::mixnet;
 use nym_sdk::mixnet::MixnetMessageSender;
-use reqwest::{self, Response, Url};
+use reqwest::{self, Url};
 use serde_json::Value;
 use std::time::Duration;
 use tokio::time;
@@ -18,12 +18,8 @@ use tokio::time::timeout;
 async fn main() -> Result<()> {
     setup_logging();
     let entry_gw_keys = reqwest_and_parse(
-        Url::parse(
-            "https://validator.nymtech.net/api/v1/unstable/nym-nodes/skimmed/entry-gateways/all?no_legacy=true", // make const
-
-        )
-        .unwrap(),
-        "ed25519_identity_pubkey",
+        Url::parse("https://validator.nymtech.net/api/v1/unstable/nym-nodes/skimmed/entry-gateways/all?no_legacy=true").unwrap(),
+        "EntryGateway",
     )
     .await?;
     println!(
@@ -34,10 +30,10 @@ async fn main() -> Result<()> {
 
     let exit_gw_keys = reqwest_and_parse(
         Url::parse(
-            "https://validator.nymtech.net/api/v1/unstable/nym-nodes/skimmed/exit-gateways/all?no_legacy=true", // make const
+            "https://validator.nymtech.net/api/v1/unstable/nym-nodes/skimmed/exit-gateways/all?no_legacy=true",
         )
         .unwrap(),
-        "ed25519_identity_pubkey",
+        "ExitGateway",
     )
     .await?;
     println!(
@@ -48,23 +44,27 @@ async fn main() -> Result<()> {
 
     for gw in exit_gw_keys {
         println!("{}", gw);
-        time::sleep(Duration::from_secs(1)).await;
 
-        let mut echo_server = NymEchoServer::new(
-            Some(ed25519::PublicKey::from_base58_string(gw)?),
-            None,
-            "../../../envs/mainnet.env".to_string(), // make const
-            "9000", // when you run concurrently you can probably iterate through ports here as well
-        )
-        .await?;
+        // TODO set up a client manually with a reply fn to troubleshoot wtf is going on
 
-        let echo_addr = echo_server.nym_address().await;
-        println!("echo addr: {echo_addr}");
+        // time::sleep(Duration::from_secs(1)).await;
+        // let mut echo_server = NymEchoServer::new(
+        //     Some(ed25519::PublicKey::from_base58_string(
+        //         exit_gw_keys[0].clone(),
+        //     )?),
+        //     None,
+        //     "../../../envs/mainnet.env".to_string(), // make const
+        //     "9000", // when you run concurrently you can probably iterate through ports here as well
+        // )
+        // .await?;
 
-        tokio::task::spawn(async move {
-            echo_server.run().await?;
-            Ok::<(), anyhow::Error>(())
-        });
+        // let echo_addr = echo_server.nym_address().await;
+        // println!("echo addr: {echo_addr}");
+
+        // tokio::task::spawn(async move {
+        //     echo_server.run().await?;
+        //     Ok::<(), anyhow::Error>(())
+        // });
 
         for gw in entry_gw_keys.clone() {
             let builder = mixnet::MixnetClientBuilder::new_ephemeral()
@@ -72,10 +72,7 @@ async fn main() -> Result<()> {
                 .build()?;
 
             let mut client = match builder.connect_to_mixnet().await {
-                Ok(client) => {
-                    println!("connected");
-                    client
-                }
+                Ok(client) => client,
                 Err(err) => {
                     println!("failed to connect: {err}");
                     return Err(err.into());
@@ -83,71 +80,66 @@ async fn main() -> Result<()> {
             };
             let our_address = client.nym_address();
             println!("{our_address}");
-            client.send_plain_message(echo_addr, "echo").await?;
+            client.send_plain_message(*our_address, "echo").await?;
 
             match timeout(Duration::from_secs(5), client.next()).await {
                 Err(_timeout) => {
-                    println!("❌");
-                    println!("timed out while waiting for the response...");
+                    println!("timed out");
                 }
                 Ok(Some(received)) => match String::from_utf8(received.message) {
                     Ok(message) => {
-                        println!("✅");
                         println!("received '{message}' back!");
                     }
                     Err(err) => {
-                        println!("❌");
                         println!("the received message got malformed on the way to us: {err}");
                     }
                 },
                 Ok(None) => {
-                    println!("❌");
                     println!("failed to receive any message back...");
                 }
             }
-
             println!("disconnecting the client before shutting down...");
             client.disconnect().await;
         }
-
-        time::sleep(Duration::from_secs(100)).await;
     }
 
     Ok(())
 }
 
 async fn reqwest_and_parse(endpoint: Url, key: &str) -> Result<Vec<String>> {
-    let response: Response = reqwest::get(endpoint).await?;
+    let response = reqwest::get(endpoint).await?;
     let json: Value = response.json().await?;
-    let parsed: Vec<String> = json["nodes"]["data"]
-        .as_array()
-        .unwrap()
-        .iter()
-        .map(|node| node[key].as_str().unwrap().to_string())
-        .collect();
-    Ok(parsed)
+    let filtered_keys = filter_gateway_keys(&json, key)?;
+    Ok(filtered_keys)
 }
 
-/*
+fn filter_gateway_keys(json: &Value, key: &str) -> Result<Vec<String>> {
+    let mut filtered_keys = Vec::new();
 
-// let response = reqwest::get(
-//     "https://validator.nymtech.net/api/v1/unstable/nym-nodes/skimmed/entry-gateways/active",
-// )
-// .await?;
-// let json: Value = response.json().await?;
+    if let Some(nodes) = json["nodes"]["data"].as_array() {
+        for node in nodes {
+            if let Some(performance) = node.get("performance").and_then(|v| v.as_str()) {
+                let performance_value: f64 = performance.parse().unwrap_or(0.0);
 
-// let exit_gw_keys: Vec<String> = json["nodes"]["data"]
-//     .as_array()
-//     .unwrap()
-//     .iter()
-//     .map(|node| {
-//         node["ed25519_identity_pubkey"]
-//             .as_str()
-//             .unwrap()
-//             .to_string()
-//     })
-//     .collect();
+                let inactive = node.get("role").and_then(|v| v.as_str()) == Some("Inactive");
 
-// println!("Got {} active exit gw keys", exit_gw_keys.len(),);
-
-*/
+                if let Some(role) = node.get("role").and_then(|v| v.as_str()) {
+                    let is_correct_gateway = role == key;
+                    // println!("Node: {:?}", node);
+                    // println!("Performance: {}", performance_value);
+                    // println!("Blacklisted: {}", inactive);
+                    if performance_value > 0.0 && !inactive && is_correct_gateway {
+                        if let Some(gateway_identity_key) =
+                            node.get("ed25519_identity_pubkey").and_then(|v| v.as_str())
+                        {
+                            filtered_keys.push(gateway_identity_key.to_string());
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        println!("No nodes found ");
+    }
+    Ok(filtered_keys)
+}

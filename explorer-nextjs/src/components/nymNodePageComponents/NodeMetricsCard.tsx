@@ -9,6 +9,7 @@ interface INodeMetricsCardProps {
 
 export const NodeMetricsCard = (props: INodeMetricsCardProps) => {
   const { nodeDescription, nodeId } = props;
+
   return (
     <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
       <ExplorerListItem
@@ -17,18 +18,22 @@ export const NodeMetricsCard = (props: INodeMetricsCardProps) => {
         label="Node ID."
         value={nodeId.toString()}
       />
-      <ExplorerListItem
-        row
-        divider
-        label="Host"
-        value={nodeDescription.host_information.ip_address.toString()}
-      />
-      <ExplorerListItem
-        row
-        divider
-        label="Version"
-        value={nodeDescription.build_information.build_version}
-      />
+      {nodeDescription && (
+        <>
+          <ExplorerListItem
+            row
+            divider
+            label="Host"
+            value={nodeDescription.host_information.ip_address.toString()}
+          />
+          <ExplorerListItem
+            row
+            divider
+            label="Version"
+            value={nodeDescription.build_information.build_version}
+          />
+        </>
+      )}
       <ExplorerListItem row label="Active set Prob." value="High" />
     </ExplorerCard>
   );

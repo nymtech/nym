@@ -13,7 +13,6 @@ import {
 } from "material-react-table";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite } from "../favorite/Favorite";
 import StakeModal from "../modal/StakeModal";
@@ -149,7 +148,10 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           <Button
             size="small"
             variant="outlined"
-            onClick={() => handleOnStake(row.original)}
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOnStake(row.original);
+            }}
           >
             Stake
           </Button>

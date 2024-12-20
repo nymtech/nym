@@ -354,13 +354,13 @@ pub mod openapi_schema {
 
     #[derive(ToSchema)]
     pub struct WithdrawalReqProof {
-        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = String)]
         challenge: Scalar,
-        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = String)]
         response_opening: Scalar,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = Vec<String>)]
         response_openings: Vec<Scalar>,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = Vec<String>)]
         response_attributes: Vec<Scalar>,
     }
 
@@ -411,25 +411,25 @@ pub mod openapi_schema {
 
     #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, ToSchema)]
     pub struct SpendProof {
-        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = String)]
         challenge: Scalar,
-        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = String)]
         response_r: Scalar,
-        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = String)]
         response_r_e: Scalar,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = Vec<String>)]
         responses_r_k: Vec<Scalar>,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = Vec<String>)]
         responses_l: Vec<Scalar>,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = Vec<String>)]
         responses_o_a: Vec<Scalar>,
-        #[schema(value_type = [u64; 4], format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = String)]
         response_o_c: Scalar,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = Vec<String>)]
         responses_mu: Vec<Scalar>,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = Vec<String>)]
         responses_o_mu: Vec<Scalar>,
-        #[schema(value_type = Vec<[u64; 4]>, format = Binary, content_encoding = "Base16")]
+        #[schema(value_type = Vec<String>)]
         responses_attributes: Vec<Scalar>,
     }
 }

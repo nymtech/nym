@@ -9,5 +9,5 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
-env_logger = "0.11.3"
+env_logger = "0.11.6"
 log.workspace = true

@@ -1,0 +1,41 @@
+import { Callout } from 'nextra/components';
+import { Steps } from 'nextra/components';
+import { Tabs } from 'nextra/components';
+import NymNodeSpecs from 'components/operators/snippets/nym-node-specs.mdx';
+
+# Nym Nodes Operator Guides
+
+Welcome to the section containing setup guides for operators of Nym Nodes and Nym Validators. To setup, configure, run, bond and maintain a `nym-node` is not a difficult process, but it takes dedication. Before you start, please check out [minimum requirements](#minimum-requirements) and then follow the [Steps for Nym Node Operators](#steps-for-nym-node-operators) below.
+
+## Minimum Requirements
+
+Operating a `nym-node` is not a set-and-forget endeavor. To prevent operators frustration and investment of time or money for sub-optimal server, we composed this list of prerequisites.
+
+### Knowledge base
+
+All nodes are run remotely from operators shell, using [SSH](https://www.ssh.com/academy/ssh) and [Bash](https://www.gnu.org/software/bash/) commands. Node operators need to be an experienced super users or preferably sys-admins. If you never used terminal before, maybe start with some tutorial of [basic Linux administration](https://www.linode.com/docs/guides/linux-system-administration-basics/) before committing to run a node.
+
+<NymNodeSpecs />
+
+### Time
+
+Last but not least, managing a Nym Node is work. More skilled an operator is, less time it takes run a node (and search extra details), but just like any other work, it takes time. Reserve 45-120 minutes for the initial setup and configuration (depends on your skills). Then count on a few minutes once in 2-4 weeks to upgrade node version binaries. Outdated nodes are never selected for routing/mixing packets, resulting in not receiving any rewards. You can read more on our [Tokenomics page](tokenomics/mixnet-rewards.mdx) to understand the selection and rewards logic.
+
+## Steps for Nym Node Operators
+
+This is a summary of all needed steps for node operators to setup and configure a `nym-node` and register it to Nym Network:
+
+
+1. **Start with [Preliminary Steps](preliminary-steps.mdx), preparing:**
+- [VPS](preliminary-steps/vps-setup.mdx)
+- [Nym wallet](preliminary-steps/wallet-preparation/mdx)
+
+2. **[Setup](nym-node/setup.mdx) the node**
+
+3. **[Configure](nym-node/configuration.mdx) the node and (optionally) automation, Wireguard, WSS, reverse proxy ...**
+
+4. **[Run](nym-node/setup.mdx#initialise--run) the node or [the service](nym-node/configuration.md#systemd)**
+
+5. **[Bond](nym-node/bonding.mdx) the node to the Nym API, using Nym wallet**
+
+Make sure to follow the steps thoroughly, in case you find any point difficult don't hesitate to ask in our [Operators channel](https://matrix.to/#/#operators:nymtech.chat).

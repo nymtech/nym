@@ -168,18 +168,23 @@ In such case, you can `run` a node to initalise it or try if everything works, b
 ### Migrate
 
 <Callout type="warning">
-Migration is a must for all deprecated nodes (`nym-mixnode`, `nym-gateway`). These binaries from version 1.1.35 (`nym-gateway`) and 1.1.37 (`nym-mixnode`) onwards will no longer have `init` command and `nym-node` is the only binary to use for `gateway` or `mixnode` fucntionalities.
+**Legacy binaries `nym-mixnode` and `nym-gateway` had been deprecated, [`nym-node`](../nym-node.mdx) is the only binary to use for `gateway` or `mixnode` functionalities!**
 
-**Nym cannot promise 100% serialisation for operators migrating from long outdated versions to the newest ones. If you are about to migrate, start with  [`nym-node v1.1.0`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.3-eclipse) and keep upgrading version by version all the way to the latest one.**
+From `2024.14-crunch` release (`nym-node v1.2.0`) onward, `nym-node` binary does *not* have `migrate` command included. In case you are still running a legacy node and want to migrate, [download](https://github.com/nymtech/nym/releases) an older `nym-node` binary and upgrade to the latest after migrating.
+
+Furthermore, giving that legacy nodes had been deprecated for several months, Nym cannot promise 100% serialisation for operators migrating from long outdated versions. If you are about to migrate, start with  [`nym-node v1.1.0`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.3-eclipse) and keep upgrading version by version all the way to the latest one.
 </Callout>
 
 Operators who are about to migrate their nodes need to configure their [VPS](vps-setup.md) and setup `nym-node` which can be downloaded as a [pre-built binary](../binaries/pre-built-binaries.md) or compiled from [source](../binaries/building-nym.md).
 
-To migrate a `nym-mixnode` or a `nym-gateway` to `nym-node` is fairly simple, use the `migrate` command with `--config-file` flag pointing to the original `config.toml` file, with a conditional argument defining which type of node this configuration belongs to. Examples are below.
+To migrate a `nym-mixnode` or a `nym-gateway` to `nym-node` use, the `migrate` command with `--config-file` flag pointing to the original `config.toml` file, with a conditional argument defining which type of node this configuration belongs to. The exact steps are below.
 
 Make sure to use `--deny-init` flag to prevent initialisation of a new node.
 
 <MigrateTabs />
+
+**After you upgraded your node to the latest release of `nym-node`, make sure that you also follow [the steps to migrate your node in the Mixnet smart contract](bonding#migrate-to-nym-node-in-mixnet-smart-contract), othewise your node will never receive any rewards.**
+
 
 ### Next steps
 

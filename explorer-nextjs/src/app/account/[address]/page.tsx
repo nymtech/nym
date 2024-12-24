@@ -78,7 +78,7 @@ export default async function Account({
                   {
                     label: "Account",
                     isSelected: true,
-                    link: "/account/1",
+                    link: `/account/${address}`,
                   },
                 ]}
               />

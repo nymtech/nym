@@ -1,16 +1,17 @@
-"use client";
-
 import NymLogo from "@/components/icons/NymLogo";
 import { Link } from "@/components/muiLink";
 import { Wrapper } from "@/components/wrapper";
-import { subtitles } from "@/theme/typography";
-import { Circle } from "@mui/icons-material";
-import { Box, Button, Divider, Stack } from "@mui/material";
-import { usePathname } from "next/navigation";
-import type React from "react";
+import { Box, Divider } from "@mui/material";
 import ConnectWallet from "../wallet/ConnectWallet";
+import HeaderItem from "./HeaderItem";
 
-const DUMMY_MENU_DATA = [
+export type MenuItem = {
+  id: number;
+  title: string;
+  url: string;
+};
+
+const DUMMY_MENU_DATA: MenuItem[] = [
   {
     id: 1,
     title: "Explorer",
@@ -29,7 +30,6 @@ const DUMMY_MENU_DATA = [
 ];
 
 export const DesktopHeader = () => {
-  const pathname = usePathname();
   return (
     <Box
       sx={{
@@ -69,25 +69,7 @@ export const DesktopHeader = () => {
           }}
         >
           {DUMMY_MENU_DATA.map((menu) => (
-            <Stack direction="row" gap={1} key={menu.id} alignItems="center">
-              {pathname.includes(menu.url) && <Circle sx={{ fontSize: 10 }} />}
-              <Button
-                href={menu.url}
-                sx={{
-                  borderRadius: 0,
-                  padding: 0,
-                  minWidth: "auto",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  gap: 1,
-                  height: "100%",
-                  ...subtitles.subtitle1,
-                }}
-              >
-                {menu.title}
-              </Button>
-            </Stack>
+            <HeaderItem key={menu.id} menu={menu} />
           ))}
         </Box>
         <ConnectWallet size="small" />

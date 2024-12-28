@@ -40,14 +40,14 @@ const nymSandboxAssets = {
 
 const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => {
   // Only use the nyx chains
-  const chainsFixedUp = React.useMemo(() => {
+  const chainsWithNyx = React.useMemo(() => {
     const nyx = chains.find((chain) => chain.chain_id === "nyx");
 
     return nyx ? [nymSandbox, nyx] : [nymSandbox];
   }, []);
 
   // Only use the nyx assets
-  const assetsFixedUp = React.useMemo(() => {
+  const assetsWithNyx = React.useMemo(() => {
     const nyx = assets.find((asset) => asset.chain_name === "nyx");
 
     return nyx ? [nymSandboxAssets, nyx] : [nymSandboxAssets];
@@ -55,16 +55,9 @@ const CosmosKitProvider = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <ChainProvider
-      chains={chainsFixedUp}
-      assetLists={assetsFixedUp}
+      chains={chainsWithNyx}
+      assetLists={assetsWithNyx}
       wallets={[...keplr]}
-      endpointOptions={{
-        endpoints: {
-          nyx: {
-            rpc: [VALIDATOR_BASE_URL],
-          },
-        },
-      }}
     >
       {children}
     </ChainProvider>

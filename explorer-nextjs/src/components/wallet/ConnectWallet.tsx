@@ -1,6 +1,6 @@
 "use client";
 
-import { COSMOS_KIT_USE_CHAIN } from "@/app/api/urls";
+import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { useChain } from "@cosmos-kit/react";
 import { Button, type ButtonProps, IconButton, Stack } from "@mui/material";
 import Cross from "../icons/Cross";
@@ -27,7 +27,7 @@ const ConnectWallet = ({ ...buttonProps }: ButtonPropsWithOnClick) => {
   if (isWalletConnected) {
     return (
       <Stack direction="row" spacing={3}>
-        {address && <WalletBalance address={address} />}
+        <WalletBalance />
         <WalletAddress address={address} />
         <IconButton
           size="small"

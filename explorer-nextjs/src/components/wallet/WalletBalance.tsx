@@ -4,13 +4,13 @@ import { Stack, Typography } from "@mui/material";
 import React from "react";
 
 export const WalletBalance = () => {
-  const { balance } = useGetWalletBalance();
+  const { formattedBalance } = useGetWalletBalance();
 
   return (
     <Stack direction="row" alignItems="center" gap={1}>
       <Token />
       <Typography variant="h5" fontWeight={400}>
-        {balance} NYM
+        {formattedBalance} NYM
       </Typography>
     </Stack>
   );

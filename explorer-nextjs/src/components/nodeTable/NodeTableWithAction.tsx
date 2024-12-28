@@ -1,6 +1,6 @@
+import getNymNodes from "@/actions/getNymNodes";
 import type NymNode from "@/app/api/types";
 import NodeTable from "./NodeTable";
-import getNymNodes from "./actions";
 
 const mappedNymNodes = (nodes: NymNode[]) =>
   nodes.map((node) => {

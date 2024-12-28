@@ -8,7 +8,8 @@ import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileC
 import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
 import { QualityIndicatorsCard } from "@/components/nymNodePageComponents/QualityIndicatorsCard";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
-import { Box, Grid2 } from "@mui/material";
+import { Box } from "@mui/material";
+import Grid2 from "@mui/material/Grid2";
 
 export default async function NymNode({
   params,

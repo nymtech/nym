@@ -24,7 +24,7 @@ const StakeTableWithAction = async () => {
     return <StakeTable nodes={data} />;
   } catch (error) {
     console.error(error);
-    return [];
+    return null;
   }
 };
 

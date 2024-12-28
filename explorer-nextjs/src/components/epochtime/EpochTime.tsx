@@ -19,17 +19,22 @@ export const fetcNextEpoch = async () => {
 };
 
 const NextEpochTime = async () => {
-  const epoch = await fetcNextEpoch();
-  const formattedDate = format(epoch.dateTime, "HH:mm:ss");
+  try {
+    const epoch = await fetcNextEpoch();
+    const formattedDate = format(epoch.dateTime, "HH:mm:ss");
 
-  return (
-    <Stack direction="row" spacing={1}>
-      <AccessTime />
-      <Typography variant="h5" fontWeight="light">
-        Next epoch: {formattedDate}
-      </Typography>
-    </Stack>
-  );
+    return (
+      <Stack direction="row" spacing={1}>
+        <AccessTime />
+        <Typography variant="h5" fontWeight="light">
+          Next epoch: {formattedDate}
+        </Typography>
+      </Stack>
+    );
+  } catch (error) {
+    console.log(error);
+    return null;
+  }
 };
 
 export default NextEpochTime;

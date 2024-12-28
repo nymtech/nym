@@ -9,6 +9,7 @@ const SubHeaderRowActions = () => {
   if (!address) {
     return null;
   }
+
   return (
     <Stack direction="row" spacing={3} justifyContent={"end"}>
       <Button variant="outlined">Redeem all rewards</Button>

@@ -1,5 +1,5 @@
 import NextEpochTime from "@/components/epochtime/EpochTime";
-import { Grid2 } from "@mui/material";
+import Grid2 from "@mui/material/Grid2";
 import SubHeaderRowActions from "./SubHeaderRowActions";
 
 const SubHeaderRow = () => {

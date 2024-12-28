@@ -8,7 +8,6 @@ import TotalStakeCard from "./TotalStakeCard";
 
 const OverviewCards = () => {
   const { address } = useNymClient();
-  console.log(address);
 
   if (!address) {
     return null;

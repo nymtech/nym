@@ -32,5 +32,3 @@ export const NYM_PRICES_API =
   "https://canary-nym-vpn-chain-payment-watcher.nymte.ch/v1/price/average";
 export const VALIDATOR_BASE_URL =
   process.env.NEXT_PUBLIC_VALIDATOR_URL || "https://rpc.nymtech.net";
-export const COSMOS_KIT_USE_CHAIN =
-  process.env.NEXT_PUBLIC_COSMOS_KIT_USE_CHAIN || "sandbox";

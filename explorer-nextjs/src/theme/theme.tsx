@@ -168,11 +168,7 @@ const getTheme = (mode: "light" | "dark"): ThemeOptions => {
         },
       },
       MuiOutlinedInput: {
-        styleOverrides: {
-          root: {
-            borderRadius: "32px",
-          },
-        },
+        styleOverrides: {},
       },
       MuiButton: {
         styleOverrides: {

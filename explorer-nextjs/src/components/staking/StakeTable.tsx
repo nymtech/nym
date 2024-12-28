@@ -28,7 +28,7 @@ const ColumnHeading = ({
 
 const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const { nymClient, address } = useNymClient();
-  const [delegations, setDelegations] = useState<Delegation[]>([]);
+  const [, setDelegations] = useState<Delegation[]>([]);
   const router = useRouter();
 
   useEffect(() => {

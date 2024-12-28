@@ -23,12 +23,14 @@ export const useNymClient = () => {
         const cosmWasmClient = await getCosmWasmClient();
 
         const client = new contracts.Mixnet.MixnetClient(
+          // eslint-disable-next-line  @typescript-eslint/no-explicit-any
           cosmWasmSigningClient as any,
           address,
           NYM_MIXNET_CONTRACT,
         );
 
         const queryClient = new contracts.Mixnet.MixnetQueryClient(
+          // eslint-disable-next-line  @typescript-eslint/no-explicit-any
           cosmWasmClient as any,
           NYM_MIXNET_CONTRACT,
         );

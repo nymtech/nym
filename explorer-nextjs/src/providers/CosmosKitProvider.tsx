@@ -1,6 +1,5 @@
 "use client";
 
-import { VALIDATOR_BASE_URL } from "@/app/api/urls";
 import type { AssetList, Chain } from "@chain-registry/types";
 import { wallets as keplr } from "@cosmos-kit/keplr-extension";
 import { ChainProvider } from "@cosmos-kit/react";

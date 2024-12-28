@@ -4,7 +4,9 @@ import NymLogo from "@/components/icons/NymLogo";
 import { Link } from "@/components/muiLink";
 import { Wrapper } from "@/components/wrapper";
 import { subtitles } from "@/theme/typography";
-import { Box, Button, Divider } from "@mui/material";
+import { Circle } from "@mui/icons-material";
+import { Box, Button, Divider, Stack } from "@mui/material";
+import { usePathname } from "next/navigation";
 import type React from "react";
 import ConnectWallet from "../wallet/ConnectWallet";
 
@@ -27,6 +29,7 @@ const DUMMY_MENU_DATA = [
 ];
 
 export const DesktopHeader = () => {
+  const pathname = usePathname();
   return (
     <Box
       sx={{
@@ -66,34 +69,25 @@ export const DesktopHeader = () => {
           }}
         >
           {DUMMY_MENU_DATA.map((menu) => (
-            <Button
-              key={menu.title}
-              href={menu.url}
-              sx={{
-                borderRadius: 0,
-                padding: 0,
-                minWidth: "auto",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: "10px",
-                height: "100%",
-                ...subtitles.subtitle1,
-                "& .MuiButton-endIcon": {
-                  marginLeft: 0,
-                  marginRight: 0,
-                },
-                "& .MuiButton-startIcon": {
-                  marginLeft: 0,
-                  marginRight: 0,
-                },
-                "&:hover": {
-                  textDecoration: "none",
-                },
-              }}
-            >
-              {menu.title}
-            </Button>
+            <Stack direction="row" gap={1} key={menu.id} alignItems="center">
+              {pathname.includes(menu.url) && <Circle sx={{ fontSize: 10 }} />}
+              <Button
+                href={menu.url}
+                sx={{
+                  borderRadius: 0,
+                  padding: 0,
+                  minWidth: "auto",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  gap: 1,
+                  height: "100%",
+                  ...subtitles.subtitle1,
+                }}
+              >
+                {menu.title}
+              </Button>
+            </Stack>
           ))}
         </Box>
         <ConnectWallet size="small" />

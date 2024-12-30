@@ -1,18 +1,28 @@
 "use client";
 
 import { useNymClient } from "@/hooks/useNymClient";
+import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Box, Stack, Tooltip, Typography } from "@mui/material";
-import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
+import type { Delegation } from "@nymproject/types";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
   useMaterialReactTable,
 } from "material-react-table";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import CountryFlag from "../countryFlag/CountryFlag";
+import Loading from "../loading";
+import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import ConnectWallet from "../wallet/ConnectWallet";
+import StakeActions from "./StakeActions";
 import type { MappedNymNode, MappedNymNodes } from "./StakeTableWithAction";
+import { fee } from "./schemas";
+
+type DelegationWithNodeDetails = {
+  node: MappedNymNode | undefined;
+  delegation: Delegation;
+};
 
 const ColumnHeading = ({
   children,
@@ -28,7 +38,14 @@ const ColumnHeading = ({
 
 const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const { nymClient, address } = useNymClient();
-  const [, setDelegations] = useState<Delegation[]>([]);
+  const [delegations, setDelegations] = useState<DelegationWithNodeDetails[]>(
+    [],
+  );
+  const [isLoading, setIsLoading] = useState(false);
+  const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
+    open: false,
+  });
+
   const router = useRouter();
 
   useEffect(() => {
@@ -39,12 +56,90 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       const data = await nymClient?.getDelegatorDelegations({
         delegator: address,
       });
-      setDelegations(data.delegations);
+      return data.delegations;
     };
-    fetchDelegations();
-  }, [address, nymClient]);
 
-  const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
+    // Combine delegations with node details
+    const combineDelegationsWithNode = (delegations: Delegation[]) => {
+      console.log("Delegations", delegations, "Nodes", nodes);
+
+      const delegationsWithNodeDetails = delegations.map((delegation) => {
+        const node = nodes.find((node) => node.nodeId === delegation.node_id);
+
+        return {
+          node,
+          delegation,
+        };
+      });
+
+      return delegationsWithNodeDetails;
+    };
+
+    // Fetch and map delegations
+    const fetchAndMapDelegations = async () => {
+      const delegations = await fetchDelegations();
+      const delegationsWithNodeDetails =
+        combineDelegationsWithNode(delegations);
+      setDelegations(delegationsWithNodeDetails);
+    };
+
+    fetchAndMapDelegations();
+  }, [address, nodes, nymClient]);
+
+  const handleUnstake = useCallback(
+    async (nodeId?: number) => {
+      try {
+        if (!nodeId || !address) {
+          return;
+        }
+        console.log("Unstaking node", nodeId);
+        setIsLoading(true);
+        await nymClient?.undelegateFromMixnode(
+          {
+            mixId: nodeId,
+          },
+          fee,
+          `Explorer V2: Unstaking node ${nodeId}`,
+        );
+        setIsLoading(false);
+        setInfoModalProps({
+          open: true,
+          title: "Success",
+          message: "This operation can take up to one hour to process",
+          onClose: () => setInfoModalProps({ open: false }),
+        });
+      } catch (e) {
+        setInfoModalProps({
+          open: true,
+          title: "Error",
+          message:
+            e instanceof Error
+              ? e.message
+              : "An error occurred while unstaking",
+          onClose: () => {
+            setInfoModalProps({ open: false });
+          },
+        });
+        setIsLoading(false);
+      }
+    },
+    [address, nymClient],
+  );
+
+  const handleActionSelect = useCallback(
+    (action: string, nodeId: number | undefined) => {
+      switch (action) {
+        case "unstake":
+          handleUnstake(nodeId);
+          break;
+        default:
+          break;
+      }
+    },
+    [handleUnstake],
+  );
+
+  const columns: MRT_ColumnDef<DelegationWithNodeDetails>[] = useMemo(
     () => [
       {
         id: "node",
@@ -53,9 +148,11 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         accessorKey: "bondInformation.node.identity_key",
         Cell: ({ row }) => (
           <Stack spacing={1}>
-            <Typography variant="body4">{row.original.nodeId}</Typography>
+            <Typography variant="body4">
+              {row.original.node?.bondInformation.node_id || "-"}
+            </Typography>
             <Typography variant="body5">
-              {row.original.bondInformation.node.identity_key}
+              {row.original.node?.bondInformation.node.identity_key || "-"}
             </Typography>
           </Stack>
         ),
@@ -66,15 +163,15 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         accessorKey: "location.country_name",
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
-          row.original.location?.two_letter_iso_country_code ? (
-            <Tooltip title={row.original.location.country_name}>
+          row.original.node?.location.two_letter_iso_country_code ? (
+            <Tooltip title={row.original.node.location.country_name}>
               <Box>
                 <CountryFlag
                   countryCode={
-                    row.original.location.two_letter_iso_country_code
+                    row.original.node.location.two_letter_iso_country_code
                   }
                   countryName={
-                    row.original.location.two_letter_iso_country_code
+                    row.original.node.location.two_letter_iso_country_code
                   }
                 />
               </Box>
@@ -82,6 +179,18 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           ) : (
             "-"
           ),
+      },
+      {
+        id: "stake",
+        header: "Staked amount",
+        accessorKey: "delegation.amount.amount",
+        Header: <ColumnHeading>Stake</ColumnHeading>,
+        Cell: ({ row }) => (
+          <Typography variant="body4">
+            {formatBigNum(+row.original.delegation.amount.amount / 1_000_000)}{" "}
+            NYM
+          </Typography>
+        ),
       },
       {
         id: "stakeSaturation",
@@ -97,19 +206,35 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: <ColumnHeading>Profit margin</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
-            {row.original.profitMarginPercentage}%
+            {row.original.node?.profitMarginPercentage || 0 * 100}%
           </Typography>
         ),
       },
+      {
+        id: "action",
+        header: "Action",
+        Header: <ColumnHeading>Action</ColumnHeading>,
+        Cell: ({ row }) => (
+          <StakeActions
+            nodeId={row.original.node?.bondInformation.node_id}
+            onActionSelect={(action) => {
+              handleActionSelect(
+                action,
+                row.original.node?.bondInformation.node_id,
+              );
+            }}
+          />
+        ),
+      },
     ],
-    [],
+    [handleActionSelect],
   );
 
   const table = useMaterialReactTable({
     columns,
-    data: nodes,
-    enableRowSelection: false, //enable some features
-    enableColumnOrdering: false, //enable a feature for all columns
+    data: delegations,
+    enableRowSelection: false,
+    enableColumnOrdering: false,
     enableColumnActions: false,
     enableFullScreenToggle: false,
     enableHiding: false,
@@ -157,7 +282,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     },
     muiTableBodyRowProps: ({ row }) => ({
       onClick: () => {
-        router.push(`/nym-node/${row.original.nodeId}`);
+        router.push(`/nym-node/${row.original.node?.nodeId || "not-found"}`);
       },
       hover: true,
       sx: {
@@ -185,6 +310,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
   return (
     <div>
+      {isLoading && <Loading />}
+      <InfoModal {...infoModalProps} />
       <MaterialReactTable table={table} />
     </div>
   );

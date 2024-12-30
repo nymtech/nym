@@ -303,7 +303,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         <Typography variant="body4">
           Please connect your wallet to view your stake
         </Typography>
-        <ConnectWallet />
+        <ConnectWallet hideAddressAndBalance />
       </Stack>
     );
   }

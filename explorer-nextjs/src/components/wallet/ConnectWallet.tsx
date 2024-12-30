@@ -8,11 +8,12 @@ import { WalletAddress } from "./WalletAddress";
 import { WalletBalance } from "./WalletBalance";
 
 interface ButtonPropsWithOnClick extends ButtonProps {
+  hideAddressAndBalance?: boolean;
   onClick?: () => void;
 }
 
 const ConnectWallet = ({ ...buttonProps }: ButtonPropsWithOnClick) => {
-  const { connect, disconnect, address, isWalletConnected } =
+  const { connect, disconnect, address, isWalletConnected, re } =
     useChain(COSMOS_KIT_USE_CHAIN);
 
   const handleConnectWallet = async () => {
@@ -24,7 +25,7 @@ const ConnectWallet = ({ ...buttonProps }: ButtonPropsWithOnClick) => {
     await disconnect();
   };
 
-  if (isWalletConnected) {
+  if (isWalletConnected && !buttonProps.hideAddressAndBalance) {
     return (
       <Stack direction="row" spacing={3}>
         <WalletBalance />

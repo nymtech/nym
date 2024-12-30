@@ -1,17 +1,46 @@
 // Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: GPL-3.0-only
 
-// use clap::{Args, Parser, Subcommand};
-// use nym_bin_common::{bin_info, bin_info_owned};
-// use std::sync::OnceLock;
+use anyhow::Result;
+use clap::Parser;
+use echo_server::NymEchoServer;
+use nym_crypto::asymmetric::ed25519;
 
-// fn pretty_build_info_static() -> &'static str {
-//     static PRETTY_BUILD_INFORMATION: OnceLock<String> = OnceLock::new();
-//     PRETTY_BUILD_INFORMATION.get_or_init(|| bin_info!().pretty_print())
-// }
+#[derive(Parser, Debug)]
+struct Args {
+    /// Optional gateway to use
+    #[clap(short, long)]
+    gateway: Option<ed25519::PublicKey>,
 
-// This will be a Clap CLI binary for standalone use use wrapping the lib
+    /// Optional config path to specify
+    #[clap(short, long)]
+    config_path: Option<String>,
 
-fn main() {
-    todo!()
+    /// Env file
+    #[clap(short, long)]
+    env: String,
+
+    /// Listen port
+    #[clap(long, default_value = "8080")]
+    listen_port: String,
+}
+
+#[tokio::main]
+async fn main() -> Result<()> {
+    nym_bin_common::logging::setup_tracing_logger();
+    let args = Args::parse();
+    let mut echo_server = NymEchoServer::new(
+        args.gateway,
+        args.config_path.as_deref(),
+        args.env,
+        args.listen_port.as_str(),
+    )
+    .await?;
+
+    let echo_addr = echo_server.nym_address().await;
+    println!("{echo_addr}");
+
+    echo_server.run().await?;
+
+    Ok(())
 }

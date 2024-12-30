@@ -61,8 +61,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
     // Combine delegations with node details
     const combineDelegationsWithNode = (delegations: Delegation[]) => {
-      console.log("Delegations", delegations, "Nodes", nodes);
-
       const delegationsWithNodeDetails = delegations.map((delegation) => {
         const node = nodes.find((node) => node.nodeId === delegation.node_id);
 

@@ -79,7 +79,6 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     } catch (e) {
       const errorMessage =
         e instanceof Error ? e.message : "An error occurred while staking";
-      console.log(errorMessage);
       setInfoModalProps({
         open: true,
         title: "Error",

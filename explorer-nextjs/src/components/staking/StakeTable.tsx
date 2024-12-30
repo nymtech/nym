@@ -2,7 +2,7 @@
 
 import { useNymClient } from "@/hooks/useNymClient";
 import { formatBigNum } from "@/utils/formatBigNumbers";
-import { Box, Stack, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import {
   type MRT_ColumnDef,
@@ -14,6 +14,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import CountryFlag from "../countryFlag/CountryFlag";
 import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
+import { Link } from "../muiLink";
 import ConnectWallet from "../wallet/ConnectWallet";
 import StakeActions from "./StakeActions";
 import type { MappedNymNode, MappedNymNodes } from "./StakeTableWithAction";
@@ -237,6 +238,19 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     enableFullScreenToggle: false,
     enableHiding: false,
     paginationDisplayMode: "pages",
+    renderEmptyRowsFallback: () => (
+      <Stack gap={3} sx={{ p: 5 }} justifyContent="center" alignItems="center">
+        <Typography variant="body3">
+          You haven&apos;t staked on any nodes yet. Stake on a node to start
+          earning rewnotards.
+        </Typography>
+        <Button variant="contained" size="large">
+          <Link href="/explorer" underline="none" color="inherit">
+            Stake
+          </Link>
+        </Button>
+      </Stack>
+    ),
     muiPaginationProps: {
       showRowsPerPage: false,
       SelectProps: {

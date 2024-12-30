@@ -2199,6 +2199,7 @@ dependencies = [
  "clap 4.5.20",
  "dashmap",
  "dirs",
+ "futures",
  "nym-bin-common",
  "nym-crypto",
  "nym-sdk",

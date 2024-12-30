@@ -13,7 +13,7 @@ interface ButtonPropsWithOnClick extends ButtonProps {
 }
 
 const ConnectWallet = ({ ...buttonProps }: ButtonPropsWithOnClick) => {
-  const { connect, disconnect, address, isWalletConnected, re } =
+  const { connect, disconnect, address, isWalletConnected } =
     useChain(COSMOS_KIT_USE_CHAIN);
 
   const handleConnectWallet = async () => {

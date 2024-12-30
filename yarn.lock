@@ -4199,6 +4199,11 @@
   resolved "https://registry.yarnpkg.com/@nymproject/contract-clients/-/contract-clients-1.2.4-rc.1.tgz#10b385f63d8b33beea6bf47d948fc7cc0c6c2357"
   integrity sha512-WMiEIHNxc9oTZ8GxAE8278ifpNJ2AIZHEw4JifN1WRhn2XViYaDDJaPCA3o0p+WGRySmqdurHmployr3iUEz1Q==
 
+"@nymproject/contract-clients@^1.4.1":
+  version "1.4.1"
+  resolved "https://registry.yarnpkg.com/@nymproject/contract-clients/-/contract-clients-1.4.1.tgz#ae2644387b518eb13e8825fa8021d4c81ffe7852"
+  integrity sha512-HuJZ4Hv+Rl6ZZEtCHKgurNLJapM+QQRJlGkevFH2a4UdqUqF9omUkUi3AVes4679dPoSFgvA7plyVSDBdbgV6w==
+
 "@nymproject/contract-clients@file:sdk/typescript/codegen/contract-clients":
   version "1.3.0-rc.0"
 

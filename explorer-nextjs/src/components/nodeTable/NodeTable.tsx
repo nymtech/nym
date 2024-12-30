@@ -60,8 +60,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     setIsLoading(true);
     setSelectedNodeForStaking(undefined);
     try {
-      const tx = await nymClient?.delegateToMixnode(
-        { mixId: nodeId },
+      const tx = await nymClient?.delegate(
+        { nodeId },
         fee,
         "Delegation from Nym Explorer V2",
         uNymFunds,

@@ -3,7 +3,7 @@
 import { useNymClient } from "@/hooks/useNymClient";
 import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Box, Stack, Tooltip, Typography } from "@mui/material";
-import type { Delegation } from "@nymproject/types";
+import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
@@ -94,9 +94,9 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         }
         console.log("Unstaking node", nodeId);
         setIsLoading(true);
-        await nymClient?.undelegateFromMixnode(
+        await nymClient?.undelegate(
           {
-            mixId: nodeId,
+            nodeId,
           },
           fee,
           `Explorer V2: Unstaking node ${nodeId}`,

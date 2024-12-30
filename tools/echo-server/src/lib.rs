@@ -19,7 +19,6 @@ use tracing::{error, info, warn};
 #[derive(Debug)]
 pub struct Metrics {
     total_conn: AtomicU64,
-    active_conn: AtomicU64,
     bytes_recv: AtomicU64,
     bytes_sent: AtomicU64,
 }
@@ -28,7 +27,6 @@ impl Metrics {
     fn new() -> Self {
         Self {
             total_conn: AtomicU64::new(0),
-            active_conn: AtomicU64::new(0),
             bytes_recv: AtomicU64::new(0),
             bytes_sent: AtomicU64::new(0),
         }
@@ -86,9 +84,8 @@ impl NymEchoServer {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                 info!(
-                    "Metrics: total_connections={}, active_connections={}, bytes_received={}, bytes_sent={}",
+                    "Metrics: total_connections_since_start={},  bytes_received={}, bytes_sent={}",
                     all_metrics.total_conn.load(Ordering::Relaxed),
-                    all_metrics.active_conn.load(Ordering::Relaxed),
                     all_metrics.bytes_recv.load(Ordering::Relaxed),
                     all_metrics.bytes_sent.load(Ordering::Relaxed),
                 );
@@ -105,7 +102,6 @@ impl NymEchoServer {
                     info!("Handling new stream");
                     let connection_metrics = Arc::clone(&self.metrics);
                     connection_metrics.total_conn.fetch_add(1, Ordering::Relaxed);
-                    connection_metrics.active_conn.fetch_add(1, Ordering::Relaxed);
 
                     tokio::spawn(NymEchoServer::handle_incoming(
                         stream, connection_metrics, cancel_token.clone()
@@ -153,9 +149,7 @@ impl NymEchoServer {
                 }
             }
         }
-        metrics
-            .active_conn
-            .fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
+
         info!("Connection closed");
     }
 
@@ -163,10 +157,6 @@ impl NymEchoServer {
         self.cancel_token.cancel();
         let client = Arc::clone(&self.client);
         client.lock().await.disconnect().await;
-        while self.metrics.active_conn.load(Ordering::Relaxed) > 0 {
-            info!("Waiting on active connections to close: sleeping");
-            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-        }
     }
 
     pub async fn nym_address(&self) -> Recipient {

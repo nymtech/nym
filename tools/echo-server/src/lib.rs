@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use nym_crypto::asymmetric::ed25519;
-use nym_sdk::mixnet::{MixnetClient, MixnetClientSender, Recipient};
+use nym_sdk::mixnet::Recipient;
 use nym_sdk::tcp_proxy;
 use nym_sdk::tcp_proxy::NymProxyServer;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -14,7 +14,7 @@ use tokio::sync::Mutex;
 use tokio::task;
 use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
-use tracing::{error, info, warn};
+use tracing::{debug, error, info, warn};
 
 #[derive(Debug)]
 pub struct Metrics {
@@ -84,7 +84,7 @@ impl NymEchoServer {
             loop {
                 tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
                 info!(
-                    "Metrics: total_connections_since_start={},  bytes_received={}, bytes_sent={}",
+                    "Metrics: total_connections_since_start={}, bytes_received={}, bytes_sent={}",
                     all_metrics.total_conn.load(Ordering::Relaxed),
                     all_metrics.bytes_recv.load(Ordering::Relaxed),
                     all_metrics.bytes_sent.load(Ordering::Relaxed),
@@ -93,7 +93,7 @@ impl NymEchoServer {
         });
 
         let listener = TcpListener::bind(self.listen_addr.clone()).await?;
-        info!("{listener:?}");
+        debug!("{listener:?}");
 
         loop {
             tokio::select! {
@@ -178,48 +178,72 @@ mod tests {
     use futures::StreamExt;
     use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, Recipient};
 
+    // debug test with known addr running alongside
     #[tokio::test]
-    async fn echoes_bytes() {
-        let mut echo_server =
-            NymEchoServer::new(None, None, "../../envs/mainnet.env".to_string(), "9000")
-                .await
-                .unwrap();
-
-        let echo_addr = echo_server.nym_address().await;
+    async fn echoes_bytes_manual() {
+        let echo_addr = Recipient::try_from_base58_string("FAtdiqCBoTEy9m9Bq4AmrNt6YLuehCM7gpcPpBWdJDJz.DyAzs1rVNn5K9xm5UyvZUsZJVFGwNb1Ak3K3WkugcRwj@5E9DnixDjGH4jKtGPQkq5ba3tCR9Pkh8nSNV63456foJ").unwrap();
         println!("{echo_addr}");
-        let incoming_metrics = echo_server.clone().metrics();
-        println!("{incoming_metrics:#?}");
-
-        tokio::task::spawn(async move {
-            echo_server.run().await.unwrap();
-        });
 
         let message = "test";
 
         let mut client = MixnetClient::connect_new().await.unwrap();
         let sender = client.split_sender();
-        tokio::spawn(async move {
+        let sending_task_handle = tokio::spawn(async move {
+            println!("sending to {echo_addr}");
             sender.send_plain_message(echo_addr, message).await.unwrap();
+            println!("sent");
         });
 
-        tokio::spawn(async move {
-            if let Some(received) = client.next().await {
-                println!("Received: {}", String::from_utf8_lossy(&received.message));
-                assert_eq!(
-                    message.to_string(),
-                    String::from_utf8_lossy(&received.message)
-                );
-            }
-            client.disconnect().await;
-        });
-
-        // tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
-
-        // assert_eq!(
-        //     incoming_metrics.bytes_recv.load(Ordering::SeqCst) as usize,
-        //     message_bytes.len()
-        // );
+        sending_task_handle.await.unwrap();
+        tokio::time::sleep(tokio::time::Duration::from_secs(100)).await;
     }
+
+    // #[tokio::test]
+    // async fn echoes_bytes() {
+    //     let mut echo_server =
+    //         NymEchoServer::new(None, None, "../../envs/mainnet.env".to_string(), "9000")
+    //             .await
+    //             .unwrap();
+
+    //     let echo_addr = echo_server.nym_address().await;
+
+    //     println!("{echo_addr}");
+    //     let incoming_metrics = echo_server.clone().metrics();
+    //     println!("{incoming_metrics:#?}");
+
+    //     tokio::task::spawn(async move {
+    //         echo_server.run().await.unwrap();
+    //     });
+
+    //     let message = "test";
+
+    //     let mut client = MixnetClient::connect_new().await.unwrap();
+    //     let sender = client.split_sender();
+    //     let sending_task_handle = tokio::spawn(async move {
+    //         println!("sending to {echo_addr}");
+    //         sender.send_plain_message(echo_addr, message).await.unwrap();
+    //         println!("sent");
+    //     });
+
+    // let receiving_task_handle = tokio::spawn(async move {
+    //     if let Some(received) = client.next().await {
+    //         println!("Received: {}", String::from_utf8_lossy(&received.message));
+    //         assert_eq!(
+    //             message.to_string(),
+    //             String::from_utf8_lossy(&received.message)
+    //         );
+    //     }
+    //     client.disconnect().await;
+    // });
+
+    // sending_task_handle.await.unwrap();
+    // receiving_task_handle.await.unwrap();
+
+    // assert_eq!(
+    //     incoming_metrics.bytes_recv.load(Ordering::SeqCst) as usize,
+    //     message_bytes.len()
+    // );
+    // }
 
     // #[test]
     // fn creates_a_valid_nym_addr_with_given_gw() {

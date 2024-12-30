@@ -4,7 +4,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
-    "build:prod": "yarn build",
+    "build:prod": "yarn --cwd .. build && next build",
     "start": "next start",
     "lint": "biome check --fix"
   },
@@ -12,19 +12,23 @@
     "node": ">=20.0.0"
   },
   "dependencies": {
-    "@cosmjs/cosmwasm-stargate": "^0.32.4",
-    "@cosmjs/proto-signing": "^0.32.4",
+    "@chain-registry/types": "^0.50.36",
+    "@cosmos-kit/keplr-extension": "^2.14.0",
+    "@cosmos-kit/react": "^2.20.1",
     "@emotion/cache": "^11.13.5",
     "@emotion/react": "^11.13.5",
     "@emotion/styled": "^11.13.5",
+    "@interchain-ui/react": "^1.26.1",
     "@mui/icons-material": "^5.16.11",
     "@mui/material": "^6.1.10",
     "@mui/material-nextjs": "^6.1.9",
     "@mui/x-date-pickers": "^7.23.2",
     "@nivo/line": "^0.88.0",
     "@nymproject/contract-clients": "^1.4.1",
+    "@nymproject/react": "1.0.0",
     "@tanstack/react-table": "^8.20.6",
     "@uidotdev/usehooks": "^2.4.1",
+    "chain-registry": "^1.69.64",
     "cldr-compact-number": "^0.4.0",
     "date-fns": "^4.1.0",
     "material-react-table": "^3.0.3",
@@ -33,7 +37,8 @@
     "react": "19.0.0-rc-66855b96-20241106",
     "react-dom": "19.0.0-rc-66855b96-20241106",
     "react-random-avatars": "^1.3.1",
-    "react-world-flags": "^1.6.0"
+    "react-world-flags": "^1.6.0",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",

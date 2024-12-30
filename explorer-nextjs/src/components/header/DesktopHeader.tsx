@@ -1,13 +1,17 @@
-"use client";
-
 import NymLogo from "@/components/icons/NymLogo";
 import { Link } from "@/components/muiLink";
 import { Wrapper } from "@/components/wrapper";
-import { subtitles } from "@/theme/typography";
-import { Box, Button, Divider } from "@mui/material";
-import type React from "react";
+import { Box, Divider } from "@mui/material";
+import ConnectWallet from "../wallet/ConnectWallet";
+import HeaderItem from "./HeaderItem";
 
-const DUMMY_MENU_DATA = [
+export type MenuItem = {
+  id: number;
+  title: string;
+  url: string;
+};
+
+const DUMMY_MENU_DATA: MenuItem[] = [
   {
     id: 1,
     title: "Explorer",
@@ -65,39 +69,10 @@ export const DesktopHeader = () => {
           }}
         >
           {DUMMY_MENU_DATA.map((menu) => (
-            <Button
-              key={menu.title}
-              href={menu.url}
-              sx={{
-                borderRadius: 0,
-                padding: 0,
-                minWidth: "auto",
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: "10px",
-                height: "100%",
-                ...subtitles.subtitle1,
-                "& .MuiButton-endIcon": {
-                  marginLeft: 0,
-                  marginRight: 0,
-                },
-                "& .MuiButton-startIcon": {
-                  marginLeft: 0,
-                  marginRight: 0,
-                },
-                "&:hover": {
-                  textDecoration: "none",
-                },
-              }}
-            >
-              {menu.title}
-            </Button>
+            <HeaderItem key={menu.id} menu={menu} />
           ))}
         </Box>
-        <Button variant="contained" size="small">
-          Connect Wallet
-        </Button>
+        <ConnectWallet size="small" />
       </Wrapper>
       <Divider variant="fullWidth" sx={{ width: "100%" }} />
     </Box>

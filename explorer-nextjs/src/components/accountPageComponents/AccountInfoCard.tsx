@@ -18,9 +18,9 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
 
   return (
     <ExplorerCard
-      label="Address"
+      label=""
       title={balanceFormated}
-      sx={{ height: "100%" }}
+      sx={{ height: "100%", pt: 0 }}
     >
       <Stack gap={5}>
         <Box display={"flex"} justifyContent={"flex-start"}>

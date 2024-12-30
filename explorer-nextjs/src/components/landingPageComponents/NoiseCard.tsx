@@ -74,5 +74,4 @@ export const NoiseCard = async () => {
       )}
     </ExplorerCard>
   );
-  // return <MonoCard {...noiseCard} />;
 };

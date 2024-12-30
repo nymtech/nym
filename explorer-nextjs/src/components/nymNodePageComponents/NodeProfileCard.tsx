@@ -26,9 +26,11 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
         >
           {"Moniker"}
         </Typography>
-        <CountryFlag
-          countryCode={nodeDescription.auxiliary_details.location || ""}
-        />
+        {nodeDescription && (
+          <CountryFlag
+            countryCode={nodeDescription.auxiliary_details.location}
+          />
+        )}
         <Typography variant="body4" sx={{ color: "pine.950" }}>
           Team of professional validators with best digital solutions. Please
           visit our Telegram🔹https://t.me/CryptoSailorsAnn🔹

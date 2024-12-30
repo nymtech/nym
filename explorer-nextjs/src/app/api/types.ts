@@ -54,7 +54,7 @@ export type NodeDescription = {
     ws_port: number;
     wss_port: number | null;
   };
-};
+} | null;
 
 export type BondInformation = {
   node_id: number;

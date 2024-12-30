@@ -1,8 +1,8 @@
 "use client";
-import type { IBondInfo } from "@/app/api";
 import { NYM_NODE_BONDED } from "@/app/api/urls";
 import { Search } from "@mui/icons-material";
 import { Button, CircularProgress, Stack, Typography } from "@mui/material";
+import type { NymNodeDetails } from "@nymproject/types";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Input from "../input/Input";
@@ -46,8 +46,8 @@ const NodeAndAddressSearch = () => {
         if (response.ok) {
           const nodes = await response.json();
           const matchingNode = nodes.data.find(
-            (node: IBondInfo) =>
-              node.bond_information.node.identity_key === inputValue,
+            (node: NymNodeDetails) =>
+              node.bond_information.identity_key === inputValue,
           );
 
           if (matchingNode) {

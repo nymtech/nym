@@ -1,7 +1,7 @@
 import React, { useContext } from 'react';
 import { AppContext } from 'src/context';
 import { Box, Stack, SxProps } from '@mui/material';
-import QRCode from 'qrcode.react';
+import { QRCodeSVG } from 'qrcode.react';
 import { ClientAddress } from '@nymproject/react/client-address/ClientAddress';
 import { ModalListItem } from '../Modals/ModalListItem';
 import { SimpleModal } from '../Modals/SimpleModal';
@@ -57,7 +57,7 @@ export const ReceiveModal = ({
               p: 3,
             }}
           >
-            {clientDetails && <QRCode data-testid="qr-code" value={clientDetails?.client_address} />}
+            {clientDetails && <QRCodeSVG data-testid="qr-code" value={clientDetails?.client_address} />}
           </Box>
         </Stack>
       </Stack>

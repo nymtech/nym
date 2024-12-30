@@ -35,3 +35,4 @@ nym-bin-common = { path = "../../common/bin-common", features = [
     "output_format",
 ] }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric"] }
+futures = { workspace = true }

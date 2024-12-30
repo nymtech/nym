@@ -5,6 +5,7 @@ use anyhow::Result;
 use clap::Parser;
 use echo_server::NymEchoServer;
 use nym_crypto::asymmetric::ed25519;
+use tracing::info;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -21,7 +22,7 @@ struct Args {
     env: String,
 
     /// Listen port
-    #[clap(long, default_value = "8080")]
+    #[clap(short, long, default_value = "8080")]
     listen_port: String,
 }
 
@@ -38,7 +39,7 @@ async fn main() -> Result<()> {
     .await?;
 
     let echo_addr = echo_server.nym_address().await;
-    println!("{echo_addr}");
+    info!("listening on {echo_addr}");
 
     echo_server.run().await?;
 

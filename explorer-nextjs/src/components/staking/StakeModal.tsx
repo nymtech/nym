@@ -36,7 +36,7 @@ const StakeModal = ({
   useEffect(() => {
     const asyncValidate = async () => {
       await stakingSchema
-        .parseAsync({ amount: amount.amount, balance, mixId: nodeId })
+        .parseAsync({ amount: amount.amount, balance, nodeId })
         .then(() => {
           setValidated(true);
           setErrorAmount(undefined);

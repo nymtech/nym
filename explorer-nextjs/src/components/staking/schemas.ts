@@ -6,7 +6,7 @@ const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };
 
 const stakingSchema = z
   .object({
-    mixId: z.number(),
+    nodeId: z.number(),
     balance: z.string().refine(
       async (val) => {
         const num = Number.parseFloat(val);

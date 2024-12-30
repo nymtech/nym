@@ -7,7 +7,7 @@ use futures::stream::StreamExt;
 use nym_bin_common::logging::setup_logging;
 use nym_crypto::asymmetric::ed25519;
 use nym_sdk::mixnet;
-use nym_sdk::mixnet::MixnetMessageSender;
+use nym_sdk::mixnet::{AnonymousSenderTag, MixnetMessageSender, ReconstructedMessage};
 use reqwest::{self, Url};
 use serde_json::Value;
 use std::time::Duration;
@@ -22,11 +22,12 @@ async fn main() -> Result<()> {
         "EntryGateway",
     )
     .await?;
-    println!(
-        "got {} entry gws: \n{:?}",
-        entry_gw_keys.len(),
-        entry_gw_keys
-    );
+    // println!(
+    //     "got {} entry gws: \n{:?}",
+    //     entry_gw_keys.len(),
+    //     entry_gw_keys
+    // );
+    println!("got {} entry gws", entry_gw_keys.len(),);
 
     let exit_gw_keys = reqwest_and_parse(
         Url::parse(
@@ -36,35 +37,36 @@ async fn main() -> Result<()> {
         "ExitGateway",
     )
     .await?;
-    println!(
-        "got {} exit gws: \n{:?}\n",
-        exit_gw_keys.len(),
-        exit_gw_keys
-    );
+    // println!(
+    //     "got {} exit gws: \n{:?}\n",
+    //     exit_gw_keys.len(),
+    //     exit_gw_keys
+    // );
+    println!("got {} exit gws", exit_gw_keys.len(),);
 
-    for gw in exit_gw_keys {
+    for gw in exit_gw_keys.clone() {
         println!("{}", gw);
 
-        // TODO set up a client manually with a reply fn to troubleshoot wtf is going on
+        let mut echo_server = NymEchoServer::new(
+            Some(ed25519::PublicKey::from_base58_string(
+                exit_gw_keys[0].clone(),
+            )?),
+            None,
+            "../../../envs/mainnet.env".to_string(), // make const
+            "9000", // when you run concurrently you can iterate through a port range here
+        )
+        .await?;
 
-        // time::sleep(Duration::from_secs(1)).await;
-        // let mut echo_server = NymEchoServer::new(
-        //     Some(ed25519::PublicKey::from_base58_string(
-        //         exit_gw_keys[0].clone(),
-        //     )?),
-        //     None,
-        //     "../../../envs/mainnet.env".to_string(), // make const
-        //     "9000", // when you run concurrently you can probably iterate through ports here as well
-        // )
-        // .await?;
+        let echo_addr = echo_server.nym_address().await;
+        println!("echo addr: {echo_addr}");
 
-        // let echo_addr = echo_server.nym_address().await;
-        // println!("echo addr: {echo_addr}");
+        tokio::task::spawn(async move {
+            echo_server.run().await?;
+            Ok::<(), anyhow::Error>(())
+        });
 
-        // tokio::task::spawn(async move {
-        //     echo_server.run().await?;
-        //     Ok::<(), anyhow::Error>(())
-        // });
+        // dumb sleep to let it startup
+        time::sleep(Duration::from_secs(5)).await;
 
         for gw in entry_gw_keys.clone() {
             let builder = mixnet::MixnetClientBuilder::new_ephemeral()
@@ -80,7 +82,7 @@ async fn main() -> Result<()> {
             };
             let our_address = client.nym_address();
             println!("{our_address}");
-            client.send_plain_message(*our_address, "echo").await?;
+            client.send_plain_message(echo_addr, "ping").await.unwrap();
 
             match timeout(Duration::from_secs(5), client.next()).await {
                 Err(_timeout) => {
@@ -125,9 +127,9 @@ fn filter_gateway_keys(json: &Value, key: &str) -> Result<Vec<String>> {
 
                 if let Some(role) = node.get("role").and_then(|v| v.as_str()) {
                     let is_correct_gateway = role == key;
-                    // println!("Node: {:?}", node);
-                    // println!("Performance: {}", performance_value);
-                    // println!("Blacklisted: {}", inactive);
+                    // println!("node addr: {:?}", node);
+                    // println!("perf score: {}", performance_value);
+                    // println!("status: {}", inactive);
                     if performance_value > 0.0 && !inactive && is_correct_gateway {
                         if let Some(gateway_identity_key) =
                             node.get("ed25519_identity_pubkey").and_then(|v| v.as_str())

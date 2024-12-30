@@ -6,7 +6,8 @@ import { AccountInfoCard } from "@/components/accountPageComponents/AccountInfoC
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
-import { Box, Grid2, Typography } from "@mui/material";
+import { Box, Typography } from "@mui/material";
+import Grid2 from "@mui/material/Grid2";
 
 export default async function Account({
   params,

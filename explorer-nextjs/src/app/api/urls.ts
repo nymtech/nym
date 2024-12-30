@@ -30,3 +30,5 @@ export const NYM_ACCOUNT_ADDRESS =
   "https://explorer.nymtech.net/api/v1/tmp/unstable/account/";
 export const NYM_PRICES_API =
   "https://canary-nym-vpn-chain-payment-watcher.nymte.ch/v1/price/average";
+export const VALIDATOR_BASE_URL =
+  process.env.NEXT_PUBLIC_VALIDATOR_URL || "https://rpc.nymtech.net";

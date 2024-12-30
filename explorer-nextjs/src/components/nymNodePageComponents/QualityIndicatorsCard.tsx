@@ -8,7 +8,8 @@ interface IQualityIndicatorsCardProps {
   nodeDescription: NodeDescription;
 }
 
-type DelcaredRoleKey = keyof NodeDescription["declared_role"];
+type NodeDescriptionNotNull = NonNullable<NodeDescription>;
+type DelcaredRoleKey = keyof NodeDescriptionNotNull["declared_role"];
 type RoleString = "Entry Node" | "Exit IPR Node" | "Exit NR Node" | "Mix Node";
 
 const roleMapping: Record<DelcaredRoleKey, RoleString> = {
@@ -19,7 +20,7 @@ const roleMapping: Record<DelcaredRoleKey, RoleString> = {
 };
 
 function getNodeRoles(
-  declaredRoles: NodeDescription["declared_role"],
+  declaredRoles: NodeDescriptionNotNull["declared_role"],
 ): RoleString[] {
   const activeRoles = Object.entries(declaredRoles)
     .filter(([, isActive]) => isActive)
@@ -30,6 +31,10 @@ function getNodeRoles(
 
 export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
   const { nodeDescription } = props;
+
+  if (!nodeDescription) {
+    return null;
+  }
 
   const nodeRoles = getNodeRoles(nodeDescription.declared_role);
   const NodeRoles = nodeRoles.map((role) => (

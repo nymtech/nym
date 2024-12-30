@@ -1,16 +1,23 @@
 "use client";
 
+import { COSMOS_KIT_USE_CHAIN } from "@/config";
+import { useNymClient } from "@/hooks/useNymClient";
+import { useChain } from "@cosmos-kit/react";
 import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
-import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
   useMaterialReactTable,
 } from "material-react-table";
 import { useRouter } from "next/navigation";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import CountryFlag from "../countryFlag/CountryFlag";
-import { Favorite, UnFavorite } from "../favorite/Favorite";
+import { Favorite } from "../favorite/Favorite";
+import Loading from "../loading";
+import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
+import StakeModal from "../staking/StakeModal";
+import { fee } from "../staking/schemas";
+import ConnectWallet from "../wallet/ConnectWallet";
 import type { MappedNymNode, MappedNymNodes } from "./NodeTableWithAction";
 
 const ColumnHeading = ({
@@ -27,24 +34,90 @@ const ColumnHeading = ({
 
 const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const router = useRouter();
+  const { nymClient } = useNymClient();
 
-  const [favorites, saveFavorites] = useLocalStorage<string[]>(
-    "nym-node-favorites",
-    [],
-  );
+  const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
+    open: false,
+  });
+  const [isLoading, setIsLoading] = useState(false);
+  const [selectedNodeForStaking, setSelectedNodeForStaking] = useState<{
+    nodeId: number;
+    identityKey: string;
+  }>();
 
-  const handleFavorite = useCallback(
-    (address: string) => {
-      saveFavorites([...favorites, address]);
+  const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
+
+  const handleStakeOnNode = async ({
+    nodeId,
+    amount,
+  }: {
+    nodeId: number;
+    amount: string;
+  }) => {
+    const amountToDelegate = (Number(amount) * 1_000_000).toString();
+    const uNymFunds = [{ amount: amountToDelegate, denom: "unym" }];
+
+    setIsLoading(true);
+    setSelectedNodeForStaking(undefined);
+    try {
+      const tx = await nymClient?.delegate(
+        { nodeId },
+        fee,
+        "Delegation from Nym Explorer V2",
+        uNymFunds,
+      );
+      console.log({ tx });
+      setSelectedNodeForStaking(undefined);
+      setInfoModalProps({
+        open: true,
+        title: "Success",
+        message: "This operation can take up to one hour to process",
+        tx: tx?.transactionHash,
+
+        onClose: () => setInfoModalProps({ open: false }),
+      });
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : "An error occurred while staking";
+      setInfoModalProps({
+        open: true,
+        title: "Error",
+        message: errorMessage,
+        onClose: () => {
+          setInfoModalProps({ open: false });
+        },
+      });
+    }
+    setIsLoading(false);
+  };
+
+  const handleOnSelectStake = useCallback(
+    (node: MappedNymNode) => {
+      if (!isWalletConnected) {
+        setInfoModalProps({
+          open: true,
+          title: "Connect Wallet",
+          message: "Connect your wallet to stake",
+          Action: (
+            <ConnectWallet
+              fullWidth
+              onClick={() =>
+                setInfoModalProps({
+                  open: false,
+                })
+              }
+            />
+          ),
+          onClose: () => setInfoModalProps({ open: false }),
+        });
+        return;
+      }
+      setSelectedNodeForStaking({
+        nodeId: node.nodeId,
+        identityKey: node.bondInformation.node.identity_key,
+      });
     },
-    [favorites, saveFavorites],
-  );
-
-  const handleUnfavorite = useCallback(
-    (address: string) => {
-      saveFavorites(favorites.filter((favorite) => favorite !== address));
-    },
-    [favorites, saveFavorites],
+    [isWalletConnected],
   );
 
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
@@ -117,8 +190,16 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Action",
         accessorKey: "Action",
         Header: <ColumnHeading>Action</ColumnHeading>,
-        Cell: () => (
-          <Button size="small" variant="outlined">
+        hidden: !isWalletConnected,
+        Cell: ({ row }) => (
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleOnSelectStake(row.original);
+            }}
+          >
             Stake
           </Button>
         ),
@@ -130,23 +211,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         accessorKey: "Favorite",
         Header: <ColumnHeading>Favorite</ColumnHeading>,
         sortingFn: "Favorite",
-        Cell: ({ row }) =>
-          favorites.includes(row.original.bondInformation.node.identity_key) ? (
-            <UnFavorite
-              onUnfavorite={() =>
-                handleUnfavorite(row.original.bondInformation.node.identity_key)
-              }
-            />
-          ) : (
-            <Favorite
-              onFavorite={() =>
-                handleFavorite(row.original.bondInformation.node.identity_key)
-              }
-            />
-          ),
+        Cell: ({ row }) => (
+          <Favorite address={row.original.bondInformation.owner} />
+        ),
       },
     ],
-    [favorites, handleFavorite, handleUnfavorite],
+    [isWalletConnected, handleOnSelectStake],
   );
   const table = useMaterialReactTable({
     columns,
@@ -214,7 +284,19 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       },
     }),
   });
-  return <MaterialReactTable table={table} />;
+  return (
+    <>
+      {isLoading && <Loading />}
+      <StakeModal
+        nodeId={selectedNodeForStaking?.nodeId}
+        identityKey={selectedNodeForStaking?.identityKey}
+        onStake={handleStakeOnNode}
+        onClose={() => setSelectedNodeForStaking(undefined)}
+      />
+      <InfoModal {...infoModalProps} />
+      <MaterialReactTable table={table} />
+    </>
+  );
 };
 
 export default NodeTable;

@@ -19,10 +19,12 @@ interface IBasicInfoCardProps {
 export const BasicInfoCard = (props: IBasicInfoCardProps) => {
   const { bondInfo, nodeDescription, rewardDetails } = props;
 
-  const timeBonded = format(
-    new Date(nodeDescription.build_information.build_timestamp),
-    "dd/MM/yyyy",
-  );
+  const timeBonded = nodeDescription
+    ? format(
+        new Date(nodeDescription.build_information.build_timestamp),
+        "dd/MM/yyyy",
+      )
+    : "-";
 
   const selfBond = formatBigNum(Number(rewardDetails.operator) / 1_000_000);
   const selfBondFormated = `${selfBond} NYM`;

@@ -21,9 +21,8 @@
     "paths": {
       "@/public/*": ["./public/*"],
       "@/*": ["./src/*"],
-      "@assets/*": [
-        "../assets/*"
-      ]
+      "@assets/*": ["../assets/*"]
+    }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
   "exclude": ["node_modules"]

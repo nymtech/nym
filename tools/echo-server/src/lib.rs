@@ -3,7 +3,7 @@
 
 use anyhow::Result;
 use nym_crypto::asymmetric::ed25519;
-use nym_sdk::mixnet::Recipient;
+use nym_sdk::mixnet::{MixnetClient, MixnetClientSender, Recipient};
 use nym_sdk::tcp_proxy;
 use nym_sdk::tcp_proxy::NymProxyServer;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -16,6 +16,7 @@ use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
 use tracing::{error, info, warn};
 
+#[derive(Debug)]
 pub struct Metrics {
     total_conn: AtomicU64,
     active_conn: AtomicU64,
@@ -34,6 +35,7 @@ impl Metrics {
     }
 }
 
+#[derive(Clone)]
 pub struct NymEchoServer {
     client: Arc<Mutex<NymProxyServer>>,
     listen_addr: String,
@@ -174,4 +176,64 @@ impl NymEchoServer {
     pub fn listen_addr(&self) -> String {
         self.listen_addr.clone()
     }
+
+    pub fn metrics(&self) -> Arc<Metrics> {
+        self.metrics.clone()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use futures::StreamExt;
+    use nym_sdk::mixnet::{MixnetClient, MixnetMessageSender, Recipient};
+
+    #[tokio::test]
+    async fn echoes_bytes() {
+        let mut echo_server =
+            NymEchoServer::new(None, None, "../../envs/mainnet.env".to_string(), "9000")
+                .await
+                .unwrap();
+
+        let echo_addr = echo_server.nym_address().await;
+        println!("{echo_addr}");
+        let incoming_metrics = echo_server.clone().metrics();
+        println!("{incoming_metrics:#?}");
+
+        tokio::task::spawn(async move {
+            echo_server.run().await.unwrap();
+        });
+
+        let message = "test";
+
+        let mut client = MixnetClient::connect_new().await.unwrap();
+        let sender = client.split_sender();
+        tokio::spawn(async move {
+            sender.send_plain_message(echo_addr, message).await.unwrap();
+        });
+
+        tokio::spawn(async move {
+            if let Some(received) = client.next().await {
+                println!("Received: {}", String::from_utf8_lossy(&received.message));
+                assert_eq!(
+                    message.to_string(),
+                    String::from_utf8_lossy(&received.message)
+                );
+            }
+            client.disconnect().await;
+        });
+
+        // tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+
+        // assert_eq!(
+        //     incoming_metrics.bytes_recv.load(Ordering::SeqCst) as usize,
+        //     message_bytes.len()
+        // );
+    }
+
+    // #[test]
+    // fn creates_a_valid_nym_addr_with_given_gw() {
+    //     // check valid
+    //     // parse end
+    // }
 }

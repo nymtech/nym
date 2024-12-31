@@ -70,7 +70,10 @@ impl NymProxyClient {
     }
 
     pub async fn run(&self) -> Result<()> {
-        info!("Connecting to mixnet server at {}", self.server_address);
+        info!(
+            "Outgoing Mixnet traffic will be sent to {}",
+            self.server_address
+        );
 
         let listener =
             TcpListener::bind(format!("{}:{}", self.listen_address, self.listen_port)).await?;

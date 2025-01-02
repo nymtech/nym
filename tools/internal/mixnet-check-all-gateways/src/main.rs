@@ -7,23 +7,25 @@ use futures::stream::StreamExt;
 use nym_bin_common::logging::setup_logging;
 use nym_crypto::asymmetric::ed25519;
 use nym_sdk::mixnet;
-use nym_sdk::mixnet::{
-    AnonymousSenderTag, IncludedSurbs, MixnetMessageSender, ReconstructedMessage,
-};
+use nym_sdk::mixnet::{IncludedSurbs, MixnetMessageSender};
 use reqwest::{self, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::time::Duration;
+use tokio::signal;
+use tokio::time;
 use tokio::time::timeout;
-use tokio::time::{self, Timeout};
 #[path = "utils.rs"]
 // TODO make these exportable from tcp_proxy module and then import from there, ditto with echo server lib
 mod utils;
+use tokio_util::sync::CancellationToken;
+use tracing::{debug, info, warn};
 use utils::{Payload, ProxiedMessage};
 
 const TIMEOUT: u64 = 10; // message ping timeout
+const MESSAGE: &str = "echo test";
 
 #[derive(Serialize, Deserialize, Debug)]
 struct TestResult {
@@ -43,18 +45,18 @@ enum TestError {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    // setup_logging(); // TODO think about parsing and noise here, could just parse on errors from all libs and then have info from here?
+    setup_logging(); // TODO think about parsing and noise here, could just parse on errors from all libs and then have info from here? echo server metrics + info logging from this code + error logs from elsewhere should be ok
     let entry_gw_keys = reqwest_and_parse(
         Url::parse("https://validator.nymtech.net/api/v1/unstable/nym-nodes/skimmed/entry-gateways/all?no_legacy=true").unwrap(),
         "EntryGateway",
     )
     .await?;
-    // println!(
-    //     "got {} entry gws: \n{:?}",
-    //     entry_gw_keys.len(),
-    //     entry_gw_keys
-    // );
-    println!("got {} entry gws", entry_gw_keys.len(),);
+    debug!(
+        "got {} entry gws: \n{:?}",
+        entry_gw_keys.len(),
+        entry_gw_keys
+    );
+    info!("got {} entry gws", entry_gw_keys.len(),);
 
     let exit_gw_keys = reqwest_and_parse(
         Url::parse(
@@ -64,17 +66,35 @@ async fn main() -> Result<()> {
         "ExitGateway",
     )
     .await?;
-    // println!(
-    //     "got {} exit gws: \n{:?}\n",
-    //     exit_gw_keys.len(),
-    //     exit_gw_keys
-    // );
-    println!("got {} exit gws", exit_gw_keys.len(),);
+    debug!(
+        "got {} exit gws: \n{:?}\n",
+        exit_gw_keys.len(),
+        exit_gw_keys
+    );
+    info!("got {} exit gws", exit_gw_keys.len(),);
 
     let mut port_range: u64 = 9000; // port that we start iterating upwards from, will go from port_range to (port_range + exit_gws.len()) by the end of the run
 
+    let cancel_token = CancellationToken::new();
+    let watcher_token = cancel_token.clone();
+
+    // Cancel listener thread
+    tokio::spawn(async move {
+        signal::ctrl_c().await?;
+        println!("CTRL_C received");
+        watcher_token.cancel();
+        Ok::<(), anyhow::Error>(())
+    });
+
     for exit_gw in exit_gw_keys.clone() {
-        println!("creating echo server connecting to {}", exit_gw);
+        let loop_token = cancel_token.clone();
+        let cancel_loop_token = loop_token.clone();
+        let cancel_loop_token_inner = cancel_loop_token.clone();
+        if cancel_loop_token_inner.is_cancelled() {
+            break;
+        }
+
+        info!("creating echo server connecting to {}", exit_gw);
 
         let filepath = format!("./src/results/{}.json", exit_gw.clone());
         let mut results = OpenOptions::new()
@@ -95,7 +115,7 @@ async fn main() -> Result<()> {
                 )
                 .as_str(),
             ),
-            "../../../envs/mainnet.env".to_string(), // make const
+            "../../../envs/mainnet.env".to_string(), // TODO make configurable
             port_range.to_string().as_str(),
         )
         .await
@@ -109,7 +129,7 @@ async fn main() -> Result<()> {
                 };
                 results_vec.push(json!(res));
                 let json_array = json!(results_vec);
-                println!("{json_array}");
+                info!("{json_array}");
                 results.write_all(json_array.to_string().as_bytes())?;
                 continue;
             }
@@ -117,10 +137,20 @@ async fn main() -> Result<()> {
         port_range += 1;
 
         let echo_addr = echo_server.nym_address().await;
-        println!("echo addr: {echo_addr}");
+        debug!("echo addr: {echo_addr}");
 
         tokio::task::spawn(async move {
-            echo_server.run().await?;
+            // echo_server.run().await?;
+            loop {
+                tokio::select! {
+                    _ = loop_token.cancelled() => {
+                        info!("loop over; disconnecting echo server {}", echo_addr.clone());
+                        echo_server.disconnect().await;
+                        break;
+                    }
+                    _ = echo_server.run() => {}
+                }
+            }
             Ok::<(), anyhow::Error>(())
         });
 
@@ -128,6 +158,10 @@ async fn main() -> Result<()> {
         time::sleep(Duration::from_secs(5)).await;
 
         for entry_gw in entry_gw_keys.clone() {
+            let cancel_loop_token_inner = cancel_loop_token.clone();
+            if cancel_loop_token_inner.is_cancelled() {
+                break;
+            }
             let builder = mixnet::MixnetClientBuilder::new_ephemeral()
                 .request_gateway(entry_gw.clone())
                 .build()?;
@@ -140,23 +174,22 @@ async fn main() -> Result<()> {
                         exit_gw: exit_gw.clone(),
                         error: TestError::Other(err.to_string()),
                     };
-                    println!("{res:#?}");
+                    info!("{res:#?}");
                     results_vec.push(json!(res));
-                    // println!("failed to connect: {err}");
                     continue;
                 }
             };
 
             let test_address = client.nym_address();
-            println!("currently testing entry gateway: {test_address}");
+            info!("currently testing entry gateway: {test_address}");
 
             // Has to be ProxiedMessage for the moment which is slightly annoying until I
             // modify the ProxyServer to just stupidly echo back whatever it gets in a
-            // ReconstructedMessage format if it can't deseralise it to a ProxiedMessage
+            // ReconstructedMessage format if it can't deseralise incoming traffic to a ProxiedMessage
             let session_id = uuid::Uuid::new_v4();
             let message_id = 0;
             let outgoing = ProxiedMessage::new(
-                Payload::Data("echo test".as_bytes().to_vec()),
+                Payload::Data(MESSAGE.as_bytes().to_vec()),
                 session_id,
                 message_id,
             );
@@ -167,7 +200,7 @@ async fn main() -> Result<()> {
                 .await
             {
                 Ok(_) => {
-                    println!("Message sent");
+                    debug!("Message sent");
                 }
                 Err(err) => {
                     let res = TestResult {
@@ -175,7 +208,7 @@ async fn main() -> Result<()> {
                         exit_gw: exit_gw.clone(),
                         error: TestError::Other(err.to_string()),
                     };
-                    println!("{res:#?}");
+                    info!("{res:#?}");
                     results_vec.push(json!(res));
                     continue;
                 }
@@ -183,7 +216,7 @@ async fn main() -> Result<()> {
 
             let res = match timeout(Duration::from_secs(TIMEOUT), client.next()).await {
                 Err(_timeout) => {
-                    println!("timed out");
+                    warn!("timed out");
                     TestResult {
                         entry_gw,
                         exit_gw: exit_gw.clone(),
@@ -192,8 +225,13 @@ async fn main() -> Result<()> {
                 }
                 Ok(Some(received)) => {
                     let incoming: ProxiedMessage = bincode::deserialize(&received.message).unwrap();
-                    println!("\ngot echo: {incoming}\n");
-                    // TODO check incoming is same as outgoing else make a MangledReply err type
+                    debug!("got echo: {:?}", incoming);
+                    info!(
+                        "sent message as lazy ref until I properly sort the utils for comparison: {:?}",
+                        MESSAGE.as_bytes()
+                    );
+                    info!("incoming message: {:?}", incoming.message);
+                    // TODO check incoming is same as outgoing else make a MangledReply err type + ERR log
                     TestResult {
                         entry_gw,
                         exit_gw: exit_gw.clone(),
@@ -201,7 +239,7 @@ async fn main() -> Result<()> {
                     }
                 }
                 Ok(None) => {
-                    println!("failed to receive any message back...");
+                    info!("failed to receive any message back...");
                     TestResult {
                         entry_gw,
                         exit_gw: exit_gw.clone(),
@@ -209,14 +247,15 @@ async fn main() -> Result<()> {
                     }
                 }
             };
-            println!("{res:#?}");
+            info!("{res:#?}");
             results_vec.push(json!(res));
-            println!("disconnecting the client before shutting down...");
+            debug!("disconnecting the client before shutting down...");
             client.disconnect().await;
         }
         let json_array = json!(results_vec);
-        println!("{json_array}");
+        debug!("{json_array}");
         results.write_all(json_array.to_string().as_bytes())?;
+        cancel_loop_token.cancel();
     }
     Ok(())
 }
@@ -240,9 +279,9 @@ fn filter_gateway_keys(json: &Value, key: &str) -> Result<Vec<String>> {
 
                 if let Some(role) = node.get("role").and_then(|v| v.as_str()) {
                     let is_correct_gateway = role == key;
-                    // println!("node addr: {:?}", node);
-                    // println!("perf score: {}", performance_value);
-                    // println!("status: {}", inactive);
+                    debug!("node addr: {:?}", node);
+                    debug!("perf score: {}", performance_value);
+                    debug!("status: {}", inactive);
                     if performance_value > 0.0 && !inactive && is_correct_gateway {
                         if let Some(gateway_identity_key) =
                             node.get("ed25519_identity_pubkey").and_then(|v| v.as_str())

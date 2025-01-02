@@ -4,30 +4,7 @@ import { Wrapper } from "@/components/wrapper";
 import { Box, Divider } from "@mui/material";
 import ConnectWallet from "../wallet/ConnectWallet";
 import HeaderItem from "./HeaderItem";
-
-export type MenuItem = {
-  id: number;
-  title: string;
-  url: string;
-};
-
-const DUMMY_MENU_DATA: MenuItem[] = [
-  {
-    id: 1,
-    title: "Explorer",
-    url: "/explorer",
-  },
-  {
-    id: 2,
-    title: "Stake",
-    url: "/stake",
-  },
-  {
-    id: 3,
-    title: "Onboarding",
-    url: "/onboarding",
-  },
-];
+import MENU_DATA from "./menuItems";
 
 export const DesktopHeader = () => {
   return (
@@ -68,7 +45,7 @@ export const DesktopHeader = () => {
             gap: 5,
           }}
         >
-          {DUMMY_MENU_DATA.map((menu) => (
+          {MENU_DATA.map((menu) => (
             <HeaderItem key={menu.id} menu={menu} />
           ))}
         </Box>

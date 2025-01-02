@@ -148,7 +148,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Cell: ({ row }) => (
           <Stack spacing={1}>
             <Typography variant="body4">
-              {row.original.node?.bondInformation.node_id || "-"}
+              {row.original.delegation?.node_id || "-"}
             </Typography>
             <Typography variant="body5">
               {row.original.node?.bondInformation.node.identity_key || "-"}
@@ -215,12 +215,9 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: <ColumnHeading>Action</ColumnHeading>,
         Cell: ({ row }) => (
           <StakeActions
-            nodeId={row.original.node?.bondInformation.node_id}
+            nodeId={row.original.delegation?.node_id}
             onActionSelect={(action) => {
-              handleActionSelect(
-                action,
-                row.original.node?.bondInformation.node_id,
-              );
+              handleActionSelect(action, row.original.delegation?.node_id);
             }}
           />
         ),

@@ -4,11 +4,12 @@ import { Circle } from "@mui/icons-material";
 import { Button, Stack } from "@mui/material";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import type { MenuItem } from "./DesktopHeader";
+import type { MenuItem } from "./menuItems";
 
 type HeaderItemProps = {
   menu: MenuItem;
 };
+
 const HeaderItem = ({ menu }: HeaderItemProps) => {
   const pathname = usePathname();
   return (

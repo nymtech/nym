@@ -11,6 +11,7 @@ use nym_sdk::mixnet::{IncludedSurbs, MixnetMessageSender};
 use reqwest::{self, Url};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use std::fs;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::time::Duration;
@@ -20,6 +21,7 @@ use tokio::time::timeout;
 #[path = "utils.rs"]
 // TODO make these exportable from tcp_proxy module and then import from there, ditto with echo server lib
 mod utils;
+use std::time::{SystemTime, UNIX_EPOCH};
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, info, warn};
 use utils::{Payload, ProxiedMessage};
@@ -86,6 +88,9 @@ async fn main() -> Result<()> {
         Ok::<(), anyhow::Error>(())
     });
 
+    let start = SystemTime::now();
+    let time_now = start.duration_since(UNIX_EPOCH).unwrap().as_secs();
+
     for exit_gw in exit_gw_keys.clone() {
         let loop_token = cancel_token.clone();
         let cancel_loop_token = loop_token.clone();
@@ -94,9 +99,16 @@ async fn main() -> Result<()> {
             break;
         }
 
+        if !fs::metadata(format!("./src/results/{}", time_now))
+            .map(|metadata| metadata.is_dir())
+            .unwrap_or(false)
+        {
+            fs::create_dir_all(format!("./src/results/{}", time_now))?;
+        }
+
         info!("creating echo server connecting to {}", exit_gw);
 
-        let filepath = format!("./src/results/{}.json", exit_gw.clone());
+        let filepath = format!("./src/results/{}/{}.json", time_now, exit_gw.clone());
         let mut results = OpenOptions::new()
             .read(true)
             .write(true) // .append(true)

@@ -4070,7 +4070,9 @@ name = "mixnet-check-all-gateways"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bincode",
  "clap 4.5.20",
+ "dirs",
  "echo-server",
  "futures",
  "nym-bin-common",
@@ -4082,6 +4084,7 @@ dependencies = [
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

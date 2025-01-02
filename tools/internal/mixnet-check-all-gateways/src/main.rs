@@ -92,10 +92,10 @@ async fn main() -> Result<()> {
     let time_now = start.duration_since(UNIX_EPOCH).unwrap().as_secs();
 
     for exit_gw in exit_gw_keys.clone() {
-        let loop_token = cancel_token.clone();
-        let cancel_loop_token = loop_token.clone();
-        let cancel_loop_token_inner = cancel_loop_token.clone();
-        if cancel_loop_token_inner.is_cancelled() {
+        let exit_gw_loop_token = cancel_token.clone();
+        let echo_server_token = CancellationToken::new();
+        let thread_echo_server_token = echo_server_token.clone();
+        if exit_gw_loop_token.clone().is_cancelled() {
             break;
         }
 
@@ -155,7 +155,7 @@ async fn main() -> Result<()> {
             // echo_server.run().await?;
             loop {
                 tokio::select! {
-                    _ = loop_token.cancelled() => {
+                    _ = thread_echo_server_token.cancelled() => {
                         info!("loop over; disconnecting echo server {}", echo_addr.clone());
                         echo_server.disconnect().await;
                         break;
@@ -170,10 +170,6 @@ async fn main() -> Result<()> {
         time::sleep(Duration::from_secs(5)).await;
 
         for entry_gw in entry_gw_keys.clone() {
-            let cancel_loop_token_inner = cancel_loop_token.clone();
-            if cancel_loop_token_inner.is_cancelled() {
-                break;
-            }
             let builder = mixnet::MixnetClientBuilder::new_ephemeral()
                 .request_gateway(entry_gw.clone())
                 .build()?;
@@ -267,7 +263,7 @@ async fn main() -> Result<()> {
         let json_array = json!(results_vec);
         debug!("{json_array}");
         results.write_all(json_array.to_string().as_bytes())?;
-        cancel_loop_token.cancel();
+        echo_server_token.cancel();
     }
     Ok(())
 }

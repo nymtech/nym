@@ -27,3 +27,6 @@ tokio = { workspace = true, features = ["full"] }
 reqwest = { workspace = true, features = ["json"] }
 serde_json.workspace = true
 futures = { workspace = true }
+uuid = { version = "1", features = ["v4", "serde"] }
+bincode = "1.0"
+dirs.workspace = true

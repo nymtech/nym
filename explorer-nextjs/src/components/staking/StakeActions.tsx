@@ -1,5 +1,5 @@
 import { MoreVert } from "@mui/icons-material";
-import { IconButton, Menu, MenuItem } from "@mui/material";
+import { IconButton, Menu, MenuItem, Typography } from "@mui/material";
 import { useState } from "react";
 
 type StakeAction = "unstake";
@@ -72,7 +72,7 @@ const StakeAction = ({
         onSelect();
       }}
     >
-      {actionName}
+      <Typography variant="h5">{actionName}</Typography>
     </MenuItem>
   );
 };

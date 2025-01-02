@@ -15,10 +15,9 @@ export default async function BlogPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  const file = `@/data/${slug}.json`;
 
   try {
-    const blogArticle: BlogArticle = await import(file);
+    const blogArticle: BlogArticle = await import(`@/data/${slug}.json`);
     const breadcrumbItems = [
       {
         label: "Onboarding",

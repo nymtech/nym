@@ -124,6 +124,8 @@ export default async function BlogPage({
       </ContentLayout>
     );
   } catch (error) {
+    console.log(error);
+
     return (
       <ContentLayout>
         <Wrapper>

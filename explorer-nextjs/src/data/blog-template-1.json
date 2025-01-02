@@ -1,5 +1,5 @@
 {
-  "title": "Blog 3",
+  "title": "Blog Template 1",
   "label": "Onboarding",
   "description": "VPNs can be powerful tools in protecting us from hackers, but not all cyber attacks. dVPNs are even more effective.",
   "attributes": {
@@ -23,8 +23,7 @@
         "type": "paragraph",
         "text": "This is where decentralized VPNs (dVPNs) come in. dVPNs are even more effective at protecting you from hackers because they are decentralized and do not rely on a single server to protect your data. This makes them more secure and harder for hackers to attack."
       }
-    ],
-    "image": "https://nymtech.net/api/uploads/presentation-poster?w=3840&q=75"
+    ]
   },
   "sections": [
     {

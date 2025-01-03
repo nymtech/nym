@@ -151,8 +151,8 @@ async fn main() -> Result<()> {
         let echo_addr = echo_server.nym_address().await;
         debug!("echo addr: {echo_addr}");
 
+        // TODO change this to mpsc to do proper cancellation
         tokio::task::spawn(async move {
-            // echo_server.run().await?;
             loop {
                 tokio::select! {
                     _ = thread_echo_server_token.cancelled() => {

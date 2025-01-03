@@ -1,5 +1,9 @@
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
+
 use crate::mixnet::{MixnetClient, MixnetClientBuilder, NymNetworkDetails};
 use anyhow::Result;
+use nym_crypto::asymmetric::ed25519;
 use std::fmt;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -91,6 +95,49 @@ impl ClientPool {
                     let net = NymNetworkDetails::new_from_env();
                     match MixnetClientBuilder::new_ephemeral()
                         .network_details(net)
+                        .build()?
+                        .connect_to_mixnet()
+                        .await
+                    {
+                        Ok(client) => break client,
+                        Err(err) => {
+                            warn!("Error creating client: {:?}, will retry in 100ms", err);
+                            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+                        }
+                    }
+                };
+                self.clients.write().await.push(Arc::new(client));
+            }
+            tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
+        }
+    }
+
+    // Even though this is basically start() with an extra param since I think this
+    // will only be used for testing scenarios, and I didn't want to unnecessarily add
+    // another param to the function that will be used elsewhere, hence this is its own fn
+    pub async fn start_with_specified_gateway(&self, gateway: ed25519::PublicKey) -> Result<()> {
+        loop {
+            let spawned_clients = self.clients.read().await.len();
+            let addresses = self;
+            debug!(
+                "Currently spawned clients: {}: {:?}",
+                spawned_clients, addresses
+            );
+            if self.cancel_token.is_cancelled() {
+                break Ok(());
+            }
+            if spawned_clients >= self.client_pool_reserve_number {
+                debug!("Got enough clients already: sleeping");
+            } else {
+                info!(
+                    "Clients in reserve = {}, reserve amount = {}, spawning new client",
+                    spawned_clients, self.client_pool_reserve_number
+                );
+                let client = loop {
+                    let net = NymNetworkDetails::new_from_env();
+                    match MixnetClientBuilder::new_ephemeral()
+                        .network_details(net)
+                        .request_gateway(gateway.to_string())
                         .build()?
                         .connect_to_mixnet()
                         .await

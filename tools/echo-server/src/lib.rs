@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Result;
+use clap::builder::styling::Reset;
 use nym_crypto::asymmetric::ed25519;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::tcp_proxy;
@@ -12,6 +13,7 @@ use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 use tokio::task;
+use tokio::time::{timeout, Duration};
 use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
 use tracing::{debug, error, info, warn};
@@ -108,7 +110,7 @@ impl NymEchoServer {
                     ));
                 }
                 _ = self.cancel_token.cancelled() => {
-                    info!("Cancel token cancelled: {:?}", self.cancel_token.cancelled());
+                    info!("token cancelled, stopping handling streams");
                     break Ok(());
                 }
             }
@@ -155,8 +157,15 @@ impl NymEchoServer {
 
     pub async fn disconnect(&self) {
         self.cancel_token.cancel();
+        info!("token cancelled");
         let client = Arc::clone(&self.client);
-        client.lock().await.disconnect().await;
+        info!("acquiring lock");
+        if let Ok(guard) = timeout(Duration::from_secs(5), client.lock()).await {
+            guard.disconnect().await;
+        } else {
+            error!("Failed to acquire lock to trigger shutdown");
+            // TODO somehow force aquire lock and kill
+        };
     }
 
     pub async fn nym_address(&self) -> Recipient {

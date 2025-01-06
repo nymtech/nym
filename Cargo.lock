@@ -6498,6 +6498,7 @@ dependencies = [
  "log",
  "thiserror",
  "tokio",
+ "tokio-util",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasmtimer",

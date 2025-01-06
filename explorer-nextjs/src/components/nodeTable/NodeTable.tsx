@@ -4,6 +4,7 @@ import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
 import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
+import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
@@ -44,6 +45,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     nodeId: number;
     identityKey: string;
   }>();
+
+  const [favorites, saveFavorites] = useLocalStorage<string[]>(
+    "nym-node-favorites",
+    [],
+  );
+  console.log("favorites :>> ", favorites);
 
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
 
@@ -239,8 +246,19 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       shape: "circular",
     },
     sortingFns: {
-      Favorite: () => {
-        // TODO implement sorting by favorite
+      Favorite: (rowA, rowB) => {
+        const isFavoriteA = favorites.includes(
+          rowA.original.bondInformation.owner,
+        );
+        const isFavoriteB = favorites.includes(
+          rowB.original.bondInformation.owner,
+        );
+
+        // Sort favorites first
+        if (isFavoriteA && !isFavoriteB) return -1;
+        if (!isFavoriteA && isFavoriteB) return 1;
+
+        // If both are favorites or neither, keep the original order
         return 0;
       },
     },

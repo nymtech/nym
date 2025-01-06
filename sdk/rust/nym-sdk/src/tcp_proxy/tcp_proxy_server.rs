@@ -84,28 +84,43 @@ impl NymProxyServer {
         })
     }
 
-    pub fn nym_address(&self) -> &Recipient {
-        self.mixnet_client.nym_address()
-    }
+    pub async fn run_with_shutdown(&mut self) -> Result<()> {
+        // TODO add a select! loop for the cancellation token to stop the main process as well
+        let loop_cancel_token = self.cancel_token.clone();
 
-    pub fn mixnet_client_mut(&mut self) -> &mut MixnetClient {
-        &mut self.mixnet_client
-    }
+        // On our Mixnet client getting a new message:
+        // - Check if the attached sessionID exists.
+        // - If !sessionID, spawn a new session_handler() task.
+        // - Send the message down tx => rx in our handler.
+        while let Some(new_message) = &self.mixnet_client_mut().next().await {
+            let message: ProxiedMessage = bincode::deserialize(&new_message.message)?;
+            let session_id = message.session_id();
+            // If we've already got message from an existing session, continue, else add it to the session mapping and spawn a new handler().
+            if self.session_map().contains(&message.session_id()) {
+                debug!("Got message for an existing session");
+            } else {
+                self.session_map().insert(message.session_id());
+                debug!("Got message for a new session");
+                tokio::spawn(Self::session_handler(
+                    self.upstream_address.clone(),
+                    session_id,
+                    self.rx(),
+                    self.mixnet_client_sender(),
+                    self.cancel_token.clone(),
+                ));
+                info!("Spawned a new session handler: {}", message.session_id());
+            }
 
-    pub fn session_map(&self) -> &DashSet<Uuid> {
-        &self.session_map
-    }
+            debug!("Sending message for session {}", message.session_id());
 
-    pub fn mixnet_client_sender(&self) -> Arc<RwLock<MixnetClientSender>> {
-        Arc::clone(&self.mixnet_client_sender)
-    }
+            if let Some(sender_tag) = new_message.sender_tag {
+                self.tx.send(Some((message, sender_tag)))?
+            } else {
+                error!("No sender tag found, we can't send a reply without it!")
+            }
+        }
 
-    pub fn tx(&self) -> tokio::sync::watch::Sender<Option<(ProxiedMessage, AnonymousSenderTag)>> {
-        self.tx.clone()
-    }
-
-    pub fn rx(&self) -> tokio::sync::watch::Receiver<Option<(ProxiedMessage, AnonymousSenderTag)>> {
-        self.rx.clone()
+        Ok(())
     }
 
     // The main body of our logic, triggered on each received new sessionID. To deal with assumptions about
@@ -210,43 +225,31 @@ impl NymProxyServer {
         Ok(())
     }
 
-    pub async fn run_with_shutdown(&mut self) -> Result<()> {
-        // On our Mixnet client getting a new message:
-        // - Check if the attached sessionID exists.
-        // - If !sessionID, spawn a new session_handler() task.
-        // - Send the message down tx => rx in our handler.
-        while let Some(new_message) = &self.mixnet_client_mut().next().await {
-            let message: ProxiedMessage = bincode::deserialize(&new_message.message)?;
-            let session_id = message.session_id();
-            // If we've already got message from an existing session, continue, else add it to the session mapping and spawn a new handler().
-            if self.session_map().contains(&message.session_id()) {
-                debug!("Got message for an existing session");
-            } else {
-                self.session_map().insert(message.session_id());
-                debug!("Got message for a new session");
-                tokio::spawn(Self::session_handler(
-                    self.upstream_address.clone(),
-                    session_id,
-                    self.rx(),
-                    self.mixnet_client_sender(),
-                    self.cancel_token.clone(),
-                ));
-                info!("Spawned a new session handler: {}", message.session_id());
-            }
-
-            debug!("Sending message for session {}", message.session_id());
-
-            if let Some(sender_tag) = new_message.sender_tag {
-                self.tx.send(Some((message, sender_tag)))?
-            } else {
-                error!("No sender tag found, we can't send a reply without it!")
-            }
-        }
-
-        Ok(())
-    }
-
     pub async fn disconnect(&self) {
         self.cancel_token.cancel();
+    }
+
+    pub fn nym_address(&self) -> &Recipient {
+        self.mixnet_client.nym_address()
+    }
+
+    pub fn mixnet_client_mut(&mut self) -> &mut MixnetClient {
+        &mut self.mixnet_client
+    }
+
+    pub fn session_map(&self) -> &DashSet<Uuid> {
+        &self.session_map
+    }
+
+    pub fn mixnet_client_sender(&self) -> Arc<RwLock<MixnetClientSender>> {
+        Arc::clone(&self.mixnet_client_sender)
+    }
+
+    pub fn tx(&self) -> tokio::sync::watch::Sender<Option<(ProxiedMessage, AnonymousSenderTag)>> {
+        self.tx.clone()
+    }
+
+    pub fn rx(&self) -> tokio::sync::watch::Receiver<Option<(ProxiedMessage, AnonymousSenderTag)>> {
+        self.rx.clone()
     }
 }

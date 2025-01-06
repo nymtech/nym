@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Result;
-use clap::builder::styling::Reset;
 use nym_crypto::asymmetric::ed25519;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::tcp_proxy;
@@ -164,7 +163,6 @@ impl NymEchoServer {
             guard.disconnect().await;
         } else {
             error!("Failed to acquire lock to trigger shutdown");
-            // TODO somehow force aquire lock and kill
         };
     }
 

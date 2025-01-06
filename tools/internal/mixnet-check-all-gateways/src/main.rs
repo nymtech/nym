@@ -169,95 +169,95 @@ async fn main() -> Result<()> {
         time::sleep(Duration::from_secs(5)).await;
 
         for entry_gw in entry_gw_keys.clone() {
-            // let builder = mixnet::MixnetClientBuilder::new_ephemeral()
-            //     .request_gateway(entry_gw.clone())
-            //     .build()?;
+            let builder = mixnet::MixnetClientBuilder::new_ephemeral()
+                .request_gateway(entry_gw.clone())
+                .build()?;
 
-            // let mut client = match builder.connect_to_mixnet().await {
-            //     Ok(client) => client,
-            //     Err(err) => {
-            //         let res = TestResult {
-            //             entry_gw: entry_gw.clone(),
-            //             exit_gw: exit_gw.clone(),
-            //             error: TestError::Other(err.to_string()),
-            //         };
-            //         info!("{res:#?}");
-            //         results_vec.push(json!(res));
-            //         continue;
-            //     }
-            // };
+            let mut client = match builder.connect_to_mixnet().await {
+                Ok(client) => client,
+                Err(err) => {
+                    let res = TestResult {
+                        entry_gw: entry_gw.clone(),
+                        exit_gw: exit_gw.clone(),
+                        error: TestError::Other(err.to_string()),
+                    };
+                    info!("{res:#?}");
+                    results_vec.push(json!(res));
+                    continue;
+                }
+            };
 
-            // let test_address = client.nym_address();
-            // info!("currently testing entry gateway: {test_address}");
+            let test_address = client.nym_address();
+            info!("currently testing entry gateway: {test_address}");
 
-            // // Has to be ProxiedMessage for the moment which is slightly annoying until I
-            // // modify the ProxyServer to just stupidly echo back whatever it gets in a
-            // // ReconstructedMessage format if it can't deseralise incoming traffic to a ProxiedMessage
-            // let session_id = uuid::Uuid::new_v4();
-            // let message_id = 0;
-            // let outgoing = ProxiedMessage::new(
-            //     Payload::Data(MESSAGE.as_bytes().to_vec()),
-            //     session_id,
-            //     message_id,
-            // );
-            // let coded_message = bincode::serialize(&outgoing).unwrap();
+            // Has to be ProxiedMessage for the moment which is slightly annoying until I
+            // modify the ProxyServer to just stupidly echo back whatever it gets in a
+            // ReconstructedMessage format if it can't deseralise incoming traffic to a ProxiedMessage
+            let session_id = uuid::Uuid::new_v4();
+            let message_id = 0;
+            let outgoing = ProxiedMessage::new(
+                Payload::Data(MESSAGE.as_bytes().to_vec()),
+                session_id,
+                message_id,
+            );
+            let coded_message = bincode::serialize(&outgoing).unwrap();
 
-            // match client
-            //     .send_message(echo_addr, &coded_message, IncludedSurbs::Amount(10))
-            //     .await
-            // {
-            //     Ok(_) => {
-            //         debug!("Message sent");
-            //     }
-            //     Err(err) => {
-            //         let res = TestResult {
-            //             entry_gw: entry_gw.clone(),
-            //             exit_gw: exit_gw.clone(),
-            //             error: TestError::Other(err.to_string()),
-            //         };
-            //         info!("{res:#?}");
-            //         results_vec.push(json!(res));
-            //         continue;
-            //     }
-            // };
+            match client
+                .send_message(echo_addr, &coded_message, IncludedSurbs::Amount(10))
+                .await
+            {
+                Ok(_) => {
+                    debug!("Message sent");
+                }
+                Err(err) => {
+                    let res = TestResult {
+                        entry_gw: entry_gw.clone(),
+                        exit_gw: exit_gw.clone(),
+                        error: TestError::Other(err.to_string()),
+                    };
+                    info!("{res:#?}");
+                    results_vec.push(json!(res));
+                    continue;
+                }
+            };
 
-            // let res = match timeout(Duration::from_secs(TIMEOUT), client.next()).await {
-            //     Err(_timeout) => {
-            //         warn!("timed out");
-            //         TestResult {
-            //             entry_gw,
-            //             exit_gw: exit_gw.clone(),
-            //             error: TestError::Timeout,
-            //         }
-            //     }
-            //     Ok(Some(received)) => {
-            //         let incoming: ProxiedMessage = bincode::deserialize(&received.message).unwrap();
-            //         debug!("got echo: {:?}", incoming);
-            //         info!(
-            //             "sent message as lazy ref until I properly sort the utils for comparison: {:?}",
-            //             MESSAGE.as_bytes()
-            //         );
-            //         info!("incoming message: {:?}", incoming.message);
-            //         // TODO check incoming is same as outgoing else make a MangledReply err type + ERR log
-            //         TestResult {
-            //             entry_gw,
-            //             exit_gw: exit_gw.clone(),
-            //             error: TestError::None,
-            //         }
-            //     }
-            //     Ok(None) => {
-            //         info!("failed to receive any message back...");
-            //         TestResult {
-            //             entry_gw,
-            //             exit_gw: exit_gw.clone(),
-            //             error: TestError::NoMessage,
-            //         }
-            //     }
-            // };
-            // info!("{res:#?}");
-            // results_vec.push(json!(res));
-            // debug!("disconnecting the client before shutting down...");
-            // client.disconnect().await;
+            let res = match timeout(Duration::from_secs(TIMEOUT), client.next()).await {
+                Err(_timeout) => {
+                    warn!("timed out");
+                    TestResult {
+                        entry_gw: entry_gw.clone(),
+                        exit_gw: exit_gw.clone(),
+                        error: TestError::Timeout,
+                    }
+                }
+                Ok(Some(received)) => {
+                    let incoming: ProxiedMessage = bincode::deserialize(&received.message).unwrap();
+                    debug!("got echo: {:?}", incoming);
+                    info!(
+                        "sent message as lazy ref until I properly sort the utils for comparison: {:?}",
+                        MESSAGE.as_bytes()
+                    );
+                    info!("incoming message: {:?}", incoming.message);
+                    // TODO check incoming is same as outgoing else make a MangledReply err type + ERR log
+                    TestResult {
+                        entry_gw: entry_gw.clone(),
+                        exit_gw: exit_gw.clone(),
+                        error: TestError::None,
+                    }
+                }
+                Ok(None) => {
+                    info!("failed to receive any message back...");
+                    TestResult {
+                        entry_gw: entry_gw.clone(),
+                        exit_gw: exit_gw.clone(),
+                        error: TestError::NoMessage,
+                    }
+                }
+            };
+            info!("{res:#?}");
+            results_vec.push(json!(res));
+            debug!("disconnecting the client before shutting down...");
+            client.disconnect().await;
 
             if Some(&entry_gw) == entry_gw_keys.last() {
                 echo_server_token.cancel();

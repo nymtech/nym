@@ -3,6 +3,7 @@
 
 use crate::models::StoredMessage;
 use time::OffsetDateTime;
+use tracing::debug;
 
 #[derive(Clone)]
 pub struct InboxManager {
@@ -127,9 +128,11 @@ impl InboxManager {
     }
 
     pub async fn remove_stale(&self, cutoff: OffsetDateTime) -> Result<(), sqlx::Error> {
-        sqlx::query!("DELETE FROM message_store WHERE timestamp < ?", cutoff)
+        let affected = sqlx::query!("DELETE FROM message_store WHERE timestamp < ?", cutoff)
             .execute(&self.connection_pool)
-            .await?;
+            .await?
+            .rows_affected();
+        debug!("Removed {affected} stale messages");
         Ok(())
     }
 }

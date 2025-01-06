@@ -27,26 +27,34 @@ const BlogArticlesCards = async ({ limit }: { limit?: number }) => {
     ? blogArticles.slice(0, limit)
     : blogArticles;
 
-  return limitedBlogArticles.map((blogArticle) => {
-    return (
-      <Grid
-        size={{
-          sm: 12,
-          md: 6,
-        }}
-        key={blogArticle.title}
-      >
-        <ExplorerHeroCard
-          label={blogArticle.label}
-          title={blogArticle.title}
-          description={blogArticle.description}
-          icon={blogArticle.icon}
-          link={blogArticle.link || ""}
-          sx={{ height: "100%" }}
-        />
-      </Grid>
-    );
-  });
+  return limitedBlogArticles
+    .sort((a, b) => {
+      // sort by date
+      return (
+        new Date(a.attributes.date).getTime() -
+        new Date(b.attributes.date).getTime()
+      );
+    })
+    .map((blogArticle) => {
+      return (
+        <Grid
+          size={{
+            sm: 12,
+            md: 6,
+          }}
+          key={blogArticle.title}
+        >
+          <ExplorerHeroCard
+            label={blogArticle.label}
+            title={blogArticle.title}
+            description={blogArticle.description}
+            icon={blogArticle.icon}
+            link={blogArticle.link || ""}
+            sx={{ height: "100%" }}
+          />
+        </Grid>
+      );
+    });
 };
 
 export default BlogArticlesCards;

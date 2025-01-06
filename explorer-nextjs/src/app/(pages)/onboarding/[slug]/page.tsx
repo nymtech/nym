@@ -7,6 +7,7 @@ import { Link } from "@/components/muiLink";
 import { Wrapper } from "@/components/wrapper";
 import { Box, Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
+import { format } from "date-fns";
 import Image from "next/image";
 
 export default async function BlogPage({
@@ -70,8 +71,8 @@ export default async function BlogPage({
                         ),
                       )}
                     </Box>
-                    <time dateTime={blogArticle?.attributes?.date}>
-                      {blogArticle?.attributes?.date}
+                    <time dateTime={blogArticle?.attributes?.date.toString()}>
+                      {format(blogArticle?.attributes?.date, "MMMM dd, yyyy")}
                     </time>
                   </Typography>
                   <Typography variant="subtitle3">

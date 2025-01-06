@@ -8,7 +8,7 @@ type BlogArticle = {
   icon: string;
   attributes: {
     blogAuthors: string[];
-    date: string;
+    date: Date;
     readingTime: number;
   };
   overview: {

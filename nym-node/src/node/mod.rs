@@ -43,7 +43,7 @@ use nym_node_metrics::NymNodeMetrics;
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
-use nym_task::{TaskClient, TaskManager};
+use nym_task::{ShutdownManager, TaskClient, TaskManager};
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::NodeRefreshBody;
 use nym_validator_client::{NymApiClient, UserAgent};
@@ -1001,16 +1001,21 @@ impl NymNode {
         );
         debug!("config: {:#?}", self.config);
 
+        // old:
         let mut task_manager = TaskManager::default().named("NymNode");
-        let http_server = self
-            .build_http_server()
-            .await?
-            .with_task_client(task_manager.subscribe_named("http-server"));
+
+        let shutdown_manager = ShutdownManager::new("NymNode");
+
+        let http_server = self.build_http_server().await?;
         let bind_address = self.config.http.bind_address;
-        tokio::spawn(async move {
+        let server_shutdown = shutdown_manager.root_token.child_token("http-server");
+
+        shutdown_manager.spawn(async move {
             {
-                info!("started NymNodeHTTPServer on {bind_address}");
-                http_server.run().await
+                info!("starting NymNodeHTTPServer on {bind_address}");
+                http_server
+                    .with_graceful_shutdown(async move { server_shutdown.cancelled().await })
+                    .await
             }
         });
 
@@ -1039,7 +1044,15 @@ impl NymNode {
         )
         .await?;
 
-        let _ = task_manager.catch_interrupt().await;
+        shutdown_manager.close();
+        shutdown_manager.catch_interrupt().await;
+
+        // send shutdown info to legacy tasks
+        info!("attempting to shutdown legacy tasks");
+        if task_manager.signal_shutdown().is_ok() {
+            task_manager.wait_for_shutdown().await;
+        }
+
         Ok(())
     }
 }

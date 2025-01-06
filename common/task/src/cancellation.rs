@@ -2,13 +2,19 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use std::ops::Deref;
+use std::time::Duration;
+use tokio::time::sleep;
 use tokio_util::sync::{CancellationToken, DropGuard};
+use tokio_util::task::TaskTracker;
+use tracing::info;
+
+pub const DEFAULT_MAX_SHUTDOWN_DURATION: Duration = Duration::from_secs(5);
 
 // pending name
 //
 // a wrapper around tokio's CancellationToken that adds optional `name` information to more easily
 // track down sources of shutdown
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ShutdownToken {
     name: Option<String>,
     inner: CancellationToken,
@@ -45,6 +51,13 @@ impl Deref for ShutdownToken {
 impl ShutdownToken {
     const MAX_NAME_LENGTH: usize = 128;
     const OVERFLOW_NAME: &'static str = "reached maximum TaskClient children name depth";
+
+    pub fn new(name: impl Into<String>) -> Self {
+        ShutdownToken {
+            name: Some(name.into()),
+            inner: CancellationToken::new(),
+        }
+    }
 
     // Creates a ShutdownToken which will get cancelled whenever the current token gets cancelled.
     // Unlike a cloned/forked ShutdownToken, cancelling a child token does not cancel the parent token.
@@ -117,7 +130,6 @@ impl ShutdownToken {
     #[cfg(not(target_arch = "wasm32"))]
     pub async fn catch_interrupt(&self) {
         crate::wait_for_signal().await;
-        self.inner.cancel();
     }
 }
 
@@ -135,10 +147,74 @@ impl Deref for ShutdownDropGuard {
 }
 
 impl ShutdownDropGuard {
-    pub fn disarm(mut self) -> ShutdownToken {
+    pub fn disarm(self) -> ShutdownToken {
         ShutdownToken {
             name: self.name,
             inner: self.inner.disarm(),
         }
+    }
+}
+
+pub struct ShutdownManager {
+    pub root_token: ShutdownToken,
+    // the reason I'm not using a `JoinSet` is because it forces us to use futures with the same `::Output` type
+    tracker: TaskTracker,
+
+    max_shutdown_duration: Duration,
+}
+
+impl Deref for ShutdownManager {
+    type Target = TaskTracker;
+
+    fn deref(&self) -> &Self::Target {
+        &self.tracker
+    }
+}
+
+impl ShutdownManager {
+    pub fn new(root_token: impl Into<String>) -> Self {
+        ShutdownManager {
+            root_token: ShutdownToken::new(root_token),
+            tracker: Default::default(),
+            max_shutdown_duration: Default::default(),
+        }
+    }
+
+    pub fn with_shutdown_duration(mut self, duration: Duration) -> Self {
+        self.max_shutdown_duration = duration;
+        self
+    }
+
+    pub async fn wait_for_shutdown(&self) {
+        #[cfg(not(target_arch = "wasm32"))]
+        let interrupt_future = tokio::signal::ctrl_c();
+
+        #[cfg(target_arch = "wasm32")]
+        let interrupt_future = futures::future::pending::<()>();
+
+        let wait_future = sleep(self.max_shutdown_duration);
+
+        tokio::select! {
+            _ = self.tracker.wait() => {
+                info!("all registered tasks successfully shutdown")
+            },
+            _ = interrupt_future => {
+                info!("forcing shutdown")
+            },
+            _ = wait_future => {
+                info!("timeout reached, forcing shutdown");
+            }
+        }
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub async fn catch_interrupt(&self) {
+        self.root_token.catch_interrupt().await;
+
+        info!("sending cancellation");
+        self.root_token.cancel();
+
+        info!("waiting for tasks to finish... (press ctrl-c to force)");
+        self.wait_for_shutdown().await;
     }
 }

@@ -1,5 +1,6 @@
 import type NodeData from "@/app/api/types";
 import { NYM_NODES } from "@/app/api/urls";
+import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
@@ -9,7 +10,7 @@ import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsC
 import { QualityIndicatorsCard } from "@/components/nymNodePageComponents/QualityIndicatorsCard";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box } from "@mui/material";
-import Grid2 from "@mui/material/Grid2";
+import Grid from "@mui/material/Grid2";
 
 export default async function NymNode({
   params,
@@ -42,8 +43,8 @@ export default async function NymNode({
 
     return (
       <ContentLayout>
-        <Grid2 container columnSpacing={5} rowSpacing={5}>
-          <Grid2 size={12}>
+        <Grid container columnSpacing={5} rowSpacing={5}>
+          <Grid size={12}>
             <Box sx={{ display: "flex", justifyContent: "space-between" }}>
               <SectionHeading title="Nym Node Details" />
               <ExplorerButtonGroup
@@ -57,8 +58,8 @@ export default async function NymNode({
                 ]}
               />
             </Box>
-          </Grid2>
-          <Grid2
+          </Grid>
+          <Grid
             size={{
               xs: 12,
               md: 4,
@@ -68,8 +69,8 @@ export default async function NymNode({
               bondInfo={nymNode.bond_information}
               nodeDescription={nymNode.description}
             />
-          </Grid2>
-          <Grid2
+          </Grid>
+          <Grid
             size={{
               xs: 12,
               md: 4,
@@ -80,24 +81,24 @@ export default async function NymNode({
               nodeDescription={nymNode.description}
               rewardDetails={nymNode.rewarding_details}
             />
-          </Grid2>
-          <Grid2
+          </Grid>
+          <Grid
             size={{
               xs: 12,
               md: 4,
             }}
           >
             <QualityIndicatorsCard nodeDescription={nymNode.description} />
-          </Grid2>
-          <Grid2
+          </Grid>
+          <Grid
             size={{
               xs: 12,
               md: 6,
             }}
           >
             <NodeRewardsCard rewardDetails={nymNode.rewarding_details} />
-          </Grid2>
-          <Grid2
+          </Grid>
+          <Grid
             size={{
               xs: 12,
               md: 6,
@@ -107,8 +108,14 @@ export default async function NymNode({
               nodeDescription={nymNode.description}
               nodeId={nymNode.bond_information.node_id}
             />
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
+        <Grid container columnSpacing={5} rowSpacing={5}>
+          <Grid size={12}>
+            <SectionHeading title="Onboarding" />
+          </Grid>
+          <BlogArticlesCards limit={2} />
+        </Grid>
       </ContentLayout>
     );
   } catch (error) {

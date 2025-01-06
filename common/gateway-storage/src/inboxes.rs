@@ -71,44 +71,22 @@ impl InboxManager {
         // get 1 additional message to check whether there will be more to grab
         // next time
         let limit = self.retrieval_limit + 1;
-        let mut res = if let Some(start_after) = start_after {
-            sqlx::query_as!(
-                StoredMessage,
-                r#"
-                    SELECT 
-                        id as "id!",
-                        client_address_bs58 as "client_address_bs58!",
-                        content as "content!" 
-                    FROM message_store 
-                    WHERE client_address_bs58 = ? AND id > ?
-                    ORDER BY id ASC
-                    LIMIT ?;
-                "#,
-                client_address_bs58,
-                start_after,
-                limit
-            )
-            .fetch_all(&self.connection_pool)
-            .await?
-        } else {
-            sqlx::query_as!(
-                StoredMessage,
-                r#"
-                   SELECT 
-                        id as "id!",
-                        client_address_bs58 as "client_address_bs58!",
-                        content as "content!"
-                    FROM message_store
-                    WHERE client_address_bs58 = ?
-                    ORDER BY id ASC
-                    LIMIT ?;
-                "#,
-                client_address_bs58,
-                limit
-            )
-            .fetch_all(&self.connection_pool)
-            .await?
-        };
+        let start_after = start_after.unwrap_or(-1);
+
+        let mut res: Vec<StoredMessage> = sqlx::query_as(
+            r#"
+                SELECT id, client_address_bs58, content, timestamp
+                FROM message_store
+                WHERE client_address_bs58 = ? AND id > ?
+                ORDER BY id ASC
+                LIMIT ?;
+            "#,
+        )
+        .bind(client_address_bs58)
+        .bind(start_after)
+        .bind(limit)
+        .fetch_all(&self.connection_pool)
+        .await?;
 
         if res.len() > self.retrieval_limit as usize {
             res.truncate(self.retrieval_limit as usize);

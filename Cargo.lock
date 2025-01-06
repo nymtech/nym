@@ -5458,7 +5458,6 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "defguard_wireguard_rs",
- "log",
  "nym-credentials-interface",
  "nym-gateway-requests",
  "nym-sphinx",

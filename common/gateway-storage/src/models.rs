@@ -48,11 +48,13 @@ impl TryFrom<PersistedSharedKeys> for SharedGatewayKey {
     }
 }
 
+#[derive(FromRow)]
 pub struct StoredMessage {
     pub id: i64,
     #[allow(dead_code)]
     pub client_address_bs58: String,
     pub content: Vec<u8>,
+    pub timestamp: OffsetDateTime,
 }
 
 #[derive(Debug, Clone, FromRow)]

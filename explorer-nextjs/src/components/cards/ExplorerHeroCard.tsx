@@ -7,6 +7,7 @@ import {
   type SxProps,
   Typography,
 } from "@mui/material";
+import Image from "next/image";
 import { Link } from "../muiLink";
 
 const cardStyles = {
@@ -27,14 +28,14 @@ const ExplorerHeroCard = ({
   title,
   label,
   description,
-  image,
+  icon,
   link,
   sx,
 }: {
   title: string;
   label: string;
   description: string;
-  image: React.ReactNode;
+  icon: string;
   link: string;
   sx?: SxProps;
 }) => {
@@ -53,7 +54,12 @@ const ExplorerHeroCard = ({
         />
         <CardContent sx={cardContentStyles}>
           <Stack spacing={4}>
-            {image}
+            <Image
+              src={icon}
+              alt={"explorer-blog-image"}
+              width={84}
+              height={84}
+            />
             <Typography variant="h2">{title}</Typography>
             <Typography variant="body3">{description}</Typography>
           </Stack>

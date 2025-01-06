@@ -73,6 +73,7 @@ const NodeAndAddressSearch = () => {
           fullWidth
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
+          rounded
         />
         <Button
           variant="contained"

@@ -69,7 +69,7 @@ const NodeAndAddressSearch = () => {
     <Stack spacing={2} direction="column">
       <Stack spacing={4} direction="row">
         <Input
-          placeholder="Node ID / Nym Address"
+          placeholder="Node Identity Key / Nym Address"
           fullWidth
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}

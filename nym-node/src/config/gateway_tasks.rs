@@ -47,6 +47,10 @@ pub struct Debug {
     /// Number of messages from offline client that can be pulled at once (i.e. with a single SQL query) from the storage.
     pub message_retrieval_limit: i64,
 
+    pub stale_messages: StaleMessageDebug,
+
+    pub client_bandwidth: ClientBandwidthDebug,
+
     pub zk_nym_tickets: ZkNymTicketHandlerDebug,
 }
 
@@ -58,6 +62,8 @@ impl Default for Debug {
     fn default() -> Self {
         Debug {
             message_retrieval_limit: Self::DEFAULT_MESSAGE_RETRIEVAL_LIMIT,
+            stale_messages: Default::default(),
+            client_bandwidth: Default::default(),
             zk_nym_tickets: Default::default(),
         }
     }
@@ -125,6 +131,54 @@ impl Default for ZkNymTicketHandlerDebug {
             minimum_api_quorum: Self::DEFAULT_MINIMUM_API_QUORUM,
             minimum_redemption_tickets: Self::DEFAULT_MINIMUM_REDEMPTION_TICKETS,
             maximum_time_between_redemption: Self::default_maximum_time_between_redemption(),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct ClientBandwidthDebug {
+    /// Defines maximum delay between client bandwidth information being flushed to the persistent storage.
+    pub max_flushing_rate: Duration,
+
+    /// Defines a maximum change in client bandwidth before it gets flushed to the persistent storage.
+    pub max_delta_flushing_amount: i64,
+}
+
+impl ClientBandwidthDebug {
+    const DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE: Duration = Duration::from_millis(5);
+    const DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT: i64 = 512 * 1024; // 512kB
+}
+
+impl Default for ClientBandwidthDebug {
+    fn default() -> Self {
+        ClientBandwidthDebug {
+            max_flushing_rate: Self::DEFAULT_CLIENT_BANDWIDTH_MAX_FLUSHING_RATE,
+            max_delta_flushing_amount: Self::DEFAULT_CLIENT_BANDWIDTH_MAX_DELTA_FLUSHING_AMOUNT,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
+pub struct StaleMessageDebug {
+    /// Specifies how often the clean-up task should check for stale data.
+    #[serde(with = "humantime_serde")]
+    pub cleaner_run_interval: Duration,
+
+    /// Specifies maximum age of stored messages before they are removed from the storage
+    #[serde(with = "humantime_serde")]
+    pub max_age: Duration,
+}
+
+impl StaleMessageDebug {
+    const DEFAULT_STALE_MESSAGES_CLEANER_RUN_INTERVAL: Duration = Duration::from_secs(60 * 60);
+    const DEFAULT_STALE_MESSAGES_MAX_AGE: Duration = Duration::from_secs(24 * 60 * 60);
+}
+
+impl Default for StaleMessageDebug {
+    fn default() -> Self {
+        StaleMessageDebug {
+            cleaner_run_interval: Self::DEFAULT_STALE_MESSAGES_CLEANER_RUN_INTERVAL,
+            max_age: Self::DEFAULT_STALE_MESSAGES_MAX_AGE,
         }
     }
 }

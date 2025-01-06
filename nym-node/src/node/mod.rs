@@ -665,6 +665,10 @@ impl NymNode {
             info!("node not running with wireguard: authenticator service provider and wireguard will remain unavailable");
         }
 
+        // start task for removing stale and un-retrieved client messages
+        let stale_messages_cleaner = gateway_tasks_builder.build_stale_messages_cleaner();
+        stale_messages_cleaner.start();
+
         Ok(())
     }
 

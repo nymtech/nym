@@ -2,9 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::models::StoredMessage;
+use time::OffsetDateTime;
 
 #[derive(Clone)]
-pub(crate) struct InboxManager {
+pub struct InboxManager {
     connection_pool: sqlx::SqlitePool,
     /// Maximum number of messages that can be obtained from the database per operation.
     /// It is used to prevent out of memory errors in the case of client receiving a lot of data while
@@ -122,6 +123,13 @@ impl InboxManager {
         )
         .execute(&self.connection_pool)
         .await?;
+        Ok(())
+    }
+
+    pub async fn remove_stale(&self, cutoff: OffsetDateTime) -> Result<(), sqlx::Error> {
+        sqlx::query!("DELETE FROM message_store WHERE timestamp < ?", cutoff)
+            .execute(&self.connection_pool)
+            .await?;
         Ok(())
     }
 }

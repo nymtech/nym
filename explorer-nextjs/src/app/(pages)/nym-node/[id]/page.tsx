@@ -49,7 +49,11 @@ export default async function NymNode({
               <SectionHeading title="Nym Node Details" />
               <ExplorerButtonGroup
                 options={[
-                  { label: "Nym Node", isSelected: true, link: "/nym-node/1" },
+                  {
+                    label: "Nym Node",
+                    isSelected: true,
+                    link: `/nym-node/${id}`,
+                  },
                   {
                     label: "Account",
                     isSelected: false,

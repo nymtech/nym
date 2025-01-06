@@ -46,11 +46,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     identityKey: string;
   }>();
 
-  const [favorites, saveFavorites] = useLocalStorage<string[]>(
-    "nym-node-favorites",
-    [],
-  );
-  console.log("favorites :>> ", favorites);
+  const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
 
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
 

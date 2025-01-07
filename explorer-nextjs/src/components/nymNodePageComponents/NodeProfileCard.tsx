@@ -1,5 +1,9 @@
 "use client";
-import type { BondInformation, NodeDescription } from "@/app/api/types";
+import type {
+  BondInformation,
+  IObservatoryNode,
+  NodeDescription,
+} from "@/app/api/types";
 import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
@@ -17,10 +21,11 @@ import ConnectWallet from "../wallet/ConnectWallet";
 interface INodeProfileCardProps {
   bondInfo: BondInformation;
   nodeDescription: NodeDescription;
+  nodeInfo: IObservatoryNode;
 }
 
 export const NodeProfileCard = (props: INodeProfileCardProps) => {
-  const { bondInfo, nodeDescription } = props;
+  const { bondInfo, nodeDescription, nodeInfo } = props;
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
   const { nymClient } = useNymClient();
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
@@ -111,18 +116,19 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
         <Typography
           variant="h3"
           mt={3}
+          mb={1}
           sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
         >
-          {"Moniker"}
+          {nodeInfo.self_description.moniker}
         </Typography>
         {nodeDescription && (
           <CountryFlag
             countryCode={nodeDescription.auxiliary_details.location}
+            countryName={nodeDescription.auxiliary_details.location}
           />
         )}
-        <Typography variant="body4" sx={{ color: "pine.950" }}>
-          Team of professional validators with best digital solutions. Please
-          visit our Telegram🔹https://t.me/CryptoSailorsAnn🔹
+        <Typography variant="body4" sx={{ color: "pine.950" }} mt={2}>
+          {nodeInfo.self_description.details}
         </Typography>
         <Box mt={3}>
           <Button

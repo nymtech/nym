@@ -32,3 +32,9 @@ export const NYM_PRICES_API =
   "https://canary-nym-vpn-chain-payment-watcher.nymte.ch/v1/price/average";
 export const VALIDATOR_BASE_URL =
   process.env.NEXT_PUBLIC_VALIDATOR_URL || "https://rpc.nymtech.net";
+export const DATA_OBSERVATORY_NODES_URL =
+  "https://api.nym.spectredao.net/api/v1/nodes";
+export const DATA_OBSERVATORY_BALANCES_URL =
+  "https://api.nym.spectredao.net/api/v1/balances";
+export const DATA_OBSERVATORY_DELEGATIONS_URL =
+  "https://api.nym.spectredao.net/api/v1/delegations";

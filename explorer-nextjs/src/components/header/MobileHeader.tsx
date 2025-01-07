@@ -135,7 +135,6 @@ const MobileMenuHeader = ({
         >
           <NymLogo />
         </Link>
-        <ConnectWallet size="small" />
 
         <Box
           sx={{
@@ -149,6 +148,7 @@ const MobileMenuHeader = ({
           </IconButton>
         </Box>
       </Box>
+      <ConnectWallet size="small" />
     </Wrapper>
   );
 };

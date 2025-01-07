@@ -2,7 +2,13 @@
 
 import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { useChain } from "@cosmos-kit/react";
-import { Button, type ButtonProps, IconButton, Stack } from "@mui/material";
+import {
+  Box,
+  Button,
+  type ButtonProps,
+  IconButton,
+  Typography,
+} from "@mui/material";
 import Cross from "../icons/Cross";
 import { WalletAddress } from "./WalletAddress";
 import { WalletBalance } from "./WalletBalance";
@@ -27,18 +33,36 @@ const ConnectWallet = ({ ...buttonProps }: ButtonPropsWithOnClick) => {
 
   if (isWalletConnected && !buttonProps.hideAddressAndBalance) {
     return (
-      <Stack direction="row" spacing={3}>
+      <Box
+        display={"flex"}
+        flexDirection={{ xs: "column", sm: "row" }}
+        alignItems={"center"}
+        gap={{ xs: 2, sm: 3 }}
+      >
         <WalletBalance />
         <WalletAddress address={address} />
-        <IconButton
-          size="small"
-          onClick={async () => {
-            await handleDisconnectWallet();
-          }}
-        >
-          <Cross />
-        </IconButton>
-      </Stack>
+        <Box>
+          <IconButton
+            size="small"
+            onClick={async () => {
+              await handleDisconnectWallet();
+            }}
+          >
+            <Box height={24} display={"flex"} alignItems={"center"}>
+              <Typography
+                variant="h5"
+                fontWeight={400}
+                mr={1}
+                display={{ sm: "none" }}
+                sx={{ color: "unset" }}
+              >
+                Disconnect
+              </Typography>
+              <Cross />
+            </Box>
+          </IconButton>
+        </Box>
+      </Box>
     );
   }
 

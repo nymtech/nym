@@ -68,13 +68,14 @@ export const Remark42Comments = () => {
       <Script
         id="remark-init"
         strategy="afterInteractive"
-        //   dangerouslySetInnerHTML={{
-        //     __html: `
-        //   if (window.REMARK42) {
-        //     window.REMARK42.createInstance(window.remark_config);
-        //   }
-        // `,
-        //   }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation>
+        dangerouslySetInnerHTML={{
+          __html: `
+          if (window.REMARK42) {
+            window.REMARK42.createInstance(window.remark_config);
+          }
+        `,
+        }}
       />
     </Box>
   );

@@ -1,9 +1,11 @@
 import type NodeData from "@/app/api/types";
 import { NYM_NODES } from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
+import { Remark42Comments } from "@/components/comments";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
+import { NodeChatCard } from "@/components/nymNodePageComponents/ChatCard";
 import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
 import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
 import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
@@ -112,6 +114,13 @@ export default async function NymNode({
               nodeDescription={nymNode.description}
               nodeId={nymNode.bond_information.node_id}
             />
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+            }}
+          >
+            <NodeChatCard />
           </Grid>
         </Grid>
         <Grid container columnSpacing={5} rowSpacing={5}>

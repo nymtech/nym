@@ -1,7 +1,9 @@
-use std::{collections::HashSet, fmt, ops::Deref, time::Instant};
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashSet, fmt, ops::Deref, time::Instant};
 use tokio::{io::AsyncWriteExt as _, net::tcp::OwnedWriteHalf};
 use tracing::{debug, info};
 use uuid::Uuid;

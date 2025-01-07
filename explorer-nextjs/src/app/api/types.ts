@@ -147,3 +147,100 @@ export interface IAccountBalancesInfo {
   total_value: IAmountDetails;
   vesting_account?: null | string;
 }
+
+export interface IObservatoryNode {
+  accepted_tnc: boolean;
+  bonded: boolean;
+  bonding_address: string;
+  description: {
+    authenticator: {
+      address: string;
+    };
+    auxiliary_details: {
+      accepted_operator_terms_and_conditions: boolean;
+      announce_ports: {
+        mix_port: number | null;
+        verloc_port: number | null;
+      };
+      location: string | null;
+    };
+    build_information: {
+      binary_name: string;
+      build_timestamp: string;
+      build_version: string;
+      cargo_profile: string;
+      cargo_triple: string;
+      commit_branch: string;
+      commit_sha: string;
+      commit_timestamp: string;
+      rustc_channel: string;
+      rustc_version: string;
+    };
+    declared_role: {
+      entry: boolean;
+      exit_ipr: boolean;
+      exit_nr: boolean;
+      mixnode: boolean;
+    };
+    host_information: {
+      hostname: string | null;
+      ip_address: string[];
+    };
+    keys: {
+      ed25519: string;
+      x25519: string;
+      x25519_noise: string | null;
+    };
+    ip_packet_router: {
+      address: string;
+    };
+    last_polled: string;
+    mixnet_websockets: {
+      ws_port: number;
+      wss_port: number | null;
+    };
+    network_requester: {
+      address: string;
+      uses_exit_policy: boolean;
+    };
+    wireguard: string | null;
+    geoip: {
+      city: string;
+      country: string;
+      ip_address: string;
+      loc: string;
+      node_id: number;
+      org: string;
+      postal: string;
+      region: string;
+    };
+  };
+  identity_key: string;
+  ip_address: string;
+  node_id: number;
+  node_type: string;
+  original_pledge: number;
+  rewarding_details: {
+    cost_params: {
+      interval_operating_cost: {
+        amount: string;
+        denom: string;
+      };
+      profit_margin_percent: string;
+    };
+    delegates: string;
+    last_rewarded_epoch: number;
+    operator: string;
+    total_unit_reward: string;
+    unique_delegations: number;
+    unit_delegation: string;
+  };
+  self_description: {
+    details: string;
+    moniker: string;
+    security_contact: string;
+    website: string;
+  };
+  total_stake: number;
+  uptime: number;
+}

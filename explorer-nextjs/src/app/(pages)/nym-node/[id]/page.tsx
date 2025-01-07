@@ -1,5 +1,6 @@
 import type NodeData from "@/app/api/types";
-import { NYM_NODES } from "@/app/api/urls";
+import type { IObservatoryNode } from "@/app/api/types";
+import { DATA_OBSERVATORY_NODES_URL, NYM_NODES } from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
@@ -21,6 +22,24 @@ export default async function NymNode({
   try {
     const id = Number((await params).id);
 
+    const observatoryResponse = await fetch(DATA_OBSERVATORY_NODES_URL, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+      next: { revalidate: 60 },
+      // refresh event list cache at given interval
+    });
+
+    const observatoryNymNodes: IObservatoryNode[] =
+      await observatoryResponse.json();
+
+    const observatoryNymNode = observatoryNymNodes.find(
+      (node) => node.node_id === id,
+    );
+
+    console.log("observatorynNymNode :>> ", observatoryNymNode);
+
     const response = await fetch(NYM_NODES, {
       headers: {
         Accept: "application/json",
@@ -38,7 +57,7 @@ export default async function NymNode({
 
     const nymNode = nymNodes.find((node) => node.node_id === id);
 
-    if (!nymNode) {
+    if (!nymNode || !observatoryNymNode) {
       return null;
     }
 
@@ -73,6 +92,7 @@ export default async function NymNode({
             <NodeProfileCard
               bondInfo={nymNode.bond_information}
               nodeDescription={nymNode.description}
+              nodeInfo={observatoryNymNode}
             />
           </Grid>
           <Grid

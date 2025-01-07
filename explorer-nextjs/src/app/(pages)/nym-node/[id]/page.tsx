@@ -1,7 +1,6 @@
 import type NodeData from "@/app/api/types";
 import { NYM_NODES } from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
-import { Remark42Comments } from "@/components/comments";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";

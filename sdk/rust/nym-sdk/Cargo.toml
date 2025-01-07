@@ -59,6 +59,7 @@ serde = { version = "1", features = ["derive"] }
 tracing.workspace = true
 tracing-subscriber = { version = "0.3.18", features = ["env-filter"] }
 dirs.workspace = true
+tempfile.workspace = true
 
 [dev-dependencies]
 anyhow = { workspace = true }

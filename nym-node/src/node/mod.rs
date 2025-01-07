@@ -448,7 +448,9 @@ impl NymNode {
             wireguard: Some(wireguard_data),
             config,
             accepted_operator_terms_and_conditions: false,
-            shutdown_manager: ShutdownManager::new("NymNode"),
+            shutdown_manager: ShutdownManager::new("NymNode")
+                .with_default_shutdown_signals()
+                .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
         })
     }
 
@@ -1048,7 +1050,7 @@ impl NymNode {
         .await?;
 
         self.shutdown_manager.close();
-        self.shutdown_manager.catch_interrupt().await;
+        self.shutdown_manager.catch_shutdown().await;
 
         // send shutdown info to legacy tasks
         info!("attempting to shutdown legacy tasks");

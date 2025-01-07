@@ -1,12 +1,18 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use std::future::Future;
+use std::io;
 use std::ops::Deref;
 use std::time::Duration;
+use tokio::task::JoinSet;
 use tokio::time::sleep;
 use tokio_util::sync::{CancellationToken, DropGuard};
 use tokio_util::task::TaskTracker;
-use tracing::info;
+use tracing::{info, warn};
+
+#[cfg(not(target_arch = "wasm32"))]
+use tokio::signal::unix::{signal, SignalKind};
 
 pub const DEFAULT_MAX_SHUTDOWN_DURATION: Duration = Duration::from_secs(5);
 
@@ -109,7 +115,7 @@ impl ShutdownToken {
     }
 
     #[must_use]
-    pub fn with_suffix<S: Into<String>>(self, suffix: S) -> Self {
+    pub fn add_suffix<S: Into<String>>(self, suffix: S) -> Self {
         let suffix = suffix.into();
         let name = if let Some(base) = &self.name {
             format!("{base}-{suffix}")
@@ -125,11 +131,6 @@ impl ShutdownToken {
             name: self.name,
             inner: self.inner.drop_guard(),
         }
-    }
-
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn catch_interrupt(&self) {
-        crate::wait_for_signal().await;
     }
 }
 
@@ -157,6 +158,9 @@ impl ShutdownDropGuard {
 
 pub struct ShutdownManager {
     pub root_token: ShutdownToken,
+
+    shutdown_signals: JoinSet<()>,
+
     // the reason I'm not using a `JoinSet` is because it forces us to use futures with the same `::Output` type
     tracker: TaskTracker,
 
@@ -175,11 +179,59 @@ impl ShutdownManager {
     pub fn new(root_token: impl Into<String>) -> Self {
         ShutdownManager {
             root_token: ShutdownToken::new(root_token),
+            shutdown_signals: Default::default(),
             tracker: Default::default(),
             max_shutdown_duration: Default::default(),
         }
     }
 
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn with_default_shutdown_signals(self) -> io::Result<Self> {
+        self.with_interrupt_signal()?
+            .with_terminate_signal()?
+            .with_quit_signal()
+    }
+
+    #[must_use]
+    pub fn with_shutdown<F>(mut self, shutdown: F) -> Self
+    where
+        F: Future<Output = ()>,
+        F: Send + 'static,
+    {
+        let shutdown_token = self.root_token.clone();
+        self.shutdown_signals.spawn(async move {
+            shutdown.await;
+
+            info!("sending cancellation after receiving shutdown signal");
+            shutdown_token.cancel();
+        });
+        self
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn with_shutdown_signal(self, signal_kind: SignalKind) -> io::Result<Self> {
+        let mut sig = signal(signal_kind)?;
+        Ok(self.with_shutdown(async move {
+            sig.recv().await;
+        }))
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn with_interrupt_signal(self) -> io::Result<Self> {
+        self.with_shutdown_signal(SignalKind::interrupt())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn with_terminate_signal(self) -> io::Result<Self> {
+        self.with_shutdown_signal(SignalKind::terminate())
+    }
+
+    #[cfg(not(target_arch = "wasm32"))]
+    pub fn with_quit_signal(self) -> io::Result<Self> {
+        self.with_shutdown_signal(SignalKind::quit())
+    }
+
+    #[must_use]
     pub fn with_shutdown_duration(mut self, duration: Duration) -> Self {
         self.max_shutdown_duration = duration;
         self
@@ -215,12 +267,12 @@ impl ShutdownManager {
         }
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
-    pub async fn catch_interrupt(&self) {
-        self.root_token.catch_interrupt().await;
+    pub async fn catch_shutdown(&mut self) {
+        if self.shutdown_signals.is_empty() {
+            warn!("there are no registered shutdown signals - all tasks will be cancelled immediately")
+        }
 
-        info!("sending cancellation");
-        self.root_token.cancel();
+        self.shutdown_signals.join_next().await;
 
         info!("waiting for tasks to finish... (press ctrl-c to force)");
         self.wait_for_shutdown().await;

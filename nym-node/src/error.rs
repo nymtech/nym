@@ -50,6 +50,12 @@ pub enum NymNodeError {
     #[error("this binary version no longer supports migration from legacy mixnodes and gateways")]
     UnsupportedMigration,
 
+    #[error("failed to initialise shutdown signals: {source}")]
+    ShutdownSignalFailure {
+        #[source]
+        source: io::Error,
+    },
+
     #[error("could not find an existing config file at '{}' and fresh node initialisation has been disabled", config_path.display())]
     ForbiddenInitialisation { config_path: PathBuf },
 

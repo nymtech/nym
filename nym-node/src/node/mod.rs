@@ -351,6 +351,7 @@ impl From<WireguardData> for nym_wireguard::WireguardData {
 pub(crate) struct NymNode {
     config: Config,
     accepted_operator_terms_and_conditions: bool,
+    shutdown_manager: ShutdownManager,
 
     description: NodeDescription,
 
@@ -447,6 +448,7 @@ impl NymNode {
             wireguard: Some(wireguard_data),
             config,
             accepted_operator_terms_and_conditions: false,
+            shutdown_manager: ShutdownManager::new("NymNode"),
         })
     }
 
@@ -819,7 +821,7 @@ impl NymNode {
         }
     }
 
-    pub(crate) fn start_verloc_measurements(&self, shutdown: TaskClient) {
+    pub(crate) fn start_verloc_measurements(&self) {
         info!(
             "Starting the [verloc] round-trip-time measurer on {} ...",
             self.config.verloc.bind_address
@@ -841,8 +843,11 @@ impl NymNode {
         .retry_timeout(self.config.verloc.debug.retry_timeout)
         .build();
 
-        let mut verloc_measurer =
-            VerlocMeasurer::new(config, self.ed25519_identity_keys.clone(), shutdown);
+        let mut verloc_measurer = VerlocMeasurer::new(
+            config,
+            self.ed25519_identity_keys.clone(),
+            self.shutdown_manager.clone_token("verloc"),
+        );
         verloc_measurer.set_shared_state(self.verloc_stats.clone());
         tokio::spawn(async move { verloc_measurer.run().await });
     }
@@ -1004,13 +1009,11 @@ impl NymNode {
         // old:
         let mut task_manager = TaskManager::default().named("NymNode");
 
-        let shutdown_manager = ShutdownManager::new("NymNode");
-
         let http_server = self.build_http_server().await?;
         let bind_address = self.config.http.bind_address;
-        let server_shutdown = shutdown_manager.root_token.child_token("http-server");
+        let server_shutdown = self.shutdown_manager.child_token("http-server");
 
-        shutdown_manager.spawn(async move {
+        self.shutdown_manager.spawn(async move {
             {
                 info!("starting NymNodeHTTPServer on {bind_address}");
                 http_server
@@ -1021,7 +1024,7 @@ impl NymNode {
 
         self.try_refresh_remote_nym_api_cache().await;
 
-        self.start_verloc_measurements(task_manager.subscribe_named("verloc-measurements"));
+        self.start_verloc_measurements();
 
         let active_clients_store = ActiveClientsStore::new();
 
@@ -1044,8 +1047,8 @@ impl NymNode {
         )
         .await?;
 
-        shutdown_manager.close();
-        shutdown_manager.catch_interrupt().await;
+        self.shutdown_manager.close();
+        self.shutdown_manager.catch_interrupt().await;
 
         // send shutdown info to legacy tasks
         info!("attempting to shutdown legacy tasks");

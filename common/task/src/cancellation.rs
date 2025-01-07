@@ -50,7 +50,7 @@ impl Deref for ShutdownToken {
 
 impl ShutdownToken {
     const MAX_NAME_LENGTH: usize = 128;
-    const OVERFLOW_NAME: &'static str = "reached maximum TaskClient children name depth";
+    const OVERFLOW_NAME: &'static str = "reached maximum ShutdownToken children name depth";
 
     pub fn new(name: impl Into<String>) -> Self {
         ShutdownToken {
@@ -183,6 +183,14 @@ impl ShutdownManager {
     pub fn with_shutdown_duration(mut self, duration: Duration) -> Self {
         self.max_shutdown_duration = duration;
         self
+    }
+
+    pub fn child_token<S: Into<String>>(&self, child_suffix: S) -> ShutdownToken {
+        self.root_token.child_token(child_suffix)
+    }
+
+    pub fn clone_token<S: Into<String>>(&self, child_suffix: S) -> ShutdownToken {
+        self.root_token.clone_with_suffix(child_suffix)
     }
 
     pub async fn wait_for_shutdown(&self) {

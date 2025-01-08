@@ -7,4 +7,4 @@ TODO
 - [ ] workspace
 - [ ] clippy
 - [ ] make utils exportable + import properly
-- [ ] child tokens
+- [x] child tokens

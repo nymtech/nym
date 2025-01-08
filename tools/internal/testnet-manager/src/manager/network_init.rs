@@ -109,10 +109,7 @@ impl NetworkManager {
     ) -> Result<nym_mixnet_contract_common::MigrateMsg, NetworkManagerError> {
         Ok(nym_mixnet_contract_common::MigrateMsg {
             vesting_contract_address: Some(ctx.network.contracts.vesting.address()?.to_string()),
-            current_nym_node_semver: "irrelevant".to_string(),
-            version_score_weights: Default::default(),
             unsafe_skip_state_updates: Some(true),
-            version_score_params: Default::default(),
         })
     }
 

@@ -7,7 +7,7 @@ use std::error::Error;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::task::JoinHandle;
-use tracing::{trace, warn};
+use tracing::{debug, trace, warn};
 
 pub struct StaleMessagesCleaner {
     inbox_manager: InboxManager,
@@ -51,6 +51,7 @@ impl StaleMessagesCleaner {
                 }
             }
         }
+        debug!("StaleMessagesCleaner: Exiting");
     }
 
     pub fn start(mut self) -> JoinHandle<()> {

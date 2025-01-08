@@ -2416,7 +2416,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.1.43"
+version = "1.1.44"
 dependencies = [
  "chrono",
  "clap 4.5.20",
@@ -4393,7 +4393,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nym-api"
-version = "1.1.47"
+version = "1.1.48"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4642,7 +4642,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.45"
+version = "1.1.46"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4725,7 +4725,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.45"
+version = "1.1.46"
 dependencies = [
  "bs58",
  "clap 4.5.20",
@@ -5812,7 +5812,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.46"
+version = "1.1.47"
 dependencies = [
  "addr",
  "anyhow",
@@ -5863,7 +5863,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6235,7 +6235,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.45"
+version = "1.1.46"
 dependencies = [
  "bs58",
  "clap 4.5.20",
@@ -6837,7 +6837,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "bytes",

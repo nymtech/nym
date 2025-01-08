@@ -2225,6 +2225,7 @@ dependencies = [
  "nym-crypto",
  "nym-sdk",
  "serde",
+ "tempfile",
  "tokio",
  "tokio-stream",
  "tokio-util",

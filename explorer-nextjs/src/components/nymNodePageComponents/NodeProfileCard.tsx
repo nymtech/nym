@@ -21,7 +21,7 @@ import ConnectWallet from "../wallet/ConnectWallet";
 interface INodeProfileCardProps {
   bondInfo: BondInformation;
   nodeDescription: NodeDescription;
-  nodeInfo: IObservatoryNode;
+  nodeInfo?: IObservatoryNode;
 }
 
 export const NodeProfileCard = (props: INodeProfileCardProps) => {
@@ -119,7 +119,7 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
           mb={1}
           sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
         >
-          {nodeInfo.self_description.moniker}
+          {nodeInfo?.self_description.moniker || "Moniker"}
         </Typography>
         {nodeDescription && (
           <CountryFlag
@@ -127,9 +127,11 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
             countryName={nodeDescription.auxiliary_details.location}
           />
         )}
-        <Typography variant="body4" sx={{ color: "pine.950" }} mt={2}>
-          {nodeInfo.self_description.details}
-        </Typography>
+        {nodeInfo && (
+          <Typography variant="body4" sx={{ color: "pine.950" }} mt={2}>
+            {nodeInfo.self_description.details}
+          </Typography>
+        )}
         <Box mt={3}>
           <Button
             variant="contained"

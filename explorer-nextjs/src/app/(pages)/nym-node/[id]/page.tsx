@@ -2,8 +2,10 @@ import type NodeData from "@/app/api/types";
 import type { IObservatoryNode } from "@/app/api/types";
 import { DATA_OBSERVATORY_NODES_URL, NYM_NODES } from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
+import ExplorerCard from "@/components/cards/ExplorerCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
+import DelegationsTable from "@/components/nodeTable/DelegationsTable";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
 import { NodeChatCard } from "@/components/nymNodePageComponents/ChatCard";
 import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
@@ -60,6 +62,19 @@ export default async function NymNode({
     if (!nymNode) {
       return null;
     }
+    const nodeDelegationsResponse = await fetch(
+      `${DATA_OBSERVATORY_NODES_URL}/${id}/delegations`,
+      {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json; charset=utf-8",
+        },
+        next: { revalidate: 60 },
+        // refresh event list cache at given interval
+      },
+    );
+
+    const delegations = await nodeDelegationsResponse.json();
 
     return (
       <ContentLayout>
@@ -134,6 +149,18 @@ export default async function NymNode({
               nodeId={nymNode.bond_information.node_id}
             />
           </Grid>
+          {delegations && (
+            <Grid
+              size={{
+                xs: 12,
+              }}
+            >
+              <ExplorerCard label="Delegations" sx={{ height: "100%" }}>
+                <DelegationsTable delegations={delegations} />
+              </ExplorerCard>
+            </Grid>
+          )}
+
           <Grid
             size={{
               xs: 12,

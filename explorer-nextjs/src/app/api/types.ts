@@ -244,3 +244,13 @@ export interface IObservatoryNode {
   total_stake: number;
   uptime: number;
 }
+export interface NodeRewardDetails {
+  amount: {
+    amount: string;
+    denom: string;
+  };
+  cumulative_reward_ratio: string;
+  height: number;
+  node_id: number;
+  owner: string;
+}

@@ -57,7 +57,7 @@ export default async function NymNode({
 
     const nymNode = nymNodes.find((node) => node.node_id === id);
 
-    if (!nymNode || !observatoryNymNode) {
+    if (!nymNode) {
       return null;
     }
 

@@ -31,3 +31,4 @@ uuid = { version = "1", features = ["v4", "serde"] }
 bincode = "1.0"
 dirs.workspace = true
 tokio-util = { workspace = true }
+tempfile.workspace = true

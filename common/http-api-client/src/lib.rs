@@ -3,20 +3,21 @@
 
 use async_trait::async_trait;
 use reqwest::header::HeaderValue;
+pub use reqwest::IntoUrl;
 use reqwest::{RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-use std::time::Duration;
 use thiserror::Error;
 use tracing::{instrument, warn};
 use url::Url;
 
-pub use reqwest::IntoUrl;
-
-pub use user_agent::UserAgent;
+use std::{fmt::Display, sync::Arc, time::Duration};
 
 mod user_agent;
+pub use user_agent::UserAgent;
+
+mod dns;
+use dns::HickoryDnsResolver;
 
 // The timeout is relatively high as we are often making requests over the mixnet, where latency is
 // high and chatty protocols take a while to complete.
@@ -90,7 +91,8 @@ impl ClientBuilder {
                 url: url.into_url()?,
                 timeout: None,
                 custom_user_agent: false,
-                reqwest_client_builder: reqwest::ClientBuilder::new(),
+                reqwest_client_builder: reqwest::ClientBuilder::new()
+                    .dns_resolver(Arc::new(HickoryDnsResolver::default())),
             })
         }
     }

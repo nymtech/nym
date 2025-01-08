@@ -217,7 +217,7 @@ This lets your operating system know it's ok to reload the service configuration
 
 ## Connectivity Test and Configuration
 
-During our ongoing testing events [Fast and Furious](https://nymtech.net/events/fast-and-furious) we found out, that after introducing IP Packet Router (IPR) and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) on embedded Network Requester (NR) by default,  only a fragment of Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+During our ongoing testing events we found out, that after introducing IP Packet Router (IPR) and [Nym exit policy](https://nymtech.net/.wellknown/network-requester/exit-policy.txt) on embedded Network Requester (NR) by default,  only a fragment of Gateways routes correctly through IPv4 and IPv6. We built a useful monitor to check out your Gateway (`nym-node --mode exit-gateway`) at [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
 
 IPv6 routing is not only a case for gateways. Imagine a rare occasion when you run a `mixnode` without IPv6 enabled and a client will sent IPv6 packets through the Mixnet through such route:
 ```ascii
@@ -491,7 +491,7 @@ sudo setcap 'cap_net_bind_service=+ep cap_net_admin=+ep' nym-node
     - `After=network.target`
     - `Group=<USER>`
     - `Type=simple`
-    
+
 - Your service file will then look like this:
 
 ```ini
@@ -500,7 +500,7 @@ Description=Nym Node
 After=network.target
 StartLimitInterval=350
 StartLimitBurst=10
- 
+
 [Service]
 User=<USER>
 Group=<USER>
@@ -510,7 +510,7 @@ ExecStart=<PATH>/nym-node run <ARGUMENTS> # add all the flags you use to run you
 KillSignal=SIGINT
 Restart=on-failure
 RestartSec=30
- 
+
 [Install]
 WantedBy=multi-user.target
 ```

@@ -37,7 +37,16 @@ export const TunnelManagerCommands = () => (
 
 This page displays a full list of all the changes during our release cycle from `v2024.3-eclipse` onward. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
+**Note:** Any information shared on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
+
 <VarInfo />
+
+## Archived Changelog
+
+To allow reading through older changelogs, we store them below sorted by years.
+
+<br />
+<AccordionTemplate name="Changelog 2024">
 
 ## `v2024.14-crunch-patched`
 Patch for `v2024.14-crunch` release. [Fixes an issue](https://github.com/nymtech/nym/commit/b656003306184061588f25df0b8b4555b41157f4) to allow only one private IP pair & compatibility issues between nym-nodes and older clients.
@@ -375,7 +384,7 @@ After changes coming along with `v2024.13-magura` (`nym-node v1.1.10`), Nym Expl
 
 - Updated [`network_tunnel_manager.sh`](https://github.com/nymtech/nym/blob/develop/scripts/network_tunnel_manager.sh) (moved to our monorepo) helps operators to configure their IP tables rules for `nymtun` and `wireguard` routing.
 
-- **Please re-run [routing configuration steps](https://nymtech.net/docs/operators/nodes/nym-node/configuration#routing-configuration) to update your routing settings.**
+- **Please re-run [routing configuration steps](nodes/nym-node/configuration#routing-configuration) to update your routing settings.**
 
 - We found out that some operators have a wrong value for wireguard IP. Follow these steps to ensure your value is set to `10.1.0.1` (default on new nodes):
 
@@ -2818,3 +2827,5 @@ called Result::unwrap() on an Err value: ClientCoreError(ValidatorClientError(Ny
 | `http://<IP>:8000/stats`       | `http://<IP>:8000/api/v1/metrics/mixing` |
 | `http://<IP>:8000/hardware`    | `http://<IP>:8000/api/v1/system-info`    |
 | `http://<IP>:8000/description` | `http://<IP>:8000/api/v1/description`    |
+
+</ AccordionTemplate>

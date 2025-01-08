@@ -15,7 +15,7 @@ Sounds great, are there any catches? Well, there are a few (for now):
 
 - For now, `mixFetch` cannot deal with concurrent requests with the same base URL.
 
-Read [this article](https://blog.nymtech.net/mixfetch-like-the-fetch-api-but-via-the-mixnet-82acfd435c62) to learn more.
+Read [this article](https://blog.nym.com/mixfetch-like-the-fetch-api-but-via-the-mixnet-82acfd435c62) to learn more.
 
 <Callout type="info" emoji="ℹ️">
   Right now Gateways are not required to run a Secure Websocket (WSS) listener, so only a subset of nodes running in Gateway mode have configured their nodes to do so.
@@ -104,7 +104,7 @@ export function HttpGET() {
   const [html, setHtml] = React.useState('');
   async function get() {
     //Make sure the URL is whitelisted (see 'standard allowed list') otherwise you will get a network requester filter check error
-    const response = await mixFetch('https://nymtech.net/favicon.svg', { mode: 'unsafe-ignore-cors' }, mixFetchOptions);
+    const response = await mixFetch('https://nym.com/favicon.svg', { mode: 'unsafe-ignore-cors' }, mixFetchOptions);
     const text = await response.text();
     console.log('response was', text);
     setHtml(html);

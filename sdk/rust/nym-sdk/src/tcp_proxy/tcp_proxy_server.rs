@@ -3,7 +3,7 @@
 
 use crate::mixnet::{
     AnonymousSenderTag, MixnetClient, MixnetClientBuilder, MixnetClientSender, MixnetMessageSender,
-    NymNetworkDetails, ReconstructedMessage, StoragePaths,
+    NymNetworkDetails, StoragePaths,
 };
 use anyhow::Result;
 use dashmap::DashSet;
@@ -32,6 +32,8 @@ pub struct NymProxyServer {
     tx: tokio::sync::watch::Sender<Option<(ProxiedMessage, AnonymousSenderTag)>>,
     rx: tokio::sync::watch::Receiver<Option<(ProxiedMessage, AnonymousSenderTag)>>,
     cancel_token: CancellationToken,
+    shutdown_tx: tokio::sync::mpsc::Sender<()>,
+    shutdown_rx: tokio::sync::mpsc::Receiver<()>,
 }
 
 impl NymProxyServer {
@@ -74,6 +76,9 @@ impl NymProxyServer {
         let (tx, rx) =
             tokio::sync::watch::channel::<Option<(ProxiedMessage, AnonymousSenderTag)>>(None);
 
+        // Our shutdown signal channel
+        let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
+
         info!("Client created: {}", client.nym_address());
 
         Ok(NymProxyServer {
@@ -84,40 +89,39 @@ impl NymProxyServer {
             tx,
             rx,
             cancel_token: CancellationToken::new(),
+            shutdown_tx,
+            shutdown_rx,
         })
     }
 
     pub async fn run_with_shutdown(&mut self) -> Result<()> {
-        let loop_cancel_token = self.cancel_token.child_token();
+        let handle_token = self.cancel_token.child_token();
         let upstream_address = self.upstream_address.clone();
         let rx = self.rx();
         let mixnet_sender = self.mixnet_client_sender();
-        let cancel_token = self.cancel_token.clone();
         let tx = self.tx.clone();
         let session_map = self.session_map().clone();
 
-        let mut interval = tokio::time::interval(tokio::time::Duration::from_millis(100));
-        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
+        let mut shutdown_rx =
+            std::mem::replace(&mut self.shutdown_rx, tokio::sync::mpsc::channel(1).1);
 
-        let mut pending_message: Option<ReconstructedMessage> = None; // No messages at the beginning of run() obviously
-        let message_stream = self.mixnet_client_mut(); // Pollable message stream from client
+        // Then get the message stream: poll this for incoming messages
+        let message_stream = self.mixnet_client_mut();
 
         loop {
-            tokio::task::yield_now().await;
-
-            if loop_cancel_token.is_cancelled() {
-                debug!("Received cancellation signal, breaking run() loop");
-                break;
-            }
-
             tokio::select! {
-                biased; // Process in order
-
-                // Process any pending message, 'async poll' hack
-                () = async {
-                    tokio::task::yield_now().await;
-                }, if pending_message.is_some() => {
-                    if let Some(new_message) = pending_message.take() {
+                Some(()) = shutdown_rx.recv() => {
+                    debug!("Received shutdown signal, stopping TcpProxyServer");
+                    handle_token.cancel();
+                    break;
+                }
+                // On our Mixnet client getting a new message:
+                // - Try deserialise into ProxiedMessage TODO also add check for ReconstructedMessage message innards if != ProxiedMessage
+                // - Check if the attached sessionID exists.
+                // - If !sessionID, spawn a new session_handler() task.
+                // - Send the message down tx => rx in our handler.
+                message = message_stream.next() => {
+                    if let Some(new_message) = message {
                         let message: ProxiedMessage = match bincode::deserialize(&new_message.message) {
                             Ok(msg) => msg,
                             Err(e) => {
@@ -136,12 +140,10 @@ impl NymProxyServer {
                                 session_id,
                                 rx.clone(),
                                 mixnet_sender.clone(),
-                                cancel_token.clone(),
+                                handle_token.clone()
                             ));
 
                             info!("Spawned a new session handler: {}", session_id);
-                        } else {
-                            debug!("Got message for an existing session");
                         }
 
                         debug!("Sending message for session {}", session_id);
@@ -153,27 +155,12 @@ impl NymProxyServer {
                         } else {
                             error!("No sender tag found, we can't send a reply without it!");
                         }
-
-                        // Yield after processing each message to allow for lock() to be aquired by whatever process is running server instance
-                        tokio::task::yield_now().await;
                     }
-                }
-
-                // Try to get new messages
-                maybe_message = message_stream.next(), if pending_message.is_none() => {
-                    if let Some(msg) = maybe_message {
-                        pending_message = Some(msg);
-                    }
-                    tokio::task::yield_now().await;
-                }
-
-                // Also yield on reg tick for same reason
-                _ = interval.tick() => {
-                    tokio::task::yield_now().await;
                 }
             }
         }
 
+        self.shutdown_rx = shutdown_rx;
         Ok(())
     }
 
@@ -279,8 +266,8 @@ impl NymProxyServer {
         Ok(())
     }
 
-    pub async fn disconnect(&self) {
-        self.cancel_token.cancel();
+    pub fn disconnect_signal(&self) -> tokio::sync::mpsc::Sender<()> {
+        self.shutdown_tx.clone()
     }
 
     pub fn nym_address(&self) -> &Recipient {
@@ -311,75 +298,32 @@ impl NymProxyServer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::time::Duration;
     use tempfile::TempDir;
-    use tokio::sync::Mutex;
-    use tokio::time::timeout;
-
-    async fn try_acquire_lock(server: &Arc<Mutex<NymProxyServer>>) -> bool {
-        match timeout(Duration::from_millis(500), server.lock()).await {
-            Ok(guard) => {
-                debug!("Successfully acquired lock");
-                drop(guard);
-                true
-            }
-            Err(_) => {
-                debug!("Failed to acquire lock");
-                false
-            }
-        }
-    }
 
     #[tokio::test]
-    async fn test_server_lock_acquisition() -> Result<()> {
+    async fn shutdown_works() -> Result<()> {
         let config_dir = TempDir::new()?;
-        let server = NymProxyServer::new(
+        let mut server = NymProxyServer::new(
             "127.0.0.1:8000",
             config_dir.path().to_str().unwrap(),
-            None,
-            None,
+            None, // Mainnet
+            None, // Random gateway
         )
         .await?;
 
-        let server = Arc::new(Mutex::new(server));
-        let server_for_task = Arc::clone(&server);
+        // Getter for shutdown signal tx
+        let shutdown_tx = server.disconnect_signal();
 
-        let _handle = tokio::spawn(async move {
-            let mut server = server_for_task.lock().await;
-            let _ = server.run_with_shutdown().await;
-        });
+        let server_handle = tokio::spawn(async move { server.run_with_shutdown().await });
 
-        // let the server start up properly
-        tokio::time::sleep(Duration::from_secs(10)).await;
+        // Let it start up
+        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 
-        let max_attempts = 10;
-        let retry_delay = Duration::from_millis(400);
-        let mut successful_lock = false;
+        // Kill server
+        shutdown_tx.send(()).await?;
 
-        for attempt in 1..=max_attempts {
-            debug!("Lock acquisition attempt {} of {}", attempt, max_attempts);
-
-            if try_acquire_lock(&server).await {
-                successful_lock = true;
-                break;
-            }
-
-            tokio::task::yield_now().await;
-            tokio::time::sleep(retry_delay).await;
-        }
-
-        assert!(
-            successful_lock,
-            "Failed to acquire lock after {} attempts",
-            max_attempts
-        );
-
-        // Actually try and kill the thing
-        let server_guard = timeout(Duration::from_secs(5), server.lock())
-            .await
-            .expect("Failed to acquire final lock");
-        server_guard.disconnect().await;
-        drop(server_guard);
+        // Wait for shutdown in handle + check Result != err
+        server_handle.await??;
 
         Ok(())
     }

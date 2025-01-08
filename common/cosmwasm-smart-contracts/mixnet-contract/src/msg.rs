@@ -863,11 +863,4 @@ pub enum QueryMsg {
 pub struct MigrateMsg {
     pub unsafe_skip_state_updates: Option<bool>,
     pub vesting_contract_address: Option<String>,
-    pub current_nym_node_semver: String,
-
-    #[serde(default)]
-    pub version_score_weights: OutdatedVersionWeights,
-
-    #[serde(default)]
-    pub version_score_params: VersionScoreFormulaParams,
 }

@@ -1,4 +1,4 @@
-import type { NodeDescription } from "@/app/api/types";
+import type { IObservatoryNode, NodeDescription } from "@/app/api/types";
 import { Chip, Stack } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
@@ -6,6 +6,7 @@ import StarRating from "../starRating/StarRating";
 
 interface IQualityIndicatorsCardProps {
   nodeDescription: NodeDescription;
+  nodeInfo?: IObservatoryNode;
 }
 
 type NodeDescriptionNotNull = NonNullable<NodeDescription>;
@@ -30,7 +31,7 @@ function getNodeRoles(
 }
 
 export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
-  const { nodeDescription } = props;
+  const { nodeDescription, nodeInfo } = props;
 
   if (!nodeDescription) {
     return null;
@@ -42,6 +43,8 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
       <Chip key={role} label={role} size="small" />
     </Stack>
   ));
+
+  console.log("activeRoles :>> ", nodeDescription.declared_role);
 
   return (
     <ExplorerCard label="Quality indicatiors" sx={{ height: "100%" }}>

@@ -6,4 +6,5 @@ TODO
 - [ ] proper readme
 - [ ] workspace
 - [ ] clippy
-- [ ] make utils exportable?
+- [ ] make utils exportable + import properly
+- [ ] child tokens

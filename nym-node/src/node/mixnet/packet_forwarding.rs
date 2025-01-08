@@ -140,8 +140,8 @@ impl<C> PacketForwarder<C> {
                     let channel_len = self.packet_sender.len();
                     if processed % 1000 == 0 {
                         match channel_len {
-                            n if n > 200 => error!("there are currently {n} mix packets waiting to get forwarded!"),
-                            n if n > 50 => warn!("there are currently {n} mix packets waiting to get forwarded"),
+                            n if n > 1000 => error!("there are currently {n} mix packets waiting to get forwarded - the node seems to be significantly overloaded!"),
+                            n if n > 500 => warn!("there are currently {n} mix packets waiting to get forwarded - is the node overloaded?"),
                             n => trace!("there are currently {n} mix packets waiting to get forwarded"),
                         }
                     }

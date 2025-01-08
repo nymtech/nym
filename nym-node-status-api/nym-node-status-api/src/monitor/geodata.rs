@@ -174,10 +174,10 @@ mod api_regression {
             let location_result = client.locate_ip(my_ip).await;
             assert!(location_result.is_ok(), "Did ipinfo response change?");
 
-            assert!(
-                client.check_remaining_bandwidth().await.is_ok(),
-                "Failed to check remaining bandwidth?"
-            );
+            client
+                .check_remaining_bandwidth()
+                .await
+                .expect("Failed to check remaining bandwidth?");
 
             // when serialized, these fields should be present because they're exposed over API
             let location_result = location_result.unwrap();

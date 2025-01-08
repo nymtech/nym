@@ -121,6 +121,10 @@ impl NodeModes {
         self.mixnode || self.entry || self.exit
     }
 
+    pub fn standalone_exit(&self) -> bool {
+        !self.mixnode && !self.entry && self.exit
+    }
+
     pub fn with_mode(&mut self, mode: NodeMode) -> &mut Self {
         match mode {
             NodeMode::Mixnode => self.with_mixnode(),

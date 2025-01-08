@@ -6,16 +6,18 @@ use nym_crypto::asymmetric::ed25519;
 use nym_sdk::mixnet::Recipient;
 use nym_sdk::tcp_proxy;
 use nym_sdk::tcp_proxy::NymProxyServer;
+use std::fmt::Debug;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tokio::io::AsyncWriteExt;
 use tokio::net::{TcpListener, TcpStream};
 use tokio::sync::Mutex;
 use tokio::task;
-use tokio::time::{timeout, Duration};
 use tokio_stream::StreamExt;
 use tokio_util::sync::CancellationToken;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
+
+const METRICS_TICK: u8 = 6; // Tempo of metrics logging in seconds
 
 #[derive(Debug)]
 pub struct Metrics {
@@ -34,19 +36,21 @@ impl Metrics {
     }
 }
 
-#[derive(Clone)]
 pub struct NymEchoServer {
     client: Arc<Mutex<NymProxyServer>>,
     listen_addr: String,
     metrics: Arc<Metrics>,
     cancel_token: CancellationToken,
+    client_shutdown_tx: tokio::sync::mpsc::Sender<()>, // This is the shutdown signal for the TcpProxyServer instance
+    shutdown_tx: tokio::sync::mpsc::Sender<()>, // These are the shutdown signals for the EchoServer
+    shutdown_rx: tokio::sync::mpsc::Receiver<()>,
 }
 
 impl NymEchoServer {
     pub async fn new(
         gateway: Option<ed25519::PublicKey>,
         config_path: Option<&str>,
-        env: String,
+        env: String, // TODO make Option
         listen_port: &str,
     ) -> Result<Self> {
         let home_dir = dirs::home_dir().expect("Unable to get home directory");
@@ -54,24 +58,32 @@ impl NymEchoServer {
         let config_path = config_path.unwrap_or(&default_path);
         let listen_addr = format!("127.0.0.1:{}", listen_port);
 
-        Ok(NymEchoServer {
-            client: Arc::new(Mutex::new(
-                tcp_proxy::NymProxyServer::new(
-                    &listen_addr,
-                    &config_path,
-                    Some(env.clone()),
-                    gateway,
-                )
+        let client = Arc::new(Mutex::new(
+            tcp_proxy::NymProxyServer::new(&listen_addr, &config_path, Some(env.clone()), gateway)
                 .await?,
-            )),
+        ));
+
+        let client_shutdown_tx = client.lock().await.disconnect_signal();
+
+        let (shutdown_tx, shutdown_rx) = tokio::sync::mpsc::channel(1);
+
+        Ok(NymEchoServer {
+            client,
             listen_addr,
             metrics: Arc::new(Metrics::new()),
             cancel_token: CancellationToken::new(),
+            client_shutdown_tx,
+            shutdown_tx,
+            shutdown_rx,
         })
     }
 
     pub async fn run(&mut self) -> Result<()> {
         let cancel_token = self.cancel_token.clone();
+
+        let mut interval =
+            tokio::time::interval(tokio::time::Duration::from_secs(METRICS_TICK as u64));
+        interval.set_missed_tick_behavior(tokio::time::MissedTickBehavior::Skip);
 
         let client = Arc::clone(&self.client);
         task::spawn(async move {
@@ -81,23 +93,22 @@ impl NymEchoServer {
 
         let all_metrics = Arc::clone(&self.metrics);
 
-        tokio::spawn(async move {
-            loop {
-                tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
-                info!(
-                    "Metrics: total_connections_since_start={}, bytes_received={}, bytes_sent={}",
-                    all_metrics.total_conn.load(Ordering::Relaxed),
-                    all_metrics.bytes_recv.load(Ordering::Relaxed),
-                    all_metrics.bytes_sent.load(Ordering::Relaxed),
-                );
-            }
-        });
-
         let listener = TcpListener::bind(self.listen_addr.clone()).await?;
         debug!("{listener:?}");
 
+        let mut shutdown_rx =
+            std::mem::replace(&mut self.shutdown_rx, tokio::sync::mpsc::channel(1).1);
+
         loop {
             tokio::select! {
+                Some(()) = shutdown_rx.recv() => {
+                    info!("Disconnect signal received");
+                    self.cancel_token.cancel();
+                    info!("Cancel token cancelled: killing handle_incoming loops");
+                     self.client_shutdown_tx.send(()).await?;
+                     info!("Sent shutdown signal to ProxyServer instance");
+                    break;
+                }
                 stream = listener.accept() => {
                     let (stream, _) = stream?;
                     info!("Handling new stream");
@@ -108,12 +119,17 @@ impl NymEchoServer {
                         stream, connection_metrics, cancel_token.clone()
                     ));
                 }
-                _ = self.cancel_token.cancelled() => {
-                    info!("token cancelled, stopping handling streams");
-                    break Ok(());
+                _ = interval.tick() => {
+                    info!("Metrics: total_connections_since_start={}, bytes_received={}, bytes_sent={}",
+                        all_metrics.total_conn.load(Ordering::Relaxed),
+                        all_metrics.bytes_recv.load(Ordering::Relaxed),
+                        all_metrics.bytes_sent.load(Ordering::Relaxed),
+                    );
                 }
             }
         }
+        self.shutdown_rx = shutdown_rx;
+        Ok(())
     }
 
     async fn handle_incoming(
@@ -145,7 +161,7 @@ impl NymEchoServer {
                     }
                 }
                 _ = cancel_token.cancelled() => {
-                    warn!("Shutdown signal received, closing connection");
+                    info!("Shutdown signal received, closing connection");
                     break;
                 }
             }
@@ -154,16 +170,8 @@ impl NymEchoServer {
         info!("Connection closed");
     }
 
-    pub async fn disconnect(&self) {
-        self.cancel_token.cancel();
-        info!("token cancelled");
-        let client = Arc::clone(&self.client);
-        info!("acquiring lock");
-        if let Ok(guard) = timeout(Duration::from_secs(5), client.lock()).await {
-            guard.disconnect().await;
-        } else {
-            error!("Failed to acquire lock to trigger shutdown");
-        };
+    pub fn disconnect_signal(&self) -> tokio::sync::mpsc::Sender<()> {
+        self.shutdown_tx.clone()
     }
 
     pub async fn nym_address(&self) -> Recipient {
@@ -183,20 +191,54 @@ impl NymEchoServer {
 mod tests {
     use super::*;
     use futures::StreamExt;
-    use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, MixnetMessageSender, Recipient};
+    use nym_sdk::mixnet::{IncludedSurbs, MixnetClient, MixnetMessageSender};
     #[path = "utils.rs"]
     mod utils;
+    use tempfile::TempDir;
     use utils::{Payload, ProxiedMessage};
 
     #[tokio::test]
-    async fn echoes_bytes() {
-        let mut echo_server =
-            NymEchoServer::new(None, None, "../../envs/mainnet.env".to_string(), "9000")
-                .await
-                .unwrap();
+    async fn shutdown_works() -> Result<()> {
+        let config_dir = TempDir::new()?;
+        let mut echo_server = NymEchoServer::new(
+            None,
+            Some(config_dir.path().to_str().unwrap()),
+            "../../envs/mainnet.env".to_string(),
+            "9000",
+        )
+        .await
+        .unwrap();
+
+        // Getter for shutdown signal
+        let shutdown_tx = echo_server.disconnect_signal();
+
+        let server_handle = tokio::spawn(async move { echo_server.run().await.unwrap() });
+
+        // Let it start up
+        tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
+
+        // Kill server
+        shutdown_tx.send(()).await?;
+
+        // Wait for shutdown in handle
+        server_handle.await?;
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn echoes_bytes() -> Result<()> {
+        let config_dir = TempDir::new()?;
+        let mut echo_server = NymEchoServer::new(
+            None,
+            Some(config_dir.path().to_str().unwrap()),
+            "../../envs/mainnet.env".to_string(),
+            "9000",
+        )
+        .await
+        .unwrap();
 
         let echo_addr = echo_server.nym_address().await;
-        println!("{echo_addr}");
 
         tokio::task::spawn(async move {
             echo_server.run().await.unwrap();
@@ -230,12 +272,9 @@ mod tests {
 
         sending_task_handle.await.unwrap();
         receiving_task_handle.await.unwrap();
-    }
 
-    // #[tokio::test]
-    // async fn incoming_and_sent_bytes_metrics_work() {
-    //     todo!()
-    // }
+        Ok(())
+    }
 
     // #[tokio::test]
     // async fn creates_a_valid_nym_addr_with_specified_gw() {

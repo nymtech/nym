@@ -28,7 +28,7 @@ pub type HmacSha256 = Hmac<Sha256>;
 pub type Nonce = u64;
 pub type Taken = Option<SystemTime>;
 
-pub const BANDWIDTH_CAP_PER_DAY: u64 = 1024 * 1024 * 1024; // 1 GB
+pub const BANDWIDTH_CAP_PER_DAY: u64 = 250 * 1024 * 1024 * 1024; // 250 GB
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct IpPair {

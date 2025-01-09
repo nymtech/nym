@@ -6,7 +6,7 @@
 >
 > Nym uses the Sphinx packet format to encapsulate and anonymously route data payloads. Senders prepare Sphinx messages by encrypting them multiple times in reverse routing order. First, a message is encrypted for the recipient; then, for the last mix node in the path; then, for its predecessors in the path, ending with the outermost encryption, which corresponds to the mix node in the first layer. The complete Sphinx packet is finally encrypted with a key shared with the gateway, which forwards decrypted Sphinx packets to the mixnet.
 >
-> [Nym Whitepaper](https://nymtech.net/nym-whitepaper.pdf) §4
+> [Nym Whitepaper](https://nym.com/nym-whitepaper.pdf) §4
 
 The Nym mixnet re-orders encrypted, indistinguishable [Sphinx](cryptography/sphinx) packets as they travel through the network.
 

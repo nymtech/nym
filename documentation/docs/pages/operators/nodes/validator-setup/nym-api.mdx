@@ -18,7 +18,7 @@ import { AccordionTemplate } from 'components/accordion-template.tsx';
 The Nym API is a binary that will be operated by the Nyx validator set. This binary can be run in several different modes, and has two main bits of functionality:
 
 * Network monitoring (calculating the routing score of Mixnet nodes)
-* Generation and validation of [zk-nyms](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a), our implementation of the Coconut Selective Disclosure Credential Scheme.
+* Generation and validation of [zk-nyms](../../../network/cryptography/zk-nym), our implementation of the Coconut Selective Disclosure Credential Scheme.
 
 This is important for both the proper decentralisation of the network uptime calculation and, more pressingly, enabling the NymVPN to utilise privacy preserving payments.
 
@@ -94,7 +94,7 @@ The example value of `100` for `pruning-interval` can be customised as per your 
 
 ### Credential Generation
 
-Validators that took part in the DKG ceremony became part of the 'quorum' generating and verifying zk-nym credentials. These will initially be used for private proof of payment for NymVPN (see our blogposts [here](https://blog.nymtech.net/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nymtech.net/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a) for more on this), and in the future will be expanded into more general use-cases such as [offline ecash](https://arxiv.org/abs/2303.08221).
+Validators that took part in the DKG ceremony became part of the 'quorum' generating and verifying zk-nym credentials. These will initially be used for private proof of payment for NymVPN (moe [here](https://blog.nym.com/nymvpn-an-invitation-for-privacy-experts-and-enthusiasts-63644139d09d) and [here](https://blog.nym.com/zk-nyms-are-here-a-major-milestone-towards-a-market-ready-mixnet-a3470c9ab10a)), and in the future will be expanded into more general use-cases such as [offline ecash](https://arxiv.org/abs/2303.08221).
 
 The DKG ceremony was used to create a subset of existing validators who run `nym-api` alongside a Nyx full-node. As outlined above, they are the ones taking part in the generation and verification of zk-nym credentials. The size of the 'minimum viable quorum' is 10 - the intial set taking part in DKG was 17 validators. This is in order to have some redundancy in the case of a validator dropping or going offline.
 
@@ -301,4 +301,3 @@ You can also use `nymvisor` to automatically update the `nym-api` node. The step
 It is recommended to expose the webserver over HTTPS by using a webserver like Nginx. An example configuration for configuring Nginx is listed on [Reverse proxy page](../nym-node/configuration/proxy-configuration.mdx). If you're using a custom solution, ensure to allow requests from anywhere by setting a permissive CORS policy.
 
 For example, it is configured in Nginx using: `add_header 'Access-Control-Allow-Origin' '*';`
-

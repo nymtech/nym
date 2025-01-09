@@ -14,7 +14,7 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 * `nym-socks5-client` - a Socks5 proxy you can run on your machine and use with existing applications.
 * `nym-explorer` - a (projected) block explorer and (existing) mixnet viewer.
 * `nym-wallet` - a desktop wallet implemented using the [Tauri](https://tauri.studio/en/docs/about/intro) framework.
-* `nym-cli` - a tool for interacting with the network from the CLI. 
+* `nym-cli` - a tool for interacting with the network from the CLI.
 <!-- coming soon
 * `nym-network-monitor` - sends packets through the full system to check that they are working as expected, and stores node uptime histories as the basis of a rewards system ("mixmining" or "proof-of-mixing").
 -->
@@ -42,10 +42,10 @@ client ───► Gateway ──┘  mix  │  mix  ┌─►mix ───► 
 
 References for developers:
 
-* [Dev Docs](https://nymtech.net/docs/developers)
-* [SDKs](https://nymtech.net/docs/developers/rust)
-* [Network Docs](https://nymtech.net/docs/network)
-* [Release Cycle - git flow](https://nymtech.net/docs/operators/release-cycle)
+* [Dev Docs](https://nym.com/docs/developers)
+* [SDKs](https://nym.com/docs/developers/rust)
+* [Network Docs](https://nym.com/docs/network)
+* [Release Cycle - git flow](https://nym.com/docs/operators/release-cycle)
 
 ### Developer chat
 
@@ -66,4 +66,4 @@ As a general approach, licensing is as follows this pattern:
 - libraries and components are Apache 2.0 or MIT
 - documentation is Apache 2.0 or CC0-1.0
 
-Nym Node Operators and Validators Temrs and Conditions can be found [here](https://nymtech.net/terms-and-conditions/operators/v1.0.0).
+Nym Node Operators and Validators Temrs and Conditions can be found [here](https://nym.com/terms-and-conditions/operators/v1.0.0).

@@ -129,7 +129,7 @@ export const LandingPage = () => {
                     {square.description}
                   </Typography>
 
-                  <Typography sx={{ color: "#ff6600", fontWeight: 600 }}>
+                  <Typography sx={{ color: "#14E76F", fontWeight: 600 }}>
                     Open
                   </Typography>
                 </Box>

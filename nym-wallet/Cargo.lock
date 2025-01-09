@@ -3328,7 +3328,6 @@ name = "nym-node-requests"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "base64 0.22.1",
  "celes",
  "humantime 2.1.0",
  "humantime-serde",
@@ -3340,6 +3339,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "strum 0.26.3",
  "thiserror 1.0.64",
  "time",
  "utoipa",

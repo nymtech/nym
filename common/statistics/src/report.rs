@@ -67,7 +67,7 @@ impl Default for ClientStatsReport {
 pub struct OsInformation {
     pub(crate) os_type: String,
     pub(crate) os_version: Option<String>,
-    pub(crate) os_arch: Option<String>,
+    pub(crate) os_arch: String,
 }
 
 impl OsInformation {

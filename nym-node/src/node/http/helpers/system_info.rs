@@ -72,7 +72,7 @@ pub(crate) fn get_system_info(
         system_name: System::name(),
         kernel_version: System::kernel_version(),
         os_version: System::os_version(),
-        cpu_arch: System::cpu_arch(),
+        cpu_arch: Some(System::cpu_arch()),
         hardware,
     }
 }

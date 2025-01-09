@@ -185,6 +185,19 @@ impl TaskManager {
         }
     }
 
+    // used for compatibility with the ShutdownManager
+    pub(crate) fn task_return_error_rx(&mut self) -> ErrorReceiver {
+        self.task_return_error_rx
+            .take()
+            .expect("unable to get error channel: attempt to wait twice?")
+    }
+
+    pub(crate) fn task_drop_rx(&mut self) -> ErrorReceiver {
+        self.task_drop_rx
+            .take()
+            .expect("unable to get task drop channel: attempt to wait twice?")
+    }
+
     pub async fn wait_for_error(&mut self) -> Option<SentError> {
         let mut error_rx = self
             .task_return_error_rx
@@ -206,6 +219,13 @@ impl TaskManager {
             msg = error_rx.recv() => msg,
             msg = drop_rx => msg
         }
+    }
+
+    pub(crate) async fn wait_for_graceful_shutdown(&mut self) {
+        if let Some(notify_rx) = self.notify_rx.take() {
+            drop(notify_rx);
+        }
+        self.notify_tx.closed().await
     }
 
     pub async fn wait_for_shutdown(&mut self) {

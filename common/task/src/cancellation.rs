@@ -1,20 +1,28 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
 use std::future::Future;
 use std::io;
 use std::ops::Deref;
+use std::pin::Pin;
 use std::time::Duration;
 use tokio::task::JoinSet;
 use tokio::time::sleep;
 use tokio_util::sync::{CancellationToken, DropGuard};
 use tokio_util::task::TaskTracker;
-use tracing::{info, warn};
+use tracing::{debug, info, trace};
 
+use crate::{TaskClient, TaskManager};
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::signal::unix::{signal, SignalKind};
 
 pub const DEFAULT_MAX_SHUTDOWN_DURATION: Duration = Duration::from_secs(5);
+
+pub fn token_name(name: &Option<String>) -> String {
+    name.clone().unwrap_or_else(|| "unknown".to_string())
+}
 
 // pending name
 //
@@ -132,6 +140,19 @@ impl ShutdownToken {
             inner: self.inner.drop_guard(),
         }
     }
+
+    pub fn name(&self) -> String {
+        token_name(&self.name)
+    }
+
+    pub async fn run_until_cancelled<F>(&self, fut: F) -> Option<F::Output>
+    where
+        F: Future,
+    {
+        let res = self.inner.run_until_cancelled(fut).await;
+        trace!("'{}' got cancelled", self.name());
+        res
+    }
 }
 
 pub struct ShutdownDropGuard {
@@ -154,10 +175,16 @@ impl ShutdownDropGuard {
             inner: self.inner.disarm(),
         }
     }
+
+    pub fn name(&self) -> String {
+        token_name(&self.name)
+    }
 }
 
 pub struct ShutdownManager {
     pub root_token: ShutdownToken,
+
+    legacy_task_manager: Option<TaskManager>,
 
     shutdown_signals: JoinSet<()>,
 
@@ -177,12 +204,37 @@ impl Deref for ShutdownManager {
 
 impl ShutdownManager {
     pub fn new(root_token: impl Into<String>) -> Self {
-        ShutdownManager {
+        let manager = ShutdownManager {
             root_token: ShutdownToken::new(root_token),
+            legacy_task_manager: None,
             shutdown_signals: Default::default(),
             tracker: Default::default(),
             max_shutdown_duration: Default::default(),
-        }
+        };
+
+        // we need to add an explicit watcher for the cancellation token being cancelled
+        // so that we could cancel all legacy tasks
+        let cancel_watcher = manager.root_token.clone();
+        manager.with_shutdown(async move { cancel_watcher.cancelled().await })
+    }
+
+    pub fn with_legacy_task_manager(mut self) -> Self {
+        let mut legacy_manager =
+            TaskManager::default().named(format!("{}-legacy", self.root_token.name()));
+        let mut legacy_error_rx = legacy_manager.task_return_error_rx();
+        let mut legacy_drop_rx = legacy_manager.task_drop_rx();
+
+        self.legacy_task_manager = Some(legacy_manager);
+
+        // add a task that listens for legacy task clients being dropped to trigger cancellation
+        self.with_shutdown(async move {
+            tokio::select! {
+                _ = legacy_error_rx.recv() => (),
+                _ = legacy_drop_rx.recv() => (),
+            }
+
+            info!("received legacy shutdown signal");
+        })
     }
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -245,36 +297,62 @@ impl ShutdownManager {
         self.root_token.clone_with_suffix(child_suffix)
     }
 
-    pub async fn wait_for_shutdown(&self) {
-        #[cfg(not(target_arch = "wasm32"))]
-        let interrupt_future = tokio::signal::ctrl_c();
-
-        #[cfg(target_arch = "wasm32")]
-        let interrupt_future = futures::future::pending::<()>();
-
-        let wait_future = sleep(self.max_shutdown_duration);
-
-        tokio::select! {
-            _ = self.tracker.wait() => {
-                info!("all registered tasks successfully shutdown")
-            },
-            _ = interrupt_future => {
-                info!("forcing shutdown")
-            },
-            _ = wait_future => {
-                info!("timeout reached, forcing shutdown");
-            }
-        }
+    #[must_use]
+    pub fn subscribe_legacy<S: Into<String>>(&self, child_suffix: S) -> TaskClient {
+        // alternatively we could have set self.legacy_task_manager = Some(TaskManager::default());
+        // on demand if it wasn't unavailable, but then we'd have to use mutable reference
+        #[allow(clippy::expect_used)]
+        self.legacy_task_manager
+            .as_ref()
+            .expect("did not enable legacy shutdown support")
+            .subscribe_named(child_suffix)
     }
 
-    pub async fn catch_shutdown(&mut self) {
-        if self.shutdown_signals.is_empty() {
-            warn!("there are no registered shutdown signals - all tasks will be cancelled immediately")
-        }
+    async fn finish_shutdown(mut self) {
+        let mut wait_futures = FuturesUnordered::<Pin<Box<dyn Future<Output = ()>>>>::new();
 
+        // force shutdown via ctrl-c
+        wait_futures.push(Box::pin(async move {
+            #[cfg(not(target_arch = "wasm32"))]
+            let interrupt_future = tokio::signal::ctrl_c();
+
+            #[cfg(target_arch = "wasm32")]
+            let interrupt_future = futures::future::pending::<()>();
+
+            let _ = interrupt_future.await;
+            info!("received interrupt - forcing shutdown");
+        }));
+
+        // timeout
+        wait_futures.push(Box::pin(async move {
+            sleep(self.max_shutdown_duration).await;
+            info!("timeout reached, forcing shutdown");
+        }));
+
+        // graceful
+        wait_futures.push(Box::pin(async move {
+            self.tracker.wait().await;
+            debug!("migrated tasks successfully shutdown");
+            if let Some(legacy) = self.legacy_task_manager.as_mut() {
+                legacy.wait_for_graceful_shutdown().await;
+                debug!("legacy tasks successfully shutdown");
+            }
+
+            info!("all registered tasks successfully shutdown")
+        }));
+
+        wait_futures.next().await;
+    }
+
+    pub async fn wait_for_shutdown_signal(mut self) {
         self.shutdown_signals.join_next().await;
 
+        if let Some(legacy_manager) = self.legacy_task_manager.as_mut() {
+            info!("attempting to shutdown legacy tasks");
+            let _ = legacy_manager.signal_shutdown();
+        }
+
         info!("waiting for tasks to finish... (press ctrl-c to force)");
-        self.wait_for_shutdown().await;
+        self.finish_shutdown().await;
     }
 }

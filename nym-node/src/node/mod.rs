@@ -43,7 +43,7 @@ use nym_node_metrics::NymNodeMetrics;
 use nym_node_requests::api::v1::node::models::{AnnouncePorts, NodeDescription};
 use nym_sphinx_acknowledgements::AckKey;
 use nym_sphinx_addressing::Recipient;
-use nym_task::{ShutdownManager, TaskClient, TaskManager};
+use nym_task::{ShutdownManager, TaskClient};
 use nym_validator_client::client::NymApiClientExt;
 use nym_validator_client::models::NodeRefreshBody;
 use nym_validator_client::{NymApiClient, UserAgent};
@@ -449,6 +449,7 @@ impl NymNode {
             config,
             accepted_operator_terms_and_conditions: false,
             shutdown_manager: ShutdownManager::new("NymNode")
+                .with_legacy_task_manager()
                 .with_default_shutdown_signals()
                 .map_err(|source| NymNodeError::ShutdownSignalFailure { source })?,
         })
@@ -1008,9 +1009,6 @@ impl NymNode {
         );
         debug!("config: {:#?}", self.config);
 
-        // old:
-        let mut task_manager = TaskManager::default().named("NymNode");
-
         let http_server = self.build_http_server().await?;
         let bind_address = self.config.http.bind_address;
         let server_shutdown = self.shutdown_manager.child_token("http-server");
@@ -1032,31 +1030,25 @@ impl NymNode {
 
         let (mix_packet_sender, active_egress_mixnet_connections) = self.start_mixnet_listener(
             &active_clients_store,
-            task_manager.subscribe_named("mixnet-traffic"),
+            self.shutdown_manager.subscribe_legacy("mixnet-traffic"),
         );
 
         let metrics_sender = self.setup_metrics_backend(
             active_clients_store.clone(),
             active_egress_mixnet_connections,
-            task_manager.subscribe_named("metrics"),
+            self.shutdown_manager.subscribe_legacy("metrics"),
         );
 
         self.start_gateway_tasks(
             metrics_sender,
             active_clients_store,
             mix_packet_sender,
-            task_manager.subscribe_named("gateway-tasks"),
+            self.shutdown_manager.subscribe_legacy("gateway-tasks"),
         )
         .await?;
 
         self.shutdown_manager.close();
-        self.shutdown_manager.catch_shutdown().await;
-
-        // send shutdown info to legacy tasks
-        info!("attempting to shutdown legacy tasks");
-        if task_manager.signal_shutdown().is_ok() {
-            task_manager.wait_for_shutdown().await;
-        }
+        self.shutdown_manager.wait_for_shutdown_signal().await;
 
         Ok(())
     }

@@ -44,7 +44,27 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
     </Stack>
   ));
 
-  console.log("activeRoles :>> ", nodeDescription.declared_role);
+  function calculateQualityOfServiceStars(quality: number): number {
+    if (quality < 0.2) {
+      return 1;
+    }
+    if (quality < 0.4) {
+      return 2;
+    }
+    if (quality < 0.6) {
+      return 3;
+    }
+    if (quality < 0.7) {
+      return 4;
+    }
+    return 5;
+  }
+  const qualityOfServiceStars = nodeInfo?.uptime
+    ? calculateQualityOfServiceStars(nodeInfo?.uptime)
+    : 1;
+
+  const nodeIsMixNodeOnly =
+    NodeRoles.length === 1 && nodeRoles[0] === "Mix Node";
 
   return (
     <ExplorerCard label="Quality indicatiors" sx={{ height: "100%" }}>
@@ -62,20 +82,24 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
         row
         divider
         label="Quality of service"
-        value={<StarRating value={5} />}
+        value={<StarRating value={qualityOfServiceStars} />}
       />
-      <ExplorerListItem
-        row
-        divider
-        label="Config score"
-        value={<StarRating value={4} />}
-      />
-      <ExplorerListItem
-        row
-        divider
-        label="Probe score"
-        value={<StarRating value={5} />}
-      />
+      {!nodeIsMixNodeOnly && (
+        <ExplorerListItem
+          row
+          divider
+          label="Config score"
+          value={<StarRating value={4} />}
+        />
+      )}
+      {!nodeIsMixNodeOnly && (
+        <ExplorerListItem
+          row
+          divider
+          label="Probe score"
+          value={<StarRating value={5} />}
+        />
+      )}
     </ExplorerCard>
   );
 };

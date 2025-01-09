@@ -1,14 +1,56 @@
-import type { NodeDescription } from "@/app/api/types";
+import type { ExplorerData } from "@/app/api";
+import type { IObservatoryNode, NodeDescription } from "@/app/api/types";
+import { CURRENT_EPOCH_REWARDS } from "@/app/api/urls";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
 interface INodeMetricsCardProps {
   nodeDescription: NodeDescription;
   nodeId: number;
+  nodeInfo?: IObservatoryNode;
 }
 
-export const NodeMetricsCard = (props: INodeMetricsCardProps) => {
-  const { nodeDescription, nodeId } = props;
+export const NodeMetricsCard = async (props: INodeMetricsCardProps) => {
+  const { nodeDescription, nodeId, nodeInfo } = props;
+
+  const epochRewards = await fetch(CURRENT_EPOCH_REWARDS, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  const epochRewardsData: ExplorerData["currentEpochRewardsData"] =
+    await epochRewards.json();
+
+  function getActiveSetProbability(
+    totalStake: number,
+    stakeSaturationPoint: string,
+  ): string {
+    const saturation = Number.parseFloat(stakeSaturationPoint);
+
+    if (Number.isNaN(saturation) || saturation <= 0) {
+      throw new Error("Invalid stake saturation point provided");
+    }
+
+    const ratio = (totalStake / saturation) * 100;
+
+    if (ratio > 70) {
+      return "High";
+    }
+    if (ratio >= 40 && ratio <= 70) {
+      return "Medium";
+    }
+    return "Low";
+  }
+
+  const activeSetProb =
+    nodeInfo && epochRewardsData
+      ? getActiveSetProbability(
+          nodeInfo.total_stake,
+          epochRewardsData.interval.stake_saturation_point,
+        )
+      : "";
 
   return (
     <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
@@ -34,7 +76,9 @@ export const NodeMetricsCard = (props: INodeMetricsCardProps) => {
           />
         </>
       )}
-      <ExplorerListItem row label="Active set Prob." value="High" />
+      {epochRewardsData && (
+        <ExplorerListItem row label="Active set Prob." value={activeSetProb} />
+      )}
     </ExplorerCard>
   );
 };

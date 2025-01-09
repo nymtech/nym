@@ -66,4 +66,4 @@ As a general approach, licensing is as follows this pattern:
 - libraries and components are Apache 2.0 or MIT
 - documentation is Apache 2.0 or CC0-1.0
 
-Nym Node Operators and Validators Temrs and Conditions can be found [here](https://nym.com/terms-and-conditions/operators/v1.0.0).
+Nym Node Operators and Validators Terms and Conditions can be found [here](https://nym.com/operators-validators-terms).

@@ -1,6 +1,10 @@
 import type NodeData from "@/app/api/types";
 import type { IObservatoryNode } from "@/app/api/types";
-import { DATA_OBSERVATORY_NODES_URL, NYM_NODES } from "@/app/api/urls";
+import {
+  CURRENT_EPOCH_REWARDS,
+  DATA_OBSERVATORY_NODES_URL,
+  NYM_NODES,
+} from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import ExplorerCard from "@/components/cards/ExplorerCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
@@ -128,7 +132,10 @@ export default async function NymNode({
               md: 4,
             }}
           >
-            <QualityIndicatorsCard nodeDescription={nymNode.description} />
+            <QualityIndicatorsCard
+              nodeDescription={nymNode.description}
+              nodeInfo={observatoryNymNode}
+            />
           </Grid>
           <Grid
             size={{
@@ -147,6 +154,7 @@ export default async function NymNode({
             <NodeMetricsCard
               nodeDescription={nymNode.description}
               nodeId={nymNode.bond_information.node_id}
+              nodeInfo={observatoryNymNode}
             />
           </Grid>
           {delegations && (

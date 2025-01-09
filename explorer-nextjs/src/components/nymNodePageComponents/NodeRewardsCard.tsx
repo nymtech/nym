@@ -29,24 +29,24 @@ export const NodeRewardsCard = (props: INodeRewardsCardProps) => {
 
   return (
     <ExplorerCard label="Node rewards(last epoch/hour)" sx={{ height: "100%" }}>
-      <ExplorerListItem
+      {/* <ExplorerListItem
         row
         divider
         label="Total rew."
         value={totalRewardsFormated}
-      />
+      /> */}
       <ExplorerListItem
         row
         divider
         label="Operator rew."
         value={operatorRewardsFormated}
       />
-      <ExplorerListItem
+      {/* <ExplorerListItem
         row
         divider
         label="Staker rew."
         value={stakerRewardsFormated}
-      />
+      /> */}
       <ExplorerListItem
         row
         divider

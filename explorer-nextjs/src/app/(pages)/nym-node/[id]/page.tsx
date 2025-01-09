@@ -1,10 +1,6 @@
 import type NodeData from "@/app/api/types";
 import type { IObservatoryNode } from "@/app/api/types";
-import {
-  CURRENT_EPOCH_REWARDS,
-  DATA_OBSERVATORY_NODES_URL,
-  NYM_NODES,
-} from "@/app/api/urls";
+import { DATA_OBSERVATORY_NODES_URL, NYM_NODES } from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import ExplorerCard from "@/components/cards/ExplorerCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";

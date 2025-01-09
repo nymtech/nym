@@ -38,10 +38,7 @@ impl ConnectionHandler {
         tcp_stream: TcpStream,
         remote_address: SocketAddr,
     ) -> Self {
-        let mut task_client = shared.task_client.fork(remote_address.to_string());
-        // we don't want dropped connections to cause global shutdown
-        task_client.disarm();
-
+        let shutdown = shared.shutdown.child_token(remote_address.to_string());
         shared.metrics.network.new_active_ingress_mixnet_client();
 
         ConnectionHandler {
@@ -51,7 +48,7 @@ impl ConnectionHandler {
                 mixnet_forwarder: shared.mixnet_forwarder.clone(),
                 final_hop: shared.final_hop.clone(),
                 metrics: shared.metrics.clone(),
-                task_client,
+                shutdown,
             },
             remote_address,
             mixnet_connection: Framed::new(tcp_stream, NymCodec),
@@ -165,11 +162,12 @@ impl ConnectionHandler {
         )
     )]
     pub(crate) async fn handle_stream(&mut self) {
-        while !self.shared.task_client.is_shutdown() {
+        loop {
             tokio::select! {
                 biased;
-                _ = self.shared.task_client.recv() => {
+                _ = self.shared.shutdown.cancelled() => {
                     trace!("connection handler: received shutdown");
+                    break
                 }
                 maybe_framed_nym_packet = self.mixnet_connection.next() => {
                     match maybe_framed_nym_packet {
@@ -186,6 +184,7 @@ impl ConnectionHandler {
                 }
             }
         }
+
         debug!("exiting and closing connection");
     }
 }

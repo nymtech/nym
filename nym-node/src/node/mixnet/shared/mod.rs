@@ -11,7 +11,7 @@ use nym_node_metrics::NymNodeMetrics;
 use nym_sphinx_forwarding::packet::MixPacket;
 use nym_sphinx_framing::processing::{MixProcessingResult, PacketProcessingError};
 use nym_sphinx_types::DestinationAddressBytes;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::io;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
@@ -43,7 +43,6 @@ impl ProcessingConfig {
 }
 
 // explicitly do NOT derive clone as we want to manually apply relevant suffixes to the task clients
-// as well as immediately disarm them
 pub(crate) struct SharedData {
     pub(super) processing_config: ProcessingConfig,
     // TODO: this type is not `Zeroize` : (
@@ -56,7 +55,7 @@ pub(crate) struct SharedData {
     pub(super) final_hop: SharedFinalHopData,
 
     pub(super) metrics: NymNodeMetrics,
-    pub(super) task_client: TaskClient,
+    pub(super) shutdown: ShutdownToken,
 }
 
 impl SharedData {
@@ -66,7 +65,7 @@ impl SharedData {
         mixnet_forwarder: MixForwardingSender,
         final_hop: SharedFinalHopData,
         metrics: NymNodeMetrics,
-        task_client: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Self {
         SharedData {
             processing_config,
@@ -74,7 +73,7 @@ impl SharedData {
             mixnet_forwarder,
             final_hop,
             metrics,
-            task_client,
+            shutdown,
         }
     }
 
@@ -144,13 +143,10 @@ impl SharedData {
             .mixnet_forwarder
             .forward_packet(PacketToForward::new(packet, delay_until))
             .is_err()
-            && !self.task_client.is_shutdown()
+            && !self.shutdown.is_cancelled()
         {
             error!("failed to forward sphinx packet on the channel while the process is not going through the shutdown!");
-            // this is a critical error, we're in uncharted lands, we have to shut down
-            let mut shutdown_bomb = self.task_client.fork("shutdown bomb");
-            shutdown_bomb.rearm();
-            drop(shutdown_bomb)
+            self.shutdown.cancel();
         }
     }
 

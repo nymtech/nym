@@ -6,6 +6,7 @@ use futures::StreamExt;
 use nym_node_metrics::events::{
     events_channels, MetricEventsReceiver, MetricEventsSender, MetricsEvent,
 };
+use nym_task::ShutdownToken;
 use std::any;
 use std::any::TypeId;
 use std::collections::HashMap;
@@ -24,11 +25,11 @@ pub(crate) struct MetricsAggregator {
     // registered_handlers: HashMap<TypeId, Box<dyn Any + Send + Sync + 'static>>,
     event_sender: MetricEventsSender,
     event_receiver: MetricEventsReceiver,
-    shutdown: nym_task::TaskClient,
+    shutdown: ShutdownToken,
 }
 
 impl MetricsAggregator {
-    pub fn new(handlers_update_interval: Duration, shutdown: nym_task::TaskClient) -> Self {
+    pub fn new(handlers_update_interval: Duration, shutdown: ShutdownToken) -> Self {
         let (event_sender, event_receiver) = events_channels();
 
         MetricsAggregator {
@@ -113,7 +114,7 @@ impl MetricsAggregator {
         loop {
             tokio::select! {
                 biased;
-                _ = self.shutdown.recv() => {
+                _ = self.shutdown.cancelled() => {
                     debug!("MetricsAggregator: Received shutdown");
                     break;
                 }

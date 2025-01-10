@@ -6,10 +6,14 @@ import { useTheme } from "@mui/material/styles";
 import Image from "next/image";
 import Link from "next/link";
 
-import networkDocs from "../public/images/landing/network-docs.png";
-import developerDocs from "../public/images/landing/developer-docs.png";
-import sdkDocs from "../public/images/landing/sdk-docs.png";
-import operatorGuide from "../public/images/landing/operator-guide.png";
+// import networkDocs from "../public/images/landing/network-docs.png";
+// import developerDocs from "../public/images/landing/developer-docs.png";
+// import sdkDocs from "../public/images/landing/sdk-docs.png";
+// import operatorGuide from "../public/images/landing/operator-guide.png";
+import networkDocs from "../public/images/landing/Vector1.png";
+import developerDocs from "../public/images/landing/Vector2.png";
+import sdkDocs from "../public/images/landing/Vector3.png";
+import operatorGuide from "../public/images/landing/Vector4.png";
 export const LandingPage = () => {
   const theme = useTheme();
   const isTablet = useMediaQuery(theme.breakpoints.up("md"));

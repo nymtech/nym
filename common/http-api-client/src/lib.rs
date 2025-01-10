@@ -17,6 +17,8 @@ pub use reqwest::IntoUrl;
 pub use user_agent::UserAgent;
 
 mod user_agent;
+#[cfg(feature="tunneling")]
+mod fronted;
 
 // The timeout is relatively high as we are often making requests over the mixnet, where latency is
 // high and chatty protocols take a while to complete.

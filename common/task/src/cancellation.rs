@@ -4,7 +4,6 @@
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use std::future::Future;
-use std::io;
 use std::ops::Deref;
 use std::pin::Pin;
 use std::time::Duration;
@@ -238,7 +237,7 @@ impl ShutdownManager {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn with_default_shutdown_signals(self) -> io::Result<Self> {
+    pub fn with_default_shutdown_signals(self) -> std::io::Result<Self> {
         self.with_interrupt_signal()?
             .with_terminate_signal()?
             .with_quit_signal()
@@ -261,7 +260,7 @@ impl ShutdownManager {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn with_shutdown_signal(self, signal_kind: SignalKind) -> io::Result<Self> {
+    pub fn with_shutdown_signal(self, signal_kind: SignalKind) -> std::io::Result<Self> {
         let mut sig = signal(signal_kind)?;
         Ok(self.with_shutdown(async move {
             sig.recv().await;
@@ -269,17 +268,17 @@ impl ShutdownManager {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn with_interrupt_signal(self) -> io::Result<Self> {
+    pub fn with_interrupt_signal(self) -> std::io::Result<Self> {
         self.with_shutdown_signal(SignalKind::interrupt())
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn with_terminate_signal(self) -> io::Result<Self> {
+    pub fn with_terminate_signal(self) -> std::io::Result<Self> {
         self.with_shutdown_signal(SignalKind::terminate())
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn with_quit_signal(self) -> io::Result<Self> {
+    pub fn with_quit_signal(self) -> std::io::Result<Self> {
         self.with_shutdown_signal(SignalKind::quit())
     }
 

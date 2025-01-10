@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, AlertTitle, Box, Card, Grid, Stack, Typography } from '@mui/material';
+import { Alert, Box, Card, Grid, Stack, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';

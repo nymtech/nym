@@ -102,9 +102,9 @@ struct ReducedSignatureOut {
 }
 
 impl NetworkManager {
-    async fn initialise_nym_node<'a>(
+    async fn initialise_nym_node(
         &self,
-        ctx: &mut LocalNodesCtx<'a>,
+        ctx: &mut LocalNodesCtx<'_>,
         offset: u16,
         is_gateway: bool,
     ) -> Result<(), NetworkManagerError> {
@@ -222,9 +222,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn initialise_nym_nodes<'a>(
+    async fn initialise_nym_nodes(
         &self,
-        ctx: &mut LocalNodesCtx<'a>,
+        ctx: &mut LocalNodesCtx<'_>,
         mixnodes: u16,
         gateways: u16,
     ) -> Result<(), NetworkManagerError> {
@@ -250,9 +250,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn transfer_bonding_tokens<'a>(
+    async fn transfer_bonding_tokens(
         &self,
-        ctx: &LocalNodesCtx<'a>,
+        ctx: &LocalNodesCtx<'_>,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "💸 {}Transferring tokens to the bond owners...",
@@ -281,9 +281,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn bond_node<'a>(
+    async fn bond_node(
         &self,
-        ctx: &LocalNodesCtx<'a>,
+        ctx: &LocalNodesCtx<'_>,
         node: &NymNode,
         is_gateway: bool,
     ) -> Result<(), NetworkManagerError> {
@@ -318,7 +318,7 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn bond_nym_nodes<'a>(&self, ctx: &LocalNodesCtx<'a>) -> Result<(), NetworkManagerError> {
+    async fn bond_nym_nodes(&self, ctx: &LocalNodesCtx<'_>) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "⛓️ {}Bonding the local nym-nodes...",
             style("[3/5]").bold().dim()
@@ -336,9 +336,9 @@ impl NetworkManager {
         Ok(())
     }
 
-    async fn assign_to_active_set<'a>(
+    async fn assign_to_active_set(
         &self,
-        ctx: &LocalNodesCtx<'a>,
+        ctx: &LocalNodesCtx<'_>,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "🔌 {}Assigning nodes to the active set...",
@@ -460,9 +460,9 @@ impl NetworkManager {
         ctx.progress.output_run_commands(cmds)
     }
 
-    async fn persist_nodes_in_database<'a>(
+    async fn persist_nodes_in_database(
         &self,
-        ctx: &LocalNodesCtx<'a>,
+        ctx: &LocalNodesCtx<'_>,
     ) -> Result<(), NetworkManagerError> {
         ctx.println(format!(
             "📦 {}Storing the node information in the database",

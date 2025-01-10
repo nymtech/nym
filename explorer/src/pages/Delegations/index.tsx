@@ -224,6 +224,16 @@ const DelegationsPage = () => {
           }}
         />
       )}
+      <Alert
+          severity="warning"
+          sx={{ mb: 3, fontSize: 'medium', width: '100%' }}
+        >
+          <Box>
+            <Typography>
+            You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025.
+            </Typography>
+          </Box>
+      </Alert>
       {showBanner && <Banner onClose={() => setShowBanner(false)} />}
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Title text="Your Delegations" />

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { Stack, Card, Grid, Box, Button } from '@mui/material';
+import { Alert,Stack, Card, Grid, Box, Button, Typography } from '@mui/material';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
@@ -352,6 +352,16 @@ export const PageMixnodes: FCWithChildren = () => {
   return (
     <DelegationsProvider>
       <Box mb={2}>
+        <Alert
+            severity="warning"
+            sx={{ mb: 3, fontSize: 'medium', width: '100%' }}
+          >
+            <Box>
+              <Typography>
+              You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025.
+              </Typography>
+            </Box>
+        </Alert>
         <Title text="Mixnodes" />
       </Box>
       <Grid container>

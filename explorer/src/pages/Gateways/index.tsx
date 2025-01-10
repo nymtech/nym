@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, Card, Grid, Stack } from '@mui/material';
+import { Alert, AlertTitle, Box, Card, Grid, Stack, Typography } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
@@ -233,6 +233,16 @@ export const PageGateways: FCWithChildren = () => {
     return (
       <>
         <Box mb={2}>
+          <Alert
+              severity="warning"
+              sx={{ mb: 3, fontSize: 'medium', width: '100%' }}
+            >
+              <Box>
+                <Typography>
+                You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025.
+                </Typography>
+              </Box>
+            </Alert>
           <Title text="Gateways" />
         </Box>
         <Grid container>

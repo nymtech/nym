@@ -128,6 +128,59 @@ function calculateConfigScoreStars(probeResult: LastProbeResult): number {
   return 0; // No stars
 }
 
+function calculateWireguardPerformance(probeResult: LastProbeResult): number {
+  const { wg, as_exit } = probeResult.outcome;
+
+  if (!wg) {
+    return 1; // Default to 1 star if Wireguard information is missing
+  }
+
+  // Calculate average ping performance
+  const pingPerformance =
+    (wg.ping_hosts_performance_v4 +
+      wg.ping_hosts_performance_v6 +
+      wg.ping_ips_performance_v4 +
+      wg.ping_ips_performance_v6) /
+    4;
+
+  // 4 stars: Can register, complete handshakes, resolve DNS, and ping performance > 0.75
+  if (
+    wg.can_register &&
+    wg.can_handshake_v4 &&
+    wg.can_handshake_v6 &&
+    wg.can_resolve_dns_v4 &&
+    wg.can_resolve_dns_v6 &&
+    pingPerformance > 0.75
+  ) {
+    return 4;
+  }
+
+  // 3 stars: Can register, complete handshakes, resolve DNS, but ping performance <= 0.75
+  if (
+    wg.can_register &&
+    wg.can_handshake_v4 &&
+    wg.can_handshake_v6 &&
+    wg.can_resolve_dns_v4 &&
+    wg.can_resolve_dns_v6 &&
+    pingPerformance <= 0.75
+  ) {
+    return 3;
+  }
+
+  // 2 stars: Can register, but handshake v4 or v6 is false
+  if (wg.can_register && (!wg.can_handshake_v4 || !wg.can_handshake_v6)) {
+    return 2;
+  }
+
+  // 1 star: If "as_exit" exists but cannot route ipv4 or ipv6
+  if (as_exit && (!as_exit.can_route_ip_v4 || !as_exit.can_route_ip_v6)) {
+    return 1;
+  }
+
+  // Default case: No matching conditions
+  return 1;
+}
+
 export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
   const { nodeInfo } = props;
 
@@ -175,6 +228,10 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
     ? calculateConfigScoreStars(gatewayProbeResult)
     : 0;
 
+  const wireguardPerformanceStars = gatewayProbeResult
+    ? calculateWireguardPerformance(gatewayProbeResult)
+    : 0;
+
   return (
     <ExplorerCard label="Quality indicatiors" sx={{ height: "100%" }}>
       <ExplorerListItem
@@ -205,8 +262,8 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
         <ExplorerListItem
           row
           divider
-          label="Probe score"
-          value={<StarRating value={4} />}
+          label="Wireguard performance"
+          value={<StarRating value={wireguardPerformanceStars} />}
         />
       )}
     </ExplorerCard>

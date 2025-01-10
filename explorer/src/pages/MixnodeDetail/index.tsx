@@ -69,15 +69,12 @@ const PageMixnodeDetailWithState: FCWithChildren = () => {
   const isMobile = useIsMobile();
   return (
     <Box component="main">
-      <Alert
-          severity="warning"
-          sx={{ mb: 3, fontSize: 'medium', width: '100%' }}
-        >
-          <Box>
-            <Typography>
-            You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025.
-            </Typography>
-          </Box>
+      <Alert severity="warning" sx={{ mb: 3, fontSize: 'medium', width: '100%' }}>
+        <Box>
+          <Typography>
+          You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025.
+          </Typography>
+        </Box>
       </Alert>
       <Title text="Mixnode Detail" />
       <Grid container spacing={2} mt={1} mb={6}>

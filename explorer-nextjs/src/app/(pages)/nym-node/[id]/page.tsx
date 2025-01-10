@@ -1,6 +1,5 @@
-import type NodeData from "@/app/api/types";
 import type { IObservatoryNode } from "@/app/api/types";
-import { DATA_OBSERVATORY_NODES_URL, NYM_NODES } from "@/app/api/urls";
+import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import ExplorerCard from "@/components/cards/ExplorerCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
@@ -36,32 +35,20 @@ export default async function NymNode({
     const observatoryNymNodes: IObservatoryNode[] =
       await observatoryResponse.json();
 
+    if (!observatoryNymNodes) {
+      return null;
+    }
+
     const observatoryNymNode = observatoryNymNodes.find(
       (node) => node.node_id === id,
     );
 
     console.log("observatorynNymNode :>> ", observatoryNymNode);
 
-    const response = await fetch(NYM_NODES, {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      next: { revalidate: 60 },
-      // refresh event list cache at given interval
-    });
-
-    const nymNodes: NodeData[] = await response.json();
-
-    if (!nymNodes) {
+    if (!observatoryNymNode) {
       return null;
     }
 
-    const nymNode = nymNodes.find((node) => node.node_id === id);
-
-    if (!nymNode) {
-      return null;
-    }
     const nodeDelegationsResponse = await fetch(
       `${DATA_OBSERVATORY_NODES_URL}/${id}/delegations`,
       {
@@ -92,67 +79,66 @@ export default async function NymNode({
                   {
                     label: "Account",
                     isSelected: false,
-                    link: `/account/${nymNode.bond_information.owner}`,
+                    link: `/account/${observatoryNymNode.bonding_address}`,
                   },
                 ]}
               />
             </Box>
           </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              md: 4,
-            }}
-          >
-            <NodeProfileCard
-              bondInfo={nymNode.bond_information}
-              nodeDescription={nymNode.description}
-              nodeInfo={observatoryNymNode}
-            />
-          </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              md: 4,
-            }}
-          >
-            <BasicInfoCard
-              bondInfo={nymNode.bond_information}
-              nodeDescription={nymNode.description}
-              rewardDetails={nymNode.rewarding_details}
-            />
-          </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              md: 4,
-            }}
-          >
-            <QualityIndicatorsCard
-              nodeDescription={nymNode.description}
-              nodeInfo={observatoryNymNode}
-            />
-          </Grid>
-          <Grid
-            size={{
-              xs: 12,
-              md: 6,
-            }}
-          >
-            <NodeRewardsCard rewardDetails={nymNode.rewarding_details} />
-          </Grid>
+          {observatoryNymNode && (
+            <Grid
+              size={{
+                xs: 12,
+                md: 4,
+              }}
+            >
+              <NodeProfileCard nodeInfo={observatoryNymNode} />
+            </Grid>
+          )}
+          {observatoryNymNode && (
+            <Grid
+              size={{
+                xs: 12,
+                md: 4,
+              }}
+            >
+              <BasicInfoCard
+                rewardDetails={observatoryNymNode.rewarding_details}
+                nodeInfo={observatoryNymNode}
+              />
+            </Grid>
+          )}
+          {observatoryNymNode && (
+            <Grid
+              size={{
+                xs: 12,
+                md: 4,
+              }}
+            >
+              <QualityIndicatorsCard nodeInfo={observatoryNymNode} />
+            </Grid>
+          )}
           <Grid
             size={{
               xs: 12,
               md: 6,
             }}
           >
-            <NodeMetricsCard
-              nodeDescription={nymNode.description}
-              nodeId={nymNode.bond_information.node_id}
+            <NodeRewardsCard
+              rewardDetails={observatoryNymNode.rewarding_details}
               nodeInfo={observatoryNymNode}
             />
           </Grid>
+          {observatoryNymNode && (
+            <Grid
+              size={{
+                xs: 12,
+                md: 6,
+              }}
+            >
+              <NodeMetricsCard nodeInfo={observatoryNymNode} />
+            </Grid>
+          )}
           {delegations && (
             <Grid
               size={{

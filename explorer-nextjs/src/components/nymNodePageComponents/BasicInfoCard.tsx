@@ -1,8 +1,4 @@
-import type {
-  BondInformation,
-  NodeDescription,
-  RewardingDetails,
-} from "@/app/api/types";
+import type { IObservatoryNode, RewardingDetails } from "@/app/api/types";
 import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Stack, Typography } from "@mui/material";
 import { format } from "date-fns";
@@ -11,17 +7,16 @@ import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
 
 interface IBasicInfoCardProps {
-  bondInfo: BondInformation;
-  nodeDescription: NodeDescription;
   rewardDetails: RewardingDetails;
+  nodeInfo: IObservatoryNode;
 }
 
 export const BasicInfoCard = (props: IBasicInfoCardProps) => {
-  const { bondInfo, nodeDescription, rewardDetails } = props;
+  const { rewardDetails, nodeInfo } = props;
 
-  const timeBonded = nodeDescription
+  const timeBonded = nodeInfo
     ? format(
-        new Date(nodeDescription.build_information.build_timestamp),
+        new Date(nodeInfo.description.build_information.build_timestamp),
         "dd/MM/yyyy",
       )
     : "-";
@@ -42,8 +37,10 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
               justifyContent="space-between"
               width="100%"
             >
-              <Typography variant="body4">{bondInfo.owner}</Typography>
-              <CopyToClipboard text={bondInfo.owner} />
+              <Typography variant="body4">
+                {nodeInfo.bonding_address}
+              </Typography>
+              <CopyToClipboard text={nodeInfo.bonding_address} />
             </Stack>
           }
         />
@@ -58,10 +55,8 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
               justifyContent="space-between"
               width="100%"
             >
-              <Typography variant="body4">
-                {bondInfo.node.identity_key}
-              </Typography>
-              <CopyToClipboard text={bondInfo.node.identity_key} />
+              <Typography variant="body4">{nodeInfo.identity_key}</Typography>
+              <CopyToClipboard text={nodeInfo.identity_key} />
             </Stack>
           }
         />

@@ -1,17 +1,15 @@
 import type { ExplorerData } from "@/app/api";
-import type { IObservatoryNode, NodeDescription } from "@/app/api/types";
+import type { IObservatoryNode } from "@/app/api/types";
 import { CURRENT_EPOCH_REWARDS } from "@/app/api/urls";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
 interface INodeMetricsCardProps {
-  nodeDescription: NodeDescription;
-  nodeId: number;
-  nodeInfo?: IObservatoryNode;
+  nodeInfo: IObservatoryNode;
 }
 
 export const NodeMetricsCard = async (props: INodeMetricsCardProps) => {
-  const { nodeDescription, nodeId, nodeInfo } = props;
+  const { nodeInfo } = props;
 
   const epochRewards = await fetch(CURRENT_EPOCH_REWARDS, {
     headers: {
@@ -50,7 +48,7 @@ export const NodeMetricsCard = async (props: INodeMetricsCardProps) => {
           nodeInfo.total_stake,
           epochRewardsData.interval.stake_saturation_point,
         )
-      : "";
+      : "N/A";
 
   return (
     <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
@@ -58,24 +56,22 @@ export const NodeMetricsCard = async (props: INodeMetricsCardProps) => {
         row
         divider
         label="Node ID."
-        value={nodeId.toString()}
+        value={nodeInfo.node_id.toString()}
       />
-      {nodeDescription && (
-        <>
-          <ExplorerListItem
-            row
-            divider
-            label="Host"
-            value={nodeDescription.host_information.ip_address.toString()}
-          />
-          <ExplorerListItem
-            row
-            divider
-            label="Version"
-            value={nodeDescription.build_information.build_version}
-          />
-        </>
-      )}
+      <>
+        <ExplorerListItem
+          row
+          divider
+          label="Host"
+          value={nodeInfo.description.host_information.ip_address.toString()}
+        />
+        <ExplorerListItem
+          row
+          divider
+          label="Version"
+          value={nodeInfo.description.build_information.build_version}
+        />
+      </>
       {epochRewardsData && (
         <ExplorerListItem row label="Active set Prob." value={activeSetProb} />
       )}

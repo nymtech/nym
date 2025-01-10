@@ -5,8 +5,7 @@ import ExplorerListItem from "../list/ListItem";
 import StarRating from "../starRating/StarRating";
 
 interface IQualityIndicatorsCardProps {
-  nodeDescription: NodeDescription;
-  nodeInfo?: IObservatoryNode;
+  nodeInfo: IObservatoryNode;
 }
 
 type NodeDescriptionNotNull = NonNullable<NodeDescription>;
@@ -31,13 +30,9 @@ function getNodeRoles(
 }
 
 export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
-  const { nodeDescription, nodeInfo } = props;
+  const { nodeInfo } = props;
 
-  if (!nodeDescription) {
-    return null;
-  }
-
-  const nodeRoles = getNodeRoles(nodeDescription.declared_role);
+  const nodeRoles = getNodeRoles(nodeInfo.description.declared_role);
   const NodeRoles = nodeRoles.map((role) => (
     <Stack key={role} direction="row" gap={1}>
       <Chip key={role} label={role} size="small" />
@@ -45,19 +40,16 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
   ));
 
   function calculateQualityOfServiceStars(quality: number): number {
-    if (quality < 0.2) {
+    if (quality < 0.3) {
       return 1;
     }
-    if (quality < 0.4) {
+    if (quality < 0.5) {
       return 2;
     }
-    if (quality < 0.6) {
+    if (quality < 0.7) {
       return 3;
     }
-    if (quality < 0.7) {
-      return 4;
-    }
-    return 5;
+    return 4;
   }
   const qualityOfServiceStars = nodeInfo?.uptime
     ? calculateQualityOfServiceStars(nodeInfo?.uptime)
@@ -78,12 +70,14 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
           </Stack>
         }
       />
-      <ExplorerListItem
-        row
-        divider
-        label="Quality of service"
-        value={<StarRating value={qualityOfServiceStars} />}
-      />
+      {nodeIsMixNodeOnly && (
+        <ExplorerListItem
+          row
+          divider
+          label="Quality of service"
+          value={<StarRating value={qualityOfServiceStars} />}
+        />
+      )}
       {!nodeIsMixNodeOnly && (
         <ExplorerListItem
           row
@@ -97,7 +91,7 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
           row
           divider
           label="Probe score"
-          value={<StarRating value={5} />}
+          value={<StarRating value={4} />}
         />
       )}
     </ExplorerCard>

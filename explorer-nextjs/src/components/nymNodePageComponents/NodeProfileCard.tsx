@@ -1,9 +1,5 @@
 "use client";
-import type {
-  BondInformation,
-  IObservatoryNode,
-  NodeDescription,
-} from "@/app/api/types";
+import type { IObservatoryNode } from "@/app/api/types";
 import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
@@ -19,13 +15,11 @@ import { fee } from "../staking/schemas";
 import ConnectWallet from "../wallet/ConnectWallet";
 
 interface INodeProfileCardProps {
-  bondInfo: BondInformation;
-  nodeDescription: NodeDescription;
-  nodeInfo?: IObservatoryNode;
+  nodeInfo: IObservatoryNode;
 }
 
 export const NodeProfileCard = (props: INodeProfileCardProps) => {
-  const { bondInfo, nodeDescription, nodeInfo } = props;
+  const { nodeInfo } = props;
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
   const { nymClient } = useNymClient();
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
@@ -102,16 +96,16 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
       return;
     }
     setSelectedNodeForStaking({
-      nodeId: bondInfo.node_id,
-      identityKey: bondInfo.node.identity_key,
+      nodeId: nodeInfo.node_id,
+      identityKey: nodeInfo.identity_key,
     });
-  }, [isWalletConnected, bondInfo]);
+  }, [isWalletConnected, nodeInfo]);
 
   return (
     <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
       <Stack gap={1}>
         <Box display={"flex"} justifyContent={"flex-start"}>
-          <RandomAvatar name={bondInfo.node.identity_key} size={80} square />
+          <RandomAvatar name={nodeInfo.identity_key} size={80} square />
         </Box>
         <Typography
           variant="h3"
@@ -121,10 +115,10 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
         >
           {nodeInfo?.self_description.moniker || "Moniker"}
         </Typography>
-        {nodeDescription && (
+        {nodeInfo.description.auxiliary_details.location && (
           <CountryFlag
-            countryCode={nodeDescription.auxiliary_details.location}
-            countryName={nodeDescription.auxiliary_details.location}
+            countryCode={nodeInfo.description.auxiliary_details.location}
+            countryName={nodeInfo.description.auxiliary_details.location}
           />
         )}
         {nodeInfo && (

@@ -28,7 +28,8 @@ const Banner = ({ onClose }: { onClose: () => void }) => {
   const { copy } = useClipboard();
 
   return (
-    <Alert severity="info"
+    <Alert
+      severity="info"
       sx={{ mb: 3, fontSize: 'medium', width: '100%' }}
       action={
         <IconButton size="small" onClick={onClose}>
@@ -226,7 +227,8 @@ const DelegationsPage = () => {
       <Alert severity="warning" sx={{ mb: 3, fontSize: 'medium', width: '100%' }}>
         <Box>
           <Typography>
-          You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025.
+            You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of
+            2025.
           </Typography>
         </Box>
       </Alert>

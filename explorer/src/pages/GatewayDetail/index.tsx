@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, AlertTitle, Box, CircularProgress, Grid,Typography } from '@mui/material';
+import { Alert, AlertTitle, Box, CircularProgress, Grid, Typography } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import { GatewayBond } from '../../typeDefs/explorer-api';
 import { ColumnsType, DetailTable } from '../../components/DetailTable';
@@ -85,7 +85,8 @@ const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: Gat
       <Alert severity="warning" sx={{ mb: 3, fontSize: 'medium', width: '100%' }}>
         <Box>
           <Typography>
-          You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025.
+            You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of
+            2025.
           </Typography>
         </Box>
       </Alert>

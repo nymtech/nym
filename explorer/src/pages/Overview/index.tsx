@@ -24,18 +24,14 @@ export const PageOverview: FCWithChildren = () => {
     <Box component="main" sx={{ flexGrow: 1 }}>
       <Grid>
         <Grid item paddingBottom={3}>
-          <Typography fontWeight="inherit" fontSize="inherit">
-          You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025. #FB6E4E
-          </Typography>
           <Alert
-            severity="info"
+            severity="warning"
             sx={{ mb: 3, fontSize: 'medium', width: '100%' }}
           >
-            <AlertTitle> Mobile Delegations Beta</AlertTitle>
+            <AlertTitle> Explorer 2.0 is coming soon </AlertTitle>
             <Box>
               <Typography>
-                This is a beta release for mobile delegations If you have any feedback or feature suggestions contact us at
-                support@nymte.ch
+              You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025.
               </Typography>
             </Box>
           </Alert>

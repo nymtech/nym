@@ -52,7 +52,9 @@ impl Load {
 
 impl From<f64> for Load {
     fn from(value: f64) -> Self {
-        if value <= 0.1 {
+        if value == 0. || value.is_nan() || value.is_infinite() {
+            Self::Unknown
+        } else if value <= 0.1 {
             Self::Negligible
         } else if value <= 0.3 {
             Self::Low

@@ -8,6 +8,8 @@
 >
 > [Nym Whitepaper](https://nym.com/nym-whitepaper.pdf) §4
 
+TODO ADD NOTICE ABOUT THIS BEING JUST THE 5-HOP MIXNET MODE - dVPN 2-hop mode is different, add a link to blogpost / overview about the traffic flow for speedyMode here in big admonishment https://nymcom.vercel.app/blog/decentralized-vpns
+
 The Nym mixnet re-orders encrypted, indistinguishable [Sphinx](cryptography/sphinx) packets as they travel through the network.
 
 Traffic to send through the mixnet is broken up into uniformly-sized packets, encrypted in the Sphinx packet format according to the route the packet will take, and sent through the mixnet to be mixed among other real traffic and fake - but identical - cover traffic.
@@ -16,6 +18,7 @@ At each 'hop' (i.e. as a packet is forwarded from one node in the sequence to an
 
 Traffic always travels through the nodes of the mixnet like such:
 
+TODO replace with a flow diagram like others, with client -> websocket connection annotated -> create sphinx packets + send, nym-node(entrygw) unwrap layer + check MAC, forward to NN(mixnode), unwrap + check MAC + hold for $RANDOM_TIME etc etc
 ```mermaid
 ---
 config:
@@ -50,6 +53,7 @@ flowchart LR
     C <-->|Bytes| D
 ```
 
+TODO reword or remove
 From your Nym client, your traffic is sent as Sphinx packets to:
 * the gateway your client has registered with,
 * a mix node on layer 1 of the Mixnet,
@@ -58,7 +62,7 @@ From your Nym client, your traffic is sent as Sphinx packets to:
 * the recipient's gateway, which forwards it finally to...
 * the recipient's Nym client, which communicates with an application.
 
-As each node receives the packet, they are able to decrypt the packet, perform a validity check, and then pass the packet along (in the case of Mix Nodes, after a delay).
+As each node receives the packet, they are able to decrypt the packet, perform a validity check, and then pass the packet along (in the case of Nym Nodes running as a Mix Node, after a delay).
 
 > If the recipient's Nym client is offline at the time then the packets will be held by the Gateway their Nym client has registered with until they come online.
 

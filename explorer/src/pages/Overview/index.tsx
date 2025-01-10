@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Box, Grid, Link, Typography } from '@mui/material';
+import { Alert, AlertTitle, Box, Button, Grid, IconButton, Link, Typography } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
@@ -25,8 +25,20 @@ export const PageOverview: FCWithChildren = () => {
       <Grid>
         <Grid item paddingBottom={3}>
           <Typography fontWeight="inherit" fontSize="inherit">
-          You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025.
+          You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon, in the first quarter of 2025. #FB6E4E
           </Typography>
+          <Alert
+            severity="info"
+            sx={{ mb: 3, fontSize: 'medium', width: '100%' }}
+          >
+            <AlertTitle> Mobile Delegations Beta</AlertTitle>
+            <Box>
+              <Typography>
+                This is a beta release for mobile delegations If you have any feedback or feature suggestions contact us at
+                support@nymte.ch
+              </Typography>
+            </Box>
+          </Alert>
           <Title text="Overview" />
         </Grid>
         <Grid item>

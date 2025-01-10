@@ -184,8 +184,7 @@ function calculateWireguardPerformance(probeResult: LastProbeResult): number {
 export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
   const { nodeInfo } = props;
 
-  const [gatewayProbeResult, setGatewayProbeResult] =
-    useState<LastProbeResult>();
+  const [gatewayStatus, setGatewayStatus] = useState<GatewayStatus>();
 
   const nodeRoles = getNodeRoles(nodeInfo.description.declared_role);
   const NodeRoles = nodeRoles.map((role) => (
@@ -196,7 +195,9 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
 
   const qualityOfServiceStars = nodeInfo?.uptime
     ? calculateQualityOfServiceStars(nodeInfo?.uptime)
-    : 1;
+    : gatewayStatus
+      ? calculateQualityOfServiceStars(gatewayStatus.performance)
+      : 1;
 
   const nodeIsMixNodeOnly =
     NodeRoles.length === 1 && nodeRoles[0] === "Mix Node";
@@ -214,7 +215,7 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
             `https://mainnet-node-status-api.nymtech.cc/v2/gateways/${nodeInfo.identity_key}`,
           );
           const data: GatewayStatus = await response.json();
-          setGatewayProbeResult(data.last_probe_result);
+          setGatewayStatus(data);
         } catch (error) {
           console.error("Error fetching data:", error);
         }
@@ -224,12 +225,12 @@ export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {
     }
   }, [nodeRoles, nodeInfo.identity_key]);
 
-  const configScoreStars = gatewayProbeResult
-    ? calculateConfigScoreStars(gatewayProbeResult)
+  const configScoreStars = gatewayStatus
+    ? calculateConfigScoreStars(gatewayStatus.last_probe_result)
     : 0;
 
-  const wireguardPerformanceStars = gatewayProbeResult
-    ? calculateWireguardPerformance(gatewayProbeResult)
+  const wireguardPerformanceStars = gatewayStatus
+    ? calculateWireguardPerformance(gatewayStatus.last_probe_result)
     : 0;
 
   return (

@@ -8,6 +8,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
+cfg-if = { workspace = true }
 futures = { workspace = true }
 log = { workspace = true }
 thiserror = { workspace = true }

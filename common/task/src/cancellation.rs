@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::{TaskClient, TaskManager};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use std::future::Future;
@@ -13,8 +14,7 @@ use tokio_util::sync::{CancellationToken, DropGuard};
 use tokio_util::task::TaskTracker;
 use tracing::{debug, info, trace};
 
-use crate::{TaskClient, TaskManager};
-#[cfg(not(target_arch = "wasm32"))]
+#[cfg(unix)]
 use tokio::signal::unix::{signal, SignalKind};
 
 pub const DEFAULT_MAX_SHUTDOWN_DURATION: Duration = Duration::from_secs(5);
@@ -239,9 +239,15 @@ impl ShutdownManager {
 
     #[cfg(not(target_arch = "wasm32"))]
     pub fn with_default_shutdown_signals(self) -> std::io::Result<Self> {
-        self.with_interrupt_signal()?
-            .with_terminate_signal()?
-            .with_quit_signal()
+        cfg_if::cfg_if! {
+            if #[cfg(unix)] {
+                self.with_interrupt_signal()
+                    .with_terminate_signal()?
+                    .with_quit_signal()
+            } else {
+                Ok(self.with_interrupt_signal())
+            }
+        }
     }
 
     #[must_use]
@@ -260,7 +266,7 @@ impl ShutdownManager {
         self
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(unix)]
     pub fn with_shutdown_signal(self, signal_kind: SignalKind) -> std::io::Result<Self> {
         let mut sig = signal(signal_kind)?;
         Ok(self.with_shutdown(async move {
@@ -269,16 +275,18 @@ impl ShutdownManager {
     }
 
     #[cfg(not(target_arch = "wasm32"))]
-    pub fn with_interrupt_signal(self) -> std::io::Result<Self> {
-        self.with_shutdown_signal(SignalKind::interrupt())
+    pub fn with_interrupt_signal(self) -> Self {
+        self.with_shutdown(async move {
+            let _ = tokio::signal::ctrl_c().await;
+        })
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(unix)]
     pub fn with_terminate_signal(self) -> std::io::Result<Self> {
         self.with_shutdown_signal(SignalKind::terminate())
     }
 
-    #[cfg(not(target_arch = "wasm32"))]
+    #[cfg(unix)]
     pub fn with_quit_signal(self) -> std::io::Result<Self> {
         self.with_shutdown_signal(SignalKind::quit())
     }

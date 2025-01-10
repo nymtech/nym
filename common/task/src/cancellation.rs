@@ -23,8 +23,6 @@ pub fn token_name(name: &Option<String>) -> String {
     name.clone().unwrap_or_else(|| "unknown".to_string())
 }
 
-// pending name
-//
 // a wrapper around tokio's CancellationToken that adds optional `name` information to more easily
 // track down sources of shutdown
 #[derive(Debug, Default)]
@@ -104,12 +102,15 @@ impl ShutdownToken {
         child
     }
 
-    // expose the method with the old name for easier migration
+    // exposed method with the old name for easier migration
+    // it will eventually be removed so please try to use `.clone_with_suffix` instead
     #[must_use]
     pub fn fork<S: Into<String>>(&self, child_suffix: S) -> Self {
         self.clone_with_suffix(child_suffix)
     }
 
+    // exposed method with the old name for easier migration
+    // it will eventually be removed so please try to use `.clone().named(name)` instead
     #[must_use]
     pub fn fork_named<S: Into<String>>(&self, name: S) -> Self {
         self.clone().named(name)
@@ -202,9 +203,9 @@ impl Deref for ShutdownManager {
 }
 
 impl ShutdownManager {
-    pub fn new(root_token: impl Into<String>) -> Self {
+    pub fn new(root_token_name: impl Into<String>) -> Self {
         let manager = ShutdownManager {
-            root_token: ShutdownToken::new(root_token),
+            root_token: ShutdownToken::new(root_token_name),
             legacy_task_manager: None,
             shutdown_signals: Default::default(),
             tracker: Default::default(),

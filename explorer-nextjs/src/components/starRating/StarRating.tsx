@@ -4,7 +4,7 @@ import { Rating } from "@mui/material";
 const StarRating = ({
   value,
   defaultValue,
-  max = 5,
+  max = 4,
   size = "medium",
 }: {
   value: number;

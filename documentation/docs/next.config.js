@@ -100,7 +100,7 @@ const config = {
       },
       {
         source: "/docs/nodes/overview.html ",
-        destination: "/docs/network/architecture/mixnet/nodes",
+        destination: "/docs/network/architecture/mixnet#nym-nodes",
         permanent: true,
         basePath: false,
       },
@@ -132,21 +132,19 @@ const config = {
       },
       {
         source: "/docs/nyx/smart-contracts.html",
-        destination: "/docs/network/architecture/nyx/smart-contracts",
+        destination: "/docs/network/architecture/nyx#smart-contracts",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/nyx/mixnet-contract.html",
-        destination:
-          "/docs/network/architecture/nyx/smart-contracts/mixnet-contract",
+        destination: "/docs/network/architecture/nyx#mixnet-contract",
         permanent: true,
         basePath: false,
       },
       {
         source: "/docs/nyx/vesting-contract.html",
-        destination:
-          "/docs/network/architecture/nyx/smart-contracts/vesting-contract",
+        destination: "/docs/network/architecture/nyx#vesting-contract",
         permanent: true,
         basePath: false,
       },
@@ -631,7 +629,7 @@ const config = {
       },
       {
         source: "/docs/network/architecture/nyx/smart-contracts/ecash",
-        destination: "/docs/network/architecture/nyx/smart-contracts/zknym",
+        destination: "/docs/network/architecture/nyx#zk-nym-contract",
         permanent: true,
         basePath: false,
       },

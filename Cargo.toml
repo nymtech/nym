@@ -386,13 +386,11 @@ cw-controllers = { version = "=1.1.0" }
 # cosmrs-related
 bip32 = { version = "0.5.2", default-features = false }
 
-# temporarily using a fork again (yay.) because we need staking and slashing support (which are already on main but not released)
-# plus response message parsing (which is, as of the time of writing this message, waiting to get merged)
-#cosmrs = { path = "../cosmos-rust-fork/cosmos-rust/cosmrs" }
-cosmrs = { git = "https://github.com/cosmos/cosmos-rust", rev = "4b1332e6d8258ac845cef71589c8d362a669675a" } # unfortuntely we need a fork by yours truly to get the staking support
-tendermint = "0.37.0"                                                                                        # same version as used by cosmrs
-tendermint-rpc = "0.37.0"                                                                                    # same version as used by cosmrs
-prost = { version = "0.12", default-features = false }
+
+cosmrs = { version = "0.21.0" }
+tendermint = "0.40.0"
+tendermint-rpc = "0.40.0"
+prost = { version = "0.13", default-features = false }
 
 # wasm-related dependencies
 gloo-utils = "0.2.0"

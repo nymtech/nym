@@ -473,7 +473,7 @@ dependencies = [
  "axum-macros",
  "bytes",
  "futures-util",
- "http 1.2.0",
+ "http 1.1.0",
  "http-body 1.0.0",
  "http-body-util",
  "hyper 1.4.1",
@@ -534,7 +534,7 @@ dependencies = [
  "async-trait",
  "bytes",
  "futures-util",
- "http 1.2.0",
+ "http 1.1.0",
  "http-body 1.0.0",
  "http-body-util",
  "mime",
@@ -557,7 +557,7 @@ dependencies = [
  "bytes",
  "futures-util",
  "headers",
- "http 1.2.0",
+ "http 1.1.0",
  "http-body 1.0.0",
  "http-body-util",
  "mime",
@@ -592,7 +592,7 @@ dependencies = [
  "axum 0.7.7",
  "bytes",
  "cookie",
- "http 1.2.0",
+ "http 1.1.0",
  "http-body-util",
  "hyper 1.4.1",
  "hyper-util",
@@ -1100,9 +1100,9 @@ dependencies = [
 
 [[package]]
 name = "clap_complete"
-version = "4.5.42"
+version = "4.5.40"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "33a7e468e750fa4b6be660e8b5651ad47372e8fb114030b594c2d75d48c5ffd0"
+checksum = "ac2e663e3e3bed2d32d065a8404024dad306e699a04263ec59919529f803aee9"
 dependencies = [
  "clap",
 ]
@@ -1309,12 +1309,12 @@ dependencies = [
 
 [[package]]
 name = "cosmos-sdk-proto"
-version = "0.22.0-pre"
-source = "git+https://github.com/cosmos/cosmos-rust?rev=4b1332e6d8258ac845cef71589c8d362a669675a#4b1332e6d8258ac845cef71589c8d362a669675a"
+version = "0.26.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "462e1f6a8e005acc8835d32d60cbd7973ed65ea2a8d8473830e675f050956427"
 dependencies = [
- "prost 0.12.6",
- "prost-types 0.12.6",
- "tendermint-proto 0.37.0",
+ "prost 0.13.4",
+ "tendermint-proto 0.40.1",
 ]
 
 [[package]]
@@ -1339,11 +1339,12 @@ dependencies = [
 
 [[package]]
 name = "cosmrs"
-version = "0.17.0-pre"
-source = "git+https://github.com/cosmos/cosmos-rust?rev=4b1332e6d8258ac845cef71589c8d362a669675a#4b1332e6d8258ac845cef71589c8d362a669675a"
+version = "0.21.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "210fbe6f98594963b46cc980f126a9ede5db9a3848ca65b71303bebdb01afcd9"
 dependencies = [
  "bip32",
- "cosmos-sdk-proto 0.22.0-pre",
+ "cosmos-sdk-proto 0.26.1",
  "ecdsa",
  "eyre",
  "k256",
@@ -1352,7 +1353,7 @@ dependencies = [
  "serde_json",
  "signature",
  "subtle-encoding",
- "tendermint 0.37.0",
+ "tendermint 0.40.1",
  "tendermint-rpc",
  "thiserror 1.0.69",
 ]
@@ -3036,7 +3037,7 @@ dependencies = [
  "base64 0.21.7",
  "bytes",
  "headers-core",
- "http 1.2.0",
+ "http 1.1.0",
  "httpdate",
  "mime",
  "sha1",
@@ -3048,7 +3049,7 @@ version = "0.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "54b4a22553d4242c49fddb9ba998a99962b5cc6f22cb5a3482bec22522403ce4"
 dependencies = [
- "http 1.2.0",
+ "http 1.1.0",
 ]
 
 [[package]]
@@ -3168,9 +3169,9 @@ dependencies = [
 
 [[package]]
 name = "http"
-version = "1.2.0"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f16ca2af56261c99fba8bac40a10251ce8188205a4c448fbb745a2e4daa76fea"
+checksum = "21b9ddb458710bc376481b842f5da65cdf31522de232c1ca8146abce2a358258"
 dependencies = [
  "bytes",
  "fnv",
@@ -3195,7 +3196,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1cac85db508abc24a2e48553ba12a996e87244a0395ce011e62b37158745d643"
 dependencies = [
  "bytes",
- "http 1.2.0",
+ "http 1.1.0",
 ]
 
 [[package]]
@@ -3206,7 +3207,7 @@ checksum = "793429d76616a256bcb62c2a2ec2bed781c8307e797e2598c50010f2bee2544f"
 dependencies = [
  "bytes",
  "futures-util",
- "http 1.2.0",
+ "http 1.1.0",
  "http-body 1.0.0",
  "pin-project-lite",
 ]
@@ -3303,7 +3304,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-util",
- "http 1.2.0",
+ "http 1.1.0",
  "http-body 1.0.0",
  "httparse",
  "httpdate",
@@ -3335,7 +3336,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a0bea761b46ae2b24eb4aef630d8d1c398157b6fc29e6350ecf090a0b70c952c"
 dependencies = [
  "futures-util",
- "http 1.2.0",
+ "http 1.1.0",
  "hyper 1.4.1",
  "hyper-util",
  "rustls 0.22.4",
@@ -3366,7 +3367,7 @@ dependencies = [
  "bytes",
  "futures-channel",
  "futures-util",
- "http 1.2.0",
+ "http 1.1.0",
  "http-body 1.0.0",
  "hyper 1.4.1",
  "pin-project-lite",
@@ -4041,9 +4042,9 @@ checksum = "9374ef4228402d4b7e403e5838cb880d9ee663314b0a900d5a6aabf0c213552e"
 
 [[package]]
 name = "log"
-version = "0.4.25"
+version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "04cbf5b083de1c7e0222a7a51dbfdba1cbe1c6ab0b15e29fff3f6c077fd9cd9f"
+checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
 name = "loom"
@@ -4709,7 +4710,7 @@ name = "nym-api-requests"
 version = "0.1.0"
 dependencies = [
  "bs58",
- "cosmrs 0.17.0-pre",
+ "cosmrs 0.21.0",
  "cosmwasm-std",
  "ecdsa",
  "getset",
@@ -4728,7 +4729,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2 0.10.8",
- "tendermint 0.37.0",
+ "tendermint 0.40.1",
  "thiserror 1.0.69",
  "time",
  "ts-rs",
@@ -4856,7 +4857,7 @@ name = "nym-bity-integration"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cosmrs 0.17.0-pre",
+ "cosmrs 0.21.0",
  "eyre",
  "k256",
  "nym-cli-commands",
@@ -4903,7 +4904,7 @@ dependencies = [
  "clap",
  "colored",
  "comfy-table",
- "cosmrs 0.17.0-pre",
+ "cosmrs 0.21.0",
  "cosmwasm-std",
  "csv",
  "cw-utils",
@@ -5069,7 +5070,7 @@ name = "nym-client-core-gateways-storage"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "cosmrs 0.17.0-pre",
+ "cosmrs 0.21.0",
  "log",
  "nym-crypto",
  "nym-gateway-requests",
@@ -5389,7 +5390,7 @@ version = "0.1.0"
 dependencies = [
  "bincode",
  "bls12_381",
- "cosmrs 0.17.0-pre",
+ "cosmrs 0.21.0",
  "log",
  "nym-api-requests",
  "nym-credentials-interface",
@@ -5741,7 +5742,7 @@ name = "nym-http-api-client"
 version = "0.1.0"
 dependencies = [
  "async-trait",
- "http 1.2.0",
+ "http 1.1.0",
  "nym-bin-common",
  "reqwest 0.12.4",
  "serde",
@@ -6362,7 +6363,7 @@ dependencies = [
  "dotenvy",
  "futures",
  "hex",
- "http 1.2.0",
+ "http 1.1.0",
  "httpcodec",
  "log",
  "nym-bandwidth-controller",
@@ -6805,7 +6806,7 @@ name = "nym-types"
 version = "1.0.0"
 dependencies = [
  "base64 0.22.1",
- "cosmrs 0.17.0-pre",
+ "cosmrs 0.21.0",
  "cosmwasm-std",
  "eyre",
  "hmac",
@@ -6839,7 +6840,7 @@ dependencies = [
  "bip32",
  "bip39",
  "colored",
- "cosmrs 0.17.0-pre",
+ "cosmrs 0.21.0",
  "cosmwasm-std",
  "cw-controllers",
  "cw-utils",
@@ -6864,7 +6865,7 @@ dependencies = [
  "nym-network-defaults",
  "nym-serde-helpers",
  "nym-vesting-contract-common",
- "prost 0.12.6",
+ "prost 0.13.4",
  "reqwest 0.12.4",
  "serde",
  "serde_json",
@@ -7112,14 +7113,14 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "const_format",
- "cosmrs 0.17.0-pre",
+ "cosmrs 0.21.0",
  "eyre",
  "futures",
  "humantime 2.1.0",
  "serde",
  "sha2 0.10.8",
  "sqlx",
- "tendermint 0.37.0",
+ "tendermint 0.40.1",
  "tendermint-rpc",
  "thiserror 1.0.69",
  "time",
@@ -7555,18 +7556,18 @@ dependencies = [
 
 [[package]]
 name = "pin-project"
-version = "1.1.8"
+version = "1.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1e2ec53ad785f4d35dac0adea7f7dc6f1bb277ad84a680c7afefeae05d1f5916"
+checksum = "be57f64e946e500c8ee36ef6331845d40a93055567ec57e8fae13efd33759b95"
 dependencies = [
  "pin-project-internal",
 ]
 
 [[package]]
 name = "pin-project-internal"
-version = "1.1.8"
+version = "1.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d56a66c0c55993aa927429d0f8a0abfd74f084e4d9c192cffed01e418d83eefb"
+checksum = "3c0f5fad0874fc7abcd4d750e76917eaebbecaa2c20bde22e1dbeeba8beb758c"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -7575,9 +7576,9 @@ dependencies = [
 
 [[package]]
 name = "pin-project-lite"
-version = "0.2.16"
+version = "0.2.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3b3cff922bd51709b605d9ead9aa71031d81447142d828eb4a6eba76fe619f9b"
+checksum = "915a1e146535de9163f3987b8944ed8cf49a18bb0056bcebcdcece385cece4ff"
 
 [[package]]
 name = "pin-utils"
@@ -7838,6 +7839,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "prost"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c0fef6c4230e4ccf618a35c59d7ede15dea37de8427500f50aff708806e42ec"
+dependencies = [
+ "bytes",
+ "prost-derive 0.13.4",
+]
+
+[[package]]
 name = "prost-derive"
 version = "0.11.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7858,6 +7869,19 @@ checksum = "81bddcdb20abf9501610992b6759a4c888aef7d1a7247ef75e2404275ac24af1"
 dependencies = [
  "anyhow",
  "itertools 0.12.1",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.90",
+]
+
+[[package]]
+name = "prost-derive"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "157c5a9d7ea5c2ed2d9fb8f495b64759f7816c7eaea54ba3978f0d63000162e3"
+dependencies = [
+ "anyhow",
+ "itertools 0.13.0",
  "proc-macro2",
  "quote",
  "syn 2.0.90",
@@ -8167,7 +8191,7 @@ dependencies = [
  "bytes",
  "futures-core",
  "futures-util",
- "http 1.2.0",
+ "http 1.1.0",
  "http-body 1.0.0",
  "http-body-util",
  "hyper 1.4.1",
@@ -9747,9 +9771,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint"
-version = "0.37.0"
+version = "0.40.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "954496fbc9716eb4446cdd6d00c071a3e2f22578d62aa03b40c7e5b4fda3ed42"
+checksum = "d9703e34d940c2a293804752555107f8dbe2b84ec4c6dd5203831235868105d2"
 dependencies = [
  "bytes",
  "digest 0.10.7",
@@ -9760,8 +9784,7 @@ dependencies = [
  "k256",
  "num-traits",
  "once_cell",
- "prost 0.12.6",
- "prost-types 0.12.6",
+ "prost 0.13.4",
  "ripemd",
  "serde",
  "serde_bytes",
@@ -9771,21 +9794,21 @@ dependencies = [
  "signature",
  "subtle 2.5.0",
  "subtle-encoding",
- "tendermint-proto 0.37.0",
+ "tendermint-proto 0.40.1",
  "time",
  "zeroize",
 ]
 
 [[package]]
 name = "tendermint-config"
-version = "0.37.0"
+version = "0.40.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f84b11b57d20ee4492a1452faff85f5c520adc36ca9fe5e701066935255bb89f"
+checksum = "89cc3ea9a39b7ee34eefcff771cc067ecaa0c988c1c5ac08defd878471a06f76"
 dependencies = [
  "flex-error",
  "serde",
  "serde_json",
- "tendermint 0.37.0",
+ "tendermint 0.40.1",
  "toml 0.8.19",
  "url",
 ]
@@ -9810,14 +9833,13 @@ dependencies = [
 
 [[package]]
 name = "tendermint-proto"
-version = "0.37.0"
+version = "0.40.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dc87024548c7f3da479885201e3da20ef29e85a3b13d04606b380ac4c7120d87"
+checksum = "9ae9e1705aa0fa5ecb2c6aa7fb78c2313c4a31158ea5f02048bf318f849352eb"
 dependencies = [
  "bytes",
  "flex-error",
- "prost 0.12.6",
- "prost-types 0.12.6",
+ "prost 0.13.4",
  "serde",
  "serde_bytes",
  "subtle-encoding",
@@ -9826,9 +9848,9 @@ dependencies = [
 
 [[package]]
 name = "tendermint-rpc"
-version = "0.37.0"
+version = "0.40.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dfdc2281e271277fda184d96d874a6fe59f569b130b634289257baacfc95aa85"
+checksum = "835a52aa504c63ec05519e31348d3f4ba2fe79493c588e2cad5323d5e81b161a"
 dependencies = [
  "async-trait",
  "async-tungstenite",
@@ -9846,9 +9868,9 @@ dependencies = [
  "serde_json",
  "subtle 2.5.0",
  "subtle-encoding",
- "tendermint 0.37.0",
+ "tendermint 0.40.1",
  "tendermint-config",
- "tendermint-proto 0.37.0",
+ "tendermint-proto 0.40.1",
  "thiserror 1.0.69",
  "time",
  "tokio",
@@ -10341,7 +10363,7 @@ dependencies = [
  "bitflags 2.5.0",
  "bytes",
  "futures-util",
- "http 1.2.0",
+ "http 1.1.0",
  "http-body 1.0.0",
  "http-body-util",
  "http-range-header",
@@ -10607,7 +10629,7 @@ dependencies = [
  "byteorder",
  "bytes",
  "data-encoding",
- "http 1.2.0",
+ "http 1.1.0",
  "httparse",
  "log",
  "rand",

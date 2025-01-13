@@ -4,7 +4,7 @@
 use human_repr::HumanCount;
 use human_repr::HumanThroughput;
 use nym_node_metrics::NymNodeMetrics;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::time::Duration;
 use time::OffsetDateTime;
 use tokio::task::JoinHandle;
@@ -49,14 +49,14 @@ pub(crate) struct ConsoleLogger {
     logging_delay: Duration,
     at_last_update: AtLastUpdate,
     metrics: NymNodeMetrics,
-    shutdown: TaskClient,
+    shutdown: ShutdownToken,
 }
 
 impl ConsoleLogger {
     pub(crate) fn new(
         logging_delay: Duration,
         metrics: NymNodeMetrics,
-        shutdown: TaskClient,
+        shutdown: ShutdownToken,
     ) -> Self {
         ConsoleLogger {
             logging_delay,
@@ -126,11 +126,12 @@ impl ConsoleLogger {
     async fn run(&mut self) {
         trace!("Starting ConsoleLogger");
         let mut interval = interval_at(Instant::now() + self.logging_delay, self.logging_delay);
-        while !self.shutdown.is_shutdown() {
+        loop {
             tokio::select! {
                 biased;
-               _ = self.shutdown.recv() => {
+               _ = self.shutdown.cancelled() => {
                     trace!("ConsoleLogger: Received shutdown");
+                    break
                 }
                 _ = interval.tick() => self.log_running_stats().await,
             };

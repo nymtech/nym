@@ -8,7 +8,7 @@ use crate::models::VerlocNodeResult;
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
 use nym_crypto::asymmetric::identity;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use nym_validator_client::models::NymNodeDescription;
 use nym_validator_client::NymApiClient;
 use rand::prelude::SliceRandom;
@@ -23,7 +23,7 @@ pub struct VerlocMeasurer {
     config: Config,
     packet_sender: Arc<PacketSender>,
     packet_listener: Arc<PacketListener>,
-    shutdown_listener: TaskClient,
+    shutdown_token: ShutdownToken,
     state: SharedVerlocStats,
 }
 
@@ -31,7 +31,7 @@ impl VerlocMeasurer {
     pub fn new(
         config: Config,
         identity: Arc<identity::KeyPair>,
-        shutdown_listener: TaskClient,
+        shutdown_token: ShutdownToken,
     ) -> Self {
         VerlocMeasurer {
             packet_sender: Arc::new(PacketSender::new(
@@ -40,14 +40,14 @@ impl VerlocMeasurer {
                 config.packet_timeout,
                 config.connection_timeout,
                 config.delay_between_packets,
-                shutdown_listener.clone().named("VerlocPacketSender"),
+                shutdown_token.clone_with_suffix("packet_sender"),
             )),
             packet_listener: Arc::new(PacketListener::new(
                 config.listening_address,
                 Arc::clone(&identity),
-                shutdown_listener.clone().named("VerlocPacketListener"),
+                shutdown_token.clone_with_suffix("packet_listener"),
             )),
-            shutdown_listener,
+            shutdown_token,
             config,
             state: SharedVerlocStats::default(),
         }
@@ -68,9 +68,6 @@ impl VerlocMeasurer {
             debug!("there are no nodes to measure");
             return MeasurementOutcome::Done;
         }
-
-        let mut shutdown_listener = self.shutdown_listener.clone().named("VerlocMeasurement");
-        shutdown_listener.disarm();
 
         for chunk in nodes_to_test.chunks(self.config.tested_nodes_batch_size) {
             let mut chunk_results = Vec::with_capacity(chunk.len());
@@ -95,7 +92,7 @@ impl VerlocMeasurer {
                 .collect::<FuturesUnordered<_>>();
 
             // exhaust the results
-            while !shutdown_listener.is_shutdown() {
+            while !self.shutdown_token.is_cancelled() {
                 tokio::select! {
                     measurement_result = measurement_chunk.next() => {
                         let Some(result) = measurement_result else {
@@ -120,7 +117,7 @@ impl VerlocMeasurer {
                         };
                         chunk_results.push(VerlocNodeResult::new(identity, measurement_result));
                     },
-                    _ = shutdown_listener.recv() => {
+                    _ = self.shutdown_token.cancelled() => {
                         trace!("Shutdown received while measuring");
                         return MeasurementOutcome::Shutdown;
                     }
@@ -155,7 +152,7 @@ impl VerlocMeasurer {
     pub async fn run(&mut self) {
         self.start_listening();
 
-        while !self.shutdown_listener.is_shutdown() {
+        while !self.shutdown_token.is_cancelled() {
             info!("Starting verloc measurements");
             // TODO: should we also measure gateways?
 
@@ -209,7 +206,7 @@ impl VerlocMeasurer {
 
             tokio::select! {
                 _ = sleep(self.config.testing_interval) => {},
-                _ = self.shutdown_listener.recv() => {
+                _ = self.shutdown_token.cancelled() => {
                     trace!("Shutdown received while sleeping");
                 }
             }

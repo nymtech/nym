@@ -6659,10 +6659,13 @@ dependencies = [
 name = "nym-task"
 version = "0.1.0"
 dependencies = [
+ "cfg-if",
  "futures",
  "log",
  "thiserror",
  "tokio",
+ "tokio-util",
+ "tracing",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasmtimer",

@@ -175,12 +175,10 @@ impl NymNodeRouter {
                 source,
             })?;
 
-        let axum_server = axum::serve(
+        Ok(axum::serve(
             listener,
             self.inner
                 .into_make_service_with_connect_info::<SocketAddr>(),
-        );
-
-        Ok(NymNodeHttpServer::new(axum_server))
+        ))
     }
 }

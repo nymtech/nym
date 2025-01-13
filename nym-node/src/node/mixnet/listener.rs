@@ -2,14 +2,14 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::node::mixnet::SharedData;
-use nym_task::TaskClient;
+use nym_task::ShutdownToken;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
 use tracing::{error, info, trace};
 
 pub(crate) struct Listener {
     bind_address: SocketAddr,
-    shutdown: TaskClient,
+    shutdown: ShutdownToken,
     shared_data: SharedData,
 }
 
@@ -17,7 +17,7 @@ impl Listener {
     pub(crate) fn new(bind_address: SocketAddr, shared_data: SharedData) -> Self {
         Listener {
             bind_address,
-            shutdown: shared_data.task_client.fork("socket-listener"),
+            shutdown: shared_data.shutdown.clone_with_suffix("socket-listener"),
             shared_data,
         }
     }
@@ -29,19 +29,15 @@ impl Listener {
             Ok(listener) => listener,
             Err(err) => {
                 error!("Failed to bind to {}: {err}. Are you sure nothing else is running on the specified port and your user has sufficient permission to bind to the requested address?", self.bind_address);
-
-                // that's a bit gnarly, but we need to make sure we trigger shutdown
-                let mut shutdown_bomb = self.shutdown.fork("shutdown-bomb");
-                shutdown_bomb.rearm();
-                drop(shutdown_bomb);
+                self.shutdown.cancel();
                 return;
             }
         };
 
-        while !self.shutdown.is_shutdown() {
+        loop {
             tokio::select! {
                 biased;
-                _ = self.shutdown.recv() => {
+                _ = self.shutdown.cancelled() => {
                     trace!("mixnet listener: received shutdown");
                 }
                 connection = tcp_listener.accept() => {

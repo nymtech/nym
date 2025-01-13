@@ -1,8 +1,8 @@
-import type NymNode from "@/app/api/types";
-import { NYM_NODES } from "@/app/api/urls";
+import type { IObservatoryNode } from "@/app/api/types";
+import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
 
-const getNymNodes = async (): Promise<NymNode[]> => {
-  const response = await fetch(`${NYM_NODES}`, {
+const getNymNodes = async (): Promise<IObservatoryNode[]> => {
+  const response = await fetch(`${DATA_OBSERVATORY_NODES_URL}`, {
     next: {
       revalidate: 900,
     },

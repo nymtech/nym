@@ -117,7 +117,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setSelectedNodeForStaking({
         nodeId: node.nodeId,
-        identityKey: node.bondInformation.node.identity_key,
+        identityKey: node.identity_key,
       });
     },
     [isWalletConnected],
@@ -133,9 +133,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Cell: ({ row }) => (
           <Stack spacing={1}>
             <Typography variant="body4">{row.original.nodeId}</Typography>
-            <Typography variant="body5">
-              {row.original.bondInformation.node.identity_key}
-            </Typography>
+            <Typography variant="body5">{row.original.identity_key}</Typography>
           </Stack>
         ),
       },
@@ -153,16 +151,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         accessorKey: "location.country_name",
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
-          row.original.location?.two_letter_iso_country_code ? (
-            <Tooltip title={row.original.location.country_name}>
+          row.original.countryCode && row.original.countryName ? (
+            <Tooltip title={row.original.countryName}>
               <Box>
                 <CountryFlag
-                  countryCode={
-                    row.original.location.two_letter_iso_country_code
-                  }
-                  countryName={
-                    row.original.location.two_letter_iso_country_code
-                  }
+                  countryCode={row.original.countryCode || ""}
+                  countryName={row.original.countryCode || ""}
                 />
               </Box>
             </Tooltip>
@@ -214,9 +208,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         accessorKey: "Favorite",
         Header: <ColumnHeading>Favorite</ColumnHeading>,
         sortingFn: "Favorite",
-        Cell: ({ row }) => (
-          <Favorite address={row.original.bondInformation.owner} />
-        ),
+        Cell: ({ row }) => <Favorite address={row.original.owner} />,
       },
     ],
     [isWalletConnected, handleOnSelectStake],

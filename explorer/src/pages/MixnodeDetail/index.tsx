@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Alert, AlertTitle, Box, CircularProgress, Grid, Typography } from '@mui/material';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 import { useParams } from 'react-router-dom';
 import { ColumnsType, DetailTable } from '../../components/DetailTable';
 import { BondBreakdownTable } from '../../components/MixNodes/BondBreakdown';
@@ -13,7 +14,6 @@ import { MixNodeDetailSection } from '../../components/MixNodes/DetailSection';
 import { MixnodeContextProvider, useMixnodeContext } from '../../context/mixnode';
 import { Title } from '../../components/Title';
 import { useIsMobile } from '../../hooks/useIsMobile';
-import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 const columns: ColumnsType[] = [
   {

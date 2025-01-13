@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { Stack, Card, Grid, Box, Button } from '@mui/material';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
@@ -26,7 +27,6 @@ import { splice } from '@src/utils';
 import { useGetMixNodeStatusColor, useIsMobile } from '@src/hooks';
 import { useWalletContext } from '@src/context/wallet';
 import { DelegationsProvider } from '@src/context/delegations';
-import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 export const PageMixnodes: FCWithChildren = () => {
   const { mixnodes, fetchMixnodes } = useMainContext();

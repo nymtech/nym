@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Box, Card, Grid, Stack } from '@mui/material';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 import { useTheme } from '@mui/material/styles';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
@@ -19,7 +20,6 @@ import { NYM_BIG_DIPPER } from '../../api/constants';
 import { splice } from '../../utils';
 import { VersionDisplaySelector, VersionSelectOptions } from '../../components/Gateways/VersionDisplaySelector';
 import StyledLink from '../../components/StyledLink';
-import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 export const PageGateways: FCWithChildren = () => {
   const { gateways } = useMainContext();

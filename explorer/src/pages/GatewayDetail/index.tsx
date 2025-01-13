@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Alert, AlertTitle, Box, CircularProgress, Grid } from '@mui/material';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 import { useParams } from 'react-router-dom';
 import { GatewayBond } from '../../typeDefs/explorer-api';
 import { ColumnsType, DetailTable } from '../../components/DetailTable';
@@ -11,7 +12,6 @@ import { UptimeChart } from '../../components/UptimeChart';
 import { GatewayContextProvider, useGatewayContext } from '../../context/gateway';
 import { useMainContext } from '../../context/main';
 import { Title } from '../../components/Title';
-import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 const columns: ColumnsType[] = [
   {

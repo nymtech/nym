@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Alert, Box, CircularProgress, Grid, SelectChangeEvent, Typography } from '@mui/material';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { ContentCard } from '../../components/ContentCard';
 import { CustomColumnHeading } from '../../components/CustomColumnHeading';
@@ -9,7 +10,6 @@ import { UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { WorldMap } from '../../components/WorldMap';
 import { useMainContext } from '../../context/main';
 import { CountryDataRowType, countryDataToGridRow } from '../../utils';
-import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 export const PageMixnodesMap: FCWithChildren = () => {
   const { countryData } = useMainContext();

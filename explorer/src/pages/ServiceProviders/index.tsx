@@ -1,22 +1,12 @@
 import React from 'react';
-import {
-  Box,
-  Button,
-  Card,
-  FormControl,
-  Grid,
-  ListItem,
-  Menu,
-  SelectChangeEvent,
-  Typography,
-} from '@mui/material';
+import { Box, Button, Card, FormControl, Grid, ListItem, Menu, SelectChangeEvent, Typography } from '@mui/material';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
 import { TableToolbar } from '../../components/TableToolbar';
 import { Title } from '../../components/Title';
 import { UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { useMainContext } from '../../context/main';
 import { CustomColumnHeading } from '../../components/CustomColumnHeading';
-import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 const columns: GridColDef[] = [
   {

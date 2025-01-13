@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Box, Grid, Link, Typography } from '@mui/material';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
@@ -15,7 +16,6 @@ import { Title } from '../../components/Title';
 import { ContentCard } from '../../components/ContentCard';
 import { StatsCard } from '../../components/StatsCard';
 import { Icons } from '../../components/Icons';
-import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 export const PageOverview: FCWithChildren = () => {
   const theme = useTheme();

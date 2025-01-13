@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { Alert, AlertTitle, Box, Button, Card, Chip, IconButton, Tooltip, Typography } from '@mui/material';
 import { Link, useNavigate } from 'react-router-dom';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 import { DelegationModal, DelegationModalProps, Title, UniversalDataGrid } from '@src/components';
 import { useWalletContext } from '@src/context/wallet';
 import { GridColDef } from '@mui/x-data-grid';
@@ -14,7 +15,6 @@ import {
 import { urls } from '@src/utils';
 import { useClipboard } from 'use-clipboard-copy';
 import { Close } from '@mui/icons-material';
-import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 const mapToDelegationsRow = (delegation: DelegationWithRewards, index: number) => ({
   identity: delegation.identityKey,

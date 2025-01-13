@@ -2,7 +2,8 @@
   "hops": {
     "display": "hidden"
   },
+  "flow": "Step by Step Breakdown",
   "acks": "Acks & Retransmission",
   "addressing-system": "Addressing",
-  "anonymous-replies": "Anonymous Replies"
+  "anonymous-replies": "Anonymous Replies: SURBs"
 }

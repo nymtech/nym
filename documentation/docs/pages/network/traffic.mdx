@@ -1,6 +1,6 @@
-# Mixnet Traffic Flow Overview
+# Traffic Flow
 
-> Nym uses a source-routed decryption mixnet, with users obtaining the node’s public keys and contact information from the Nym blockchain. In source routing, the sender of a message chooses the route that the message will traverse before reaching its final destination.
+> Nym uses a source-routed decryption mixnet ... [i]n source routing, the sender of a message chooses the route that the message will traverse before reaching its final destination.
 >
 > ...
 >
@@ -12,58 +12,8 @@ TODO ADD NOTICE ABOUT THIS BEING JUST THE 5-HOP MIXNET MODE - dVPN 2-hop mode is
 
 The Nym mixnet re-orders encrypted, indistinguishable [Sphinx](cryptography/sphinx) packets as they travel through the network.
 
-Traffic to send through the mixnet is broken up into uniformly-sized packets, encrypted in the Sphinx packet format according to the route the packet will take, and sent through the mixnet to be mixed among other real traffic and fake - but identical - cover traffic.
+Traffic to send through the mixnet is broken up into uniformly-sized packets, encrypted in the Sphinx packet format according to the route the packet will take, and sent through the mixnet to be mixed among other real traffic and fake - but identical - cover traffic. At each 'hop' (i.e. as a packet is forwarded from one node in the sequence to another) a layer of decryption is removed from the Sphinx packet, revealing the address of the next hop, and another Sphinx packet. The packet is then held by the node for a variable amount of time, before being forwarded on to the next node in the route.
 
-At each 'hop' (i.e. as a packet is forwarded from one node in the sequence to another) a layer of decryption is removed from the Sphinx packet, revealing the address of the next hop, and another Sphinx packet. The packet is then held by the node for a variable amount of time, before being forwarded on to the next node in the route.
-
-Traffic always travels through the nodes of the mixnet like such:
-
-TODO replace with a flow diagram like others, with client -> websocket connection annotated -> create sphinx packets + send, nym-node(entrygw) unwrap layer + check MAC, forward to NN(mixnode), unwrap + check MAC + hold for $RANDOM_TIME etc etc
-```mermaid
----
-config:
-  theme: neo-dark
-  layout: elk
----
-flowchart LR
-    subgraph Local Machine[Local Machine]
-        A[Application Logic]
-        B[Nym Client]
-    end
-    A <-->|Bytes| B
-    B <-->|Sphinx Packets| EG
-
-    subgraph Mixnet Nodes[Mixnet Nodes]
-        EG[/Entry Gateway/]
-        M{Mix Node Layer 1}
-        M2{Mix Node Layer 2}
-        M3{Mix Node Layer 3}
-        ExG[\Exit Gateway\]
-    end
-    EG <-->|Sphinx Packets| M
-    M <-->|Sphinx Packets| M2
-    M2 <-->|Sphinx Packets| M3
-    M3 <-->|Sphinx Packets| ExG
-
-    subgraph Remote App[Remote App]
-        C[Application Logic]
-        D[Nym Client]
-    end
-    D <-->|Sphinx Packets| ExG
-    C <-->|Bytes| D
-```
-
-TODO reword or remove
-From your Nym client, your traffic is sent as Sphinx packets to:
-* the gateway your client has registered with,
-* a mix node on layer 1 of the Mixnet,
-* a mix node on layer 2 of the Mixnet,
-* a mix node on layer 3 of the Mixnet,
-* the recipient's gateway, which forwards it finally to...
-* the recipient's Nym client, which communicates with an application.
-
-As each node receives the packet, they are able to decrypt the packet, perform a validity check, and then pass the packet along (in the case of Nym Nodes running as a Mix Node, after a delay).
-
-> If the recipient's Nym client is offline at the time then the packets will be held by the Gateway their Nym client has registered with until they come online.
+> How traffic moves through the Mixnet is one of the core mechanisms that provide the privacy properties of the network, but is also (aside from [SURBs](./traffic/anonymous-replies)) mostly abstracted away from developers.
 
 Whatever is on the 'other side' of the mixnet from your client, all traffic will travel this way through the mixnet. If you are sending traffic to a service external to Nym (such as a chat application's servers) then your traffic will be sent from the recieving Nym client to an application that will proxy it 'out' of the mixnet to these servers, shielding your metadata from them. P2P (peer-to-peer) applications, unlike the majority of apps, might want to keep all of their traffic entirely 'within' the mixnet, as they don't have to necessarily make outbound network requests to application servers. They would simply have their local application code communicate with their Nym clients, and not forward traffic anywhere 'outside' of the mixnet.

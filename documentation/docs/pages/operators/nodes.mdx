@@ -2,6 +2,7 @@ import { Callout } from 'nextra/components';
 import { Steps } from 'nextra/components';
 import { Tabs } from 'nextra/components';
 import NymNodeSpecs from 'components/operators/snippets/nym-node-specs.mdx';
+import TermsConditions from 'components/operators/snippets/tc-info.mdx';
 
 # Nym Nodes Operator Guides
 
@@ -24,6 +25,10 @@ Last but not least, managing a Nym Node is work. More skilled an operator is, le
 Reserve 45-120 minutes for the initial setup and configuration (depends on your skills). Then count on a few minutes once in 2-4 weeks to upgrade node version binaries. Patches don't always come out [regularly](release-cycle.mdx), operators need to keep their eyes on [Matrix announcement channel](https://matrix.to/#/#node-ops-announcements:nymtech.chat).
 
 Outdated nodes are never selected for routing/mixing packets, resulting in not receiving any rewards. You can read more on our [Tokenomics page](tokenomics/mixnet-rewards.mdx) to understand the selection and rewards logic.
+
+<TermsConditions />
+
+Accepting T&Cs is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. Detailed info and proper syntax is provided on the [setup page](nodes/nym-node/setup#terms--conditions).
 
 ## Steps for Nym Node Operators
 

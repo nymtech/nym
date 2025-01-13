@@ -96,10 +96,10 @@ impl RawUsage {
         let mut eth_transmitted = 0;
         let mut eth_received = 0;
 
-        // we're only interested in interfaces with 'eth' prefix
+        // we're only interested in interfaces with 'eth' or 'en' prefix
         // (that's a very weak assumption, but that's just first iteration of this endpoint)
         for (interface, data) in networks.list() {
-            if interface.starts_with("eth") {
+            if interface.starts_with("eth") || interface.starts_with("en") {
                 eth_transmitted += data.total_transmitted();
                 eth_received += data.total_received();
             }

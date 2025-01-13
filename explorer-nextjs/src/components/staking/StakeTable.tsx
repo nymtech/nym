@@ -138,6 +138,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     [handleUnstake],
   );
 
+  console.log("delegations :>> ", delegations);
+
   const columns: MRT_ColumnDef<DelegationWithNodeDetails>[] = useMemo(
     () => [
       {
@@ -151,7 +153,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
               {row.original.delegation?.node_id || "-"}
             </Typography>
             <Typography variant="body5">
-              {row.original.node?.bondInformation.node.identity_key || "-"}
+              {row.original.node?.identity_key || "-"}
             </Typography>
           </Stack>
         ),
@@ -162,16 +164,12 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         accessorKey: "location.country_name",
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
-          row.original.node?.location.two_letter_iso_country_code ? (
-            <Tooltip title={row.original.node.location.country_name}>
+          row.original.node?.countryCode ? (
+            <Tooltip title={row.original.node?.countryName}>
               <Box>
                 <CountryFlag
-                  countryCode={
-                    row.original.node.location.two_letter_iso_country_code
-                  }
-                  countryName={
-                    row.original.node.location.two_letter_iso_country_code
-                  }
+                  countryCode={row.original.node?.countryCode}
+                  countryName={row.original.node?.countryCode}
                 />
               </Box>
             </Tooltip>

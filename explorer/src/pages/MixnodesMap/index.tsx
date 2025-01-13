@@ -9,6 +9,7 @@ import { UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { WorldMap } from '../../components/WorldMap';
 import { useMainContext } from '../../context/main';
 import { CountryDataRowType, countryDataToGridRow } from '../../utils';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 export const PageMixnodesMap: FCWithChildren = () => {
   const { countryData } = useMainContext();
@@ -76,13 +77,7 @@ export const PageMixnodesMap: FCWithChildren = () => {
       <Box component="main" sx={{ flexGrow: 1 }}>
         <Grid>
           <Grid item data-testid="mixnodes-globe">
-            <Alert severity="warning" sx={{ mb: 3, fontSize: 'medium', width: '100%' }}>
-              <Box>
-                <Typography>
-                  You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon.
-                </Typography>
-              </Box>
-            </Alert>
+            <ReleaseAlert />
             <Title text="Mixnodes Around the Globe" />
           </Grid>
           <Grid item>

@@ -11,6 +11,7 @@ import { UptimeChart } from '../../components/UptimeChart';
 import { GatewayContextProvider, useGatewayContext } from '../../context/gateway';
 import { useMainContext } from '../../context/main';
 import { Title } from '../../components/Title';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 const columns: ColumnsType[] = [
   {
@@ -82,13 +83,7 @@ const PageGatewayDetailsWithState = ({ selectedGateway }: { selectedGateway: Gat
 
   return (
     <Box component="main">
-      <Alert severity="warning" sx={{ mb: 3, fontSize: 'medium', width: '100%' }}>
-        <Box>
-          <Typography>
-            You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon.
-          </Typography>
-        </Box>
-      </Alert>
+      <ReleaseAlert />
       <Title text="Gateway Detail" />
       <Grid container>
         <Grid item xs={12}>

@@ -26,6 +26,7 @@ import { splice } from '@src/utils';
 import { useGetMixNodeStatusColor, useIsMobile } from '@src/hooks';
 import { useWalletContext } from '@src/context/wallet';
 import { DelegationsProvider } from '@src/context/delegations';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 export const PageMixnodes: FCWithChildren = () => {
   const { mixnodes, fetchMixnodes } = useMainContext();
@@ -352,13 +353,7 @@ export const PageMixnodes: FCWithChildren = () => {
   return (
     <DelegationsProvider>
       <Box mb={2}>
-        <Alert severity="warning" sx={{ mb: 3, fontSize: 'medium', width: '100%' }}>
-          <Box>
-            <Typography>
-              You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon.
-            </Typography>
-          </Box>
-        </Alert>
+        <ReleaseAlert />
         <Title text="Mixnodes" />
       </Box>
       <Grid container>

@@ -14,6 +14,7 @@ import {
 import { urls } from '@src/utils';
 import { useClipboard } from 'use-clipboard-copy';
 import { Close } from '@mui/icons-material';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 const mapToDelegationsRow = (delegation: DelegationWithRewards, index: number) => ({
   identity: delegation.identityKey,
@@ -224,13 +225,7 @@ const DelegationsPage = () => {
           }}
         />
       )}
-      <Alert severity="warning" sx={{ mb: 3, fontSize: 'medium', width: '100%' }}>
-        <Box>
-          <Typography>
-            You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon.
-          </Typography>
-        </Box>
-      </Alert>
+      <ReleaseAlert />
       {showBanner && <Banner onClose={() => setShowBanner(false)} />}
       <Box display="flex" justifyContent="space-between" alignItems="center">
         <Title text="Your Delegations" />

@@ -17,6 +17,7 @@ import { Title } from '../../components/Title';
 import { UniversalDataGrid } from '../../components/Universal-DataGrid';
 import { useMainContext } from '../../context/main';
 import { CustomColumnHeading } from '../../components/CustomColumnHeading';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 const columns: GridColDef[] = [
   {
@@ -102,13 +103,7 @@ export const ServiceProviders = () => {
   return (
     <>
       <Box mb={2}>
-        <Alert severity="warning" sx={{ mb: 3, fontSize: 'medium', width: '100%' }}>
-          <Box>
-            <Typography>
-              You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon.
-            </Typography>
-          </Box>
-        </Alert>
+        <ReleaseAlert />
         <Title text="Service Providers" />
       </Box>
       <Grid container>

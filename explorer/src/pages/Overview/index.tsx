@@ -15,6 +15,7 @@ import { Title } from '../../components/Title';
 import { ContentCard } from '../../components/ContentCard';
 import { StatsCard } from '../../components/StatsCard';
 import { Icons } from '../../components/Icons';
+import { ReleaseAlert } from '@src/components/ReleaseAlert';
 
 export const PageOverview: FCWithChildren = () => {
   const theme = useTheme();
@@ -24,13 +25,7 @@ export const PageOverview: FCWithChildren = () => {
     <Box component="main" sx={{ flexGrow: 1 }}>
       <Grid>
         <Grid item paddingBottom={3}>
-          <Alert severity="warning" sx={{ mb: 3, fontSize: 'medium', width: '100%' }}>
-            <Box>
-              <Typography>
-                You are now viewing the legacy Nym mixnet explorer. Explorer 2.0 is coming soon.
-              </Typography>
-            </Box>
-          </Alert>
+          <ReleaseAlert />
           <Title text="Overview" />
         </Grid>
         <Grid item>

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, AlertTitle, Box, CircularProgress, Grid, Typography } from '@mui/material';
+import { Alert, AlertTitle, Box, CircularProgress, Grid } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import { GatewayBond } from '../../typeDefs/explorer-api';
 import { ColumnsType, DetailTable } from '../../components/DetailTable';

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Alert, Box, Grid, Link, Typography } from '@mui/material';
+import { Box, Grid, Link, Typography } from '@mui/material';
 import OpenInNewIcon from '@mui/icons-material/OpenInNew';
 import { useTheme } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';

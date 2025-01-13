@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid';
-import { Alert, Stack, Card, Grid, Box, Button, Typography } from '@mui/material';
+import { Stack, Card, Grid, Box, Button } from '@mui/material';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { SelectChangeEvent } from '@mui/material/Select';
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard';

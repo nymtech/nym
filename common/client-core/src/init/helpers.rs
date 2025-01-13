@@ -7,7 +7,6 @@ use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
-use nym_topology::gateway;
 use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKeyRef;
 use nym_validator_client::UserAgent;
@@ -92,7 +91,7 @@ pub async fn current_gateways<R: Rng>(
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
     minimum_performance: u8,
-) -> Result<Vec<gateway::LegacyNode>, ClientCoreError> {
+) -> Result<Vec<RoutingNode>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
         .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
@@ -344,3 +343,4 @@ pub(super) async fn register_with_gateway(
         authenticated_ephemeral_client: gateway_client,
     })
 }
+

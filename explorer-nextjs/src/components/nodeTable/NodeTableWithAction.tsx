@@ -11,7 +11,6 @@ const mappedNymNodes = (nodes: IObservatoryNode[]) =>
       countryName: node.description.auxiliary_details.location || null,
       profitMarginPercentage:
         +node.rewarding_details.cost_params.profit_margin_percent * 100,
-
       owner: node.bonding_address,
     };
   });

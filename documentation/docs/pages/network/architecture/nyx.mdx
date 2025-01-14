@@ -44,9 +44,10 @@ The following contracts are deployed to the chain:
 
 The addresses of deployed smart contracts can be found in the [`network-defaults`](https://github.com/nymtech/nym/blob/master/common/network-defaults/src/mainnet.rs) directory of the codebase alongside other network default values.
 
-### Mixnet Contract
-TODO add note about interacting with contract via API
+### Interacting with Contracts
+You can use the [API docs](../../apis/introduction) to see how you can interact with the contracts. The [NymAPI](../../apis/nym-api) in particular has multiple endpoints to query the Mixnet state, topology, and various zk-Nym-related endpoints.
 
+### Mixnet Contract
 The Mixnet smart contract is a core piece of the Nym system, functioning as the mixnet directory and keeping track of delegations and rewards: the core functionality required by an incentivised mixnet.  You can find the code and build instructions [here](https://github.com/nymtech/nym/tree/master/contracts/mixnet).
 
 > Having a smart contract act as a decentralised topology directory for clients connecting to the Mixnet allows us to mitigate several possible attacks which systems relying on P2P networking are susceptible to. See [Why Nym is not P2P](./nym-not-p2p).
@@ -58,7 +59,6 @@ The Mixnet contract has multiple functions:
 * Storing reward amounts.
 
 ### Vesting Contract
-TODO add note about interacting with contract via API
 The vesting contract allows for the creation of vesting accounts, allowing `NYM` tokens to vest over time, and for users to minimally interact with the Mixnet using their unvested tokens. You can find the code and build instructions [here](https://github.com/nymtech/nym/tree/master/contracts/vesting).
 
 The Vesting contract has multiple functions:
@@ -66,13 +66,11 @@ The Vesting contract has multiple functions:
 * Interacting with the Mixnet using vesting (i.e. non-transferable) tokens, allowing users to delegate their unvested tokens.
 
 ### Multisig Contract
-TODO add note about interacting with contract via API
 The multisig contract used by the [NymAPI Quroum](../cryptography/zk-nym/zk-nym-overview) - a subset of the Nyx Validator set taking on the additional work of generating and validating zk-nyms - to execute certain actions in the [zk-nym](./ecash.md) contract.
 
 It is essentially an instance of the [canonical](https://github.com/CosmWasm/cw-plus/tree/main/contracts) `cw3-flex-multisig` using the `cw4-group` contract, with one minor change to restrict the addresses allowed to submit proposals.
 
 ### Zk-Nym Contract
-TODO add note about interacting with contract via API
 
 <Callout type="info" emoji="ℹ️">
 Note that within the monorepo contract repo this contract is referred to as `ecash`. This is a historical artifact that hasn't yet been changed.

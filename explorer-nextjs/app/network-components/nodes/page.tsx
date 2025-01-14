@@ -13,6 +13,7 @@ import { GridColDef, GridRenderCellParams } from '@mui/x-data-grid'
 import { CopyToClipboard } from '@nymproject/react/clipboard/CopyToClipboard'
 import { Tooltip as InfoTooltip } from '@nymproject/react/tooltip/Tooltip'
 import { useMainContext } from '@/app/context/main'
+import { ReleaseAlert } from './components/ReleaseAlert'
 import { CustomColumnHeading } from '@/app/components/CustomColumnHeading'
 import { Title } from '@/app/components/Title'
 import { humanReadableCurrencyToString } from '@/app/utils/currency'
@@ -233,6 +234,7 @@ const PageNodes = () => {
   return (
     <>
       <Box mb={2}>
+        <ReleaseAlert />
         <Title text="Nym Nodes" />
       </Box>
       <Grid container>

@@ -5,6 +5,7 @@ import { Box, Grid, Link, Typography } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 import OpenInNewIcon from '@mui/icons-material/OpenInNew'
 import { PeopleAlt } from '@mui/icons-material'
+import { ReleaseAlert } from './components/ReleaseAlert'
 import { Title } from '@/app/components/Title'
 import { StatsCard } from '@/app/components/StatsCard'
 import { MixnodesSVG } from '@/app/icons/MixnodesSVG'
@@ -34,6 +35,7 @@ const PageOverview = () => {
     <Box component="main" sx={{ flexGrow: 1 }}>
       <Grid>
         <Grid item paddingBottom={3}>
+          <ReleaseAlert />
           <Title text="Overview" />
         </Grid>
         <Grid item>

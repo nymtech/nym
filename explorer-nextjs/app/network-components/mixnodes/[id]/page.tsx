@@ -9,6 +9,7 @@ import {
   Grid,
   Typography,
 } from '@mui/material'
+import { ReleaseAlert } from './components/ReleaseAlert'
 import { ColumnsType, DetailTable } from '@/app/components/DetailTable'
 import { BondBreakdownTable } from '@/app/components/MixNodes/BondBreakdown'
 import {
@@ -94,6 +95,7 @@ const PageMixnodeDetailWithState = () => {
   const isMobile = useIsMobile()
   return (
     <Box component="main">
+      <ReleaseAlert />
       <Title text="Legacy Mixnode Detail" />
       <Alert variant="filled" severity="warning" sx={{ my : 2, pt: 2 }}>
         <AlertTitle>

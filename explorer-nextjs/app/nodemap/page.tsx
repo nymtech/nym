@@ -9,6 +9,7 @@ import {
   SelectChangeEvent,
   Typography,
 } from '@mui/material'
+import { ReleaseAlert } from './components/ReleaseAlert'
 import { ContentCard } from '@/app/components/ContentCard'
 import { TableToolbar } from '@/app/components/TableToolbar'
 import { Title } from '@/app/components/Title'
@@ -63,6 +64,7 @@ const PageMixnodesMap = () => {
     <Box component="main" sx={{ flexGrow: 1 }}>
       <Grid>
         <Grid item data-testid="mixnodes-globe">
+          <ReleaseAlert />
           <Title text="Mixnodes Around the Globe" />
         </Grid>
         <Grid item>

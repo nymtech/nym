@@ -29,8 +29,8 @@ export const Remark42Comments = () => {
     if (typeof window !== "undefined") {
       // Set Remark42 configuration on the window object
       window.remark_config = {
-        host: "https://remark.blockfend.com",
-        site_id: "nym-explorer-test",
+        host: "https://remark42.nymte.ch",
+        site_id: "remark",
         components: ["embed", "last-comments"],
         max_shown_comments: 100,
         theme: "light",
@@ -68,13 +68,14 @@ export const Remark42Comments = () => {
       <Script
         id="remark-init"
         strategy="afterInteractive"
-        //   dangerouslySetInnerHTML={{
-        //     __html: `
-        //   if (window.REMARK42) {
-        //     window.REMARK42.createInstance(window.remark_config);
-        //   }
-        // `,
-        //   }}
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: <explanation>
+        dangerouslySetInnerHTML={{
+          __html: `
+          if (window.REMARK42) {
+            window.REMARK42.createInstance(window.remark_config);
+          }
+        `,
+        }}
       />
     </Box>
   );

@@ -5,6 +5,7 @@ import { Close as CloseIcon, Menu as MenuIcon } from "@mui/icons-material";
 import { Box, Drawer, IconButton, Typography } from "@mui/material";
 import { useState } from "react";
 import NymLogo from "../icons/NymLogo";
+import ConnectWallet from "../wallet/ConnectWallet";
 import MENU_DATA from "./menuItems";
 
 export const MobileHeader = () => {
@@ -134,6 +135,7 @@ const MobileMenuHeader = ({
         >
           <NymLogo />
         </Link>
+
         <Box
           sx={{
             display: "flex",
@@ -146,6 +148,7 @@ const MobileMenuHeader = ({
           </IconButton>
         </Box>
       </Box>
+      <ConnectWallet size="small" />
     </Wrapper>
   );
 };

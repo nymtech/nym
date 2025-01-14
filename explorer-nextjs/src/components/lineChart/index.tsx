@@ -72,7 +72,14 @@ export const LineChart = ({
       }}
       theme={{
         grid: { line: { strokeWidth: 0 } },
-        tooltip: { container: { color: "black" } },
+        tooltip: {
+          container: {
+            color: "black",
+            fontSize: 10,
+            maxWidth: 250,
+            lineHeight: 1,
+          },
+        },
         axis: {
           domain: {
             line: { stroke: "#C3D7D7", strokeWidth: 1, strokeOpacity: 1 },

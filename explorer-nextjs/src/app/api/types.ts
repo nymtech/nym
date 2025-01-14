@@ -147,3 +147,221 @@ export interface IAccountBalancesInfo {
   total_value: IAmountDetails;
   vesting_account?: null | string;
 }
+
+export interface IObservatoryNode {
+  accepted_tnc: boolean;
+  bonded: boolean;
+  bonding_address: string;
+  description: {
+    authenticator: {
+      address: string;
+    };
+    auxiliary_details: {
+      accepted_operator_terms_and_conditions: boolean;
+      announce_ports: {
+        mix_port: number | null;
+        verloc_port: number | null;
+      };
+      location: string | null;
+    };
+    build_information: {
+      binary_name: string;
+      build_timestamp: string;
+      build_version: string;
+      cargo_profile: string;
+      cargo_triple: string;
+      commit_branch: string;
+      commit_sha: string;
+      commit_timestamp: string;
+      rustc_channel: string;
+      rustc_version: string;
+    };
+    declared_role: {
+      entry: boolean;
+      exit_ipr: boolean;
+      exit_nr: boolean;
+      mixnode: boolean;
+    };
+    host_information: {
+      hostname: string | null;
+      ip_address: string[];
+    };
+    keys: {
+      ed25519: string;
+      x25519: string;
+      x25519_noise: string | null;
+    };
+    ip_packet_router: {
+      address: string;
+    };
+    last_polled: string;
+    mixnet_websockets: {
+      ws_port: number;
+      wss_port: number | null;
+    };
+    network_requester: {
+      address: string;
+      uses_exit_policy: boolean;
+    };
+    wireguard: string | null;
+    geoip: {
+      city: string;
+      country: string;
+      ip_address: string;
+      loc: string;
+      node_id: number;
+      org: string;
+      postal: string;
+      region: string;
+    };
+  };
+  identity_key: string;
+  ip_address: string;
+  node_id: number;
+  node_type: string;
+  original_pledge: number;
+  rewarding_details: {
+    cost_params: {
+      interval_operating_cost: {
+        amount: string;
+        denom: string;
+      };
+      profit_margin_percent: string;
+    };
+    delegates: string;
+    last_rewarded_epoch: number;
+    operator: string;
+    total_unit_reward: string;
+    unique_delegations: number;
+    unit_delegation: string;
+  };
+  self_description: {
+    details: string;
+    moniker: string;
+    security_contact: string;
+    website: string;
+  };
+  total_stake: number;
+  uptime: number;
+}
+export interface NodeRewardDetails {
+  amount: {
+    amount: string;
+    denom: string;
+  };
+  cumulative_reward_ratio: string;
+  height: number;
+  node_id: number;
+  owner: string;
+}
+
+export type LastProbeResult = {
+  gateway: string;
+  outcome: {
+    as_entry: {
+      can_connect: boolean;
+      can_route: boolean;
+    };
+    as_exit: {
+      can_connect: boolean;
+      can_route_ip_external_v4: boolean;
+      can_route_ip_external_v6: boolean;
+      can_route_ip_v4: boolean;
+      can_route_ip_v6: boolean;
+    };
+    wg: {
+      can_handshake_v4: boolean;
+      can_handshake_v6: boolean;
+      can_register: boolean;
+      can_resolve_dns_v4: boolean;
+      can_resolve_dns_v6: boolean;
+      ping_hosts_performance_v4: number;
+      ping_hosts_performance_v6: number;
+      ping_ips_performance_v4: number;
+      ping_ips_performance_v6: number;
+    };
+  };
+};
+
+export type GatewayStatus = {
+  blacklisted: boolean;
+  bonded: boolean;
+  config_score: number;
+  description: {
+    details: string;
+    moniker: string;
+    security_contact: string;
+    website: string;
+  };
+  explorer_pretty_bond: {
+    identity_key: string;
+    location: {
+      latitude: number;
+      longitude: number;
+      two_letter_iso_country_code: string;
+    };
+    owner: string;
+    pledge_amount: {
+      amount: string;
+      denom: string;
+    };
+  };
+  gateway_identity_key: string;
+  last_probe_log: string;
+  last_probe_result: LastProbeResult; // Reference to the separate type
+  last_testrun_utc: string;
+  last_updated_utc: string;
+  performance: number;
+  routing_score: number;
+  self_described: {
+    authenticator: {
+      address: string;
+    };
+    auxiliary_details: {
+      accepted_operator_terms_and_conditions: boolean;
+      announce_ports: {
+        mix_port: number | null;
+        verloc_port: number | null;
+      };
+      location: string;
+    };
+    build_information: {
+      binary_name: string;
+      build_timestamp: string;
+      build_version: string;
+      cargo_profile: string;
+      cargo_triple: string;
+    };
+    declared_role: {
+      entry: boolean;
+      exit_ipr: boolean;
+      exit_nr: boolean;
+      mixnode: boolean;
+    };
+    host_information: {
+      hostname: string;
+      ip_address: string[];
+      keys: {
+        ed25519: string;
+        x25519: string;
+        x25519_noise: string | null;
+      };
+    };
+    ip_packet_router: {
+      address: string;
+    };
+    last_polled: string;
+    mixnet_websockets: {
+      ws_port: number;
+      wss_port: number | null;
+    };
+    network_requester: {
+      address: string;
+      uses_exit_policy: boolean;
+    };
+    wireguard: {
+      port: number;
+      public_key: string;
+    };
+  };
+};

@@ -3,11 +3,12 @@ import type NodeData from "@/app/api/types";
 import { NYM_ACCOUNT_ADDRESS, NYM_NODES, NYM_PRICES_API } from "@/app/api/urls";
 import { AccountBalancesCard } from "@/components/accountPageComponents/AccountBalancesCard";
 import { AccountInfoCard } from "@/components/accountPageComponents/AccountInfoCard";
+import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Typography } from "@mui/material";
-import Grid2 from "@mui/material/Grid2";
+import Grid from "@mui/material/Grid2";
 
 export default async function Account({
   params,
@@ -61,11 +62,11 @@ export default async function Account({
 
     return (
       <ContentLayout>
-        <Grid2 container columnSpacing={5} rowSpacing={5}>
-          <Grid2 size={6}>
+        <Grid container columnSpacing={5} rowSpacing={5}>
+          <Grid size={6}>
             <SectionHeading title="Account Details" />
-          </Grid2>
-          <Grid2 size={6} justifyContent="flex-end">
+          </Grid>
+          <Grid size={6} justifyContent="flex-end">
             <Box sx={{ display: "flex", justifyContent: "end" }}>
               <ExplorerButtonGroup
                 options={[
@@ -84,17 +85,23 @@ export default async function Account({
                 ]}
               />
             </Box>
-          </Grid2>
-          <Grid2 size={4}>
+          </Grid>
+          <Grid size={4}>
             <AccountInfoCard accountInfo={nymAccountBalancesData} />
-          </Grid2>
-          <Grid2 size={8}>
+          </Grid>
+          <Grid size={8}>
             <AccountBalancesCard
               accountInfo={nymAccountBalancesData}
               nymPrice={nymPriceData.usd}
             />
-          </Grid2>
-        </Grid2>
+          </Grid>
+        </Grid>
+        <Grid container columnSpacing={5} rowSpacing={5}>
+          <Grid size={12}>
+            <SectionHeading title="Onboarding" />
+          </Grid>
+          <BlogArticlesCards limit={2} />
+        </Grid>
       </ContentLayout>
     );
   } catch (error) {

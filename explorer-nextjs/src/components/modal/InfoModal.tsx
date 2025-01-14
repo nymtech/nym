@@ -22,6 +22,7 @@ const InfoModal = (props: InfoModalProps) => {
   }
 
   const { open, onClose, title, message, tx, Action } = props;
+  const mintscanURL = tx ? `https://www.mintscan.io/nyx/tx/${tx}` : "/";
 
   return (
     <SimpleModal
@@ -40,7 +41,7 @@ const InfoModal = (props: InfoModalProps) => {
         <Typography variant="h3">{title}</Typography>
         <Typography variant="body3">{message}</Typography>
         {tx && (
-          <Link href="/">
+          <Link href={mintscanURL}>
             <Typography variant="h5">Block explorer link</Typography>
           </Link>
         )}

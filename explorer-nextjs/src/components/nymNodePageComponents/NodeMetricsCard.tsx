@@ -1,14 +1,54 @@
-import type { NodeDescription } from "@/app/api/types";
+import type { ExplorerData } from "@/app/api";
+import type { IObservatoryNode } from "@/app/api/types";
+import { CURRENT_EPOCH_REWARDS } from "@/app/api/urls";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
 interface INodeMetricsCardProps {
-  nodeDescription: NodeDescription;
-  nodeId: number;
+  nodeInfo: IObservatoryNode;
 }
 
-export const NodeMetricsCard = (props: INodeMetricsCardProps) => {
-  const { nodeDescription, nodeId } = props;
+export const NodeMetricsCard = async (props: INodeMetricsCardProps) => {
+  const { nodeInfo } = props;
+
+  const epochRewards = await fetch(CURRENT_EPOCH_REWARDS, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  const epochRewardsData: ExplorerData["currentEpochRewardsData"] =
+    await epochRewards.json();
+
+  function getActiveSetProbability(
+    totalStake: number,
+    stakeSaturationPoint: string,
+  ): string {
+    const saturation = Number.parseFloat(stakeSaturationPoint);
+
+    if (Number.isNaN(saturation) || saturation <= 0) {
+      throw new Error("Invalid stake saturation point provided");
+    }
+
+    const ratio = (totalStake / saturation) * 100;
+
+    if (ratio > 70) {
+      return "High";
+    }
+    if (ratio >= 40 && ratio <= 70) {
+      return "Medium";
+    }
+    return "Low";
+  }
+
+  const activeSetProb =
+    nodeInfo && epochRewardsData
+      ? getActiveSetProbability(
+          nodeInfo.total_stake,
+          epochRewardsData.interval.stake_saturation_point,
+        )
+      : "N/A";
 
   return (
     <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
@@ -16,25 +56,25 @@ export const NodeMetricsCard = (props: INodeMetricsCardProps) => {
         row
         divider
         label="Node ID."
-        value={nodeId.toString()}
+        value={nodeInfo.node_id.toString()}
       />
-      {nodeDescription && (
-        <>
-          <ExplorerListItem
-            row
-            divider
-            label="Host"
-            value={nodeDescription.host_information.ip_address.toString()}
-          />
-          <ExplorerListItem
-            row
-            divider
-            label="Version"
-            value={nodeDescription.build_information.build_version}
-          />
-        </>
+      <>
+        <ExplorerListItem
+          row
+          divider
+          label="Host"
+          value={nodeInfo.description.host_information.ip_address.toString()}
+        />
+        <ExplorerListItem
+          row
+          divider
+          label="Version"
+          value={nodeInfo.description.build_information.build_version}
+        />
+      </>
+      {epochRewardsData && (
+        <ExplorerListItem row label="Active set Prob." value={activeSetProb} />
       )}
-      <ExplorerListItem row label="Active set Prob." value="High" />
     </ExplorerCard>
   );
 };

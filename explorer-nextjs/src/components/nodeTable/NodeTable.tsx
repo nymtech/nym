@@ -4,6 +4,7 @@ import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
 import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
+import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
@@ -44,6 +45,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     nodeId: number;
     identityKey: string;
   }>();
+
+  const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
 
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
 
@@ -114,7 +117,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setSelectedNodeForStaking({
         nodeId: node.nodeId,
-        identityKey: node.bondInformation.node.identity_key,
+        identityKey: node.identity_key,
       });
     },
     [isWalletConnected],
@@ -130,9 +133,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Cell: ({ row }) => (
           <Stack spacing={1}>
             <Typography variant="body4">{row.original.nodeId}</Typography>
-            <Typography variant="body5">
-              {row.original.bondInformation.node.identity_key}
-            </Typography>
+            <Typography variant="body5">{row.original.identity_key}</Typography>
           </Stack>
         ),
       },
@@ -150,16 +151,12 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         accessorKey: "location.country_name",
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
-          row.original.location?.two_letter_iso_country_code ? (
-            <Tooltip title={row.original.location.country_name}>
+          row.original.countryCode && row.original.countryName ? (
+            <Tooltip title={row.original.countryName}>
               <Box>
                 <CountryFlag
-                  countryCode={
-                    row.original.location.two_letter_iso_country_code
-                  }
-                  countryName={
-                    row.original.location.two_letter_iso_country_code
-                  }
+                  countryCode={row.original.countryCode || ""}
+                  countryName={row.original.countryCode || ""}
                 />
               </Box>
             </Tooltip>
@@ -211,9 +208,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         accessorKey: "Favorite",
         Header: <ColumnHeading>Favorite</ColumnHeading>,
         sortingFn: "Favorite",
-        Cell: ({ row }) => (
-          <Favorite address={row.original.bondInformation.owner} />
-        ),
+        Cell: ({ row }) => <Favorite address={row.original.owner} />,
       },
     ],
     [isWalletConnected, handleOnSelectStake],
@@ -239,8 +234,19 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       shape: "circular",
     },
     sortingFns: {
-      Favorite: () => {
-        // TODO implement sorting by favorite
+      Favorite: (rowA, rowB) => {
+        const isFavoriteA = favorites.includes(
+          rowA.original.bondInformation.owner,
+        );
+        const isFavoriteB = favorites.includes(
+          rowB.original.bondInformation.owner,
+        );
+
+        // Sort favorites first
+        if (isFavoriteA && !isFavoriteB) return -1;
+        if (!isFavoriteA && isFavoriteB) return 1;
+
+        // If both are favorites or neither, keep the original order
         return 0;
       },
     },

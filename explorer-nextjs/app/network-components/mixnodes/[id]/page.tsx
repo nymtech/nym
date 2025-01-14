@@ -9,7 +9,7 @@ import {
   Grid,
   Typography,
 } from '@mui/material'
-import { ReleaseAlert } from './components/ReleaseAlert'
+import { ReleaseAlert } from '@/app/components/ReleaseAlert'
 import { ColumnsType, DetailTable } from '@/app/components/DetailTable'
 import { BondBreakdownTable } from '@/app/components/MixNodes/BondBreakdown'
 import {

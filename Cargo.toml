@@ -128,7 +128,7 @@ members = [
     "nym-node-status-api/nym-node-status-client",
     "nym-outfox",
     "nym-validator-rewarder",
-    "tools/echo-server",
+    # "tools/echo-server",
     "tools/internal/ssl-inject",
     # "tools/internal/sdk-version-bump",
     "tools/internal/testnet-manager",
@@ -149,7 +149,7 @@ members = [
     "tools/internal/testnet-manager",
     "tools/internal/testnet-manager/dkg-bypass-contract",
     "common/verloc",
-    "tools/internal/mixnet-connectivity-check",
+    "tools/internal/mixnet-connectivity-check", "tools/internal/mixnet-check-all-gateways",
 ]
 
 default-members = [

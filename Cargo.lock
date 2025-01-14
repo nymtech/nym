@@ -2196,10 +2196,15 @@ dependencies = [
  "bincode",
  "bytecodec",
  "bytes",
+ "clap 4.5.20",
  "dashmap",
  "dirs",
+ "futures",
+ "nym-bin-common",
+ "nym-crypto",
  "nym-sdk",
  "serde",
+ "tempfile",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -4230,6 +4235,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "mixnet-check-all-gateways"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "bincode",
+ "clap 4.5.20",
+ "dirs",
+ "echo-server",
+ "futures",
+ "nym-bin-common",
+ "nym-crypto",
+ "nym-sdk",
+ "reqwest 0.12.4",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tokio",
+ "tokio-util",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
 name = "mixnet-connectivity-check"
 version = "0.1.0"
 dependencies = [
@@ -5476,7 +5505,7 @@ dependencies = [
 
 [[package]]
 name = "nym-ffi-shared"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "bs58",
@@ -5636,7 +5665,7 @@ dependencies = [
 
 [[package]]
 name = "nym-go-ffi"
-version = "0.2.0"
+version = "0.2.1"
 dependencies = [
  "anyhow",
  "lazy_static",
@@ -6314,6 +6343,7 @@ dependencies = [
  "reqwest 0.12.4",
  "serde",
  "tap",
+ "tempfile",
  "thiserror",
  "tokio",
  "tokio-stream",

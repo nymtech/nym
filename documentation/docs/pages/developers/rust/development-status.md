@@ -7,9 +7,12 @@ In the future the SDK will be made up of several modules, each of which will all
 |-----------|---------------------------------------------------------------------------------------|----------|
 | Mixnet    | Create / load clients & keypairs, subscribe to Mixnet events, send & receive messages | ✔️        |
 | TcpProxy  | Utilise the TcpProxyClient and TcpProxyServer abstractions for streaming              | ✔️        |
+| ClientPool| Create a pool of quickly useable Mixnet clients                                       | ✔️        |
 | Ecash     | Create & verify Ecash credentials                                                     | ❌        |
 | Validator | Sign & broadcast Nyx blockchain transactions, query the blockchain                    | ❌        |
 
 The `Mixnet` module currently exposes the logic of two clients: the [websocket client](../clients/websocket), and the [socks client](../clients/socks5).
 
 The `TcpProxy` module exposes functionality to set up client/server instances that expose a localhost TcpSocket to read/write to.
+
+The `ClientPool` is a configurable pool of ephemeral clients which can be created as a background process and quickly grabbed.

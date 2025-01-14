@@ -1,10 +1,14 @@
-use std::{collections::HashSet, fmt, ops::Deref, time::Instant};
+// Copyright 2024 - Nym Technologies SA <contact@nymtech.net>
+// SPDX-License-Identifier: GPL-3.0-only
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
+use std::{collections::HashSet, fmt, ops::Deref, time::Instant};
 use tokio::{io::AsyncWriteExt as _, net::tcp::OwnedWriteHalf};
 use tracing::{debug, info};
 use uuid::Uuid;
+
+const DEFAULT_DECAY: u64 = 6; // decay time in seconds
 
 // Keeps track of
 // - incoming and unsorted messages wrapped in DecayWrapper for keeping track of when they were received
@@ -60,7 +64,7 @@ impl MessageBuffer {
             debug!("{}", msg.inner());
         }
 
-        // Iterate over self, filtering messages where msg.decayed() = true (aka message is older than 2 seconds), or where msg.message_id is less than next_msg_id. Then collect and order according to message_id.
+        // Iterate over self, filtering messages where msg.decayed() = true (aka message is older than DEFAULT_DECAY seconds), or where msg.message_id is less than next_msg_id. Then collect and order according to message_id.
         let mut send_buffer = self
             .iter()
             .filter(|msg| msg.decayed() || msg.message_id() <= self.next_msg_id)
@@ -122,7 +126,7 @@ impl<T> DecayWrapper<T> {
         DecayWrapper {
             value,
             start: Instant::now(),
-            decay: 6,
+            decay: DEFAULT_DECAY,
         }
     }
 

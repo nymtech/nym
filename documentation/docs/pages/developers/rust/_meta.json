@@ -3,6 +3,7 @@
   "development-status": "Development Status",
   "mixnet": "Mixnet Module",
   "tcpproxy": "TcpProxy Module",
+  "client-pool": "Client Pool",
   "ffi": "FFI",
   "tutorials": "Tutorials (Coming Soon)"
 }

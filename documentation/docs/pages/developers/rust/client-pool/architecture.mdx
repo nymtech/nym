@@ -1,0 +1,19 @@
+# Client Pool Architecture
+
+## Motivations
+In situations where multiple connections are expected, and the number of connections can vary greatly, the Client Pool reduces time spent waiting for the creation of a Mixnet Client blocking your code sending traffic through the Mixnet. Instead, a configurable number of Clients can be generated and run in the background which can be very quickly grabbed, used, and disconnected.
+
+The Pool can be simply run as a background process for the runtime of your program.
+
+## Clients & Lifetimes
+The Client Pool creates **ephemeral Mixnet Clients** which are used and then disconnected. Using the [`TcpProxy`](../tcpproxy) as an example, Clients are used for the lifetime of a single incoming TCP connection; after the TCP connection is closed, the Mixnet client is disconnected.
+
+Clients are popped from the pool when in use, and another Client is created to take its place. If connections are coming in faster than Clients are replenished, you can instead generate an ephemeral Client on the fly, or wait; this is up to the developer to decide. You can see an example of this logic in the example on the next page.
+
+## Runtime Loop
+Aside from a few helper / getter functions and a graceful `disconnect_pool()`, the Client Pool is mostly made up of a very simple loop around some conditional logic making up `start()`:
+- if the number of Clients in the pool is `< client_pool_reserve_number` (set on `new()`) then create more,
+- if the number of Clients in the pool `== client_pool_reserve_number` (set on `new()`) then `sleep`,
+- if `client_pool_reserve_number == 0` just `sleep`.
+
+`disconnect_pool()` will cause this loop to `break` via cancellation token.

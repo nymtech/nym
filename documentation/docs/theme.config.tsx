@@ -6,28 +6,33 @@ import { useRouter } from "next/router";
 
 const config: DocsThemeConfig = {
   head: function useHead() {
-    const config = useConfig()
-    const { route } = useRouter()
-    const url = process.env.NEXT_PUBLIC_SITE_URL
-    const image = url + '/nym_logo.jpg'
+    const config = useConfig();
+    const { route } = useRouter();
+    const url = process.env.NEXT_PUBLIC_SITE_URL;
+    const image = url + "/nym_logo.jpg";
 
     // Define descriptions for different "books"
     const bookDescriptions: Record<string, string> = {
-      '/developers': "Nym's developer documentation covering core concepts of integrating with the Mixnet, interacting with the Nyx blockchain, an overview of the avaliable tools, and our SDK docs.",
-      '/network': "Nym's network documentation covering network architecture, node types, tokenomics, and cryptography.",
-      '/operators': "Nym's Operators guide containing information and setup guides for the various components of Nym network and Nyx blockchain validators.",
-      '/apis': "Interactive APIs generated from the OpenAPI specs of various API endpoints offered by bits of Nym infrastructure run both by Nym and community operators for both Mainnet and the Sandbox testnet."
-    }
+      "/developers":
+        "Nym's developer documentation covering core concepts of integrating with the Mixnet, interacting with the Nyx blockchain, an overview of the avaliable tools, and our SDK docs.",
+      "/network":
+        "Nym's network documentation covering network architecture, node types, tokenomics, and cryptography.",
+      "/operators":
+        "Nym's Operators guide containing information and setup guides for the various components of Nym network and Nyx blockchain validators.",
+      "/apis":
+        "Interactive APIs generated from the OpenAPI specs of various API endpoints offered by bits of Nym infrastructure run both by Nym and community operators for both Mainnet and the Sandbox testnet.",
+    };
 
-    const defaultDescription = 'Nym is a privacy platform. It provides strong network-level privacy against sophisticated end-to-end attackers, and anonymous access control using blinded, re-randomizable, decentralized credentials.'
+    const defaultDescription =
+      "Nym is a privacy platform. It provides strong network-level privacy against sophisticated end-to-end attackers, and anonymous access control using blinded, re-randomizable, decentralized credentials.";
 
-    const topLevel = '/' + route.split('/')[1]
+    const topLevel = "/" + route.split("/")[1];
     const description =
       config.frontMatter.description ||
       bookDescriptions[topLevel] ||
-      defaultDescription
+      defaultDescription;
 
-      const title = config.title + (route === '/' ? '' : ' - Nym docs')
+    const title = config.title + (route === "/" ? "" : " - Nym docs");
 
     return (
       <>
@@ -53,7 +58,7 @@ const config: DocsThemeConfig = {
 
         <meta name="apple-mobile-web-app-title" content="Nym docs" />
       </>
-    )
+    );
   },
   logo: <span>Nym Docs</span>,
   project: {
@@ -65,6 +70,9 @@ const config: DocsThemeConfig = {
     text: Footer,
   },
   darkMode: true,
+  nextThemes: {
+    defaultTheme: "dark",
+  },
   sidebar: {
     defaultMenuCollapseLevel: 1,
     autoCollapse: true,
@@ -73,9 +81,8 @@ const config: DocsThemeConfig = {
     extraContent: <Matrix />,
   },
   toc: {
-    float: false, // TODO would be nice to set this to false so the TOC is in the left sidebar but this doesn't seem to work with pages that are also the top of directories: fix
-    // if we do this then we also have to uncomment the editLink and feedback objects below
-    component: null, // try remove right-hand column
+    float: false,
+    component: null,
   },
   editLink: {
     component: null, // remove element

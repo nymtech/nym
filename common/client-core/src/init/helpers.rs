@@ -343,4 +343,3 @@ pub(super) async fn register_with_gateway(
         authenticated_ephemeral_client: gateway_client,
     })
 }
-

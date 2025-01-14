@@ -4,6 +4,7 @@ import * as React from 'react'
 import { Alert, AlertTitle, Box, CircularProgress, Grid } from '@mui/material'
 import { useParams } from 'next/navigation'
 import {GatewayBond, LocatedGateway} from '@/app/typeDefs/explorer-api'
+import { ReleaseAlert } from './components/ReleaseAlert'
 import { ColumnsType, DetailTable } from '@/app/components/DetailTable'
 import {
   gatewayEnrichedToGridRow,
@@ -90,6 +91,7 @@ const PageGatewayDetailsWithState = ({
 
   return (
     <Box component="main">
+      <ReleaseAlert />
       <Title text="Legacy Gateway Detail" />
 
       <Alert variant="filled" severity="warning" sx={{ my : 2, pt: 2 }}>

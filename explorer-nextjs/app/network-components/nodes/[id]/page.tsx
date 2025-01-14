@@ -3,6 +3,7 @@
 import * as React from 'react'
 import { Alert, AlertTitle, Box, CircularProgress, Grid } from '@mui/material'
 import { useParams } from 'next/navigation'
+import { ReleaseAlert } from './components/ReleaseAlert'
 import { ColumnsType, DetailTable } from '@/app/components/DetailTable'
 import { ComponentError } from '@/app/components/ComponentError'
 import { ContentCard } from '@/app/components/ContentCard'
@@ -96,6 +97,7 @@ const PageNymNodeDetailsWithState = ({
 
   return (
     <Box component="main">
+      <ReleaseAlert />
       <Title text="Nym Node Detail" />
 
       <Grid container mt={4}>

@@ -9,7 +9,7 @@ import {
   SelectChangeEvent,
   Typography,
 } from '@mui/material'
-import { ReleaseAlert } from './components/ReleaseAlert'
+import { ReleaseAlert } from '@/app/components/ReleaseAlert'
 import { ContentCard } from '@/app/components/ContentCard'
 import { TableToolbar } from '@/app/components/TableToolbar'
 import { Title } from '@/app/components/Title'

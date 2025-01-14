@@ -112,3 +112,6 @@ Whether the `data` of a SURB request being empty is a feature or a bug is to be 
 You can find a few helper functions [here](./message-helpers.md) to help deal with this issue in the meantime.
 
 > If you can think of a more succinct or different way of handling this do reach out - we're happy to hear other opinions
+
+## Lots of `duplicate fragment received` messages
+You might see a lot of `WARN` level logs about duplicate fragments in your logs, depending on the log level you're using. This occurs when a packet is retransmitted somewhere in the Mixnet, but then the original makes it to the destination client as well. This is not something to do with your client logic, but instead the state of the Mixnet.

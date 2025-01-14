@@ -59,30 +59,30 @@ pub enum InvalidPacketSize {
 pub enum PacketSize {
     // for example instant messaging use case
     #[default]
-    #[serde(rename = "regular")]
+    #[serde(alias = "regular")]
     RegularPacket = 1,
 
     // for sending SURB-ACKs
-    #[serde(rename = "ack")]
+    #[serde(alias = "ack")]
     AckPacket = 2,
 
     // for example for streaming fast and furious in uncompressed 10bit 4K HDR quality
-    #[serde(rename = "extended32")]
+    #[serde(alias = "extended32")]
     ExtendedPacket32 = 3,
 
     // for example for streaming fast and furious in heavily compressed lossy RealPlayer quality
-    #[serde(rename = "extended8")]
+    #[serde(alias = "extended8")]
     ExtendedPacket8 = 4,
 
     // for example for streaming fast and furious in compressed XviD quality
-    #[serde(rename = "extended16")]
+    #[serde(alias = "extended16")]
     ExtendedPacket16 = 5,
 
-    #[serde(rename = "outfox_regular")]
+    #[serde(alias = "outfox_regular")]
     OutfoxRegularPacket = 6,
 
     // for sending SURB-ACKs
-    #[serde(rename = "outfox_ack")]
+    #[serde(alias = "outfox_ack")]
     OutfoxAckPacket = 7,
 }
 

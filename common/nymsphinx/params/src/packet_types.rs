@@ -23,17 +23,17 @@ pub enum PacketType {
     /// Represents 'normal' packet sent through the network that should be delayed by an appropriate
     /// value at each hop.
     #[default]
-    #[serde(rename = "mix")]
+    #[serde(alias = "mix")]
     #[serde(alias = "sphinx")]
     Mix = 0,
 
     /// Represents a packet that should be sent through the network as fast as possible.
     #[deprecated]
-    #[serde(rename = "unsupported-mix-vpn")]
+    #[serde(alias = "unsupported-mix-vpn")]
     Vpn = 1,
 
     /// Abusing this to add Outfox support
-    #[serde(rename = "outfox")]
+    #[serde(alias = "outfox")]
     Outfox = 2,
 }
 

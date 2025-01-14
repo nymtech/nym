@@ -1,0 +1,54 @@
+
+[client]
+version = ""
+id = ""
+disabled_credentials_mode = true
+nyxd_urls = ["https://rpc.nymtech.net/"]
+nym_api_urls = ["https://validator.nymtech.net/api/"]
+
+[debug.traffic]
+average_packet_delay = "50ms"
+message_sending_average_delay = "20ms"
+disable_main_poisson_packet_distribution = false
+deterministic_route_selection = false
+primary_packet_size = "regular"
+packet_type = "mix"
+
+[debug.cover_traffic]
+loop_cover_traffic_average_delay = "200ms"
+cover_traffic_primary_size_ratio = 0.7
+disable_loop_cover_traffic_stream = false
+
+[debug.gateway_connection]
+gateway_response_timeout = "5m"
+
+[debug.acknowledgements]
+average_ack_delay = "50ms"
+ack_wait_multiplier = 1.5
+ack_wait_addition = "1s 500ms"
+
+[debug.topology]
+topology_refresh_rate = "5m"
+topology_resolution_timeout = "5s"
+disable_refreshing = false
+max_startup_gateway_waiting_period = "1h 10m"
+topology_structure = "NymApi"
+minimum_mixnode_performance = 50
+minimum_gateway_performance = 50
+use_extended_topology = false
+ignore_egress_epoch_role = false
+
+[debug.reply_surbs]
+minimum_reply_surb_storage_threshold = 10
+maximum_reply_surb_storage_threshold = 200
+minimum_reply_surb_request_size = 10
+maximum_reply_surb_request_size = 100
+maximum_allowed_reply_surb_request_size = 500
+maximum_reply_surb_rerequest_waiting_period = "10s"
+maximum_reply_surb_drop_waiting_period = "5m"
+maximum_reply_surb_age = "12h"
+maximum_reply_key_age = "1day"
+
+[debug.stats_reporting]
+enabled = true
+reporting_interval = "5m"

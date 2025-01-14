@@ -8,6 +8,13 @@ license.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
+[build-dependencies]
+nym-client-core-config-types = { path = "./config-types", features = [
+    "disk-persistence",
+] }
+toml.workspace = true
+uneval = "0.2.4"
+
 [dependencies]
 async-trait = { workspace = true }
 base64 = { workspace = true }
@@ -43,6 +50,7 @@ nym-gateway-requests = { path = "../gateway-requests" }
 nym-metrics = { path = "../nym-metrics" }
 nym-nonexhaustive-delayqueue = { path = "../nonexhaustive-delayqueue" }
 nym-sphinx = { path = "../nymsphinx" }
+nym-sphinx-params = { path = "../nymsphinx/params" }
 nym-statistics-common = { path = "../statistics" }
 nym-pemstore = { path = "../pemstore" }
 nym-topology = { path = "../topology", features = ["persistence"] }
@@ -117,12 +125,15 @@ features = ["wasm-bindgen"]
 
 [dev-dependencies]
 tempfile = { workspace = true }
+toml.workspace = true
 
 [features]
-default = []
+default = ["enable-cfg"]
 cli = ["clap", "comfy-table"]
 fs-credentials-storage = ["nym-credential-storage/persistent-storage"]
 fs-surb-storage = ["nym-client-core-surb-storage/fs-surb-storage"]
 fs-gateways-storage = ["nym-client-core-gateways-storage/fs-gateways-storage"]
 wasm = ["nym-gateway-client/wasm"]
 metrics-server = []
+
+enable-cfg = []

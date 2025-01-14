@@ -35,8 +35,6 @@ export default async function NymNode({
     const observatoryNymNodes: IObservatoryNode[] =
       await observatoryResponse.json();
 
-    console.log("observatoryNymNodes :>> ", observatoryNymNodes);
-
     if (!observatoryNymNodes) {
       return null;
     }
@@ -44,8 +42,6 @@ export default async function NymNode({
     const observatoryNymNode = observatoryNymNodes.find(
       (node) => node.node_id === id,
     );
-
-    console.log("observatorynNymNode :>> ", observatoryNymNode);
 
     if (!observatoryNymNode) {
       return null;

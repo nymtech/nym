@@ -50,7 +50,6 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
         "Delegation from Nym Explorer V2",
         uNymFunds,
       );
-      console.log({ tx });
       setSelectedNodeForStaking(undefined);
       setInfoModalProps({
         open: true,

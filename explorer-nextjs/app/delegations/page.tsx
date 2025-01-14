@@ -271,9 +271,9 @@ const DelegationsPage = () => {
           }}
         />
       )}
+      <ReleaseAlert />
       {showBanner && <Banner onClose={() => setShowBanner(false)} />}
       <Box display="flex" justifyContent="space-between" alignItems="center">
-        <ReleaseAlert />
         <Title text="Your Delegations" />
         <Button
           variant="contained"

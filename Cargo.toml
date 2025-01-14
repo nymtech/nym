@@ -344,7 +344,7 @@ tracing-opentelemetry = "0.19.0"
 tracing-subscriber = "0.3.19"
 tracing-tree = "0.2.2"
 tracing-log = "0.2"
-ts-rs = "10.0.0"
+ts-rs = "10.1.0"
 tungstenite = { version = "0.20.1", default-features = false }
 url = "2.5"
 utoipa = "5.2"

@@ -38,23 +38,22 @@ function getNodeRoles(
 }
 
 function calculateQualityOfServiceStars(quality: number): number {
-  if (quality < 0.3) {
-    return 1;
+  switch (true) {
+    case quality < 0.3:
+      return 1;
+    case quality < 0.5:
+      return 2;
+    case quality < 0.7:
+      return 3;
+    default:
+      return 4;
   }
-  if (quality < 0.5) {
-    return 2;
-  }
-  if (quality < 0.7) {
-    return 3;
-  }
-  return 4;
 }
 
 function calculateConfigScoreStars(probeResult: LastProbeResult): number {
   const { as_entry, as_exit } = probeResult.outcome;
 
   if (as_entry && as_exit) {
-    // Combine all true/false values for as_entry and as_exit
     const allResults = [
       as_entry.can_connect,
       as_entry.can_route,
@@ -67,34 +66,32 @@ function calculateConfigScoreStars(probeResult: LastProbeResult): number {
 
     const combinedScore = allResults.filter(Boolean).length;
 
-    if (combinedScore === 7) {
-      return 4; // 4 stars if all 7 are true
+    switch (combinedScore) {
+      case 7:
+        return 4;
+      case 6:
+        return 3;
+      case 5:
+        return 2;
+      default:
+        return 1;
     }
-    if (combinedScore === 6) {
-      return 3; // 3 stars if 6 are true
-    }
-    if (combinedScore === 5) {
-      return 2; // 2 stars if 5 are true
-    }
-    return 1; // 1 star if less than 5 are true
   }
 
-  // Check if only as_entry exists and calculate stars
   if (as_entry) {
     const { can_connect, can_route } = as_entry;
-
     const entryScore = [can_connect, can_route].filter(Boolean).length;
 
-    if (entryScore === 2) {
-      return 4; // 4 stars if both are true
+    switch (entryScore) {
+      case 2:
+        return 4;
+      case 1:
+        return 2;
+      default:
+        return 1;
     }
-    if (entryScore === 1) {
-      return 2; // 2 stars if one is true
-    }
-    return 1; // 1 star if both are false
   }
 
-  // Check if only as_exit exists and calculate stars
   if (as_exit) {
     const {
       can_connect,
@@ -112,20 +109,19 @@ function calculateConfigScoreStars(probeResult: LastProbeResult): number {
       can_route_ip_v6,
     ].filter(Boolean).length;
 
-    if (exitScore === 5) {
-      return 4; // 4 stars if all 5 are true
+    switch (exitScore) {
+      case 5:
+        return 4;
+      case 4:
+        return 3;
+      case 3:
+        return 2;
+      default:
+        return 1;
     }
-    if (exitScore === 4) {
-      return 3; // 3 stars if 4 true, 1 false
-    }
-    if (exitScore === 3) {
-      return 2; // 2 stars if 3 true, 2 false
-    }
-    return 1; // 1 star if 2 true or less
   }
 
-  // Default case if neither as_entry nor as_exit is present
-  return 0; // No stars
+  return 0; // Default case if neither as_entry nor as_exit is present
 }
 
 function calculateWireguardPerformance(probeResult: LastProbeResult): number {
@@ -135,7 +131,6 @@ function calculateWireguardPerformance(probeResult: LastProbeResult): number {
     return 1; // Default to 1 star if Wireguard information is missing
   }
 
-  // Calculate average ping performance
   const pingPerformance =
     (wg.ping_hosts_performance_v4 +
       wg.ping_hosts_performance_v6 +
@@ -143,42 +138,32 @@ function calculateWireguardPerformance(probeResult: LastProbeResult): number {
       wg.ping_ips_performance_v6) /
     4;
 
-  // 4 stars: Can register, complete handshakes, resolve DNS, and ping performance > 0.75
-  if (
-    wg.can_register &&
-    wg.can_handshake_v4 &&
-    wg.can_handshake_v6 &&
-    wg.can_resolve_dns_v4 &&
-    wg.can_resolve_dns_v6 &&
-    pingPerformance > 0.75
-  ) {
-    return 4;
-  }
+  switch (true) {
+    case wg.can_register &&
+      wg.can_handshake_v4 &&
+      wg.can_handshake_v6 &&
+      wg.can_resolve_dns_v4 &&
+      wg.can_resolve_dns_v6 &&
+      pingPerformance > 0.75:
+      return 4;
 
-  // 3 stars: Can register, complete handshakes, resolve DNS, but ping performance <= 0.75
-  if (
-    wg.can_register &&
-    wg.can_handshake_v4 &&
-    wg.can_handshake_v6 &&
-    wg.can_resolve_dns_v4 &&
-    wg.can_resolve_dns_v6 &&
-    pingPerformance <= 0.75
-  ) {
-    return 3;
-  }
+    case wg.can_register &&
+      wg.can_handshake_v4 &&
+      wg.can_handshake_v6 &&
+      wg.can_resolve_dns_v4 &&
+      wg.can_resolve_dns_v6 &&
+      pingPerformance <= 0.75:
+      return 3;
 
-  // 2 stars: Can register, but handshake v4 or v6 is false
-  if (wg.can_register && (!wg.can_handshake_v4 || !wg.can_handshake_v6)) {
-    return 2;
-  }
+    case wg.can_register && (!wg.can_handshake_v4 || !wg.can_handshake_v6):
+      return 2;
 
-  // 1 star: If "as_exit" exists but cannot route ipv4 or ipv6
-  if (as_exit && (!as_exit.can_route_ip_v4 || !as_exit.can_route_ip_v6)) {
-    return 1;
-  }
+    case as_exit && (!as_exit.can_route_ip_v4 || !as_exit.can_route_ip_v6):
+      return 1;
 
-  // Default case: No matching conditions
-  return 1;
+    default:
+      return 1; // Default case
+  }
 }
 
 export const QualityIndicatorsCard = (props: IQualityIndicatorsCardProps) => {

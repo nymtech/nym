@@ -1065,18 +1065,6 @@ dependencies = [
 
 [[package]]
 name = "clap"
-version = "3.2.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4ea181bf566f71cb9a5d17a59e1871af638180a18fb0035c92ae62b705207123"
-dependencies = [
- "bitflags 1.3.2",
- "clap_lex 0.2.4",
- "indexmap 1.9.3",
- "textwrap",
-]
-
-[[package]]
-name = "clap"
 version = "4.5.26"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8eb5e908ef3a6efbe1ed62520fb7287959888c88485abe072543190ecc66783"
@@ -1093,7 +1081,7 @@ checksum = "96b01801b5fc6a0a232407abc821660c9c6d25a1cafc0d4f85f29fb8d9afc121"
 dependencies = [
  "anstream",
  "anstyle",
- "clap_lex 0.7.4",
+ "clap_lex",
  "strsim 0.11.1",
 ]
 
@@ -1103,7 +1091,7 @@ version = "4.5.42"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "33a7e468e750fa4b6be660e8b5651ad47372e8fb114030b594c2d75d48c5ffd0"
 dependencies = [
- "clap 4.5.26",
+ "clap",
 ]
 
 [[package]]
@@ -1112,7 +1100,7 @@ version = "4.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d494102c8ff3951810c72baf96910b980fb065ca5d3101243e6a8dc19747c86b"
 dependencies = [
- "clap 4.5.26",
+ "clap",
  "clap_complete",
 ]
 
@@ -1126,15 +1114,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.90",
-]
-
-[[package]]
-name = "clap_lex"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2850f2f5a82cbf437dd5af4d49848fbdfc27c157c3d010345776f952765261c5"
-dependencies = [
- "os_str_bytes",
 ]
 
 [[package]]
@@ -1477,32 +1456,6 @@ dependencies = [
 
 [[package]]
 name = "criterion"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7c76e09c1aae2bc52b3d2f29e13c6572553b30c4aa1b8a49fd70de6412654cb"
-dependencies = [
- "anes",
- "atty",
- "cast",
- "ciborium",
- "clap 3.2.25",
- "criterion-plot",
- "itertools 0.10.5",
- "lazy_static",
- "num-traits",
- "oorandom",
- "plotters",
- "rayon",
- "regex",
- "serde",
- "serde_derive",
- "serde_json",
- "tinytemplate",
- "walkdir",
-]
-
-[[package]]
-name = "criterion"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f2b12d017a929603d80db1831cd3a24082f8137ce19c69e6447f54f5fc8d692f"
@@ -1510,7 +1463,7 @@ dependencies = [
  "anes",
  "cast",
  "ciborium",
- "clap 4.5.26",
+ "clap",
  "criterion-plot",
  "is-terminal",
  "itertools 0.10.5",
@@ -2419,7 +2372,7 @@ name = "explorer-api"
 version = "1.1.43"
 dependencies = [
  "chrono",
- "clap 4.5.26",
+ "clap",
  "dotenvy",
  "humantime-serde",
  "isocountry",
@@ -3547,7 +3500,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bip39",
- "clap 4.5.26",
+ "clap",
  "dirs",
  "importer-contract",
  "nym-bin-common",
@@ -4234,7 +4187,7 @@ name = "mixnet-connectivity-check"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.26",
+ "clap",
  "futures",
  "nym-bin-common",
  "nym-crypto",
@@ -4556,7 +4509,7 @@ dependencies = [
  "bloomfilter",
  "bs58",
  "cfg-if",
- "clap 4.5.26",
+ "clap",
  "console-subscriber",
  "cosmwasm-std",
  "cw-utils",
@@ -4678,7 +4631,7 @@ dependencies = [
  "bincode",
  "bs58",
  "bytes",
- "clap 4.5.26",
+ "clap",
  "defguard_wireguard_rs",
  "fastrand 2.1.1",
  "futures",
@@ -4758,7 +4711,7 @@ dependencies = [
 name = "nym-bin-common"
 version = "0.6.0"
 dependencies = [
- "clap 4.5.26",
+ "clap",
  "clap_complete",
  "clap_complete_fig",
  "const-str",
@@ -4799,7 +4752,7 @@ dependencies = [
  "base64 0.22.1",
  "bip39",
  "bs58",
- "clap 4.5.26",
+ "clap",
  "clap_complete",
  "clap_complete_fig",
  "dotenvy",
@@ -4825,7 +4778,7 @@ dependencies = [
  "bip39",
  "bs58",
  "cfg-if",
- "clap 4.5.26",
+ "clap",
  "colored",
  "comfy-table",
  "cosmrs 0.17.0-pre",
@@ -4879,7 +4832,7 @@ name = "nym-client"
 version = "1.1.45"
 dependencies = [
  "bs58",
- "clap 4.5.26",
+ "clap",
  "dirs",
  "futures",
  "log",
@@ -4919,7 +4872,7 @@ dependencies = [
  "base64 0.22.1",
  "bs58",
  "cfg-if",
- "clap 4.5.26",
+ "clap",
  "comfy-table",
  "futures",
  "gloo-timers",
@@ -5061,7 +5014,7 @@ version = "0.5.0"
 dependencies = [
  "bls12_381",
  "bs58",
- "criterion 0.4.0",
+ "criterion",
  "digest 0.9.0",
  "doc-comment",
  "ff",
@@ -5110,7 +5063,7 @@ dependencies = [
  "bls12_381",
  "bs58",
  "cfg-if",
- "criterion 0.5.1",
+ "criterion",
  "digest 0.9.0",
  "ff",
  "group",
@@ -5188,7 +5141,7 @@ dependencies = [
  "bip39",
  "bs58",
  "cfg-if",
- "clap 4.5.26",
+ "clap",
  "colored",
  "dotenvy",
  "futures",
@@ -5382,7 +5335,7 @@ dependencies = [
  "bitvec",
  "bls12_381",
  "bs58",
- "criterion 0.4.0",
+ "criterion",
  "ff",
  "group",
  "lazy_static",
@@ -5714,7 +5667,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bs58",
- "clap 4.5.26",
+ "clap",
  "nym-bin-common",
  "nym-credential-storage",
  "nym-id",
@@ -5756,7 +5709,7 @@ dependencies = [
  "bincode",
  "bs58",
  "bytes",
- "clap 4.5.26",
+ "clap",
  "etherparse",
  "futures",
  "log",
@@ -5911,7 +5864,7 @@ version = "1.0.2"
 dependencies = [
  "anyhow",
  "axum 0.7.7",
- "clap 4.5.26",
+ "clap",
  "dashmap",
  "futures",
  "log",
@@ -5946,7 +5899,7 @@ dependencies = [
  "anyhow",
  "async-trait",
  "bs58",
- "clap 4.5.26",
+ "clap",
  "dirs",
  "futures",
  "humantime-serde",
@@ -6001,7 +5954,7 @@ dependencies = [
  "bs58",
  "cargo_metadata 0.18.1",
  "celes",
- "clap 4.5.26",
+ "clap",
  "colored",
  "cupid",
  "dashmap",
@@ -6101,7 +6054,7 @@ name = "nym-node-status-agent"
 version = "1.0.0-rc.1"
 dependencies = [
  "anyhow",
- "clap 4.5.26",
+ "clap",
  "nym-bin-common",
  "nym-crypto",
  "nym-node-status-client",
@@ -6119,7 +6072,7 @@ dependencies = [
  "anyhow",
  "axum 0.7.7",
  "chrono",
- "clap 4.5.26",
+ "clap",
  "cosmwasm-std",
  "envy",
  "futures-util",
@@ -6226,7 +6179,7 @@ name = "nym-nr-query"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.26",
+ "clap",
  "log",
  "nym-bin-common",
  "nym-network-defaults",
@@ -6252,7 +6205,7 @@ dependencies = [
  "blake3",
  "chacha20",
  "chacha20poly1305",
- "criterion 0.4.0",
+ "criterion",
  "curve25519-dalek 4.1.3",
  "fastrand 2.1.1",
  "getrandom",
@@ -6366,7 +6319,7 @@ name = "nym-socks5-client"
 version = "1.1.45"
 dependencies = [
  "bs58",
- "clap 4.5.26",
+ "clap",
  "log",
  "nym-bin-common",
  "nym-client-core",
@@ -6809,7 +6762,7 @@ version = "0.2.0"
 dependencies = [
  "anyhow",
  "bip39",
- "clap 4.5.26",
+ "clap",
  "cosmwasm-std",
  "futures",
  "humantime 2.1.0",
@@ -6971,7 +6924,7 @@ version = "0.1.10"
 dependencies = [
  "anyhow",
  "bytes",
- "clap 4.5.26",
+ "clap",
  "dotenvy",
  "flate2",
  "futures",
@@ -7003,7 +6956,7 @@ dependencies = [
  "async-trait",
  "axum 0.7.7",
  "chrono",
- "clap 4.5.26",
+ "clap",
  "nym-bin-common",
  "nym-config",
  "nym-network-defaults",
@@ -7226,12 +7179,6 @@ checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
 dependencies = [
  "num-traits",
 ]
-
-[[package]]
-name = "os_str_bytes"
-version = "6.6.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e2355d85b9a3786f481747ced0e0ff2ba35213a1f9bd406ed906554d7af805a1"
 
 [[package]]
 name = "overload"
@@ -9314,7 +9261,7 @@ name = "ssl-inject"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "clap 4.5.26",
+ "clap",
  "hex",
  "tokio",
 ]
@@ -9721,7 +9668,7 @@ dependencies = [
  "anyhow",
  "bip39",
  "bs58",
- "clap 4.5.26",
+ "clap",
  "console",
  "cw-utils",
  "dkg-bypass-contract",
@@ -9752,12 +9699,6 @@ dependencies = [
  "url",
  "zeroize",
 ]
-
-[[package]]
-name = "textwrap"
-version = "0.16.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "23d434d3f8967a09480fb04132ebe0a3e088c173e6d0ee7897abbdf4eab0f8b9"
 
 [[package]]
 name = "thiserror"
@@ -10576,7 +10517,7 @@ checksum = "21345172d31092fd48c47fd56c53d4ae9e41c4b1f559fb8c38c1ab1685fd919f"
 dependencies = [
  "anyhow",
  "camino",
- "clap 4.5.26",
+ "clap",
  "uniffi_bindgen",
  "uniffi_build",
  "uniffi_core",
@@ -10593,7 +10534,7 @@ dependencies = [
  "askama",
  "camino",
  "cargo_metadata 0.15.4",
- "clap 4.5.26",
+ "clap",
  "fs-err",
  "glob",
  "goblin",

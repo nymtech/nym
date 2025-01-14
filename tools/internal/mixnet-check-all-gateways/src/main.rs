@@ -45,6 +45,10 @@ enum TestError {
     Other(String),
 }
 
+// TODO we also need to ping <gateway_IP>:8080/api/v1/system-info and if we get something, also add
+// that to the results - that way if anything borks in results then maybe we can do some
+// correlation with the hardware 
+
 #[tokio::main]
 async fn main() -> Result<()> {
     setup_logging(); // TODO think about parsing and noise here if make it concurrent. Could just parse on errors from all libs and then have info from here? echo server metrics + info logging from this code + error logs from elsewhere should be ok

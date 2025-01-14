@@ -13,6 +13,7 @@ import {
   Typography,
 } from '@mui/material'
 import { DelegationModal, DelegationModalProps, Title } from '@/app/components'
+import { ReleaseAlert } from './components/ReleaseAlert'
 import { useWalletContext } from '@/app/context/wallet'
 import { unymToNym } from '@/app/utils/currency'
 import {
@@ -272,6 +273,7 @@ const DelegationsPage = () => {
       )}
       {showBanner && <Banner onClose={() => setShowBanner(false)} />}
       <Box display="flex" justifyContent="space-between" alignItems="center">
+        <ReleaseAlert />
         <Title text="Your Delegations" />
         <Button
           variant="contained"

@@ -22,6 +22,7 @@ import {
   Tooltip,
   mixnodeToGridRow,
 } from '@/app/components'
+import { ReleaseAlert } from './components/ReleaseAlert'
 import { DelegationsProvider } from '@/app/context/delegations'
 import { useWalletContext } from '@/app/context/wallet'
 import { useGetMixNodeStatusColor, useIsMobile } from '@/app/hooks'
@@ -308,6 +309,7 @@ export default function MixnodesPage() {
   return (
     <DelegationsProvider>
       <Box mb={2}>
+        <ReleaseAlert />
         <Title text="Legacy Mixnodes" />
       </Box>
       <Grid container>

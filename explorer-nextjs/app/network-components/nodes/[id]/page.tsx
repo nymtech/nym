@@ -3,7 +3,7 @@
 import * as React from 'react'
 import { Alert, AlertTitle, Box, CircularProgress, Grid } from '@mui/material'
 import { useParams } from 'next/navigation'
-import { ReleaseAlert } from './components/ReleaseAlert'
+import { ReleaseAlert } from '@/app/components/ReleaseAlert'
 import { ColumnsType, DetailTable } from '@/app/components/DetailTable'
 import { ComponentError } from '@/app/components/ComponentError'
 import { ContentCard } from '@/app/components/ContentCard'

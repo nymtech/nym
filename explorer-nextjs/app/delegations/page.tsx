@@ -13,7 +13,7 @@ import {
   Typography,
 } from '@mui/material'
 import { DelegationModal, DelegationModalProps, Title } from '@/app/components'
-import { ReleaseAlert } from './components/ReleaseAlert'
+import { ReleaseAlert } from '@/app/components/ReleaseAlert'
 import { useWalletContext } from '@/app/context/wallet'
 import { unymToNym } from '@/app/utils/currency'
 import {

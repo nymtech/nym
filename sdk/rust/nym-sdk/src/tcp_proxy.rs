@@ -1,11 +1,3 @@
-//! Proxy abstractions for interacting with the mixnet like a tcp socket
-//!
-//!
-//! # Basic example
-//!
-//! ```no_run
-//! use bincode;
-//! use dirs;
 //! use nym_sdk::tcp_proxy;
 //! use rand::rngs::SmallRng;
 //! use rand::{Rng, SeedableRng};
@@ -18,19 +10,20 @@
 //! use tokio::signal;
 //! use tokio_stream::StreamExt;
 //! use tokio_util::codec;
-//! use tracing_subscriber;
-//!
+//! use tokio_util::sync::CancellationToken;
+//! use tracing_subscriber::{fmt, prelude::*, EnvFilter};
+
 //! #[derive(Serialize, Deserialize, Debug)]
 //! struct ExampleMessage {
 //!     message_id: i8,
 //!     message_bytes: Vec<u8>,
 //! }
-//!
-//! // This is a basic example which opens a single TCP connection //! and writes a bunch of messages between a client and an echo
-//! // server, so only uses a single session under the hood and //! doesn't really show off the message ordering capabilities; this is mainly
+
+//! // This is a basic example which opens a single TCP connection and writes a bunch of messages between a client and an echo
+//! // server, so only uses a single session under the hood and doesn't really show off the message ordering capabilities; this is mainly
 //! // just a quick introductory illustration on how:
 //! // - the mixnet does message ordering
-//! // - the NymProxyClient and NymProxyServer can be hooked into //! and used to communicate between two otherwise pretty vanilla TcpStreams
+//! // - the NymProxyClient and NymProxyServer can be hooked into and used to communicate between two otherwise pretty vanilla TcpStreams
 //! //
 //! // For a more irl example checkout tcp_proxy_multistream.rs
 //! //
@@ -40,59 +33,81 @@
 //! #[tokio::main]
 //! async fn main() -> anyhow::Result<()> {
 //!     // Keep track of sent/received messages
-//!     // let counter = Arc::new(Mutex::new(0));
 //!     let counter = AtomicU8::new(0);
-//!
+
 //!     // Comment this out to just see println! statements from this example, as Nym client logging is very informative but quite verbose.
 //!     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering. To see the contents of the msg buffer, sphinx packet chunking, etc change the tracing::Level to DEBUG.
-//!     tracing_subscriber::fmt()
-//!         .with_max_level(tracing::Level::INFO)
+//!     tracing_subscriber::registry()
+//!         .with(fmt::layer())
+//!         .with(EnvFilter::new("nym_sdk::tcp_proxy=info"))
 //!         .init();
-//!
+
 //!     let server_port = env::args()
 //!         .nth(1)
 //!         .expect("Server listen port not specified");
 //!     let upstream_tcp_addr = format!("127.0.0.1:{}", server_port);
-//!
+
 //!     // This dir gets cleaned up at the end: NOTE if you switch env between tests without letting the file do the automatic cleanup, make sure to manually remove this directory up before running again, otherwise your client will attempt to use these keys for the new env
 //!     let home_dir = dirs::home_dir().expect("Unable to get home directory");
 //!     let conf_path = format!("{}/tmp/nym-proxy-server-config", home_dir.display());
-//!
+
 //!     let env_path = env::args().nth(2).expect("Env file not specified");
 //!     let env = env_path.to_string();
 //!     let client_port = env::args().nth(3).expect("Port not specified");
-//!
+
 //!     let mut proxy_server =
 //!         tcp_proxy::NymProxyServer::new(&upstream_tcp_addr, &conf_path, Some(env_path.clone()))
 //!             .await?;
 //!     let proxy_nym_addr = proxy_server.nym_address();
-//!
+
 //!     // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.
 //!     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
+//!     // The final argument is how many clients to keep in reserve in the client pool when running the TcpProxy.
 //!     let proxy_client =
-//!         tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 60, Some(env))
+//!         tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 1)
 //!             .await?;
-//!
+
+//!     // For our disconnect() logic below
+//!     let proxy_clone = proxy_client.clone();
+
 //!     tokio::spawn(async move {
-//!         let _ = proxy_server.run_with_shutdown().await?;
+//!         proxy_server.run_with_shutdown().await?;
 //!         Ok::<(), anyhow::Error>(())
 //!     });
-//!
+
 //!     tokio::spawn(async move {
-//!         let _ = proxy_client.run().await?;
+//!         proxy_client.run().await?;
 //!         Ok::<(), anyhow::Error>(())
 //!     });
-//!
+
+//!     let example_cancel_token = CancellationToken::new();
+//!     let server_cancel_token = example_cancel_token.clone();
+//!     let client_cancel_token = example_cancel_token.clone();
+//!     let watcher_cancel_token = example_cancel_token.clone();
+
+//!     // Cancel listener thread
+//!     tokio::spawn(async move {
+//!         signal::ctrl_c().await?;
+//!         println!(":: CTRL_C received, shutting down + cleanup up proxy server config files");
+//!         fs::remove_dir_all(conf_path)?;
+//!         watcher_cancel_token.cancel();
+//!         proxy_clone.disconnect().await;
+//!         Ok::<(), anyhow::Error>(())
+//!     });
+
 //!     // 'Server side' thread: echo back incoming as response to the messages sent in the 'client side' thread below
 //!     tokio::spawn(async move {
 //!         let listener = TcpListener::bind(upstream_tcp_addr).await?;
 //!         loop {
+//!             if server_cancel_token.is_cancelled() {
+//!                 break;
+//!             }
 //!             let (socket, _) = listener.accept().await.unwrap();
 //!             let (read, mut write) = socket.into_split();
 //!             let codec = codec::BytesCodec::new();
 //!             let mut framed_read = codec::FramedRead::new(read, codec);
 //!             while let Some(Ok(bytes)) = framed_read.next().await {
-//!                 match bincode::deserialize::<ExampleMessage> (&bytes) {
+//!                 match bincode::deserialize::<ExampleMessage>(&bytes) {
 //!                     Ok(msg) => {
 //!                         println!(
 //!                             "<< server received {}: {} bytes",
@@ -123,12 +138,12 @@
 //!         #[allow(unreachable_code)]
 //!         Ok::<(), anyhow::Error>(())
 //!     });
-//!
-//!     // Just wait for Nym clients to connect, TCP clients to bind, etc.
+
+//!     // Just wait for Nym clients to connect, TCP clients to bind, etc. If there isn't a client in the pool (or you started it with 0) already then the TcpProxyClient just spins up an ephemeral client itself.
 //!     println!("waiting for everything to be set up..");
-//!     tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+//!     tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
 //!     println!("done. sending bytes");
-//!
+
 //!     // Now the client and server proxies are running we can create and pipe traffic to/from
 //!     // a socket on the same port as our ProxyClient instance as if we were just communicating
 //!     // between a client and host via a normal TcpStream - albeit with a decent amount of additional latency.
@@ -139,13 +154,16 @@
 //!     let local_tcp_addr = format!("127.0.0.1:{}", client_port);
 //!     let stream = TcpStream::connect(local_tcp_addr).await?;
 //!     let (read, mut write) = stream.into_split();
-//!
+
 //!     // 'Client side' thread; lets just send a bunch of messages to the server with variable delays between them, with an id to keep track of ordering in the printlns; the mixnet only guarantees message delivery, not ordering. You might not be necessarily streaming traffic in this manner IRL, but this example is a good illustration of how messages travel through the mixnet.
-//!     // - On the level of individual messages broken into multiple packets, the Proxy abstraction deals with making sure that everything is sent between the sockets in the correct order.
+//!     // - On the level of individual messages broken into multiple packets, the Proxy abstraction deals with making sure that everything is sent between the sockets in the //! corrent order.
 //!     // - On the level of different messages, this is not enforced: you might see in the logs that message 1 arrives at the server and is reconstructed after message 2.
 //!     tokio::spawn(async move {
 //!         let mut rng = SmallRng::from_entropy();
 //!         for i in 0..10 {
+//!             if client_cancel_token.is_cancelled() {
+//!                 break;
+//!             }
 //!             let random_bytes = gen_bytes_fixed(i as usize);
 //!             let msg = ExampleMessage {
 //!                 message_id: i,
@@ -158,11 +176,11 @@
 //!                 .expect("couldn't write to stream");
 //!             println!(">> client sent {}: {} bytes", &i, msg.message_bytes.len());
 //!             let delay = rng.gen_range(3.0..7.0);
-//!             tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay.clone())).await;
+//!             tokio::time::sleep(tokio::time::Duration::from_secs_f64(delay)).await;
 //!         }
 //!         Ok::<(), anyhow::Error>(())
 //!     });
-//!
+
 //!     let codec = codec::BytesCodec::new();
 //!     let mut framed_read = codec::FramedRead::new(read, codec);
 //!     while let Some(Ok(bytes)) = framed_read.next().await {
@@ -184,22 +202,16 @@
 //!             }
 //!         }
 //!     }
-//!
-//!     // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
-//!     signal::ctrl_c().await?;
-//!     println!(":: CTRL+C received, shutting down + cleanup up proxy server config files");
-//!     fs::remove_dir_all(conf_path)?;
+
 //!     Ok(())
 //! }
-//!
+
 //! fn gen_bytes_fixed(i: usize) -> Vec<u8> {
-//!     // let amounts = vec![1, 10, 50, 100, 150, 200, 350, 500, 750, 1000];
-//!     let amounts = vec![158, 1088, 505, 1001, 150, 200, 3500, 500, 750, 100];
+//!     let amounts = [158, 1088, 505, 1001, 150, 200, 3500, 500, 750, 100];
 //!     let len = amounts[i];
 //!     let mut rng = rand::thread_rng();
 //!     (0..len).map(|_| rng.gen::<u8>()).collect()
 //! }
-//! ```
 
 mod tcp_proxy_client;
 mod tcp_proxy_server;

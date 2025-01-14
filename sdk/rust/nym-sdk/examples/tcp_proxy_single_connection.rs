@@ -10,6 +10,8 @@ use tokio::net::{TcpListener, TcpStream};
 use tokio::signal;
 use tokio_stream::StreamExt;
 use tokio_util::codec;
+use tokio_util::sync::CancellationToken;
+use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 
 #[derive(Serialize, Deserialize, Debug)]
 struct ExampleMessage {
@@ -31,13 +33,13 @@ struct ExampleMessage {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     // Keep track of sent/received messages
-    // let counter = Arc::new(Mutex::new(0));
     let counter = AtomicU8::new(0);
 
     // Comment this out to just see println! statements from this example, as Nym client logging is very informative but quite verbose.
     // The Message Decay related logging gives you an ideas of the internals of the proxy message ordering. To see the contents of the msg buffer, sphinx packet chunking, etc change the tracing::Level to DEBUG.
-    tracing_subscriber::fmt()
-        .with_max_level(tracing::Level::INFO)
+    tracing_subscriber::registry()
+        .with(fmt::layer())
+        .with(EnvFilter::new("nym_sdk::tcp_proxy=info"))
         .init();
 
     let server_port = env::args()
@@ -60,9 +62,13 @@ async fn main() -> anyhow::Result<()> {
 
     // We'll run the instance with a long timeout since we're sending everything down the same Tcp connection, so should be using a single session.
     // Within the TcpProxyClient, individual client shutdown is triggered by the timeout.
+    // The final argument is how many clients to keep in reserve in the client pool when running the TcpProxy.
     let proxy_client =
-        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 60, Some(env))
+        tcp_proxy::NymProxyClient::new(*proxy_nym_addr, "127.0.0.1", &client_port, 5, Some(env), 1)
             .await?;
+
+    // For our disconnect() logic below
+    let proxy_clone = proxy_client.clone();
 
     tokio::spawn(async move {
         proxy_server.run_with_shutdown().await?;
@@ -74,10 +80,28 @@ async fn main() -> anyhow::Result<()> {
         Ok::<(), anyhow::Error>(())
     });
 
+    let example_cancel_token = CancellationToken::new();
+    let server_cancel_token = example_cancel_token.clone();
+    let client_cancel_token = example_cancel_token.clone();
+    let watcher_cancel_token = example_cancel_token.clone();
+
+    // Cancel listener thread
+    tokio::spawn(async move {
+        signal::ctrl_c().await?;
+        println!(":: CTRL_C received, shutting down + cleanup up proxy server config files");
+        fs::remove_dir_all(conf_path)?;
+        watcher_cancel_token.cancel();
+        proxy_clone.disconnect().await;
+        Ok::<(), anyhow::Error>(())
+    });
+
     // 'Server side' thread: echo back incoming as response to the messages sent in the 'client side' thread below
     tokio::spawn(async move {
         let listener = TcpListener::bind(upstream_tcp_addr).await?;
         loop {
+            if server_cancel_token.is_cancelled() {
+                break;
+            }
             let (socket, _) = listener.accept().await.unwrap();
             let (read, mut write) = socket.into_split();
             let codec = codec::BytesCodec::new();
@@ -115,9 +139,9 @@ async fn main() -> anyhow::Result<()> {
         Ok::<(), anyhow::Error>(())
     });
 
-    // Just wait for Nym clients to connect, TCP clients to bind, etc.
+    // Just wait for Nym clients to connect, TCP clients to bind, etc. If there isn't a client in the pool (or you started it with 0) already then the TcpProxyClient just spins up an ephemeral client itself.
     println!("waiting for everything to be set up..");
-    tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
+    tokio::time::sleep(tokio::time::Duration::from_secs(10)).await;
     println!("done. sending bytes");
 
     // Now the client and server proxies are running we can create and pipe traffic to/from
@@ -137,6 +161,9 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(async move {
         let mut rng = SmallRng::from_entropy();
         for i in 0..10 {
+            if client_cancel_token.is_cancelled() {
+                break;
+            }
             let random_bytes = gen_bytes_fixed(i as usize);
             let msg = ExampleMessage {
                 message_id: i,
@@ -176,15 +203,10 @@ async fn main() -> anyhow::Result<()> {
         }
     }
 
-    // Once timeout is passed, you can either wait for graceful shutdown or just hard stop it.
-    signal::ctrl_c().await?;
-    println!(":: CTRL+C received, shutting down + cleanup up proxy server config files");
-    fs::remove_dir_all(conf_path)?;
     Ok(())
 }
 
 fn gen_bytes_fixed(i: usize) -> Vec<u8> {
-    // let amounts = vec![1, 10, 50, 100, 150, 200, 350, 500, 750, 1000];
     let amounts = [158, 1088, 505, 1001, 150, 200, 3500, 500, 750, 100];
     let len = amounts[i];
     let mut rng = rand::thread_rng();

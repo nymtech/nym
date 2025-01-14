@@ -1,3 +1,4 @@
+use crate::client_pool::ClientPool;
 use crate::mixnet::{IncludedSurbs, MixnetClientBuilder, MixnetMessageSender, NymNetworkDetails};
 use std::sync::Arc;
 #[path = "utils.rs"]
@@ -12,18 +13,23 @@ use tokio::{
 };
 use tokio_stream::StreamExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
-use tracing::{debug, info, instrument, warn};
+use tokio_util::sync::CancellationToken;
+use tracing::{debug, info, instrument};
 use utils::{MessageBuffer, Payload, ProxiedMessage};
 
-const DEFAULT_CLOSE_TIMEOUT: u64 = 60;
+const DEFAULT_CLOSE_TIMEOUT: u64 = 60; // seconds
 const DEFAULT_LISTEN_HOST: &str = "127.0.0.1";
 const DEFAULT_LISTEN_PORT: &str = "8080";
+const DEFAULT_CLIENT_POOL_SIZE: usize = 2;
 
+#[derive(Clone)]
 pub struct NymProxyClient {
     server_address: Recipient,
     listen_address: String,
     listen_port: String,
     close_timeout: u64,
+    conn_pool: ClientPool,
+    cancel_token: CancellationToken,
 }
 
 impl NymProxyClient {
@@ -33,27 +39,31 @@ impl NymProxyClient {
         listen_port: &str,
         close_timeout: u64,
         env: Option<String>,
+        default_client_amount: usize,
     ) -> Result<Self> {
-        debug!("loading env file: {:?}", env);
-        setup_env(env);
+        debug!("Loading env file: {:?}", env);
+        setup_env(env); // Defaults to mainnet if empty
         Ok(NymProxyClient {
             server_address,
             listen_address: listen_address.to_string(),
             listen_port: listen_port.to_string(),
             close_timeout,
+            conn_pool: ClientPool::new(default_client_amount),
+            cancel_token: CancellationToken::new(),
         })
     }
 
     // server_address is the Nym address of the NymProxyServer to communicate with.
     pub async fn new_with_defaults(server_address: Recipient, env: Option<String>) -> Result<Self> {
-        debug!("loading env file: {:?}", env);
-        setup_env(env); // Defaults to mainnet if empty
-        Ok(NymProxyClient {
+        NymProxyClient::new(
             server_address,
-            listen_address: DEFAULT_LISTEN_HOST.to_string(),
-            listen_port: DEFAULT_LISTEN_PORT.to_string(),
-            close_timeout: DEFAULT_CLOSE_TIMEOUT,
-        })
+            DEFAULT_LISTEN_HOST,
+            DEFAULT_LISTEN_PORT,
+            DEFAULT_CLOSE_TIMEOUT,
+            env,
+            DEFAULT_CLIENT_POOL_SIZE,
+        )
+        .await
     }
 
     pub async fn run(&self) -> Result<()> {
@@ -62,14 +72,34 @@ impl NymProxyClient {
         let listener =
             TcpListener::bind(format!("{}:{}", self.listen_address, self.listen_port)).await?;
 
+        let client_maker = self.conn_pool.clone();
+        tokio::spawn(async move {
+            client_maker.start().await?;
+            Ok::<(), anyhow::Error>(())
+        });
+
         loop {
-            let (stream, _) = listener.accept().await?;
-            tokio::spawn(NymProxyClient::handle_incoming(
-                stream,
-                self.server_address,
-                self.close_timeout,
-            ));
+            tokio::select! {
+                stream = listener.accept() => {
+                    let (stream, _) = stream?;
+                        tokio::spawn(NymProxyClient::handle_incoming(
+                            stream,
+                            self.server_address,
+                            self.close_timeout,
+                            self.conn_pool.clone(),
+                            self.cancel_token.clone(),
+                        ));
+                }
+                _ = self.cancel_token.cancelled() => {
+                    break Ok(());
+                }
+            }
         }
+    }
+
+    pub async fn disconnect(&self) {
+        self.cancel_token.cancel();
+        self.conn_pool.disconnect_pool().await;
     }
 
     // The main body of our logic, triggered on each accepted incoming tcp connection. To deal with assumptions about
@@ -84,11 +114,13 @@ impl NymProxyClient {
     // Then we spawn 2 tasks:
     // - 'Outgoing' thread => frames incoming bytes from OwnedReadHalf and pipe through the mixnet & trigger session close.
     // - 'Incoming' thread => orders incoming messages from the Mixnet via placing them in a MessageBuffer and using tick(), as well as manage session closing.
-    #[instrument]
+    #[instrument(skip(stream, server_address, close_timeout, conn_pool, cancel_token))]
     async fn handle_incoming(
         stream: TcpStream,
         server_address: Recipient,
         close_timeout: u64,
+        conn_pool: ClientPool,
+        cancel_token: CancellationToken,
     ) -> Result<()> {
         // ID for creation of session abstraction; new session ID per new connection accepted by our tcp listener above.
         let session_id = uuid::Uuid::new_v4();
@@ -96,29 +128,28 @@ impl NymProxyClient {
         // Used to communicate end of session between 'Outgoing' and 'Incoming' tasks
         let (tx, mut rx) = oneshot::channel();
 
-        // Client creation can fail for multiple reasons like bad network connection: this loop just allows us to
-        // retry in a loop until we can successfully connect without having to restart the entire function
-        info!(":: Starting session: {}", session_id);
-        info!(":: creating client...");
-        let mut client = loop {
-            let net = NymNetworkDetails::new_from_env();
-            // TODO change to builder but ephemeral
-            // match MixnetClient::connect_new().await {
-            match MixnetClientBuilder::new_ephemeral()
-                .network_details(net)
-                .build()?
-                .connect_to_mixnet()
-                .await
-            {
-                Ok(client) => break client,
-                Err(err) => {
-                    warn!(":: Error creating client: {:?}, will retry in 100ms", err);
-                    tokio::time::sleep(tokio::time::Duration::from_millis(100)).await;
-                }
+        info!("Starting session: {}", session_id);
+
+        let mut client = match conn_pool.get_mixnet_client().await {
+            Some(client) => {
+                info!("Grabbed client {} from pool", client.nym_address());
+                client
+            }
+            None => {
+                info!("Not enough clients in pool, creating ephemeral client");
+                let net = NymNetworkDetails::new_from_env();
+                let client = MixnetClientBuilder::new_ephemeral()
+                    .network_details(net)
+                    .build()?
+                    .connect_to_mixnet()
+                    .await?;
+                info!(
+                    "Using {} for the moment, created outside of the connection pool",
+                    client.nym_address()
+                );
+                client
             }
         };
-        let client_addr = &client.nym_address();
-        info!(":: client created: {}", &client_addr);
 
         // Split our tcpstream into OwnedRead and OwnedWrite halves for concurrent read/writing
         let (read, mut write) = stream.into_split();
@@ -172,7 +203,7 @@ impl NymProxyClient {
                 .send_message(server_addr, &coded_message, IncludedSurbs::Amount(100))
                 .await?;
 
-            info!(":: Closing read end of session: {}", session_id);
+            info!("Closing read end of session: {}", session_id);
             tx.send(true)
                 .map_err(|_| anyhow::anyhow!("Could not send close signal"))?;
             Ok::<(), anyhow::Error>(())
@@ -186,17 +217,22 @@ impl NymProxyClient {
             // Select!-ing one of following options:
             // - rx is triggered by tx to log the session will end in ARGS.close_timeout time, break from this loop to pass to loop below
             // - Deserialise incoming mixnet message, push to msg buffer and tick() to order and write to OwnedWriteHalf.
-            // - call tick() once per 100ms if neither of the above have occurred.
+            // - If the cancel_token is in cancelled state, break and kick down to the loop below.
+            // - Call tick() once per 100ms if neither of the above have occurred.
             loop {
                 tokio::select! {
                     _ = &mut rx => {
-                        info!(":: Closing write end of session: {} in {} seconds", session_id, close_timeout);
+                        info!("Closing write end of session: {} in {} seconds", session_id, close_timeout);
                         break
                     }
                     Some(message) = client.next() => {
                         let message = bincode::deserialize::<ProxiedMessage>(&message.message)?;
                         msg_buffer.push(message);
                         msg_buffer.tick(&mut write).await?;
+                    },
+                    _ = cancel_token.cancelled() => {
+                        info!("CTRL_C triggered in thread, triggering loop shutdown");
+                        break
                     },
                     _ = tokio::time::sleep(tokio::time::Duration::from_millis(100)) => {
                         msg_buffer.tick(&mut write).await?;
@@ -205,6 +241,7 @@ impl NymProxyClient {
             }
             // Select!-ing one of following options:
             // - Deserialise incoming mixnet message, push to msg buffer and tick() to order and write next messageID in line to OwnedWriteHalf.
+            // - If the cancel_token is in cancelled state, shutdown client for this thread.
             // - Sleep for session timeout and return, kills thread with Ok(()).
             loop {
                 tokio::select! {
@@ -213,16 +250,20 @@ impl NymProxyClient {
                         msg_buffer.push(message);
                         msg_buffer.tick(&mut write).await?;
                     },
-                    _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {
-                        info!(":: Closing write end of session: {}", session_id);
-                        info!(":: Triggering client shutdown");
+                    _ = cancel_token.cancelled() => {
+                        info!("CTRL_C triggered in thread, triggering client shutdown");
                         client.disconnect().await;
                         return Ok::<(), anyhow::Error>(())
-                    }
+                    },
+                    _ = tokio::time::sleep(tokio::time::Duration::from_secs(close_timeout)) => {
+                        info!("Closing write end of session: {}", session_id);
+                        info!("Triggering client shutdown");
+                        client.disconnect().await;
+                        return Ok::<(), anyhow::Error>(())
+                    },
                 }
             }
         });
-        tokio::signal::ctrl_c().await?;
         Ok(())
     }
 }

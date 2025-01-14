@@ -30,7 +30,7 @@ namespace bindings {
   [Throws=GoWrapError]
   IncomingMessage listen_for_incoming();
   [Throws=GoWrapError]
-  void new_proxy_client(string server_address, string listen_address, string listen_port, u64 close_timeout, string? env);
+  void new_proxy_client(string server_address, string listen_address, string listen_port, u64 close_timeout, string? env, u8 pool_size);
   [Throws=GoWrapError]
   void new_proxy_client_default(string server_address, string? env);
   [Throws=GoWrapError]

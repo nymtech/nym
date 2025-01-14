@@ -3,6 +3,6 @@
 Core components:
 * A **Mixnet**, which mixes Sphinx packet traffic so that it cannot be determined who is communicating with whom. Our mixnet is based on a modified version of the [**Loopix** design](concepts/loopix). This is made up of [Nym nodes](architecture/mixnet/nodes) runnning on servers around the world maintained by a decentralised group of Operators.
 * Various [**Nym clients**](architecture/mixnet/clients) which manage sending and receiving Sphinx packets, encrypting/decrypting traffic, and providing [cover traffic](./concepts/cover-traffic) to hide 'real' traffic timing.
-* A CosmWasm-enabled blockchain called [**Nyx**](architecture/nyx), the home of the various smart contracts used by the mixnet. A subset of Nyx Validators run [NymAPI]() TODO LINK instances, taking part in also producing and verifying [zk-nym credentials](cryptography/zk-nym).
+* A CosmWasm-enabled blockchain called [**Nyx**](architecture/nyx), the home of the various smart contracts used by the mixnet. A subset of Nyx Validators run [NymAPI](./architecture/nyx#nymapi) instances, taking part in also producing and verifying [zk-nym credentials](cryptography/zk-nym).
 
 ![arch_overview](/images/network/arch/overall-arch.png)

@@ -207,7 +207,11 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Stake saturation",
         accessorKey: "stakeSaturation",
         Header: <ColumnHeading>Stake saturation</ColumnHeading>,
-        Cell: () => <Typography variant="body4">Unavailable</Typography>,
+        Cell: ({ row }) => (
+          <Typography variant="body4">
+            {row.original.node?.stakeSaturation}
+          </Typography>
+        ),
       },
       {
         id: "profitMarginPercentage",

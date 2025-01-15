@@ -36,6 +36,9 @@ pub enum WasmClientError {
         #[from]
         source: NetworkTestingError,
     },
+
+    #[error("the node testing features are currently disabled")]
+    DisabledTester,
 }
 
 // I dislike this so much - there must be a better way.

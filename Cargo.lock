@@ -2820,7 +2820,7 @@ dependencies = [
  "futures-core",
  "futures-sink",
  "gloo-utils 0.2.0",
- "http 1.1.0",
+ "http 1.2.0",
  "js-sys",
  "pin-project",
  "serde",
@@ -4979,7 +4979,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client-wasm"
-version = "1.3.0-rc.0"
+version = "1.4.0-rc.0"
 dependencies = [
  "anyhow",
  "futures",
@@ -5945,7 +5945,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.3.1"
+version = "1.3.0"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6592,6 +6592,7 @@ dependencies = [
  "thiserror 1.0.69",
  "time",
  "tokio",
+ "wasmtimer",
 ]
 
 [[package]]

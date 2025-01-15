@@ -17,7 +17,7 @@ use nym_topology::node::RoutingNode;
 use nym_validator_client::client::IdentityKey;
 use nym_validator_client::nyxd::AccountId;
 use serde::Serialize;
-use std::fmt::Display;
+use std::fmt::{Debug, Display};
 use std::sync::Arc;
 use time::OffsetDateTime;
 use url::Url;
@@ -219,6 +219,34 @@ pub enum GatewaySetup {
 
         client_keys: ClientKeys,
     },
+}
+
+impl Debug for GatewaySetup {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            GatewaySetup::MustLoad { gateway_id } => f
+                .debug_struct("GatewaySetup::MustLoad")
+                .field("gateway_id", gateway_id)
+                .finish(),
+            GatewaySetup::New {
+                specification,
+                available_gateways,
+            } => f
+                .debug_struct("GatewaySetup::New")
+                .field("specification", specification)
+                .field("available_gateways", available_gateways)
+                .field("gateways", specification)
+                .finish(),
+            GatewaySetup::ReuseConnection {
+                gateway_details, ..
+            } => f
+                .debug_struct("GatewaySetup::ReuseConnection")
+                .field("authenticated_ephemeral_client", &"***")
+                .field("gateway_details", gateway_details)
+                .field("client_keys", &"***")
+                .finish(),
+        }
+    }
 }
 
 impl GatewaySetup {

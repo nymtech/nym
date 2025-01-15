@@ -59,6 +59,8 @@ impl ClientStorage {
 
                 db.create_object_store(v2::GATEWAY_REGISTRATIONS_ACTIVE_GATEWAY_STORE)?;
                 db.create_object_store(v2::GATEWAY_REGISTRATIONS_REGISTERED_GATEWAYS_STORE)?;
+
+                return Ok(());
             }
 
             // version 1 -> unimplemented migration

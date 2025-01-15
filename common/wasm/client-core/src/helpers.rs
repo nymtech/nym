@@ -7,6 +7,7 @@ use crate::storage::ClientStorage;
 use js_sys::Promise;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_client_core::config;
+use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::types::GatewaySelectionSpecification;
 use nym_client_core::init::{
@@ -18,7 +19,7 @@ use nym_sphinx::anonymous_replies::requests::AnonymousSenderTag;
 use nym_topology::wasm_helpers::WasmFriendlyNymTopology;
 use nym_topology::{NymTopology, RoutingNode};
 use nym_validator_client::client::IdentityKey;
-use nym_validator_client::NymApiClient;
+use nym_validator_client::{NymApiClient, UserAgent};
 use rand::thread_rng;
 use url::Url;
 use wasm_bindgen::prelude::wasm_bindgen;
@@ -134,6 +135,15 @@ pub async fn setup_gateway_from_api(
     setup_gateway_wasm(client_store, force_tls, chosen_gateway, gateways).await
 }
 
+pub async fn current_gateways_wasm(
+    nym_apis: &[Url],
+    user_agent: Option<UserAgent>,
+    minimum_performance: u8,
+) -> Result<Vec<RoutingNode>, ClientCoreError> {
+    let mut rng = thread_rng();
+    current_gateways(&mut rng, nym_apis, user_agent, minimum_performance).await
+}
+
 pub async fn setup_from_topology(
     explicit_gateway: Option<IdentityKey>,
     force_tls: bool,
@@ -142,4 +152,10 @@ pub async fn setup_from_topology(
 ) -> Result<InitialisationResult, WasmCoreError> {
     let gateways = topology.entry_capable_nodes().cloned().collect::<Vec<_>>();
     setup_gateway_wasm(client_store, force_tls, explicit_gateway, gateways).await
+}
+
+pub async fn generate_new_client_keys(store: &ClientStorage) -> Result<(), WasmCoreError> {
+    let mut rng = thread_rng();
+    init::generate_new_client_keys(&mut rng, store).await?;
+    Ok(())
 }

@@ -12,6 +12,9 @@ build-rust:
 	wasm-pack build --scope nymproject --target web --out-dir ../../dist/wasm/mix-fetch
 	wasm-opt -Oz -o ../../dist/wasm/mix-fetch/mix_fetch_wasm_bg.wasm ../../dist/wasm/mix-fetch/mix_fetch_wasm_bg.wasm
 
+build-rust-debug:
+	wasm-pack build --debug --scope nymproject --target no-modules
+
 build-package-json:
 	node build.mjs
 

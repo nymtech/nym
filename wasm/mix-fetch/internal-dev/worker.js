@@ -36,7 +36,8 @@ const {
     disconnectMixFetch,
     setupMixFetchWithConfig,
     mix_fetch_initialised,
-    finish_mixnet_connection} = wasm_bindgen;
+    finish_mixnet_connection
+} = wasm_bindgen;
 
 let client = null;
 let tester = null;
@@ -69,7 +70,7 @@ async function wasm_bindgenSetup() {
     const validator = 'https://qa-nym-api.qa.nymte.ch/api';
 
     // local
-    const mixFetchNetworkRequesterAddress= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
+    const mixFetchNetworkRequesterAddress = "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
     // const mixFetchNetworkRequesterAddress= "GqiGWmKRCbGQFSqH88BzLKijvZgipnqhmbNFsmkZw84t.4L8sXFuAUyUYyHZYgMdM3AtiusKnYUft6Pd8e41rrCHA@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
 
     // STEP 1. construct config
@@ -100,7 +101,7 @@ async function wasm_bindgenSetup() {
     updatedTraffic.average_packet_delay_ms = 666;
     differentDebug.traffic = updatedTraffic;
 
-    const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, { debug: differentDebug } );
+    const config = new MixFetchConfig(mixFetchNetworkRequesterAddress, {debug: differentDebug});
     //
     // // STEP 2. setup the client
     // // note, the extra optional argument is of the following type:
@@ -121,8 +122,8 @@ async function wasm_bindgenSetup() {
 }
 
 async function nativeSetup() {
-    // const preferredGateway = "6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
-    // const validator = 'https://qa-nym-api.qa.nymte.ch/api';
+    const preferredGateway = "8ookuLkA9oWfRTjb7Jq4tLGcWrqoXKGQxw84MjMrv2S4";
+    const validator = 'https://sandbox-nym-api1.nymtech.net/api';
 
     // local
     // const preferredNetworkRequester= "2o47bhnXWna6VEyt4mXMGQQAbXfpKmX7BkjkxUz8uQVi.6uQGnCqSczpXwh86NdbsCoDDXuqZQM9Uwko8GE7uC9g8@6qQYb4ArXANU6HJDxzH4PFCUqYb39Dae2Gem2KpxescM";
@@ -153,17 +154,17 @@ async function nativeSetup() {
     // await setupMixFetch(preferredNetworkRequester, { nymApiUrl: validator })
     // // #3
     const noCoverTrafficOverride = {
-        traffic: { disableMainPoissonPacketDistribution: true },
-        coverTraffic: { disableLoopCoverTrafficStream: true },
+        traffic: {disableMainPoissonPacketDistribution: true},
+        coverTraffic: {disableLoopCoverTrafficStream: true},
     }
     const mixFetchOverride = {
-        requestTimeoutMs: 10000
+        requestTimeoutMs: 20000
     }
 
     await setupMixFetch({
         // preferredNetworkRequester,
-        preferredGateway: "E3mvZTHQCdBvhfr178Swx9g4QG3kkRUun7YnToLMcMbM",
-        storagePassphrase: "foomp",
+        // preferredGateway: preferredGateway,
+        // storagePassphrase: "foomp",
         forceTls: true,
         // nymApiUrl: validator,
         clientId: "my-client",
@@ -190,7 +191,7 @@ async function testMixFetch() {
                     const url = target;
 
                     // const args = { mode: "ors", redirect: "manual", signal }
-                    const args = { mode: "unsafe-ignore-cors" }
+                    const args = {mode: "unsafe-ignore-cors"}
 
                     try {
                         console.log('using mixFetch...');
@@ -200,7 +201,7 @@ async function testMixFetch() {
 
                         console.log('done')
 
-                    } catch(e) {
+                    } catch (e) {
                         console.error("mix fetch request failure: ", e)
                     }
 
@@ -244,7 +245,7 @@ async function loadGoWasm() {
         goWasm = wasmObj.instance
         go.run(goWasm)
     } else {
-        const bytes  = await resp.arrayBuffer()
+        const bytes = await resp.arrayBuffer()
         const wasmObj = await WebAssembly.instantiate(bytes, go.importObject)
         goWasm = wasmObj.instance
         go.run(goWasm)

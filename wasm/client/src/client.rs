@@ -23,7 +23,7 @@ use wasm_client_core::client::{
 };
 use wasm_client_core::config::r#override::DebugWasmOverride;
 use wasm_client_core::helpers::{
-    current_gateways_wasm, generate_new_client_keys, parse_recipient, parse_sender_tag,
+    add_gateway, current_gateways_wasm, generate_new_client_keys, parse_recipient, parse_sender_tag,
 };
 use wasm_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use wasm_client_core::nym_task::connections::TransmissionLane;
@@ -168,70 +168,6 @@ impl NymClientBuilder {
         Ok(client_store)
     }
 
-    async fn add_gateway(&self, storage: &ClientStorage) -> Result<(), WasmClientError> {
-        let selection_spec = GatewaySelectionSpecification::new(
-            self.preferred_gateway.clone(),
-            self.latency_based_selection,
-            self.force_tls,
-        );
-
-        let preferred_gateway = self
-            .preferred_gateway
-            .as_ref()
-            .map(|g| g.parse())
-            .transpose()
-            .map_err(|source| WasmCoreError::InvalidGatewayIdentity { source })?;
-
-        let registered_gateways = storage.all_gateways_identities().await.map_err(|source| {
-            ClientCoreError::GatewaysDetailsStoreError {
-                source: Box::new(source),
-            }
-        })?;
-
-        // if user provided gateway id (and we can't overwrite data), make sure we're not trying to register
-        // with a known gateway
-        if let Some(user_chosen) = preferred_gateway {
-            if registered_gateways.contains(&user_chosen) {
-                return Err(ClientCoreError::AlreadyRegistered {
-                    gateway_id: user_chosen.to_base58_string(),
-                }
-                .into());
-            }
-        }
-
-        // Setup gateway by either registering a new one, or creating a new config from the selected
-        // one but with keys kept, or reusing the gateway configuration.
-        let available_gateways = current_gateways_wasm(
-            &self.config.base.client.nym_api_urls,
-            Some(bin_info!().into()),
-            self.config.base.debug.topology.minimum_gateway_performance,
-        )
-        .await?;
-
-        // since we're registering with a brand new gateway,
-        // make sure the list of available gateways doesn't overlap the list of known gateways
-        let available_gateways = available_gateways
-            .into_iter()
-            .filter(|g| !registered_gateways.contains(&g.identity()))
-            .collect::<Vec<_>>();
-
-        if available_gateways.is_empty() {
-            return Err(ClientCoreError::NoNewGatewaysAvailable.into());
-        }
-
-        let gateway_setup = GatewaySetup::New {
-            specification: selection_spec,
-            available_gateways,
-        };
-
-        let init_details = setup_gateway(gateway_setup, storage, storage).await?;
-        let gateway = init_details.gateway_id().to_base58_string();
-        set_active_gateway(storage, &gateway).await?;
-
-        console_log!("finished registration with gateway {gateway}");
-        Ok(())
-    }
-
     async fn try_set_preferred_gateway(
         &self,
         client_store: &ClientStorage,
@@ -280,7 +216,16 @@ impl NymClientBuilder {
         if !self.has_active_gateway(&client_store).await?
             || !self.try_set_preferred_gateway(&client_store).await?
         {
-            self.add_gateway(&client_store).await?;
+            add_gateway(
+                self.preferred_gateway.clone(),
+                self.latency_based_selection,
+                self.force_tls,
+                &self.config.base.client.nym_api_urls,
+                bin_info!().into(),
+                self.config.base.debug.topology.minimum_gateway_performance,
+                &client_store,
+            )
+            .await?;
         }
 
         let packet_type = self.config.base.debug.traffic.packet_type;

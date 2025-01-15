@@ -154,7 +154,11 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         align: "center",
         accessorKey: "qos",
         Header: <ColumnHeading>Quality of Service</ColumnHeading>,
-        Cell: () => <Typography variant="body4">Unavailable</Typography>,
+        Cell: ({ row }) => (
+          <Typography variant="body4">
+            {row.original.qualityOfService}
+          </Typography>
+        ),
       },
       {
         id: "location",

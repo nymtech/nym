@@ -8,3 +8,23 @@ NYM NODE is a tool for running a node within the Nym network. Nym Nodes containi
 To setup any type of Nym Node, start with either building [Nym's platform](../binaries/building-nym.mdx) from source or download [pre-compiled binaries](../binaries/pre-built-binaries.mdx) on the [configured server (VPS)](preliminary-steps/vps-setup.mdx) where you want to run the node. Your Nym Node will need to be bonded before it can be run. We recommend most users use the [Nym desktop wallet](preliminary-steps/wallet-preparation.mdx) for this.
 
 **Read thoroughly [Minimum Requirement page](../nodes.mdx) before you configure and run a `nym-node`!**
+
+## Functionality (mode)
+
+Nym Node has three functionalities in the network: `entry-gateway`, `mixnode` and `exit-gateway`.
+
+- Entry Gateway (`--mode entry-gateway`): A the node to which local client connects. It checks the bandwidth allowance, using [zk-nyms](../../network/cryptography/zk-nym) and either sends [Sphinx packets](../../network/cryptography/sphinx) through the mixnet or directly to Exit Gateway in case of dVPN (2-hop) routing. This node also recieves replies and sends them back to users local client.
+
+- Mixnode (`--mode mixnode`): Nodes organized in three layers, randmoly selected every epoch (60 minutes), mixing Sphinx packets, adding a slight latency to defend users agains time correlation attacks and sending them further to the next layer or to the Exit Gateway
+
+- Exit Gateway (`--mode exit-gateway`): The final node in the mixnet. It puts all packets together and using inbuilt Network requester and IP packet router, it sends traffic to the open internet. This node also recieves replies and sends them back to the user client.
+
+Everything essential for each mode exists on `nym-node` by default. For instance, if you run a Mixnode, you'll find that a NR (Network Requester) and IPR (IP Packet Router) addresses exist, but they will be ignored in `mixnode` mode.
+
+Note that every `exit-gateway` mode is basically an `entry-gateway` with NR (Network Requester) and IPR (IP Packet Router) enabled. This means that every `exit-gateway` can work as an `entry-gateway` but not the opposite.
+
+From `nym-node v1.3.0` operators can choose multiple functionalities for their `nym-node` binary (flagged as `--mode`).
+
+**However, the clients are yet to be developped to be able to make a proper selection for multi-mode nodes and therefore we ask operators to asign only one functionality to `--mode` option at a time. Please chose out of: `mixnode` or `entry-gateway` or `exit-gateway`.**
+
+We are developing a design where operators can enable multiple modes, and let the Nym API to position the node according the network's needs in the beginning of each epoch.

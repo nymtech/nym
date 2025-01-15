@@ -156,7 +156,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: <ColumnHeading>Quality of Service</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
-            {row.original.qualityOfService}
+            {row.original.qualityOfService}%
           </Typography>
         ),
       },
@@ -186,7 +186,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: <ColumnHeading>Stake saturation</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
-            {row.original.stakeSaturation}
+            {row.original.stakeSaturation}%
           </Typography>
         ),
       },

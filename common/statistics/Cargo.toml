@@ -27,3 +27,5 @@ nym-credentials-interface = { path = "../credentials-interface" }
 nym-metrics = { path = "../nym-metrics" }
 nym-task = { path = "../task" }
 
+[target."cfg(target_arch = \"wasm32\")".dependencies.wasmtimer]
+workspace = true

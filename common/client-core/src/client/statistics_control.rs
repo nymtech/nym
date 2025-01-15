@@ -16,14 +16,14 @@
 #![warn(clippy::todo)]
 #![warn(clippy::dbg_macro)]
 
-use std::time::Duration;
-
+use futures::StreamExt;
 use nym_client_core_config_types::StatsReporting;
 use nym_sphinx::addressing::Recipient;
 use nym_statistics_common::clients::{
     ClientStatsController, ClientStatsReceiver, ClientStatsSender,
 };
 use nym_task::connections::TransmissionLane;
+use std::time::Duration;
 
 use crate::{
     client::inbound_messages::{InputMessage, InputMessageSender},
@@ -94,10 +94,32 @@ impl StatisticsControl {
     async fn run_with_shutdown(&mut self, mut task_client: nym_task::TaskClient) {
         log::debug!("Started StatisticsControl with graceful shutdown support");
 
-        let mut stats_report_interval =
-            tokio::time::interval(self.reporting_config.reporting_interval);
-        let mut local_report_interval = tokio::time::interval(LOCAL_REPORT_INTERVAL);
-        let mut snapshot_interval = tokio::time::interval(SNAPSHOT_INTERVAL);
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut stats_report_interval = tokio_stream::wrappers::IntervalStream::new(
+            tokio::time::interval(self.reporting_config.reporting_interval),
+        );
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut local_report_interval = tokio_stream::wrappers::IntervalStream::new(
+            tokio::time::interval(LOCAL_REPORT_INTERVAL),
+        );
+
+        #[cfg(not(target_arch = "wasm32"))]
+        let mut snapshot_interval =
+            tokio_stream::wrappers::IntervalStream::new(tokio::time::interval(SNAPSHOT_INTERVAL));
+
+        #[cfg(target_arch = "wasm32")]
+        let mut stats_report_interval = gloo_timers::future::IntervalStream::new(
+            self.reporting_config.reporting_interval.as_millis() as u32,
+        );
+
+        #[cfg(target_arch = "wasm32")]
+        let mut local_report_interval =
+            gloo_timers::future::IntervalStream::new(LOCAL_REPORT_INTERVAL.as_millis() as u32);
+
+        #[cfg(target_arch = "wasm32")]
+        let mut snapshot_interval =
+            gloo_timers::future::IntervalStream::new(SNAPSHOT_INTERVAL.as_millis() as u32);
 
         loop {
             tokio::select! {
@@ -108,16 +130,20 @@ impl StatisticsControl {
                             break;
                         }
                 },
-                _ = snapshot_interval.tick() => {
+                _ = snapshot_interval.next() => {
                     self.stats.snapshot();
                 }
-                _ = stats_report_interval.tick(), if self.reporting_config.enabled && self.reporting_config.provider_address.is_some() => {
-                    // SAFTEY : this branch executes only if reporting is not none, so unwrapp is fine
-                    #[allow(clippy::unwrap_used)]
-                    self.report_stats(self.reporting_config.provider_address.unwrap()).await;
+                _ = stats_report_interval.next() => {
+                    let Some(recipient) = self.reporting_config.provider_address else {
+                        continue
+                    };
+
+                    if self.reporting_config.enabled {
+                        self.report_stats(recipient).await;
+                    }
                 }
 
-                _ = local_report_interval.tick() => {
+                _ = local_report_interval.next() => {
                     self.stats.local_report(&mut task_client);
                 }
                 _ = task_client.recv_with_delay() => {

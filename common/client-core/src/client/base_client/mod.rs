@@ -472,6 +472,7 @@ where
             .claim_initial_bandwidth()
             .await
             .map_err(gateway_failure)?;
+
         gateway_client
             .start_listening_for_mixnet_messages()
             .map_err(gateway_failure)?;

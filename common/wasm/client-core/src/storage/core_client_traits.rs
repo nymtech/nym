@@ -128,8 +128,12 @@ impl GatewaysDetailsStore for ClientStorage {
     }
 
     async fn all_gateways(&self) -> Result<Vec<GatewayRegistration>, Self::StorageError> {
-        todo!()
-        // let identities = self.all
+        let identities = self.registered_gateways().await?;
+        let mut registered = Vec::with_capacity(identities.len());
+        for gateway_id in identities {
+            registered.push(self.load_gateway_details(&gateway_id).await?);
+        }
+        Ok(registered)
     }
 
     async fn has_gateway_details(&self, gateway_id: &str) -> Result<bool, Self::StorageError> {

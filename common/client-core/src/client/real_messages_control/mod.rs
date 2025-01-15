@@ -9,10 +9,12 @@ use self::{
     acknowledgement_control::AcknowledgementController, real_traffic_stream::OutQueueControl,
 };
 use crate::client::real_messages_control::message_handler::MessageHandler;
+use crate::client::replies::reply_controller;
 use crate::client::replies::reply_controller::{
     ReplyController, ReplyControllerReceiver, ReplyControllerSender,
 };
 use crate::client::replies::reply_storage::CombinedReplyStorage;
+use crate::config;
 use crate::{
     client::{
         inbound_messages::InputMessageReceiver, mix_traffic::BatchMixMessageSender,
@@ -27,15 +29,12 @@ use nym_gateway_client::AcknowledgementReceiver;
 use nym_sphinx::acknowledgements::AckKey;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::params::PacketType;
+use nym_statistics_common::clients::ClientStatsSender;
 use nym_task::connections::{ConnectionCommandReceiver, LaneQueueLengths};
 use rand::{rngs::OsRng, CryptoRng, Rng};
 use std::sync::Arc;
 
-use crate::client::replies::reply_controller;
-use crate::config;
 pub(crate) use acknowledgement_control::{AckActionSender, Action};
-
-use nym_statistics_common::clients::ClientStatsSender;
 
 pub(crate) mod acknowledgement_control;
 pub(crate) mod message_handler;

@@ -5,6 +5,7 @@ import StakeTable from "./StakeTable";
 const mappedNymNodes = (nodes: IObservatoryNode[]) =>
   nodes.map((node) => {
     return {
+      name: node.self_description.moniker,
       nodeId: node.node_id,
       identity_key: node.identity_key,
       countryCode: node.description.auxiliary_details.location || null,

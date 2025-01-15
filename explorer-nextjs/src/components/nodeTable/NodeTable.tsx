@@ -126,6 +126,17 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
     () => [
       {
+        id: "name",
+        header: "",
+        Header: <ColumnHeading>Name</ColumnHeading>,
+        accessorKey: "name",
+        Cell: ({ row }) => (
+          <Stack spacing={1}>
+            <Typography variant="body4">{row.original.name || "-"}</Typography>
+          </Stack>
+        ),
+      },
+      {
         id: "node",
         header: "",
         Header: <ColumnHeading>Node</ColumnHeading>,

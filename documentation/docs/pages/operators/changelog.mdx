@@ -55,14 +55,23 @@ Commit Branch:      HEAD
 rustc Version:      1.84.0
 rustc Channel:      stable
 cargo Profile:      release
-
 ```
+
 ### Features
 
 ### Bugfix
 
 ### Operators Updates & Tools
 
+<Callout type="info">
+From `nym-node v1.3.0` operators can choose multiple functionalities for their `nym-node` binary (flagged as `--mode`).
+
+**However, the clients are yet to be developed to be able to make a proper selection for multi-mode nodes and therefore we ask operators to sign only one functionality to `--mode` option at a time. Please chose out of: `mixnode` or `entry-gateway` or `exit-gateway`.**
+
+We are developing a design where operators can enable multiple modes, and let the Nym API to position the node according the network's needs in the beginning of each epoch.
+</CallOut>
+
+- [Node functionality info updated](nodes/nym-node/setup#functionality-mode)
 - [Fund your `nym-node` inbuilt Nyx account](nodes/nym-node/bonding#fund-nym-node-client-nyx-account) to prepare for gateway ticket rewarding
 - All documentation migrated to a new URL [nym.com/docs](https://nym.com/docs) alongside the rebranding of Nym organisation. 
     - Updated [network architecture diagrams](https://nym.com/docs/network/architecture)

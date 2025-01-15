@@ -23,6 +23,9 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
 
   const selfBond = formatBigNum(Number(rewardDetails.operator) / 1_000_000);
   const selfBondFormated = `${selfBond} NYM`;
+
+  const totalStake = formatBigNum(Number(nodeInfo.total_stake) / 1_000_000);
+  const totalStakeFormated = `${totalStake} NYM`;
   return (
     <ExplorerCard label="Basic info">
       <Stack gap={1}>
@@ -64,10 +67,16 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
         <ExplorerListItem
           row
           divider
-          label="Nr. of stakes"
+          label="Nr. of stakers"
           value={rewardDetails.unique_delegations.toString()}
         />
-        <ExplorerListItem row label="Self bonded" value={selfBondFormated} />
+        <ExplorerListItem
+          row
+          divider
+          label="Self bonded"
+          value={selfBondFormated}
+        />
+        <ExplorerListItem row label="Total stake" value={totalStakeFormated} />
       </Stack>
     </ExplorerCard>
   );

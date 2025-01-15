@@ -47,6 +47,8 @@ export default async function NymNode({
       return null;
     }
 
+    console.log("observatoryNymNode :>> ", observatoryNymNode);
+
     const nodeDelegationsResponse = await fetch(
       `${DATA_OBSERVATORY_NODES_URL}/${id}/delegations`,
       {

@@ -115,10 +115,13 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
           {nodeInfo?.self_description.moniker || "Moniker"}
         </Typography>
         {nodeInfo.description.auxiliary_details.location && (
-          <CountryFlag
-            countryCode={nodeInfo.description.auxiliary_details.location}
-            countryName={nodeInfo.description.auxiliary_details.location}
-          />
+          <Box display={"flex"} gap={1}>
+            <Typography variant="h6">Location:</Typography>
+            <CountryFlag
+              countryCode={nodeInfo.description.auxiliary_details.location}
+              countryName={nodeInfo.description.auxiliary_details.location}
+            />
+          </Box>
         )}
         {nodeInfo && (
           <Typography variant="body4" sx={{ color: "pine.950" }} mt={2}>

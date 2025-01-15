@@ -39,20 +39,20 @@ cargo Profile:      release
 <Callout type="info">
 From `nym-node v1.3.0` operators can choose multiple functionalities for their `nym-node` binary (flagged as `--mode`).
 
-**However, the clients are yet to be developped to be able to make a proper selection for multi-mode nodes and therefore we ask operators to asign only one functionality to `--mode` option at a time. Please chose out of: `mixnode` or `entry-gateway` or `exit-gateway`.**
+**However, the clients are yet to be developed to be able to make a proper selection for multi-mode nodes and therefore we ask operators to sign only one functionality to `--mode` option at a time. Please chose out of: `mixnode` or `entry-gateway` or `exit-gateway`.**
 
 We are developing a design where operators can enable multiple modes, and let the Nym API to position the node according the network's needs in the beginning of each epoch.
-</CallOut>
+</Callout>
 
 Nym Node has three functionalities in the network: `entry-gateway`, `mixnode` and `exit-gateway`.
 
-- Entry Gateway (`--mode entry-gateway`): A the node to which local client connects. It checks the bandwidth allowance, using [zk-nyms](../../../network/cryptography/zk-nym) and either sends [Sphinx packets](../../../network/cryptography/sphinx) through the mixnet or directly to Exit Gateway in case of dVPN (2-hop) routing. This node also recieves replies and sends them back to users local client.
+- **Entry Gateway (`--mode entry-gateway`)**: A the node to which local client connects. It checks the bandwidth allowance, using [zk-nyms](../../../network/cryptography/zk-nym) and either sends [Sphinx packets](../../../network/cryptography/sphinx) through the mixnet or directly to Exit Gateway in case of dVPN (2-hop) routing. This node also recieves replies and sends them back to users local client.
 
-- Mixnode (`--mode mixnode`): Nodes organized in three layers, randmoly selected every epoch (60 minutes), mixing Sphinx packets, adding a slight latency to defend users agains time correlation attacks and sending them further to the next layer or to the Exit Gateway
+- **Mixnode (`--mode mixnode`)**: Nodes organized in three layers, randmoly selected every epoch (60 minutes), mixing Sphinx packets, adding a slight latency to defend users agains time correlation attacks and sending them further to the next layer or to the Exit Gateway
 
-- Exit Gateway (`--mode exit-gateway`): The final node in the mixnet. It puts all packets together and using inbuilt Network requester and IP packet router, it sends traffic to the open internet. This node also recieves replies and sends them back to the user client.
+- **Exit Gateway (`--mode exit-gateway`)**: The final node in the mixnet. It puts all packets together and using inbuilt Network requester and IP packet router, it sends traffic to the open internet. This node also recieves replies and sends them back to the user client.
 
-<Callout type="danger">
+<Callout type="warning">
 Exit Gateway is the only node routing data directly to the open internet. Therefore it exposes IP of operators server (VPS) to abuse complains. Before you decide to run an Exit Gateway, please read our [Community Counsel pages](../../community-counsel/exit-gateway) containing more information and some legal content.
 </Callout>
 
@@ -141,7 +141,7 @@ Alternatively operators can just open a text editor and change these values manu
 In such case, you can `run` a node to initalise it or try if everything works, but then stop the proces and paste your entire `run` command syntax (below) to the `ExecStart` line of your `/etc/systemd/system/nym-node.service` and start the node as a [service](configuration.md#following-steps-for-nym-nodes-running-as-systemd-service).
 </Callout>
 
-### Migrate
+## Migrate
 
 <Callout type="warning">
 **Legacy binaries `nym-mixnode` and `nym-gateway` had been deprecated, [`nym-node`](../nym-node.mdx) is the only binary to use for `gateway` or `mixnode` functionalities!**
@@ -190,7 +190,7 @@ http://<IPv4_ADDRESS>/api/v1/roles
 https://<HOSTNAME>/api/v1/roles
 ```
 
-### Next steps
+## Next steps
 
 If there are any problems checkout the troubleshooting section or report an issue.
 

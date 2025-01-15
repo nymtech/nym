@@ -602,18 +602,18 @@ pub fn query(
 
 #[entry_point]
 pub fn migrate(
-    mut deps: DepsMut<'_>,
-    env: Env,
+    deps: DepsMut<'_>,
+    _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     set_build_information!(deps.storage)?;
     cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
 
-    let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
-
-    if !skip_state_updates {
-        crate::queued_migrations::add_config_score_params(deps.branch(), env, &msg)?;
-    }
+    // let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
+    //
+    // if !skip_state_updates {
+    //
+    // }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address
     // and vesting contract requiring the mixnet contract address), if we ever want to deploy any new fresh

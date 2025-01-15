@@ -57,6 +57,18 @@ const config: DocsThemeConfig = {
         <meta name="twitter:url" content={url + route} />
 
         <meta name="apple-mobile-web-app-title" content="Nym docs" />
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `
+              var _mtm = window._mtm = window._mtm || [];
+              _mtm.push({'mtm.startTime': (new Date().getTime()), 'event': 'mtm.Start'});
+              (function() {
+                var d=document, g=d.createElement('script'), s=d.getElementsByTagName('script')[0];
+                g.async=true; g.src='https://matomo.nymtech.net/js/container_iT00PYD0.js'; s.parentNode.insertBefore(g,s);
+              })();
+            `,
+          }}
+        ></script>
       </>
     );
   },

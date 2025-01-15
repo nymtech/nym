@@ -464,10 +464,7 @@ pub fn instantiate_contracts(
         mixnet_contract_address.clone(),
         &nym_mixnet_contract_common::MigrateMsg {
             vesting_contract_address: Some(vesting_contract_address.to_string()),
-            current_nym_node_semver: "1.1.10".to_string(),
-            version_score_weights: Default::default(),
             unsafe_skip_state_updates: Some(true),
-            version_score_params: Default::default(),
         },
         mixnet_code_id,
     )

@@ -18,7 +18,7 @@ pub mod test_helpers {
     };
     use crate::interval::{pending_events, storage as interval_storage};
     use crate::mixnet_contract_settings::storage::{
-        self as mixnet_params_storage, minimum_node_pledge,
+        self as mixnet_params_storage, minimum_node_pledge, ADMIN,
     };
     use crate::mixnet_contract_settings::storage::{rewarding_denom, rewarding_validator_address};
     use crate::mixnodes::helpers::get_mixnode_details_by_id;
@@ -318,6 +318,10 @@ pub mod test_helpers {
             compare_decimals(mix_info.delegates, subtotal, Some(epsilon))
         }
 
+        pub fn admin(&self) -> Addr {
+            ADMIN.get(self.deps()).unwrap().unwrap()
+        }
+
         pub fn random_address(&mut self) -> String {
             format!("n1foomp{}", self.rng.next_u64())
         }
@@ -328,6 +332,14 @@ pub mod test_helpers {
 
         pub fn deps_mut(&mut self) -> DepsMut<'_> {
             self.deps.as_mut()
+        }
+
+        pub fn storage(&self) -> &dyn Storage {
+            self.deps().storage
+        }
+
+        pub fn storage_mut(&mut self) -> &mut dyn Storage {
+            self.deps_mut().storage
         }
 
         pub fn env(&self) -> Env {
@@ -468,6 +480,10 @@ pub mod test_helpers {
             rewards_storage::REWARDING_PARAMS
                 .load(self.deps().storage)
                 .unwrap()
+        }
+
+        pub fn admin_sender(&self) -> MessageInfo {
+            mock_info(self.admin().as_ref(), &[])
         }
 
         pub fn owner(&self) -> MessageInfo {

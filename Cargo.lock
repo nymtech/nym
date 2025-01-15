@@ -2369,7 +2369,7 @@ dependencies = [
 
 [[package]]
 name = "explorer-api"
-version = "1.1.43"
+version = "1.1.44"
 dependencies = [
  "chrono",
  "clap",
@@ -2436,9 +2436,9 @@ checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
 
 [[package]]
 name = "fancy_constructor"
-version = "1.2.2"
+version = "1.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f71f317e4af73b2f8f608fac190c52eac4b1879d2145df1db2fe48881ca69435"
+checksum = "07b19d0e43eae2bfbafe4931b5e79c73fb1a849ca15cd41a761a7b8587f9a1a2"
 dependencies = [
  "macroific",
  "proc-macro2",
@@ -2812,15 +2812,15 @@ checksum = "d2fabcfbdc87f4758337ca535fb41a6d701b65693ce38287d856d1674551ec9b"
 
 [[package]]
 name = "gloo-net"
-version = "0.5.0"
+version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "43aaa242d1239a8822c15c645f02166398da4f8b5c4bae795c1f5b44e9eee173"
+checksum = "c06f627b1a58ca3d42b45d6104bf1e1a03799df472df00988b6ba21accc10580"
 dependencies = [
  "futures-channel",
  "futures-core",
  "futures-sink",
  "gloo-utils 0.2.0",
- "http 0.2.12",
+ "http 1.1.0",
  "js-sys",
  "pin-project",
  "serde",
@@ -3533,7 +3533,8 @@ checksum = "ce23b50ad8242c51a442f3ff322d56b02f08852c77e4c0b4d3fd684abc89c683"
 [[package]]
 name = "indexed_db_futures"
 version = "0.4.2"
-source = "git+https://github.com/TiemenSch/rust-indexed-db?branch=update-uuid#9745d015707008b0c410115d787014a6d1af2efb"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0704b71f13f81b5933d791abf2de26b33c40935143985220299a357721166706"
 dependencies = [
  "accessory",
  "cfg-if",
@@ -4497,7 +4498,7 @@ checksum = "830b246a0e5f20af87141b25c173cd1b609bd7779a4617d6ec582abaf90870f3"
 
 [[package]]
 name = "nym-api"
-version = "1.1.47"
+version = "1.1.48"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -4746,7 +4747,7 @@ dependencies = [
 
 [[package]]
 name = "nym-cli"
-version = "1.1.45"
+version = "1.1.46"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4829,7 +4830,7 @@ dependencies = [
 
 [[package]]
 name = "nym-client"
-version = "1.1.45"
+version = "1.1.46"
 dependencies = [
  "bs58",
  "clap",
@@ -5893,7 +5894,7 @@ dependencies = [
 
 [[package]]
 name = "nym-network-requester"
-version = "1.1.46"
+version = "1.1.47"
 dependencies = [
  "addr",
  "anyhow",
@@ -5944,7 +5945,7 @@ dependencies = [
 
 [[package]]
 name = "nym-node"
-version = "1.2.1"
+version = "1.3.1"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -6316,7 +6317,7 @@ dependencies = [
 
 [[package]]
 name = "nym-socks5-client"
-version = "1.1.45"
+version = "1.1.46"
 dependencies = [
  "bs58",
  "clap",
@@ -6920,7 +6921,7 @@ dependencies = [
 
 [[package]]
 name = "nymvisor"
-version = "0.1.10"
+version = "0.1.11"
 dependencies = [
  "anyhow",
  "bytes",
@@ -11032,9 +11033,9 @@ dependencies = [
 
 [[package]]
 name = "wasmtimer"
-version = "0.2.0"
+version = "0.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f656cd8858a5164932d8a90f936700860976ec21eb00e0fe2aa8cab13f6b4cf"
+checksum = "0048ad49a55b9deb3953841fa1fc5858f0efbcb7a18868c899a360269fac1b23"
 dependencies = [
  "futures",
  "js-sys",

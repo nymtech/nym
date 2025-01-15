@@ -83,6 +83,10 @@ pub(crate) async fn execute(mut args: Args) -> Result<(), NymNodeError> {
         warn!("this node is going to run without mixnode or gateway support! consider providing `mode` value");
     }
 
+    if config.modes.standalone_exit() {
+        warn!("this node is going to run in EXIT gateway mode only - it will not be able to accept client traffic and thus will NOT be eligible for any rewards. consider running it alongside `entry` (or `full-gateway`) mode")
+    }
+
     if config.host.public_ips.is_empty() {
         return Err(NymNodeError::NoPublicIps);
     }

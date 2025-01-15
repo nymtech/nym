@@ -4,6 +4,86 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
+## [2025.1-reeses] (2025-01-15)
+
+- Feture/legacy alert ([#5346])
+- chore: readjusted --mode behaviour to fix the regression ([#5331])
+- chore: apply 1.84 linter suggestions ([#5330])
+- bugfix: make sure refresh data key matches bond info ([#5329])
+- reduce log severity for number of packets being delayed ([#5321])
+- feat: warn users if node is run in exit mode only ([#5320])
+- Bugfix/contract version assignment ([#5318])
+- fixed client session histogram buckets ([#5316])
+- amend 250gb limit ([#5313])
+- feature: expand nym-node prometheus metrics ([#5298])
+- Cherry picked #5286 ([#5287])
+- Add close to credential storage ([#5283])
+- feature: wireguard metrics ([#5278])
+- Add PATCH support to nym-http-api-client ([#5260])
+- chore: removed legacy socks5 listener ([#5259])
+- bugfix: make sure to apply gateway score filtering when choosing initial node ([#5256])
+- Update TS bindings ([#5255])
+- Add conversion unit tests for auth msg ([#5251])
+- Add control messages to GatewayTransciver ([#5247])
+- Remove unneeded async function annotation ([#5246])
+- bugfix: make sure to update timestamp of last batch verification to prevent double redemption ([#5239])
+- Add FromStr impl for UserAgent ([#5236])
+- Extend swagger docs ([#5235])
+- TicketType derive Hash and Eq ([#5233])
+- Add fd callback to client core ([#5230])
+- Extend raw ws fd for gateway client ([#5218])
+- Shipping raw metrics to PG ([#5216])
+- Change sqlite journal mode to WAL ([#5213])
+- Derive serialize for UserAgent ([#5210])
+- Restore Location fields ([#5208])
+- better date serialization ([#5207])
+- Fix overflow ([#5204])
+- feature: hopefully final steps of the smoosh™️ ([#5201])
+- Fix overflow ([#5184])
+- NS API - Gateway stats scraping ([#5180])
+- introduced initial internal commands for nym-cli: ecash key and request generation ([#5174])
+- Move NS client to separate package under NS API ([#5171])
+- build(deps): bump micromatch from 4.0.4 to 4.0.8 in /testnet-faucet ([#4813])
+
+[#5346]: https://github.com/nymtech/nym/pull/5346
+[#5331]: https://github.com/nymtech/nym/pull/5331
+[#5330]: https://github.com/nymtech/nym/pull/5330
+[#5329]: https://github.com/nymtech/nym/pull/5329
+[#5321]: https://github.com/nymtech/nym/pull/5321
+[#5320]: https://github.com/nymtech/nym/pull/5320
+[#5318]: https://github.com/nymtech/nym/pull/5318
+[#5316]: https://github.com/nymtech/nym/pull/5316
+[#5313]: https://github.com/nymtech/nym/pull/5313
+[#5298]: https://github.com/nymtech/nym/pull/5298
+[#5287]: https://github.com/nymtech/nym/pull/5287
+[#5283]: https://github.com/nymtech/nym/pull/5283
+[#5278]: https://github.com/nymtech/nym/pull/5278
+[#5260]: https://github.com/nymtech/nym/pull/5260
+[#5259]: https://github.com/nymtech/nym/pull/5259
+[#5256]: https://github.com/nymtech/nym/pull/5256
+[#5255]: https://github.com/nymtech/nym/pull/5255
+[#5251]: https://github.com/nymtech/nym/pull/5251
+[#5247]: https://github.com/nymtech/nym/pull/5247
+[#5246]: https://github.com/nymtech/nym/pull/5246
+[#5239]: https://github.com/nymtech/nym/pull/5239
+[#5236]: https://github.com/nymtech/nym/pull/5236
+[#5235]: https://github.com/nymtech/nym/pull/5235
+[#5233]: https://github.com/nymtech/nym/pull/5233
+[#5230]: https://github.com/nymtech/nym/pull/5230
+[#5218]: https://github.com/nymtech/nym/pull/5218
+[#5216]: https://github.com/nymtech/nym/pull/5216
+[#5213]: https://github.com/nymtech/nym/pull/5213
+[#5210]: https://github.com/nymtech/nym/pull/5210
+[#5208]: https://github.com/nymtech/nym/pull/5208
+[#5207]: https://github.com/nymtech/nym/pull/5207
+[#5204]: https://github.com/nymtech/nym/pull/5204
+[#5201]: https://github.com/nymtech/nym/pull/5201
+[#5184]: https://github.com/nymtech/nym/pull/5184
+[#5180]: https://github.com/nymtech/nym/pull/5180
+[#5174]: https://github.com/nymtech/nym/pull/5174
+[#5171]: https://github.com/nymtech/nym/pull/5171
+[#4813]: https://github.com/nymtech/nym/pull/4813
+
 ## [2024.14-crunch-patched] (2024-12-17)
 
 - Fixes an issue to allow previously registred clients to connect to latest nym-nodes

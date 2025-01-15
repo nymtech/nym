@@ -238,4 +238,446 @@ pub mod tests {
         // let res = try_update_contract_settings(deps.as_mut(), info, new_params);
         // assert_eq!(Err(MixnetContractError::ZeroActiveSet), res);
     }
+
+    #[cfg(test)]
+    mod updating_current_nym_node_semver {
+        use super::*;
+        use crate::mixnet_contract_settings::queries::query_current_nym_node_version;
+        use crate::support::tests::test_helpers::TestSetup;
+
+        #[test]
+        fn is_restricted_to_the_admin() -> anyhow::Result<()> {
+            let mut test = TestSetup::new();
+
+            let not_admin = mock_info("not-admin", &[]);
+            let admin = mock_info(test.admin().as_ref(), &[]);
+
+            let env = test.env();
+            let res = try_update_current_nym_node_semver(
+                test.deps_mut(),
+                env,
+                not_admin,
+                "1.2.1".to_string(),
+            );
+            assert!(res.is_err());
+
+            let env = test.env();
+            let res = try_update_current_nym_node_semver(
+                test.deps_mut(),
+                env,
+                admin,
+                "1.2.1".to_string(),
+            );
+            assert!(res.is_ok());
+            Ok(())
+        }
+
+        #[test]
+        fn updates_current_semver_value() -> anyhow::Result<()> {
+            let mut test = TestSetup::new();
+
+            let res = query_current_nym_node_version(test.deps())?;
+
+            let initial = res.version.unwrap().version_information.semver;
+            // sanity check to make sure our contract init hasn't changed
+            assert_eq!(initial, "1.1.10");
+
+            let update = "1.2.0".to_string();
+
+            let env = test.env();
+            let sender = test.admin_sender();
+            try_update_current_nym_node_semver(test.deps_mut(), env, sender, update.clone())?;
+
+            let updated = query_current_nym_node_version(test.deps())?;
+            let version = updated.version.unwrap().version_information.semver;
+            assert_eq!(version, update);
+
+            Ok(())
+        }
+
+        #[cfg(test)]
+        mod semver_chain_updates {
+            use super::*;
+            use crate::mixnet_contract_settings::queries::query_nym_node_version_history_paged;
+            use mixnet_contract_common::{
+                HistoricalNymNodeVersion, HistoricalNymNodeVersionEntry, TotalVersionDifference,
+            };
+
+            fn test_setup_with_initial_checks() -> anyhow::Result<TestSetup> {
+                let test = TestSetup::new();
+
+                let res = query_current_nym_node_version(test.deps())?;
+                let initial = res.version.unwrap().version_information.semver;
+
+                // sanity check to make sure our contract init hasn't changed
+                assert_eq!(initial, "1.1.10");
+
+                let history = query_nym_node_version_history_paged(test.deps(), None, None)?;
+                assert_eq!(history.history.len(), 1);
+
+                Ok(test)
+            }
+
+            #[test]
+            fn single_patch() -> anyhow::Result<()> {
+                let mut test = test_setup_with_initial_checks()?;
+                let initial = query_current_nym_node_version(test.deps())?
+                    .version
+                    .unwrap();
+
+                let env = test.env();
+                let sender = test.admin_sender();
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender,
+                    "1.1.11".to_string(),
+                )?;
+
+                let history =
+                    query_nym_node_version_history_paged(test.deps(), None, None)?.history;
+                assert_eq!(history.len(), 2);
+                assert_eq!(history[0], initial);
+                assert_eq!(
+                    history[1],
+                    HistoricalNymNodeVersionEntry {
+                        id: 1,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.1.11".to_string(),
+                            introduced_at_height: env.block.height,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 0,
+                                patch: 1,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn single_minor() -> anyhow::Result<()> {
+                let mut test = test_setup_with_initial_checks()?;
+                let initial = query_current_nym_node_version(test.deps())?
+                    .version
+                    .unwrap();
+
+                let env = test.env();
+                let sender = test.admin_sender();
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender,
+                    "1.2.0".to_string(),
+                )?;
+
+                let history =
+                    query_nym_node_version_history_paged(test.deps(), None, None)?.history;
+                assert_eq!(history.len(), 2);
+                assert_eq!(history[0], initial);
+                assert_eq!(
+                    history[1],
+                    HistoricalNymNodeVersionEntry {
+                        id: 1,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.2.0".to_string(),
+                            introduced_at_height: env.block.height,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 1,
+                                patch: 0,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn multiple_patches() -> anyhow::Result<()> {
+                let mut test = test_setup_with_initial_checks()?;
+                let initial = query_current_nym_node_version(test.deps())?
+                    .version
+                    .unwrap();
+
+                let mut env = test.env();
+                let sender = test.admin_sender();
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    "1.1.11".to_string(),
+                )?;
+                env.block.height += 1;
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    "1.1.12".to_string(),
+                )?;
+                env.block.height += 1;
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender,
+                    "1.1.13".to_string(),
+                )?;
+
+                let history =
+                    query_nym_node_version_history_paged(test.deps(), None, None)?.history;
+                assert_eq!(history.len(), 4);
+                assert_eq!(history[0], initial);
+                assert_eq!(
+                    history[1],
+                    HistoricalNymNodeVersionEntry {
+                        id: 1,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.1.11".to_string(),
+                            introduced_at_height: env.block.height - 2,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 0,
+                                patch: 1,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+                assert_eq!(
+                    history[2],
+                    HistoricalNymNodeVersionEntry {
+                        id: 2,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.1.12".to_string(),
+                            introduced_at_height: env.block.height - 1,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 0,
+                                patch: 2,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+                assert_eq!(
+                    history[3],
+                    HistoricalNymNodeVersionEntry {
+                        id: 3,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.1.13".to_string(),
+                            introduced_at_height: env.block.height,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 0,
+                                patch: 3,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn multiple_minors() -> anyhow::Result<()> {
+                let mut test = test_setup_with_initial_checks()?;
+                let initial = query_current_nym_node_version(test.deps())?
+                    .version
+                    .unwrap();
+
+                let mut env = test.env();
+                let sender = test.admin_sender();
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    "1.2.0".to_string(),
+                )?;
+                env.block.height += 1;
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    "1.3.0".to_string(),
+                )?;
+                env.block.height += 1;
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender,
+                    "1.4.0".to_string(),
+                )?;
+
+                let history =
+                    query_nym_node_version_history_paged(test.deps(), None, None)?.history;
+                assert_eq!(history.len(), 4);
+                assert_eq!(history[0], initial);
+                assert_eq!(
+                    history[1],
+                    HistoricalNymNodeVersionEntry {
+                        id: 1,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.2.0".to_string(),
+                            introduced_at_height: env.block.height - 2,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 1,
+                                patch: 0,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+                assert_eq!(
+                    history[2],
+                    HistoricalNymNodeVersionEntry {
+                        id: 2,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.3.0".to_string(),
+                            introduced_at_height: env.block.height - 1,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 2,
+                                patch: 0,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+                assert_eq!(
+                    history[3],
+                    HistoricalNymNodeVersionEntry {
+                        id: 3,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.4.0".to_string(),
+                            introduced_at_height: env.block.height,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 3,
+                                patch: 0,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+
+                Ok(())
+            }
+
+            #[test]
+            fn mixed_multiple_updates() -> anyhow::Result<()> {
+                let mut test = test_setup_with_initial_checks()?;
+                let initial = query_current_nym_node_version(test.deps())?
+                    .version
+                    .unwrap();
+
+                let mut env = test.env();
+                let sender = test.admin_sender();
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    "1.2.0".to_string(),
+                )?;
+                env.block.height += 1;
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    "1.2.1".to_string(),
+                )?;
+                env.block.height += 1;
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender.clone(),
+                    "1.2.3".to_string(),
+                )?;
+                env.block.height += 1;
+                try_update_current_nym_node_semver(
+                    test.deps_mut(),
+                    env.clone(),
+                    sender,
+                    "1.3.0".to_string(),
+                )?;
+
+                let history =
+                    query_nym_node_version_history_paged(test.deps(), None, None)?.history;
+                assert_eq!(history.len(), 5);
+                assert_eq!(history[0], initial);
+                assert_eq!(
+                    history[1],
+                    HistoricalNymNodeVersionEntry {
+                        id: 1,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.2.0".to_string(),
+                            introduced_at_height: env.block.height - 3,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 1,
+                                patch: 0,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+                assert_eq!(
+                    history[2],
+                    HistoricalNymNodeVersionEntry {
+                        id: 2,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.2.1".to_string(),
+                            introduced_at_height: env.block.height - 2,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 1,
+                                patch: 1,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+                assert_eq!(
+                    history[3],
+                    HistoricalNymNodeVersionEntry {
+                        id: 3,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.2.3".to_string(),
+                            introduced_at_height: env.block.height - 1,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 1,
+                                patch: 3,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+                assert_eq!(
+                    history[4],
+                    HistoricalNymNodeVersionEntry {
+                        id: 4,
+                        version_information: HistoricalNymNodeVersion {
+                            semver: "1.3.0".to_string(),
+                            introduced_at_height: env.block.height,
+                            difference_since_genesis: TotalVersionDifference {
+                                major: 0,
+                                minor: 2,
+                                patch: 3,
+                                prerelease: 0,
+                            },
+                        },
+                    }
+                );
+
+                Ok(())
+            }
+        }
+    }
 }

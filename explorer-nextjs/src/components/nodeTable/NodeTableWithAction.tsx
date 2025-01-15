@@ -16,7 +16,7 @@ const epochRewardsData: ExplorerData["currentEpochRewardsData"] =
 function getNodeSaturationPoint(
   totalStake: number,
   stakeSaturationPoint: string,
-): string {
+): number {
   const saturation = Number.parseFloat(stakeSaturationPoint);
 
   if (Number.isNaN(saturation) || saturation <= 0) {
@@ -25,7 +25,7 @@ function getNodeSaturationPoint(
 
   const ratio = (totalStake / saturation) * 100;
 
-  return `${ratio.toFixed()}%`;
+  return Number(ratio.toFixed());
 }
 
 const mappedNymNodes = (nodes: IObservatoryNode[]) =>
@@ -34,7 +34,6 @@ const mappedNymNodes = (nodes: IObservatoryNode[]) =>
       node.total_stake,
       epochRewardsData.interval.stake_saturation_point,
     );
-    const qualityOfService = `${node.uptime * 100}%`;
     return {
       name: node.self_description.moniker,
       nodeId: node.node_id,
@@ -44,8 +43,8 @@ const mappedNymNodes = (nodes: IObservatoryNode[]) =>
       profitMarginPercentage:
         +node.rewarding_details.cost_params.profit_margin_percent * 100,
       owner: node.bonding_address,
-      stakeSaturation: nodeSaturationPoint || "-",
-      qualityOfService: qualityOfService,
+      stakeSaturation: nodeSaturationPoint,
+      qualityOfService: +node.uptime * 100,
     };
   });
 

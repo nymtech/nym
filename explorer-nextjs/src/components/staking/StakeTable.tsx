@@ -209,7 +209,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: <ColumnHeading>Stake saturation</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
-            {row.original.node?.stakeSaturation}
+            {row.original.node?.stakeSaturation || 0}%
           </Typography>
         ),
       },

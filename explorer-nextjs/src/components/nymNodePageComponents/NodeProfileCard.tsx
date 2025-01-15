@@ -8,6 +8,7 @@ import { useCallback, useState } from "react";
 import { RandomAvatar } from "react-random-avatars";
 import ExplorerCard from "../cards/ExplorerCard";
 import CountryFlag from "../countryFlag/CountryFlag";
+import { Favorite } from "../favorite/Favorite";
 import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import StakeModal from "../staking/StakeModal";
@@ -128,7 +129,7 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
             {nodeInfo.self_description.details}
           </Typography>
         )}
-        <Box mt={3}>
+        <Box mt={3} display={"flex"} gap={1}>
           <Button
             variant="contained"
             size="small"
@@ -136,6 +137,7 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
           >
             Stake on node
           </Button>
+          <Favorite address={nodeInfo.bonding_address} />
         </Box>
       </Stack>
       {isLoading && <Loading />}

@@ -12,42 +12,36 @@ use crate::error::WasmClientError;
 use crate::helpers::{InputSender, WasmTopologyExt};
 use crate::response_pusher::ResponsePusher;
 use js_sys::Promise;
+use nym_bin_common::bin_info;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tsify::Tsify;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen_futures::future_to_promise;
+use wasm_client_core::client::base_client::storage::GatewaysDetailsStore;
 use wasm_client_core::client::{
     base_client::{BaseClientBuilder, ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
 };
 use wasm_client_core::config::r#override::DebugWasmOverride;
 use wasm_client_core::helpers::{
-    add_gateway, current_gateways_wasm, generate_new_client_keys, parse_recipient, parse_sender_tag,
+    add_gateway, generate_new_client_keys, parse_recipient, parse_sender_tag,
 };
-use wasm_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use wasm_client_core::nym_task::connections::TransmissionLane;
 use wasm_client_core::nym_task::TaskManager;
 use wasm_client_core::storage::core_client_traits::FullWasmClientStorage;
+use wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
 use wasm_client_core::storage::ClientStorage;
 use wasm_client_core::topology::{SerializableTopologyExt, WasmFriendlyNymTopology};
-use wasm_client_core::{
-    ClientCoreError, IdentityKey, NymTopology, PacketType, QueryReqwestRpcNyxdClient,
-};
+use wasm_client_core::{IdentityKey, NymTopology, PacketType, QueryReqwestRpcNyxdClient};
 use wasm_utils::error::PromisableResult;
 use wasm_utils::{check_promise_result, console_error, console_log};
 
 #[cfg(feature = "node-tester")]
 use crate::helpers::{NymClientTestRequest, WasmTopologyTestExt};
 
-use nym_bin_common::bin_info;
 #[cfg(feature = "node-tester")]
 use rand::{rngs::OsRng, RngCore};
-use wasm_client_core::client::base_client::storage::helpers::set_active_gateway;
-use wasm_client_core::client::base_client::storage::GatewaysDetailsStore;
-use wasm_client_core::error::WasmCoreError;
-use wasm_client_core::init::setup_gateway;
-use wasm_client_core::storage::wasm_client_traits::WasmClientStorage;
 
 #[cfg(feature = "node-tester")]
 #[allow(dead_code)]

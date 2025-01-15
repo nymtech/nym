@@ -235,12 +235,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     },
     sortingFns: {
       Favorite: (rowA, rowB) => {
-        const isFavoriteA = favorites.includes(
-          rowA.original.bondInformation.owner,
-        );
-        const isFavoriteB = favorites.includes(
-          rowB.original.bondInformation.owner,
-        );
+        const isFavoriteA = favorites.includes(rowA.original.owner);
+        const isFavoriteB = favorites.includes(rowB.original.owner);
 
         // Sort favorites first
         if (isFavoriteA && !isFavoriteB) return -1;

@@ -75,8 +75,12 @@ pub enum NodeMode {
     #[clap(alias = "entry", alias = "gateway")]
     EntryGateway,
 
+    // to not break existing behaviour, this means exit capabilities AND entry capabilities
     #[clap(alias = "exit")]
     ExitGateway,
+
+    // will start only SP needed for exit capabilities WITHOUT entry routing
+    ExitProvidersOnly,
 }
 
 impl Display for NodeMode {
@@ -85,6 +89,7 @@ impl Display for NodeMode {
             NodeMode::Mixnode => "mixnode".fmt(f),
             NodeMode::EntryGateway => "entry-gateway".fmt(f),
             NodeMode::ExitGateway => "exit-gateway".fmt(f),
+            NodeMode::ExitProvidersOnly => "exit-providers-only".fmt(f),
         }
     }
 }
@@ -117,11 +122,16 @@ impl NodeModes {
         self.mixnode || self.entry || self.exit
     }
 
+    pub fn standalone_exit(&self) -> bool {
+        !self.mixnode && !self.entry && self.exit
+    }
+
     pub fn with_mode(&mut self, mode: NodeMode) -> &mut Self {
         match mode {
             NodeMode::Mixnode => self.with_mixnode(),
             NodeMode::EntryGateway => self.with_entry(),
-            NodeMode::ExitGateway => self.with_exit(),
+            NodeMode::ExitGateway => self.with_entry().with_exit(),
+            NodeMode::ExitProvidersOnly => self.with_exit(),
         }
     }
 

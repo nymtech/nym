@@ -384,7 +384,7 @@ impl NymContractCache {
             .iter()
             .find(|n| n.bond_information.identity() == encoded_identity)
         {
-            return Some(nym_node.into());
+            return nym_node.try_into().ok();
         }
 
         // 2. check legacy mixnodes
@@ -393,7 +393,7 @@ impl NymContractCache {
             .iter()
             .find(|n| n.bond_information.identity() == encoded_identity)
         {
-            return Some(mixnode.into());
+            return mixnode.try_into().ok();
         }
 
         // 3. check legacy gateways
@@ -402,7 +402,7 @@ impl NymContractCache {
             .iter()
             .find(|n| n.identity() == &encoded_identity)
         {
-            return Some(gateway.into());
+            return gateway.try_into().ok();
         }
 
         None

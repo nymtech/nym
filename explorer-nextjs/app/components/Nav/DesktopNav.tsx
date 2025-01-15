@@ -20,6 +20,7 @@ import { NYM_WEBSITE } from '@/app/api/constants'
 import { useMainContext } from '@/app/context/main'
 import { MobileDrawerClose } from '@/app/icons/MobileDrawerClose'
 import { NavOptionType, originalNavOptions } from '@/app/context/nav'
+import { ReleaseAlert } from '@/app/components/ReleaseAlert'
 import { DarkLightSwitchDesktop } from '@/app/components/Switch'
 import { Footer } from '@/app/components/Footer'
 import { ConnectKeplrWallet } from '@/app/components/Wallet/ConnectKeplrWallet'
@@ -369,6 +370,7 @@ export const Nav: FCWithChildren = ({ children }) => {
         style={{ width: `calc(100% - ${drawerWidth}px` }}
         sx={{ py: 5, px: 6, mt: 7 }}
       >
+        <ReleaseAlert />
         {children}
         <Footer />
       </Box>

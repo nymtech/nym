@@ -153,13 +153,20 @@ pub trait CosmWasmClient: TendermintRpcClient {
             let req = QueryAllBalancesRequest {
                 address: address.to_string(),
                 pagination,
+                resolve_denom: false,
             };
 
             let mut res = self
                 .make_abci_query::<_, QueryAllBalancesResponse>(path.clone(), req)
                 .await?;
 
+            let early_break = res.balances.is_empty();
             raw_balances.append(&mut res.balances);
+
+            if early_break {
+                break;
+            }
+
             if let Some(next_key) = next_page_key(res.pagination) {
                 pagination = Some(create_pagination(next_key))
             } else {
@@ -187,7 +194,13 @@ pub trait CosmWasmClient: TendermintRpcClient {
                 .make_abci_query::<_, QueryTotalSupplyResponse>(path.clone(), req)
                 .await?;
 
+            let early_break = res.supply.is_empty();
             supply.append(&mut res.supply);
+
+            if early_break {
+                break;
+            }
+
             if let Some(next_key) = next_page_key(res.pagination) {
                 pagination = Some(create_pagination(next_key))
             } else {
@@ -328,7 +341,13 @@ pub trait CosmWasmClient: TendermintRpcClient {
                 .make_abci_query::<_, QueryCodesResponse>(path.clone(), req)
                 .await?;
 
+            let early_break = res.code_infos.is_empty();
             raw_codes.append(&mut res.code_infos);
+
+            if early_break {
+                break;
+            }
+
             if let Some(next_key) = next_page_key(res.pagination) {
                 pagination = Some(create_pagination(next_key))
             } else {
@@ -373,7 +392,13 @@ pub trait CosmWasmClient: TendermintRpcClient {
                 .make_abci_query::<_, QueryContractsByCodeResponse>(path.clone(), req)
                 .await?;
 
+            let early_break = res.contracts.is_empty();
             raw_contracts.append(&mut res.contracts);
+
+            if early_break {
+                break;
+            }
+
             if let Some(next_key) = next_page_key(res.pagination) {
                 pagination = Some(create_pagination(next_key))
             } else {
@@ -429,7 +454,13 @@ pub trait CosmWasmClient: TendermintRpcClient {
                 .make_abci_query::<_, QueryContractHistoryResponse>(path.clone(), req)
                 .await?;
 
+            let early_break = res.entries.is_empty();
             raw_entries.append(&mut res.entries);
+
+            if early_break {
+                break;
+            }
+
             if let Some(next_key) = next_page_key(res.pagination) {
                 pagination = Some(create_pagination(next_key))
             } else {

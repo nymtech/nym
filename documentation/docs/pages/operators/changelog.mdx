@@ -5,8 +5,6 @@ import { VarInfo } from 'components/variable-info.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { Steps } from 'nextra/components';
 
-
-
 export const TestingSteps = () => (
   <div>
     Testing steps performed
@@ -71,10 +69,23 @@ We are developing a design where operators can enable multiple modes, and let th
 
 - [Node functionality info updated](nodes/nym-node/setup#functionality-mode)
 - [Fund your `nym-node` inbuilt Nyx account](nodes/nym-node/bonding#fund-nym-node-client-nyx-account) to prepare for gateway ticket rewarding
+- `config.toml` changes:
+    - Replaced `mode` with `modes` to allow setting the node to run with say, `entry` + `mixnode` roles simultaneously
+    - Added `maximum_forward_packet_delay` to `mixnet.debug` section
+    - Moved `verloc` section from `mixnode.verloc` to top level
+    - Removed `mixnode` section
+    - Removed `entry_gateway` section to `gateway_tasks`
+    - Moved `authenticator` section from `gateway_tasks` (`entry_gateway`) to `service_providers` (`exit_gateway`)
+    - Renamed `exit_gateway` section to `service_providers`
+    - Moved top level `authenticator` section to `service_providers` so that it'd live alongside NR and IPR
+    - Added general `debug` section
+    - Added `metrics` section
 - All documentation migrated to a new URL [nym.com/docs](https://nym.com/docs) alongside the rebranding of Nym organisation. 
     - Updated [network architecture diagrams](https://nym.com/docs/network/architecture)
     - New blow-by-blow mixnet [traffic flow](https://nym.com/docs/network/architecture) section
 - [Winter Nym Squad League started](https://forum.nym.com/t/nym-squad-league-farewell-fall-welcome-winter/977)
+- From this release onward (New Year) Operators Updates & Tools will be on top of each release changelog followed by features, cryptography and bugfix parts.
+- All 2024 release notes were moved to the bottom section called [Archived changelog](#archived-changelog)
 
 ### Features
 
@@ -84,11 +95,186 @@ We are developing a design where operators can enable multiple modes, and let th
     - NS agent now imports NS API client that it uses
     - No functionality change in NS API or NS agent
 - [Introduced initial internal commands for nym-cli: ecash key and request generation](https://github.com/nymtech/nym/pull/5174)
-- [NS API - Gateway stats scraping](https://github.com/nymtech/nym/pull/5180): This PR adds a metrics scraper that fetches metrics from the `metrics/sessions` endpoint on gateway. The entries are stored and served on the API for one year 
+- [NS API - Gateway stats scraping](https://github.com/nymtech/nym/pull/5180): This PR adds a metrics scraper that fetches metrics from the `metrics/sessions` endpoint on gateway. The entries are stored and served on the API for one year
+- [Remove explorer dependency](https://github.com/nymtech/nym/pull/5190)
+- [hopefully final steps of the smoosh™️](https://github.com/nymtech/nym/pull/5201): this PR is a bit more extensive than initially planned because of all the spaghetti that had to be untangled to make it all happen. The general idea is that now it's possible to run your node simultaneously in multiple modes. for example `mixnode` + `entry` or `entry` + `exit`, etc. The modes do the following:
+    - `mixnode`: allows the node to handle **forward** sphinx packets
+    - `entry-gateway`: allows the node to accepts websocket connections from incoming clients and to handle **final hop** sphinx packets
+    - `exit-gateway`: allows the node to handle **final hop** sphinx packets as well as starts NR and IPR service providers
+    Furthermore, if node runs with `wireguard` enabled, it will start local `authenticator` service provider which will also implicitly enable final hop packet handling regardless of the underlying mode. There are also various of other smaller (and bigger) changes:
+    - Upon receiving a forward packet, its delay is now clamped so that one could not dos the node by asking it to delay it for, for example, a year
+    - As mentioned above, node can now run in multiple modes at the same time,
+    - `/metrics/mixing` endpoint got deprecated (it still provides the same information, however) and might be removed in future release
+    - Introduced `/metrics/packet-stats` endpoint that provides more extensive information about packets received/sent
+    - It is now possible to control whether the node should log its statistics to console
+    - The console logs are also updated with the current packet rates
+    - All nodes now run the "verloc" protocol and measure every other node on the network
+    - Metrics got revamped and unified:
+    - All running metrics are stored in a single `NymNodeMetrics` struct
+    - There exists a `MetricsAggregator` that listens to any metrics events that might require additional processing
+    - Any new metrics event types can be easily added by registering a new handler via `register_handler`. the type must implement `MetricsHandler` trait and use unique variant of `MetricsEvent` enum. for example `GatewaySessionStatsHandler`. It is, however, possible to have opaque handlers, such as the already implemented `LegacyMixingStatsUpdater` and `MixnetMetricsCleaner`
+    - Everything in `mixnode` directory has been removed because there was nothing really left there. The mixing socket listener was unified in `nym-node` and similarly `verloc` was also moved there
+    - `gateway` directory was similarly reduced in size. Now it also creates appropriate tasks as opposed to the whole gateway process. eventually it might also be further stripped, but today is not that day.
+    - Removed the generic parameter on the `GatewayStorage` to simplify all the generics down the stack. it wasn't used anyway
+ 
+CLI:
+    - Added `--modes` argument to specify all node modes with a single command (or `env` variable). for example: `--modes="mixnode,entry"`. Can't be used alongside `--modes`
+    - Extended `--mode` argument to allow specifying it multiple times, for example: `--mode mixnode --mode entry`. can't be used alongside `--mode`
+ 
+Config changes:
+    - Replaced `mode` with `modes` to allow setting the node to run with say, `entry` + `mixnode` roles simultaneously
+    - Added `maximum_forward_packet_delay` to `mixnet.debug` section
+    - Moved `verloc` section from `mixnode.verloc` to top level
+    - Removed `mixnode` section
+    - Removed `entry_gateway` section to `gateway_tasks`
+    - Moved `authenticator` section from `gateway_tasks` (`entry_gateway`) to `service_providers` (`exit_gateway`)
+    - Renamed `exit_gateway` section to `service_providers`
+    - Moved top level `authenticator` section to `service_providers` so that it'd live alongside NR and IPR
+    - Added general `debug` section
+    - Added `metrics` section
+- [Better date serialization](https://github.com/nymtech/nym/pull/5207): Proper date serialization for NS API session stats
+- [Restore Location fields](https://github.com/nymtech/nym/pull/5208): restore `latitude` and `longitude` fields
+- [Derive serialize for UserAgent](https://github.com/nymtech/nym/pull/5210)
+- [Change sqlite journal mode to WAL](https://github.com/nymtech/nym/pull/5213)
+- [Shipping raw metrics to PG](https://github.com/nymtech/nym/pull/5216)
+- [Extend raw ws fd for gateway client](https://github.com/nymtech/nym/pull/5218)
+- [Add fd callback to client core](https://github.com/nymtech/nym/pull/5230)
+- [TicketType derive Hash and Eq](https://github.com/nymtech/nym/pull/5233): It's useful to keep `TicketType` in maps, which require `Hash`. Also derive `Eq` since it's useful.
+- [Extend swagger docs](https://github.com/nymtech/nym/pull/5235)
+- [Add FromStr impl for UserAgent](https://github.com/nymtech/nym/pull/5236): Add `FromStr` implementation for `UserAgent` to make it easier to pass in custom user agent in vpn clients as a CLI argument.
+- [Remove unneeded async function annotation](https://github.com/nymtech/nym/pull/5246)
+- Add control messages to `GatewayTransciver`](https://github.com/nymtech/nym/pull/5247)
+<AccordionTemplate name={<TestingSteps/>}>
+**Review and Testing: Forget Me Implementation**  
+
+- Validated the encryption and delivery of `ForgetMe` control messages to the gateway 
+ 
+**Testing: MixTrafficController Integration**  
+
+- Verified that the `MixTrafficController` invokes `ForgetMe` logic correctly during shutdown  
+- Tested behaviour for gateway transceiver failures while sending control messages  
+ 
+**Testing: Gateway Storage Updates**  
+- Confirmed successful deletion of client data (e.g., inbox messages, bandwidth allocations) from persistent storage  
+</AccordionTemplate>
+
+- [Add conversion unit tests for auth msg](https://github.com/nymtech/nym/pull/5251)
+- [Update TS bindings](https://github.com/nymtech/nym/pull/5255)
+- [Removed legacy socks5 listener](https://github.com/nymtech/nym/pull/5259)
+- [Add PATCH support to `nym-http-api-client`](https://github.com/nymtech/nym/pull/5260):  Add `PATCH` support to `nym-http-api-client` crate
+- [Wireguard metrics](https://github.com/nymtech/nym/pull/5278): With this PR on each peer controller update the following global metrics information are also updated:
+    - total bytes tx
+    - total bytes rx
+    - current active peers
+    - total peers registered
+    - The former two are exposed with REST endpoints `/api/v1/metrics/wireguard-stats`, while the rest will be accessible via prometheus (soon ™️ ). the wireguard stats are also logged to the console (assuming they're non-zero)
+- [Add close to credential storage](https://github.com/nymtech/nym/pull/5283): Add close method to credential storage
+<AccordionTemplate name={<TestingSteps/>}>
+1. **Review File: `common/credential-storage/src/backends/sqlite.rs`**
+- Verified addition of `close` method for the SQLite backend
+ 
+2. **Review File: `common/credential-storage/src/ephemeral_storage.rs`**
+- Confirmed addition of `close` method for ephemeral storage with no action required
+ 
+3. **Review File: `common/credential-storage/src/persistent_storage/mod.rs`**
+- Ensured `close` method integration for persistent storage
+ 
+4. **Review File: `common/credential-storage/src/storage.rs`**
+- Verified updates to the `Storage` trait to include `close` and `cleanup_expired` methods
+</AccordionTemplate>
+
+- [Cherry picked \#5286](https://github.com/nymtech/nym/pull/5287)
+<AccordionTemplate name={<TestingSteps/>}>
+1. **Review File: `common/network-defaults/src/constants.rs`**
+- Confirmed updated `mixnet_vpn` constants were added.
+ 
+2. **Review File: `service-providers/ip-packet-router/src/constants.rs`**
+- Checked replacement of legacy `TUN_*` constants with new `mixnet_vpn` constants.
+- Validated alignment of routing traffic configurations.
+ 
+3. **Review File: `service-providers/ip-packet-router/src/ip_packet_router.rs`**
+- Ensured new `nym_network_defaults::constants::mixnet_vpn` constants replaced old references.
+- Verified `TunDeviceConfig` consistency.
+ 
+4. **Review File: `service-providers/ip-packet-router/src/util/generate_new_ip.rs`**
+- Confirmed substitution of `TUN_DEVICE_*` constants with `NYM_TUN_DEVICE_*` constants.
+- Tested functionality for generating random IPs within subnet.
+</AccordionTemplate>
+
+- [Expand `nym-node` prometheus metrics](https://github.com/nymtech/nym/pull/5298): This PR undusts the `/api/v1/metrics/prometheus` and introduces the following **37** new data points:
+<AccordionTemplate name=New data points>
+ - mixnet:
+   - ingress:
+     - `nym_node_mixnet_ingress_forward_hop_packets_received`
+     - `nym_node_mixnet_ingress_final_hop_packets_received`
+     - `nym_node_mixnet_ingress_malformed_packets_received`
+     - `nym_node_mixnet_ingress_excessive_delay_packets`
+     - `nym_node_mixnet_ingress_forward_hop_packets_dropped`
+     - `nym_node_mixnet_ingress_final_hop_packets_dropped`
+     
+     - `nym_node_mixnet_ingress_forward_hop_packets_received_rate`
+     - `nym_node_mixnet_ingress_final_hop_packets_received_rate`      
+     - `nym_node_mixnet_ingress_malformed_packets_received_rate`         
+     - `nym_node_mixnet_ingress_excessive_delay_packets_rate`       
+     - `nym_node_mixnet_ingress_forward_hop_packets_dropped_rate`
+     - `nym_node_mixnet_ingress_final_hop_packets_dropped_rate`
+ 
+   - egress:
+     - `nym_node_mixnet_egress_stored_on_disk_final_hop_packets`
+     - `nym_node_mixnet_egress_forward_hop_packets_sent`
+     - `nym_node_mixnet_egress_ack_packets_sent`
+     - `nym_node_mixnet_egress_forward_hop_packets_dropped`
+     
+     - `nym_node_mixnet_egress_forward_hop_packets_sent_rate`
+     - `nym_node_mixnet_egress_ack_packets_sent_rate`
+     - `nym_node_mixnet_egress_forward_hop_packets_dropped_rate`
+ 
+ - client sessions
+   - `nym_node_entry_client_sessions_unique_users`
+   - `nym_node_entry_client_sessions_sessions_started`
+   - `nym_node_entry_client_sessions_finished_sessions`
+   - `nym_node_entry_client_sessions_durations_{TYP}` (histogram), for example `nym_node_entry_client_sessions_durations_vpn`
+ 
+ - wireguard:
+   - `nym_node_wireguard_bytes_rx`
+   - `nym_node_wireguard_bytes_tx`
+   - `nym_node_wireguard_bytes_total_peers`
+   - `nym_node_wireguard_bytes_active_peers`
+   
+   - `nym_node_wireguard_bytes_rx_rate`
+   - `nym_node_wireguard_bytes_tx_rate`
+ 
+ 
+ - network
+   - `nym_node_network_active_ingress_mixnet_connections`
+   - `nym_node_network_active_ingress_web_socket_connections`
+   - `nym_node_network_active_egress_mixnet_connections`
+ 
+ - process
+   - `nym_node_process_forward_hop_packets_being_delayed`
+   - `nym_node_process_packet_forwarder_queue_size`
+   - `nym_node_process_topology_query_resolution_latency` (histogram)
+   - `nym_node_process_final_hop_packets_pending_delivery`
+   - `nym_node_process_forward_hop_packets_pending_delivery` 
+</AccordionTemplate>
+
+- [Amend 250gb limit](https://github.com/nymtech/nym/pull/5313): Change bandwidth cap to 250gb 
+- [Warn users if node is run in exit mode only](https://github.com/nymtech/nym/pull/5320): Throws a warning if node is run in "exit" mode only as by default, this will **NOT** enable entry capabilities, i.e. opening the websocket. thus making it ineligible for rewarded set selection (and rewards)
+- [Reduce log severity for number of packets being delayed](https://github.com/nymtech/nym/pull/5321)
+- [Apply 1.84 linter suggestions](https://github.com/nymtech/nym/pull/5330)
+- [Readjusted --mode behaviour to fix the regression](https://github.com/nymtech/nym/pull/5331)
+- [Legacy alert](https://github.com/nymtech/nym/pull/5346): alert moved into `nav` components
+
 
 ### Bugfix
 
-
+- [Fix overflow](https://github.com/nymtech/nym/pull/5184)
+- [Fix overflow again](https://github.com/nymtech/nym/pull/5204)
+- [Make sure to update timestamp of last batch verification to prevent double redemption](https://github.com/nymtech/nym/pull/5239)
+- [Make sure to apply gateway score filtering when choosing initial node](https://github.com/nymtech/nym/pull/5256)
+- [Fixed client session histogram buckets](https://github.com/nymtech/nym/pull/5316)
+- [Contract version assignment](https://github.com/nymtech/nym/pull/5318): This PR fixes updates to current nym-node version as well as introduces migration to fix the existing state of the mainnet contract
+ - [Make sure refresh data key matches bond info](https://github.com/nymtech/nym/pull/5329): This is to forbid operators from reusing the same underlying identity key for multiple nodes by overwriting the describe data. the reported key has to always match what the node has bonded with (and the contract enforces uniqueness) 
 
 ## Archived Changelog
 

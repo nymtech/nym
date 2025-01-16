@@ -113,6 +113,10 @@ impl Role {
     pub fn is_standby(&self) -> bool {
         matches!(self, Role::Standby)
     }
+
+    pub fn is_mixnode(&self) -> bool {
+        matches!(self, Role::Layer1 | Role::Layer2 | Role::Layer3)
+    }
 }
 
 impl Display for Role {

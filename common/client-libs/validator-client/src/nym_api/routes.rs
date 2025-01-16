@@ -34,6 +34,19 @@ pub mod ecash {
     pub const EPOCH_ID_PARAM: &str = "epoch_id";
 }
 
+pub const NYM_NODES_ROUTES: &str = "nym-nodes";
+
+pub use nym_nodes::*;
+pub mod nym_nodes {
+    pub const NYM_NODES_PERFORMANCE_HISTORY: &str = "performance-history";
+    pub const NYM_NODES_PERFORMANCE: &str = "performance";
+    pub const NYM_NODES_ANNOTATION: &str = "annotation";
+    pub const NYM_NODES_DESCRIBED: &str = "described";
+    pub const NYM_NODES_BONDED: &str = "bonded";
+    pub const NYM_NODES_REWARDED_SET: &str = "rewarded-set";
+    pub const NYM_NODES_REFRESH_DESCRIBED: &str = "refresh-described";
+}
+
 pub const STATUS_ROUTES: &str = "status";
 pub const API_STATUS_ROUTES: &str = "api-status";
 pub const HEALTH: &str = "health";

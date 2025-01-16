@@ -1,5 +1,7 @@
 "use client";
 
+import type { ObservatoryBalance } from "@/app/api/types";
+import { DATA_OBSERVATORY_BALANCES_URL } from "@/app/api/urls";
 import { useNymClient } from "@/hooks/useNymClient";
 import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Typography } from "@mui/material";
@@ -8,24 +10,32 @@ import ExplorerCard from "../cards/ExplorerCard";
 
 const OriginalStakeCard = () => {
   const [origialStake, setOriginalStake] = useState(0);
-  const { nymClient, address } = useNymClient();
+
+  const { address } = useNymClient();
 
   useEffect(() => {
-    const getDelegations = async () => {
-      if (!nymClient || !address) return;
+    if (!address) return;
 
-      const delegations = await nymClient?.getDelegatorDelegations({
-        delegator: address,
+    const fetchBalances = async () => {
+      const data = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json; charset=utf-8",
+        },
+        next: { revalidate: 60 },
+        // refresh event list cache at given interval
       });
+      const balances: ObservatoryBalance = await data.json();
 
-      const totaluNYMStake = delegations.delegations.reduce((acc, curr) => {
-        return acc + Number(curr.amount.amount);
-      }, 0);
-
-      setOriginalStake(totaluNYMStake);
+      return setOriginalStake(balances.delegated.amount);
     };
-    getDelegations();
-  }, [address, nymClient]);
+
+    fetchBalances();
+  }, [address]);
+
+  if (!address) {
+    return null;
+  }
   return (
     <ExplorerCard label="Original Stake">
       <Typography

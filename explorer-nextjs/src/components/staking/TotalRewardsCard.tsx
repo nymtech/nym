@@ -7,11 +7,11 @@ import { useEffect, useState } from "react";
 import ExplorerCard from "../cards/ExplorerCard";
 
 const TotalRewardsCard = () => {
-  const [totalStakerRewards, setTotalStakerRewards] = useState<string>();
-  const { nymClient, address } = useNymClient();
+  const [totalStakerRewards, setTotalStakerRewards] = useState<number>(0);
+  const { address } = useNymClient();
 
   useEffect(() => {
-    if (!nymClient || !address) return;
+    if (!address) return;
 
     const fetchBalances = async () => {
       const data = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
@@ -23,16 +23,12 @@ const TotalRewardsCard = () => {
         // refresh event list cache at given interval
       });
       const balances: ObservatoryBalance = await data.json();
-      console.log("balances :>> ", balances);
-      const stakerRewards = formatBigNum(
-        +balances.rewards.staking_rewards.amount / 1_000_000,
-      );
 
-      return setTotalStakerRewards(stakerRewards);
+      return setTotalStakerRewards(balances.rewards.staking_rewards.amount);
     };
 
     fetchBalances();
-  }, [address, nymClient]);
+  }, [address]);
 
   if (!address) {
     return null;
@@ -43,7 +39,7 @@ const TotalRewardsCard = () => {
         variant="h3"
         sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
       >
-        {totalStakerRewards || 0} NYM
+        {`${formatBigNum(totalStakerRewards / 1_000_000)} NYM`}
       </Typography>
     </ExplorerCard>
   );

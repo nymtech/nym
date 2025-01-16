@@ -13,7 +13,7 @@ use nym_api_requests::ecash::models::{
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, LegacyDescribedMixNode, NodePerformanceResponse,
-    NodeRefreshBody, NymNodeDescription, RewardedSetResponse,
+    NodeRefreshBody, NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
 };
 use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
 use nym_api_requests::pagination::PaginatedResponse;
@@ -164,6 +164,35 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
+    async fn get_node_performance_history(
+        &self,
+        node_id: NodeId,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PerformanceHistoryResponse, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_PERFORMANCE_HISTORY,
+                &*node_id.to_string(),
+            ],
+            &params,
+        )
+        .await
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
     async fn get_nodes_described(
         &self,
         page: Option<u32>,
@@ -179,8 +208,15 @@ pub trait NymApiClientExt: ApiClient {
             params.push(("per_page", per_page.to_string()))
         }
 
-        self.get_json(&[routes::API_VERSION, "nym-nodes", "described"], &params)
-            .await
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_DESCRIBED,
+            ],
+            &params,
+        )
+        .await
     }
 
     #[tracing::instrument(level = "debug", skip_all)]
@@ -199,8 +235,15 @@ pub trait NymApiClientExt: ApiClient {
             params.push(("per_page", per_page.to_string()))
         }
 
-        self.get_json(&[routes::API_VERSION, "nym-nodes", "bonded"], &params)
-            .await
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_BONDED,
+            ],
+            &params,
+        )
+        .await
     }
 
     #[deprecated]
@@ -210,7 +253,7 @@ pub trait NymApiClientExt: ApiClient {
             &[
                 routes::API_VERSION,
                 "unstable",
-                "nym-nodes",
+                routes::NYM_NODES_ROUTES,
                 "mixnodes",
                 "skimmed",
             ],
@@ -226,7 +269,7 @@ pub trait NymApiClientExt: ApiClient {
             &[
                 routes::API_VERSION,
                 "unstable",
-                "nym-nodes",
+                routes::NYM_NODES_ROUTES,
                 "gateways",
                 "skimmed",
             ],
@@ -238,7 +281,11 @@ pub trait NymApiClientExt: ApiClient {
     #[instrument(level = "debug", skip(self))]
     async fn get_rewarded_set(&self) -> Result<RewardedSetResponse, NymAPIError> {
         self.get_json(
-            &[routes::API_VERSION, "nym-nodes", "rewarded-set"],
+            &[
+                routes::API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_REWARDED_SET,
+            ],
             NO_PARAMS,
         )
         .await
@@ -271,7 +318,7 @@ pub trait NymApiClientExt: ApiClient {
             &[
                 routes::API_VERSION,
                 "unstable",
-                "nym-nodes",
+                routes::NYM_NODES_ROUTES,
                 "skimmed",
                 "entry-gateways",
                 "all",
@@ -308,7 +355,7 @@ pub trait NymApiClientExt: ApiClient {
             &[
                 routes::API_VERSION,
                 "unstable",
-                "nym-nodes",
+                routes::NYM_NODES_ROUTES,
                 "skimmed",
                 "mixnodes",
                 "active",
@@ -345,7 +392,7 @@ pub trait NymApiClientExt: ApiClient {
             &[
                 routes::API_VERSION,
                 "unstable",
-                "nym-nodes",
+                routes::NYM_NODES_ROUTES,
                 "skimmed",
                 "mixnodes",
                 "all",
@@ -377,7 +424,12 @@ pub trait NymApiClientExt: ApiClient {
         }
 
         self.get_json(
-            &[routes::API_VERSION, "unstable", "nym-nodes", "skimmed"],
+            &[
+                routes::API_VERSION,
+                "unstable",
+                routes::NYM_NODES_ROUTES,
+                "skimmed",
+            ],
             &params,
         )
         .await
@@ -686,8 +738,8 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                "nym-nodes",
-                "performance",
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_PERFORMANCE,
                 &node_id.to_string(),
             ],
             NO_PARAMS,
@@ -702,8 +754,8 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[
                 routes::API_VERSION,
-                "nym-nodes",
-                "annotation",
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_ANNOTATION,
                 &node_id.to_string(),
             ],
             NO_PARAMS,
@@ -927,7 +979,11 @@ pub trait NymApiClientExt: ApiClient {
         request: &NodeRefreshBody,
     ) -> Result<(), NymAPIError> {
         self.post_json(
-            &[routes::API_VERSION, "nym-nodes", "refresh-described"],
+            &[
+                routes::API_VERSION,
+                routes::NYM_NODES_ROUTES,
+                routes::NYM_NODES_REFRESH_DESCRIBED,
+            ],
             NO_PARAMS,
             request,
         )

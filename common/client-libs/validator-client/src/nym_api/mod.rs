@@ -13,7 +13,7 @@ use nym_api_requests::ecash::models::{
 use nym_api_requests::ecash::VerificationKeyResponse;
 use nym_api_requests::models::{
     AnnotationResponse, ApiHealthResponse, LegacyDescribedMixNode, NodePerformanceResponse,
-    NodeRefreshBody, NymNodeDescription, RewardedSetResponse,
+    NodeRefreshBody, NymNodeDescription, PerformanceHistoryResponse, RewardedSetResponse,
 };
 use nym_api_requests::nym_nodes::PaginatedCachedNodesResponse;
 use nym_api_requests::pagination::PaginatedResponse;
@@ -159,6 +159,35 @@ pub trait NymApiClientExt: ApiClient {
         self.get_json(
             &[routes::API_VERSION, routes::MIXNODES, routes::DESCRIBED],
             NO_PARAMS,
+        )
+        .await
+    }
+
+    #[tracing::instrument(level = "debug", skip_all)]
+    async fn get_node_performance_history(
+        &self,
+        node_id: NodeId,
+        page: Option<u32>,
+        per_page: Option<u32>,
+    ) -> Result<PerformanceHistoryResponse, NymAPIError> {
+        let mut params = Vec::new();
+
+        if let Some(page) = page {
+            params.push(("page", page.to_string()))
+        }
+
+        if let Some(per_page) = per_page {
+            params.push(("per_page", per_page.to_string()))
+        }
+
+        self.get_json(
+            &[
+                routes::API_VERSION,
+                "nym-nodes",
+                "performance-history",
+                &*node_id.to_string(),
+            ],
+            &params,
         )
         .await
     }

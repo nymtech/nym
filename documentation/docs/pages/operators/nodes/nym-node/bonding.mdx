@@ -180,7 +180,12 @@ cat $HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic
 # for example
 # cat $HOME/.nym/nym-nodes/default-nym-node/data/cosmos_mnemonic
 ```
+- **Alternatively:** You can use `scp` command to copy the file `cosmos_mnemonic` remotely. If this is your preference, use this command:
+```sh
+scp <USER>@<HOST>:.nym/nym-nodes/<ID>/data/cosmos_mnemonic <LOCAL_TARGET_PATH>
+```
 - Copy this phrase and save it to your password manager
+
 
 ###### 2. Get the address of your client Nyx account using desktop wallet
 - Open desktop wallet and choose to sign in with mnemonic

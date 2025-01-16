@@ -101,7 +101,7 @@ impl HostArgs {
 #[derive(clap::Args, Debug)]
 pub(crate) struct HttpArgs {
     /// Socket address this node will use for binding its http API.
-    /// default: `0.0.0.0:8080`
+    /// default: `[::]:8080`
     #[clap(
         long,
         env = NYMNODE_HTTP_BIND_ADDRESS_ARG
@@ -181,7 +181,7 @@ impl HttpArgs {
 #[derive(clap::Args, Debug)]
 pub(crate) struct MixnetArgs {
     /// Address this node will bind to for listening for mixnet packets
-    /// default: `0.0.0.0:1789`
+    /// default: `[::]:1789`
     #[clap(
         long,
         env = NYMNODE_MIXNET_BIND_ADDRESS_ARG
@@ -258,7 +258,7 @@ pub(crate) struct WireguardArgs {
     pub(crate) wireguard_enabled: Option<bool>,
 
     /// Socket address this node will use for binding its wireguard interface.
-    /// default: `0.0.0.0:51822`
+    /// default: `[::]:51822`
     #[clap(
         long,
         env = NYMNODE_WG_BIND_ADDRESS_ARG
@@ -315,7 +315,7 @@ impl WireguardArgs {
 #[derive(clap::Args, Debug)]
 pub(crate) struct VerlocArgs {
     /// Socket address this node will use for binding its verloc API.
-    /// default: `0.0.0.0:1790`
+    /// default: `[::]:1790`
     #[clap(
         long,
         env = NYMNODE_VERLOC_BIND_ADDRESS_ARG
@@ -377,7 +377,7 @@ impl MetricsArgs {
 #[derive(clap::Args, Debug, Zeroize, ZeroizeOnDrop)]
 pub(crate) struct EntryGatewayArgs {
     /// Socket address this node will use for binding its client websocket API.
-    /// default: `0.0.0.0:9000`
+    /// default: `[::]:9000`
     #[clap(
         long,
         env = NYMNODE_ENTRY_BIND_ADDRESS_ARG

@@ -34,7 +34,7 @@ export const TunnelManagerCommands = () => (
 
 This page displays a full list of all the changes during our release cycle from `v2024.3-eclipse` onward. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
-**Note:** Any information shared on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
+**Note:** Any information published on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
 <VarInfo />
 
@@ -96,7 +96,7 @@ We are developing a design where operators can enable multiple modes, and let th
 - [Introduced initial internal commands for nym-cli: ecash key and request generation](https://github.com/nymtech/nym/pull/5174)
 - [NS API - Gateway stats scraping](https://github.com/nymtech/nym/pull/5180): This PR adds a metrics scraper that fetches metrics from the `metrics/sessions` endpoint on gateway. The entries are stored and served on the API for one year
 - [Remove explorer dependency](https://github.com/nymtech/nym/pull/5190)
-- [hopefully final steps of the smoosh™️](https://github.com/nymtech/nym/pull/5201): this PR is a bit more extensive than initially planned because of all the spaghetti that had to be untangled to make it all happen. The general idea is that now it's possible to run your node simultaneously in multiple modes. for example `mixnode` + `entry` or `entry` + `exit`, etc. The modes do the following:
+- [Hopefully final steps of the smoosh™️](https://github.com/nymtech/nym/pull/5201): this PR is a bit more extensive than initially planned because of all the spaghetti that had to be untangled to make it all happen. The general idea is that now it's possible to run your node simultaneously in multiple modes. for example `mixnode` + `entry` or `entry` + `exit`, etc. The modes do the following:
     - `mixnode`: allows the node to handle **forward** sphinx packets
     - `entry-gateway`: allows the node to accepts websocket connections from incoming clients and to handle **final hop** sphinx packets
     - `exit-gateway`: allows the node to handle **final hop** sphinx packets as well as starts NR and IPR service providers
@@ -166,7 +166,7 @@ Config changes:
     - total bytes rx
     - current active peers
     - total peers registered
-    - The former two are exposed with REST endpoints `/api/v1/metrics/wireguard-stats`, while the rest will be accessible via prometheus (soon ™️ ). the wireguard stats are also logged to the console (assuming they're non-zero)
+    - The former two are exposed with REST endpoints `/api/v1/metrics/wireguard-stats`, while the rest will be accessible via prometheus (soon ™️ ). The wireguard stats are also logged to the console (assuming they're non-zero)
 - [Add close to credential storage](https://github.com/nymtech/nym/pull/5283): Add close method to credential storage
 <AccordionTemplate name={<TestingSteps/>}>
 1. **Review File: `common/credential-storage/src/backends/sqlite.rs`**
@@ -201,7 +201,7 @@ Config changes:
 </AccordionTemplate>
 
 - [Expand `nym-node` prometheus metrics](https://github.com/nymtech/nym/pull/5298): This PR undusts the `/api/v1/metrics/prometheus` and introduces the following **37** new data points:
-<AccordionTemplate name=New data points>
+<AccordionTemplate name="New data points">
  - mixnet:
    - ingress:
      - `nym_node_mixnet_ingress_forward_hop_packets_received`

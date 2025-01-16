@@ -224,6 +224,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           </Typography>
         ),
       },
+
       {
         id: "action",
         header: "Action",

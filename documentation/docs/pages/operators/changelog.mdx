@@ -39,6 +39,8 @@ This page displays a full list of all the changes during our release cycle from 
 
 **Note:** Any information shared on this page was up to date at the time of writing. We do *not* maintain changelog retrospectively.
 
+<VarInfo />
+
 ## `v2025.1-reeses`
 
 - [Release Binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2025.1-reeses)
@@ -57,10 +59,6 @@ rustc Channel:      stable
 cargo Profile:      release
 ```
 
-### Features
-
-### Bugfix
-
 ### Operators Updates & Tools
 
 <Callout type="info">
@@ -69,7 +67,7 @@ From `nym-node v1.3.0` operators can choose multiple functionalities for their `
 **However, the clients are yet to be developed to be able to make a proper selection for multi-mode nodes and therefore we ask operators to sign only one functionality to `--mode` option at a time. Please chose out of: `mixnode` or `entry-gateway` or `exit-gateway`.**
 
 We are developing a design where operators can enable multiple modes, and let the Nym API to position the node according the network's needs in the beginning of each epoch.
-</CallOut>
+</Callout>
 
 - [Node functionality info updated](nodes/nym-node/setup#functionality-mode)
 - [Fund your `nym-node` inbuilt Nyx account](nodes/nym-node/bonding#fund-nym-node-client-nyx-account) to prepare for gateway ticket rewarding
@@ -78,7 +76,19 @@ We are developing a design where operators can enable multiple modes, and let th
     - New blow-by-blow mixnet [traffic flow](https://nym.com/docs/network/architecture) section
 - [Winter Nym Squad League started](https://forum.nym.com/t/nym-squad-league-farewell-fall-welcome-winter/977)
 
-<VarInfo />
+### Features
+
+- [build(deps): bump micromatch from `4.0.4` to `4.0.8` in `/testnet-faucet`](https://github.com/nymtech/nym/pull/4813): Bumps [micromatch](https://github.com/micromatch/micromatch) from `4.0.4` to `4.0.8`.
+- Move NS client to separate package under NS API](https://github.com/nymtech/nym/pull/5171):
+    - Moving NS API client code to separate package outside NS Agent makes the code cleaner & more modular
+    - NS agent now imports NS API client that it uses
+    - No functionality change in NS API or NS agent
+- [Introduced initial internal commands for nym-cli: ecash key and request generation](https://github.com/nymtech/nym/pull/5174)
+- [NS API - Gateway stats scraping](https://github.com/nymtech/nym/pull/5180): This PR adds a metrics scraper that fetches metrics from the `metrics/sessions` endpoint on gateway. The entries are stored and served on the API for one year 
+
+### Bugfix
+
+
 
 ## Archived Changelog
 

@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.3.0"
+version = "1.3.1"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -16,6 +16,7 @@ license = "GPL-3.0"
 [dependencies]
 async-trait = { workspace = true }
 anyhow.workspace = true
+arc-swap = { workspace = true }
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
 celes = { workspace = true }                                  # country codes

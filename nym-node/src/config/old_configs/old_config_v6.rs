@@ -1023,6 +1023,7 @@ pub async fn try_upgrade_config_v6<P: AsRef<Path>>(
             expose_system_info: old_cfg.http.expose_system_info,
             expose_system_hardware: old_cfg.http.expose_system_hardware,
             expose_crypto_hardware: old_cfg.http.expose_crypto_hardware,
+            ..Default::default()
         },
         verloc: VerlocV7 {
             bind_address: old_cfg.mixnode.verloc.bind_address,

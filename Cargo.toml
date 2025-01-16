@@ -194,6 +194,7 @@ aes-gcm = "0.10.1"
 aes-gcm-siv = "0.11.1"
 aead = "0.5.2"
 anyhow = "1.0.95"
+arc-swap = "1.7.1"
 argon2 = "0.5.0"
 async-trait = "0.1.85"
 axum-client-ip = "0.6.1"
@@ -324,7 +325,7 @@ strum = "0.26"
 strum_macros = "0.26"
 subtle-encoding = "0.5"
 syn = "1"
-sysinfo = "0.30.13"
+sysinfo = "0.33.0"
 tap = "1.0.1"
 tar = "0.4.43"
 tempfile = "3.15"
@@ -386,20 +387,17 @@ cw-controllers = { version = "=1.1.0" }
 # cosmrs-related
 bip32 = { version = "0.5.2", default-features = false }
 
-# temporarily using a fork again (yay.) because we need staking and slashing support (which are already on main but not released)
-# plus response message parsing (which is, as of the time of writing this message, waiting to get merged)
-#cosmrs = { path = "../cosmos-rust-fork/cosmos-rust/cosmrs" }
-cosmrs = { git = "https://github.com/cosmos/cosmos-rust", rev = "4b1332e6d8258ac845cef71589c8d362a669675a" } # unfortuntely we need a fork by yours truly to get the staking support
-tendermint = "0.37.0"                                                                                        # same version as used by cosmrs
-tendermint-rpc = "0.37.0"                                                                                    # same version as used by cosmrs
-prost = { version = "0.12", default-features = false }
+
+cosmrs = { version = "0.21.0" }
+tendermint = "0.40.0"
+tendermint-rpc = "0.40.0"
+prost = { version = "0.13", default-features = false }
 
 # wasm-related dependencies
 gloo-utils = "0.2.0"
 gloo-net = "0.6.0"
 
-# TODO: migrate to 0.6+
-indexed_db_futures = "0.4.2"
+indexed_db_futures = "0.6.0"
 js-sys = "0.3.76"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"

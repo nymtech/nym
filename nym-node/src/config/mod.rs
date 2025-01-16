@@ -470,6 +470,15 @@ pub struct Http {
     /// This option is superseded by `expose_system_hardware`
     /// default: true
     pub expose_crypto_hardware: bool,
+
+    /// Specify the cache ttl of the node load.
+    /// default: 30s
+    #[serde(with = "humantime_serde")]
+    pub node_load_cache_ttl: Duration,
+}
+
+impl Http {
+    pub const DEFAULT_NODE_LOAD_CACHE_TTL: Duration = Duration::from_secs(30);
 }
 
 impl Default for Http {
@@ -481,6 +490,7 @@ impl Default for Http {
             expose_system_info: true,
             expose_system_hardware: true,
             expose_crypto_hardware: true,
+            node_load_cache_ttl: Self::DEFAULT_NODE_LOAD_CACHE_TTL,
         }
     }
 }

@@ -10,7 +10,7 @@ use nym_client_core::client::base_client::storage::GatewaysDetailsStore;
 use nym_client_core::client::replies::reply_storage::browser_backend;
 use nym_client_core::config;
 use nym_client_core::error::ClientCoreError;
-use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::types::GatewaySelectionSpecification;
 use nym_client_core::init::{
     self, setup_gateway,
@@ -134,7 +134,7 @@ pub async fn setup_gateway_from_api(
     minimum_performance: u8,
 ) -> Result<InitialisationResult, WasmCoreError> {
     let mut rng = thread_rng();
-    let gateways = current_gateways(&mut rng, nym_apis, None, minimum_performance).await?;
+    let gateways = gateways_for_init(&mut rng, nym_apis, None, minimum_performance).await?;
     setup_gateway_wasm(client_store, force_tls, chosen_gateway, gateways).await
 }
 
@@ -144,7 +144,7 @@ pub async fn current_gateways_wasm(
     minimum_performance: u8,
 ) -> Result<Vec<RoutingNode>, ClientCoreError> {
     let mut rng = thread_rng();
-    current_gateways(&mut rng, nym_apis, user_agent, minimum_performance).await
+    gateways_for_init(&mut rng, nym_apis, user_agent, minimum_performance).await
 }
 
 pub async fn setup_from_topology(

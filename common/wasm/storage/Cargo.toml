@@ -9,7 +9,7 @@ license.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
-futures = { workspace = true }
+getrandom = { workspace = true, features = ["js"] }
 js-sys = { workspace = true }
 wasm-bindgen = { workspace = true }
 serde = { workspace = true, features = ["derive"] }

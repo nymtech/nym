@@ -35,6 +35,7 @@ pub mod routes {
             pub const NODE_DESCRIPTION: &str = "/description";
             pub const AUXILIARY: &str = "/auxiliary-details";
             pub const HEALTH: &str = "/health";
+            pub const LOAD: &str = "/load";
             pub const SWAGGER: &str = "/swagger";
 
             pub const GATEWAY: &str = "/gateway";
@@ -46,6 +47,7 @@ pub mod routes {
 
             // define helper functions to get absolute routes
             absolute_route!(health_absolute, v1_absolute(), HEALTH);
+            absolute_route!(load_absolute, v1_absolute(), LOAD);
             absolute_route!(roles_absolute, v1_absolute(), ROLES);
             absolute_route!(build_info_absolute, v1_absolute(), BUILD_INFO);
             absolute_route!(host_info_absolute, v1_absolute(), HOST_INFO);

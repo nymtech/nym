@@ -785,7 +785,11 @@ impl NymNode {
             config.api.v1_config.node.roles.ip_packet_router_enabled = true;
         }
 
-        let app_state = AppState::new(self.metrics.clone(), self.verloc_stats.clone());
+        let app_state = AppState::new(
+            self.metrics.clone(),
+            self.verloc_stats.clone(),
+            self.config.http.node_load_cache_ttl,
+        );
 
         Ok(NymNodeRouter::new(config, app_state)
             .build_server(&self.config.http.bind_address)

@@ -19,8 +19,9 @@ use nym_api_requests::ecash::{
     PartialExpirationDateSignatureResponse, VerificationKeyResponse,
 };
 use nym_api_requests::models::{
-    ApiHealthResponse, GatewayBondAnnotated, GatewayCoreStatusResponse, MixnodeCoreStatusResponse,
-    MixnodeStatusResponse, NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
+    ApiHealthResponse, GatewayBondAnnotated, GatewayCoreStatusResponse,
+    HistoricalPerformanceResponse, MixnodeCoreStatusResponse, MixnodeStatusResponse,
+    NymNodeDescription, RewardEstimationResponse, StakeSaturationResponse,
 };
 use nym_api_requests::models::{LegacyDescribedGateway, MixNodeBondAnnotated};
 use nym_api_requests::nym_nodes::SkimmedNode;
@@ -262,6 +263,31 @@ impl<C, S> Client<C, S> {
         &self,
     ) -> Result<Vec<GatewayBondAnnotated>, ValidatorClientError> {
         Ok(self.nym_api.get_gateways_detailed_unfiltered().await?)
+    }
+
+    pub async fn get_full_node_performance_history(
+        &self,
+        node_id: NodeId,
+    ) -> Result<Vec<HistoricalPerformanceResponse>, ValidatorClientError> {
+        // TODO: deal with paging in macro or some helper function or something, because it's the same pattern everywhere
+        let mut page = 0;
+        let mut history = Vec::new();
+
+        loop {
+            let mut res = self
+                .nym_api
+                .get_node_performance_history(node_id, Some(page), None)
+                .await?;
+
+            history.append(&mut res.history.data);
+            if history.len() < res.history.pagination.total {
+                page += 1
+            } else {
+                break;
+            }
+        }
+
+        Ok(history)
     }
 
     // TODO: combine with NymApiClient...

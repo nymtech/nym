@@ -3,10 +3,11 @@
 
 use crate::WasmStorage;
 use async_trait::async_trait;
-use js_sys::Array;
+use indexed_db_futures::primitive::{TryFromJs, TryToJs};
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 use std::error::Error;
+use wasm_bindgen::JsValue;
 
 #[async_trait(?Send)]
 pub trait BaseWasmStorage {
@@ -17,7 +18,7 @@ pub trait BaseWasmStorage {
     async fn read_value<T, K>(&self, store: &str, key: K) -> Result<Option<T>, Self::StorageError>
     where
         T: DeserializeOwned,
-        K: wasm_bindgen::JsCast;
+        K: TryToJs;
 
     async fn store_value<T, K>(
         &self,
@@ -27,21 +28,21 @@ pub trait BaseWasmStorage {
     ) -> Result<(), Self::StorageError>
     where
         T: Serialize,
-        K: wasm_bindgen::JsCast;
+        K: TryToJs + TryFromJs;
 
     async fn remove_value<K>(&self, store: &str, key: K) -> Result<(), Self::StorageError>
     where
-        K: wasm_bindgen::JsCast;
+        K: TryToJs;
 
     async fn has_value<K>(&self, store: &str, key: K) -> Result<bool, Self::StorageError>
     where
-        K: wasm_bindgen::JsCast;
+        K: TryToJs;
 
     async fn key_count<K>(&self, store: &str, key: K) -> Result<u32, Self::StorageError>
     where
-        K: wasm_bindgen::JsCast;
+        K: TryToJs;
 
-    async fn get_all_keys(&self, store: &str) -> Result<js_sys::Array, Self::StorageError>;
+    async fn get_all_keys(&self, store: &str) -> Result<Vec<JsValue>, Self::StorageError>;
 }
 
 #[async_trait(?Send)]
@@ -55,7 +56,7 @@ impl BaseWasmStorage for WasmStorage {
     async fn read_value<T, K>(&self, store: &str, key: K) -> Result<Option<T>, Self::StorageError>
     where
         T: DeserializeOwned,
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
         self.read_value(store, key).await
     }
@@ -68,33 +69,33 @@ impl BaseWasmStorage for WasmStorage {
     ) -> Result<(), Self::StorageError>
     where
         T: Serialize,
-        K: wasm_bindgen::JsCast,
+        K: TryToJs + TryFromJs,
     {
         self.store_value(store, key, value).await
     }
 
     async fn remove_value<K>(&self, store: &str, key: K) -> Result<(), Self::StorageError>
     where
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
         self.remove_value(store, key).await
     }
 
     async fn has_value<K>(&self, store: &str, key: K) -> Result<bool, Self::StorageError>
     where
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
         self.has_value(store, key).await
     }
 
     async fn key_count<K>(&self, store: &str, key: K) -> Result<u32, Self::StorageError>
     where
-        K: wasm_bindgen::JsCast,
+        K: TryToJs,
     {
         self.key_count(store, key).await
     }
 
-    async fn get_all_keys(&self, store: &str) -> Result<Array, Self::StorageError> {
+    async fn get_all_keys(&self, store: &str) -> Result<Vec<JsValue>, Self::StorageError> {
         self.get_all_keys(store).await
     }
 }

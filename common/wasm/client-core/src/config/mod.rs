@@ -390,7 +390,6 @@ pub struct TopologyWasm {
 
     /// Specifies whether this client should attempt to retrieve all available network nodes
     /// as opposed to just active mixnodes/gateways.
-    /// Useless without `ignore_epoch_roles = true`
     pub use_extended_topology: bool,
 
     /// Specifies whether this client should ignore the current epoch role of the target egress node

@@ -7,22 +7,25 @@ import BuildInfo from 'components/outputs/command-outputs/nym-node-build-info.md
 import NymNodeHelp from 'components/outputs/command-outputs/nym-node-help.md';
 import NymNodeRunHelp from 'components/outputs/command-outputs/nym-node-run-help.md';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
+import TermsConditions from 'components/operators/snippets/tc-info.mdx';
 
 # Nym Node Setup & Run
 
 This documentation page provides a guide on how to set up and run a [NYM NODE](../nym-node.mdx), along with explanations of available flags, commands, and examples.
+
+<VarInfo/ >
 
 ## Current version
 
 ```sh
 nym-node
 Binary Name:        nym-node
-Build Timestamp:    2024-12-18T10:18:42.978852430Z
-Build Version:      1.2.1
-Commit SHA:         8d5a41a790e96ae5e821964865affaa7d3343eab
-Commit Date:        2024-12-18T11:07:49.000000000+01:00
+Build Timestamp:    2025-01-15T09:50:54.404428047Z
+Build Version:      1.3.0
+Commit SHA:         c202e2d598fabda5fc16a6c1e110255857a2b1ca
+Commit Date:        2025-01-15T10:27:39.000000000+01:00
 Commit Branch:      HEAD
-rustc Version:      1.83.0
+rustc Version:      1.84.0
 rustc Channel:      stable
 cargo Profile:      release
 ```
@@ -31,52 +34,39 @@ cargo Profile:      release
 <BuildInfo />
 */}
 
-## Summary
+## Functionality (mode)
 
+<Callout type="info">
+From `nym-node v1.3.0` operators can choose multiple functionalities for their `nym-node` binary (flagged as `--mode`).
 
-<VarInfo/ >
+**However, the clients are yet to be developed to be able to make a proper selection for multi-mode nodes and therefore we ask operators to sign only one functionality to `--mode` option at a time. Please chose out of: `mixnode` or `entry-gateway` or `exit-gateway`.**
 
-To run a new node, you can simply execute the `nym-node` command without any flags. By default, the node will set necessary configurations. If you later decide to change a setting, you can use the `-w` flag.
+We are developing a design where operators can enable multiple modes, and let the Nym API to position the node according the network's needs in the beginning of each epoch.
+</Callout>
 
-The most crucial aspect of running the node is specifying the `--mode`. At the moment it can be only one of three: `mixnode`, `entry-gateway`, and `exit-gateway`.
+Nym Node has three functionalities in the network: `entry-gateway`, `mixnode` and `exit-gateway`.
 
-Currently the `nym-node` binary can only be run in a single `--mode` at any one time. In the future however, operators will be able to specify multiple modes that a single `nym-node` binary can run. Our goal is to have as many nodes as possible enabling multiple modes, and allow the Nym API to position the node according the network's needs in the beginning of each epoch.
+- **Entry Gateway (`--mode entry-gateway`)**: A the node to which local client connects. It checks the bandwidth allowance, using [zk-nyms](../../../network/cryptography/zk-nym) and either sends [Sphinx packets](../../../network/cryptography/sphinx) through the mixnet or directly to Exit Gateway in case of dVPN (2-hop) routing. This node also recieves replies and sends them back to users local client.
 
-Every `exit-gateway` mode is basically an `entry-gateway` with NR (Network Requester) and IPR (IP Packet Router) enabled. This means that every `exit-gateway` is automatically seen as an `entry-gateway` but not the opposite.
+- **Mixnode (`--mode mixnode`)**: Nodes organized in three layers, randmoly selected every epoch (60 minutes), mixing Sphinx packets, adding a slight latency to defend users agains time correlation attacks and sending them further to the next layer or to the Exit Gateway
 
-Gateway operators can check out the node performance, connectivity and much more in our new tool [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+- **Exit Gateway (`--mode exit-gateway`)**: The final node in the mixnet. It puts all packets together and using inbuilt Network requester and IP packet router, it sends traffic to the open internet. This node also recieves replies and sends them back to the user client.
 
-To determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint. For example:
-```sh
-# sustitude <IPv4_ADDRESS> or <HOSTNAME> with the one corresponding to your node
-# for http
-http://<IPv4_ADDRESS>:8080/api/v1/roles
-# or
-http://<IPv4_ADDRESS>/api/v1/roles
+<Callout type="warning">
+Exit Gateway is the only node routing data directly to the open internet. Therefore it exposes IP of operators server (VPS) to abuse complains. Before you decide to run an Exit Gateway, please read our [Community Counsel pages](../../community-counsel/exit-gateway) containing more information and some legal content.
+</Callout>
 
-# for reversed proxy/WSS
-https://<HOSTNAME>/api/v1/roles
-```
+Everything essential for each mode exists on `nym-node` by default. For instance, if you run a Mixnode, you'll find that a NR (Network Requester) and IPR (IP Packet Router) addresses exist, but they will be ignored in `mixnode` mode.
 
-Everything necessary will exist on your node by default. For instance, if you're running a mixnode, you'll find that a NR (Network Requester) and IPR (IP Packet Router) address exist, but they will be ignored in `mixnode` mode.
+Note that every `exit-gateway` mode is basically an `entry-gateway` with NR (Network Requester) and IPR (IP Packet Router) enabled. This means that every `exit-gateway` can work as an `entry-gateway` but not the opposite.
 
-For more information about available endpoints and their status, you can refer to:
-```sh
-# sustitude <IPv4_ADDRESS> or <HOSTNAME> with the one corresponding to your node
-# for http
-http://<IPv4_ADDRESS>:8080/api/v1/swagger/#/
-# or
-http://<IPv4_ADDRESS>/api/v1/swagger/#/
+## Command & Examples
 
-# for reversed proxy/WSS
-https://<HOSTNAME>/api/v1/swagger/#/
-```
-
-## Usage
+**`nym-node` introduces a default human readible ID (local only) `default-nym-node`, which is used if there is not an explicit custom `--id <ID>` specified. All configuration is stored in `~/.nym/nym-nodes/default-nym-node/config/config.toml` or `~/.nym/nym-nodes/<ID>/config/config.toml` respectively.**
 
 ### Help Command
 
-There are a few changes from the individual binaries used in the past. For example by default `run` command does `init` function as well, local node `--id` will be set by default unless specified otherwise etcetera.
+There are a few changes from the individual binaries used in the past. For example by default `run` command does initialisation function as well, local node `--id` will be set by default (1default-nym-node`) unless specified otherwise.
 
 <Callout type="info" emoji="ℹ️">
 You can always use `--help` flag to see the commands or arguments associated with a given command.
@@ -96,13 +86,7 @@ To list all available flags for each command, run `./nym-node <COMMAND> --help` 
 The Wireguard flags currently have limited functionality. From version `1.1.6` ([`v2024.9-topdeck`](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.9-topdeck)) wireguard is available and recommended to be switched on for nodes running as Gateways. Keep in mind that this option needs a bit of a special [configuration](configuration.md#wireguard-setup).
 </Callout>
 
-### Terms & Conditions
-
-<Callout type="info" emoji="ℹ️">
-From `nym-node` version `1.1.3` onward is required to accept [**Operators Terms & Conditions**](https://nymtech.net/terms-and-conditions/operators/v1.0.0) in order to be part of the active set. Make sure to read them before you add the flag.
-</Callout>
-
-There has been a long ongoing discussion whether and how to apply Terms and Conditions for Nym network operators, with an aim to stay aligned with the philosophy of Free Software and provide legal defense for both node operators and Nym developers. To understand better the reasoning behind this decision, you can listen to the first [Nym Operator Town Hall](https://www.youtube.com/live/7hwb8bAZIuc?si=3mQ2ed7AyUA1SsCp&t=915) introducing the T&Cs or to [Operator AMA with CEO Harry Halpin](https://www.youtube.com/watch?v=yIN-zYQw0I0) from June 4th, 2024, explaining pros and cons of T&Cs implementation.
+<TermsConditions />
 
 Accepting T&Cs is done via a flag `--accept-operator-terms-and-conditions` added explicitly to `nym-node run` command every time. If you use [systemd](configuration.md#systemd) automation, add the flag to your service file's `ExecStart` line.
 
@@ -126,14 +110,6 @@ curl -X 'GET' \
 }
 ```
 
-### Commands & Examples
-
-**`nym-node` introduces a default human readible ID (local only) `default-nym-node`, which is used if there is not an explicit custom `--id <ID>` specified. All configuration is stored in `~/.nym/nym-nodes/default-nym-node/config/config.toml` or `~/.nym/nym-nodes/<ID>/config/config.toml` respectively.**
-
-<Callout type="info" emoji="ℹ️">
-All commands with more options listed below include `--accept-operator-terms-and-conditions` flag, read [Terms & Conditions](#terms--conditions) chapter above before executing these commands.
-</Callout>
-
 #### Essential Parameters & Variables
 
 Running a `nym-node` in a `mixnode` mode requires less configuration than a full `exit-gateway` setup, we recommend operators to still follow through with all documented [configuration](configuration.md). Before you scroll down to syntax examples for the mode of your choice please familiarise yourself with the essential [paramters and variables](../../variables.mdx) convention we use in the guide.
@@ -143,13 +119,13 @@ To prevent over-flooding of our documentation we cannot provide with every singl
 </Callout>
 
 
-### Initialise & Run
+## Setup & Run
 
-When we use `run` command the node will do `init` as well, unless we specify with a flag `--deny-init`. Below are some examples of initialising and running `nym-node` with different modes (`--mode`) like `mixnode`, `entry-gateway`, `exit-gateway`.
+When we use `run` command for the first time the node will initialise all essential configuration and data files (unless specified with a flag `--deny-init`) stored at `$HOME/.nym/nym-nodes/<ID>` where the most important is the `config.toml` file stored at `$HOME/.nym/nym-nodes/<ID>/config/`. Below are some examples of initialising and running `nym-node` with different modes (`--mode`) like `mixnode`, `entry-gateway`, `exit-gateway`.
 
-Please keep in mind that currently you can run only one functionality (`--mode`) per a `nym-node` instance. We are yet to finalise implement the multi-functionality solution under one node bonded to one Nyx account. Every `exit-gateway` can function as `entry-gateway` by default, not vice versa.
+Please keep in mind that currently we ask operators to run only one functionality (`--mode`) at a time.
 
-There is a simple default command to initialise and run your node: `./nym-node  run  --mode <MODE>`, however there quite a few parameters to be configured. When `nym-node` gets to be `run`, these parameters are read by the binary from the configuration file located at `.nym/nym-nodes/<ID>/config/config.toml`.
+There is a simple default command to initialise and run your node: `./nym-node  run  --mode <MODE>`, however there quite a few parameters to be configured.
 
 If an operator specifies any paramteres with optional flags alongside `run` command, these parameters passed in the option will take place over the ones in `config.toml` but they will not overwrite them by default. To overwrite them with the values passed with `run` command, a flag `-w` (`--write-changes`)  must be added.
 
@@ -165,7 +141,7 @@ Alternatively operators can just open a text editor and change these values manu
 In such case, you can `run` a node to initalise it or try if everything works, but then stop the proces and paste your entire `run` command syntax (below) to the `ExecStart` line of your `/etc/systemd/system/nym-node.service` and start the node as a [service](configuration.md#following-steps-for-nym-nodes-running-as-systemd-service).
 </Callout>
 
-### Migrate
+## Migrate
 
 <Callout type="warning">
 **Legacy binaries `nym-mixnode` and `nym-gateway` had been deprecated, [`nym-node`](../nym-node.mdx) is the only binary to use for `gateway` or `mixnode` functionalities!**
@@ -186,7 +162,35 @@ Make sure to use `--deny-init` flag to prevent initialisation of a new node.
 **After you upgraded your node to the latest release of `nym-node`, make sure that you also follow [the steps to migrate your node in the Mixnet smart contract](bonding#migrate-to-nym-node-in-mixnet-smart-contract), othewise your node will never receive any rewards.**
 
 
-### Next steps
+## Functionality & Performance Check
+
+We have a chapter called [Performance Monitoring & Testing](../nodes/performance-and-testing) including much more information and tooling. If you want to just quickly check your nodes performance, connectivity and much more, visit [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+
+For more information about available endpoints and their status, you can refer to:
+```sh
+# sustitude <IPv4_ADDRESS> or <HOSTNAME> with the one corresponding to your node
+# for http
+http://<IPv4_ADDRESS>:8080/api/v1/swagger/#/
+# or
+http://<IPv4_ADDRESS>/api/v1/swagger/#/
+
+# for reversed proxy/WSS
+https://<HOSTNAME>/api/v1/swagger/#/
+```
+
+For example to determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint. For example:
+```sh
+# sustitude <IPv4_ADDRESS> or <HOSTNAME> with the one corresponding to your node
+# for http
+http://<IPv4_ADDRESS>:8080/api/v1/roles
+# or
+http://<IPv4_ADDRESS>/api/v1/roles
+
+# for reversed proxy/WSS
+https://<HOSTNAME>/api/v1/roles
+```
+
+## Next steps
 
 If there are any problems checkout the troubleshooting section or report an issue.
 

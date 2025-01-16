@@ -17,7 +17,7 @@ http.workspace = true
 url = { workspace = true }
 once_cell = { workspace = true }
 serde = { workspace = true }
-hickory-resolver = { workspace = true, features = ["dns-over-https-rustls", "dns-over-h3", "webpki-roots"] }
+hickory-resolver = { workspace = true, features = ["dns-over-https-rustls", "webpki-roots"] }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }

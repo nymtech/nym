@@ -1640,7 +1640,7 @@ pub async fn try_upgrade_config_v7<P: AsRef<Path>>(
                 cosmos_mnemonic: old_cfg.gateway_tasks.storage_paths.cosmos_mnemonic,
             },
             enforce_zk_nyms: old_cfg.gateway_tasks.enforce_zk_nyms,
-            bind_address: {
+            ws_bind_address: {
                 if old_cfg.gateway_tasks.bind_address.ip().is_unspecified() {
                     SocketAddr::new(
                         in6addr_any_init(),

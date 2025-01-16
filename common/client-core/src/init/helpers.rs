@@ -86,7 +86,7 @@ impl<'a, G: ConnectableGateway> GatewayWithLatency<'a, G> {
     }
 }
 
-pub async fn current_gateways<R: Rng>(
+pub async fn gateways_for_init<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
@@ -108,8 +108,11 @@ pub async fn current_gateways<R: Rng>(
 
     log::trace!("Gateways: {:#?}", gateways);
 
+    // filter out gateways below minimum performance and ones that could operate as a mixnode
+    // (we don't want instability)
     let valid_gateways = gateways
         .iter()
+        .filter(|g| !g.supported_roles.mixnode)
         .filter(|g| g.performance.round_to_integer() >= minimum_performance)
         .filter_map(|gateway| gateway.try_into().ok())
         .collect::<Vec<_>>();

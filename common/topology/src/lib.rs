@@ -401,20 +401,17 @@ impl NymTopology {
             });
         };
 
-        // a 'valid' egress is one assigned to either entry role (i.e. entry for another client)
-        // or exit role (as a service provider)
+        // a 'valid' egress is one that is currently **not** acting as a mixnode
         if !ignore_epoch_roles {
-            let Some(role) = self.rewarded_set.role(node.node_id) else {
-                return Err(NymTopologyError::InvalidEgressRole {
-                    node_identity: Box::new(node_identity),
-                });
-            };
-            if !matches!(role, Role::EntryGateway | Role::ExitGateway) {
-                return Err(NymTopologyError::InvalidEgressRole {
-                    node_identity: Box::new(node_identity),
-                });
+            if let Some(role) = self.rewarded_set.role(node.node_id) {
+                if role.is_mixnode() {
+                    return Err(NymTopologyError::InvalidEgressRole {
+                        node_identity: Box::new(node_identity),
+                    });
+                }
             }
         }
+
         Ok(node)
     }
 

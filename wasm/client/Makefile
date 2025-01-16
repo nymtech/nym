@@ -6,7 +6,7 @@ build:
 	wasm-opt -Oz -o ../../dist/wasm/client/nym_client_wasm_bg.wasm ../../dist/wasm/client/nym_client_wasm_bg.wasm
 
 build-debug-dev:
-	wasm-pack build --scope nymproject --target no-modules
+	wasm-pack build --debug --scope nymproject --target no-modules
 
 build-rust-node:
 	wasm-pack build --scope nymproject --target nodejs --out-dir ../../dist/node/wasm/client

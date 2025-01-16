@@ -28,4 +28,6 @@ pub fn main() {
         "wasm client version used: {}",
         nym_bin_common::bin_info_owned!()
     );
+    wasm_utils::console_log!("[rust main]: setting panic hook");
+    wasm_utils::set_panic_hook();
 }

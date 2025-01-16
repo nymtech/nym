@@ -3,7 +3,7 @@
 
 use crate::config::persistence::GatewayTasksPaths;
 use nym_config::defaults::{DEFAULT_CLIENT_LISTENING_PORT, TICKETBOOK_VALIDITY_DAYS};
-use nym_config::helpers::inaddr_any;
+use nym_config::helpers::in6addr_any_init;
 use nym_config::serde_helpers::de_maybe_port;
 use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
@@ -22,7 +22,7 @@ pub struct GatewayTasksConfig {
     pub enforce_zk_nyms: bool,
 
     /// Socket address this node will use for binding its client websocket API.
-    /// default: `0.0.0.0:9000`
+    /// default: `[::]:9000`
     pub bind_address: SocketAddr,
 
     /// Custom announced port for listening for websocket client traffic.
@@ -188,7 +188,7 @@ impl GatewayTasksConfig {
         GatewayTasksConfig {
             storage_paths: GatewayTasksPaths::new(data_dir),
             enforce_zk_nyms: false,
-            bind_address: SocketAddr::new(inaddr_any(), DEFAULT_WS_PORT),
+            bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
             announce_ws_port: None,
             announce_wss_port: None,
             debug: Default::default(),

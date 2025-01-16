@@ -30,7 +30,6 @@ pub struct ServiceProvidersConfig {
     #[serde(default)]
     pub debug: Debug,
 }
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Debug {

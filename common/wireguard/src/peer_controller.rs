@@ -267,18 +267,27 @@ impl PeerController {
         }))
     }
 
-    fn update_metrics(&self, new_host: &Host) {
+    async fn update_metrics(&self, new_host: &Host) {
         let now = SystemTime::now();
         const ACTIVITY_THRESHOLD: Duration = Duration::from_secs(60);
 
+        let old_host = self.host_information.read().await;
+
         let total_peers = new_host.peers.len();
         let mut active_peers = 0;
-        let mut total_rx = 0;
-        let mut total_tx = 0;
+        let mut new_rx = 0;
+        let mut new_tx = 0;
 
-        for peer in new_host.peers.values() {
-            total_rx += peer.rx_bytes;
-            total_tx += peer.tx_bytes;
+        for (peer_key, peer) in new_host.peers.iter() {
+            // only consider pre-existing peers,
+            // so that the value would always be increasing
+            if let Some(prior) = old_host.peers.get(peer_key) {
+                let delta_rx = peer.rx_bytes.saturating_sub(prior.rx_bytes);
+                let delta_tx = prior.tx_bytes.saturating_sub(prior.tx_bytes);
+
+                new_rx += delta_rx;
+                new_tx += delta_tx;
+            }
 
             // if a peer hasn't performed a handshake in last minute,
             // I think it's reasonable to assume it's no longer active
@@ -296,10 +305,10 @@ impl PeerController {
         self.metrics.wireguard.update(
             // if the conversion fails it means we're running not running on a 64bit system
             // and that's a reason enough for this failure.
-            total_rx.try_into().expect(
+            new_rx.try_into().expect(
                 "failed to convert bytes from u64 to usize - are you running on non 64bit system?",
             ),
-            total_tx.try_into().expect(
+            new_tx.try_into().expect(
                 "failed to convert bytes from u64 to usize - are you running on non 64bit system?",
             ),
             total_peers,
@@ -316,7 +325,7 @@ impl PeerController {
                         log::error!("Can't read wireguard kernel data");
                         continue;
                     };
-                    self.update_metrics(&host);
+                    self.update_metrics(&host).await;
 
                     *self.host_information.write().await = host;
                 }

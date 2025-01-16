@@ -11,15 +11,15 @@ use async_trait::async_trait;
 use nym_bin_common::build_information::BinaryBuildInformationOwned;
 use nym_http_api_client::{ApiClient, HttpClientError};
 
+use super::v1::gateway::models::Wireguard;
+use super::v1::metrics::models::SessionStats;
 use crate::api::v1::authenticator::models::Authenticator;
 use crate::api::v1::health::models::NodeHealth;
 use crate::api::v1::ip_packet_router::models::IpPacketRouter;
 use crate::api::v1::network_requester::exit_policy::models::UsedExitPolicy;
 use crate::api::v1::network_requester::models::NetworkRequester;
+use crate::api::v1::node_load::models::NodeLoad;
 pub use nym_http_api_client::Client;
-
-use super::v1::gateway::models::Wireguard;
-use super::v1::metrics::models::SessionStats;
 
 pub type NymNodeApiClientError = HttpClientError<ErrorResponse>;
 
@@ -28,6 +28,10 @@ pub type NymNodeApiClientError = HttpClientError<ErrorResponse>;
 pub trait NymNodeApiClientExt: ApiClient {
     async fn get_health(&self) -> Result<NodeHealth, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::health_absolute()).await
+    }
+
+    async fn get_node_load(&self) -> Result<NodeLoad, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::load_absolute()).await
     }
 
     async fn get_host_information(&self) -> Result<SignedHostInformation, NymNodeApiClientError> {

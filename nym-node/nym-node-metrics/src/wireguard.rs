@@ -31,13 +31,13 @@ impl WireguardStats {
 
     pub fn update(
         &self,
-        bytes_rx: usize,
-        bytes_tx: usize,
+        new_bytes_rx: usize,
+        new_bytes_tx: usize,
         total_peers: usize,
         active_peers: usize,
     ) {
-        self.bytes_rx.store(bytes_rx, Ordering::Relaxed);
-        self.bytes_tx.store(bytes_tx, Ordering::Relaxed);
+        self.bytes_rx.fetch_add(new_bytes_rx, Ordering::Relaxed);
+        self.bytes_tx.fetch_add(new_bytes_tx, Ordering::Relaxed);
         self.total_peers.store(total_peers, Ordering::Relaxed);
         self.active_peers.store(active_peers, Ordering::Relaxed);
     }

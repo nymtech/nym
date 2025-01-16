@@ -115,7 +115,7 @@ where
         hardcoded_topology.entry_capable_nodes().cloned().collect()
     } else {
         let mut rng = rand::thread_rng();
-        crate::init::helpers::current_gateways(
+        crate::init::helpers::gateways_for_init(
             &mut rng,
             &core.client.nym_api_urls,
             user_agent,

@@ -13,7 +13,7 @@ fn ephemeral_gateway_config(config: &Config) -> nym_gateway::config::Config {
     nym_gateway::config::Config::new(
         nym_gateway::config::Gateway {
             enforce_zk_nyms: config.gateway_tasks.enforce_zk_nyms,
-            websocket_bind_address: config.gateway_tasks.bind_address,
+            websocket_bind_address: config.gateway_tasks.ws_bind_address,
             nym_api_urls: config.mixnet.nym_api_urls.clone(),
             nyxd_urls: config.mixnet.nyxd_urls.clone(),
         },

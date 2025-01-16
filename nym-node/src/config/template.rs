@@ -180,7 +180,7 @@ enforce_zk_nyms = {{ gateway_tasks.enforce_zk_nyms }}
 
 # Socket address this node will use for binding its client websocket API.
 # default: `[::]:9000`
-bind_address = '{{ gateway_tasks.bind_address }}'
+ws_bind_address = '{{ gateway_tasks.ws_bind_address }}'
 
 # Custom announced port for listening for websocket client traffic.
 # If unspecified, the value from the `bind_address` will be used instead

@@ -431,7 +431,7 @@ impl EntryGatewayArgs {
         mut section: config::GatewayTasksConfig,
     ) -> config::GatewayTasksConfig {
         if let Some(bind_address) = self.entry_bind_address {
-            section.bind_address = bind_address
+            section.ws_bind_address = bind_address
         }
         if let Some(ws_port) = self.announce_ws_port {
             section.announce_ws_port = Some(ws_port)

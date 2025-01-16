@@ -23,7 +23,7 @@ pub struct GatewayTasksConfig {
 
     /// Socket address this node will use for binding its client websocket API.
     /// default: `[::]:9000`
-    pub bind_address: SocketAddr,
+    pub ws_bind_address: SocketAddr,
 
     /// Custom announced port for listening for websocket client traffic.
     /// If unspecified, the value from the `bind_address` will be used instead
@@ -188,7 +188,7 @@ impl GatewayTasksConfig {
         GatewayTasksConfig {
             storage_paths: GatewayTasksPaths::new(data_dir),
             enforce_zk_nyms: false,
-            bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
+            ws_bind_address: SocketAddr::new(in6addr_any_init(), DEFAULT_WS_PORT),
             announce_ws_port: None,
             announce_wss_port: None,
             debug: Default::default(),

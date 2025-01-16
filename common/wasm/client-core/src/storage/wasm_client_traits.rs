@@ -286,8 +286,8 @@ pub trait WasmClientStorage: BaseWasmStorage {
             .await
             .map_err(Into::into)
             .map(|arr| {
-                arr.to_vec()
-                    .into_iter()
+                arr.iter()
+                    .cloned()
                     .filter_map(|key| key.as_string())
                     .collect()
             })

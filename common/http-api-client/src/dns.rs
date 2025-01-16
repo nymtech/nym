@@ -1,13 +1,13 @@
 //! DNS resolver configuration for internal lookups.
 //!
 //! The resolver itself is the set combination of the google, cloudflare, and quad9 endpoints
-//! supporting DoH, DoT, and for google DoH3 as well.
+//! supporting DoH and DoT.
 //!
 //! This resolver implements a fallback mechanism where, should the DNS-over-TLS resolution fail, a
 //! followup resolution will be done using the hosts configured default (e.g. `/etc/resolve.conf` on
 //! linux).
 //!
-//! Requires the `dns-over-https-rustls`, `dns-over-h3`, `webpki-roots` feature for the
+//! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the
 //! `hickory-resolver` crate
 
 use crate::ClientBuilder;
@@ -89,7 +89,7 @@ impl Iterator for SocketAddrs {
 fn new_resolver() -> Result<TokioAsyncResolver, HickoryDnsSystemConfError> {
     let mut name_servers = NameServerConfigGroup::google_tls();
     name_servers.merge(NameServerConfigGroup::google_https());
-    name_servers.merge(NameServerConfigGroup::google_h3());
+    // name_servers.merge(NameServerConfigGroup::google_h3());
     name_servers.merge(NameServerConfigGroup::quad9_tls());
     name_servers.merge(NameServerConfigGroup::quad9_https());
     name_servers.merge(NameServerConfigGroup::cloudflare_tls());

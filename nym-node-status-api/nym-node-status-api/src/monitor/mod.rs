@@ -1,10 +1,8 @@
 #![allow(deprecated)]
 
 use crate::db::models::{
-    gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_BLACKLISTED_COUNT,
-    GATEWAYS_BONDED_COUNT, GATEWAYS_HISTORICAL_COUNT, MIXNODES_BLACKLISTED_COUNT,
-    MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT, MIXNODES_BONDED_INACTIVE,
-    MIXNODES_BONDED_RESERVE, MIXNODES_HISTORICAL_COUNT,
+    gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_HISTORICAL_COUNT,
+    MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT, MIXNODES_HISTORICAL_COUNT,
 };
 use crate::db::{queries, DbPool};
 use crate::monitor::geodata::{Location, NodeGeoData};
@@ -208,25 +206,6 @@ impl Monitor {
                 tracing::debug!("Gateway info written to DB!");
             })?;
 
-        let count_gateways_blacklisted = gateways
-            .iter()
-            .filter(|gw| {
-                let gw_identity = gw.ed25519_identity_key().to_base58_string();
-                gateways_blacklisted.contains(&gw_identity)
-            })
-            .count();
-
-        if count_gateways_blacklisted > 0 {
-            queries::write_blacklisted_gateways_to_db(&pool, gateways_blacklisted.iter())
-                .await
-                .map(|_| {
-                    tracing::debug!(
-                        "Gateway blacklist info written to DB! {} blacklisted by Nym API",
-                        count_gateways_blacklisted
-                    )
-                })?;
-        }
-
         let mixnode_records = self.prepare_mixnode_data(
             &legacy_mixnodes,
             mixnodes_described,
@@ -238,19 +217,10 @@ impl Monitor {
                 tracing::debug!("Mixnode info written to DB!");
             })?;
 
-        let count_mixnodes_blacklisted = legacy_mixnodes
-            .iter()
-            .filter(|elem| elem.blacklisted)
-            .count();
-
         let recently_unbonded_gateways =
             queries::ensure_gateways_still_bonded(&pool, &gateways).await?;
         let recently_unbonded_mixnodes =
             queries::ensure_mixnodes_still_bonded(&pool, &legacy_mixnodes).await?;
-
-        let count_bonded_mixnodes_reserve = 0; // TODO: NymAPI doesn't report the reserve set size
-        let count_bonded_mixnodes_inactive =
-            count_bonded_mixnodes.saturating_sub(count_bonded_mixnodes_active);
 
         let (all_historical_gateways, all_historical_mixnodes) = calculate_stats(&pool).await?;
 
@@ -259,15 +229,18 @@ impl Monitor {
         //
 
         let nodes_summary = vec![
+            // TODO dz to introduce:
+            // BONDED_NYM_NODES (as opposed to bonded mixnodes/bonded gws)
+            // ASSIGNED_ENTRY
+            // ASSIGNED_EXIT
+            // ASSIGNED_MIX
+            // UNASSIGNED_NODE (not assigned anything of the above in the current epoch)
             (MIXNODES_BONDED_COUNT, &count_bonded_mixnodes),
             (MIXNODES_BONDED_ACTIVE, &count_bonded_mixnodes_active),
-            (MIXNODES_BONDED_INACTIVE, &count_bonded_mixnodes_inactive),
-            (MIXNODES_BONDED_RESERVE, &count_bonded_mixnodes_reserve),
-            (MIXNODES_BLACKLISTED_COUNT, &count_mixnodes_blacklisted),
-            (GATEWAYS_BONDED_COUNT, &count_bonded_gateways),
+            // TODO dz doesn't make sense, could make sense with historical Nym
+            // Nodes if we really need this data
             (MIXNODES_HISTORICAL_COUNT, &all_historical_mixnodes),
             (GATEWAYS_HISTORICAL_COUNT, &all_historical_gateways),
-            (GATEWAYS_BLACKLISTED_COUNT, &count_gateways_blacklisted),
         ];
 
         let last_updated = chrono::offset::Utc::now();
@@ -277,12 +250,6 @@ impl Monitor {
                 bonded: mixnode::MixnodeSummaryBonded {
                     count: count_bonded_mixnodes.cast_checked()?,
                     active: count_bonded_mixnodes_active.cast_checked()?,
-                    inactive: count_bonded_mixnodes_inactive.cast_checked()?,
-                    reserve: count_bonded_mixnodes_reserve.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
-                },
-                blacklisted: mixnode::MixnodeSummaryBlacklisted {
-                    count: count_mixnodes_blacklisted.cast_checked()?,
                     last_updated_utc: last_updated_utc.to_owned(),
                 },
                 historical: mixnode::MixnodeSummaryHistorical {
@@ -295,10 +262,7 @@ impl Monitor {
                     count: count_bonded_gateways.cast_checked()?,
                     last_updated_utc: last_updated_utc.to_owned(),
                 },
-                blacklisted: gateway::GatewaySummaryBlacklisted {
-                    count: count_gateways_blacklisted.cast_checked()?,
-                    last_updated_utc: last_updated_utc.to_owned(),
-                },
+
                 historical: gateway::GatewaySummaryHistorical {
                     count: all_historical_gateways.cast_checked()?,
                     last_updated_utc: last_updated_utc.to_owned(),
@@ -407,7 +371,6 @@ impl Monitor {
             let identity_key = mixnode.identity_key();
             let bonded = true;
             let total_stake = decimal_to_i64(mixnode.mixnode_details.total_stake());
-            let blacklisted = mixnode.blacklisted;
             let node_info = mixnode.mix_node();
             let host = node_info.host.clone();
             let http_port = node_info.http_api_port;
@@ -427,7 +390,6 @@ impl Monitor {
                 total_stake,
                 host,
                 http_port,
-                blacklisted,
                 full_details,
                 self_described,
                 last_updated_utc,

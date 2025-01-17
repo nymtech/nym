@@ -38,7 +38,6 @@ pub struct GatewaySkinny {
 pub struct Mixnode {
     pub mix_id: u32,
     pub bonded: bool,
-    pub blacklisted: bool,
     pub is_dp_delegatee: bool,
     pub total_stake: i64,
     pub full_details: Option<serde_json::Value>,

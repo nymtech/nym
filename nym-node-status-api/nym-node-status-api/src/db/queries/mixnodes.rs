@@ -21,13 +21,13 @@ pub(crate) async fn insert_mixnodes(
         sqlx::query!(
             "INSERT INTO mixnodes
                 (mix_id, identity_key, bonded, total_stake,
-                    host, http_api_port, blacklisted, full_details,
+                    host, http_api_port, full_details,
                     self_described, last_updated_utc, is_dp_delegatee)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(mix_id) DO UPDATE SET
                 bonded=excluded.bonded,
                 total_stake=excluded.total_stake, host=excluded.host,
-                http_api_port=excluded.http_api_port,blacklisted=excluded.blacklisted,
+                http_api_port=excluded.http_api_port,
                 full_details=excluded.full_details,self_described=excluded.self_described,
                 last_updated_utc=excluded.last_updated_utc,
                 is_dp_delegatee = excluded.is_dp_delegatee;",
@@ -37,7 +37,6 @@ pub(crate) async fn insert_mixnodes(
             record.total_stake,
             record.host,
             record.http_port,
-            record.blacklisted,
             record.full_details,
             record.self_described,
             record.last_updated_utc,
@@ -57,7 +56,6 @@ pub(crate) async fn get_all_mixnodes(pool: &DbPool) -> anyhow::Result<Vec<Mixnod
         r#"SELECT
             mn.mix_id as "mix_id!",
             mn.bonded as "bonded: bool",
-            mn.blacklisted as "blacklisted: bool",
             mn.is_dp_delegatee as "is_dp_delegatee: bool",
             mn.total_stake as "total_stake!",
             mn.full_details as "full_details!",

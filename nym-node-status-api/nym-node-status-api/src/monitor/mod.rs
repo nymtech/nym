@@ -19,7 +19,7 @@ use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::{AccountId, NyxdClient};
 use nym_validator_client::NymApiClient;
 use reqwest::Url;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::str::FromStr;
 use tokio::time::Duration;
 use tracing::instrument;
@@ -153,17 +153,6 @@ impl Monitor {
             .await
             .log_error("get_all_basic_nodes")?;
 
-        let gateways_blacklisted = all_skimmed_nodes
-            .iter()
-            .filter_map(|node| {
-                if node.performance.round_to_integer() <= 50 && node.supported_roles.entry {
-                    Some(node.ed25519_identity_pubkey.to_base58_string())
-                } else {
-                    None
-                }
-            })
-            .collect::<HashSet<_>>();
-
         // Cached mixnodes don't include blacklisted nodes
         // We need that to calculate the total locked tokens later
         // TODO dz deprecated API, remove
@@ -192,12 +181,8 @@ impl Monitor {
         let count_bonded_gateways = gateways.len();
         let count_bonded_mixnodes_active = mixnodes_active.len();
 
-        let gateway_records = self.prepare_gateway_data(
-            &gateways,
-            &gateways_blacklisted,
-            gateway_geodata,
-            all_skimmed_nodes,
-        )?;
+        let gateway_records =
+            self.prepare_gateway_data(&gateways, gateway_geodata, all_skimmed_nodes)?;
 
         let pool = self.db_pool.clone();
         queries::insert_gateways(&pool, gateway_records)
@@ -313,7 +298,6 @@ impl Monitor {
     fn prepare_gateway_data(
         &self,
         gateways: &[&NymNodeDescription],
-        gateways_blacklisted: &HashSet<String>,
         gateway_geodata: Vec<NodeGeoData>,
         skimmed_gateways: Vec<SkimmedNode>,
     ) -> anyhow::Result<Vec<GatewayRecord>> {
@@ -323,7 +307,6 @@ impl Monitor {
             let identity_key = gateway.ed25519_identity_key().to_base58_string();
             let bonded = true;
             let last_updated_utc = chrono::offset::Utc::now().timestamp();
-            let blacklisted = gateways_blacklisted.contains(&identity_key);
 
             let self_described = serde_json::to_string(&gateway.description)?;
 
@@ -347,7 +330,6 @@ impl Monitor {
             gateway_records.push(GatewayRecord {
                 identity_key: identity_key.to_owned(),
                 bonded,
-                blacklisted,
                 self_described,
                 explorer_pretty_bond,
                 last_updated_utc,

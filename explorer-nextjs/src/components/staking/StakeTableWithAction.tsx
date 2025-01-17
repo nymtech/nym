@@ -18,13 +18,10 @@ function getNodeSaturationPoint(
   stakeSaturationPoint: string,
 ): number {
   const saturation = Number.parseFloat(stakeSaturationPoint);
-
   if (Number.isNaN(saturation) || saturation <= 0) {
     throw new Error("Invalid stake saturation point provided");
   }
-
   const ratio = (totalStake / saturation) * 100;
-
   return Number(ratio.toFixed());
 }
 

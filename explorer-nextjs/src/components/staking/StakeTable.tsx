@@ -4,6 +4,7 @@ import { useNymClient } from "@/hooks/useNymClient";
 import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
+import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
@@ -12,6 +13,7 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CountryFlag from "../countryFlag/CountryFlag";
+import { Favorite } from "../favorite/Favorite";
 import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import { Link } from "../muiLink";
@@ -46,6 +48,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
     open: false,
   });
+  const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
 
   const router = useRouter();
 
@@ -222,6 +225,16 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           </Typography>
         ),
       },
+      {
+        id: "Favorite",
+        header: "Favorite",
+        accessorKey: "Favorite",
+        Header: <ColumnHeading>Favorite</ColumnHeading>,
+        sortingFn: "Favorite",
+        Cell: ({ row }) => (
+          <Favorite address={row.original.node?.owner || ""} />
+        ),
+      },
 
       {
         id: "action",
@@ -274,8 +287,15 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       shape: "circular",
     },
     sortingFns: {
-      Favorite: () => {
-        // TODO implement sorting by favorite
+      Favorite: (rowA, rowB) => {
+        const isFavoriteA = favorites.includes(rowA.original.owner);
+        const isFavoriteB = favorites.includes(rowB.original.owner);
+
+        // Sort favorites first
+        if (isFavoriteA && !isFavoriteB) return -1;
+        if (!isFavoriteA && isFavoriteB) return 1;
+
+        // If both are favorites or neither, keep the original order
         return 0;
       },
     },

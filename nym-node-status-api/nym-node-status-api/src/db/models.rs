@@ -109,7 +109,6 @@ pub(crate) struct MixnodeRecord {
     pub(crate) total_stake: i64,
     pub(crate) host: String,
     pub(crate) http_port: u16,
-    pub(crate) blacklisted: bool,
     pub(crate) full_details: String,
     pub(crate) self_described: Option<String>,
     pub(crate) last_updated_utc: i64,
@@ -120,7 +119,6 @@ pub(crate) struct MixnodeRecord {
 pub(crate) struct MixnodeDto {
     pub(crate) mix_id: i64,
     pub(crate) bonded: bool,
-    pub(crate) blacklisted: bool,
     pub(crate) is_dp_delegatee: bool,
     pub(crate) total_stake: i64,
     pub(crate) full_details: String,
@@ -147,7 +145,6 @@ impl TryFrom<MixnodeDto> for http::models::Mixnode {
 
         let last_updated_utc =
             timestamp_as_utc(value.last_updated_utc.cast_checked()?).to_rfc3339();
-        let blacklisted = value.blacklisted;
         let is_dp_delegatee = value.is_dp_delegatee;
         let moniker = value.moniker.clone();
         let website = value.website.clone();
@@ -157,7 +154,6 @@ impl TryFrom<MixnodeDto> for http::models::Mixnode {
         Ok(http::models::Mixnode {
             mix_id,
             bonded: value.bonded,
-            blacklisted,
             is_dp_delegatee,
             total_stake: value.total_stake,
             full_details,
@@ -213,12 +209,6 @@ impl TryFrom<SummaryHistoryDto> for SummaryHistory {
 
 pub(crate) const MIXNODES_BONDED_COUNT: &str = "mixnodes.bonded.count";
 pub(crate) const MIXNODES_BONDED_ACTIVE: &str = "mixnodes.bonded.active";
-pub(crate) const MIXNODES_BONDED_INACTIVE: &str = "mixnodes.bonded.inactive";
-pub(crate) const MIXNODES_BONDED_RESERVE: &str = "mixnodes.bonded.reserve";
-pub(crate) const MIXNODES_BLACKLISTED_COUNT: &str = "mixnodes.blacklisted.count";
-
-pub(crate) const GATEWAYS_BONDED_COUNT: &str = "gateways.bonded.count";
-pub(crate) const GATEWAYS_BLACKLISTED_COUNT: &str = "gateways.blacklisted.count";
 
 pub(crate) const MIXNODES_HISTORICAL_COUNT: &str = "mixnodes.historical.count";
 pub(crate) const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
@@ -240,7 +230,6 @@ pub(crate) mod mixnode {
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct MixnodeSummary {
         pub(crate) bonded: MixnodeSummaryBonded,
-        pub(crate) blacklisted: MixnodeSummaryBlacklisted,
         pub(crate) historical: MixnodeSummaryHistorical,
     }
 
@@ -248,14 +237,6 @@ pub(crate) mod mixnode {
     pub(crate) struct MixnodeSummaryBonded {
         pub(crate) count: i32,
         pub(crate) active: i32,
-        pub(crate) inactive: i32,
-        pub(crate) reserve: i32,
-        pub(crate) last_updated_utc: String,
-    }
-
-    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub(crate) struct MixnodeSummaryBlacklisted {
-        pub(crate) count: i32,
         pub(crate) last_updated_utc: String,
     }
 
@@ -272,14 +253,7 @@ pub(crate) mod gateway {
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummary {
         pub(crate) bonded: GatewaySummaryBonded,
-        pub(crate) blacklisted: GatewaySummaryBlacklisted,
         pub(crate) historical: GatewaySummaryHistorical,
-    }
-
-    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub(crate) struct GatewaySummaryExplorer {
-        pub(crate) count: i32,
-        pub(crate) last_updated_utc: String,
     }
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
@@ -290,12 +264,6 @@ pub(crate) mod gateway {
 
     #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
     pub(crate) struct GatewaySummaryHistorical {
-        pub(crate) count: i32,
-        pub(crate) last_updated_utc: String,
-    }
-
-    #[derive(Debug, Clone, Deserialize, Serialize, ToSchema)]
-    pub(crate) struct GatewaySummaryBlacklisted {
         pub(crate) count: i32,
         pub(crate) last_updated_utc: String,
     }

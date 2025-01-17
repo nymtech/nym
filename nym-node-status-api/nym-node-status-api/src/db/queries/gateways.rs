@@ -63,28 +63,6 @@ pub(crate) async fn insert_gateways(
     Ok(())
 }
 
-pub(crate) async fn write_blacklisted_gateways_to_db<'a, I>(
-    pool: &DbPool,
-    gateways: I,
-) -> anyhow::Result<()>
-where
-    I: Iterator<Item = &'a String>,
-{
-    let mut conn = pool.acquire().await?;
-    for gateway_identity_key in gateways {
-        sqlx::query!(
-            "UPDATE gateways
-             SET blacklisted = true
-             WHERE gateway_identity_key = ?;",
-            gateway_identity_key,
-        )
-        .execute(&mut *conn)
-        .await?;
-    }
-
-    Ok(())
-}
-
 /// Ensure all gateways that are set as bonded, are still bonded
 pub(crate) async fn ensure_gateways_still_bonded(
     pool: &DbPool,

@@ -114,12 +114,13 @@ impl HttpCache {
     pub async fn get_gateway_list(&self, db: &DbPool) -> Vec<Gateway> {
         match self.gateways.get(GATEWAYS_LIST_KEY).await {
             Some(guard) => {
+                tracing::trace!("Fetching from cache...");
                 let read_lock = guard.read().await;
                 read_lock.clone()
             }
             None => {
                 // the key is missing so populate it
-                tracing::warn!("No gateways in cache, refreshing cache from DB...");
+                tracing::trace!("No gateways in cache, refreshing cache from DB...");
 
                 let gateways = crate::db::queries::get_all_gateways(db)
                     .await
@@ -157,11 +158,12 @@ impl HttpCache {
     pub async fn get_mixnodes_list(&self, db: &DbPool) -> Vec<Mixnode> {
         match self.mixnodes.get(MIXNODES_LIST_KEY).await {
             Some(guard) => {
+                tracing::trace!("Fetching from cache...");
                 let read_lock = guard.read().await;
                 read_lock.clone()
             }
             None => {
-                tracing::warn!("No mixnodes in cache, refreshing cache from DB...");
+                tracing::trace!("No mixnodes in cache, refreshing cache from DB...");
 
                 let mixnodes = crate::db::queries::get_all_mixnodes(db)
                     .await

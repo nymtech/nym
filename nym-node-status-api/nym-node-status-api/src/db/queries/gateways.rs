@@ -37,20 +37,18 @@ pub(crate) async fn insert_gateways(
     for record in gateways {
         sqlx::query!(
             "INSERT INTO gateways
-                (gateway_identity_key, bonded, blacklisted,
+                (gateway_identity_key, bonded,
                     self_described, explorer_pretty_bond,
                     last_updated_utc, performance)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?)
                 ON CONFLICT(gateway_identity_key) DO UPDATE SET
                 bonded=excluded.bonded,
-                blacklisted=excluded.blacklisted,
                 self_described=excluded.self_described,
                 explorer_pretty_bond=excluded.explorer_pretty_bond,
                 last_updated_utc=excluded.last_updated_utc,
                 performance = excluded.performance;",
             record.identity_key,
             record.bonded,
-            record.blacklisted,
             record.self_described,
             record.explorer_pretty_bond,
             record.last_updated_utc,
@@ -124,7 +122,6 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
         r#"SELECT
             gw.gateway_identity_key as "gateway_identity_key!",
             gw.bonded as "bonded: bool",
-            gw.blacklisted as "blacklisted: bool",
             gw.performance as "performance!",
         gw.self_described as "self_described?",
             gw.explorer_pretty_bond as "explorer_pretty_bond?",

@@ -12,7 +12,6 @@ use utoipa::ToSchema;
 pub(crate) struct GatewayRecord {
     pub(crate) identity_key: String,
     pub(crate) bonded: bool,
-    pub(crate) blacklisted: bool,
     pub(crate) self_described: String,
     // TODO dz shouldn't be an option
     pub(crate) explorer_pretty_bond: Option<String>,
@@ -24,7 +23,6 @@ pub(crate) struct GatewayRecord {
 pub(crate) struct GatewayDto {
     pub(crate) gateway_identity_key: String,
     pub(crate) bonded: bool,
-    pub(crate) blacklisted: bool,
     pub(crate) performance: i64,
     pub(crate) self_described: Option<String>,
     pub(crate) explorer_pretty_bond: Option<String>,
@@ -69,7 +67,6 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
         let last_probe_result = serde_json::from_str(&last_probe_result).unwrap_or(None);
 
         let bonded = value.bonded;
-        let blacklisted = value.blacklisted;
         let performance = value.performance as u8;
 
         let description = NodeDescription {
@@ -82,7 +79,6 @@ impl TryFrom<GatewayDto> for http::models::Gateway {
         Ok(http::models::Gateway {
             gateway_identity_key: value.gateway_identity_key.clone(),
             bonded,
-            blacklisted,
             performance,
             self_described,
             explorer_pretty_bond,

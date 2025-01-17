@@ -1,4 +1,4 @@
-import type { CurrencyRates, NymTokenomics } from "@/app/api/types";
+import type { NymTokenomics } from "@/app/api/types";
 import { NYM_PRICES_API } from "@/app/api/urls";
 import { Box, Stack } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";

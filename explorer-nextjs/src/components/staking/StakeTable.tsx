@@ -235,7 +235,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           <Favorite address={row.original.node?.owner || ""} />
         ),
       },
-
       {
         id: "action",
         header: "Action",

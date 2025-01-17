@@ -46,7 +46,7 @@ location = '{{ host.location }}'
 
 [mixnet]
 # Address this node will bind to for listening for mixnet packets
-# default: `0.0.0.0:1789`
+# default: `[::]:1789`
 bind_address = '{{ mixnet.bind_address }}'
 
 # If applicable, custom port announced in the self-described API that other clients and nodes
@@ -95,7 +95,7 @@ public_x25519_noise_key_file = '{{ storage_paths.keys.public_x25519_noise_key_fi
 
 [http]
 # Socket address this node will use for binding its http API.
-# default: `0.0.0.0:8080`
+# default: `[::]:8080`
 bind_address = '{{ http.bind_address }}'
 
 # Path to assets directory of custom landing page of this node
@@ -126,7 +126,7 @@ expose_crypto_hardware = {{ http.expose_crypto_hardware }}
 enabled = {{ wireguard.enabled }}
 
 # Socket address this node will use for binding its wireguard interface.
-# default: `0.0.0.0:51822`
+# default: `[::]:51822`
 bind_address = '{{ wireguard.bind_address }}'
 
 # Private IP address of the wireguard gateway.
@@ -161,7 +161,7 @@ public_diffie_hellman_key_file = '{{ wireguard.storage_paths.public_diffie_hellm
 
 [verloc]
 # Socket address this node will use for binding its verloc API.
-# default: `0.0.0.0:1790`
+# default: `[::]:1790`
 bind_address = '{{ verloc.bind_address }}'
 
 # If applicable, custom port announced in the self-described API that other clients and nodes
@@ -179,8 +179,8 @@ announce_port ={{#if verloc.announce_port }} {{ verloc.announce_port }} {{else}}
 enforce_zk_nyms = {{ gateway_tasks.enforce_zk_nyms }}
 
 # Socket address this node will use for binding its client websocket API.
-# default: `0.0.0.0:9000`
-bind_address = '{{ gateway_tasks.bind_address }}'
+# default: `[::]:9000`
+ws_bind_address = '{{ gateway_tasks.ws_bind_address }}'
 
 # Custom announced port for listening for websocket client traffic.
 # If unspecified, the value from the `bind_address` will be used instead

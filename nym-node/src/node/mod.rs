@@ -560,7 +560,7 @@ impl NymNode {
             .config
             .gateway_tasks
             .announce_ws_port
-            .unwrap_or(self.config.gateway_tasks.bind_address.port());
+            .unwrap_or(self.config.gateway_tasks.ws_bind_address.port());
 
         Ok(nym_topology::RoutingNode {
             node_id: u32::MAX,
@@ -606,7 +606,7 @@ impl NymNode {
         if self.modes().entry {
             info!(
                 "starting the clients websocket... on {}",
-                self.config.gateway_tasks.bind_address
+                self.config.gateway_tasks.ws_bind_address
             );
             let websocket = gateway_tasks_builder
                 .build_websocket_listener(active_clients_store.clone())
@@ -711,7 +711,7 @@ impl NymNode {
                 .config
                 .gateway_tasks
                 .announce_ws_port
-                .unwrap_or(self.config.gateway_tasks.bind_address.port()),
+                .unwrap_or(self.config.gateway_tasks.ws_bind_address.port()),
             wss_port: self.config.gateway_tasks.announce_wss_port,
         });
         let gateway_details = api_requests::v1::gateway::models::Gateway {

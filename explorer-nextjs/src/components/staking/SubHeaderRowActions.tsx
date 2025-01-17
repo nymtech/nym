@@ -6,16 +6,12 @@ import type { ObservatoryBalance } from "@/app/api/types";
 import { DATA_OBSERVATORY_BALANCES_URL } from "@/app/api/urls";
 import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "@/config";
 import { useNymClient } from "@/hooks/useNymClient";
-import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
-import { GasPrice } from "@cosmjs/stargate";
 import { Button, Stack } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import { useCallback, useEffect, useState } from "react";
 import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
-import { Link } from "../muiLink";
 import RedeemRewardsModal from "../redeemRewards/RedeemRewardsModal";
-import ConnectWallet from "../wallet/ConnectWallet";
 
 const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };
 

@@ -44,6 +44,7 @@ const StakeModal = ({
       setErrorAmount(undefined);
     } catch (e) {
       if (e instanceof Error && "errors" in e) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const validationError = (e as any).errors; // Explicitly cast if necessary
         console.error(validationError);
         setValidated(false);

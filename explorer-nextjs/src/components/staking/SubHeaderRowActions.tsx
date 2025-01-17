@@ -45,17 +45,24 @@ const SubHeaderRowActions = () => {
     fetchDelegations();
 
     const fetchBalances = async () => {
-      const data = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        next: { revalidate: 60 },
-        // refresh event list cache at given interval
-      });
-      const balances: ObservatoryBalance = await data.json();
+      try {
+        const data = await fetch(
+          `${DATA_OBSERVATORY_BALANCES_URL}/${address}`,
+          {
+            headers: {
+              Accept: "application/json",
+              "Content-Type": "application/json; charset=utf-8",
+            },
+            next: { revalidate: 60 },
+            // refresh event list cache at given interval
+          },
+        );
+        const balances: ObservatoryBalance = await data.json();
 
-      return setTotalStakerRewards(balances.rewards.staking_rewards.amount);
+        setTotalStakerRewards(balances.rewards.staking_rewards.amount);
+      } catch (error) {
+        console.error("Failed to fetch balances:", error);
+      }
     };
 
     fetchBalances();
@@ -69,8 +76,6 @@ const SubHeaderRowActions = () => {
       if (!nymClient || !address || !delegations.length) {
         throw new Error("Wallet, client, or delegations not available.");
       }
-
-      console.log("Preparing to redeem rewards...");
 
       const messages = delegations.map((delegation) => {
         const nodeId = delegation.node_id;
@@ -86,13 +91,12 @@ const SubHeaderRowActions = () => {
           },
         };
 
-        return tx; // Use the first message generated
+        return tx;
       });
 
       console.log("Messages prepared for multi-signing:", messages);
 
       const cosmWasmSigningClient = await getSigningCosmWasmClient();
-      console.log("Signing client obtained.");
 
       // Execute all messages in one transaction
       const result = await cosmWasmSigningClient.executeMultiple(

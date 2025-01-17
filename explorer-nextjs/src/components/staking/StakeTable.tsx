@@ -138,8 +138,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     [handleUnstake],
   );
 
-  console.log("delegations :>> ", delegations);
-
   const columns: MRT_ColumnDef<DelegationWithNodeDetails>[] = useMemo(
     () => [
       {

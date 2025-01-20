@@ -1,7 +1,6 @@
 // Copyright 2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use indexed_db_futures::web_sys::DomException;
 use serde_wasm_bindgen::Error;
 use thiserror::Error;
 use wasm_bindgen::JsValue;
@@ -12,15 +11,11 @@ pub enum StorageError {
     #[error("{0}")]
     Json(String),
 
-    #[error("DomException {name} ({code}): {message}")]
-    DomException {
-        /// DomException code
-        code: u16,
-        /// Specific name of the DomException
-        name: String,
-        /// Message given to the DomException
-        message: String,
-    },
+    #[error("storage failure: {message}")]
+    InternalStorageFailure { message: String },
+
+    #[error("failed to open the db file: {message}")]
+    DbOpenFailure { message: String },
 
     #[error("FATAL ERROR: storage key is somehow present {count} times in the table!")]
     DuplicateKey { count: u32 },
@@ -46,12 +41,18 @@ impl From<StorageError> for JsValue {
     }
 }
 
-impl From<DomException> for StorageError {
-    fn from(value: DomException) -> StorageError {
-        StorageError::DomException {
-            name: value.name(),
-            message: value.message(),
-            code: value.code(),
+impl From<indexed_db_futures::error::Error> for StorageError {
+    fn from(value: indexed_db_futures::error::Error) -> Self {
+        StorageError::InternalStorageFailure {
+            message: value.to_string(),
+        }
+    }
+}
+
+impl From<indexed_db_futures::error::OpenDbError> for StorageError {
+    fn from(value: indexed_db_futures::error::OpenDbError) -> Self {
+        StorageError::DbOpenFailure {
+            message: value.to_string(),
         }
     }
 }

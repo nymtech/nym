@@ -25,7 +25,7 @@ use nym_client_core::client::{
 };
 use nym_client_core::config::{DebugConfig, StatsReporting};
 use nym_client_core::error::ClientCoreError;
-use nym_client_core::init::helpers::current_gateways;
+use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
 use nym_client_core::ForgetMe;
@@ -513,7 +513,7 @@ where
         let user_agent = self.user_agent.clone();
 
         let mut rng = OsRng;
-        let available_gateways = current_gateways(
+        let available_gateways = gateways_for_init(
             &mut rng,
             &nym_api_endpoints,
             user_agent,

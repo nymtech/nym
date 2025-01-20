@@ -30,6 +30,10 @@ Any new bonded node will provide only the bare minimum information: host, identi
 
 **Every operator has to make sure that their nodes [self-described endpoint works](nodes/performance-and-testing/node-api-check#basic-api-usage), otherwise the node will be un-routable and thus won't get any rewards!**
 
+<Callout type="warning" emoji="⚠️">
+**Reveal your menominc phrase only in areas out of surveillance of other people and never share it with others. Nym team will never ask you for your mnemonic phrase - in case you were asked by someone it's a scam, do *not* reply to it!**
+</Callout>
+
 ## Bond via the Desktop wallet (recommended)
 
 You can bond your `nym-node` via the Desktop wallet.
@@ -150,3 +154,48 @@ Versions older than `nym-wallet v 1.2.15` will not allow bonding new nodes.
 ## Bond via the CLI (power users)
 
 If you want to bond your Mix Node via the CLI, then check out the [relevant section in the Nym CLI](../../../developers/tools/nym-cli/usage#usage) docs.
+
+## Fund `nym-node` Client Nyx Account
+
+<Callout type="info">
+This is not relevant for operators running exclusively `mixnode` functionality. For any type of gateway functionality this is a preparation requirement for the upcoming [ticket rewarding](../../tokenomics/mixnet-rewards#roadmap).
+</ Callout>
+
+Every `nym-node` client contains a mnemonic of a Nyx account, generated with node initialisation (first `run` command creating all configuration and data files). This mnemonic is located in `$HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic`. **This is *not* the same account as the one used for bondng!**
+
+This client account will be used for the process of redemption of tickets collected by nodes running as `entry-gateway` and `exit-gateway` as the redemption requires gateway to create a multisig proposal on the chain for which the client (node) needs to pay transaction fee.
+
+Giving the low transaction cost on Cosmos, funding your client Nyx account with 25 NYM tokens should be more than enough. To do so, follow these steps:
+
+<Steps>
+
+###### 1. Get your `nym-node` client Nyx account mnemonic phrase
+- Make sure your screen is not exposed to other people or recording devices
+- To store sensitive credentials use audited and open source password managers, like [KeePassXC](https://keepassxc.org/)
+- To print out your node client mnemonic phrase, run:
+```sh
+cat $HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic
+```
+```sh
+# for example
+# cat $HOME/.nym/nym-nodes/default-nym-node/data/cosmos_mnemonic
+```
+- **Alternatively:** You can use `scp` command to copy the file `cosmos_mnemonic` remotely. If this is your preference, use this command:
+```sh
+scp <USER>@<HOST>:.nym/nym-nodes/<ID>/data/cosmos_mnemonic <LOCAL_TARGET_PATH>
+```
+- Copy this phrase and save it to your password manager
+
+
+###### 2. Get the address of your client Nyx account using desktop wallet
+- Open desktop wallet and choose to sign in with mnemonic
+- Use the phrase from step 1
+- Open `Receive` tab and copy Nym account address
+- We recommend operators to store this address for future funding
+
+###### 3. Fund the client Nyx account
+- Open wallet with Nym tokens and send a minimum of 25 NYM to the address copied in the previous step
+- In case you don't have any spare NYM, you can send tokens from any exchange directly to the address copied in the previous step
+</ Steps>
+
+Now your `nym-node` client can use inbuilt Nyx account to create a multisig proposal on chain and redeem user tickets.

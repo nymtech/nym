@@ -4,9 +4,11 @@
 use crate::rpc::TendermintRpcClient;
 use async_trait::async_trait;
 use base64::Engine;
+use cosmrs::tendermint;
 use cosmrs::tendermint::{block::Height, evidence::Evidence, Hash};
 use reqwest::header::HeaderMap;
 use reqwest::{header, RequestBuilder};
+use tendermint_rpc::dialect::{v0_34, v0_37, v0_38, LatestDialect};
 use tendermint_rpc::{
     client::CompatMode,
     dialect::{self, Dialect},
@@ -21,8 +23,21 @@ macro_rules! perform_with_compat {
     ($self:expr, $request:expr) => {{
         let request = $request;
         match $self.compat {
-            CompatMode::V0_37 => $self.perform_v0_37(request).await,
-            CompatMode::V0_34 => $self.perform_v0_34(request).await,
+            CompatMode::V0_38 => {
+                $self
+                    .perform_request_with_dialect(request, dialect::v0_38::Dialect)
+                    .await
+            }
+            CompatMode::V0_37 => {
+                $self
+                    .perform_request_with_dialect(request, dialect::v0_37::Dialect)
+                    .await
+            }
+            CompatMode::V0_34 => {
+                $self
+                    .perform_request_with_dialect(request, dialect::v0_34::Dialect)
+                    .await
+            }
         }
     }};
 }
@@ -70,7 +85,11 @@ impl ReqwestRpcClient {
             .headers(headers)
     }
 
-    async fn perform_request<R, S>(&self, request: R) -> Result<R::Output, Error>
+    async fn perform_request_with_dialect<R, S>(
+        &self,
+        request: R,
+        _dialect: S,
+    ) -> Result<R::Output, Error>
     where
         R: SimpleRequest<S>,
         S: Dialect,
@@ -81,25 +100,24 @@ impl ReqwestRpcClient {
             .send()
             .await
             .map_err(TendermintRpcErrorMap::into_rpc_err)?;
+        let response_status = response.status();
         let bytes = response
             .bytes()
             .await
             .map_err(TendermintRpcErrorMap::into_rpc_err)?;
+
+        // Successful JSON-RPC requests are expected to return a 200 OK HTTP status.
+        // Otherwise, this means that the HTTP request failed as a whole,
+        // as opposed to the JSON-RPC request returning an error,
+        // and we cannot expect the response body to be a valid JSON-RPC response.
+        if response_status != reqwest::StatusCode::OK {
+            // hehe, that's so nasty but we have to somehow convert between different versions of the same lib
+            return Err(Error::http_request_failed(
+                response_status.as_u16().try_into().unwrap(),
+            ));
+        }
+
         R::Response::from_string(bytes).map(Into::into)
-    }
-
-    async fn perform_v0_34<R>(&self, request: R) -> Result<R::Output, Error>
-    where
-        R: SimpleRequest<dialect::v0_34::Dialect>,
-    {
-        self.perform_request(request).await
-    }
-
-    async fn perform_v0_37<R>(&self, request: R) -> Result<R::Output, Error>
-    where
-        R: SimpleRequest<dialect::v0_37::Dialect>,
-    {
-        self.perform_request(request).await
     }
 }
 
@@ -120,18 +138,50 @@ impl TendermintRpcClient for ReqwestRpcClient {
     where
         R: SimpleRequest,
     {
-        self.perform_request(request).await
+        self.perform_request_with_dialect(request, LatestDialect)
+            .await
     }
 
-    async fn block_results<H>(&self, height: H) -> Result<block_results::Response, Error>
+    async fn block<H>(&self, height: H) -> Result<endpoint::block::Response, Error>
     where
         H: Into<Height> + Send,
     {
-        perform_with_compat!(self, block_results::Request::new(height.into()))
+        perform_with_compat!(self, endpoint::block::Request::new(height.into()))
     }
 
-    async fn latest_block_results(&self) -> Result<block_results::Response, Error> {
-        perform_with_compat!(self, block_results::Request::default())
+    async fn block_by_hash(
+        &self,
+        hash: tendermint::Hash,
+    ) -> Result<endpoint::block_by_hash::Response, Error> {
+        perform_with_compat!(self, endpoint::block_by_hash::Request::new(hash))
+    }
+
+    async fn latest_block(&self) -> Result<endpoint::block::Response, Error> {
+        perform_with_compat!(self, endpoint::block::Request::default())
+    }
+
+    async fn block_results<H>(&self, height: H) -> Result<endpoint::block_results::Response, Error>
+    where
+        H: Into<Height> + Send,
+    {
+        perform_with_compat!(self, endpoint::block_results::Request::new(height.into()))
+    }
+
+    async fn latest_block_results(&self) -> Result<endpoint::block_results::Response, Error> {
+        perform_with_compat!(self, endpoint::block_results::Request::default())
+    }
+
+    async fn block_search(
+        &self,
+        query: Query,
+        page: u32,
+        per_page: u8,
+        order: Order,
+    ) -> Result<endpoint::block_search::Response, Error> {
+        perform_with_compat!(
+            self,
+            endpoint::block_search::Request::new(query, page, per_page, order)
+        )
     }
 
     async fn header<H>(&self, height: H) -> Result<endpoint::header::Response, Error>
@@ -140,11 +190,26 @@ impl TendermintRpcClient for ReqwestRpcClient {
     {
         let height = height.into();
         match self.compat {
-            CompatMode::V0_37 => self.perform(endpoint::header::Request::new(height)).await,
+            CompatMode::V0_38 => {
+                self.perform_request_with_dialect(
+                    endpoint::header::Request::new(height),
+                    v0_38::Dialect,
+                )
+                .await
+            }
+            CompatMode::V0_37 => {
+                self.perform_request_with_dialect(
+                    endpoint::header::Request::new(height),
+                    v0_37::Dialect,
+                )
+                .await
+            }
             CompatMode::V0_34 => {
                 // Back-fill with a request to /block endpoint and
                 // taking just the header from the response.
-                let resp = self.perform_v0_34(block::Request::new(height)).await?;
+                let resp = self
+                    .perform_request_with_dialect(block::Request::new(height), v0_34::Dialect)
+                    .await?;
                 Ok(resp.into())
             }
         }
@@ -152,12 +217,25 @@ impl TendermintRpcClient for ReqwestRpcClient {
 
     async fn header_by_hash(&self, hash: Hash) -> Result<header_by_hash::Response, Error> {
         match self.compat {
-            CompatMode::V0_37 => self.perform(header_by_hash::Request::new(hash)).await,
+            CompatMode::V0_38 => {
+                self.perform_request_with_dialect(
+                    header_by_hash::Request::new(hash),
+                    v0_38::Dialect,
+                )
+                .await
+            }
+            CompatMode::V0_37 => {
+                self.perform_request_with_dialect(
+                    header_by_hash::Request::new(hash),
+                    v0_37::Dialect,
+                )
+                .await
+            }
             CompatMode::V0_34 => {
                 // Back-fill with a request to /block_by_hash endpoint and
                 // taking just the header from the response.
                 let resp = self
-                    .perform_v0_34(block_by_hash::Request::new(hash))
+                    .perform_request_with_dialect(block_by_hash::Request::new(hash), v0_34::Dialect)
                     .await?;
                 Ok(resp.into())
             }
@@ -167,8 +245,18 @@ impl TendermintRpcClient for ReqwestRpcClient {
     /// `/broadcast_evidence`: broadcast an evidence.
     async fn broadcast_evidence(&self, e: Evidence) -> Result<evidence::Response, Error> {
         match self.compat {
-            CompatMode::V0_37 => self.perform(evidence::Request::new(e)).await,
-            CompatMode::V0_34 => self.perform_v0_34(evidence::Request::new(e)).await,
+            CompatMode::V0_38 => {
+                self.perform_request_with_dialect(evidence::Request::new(e), v0_38::Dialect)
+                    .await
+            }
+            CompatMode::V0_37 => {
+                self.perform_request_with_dialect(evidence::Request::new(e), v0_37::Dialect)
+                    .await
+            }
+            CompatMode::V0_34 => {
+                self.perform_request_with_dialect(evidence::Request::new(e), v0_34::Dialect)
+                    .await
+            }
         }
     }
 

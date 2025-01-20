@@ -274,7 +274,6 @@ pub struct TopologyWasmOverride {
 
     /// Specifies whether this client should attempt to retrieve all available network nodes
     /// as opposed to just active mixnodes/gateways.
-    /// Useless without `ignore_epoch_roles = true`
     #[tsify(optional)]
     pub use_extended_topology: Option<bool>,
 

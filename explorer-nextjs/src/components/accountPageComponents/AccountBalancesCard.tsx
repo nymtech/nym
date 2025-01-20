@@ -52,7 +52,6 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
     Number(accountInfo.total_value.amount),
     nymPrice,
   );
-
   const spendableNYM = getNymsFormated(Number(accountInfo.balances[0].amount));
   const spendableUSD = getPriceInUSD(
     Number(accountInfo.balances[0].amount),

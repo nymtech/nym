@@ -1,4 +1,4 @@
-import type { CurrencyRates, IAccountBalancesInfo } from "@/app/api/types";
+import type { IAccountBalancesInfo, NymTokenomics } from "@/app/api/types";
 import type NodeData from "@/app/api/types";
 import { NYM_ACCOUNT_ADDRESS, NYM_NODES, NYM_PRICES_API } from "@/app/api/urls";
 import { AccountBalancesCard } from "@/components/accountPageComponents/AccountBalancesCard";
@@ -58,7 +58,7 @@ export default async function Account({
       // refresh event list cache at given interval
     });
 
-    const nymPriceData: CurrencyRates = await nymPrice.json();
+    const nymPriceData: NymTokenomics = await nymPrice.json();
 
     return (
       <ContentLayout>
@@ -92,7 +92,7 @@ export default async function Account({
           <Grid size={8}>
             <AccountBalancesCard
               accountInfo={nymAccountBalancesData}
-              nymPrice={nymPriceData.usd}
+              nymPrice={nymPriceData.quotes.USD.price}
             />
           </Grid>
         </Grid>

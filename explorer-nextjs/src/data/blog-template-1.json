@@ -50,11 +50,11 @@
         },
         {
           "type": "paragraph",
-          "text": "The Explorer also enables anyone to quickly search for a node by using the magic searchbar, if they already have a node ID or a Nym wallet on their clipgoard. Nym wallets that have bonded Nym Nodes have a dual view, where anyone can switch easily between the Nym Node stats and the Acount balance." 
-         },
+          "text": "The Explorer also enables anyone to quickly search for a node by using the magic searchbar, if they already have a node ID or a Nym wallet on their clipgoard. Nym wallets that have bonded Nym Nodes have a dual view, where anyone can switch easily between the Nym Node stats and the Acount balance."
+        },
         {
           "type": "paragraph",
-          "text": "This means that staking $NYM was never easier. On the renewed staking page, Stakers have a clean overview of accumulated rewards, and can easily redeem them. We kept the Keplr mobile extension as the first a login method for the app." 
+          "text": "This means that staking $NYM was never easier. On the renewed staking page, Stakers have a clean overview of accumulated rewards, and can easily redeem them. We kept the Keplr mobile extension as the first a login method for the app."
         }
       ]
     },
@@ -64,9 +64,9 @@
       "text": [
         {
           "type": "paragraph",
-          "text": "  ",
-         }
+          "text": "  "
+        }
       ]
-    } 
+    }
   ]
 }

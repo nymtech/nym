@@ -15,6 +15,7 @@ const StakeActions = ({
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
+  console.log("nodeIdentityKey :>> ", nodeIdentityKey);
 
   const handleShowMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();

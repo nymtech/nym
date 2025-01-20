@@ -115,10 +115,7 @@ pub fn aggregate_signatures(
     let params = ecash_group_parameters();
     // aggregate the signature
 
-    let signature = match Aggregatable::aggregate(signatures, indices) {
-        Ok(res) => res,
-        Err(err) => return Err(err),
-    };
+    let signature = Aggregatable::aggregate(signatures, indices)?;
 
     // Ensure the aggregated signature is not an infinity point
     if bool::from(signature.is_at_infinity()) {

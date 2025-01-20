@@ -7,15 +7,17 @@
 // #![warn(clippy::unwrap_used)]
 
 use defguard_wireguard_rs::WGApi;
-#[cfg(target_os = "linux")]
-use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
 use nym_crypto::asymmetric::encryption::KeyPair;
-#[cfg(target_os = "linux")]
-use nym_network_defaults::constants::WG_TUN_BASE_NAME;
 use nym_wireguard_types::Config;
 use peer_controller::PeerControlRequest;
 use std::sync::Arc;
 use tokio::sync::mpsc::{self, Receiver, Sender};
+
+#[cfg(target_os = "linux")]
+use defguard_wireguard_rs::{host::Peer, key::Key, net::IpAddrMask};
+
+#[cfg(target_os = "linux")]
+use nym_network_defaults::constants::WG_TUN_BASE_NAME;
 
 pub(crate) mod error;
 pub mod peer_controller;
@@ -81,8 +83,9 @@ pub struct WireguardData {
 
 /// Start wireguard device
 #[cfg(target_os = "linux")]
-pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>(
-    storage: St,
+pub async fn start_wireguard(
+    storage: nym_gateway_storage::GatewayStorage,
+    metrics: nym_node_metrics::NymNodeMetrics,
     all_peers: Vec<nym_gateway_storage::models::WireguardPeer>,
     task_client: nym_task::TaskClient,
     wireguard_data: WireguardData,
@@ -93,6 +96,7 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
     use peer_controller::PeerController;
     use std::collections::HashMap;
     use tokio::sync::RwLock;
+    use tracing::info;
 
     let ifname = String::from(WG_TUN_BASE_NAME);
     let wg_api = defguard_wireguard_rs::WGApi::new(ifname.clone(), false)?;
@@ -121,6 +125,7 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
             .await?;
         peer_bandwidth_managers.insert(peer.public_key.clone(), (bandwidth_manager, peer.clone()));
     }
+
     wg_api.create_interface()?;
     let interface_config = InterfaceConfiguration {
         name: ifname.clone(),
@@ -130,6 +135,11 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
         peers,
         mtu: None,
     };
+    info!(
+        "attempting to configure wireguard interface '{ifname}': address={}, port={}",
+        interface_config.address, interface_config.port
+    );
+
     wg_api.configure_interface(&interface_config)?;
     std::process::Command::new("ip")
         .args([
@@ -166,6 +176,7 @@ pub async fn start_wireguard<St: nym_gateway_storage::Storage + Clone + 'static>
     let wg_api = std::sync::Arc::new(WgApiWrapper::new(wg_api));
     let mut controller = PeerController::new(
         storage,
+        metrics,
         wg_api.clone(),
         host,
         peer_bandwidth_managers,

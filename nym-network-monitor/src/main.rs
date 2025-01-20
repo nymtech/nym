@@ -2,7 +2,8 @@ use crate::http::HttpServer;
 use accounting::submit_metrics;
 use anyhow::Result;
 use clap::Parser;
-use log::{info, warn};
+use log::{error, info, warn};
+use nym_client_core::ForgetMe;
 use nym_crypto::asymmetric::ed25519::PrivateKey;
 use nym_network_defaults::setup_env;
 use nym_network_defaults::var_names::NYM_API;
@@ -21,6 +22,7 @@ use std::{
 };
 use tokio::sync::OnceCell;
 use tokio::{signal::ctrl_c, sync::RwLock};
+use tokio_postgres::NoTls;
 use tokio_util::sync::CancellationToken;
 
 static NYM_API_URL: LazyLock<String> = LazyLock::new(|| {
@@ -56,7 +58,11 @@ async fn make_clients(
                 loop {
                     if Arc::strong_count(&dropped_client) == 1 {
                         if let Some(client) = Arc::into_inner(dropped_client) {
-                            client.into_inner().disconnect().await;
+                            // let forget_me = ClientRequest::ForgetMe {
+                            //     also_from_stats: true,
+                            // };
+                            let client_handle = client.into_inner();
+                            client_handle.disconnect().await;
                         } else {
                             warn!("Failed to drop client, client had more then one strong ref")
                         }
@@ -88,6 +94,8 @@ async fn make_client(topology: NymTopology) -> Result<MixnetClient> {
     let mixnet_client = mixnet::MixnetClientBuilder::new_ephemeral()
         .network_details(net)
         .custom_topology_provider(topology_provider)
+        .debug_config(mixnet_debug_config(0))
+        .with_forget_me(ForgetMe::new_all())
         // .enable_credentials_mode()
         .build()?;
 
@@ -129,7 +137,10 @@ struct Args {
     generate_key_pair: bool,
 
     #[arg(long)]
-    private_key: String,
+    private_key: Option<String>,
+
+    #[arg(long, env = "DATABASE_URL")]
+    database_url: Option<String>,
 }
 
 fn generate_key_pair() -> Result<()> {
@@ -167,8 +178,10 @@ async fn main() -> Result<()> {
         std::process::exit(0);
     }
 
-    let pk = PrivateKey::from_base58_string(&args.private_key)?;
-    PRIVATE_KEY.set(pk).ok();
+    if let Some(private_key) = args.private_key {
+        let pk = PrivateKey::from_base58_string(&private_key)?;
+        PRIVATE_KEY.set(pk).ok();
+    }
 
     TOPOLOGY
         .set(if let Some(topology_file) = args.topology {
@@ -196,16 +209,31 @@ async fn main() -> Result<()> {
 
     info!("Waiting for message (ctrl-c to exit)");
 
+    let client = if let Some(database_url) = args.database_url {
+        let (client, connection) = tokio_postgres::connect(&database_url, NoTls).await?;
+
+        tokio::spawn(async move {
+            if let Err(e) = connection.await {
+                error!("Postgres connection error: {}", e);
+            }
+        });
+
+        Some(Arc::new(client))
+    } else {
+        None
+    };
+
     loop {
+        let client = client.as_ref().map(Arc::clone);
         match tokio::time::timeout(Duration::from_secs(600), ctrl_c()).await {
             Ok(_) => {
                 info!("Received kill signal, shutting down, submitting final batch of metrics");
-                submit_metrics().await?;
+                submit_metrics(client).await?;
                 break;
             }
             Err(_) => {
                 info!("Submitting metrics, cleaning metric buffers");
-                submit_metrics().await?;
+                submit_metrics(client).await?;
             }
         };
     }
@@ -215,4 +243,15 @@ async fn main() -> Result<()> {
     server_handle.await??;
 
     Ok(())
+}
+
+fn mixnet_debug_config(min_gateway_performance: u8) -> nym_client_core::config::DebugConfig {
+    let mut debug_config = nym_client_core::config::DebugConfig::default();
+    debug_config
+        .traffic
+        .disable_main_poisson_packet_distribution = true;
+    debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
+    debug_config.topology.minimum_gateway_performance = min_gateway_performance;
+    debug_config.traffic.deterministic_route_selection = true;
+    debug_config
 }

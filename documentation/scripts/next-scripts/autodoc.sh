@@ -6,9 +6,9 @@ set -o errexit
 set -o nounset
 set -o pipefail
 
-# make sure we have all the binaries built
-cd ../../ && cargo build --release && cd tools/nym-cli && cargo build --release && cd ../../ &&
-
+# make sure we have all the binaries built from master
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD) && git checkout master &&
+cd ../../ && cargo build --release && cd tools/nym-cli && cargo build --release && cd ../../ && git checkout $CURRENT_BRANCH &&
 
   # run autodoc script
   cd documentation/autodoc/ && cargo run --release &&

@@ -174,6 +174,9 @@ impl Config {
         if let Some(http_bind_address) = args.bind_address {
             self.base.bind_address = http_bind_address
         }
+        if args.allow_illegal_ips {
+            self.topology_cacher.debug.node_describe_allow_illegal_ips = true
+        }
 
         self
     }

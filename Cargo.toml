@@ -61,7 +61,6 @@ members = [
     "common/ip-packet-requests",
     "common/ledger",
     "common/mixnode-common",
-    "common/models",
     "common/network-defaults",
     "common/node-tester-utils",
     "common/nonexhaustive-delayqueue",
@@ -99,17 +98,15 @@ members = [
     "common/wasm/utils",
     "common/wireguard",
     "common/wireguard-types",
-    # "documentation/autodoc",
+    "documentation/autodoc",
     "explorer-api",
     "explorer-api/explorer-api-requests",
     "explorer-api/explorer-client",
     "gateway",
     "integrations/bity",
-    "mixnode",
     "sdk/ffi/cpp",
     "sdk/ffi/go",
     "sdk/ffi/shared",
-    "sdk/lib/socks5-listener",
     "sdk/rust/nym-sdk",
     "service-providers/authenticator",
     "service-providers/common",
@@ -124,10 +121,11 @@ members = [
     "nym-data-observatory",
     "nym-network-monitor",
     "nym-node",
-    "nym-node/nym-node-http-api",
     "nym-node/nym-node-requests",
-    "nym-node-status-api",
-    "nym-node-status-agent",
+    "nym-node/nym-node-metrics",
+    "nym-node-status-api/nym-node-status-agent",
+    "nym-node-status-api/nym-node-status-api",
+    "nym-node-status-api/nym-node-status-client",
     "nym-outfox",
     "nym-validator-rewarder",
     "tools/echo-server",
@@ -149,23 +147,20 @@ members = [
     "tools/internal/contract-state-importer/importer-cli",
     "tools/internal/contract-state-importer/importer-contract",
     "tools/internal/testnet-manager",
-    "tools/internal/testnet-manager/dkg-bypass-contract",
+    "tools/internal/testnet-manager/dkg-bypass-contract", "common/verloc", "tools/internal/mixnet-connectivity-check",
 ]
 
 default-members = [
     "clients/native",
     "clients/socks5",
-    "common/models",
     "explorer-api",
-    "gateway",
-    "mixnode",
     "nym-api",
     "nym-credential-proxy/nym-credential-proxy",
     "nym-data-observatory",
     "nym-node",
-    "nym-node-status-api",
+    "nym-node-status-api/nym-node-status-agent",
+    "nym-node-status-api/nym-node-status-api",
     "nym-validator-rewarder",
-    "nym-node-status-api",
     "service-providers/authenticator",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
@@ -264,6 +259,7 @@ http-body-util = "0.1"
 httpcodec = "0.2.3"
 humantime = "2.1.0"
 humantime-serde = "1.1.1"
+human-repr = "1.1.0"
 hyper = "1.4.1"
 hyper-util = "0.1"
 indicatif = "0.17.8"
@@ -398,19 +394,17 @@ prost = { version = "0.12", default-features = false }
 
 # wasm-related dependencies
 gloo-utils = "0.2.0"
-gloo-net = "0.5.0"
+gloo-net = "0.6.0"
 
-# use a separate branch due to feature unification failures
-# this is blocked until the upstream removes outdates `wasm_bindgen` feature usage
-# indexed_db_futures = "0.4.1"
-indexed_db_futures = { git = "https://github.com/TiemenSch/rust-indexed-db", branch = "update-uuid" }
-js-sys = "0.3.70"
+# TODO: migrate to 0.6+
+indexed_db_futures = "0.4.2"
+js-sys = "0.3.76"
 serde-wasm-bindgen = "0.6.5"
 tsify = "0.4.5"
-wasm-bindgen = "0.2.95"
-wasm-bindgen-futures = "0.4.45"
-wasmtimer = "0.2.0"
-web-sys = "0.3.72"
+wasm-bindgen = "0.2.99"
+wasm-bindgen-futures = "0.4.49"
+wasmtimer = "0.4.1"
+web-sys = "0.3.76"
 
 # Profile settings for individual crates
 
@@ -419,10 +413,6 @@ web-sys = "0.3.72"
 # using an optimized build
 [profile.dev.package.sqlx-macros]
 opt-level = 3
-
-[profile.release.package.nym-socks5-listener]
-strip = true
-codegen-units = 1
 
 [profile.release.package.nym-client-wasm]
 # lto = true

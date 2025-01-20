@@ -14,30 +14,27 @@ This page explains how to upgrade [`nym-node`](#nym-node-upgrade) or [`validator
 
 ## Nym node Upgrade
 
-**Upgrading your node is a straight forward two-step process:**
-
-<Steps>
-
-#### 1. Updating the binary and `~/.nym/nym-nodes/<ID>/config/config.toml` on your VPS
-
-#### 2. Updating the node information in the [mixnet smart contract](https://nymtech.net/docs/nyx/mixnet-contract.html). This is the information that is present on the [mixnet explorer](https://explorer.nymtech.net).
-
-</Steps>
+Since `v2024.13-magura` (`nym-node v1.1.10`), **operators NO longer update node information in the Mixnet smart contract** (wallet version information), **only upgrade node binary** (on VPS), resulting in `~/.nym/nym-nodes/<ID>/config/config.toml` update.
 
 Below are detailed steps how to do it:
 
 <Steps>
 
-###### 1. Upgrading node binary and information in config file
+###### 1. Upgrade `nym-node` binary
 
 - Pause your node process.
     - If you run your node as `systemd` service (recommended), run: `service nym-node stop`
-    - Otherwise open the terminal window with your node logs and press `ctrl + c`
+    - Otherwise open the terminal window with your node logs and press once `ctrl + c` and wait for the node to terminate gracefully
 
 - Replace the existing `nym-node` binary with the newest binary (which you can either [compile yourself](../../binaries/building-nym.mdx) or [download](../../binaries/pre-built-binaries.mdx).
 
+- To verify node version, run `./nym-node --version`
+
+###### 2. Restart the node
+
 - [Re-run with the same values](../nym-node/setup.mdx#initialise--run) as you use to run your `nym-node`. If you want keep changes in your config file, use flag `-w` (`--write-changes`), **This will just update the config file, it will not overwrite existing keys**.
-    - If you automated your node with `systemd` (recommended) run:
+
+- If you automated your node with `systemd` (recommended), make sure you have all needed flags in `ExecStart` line of the service config file, and run:
 ```sh
 systemctl daemon-reload
 service nym-node start
@@ -48,24 +45,18 @@ service nym-node start
 journalctl -f -u nym-node.service
 ```
 
-###### 2. Updating your node information in the smart contract
 
-Follow these steps to update the information about your `nym-node` which is publicly available from the [`nym-api`](https://validator.nymtech.net/api/swagger/index.html) and information displayed on the [Mixnet explorer](https://explorer.nymtech.net).
+###### 3. Check if your node is reporting the version correctly
 
-You can either do this graphically via the Desktop Wallet, or the CLI.
-
-
-<div>
-  <Tabs items={[
-    <strong>Desktop Wallet (recommended)</strong>,
-    <strong>CLI (superusers)</strong>,
-    ]} defaultIndex="0">
-    <MyTab><DesktopWalletUpdate/></MyTab>
-    <MyTab><CliUpdate/></MyTab>
-  </Tabs>
-</div>
+- Open [Nym Harbourbourmaster](https://harbourmaster.nymtech.net), search your node and verify that everything is working as expected and your node shows expected version.
 
 </Steps>
+
+<Callout type="warning" emoji="⚠️">
+After changes coming along with `v2024.13-magura` (`nym-node v1.1.10`), Nym Explorer is no longer picking all values correctly. Instead of fixing this outdated explorer, we are working on a new one, coming out soon.
+
+[Nym Harbourmaster](https://harbourmaster.nymtech.net) has cache of 90min, expect your values to be updated with delay. We are aware of some issues with Nym Harbourmaster and working hard to resolve them in the upcoming explorer v2. To check your routing values in real time, you can use [`nym-gateway-probe`](../performance-and-testing/gateway-probe).
+</Callout>
 
 ## Validator Upgrade
 
@@ -92,4 +83,3 @@ The most common reason for your validator being jailed is that it runs out of me
 Running the command `df -H` will return the size of the various partitions of your VPS.
 
 If the `/dev/sda` partition is almost full, try pruning some of the `.gz` syslog archives and restart your validator process.
-

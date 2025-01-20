@@ -28,6 +28,7 @@ use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::current_gateways;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
+use nym_client_core::ForgetMe;
 use nym_credentials_interface::TicketType;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::{TaskClient, TaskHandle, TaskStatus};
@@ -36,6 +37,8 @@ use nym_validator_client::{nyxd, QueryHttpRpcNyxdClient, UserAgent};
 use rand::rngs::OsRng;
 use std::path::Path;
 use std::path::PathBuf;
+#[cfg(unix)]
+use std::sync::Arc;
 use url::Url;
 use zeroize::Zeroizing;
 
@@ -54,11 +57,14 @@ pub struct MixnetClientBuilder<S: MixnetClientStorage = Ephemeral> {
     custom_shutdown: Option<TaskClient>,
     force_tls: bool,
     user_agent: Option<UserAgent>,
+    #[cfg(unix)]
+    connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
 
     // TODO: incorporate it properly into `MixnetClientStorage` (I will need it in wasm anyway)
     gateway_endpoint_config_path: Option<PathBuf>,
 
     storage: S,
+    forget_me: ForgetMe,
 }
 
 impl MixnetClientBuilder<Ephemeral> {
@@ -93,6 +99,9 @@ impl MixnetClientBuilder<OnDiskPersistent> {
             custom_gateway_transceiver: None,
             force_tls: false,
             user_agent: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
+            forget_me: Default::default(),
         })
     }
 }
@@ -120,8 +129,11 @@ where
             custom_shutdown: None,
             force_tls: false,
             user_agent: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
             gateway_endpoint_config_path: None,
             storage,
+            forget_me: Default::default(),
         }
     }
 
@@ -138,8 +150,11 @@ where
             custom_shutdown: self.custom_shutdown,
             force_tls: self.force_tls,
             user_agent: self.user_agent,
+            #[cfg(unix)]
+            connection_fd_callback: self.connection_fd_callback,
             gateway_endpoint_config_path: self.gateway_endpoint_config_path,
             storage,
+            forget_me: self.forget_me,
         }
     }
 
@@ -150,6 +165,12 @@ where
         storage: OnDiskPersistent,
     ) -> MixnetClientBuilder<OnDiskPersistent> {
         self.set_storage(storage)
+    }
+
+    #[must_use]
+    pub fn with_forget_me(mut self, forget_me: ForgetMe) -> Self {
+        self.forget_me = forget_me;
+        self
     }
 
     /// Request a specific gateway instead of a random one.
@@ -237,6 +258,16 @@ where
         self
     }
 
+    #[cfg(unix)]
+    #[must_use]
+    pub fn with_connection_fd_callback(
+        mut self,
+        connection_fd_callback: Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>,
+    ) -> Self {
+        self.connection_fd_callback = Some(connection_fd_callback);
+        self
+    }
+
     /// Use custom mixnet sender that might not be the default websocket gateway connection.
     /// only for advanced use
     #[must_use]
@@ -265,7 +296,11 @@ where
         client.wait_for_gateway = self.wait_for_gateway;
         client.force_tls = self.force_tls;
         client.user_agent = self.user_agent;
-
+        #[cfg(unix)]
+        if self.connection_fd_callback.is_some() {
+            client.connection_fd_callback = self.connection_fd_callback;
+        }
+        client.forget_me = self.forget_me;
         Ok(client)
     }
 }
@@ -314,6 +349,12 @@ where
     custom_shutdown: Option<TaskClient>,
 
     user_agent: Option<UserAgent>,
+
+    /// Callback on the websocket fd as soon as the connection has been established
+    #[cfg(unix)]
+    connection_fd_callback: Option<Arc<dyn Fn(std::os::fd::RawFd) + Send + Sync>>,
+
+    forget_me: ForgetMe,
 }
 
 impl<S> DisconnectedMixnetClient<S>
@@ -363,6 +404,9 @@ where
             force_tls: false,
             custom_shutdown: None,
             user_agent: None,
+            #[cfg(unix)]
+            connection_fd_callback: None,
+            forget_me: Default::default(),
         })
     }
 
@@ -457,7 +501,16 @@ where
         let user_agent = self.user_agent.clone();
 
         let mut rng = OsRng;
-        let available_gateways = current_gateways(&mut rng, &nym_api_endpoints, user_agent).await?;
+        let available_gateways = current_gateways(
+            &mut rng,
+            &nym_api_endpoints,
+            user_agent,
+            self.config
+                .debug_config
+                .topology
+                .minimum_gateway_performance,
+        )
+        .await?;
 
         Ok(GatewaySetup::New {
             specification: selection_spec,
@@ -577,7 +630,8 @@ where
 
         let mut base_builder: BaseClientBuilder<_, _> =
             BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
-                .with_wait_for_gateway(self.wait_for_gateway);
+                .with_wait_for_gateway(self.wait_for_gateway)
+                .with_forget_me(&self.forget_me);
 
         if let Some(user_agent) = self.user_agent {
             base_builder = base_builder.with_user_agent(user_agent);
@@ -593,6 +647,11 @@ where
 
         if let Some(gateway_transceiver) = self.custom_gateway_transceiver {
             base_builder = base_builder.with_gateway_transceiver(gateway_transceiver);
+        }
+
+        #[cfg(unix)]
+        if let Some(connection_fd_callback) = self.connection_fd_callback {
+            base_builder = base_builder.with_connection_fd_callback(connection_fd_callback);
         }
 
         let started_client = base_builder.start_base().await?;

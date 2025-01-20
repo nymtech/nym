@@ -12,6 +12,10 @@ import { Clt } from 'components/callout-custom/CalloutCustom.jsx';
 
 # Nym Operators Rewards
 
+<Callout type="warning">
+**Nym Network Rewarded set selection had been upgraded recently. Make sure to read the chapter *[Rewarded Set Selection](#rewarded-set-selection)* below carefully to fully understand all requirements to be rewarded!**
+</Callout>
+
 <TimeNow />
 
 * Nym tokenomics are based on the research paper [*Reward Sharing for Mixnets*](https://nymtech.net/nym-cryptoecon-paper.pdf)
@@ -41,6 +45,7 @@ To make it easier for the reader, we use a highlighting line on the left side, w
 <Callout type="info" emoji="ℹ️">
 Nodes bonded with vesting tokens are [not allowed to join rewarded set](https://github.com/nymtech/nym/pull/5129) - read more on [Nym operators forum](https://forum.nymtech.net/t/vesting-accounts-are-no-longer-supported/827).
 </Callout>
+
 
 ## Overview
 
@@ -126,34 +131,98 @@ This is a quick summary, to understand the full picture, please see detailed [*R
 </div>
 
 
-### Active Set Selection
+### Rewarded Set Selection
 
-*Performance matters!*
+For a node to be rewarded, the node must be part of a [Rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (which currently = active set) in the first place. The Rewarded set is freshly selected at the start of each epoch (every 60 min), and it consists of 240 Nym nodes that are probabilistically chosen from all the available nodes. These 240 nodes include 120 gateways and 120 mixnodes (40 for each of 3 mixnet layers).
 
-For a node to be rewarded, the node must be part of a [Rewarded set](https://validator.nymtech.net/api/v1/epoch/reward_params) (which currently = active set) in the first place. The active set is selected in the beginning of each epoch (every 60min) where total of 240 Nym nodes - represented by 120 mixnodes and 120 gateways, are randomly allocated across the layers.
+Rewarded set nodes are randomly selected, and their selection chances increase with a node score that includes three parameters:
 
-The algorithm choosing nodes into the active set takes into account node's performance and [stake saturation](../tolkenomics.mdx#stake-saturation), both values being between 0 and 1 and config score which is either 0 or 1.
+1. [Config score](#config-score-calculation): highest (`1`) when the node is running the latest version of the software with [T&C's accepted](../nodes/nym-node/setup.mdx#terms--conditions)
+2. [Performance](#performance-calculation): highest (`1`) when the node is consistently online and correctly processes all the received traffic
+3. [Stake saturation](../tokenomics.mdx#stake-saturation): including bond and delegated stake
 
-**Config score is introduced:** The nodes selection to the active set has a new parameter - `config_score`. Config score currently looks if the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`) **AND** if [Terms & Conditions](nodes/nym-node/setup.mdx#terms--conditions) are accepted. Config score has binary values of either 0 or 1, with a following logic:
+Besides these values, the API is also looking whether the node is bonded in Mixnet smart contract as a Nym Node or legacy node (Mixnode or Gateway). **Only nodes bonded as Nym Node in Mixnet smart contract can be selected to the Rewrded set, if you haven't migrated your node yet, please [follow these steps](../nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)!**
 
-| **Run `nym-node` binary** | **T&C's accepted** | **`config_score`** |
+**The node score is calculated with this formula:**
+
+<Callout type="info" emoji="📌">
+> **active_set_selection_probability = total_stake \* ( config_score \* node_performance ) ^ 20 )**
+</Callout>
+
+Note that the score helps prioritize some nodes over others. If all available nodes have the same score, then the selection is done uniformly at random. By raising the config and performance components to 20, values of these parameters that are below one incur a heavy penalization for the node’s selection chances.
+
+Besides these values, the API is also checks whether the node is bonded in Mixnet smart contract as a Nym Node or legacy node (Mixnode or Gateway). **Only nodes bonded as Nym Node in Mixnet smart contract can be selected to the Rewrded set. Thus, if you haven't migrated your node yet, please [follow these steps](../nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract)!**
+
+#### Config Score Calculation
+
+The nodes selection to the active set has a new parameter - `config_score`. Config score currently looks into three paramteres:
+
+1. If the node binary is `nym-node` (not legacy `nym-mixnode` or `nym-gateway`): `1` if `True`, `0` if `False`
+2. If [Terms & Conditions](../nodes/nym-node/setup.mdx#terms--conditions) are accepted: `1` if `True`, `0` if `False`
+3. Version of `nym-node` binary: decreasing weight for outdated versions, as explained below
+
+**The `config_score` parameter calculation formula:**
+
+<Callout type="info" emoji="📌">
+> **config_score = is_tc_accepted \* is_nym-node_binary \* ( 0.995 ^ ( ( X * versions_behind) ^ 1.65 ) )**
+</Callout>
+
+First two points have binary values of either 0 or 1, with a following logic:
+
+| **Run `nym-node` binary** | **T&C's accepted** | **Value**          |
 | :--                       | :--                | ---:               |
+| True                      | True               | 1                  |
 | True                      | False              | 0                  |
 | False                     | True               | 0                  |
 | False                     | False              | 0                  |
-| True                      | True               | 1                  |
 
+Only if both conditions above are `True` the node can have any chance to be selected, as otherwise the probability will always be 0.
 
-The entire active set selection probablity:
+**The `versions_behind` parameter in `config_score` calculation**
+
+From release `2024.14-crunch` (`nym-node v1.2.0`), the `config_score` parameter takes into account also nodes version. The "current version" is the one marked as `Latest` in our repository. The parameter `versions_behind` indicates the number of versions between the `Latest` version and the version run by the node, and it is factored into the config score with the formula:
 
 <Callout type="info" emoji="📌">
-> **active_set_selection_probability = config_score \* stake_saturation \* node_performance ^ 20**
+> **0.995 ^ ( ( X * versions_behind ) ^ 1.65 )**
+>
+> where: <br />
+> **X = 1;       for patches** <br />
+> **X = 10;      for minor versions** <br />
+> **X = 100;     for major versions**
 </Callout>
 
-For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them `config_score` = 1 and not 0):
+> The exact parameters are live accessible on [`/v1/status/config-score-details`](https://validator.nymtech.net/api/swagger/index.html#/Status/config_score_details).
+
+Our versioning convention is: `major_version . minor_version . patch`
+
+For example `nym-node` on version `1.2.0` is on 1st major version, 2nd minor and 0 patches.
+
+Note that the `X` multiplier heavily lowers the `config_score` when nodes are outdated with respect to more significant updates. See the the table and graph below:
+
+| **Version behind**  | **Patches (X = 1)** | **Minor versions (X = 10)** | **Major versions (X = 100)** |
+| :--                 | --:       | --: | --: |
+| 0 (current version) | 1.0 | 1.0 | 1.0 |
+| 1 | 0.995 | 0.7994 | 0.0000 |
+| 2 | 0.9844 | 0.4953 | 0.0000 |
+| 3 | 0.9698 | 0.2536 | 0.0000 |
+| 4 | 0.9518 | 0.1102 | 0.0000 |
+| 5 | 0.9311 | 0.0413 | 0.0000 |
+
+
+![](/images/operators/tokenomics/reward_version_graph.png)
+
+As you can see above, the algorithm is designed to give maximum selection score (`1`) to the latest version, while non-upgraded nodes receive a lower score. The score decreases faster when the node has failed to make a major version upgrade, and slower when the node is behind only with minor updates. This scoring de-prioritizes the selection of outdated nodes, even if their saturation and performance are high. Nodes are selected probabilistically in each epoch (60 min), according to their scores, to be part of the Rewarded set. This scoring mechanism gives priority to the operators running up-to-date nodes, ensuring that the network is as updated as possible.
+
+#### Performance Calculation
+
+Performance is measured by Nym Network Monitor which sends thousands of packages through different routes every 15 minutes and measures how many were dropped on the way. Test result represents percentage of packets succesfully returned (can be anything between 0 and 1). Performance value is nodes average of these tests in last 24h.
+
+Good performance is much more essential than [total stake](../tokenomics.mdx#stake-saturation), because it's lifted to 20th power in the selection formula.
+
+For a comparison we made an example with 5 nodes, where first number is node performance and second stake saturation (assuming all of them `config_score` = 1 for simplification):
 
 <br />
-<AccordionTemplate name="✏️  Example: Reward set selection">
+<AccordionTemplate name="✏️  Example: Performance ^ 20 * total_stake calculation">
 > node_1 = 1.00 ^ 20 \* 1.0 = 1 <br />
 > node_2 = 1.00 ^ 20 \* 0.5 = 0.5 <br />
 > node_3 = 0.99 ^ 20 \* 1.0 = 0.818 <br />
@@ -161,8 +230,9 @@ For a comparison we made an example with 5 nodes, where first number is node per
 > node_5 = 0.90 ^ 20 \* 1.0 = 0.122 <br />
 </AccordionTemplate>
 
-As you can see the performance (also known as *Routing score*) is much more important during the active set selection. A node with 100% performance but only 50% stake saturation has much bigger chance to be chosen than a node with 95% performance but full stake saturation and incomparably bigger chance than 90% performing node with 100% stake saturation.
+As you can see the performance (also known as *Routing score*) is much more important during the Rewarded set selection. A node with 100% performance but only 50% stake saturation has much bigger chance to be chosen than a node with 95% performance but full stake saturation and incomparably bigger chance than 90% performing node with 100% stake saturation.
 
+The nodes are chosen probababilistically in each epoch (60 min), so even nodes with lower performance will eventually be chosen, just much less often, as their chances decrease.
 
 ### Layer Distribution
 
@@ -201,7 +271,7 @@ $33\% - 67\%$
 
 ## Roadmap
 
-We are working on the final architecture of [*Fair Mixnet*](#fair-mixnet) tokenomics implementation. The current design is called [*Naive rewarding*](#naive-rewarding). This is an intermediate step, allowing operators to migrate to `nym-node` in Mixnet smart contract and for the first time recieve delegations and earn rewards for any `nym-node` functionality, in opposite to the past system, where only Mixnodes were able to recieve delegations and rewards.
+We are working on the final architecture of [*Fair Mixnet*](#fair-mixnet) tokenomics implementation. The current design is called [*Naive rewarding*](#naive-rewarding). This is an intermediate step, expecting operators to migrate to `nym-node` in Mixnet smart contract and be able to recieve delegations and earn rewards for any `nym-node` functionality, in opposite to the past system, where only Mixnodes were able to recieve delegations and rewards.
 
 On November 5th, we presented a release roadmap in live [Operators Townhall](https://www.youtube.com/watch?v=3G1pJqvO2VM) where we explained in detail the steps of Nym node and tokenomics development and the effect it will have on node operators and put it into a rough timeline.
 

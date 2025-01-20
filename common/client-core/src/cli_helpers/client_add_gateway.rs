@@ -115,8 +115,13 @@ where
         hardcoded_topology.get_gateways()
     } else {
         let mut rng = rand::thread_rng();
-        crate::init::helpers::current_gateways(&mut rng, &core.client.nym_api_urls, user_agent)
-            .await?
+        crate::init::helpers::current_gateways(
+            &mut rng,
+            &core.client.nym_api_urls,
+            user_agent,
+            core.debug.topology.minimum_gateway_performance,
+        )
+        .await?
     };
 
     // since we're registering with a brand new gateway,

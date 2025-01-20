@@ -530,6 +530,15 @@ impl From<KeyPairUser> for SecretKeyUser {
     }
 }
 
+impl From<SecretKeyUser> for KeyPairUser {
+    fn from(value: SecretKeyUser) -> Self {
+        KeyPairUser {
+            public_key: value.public_key(),
+            secret_key: value,
+        }
+    }
+}
+
 impl KeyPairUser {
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {

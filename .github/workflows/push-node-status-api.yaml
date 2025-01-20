@@ -3,7 +3,7 @@ on:
   workflow_dispatch:
 
 env:
-  WORKING_DIRECTORY: "nym-node-status-api"
+  WORKING_DIRECTORY: "nym-node-status-api/nym-node-status-api"
   CONTAINER_NAME: "node-status-api"
 
 jobs:
@@ -26,7 +26,7 @@ jobs:
           git config --global user.name "Lawrence Stalder"
 
       - name: Get version from cargo.toml
-        uses: mikefarah/yq@v4.44.5
+        uses: mikefarah/yq@v4.44.6
         id: get_version
         with:
           cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml

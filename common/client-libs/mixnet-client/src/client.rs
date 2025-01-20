@@ -1,30 +1,33 @@
-// Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
+// Copyright 2021-2024 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use futures::channel::mpsc;
+use dashmap::DashMap;
 use futures::StreamExt;
-use log::*;
 use nym_sphinx::addressing::nodes::NymNodeRoutingAddress;
 use nym_sphinx::framing::codec::NymCodec;
 use nym_sphinx::framing::packet::FramedNymPacket;
 use nym_sphinx::params::PacketType;
 use nym_sphinx::NymPacket;
-use std::collections::HashMap;
 use std::io;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicU32, Ordering};
+use std::ops::Deref;
+use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::net::TcpStream;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::error::TrySendError;
 use tokio::time::sleep;
+use tokio_stream::wrappers::ReceiverStream;
 use tokio_util::codec::Framed;
+use tracing::*;
 
+#[derive(Clone, Copy)]
 pub struct Config {
     initial_reconnection_backoff: Duration,
     maximum_reconnection_backoff: Duration,
     initial_connection_timeout: Duration,
     maximum_connection_buffer_size: usize,
-    use_legacy_version: bool,
 }
 
 impl Config {
@@ -33,14 +36,12 @@ impl Config {
         maximum_reconnection_backoff: Duration,
         initial_connection_timeout: Duration,
         maximum_connection_buffer_size: usize,
-        use_legacy_version: bool,
     ) -> Self {
         Config {
             initial_reconnection_backoff,
             maximum_reconnection_backoff,
             initial_connection_timeout,
             maximum_connection_buffer_size,
-            use_legacy_version,
         }
     }
 }
@@ -57,11 +58,37 @@ pub trait SendWithoutResponse {
 }
 
 pub struct Client {
-    conn_new: HashMap<NymNodeRoutingAddress, ConnectionSender>,
+    active_connections: ActiveConnections,
+    connections_count: Arc<AtomicUsize>,
     config: Config,
 }
 
-struct ConnectionSender {
+#[derive(Default, Clone)]
+pub struct ActiveConnections {
+    inner: Arc<DashMap<NymNodeRoutingAddress, ConnectionSender>>,
+}
+
+impl ActiveConnections {
+    pub fn pending_packets(&self) -> usize {
+        self.inner
+            .iter()
+            .map(|sender| {
+                let max_capacity = sender.channel.max_capacity();
+                let capacity = sender.channel.capacity();
+                max_capacity - capacity
+            })
+            .sum()
+    }
+}
+
+impl Deref for ActiveConnections {
+    type Target = DashMap<NymNodeRoutingAddress, ConnectionSender>;
+    fn deref(&self) -> &Self::Target {
+        &self.inner
+    }
+}
+
+pub struct ConnectionSender {
     channel: mpsc::Sender<FramedNymPacket>,
     current_reconnection_attempt: Arc<AtomicU32>,
 }
@@ -75,46 +102,53 @@ impl ConnectionSender {
     }
 }
 
-impl Client {
-    pub fn new(config: Config) -> Client {
-        Client {
-            conn_new: HashMap::new(),
-            config,
+struct ManagedConnection {
+    address: SocketAddr,
+    message_receiver: ReceiverStream<FramedNymPacket>,
+    connection_timeout: Duration,
+    current_reconnection: Arc<AtomicU32>,
+}
+
+impl ManagedConnection {
+    fn new(
+        address: SocketAddr,
+        message_receiver: mpsc::Receiver<FramedNymPacket>,
+        connection_timeout: Duration,
+        current_reconnection: Arc<AtomicU32>,
+    ) -> Self {
+        ManagedConnection {
+            address,
+            message_receiver: ReceiverStream::new(message_receiver),
+            connection_timeout,
+            current_reconnection,
         }
     }
 
-    async fn manage_connection(
-        address: SocketAddr,
-        receiver: mpsc::Receiver<FramedNymPacket>,
-        connection_timeout: Duration,
-        current_reconnection: &AtomicU32,
-    ) {
+    async fn run(self) {
+        let address = self.address;
         let connection_fut = TcpStream::connect(address);
 
-        let conn = match tokio::time::timeout(connection_timeout, connection_fut).await {
+        let conn = match tokio::time::timeout(self.connection_timeout, connection_fut).await {
             Ok(stream_res) => match stream_res {
                 Ok(stream) => {
-                    debug!("Managed to establish connection to {}", address);
+                    debug!("Managed to establish connection to {}", self.address);
                     // if we managed to connect, reset the reconnection count (whatever it might have been)
-                    current_reconnection.store(0, Ordering::Release);
+                    self.current_reconnection.store(0, Ordering::Release);
                     Framed::new(stream, NymCodec)
                 }
                 Err(err) => {
-                    debug!(
-                        "failed to establish connection to {} (err: {})",
-                        address, err
-                    );
+                    debug!("failed to establish connection to {address} (err: {err})",);
                     return;
                 }
             },
             Err(_) => {
                 debug!(
-                    "failed to connect to {} within {:?}",
-                    address, connection_timeout
+                    "failed to connect to {address} within {:?}",
+                    self.connection_timeout
                 );
 
                 // we failed to connect - increase reconnection attempt
-                current_reconnection.fetch_add(1, Ordering::SeqCst);
+                self.current_reconnection.fetch_add(1, Ordering::SeqCst);
                 return;
             }
         };
@@ -122,14 +156,27 @@ impl Client {
         // Take whatever the receiver channel produces and put it on the connection.
         // We could have as well used conn.send_all(receiver.map(Ok)), but considering we don't care
         // about neither receiver nor the connection, it doesn't matter which one gets consumed
-        if let Err(err) = receiver.map(Ok).forward(conn).await {
-            warn!("Failed to forward packets to {} - {err}", address);
+        if let Err(err) = self.message_receiver.map(Ok).forward(conn).await {
+            warn!("Failed to forward packets to {address}: {err}");
         }
 
         debug!(
-            "connection manager to {} is finished. Either the connection failed or mixnet client got dropped",
-            address
+            "connection manager to {address} is finished. Either the connection failed or mixnet client got dropped",
         );
+    }
+}
+
+impl Client {
+    pub fn new(config: Config, connections_count: Arc<AtomicUsize>) -> Client {
+        Client {
+            active_connections: Default::default(),
+            connections_count,
+            config,
+        }
+    }
+
+    pub fn active_connections(&self) -> ActiveConnections {
+        self.active_connections.clone()
     }
 
     /// If we're trying to reconnect, determine how long we should wait.
@@ -150,7 +197,7 @@ impl Client {
     }
 
     fn make_connection(&mut self, address: NymNodeRoutingAddress, pending_packet: FramedNymPacket) {
-        let (mut sender, receiver) = mpsc::channel(self.config.maximum_connection_buffer_size);
+        let (sender, receiver) = mpsc::channel(self.config.maximum_connection_buffer_size);
 
         // this CAN'T fail because we just created the channel which has a non-zero capacity
         if self.config.maximum_connection_buffer_size > 0 {
@@ -158,15 +205,16 @@ impl Client {
         }
 
         // if we already tried to connect to `address` before, grab the current attempt count
-        let current_reconnection_attempt = if let Some(existing) = self.conn_new.get_mut(&address) {
-            existing.channel = sender;
-            Arc::clone(&existing.current_reconnection_attempt)
-        } else {
-            let new_entry = ConnectionSender::new(sender);
-            let current_attempt = Arc::clone(&new_entry.current_reconnection_attempt);
-            self.conn_new.insert(address, new_entry);
-            current_attempt
-        };
+        let current_reconnection_attempt =
+            if let Some(mut existing) = self.active_connections.get_mut(&address) {
+                existing.channel = sender;
+                Arc::clone(&existing.current_reconnection_attempt)
+            } else {
+                let new_entry = ConnectionSender::new(sender);
+                let current_attempt = Arc::clone(&new_entry.current_reconnection_attempt);
+                self.active_connections.insert(address, new_entry);
+                current_attempt
+            };
 
         // load the actual value.
         let reconnection_attempt = current_reconnection_attempt.load(Ordering::Acquire);
@@ -175,6 +223,7 @@ impl Client {
         // copy the value before moving into another task
         let initial_connection_timeout = self.config.initial_connection_timeout;
 
+        let connections_count = self.connections_count.clone();
         tokio::spawn(async move {
             // before executing the manager, wait for what was specified, if anything
             if let Some(backoff) = backoff {
@@ -182,13 +231,16 @@ impl Client {
                 sleep(backoff).await;
             }
 
-            Self::manage_connection(
+            connections_count.fetch_add(1, Ordering::SeqCst);
+            ManagedConnection::new(
                 address.into(),
                 receiver,
                 initial_connection_timeout,
-                &current_reconnection_attempt,
+                current_reconnection_attempt,
             )
-            .await
+            .run()
+            .await;
+            connections_count.fetch_sub(1, Ordering::SeqCst);
         });
     }
 }
@@ -200,53 +252,50 @@ impl SendWithoutResponse for Client {
         packet: NymPacket,
         packet_type: PacketType,
     ) -> io::Result<()> {
-        trace!("Sending packet to {:?}", address);
-        let framed_packet =
-            FramedNymPacket::new(packet, packet_type, self.config.use_legacy_version);
+        trace!("Sending packet to {address:?}");
+        let framed_packet = FramedNymPacket::new(packet, packet_type);
 
-        if let Some(sender) = self.conn_new.get_mut(&address) {
-            if let Err(err) = sender.channel.try_send(framed_packet) {
-                if err.is_full() {
-                    debug!("Connection to {} seems to not be able to handle all the traffic - dropping the current packet", address);
-                    // it's not a 'big' error, but we did not manage to send the packet
-                    // if the queue is full, we can't really do anything but to drop the packet
-                    Err(io::Error::new(
-                        io::ErrorKind::WouldBlock,
-                        "connection queue is full",
-                    ))
-                } else if err.is_disconnected() {
-                    debug!(
-                        "Connection to {} seems to be dead. attempting to re-establish it...",
-                        address
-                    );
-                    // it's not a 'big' error, but we did not manage to send the packet, but queue
-                    // it up to send it as soon as the connection is re-established
-                    self.make_connection(address, err.into_inner());
-                    Err(io::Error::new(
-                        io::ErrorKind::ConnectionAborted,
-                        "reconnection attempt is in progress",
-                    ))
-                } else {
-                    // this can't really happen, but let's safe-guard against it in case something changes in futures library
-                    Err(io::Error::new(
-                        io::ErrorKind::Other,
-                        "unknown connection buffer error",
-                    ))
-                }
-            } else {
-                Ok(())
-            }
-        } else {
+        let Some(sender) = self.active_connections.get_mut(&address) else {
             // there was never a connection to begin with
             debug!("establishing initial connection to {}", address);
             // it's not a 'big' error, but we did not manage to send the packet, but queue the packet
             // for sending for as soon as the connection is created
             self.make_connection(address, framed_packet);
-            Err(io::Error::new(
+            return Err(io::Error::new(
                 io::ErrorKind::NotConnected,
                 "connection is in progress",
-            ))
-        }
+            ));
+        };
+
+        let sending_res = sender.channel.try_send(framed_packet);
+        drop(sender);
+
+        sending_res.map_err(|err| {
+            match err {
+                TrySendError::Full(_) => {
+                    debug!("Connection to {address} seems to not be able to handle all the traffic - dropping the current packet");
+                    // it's not a 'big' error, but we did not manage to send the packet
+                    // if the queue is full, we can't really do anything but to drop the packet
+                    io::Error::new(
+                        io::ErrorKind::WouldBlock,
+                        "connection queue is full",
+                    )
+                }
+                TrySendError::Closed(dropped) => {
+                    debug!(
+                        "Connection to {address} seems to be dead. attempting to re-establish it...",
+                    );
+
+                    // it's not a 'big' error, but we did not manage to send the packet, but queue
+                    // it up to send it as soon as the connection is re-established
+                    self.make_connection(address, dropped);
+                    io::Error::new(
+                        io::ErrorKind::ConnectionAborted,
+                        "reconnection attempt is in progress",
+                    )
+                }
+            }
+        } )
     }
 }
 
@@ -255,13 +304,15 @@ mod tests {
     use super::*;
 
     fn dummy_client() -> Client {
-        Client::new(Config {
-            initial_reconnection_backoff: Duration::from_millis(10_000),
-            maximum_reconnection_backoff: Duration::from_millis(300_000),
-            initial_connection_timeout: Duration::from_millis(1_500),
-            maximum_connection_buffer_size: 128,
-            use_legacy_version: false,
-        })
+        Client::new(
+            Config {
+                initial_reconnection_backoff: Duration::from_millis(10_000),
+                maximum_reconnection_backoff: Duration::from_millis(300_000),
+                initial_connection_timeout: Duration::from_millis(1_500),
+                maximum_connection_buffer_size: 128,
+            },
+            Default::default(),
+        )
     }
 
     #[test]

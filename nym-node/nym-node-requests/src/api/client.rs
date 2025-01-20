@@ -19,6 +19,7 @@ use crate::api::v1::network_requester::models::NetworkRequester;
 pub use nym_http_api_client::Client;
 
 use super::v1::gateway::models::Wireguard;
+use super::v1::metrics::models::SessionStats;
 
 pub type NymNodeApiClientError = HttpClientError<ErrorResponse>;
 
@@ -85,6 +86,11 @@ pub trait NymNodeApiClientExt: ApiClient {
 
     async fn get_wireguard(&self) -> Result<Wireguard, NymNodeApiClientError> {
         self.get_json_from(routes::api::v1::gateway::client_interfaces::wireguard_absolute())
+            .await
+    }
+
+    async fn get_sessions_metrics(&self) -> Result<SessionStats, NymNodeApiClientError> {
+        self.get_json_from(routes::api::v1::metrics::sessions_absolute())
             .await
     }
 }

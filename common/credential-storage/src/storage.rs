@@ -22,6 +22,8 @@ use std::error::Error;
 pub trait Storage: Send + Sync {
     type StorageError: Error;
 
+    async fn close(&self);
+
     /// remove all expired ticketbooks and expiration date signatures
     async fn cleanup_expired(&self) -> Result<(), Self::StorageError>;
 

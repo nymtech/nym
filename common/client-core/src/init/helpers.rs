@@ -7,7 +7,7 @@ use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
 use nym_gateway_client::GatewayClient;
-use nym_topology::{gateway, mix};
+use nym_topology::gateway;
 use nym_validator_client::client::IdentityKeyRef;
 use nym_validator_client::UserAgent;
 use rand::{seq::SliceRandom, Rng};
@@ -82,6 +82,7 @@ pub async fn current_gateways<R: Rng>(
     rng: &mut R,
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
+    minimum_performance: u8,
 ) -> Result<Vec<gateway::LegacyNode>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
@@ -95,39 +96,24 @@ pub async fn current_gateways<R: Rng>(
     log::debug!("Fetching list of gateways from: {nym_api}");
 
     let gateways = client.get_all_basic_entry_assigned_nodes().await?;
-    log::debug!("Found {} gateways", gateways.len());
+    info!("nym api reports {} gateways", gateways.len());
+
     log::trace!("Gateways: {:#?}", gateways);
 
     let valid_gateways = gateways
         .iter()
+        .filter(|g| g.performance.round_to_integer() >= minimum_performance)
         .filter_map(|gateway| gateway.try_into().ok())
         .collect::<Vec<gateway::LegacyNode>>();
     log::debug!("After checking validity: {}", valid_gateways.len());
     log::trace!("Valid gateways: {:#?}", valid_gateways);
 
-    log::info!("nym-api reports {} valid gateways", valid_gateways.len());
+    log::info!(
+        "and {} after validity and performance filtering",
+        valid_gateways.len()
+    );
 
     Ok(valid_gateways)
-}
-
-pub async fn current_mixnodes<R: Rng>(
-    rng: &mut R,
-    nym_apis: &[Url],
-) -> Result<Vec<mix::LegacyNode>, ClientCoreError> {
-    let nym_api = nym_apis
-        .choose(rng)
-        .ok_or(ClientCoreError::ListOfNymApisIsEmpty)?;
-    let client = nym_validator_client::client::NymApiClient::new(nym_api.clone());
-
-    log::trace!("Fetching list of mixnodes from: {nym_api}");
-
-    let mixnodes = client.get_all_basic_active_mixing_assigned_nodes().await?;
-    let valid_mixnodes = mixnodes
-        .iter()
-        .filter_map(|mixnode| mixnode.try_into().ok())
-        .collect::<Vec<mix::LegacyNode>>();
-
-    Ok(valid_mixnodes)
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -204,7 +190,7 @@ where
     Ok(GatewayWithLatency::new(gateway, avg))
 }
 
-pub async fn choose_gateway_by_latency<'a, R: Rng, G: ConnectableGateway + Clone>(
+pub async fn choose_gateway_by_latency<R: Rng, G: ConnectableGateway + Clone>(
     rng: &mut R,
     gateways: &[G],
     must_use_tls: bool,

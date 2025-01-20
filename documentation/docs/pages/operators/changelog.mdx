@@ -25,13 +25,435 @@ export const CiConfig = () => (
   </div>
 );
 
+export const TunnelManagerCommands = () => (
+  <div>
+    Commands to update IP tables rules with a new <code>network_tunnel_manager.sh</code>
+  </div>
+);
+
 
 
 # Changelog
 
-This page displays a full list of all the changes during our release cycle from `v2024.3-eclipse` onwards. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
+This page displays a full list of all the changes during our release cycle from `v2024.3-eclipse` onward. Operators can find here the newest updates together with links to relevant documentation. The list is sorted so that the newest changes appear first.
 
 <VarInfo />
+
+## `v2024.14-crunch`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.14-crunch)
+- [`nym-node`](nodes/nym-node.mdx) version `1.2.0`
+- [Operators updates and tools](changelog#operators-updates--tools)
+- [Github CHANGELOG.md](https://github.com/nymtech/nym/blob/nym-binaries-v2024.14-crunch/CHANGELOG.md)
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2024-12-11T13:49:11.974104790Z
+Build Version:      1.2.0
+Commit SHA:         a491e6a71a8cf862d77defd740a4ee8d65d8292a
+Commit Date:        2024-12-11T10:28:47.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.83.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+### Features
+
+- [Bump elliptic from `6.5.4` to `6.5.7` in /testnet-faucet](https://github.com/nymtech/nym/pull/4768): Bumps [elliptic](https://github.com/indutny/elliptic) from `6.5.4` to `6.5.7`.
+
+- [build(deps): bump micromatch from `4.0.4` to `4.0.8` in /nym-wallet/webdriver](https://github.com/nymtech/nym/pull/4789): Bumps [micromatch](https://github.com/micromatch/micromatch) from `4.0.4` to `4.0.8`. 
+
+- [build(deps): bump axios from 1.6.0 to 1.7.5 in /nym-api/tests](https://github.com/nymtech/nym/pull/4790) Bumps [axios](https://github.com/axios/axios) from 1.6.0 to 1.7.5.
+
+- [Sync code with `.env` in build.rs](https://github.com/nymtech/nym/pull/4876): Keep `dotenv` file always up to date
+
+- [build(deps): bump lazy_static from `1.4.0` to `1.5.0`](https://github.com/nymtech/nym/pull/4913): Bumps [lazy_static](https://github.com/rust-lang-nursery/lazy-static.rs) from `1.4.0` to `1.5.0`.
+
+- [Create TaskStatusEvent trait instead of piggybacking on Error](https://github.com/nymtech/nym/pull/4919)
+
+- [build(deps): bump once_cell from `1.19.0` to `1.20.2`](https://github.com/nymtech/nym/pull/4952): Bumps [`once_cell`](https://github.com/matklad/once_cell) from `1.19.0` to `1.20.2`
+
+- [Bump the patch-updates group across 1 directory with 10 updates](https://github.com/nymtech/nym/pull/5011): Bumps the patch-updates group with 9 updates in the / directory:
+
+| Package | From | To |
+| --- | --- | --- |
+| [anyhow](https://github.com/dtolnay/anyhow) | `1.0.89` | `1.0.90` |
+| [clap](https://github.com/clap-rs/clap) | `4.5.18` | `4.5.20` | 
+| [clap_complete](https://github.com/clap-rs/clap) | `4.5.29` | `4.5.33` | 
+| [pin-project](https://github.com/taiki-e/pin-project) | `1.1.5` | `1.1.6` | 
+| [serde](https://github.com/serde-rs/serde) | `1.0.210` | `1.0.211` | 
+| [serde_json](https://github.com/serde-rs/json) | `1.0.128` | `1.0.132` | 
+| [wasm-bindgen](https://github.com/rustwasm/wasm-bindgen) | `0.2.93` | `0.2.95` | 
+| [wasm-bindgen-futures](https://github.com/rustwasm/wasm-bindgen) | `0.4.43` | `0.4.45` | 
+| [web-sys](https://github.com/rustwasm/wasm-bindgen) | `0.3.70` | `0.3.72` |   
+| Updates `anyhow` | `1.0.89` | `1.0.90` |
+
+- [[Product Data] Introduce data persistence on gateways](https://github.com/nymtech/nym/pull/5022): This PR builds on top of [\#4974](https://github.com/nymtech/nym/pull/4974), not changing the behavior of the data collection, but persisting them in a sqlite database so they can be kept across restarts and crashes. It also leave the door open for other stats module to use that storage if needed. Here are some points of interest:
+    - New [`gateway_stats_storage`](https://github.com/nymtech/nym/tree/simon/gateway_stats_persistence/common/gateway-stats-storage) crate
+    - [Config migration](https://github.com/nymtech/nym/blob/simon/gateway_stats_persistence/nym-node/src/config/old_configs/old_config_v4.rs) resulting from the added database.
+    - Resulting changes in the [`statistics`](https://github.com/nymtech/nym/tree/simon/gateway_stats_persistence/gateway/src/node/statistics) module to account the new storage system 
+    
+- [Integrate nym-credential-proxy into workspace](https://github.com/nymtech/nym/pull/5027): Integrate `nym-credential-proxy` into the main workspace
+
+- [Authenticator CLI client mode](https://github.com/nymtech/nym/pull/5044)
+
+- [Node Status API](https://github.com/nymtech/nym/pull/5050): merging a long-diverged feature branch - all commits here were their own merge requests 
+
+- [IPv6 support for wireguard](https://github.com/nymtech/nym/pull/5059)
+
+- [Add nym node GH workflow](https://github.com/nymtech/nym/pull/5080)
+
+- [[Product Data] Better unique user count on gateways](https://github.com/nymtech/nym/pull/5084): To avoid double counting clients across gateways, we add a user ID to the gateway session data.
+
+- [chore: ecash contract migration to remove unused 'redemption_gateway_share'](https://github.com/nymtech/nym/pull/5104)
+
+- [[Product Data] Client-side stats collection ](https://github.com/nymtech/nym/pull/5107): The goal is to anonymously gather stats from nym-clients. These stats will be sent through the mixnet to a Nym run service provider that will gather them. This PR sets the scene to send stats in a mixnet message to an address. The address can be set when the client is created. Current stats include some infos on sent packets along with platform information. If a receiving address is set, the client will send a mixnet packet every 5min to this address. Otherwise, nothing happens and the client runs as usual. 
+
+- [Send mixnet packet stats using task client](https://github.com/nymtech/nym/pull/5109)
+ 
+- [Add granular log on nym-node](https://github.com/nymtech/nym/pull/5111) and make use of it for `defguard_wireguard_rs` big info logs
+
+- [Rewarding for ticketbook issuance](https://github.com/nymtech/nym/pull/5112): Revamps the current validator rewarder to allow for rewards for issuing the zk-nym ticketbooks. 
+ 
+- [[Product Data] Add stats reporting configuration in client config ](https://github.com/nymtech/nym/pull/5115): Adds the stats reporting address to client configs. It can be set in the config file, as a CLI argument and as an env var in a `.env` file. As the stats reporting config in now in the `DebugConfig`, the `StatsReportingConfig` is no longer required, making the propagation of these changes more readable 
+
+- [config score](https://github.com/nymtech/nym/pull/5117): introduces a concept of a `config_score` to a nym node which influences performance and thus rewarding amounts and chances of being in the rewarded set. Currently it's influenced by the following factors:
+    - Accepting terms and conditions (not accepted: 0)
+    - Exposing self-described API (not exposed: 0)
+    - Running "nym-node" binary (legacy binary: 0)
+    - Number of versions behind the core (`score = 0.995 ^ (X * versions_behind ^ 1.65)`)
+    - The old performance is now treated as `routing_score` 
+    - the "new" performance = `routing_score * config_score` 
+
+- [Add Dockerfile and add env vars for clap arguments](https://github.com/nymtech/nym/pull/5118)
+
+- [Aadd GH workflow for nym-validator-rewarder](https://github.com/nymtech/nym/pull/5119)
+
+- [[Product data] Data consumption with ecash ticket](https://github.com/nymtech/nym/pull/5120): Send an event each time an ecash ticket get successfully spent. This allows to approximate how much data each client is using.
+
+- [[Product Data] Config deserialization bug fix](https://github.com/nymtech/nym/pull/5126): Fixes a bug where a `None` value was serialized into an empty string, and incorrectly deserialized into a `Some` variant.
+
+- [NS Agent auth with NS API](https://github.com/nymtech/nym/pull/5127): NS Agent authenticates with key that was registered with NS API
+    - Added flag to Agent to generate keypairs
+    - Agent requests are signed by agent
+    - Server-side requests are checked for authentication
+    
+- [CI: reduce jobs running on cluster](https://github.com/nymtech/nym/pull/5132)
+
+- [Removed ci-nym-api-tests.yml which was running outdated (and broken) tests](https://github.com/nymtech/nym/pull/5133)
+
+- [[Product Data] Set up country reporting from vpn-client](https://github.com/nymtech/nym/pull/5134): Add the ability to report exit country, along with a small refactoring of a module.
+
+- [chore: remove standalone legacy mixnode/gateway binaries](https://github.com/nymtech/nym/pull/5135)
+
+- [Update `serde_json_path` due to compilation issue](https://github.com/nymtech/nym/pull/5144)
+
+- [Add version to clientStatsReport](https://github.com/nymtech/nym/pull/5147): Add a `kind` and `api_version` field for `ClientStatsReport`
+
+- [Start session collection for exit gateways](https://github.com/nymtech/nym/pull/5148): Apparently, exit gateways are also entry gateways so we need to start session stats for them as well
+
+- [build(deps): bump mikefarah/yq from `4.44.3` to `4.44.5`](https://github.com/nymtech/nym/pull/5149): Bumps [mikefarah/yq](https://github.com/mikefarah/yq) from `4.44.3` to `4.44.5`.
+
+- [build(deps): bump cross-spawn from `7.0.3` to `7.0.6` in /testnet-faucet](https://github.com/nymtech/nym/pull/5150): Bumps [cross-spawn](https://github.com/moxystudio/node-cross-spawn) from `7.0.3` to `7.0.6`.
+
+- [Add export_to_env to NymNetworkDetails](https://github.com/nymtech/nym/pull/5162): In `nym-vpn-core` we've started to read the network environment from a json file and then try to pass around `NymNetworkDetails` directly instead of relying on the exported environment. However we still need to bridge with old code so we need to export the network details instance to the environment.
+
+- [Add strum::EnumIter for TicketType](https://github.com/nymtech/nym/pull/5164)
+
+- [Fix env var name](https://github.com/nymtech/nym/pull/5165)
+
+- [Add support for DELETE to nym-http-api-client](https://github.com/nymtech/nym/pull/5166): Add delete support to `http-api-client`
+
+- [Add derive_extended_private_key to DirectSecp256k1HdWallet](https://github.com/nymtech/nym/pull/5167): Add `derive_extended_private_key` to `DirectSectp256k1HdWallet` to support seeding ecash keys
+
+- [Move two minor jobs to free tier github hosted runners](https://github.com/nymtech/nym/pull/5169): In an attempt to easy the load on the self-hosted runners, move two minor workflows over to GH hosted free tier runners.
+
+- [Remove peers with no allowed ip from storage](https://github.com/nymtech/nym/pull/5175)
+
+- [Add indexes to monitor run and testing route](https://github.com/nymtech/nym/pull/5181)
+
+- [Add `monitor_run` and testing_route indexes](https://github.com/nymtech/nym/pull/5182)
+
+- [`explorer-api`: add nym node endpoints + UI to show nym-nodes and account balances](https://github.com/nymtech/nym/pull/5183): Explorer API:
+    - Existing endpoints stay identical
+    - Adds new endpoints to get:
+    - `nym-nodes` (list + by id)
+    - account balance + delegations + rewarding + vesting
+ 
+  - Explorer UI (NextJS)
+    - List of nym-nodes
+    - Remove service providers routes (Harbour Master shows these)
+    - Updates summary page to show nym-nodes
+    - Adds legacy markers to old gateway and mixnode bond lists
+
+- [Add `monitor_run` and testing_route indexes](https://github.com/nymtech/nym/pull/5182)
+
+- [Bugfix/credential proxy sequencing](https://github.com/nymtech/nym/pull/5187)
+
+- [improvement: make internal gateway clients use the same topology cache](https://github.com/nymtech/nym/pull/5191): This should result in 66% reduction in queries for topology within `nym-node` as all the clients should rely on the same cache
+
+- [chore: apply 1.84 linter suggestions](https://github.com/nymtech/nym/pull/5192)
+
+- [Guard storage access with cache](https://github.com/nymtech/nym/pull/5193)
+
+- [Update Security disclosure email, public key and policy](https://github.com/nymtech/nym/pull/5195)
+
+- [merge crunch into develop](https://github.com/nymtech/nym/pull/5199)
+
+- [Fix backwards compat mac generation](https://github.com/nymtech/nym/pull/5202)
+
+- [adjusted config score penalty calculation](https://github.com/nymtech/nym/pull/5206)
+
+- [`nym-api` NMv1 adjustments](https://github.com/nymtech/nym/pull/5209)
+
+- [Nmv2 add debug config](https://github.com/nymtech/nym/pull/5212): Adds debug config to disable poisson process, cover traffic and min performance filtering 
+
+- [introduce UNSTABLE endpoints for returning network monitor run details](https://github.com/nymtech/nym/pull/5214)
+
+- [Don't consider legacy nodes for rewarded set selection](https://github.com/nymtech/nym/pull/5215)
+
+- [Derive serialize for UserAgent (#5210)](https://github.com/nymtech/nym/pull/5217): Cherry-pick PR [\#5210](https://github.com/nymtech/nym/pull/5210)
+
+- [Backport \#5218](https://github.com/nymtech/nym/pull/5220)
+
+- [Remove any filtering on node semver](https://github.com/nymtech/nym/pull/5224): Removed any filtering on version of nodes. however, the parameters can still be passed to `nym-api` queries to not break existing clients, but they will happily ignore them
+
+- [Further config score adjustments](https://github.com/nymtech/nym/pull/5225): I still want to add helper endpoints on `nym-api` to expose some of this data. but for now, I'll let this PR bake over the weekend.
+
+### Bugfix
+
+- [Correct IPv6 address generation](https://github.com/nymtech/nym/pull/5113)
+
+- [bugfix: don't send empty BankMsg in ecash contract](https://github.com/nymtech/nym/pull/5121): If ticketbook prices were to be set so low the resultant redemption would have created `BankMsg` with value of 0, that message is no longer going to be sent 
+
+- [fix: validator-rewarder GH job](https://github.com/nymtech/nym/pull/5151)
+
+- [bugfix: correctly expose ecash-related data on nym-api](https://github.com/nymtech/nym/pull/5155): This PR makes fixes to ecash-related endpoints on `nym-api` 
+    - global data (such as aggregated signatures and keys) are actually always available by all apis
+    - global data (such as aggregated signatures and keys) are actually always available by all apis
+    
+- [bugfix: use default value for verloc config when deserialising missing values](https://github.com/nymtech/nym/pull/5177)
+
+- [bugfix: fixed nym-node config migrations (again)](https://github.com/nymtech/nym/pull/5179)
+
+- [bugfix: added explicit openapi servers to account for route prefixes](https://github.com/nymtech/nym/pull/5237)
+
+### Operators Updates & Tools
+
+<Callout type="warning" emoji="⚠️">
+**Nym Network will now only allow nodes which [migrated](nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract) their node in Nym mixnet smart contract to Nym Node. All nodes which are still bonded as a legacy one (Mixnode or Gateway) in the wallet will have no chance to take part in the [Rewarded set selection](tokenomics/mixnet-rewards#rewarded-set-selection).**
+
+**Operators taking part in Delegation program or Service Grant program must migrate their nodes latest by December 16th, 08:00 UTC.**
+</Callout>
+
+#### Updates
+
+- [Version count as a part of config score](tokenomics/mixnet-rewards#config-score-calculation) has been introduced. To familiarize yourself with Nym Node operator rewards calculation, read [this page](tokenomics/mixnet-rewards).
+- Nym nodes running as Exit Gateway in Service Grant program received delegation. Nym team is now delegating total of **64,800,000 NYM on top 241 Nym Nodes** (137 in Mixnode mode and 104 as Gateways). Our delegation aims to incentivise committed operators who support bootstrapping of Nym network before paying users come.
+
+<br />
+
+<AccordionTemplate name="Delegation size for Gateways in SGP">
+- 250k NYM - Upgrading to magura in time - 2 nodes
+- 300k NYM - Upgrading to magura + bonus for a quick patch upgrade - 102 nodes
+- No delegation - not upgrading in time - 2 nodes
+</AccordionTemplate>
+
+- `nym-node` has now implemented [IPv6 support for wireguard](https://github.com/nymtech/nym/pull/5059)
+
+- [`network_tunnel_manager.sh` updated](network): run the commands below to make sure 
+
+<br />
+
+<AccordionTemplate name={<TunnelManagerCommands/>}>
+These commands can be run one by one or copy-pasted and run as a block.
+```sh
+mkdir $HOME/nym-binaries; \
+
+curl -L https://raw.githubusercontent.com/nymtech/nym/refs/heads/develop/scripts/network_tunnel_manager.sh -o $HOME/nym-binaries/network_tunnel_manager.sh && \
+chmod +x $HOME/nym-binaries/network_tunnel_manager.sh; \
+
+$HOME/nym-binaries/network_tunnel_manager.sh check_nymtun_iptables  ; \
+$HOME/nym-binaries/network_tunnel_manager.sh remove_duplicate_rules nymtun0 ;\
+$HOME/nym-binaries/network_tunnel_manager.sh remove_duplicate_rules nymwg;\
+$HOME/nym-binaries/network_tunnel_manager.sh check_nymtun_iptables ; \
+$HOME/nym-binaries/network_tunnel_manager.sh adjust_ip_forwarding ; \
+$HOME/nym-binaries/network_tunnel_manager.sh apply_iptables_rules ; \
+$HOME/nym-binaries/network_tunnel_manager.sh check_nymtun_iptables ; \
+$HOME/nym-binaries/network_tunnel_manager.sh apply_iptables_rules_wg ; \
+$HOME/nym-binaries/network_tunnel_manager.sh configure_dns_and_icmp_wg ; \
+$HOME/nym-binaries/network_tunnel_manager.sh adjust_ip_forwarding ; \
+$HOME/nym-binaries/network_tunnel_manager.sh check_ipv6_ipv4_forwarding; \
+
+systemctl daemon-reload && service nym-node restart && journalctl -u nym-node -f 
+```
+
+Then run the jokes in a new window for control
+```sh
+$HOME/nym-binaries/network_tunnel_manager.sh joke_through_the_mixnet
+$HOME/nym-binaries/network_tunnel_manager.sh joke_through_wg_tunnel
+```
+</AccordionTemplate>
+
+#### Tools
+
+- **[New APIs documentation](../apis/introduction)** with interactive APIs generated from the OpenAPI specs of various API endpoints offered by bits of Nym infrastructure run both by Nym and community operators for both Mainnet and the Sandbox testnet.
+- [Nym Harbourmaster](https://harbourmaster.nymtech.net/) has a new tab called `CONTRACT EXPLORER` querying data from Nym mixnet contract in real time.
+- [Nym Explorer](https://explorer.nymtech.net) is updated to read migrated nodes correctly
+- [New community explorer by SpectreDAO](https://explorer.nym.spectredao.net/dashboard) offers Nym Network dashboard, Node overview and Account stats view functions for operators and delegators.
+- [`nym-vpnc`](../developers/nymvpncli) build and run documentation, for those who don't want to use the Nym VPN GUIs.
+
+## `magura-drift`
+
+Second patch to `v2024.13-magura` release version. 
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.13-magura-drift)
+- [`nym-node`](nodes/nym-node.mdx) version `1.1.12`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2024-11-29T13:10:51.813092288Z
+Build Version:      1.1.12
+Commit SHA:         4a9a5579c40ad956163ea02e01d7b53aef2ac8ef
+Commit Date:        2024-11-29T14:06:32.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.83.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+-  This patch adds a peer storage manager to fix issues causing external clients to be blocked, ensuring they can successfully connect to different nodes. 
+
+## `v2024.13-magura-patched`
+
+- [Release binaries](https://github.com/nymtech/nym/releases/tag/nym-binaries-v2024.13-magura-patched)
+- [`nym-node`](nodes/nym-node.mdx) version `1.1.11`
+
+```sh
+nym-node
+Binary Name:        nym-node
+Build Timestamp:    2024-11-22T14:30:48.067329245Z
+Build Version:      1.1.11
+Commit SHA:         01c7b2819ee3d328deccd303b4113ff415d7e276
+Commit Date:        2024-11-22T10:50:59.000000000+01:00
+Commit Branch:      HEAD
+rustc Version:      1.82.0
+rustc Channel:      stable
+cargo Profile:      release
+```
+
+
+<Callout type="warning" emoji="⚠️">
+After changes coming along with `v2024.13-magura` (`nym-node v1.1.10`), Nym Explorer is no longer picking all values correctly. Instead of fixing this outdated explorer, we are working on a new one, coming out soon. 
+
+[Nym Harbourmaster](https://harbourmaster.nymtech.net) has cache of 90min, expect your values to be updated with delay. We are aware of some issues with Nym Harbourmaster and working hard to resolve them in the upcoming explorer v2. To check your routing values in real time, you can use [`nym-gateway-probe`](nodes/performance-and-testing/gateway-probe).
+</Callout>
+
+### Operators Updates & Tools
+
+- Updated [`network_tunnel_manager.sh`](https://github.com/nymtech/nym/blob/develop/scripts/network_tunnel_manager.sh) (moved to our monorepo) helps operators to configure their IP tables rules for `nymtun` and `wireguard` routing.
+
+- **Please re-run [routing configuration steps](https://nymtech.net/docs/operators/nodes/nym-node/configuration#routing-configuration) to update your routing settings.**
+
+- We found out that some operators have a wrong value for wireguard IP. Follow these steps to ensure your value is set to `10.1.0.1` (default on new nodes):
+
+<Steps>
+###### 1. Open your node config file:
+```sh
+nano $HOME/.nym/nym-nodes/<ID>/config/config.toml
+
+# change <ID> for your local nym moniker for example:
+# nano $HOME/.nym/nym-nodes/default-nym-node/config/config.toml
+```
+###### 2. Control or change the value of wireguard private IP
+- Scroll down to section starting with `[wireguard]`
+- Find line `private_ip` and ensure it's set to value `10.1.0.1`
+- The section will look like this:
+```toml
+[wireguard]
+# Specifies whether the wireguard service is enabled on this node.
+enabled = true
+
+# Socket address this node will use for binding its wireguard interface.
+# default: `0.0.0.0:51822`
+bind_address = '0.0.0.0:51822'
+
+# Private IP address of the wireguard gateway.
+# default: `10.1.0.1`
+private_ip = '10.1.0.1'
+```
+###### 3. Save, exit and restart the service
+- If you used `nano` editor - press `ctrl` + `x` and confirm the changes
+- Run these commands to update the service with new values and restart your node process:
+```sh
+systemctl daemon-reload && service nym-node restart
+```
+</Steps>
+
+- New manual how to [run `nym-node` as non-root](nodes/nym-node/configuration#running-nym-node-as-a-non-root)
+
+- Since `v2024.13-magura`, operators do not update their node version in the wallet. [Manual upgrading steps](nodes/maintenance/manual-upgrade.mdx) has been updated accordingly.
+
+- CLI tool [`node_api_check.py`](nodes/performance-and-testing/node-api-check.mdx), helping operators to collect all API values about their nodes locally, is not up to date with the API changes introduced with `v2024.13-magura` release version. Please treat it as unstable before we fix it.
+
+#### Error Log
+
+In case you encounter this error:
+```
+[ERROR] nym-node/src/node/mod.rs:628: the exit gateway subtask has failed with the following message: failed to start authenticator: internal wireguard error no private IP set for peer..
+```
+
+You can follow these steps to make a workaround:
+
+<br />
+
+<AccordionTemplate name="Authenticator error fix">
+<Steps>
+###### 1. Find the error
+
+- In the node logs, locate the ERROR message which says `the exit gateway subtask has failed with the following message: failed to start authenticator: internal wireguard error no private IP set for peer KN5GPvkC+p6G/SM4PD2Z3ObAtRGiDjHPRnQOPpbdUQk=`
+
+- Copy the end part of that peer, later denoted as `<WG_PEER_STRING_END>` (in our example `GiDjHPRnQOPpbdUQk=`) to use later in the sql commands
+
+###### 2. Fix the issue in sqlite3 db
+
+<Callout type="warning" emoji="⚠️">
+Be careful when running commands within sqlite database.
+</Callout>
+
+- Navigate to the data directory:
+```sh
+cd $HOME/.nym/nym-nodes/<ID>/data
+```
+- Enter the database: 
+```sh
+sqlite3 clients.sqlite
+```
+
+- Run these commands:
+```sh
+# Change with your unique <PEER_STRING_END>
+select * from wireguard_peer where public_key like "%<WG_PEER_STRING_END>%"
+# Make sure that only ONE line is returned and it contains the key
+
+delete from wireguard_peer where public_key like "%<WG_PEER_STRING_END>%";
+```
+- Confirm that peer has been removed by running this again:
+```sh
+select * from wireguard_peer where public_key like "%<WG_PEER_STRING_END>%";
+```
+
+###### 3. Exit and restart the service
+
+Run `.quit` and: 
+```sh
+systemctl restart nym-node.service
+```
+</Steps>
+</AccordionTemplate>
 
 ## `v2024.13-magura`
 
@@ -70,15 +492,15 @@ cargo Profile:      release
 
 - [Switch over the last set of jobs to arc runners](https://github.com/nymtech/nym/pull/4938): Switch over the remaining GH jobs using 16-core runners to self-hosted arc runners. Since we can't currently use Docker on the ubuntu-20.04 runners, remove the matrix notification steps
 
-<AccordionTemplate name={<TestingSteps/>}> 
+<AccordionTemplate name={<TestingSteps/>}>
 Confirm that the deployment workflows work through manual testing
 - [x] cd-docs
 - [x] publish-sdk-npm
 </AccordionTemplate>
 
-- [V2 performance monitoring feature flag](https://github.com/nymtech/nym/pull/4943): Feature flag to use v2 network monitor results in rewarding 
+- [V2 performance monitoring feature flag](https://github.com/nymtech/nym/pull/4943): Feature flag to use v2 network monitor results in rewarding
 
-- [Add `utoipa` feature to nym-node](https://github.com/nymtech/nym/pull/4945): `cargo build -p nym-node` was failing, since its depending on `QueryParams` having `utoipa` traits derived 
+- [Add `utoipa` feature to nym-node](https://github.com/nymtech/nym/pull/4945): `cargo build -p nym-node` was failing, since its depending on `QueryParams` having `utoipa` traits derived
 
 - [Ticket type storage](https://github.com/nymtech/nym/pull/4947)
 
@@ -103,8 +525,8 @@ Confirm that the deployment workflows work through manual testing
 - [chore: remove unused rocket code](https://github.com/nymtech/nym/pull/4968)
 
 - [add Dockerfile for nym node](https://github.com/nymtech/nym/pull/4972)
- 
-- [`Product Data` Add session type based on ecash ticket received](https://github.com/nymtech/nym/pull/4974): Fire an `EcashTicket` event for the `GatewayStatisticsCollector`, when an Ecash ticket is being accepted. This allows to mark an active session as being a mixnet session or a vpn session. It also changes the format of the related self-described data, to accommodate that new session type. 
+
+- [`Product Data` Add session type based on ecash ticket received](https://github.com/nymtech/nym/pull/4974): Fire an `EcashTicket` event for the `GatewayStatisticsCollector`, when an Ecash ticket is being accepted. This allows to mark an active session as being a mixnet session or a vpn session. It also changes the format of the related self-described data, to accommodate that new session type.
 
 - [Top up bandwidth](https://github.com/nymtech/nym/pull/4975)
 
@@ -147,7 +569,7 @@ Confirm that the deployment workflows work through manual testing
     - log gw identity key
     - better agent testrun logging
     - log responses on server side
-    - change response code for agents 
+    - change response code for agents
     - update sqlx data
     - fix agent - probe gw bug
 
@@ -165,7 +587,7 @@ Confirm that the deployment workflows work through manual testing
 
 - [Allow custom http port to be reset](https://github.com/nymtech/nym/pull/5073)
 
-- [Fix gateway decreasing bandwidth](https://github.com/nymtech/nym/pull/5075): Make sure to update the storage after each decrease with the new values. Also set the storage values to 0 on restart for existing peers, as kernel peers can't have those values set to 0 
+- [Fix gateway decreasing bandwidth](https://github.com/nymtech/nym/pull/5075): Make sure to update the storage after each decrease with the new values. Also set the storage values to 0 on restart for existing peers, as kernel peers can't have those values set to 0
 
 - [Fix expiration date as today + 7 days](https://github.com/nymtech/nym/pull/5076)
 
@@ -187,7 +609,7 @@ Confirm that the deployment workflows work through manual testing
 
 - [Add NYM_VPN_API to env files](https://github.com/nymtech/nym/pull/5099)
 
-- [Feature/force refresh node](https://github.com/nymtech/nym/pull/5101): currently if nodes update their role from say mixnode to entry-gateway, it might take quite a while for `nym-api` to pick up the change and thus they might be losing performance. With this change, the node will be force refreshed on its startup 
+- [Feature/force refresh node](https://github.com/nymtech/nym/pull/5101): currently if nodes update their role from say mixnode to entry-gateway, it might take quite a while for `nym-api` to pick up the change and thus they might be losing performance. With this change, the node will be force refreshed on its startup
 
 - [`nym-credential-proxy-requests`: reqwest use rustls-tls](https://github.com/nymtech/nym/pull/5116)
 
@@ -205,7 +627,7 @@ Confirm that the deployment workflows work through manual testing
 - [Fix critical issues SI84 and SI85 from Cure53](https://github.com/nymtech/nym/pull/4758): This pull request fixes the following issues:
     - NYM-01-009 WP5: BLS12-381 EC signature bypasses in Coconut library (Critical)
     - NYM-01-014 WP5: Partial signature bypass in offline eCash (Critical)
-    
+
 - [bugfix: correctly paginate through 'search_tx' endpoint](https://github.com/nymtech/nym/pull/4936): when `results.append(&mut res.txs);` was called, `res.txs` was always empty thus it was impossible to return more than page size number of results
 
 - [Fix broken build after merge](https://github.com/nymtech/nym/pull/4937)
@@ -214,7 +636,7 @@ Confirm that the deployment workflows work through manual testing
     - dedicated commands to request specific blocks for processing
     - decreased websocket failure timeout
     - ensuring we do actually have sufficient number of blocks to process rewarding for given epoch
-    - additional error logging 
+    - additional error logging
 
 - [bugfix: fix expected return type on /v1/gateways endpoint](https://github.com/nymtech/nym/pull/4965)
 
@@ -224,7 +646,7 @@ Confirm that the deployment workflows work through manual testing
     - Faulty aggregation to invalid offline eCash signatures
     - Signature forgery of Pointcheval-Sanders schema
 
-- [bugfix: client memory leak](https://github.com/nymtech/nym/pull/4991): This fixes memory leaks in all the clients. however, they were most prominent in `nym-api` during network monitoring due to the sheer amount of packets being pushed 
+- [bugfix: client memory leak](https://github.com/nymtech/nym/pull/4991): This fixes memory leaks in all the clients. however, they were most prominent in `nym-api` during network monitoring due to the sheer amount of packets being pushed
 
 - [Fix rustfmt in nym-credential-proxy](https://github.com/nymtech/nym/pull/4992)
 
@@ -279,7 +701,7 @@ Confirm that the deployment workflows work through manual testing
 - [bugfix: make sure to assign correct node_id and identity during 'gateway_details' table migration](https://github.com/nymtech/nym/pull/5142)
 
 - [bugifx: assign 'node_id' when converting from 'GatewayDetails' to 'TestNode'](https://github.com/nymtech/nym/pull/5143)
- 
+
 ### Operators Updates & Tooling
 
 <Callout type="warning" emoji="⚠️">
@@ -292,7 +714,7 @@ Confirm that the deployment workflows work through manual testing
 
 - **[Operators release & rewards roadmap](tokenomics/mixnet-rewards.mdx#roadmap)**
 
-- **New [Operators landing pag  e](https://nymtech.net/operators)
+- **New [Operators landing page](https://nymtech.net/operators)**
 
 - [Nym Harbourmaster](https://harbourmaster.nymtech.net) had a new tab `NODE SEARCH` where operators can easily search nodes by identity keys and owner accounts and get all public information listed.
 
@@ -335,7 +757,7 @@ Confirm that the deployment workflows work through manual testing
 
 - Confirm the transaction
 
-###### 5. Welcome to new episode of `nym-node`! 
+###### 5. Welcome to new episode of `nym-node`!
 
 </ Steps>
 </AccordionTemplate>
@@ -360,13 +782,13 @@ Confirm that the deployment workflows work through manual testing
 
 - Currently in *Native rewarding*, the rewards are split equally across the [rewarded set of nodes](https://validator.nymtech.net/api/v1/epoch/reward_params) (which now = active set and it's size is 240 nodes) for both Mixnet mode and dVPN mode. Every node being assigned 1 / 240 work factor (hence *naive rewarding*).
 
-#### Directory Services v2.1: API & Mixnet Contract Changes 
+#### Directory Services v2.1: API & Mixnet Contract Changes
 
-Magura release brings [breaking changes on API](https://github.com/nymtech/nym/pull/4903) logic of Nym. New APIs will only communicate with `nym-node` from this release and newer. Also old version of APIs won't be able to communicate with the new version of `nym-node`. We are also moving towards completely removing Nym Explorer API, which now has been only used to report nodes location. 
+Magura release brings [breaking changes on API](https://github.com/nymtech/nym/pull/4903) logic of Nym. New APIs will only communicate with `nym-node` from this release and newer. Also old version of APIs won't be able to communicate with the new version of `nym-node`. We are also moving towards completely removing Nym Explorer API, which now has been only used to report nodes location.
 
 Any new bonded node will provide only the bare minimum information: host, identity key and optionally custom port of its HTTP api - we highly recommend to set that one up to `8080`. Everything else will be discovered via the self-described API for maximum flexibility. This also includes the sphinx key, meaning if the API is not exposed, the node will be unable to route any traffic. Furthermore, this allows to arbitrary change of   `nym-node` from mixnode into a gateway modes (and vice versa) without losing any delegations.
 
-The contract changes also mean any node functionality can get rewards. Rather than just with assigned mixing roles, gateways now also added into the pool. However, to be eligible for gateway rewarding, one must [migrate into a `nym-node`](#wallet-changes) on a smart contract level (or bond a new node). 
+The contract changes also mean any node functionality can get rewards. Rather than just with assigned mixing roles, gateways now also added into the pool. However, to be eligible for gateway rewarding, one must [migrate into a `nym-node`](#wallet-changes) on a smart contract level (or bond a new node).
 
 ##### API High Level Changes
 

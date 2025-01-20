@@ -603,7 +603,7 @@ pub fn query(
 #[entry_point]
 pub fn migrate(
     mut deps: DepsMut<'_>,
-    env: Env,
+    _env: Env,
     msg: MigrateMsg,
 ) -> Result<Response, MixnetContractError> {
     set_build_information!(deps.storage)?;
@@ -612,7 +612,7 @@ pub fn migrate(
     let skip_state_updates = msg.unsafe_skip_state_updates.unwrap_or(false);
 
     if !skip_state_updates {
-        crate::queued_migrations::add_config_score_params(deps.branch(), env, &msg)?;
+        crate::queued_migrations::restore_node_version_history(deps.branch())?;
     }
 
     // due to circular dependency on contract addresses (i.e. mixnet contract requiring vesting contract address

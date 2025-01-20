@@ -1,77 +1,72 @@
 // Copyright 2021 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::client::{Client, Config, SendWithoutResponse};
 use futures::channel::mpsc;
-use futures::StreamExt;
-use log::*;
+use futures::channel::mpsc::SendError;
 use nym_sphinx::forwarding::packet::MixPacket;
-use std::time::Duration;
+use tokio::time::Instant;
 
-pub type MixForwardingSender = mpsc::UnboundedSender<MixPacket>;
-type MixForwardingReceiver = mpsc::UnboundedReceiver<MixPacket>;
-
-/// A specialisation of client such that it forwards any received packets on the channel into the
-/// mix network immediately, i.e. will not try to listen for any responses.
-pub struct PacketForwarder {
-    mixnet_client: Client,
-    packet_receiver: MixForwardingReceiver,
-    shutdown: nym_task::TaskClient,
+pub fn mix_forwarding_channels() -> (MixForwardingSender, MixForwardingReceiver) {
+    let (tx, rx) = mpsc::unbounded();
+    (tx.into(), rx)
 }
 
-impl PacketForwarder {
-    pub fn new(
-        initial_reconnection_backoff: Duration,
-        maximum_reconnection_backoff: Duration,
-        initial_connection_timeout: Duration,
-        maximum_connection_buffer_size: usize,
-        use_legacy_version: bool,
-        shutdown: nym_task::TaskClient,
-    ) -> (PacketForwarder, MixForwardingSender) {
-        let client_config = Config::new(
-            initial_reconnection_backoff,
-            maximum_reconnection_backoff,
-            initial_connection_timeout,
-            maximum_connection_buffer_size,
-            use_legacy_version,
-        );
+#[derive(Clone)]
+pub struct MixForwardingSender(mpsc::UnboundedSender<PacketToForward>);
 
-        let (packet_sender, packet_receiver) = mpsc::unbounded();
+impl From<mpsc::UnboundedSender<PacketToForward>> for MixForwardingSender {
+    fn from(tx: mpsc::UnboundedSender<PacketToForward>) -> Self {
+        MixForwardingSender(tx)
+    }
+}
 
-        (
-            PacketForwarder {
-                mixnet_client: Client::new(client_config),
-                packet_receiver,
-                shutdown,
-            },
-            packet_sender,
-        )
+impl MixForwardingSender {
+    pub fn forward_packet(&self, packet: impl Into<PacketToForward>) -> Result<(), SendError> {
+        self.0
+            .unbounded_send(packet.into())
+            .map_err(|err| err.into_send_error())
     }
 
-    pub async fn run(&mut self) {
-        while !self.shutdown.is_shutdown() {
-            tokio::select! {
-                biased;
-                _ = self.shutdown.recv() => {
-                    log::trace!("PacketForwarder: Received shutdown");
-                }
-                Some(mix_packet) = self.packet_receiver.next() => {
-                     trace!("Going to forward packet to {}", mix_packet.next_hop());
+    #[allow(clippy::len_without_is_empty)]
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
+}
 
-                    let next_hop = mix_packet.next_hop();
-                    let packet_type = mix_packet.packet_type();
-                    let packet = mix_packet.into_packet();
-                    // we don't care about responses, we just want to fire packets
-                    // as quickly as possible
+pub type MixForwardingReceiver = mpsc::UnboundedReceiver<PacketToForward>;
 
-                    if let Err(err) =
-                        self.mixnet_client
-                            .send_without_response(next_hop, packet, packet_type)
-                    {
-                        debug!("failed to forward the packet - {err}")
-                    }
-                }
-            }
+pub struct PacketToForward {
+    pub packet: MixPacket,
+    pub forward_delay_target: Option<Instant>,
+}
+
+impl From<MixPacket> for PacketToForward {
+    fn from(packet: MixPacket) -> Self {
+        PacketToForward::new_no_delay(packet)
+    }
+}
+
+impl From<(MixPacket, Option<Instant>)> for PacketToForward {
+    fn from((packet, delay_until): (MixPacket, Option<Instant>)) -> Self {
+        PacketToForward::new(packet, delay_until)
+    }
+}
+
+impl From<(MixPacket, Instant)> for PacketToForward {
+    fn from((packet, delay_until): (MixPacket, Instant)) -> Self {
+        PacketToForward::new(packet, Some(delay_until))
+    }
+}
+
+impl PacketToForward {
+    pub fn new(packet: MixPacket, forward_delay_target: Option<Instant>) -> Self {
+        PacketToForward {
+            packet,
+            forward_delay_target,
         }
+    }
+
+    pub fn new_no_delay(packet: MixPacket) -> Self {
+        Self::new(packet, None)
     }
 }

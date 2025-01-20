@@ -8,7 +8,7 @@ use error::EcashTicketError;
 use futures::channel::mpsc::{self, UnboundedSender};
 use nym_credentials::CredentialSpendingData;
 use nym_credentials_interface::{ClientTicket, CompactEcashError, NymPayInfo, VerificationKeyAuth};
-use nym_gateway_storage::Storage;
+use nym_gateway_storage::GatewayStorage;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::DirectSigningHttpRpcNyxdClient;
 use state::SharedState;
@@ -23,24 +23,21 @@ mod state;
 
 pub const TIME_RANGE_SEC: i64 = 30;
 
-pub struct EcashManager<S> {
-    shared_state: SharedState<S>,
+pub struct EcashManager {
+    shared_state: SharedState,
 
     pk_bytes: [u8; 32], // bytes representation of a pub key representing the verifier
     pay_infos: Mutex<Vec<NymPayInfo>>,
     cred_sender: UnboundedSender<ClientTicket>,
 }
 
-impl<S> EcashManager<S>
-where
-    S: Storage + Clone + 'static,
-{
+impl EcashManager {
     pub async fn new(
         credential_handler_cfg: CredentialHandlerConfig,
         nyxd_client: DirectSigningHttpRpcNyxdClient,
         pk_bytes: [u8; 32],
         shutdown: nym_task::TaskClient,
-        storage: S,
+        storage: GatewayStorage,
     ) -> Result<Self, Error> {
         let shared_state = SharedState::new(nyxd_client, storage).await?;
 
@@ -66,7 +63,7 @@ where
         self.shared_state.verification_key(epoch_id).await
     }
 
-    pub fn storage(&self) -> &S {
+    pub fn storage(&self) -> &GatewayStorage {
         &self.shared_state.storage
     }
 

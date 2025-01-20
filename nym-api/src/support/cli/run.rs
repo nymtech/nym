@@ -100,6 +100,9 @@ pub(crate) struct Args {
     /// default: `127.0.0.1:8080` in `debug` builds and `0.0.0.0:8080` in `release`
     #[clap(long)]
     pub(crate) bind_address: Option<SocketAddr>,
+
+    #[clap(hide = true, long, default_value_t = false)]
+    pub(crate) allow_illegal_ips: bool,
 }
 
 async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHandles> {

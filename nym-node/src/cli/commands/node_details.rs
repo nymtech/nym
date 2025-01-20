@@ -2,10 +2,10 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use crate::cli::helpers::ConfigArgs;
+use crate::config::upgrade_helpers::try_load_current_config;
+use crate::error::NymNodeError;
 use crate::node::NymNode;
 use nym_bin_common::output_format::OutputFormat;
-use nym_node::config::upgrade_helpers::try_load_current_config;
-use nym_node::error::NymNodeError;
 
 #[derive(Debug, clap::Args)]
 pub(crate) struct Args {
@@ -23,7 +23,7 @@ pub(crate) struct Args {
 
 pub async fn execute(args: Args) -> Result<(), NymNodeError> {
     let config = try_load_current_config(args.config.config_path()).await?;
-    let details = NymNode::new(config).await?.display_details();
+    let details = NymNode::new(config).await?.display_details()?;
     args.output.to_stdout(&details);
     Ok(())
 }

@@ -3,7 +3,7 @@
 
 [package]
 name = "nym-node"
-version = "1.2.1"
+version = "1.3.1"
 authors.workspace = true
 repository.workspace = true
 homepage.workspace = true
@@ -14,21 +14,27 @@ license = "GPL-3.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+async-trait = { workspace = true }
 anyhow.workspace = true
 bip39 = { workspace = true, features = ["zeroize"] }
 bs58.workspace = true
 celes = { workspace = true }                                  # country codes
 colored = { workspace = true }
 clap = { workspace = true, features = ["cargo", "env"] }
+dashmap = { workspace = true }
+futures = { workspace = true }
 humantime-serde = { workspace = true }
+human-repr = { workspace = true }
 ipnetwork = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
+si-scale = { workspace = true }
 thiserror.workspace = true
 tracing.workspace = true
 tracing-subscriber.workspace = true
-tokio = { workspace = true, features = ["macros", "sync"] }
+tokio = { workspace = true, features = ["macros", "sync", "rt-multi-thread"] }
+tokio-util = { workspace = true, features = ["codec"] }
 toml = { workspace = true }
 url = { workspace = true, features = ["serde"] }
 zeroize = { workspace = true, features = ["zeroize_derive"] }
@@ -47,22 +53,46 @@ nym-bin-common = { path = "../common/bin-common", features = [
 nym-client-core-config-types = { path = "../common/client-core/config-types" }
 nym-config = { path = "../common/config" }
 nym-crypto = { path = "../common/crypto", features = ["asymmetric", "rand"] }
-nym-node-http-api = { path = "nym-node-http-api" }
+nym-nonexhaustive-delayqueue = { path = "../common/nonexhaustive-delayqueue" }
+nym-mixnet-client = { path = "../common/client-libs/mixnet-client" }
 nym-pemstore = { path = "../common/pemstore" }
 nym-sphinx-acknowledgements = { path = "../common/nymsphinx/acknowledgements" }
 nym-sphinx-addressing = { path = "../common/nymsphinx/addressing" }
+nym-sphinx-framing = { path = "../common/nymsphinx/framing" }
+nym-sphinx-types = { path = "../common/nymsphinx/types" }
+nym-sphinx-forwarding = { path = "../common/nymsphinx/forwarding" }
 nym-task = { path = "../common/task" }
 nym-types = { path = "../common/types" }
 nym-validator-client = { path = "../common/client-libs/validator-client" }
 nym-wireguard = { path = "../common/wireguard" }
 nym-wireguard-types = { path = "../common/wireguard-types", default-features = false }
+nym-verloc = { path = "../common/verloc" }
+nym-metrics = { path = "../common/nym-metrics" }
+nym-gateway-stats-storage = { path = "../common/gateway-stats-storage" }
+nym-topology = { path = "../common/topology" }
+
+
+# http server
+# useful for `#[axum_macros::debug_handler]`
+#axum-macros = "0.3.8"
+axum.workspace = true
+axum-extra = { workspace = true, features = ["typed-header"] }
+headers.workspace = true
+time = { workspace = true, features = ["serde"] }
+tower-http = { workspace = true, features = ["fs"] }
+utoipa = { workspace = true, features = ["axum_extras", "time"] }
+utoipa-swagger-ui = { workspace = true, features = ["axum"] }
+
+nym-http-api-common = { path = "../common/http-api-common", features = ["utoipa"] }
+nym-node-requests = { path = "nym-node-requests", default-features = false, features = ["openapi"] }
+nym-node-metrics = { path = "nym-node-metrics" }
 
 # nodes:
-nym-mixnode = { path = "../mixnode" }
 nym-gateway = { path = "../gateway" }
 nym-authenticator = { path = "../service-providers/authenticator" }
 nym-network-requester = { path = "../service-providers/network-requester" }
 nym-ip-packet-router = { path = "../service-providers/ip-packet-router" }
+
 
 [build-dependencies]
 # temporary bonding information v1 (to grab and parse nym-mixnode and nym-gateway package versions)

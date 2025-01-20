@@ -35,7 +35,6 @@ impl WireguardPathsV2 {
                 .join(persistence::DEFAULT_X25519_WG_PUBLIC_DH_KEY_FILENAME),
         }
     }
-
     pub fn x25519_wireguard_storage_paths(&self) -> nym_pemstore::KeyPairPath {
         nym_pemstore::KeyPairPath::new(
             &self.private_diffie_hellman_key_file,
@@ -659,38 +658,7 @@ pub struct ConfigV2 {
     pub logging: LoggingSettingsV2,
 }
 
-impl NymConfigTemplate for ConfigV2 {
-    fn template(&self) -> &'static str {
-        CONFIG_TEMPLATE
-    }
-}
-
 impl ConfigV2 {
-    pub fn save(&self) -> Result<(), NymNodeError> {
-        let save_location = self.save_location();
-        debug!(
-            "attempting to save config file to '{}'",
-            save_location.display()
-        );
-        save_formatted_config_to_file(self, &save_location).map_err(|source| {
-            NymNodeError::ConfigSaveFailure {
-                id: self.id.clone(),
-                path: save_location,
-                source,
-            }
-        })
-    }
-
-    pub fn save_location(&self) -> PathBuf {
-        self.save_path
-            .clone()
-            .unwrap_or(self.default_save_location())
-    }
-
-    pub fn default_save_location(&self) -> PathBuf {
-        default_config_filepath(&self.id)
-    }
-
     pub fn default_data_directory<P: AsRef<Path>>(config_path: P) -> Result<PathBuf, NymNodeError> {
         let config_path = config_path.as_ref();
 
@@ -741,10 +709,6 @@ impl ConfigV2 {
         loaded.save_path = Some(path.to_path_buf());
         debug!("loaded config file from {}", path.display());
         Ok(loaded)
-    }
-
-    pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> Result<Self, NymNodeError> {
-        Self::read_from_path(path)
     }
 }
 

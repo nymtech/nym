@@ -7,6 +7,7 @@ use defguard_wireguard_rs::{
     WireguardInterfaceApi,
 };
 use futures::channel::oneshot;
+use log::info;
 use nym_authenticator_requests::latest::registration::{
     RemainingBandwidthData, BANDWIDTH_CAP_PER_DAY,
 };
@@ -14,8 +15,10 @@ use nym_credential_verification::{
     bandwidth_storage_manager::BandwidthStorageManager, BandwidthFlushingBehaviourConfig,
     ClientBandwidth,
 };
-use nym_gateway_storage::Storage;
+use nym_gateway_storage::GatewayStorage;
+use nym_node_metrics::NymNodeMetrics;
 use nym_wireguard_types::DEFAULT_PEER_TIMEOUT_CHECK;
+use std::time::{Duration, SystemTime};
 use std::{collections::HashMap, sync::Arc};
 use tokio::sync::{mpsc, RwLock};
 use tokio_stream::{wrappers::IntervalStream, StreamExt};
@@ -62,24 +65,31 @@ pub struct QueryBandwidthControlResponse {
     pub bandwidth_data: Option<RemainingBandwidthData>,
 }
 
-pub struct PeerController<St: Storage + Clone + 'static> {
-    storage: St,
+pub struct PeerController {
+    storage: GatewayStorage,
+
+    // we have "all" metrics of a node, but they're behind a single Arc pointer,
+    // so the overhead is minimal
+    metrics: NymNodeMetrics,
+
     // used to receive commands from individual handles too
     request_tx: mpsc::Sender<PeerControlRequest>,
     request_rx: mpsc::Receiver<PeerControlRequest>,
     wg_api: Arc<WgApiWrapper>,
     host_information: Arc<RwLock<Host>>,
-    bw_storage_managers: HashMap<Key, Option<SharedBandwidthStorageManager<St>>>,
+    bw_storage_managers: HashMap<Key, Option<SharedBandwidthStorageManager>>,
     timeout_check_interval: IntervalStream,
     task_client: nym_task::TaskClient,
 }
 
-impl<St: Storage + Clone + 'static> PeerController<St> {
+impl PeerController {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
-        storage: St,
+        storage: GatewayStorage,
+        metrics: NymNodeMetrics,
         wg_api: Arc<WgApiWrapper>,
         initial_host_information: Host,
-        bw_storage_managers: HashMap<Key, (Option<SharedBandwidthStorageManager<St>>, Peer)>,
+        bw_storage_managers: HashMap<Key, (Option<SharedBandwidthStorageManager>, Peer)>,
         request_tx: mpsc::Sender<PeerControlRequest>,
         request_rx: mpsc::Receiver<PeerControlRequest>,
         task_client: nym_task::TaskClient,
@@ -122,6 +132,7 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
             request_rx,
             timeout_check_interval,
             task_client,
+            metrics,
         }
     }
 
@@ -158,9 +169,9 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
     }
 
     pub async fn generate_bandwidth_manager(
-        storage: St,
+        storage: GatewayStorage,
         public_key: &Key,
-    ) -> Result<Option<BandwidthStorageManager<St>>, Error> {
+    ) -> Result<Option<BandwidthStorageManager>, Error> {
         if let Some(client_id) = storage
             .get_wireguard_peer(&public_key.to_string())
             .await?
@@ -256,7 +267,57 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
         }))
     }
 
+    async fn update_metrics(&self, new_host: &Host) {
+        let now = SystemTime::now();
+        const ACTIVITY_THRESHOLD: Duration = Duration::from_secs(60);
+
+        let old_host = self.host_information.read().await;
+
+        let total_peers = new_host.peers.len();
+        let mut active_peers = 0;
+        let mut new_rx = 0;
+        let mut new_tx = 0;
+
+        for (peer_key, peer) in new_host.peers.iter() {
+            // only consider pre-existing peers,
+            // so that the value would always be increasing
+            if let Some(prior) = old_host.peers.get(peer_key) {
+                let delta_rx = peer.rx_bytes.saturating_sub(prior.rx_bytes);
+                let delta_tx = prior.tx_bytes.saturating_sub(prior.tx_bytes);
+
+                new_rx += delta_rx;
+                new_tx += delta_tx;
+            }
+
+            // if a peer hasn't performed a handshake in last minute,
+            // I think it's reasonable to assume it's no longer active
+            let Some(last_handshake) = peer.last_handshake else {
+                continue;
+            };
+            let Ok(elapsed) = now.duration_since(last_handshake) else {
+                continue;
+            };
+            if elapsed < ACTIVITY_THRESHOLD {
+                active_peers += 1;
+            }
+        }
+
+        self.metrics.wireguard.update(
+            // if the conversion fails it means we're running not running on a 64bit system
+            // and that's a reason enough for this failure.
+            new_rx.try_into().expect(
+                "failed to convert bytes from u64 to usize - are you running on non 64bit system?",
+            ),
+            new_tx.try_into().expect(
+                "failed to convert bytes from u64 to usize - are you running on non 64bit system?",
+            ),
+            total_peers,
+            active_peers,
+        );
+    }
+
     pub async fn run(&mut self) {
+        info!("started wireguard peer controller");
         loop {
             tokio::select! {
                 _ = self.timeout_check_interval.next() => {
@@ -264,6 +325,8 @@ impl<St: Storage + Clone + 'static> PeerController<St> {
                         log::error!("Can't read wireguard kernel data");
                         continue;
                     };
+                    self.update_metrics(&host).await;
+
                     *self.host_information.write().await = host;
                 }
                 _ = self.task_client.recv() => {

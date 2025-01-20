@@ -56,13 +56,10 @@ impl RequestFilter {
     pub(crate) async fn check_address(&self, address: &SocketAddr) -> bool {
         match &*self.inner {
             RequestFilterInner::ExitPolicy { policy_filter } => {
-                match policy_filter.check(address).await {
-                    Err(err) => {
-                        warn!("failed to validate '{address}' against the exit policy: {err}");
-                        false
-                    }
-                    Ok(res) => res,
-                }
+                policy_filter.check(address).await.unwrap_or_else(|err| {
+                    warn!("failed to validate '{address}' against the exit policy: {err}");
+                    false
+                })
             }
         }
     }

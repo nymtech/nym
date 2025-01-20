@@ -13,7 +13,11 @@ use crate::{
         models::{CommitSignature, Validator},
     },
 };
-use sqlx::{types::time::OffsetDateTime, ConnectOptions, Sqlite, Transaction};
+use sqlx::{
+    sqlite::{SqliteAutoVacuum, SqliteSynchronous},
+    types::time::OffsetDateTime,
+    ConnectOptions, Sqlite, Transaction,
+};
 use std::{fmt::Debug, path::Path};
 use tendermint::{
     block::{Commit, CommitSig},
@@ -51,6 +55,9 @@ impl ScraperStorage {
     #[instrument]
     pub async fn init<P: AsRef<Path> + Debug>(database_path: P) -> Result<Self, ScraperError> {
         let opts = sqlx::sqlite::SqliteConnectOptions::new()
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal)
+            .synchronous(SqliteSynchronous::Normal)
+            .auto_vacuum(SqliteAutoVacuum::Incremental)
             .filename(database_path)
             .create_if_missing(true)
             .disable_statement_logging();

@@ -8,7 +8,7 @@ on:
         description: Which gateway probe git ref to build the image with
 
 env:
-  WORKING_DIRECTORY: "nym-node-status-agent"
+  WORKING_DIRECTORY: "nym-node-status-api/nym-node-status-agent"
   CONTAINER_NAME: "node-status-agent"
 
 jobs:
@@ -31,7 +31,7 @@ jobs:
           git config --global user.name "Lawrence Stalder"
 
       - name: Get version from cargo.toml
-        uses: mikefarah/yq@v4.44.5
+        uses: mikefarah/yq@v4.44.6
         id: get_version
         with:
           cmd: yq -oy '.package.version' ${{ env.WORKING_DIRECTORY }}/Cargo.toml

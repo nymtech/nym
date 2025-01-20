@@ -1,0 +1,23 @@
+[package]
+name = "mixnet-connectivity-check"
+version = "0.1.0"
+authors.workspace = true
+repository.workspace = true
+homepage.workspace = true
+documentation.workspace = true
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+readme.workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+clap = { workspace = true, features = ["cargo", "derive"] }
+futures = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "signal", "macros"] }
+
+nym-network-defaults = { path = "../../../common/network-defaults" }
+nym-bin-common = { path = "../../../common/bin-common", features = ["basic_tracing", "output_format"] }
+nym-crypto = { path = "../../../common/crypto", features = ["asymmetric"] }
+nym-sdk = { path = "../../../sdk/rust/nym-sdk" }

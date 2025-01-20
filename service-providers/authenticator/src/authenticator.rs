@@ -7,7 +7,6 @@ use futures::channel::oneshot;
 use ipnetwork::IpNetwork;
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
 use nym_credential_verification::ecash::EcashManager;
-use nym_gateway_storage::Storage;
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::{TaskClient, TaskHandle};
 use nym_wireguard::WireguardGatewayData;
@@ -25,20 +24,20 @@ impl OnStartData {
     }
 }
 
-pub struct Authenticator<S> {
+pub struct Authenticator {
     #[allow(unused)]
     config: Config,
     wait_for_gateway: bool,
     custom_topology_provider: Option<Box<dyn TopologyProvider + Send + Sync>>,
     custom_gateway_transceiver: Option<Box<dyn GatewayTransceiver + Send + Sync>>,
     wireguard_gateway_data: WireguardGatewayData,
-    ecash_verifier: Option<Arc<EcashManager<S>>>,
+    ecash_verifier: Option<Arc<EcashManager>>,
     used_private_network_ips: Vec<IpAddr>,
     shutdown: Option<TaskClient>,
     on_start: Option<oneshot::Sender<OnStartData>>,
 }
 
-impl<S: Storage + Clone + 'static> Authenticator<S> {
+impl Authenticator {
     pub fn new(
         config: Config,
         wireguard_gateway_data: WireguardGatewayData,
@@ -59,7 +58,7 @@ impl<S: Storage + Clone + 'static> Authenticator<S> {
 
     #[must_use]
     #[allow(unused)]
-    pub fn with_ecash_verifier(mut self, ecash_verifier: Arc<EcashManager<S>>) -> Self {
+    pub fn with_ecash_verifier(mut self, ecash_verifier: Arc<EcashManager>) -> Self {
         self.ecash_verifier = Some(ecash_verifier);
         self
     }

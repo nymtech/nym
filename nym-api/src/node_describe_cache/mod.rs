@@ -12,6 +12,7 @@ use futures::{stream, StreamExt};
 use nym_api_requests::legacy::{LegacyGatewayBondWithId, LegacyMixNodeDetailsWithLayer};
 use nym_api_requests::models::{DescribedNodeType, NymNodeData, NymNodeDescription};
 use nym_config::defaults::DEFAULT_NYM_NODE_HTTP_PORT;
+use nym_crypto::asymmetric::ed25519;
 use nym_mixnet_contract_common::{LegacyMixLayer, NodeId, NymNodeDetails};
 use nym_node_requests::api::client::{NymNodeApiClientError, NymNodeApiClientExt};
 use nym_topology::gateway::GatewayConversionError;
@@ -57,6 +58,13 @@ pub enum NodeDescribeCacheError {
     // TODO: perhaps include more details here like whether key/signature/payload was malformed
     #[error("could not verify signed host information for node {node_id}")]
     MissignedHostInformation { node_id: NodeId },
+
+    #[error("identity of node {node_id} does not match. expected {expected} but got {got}")]
+    MismatchedIdentity {
+        node_id: NodeId,
+        expected: String,
+        got: String,
+    },
 
     #[error("node {node_id} is announcing an illegal ip address")]
     IllegalIpAddress { node_id: NodeId },
@@ -289,6 +297,15 @@ async fn try_get_description(
 
     let host_info = client.get_host_information().await.map_err(map_query_err)?;
 
+    // check if the identity key matches the information provided during bonding
+    if data.expected_identity != host_info.keys.ed25519_identity {
+        return Err(NodeDescribeCacheError::MismatchedIdentity {
+            node_id: data.node_id,
+            expected: data.expected_identity.to_base58_string(),
+            got: host_info.keys.ed25519_identity.to_base58_string(),
+        });
+    }
+
     if !host_info.verify_host_information() {
         return Err(NodeDescribeCacheError::MissignedHostInformation {
             node_id: data.node_id,
@@ -315,47 +332,58 @@ async fn try_get_description(
 pub(crate) struct RefreshData {
     host: String,
     node_id: NodeId,
+    expected_identity: ed25519::PublicKey,
     node_type: DescribedNodeType,
 
     port: Option<u16>,
 }
 
-impl<'a> From<&'a LegacyMixNodeDetailsWithLayer> for RefreshData {
-    fn from(node: &'a LegacyMixNodeDetailsWithLayer) -> Self {
-        RefreshData::new(
+impl<'a> TryFrom<&'a LegacyMixNodeDetailsWithLayer> for RefreshData {
+    type Error = ed25519::Ed25519RecoveryError;
+
+    fn try_from(node: &'a LegacyMixNodeDetailsWithLayer) -> Result<Self, Self::Error> {
+        Ok(RefreshData::new(
             &node.bond_information.mix_node.host,
+            node.bond_information.identity().parse()?,
             DescribedNodeType::LegacyMixnode,
             node.mix_id(),
             Some(node.bond_information.mix_node.http_api_port),
-        )
+        ))
     }
 }
 
-impl<'a> From<&'a LegacyGatewayBondWithId> for RefreshData {
-    fn from(node: &'a LegacyGatewayBondWithId) -> Self {
-        RefreshData::new(
+impl<'a> TryFrom<&'a LegacyGatewayBondWithId> for RefreshData {
+    type Error = ed25519::Ed25519RecoveryError;
+
+    fn try_from(node: &'a LegacyGatewayBondWithId) -> Result<Self, Self::Error> {
+        Ok(RefreshData::new(
             &node.bond.gateway.host,
+            node.bond.identity().parse()?,
             DescribedNodeType::LegacyGateway,
             node.node_id,
             None,
-        )
+        ))
     }
 }
 
-impl<'a> From<&'a NymNodeDetails> for RefreshData {
-    fn from(node: &'a NymNodeDetails) -> Self {
-        RefreshData::new(
+impl<'a> TryFrom<&'a NymNodeDetails> for RefreshData {
+    type Error = ed25519::Ed25519RecoveryError;
+
+    fn try_from(node: &'a NymNodeDetails) -> Result<Self, Self::Error> {
+        Ok(RefreshData::new(
             &node.bond_information.node.host,
+            node.bond_information.identity().parse()?,
             DescribedNodeType::NymNode,
             node.node_id(),
             node.bond_information.node.custom_http_port,
-        )
+        ))
     }
 }
 
 impl RefreshData {
     pub fn new(
         host: impl Into<String>,
+        expected_identity: ed25519::PublicKey,
         node_type: DescribedNodeType,
         node_id: NodeId,
         port: Option<u16>,
@@ -363,6 +391,7 @@ impl RefreshData {
         RefreshData {
             host: host.into(),
             node_id,
+            expected_identity,
             node_type,
             port,
         }
@@ -404,7 +433,9 @@ impl CacheItemProvider for NodeDescriptionProvider {
             None => error!("failed to obtain mixnodes information from the cache"),
             Some(legacy_mixnodes) => {
                 for node in &**legacy_mixnodes {
-                    nodes_to_query.push(node.into())
+                    if let Ok(data) = node.try_into() {
+                        nodes_to_query.push(data);
+                    }
                 }
             }
         }
@@ -413,7 +444,9 @@ impl CacheItemProvider for NodeDescriptionProvider {
             None => error!("failed to obtain gateways information from the cache"),
             Some(legacy_gateways) => {
                 for node in &**legacy_gateways {
-                    nodes_to_query.push(node.into())
+                    if let Ok(data) = node.try_into() {
+                        nodes_to_query.push(data);
+                    }
                 }
             }
         }
@@ -422,7 +455,9 @@ impl CacheItemProvider for NodeDescriptionProvider {
             None => error!("failed to obtain nym-nodes information from the cache"),
             Some(nym_nodes) => {
                 for node in &**nym_nodes {
-                    nodes_to_query.push(node.into())
+                    if let Ok(data) = node.try_into() {
+                        nodes_to_query.push(data);
+                    }
                 }
             }
         }

@@ -2,6 +2,9 @@
 
 import { useNymClient } from "@/hooks/useNymClient";
 import { formatBigNum } from "@/utils/formatBigNumbers";
+import { useChain } from "@cosmos-kit/react";
+
+import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import { useLocalStorage } from "@uidotdev/usehooks";
@@ -19,6 +22,7 @@ import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import { Link } from "../muiLink";
 import ConnectWallet from "../wallet/ConnectWallet";
 import StakeActions from "./StakeActions";
+import StakeModal from "./StakeModal";
 import type { MappedNymNode, MappedNymNodes } from "./StakeTableWithAction";
 import { fee } from "./schemas";
 
@@ -48,7 +52,12 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
     open: false,
   });
+  const [selectedNodeForStaking, setSelectedNodeForStaking] = useState<{
+    nodeId: number;
+    identityKey: string;
+  }>();
   const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
+  const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
 
   const router = useRouter();
 
@@ -67,7 +76,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     const combineDelegationsWithNode = (delegations: Delegation[]) => {
       const delegationsWithNodeDetails = delegations.map((delegation) => {
         const node = nodes.find((node) => node.nodeId === delegation.node_id);
-
         return {
           node,
           delegation,
@@ -87,6 +95,79 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
     fetchAndMapDelegations();
   }, [address, nodes, nymClient]);
+
+  const handleStakeOnNode = async ({
+    nodeId,
+    amount,
+  }: {
+    nodeId: number;
+    amount: string;
+  }) => {
+    const amountToDelegate = (Number(amount) * 1_000_000).toString();
+    const uNymFunds = [{ amount: amountToDelegate, denom: "unym" }];
+
+    setIsLoading(true);
+    setSelectedNodeForStaking(undefined);
+    try {
+      const tx = await nymClient?.delegate(
+        { nodeId },
+        fee,
+        "Delegation from Nym Explorer V2",
+        uNymFunds,
+      );
+      console.log({ tx });
+      setSelectedNodeForStaking(undefined);
+      setInfoModalProps({
+        open: true,
+        title: "Success",
+        message: "This operation can take up to one hour to process",
+        tx: tx?.transactionHash,
+
+        onClose: () => setInfoModalProps({ open: false }),
+      });
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : "An error occurred while staking";
+      setInfoModalProps({
+        open: true,
+        title: "Error",
+        message: errorMessage,
+        onClose: () => {
+          setInfoModalProps({ open: false });
+        },
+      });
+    }
+    setIsLoading(false);
+  };
+
+  const handleOnSelectStake = useCallback(
+    (nodeId: number, nodeIdentityKey: string) => {
+      if (!isWalletConnected) {
+        setInfoModalProps({
+          open: true,
+          title: "Connect Wallet",
+          message: "Connect your wallet to stake",
+          Action: (
+            <ConnectWallet
+              fullWidth
+              onClick={() =>
+                setInfoModalProps({
+                  open: false,
+                })
+              }
+            />
+          ),
+          onClose: () => setInfoModalProps({ open: false }),
+        });
+        return;
+      }
+      setSelectedNodeForStaking({
+        nodeId: nodeId,
+        identityKey: nodeIdentityKey,
+      });
+    },
+    [isWalletConnected],
+  );
 
   const handleUnstake = useCallback(
     async (nodeId?: number) => {
@@ -129,8 +210,11 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   );
 
   const handleActionSelect = useCallback(
-    (action: string, nodeId: number | undefined) => {
+    (action: string, nodeId: number, nodeIdentityKey: string | undefined) => {
       switch (action) {
+        case "stake":
+          nodeIdentityKey && handleOnSelectStake(nodeId, nodeIdentityKey);
+          break;
         case "unstake":
           handleUnstake(nodeId);
           break;
@@ -138,7 +222,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           break;
       }
     },
-    [handleUnstake],
+    [handleUnstake, handleOnSelectStake],
   );
 
   const columns: MRT_ColumnDef<DelegationWithNodeDetails>[] = useMemo(
@@ -243,7 +327,11 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           <StakeActions
             nodeId={row.original.delegation?.node_id}
             onActionSelect={(action) => {
-              handleActionSelect(action, row.original.delegation?.node_id);
+              handleActionSelect(
+                action,
+                row.original.delegation?.node_id,
+                row.original.node?.identity_key || undefined,
+              );
             }}
           />
         ),
@@ -353,6 +441,12 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   return (
     <div>
       {isLoading && <Loading />}
+      <StakeModal
+        nodeId={selectedNodeForStaking?.nodeId}
+        identityKey={selectedNodeForStaking?.identityKey}
+        onStake={handleStakeOnNode}
+        onClose={() => setSelectedNodeForStaking(undefined)}
+      />
       <InfoModal {...infoModalProps} />
       <MaterialReactTable table={table} />
     </div>

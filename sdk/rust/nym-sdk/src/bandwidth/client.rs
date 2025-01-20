@@ -17,22 +17,22 @@ use zeroize::Zeroizing;
 /// The way to create this client is by calling
 /// [`crate::mixnet::DisconnectedMixnetClient::create_bandwidth_client`] on the associated mixnet
 /// client.
-pub struct BandwidthAcquireClient<'a, St: Storage> {
+pub struct BandwidthAcquireClient<St: Storage + Clone> {
     client: DirectSigningHttpRpcNyxdClient,
-    storage: &'a St,
+    storage: St,
     client_id: Zeroizing<Vec<u8>>,
     ticketbook_type: TicketType,
 }
 
-impl<'a, St> BandwidthAcquireClient<'a, St>
+impl<St> BandwidthAcquireClient<St>
 where
-    St: Storage,
+    St: Storage + Clone,
     <St as Storage>::StorageError: Send + Sync + 'static,
 {
     pub(crate) fn new(
         network_details: NymNetworkDetails,
         mnemonic: String,
-        storage: &'a St,
+        storage: St,
         client_id: Vec<u8>,
         ticketbook_type: TicketType,
     ) -> Result<Self> {
@@ -55,7 +55,7 @@ where
     pub async fn acquire(&self) -> Result<()> {
         issue_credential(
             &self.client,
-            self.storage,
+            &self.storage,
             self.client_id.deref(),
             self.ticketbook_type,
         )

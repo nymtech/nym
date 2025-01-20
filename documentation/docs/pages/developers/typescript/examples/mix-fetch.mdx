@@ -1,7 +1,9 @@
 import { Callout } from 'nextra/components';
 
 # `mixFetch`
-
+<Callout type="warning">
+The Typescript SDK is currently undergoing maintenance: a network upgrade elsewhere has temporarily caused a problem. These docs are likely to change after we upgrade the SDK.
+</Callout>
 An easy way to secure parts or all of your web app is to replace calls to [`fetch`](https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch) with `mixFetch`:
 
 MixFetch works the same as vanilla `fetch` as it's a proxied wrapper around the original function.
@@ -35,9 +37,9 @@ curl -X 'GET' \
 import type { SetupMixFetchOps } from '@nymproject/mix-fetch';
 
 const mixFetchOptions: SetupMixFetchOps = {
-  preferredGateway: '6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B', // with WSS
+  preferredGateway: '23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb', // with WSS
   preferredNetworkRequester:
-    '8rRGWy54oC8drFL9DepMegBt2DLrsqQwCoHMXt9nsnTo.2XjCPVbb4FpQ9hNRcXwb9mTzEAVVk1zf1tcch3wdtNEA@6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B',
+    'HuNL1pFprNSKW6jdqppibXP5KNKCNJxDh7ivpYcoULN9.C62NahRTUf6kqpNtDVHXoVriQr6yyaU5LtxdgpbsGrtA@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb',
   mixFetchOverride: {
     requestTimeoutMs: 60_000,
   },
@@ -90,9 +92,9 @@ import { mixFetch, SetupMixFetchOps } from '@nymproject/mix-fetch-full-fat';
 import React from 'react';
 
 const mixFetchOptions: SetupMixFetchOps = {
-  preferredGateway: '6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B', // with WSS
+  preferredGateway: '23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb', // with WSS
   preferredNetworkRequester:
-    '8rRGWy54oC8drFL9DepMegBt2DLrsqQwCoHMXt9nsnTo.2XjCPVbb4FpQ9hNRcXwb9mTzEAVVk1zf1tcch3wdtNEA@6Gb7ftQdKveMjPyrxDXeAtfYAX7Zg5mVZHtnRC5MmZ1B',
+    'HuNL1pFprNSKW6jdqppibXP5KNKCNJxDh7ivpYcoULN9.C62NahRTUf6kqpNtDVHXoVriQr6yyaU5LtxdgpbsGrtA@23A7CSaBSA2L67PWuFTPXUnYrCdyVcB7ATYsjUsfdftb',
   mixFetchOverride: {
     requestTimeoutMs: 60_000,
   },

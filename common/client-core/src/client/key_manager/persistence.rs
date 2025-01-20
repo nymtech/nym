@@ -4,6 +4,7 @@
 use crate::client::key_manager::ClientKeys;
 use async_trait::async_trait;
 use std::error::Error;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -64,6 +65,7 @@ pub enum OnDiskKeysError {
     },
 }
 
+#[derive(Clone)]
 #[cfg(not(target_arch = "wasm32"))]
 pub struct OnDiskKeys {
     paths: ClientKeysPaths,
@@ -193,9 +195,9 @@ impl KeyStore for OnDiskKeys {
     }
 }
 
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct InMemEphemeralKeys {
-    keys: Mutex<Option<ClientKeys>>,
+    keys: Arc<Mutex<Option<ClientKeys>>>,
 }
 
 #[derive(Debug, thiserror::Error)]

@@ -108,7 +108,7 @@ impl MixnetClientBuilder<OnDiskPersistent> {
 
 impl<S> MixnetClientBuilder<S>
 where
-    S: MixnetClientStorage + 'static,
+    S: MixnetClientStorage + Clone + 'static,
     S::ReplyStore: Send + Sync,
     S::GatewaysDetailsStore: Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
@@ -326,7 +326,7 @@ where
 /// client.
 pub struct DisconnectedMixnetClient<S>
 where
-    S: MixnetClientStorage,
+    S: MixnetClientStorage + Clone,
 {
     /// Client configuration
     config: Config,
@@ -371,7 +371,7 @@ where
 
 impl<S> DisconnectedMixnetClient<S>
 where
-    S: MixnetClientStorage + 'static,
+    S: MixnetClientStorage + Clone + 'static,
     S::ReplyStore: Send + Sync,
     S::GatewaysDetailsStore: Sync,
     <S::ReplyStore as ReplyStorageBackend>::StorageError: Sync + Send,
@@ -622,7 +622,7 @@ where
         BandwidthAcquireClient::new(
             self.config.network_details.clone(),
             mnemonic,
-            self.storage.credential_store(),
+            self.storage.credential_store().clone(),
             client_id,
             ticketbook_type,
         )

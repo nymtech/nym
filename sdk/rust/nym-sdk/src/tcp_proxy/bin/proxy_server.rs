@@ -14,7 +14,7 @@ struct Args {
 
     /// Optional env filepath - if none is supplied then the proxy defaults to using mainnet else just use a path to one of the supplied files in envs/ e.g. ./envs/sandbox.env
     #[clap(short, long)]
-    env_path: Option<String>
+    env_path: Option<String>,
 }
 
 #[tokio::main]
@@ -26,7 +26,12 @@ async fn main() -> Result<()> {
     let home_dir = dirs::home_dir().expect("Unable to get home directory");
     let conf_path = format!("{}{}", home_dir.display(), args.config_dir);
 
-    let mut proxy_server = tcp_proxy::NymProxyServer::new(&args.upstream_tcp_address, &conf_path, args.env_path.clone()).await?;
+    let mut proxy_server = tcp_proxy::NymProxyServer::new(
+        &args.upstream_tcp_address,
+        &conf_path,
+        args.env_path.clone(),
+    )
+    .await?;
 
     proxy_server.run_with_shutdown().await
 }

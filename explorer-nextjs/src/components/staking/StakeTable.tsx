@@ -161,11 +161,12 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         });
         return;
       }
-      nodeIdentityKey &&
+      if (nodeIdentityKey) {
         setSelectedNodeForStaking({
           nodeId: nodeId,
           identityKey: nodeIdentityKey,
         });
+      }
     },
     [isWalletConnected],
   );

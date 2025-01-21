@@ -3,6 +3,7 @@
 
 use crate::client::key_manager::ClientKeys;
 use async_trait::async_trait;
+use rand::{CryptoRng, RngCore};
 use std::error::Error;
 use tokio::sync::Mutex;
 
@@ -193,9 +194,19 @@ impl KeyStore for OnDiskKeys {
     }
 }
 
-#[derive(Default)]
 pub struct InMemEphemeralKeys {
-    keys: Mutex<Option<ClientKeys>>,
+    keys: Mutex<ClientKeys>,
+}
+
+impl InMemEphemeralKeys {
+    pub fn new<R>(rng: &mut R) -> Self
+    where
+        R: RngCore + CryptoRng,
+    {
+        InMemEphemeralKeys {
+            keys: Mutex::new(ClientKeys::generate_new(rng)),
+        }
+    }
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -208,11 +219,11 @@ impl KeyStore for InMemEphemeralKeys {
     type StorageError = EphemeralKeysError;
 
     async fn load_keys(&self) -> Result<ClientKeys, Self::StorageError> {
-        self.keys.lock().await.clone().ok_or(EphemeralKeysError)
+        Ok(self.keys.lock().await.clone())
     }
 
     async fn store_keys(&self, keys: &ClientKeys) -> Result<(), Self::StorageError> {
-        *self.keys.lock().await = Some(keys.clone());
+        *self.keys.lock().await = keys.clone();
         Ok(())
     }
 }

@@ -4,6 +4,8 @@
 // TODO: combine those more closely. Perhaps into a single underlying store.
 // Like for persistent, on-disk, storage, what's the point of having 3 different databases?
 
+use rand::rngs::OsRng;
+
 use crate::client::key_manager::persistence::{InMemEphemeralKeys, KeyStore};
 use crate::client::replies::reply_storage;
 use crate::client::replies::reply_storage::ReplyStorageBackend;
@@ -63,7 +65,6 @@ pub trait MixnetClientStorage {
     fn gateway_details_store(&self) -> &Self::GatewaysDetailsStore;
 }
 
-#[derive(Default)]
 pub struct Ephemeral {
     key_store: InMemEphemeralKeys,
     reply_store: reply_storage::Empty,
@@ -71,9 +72,14 @@ pub struct Ephemeral {
     gateway_details_store: InMemGatewaysDetails,
 }
 
-impl Ephemeral {
-    pub fn new() -> Self {
-        Default::default()
+impl Default for Ephemeral {
+    fn default() -> Self {
+        Ephemeral {
+            key_store: InMemEphemeralKeys::new(&mut OsRng),
+            reply_store: Default::default(),
+            credential_store: Default::default(),
+            gateway_details_store: Default::default(),
+        }
     }
 }
 

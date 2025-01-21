@@ -5134,6 +5134,7 @@ dependencies = [
  "nym-explorer-client",
  "nym-gateway-client",
  "nym-gateway-requests",
+ "nym-http-api-client",
  "nym-id",
  "nym-metrics",
  "nym-mixnet-client",

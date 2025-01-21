@@ -3,6 +3,7 @@
 
 use async_trait::async_trait;
 use reqwest::header::HeaderValue;
+use reqwest::IntoUrl;
 use reqwest::{RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
@@ -23,6 +24,9 @@ pub use user_agent::UserAgent;
 mod dns;
 #[cfg(not(target_arch = "wasm32"))]
 pub use dns::HickoryDnsResolver;
+
+pub mod dns;
+use dns::HickoryDnsResolver;
 
 // The timeout is relatively high as we are often making requests over the mixnet, where latency is
 // high and chatty protocols take a while to complete.

@@ -26,6 +26,7 @@ use serde::Serialize;
 
 pub mod helpers;
 pub mod types;
+pub mod websockets;
 
 // helpers for error wrapping
 

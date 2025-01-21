@@ -3,6 +3,7 @@
 
 use crate::error::ClientCoreError;
 use crate::init::types::RegistrationResult;
+use crate::init::websockets::connect_async;
 use futures::{SinkExt, StreamExt};
 use log::{debug, info, trace, warn};
 use nym_crypto::asymmetric::identity;
@@ -23,7 +24,6 @@ use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
 #[cfg(not(target_arch = "wasm32"))]
-use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 #[cfg(target_arch = "wasm32")]

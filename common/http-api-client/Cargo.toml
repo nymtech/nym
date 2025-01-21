@@ -12,6 +12,8 @@ license.workspace = true
 
 [dependencies]
 async-trait = { workspace = true }
+once_cell = { workspace = true }
+hickory-resolver = { workspace = true, features = ["dns-over-https-rustls", "webpki-roots"] }
 reqwest = { workspace = true, features = ["json"] }
 http.workspace = true
 url = { workspace = true }

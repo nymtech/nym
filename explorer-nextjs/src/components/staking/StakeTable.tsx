@@ -141,7 +141,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   };
 
   const handleOnSelectStake = useCallback(
-    (nodeId: number, nodeIdentityKey: string) => {
+    (nodeId: number, nodeIdentityKey: string | undefined) => {
       if (!isWalletConnected) {
         setInfoModalProps({
           open: true,
@@ -161,10 +161,11 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         });
         return;
       }
-      setSelectedNodeForStaking({
-        nodeId: nodeId,
-        identityKey: nodeIdentityKey,
-      });
+      nodeIdentityKey &&
+        setSelectedNodeForStaking({
+          nodeId: nodeId,
+          identityKey: nodeIdentityKey,
+        });
     },
     [isWalletConnected],
   );
@@ -213,7 +214,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     (action: string, nodeId: number, nodeIdentityKey: string | undefined) => {
       switch (action) {
         case "stake":
-          nodeIdentityKey && handleOnSelectStake(nodeId, nodeIdentityKey);
+          handleOnSelectStake(nodeId, nodeIdentityKey);
           break;
         case "unstake":
           handleUnstake(nodeId);

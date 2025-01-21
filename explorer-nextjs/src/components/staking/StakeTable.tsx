@@ -326,6 +326,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Cell: ({ row }) => (
           <StakeActions
             nodeId={row.original.delegation?.node_id}
+            nodeIdentityKey={row.original.node?.identity_key}
             onActionSelect={(action) => {
               handleActionSelect(
                 action,

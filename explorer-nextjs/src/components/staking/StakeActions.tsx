@@ -15,7 +15,6 @@ const StakeActions = ({
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const open = Boolean(anchorEl);
-  console.log("nodeIdentityKey :>> ", nodeIdentityKey);
 
   const handleShowMenu = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
@@ -49,14 +48,15 @@ const StakeActions = ({
         }}
         hideBackdrop
       >
+        {nodeIdentityKey && (
+          <StakeAction
+            actionName="Stake more"
+            onSelect={() => handleActionSelect("stake")}
+          />
+        )}
         <StakeAction
           actionName="Unstake"
           onSelect={() => handleActionSelect("unstake")}
-        />
-
-        <StakeAction
-          actionName="Stake more"
-          onSelect={() => handleActionSelect("stake")}
         />
       </Menu>
     </>

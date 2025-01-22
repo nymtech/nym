@@ -19,7 +19,7 @@ pub mod fs_backend;
 #[error("no information provided")]
 pub struct UndefinedError;
 
-#[derive(Debug)]
+#[derive(Clone, Debug)]
 pub struct Empty {
     // we need to keep 'basic' metadata here to "load" the CombinedReplyStorage
     pub min_surb_threshold: usize,

@@ -31,8 +31,8 @@ const BlogArticlesCards = async ({ limit }: { limit?: number }) => {
     .sort((a, b) => {
       // sort by date
       return (
-        new Date(a.attributes.date).getTime() -
-        new Date(b.attributes.date).getTime()
+        new Date(b.attributes.date).getTime() -
+        new Date(a.attributes.date).getTime()
       );
     })
     .map((blogArticle) => {

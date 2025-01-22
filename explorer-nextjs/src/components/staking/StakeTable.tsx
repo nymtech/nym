@@ -301,17 +301,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         ),
       },
       {
-        id: "profitMarginPercentage",
-        header: "Profit margin",
-        accessorKey: "profitMarginPercentage",
-        Header: <ColumnHeading>Profit margin</ColumnHeading>,
-        Cell: ({ row }) => (
-          <Typography variant="body4">
-            {row.original.node?.profitMarginPercentage || 0 * 100}%
-          </Typography>
-        ),
-      },
-      {
         id: "Favorite",
         header: "Favorite",
         accessorKey: "Favorite",

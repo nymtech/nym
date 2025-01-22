@@ -100,7 +100,7 @@ export default async function Account({
           <Grid size={12}>
             <SectionHeading title="Onboarding" />
           </Grid>
-          <BlogArticlesCards limit={2} />
+          <BlogArticlesCards limit={4} />
         </Grid>
       </ContentLayout>
     );

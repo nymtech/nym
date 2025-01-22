@@ -15,6 +15,7 @@ use std::fmt;
 use std::net::SocketAddr;
 use std::sync::Arc;
 
+use hickory_resolver::lookup_ip::LookupIp;
 use hickory_resolver::{
     config::{LookupIpStrategy, NameServerConfigGroup, ResolverConfig, ResolverOpts},
     error::ResolveError,
@@ -51,26 +52,19 @@ pub struct HickoryDnsResolver {
 
 impl Resolve for HickoryDnsResolver {
     fn resolve(&self, name: Name) -> Resolving {
-        self.resolve_str(name.as_str())
-    }
-}
-
-impl HickoryDnsResolver {
-    pub fn resolve_str(&self, name: &str) -> Resolving {
         let resolver = self.state.clone();
         let fallback = self.fallback.clone();
-        let domain = name.to_owned();
         Box::pin(async move {
             let resolver = resolver.get_or_try_init(new_resolver)?;
 
             // try the primary DNS resolver that we set up (DoH or DoT or whatever)
-            let lookup = match resolver.lookup_ip(&domain).await {
+            let lookup = match resolver.lookup_ip(name.as_str()).await {
                 Ok(res) => res,
                 Err(e) => {
                     // on failure use the fall back system configured DNS resolver
                     warn!("primary DNS failed w/ error {e}: using system fallback");
                     let resolver = fallback.get_or_try_init(new_resolver_system)?;
-                    resolver.lookup_ip(&domain).await?
+                    resolver.lookup_ip(name.as_str()).await?
                 }
             };
 
@@ -87,6 +81,27 @@ impl Iterator for SocketAddrs {
 
     fn next(&mut self) -> Option<Self::Item> {
         self.iter.next().map(|ip_addr| SocketAddr::new(ip_addr, 0))
+    }
+}
+
+type BoxError = Box<dyn std::error::Error + Send + Sync>;
+
+impl HickoryDnsResolver {
+    pub async fn resolve_str(&self, name: &str) -> Result<LookupIp, BoxError> {
+        let resolver = self.state.get_or_try_init(new_resolver)?;
+
+        // try the primary DNS resolver that we set up (DoH or DoT or whatever)
+        let lookup = match resolver.lookup_ip(name).await {
+            Ok(res) => res,
+            Err(e) => {
+                // on failure use the fall back system configured DNS resolver
+                warn!("primary DNS failed w/ error {e}: using system fallback");
+                let resolver = self.fallback.get_or_try_init(new_resolver_system)?;
+                resolver.lookup_ip(name).await?
+            }
+        };
+
+        Ok(lookup)
     }
 }
 
@@ -146,7 +161,7 @@ mod test {
             .unwrap();
 
         let resp = client
-            .get("http://ifconfig.me")
+            .get("http://ifconfig.me:80")
             .send()
             .await
             .unwrap()
@@ -155,5 +170,17 @@ mod test {
             .unwrap();
 
         assert!(!resp.is_empty());
+    }
+
+    #[tokio::test]
+    async fn dns_lookup() -> Result<(), BoxError> {
+        let resolver = HickoryDnsResolver::default();
+
+        let domain = "ifconfig.me";
+        let addrs = resolver.resolve_str(domain).await?;
+
+        assert!(addrs.into_iter().next().is_some());
+
+        Ok(())
     }
 }

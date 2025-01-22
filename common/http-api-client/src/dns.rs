@@ -104,7 +104,7 @@ fn new_resolver() -> Result<TokioAsyncResolver, HickoryDnsSystemConfError> {
     let config = ResolverConfig::from_parts(None, Vec::new(), name_servers);
 
     let mut opts = ResolverOpts::default();
-    opts.ip_strategy = LookupIpStrategy::Ipv4thenIpv6;
+    opts.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
     // Would like to enable this when 0.25 stabilizes
     // opts.server_ordering_strategy = ServerOrderingStrategy::RoundRobin;
 

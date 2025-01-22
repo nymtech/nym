@@ -9,7 +9,6 @@
 //!
 //! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the
 //! `hickory-resolver` crate
-
 use crate::ClientBuilder;
 
 use std::fmt;
@@ -52,19 +51,26 @@ pub struct HickoryDnsResolver {
 
 impl Resolve for HickoryDnsResolver {
     fn resolve(&self, name: Name) -> Resolving {
+        self.resolve_str(name.as_str())
+    }
+}
+
+impl HickoryDnsResolver {
+    pub fn resolve_str(&self, name: &str) -> Resolving {
         let resolver = self.state.clone();
         let fallback = self.fallback.clone();
+        let domain = name.to_owned();
         Box::pin(async move {
             let resolver = resolver.get_or_try_init(new_resolver)?;
 
             // try the primary DNS resolver that we set up (DoH or DoT or whatever)
-            let lookup = match resolver.lookup_ip(name.as_str()).await {
+            let lookup = match resolver.lookup_ip(&domain).await {
                 Ok(res) => res,
                 Err(e) => {
                     // on failure use the fall back system configured DNS resolver
                     warn!("primary DNS failed w/ error {e}: using system fallback");
                     let resolver = fallback.get_or_try_init(new_resolver_system)?;
-                    resolver.lookup_ip(name.as_str()).await?
+                    resolver.lookup_ip(&domain).await?
                 }
             };
 
@@ -105,13 +111,13 @@ fn new_resolver() -> Result<TokioAsyncResolver, HickoryDnsSystemConfError> {
     Ok(TokioAsyncResolver::tokio(config, opts))
 }
 
-/// Create a new resolver with the default configuration, which reads from `/etc/resolve.conf`. The
-/// options are overridden to look up for both IPv4 and IPv6 addresses to work with "happy eyeballs"
-/// algorithm.
+/// Create a new resolver with the default configuration, which reads from the system DNS config
+/// (i.e. `/etc/resolve.conf` in unix). The options are overridden to look up for both IPv4 and IPv6
+/// addresses to work with "happy eyeballs" algorithm.
 fn new_resolver_system() -> Result<TokioAsyncResolver, HickoryDnsSystemConfError> {
     let (config, mut opts) =
         hickory_resolver::system_conf::read_system_conf().map_err(HickoryDnsSystemConfError)?;
-    opts.ip_strategy = LookupIpStrategy::Ipv4thenIpv6;
+    opts.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
     Ok(TokioAsyncResolver::tokio(config, opts))
 }
 

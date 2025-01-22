@@ -81,7 +81,7 @@ export const NodeRewardsCard = (props: INodeRewardsCardProps) => {
       />
       <ExplorerListItem
         row
-        label="Saturation point"
+        label="Node stake saturation"
         value={nodeSaturationPoint}
       />
     </ExplorerCard>

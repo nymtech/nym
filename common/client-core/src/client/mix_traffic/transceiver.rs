@@ -36,6 +36,7 @@ pub trait GatewayTransceiver: GatewaySender + GatewayReceiver {
         &mut self,
         message: ClientRequest,
     ) -> Result<(), GatewayClientError>;
+    fn set_pre_shutdown_client_request(&mut self, request: ClientRequest);
 }
 
 /// This trait defines the functionality of sending `MixPacket` into the mixnet,
@@ -87,6 +88,10 @@ impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
         message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
         (**self).send_client_request(message).await
+    }
+
+    fn set_pre_shutdown_client_request(&mut self, request: ClientRequest) {
+        (**self).set_pre_shutdown_client_request(request);
     }
 }
 
@@ -143,14 +148,11 @@ where
         &mut self,
         message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
-        if let Some(shared_key) = self.gateway_client.shared_key() {
-            self.gateway_client
-                .send_websocket_message(message.encrypt(&*shared_key)?)
-                .await?;
-            Ok(())
-        } else {
-            Err(GatewayClientError::ConnectionInInvalidState)
-        }
+        self.gateway_client.send_client_request(message).await
+    }
+
+    fn set_pre_shutdown_client_request(&mut self, request: ClientRequest) {
+        self.gateway_client.set_pre_shutdown_client_request(request);
     }
 }
 
@@ -239,6 +241,10 @@ mod nonwasm_sealed {
         ) -> Result<(), GatewayClientError> {
             Ok(())
         }
+
+        fn set_pre_shutdown_client_request(&mut self, _request: ClientRequest) {
+            // no-op
+        }
     }
 
     #[async_trait]
@@ -320,5 +326,9 @@ impl GatewayTransceiver for MockGateway {
         _message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
         Ok(())
+    }
+
+    fn set_pre_shutdown_client_request(&mut self, _request: ClientRequest) {
+        // no-op
     }
 }

@@ -68,6 +68,10 @@ impl MixTrafficController {
         )
     }
 
+    pub fn forget_me(&self) -> &ForgetMe {
+        &self.forget_me
+    }
+
     async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
         debug_assert!(!mix_packets.is_empty());
 
@@ -98,6 +102,15 @@ impl MixTrafficController {
     }
 
     pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
+        if self.forget_me.any() {
+            log::debug!("Setting pre-shutdown forget me request");
+            self.gateway_transceiver
+                .set_pre_shutdown_client_request(ClientRequest::ForgetMe {
+                    client: self.forget_me().client(),
+                    stats: self.forget_me().stats(),
+                });
+        }
+
         spawn_future(async move {
             debug!("Started MixTrafficController with graceful shutdown support");
 
@@ -119,25 +132,6 @@ impl MixTrafficController {
                 }
             }
             shutdown.recv_timeout().await;
-
-            if self.forget_me.any() {
-                log::info!("Sending forget me request to the gateway");
-                match self
-                    .gateway_transceiver
-                    .send_client_request(ClientRequest::ForgetMe {
-                        client: self.forget_me.client(),
-                        stats: self.forget_me.stats(),
-                    })
-                    .await
-                {
-                    Ok(_) => {
-                        log::info!("Successfully sent forget me request to the gateway");
-                    }
-                    Err(err) => {
-                        log::error!("Failed to send forget me request to the gateway: {err}");
-                    }
-                }
-            }
 
             log::debug!("MixTrafficController: Exiting");
         });

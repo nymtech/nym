@@ -65,6 +65,12 @@ pub enum EcashApiError {
         #[from]
         source: cosmrs::ErrorReport,
     },
+
+    #[error("nym api error")]
+    NymApi {
+        #[from]
+        source: crate::ValidatorClientError,
+    },
 }
 
 impl TryFrom<ContractVKShare> for EcashApiClient {

@@ -13,6 +13,7 @@ use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{BatchRedeemTicketsBody, VerifyEcashTicketBody};
 use nym_credentials_interface::Bandwidth;
 use nym_credentials_interface::{ClientTicket, TicketType};
+use nym_validator_client::coconut::EcashApiError;
 use nym_validator_client::nym_api::EpochId;
 use nym_validator_client::nyxd::contract_traits::{
     EcashSigningClient, MultisigQueryClient, MultisigSigningClient, PagedMultisigQueryClient,
@@ -352,7 +353,9 @@ impl CredentialHandler {
             }
             Err(err) => {
                 error!("failed to send ticket {ticket_id} for verification to ecash signer '{client}': {err}. if we don't reach quorum, we'll retry later");
-                Ok(false)
+                Err(EcashTicketError::ApiFailure(EcashApiError::NymApi {
+                    source: err,
+                }))
             }
         }
     }

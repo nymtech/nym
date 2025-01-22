@@ -11,7 +11,7 @@ use tracing::{instrument, warn};
 use url::Url;
 
 #[cfg(not(target_arch = "wasm32"))]
-use std:: sync::Arc;
+use std::sync::Arc;
 use std::{fmt::Display, time::Duration};
 
 pub use reqwest::IntoUrl;

@@ -5746,6 +5746,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-crypto",
  "nym-gateway-requests",
+ "nym-http-api-client",
  "nym-network-defaults",
  "nym-pemstore",
  "nym-sphinx",

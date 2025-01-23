@@ -1,4 +1,4 @@
-use crate::error::ClientCoreError;
+use crate::error::GatewayClientError;
 
 use nym_http_api_client::HickoryDnsResolver;
 use tokio::net::TcpStream;
@@ -11,14 +11,15 @@ use std::net::SocketAddr;
 #[cfg(not(target_arch = "wasm32"))]
 pub(crate) async fn connect_async(
     endpoint: &str,
-) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), ClientCoreError> {
+) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
     let resolver = HickoryDnsResolver::default();
-    let uri = Url::parse(endpoint).map_err(|_| ClientCoreError::InvalidURL(endpoint.to_owned()))?;
+    let uri =
+        Url::parse(endpoint).map_err(|_| GatewayClientError::InvalidURL(endpoint.to_owned()))?;
     let port: u16 = uri.port_or_known_default().unwrap_or(443);
 
     let host = uri
         .host()
-        .ok_or(ClientCoreError::InvalidURL(endpoint.to_owned()))?;
+        .ok_or(GatewayClientError::InvalidURL(endpoint.to_owned()))?;
 
     // Get address for tcp connection, if a domain is provided use our preferred resolver rather than
     // the default std resolve
@@ -32,7 +33,8 @@ pub(crate) async fn connect_async(
                 .await
                 .map_err(|_| {
                     // failed to resolve
-                    ClientCoreError::GatewayConnectionFailure {
+                    GatewayClientError::NetworkConnectionFailed {
+                        address: endpoint.to_owned(),
                         source: UrlError::NoPathOrQuery.into(),
                     }
                 })?
@@ -42,9 +44,17 @@ pub(crate) async fn connect_async(
         }
     };
 
-    let stream = TcpStream::connect(&sock_addrs[..]).await?;
+    let stream = TcpStream::connect(&sock_addrs[..]).await.map_err(|error| {
+        GatewayClientError::NetworkConnectionFailed {
+            address: endpoint.to_owned(),
+            source: error.into(),
+        }
+    })?;
 
     tokio_tungstenite::client_async_tls(endpoint, stream)
         .await
-        .map_err(Into::into)
+        .map_err(|error| GatewayClientError::NetworkConnectionFailed {
+            address: endpoint.to_owned(),
+            source: error,
+        })
 }

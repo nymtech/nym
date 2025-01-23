@@ -131,7 +131,7 @@ pub async fn gateways_for_init<R: Rng>(
 async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
     match tokio::time::timeout(CONN_TIMEOUT, connect_async(endpoint)).await {
         Err(_elapsed) => Err(ClientCoreError::GatewayConnectionTimeout),
-        Ok(Err(conn_failure)) => Err(conn_failure.into()),
+        Ok(Err(conn_failure)) => Err(conn_failure),
         Ok(Ok((stream, _))) => Ok(stream),
     }
 }

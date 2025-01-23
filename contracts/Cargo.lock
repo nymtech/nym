@@ -53,9 +53,9 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "anyhow"
-version = "1.0.88"
+version = "1.0.95"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4e1496f8fb1fbf272686b8d37f523dab3e4a7443300055e74cdaa449f3114356"
+checksum = "34ac096ce696dc2fcabef30516bb13c0a68a11d30131d3df6f04711467681b04"
 
 [[package]]
 name = "ark-bls12-381"
@@ -81,7 +81,7 @@ dependencies = [
  "ark-std",
  "derivative",
  "hashbrown 0.13.2",
- "itertools",
+ "itertools 0.10.5",
  "num-traits",
  "rayon",
  "zeroize",
@@ -99,7 +99,7 @@ dependencies = [
  "ark-std",
  "derivative",
  "digest 0.10.7",
- "itertools",
+ "itertools 0.10.5",
  "num-bigint",
  "num-traits",
  "paste",
@@ -372,10 +372,10 @@ dependencies = [
  "bs58 0.4.0",
  "cosmwasm-std 1.4.3",
  "cosmwasm-storage",
- "cw-controllers",
- "cw-multi-test",
- "cw-storage-plus",
- "cw-utils",
+ "cw-controllers 1.1.0",
+ "cw-multi-test 0.16.5",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.1",
  "cw3",
  "cw3-flex-multisig",
  "cw4",
@@ -474,7 +474,7 @@ checksum = "3c94a4b93e722c91d2e58471cfe69480f4a656cfccacd8bfda5638f2a5d4512b"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -522,7 +522,7 @@ checksum = "edd3d80310cd7b86b09dbe886f4f2ca235a5ddb8d478493c6e50e720a3b38a42"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -703,7 +703,7 @@ checksum = "f46882e17999c6cc590af592290432be3bce0428cb0d5f8b6715e4dc7b383eb3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -714,8 +714,23 @@ checksum = "d5d8edce4b78785f36413f67387e4be7d0cb7d032b5d4164bcc024f9c3f3f2ea"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
- "cw-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.1",
+ "schemars",
+ "serde",
+ "thiserror 1.0.64",
+]
+
+[[package]]
+name = "cw-controllers"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50c1804013d21060b994dea28a080f9eab78a3bcb6b617f05e7634b0600bf7b1"
+dependencies = [
+ "cosmwasm-schema 2.2.0",
+ "cosmwasm-std 2.2.0",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
  "schemars",
  "serde",
  "thiserror 1.0.64",
@@ -729,15 +744,35 @@ checksum = "127c7bb95853b8e828bdab97065c81cb5ddc20f7339180b61b2300565aaa99d1"
 dependencies = [
  "anyhow",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
- "cw-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.1",
  "derivative",
- "itertools",
+ "itertools 0.10.5",
  "k256 0.11.6",
- "prost",
+ "prost 0.9.0",
  "schemars",
  "serde",
  "thiserror 1.0.64",
+]
+
+[[package]]
+name = "cw-multi-test"
+version = "2.3.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8b00c3a218ed6abc6f1dd9be8146d4f23d8f41cf4e6d53cdfa71bab4514e1fc3"
+dependencies = [
+ "anyhow",
+ "bech32",
+ "cosmwasm-schema 2.2.0",
+ "cosmwasm-std 2.2.0",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
+ "itertools 0.14.0",
+ "prost 0.13.4",
+ "schemars",
+ "serde",
+ "sha2 0.10.8",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -752,6 +787,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-storage-plus"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f13360e9007f51998d42b1bc6b7fa0141f74feae61ed5fd1e5b0a89eec7b5de1"
+dependencies = [
+ "cosmwasm-std 2.2.0",
+ "schemars",
+ "serde",
+]
+
+[[package]]
 name = "cw-utils"
 version = "1.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -759,9 +805,22 @@ checksum = "c80e93d1deccb8588db03945016a292c3c631e6325d349ebb35d2db6f4f946f7"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw2",
+ "cw2 1.1.2",
  "schemars",
  "semver",
+ "serde",
+ "thiserror 1.0.64",
+]
+
+[[package]]
+name = "cw-utils"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07dfee7f12f802431a856984a32bce1cb7da1e6c006b5409e3981035ce562dec"
+dependencies = [
+ "cosmwasm-schema 2.2.0",
+ "cosmwasm-std 2.2.0",
+ "schemars",
  "serde",
  "thiserror 1.0.64",
 ]
@@ -774,7 +833,22 @@ checksum = "c6c120b24fbbf5c3bedebb97f2cc85fbfa1c3287e09223428e7e597b5293c1fa"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
+ "schemars",
+ "semver",
+ "serde",
+ "thiserror 1.0.64",
+]
+
+[[package]]
+name = "cw2"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b04852cd38f044c0751259d5f78255d07590d136b8a86d4e09efdd7666bd6d27"
+dependencies = [
+ "cosmwasm-schema 2.2.0",
+ "cosmwasm-std 2.2.0",
+ "cw-storage-plus 2.0.0",
  "schemars",
  "semver",
  "serde",
@@ -789,7 +863,7 @@ checksum = "526e39bb20534e25a1cd0386727f0038f4da294e5e535729ba3ef54055246abd"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-utils",
+ "cw-utils 1.0.1",
  "schemars",
  "serde",
 ]
@@ -802,8 +876,8 @@ checksum = "17ad79e86ea3707229bf78df94e08732e8f713207b4a77b2699755596725e7d9"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
- "cw2",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
  "cw20",
  "schemars",
  "semver",
@@ -819,7 +893,7 @@ checksum = "2967fbd073d4b626dd9e7148e05a84a3bebd9794e71342e12351110ffbb12395"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-utils",
+ "cw-utils 1.0.1",
  "cw20",
  "schemars",
  "serde",
@@ -834,9 +908,9 @@ checksum = "58d7480e78644625c38bb082bfe9a27b01ca58bfcb785690ef43363fd40acf51"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
- "cw-utils",
- "cw2",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.1",
+ "cw2 1.1.2",
  "cw3",
  "schemars",
  "serde",
@@ -849,10 +923,10 @@ version = "1.0.0"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-multi-test",
- "cw-storage-plus",
- "cw-utils",
- "cw2",
+ "cw-multi-test 0.16.5",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.1",
+ "cw2 1.1.2",
  "cw20",
  "cw20-base",
  "cw3",
@@ -872,7 +946,7 @@ checksum = "24754ff6e45f2a1c60adc409d9b2eb87666012c44021329141ffaab3388fccd2"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
  "schemars",
  "serde",
 ]
@@ -883,10 +957,10 @@ version = "1.0.0"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-controllers",
- "cw-storage-plus",
- "cw-utils",
- "cw2",
+ "cw-controllers 1.1.0",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.1",
+ "cw2 1.1.2",
  "cw4",
  "nym-contracts-common",
  "nym-group-contract-common",
@@ -952,7 +1026,7 @@ checksum = "cb7330aeadfbe296029522e6c40f315320aba36fc43a5b3632f3795348f3bd22"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
  "unicode-xid",
 ]
 
@@ -1306,6 +1380,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "itertools"
+version = "0.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b192c782037fadd9cfa75548310488aabdbf3d2da73885b31bd0abd03351285"
+dependencies = [
+ "either",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1412,7 +1495,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-std 1.4.3",
  "cosmwasm-storage",
- "cw-multi-test",
+ "cw-multi-test 0.16.5",
  "nym-contracts-common",
  "nym-crypto",
  "nym-mixnet-contract",
@@ -1473,8 +1556,8 @@ dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
  "cosmwasm-storage",
- "cw-controllers",
- "cw-storage-plus",
+ "cw-controllers 1.1.0",
+ "cw-storage-plus 1.2.0",
  "nym-coconut-bandwidth-contract-common",
  "nym-multisig-contract-common",
  "serde",
@@ -1487,7 +1570,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw2",
+ "cw2 1.1.2",
  "nym-multisig-contract-common",
 ]
 
@@ -1498,10 +1581,10 @@ dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
  "cosmwasm-storage",
- "cw-controllers",
- "cw-multi-test",
- "cw-storage-plus",
- "cw2",
+ "cw-controllers 1.1.0",
+ "cw-multi-test 0.16.5",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
  "cw4",
  "cw4-group",
  "nym-coconut-dkg-common",
@@ -1517,8 +1600,8 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-utils",
- "cw2",
+ "cw-utils 1.0.1",
+ "cw2 1.1.2",
  "cw4",
  "nym-contracts-common",
  "nym-multisig-contract-common",
@@ -1531,7 +1614,9 @@ dependencies = [
  "bs58 0.5.1",
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
+ "cosmwasm-std 2.2.0",
+ "cw-storage-plus 1.2.0",
+ "cw-storage-plus 2.0.0",
  "schemars",
  "serde",
  "thiserror 2.0.11",
@@ -1562,10 +1647,10 @@ dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
  "cosmwasm-storage",
- "cw-controllers",
- "cw-storage-plus",
- "cw-utils",
- "cw2",
+ "cw-controllers 1.1.0",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.1",
+ "cw2 1.1.2",
  "cw3",
  "cw4",
  "nym-contracts-common",
@@ -1588,9 +1673,9 @@ dependencies = [
  "bs58 0.5.1",
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-controllers",
- "cw-utils",
- "cw2",
+ "cw-controllers 1.1.0",
+ "cw-utils 1.0.1",
+ "cw2 1.1.2",
  "nym-multisig-contract-common",
  "thiserror 2.0.11",
 ]
@@ -1600,7 +1685,7 @@ name = "nym-group-contract-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 1.4.3",
- "cw-controllers",
+ "cw-controllers 1.1.0",
  "cw4",
  "schemars",
  "serde",
@@ -1616,9 +1701,9 @@ dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
  "cosmwasm-storage",
- "cw-controllers",
- "cw-storage-plus",
- "cw2",
+ "cw-controllers 1.1.0",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
  "nym-contracts-common",
  "nym-crypto",
  "nym-mixnet-contract-common",
@@ -1638,9 +1723,9 @@ dependencies = [
  "bs58 0.5.1",
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-controllers",
- "cw-storage-plus",
- "cw2",
+ "cw-controllers 1.1.0",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
  "humantime-serde",
  "nym-contracts-common",
  "schemars",
@@ -1658,8 +1743,8 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
- "cw-utils",
+ "cw-storage-plus 1.2.0",
+ "cw-utils 1.0.1",
  "cw3",
  "cw4",
  "schemars",
@@ -1686,8 +1771,16 @@ dependencies = [
 name = "nym-pool-contract"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "cosmwasm-std 2.2.0",
+ "cw-controllers 2.0.0",
+ "cw-multi-test 2.3.1",
+ "cw-storage-plus 2.0.0",
+ "cw2 2.0.0",
+ "nym-contracts-common",
  "nym-pool-contract-common",
+ "rand",
+ "rand_chacha",
 ]
 
 [[package]]
@@ -1718,8 +1811,8 @@ dependencies = [
  "cosmwasm-derive 1.4.3",
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
- "cw2",
+ "cw-storage-plus 1.2.0",
+ "cw2 1.1.2",
  "hex",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
@@ -1736,7 +1829,7 @@ version = "0.7.0"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw2",
+ "cw2 1.1.2",
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "serde",
@@ -1881,7 +1974,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "444879275cb4fd84958b1a1d5420d15e6fcf7c235fe47f053c9c2a80aceb6001"
 dependencies = [
  "bytes",
- "prost-derive",
+ "prost-derive 0.9.0",
+]
+
+[[package]]
+name = "prost"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c0fef6c4230e4ccf618a35c59d7ede15dea37de8427500f50aff708806e42ec"
+dependencies = [
+ "bytes",
+ "prost-derive 0.13.4",
 ]
 
 [[package]]
@@ -1891,10 +1994,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f9cc1a3263e07e0bf68e96268f37665207b49560d98739662cdfaae215c720fe"
 dependencies = [
  "anyhow",
- "itertools",
+ "itertools 0.10.5",
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "prost-derive"
+version = "0.13.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "157c5a9d7ea5c2ed2d9fb8f495b64759f7816c7eaea54ba3978f0d63000162e3"
+dependencies = [
+ "anyhow",
+ "itertools 0.10.5",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2086,7 +2202,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "serde_derive_internals",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2170,7 +2286,7 @@ checksum = "5a9bf7cf98d04a2b28aead066b7496853d4779c9cc183c440dbac457641e19a0"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2181,7 +2297,7 @@ checksum = "18d26a20a969b9e3fdf2fc2d9f21eda6c40e2de84c9408bb5d3b05d499aae711"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2204,7 +2320,7 @@ checksum = "6c64451ba24fc7a6a2d60fc75dd9c83c90903b19028d4eff35e88fc1e86564e9"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2332,7 +2448,7 @@ dependencies = [
  "anyhow",
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-multi-test",
+ "cw-multi-test 0.16.5",
  "derivative",
  "konst",
  "schemars",
@@ -2369,9 +2485,9 @@ dependencies = [
 
 [[package]]
 name = "syn"
-version = "2.0.98"
+version = "2.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "36147f1a48ae0ec2b5b3bc5b537d267457555a10dc06f3dbc8cb11ba3006d3b1"
+checksum = "d5d0adab1ae378d7f53bdebc67a39f1f151407ef230f0ce2883572f5d8985c80"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -2404,7 +2520,7 @@ checksum = "08904e7672f5eb876eaaf87e0ce17857500934f4981c4a0ab2b4aa98baac7fc3"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2415,7 +2531,7 @@ checksum = "26afc1baea8a989337eeb52b6e72a039780ce45c3edfcc9c5b9d112feeb173c2"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2587,7 +2703,7 @@ checksum = "fa4f8080344d4671fb4e831a13ad1e68092748387dfc4f55e356242fae12ce3e"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]
 
 [[package]]
@@ -2607,5 +2723,5 @@ checksum = "ce36e65b0d2999d2aafac989fb249189a141aee1f53c612c1f37d72631959f69"
 dependencies = [
  "proc-macro2",
  "quote",
- "syn 2.0.98",
+ "syn 2.0.96",
 ]

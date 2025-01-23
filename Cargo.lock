@@ -1936,7 +1936,7 @@ checksum = "d5d8edce4b78785f36413f67387e4be7d0cb7d032b5d4164bcc024f9c3f3f2ea"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
  "cw-utils",
  "schemars",
  "serde",
@@ -1950,6 +1950,17 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d5ff29294ee99373e2cd5fd21786a3c0ced99a52fec2ca347d565489c61b723c"
 dependencies = [
  "cosmwasm-std 1.4.3",
+ "schemars",
+ "serde",
+]
+
+[[package]]
+name = "cw-storage-plus"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f13360e9007f51998d42b1bc6b7fa0141f74feae61ed5fd1e5b0a89eec7b5de1"
+dependencies = [
+ "cosmwasm-std 2.2.0",
  "schemars",
  "serde",
 ]
@@ -1977,7 +1988,7 @@ checksum = "c6c120b24fbbf5c3bedebb97f2cc85fbfa1c3287e09223428e7e597b5293c1fa"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
  "schemars",
  "semver 1.0.25",
  "serde",
@@ -2020,7 +2031,7 @@ checksum = "24754ff6e45f2a1c60adc409d9b2eb87666012c44021329141ffaab3388fccd2"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
  "schemars",
  "serde",
 ]
@@ -2320,7 +2331,7 @@ dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
  "cosmwasm-storage",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
  "nym-coconut-dkg-common",
  "nym-contracts-common",
 ]
@@ -5559,7 +5570,9 @@ dependencies = [
  "bs58",
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
+ "cosmwasm-std 2.2.0",
+ "cw-storage-plus 1.2.0",
+ "cw-storage-plus 2.0.0",
  "schemars",
  "serde",
  "serde_json",
@@ -6239,7 +6252,7 @@ dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
  "cw-controllers",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
  "cw2",
  "humantime-serde",
  "nym-contracts-common",
@@ -6288,7 +6301,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-storage-plus",
+ "cw-storage-plus 1.2.0",
  "cw-utils",
  "cw3",
  "cw4",

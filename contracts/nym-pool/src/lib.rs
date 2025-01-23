@@ -6,4 +6,9 @@
 #![warn(clippy::todo)]
 #![warn(clippy::dbg_macro)]
 
-mod contract;
+pub mod contract;
+pub mod queued_migrations;
+pub mod storage;
+
+#[cfg(test)]
+pub mod testing;

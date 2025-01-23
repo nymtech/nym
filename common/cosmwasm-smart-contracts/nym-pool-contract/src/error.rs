@@ -14,6 +14,6 @@ pub enum NymPoolContractError {
     #[error("{source}")]
     StdErr {
         #[from]
-        source: cosmwasm_std22::StdError,
+        source: cosmwasm_std::StdError,
     },
 }

@@ -1,31 +1,83 @@
-import type { IObservatoryNode, RewardingDetails } from "@/app/api/types";
+"use client";
+
+import type { IObservatoryNode } from "@/app/api/types";
+import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
 import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Stack, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
 
 interface IBasicInfoCardProps {
-  rewardDetails: RewardingDetails;
-  nodeInfo: IObservatoryNode;
+  id: number; // Node ID
 }
 
-export const BasicInfoCard = (props: IBasicInfoCardProps) => {
-  const { rewardDetails, nodeInfo } = props;
+// Fetch function to get the node data
+const fetchNodeInfo = async (id: number): Promise<IObservatoryNode | null> => {
+  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+  });
 
-  const timeBonded = nodeInfo
-    ? format(
-        new Date(nodeInfo.description.build_information.build_timestamp),
-        "dd/MM/yyyy",
-      )
-    : "-";
+  if (!response.ok) {
+    throw new Error("Failed to fetch observatory nodes");
+  }
 
-  const selfBond = formatBigNum(Number(rewardDetails.operator) / 1_000_000);
-  const selfBondFormated = `${selfBond} NYM`;
+  const observatoryNymNodes: IObservatoryNode[] = await response.json();
+
+  return observatoryNymNodes.find((node) => node.node_id === id) || null;
+};
+
+export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
+  // Use React Query to fetch the node info
+  const {
+    data: nodeInfo,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["nodeInfo", id], // Unique query key based on the node ID
+    queryFn: () => fetchNodeInfo(id), // Fetch function
+    refetchInterval: 60000, // Refetch every 60 seconds
+    staleTime: 60000, // Data is considered fresh for 60 seconds
+  });
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <ExplorerCard label="Basic info">
+        <Typography>Loading...</Typography>
+      </ExplorerCard>
+    );
+  }
+
+  // Error state
+  if (isError || !nodeInfo) {
+    return (
+      <ExplorerCard label="Basic info">
+        <Typography>Failed to load node information.</Typography>
+      </ExplorerCard>
+    );
+  }
+
+  // Derived data from nodeInfo
+  const timeBonded = format(
+    new Date(nodeInfo.description.build_information.build_timestamp),
+    "dd/MM/yyyy",
+  );
+
+  const selfBond = formatBigNum(
+    Number(nodeInfo.rewarding_details.operator) / 1_000_000,
+  );
+  const selfBondFormatted = `${selfBond} NYM`;
 
   const totalStake = formatBigNum(Number(nodeInfo.total_stake) / 1_000_000);
-  const totalStakeFormated = `${totalStake} NYM`;
+  const totalStakeFormatted = `${totalStake} NYM`;
+
   return (
     <ExplorerCard label="Basic info">
       <Stack gap={1}>
@@ -68,15 +120,15 @@ export const BasicInfoCard = (props: IBasicInfoCardProps) => {
           row
           divider
           label="Nr. of stakers"
-          value={rewardDetails.unique_delegations.toString()}
+          value={nodeInfo.rewarding_details.unique_delegations.toString()}
         />
         <ExplorerListItem
           row
           divider
           label="Self bonded"
-          value={selfBondFormated}
+          value={selfBondFormatted}
         />
-        <ExplorerListItem row label="Total stake" value={totalStakeFormated} />
+        <ExplorerListItem row label="Total stake" value={totalStakeFormatted} />
       </Stack>
     </ExplorerCard>
   );

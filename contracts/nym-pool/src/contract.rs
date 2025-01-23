@@ -1,72 +1,132 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std22::{entry_point, Binary, Deps, DepsMut, Env, MessageInfo, Response};
+use crate::storage::NYM_POOL_STORAGE;
+use cosmwasm_std::{
+    entry_point, to_binary, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+};
+use nym_contracts_common::set_build_information_cw22;
 use nym_pool_contract_common::{
     ExecuteMsg, InstantiateMsg, MigrateMsg, NymPoolContractError, QueryMsg,
 };
 
-// need to manually implement all `entry_points` for now since we're importing cosmwasm 2.2 under different name
-// and #[entry_point] does not understand it
+const CONTRACT_NAME: &str = "crate:nym-pool-contract";
+const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 
-#[cfg(target_arch = "wasm32")]
-mod __wasm_export_instantiate {
-    #[no_mangle]
-    extern "C" fn instantiate(ptr0: u32, ptr1: u32, ptr2: u32) -> u32 {
-        cosmwasm_std22::do_instantiate(&super::instantiate, ptr0, ptr1, ptr2)
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-mod __wasm_export_execute {
-    #[no_mangle]
-    extern "C" fn execute(ptr0: u32, ptr1: u32, ptr2: u32) -> u32 {
-        cosmwasm_std22::do_execute(&super::execute, ptr0, ptr1, ptr2)
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-mod __wasm_export_query {
-    #[no_mangle]
-    extern "C" fn query(ptr0: u32, ptr1: u32) -> u32 {
-        cosmwasm_std22::do_query(&super::query, ptr0, ptr1)
-    }
-}
-
-#[cfg(target_arch = "wasm32")]
-mod __wasm_export_migrate {
-    #[no_mangle]
-    extern "C" fn migrate(ptr0: u32, ptr1: u32) -> u32 {
-        cosmwasm_std22::do_migrate(&super::migrate, ptr0, ptr1)
-    }
-}
-
-// #[entry_point]
+#[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, NymPoolContractError> {
-    todo!()
+    cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+    set_build_information_cw22!(deps.storage)?;
+
+    NYM_POOL_STORAGE.initialise(deps, info.sender, &msg.pool_denomination)?;
+
+    Ok(Response::default())
 }
 
-// #[entry_point]
+#[entry_point]
 pub fn execute(
     deps: DepsMut,
     env: Env,
     info: MessageInfo,
     msg: ExecuteMsg,
 ) -> Result<Response, NymPoolContractError> {
-    todo!()
+    match msg {
+        _ => Ok(Response::default()),
+    }
 }
 
-// #[entry_point]
+#[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NymPoolContractError> {
-    todo!()
+    match msg {
+        _ => Ok(to_json_binary(&())?),
+    }
 }
 
-// #[entry_point]
-pub fn migrate(deps: DepsMut, env: Env, msg: MigrateMsg) -> Result<Response, NymPoolContractError> {
-    todo!()
+#[entry_point]
+pub fn migrate(
+    deps: DepsMut,
+    _env: Env,
+    _msg: MigrateMsg,
+) -> Result<Response, NymPoolContractError> {
+    set_build_information_cw22!(deps.storage)?;
+    cw2::ensure_from_older_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
+
+    Ok(Default::default())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[cfg(test)]
+    mod contract_instantiaton {
+        use super::*;
+        use crate::storage::NYM_POOL_STORAGE;
+        use crate::testing::TEST_DENOM;
+        use cosmwasm_std::testing::{message_info, mock_dependencies, mock_env};
+
+        #[test]
+        fn sets_contract_admin_to_the_message_sender() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let init_msg = InstantiateMsg {
+                pool_denomination: TEST_DENOM.to_string(),
+            };
+
+            let some_sender = deps.api.addr_make("some_sender");
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&some_sender, &[]),
+                init_msg,
+            )?;
+
+            NYM_POOL_STORAGE
+                .contract_admin
+                .assert_admin(deps.as_ref(), &some_sender)?;
+
+            Ok(())
+        }
+
+        #[test]
+        fn sets_the_pool_denomination() -> anyhow::Result<()> {
+            let mut deps = mock_dependencies();
+            let env = mock_env();
+            let init_msg = InstantiateMsg {
+                pool_denomination: "some_denom".to_string(),
+            };
+
+            let some_sender = deps.api.addr_make("some_sender");
+            instantiate(
+                deps.as_mut(),
+                env,
+                message_info(&some_sender, &[]),
+                init_msg,
+            )?;
+
+            assert_eq!(
+                NYM_POOL_STORAGE
+                    .pool_denomination
+                    .load(deps.as_ref().storage)?,
+                "some_denom"
+            );
+
+            Ok(())
+        }
+
+        #[test]
+        fn sets_pool_value_to_transferred_tokens() -> anyhow::Result<()> {
+            todo!()
+        }
+
+        #[test]
+        fn sets_initial_grants() -> anyhow::Result<()> {
+            todo!()
+        }
+    }
 }

@@ -16,6 +16,5 @@ thiserror = { workspace = true }
 serde = { workspace = true }
 schemars = { workspace = true }
 
-
-cosmwasm-std22 = { package = "cosmwasm-std", version = "2.2" }
-cosmwasm-schema22 = { package = "cosmwasm-schema", version = "2.2" }
+cosmwasm-std = "2.2.0"
+cosmwasm-schema = "2.2.0"

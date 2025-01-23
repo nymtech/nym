@@ -17,6 +17,11 @@ utoipa = { workspace = true, optional = true }
 serde = { workspace = true, features = ["derive"] }
 thiserror = { workspace = true }
 
+# TEMP:
+cosmwasm-std22 = { package = "cosmwasm-std", version = "2.2" }
+cw-storage-plus20 = { package = "cw-storage-plus", version = "2.0" }
+
+
 [dev-dependencies]
 serde_json = { workspace = true }
 

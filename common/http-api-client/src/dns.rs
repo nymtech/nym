@@ -9,11 +9,11 @@
 //!
 //! Requires the `dns-over-https-rustls`, `webpki-roots` feature for the
 //! `hickory-resolver` crate
+#![deny(missing_docs)]
+
 use crate::ClientBuilder;
 
-use std::fmt;
-use std::net::SocketAddr;
-use std::sync::Arc;
+use std::{net::SocketAddr, sync::Arc};
 
 use hickory_resolver::lookup_ip::LookupIp;
 use hickory_resolver::{
@@ -27,6 +27,7 @@ use reqwest::dns::{Addrs, Name, Resolve, Resolving};
 use tracing::warn;
 
 impl ClientBuilder {
+    /// Override the DNS resolver implementation used by the underlying http client.
     pub fn dns_resolver<R: Resolve + 'static>(mut self, resolver: Arc<R>) -> Self {
         self.reqwest_client_builder = self.reqwest_client_builder.dns_resolver(resolver);
         self
@@ -37,8 +38,12 @@ struct SocketAddrs {
     iter: LookupIpIntoIter,
 }
 
-#[derive(Debug)]
-struct HickoryDnsSystemConfError(ResolveError);
+#[derive(Debug, thiserror::Error)]
+#[error("hickory-dns resolver error: {hickory_error}")]
+pub struct HickoryDnsError {
+    #[from]
+    hickory_error: ResolveError,
+}
 
 /// Wrapper around an `AsyncResolver`, which implements the `Resolve` trait.
 #[derive(Debug, Default, Clone)]
@@ -84,10 +89,9 @@ impl Iterator for SocketAddrs {
     }
 }
 
-type BoxError = Box<dyn std::error::Error + Send + Sync>;
-
 impl HickoryDnsResolver {
-    pub async fn resolve_str(&self, name: &str) -> Result<LookupIp, BoxError> {
+    /// Attempt to resolve a domain name to a set of ['IpAddr']s
+    pub async fn resolve_str(&self, name: &str) -> Result<LookupIp, HickoryDnsError> {
         let resolver = self.state.get_or_try_init(new_resolver)?;
 
         // try the primary DNS resolver that we set up (DoH or DoT or whatever)
@@ -107,7 +111,7 @@ impl HickoryDnsResolver {
 
 /// Create a new resolver with a custom DoT based configuration. The options are overridden to look
 /// up for both IPv4 and IPv6 addresses to work with "happy eyeballs" algorithm.
-fn new_resolver() -> Result<TokioAsyncResolver, HickoryDnsSystemConfError> {
+fn new_resolver() -> Result<TokioAsyncResolver, HickoryDnsError> {
     let mut name_servers = NameServerConfigGroup::google_tls();
     name_servers.merge(NameServerConfigGroup::google_https());
     // name_servers.merge(NameServerConfigGroup::google_h3());
@@ -129,23 +133,10 @@ fn new_resolver() -> Result<TokioAsyncResolver, HickoryDnsSystemConfError> {
 /// Create a new resolver with the default configuration, which reads from the system DNS config
 /// (i.e. `/etc/resolve.conf` in unix). The options are overridden to look up for both IPv4 and IPv6
 /// addresses to work with "happy eyeballs" algorithm.
-fn new_resolver_system() -> Result<TokioAsyncResolver, HickoryDnsSystemConfError> {
-    let (config, mut opts) =
-        hickory_resolver::system_conf::read_system_conf().map_err(HickoryDnsSystemConfError)?;
+fn new_resolver_system() -> Result<TokioAsyncResolver, HickoryDnsError> {
+    let (config, mut opts) = hickory_resolver::system_conf::read_system_conf()?;
     opts.ip_strategy = LookupIpStrategy::Ipv4AndIpv6;
     Ok(TokioAsyncResolver::tokio(config, opts))
-}
-
-impl fmt::Display for HickoryDnsSystemConfError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str("error reading DNS system conf for hickory-dns")
-    }
-}
-
-impl std::error::Error for HickoryDnsSystemConfError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        Some(&self.0)
-    }
 }
 
 #[cfg(test)]
@@ -173,7 +164,7 @@ mod test {
     }
 
     #[tokio::test]
-    async fn dns_lookup() -> Result<(), BoxError> {
+    async fn dns_lookup() -> Result<(), HickoryDnsError> {
         let resolver = HickoryDnsResolver::default();
 
         let domain = "ifconfig.me";

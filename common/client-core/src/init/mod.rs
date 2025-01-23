@@ -26,6 +26,7 @@ use serde::Serialize;
 
 pub mod helpers;
 pub mod types;
+#[cfg(not(target_arch = "wasm32"))]
 pub(crate) mod websockets;
 
 // helpers for error wrapping

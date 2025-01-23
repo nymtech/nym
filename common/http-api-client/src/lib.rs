@@ -6,17 +6,23 @@ use reqwest::header::HeaderValue;
 use reqwest::{RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use std::fmt::Display;
-use std::time::Duration;
 use thiserror::Error;
 use tracing::{instrument, warn};
 use url::Url;
 
+#[cfg(not(target_arch = "wasm32"))]
+use std::sync::Arc;
+use std::{fmt::Display, time::Duration};
+
 pub use reqwest::IntoUrl;
 
+mod user_agent;
 pub use user_agent::UserAgent;
 
-mod user_agent;
+#[cfg(not(target_arch = "wasm32"))]
+mod dns;
+#[cfg(not(target_arch = "wasm32"))]
+pub use dns::HickoryDnsResolver;
 
 // The timeout is relatively high as we are often making requests over the mixnet, where latency is
 // high and chatty protocols take a while to complete.
@@ -86,11 +92,18 @@ impl ClientBuilder {
             // TODO: or should we maybe default to https?
             Self::new(alt)
         } else {
+            #[cfg(target_arch = "wasm32")]
+            let reqwest_client_builder = reqwest::ClientBuilder::new();
+
+            #[cfg(not(target_arch = "wasm32"))]
+            let reqwest_client_builder =
+                reqwest::ClientBuilder::new().dns_resolver(Arc::new(HickoryDnsResolver::default()));
+
             Ok(ClientBuilder {
                 url: url.into_url()?,
                 timeout: None,
                 custom_user_agent: false,
-                reqwest_client_builder: reqwest::ClientBuilder::new(),
+                reqwest_client_builder,
             })
         }
     }

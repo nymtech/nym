@@ -1,25 +1,15 @@
 import type { ExplorerData } from "@/app/api";
 import type { IObservatoryNode } from "@/app/api/types";
-import { CURRENT_EPOCH_REWARDS } from "@/app/api/urls";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
 interface INodeMetricsCardProps {
   nodeInfo: IObservatoryNode;
+  epochRewardsData: ExplorerData["currentEpochRewardsData"];
 }
 
 export const NodeMetricsCard = async (props: INodeMetricsCardProps) => {
-  const { nodeInfo } = props;
-
-  const epochRewards = await fetch(CURRENT_EPOCH_REWARDS, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  const epochRewardsData: ExplorerData["currentEpochRewardsData"] =
-    await epochRewards.json();
+  const { nodeInfo, epochRewardsData } = props;
 
   function getActiveSetProbability(
     totalStake: number,

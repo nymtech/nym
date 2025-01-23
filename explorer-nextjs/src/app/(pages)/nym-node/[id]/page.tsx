@@ -1,5 +1,9 @@
+import type { ExplorerData } from "@/app/api";
 import type { IObservatoryNode } from "@/app/api/types";
-import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
+import {
+  CURRENT_EPOCH_REWARDS,
+  DATA_OBSERVATORY_NODES_URL,
+} from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import ExplorerCard from "@/components/cards/ExplorerCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
@@ -21,6 +25,15 @@ export default async function NymNode({
   params: Promise<{ id: string }>;
 }) {
   try {
+    const epochRewards = await fetch(CURRENT_EPOCH_REWARDS, {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    });
+    const epochRewardsData: ExplorerData["currentEpochRewardsData"] =
+      await epochRewards.json();
+
     const id = Number((await params).id);
 
     const observatoryResponse = await fetch(DATA_OBSERVATORY_NODES_URL, {
@@ -128,6 +141,7 @@ export default async function NymNode({
               <NodeRewardsCard
                 rewardDetails={observatoryNymNode.rewarding_details}
                 nodeInfo={observatoryNymNode}
+                epochRewardsData={epochRewardsData}
               />
             </Grid>
           )}
@@ -138,7 +152,10 @@ export default async function NymNode({
                 md: 6,
               }}
             >
-              <NodeMetricsCard nodeInfo={observatoryNymNode} />
+              <NodeMetricsCard
+                nodeInfo={observatoryNymNode}
+                epochRewardsData={epochRewardsData}
+              />
             </Grid>
           )}
           {delegations && (

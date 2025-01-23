@@ -1,4 +1,4 @@
-import type { CurrencyRates } from "@/app/api/types";
+import type { NymTokenomics } from "@/app/api/types";
 import { NYM_PRICES_API } from "@/app/api/urls";
 import { Box, Stack } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -15,8 +15,8 @@ export const TokenomicsCard = async () => {
     // refresh event list cache at given interval
   });
 
-  const nymPriceData: CurrencyRates = await nymPrice.json();
-  const nymPriceDataFormated = Number(nymPriceData.usd.toFixed(2));
+  const nymPriceData: NymTokenomics = await nymPrice.json();
+  const nymPriceDataFormated = Number(nymPriceData.quotes.USD.price.toFixed(2));
 
   const titlePrice = {
     price: nymPriceDataFormated,
@@ -25,9 +25,11 @@ export const TokenomicsCard = async () => {
     //   numberWentUp: true,
     // },
   };
+  const marketCap = nymPriceData.quotes.USD.market_cap;
+  const volume24H = nymPriceData.quotes.USD.volume_24h.toFixed(2);
   const dataRows = [
-    { key: "Market cap", value: "$ 1000000" },
-    { key: "24H VOL", value: "$ 1000000" },
+    { key: "Market cap", value: `$ ${marketCap}` },
+    { key: "24H VOL", value: `$ ${volume24H}` },
   ];
 
   return (

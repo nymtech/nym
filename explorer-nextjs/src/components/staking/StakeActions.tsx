@@ -2,13 +2,15 @@ import { MoreVert } from "@mui/icons-material";
 import { IconButton, Menu, MenuItem, Typography } from "@mui/material";
 import { useState } from "react";
 
-type StakeAction = "unstake";
+type StakeAction = "unstake" | "stake";
 
 const StakeActions = ({
   nodeId,
+  nodeIdentityKey,
   onActionSelect,
 }: {
   nodeId?: number;
+  nodeIdentityKey?: string;
   onActionSelect: (action: StakeAction) => void;
 }) => {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -46,6 +48,12 @@ const StakeActions = ({
         }}
         hideBackdrop
       >
+        {nodeIdentityKey && (
+          <StakeAction
+            actionName="Stake more"
+            onSelect={() => handleActionSelect("stake")}
+          />
+        )}
         <StakeAction
           actionName="Unstake"
           onSelect={() => handleActionSelect("unstake")}

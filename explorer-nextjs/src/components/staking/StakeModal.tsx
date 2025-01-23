@@ -4,7 +4,7 @@ import { Button, Stack, Typography } from "@mui/material";
 import { CurrencyFormField } from "@nymproject/react/currency/CurrencyFormField.js";
 import { IdentityKeyFormField } from "@nymproject/react/mixnodes/IdentityKeyFormField.js";
 import type { DecCoin } from "@nymproject/types";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import ExplorerListItem from "../list/ListItem";
 import stakingSchema, { MIN_AMOUNT_TO_DELEGATE } from "./schemas";
 
@@ -33,24 +33,35 @@ const StakeModal = ({
   const [isValidated, setValidated] = useState<boolean>(false);
   const [errorAmount, setErrorAmount] = useState<string | undefined>();
 
-  useEffect(() => {
-    const asyncValidate = async () => {
-      await stakingSchema
-        .parseAsync({ amount: amount.amount, balance, nodeId })
-        .then(() => {
-          setValidated(true);
-          setErrorAmount(undefined);
-          return true;
-        })
-        .catch((e) => {
-          console.error(e.errors);
-          setValidated(false);
-          setErrorAmount(e.errors[0]?.message);
-          return false;
-        });
-    };
-    asyncValidate();
+  const validateAmount = useCallback(async () => {
+    try {
+      await stakingSchema.parseAsync({
+        amount: amount.amount,
+        balance,
+        nodeId,
+      });
+      setValidated(true);
+      setErrorAmount(undefined);
+    } catch (e) {
+      if (e instanceof Error && "errors" in e) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const validationError = (e as any).errors; // Explicitly cast if necessary
+        console.error(validationError);
+        setValidated(false);
+        setErrorAmount(validationError[0]?.message);
+      } else {
+        console.error("Unknown error during validation:", e);
+        setValidated(false);
+        setErrorAmount("An unexpected error occurred.");
+      }
+    }
   }, [amount, balance, nodeId]);
+
+  useEffect(() => {
+    if (nodeId) {
+      validateAmount();
+    }
+  }, [validateAmount, nodeId]);
 
   if (!nodeId) {
     return null;

@@ -2,8 +2,12 @@
 
 import { useNymClient } from "@/hooks/useNymClient";
 import { formatBigNum } from "@/utils/formatBigNumbers";
+import { useChain } from "@cosmos-kit/react";
+
+import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
+import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
@@ -12,11 +16,13 @@ import {
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import CountryFlag from "../countryFlag/CountryFlag";
+import { Favorite } from "../favorite/Favorite";
 import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import { Link } from "../muiLink";
 import ConnectWallet from "../wallet/ConnectWallet";
 import StakeActions from "./StakeActions";
+import StakeModal from "./StakeModal";
 import type { MappedNymNode, MappedNymNodes } from "./StakeTableWithAction";
 import { fee } from "./schemas";
 
@@ -46,6 +52,12 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
     open: false,
   });
+  const [selectedNodeForStaking, setSelectedNodeForStaking] = useState<{
+    nodeId: number;
+    identityKey: string;
+  }>();
+  const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
+  const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
 
   const router = useRouter();
 
@@ -64,7 +76,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     const combineDelegationsWithNode = (delegations: Delegation[]) => {
       const delegationsWithNodeDetails = delegations.map((delegation) => {
         const node = nodes.find((node) => node.nodeId === delegation.node_id);
-
         return {
           node,
           delegation,
@@ -84,6 +95,80 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
     fetchAndMapDelegations();
   }, [address, nodes, nymClient]);
+
+  const handleStakeOnNode = async ({
+    nodeId,
+    amount,
+  }: {
+    nodeId: number;
+    amount: string;
+  }) => {
+    const amountToDelegate = (Number(amount) * 1_000_000).toString();
+    const uNymFunds = [{ amount: amountToDelegate, denom: "unym" }];
+
+    setIsLoading(true);
+    setSelectedNodeForStaking(undefined);
+    try {
+      const tx = await nymClient?.delegate(
+        { nodeId },
+        fee,
+        "Delegation from Nym Explorer V2",
+        uNymFunds,
+      );
+      setSelectedNodeForStaking(undefined);
+      setInfoModalProps({
+        open: true,
+        title: "Success",
+        message: "This operation can take up to one hour to process",
+        tx: tx?.transactionHash,
+
+        onClose: () => setInfoModalProps({ open: false }),
+      });
+    } catch (e) {
+      const errorMessage =
+        e instanceof Error ? e.message : "An error occurred while staking";
+      setInfoModalProps({
+        open: true,
+        title: "Error",
+        message: errorMessage,
+        onClose: () => {
+          setInfoModalProps({ open: false });
+        },
+      });
+    }
+    setIsLoading(false);
+  };
+
+  const handleOnSelectStake = useCallback(
+    (nodeId: number, nodeIdentityKey: string | undefined) => {
+      if (!isWalletConnected) {
+        setInfoModalProps({
+          open: true,
+          title: "Connect Wallet",
+          message: "Connect your wallet to stake",
+          Action: (
+            <ConnectWallet
+              fullWidth
+              onClick={() =>
+                setInfoModalProps({
+                  open: false,
+                })
+              }
+            />
+          ),
+          onClose: () => setInfoModalProps({ open: false }),
+        });
+        return;
+      }
+      if (nodeIdentityKey) {
+        setSelectedNodeForStaking({
+          nodeId: nodeId,
+          identityKey: nodeIdentityKey,
+        });
+      }
+    },
+    [isWalletConnected],
+  );
 
   const handleUnstake = useCallback(
     async (nodeId?: number) => {
@@ -126,8 +211,11 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   );
 
   const handleActionSelect = useCallback(
-    (action: string, nodeId: number | undefined) => {
+    (action: string, nodeId: number, nodeIdentityKey: string | undefined) => {
       switch (action) {
+        case "stake":
+          handleOnSelectStake(nodeId, nodeIdentityKey);
+          break;
         case "unstake":
           handleUnstake(nodeId);
           break;
@@ -135,13 +223,24 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           break;
       }
     },
-    [handleUnstake],
+    [handleUnstake, handleOnSelectStake],
   );
-
-  console.log("delegations :>> ", delegations);
 
   const columns: MRT_ColumnDef<DelegationWithNodeDetails>[] = useMemo(
     () => [
+      {
+        id: "name",
+        header: "",
+        Header: <ColumnHeading>Name</ColumnHeading>,
+        accessorKey: "name",
+        Cell: ({ row }) => (
+          <Stack spacing={1}>
+            <Typography variant="body4">
+              {row.original.node?.name || "-"}
+            </Typography>
+          </Stack>
+        ),
+      },
       {
         id: "node",
         header: "",
@@ -194,17 +293,20 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Stake saturation",
         accessorKey: "stakeSaturation",
         Header: <ColumnHeading>Stake saturation</ColumnHeading>,
-        Cell: () => <Typography variant="body4">Unavailable</Typography>,
-      },
-      {
-        id: "profitMarginPercentage",
-        header: "Profit margin",
-        accessorKey: "profitMarginPercentage",
-        Header: <ColumnHeading>Profit margin</ColumnHeading>,
         Cell: ({ row }) => (
           <Typography variant="body4">
-            {row.original.node?.profitMarginPercentage || 0 * 100}%
+            {row.original.node?.stakeSaturation || 0}%
           </Typography>
+        ),
+      },
+      {
+        id: "Favorite",
+        header: "Favorite",
+        accessorKey: "Favorite",
+        Header: <ColumnHeading>Favorite</ColumnHeading>,
+        sortingFn: "Favorite",
+        Cell: ({ row }) => (
+          <Favorite address={row.original.node?.owner || ""} />
         ),
       },
       {
@@ -214,8 +316,13 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Cell: ({ row }) => (
           <StakeActions
             nodeId={row.original.delegation?.node_id}
+            nodeIdentityKey={row.original.node?.identity_key}
             onActionSelect={(action) => {
-              handleActionSelect(action, row.original.delegation?.node_id);
+              handleActionSelect(
+                action,
+                row.original.delegation?.node_id,
+                row.original.node?.identity_key || undefined,
+              );
             }}
           />
         ),
@@ -258,8 +365,15 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       shape: "circular",
     },
     sortingFns: {
-      Favorite: () => {
-        // TODO implement sorting by favorite
+      Favorite: (rowA, rowB) => {
+        const isFavoriteA = favorites.includes(rowA.original.owner);
+        const isFavoriteB = favorites.includes(rowB.original.owner);
+
+        // Sort favorites first
+        if (isFavoriteA && !isFavoriteB) return -1;
+        if (!isFavoriteA && isFavoriteB) return 1;
+
+        // If both are favorites or neither, keep the original order
         return 0;
       },
     },
@@ -318,6 +432,12 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   return (
     <div>
       {isLoading && <Loading />}
+      <StakeModal
+        nodeId={selectedNodeForStaking?.nodeId}
+        identityKey={selectedNodeForStaking?.identityKey}
+        onStake={handleStakeOnNode}
+        onClose={() => setSelectedNodeForStaking(undefined)}
+      />
       <InfoModal {...infoModalProps} />
       <MaterialReactTable table={table} />
     </div>

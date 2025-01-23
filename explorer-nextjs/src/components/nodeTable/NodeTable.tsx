@@ -126,6 +126,17 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const columns: MRT_ColumnDef<MappedNymNode>[] = useMemo(
     () => [
       {
+        id: "name",
+        header: "",
+        Header: <ColumnHeading>Name</ColumnHeading>,
+        accessorKey: "name",
+        Cell: ({ row }) => (
+          <Stack spacing={1}>
+            <Typography variant="body4">{row.original.name || "-"}</Typography>
+          </Stack>
+        ),
+      },
+      {
         id: "node",
         header: "",
         Header: <ColumnHeading>Node</ColumnHeading>,
@@ -143,7 +154,11 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         align: "center",
         accessorKey: "qos",
         Header: <ColumnHeading>Quality of Service</ColumnHeading>,
-        Cell: () => <Typography variant="body4">Unavailable</Typography>,
+        Cell: ({ row }) => (
+          <Typography variant="body4">
+            {row.original.qualityOfService}%
+          </Typography>
+        ),
       },
       {
         id: "location",
@@ -169,7 +184,11 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Stake saturation",
         accessorKey: "stakeSaturation",
         Header: <ColumnHeading>Stake saturation</ColumnHeading>,
-        Cell: () => <Typography variant="body4">Unavailable</Typography>,
+        Cell: ({ row }) => (
+          <Typography variant="body4">
+            {row.original.stakeSaturation}%
+          </Typography>
+        ),
       },
       {
         id: "profitMarginPercentage",
@@ -235,12 +254,8 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     },
     sortingFns: {
       Favorite: (rowA, rowB) => {
-        const isFavoriteA = favorites.includes(
-          rowA.original.bondInformation.owner,
-        );
-        const isFavoriteB = favorites.includes(
-          rowB.original.bondInformation.owner,
-        );
+        const isFavoriteA = favorites.includes(rowA.original.owner);
+        const isFavoriteB = favorites.includes(rowB.original.owner);
 
         // Sort favorites first
         if (isFavoriteA && !isFavoriteB) return -1;

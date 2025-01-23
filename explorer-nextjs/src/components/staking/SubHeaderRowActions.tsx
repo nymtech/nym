@@ -108,6 +108,7 @@ const SubHeaderRowActions = () => {
         fee,
         "Redeeming all rewards",
       );
+      console.log("Rewards redeemed successfully:", result);
 
       setInfoModalProps({
         open: true,

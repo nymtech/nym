@@ -8,8 +8,9 @@ import { NoiseCard } from "@/components/landingPageComponents/NoiseCard";
 import { RewardsCard } from "@/components/landingPageComponents/RewardsCard";
 import { TokenomicsCard } from "@/components/landingPageComponents/TokenomicsCard";
 import NodeTable from "@/components/nodeTable/NodeTableWithAction";
+import { QueryProvider } from "@/components/queryProvider/QueryProvider";
 import NodeAndAddressSearch from "@/components/search/NodeAndAddressSearch";
-import { Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { Suspense } from "react";
 
@@ -31,14 +32,26 @@ export default async function Home() {
             <NoiseCard />
           </Suspense>
         </Grid>
-        <Grid container rowSpacing={3} size={{ xs: 12, md: 3 }}>
-          <Suspense fallback={<CardSkeleton sx={{ width: "100%" }} />}>
-            <Stack gap={5} width="100%">
+        <Grid
+          container
+          columnSpacing={5}
+          rowSpacing={5}
+          size={{ xs: 12, md: 3 }}
+        >
+          <Grid size={12}>
+            <Suspense fallback={<CardSkeleton sx={{ width: "100%" }} />}>
               <RewardsCard />
-              <CurrentEpochCard />
-            </Stack>
-          </Suspense>
+            </Suspense>
+          </Grid>
+          <Grid size={12}>
+            <Suspense fallback={<CardSkeleton sx={{ width: "100%" }} />}>
+              <QueryProvider>
+                <CurrentEpochCard />
+              </QueryProvider>
+            </Suspense>
+          </Grid>
         </Grid>
+
         <Grid size={{ xs: 12, md: 3 }}>
           <Suspense fallback={<CardSkeleton sx={{ height: "100%" }} />}>
             <NetworkStakeCard />

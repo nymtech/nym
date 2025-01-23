@@ -1,0 +1,24 @@
+[package]
+name = "nym-pool-contract"
+version = "0.1.0"
+edition = { workspace = true }
+authors = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+
+[[bin]]
+name = "schema"
+required-features = ["schema-gen"]
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+#rand_old = { version = "=0.8.4", package = "rand" }
+cosmwasm-std22 = { package = "cosmwasm-std", version = "2.2" }
+
+
+nym-pool-contract-common = { path = "../../common/cosmwasm-smart-contracts/nym-pool-contract" }
+
+
+[dev-dependencies]

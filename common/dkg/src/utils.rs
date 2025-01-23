@@ -54,12 +54,12 @@ pub(crate) fn hash_to_scalar<M: AsRef<[u8]>>(msg: M, domain: &[u8]) -> Scalar {
 pub(crate) fn hash_to_scalars<M: AsRef<[u8]>>(msg: M, domain: &[u8], n: usize) -> Vec<Scalar> {
     let mut output = vec![Scalar::zero(); n];
 
-    Scalar::hash_to_field::<ExpandMsgXmd<Sha256>>(msg.as_ref(), domain, &mut output);
+    Scalar::hash_to_field::<ExpandMsgXmd<Sha256>, _>([msg], domain, &mut output);
     output
 }
 
 pub(crate) fn hash_g2<M: AsRef<[u8]>>(msg: M, domain: &[u8]) -> G2Projective {
-    <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve(msg, domain)
+    <G2Projective as HashToCurve<ExpandMsgXmd<Sha256>>>::hash_to_curve([msg], domain)
 }
 
 pub(crate) fn combine_scalar_chunks(chunks: &[Scalar]) -> Scalar {

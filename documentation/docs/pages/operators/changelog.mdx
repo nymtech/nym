@@ -659,7 +659,7 @@ systemctl daemon-reload && service nym-node restart
 
 - Since `v2024.13-magura`, operators do not update their node version in the wallet. [Manual upgrading steps](nodes/maintenance/manual-upgrade.mdx) has been updated accordingly.
 
-- CLI tool [`node_api_check.py`](nodes/performance-and-testing/node-api-check.mdx), helping operators to collect all API values about their nodes locally, is not up to date with the API changes introduced with `v2024.13-magura` release version. Please treat it as unstable before we fix it.
+- CLI tool `node_api_check.py`, helping operators to collect all API values about their nodes locally, is not up to date with the API changes introduced with `v2024.13-magura` release version. Please treat it as unstable before we fix it.
 
 #### Error Log
 
@@ -967,7 +967,7 @@ Confirm that the deployment workflows work through manual testing
 ### Operators Updates & Tooling
 
 <Callout type="warning" emoji="⚠️">
-**Every operator has to make sure that their nodes [self-described endpoint works](nodes/performance-and-testing/node-api-check#basic-api-usage), otherwise the node will be un-routable and thus won't get any rewards!**
+**Every operator has to make sure that their nodes self-described endpoint works, otherwise the node will be un-routable and thus won't get any rewards!**
 </Callout>
 
 - **New technical documentation:** All Nym documentation starts from a new entry page [nymtech.net/docs](https://nymtech.net/docs/operators/introduction). To run locally or propose collaboration, start in our [repository](https://github.com/nymtech/nym/tree/develop/documentation)
@@ -1165,7 +1165,7 @@ Some endpoints got purposely deprecated without any equivalent reimplemented sin
 ##### Mixnet Contract
 
 <Callout type="warning" emoji="">
-**Every operator has to make sure that their nodes [self-described endpoint works](nodes/performance-and-testing/node-api-check#basic-api-usage), otherwise the node will be un-routable and thus won't get any rewards!**
+**Every operator has to make sure that their nodes self-described endpoint works, otherwise the node will be un-routable and thus won't get any rewards!**
 </Callout>
 
 ###### High Level Changes
@@ -1979,7 +1979,7 @@ done
     - Vesting contract functionalities have been purged, users can only remove tokens from vesting
     - Migrating from `mixnode` or `gateway` smart contracts to a new unifying `nym-node` smart contract will be available soon using Nym desktop wallet, just like you are used to for bonding and node settings. After this migration all `nym-nodes` will be able to receive delegation and rewards. We will share a step by step guide once this migration will be deployed. No action needed now.
 
-- [Nym API Check CLI](testing/node-api-check.md) is upgraded according to the latest API endpoints, output is cleaner and more concise.
+- Nym API Check CLI is upgraded according to the latest API endpoints, output is cleaner and more concise.
 
 
 #### Operators Tasks
@@ -2868,7 +2868,7 @@ warning: /home/alice/src/nym/nym/common/dkg/Cargo.toml: `default-features` is ig
     - Flow [chart](release-cycle.md#release-flow)
 - [Sandbox testnet](sandbox.md) guide: teaching Nym node operators how to run their nodes in Nym Sandbox testnet environment.
 - [Terms & Conditions flag](nodes/setup.md#terms--conditions)
-- [Node API Check CLI](testing/node-api-check.md)
+- Node API Check CLI
 - [Pruning VPS `syslog` scripts](troubleshooting/vps-isp.md#pruning-logs)
 - [Black-xit: Exiting the blacklist](troubleshooting/nodes.md#my-gateway-is-blacklisted)
 

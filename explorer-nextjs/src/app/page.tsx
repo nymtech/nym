@@ -8,9 +8,8 @@ import { NoiseCard } from "@/components/landingPageComponents/NoiseCard";
 import { RewardsCard } from "@/components/landingPageComponents/RewardsCard";
 import { TokenomicsCard } from "@/components/landingPageComponents/TokenomicsCard";
 import NodeTable from "@/components/nodeTable/NodeTableWithAction";
-import { QueryProvider } from "@/components/queryProvider/QueryProvider";
 import NodeAndAddressSearch from "@/components/search/NodeAndAddressSearch";
-import { Box, Stack, Typography } from "@mui/material";
+import { Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { Suspense } from "react";
 
@@ -45,9 +44,7 @@ export default async function Home() {
           </Grid>
           <Grid size={12}>
             <Suspense fallback={<CardSkeleton sx={{ width: "100%" }} />}>
-              <QueryProvider>
-                <CurrentEpochCard />
-              </QueryProvider>
+              <CurrentEpochCard />
             </Suspense>
           </Grid>
         </Grid>

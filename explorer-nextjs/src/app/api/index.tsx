@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   CIRCULATING_NYM_SUPPLY,
+  CURRENT_EPOCH_REWARDS,
+  DATA_OBSERVATORY_NODES_URL,
   HARBOURMASTER_API_MIXNODES_STATS,
   NYM_NODES_DESCRIBED,
   NYM_NODE_DESCRIPTION,
@@ -204,3 +206,51 @@ export async function getCacheExplorerData() {
 
   return (global as ExplorerCache)?.explorerCache?.data || null;
 }
+
+export const fetchEpochRewards = async () => {
+  const response = await fetch(CURRENT_EPOCH_REWARDS, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch epoch rewards");
+  }
+
+  return response.json();
+};
+
+export const fetchObservatoryNodes = async () => {
+  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch observatory nodes");
+  }
+
+  return response.json();
+};
+
+export const fetchNodeDelegations = async (id: number) => {
+  const response = await fetch(
+    `${DATA_OBSERVATORY_NODES_URL}/${id}/delegations`,
+    {
+      headers: {
+        Accept: "application/json",
+        "Content-Type": "application/json; charset=utf-8",
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch delegations");
+  }
+
+  return response.json();
+};

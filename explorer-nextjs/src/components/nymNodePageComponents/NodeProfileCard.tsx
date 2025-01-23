@@ -1,9 +1,11 @@
 "use client";
-import type { IObservatoryNode } from "@/app/api/types";
+
+import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
 import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
 import { Box, Button, Stack, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { RandomAvatar } from "react-random-avatars";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -16,11 +18,27 @@ import { fee } from "../staking/schemas";
 import ConnectWallet from "../wallet/ConnectWallet";
 
 interface INodeProfileCardProps {
-  nodeInfo: IObservatoryNode;
+  id: number; // Node ID
 }
 
-export const NodeProfileCard = (props: INodeProfileCardProps) => {
-  const { nodeInfo } = props;
+// Fetch node info
+const fetchNodeInfo = async (id: number) => {
+  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch observatory nodes");
+  }
+
+  const nodes = await response.json();
+  return nodes.find((node: { node_id: number }) => node.node_id === id) || null;
+};
+
+export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
   const { nymClient } = useNymClient();
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
@@ -31,6 +49,18 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
     nodeId: number;
     identityKey: string;
   }>();
+
+  // Fetch node info
+  const {
+    data: nodeInfo,
+    isLoading: isNodeLoading,
+    isError: isNodeError,
+  } = useQuery({
+    queryKey: ["nodeInfo", id],
+    queryFn: () => fetchNodeInfo(id),
+    refetchInterval: 60000,
+    staleTime: 60000,
+  });
 
   const handleStakeOnNode = async ({
     nodeId,
@@ -57,7 +87,6 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
         title: "Success",
         message: "This operation can take up to one hour to process",
         tx: tx?.transactionHash,
-
         onClose: () => setInfoModalProps({ open: false }),
       });
     } catch (e) {
@@ -95,11 +124,29 @@ export const NodeProfileCard = (props: INodeProfileCardProps) => {
       });
       return;
     }
-    setSelectedNodeForStaking({
-      nodeId: nodeInfo.node_id,
-      identityKey: nodeInfo.identity_key,
-    });
+    if (nodeInfo) {
+      setSelectedNodeForStaking({
+        nodeId: nodeInfo.node_id,
+        identityKey: nodeInfo.identity_key,
+      });
+    }
   }, [isWalletConnected, nodeInfo]);
+
+  if (isNodeLoading) {
+    return (
+      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
+        <div>Loading...</div>
+      </ExplorerCard>
+    );
+  }
+
+  if (isNodeError || !nodeInfo) {
+    return (
+      <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
+        <div>Failed to load node information.</div>
+      </ExplorerCard>
+    );
+  }
 
   return (
     <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>

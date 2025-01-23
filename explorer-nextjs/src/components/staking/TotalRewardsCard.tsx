@@ -1,38 +1,71 @@
+"use client";
+
 import type { ObservatoryBalance } from "@/app/api/types";
 import { DATA_OBSERVATORY_BALANCES_URL } from "@/app/api/urls";
 import { useNymClient } from "@/hooks/useNymClient";
 import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 
+// Fetch function to get total staker rewards
+const fetchTotalStakerRewards = async (address: string): Promise<number> => {
+  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch balances");
+  }
+
+  const balances: ObservatoryBalance = await response.json();
+
+  // Return the staking rewards amount
+  return Number(balances.rewards.staking_rewards.amount);
+};
+
 const TotalRewardsCard = () => {
-  const [totalStakerRewards, setTotalStakerRewards] = useState<number>(0);
   const { address } = useNymClient();
 
-  useEffect(() => {
-    if (!address) return;
-
-    const fetchBalances = async () => {
-      const data = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        next: { revalidate: 60 },
-        // refresh event list cache at given interval
-      });
-      const balances: ObservatoryBalance = await data.json();
-
-      return setTotalStakerRewards(balances.rewards.staking_rewards.amount);
-    };
-
-    fetchBalances();
-  }, [address]);
+  // Use React Query to fetch total staker rewards
+  const {
+    data: totalStakerRewards = 0,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["totalStakerRewards", address],
+    queryFn: () => fetchTotalStakerRewards(address || ""),
+    enabled: !!address, // Only fetch if address exists
+    refetchInterval: 60000, // Refetch every 60 seconds
+    staleTime: 60000, // Data is fresh for 60 seconds
+  });
 
   if (!address) {
-    return null;
+    return null; // Do not render if address is not available
   }
+
+  if (isLoading) {
+    return (
+      <ExplorerCard label="Total Rewards">
+        <Typography variant="body2">Loading...</Typography>
+      </ExplorerCard>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ExplorerCard label="Total Rewards">
+        <Typography variant="body2" color="error">
+          Failed to load total rewards.
+        </Typography>
+      </ExplorerCard>
+    );
+  }
+
   return (
     <ExplorerCard label="Total Rewards">
       <Typography

@@ -1,20 +1,99 @@
+"use client";
+
 import type { ExplorerData } from "@/app/api";
 import type { IObservatoryNode } from "@/app/api/types";
+import {
+  CURRENT_EPOCH_REWARDS,
+  DATA_OBSERVATORY_NODES_URL,
+} from "@/app/api/urls";
+import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
 interface INodeMetricsCardProps {
-  nodeInfo: IObservatoryNode;
-  epochRewardsData: ExplorerData["currentEpochRewardsData"];
+  id: number; // Node ID
 }
 
-export const NodeMetricsCard = async (props: INodeMetricsCardProps) => {
-  const { nodeInfo, epochRewardsData } = props;
+// Fetch functions
+const fetchEpochRewards = async (): Promise<
+  ExplorerData["currentEpochRewardsData"]
+> => {
+  const response = await fetch(CURRENT_EPOCH_REWARDS, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
 
-  function getActiveSetProbability(
+  if (!response.ok) {
+    throw new Error("Failed to fetch epoch rewards");
+  }
+
+  return response.json();
+};
+
+const fetchNodeInfo = async (id: number): Promise<IObservatoryNode | null> => {
+  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch observatory nodes");
+  }
+
+  const nodes: IObservatoryNode[] = await response.json();
+  return nodes.find((node) => node.node_id === id) || null;
+};
+
+export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
+  // Fetch epoch rewards
+  const {
+    data: epochRewardsData,
+    isLoading: isEpochLoading,
+    isError: isEpochError,
+  } = useQuery({
+    queryKey: ["epochRewards"],
+    queryFn: fetchEpochRewards,
+    refetchInterval: 60000, // Refetch every 60 seconds
+    staleTime: 60000, // Data is fresh for 60 seconds
+  });
+
+  // Fetch node information
+  const {
+    data: nodeInfo,
+    isLoading: isNodeLoading,
+    isError: isNodeError,
+  } = useQuery({
+    queryKey: ["nodeInfo", id],
+    queryFn: () => fetchNodeInfo(id),
+    refetchInterval: 60000, // Refetch every 60 seconds
+    staleTime: 60000, // Data is fresh for 60 seconds
+  });
+
+  if (isEpochLoading || isNodeLoading) {
+    return (
+      <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
+        <div>Loading...</div>
+      </ExplorerCard>
+    );
+  }
+
+  if (isEpochError || isNodeError || !nodeInfo || !epochRewardsData) {
+    return (
+      <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
+        <div>Failed to load data</div>
+      </ExplorerCard>
+    );
+  }
+
+  // Function to calculate active set probability
+  const getActiveSetProbability = (
     totalStake: number,
     stakeSaturationPoint: string,
-  ): string {
+  ): string => {
     const saturation = Number.parseFloat(stakeSaturationPoint);
 
     if (Number.isNaN(saturation) || saturation <= 0) {
@@ -30,15 +109,12 @@ export const NodeMetricsCard = async (props: INodeMetricsCardProps) => {
       return "Medium";
     }
     return "Low";
-  }
+  };
 
-  const activeSetProb =
-    nodeInfo && epochRewardsData
-      ? getActiveSetProbability(
-          nodeInfo.total_stake,
-          epochRewardsData.interval.stake_saturation_point,
-        )
-      : "N/A";
+  const activeSetProb = getActiveSetProbability(
+    nodeInfo.total_stake,
+    epochRewardsData.interval.stake_saturation_point,
+  );
 
   return (
     <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
@@ -48,23 +124,19 @@ export const NodeMetricsCard = async (props: INodeMetricsCardProps) => {
         label="Node ID."
         value={nodeInfo.node_id.toString()}
       />
-      <>
-        <ExplorerListItem
-          row
-          divider
-          label="Host"
-          value={nodeInfo.description.host_information.ip_address.toString()}
-        />
-        <ExplorerListItem
-          row
-          divider
-          label="Version"
-          value={nodeInfo.description.build_information.build_version}
-        />
-      </>
-      {epochRewardsData && (
-        <ExplorerListItem row label="Active set Prob." value={activeSetProb} />
-      )}
+      <ExplorerListItem
+        row
+        divider
+        label="Host"
+        value={nodeInfo.description.host_information.ip_address.toString()}
+      />
+      <ExplorerListItem
+        row
+        divider
+        label="Version"
+        value={nodeInfo.description.build_information.build_version}
+      />
+      <ExplorerListItem row label="Active set Prob." value={activeSetProb} />
     </ExplorerCard>
   );
 };

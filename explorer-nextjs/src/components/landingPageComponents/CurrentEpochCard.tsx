@@ -16,9 +16,7 @@ const fetchCurrentEpoch = async (): Promise<CurrentEpochData> => {
   });
 
   if (!response.ok) {
-    throw new Error(
-      `Failed to fetch current epoch data: ${response.statusText}`,
-    );
+    throw new Error("Failed to fetch current epoch data");
   }
 
   return response.json();

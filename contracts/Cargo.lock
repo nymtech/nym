@@ -1265,6 +1265,35 @@ dependencies = [
 ]
 
 [[package]]
+name = "nym-pool-contract"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cosmwasm-std",
+ "cw-controllers",
+ "cw-multi-test",
+ "cw-storage-plus",
+ "cw2",
+ "nym-contracts-common",
+ "nym-pool-contract-common",
+ "rand",
+ "rand_chacha",
+ "serde",
+]
+
+[[package]]
+name = "nym-pool-contract-common"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "cosmwasm-std",
+ "cw-controllers",
+ "schemars",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "nym-sphinx-types"
 version = "0.2.0"
 dependencies = [

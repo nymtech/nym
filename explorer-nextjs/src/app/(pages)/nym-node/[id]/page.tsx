@@ -1,16 +1,10 @@
-import type { ExplorerData } from "@/app/api";
 import type { IObservatoryNode } from "@/app/api/types";
-import {
-  CURRENT_EPOCH_REWARDS,
-  DATA_OBSERVATORY_NODES_URL,
-} from "@/app/api/urls";
+import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
-import ExplorerCard from "@/components/cards/ExplorerCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
 import { NodeChatCard } from "@/components/nymNodePageComponents/ChatCard";
-import DelegationsTable from "@/components/nymNodePageComponents/DelegationsTable";
 import NodeDelegationsCard from "@/components/nymNodePageComponents/NodeDelegationsCard";
 import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
 import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";

@@ -8,6 +8,34 @@ As developers we need to be constantly improving the software. Operators have as
 
 Therefore [monitoring](#monitoring) and [testing](#testing) are essential pieces of our common work. We call out all Nym operators to join the efforts!
 
+## Functionality & Performance Check
+
+If you want to just quickly check your nodes performance, connectivity and much more, visit [harbourmaster.nymtech.net](https://harbourmaster.nymtech.net/).
+
+For more information about available endpoints and their status, you can refer to:
+```sh
+# sustitude <IPv4_ADDRESS> or <HOSTNAME> with the one corresponding to your node
+# for http
+http://<IPv4_ADDRESS>:8080/api/v1/swagger/#/
+# or
+http://<IPv4_ADDRESS>/api/v1/swagger/#/
+
+# for reversed proxy/WSS
+https://<HOSTNAME>/api/v1/swagger/#/
+```
+
+For example to determine which mode your node is running, you can check the `:8080/api/v1/roles` endpoint:
+```sh
+# sustitude <IPv4_ADDRESS> or <HOSTNAME> with the one corresponding to your node
+# for http
+http://<IPv4_ADDRESS>:8080/api/v1/roles
+# or
+http://<IPv4_ADDRESS>/api/v1/roles
+
+# for reversed proxy/WSS
+https://<HOSTNAME>/api/v1/roles
+```
+
 ## Monitoring
 
 There are multiple ways to monitor performance of nodes and the machines on which they run. For the purpose of maximal privacy and decentralisation of the data - preventing Nym Mixnet from any global adversary takeover - we created these pages as a source of mutual empowerment, a place where operators can share and learn new skills to **setup metrics monitors on their own infrastructure**.

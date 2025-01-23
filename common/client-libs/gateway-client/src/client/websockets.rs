@@ -14,12 +14,12 @@ pub(crate) async fn connect_async(
 ) -> Result<(WebSocketStream<MaybeTlsStream<TcpStream>>, Response), GatewayClientError> {
     let resolver = HickoryDnsResolver::default();
     let uri =
-        Url::parse(endpoint).map_err(|_| GatewayClientError::InvalidURL(endpoint.to_owned()))?;
+        Url::parse(endpoint).map_err(|_| GatewayClientError::InvalidUrl(endpoint.to_owned()))?;
     let port: u16 = uri.port_or_known_default().unwrap_or(443);
 
     let host = uri
         .host()
-        .ok_or(GatewayClientError::InvalidURL(endpoint.to_owned()))?;
+        .ok_or(GatewayClientError::InvalidUrl(endpoint.to_owned()))?;
 
     // Get address for tcp connection, if a domain is provided use our preferred resolver rather than
     // the default std resolve

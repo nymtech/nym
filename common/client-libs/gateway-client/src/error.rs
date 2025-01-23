@@ -44,7 +44,7 @@ pub enum GatewayClientError {
     NetworkConnectionFailed { address: String, source: WsError },
 
     #[error("Invalid URL: {0}")]
-    InvalidURL(String),
+    InvalidUrl(String),
 
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,

@@ -37,7 +37,7 @@ pub enum ClientCoreError {
     NoGatewayWithId(String),
 
     #[error("Invalid URL: {0}")]
-    InvalidURL(String),
+    InvalidUrl(String),
 
     #[error("no gateways on network")]
     NoGatewaysOnNetwork,

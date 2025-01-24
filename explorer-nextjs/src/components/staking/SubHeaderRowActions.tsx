@@ -18,6 +18,7 @@ const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };
 // Fetch delegations
 const fetchDelegations = async (
   address: string,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   nymClient: any,
 ): Promise<Delegation[]> => {
   const data = await nymClient.getDelegatorDelegations({ delegator: address });

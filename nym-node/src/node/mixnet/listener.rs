@@ -5,7 +5,7 @@ use crate::node::mixnet::SharedData;
 use nym_task::ShutdownToken;
 use std::net::SocketAddr;
 use tokio::task::JoinHandle;
-use tracing::{error, info, trace};
+use tracing::{debug, error, info, trace};
 
 pub(crate) struct Listener {
     bind_address: SocketAddr,
@@ -39,12 +39,14 @@ impl Listener {
                 biased;
                 _ = self.shutdown.cancelled() => {
                     trace!("mixnet listener: received shutdown");
+                    break
                 }
                 connection = tcp_listener.accept() => {
                     self.shared_data.try_handle_connection(connection);
                 }
             }
         }
+        debug!("mixnet socket listener: Exiting");
     }
 
     pub(crate) fn start(mut self) -> JoinHandle<()> {

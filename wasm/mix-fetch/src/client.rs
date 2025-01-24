@@ -156,6 +156,7 @@ impl MixFetchClientBuilder {
                 &self.config.base.client.nym_api_urls,
                 bin_info!().into(),
                 self.config.base.debug.topology.minimum_gateway_performance,
+                self.config.base.debug.topology.ignore_ingress_epoch_role,
                 &client_store,
             )
             .await?;

@@ -395,6 +395,10 @@ pub struct TopologyWasm {
     /// Specifies whether this client should ignore the current epoch role of the target egress node
     /// when constructing the final hop packets.
     pub ignore_egress_epoch_role: bool,
+
+    /// Specifies whether this client should ignore the current epoch role of the ingress node
+    /// when attempting to establish new connection
+    pub ignore_ingress_epoch_role: bool,
 }
 
 impl Default for TopologyWasm {
@@ -419,6 +423,7 @@ impl From<TopologyWasm> for ConfigTopology {
             minimum_gateway_performance: topology.minimum_gateway_performance,
             use_extended_topology: topology.use_extended_topology,
             ignore_egress_epoch_role: topology.ignore_egress_epoch_role,
+            ignore_ingress_epoch_role: topology.ignore_ingress_epoch_role,
         }
     }
 }
@@ -436,6 +441,7 @@ impl From<ConfigTopology> for TopologyWasm {
             minimum_gateway_performance: topology.minimum_gateway_performance,
             use_extended_topology: topology.use_extended_topology,
             ignore_egress_epoch_role: topology.ignore_egress_epoch_role,
+            ignore_ingress_epoch_role: topology.ignore_ingress_epoch_role,
         }
     }
 }

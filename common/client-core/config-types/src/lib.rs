@@ -517,7 +517,7 @@ impl Default for Acknowledgements {
 }
 
 #[derive(Debug, Clone, Copy, Deserialize, PartialEq, Serialize)]
-#[serde(default, deny_unknown_fields)]
+#[serde(default)]
 pub struct Topology {
     /// The uniform delay every which clients are querying the directory server
     /// to try to obtain a compatible network topology to send sphinx packets through.
@@ -558,6 +558,10 @@ pub struct Topology {
     /// Specifies whether this client should ignore the current epoch role of the target egress node
     /// when constructing the final hop packets.
     pub ignore_egress_epoch_role: bool,
+
+    /// Specifies whether this client should ignore the current epoch role of the ingress node
+    /// when attempting to establish new connection
+    pub ignore_ingress_epoch_role: bool,
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -595,7 +599,9 @@ impl Default for Topology {
             minimum_mixnode_performance: DEFAULT_MIN_MIXNODE_PERFORMANCE,
             minimum_gateway_performance: DEFAULT_MIN_GATEWAY_PERFORMANCE,
             use_extended_topology: false,
-            ignore_egress_epoch_role: false,
+
+            ignore_egress_epoch_role: true,
+            ignore_ingress_epoch_role: true,
         }
     }
 }

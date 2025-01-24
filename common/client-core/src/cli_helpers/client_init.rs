@@ -175,6 +175,7 @@ where
             &core.client.nym_api_urls,
             user_agent,
             core.debug.topology.minimum_gateway_performance,
+            core.debug.topology.ignore_ingress_epoch_role,
         )
         .await?
     };

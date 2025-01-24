@@ -91,6 +91,7 @@ pub async fn gateways_for_init<R: Rng>(
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
     minimum_performance: u8,
+    ignore_epoch_roles: bool,
 ) -> Result<Vec<RoutingNode>, ClientCoreError> {
     let nym_api = nym_apis
         .choose(rng)
@@ -112,7 +113,7 @@ pub async fn gateways_for_init<R: Rng>(
     // (we don't want instability)
     let valid_gateways = gateways
         .iter()
-        .filter(|g| !g.supported_roles.mixnode)
+        .filter(|g| !ignore_epoch_roles && !g.supported_roles.mixnode)
         .filter(|g| g.performance.round_to_integer() >= minimum_performance)
         .filter_map(|gateway| gateway.try_into().ok())
         .collect::<Vec<_>>();

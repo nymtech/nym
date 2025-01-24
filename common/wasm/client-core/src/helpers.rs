@@ -132,9 +132,17 @@ pub async fn setup_gateway_from_api(
     chosen_gateway: Option<IdentityKey>,
     nym_apis: &[Url],
     minimum_performance: u8,
+    ignore_epoch_roles: bool,
 ) -> Result<InitialisationResult, WasmCoreError> {
     let mut rng = thread_rng();
-    let gateways = gateways_for_init(&mut rng, nym_apis, None, minimum_performance).await?;
+    let gateways = gateways_for_init(
+        &mut rng,
+        nym_apis,
+        None,
+        minimum_performance,
+        ignore_epoch_roles,
+    )
+    .await?;
     setup_gateway_wasm(client_store, force_tls, chosen_gateway, gateways).await
 }
 
@@ -142,9 +150,17 @@ pub async fn current_gateways_wasm(
     nym_apis: &[Url],
     user_agent: Option<UserAgent>,
     minimum_performance: u8,
+    ignore_epoch_roles: bool,
 ) -> Result<Vec<RoutingNode>, ClientCoreError> {
     let mut rng = thread_rng();
-    gateways_for_init(&mut rng, nym_apis, user_agent, minimum_performance).await
+    gateways_for_init(
+        &mut rng,
+        nym_apis,
+        user_agent,
+        minimum_performance,
+        ignore_epoch_roles,
+    )
+    .await
 }
 
 pub async fn setup_from_topology(
@@ -163,6 +179,7 @@ pub async fn generate_new_client_keys(store: &ClientStorage) -> Result<(), WasmC
     Ok(())
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn add_gateway(
     preferred_gateway: Option<IdentityKey>,
     latency_based_selection: Option<bool>,
@@ -170,6 +187,7 @@ pub async fn add_gateway(
     nym_apis: &[Url],
     user_agent: UserAgent,
     min_performance: u8,
+    ignore_epoch_roles: bool,
     storage: &ClientStorage,
 ) -> Result<(), WasmCoreError> {
     let selection_spec = GatewaySelectionSpecification::new(
@@ -203,8 +221,13 @@ pub async fn add_gateway(
 
     // Setup gateway by either registering a new one, or creating a new config from the selected
     // one but with keys kept, or reusing the gateway configuration.
-    let available_gateways =
-        current_gateways_wasm(nym_apis, Some(user_agent), min_performance).await?;
+    let available_gateways = current_gateways_wasm(
+        nym_apis,
+        Some(user_agent),
+        min_performance,
+        ignore_epoch_roles,
+    )
+    .await?;
 
     // since we're registering with a brand new gateway,
     // make sure the list of available gateways doesn't overlap the list of known gateways

@@ -281,6 +281,11 @@ pub struct TopologyWasmOverride {
     /// when constructing the final hop packets.
     #[tsify(optional)]
     pub ignore_egress_epoch_role: Option<bool>,
+
+    /// Specifies whether this client should ignore the current epoch role of the ingress node
+    /// when attempting to establish new connection
+    #[tsify(optional)]
+    pub ignore_ingress_epoch_role: Option<bool>,
 }
 
 impl From<TopologyWasmOverride> for TopologyWasm {
@@ -310,6 +315,9 @@ impl From<TopologyWasmOverride> for TopologyWasm {
             ignore_egress_epoch_role: value
                 .ignore_egress_epoch_role
                 .unwrap_or(def.ignore_egress_epoch_role),
+            ignore_ingress_epoch_role: value
+                .ignore_ingress_epoch_role
+                .unwrap_or(def.ignore_ingress_epoch_role),
         }
     }
 }

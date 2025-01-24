@@ -18,3 +18,4 @@ schemars = { workspace = true }
 
 cosmwasm-std = "2.2.0"
 cosmwasm-schema = "2.2.0"
+cw-controllers = "2.0.0"

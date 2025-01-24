@@ -1883,7 +1883,22 @@ dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
  "cw-storage-plus 1.2.0",
- "cw-utils",
+ "cw-utils 1.0.1",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "cw-controllers"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "50c1804013d21060b994dea28a080f9eab78a3bcb6b617f05e7634b0600bf7b1"
+dependencies = [
+ "cosmwasm-schema 2.2.0",
+ "cosmwasm-std 2.2.0",
+ "cw-storage-plus 2.0.0",
+ "cw-utils 2.0.0",
  "schemars",
  "serde",
  "thiserror 1.0.69",
@@ -1925,6 +1940,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "cw-utils"
+version = "2.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "07dfee7f12f802431a856984a32bce1cb7da1e6c006b5409e3981035ce562dec"
+dependencies = [
+ "cosmwasm-schema 2.2.0",
+ "cosmwasm-std 2.2.0",
+ "schemars",
+ "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
 name = "cw2"
 version = "2.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1947,7 +1975,7 @@ checksum = "a42212b6bf29bbdda693743697c621894723f35d3db0d5df930be22903d0e27c"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-utils",
+ "cw-utils 1.0.1",
  "schemars",
  "serde",
 ]
@@ -1960,7 +1988,7 @@ checksum = "d5e53c2057526c65d9c88be8b2a564729ebad7a3d87ee97b97665a71446f913a"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-utils",
+ "cw-utils 1.0.1",
  "cw20",
  "schemars",
  "serde",
@@ -4912,7 +4940,7 @@ dependencies = [
  "clap",
  "console-subscriber",
  "cosmwasm-std 1.4.3",
- "cw-utils",
+ "cw-utils 1.0.1",
  "cw2",
  "cw3",
  "cw4",
@@ -5184,7 +5212,7 @@ dependencies = [
  "cosmrs",
  "cosmwasm-std 1.4.3",
  "csv",
- "cw-utils",
+ "cw-utils 1.0.1",
  "futures",
  "handlebars",
  "humantime-serde",
@@ -5439,7 +5467,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-utils",
+ "cw-utils 1.0.1",
  "cw2",
  "cw4",
  "nym-contracts-common",
@@ -5635,7 +5663,7 @@ version = "0.1.0"
 dependencies = [
  "bs58",
  "cosmwasm-std 1.4.3",
- "cw-utils",
+ "cw-utils 1.0.1",
  "futures",
  "nym-api-requests",
  "nym-credentials",
@@ -5751,8 +5779,8 @@ dependencies = [
  "bs58",
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-controllers",
- "cw-utils",
+ "cw-controllers 1.1.0",
+ "cw-utils 1.0.1",
  "cw2",
  "nym-multisig-contract-common",
  "thiserror 2.0.11",
@@ -5993,7 +6021,7 @@ name = "nym-group-contract-common"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 1.4.3",
- "cw-controllers",
+ "cw-controllers 1.1.0",
  "cw4",
  "schemars",
  "serde",
@@ -6173,7 +6201,7 @@ dependencies = [
  "bs58",
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
- "cw-controllers",
+ "cw-controllers 1.1.0",
  "cw-storage-plus 1.2.0",
  "cw2",
  "humantime-serde",
@@ -6224,7 +6252,7 @@ dependencies = [
  "cosmwasm-schema 1.4.3",
  "cosmwasm-std 1.4.3",
  "cw-storage-plus 1.2.0",
- "cw-utils",
+ "cw-utils 1.0.1",
  "cw3",
  "cw4",
  "schemars",
@@ -6621,6 +6649,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.2.0",
  "cosmwasm-std 2.2.0",
+ "cw-controllers 2.0.0",
  "schemars",
  "serde",
  "thiserror 2.0.11",
@@ -7120,8 +7149,8 @@ dependencies = [
  "colored",
  "cosmrs",
  "cosmwasm-std 1.4.3",
- "cw-controllers",
- "cw-utils",
+ "cw-controllers 1.1.0",
+ "cw-utils 1.0.1",
  "cw2",
  "cw3",
  "cw4",
@@ -10247,7 +10276,7 @@ dependencies = [
  "bs58",
  "clap",
  "console",
- "cw-utils",
+ "cw-utils 1.0.1",
  "dkg-bypass-contract",
  "indicatif",
  "nym-bin-common",

@@ -10,5 +10,7 @@ pub mod contract;
 pub mod queued_migrations;
 pub mod storage;
 
+mod queries;
 #[cfg(test)]
 pub mod testing;
+mod transactions;

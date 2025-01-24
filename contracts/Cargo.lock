@@ -1781,6 +1781,7 @@ dependencies = [
  "nym-pool-contract-common",
  "rand",
  "rand_chacha",
+ "serde",
 ]
 
 [[package]]
@@ -1789,6 +1790,7 @@ version = "0.1.0"
 dependencies = [
  "cosmwasm-schema 2.2.0",
  "cosmwasm-std 2.2.0",
+ "cw-controllers 2.0.0",
  "schemars",
  "serde",
  "thiserror 2.0.11",

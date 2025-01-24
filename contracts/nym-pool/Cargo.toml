@@ -25,7 +25,8 @@ nym-pool-contract-common = { path = "../../common/cosmwasm-smart-contracts/nym-p
 
 
 [dev-dependencies]
-anyhow.workspace = true
+anyhow = { workspace = true }
+serde = { workspace = true }
 rand_chacha = "0.3"
 rand = "0.8.5"
 cw-multi-test = "2.3.1"

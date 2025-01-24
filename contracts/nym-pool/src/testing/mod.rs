@@ -1,43 +1,23 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::contract;
 use crate::contract::{execute, instantiate, migrate, query};
-use cosmwasm_std::testing::{mock_env, MockApi, MockStorage};
+use crate::storage::NYM_POOL_STORAGE;
+use crate::testing::storage::{ContractStorageWrapper, StorageWrapper};
+use cosmwasm_std::testing::{message_info, mock_env, MockApi};
 use cosmwasm_std::{
-    coins, Addr, ContractInfo, Deps, DepsMut, Empty, Env, MemoryStorage, Order, Record, Storage,
+    coins, Addr, Coin, ContractInfo, Deps, DepsMut, Empty, Env, Response, StdResult, Storage,
 };
-use cw_multi_test::{App, AppBuilder, BankKeeper, Contract, ContractWrapper, Executor};
-use nym_pool_contract_common::InstantiateMsg;
-use rand::SeedableRng;
+use cw_multi_test::{
+    App, AppBuilder, AppResponse, BankKeeper, Contract, ContractWrapper, Executor,
+};
+use nym_pool_contract_common::{ExecuteMsg, InstantiateMsg, NymPoolContractError, QueryMsg};
+use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
-use std::cell::RefCell;
-use std::rc::Rc;
+use serde::de::DeserializeOwned;
 
-#[derive(Debug, Clone)]
-pub struct StorageWrapper(Rc<RefCell<MemoryStorage>>);
-
-impl Storage for StorageWrapper {
-    fn get(&self, key: &[u8]) -> Option<Vec<u8>> {
-        self.0.borrow().get(key)
-    }
-
-    fn set(&mut self, key: &[u8], value: &[u8]) {
-        self.0.borrow_mut().set(key, value);
-    }
-
-    fn remove(&mut self, key: &[u8]) {
-        self.0.borrow_mut().remove(key);
-    }
-
-    fn range<'a>(
-        &'a self,
-        start: Option<&[u8]>,
-        end: Option<&[u8]>,
-        order: Order,
-    ) -> Box<dyn Iterator<Item = Record> + 'a> {
-        todo!()
-    }
-}
+mod storage;
 
 pub fn test_rng() -> ChaCha20Rng {
     let dummy_seed = [42u8; 32];
@@ -51,7 +31,7 @@ pub struct TestSetup {
     pub rng: ChaCha20Rng,
     pub contract_address: Addr,
     pub master_address: Addr,
-    pub storage: StorageWrapper,
+    pub(crate) storage: ContractStorageWrapper,
 }
 
 pub fn contract() -> Box<dyn Contract<Empty>> {
@@ -61,7 +41,7 @@ pub fn contract() -> Box<dyn Contract<Empty>> {
 
 impl TestSetup {
     pub fn init() -> TestSetup {
-        let storage = StorageWrapper(Rc::new(RefCell::new(MockStorage::new())));
+        let storage = StorageWrapper::new();
 
         let api = MockApi::default().with_prefix("n");
         let master_address = api.addr_make("master-owner");
@@ -96,15 +76,15 @@ impl TestSetup {
         TestSetup {
             app,
             rng: test_rng(),
+            storage: storage.contract_storage_wrapper(&contract_address),
             contract_address,
             master_address,
-            storage,
         }
     }
 
     pub fn deps(&self) -> Deps<'_> {
         Deps {
-            storage: self.app.storage(),
+            storage: &self.storage,
             api: self.app.api(),
             querier: self.app.wrap(),
         }
@@ -118,6 +98,14 @@ impl TestSetup {
         }
     }
 
+    pub fn storage(&self) -> &dyn Storage {
+        &self.storage
+    }
+
+    pub fn storage_mut(&mut self) -> &mut dyn Storage {
+        &mut self.storage
+    }
+
     pub fn env(&self) -> Env {
         Env {
             block: self.app.block_info(),
@@ -126,5 +114,62 @@ impl TestSetup {
             },
             ..mock_env()
         }
+    }
+
+    pub fn execute_raw(
+        &mut self,
+        sender: Addr,
+        message: ExecuteMsg,
+    ) -> Result<Response, NymPoolContractError> {
+        self.execute_raw_with_balance(sender, &[], message)
+    }
+
+    pub fn execute_raw_with_balance(
+        &mut self,
+        sender: Addr,
+        coins: &[Coin],
+        message: ExecuteMsg,
+    ) -> Result<Response, NymPoolContractError> {
+        let env = self.env();
+        let info = message_info(&sender, coins);
+        contract::execute(self.deps_mut(), env, info, message)
+    }
+
+    pub fn execute_msg(
+        &mut self,
+        sender: Addr,
+        message: &ExecuteMsg,
+    ) -> anyhow::Result<AppResponse> {
+        self.execute_msg_with_balance(sender, &[], message)
+    }
+
+    pub fn execute_msg_with_balance(
+        &mut self,
+        sender: Addr,
+        coins: &[Coin],
+        message: &ExecuteMsg,
+    ) -> anyhow::Result<AppResponse> {
+        self.app
+            .execute_contract(sender, self.contract_address.clone(), message, coins)
+    }
+
+    pub fn query<T: DeserializeOwned>(&self, message: &QueryMsg) -> StdResult<T> {
+        self.app
+            .wrap()
+            .query_wasm_smart(self.contract_address.as_str(), message)
+    }
+
+    pub fn generate_account(&mut self) -> Addr {
+        self.app
+            .api()
+            .addr_make(&format!("foomp{}", self.rng.next_u64()))
+    }
+
+    pub fn admin_unchecked(&self) -> Addr {
+        NYM_POOL_STORAGE
+            .contract_admin
+            .get(self.deps())
+            .unwrap()
+            .unwrap()
     }
 }

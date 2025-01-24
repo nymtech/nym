@@ -1,7 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::queries::query_admin;
 use crate::storage::NYM_POOL_STORAGE;
+use crate::transactions::try_update_contract_admin;
 use cosmwasm_std::{
     entry_point, to_binary, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
@@ -36,14 +38,14 @@ pub fn execute(
     msg: ExecuteMsg,
 ) -> Result<Response, NymPoolContractError> {
     match msg {
-        _ => Ok(Response::default()),
+        ExecuteMsg::UpdateAdmin { admin } => try_update_contract_admin(deps, info, admin),
     }
 }
 
 #[entry_point]
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NymPoolContractError> {
     match msg {
-        _ => Ok(to_json_binary(&())?),
+        QueryMsg::Admin {} => Ok(to_json_binary(&query_admin(deps)?)?),
     }
 }
 

@@ -89,8 +89,6 @@ const SubHeaderRowActions = () => {
         throw new Error("Wallet, client, or delegations not available.");
       }
 
-      console.log("delegations :>> ", delegations);
-
       const messages = delegations.map((delegation: NodeRewardDetails) => ({
         contractAddress: NYM_MIXNET_CONTRACT,
         funds: [],

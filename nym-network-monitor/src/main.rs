@@ -59,9 +59,6 @@ async fn make_clients(
                 loop {
                     if Arc::strong_count(&dropped_client) == 1 {
                         if let Some(client) = Arc::into_inner(dropped_client) {
-                            // let forget_me = ClientRequest::ForgetMe {
-                            //     also_from_stats: true,
-                            // };
                             let client_handle = client.into_inner();
                             client_handle.disconnect().await;
                         } else {

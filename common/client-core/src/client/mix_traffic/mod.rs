@@ -134,8 +134,7 @@ impl MixTrafficController {
                             };
                         },
                         None => {
-                            log::trace!("MixTrafficController: Stopping since channel closed");
-                            break;
+                            log::trace!("MixTrafficController, client request channel closed");
                         }
                     },
                     _ = shutdown.recv_with_delay() => {

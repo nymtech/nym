@@ -107,7 +107,6 @@ pub struct GatewayClient<C, St = EphemeralCredentialStorage> {
 
     /// Listen to shutdown messages and send notifications back to the task manager
     task_client: TaskClient,
-    pre_shutdown_client_request: Option<ClientRequest>,
 }
 
 impl<C, St> GatewayClient<C, St> {
@@ -140,20 +139,7 @@ impl<C, St> GatewayClient<C, St> {
             #[cfg(unix)]
             connection_fd_callback,
             task_client,
-            pre_shutdown_client_request: None,
         }
-    }
-
-    pub fn set_pre_shutdown_client_request(&mut self, request: ClientRequest) {
-        self.pre_shutdown_client_request = Some(request);
-    }
-
-    async fn send_pre_shutdown_client_request(&mut self) -> Result<(), GatewayClientError> {
-        log::debug!("GatewayClient: Sending pre-shutdown request");
-        if let Some(request) = self.pre_shutdown_client_request.take() {
-            self.send_client_request(request).await?;
-        }
-        Ok(())
     }
 
     pub fn gateway_identity(&self) -> identity::PublicKey {
@@ -315,11 +301,9 @@ impl<C, St> GatewayClient<C, St> {
                 _ = self.task_client.recv() => {
                     log::trace!("GatewayClient control response: Received shutdown");
                     log::debug!("GatewayClient control response: Exiting");
-                    self.send_pre_shutdown_client_request().await?;
                     break Err(GatewayClientError::ConnectionClosedGatewayShutdown);
                 }
                 _ = &mut timeout => {
-                    self.send_pre_shutdown_client_request().await?;
                     break Err(GatewayClientError::Timeout);
                 }
                 msg = conn.next() => {
@@ -1079,7 +1063,6 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             #[cfg(unix)]
             connection_fd_callback: None,
             task_client,
-            pre_shutdown_client_request: None,
         }
     }
 
@@ -1112,7 +1095,6 @@ impl GatewayClient<InitOnly, EphemeralCredentialStorage> {
             #[cfg(unix)]
             connection_fd_callback: self.connection_fd_callback,
             task_client,
-            pre_shutdown_client_request: self.pre_shutdown_client_request,
         }
     }
 }

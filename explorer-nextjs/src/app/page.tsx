@@ -31,14 +31,24 @@ export default async function Home() {
             <NoiseCard />
           </Suspense>
         </Grid>
-        <Grid container rowSpacing={3} size={{ xs: 12, md: 3 }}>
-          <Suspense fallback={<CardSkeleton sx={{ width: "100%" }} />}>
-            <Stack gap={5} width="100%">
+        <Grid
+          container
+          columnSpacing={5}
+          rowSpacing={5}
+          size={{ xs: 12, md: 3 }}
+        >
+          <Grid size={12}>
+            <Suspense fallback={<CardSkeleton sx={{ width: "100%" }} />}>
               <RewardsCard />
+            </Suspense>
+          </Grid>
+          <Grid size={12}>
+            <Suspense fallback={<CardSkeleton sx={{ width: "100%" }} />}>
               <CurrentEpochCard />
-            </Stack>
-          </Suspense>
+            </Suspense>
+          </Grid>
         </Grid>
+
         <Grid size={{ xs: 12, md: 3 }}>
           <Suspense fallback={<CardSkeleton sx={{ height: "100%" }} />}>
             <NetworkStakeCard />

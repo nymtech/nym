@@ -1,33 +1,120 @@
+"use client";
+
 import type { ExplorerData } from "@/app/api";
 import type { IObservatoryNode, RewardingDetails } from "@/app/api/types";
+import {
+  CURRENT_EPOCH_REWARDS,
+  DATA_OBSERVATORY_NODES_URL,
+} from "@/app/api/urls";
+import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
 interface INodeRewardsCardProps {
-  rewardDetails: RewardingDetails;
-  nodeInfo?: IObservatoryNode;
-  epochRewardsData: ExplorerData["currentEpochRewardsData"];
+  id: number; // Node ID
 }
 
-export const NodeRewardsCard = (props: INodeRewardsCardProps) => {
-  const { rewardDetails, epochRewardsData, nodeInfo } = props;
+// Fetch functions
+const fetchEpochRewards = async (): Promise<
+  ExplorerData["currentEpochRewardsData"]
+> => {
+  const response = await fetch(CURRENT_EPOCH_REWARDS, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
 
-  const operatorRewards = Number(rewardDetails.operator) / 1000000;
+  if (!response.ok) {
+    throw new Error("Failed to fetch epoch rewards");
+  }
+
+  return response.json();
+};
+
+const fetchNodeInfo = async (id: number): Promise<IObservatoryNode | null> => {
+  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch observatory nodes");
+  }
+
+  const nodes: IObservatoryNode[] = await response.json();
+  return nodes.find((node) => node.node_id === id) || null;
+};
+
+export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
+  // Fetch epoch rewards
+  const {
+    data: epochRewardsData,
+    isLoading: isEpochLoading,
+    isError: isEpochError,
+  } = useQuery({
+    queryKey: ["epochRewards"],
+    queryFn: fetchEpochRewards,
+    refetchInterval: 60000, // Refetch every 60 seconds
+    staleTime: 60000, // Data is fresh for 60 seconds
+  });
+
+  // Fetch node information
+  const {
+    data: nodeInfo,
+    isLoading: isNodeLoading,
+    isError: isNodeError,
+  } = useQuery({
+    queryKey: ["nodeInfo", id],
+    queryFn: () => fetchNodeInfo(id),
+    refetchInterval: 60000, // Refetch every 60 seconds
+    staleTime: 60000, // Data is fresh for 60 seconds
+  });
+
+  if (isEpochLoading || isNodeLoading) {
+    return (
+      <ExplorerCard
+        label="Node rewards (last epoch/hour)"
+        sx={{ height: "100%" }}
+      >
+        <div>Loading...</div>
+      </ExplorerCard>
+    );
+  }
+
+  if (isEpochError || isNodeError || !nodeInfo || !epochRewardsData) {
+    return (
+      <ExplorerCard
+        label="Node rewards (last epoch/hour)"
+        sx={{ height: "100%" }}
+      >
+        <div>Failed to load data</div>
+      </ExplorerCard>
+    );
+  }
+
+  // Extract reward details
+  const rewardDetails: RewardingDetails = nodeInfo.rewarding_details;
+
+  // Calculated data
+  const operatorRewards = Number(rewardDetails.operator) / 1_000_000;
   const operatorRewardsFormated = `${operatorRewards} NYM`;
 
   const profitMarginPercent =
     Number(rewardDetails.cost_params.profit_margin_percent) * 100;
-
   const profitMarginPercentFormated = `${profitMarginPercent}%`;
 
   const operatingCosts =
-    Number(rewardDetails.cost_params.interval_operating_cost.amount) / 1000000;
+    Number(rewardDetails.cost_params.interval_operating_cost.amount) /
+    1_000_000;
   const operatingCostsFormated = `${operatingCosts.toString()} NYM`;
 
-  function getNodeSaturationPoint(
+  const getNodeSaturationPoint = (
     totalStake: number,
     stakeSaturationPoint: string,
-  ): string {
+  ): string => {
     const saturation = Number.parseFloat(stakeSaturationPoint);
 
     if (Number.isNaN(saturation) || saturation <= 0) {
@@ -37,36 +124,24 @@ export const NodeRewardsCard = (props: INodeRewardsCardProps) => {
     const ratio = (totalStake / saturation) * 100;
 
     return `${ratio.toFixed()}%`;
-  }
+  };
 
-  const nodeSaturationPoint =
-    nodeInfo && epochRewardsData
-      ? getNodeSaturationPoint(
-          nodeInfo.total_stake,
-          epochRewardsData.interval.stake_saturation_point,
-        )
-      : "N/A";
+  const nodeSaturationPoint = getNodeSaturationPoint(
+    nodeInfo.total_stake,
+    epochRewardsData.interval.stake_saturation_point,
+  );
 
   return (
-    <ExplorerCard label="Node rewards(last epoch/hour)" sx={{ height: "100%" }}>
-      {/* <ExplorerListItem
-        row
-        divider
-        label="Total rew."
-        value={totalRewardsFormated}
-      /> */}
+    <ExplorerCard
+      label="Node rewards (last epoch/hour)"
+      sx={{ height: "100%" }}
+    >
       <ExplorerListItem
         row
         divider
         label="Operator rew."
         value={operatorRewardsFormated}
       />
-      {/* <ExplorerListItem
-        row
-        divider
-        label="Staker rew."
-        value={stakerRewardsFormated}
-      /> */}
       <ExplorerListItem
         row
         divider

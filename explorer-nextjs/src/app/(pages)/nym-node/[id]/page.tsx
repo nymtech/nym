@@ -1,16 +1,11 @@
-import type { ExplorerData } from "@/app/api";
 import type { IObservatoryNode } from "@/app/api/types";
-import {
-  CURRENT_EPOCH_REWARDS,
-  DATA_OBSERVATORY_NODES_URL,
-} from "@/app/api/urls";
+import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
-import ExplorerCard from "@/components/cards/ExplorerCard";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
-import DelegationsTable from "@/components/nodeTable/DelegationsTable";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
 import { NodeChatCard } from "@/components/nymNodePageComponents/ChatCard";
+import NodeDelegationsCard from "@/components/nymNodePageComponents/NodeDelegationsCard";
 import { NodeMetricsCard } from "@/components/nymNodePageComponents/NodeMetricsCard";
 import { NodeProfileCard } from "@/components/nymNodePageComponents/NodeProfileCard";
 import { NodeRewardsCard } from "@/components/nymNodePageComponents/NodeRewardsCard";
@@ -25,15 +20,6 @@ export default async function NymNode({
   params: Promise<{ id: string }>;
 }) {
   try {
-    const epochRewards = await fetch(CURRENT_EPOCH_REWARDS, {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
-    });
-    const epochRewardsData: ExplorerData["currentEpochRewardsData"] =
-      await epochRewards.json();
-
     const id = Number((await params).id);
 
     const observatoryResponse = await fetch(DATA_OBSERVATORY_NODES_URL, {
@@ -60,20 +46,6 @@ export default async function NymNode({
       return null;
     }
 
-    const nodeDelegationsResponse = await fetch(
-      `${DATA_OBSERVATORY_NODES_URL}/${id}/delegations`,
-      {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        next: { revalidate: 60 },
-        // refresh event list cache at given interval
-      },
-    );
-
-    const delegations = await nodeDelegationsResponse.json();
-
     return (
       <ContentLayout>
         <Grid container columnSpacing={5} rowSpacing={5}>
@@ -98,77 +70,53 @@ export default async function NymNode({
               )}
             </Box>
           </Grid>
-          {observatoryNymNode && (
-            <Grid
-              size={{
-                xs: 12,
-                md: 4,
-              }}
-            >
-              <NodeProfileCard nodeInfo={observatoryNymNode} />
-            </Grid>
-          )}
-          {observatoryNymNode.rewarding_details && (
-            <Grid
-              size={{
-                xs: 12,
-                md: 4,
-              }}
-            >
-              <BasicInfoCard
-                rewardDetails={observatoryNymNode.rewarding_details}
-                nodeInfo={observatoryNymNode}
-              />
-            </Grid>
-          )}
-          {observatoryNymNode && (
-            <Grid
-              size={{
-                xs: 12,
-                md: 4,
-              }}
-            >
-              <QualityIndicatorsCard nodeInfo={observatoryNymNode} />
-            </Grid>
-          )}
-          {observatoryNymNode.rewarding_details && (
-            <Grid
-              size={{
-                xs: 12,
-                md: 6,
-              }}
-            >
-              <NodeRewardsCard
-                rewardDetails={observatoryNymNode.rewarding_details}
-                nodeInfo={observatoryNymNode}
-                epochRewardsData={epochRewardsData}
-              />
-            </Grid>
-          )}
-          {observatoryNymNode && (
-            <Grid
-              size={{
-                xs: 12,
-                md: 6,
-              }}
-            >
-              <NodeMetricsCard
-                nodeInfo={observatoryNymNode}
-                epochRewardsData={epochRewardsData}
-              />
-            </Grid>
-          )}
-          {delegations && (
-            <Grid
-              size={{
-                xs: 12,
-              }}
-            >
-              <ExplorerCard label="Delegations" sx={{ height: "100%" }}>
-                <DelegationsTable delegations={delegations} />
-              </ExplorerCard>
-            </Grid>
-          )}
+          <Grid
+            size={{
+              xs: 12,
+              md: 4,
+            }}
+          >
+            <NodeProfileCard id={id} />
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+              md: 4,
+            }}
+          >
+            <BasicInfoCard id={id} />
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+              md: 4,
+            }}
+          >
+            <QualityIndicatorsCard id={id} />
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+              md: 6,
+            }}
+          >
+            <NodeRewardsCard id={id} />
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+              md: 6,
+            }}
+          >
+            <NodeMetricsCard id={id} />
+          </Grid>
+          <Grid
+            size={{
+              xs: 12,
+            }}
+          >
+            <NodeDelegationsCard id={id} />
+          </Grid>
 
           <Grid
             size={{

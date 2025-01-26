@@ -1,29 +1,31 @@
+"use client";
+
 import getNymNodes from "@/actions/getNymNodes";
 import type { ExplorerData } from "@/app/api";
 import type { IObservatoryNode } from "@/app/api/types";
 import { CURRENT_EPOCH_REWARDS } from "@/app/api/urls";
+import { useQuery } from "@tanstack/react-query";
 import NodeTable from "./NodeTable";
 
-async function fetchEpochRewards() {
-  try {
-    const response = await fetch(CURRENT_EPOCH_REWARDS, {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
-    });
+// Fetch function for epoch rewards
+const fetchEpochRewards = async (): Promise<
+  ExplorerData["currentEpochRewardsData"]
+> => {
+  const response = await fetch(CURRENT_EPOCH_REWARDS, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
 
-    if (!response.ok) {
-      throw new Error(`Failed to fetch epoch rewards: ${response.statusText}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error("Error fetching epoch rewards:", error);
-    throw new Error("Failed to fetch epoch rewards data");
+  if (!response.ok) {
+    throw new Error("Failed to fetch epoch rewards");
   }
-}
 
+  return response.json();
+};
+
+// Utility function to calculate node saturation point
 function getNodeSaturationPoint(
   totalStake: number,
   stakeSaturationPoint: string,
@@ -39,6 +41,7 @@ function getNodeSaturationPoint(
   return Number(ratio.toFixed());
 }
 
+// Map nodes with rewards data
 const mappedNymNodes = (
   nodes: IObservatoryNode[],
   epochRewardsData: ExplorerData["currentEpochRewardsData"],
@@ -66,23 +69,45 @@ const mappedNymNodes = (
 export type MappedNymNodes = ReturnType<typeof mappedNymNodes>;
 export type MappedNymNode = MappedNymNodes[0];
 
-const NodeTableWithAction = async () => {
-  try {
-    // Fetch the epoch rewards data
-    const epochRewardsData: ExplorerData["currentEpochRewardsData"] =
-      await fetchEpochRewards();
+const NodeTableWithAction = () => {
+  // Use React Query to fetch epoch rewards
+  const {
+    data: epochRewardsData,
+    isLoading: isEpochLoading,
+    isError: isEpochError,
+  } = useQuery({
+    queryKey: ["epochRewards"],
+    queryFn: fetchEpochRewards,
+    staleTime: 60000, // Data is fresh for 60 seconds
+    refetchInterval: 60000, // Refetch every 60 seconds
+  });
 
-    // Fetch the Nym nodes
-    const nodes = await getNymNodes();
+  // Use React Query to fetch Nym nodes
+  const {
+    data: nymNodes = [],
+    isLoading: isNodesLoading,
+    isError: isNodesError,
+  } = useQuery({
+    queryKey: ["nymNodes"],
+    queryFn: getNymNodes,
+    staleTime: 60000,
+    refetchInterval: 60000,
+  });
 
-    // Map the nodes with the rewards data
-    const data = mappedNymNodes(nodes, epochRewardsData);
-
-    return <NodeTable nodes={data} />;
-  } catch (error) {
-    console.error("Error in NodeTableWithAction:", error);
-    return <div>Error loading data.</div>; // Render error fallback UI
+  // Handle loading state
+  if (isEpochLoading || isNodesLoading) {
+    return <div>Loading...</div>;
   }
+
+  // Handle error state
+  if (isEpochError || isNodesError) {
+    return <div>Error loading data. Please try again later.</div>;
+  }
+
+  // Map nodes with rewards data
+  const data = mappedNymNodes(nymNodes, epochRewardsData);
+
+  return <NodeTable nodes={data} />;
 };
 
 export default NodeTableWithAction;

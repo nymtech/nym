@@ -5,39 +5,70 @@ import { DATA_OBSERVATORY_BALANCES_URL } from "@/app/api/urls";
 import { useNymClient } from "@/hooks/useNymClient";
 import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Typography } from "@mui/material";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 
-const TotalStakeCard = () => {
-  const [totalStake, setTotalStake] = useState<number>(0);
+// Fetch balances based on the address
+const fetchBalances = async (address: string): Promise<number> => {
+  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+  });
 
+  if (!response.ok) {
+    throw new Error("Failed to fetch balances");
+  }
+
+  const balances: ObservatoryBalance = await response.json();
+
+  // Calculate total stake
+  return (
+    Number(balances.rewards.staking_rewards.amount) +
+    Number(balances.delegated.amount)
+  );
+};
+
+const TotalStakeCard = () => {
   const { address } = useNymClient();
 
-  useEffect(() => {
-    if (!address) return;
-
-    const fetchBalances = async () => {
-      const data = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json; charset=utf-8",
-        },
-        next: { revalidate: 60 },
-        // refresh event list cache at given interval
-      });
-      const balances: ObservatoryBalance = await data.json();
-
-      return setTotalStake(
-        balances.rewards.staking_rewards.amount + balances.delegated.amount,
-      );
-    };
-
-    fetchBalances();
-  }, [address]);
+  // Use React Query to fetch total stake
+  const {
+    data: totalStake = 0,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["totalStake", address],
+    queryFn: () => fetchBalances(address || ""),
+    enabled: !!address, // Only fetch if address exists
+    refetchInterval: 60000, // Refetch every 60 seconds
+    staleTime: 60000, // Data is fresh for 60 seconds
+  });
 
   if (!address) {
-    return null;
+    return null; // Do not render if address is not available
   }
+
+  if (isLoading) {
+    return (
+      <ExplorerCard label="Total Stake">
+        <Typography variant="body2">Loading...</Typography>
+      </ExplorerCard>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ExplorerCard label="Total Stake">
+        <Typography variant="body2" color="error">
+          Failed to load total stake.
+        </Typography>
+      </ExplorerCard>
+    );
+  }
+
   return (
     <ExplorerCard label="Total Stake">
       <Typography

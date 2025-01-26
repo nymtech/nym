@@ -167,6 +167,15 @@ const getTheme = (mode: "light" | "dark"): ThemeOptions => {
           },
         },
       },
+      MuiTableSortLabel: {
+        styleOverrides: {
+          root: {
+            "&.Mui-active .MuiTableSortLabel-icon": {
+              color: `${designTokens.palette.text.primary} !important`,
+            },
+          },
+        },
+      },
       MuiOutlinedInput: {
         styleOverrides: {},
       },

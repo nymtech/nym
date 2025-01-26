@@ -3,7 +3,7 @@
 import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
-import { Box, Button, Stack, Switch, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
 import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
@@ -11,7 +11,7 @@ import {
   useMaterialReactTable,
 } from "material-react-table";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite } from "../favorite/Favorite";
 import Loading from "../loading";
@@ -47,21 +47,6 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   }>();
   const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
-  const [filteredNodes, setFilteredNodes] = useState<MappedNymNode[]>(nodes);
-
-  const handleToggleFavorites = useCallback(
-    (showOnlyFavorites: boolean) => {
-      if (showOnlyFavorites) {
-        setFilteredNodes(
-          nodes.filter((node) => favorites.includes(node.owner)),
-        );
-      } else {
-        setFilteredNodes(nodes);
-      }
-      setInfoModalProps({ open: false });
-    },
-    [favorites, nodes],
-  );
 
   const handleStakeOnNode = useCallback(
     async ({ nodeId, amount }: { nodeId: number; amount: string }) => {
@@ -149,7 +134,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         id: "node",
         header: "",
         Header: <ColumnHeading>Node</ColumnHeading>,
-        accessorKey: "bondInformation.node.identity_key",
+        accessorKey: "identity_key",
         Cell: ({ row }) => (
           <Stack spacing={1}>
             <Typography variant="body4">{row.original.nodeId}</Typography>
@@ -239,20 +224,30 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: (
           <Stack direction="row" alignItems="center">
             <ColumnHeading>Favorite</ColumnHeading>
-            <Switch onChange={(_, checked) => handleToggleFavorites(checked)} />
           </Stack>
         ),
-        enableSorting: false,
+        sortingFn: (a, b) => {
+          const aIsFavorite = favorites.includes(a.original.owner);
+          const bIsFavorite = favorites.includes(b.original.owner);
+
+          if (aIsFavorite && !bIsFavorite) {
+            return -1;
+          }
+          if (!aIsFavorite && bIsFavorite) {
+            return 1;
+          }
+          return 0;
+        },
         Cell: ({ row }) => <Favorite address={row.original.owner} />,
       },
     ],
-    [isWalletConnected, handleOnSelectStake, handleToggleFavorites],
+    [isWalletConnected, handleOnSelectStake, favorites],
   );
   const table = useMaterialReactTable({
     columns,
-    data: filteredNodes,
-    enableRowSelection: false, //enable some features
-    enableColumnOrdering: false, //enable a feature for all columns
+    data: nodes,
+    enableRowSelection: false,
+    enableColumnOrdering: false,
     enableColumnActions: false,
     enableFullScreenToggle: false,
     enableHiding: false,
@@ -285,7 +280,6 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         bgcolor: "background.paper",
       },
     },
-
     muiTableBodyCellProps: {
       sx: {
         border: "none",

@@ -86,7 +86,9 @@ impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
         &mut self,
         message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
-        (**self).send_client_request(message).await
+        let _ = (**self).send_client_request(message.clone()).await?;
+        log::debug!("Sent client request: {:?}", message);
+        Ok(())
     }
 }
 

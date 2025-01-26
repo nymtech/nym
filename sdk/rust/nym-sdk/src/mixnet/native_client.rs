@@ -215,11 +215,12 @@ impl MixnetClient {
     /// client.
     pub async fn disconnect(mut self) {
         if self.forget_me.any() {
-            log::info!("Sending forget me request: {:?}", self.forget_me);
+            log::debug!("Sending forget me request: {:?}", self.forget_me);
             match self.send_forget_me().await {
                 Ok(_) => (),
                 Err(e) => error!("Failed to send forget me request: {}", e),
             };
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
         }
 
         if let TaskHandle::Internal(task_manager) = &mut self.task_handle {

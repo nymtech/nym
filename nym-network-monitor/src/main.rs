@@ -219,10 +219,12 @@ async fn main() -> Result<()> {
         TOPOLOGY.get().expect("Topology not set yet!").clone(),
     ));
 
+    let clients_server = clients.clone();
+
     let server_handle = tokio::spawn(async move {
         let socket = SocketAddr::new(IpAddr::V4(Ipv4Addr::from_str(&args.host)?), args.port);
         let server = HttpServer::new(socket, server_cancel_token);
-        server.run(clients).await
+        server.run(clients_server).await
     });
 
     info!("Waiting for message (ctrl-c to exit)");
@@ -254,6 +256,15 @@ async fn main() -> Result<()> {
                 submit_metrics(client).await?;
             }
         };
+    }
+
+    info!("Disconnecting all clients");
+    let mut clients_guard = clients.write().await;
+    while let Some(client) = clients_guard.pop_front() {
+        if let Some(client) = Arc::into_inner(client) {
+            let client_handle = client.into_inner();
+            client_handle.disconnect().await;
+        }
     }
 
     cancel_token.cancel();

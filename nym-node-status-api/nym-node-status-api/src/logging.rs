@@ -40,28 +40,6 @@ pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {
 
     let log_level_hint = filter.max_level_hint();
 
-    // debug or higher granularity (e.g. trace)
-    let debug_or_higher = std::cmp::max(
-        log_level_hint.unwrap_or(LevelFilter::DEBUG),
-        LevelFilter::DEBUG,
-    );
-    filter = filter.add_directive(directive_checked(format!(
-        "nym_bin_common={}",
-        debug_or_higher
-    ))?);
-    filter = filter.add_directive(directive_checked(format!(
-        "nym_explorer_client={}",
-        debug_or_higher
-    ))?);
-    filter = filter.add_directive(directive_checked(format!(
-        "nym_network_defaults={}",
-        debug_or_higher
-    ))?);
-    filter = filter.add_directive(directive_checked(format!(
-        "nym_validator_client={}",
-        debug_or_higher
-    ))?);
-
     log_builder.with_env_filter(filter).init();
     tracing::info!("Log level: {:?}", log_level_hint);
 

@@ -9,8 +9,8 @@ use crate::{
             gateway::{GatewaySummary, GatewaySummaryBonded, GatewaySummaryHistorical},
             mixnode::{MixnodeSummary, MixnodeSummaryBonded, MixnodeSummaryHistorical},
             NetworkSummary, SummaryDto, SummaryHistoryDto, GATEWAYS_BONDED_COUNT,
-            GATEWAYS_HISTORICAL_COUNT, LEGACY_MIXNODES_COUNT, MIXNODES_BONDED_ACTIVE,
-            MIXNODES_BONDED_COUNT, MIXNODES_HISTORICAL_COUNT,
+            GATEWAYS_HISTORICAL_COUNT, MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT,
+            MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT,
         },
         DbPool,
     },
@@ -84,7 +84,7 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
         GATEWAYS_HISTORICAL_COUNT,
         MIXNODES_BONDED_ACTIVE,
         MIXNODES_BONDED_COUNT,
-        LEGACY_MIXNODES_COUNT,
+        MIXNODES_LEGACY_COUNT,
         MIXNODES_HISTORICAL_COUNT,
     ];
 
@@ -107,7 +107,7 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
     let mixnodes_bonded_active: SummaryDto =
         map.get(MIXNODES_BONDED_ACTIVE).cloned().unwrap_or_default();
     let legacy_mixnodes_count: SummaryDto =
-        map.get(LEGACY_MIXNODES_COUNT).cloned().unwrap_or_default();
+        map.get(MIXNODES_LEGACY_COUNT).cloned().unwrap_or_default();
     let gateways_bonded_count: SummaryDto =
         map.get(GATEWAYS_BONDED_COUNT).cloned().unwrap_or_default();
     let mixnodes_historical_count: SummaryDto = map

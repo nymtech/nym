@@ -22,6 +22,7 @@ cosmwasm-std = { workspace = true }
 envy = { workspace = true }
 futures-util = { workspace = true }
 moka = { workspace = true, features = ["future"] }
+nym-contracts-common = { path = "../../common/cosmwasm-smart-contracts/contracts-common" }
 nym-bin-common = { path = "../../common/bin-common", features = ["models"] }
 nym-node-status-client = { path = "../nym-node-status-client" }
 nym-crypto = { path = "../../common/crypto", features = ["asymmetric", "serde"] }

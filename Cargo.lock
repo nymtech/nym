@@ -6312,6 +6312,7 @@ dependencies = [
  "futures-util",
  "moka",
  "nym-bin-common",
+ "nym-contracts-common",
  "nym-crypto",
  "nym-explorer-client",
  "nym-network-defaults",

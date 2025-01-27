@@ -90,7 +90,7 @@ pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gatewa
             gw.gateway_identity_key as "gateway_identity_key!",
             gw.bonded as "bonded: bool",
             gw.performance as "performance!",
-        gw.self_described as "self_described?",
+            gw.self_described as "self_described?",
             gw.explorer_pretty_bond as "explorer_pretty_bond?",
             gw.last_probe_result as "last_probe_result?",
             gw.last_probe_log as "last_probe_log?",

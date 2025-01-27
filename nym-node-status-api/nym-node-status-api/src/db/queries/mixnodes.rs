@@ -1,5 +1,4 @@
 use futures_util::TryStreamExt;
-use nym_validator_client::models::MixNodeBondAnnotated;
 use tracing::error;
 
 use crate::{
@@ -118,38 +117,6 @@ pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailySt
     .await?;
 
     Ok(items)
-}
-
-/// Ensure all mixnodes that are set as bonded, are still bonded
-pub(crate) async fn ensure_mixnodes_still_bonded(
-    pool: &DbPool,
-    mixnodes: &[MixNodeBondAnnotated],
-) -> anyhow::Result<usize> {
-    let bonded_mixnodes_rows = get_all_bonded_mixnodes_row_ids_by_status(pool, true).await?;
-    let unbonded_mixnodes_rows = bonded_mixnodes_rows.iter().filter(|v| {
-        !mixnodes
-            .iter()
-            .any(|bonded| *bonded.mixnode_details.bond_information.identity() == v.identity_key)
-    });
-
-    let recently_unbonded_mixnodes = unbonded_mixnodes_rows.to_owned().count();
-    let last_updated_utc = chrono::offset::Utc::now().timestamp();
-    let mut transaction = pool.begin().await?;
-    for row in unbonded_mixnodes_rows {
-        sqlx::query!(
-            "UPDATE mixnodes
-                SET bonded = ?, last_updated_utc = ?
-                WHERE id = ?;",
-            false,
-            last_updated_utc,
-            row.id,
-        )
-        .execute(&mut *transaction)
-        .await?;
-    }
-    transaction.commit().await?;
-
-    Ok(recently_unbonded_mixnodes)
 }
 
 async fn get_all_bonded_mixnodes_row_ids_by_status(

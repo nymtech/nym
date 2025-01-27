@@ -6,7 +6,6 @@ use crate::{
     http::models::Gateway,
 };
 use futures_util::TryStreamExt;
-use nym_validator_client::models::NymNodeDescription;
 use sqlx::{pool::PoolConnection, Sqlite};
 use tracing::error;
 
@@ -59,38 +58,6 @@ pub(crate) async fn insert_gateways(
     }
 
     Ok(())
-}
-
-/// Ensure all gateways that are set as bonded, are still bonded
-pub(crate) async fn ensure_gateways_still_bonded(
-    pool: &DbPool,
-    gateways: &[&NymNodeDescription],
-) -> anyhow::Result<usize> {
-    let bonded_gateways_rows = get_all_bonded_gateways_row_ids_by_status(pool, true).await?;
-    let unbonded_gateways_rows = bonded_gateways_rows.iter().filter(|v| {
-        !gateways
-            .iter()
-            .any(|bonded| *bonded.ed25519_identity_key().to_base58_string() == v.identity_key)
-    });
-
-    let recently_unbonded_gateways = unbonded_gateways_rows.to_owned().count();
-    let last_updated_utc = chrono::offset::Utc::now().timestamp();
-    let mut transaction = pool.begin().await?;
-    for row in unbonded_gateways_rows {
-        sqlx::query!(
-            "UPDATE gateways
-                SET bonded = ?, last_updated_utc = ?
-                WHERE id = ?;",
-            false,
-            last_updated_utc,
-            row.id,
-        )
-        .execute(&mut *transaction)
-        .await?;
-    }
-    transaction.commit().await?;
-
-    Ok(recently_unbonded_gateways)
 }
 
 async fn get_all_bonded_gateways_row_ids_by_status(

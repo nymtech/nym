@@ -202,11 +202,6 @@ impl Monitor {
                 tracing::debug!("Mixnode info written to DB!");
             })?;
 
-        let recently_unbonded_gateways =
-            queries::ensure_gateways_still_bonded(&pool, &gateways).await?;
-        let recently_unbonded_mixnodes =
-            queries::ensure_mixnodes_still_bonded(&pool, &legacy_mixnodes).await?;
-
         let (all_historical_gateways, all_historical_mixnodes) = calculate_stats(&pool).await?;
 
         //
@@ -220,12 +215,17 @@ impl Monitor {
             // ASSIGNED_EXIT
             // ASSIGNED_MIX
             // UNASSIGNED_NODE (not assigned anything of the above in the current epoch)
-            (MIXNODES_BONDED_COUNT, &count_bonded_mixnodes),
-            (MIXNODES_BONDED_ACTIVE, &count_bonded_mixnodes_active),
+            // TODO dz: nym_nodes_count
+            // TODO dz: entry_gateways
+            // TODO dz: exit_gateways
+            (MIXNODES_LEGACY_COUNT, count_legacy_mixnodes),
+            (MIXNODES_BONDED_COUNT, count_bonded_mixnodes),
+            (MIXNODES_BONDED_ACTIVE, count_bonded_mixnodes_active),
+            (GATEWAYS_BONDED_COUNT, count_bonded_gateways),
             // TODO dz doesn't make sense, could make sense with historical Nym
             // Nodes if we really need this data
-            (MIXNODES_HISTORICAL_COUNT, &all_historical_mixnodes),
-            (GATEWAYS_HISTORICAL_COUNT, &all_historical_gateways),
+            (MIXNODES_HISTORICAL_COUNT, all_historical_mixnodes),
+            (GATEWAYS_HISTORICAL_COUNT, all_historical_gateways),
         ];
 
         let last_updated = chrono::offset::Utc::now();
@@ -235,6 +235,7 @@ impl Monitor {
                 bonded: mixnode::MixnodeSummaryBonded {
                     count: count_bonded_mixnodes.cast_checked()?,
                     active: count_bonded_mixnodes_active.cast_checked()?,
+                    legacy: count_legacy_mixnodes.cast_checked()?,
                     last_updated_utc: last_updated_utc.to_owned(),
                 },
                 historical: mixnode::MixnodeSummaryHistorical {
@@ -261,14 +262,6 @@ impl Monitor {
         for (key, value) in nodes_summary.iter() {
             log_lines.push(format!("{} = {}", key, value));
         }
-        log_lines.push(format!(
-            "recently_unbonded_mixnodes = {}",
-            recently_unbonded_mixnodes
-        ));
-        log_lines.push(format!(
-            "recently_unbonded_gateways = {}",
-            recently_unbonded_gateways
-        ));
 
         tracing::info!("Directory summary: \n{}", log_lines.join("\n"));
 

@@ -125,7 +125,7 @@ impl Scraper {
                 let pool = pool.clone();
 
                 tokio::spawn(async move {
-                    match Self::scrape_and_store_description(&pool, &node).await {
+                    match scrape_and_store_description(&pool, &node).await {
                         Ok(_) => debug!(
                             "✅ Description task #{} for node {} complete",
                             task_id, node.node_id
@@ -170,7 +170,7 @@ impl Scraper {
                 let pool = pool.clone();
 
                 tokio::spawn(async move {
-                    match Self::scrape_and_store_packet_stats(&pool, &node).await {
+                    match scrape_and_store_packet_stats(&pool, &node).await {
                         Ok(_) => debug!(
                             "✅ Packet stats task #{} for node {} complete",
                             task_id, node.node_id
@@ -187,16 +187,5 @@ impl Scraper {
             }
         }
         Ok(())
-    }
-
-    async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeInfo) -> Result<()> {
-        scrape_and_store_description(pool, node).await
-    }
-
-    async fn scrape_and_store_packet_stats(
-        pool: &SqlitePool,
-        node: &ScraperNodeInfo,
-    ) -> Result<()> {
-        scrape_and_store_packet_stats(pool, node).await
     }
 }

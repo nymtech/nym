@@ -5,6 +5,7 @@ pub mod constants;
 pub mod error;
 pub mod msg;
 pub mod types;
+mod utils;
 
 pub use error::*;
 pub use msg::{ExecuteMsg, InstantiateMsg, MigrateMsg, QueryMsg};

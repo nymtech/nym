@@ -18,14 +18,14 @@ const CONTRACT_VERSION: &str = env!("CARGO_PKG_VERSION");
 #[entry_point]
 pub fn instantiate(
     deps: DepsMut,
-    _env: Env,
+    env: Env,
     info: MessageInfo,
     msg: InstantiateMsg,
 ) -> Result<Response, NymPoolContractError> {
     cw2::set_contract_version(deps.storage, CONTRACT_NAME, CONTRACT_VERSION)?;
     set_build_information_cw22!(deps.storage)?;
 
-    NYM_POOL_STORAGE.initialise(deps, info.sender, &msg.pool_denomination)?;
+    NYM_POOL_STORAGE.initialise(deps, env, info.sender, &msg.pool_denomination, msg.grants)?;
 
     Ok(Response::default())
 }
@@ -46,6 +46,10 @@ pub fn execute(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NymPoolContractError> {
     match msg {
         QueryMsg::Admin {} => Ok(to_json_binary(&query_admin(deps)?)?),
+        QueryMsg::GetAvailableTokens {} => todo!(),
+        QueryMsg::GetTotalLockedTokens {} => todo!(),
+        QueryMsg::GetLockedTokens { grantee } => todo!(),
+        QueryMsg::GetLockedTokensPaged { limit, start_after } => todo!(),
     }
 }
 
@@ -78,6 +82,7 @@ mod tests {
             let env = mock_env();
             let init_msg = InstantiateMsg {
                 pool_denomination: TEST_DENOM.to_string(),
+                grants: Default::default(),
             };
 
             let some_sender = deps.api.addr_make("some_sender");
@@ -101,6 +106,7 @@ mod tests {
             let env = mock_env();
             let init_msg = InstantiateMsg {
                 pool_denomination: "some_denom".to_string(),
+                grants: Default::default(),
             };
 
             let some_sender = deps.api.addr_make("some_sender");
@@ -121,13 +127,28 @@ mod tests {
             Ok(())
         }
 
-        #[test]
-        fn sets_pool_value_to_transferred_tokens() -> anyhow::Result<()> {
-            todo!()
+        #[cfg(test)]
+        mod setting_initial_grants {
+            use super::*;
+
+            #[test]
+            fn with_empty_map() {
+                //
+            }
+
+            #[test]
+            fn with_insufficient_tokens() {
+                //
+            }
+
+            #[test]
+            fn with_valid_request() {
+                //
+            }
         }
 
         #[test]
-        fn sets_initial_grants() -> anyhow::Result<()> {
+        fn sets_pool_value_to_transferred_tokens() -> anyhow::Result<()> {
             todo!()
         }
     }

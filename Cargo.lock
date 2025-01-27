@@ -6731,6 +6731,7 @@ dependencies = [
  "schemars",
  "serde",
  "thiserror 2.0.11",
+ "time",
 ]
 
 [[package]]

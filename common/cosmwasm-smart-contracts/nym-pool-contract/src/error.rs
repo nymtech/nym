@@ -1,6 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use cosmwasm_std::Coin;
 use cw_controllers::AdminError;
 use thiserror::Error;
 
@@ -14,4 +15,32 @@ pub enum NymPoolContractError {
 
     #[error(transparent)]
     StdErr(#[from] cosmwasm_std::StdError),
+
+    #[error("{addr} is not a permitted granter")]
+    InvalidGranter { addr: String },
+
+    #[error("invalid coin denomination. got {got}, but expected {expected}")]
+    InvalidDenom { expected: String, got: String },
+
+    #[error("there already exists an active grant for {grantee}. it was granted by {granter} at block height {created_at_height}")]
+    GrantAlreadyExist {
+        granter: String,
+        grantee: String,
+        created_at_height: u64,
+    },
+
+    #[error("could not find any active grants for {grantee}")]
+    GrantNotFound { grantee: String },
+
+    #[error("the provided timestamp value ({timestamp}) is set in the past. the current block timestamp is {current_block_timestamp}")]
+    TimestampInThePast {
+        timestamp: u64,
+        current_block_timestamp: u64,
+    },
+
+    #[error("there are not enough tokens to process this grant. {available} are available, but {requested_grant} was requested.")]
+    InsufficientTokens {
+        available: Coin,
+        requested_grant: Coin,
+    },
 }

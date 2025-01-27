@@ -1,8 +1,9 @@
 #![allow(deprecated)]
 
 use crate::db::models::{
-    gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_HISTORICAL_COUNT,
-    MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT, MIXNODES_HISTORICAL_COUNT,
+    gateway, mixnode, GatewayRecord, MixnodeRecord, NetworkSummary, GATEWAYS_BONDED_COUNT,
+    GATEWAYS_HISTORICAL_COUNT, MIXNODES_BONDED_ACTIVE, MIXNODES_BONDED_COUNT,
+    MIXNODES_HISTORICAL_COUNT, MIXNODES_LEGACY_COUNT,
 };
 use crate::db::{queries, DbPool};
 use crate::monitor::geodata::{Location, NodeGeoData};
@@ -19,7 +20,7 @@ use nym_validator_client::nyxd::contract_traits::PagedMixnetQueryClient;
 use nym_validator_client::nyxd::{AccountId, NyxdClient};
 use nym_validator_client::NymApiClient;
 use reqwest::Url;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use tokio::time::Duration;
 use tracing::instrument;
@@ -100,30 +101,20 @@ impl Monitor {
         let api_client =
             NymApiClient::new_with_timeout(default_api_url, self.nym_api_client_timeout);
 
-        let all_nodes = api_client
+        let described_nodes = api_client
             .get_all_described_nodes()
             .await
             .log_error("get_all_described_nodes")?;
-        tracing::debug!("Fetched {} total nodes", all_nodes.len());
+        tracing::info!("🟣 described nodes: {}", described_nodes.len());
 
-        let gateways = all_nodes
+        let gateways = described_nodes
             .iter()
             .filter(|node| node.description.declared_role.entry)
             .collect::<Vec<_>>();
         tracing::debug!(
             "{}/{} with declared entry gateway capability",
             gateways.len(),
-            all_nodes.len()
-        );
-
-        let mixnodes = all_nodes
-            .iter()
-            .filter(|node| node.description.declared_role.mixnode)
-            .collect::<Vec<_>>();
-        tracing::debug!(
-            "{}/{} with declared mixnode capability",
-            mixnodes.len(),
-            all_nodes.len()
+            described_nodes.len()
         );
 
         let bonded_node_info = api_client
@@ -133,6 +124,17 @@ impl Monitor {
             .map(|node| (node.bond_information.node_id, node.bond_information))
             // for faster reads
             .collect::<HashMap<_, _>>();
+
+        let mixnodes = described_nodes
+            .iter()
+            .filter(|node| node.description.declared_role.mixnode)
+            .collect::<Vec<_>>();
+
+        tracing::debug!(
+            "{}/{} with declared mixnode capability",
+            mixnodes.len(),
+            described_nodes.len()
+        );
 
         let mut gateway_geodata = Vec::new();
         for gateway in gateways.iter() {
@@ -148,41 +150,69 @@ impl Monitor {
         }
 
         // contains performance data
-        let all_skimmed_nodes = api_client
+        let nym_nodes = api_client
             .get_all_basic_nodes()
             .await
             .log_error("get_all_basic_nodes")?;
 
-        // Cached mixnodes don't include blacklisted nodes
-        // We need that to calculate the total locked tokens later
-        // TODO dz deprecated API, remove
-        let legacy_mixnodes = api_client
+        // TODO dz clean up these debug logs
+        tracing::info!("🟣 nym nodes: {}", nym_nodes.len());
+
+        queries::insert_nym_nodes(&self.db_pool, nym_nodes.clone()).await?;
+
+        let mixnodes_detailed = api_client
             .nym_api
             .get_mixnodes_detailed_unfiltered()
             .await
             .log_error("get_mixnodes_detailed_unfiltered")?;
+
+        tracing::info!(
+            "🟣 mixnodes_detailed_unfiltered: {}",
+            mixnodes_detailed.len()
+        );
+
+        let mixnodes_detailed_set = mixnodes_detailed
+            .iter()
+            .map(|elem| elem.identity_key().to_owned())
+            .collect::<HashSet<_>>();
+
+        let mixnodes_legacy = nym_nodes
+            .iter()
+            .filter(|node| {
+                mixnodes_detailed_set.contains(&node.ed25519_identity_pubkey.to_base58_string())
+            })
+            .collect::<Vec<_>>();
+        tracing::info!("🟣 mixnodes_legacy: {}", mixnodes_legacy.len());
+
         let mixnodes_described = api_client
             .nym_api
             .get_mixnodes_described()
             .await
             .log_error("get_mixnodes_described")?;
-        let mixnodes_active = api_client
+
+        tracing::info!("🟣 mixnodes_described: {}", mixnodes_described.len());
+        let mixing_assigned_nodes = api_client
             .nym_api
             .get_basic_active_mixing_assigned_nodes(false, None, None)
             .await
-            .log_error("get_active_mixnodes")?
+            .log_error("get_basic_active_mixing_assigned_nodes")?
             .nodes
             .data;
+
+        tracing::info!(
+            "🟣 mixing assigned nodes in this epoch: {}",
+            mixing_assigned_nodes.len()
+        );
         let delegation_program_members =
             get_delegation_program_details(&self.network_details, &self.nyxd_addr).await?;
 
         // keep stats for later
         let count_bonded_mixnodes = mixnodes.len();
         let count_bonded_gateways = gateways.len();
-        let count_bonded_mixnodes_active = mixnodes_active.len();
+        let count_bonded_mixnodes_active = mixing_assigned_nodes.len();
+        let count_legacy_mixnodes = mixnodes_legacy.len();
 
-        let gateway_records =
-            self.prepare_gateway_data(&gateways, gateway_geodata, all_skimmed_nodes)?;
+        let gateway_records = self.prepare_gateway_data(&gateways, gateway_geodata, nym_nodes)?;
 
         let pool = self.db_pool.clone();
         queries::insert_gateways(&pool, gateway_records)
@@ -192,7 +222,7 @@ impl Monitor {
             })?;
 
         let mixnode_records = self.prepare_mixnode_data(
-            &legacy_mixnodes,
+            &mixnodes_detailed,
             mixnodes_described,
             delegation_program_members,
         )?;

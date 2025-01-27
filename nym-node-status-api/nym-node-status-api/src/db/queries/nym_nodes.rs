@@ -1,0 +1,89 @@
+use futures_util::TryStreamExt;
+use nym_validator_client::{nym_api::SkimmedNode, nym_nodes::NodeRole};
+
+use crate::db::{
+    models::{NymNodeDto, NymNodeInsertRecord},
+    DbPool,
+};
+
+pub(crate) async fn get_nym_nodes_declared_as_role(
+    pool: &DbPool,
+    node_role: NodeRole,
+) -> anyhow::Result<Vec<SkimmedNode>> {
+    let mut conn = pool.acquire().await?;
+
+    let items = sqlx::query_as!(
+        NymNodeDto,
+        r#"SELECT
+            node_id,
+            ed25519_identity_pubkey,
+            ip_addresses as "ip_addresses!",
+            mix_port,
+            x25519_sphinx_pubkey,
+            node_role,
+            supported_roles,
+            performance,
+            entry
+        FROM
+            nym_nodes
+        "#,
+    )
+    .fetch(&mut *conn)
+    .try_collect::<Vec<NymNodeDto>>()
+    .await?;
+
+    let mut skimmed_nodes = Vec::new();
+    for item in items {
+        let skimmed_node = SkimmedNode::try_from(item)?;
+        if skimmed_node.role == node_role {
+            skimmed_nodes.push(skimmed_node);
+        }
+    }
+
+    Ok(skimmed_nodes)
+}
+
+pub(crate) async fn insert_nym_nodes(
+    pool: &DbPool,
+    nym_nodes: Vec<SkimmedNode>,
+) -> anyhow::Result<()> {
+    let mut conn = pool.acquire().await?;
+
+    for nym_node in nym_nodes.into_iter() {
+        let record: NymNodeInsertRecord = nym_node.try_into()?;
+        // https://www.sqlite.org/lang_upsert.html
+        sqlx::query!(
+            "INSERT INTO nym_nodes
+                (node_id, ed25519_identity_pubkey,
+                    ip_addresses, mix_port,
+                    x25519_sphinx_pubkey, node_role,
+                    supported_roles,
+                    performance, last_updated_utc
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(node_id) DO UPDATE SET
+                ed25519_identity_pubkey=excluded.ed25519_identity_pubkey,
+                ip_addresses=excluded.ip_addresses,
+                mix_port=excluded.mix_port,
+                x25519_sphinx_pubkey=excluded.x25519_sphinx_pubkey,
+                node_role=excluded.node_role,
+                supported_roles=excluded.supported_roles,
+                performance=excluded.performance,
+                last_updated_utc=excluded.last_updated_utc
+                ;",
+            record.node_id,
+            record.ed25519_identity_pubkey,
+            record.ip_addresses_serialized,
+            record.mix_port,
+            record.x25519_sphinx_pubkey,
+            record.node_role,
+            record.supported_roles_serialized,
+            record.performance,
+            record.last_updated_utc,
+        )
+        .execute(&mut *conn)
+        .await?;
+    }
+
+    Ok(())
+}

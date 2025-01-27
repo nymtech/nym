@@ -108,7 +108,9 @@ const SubHeaderRowActions = () => {
         "Redeeming all rewards",
       );
       console.log("Rewards redeemed successfully:", result);
-
+      // Success state
+      fetchTotalRewards(address);
+      setIsLoading(false);
       setInfoModalProps({
         open: true,
         title: "Success",
@@ -153,7 +155,11 @@ const SubHeaderRowActions = () => {
 
   return (
     <Stack direction="row" spacing={3} justifyContent={"end"}>
-      <Button variant="contained" onClick={handleRedeemRewardsButtonClick}>
+      <Button
+        variant="contained"
+        onClick={handleRedeemRewardsButtonClick}
+        disabled={totalStakerRewards === 0}
+      >
         Redeem NYM
       </Button>
       {isLoading && <Loading />}

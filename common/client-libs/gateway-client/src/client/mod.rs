@@ -271,6 +271,19 @@ impl<C, St> GatewayClient<C, St> {
         }
     }
 
+    pub async fn send_client_request(
+        &mut self,
+        message: ClientRequest,
+    ) -> Result<(), GatewayClientError> {
+        if let Some(shared_key) = self.shared_key() {
+            let encrypted = message.encrypt(&*shared_key)?;
+            Box::pin(self.send_websocket_message(encrypted)).await?;
+            Ok(())
+        } else {
+            Err(GatewayClientError::ConnectionInInvalidState)
+        }
+    }
+
     async fn read_control_response(&mut self) -> Result<ServerResponse, GatewayClientError> {
         // we use the fact that all request responses are Message::Text and only pushed
         // sphinx packets are Message::Binary

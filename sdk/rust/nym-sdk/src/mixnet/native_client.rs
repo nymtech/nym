@@ -5,12 +5,15 @@ use async_trait::async_trait;
 use futures::{ready, Stream, StreamExt};
 use log::error;
 use nym_client_core::client::base_client::GatewayConnection;
+use nym_client_core::client::mix_traffic::ClientRequestSender;
 use nym_client_core::client::{
     base_client::{ClientInput, ClientOutput, ClientState},
     inbound_messages::InputMessage,
     received_buffer::ReconstructedMessagesReceiver,
 };
+use nym_client_core::ForgetMe;
 use nym_crypto::asymmetric::identity;
+use nym_gateway_requests::ClientRequest;
 use nym_sphinx::addressing::clients::Recipient;
 use nym_sphinx::{params::PacketType, receiver::ReconstructedMessage};
 use nym_statistics_common::clients::{ClientStatsEvents, ClientStatsSender};
@@ -56,6 +59,8 @@ pub struct MixnetClient {
 
     // internal state used for the `Stream` implementation
     _buffered: Vec<ReconstructedMessage>,
+    pub(crate) client_request_sender: ClientRequestSender,
+    pub(crate) forget_me: ForgetMe,
 }
 
 impl MixnetClient {
@@ -70,6 +75,8 @@ impl MixnetClient {
         stats_events_reporter: ClientStatsSender,
         task_handle: TaskHandle,
         packet_type: Option<PacketType>,
+        client_request_sender: ClientRequestSender,
+        forget_me: ForgetMe,
     ) -> Self {
         Self {
             nym_address,
@@ -82,6 +89,8 @@ impl MixnetClient {
             task_handle,
             packet_type,
             _buffered: Vec::new(),
+            client_request_sender,
+            forget_me,
         }
     }
 
@@ -110,6 +119,10 @@ impl MixnetClient {
     /// client identity, the client encryption key, and the gateway identity.
     pub fn nym_address(&self) -> &Recipient {
         &self.nym_address
+    }
+
+    pub fn client_request_sender(&self) -> ClientRequestSender {
+        self.client_request_sender.clone()
     }
 
     /// Sign a message with the client's private identity key.
@@ -201,6 +214,15 @@ impl MixnetClient {
     /// Disconnect from the mixnet. Currently it is not supported to reconnect a disconnected
     /// client.
     pub async fn disconnect(mut self) {
+        if self.forget_me.any() {
+            log::debug!("Sending forget me request: {:?}", self.forget_me);
+            match self.send_forget_me().await {
+                Ok(_) => (),
+                Err(e) => error!("Failed to send forget me request: {}", e),
+            };
+            tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+        }
+
         if let TaskHandle::Internal(task_manager) = &mut self.task_handle {
             task_manager.signal_shutdown().ok();
             task_manager.wait_for_shutdown().await;
@@ -208,6 +230,20 @@ impl MixnetClient {
 
         // note: it's important to take ownership of the struct as if the shutdown is `TaskHandle::External`,
         // it must be dropped to finalize the shutdown
+    }
+
+    pub async fn send_forget_me(&self) -> Result<()> {
+        let client_request = ClientRequest::ForgetMe {
+            client: self.forget_me.client(),
+            stats: self.forget_me.stats(),
+        };
+        match self.client_request_sender.send(client_request).await {
+            Ok(_) => Ok(()),
+            Err(e) => {
+                error!("Failed to send forget me request: {}", e);
+                Err(Error::MessageSendingFailure)
+            }
+        }
     }
 }
 

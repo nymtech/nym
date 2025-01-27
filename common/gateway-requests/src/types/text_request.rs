@@ -13,7 +13,7 @@ use std::str::FromStr;
 use tungstenite::Message;
 
 // wrapper for all encrypted requests for ease of use
-#[derive(Serialize, Deserialize, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[non_exhaustive]
 pub enum ClientRequest {
     UpgradeKey {

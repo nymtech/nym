@@ -1,6 +1,7 @@
 // Copyright 2022-2023 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use super::mix_traffic::ClientRequestSender;
 use super::received_buffer::ReceivedBufferMessage;
 use super::statistics_control::StatisticsControl;
 use crate::client::base_client::storage::helpers::store_client_keys;
@@ -645,13 +646,12 @@ where
     fn start_mix_traffic_controller(
         gateway_transceiver: Box<dyn GatewayTransceiver + Send>,
         shutdown: TaskClient,
-        forget_me: ForgetMe,
-    ) -> BatchMixMessageSender {
+    ) -> (BatchMixMessageSender, ClientRequestSender) {
         info!("Starting mix traffic controller...");
-        let (mix_traffic_controller, mix_tx) =
-            MixTrafficController::new(gateway_transceiver, forget_me);
+        let (mix_traffic_controller, mix_tx, client_tx) =
+            MixTrafficController::new(gateway_transceiver);
         mix_traffic_controller.start_with_shutdown(shutdown);
-        mix_tx
+        (mix_tx, client_tx)
     }
 
     // TODO: rename it as it implies the data is persistent whilst one can use InMemBackend
@@ -833,10 +833,9 @@ where
         // traffic stream.
         // The MixTrafficController then sends the actual traffic
 
-        let message_sender = Self::start_mix_traffic_controller(
+        let (message_sender, client_request_sender) = Self::start_mix_traffic_controller(
             gateway_transceiver,
             shutdown.fork("mix_traffic_controller"),
-            self.forget_me,
         );
 
         // Channels that the websocket listener can use to signal downstream to the real traffic
@@ -911,6 +910,8 @@ where
             },
             stats_reporter,
             task_handle: shutdown,
+            client_request_sender,
+            forget_me: self.forget_me,
         })
     }
 }
@@ -922,6 +923,7 @@ pub struct BaseClient {
     pub client_output: ClientOutputStatus,
     pub client_state: ClientState,
     pub stats_reporter: ClientStatsSender,
-
+    pub client_request_sender: ClientRequestSender,
     pub task_handle: TaskHandle,
+    pub forget_me: ForgetMe,
 }

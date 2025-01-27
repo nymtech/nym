@@ -22,7 +22,7 @@ pub use user_agent::UserAgent;
 #[cfg(not(target_arch = "wasm32"))]
 mod dns;
 #[cfg(not(target_arch = "wasm32"))]
-pub use dns::HickoryDnsResolver;
+pub use dns::{HickoryDnsResolver, HickoryDnsError};
 
 // The timeout is relatively high as we are often making requests over the mixnet, where latency is
 // high and chatty protocols take a while to complete.

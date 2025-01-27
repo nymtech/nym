@@ -3,7 +3,7 @@ use crate::error::ClientCoreError;
 use nym_http_api_client::HickoryDnsResolver;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
-use tungstenite::{error::UrlError, handshake::client::Response};
+use tungstenite::handshake::client::Response;
 use url::{Host, Url};
 
 use std::net::SocketAddr;
@@ -29,13 +29,7 @@ pub(crate) async fn connect_async(
             // Do a DNS lookup for the domain using our custom DNS resolver
             resolver
                 .resolve_str(domain)
-                .await
-                .map_err(|_| {
-                    // failed to resolve
-                    ClientCoreError::GatewayConnectionFailure {
-                        source: UrlError::NoPathOrQuery.into(),
-                    }
-                })?
+                .await?
                 .into_iter()
                 .map(|a| SocketAddr::new(a, port))
                 .collect()

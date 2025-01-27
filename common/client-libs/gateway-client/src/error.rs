@@ -46,6 +46,9 @@ pub enum GatewayClientError {
     #[error("Invalid URL: {0}")]
     InvalidUrl(String),
 
+    #[error("resolution failed: {0}")]
+    ResolutionFailed(#[from] nym_http_api_client::HickoryDnsError),
+
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,
 

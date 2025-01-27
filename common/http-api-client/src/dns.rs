@@ -40,6 +40,7 @@ struct SocketAddrs {
 
 #[derive(Debug, thiserror::Error)]
 #[error("hickory-dns resolver error: {hickory_error}")]
+/// Error occurring while resolving a hostname into an IP address. 
 pub struct HickoryDnsError {
     #[from]
     hickory_error: ResolveError,

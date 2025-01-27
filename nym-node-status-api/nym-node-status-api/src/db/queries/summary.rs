@@ -8,7 +8,9 @@ use crate::{
         models::{
             gateway::{GatewaySummary, GatewaySummaryBonded, GatewaySummaryHistorical},
             mixnode::{MixnodeSummary, MixnodeSummaryBonded, MixnodeSummaryHistorical},
-            NetworkSummary, SummaryDto, SummaryHistoryDto,
+            NetworkSummary, SummaryDto, SummaryHistoryDto, GATEWAYS_BONDED_COUNT,
+            GATEWAYS_HISTORICAL_COUNT, LEGACY_MIXNODES_COUNT, MIXNODES_BONDED_ACTIVE,
+            MIXNODES_BONDED_COUNT, MIXNODES_HISTORICAL_COUNT,
         },
         DbPool,
     },
@@ -70,12 +72,6 @@ pub(crate) async fn get_summary(pool: &DbPool) -> HttpResult<NetworkSummary> {
 }
 
 async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> {
-    const MIXNODES_BONDED_COUNT: &str = "mixnodes.bonded.count";
-    const MIXNODES_BONDED_ACTIVE: &str = "mixnodes.bonded.active";
-    const GATEWAYS_BONDED_COUNT: &str = "gateways.bonded.count";
-    const MIXNODES_HISTORICAL_COUNT: &str = "mixnodes.historical.count";
-    const GATEWAYS_HISTORICAL_COUNT: &str = "gateways.historical.count";
-
     // convert database rows into a map by key
     let mut map = HashMap::new();
     for item in items {
@@ -88,6 +84,7 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
         GATEWAYS_HISTORICAL_COUNT,
         MIXNODES_BONDED_ACTIVE,
         MIXNODES_BONDED_COUNT,
+        LEGACY_MIXNODES_COUNT,
         MIXNODES_HISTORICAL_COUNT,
     ];
 
@@ -109,6 +106,8 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
         map.get(MIXNODES_BONDED_COUNT).cloned().unwrap_or_default();
     let mixnodes_bonded_active: SummaryDto =
         map.get(MIXNODES_BONDED_ACTIVE).cloned().unwrap_or_default();
+    let legacy_mixnodes_count: SummaryDto =
+        map.get(LEGACY_MIXNODES_COUNT).cloned().unwrap_or_default();
     let gateways_bonded_count: SummaryDto =
         map.get(GATEWAYS_BONDED_COUNT).cloned().unwrap_or_default();
     let mixnodes_historical_count: SummaryDto = map
@@ -125,6 +124,7 @@ async fn from_summary_dto(items: Vec<SummaryDto>) -> HttpResult<NetworkSummary> 
             bonded: MixnodeSummaryBonded {
                 count: to_count_i32(&mixnodes_bonded_count),
                 active: to_count_i32(&mixnodes_bonded_active),
+                legacy: to_count_i32(&legacy_mixnodes_count),
                 last_updated_utc: to_timestamp(&mixnodes_bonded_count),
             },
             historical: MixnodeSummaryHistorical {

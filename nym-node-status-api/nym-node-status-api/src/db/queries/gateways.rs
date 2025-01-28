@@ -1,6 +1,6 @@
 use crate::{
     db::{
-        models::{BondedStatusDto, GatewayDto, GatewayRecord},
+        models::{GatewayDto, GatewayRecord},
         DbPool,
     },
     http::models::Gateway,
@@ -58,28 +58,6 @@ pub(crate) async fn insert_gateways(
     }
 
     Ok(())
-}
-
-async fn get_all_bonded_gateways_row_ids_by_status(
-    pool: &DbPool,
-    status: bool,
-) -> anyhow::Result<Vec<BondedStatusDto>> {
-    let mut conn = pool.acquire().await?;
-    let items = sqlx::query_as!(
-        BondedStatusDto,
-        r#"SELECT
-            id as "id!",
-            gateway_identity_key as "identity_key!",
-            bonded as "bonded: bool"
-         FROM gateways
-         WHERE bonded = ?"#,
-        status,
-    )
-    .fetch(&mut *conn)
-    .try_collect::<Vec<_>>()
-    .await?;
-
-    Ok(items)
 }
 
 pub(crate) async fn get_all_gateways(pool: &DbPool) -> anyhow::Result<Vec<Gateway>> {

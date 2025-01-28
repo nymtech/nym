@@ -11,6 +11,6 @@ pub(crate) use gateways::{get_all_gateways, insert_gateways, select_gateway_iden
 pub(crate) use gateways_stats::{delete_old_records, get_sessions_stats, insert_session_records};
 pub(crate) use misc::insert_summaries;
 pub(crate) use mixnodes::{get_all_mixnodes, get_daily_stats, insert_mixnodes};
-pub(crate) use nym_nodes::insert_nym_nodes;
-pub(crate) use scraper::fetch_active_nodes;
+pub(crate) use nym_nodes::{get_nym_nodes, insert_nym_nodes};
+pub(crate) use scraper::fetch_mixing_nodes;
 pub(crate) use summary::{get_summary, get_summary_history};

@@ -3,7 +3,7 @@ use tracing::error;
 
 use crate::{
     db::{
-        models::{BondedStatusDto, MixnodeDto, MixnodeRecord},
+        models::{MixnodeDto, MixnodeRecord},
         DbPool,
     },
     http::models::{DailyStats, Mixnode},
@@ -114,28 +114,6 @@ pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailySt
     )
     .fetch(&mut *conn)
     .try_collect::<Vec<DailyStats>>()
-    .await?;
-
-    Ok(items)
-}
-
-async fn get_all_bonded_mixnodes_row_ids_by_status(
-    pool: &DbPool,
-    status: bool,
-) -> anyhow::Result<Vec<BondedStatusDto>> {
-    let mut conn = pool.acquire().await?;
-    let items = sqlx::query_as!(
-        BondedStatusDto,
-        r#"SELECT
-            id as "id!",
-            identity_key as "identity_key!",
-            bonded as "bonded: bool"
-         FROM mixnodes
-         WHERE bonded = ?"#,
-        status,
-    )
-    .fetch(&mut *conn)
-    .try_collect::<Vec<_>>()
     .await?;
 
     Ok(items)

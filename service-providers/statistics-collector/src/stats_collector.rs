@@ -7,7 +7,7 @@ use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
 use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
 use nym_task::{TaskClient, TaskHandle};
 
-use crate::{config::Config, error::StatsCollectorError};
+use crate::{config::Config, error::StatsCollectorError, storage::ClientStatsStorage};
 
 pub struct OnStartData {
     // to add more fields as required
@@ -102,8 +102,11 @@ impl StatisticsCollector {
 
         let self_address = *mixnet_client.nym_address();
 
+        let report_storage =
+            ClientStatsStorage::init(self.config.storage_paths.client_reports_database).await?;
+
         let mixnet_listener =
-            crate::mixnet_listener::MixnetListener::new(mixnet_client, task_handle);
+            crate::mixnet_listener::MixnetListener::new(mixnet_client, report_storage, task_handle);
 
         log::info!("The address of this client is: {self_address}");
         log::info!("All systems go. Press CTRL-C to stop the server.");

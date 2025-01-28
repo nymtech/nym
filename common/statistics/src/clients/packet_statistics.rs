@@ -61,7 +61,7 @@ impl Instant {
 }
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct PacketStatistics {
+pub struct PacketStatistics {
     // Sent
     real_packets_sent: u64,
     real_packets_sent_size: usize,

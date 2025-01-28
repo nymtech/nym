@@ -88,6 +88,7 @@ impl StatisticsControl {
             log::error!("Failed to report client stats: {:?}", err);
         } else {
             self.stats.reset();
+            log::debug!("Stats report successfully sent");
         }
     }
 

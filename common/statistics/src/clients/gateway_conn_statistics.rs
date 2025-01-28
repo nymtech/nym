@@ -12,7 +12,7 @@ use nym_metrics::{inc, inc_by};
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct GatewayStats {
+pub struct GatewayStats {
     // Sent
     real_packets_sent: u64,
     real_packets_sent_size: usize,

@@ -3,12 +3,15 @@
 
 use nym_client_core::config::disk_persistence::CommonClientPaths;
 use serde::{Deserialize, Serialize};
-use std::path::Path;
+use std::path::{Path, PathBuf};
+
+pub const DEFAULT_REPORT_DATABASE_PATH: &str = "report.db";
 
 #[derive(Debug, Deserialize, PartialEq, Eq, Serialize, Clone)]
 pub struct StatsCollectorPaths {
     #[serde(flatten)]
     pub common_paths: CommonClientPaths,
+    pub client_reports_database: PathBuf,
 }
 
 impl StatsCollectorPaths {
@@ -17,6 +20,7 @@ impl StatsCollectorPaths {
 
         Self {
             common_paths: CommonClientPaths::new_base(base_dir),
+            client_reports_database: base_dir.join(DEFAULT_REPORT_DATABASE_PATH),
         }
     }
 }

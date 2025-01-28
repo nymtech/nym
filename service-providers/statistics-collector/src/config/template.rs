@@ -65,6 +65,9 @@ reply_surb_database = '{{ storage_paths.reply_surb_database }}'
 # i.e. details such as their public keys, owner addresses or the network information.
 gateway_registrations = '{{ storage_paths.gateway_registrations }}'
 
+# Path to the client reports database
+client_reports_database = '{{ storage_paths.client_reports_database }}'
+
 
 ##### logging configuration options #####
 

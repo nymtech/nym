@@ -7,16 +7,16 @@ use nym_credentials_interface::TicketType;
 use serde::{Deserialize, Serialize};
 
 #[derive(Default, Debug, Clone, Serialize, Deserialize)]
-pub(crate) struct ConnectionStats {
+pub struct ConnectionStats {
     //tickets
-    mixnet_entry_spent: u32,
-    vpn_entry_spent: u32,
-    mixnet_exit_spent: u32,
-    vpn_exit_spent: u32,
+    pub mixnet_entry_spent: u32,
+    pub vpn_entry_spent: u32,
+    pub mixnet_exit_spent: u32,
+    pub vpn_exit_spent: u32,
 
     //country_connection
-    wg_exit_country_code: String,
-    mix_exit_country_code: String,
+    pub wg_exit_country_code: String,
+    pub mix_exit_country_code: String,
 }
 
 /// Event space for Nym API statistics tracking

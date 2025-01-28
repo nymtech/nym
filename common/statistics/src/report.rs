@@ -18,16 +18,16 @@ const VERSION: &str = "v1";
 /// Report object containing both data to be reported and client / device context. We take extra care not to overcapture context information.
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ClientStatsReport {
-    pub(crate) kind: String,
-    pub(crate) api_version: String,
-    pub(crate) last_update_time: OffsetDateTime,
-    pub(crate) client_id: String,
-    pub(crate) client_type: String,
-    pub(crate) os_information: OsInformation,
-    pub(crate) packet_stats: PacketStatistics,
-    pub(crate) gateway_conn_stats: GatewayStats,
-    pub(crate) nym_api_stats: NymApiStats,
-    pub(crate) connection_stats: ConnectionStats,
+    pub kind: String,
+    pub api_version: String,
+    pub last_update_time: OffsetDateTime,
+    pub client_id: String,
+    pub client_type: String,
+    pub os_information: OsInformation,
+    pub packet_stats: PacketStatistics,
+    pub gateway_conn_stats: GatewayStats,
+    pub nym_api_stats: NymApiStats,
+    pub connection_stats: ConnectionStats,
 }
 
 impl From<ClientStatsReport> for Vec<u8> {
@@ -65,9 +65,9 @@ impl Default for ClientStatsReport {
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OsInformation {
-    pub(crate) os_type: String,
-    pub(crate) os_version: Option<String>,
-    pub(crate) os_arch: String,
+    pub os_type: String,
+    pub os_version: Option<String>,
+    pub os_arch: String,
 }
 
 impl OsInformation {

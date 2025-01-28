@@ -26,6 +26,7 @@ pub async fn create_mixnet_client(
         .disable_main_poisson_packet_distribution = true;
     debug_config.cover_traffic.disable_loop_cover_traffic_stream = true;
     debug_config.stats_reporting.enabled = false;
+    debug_config.topology.ignore_egress_epoch_role = true; //necessary for a fixed address
 
     let storage_paths = nym_sdk::mixnet::StoragePaths::from(paths.clone());
 

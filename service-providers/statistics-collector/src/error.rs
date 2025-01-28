@@ -30,6 +30,9 @@ pub enum StatsCollectorError {
 
     #[error(transparent)]
     NymIdError(#[from] NymIdError),
+
+    #[error("Storage error : {0}")]
+    ReportStorageError(#[from] crate::storage::error::ClientStatsReportStorageError),
 }
 
 pub type Result<T> = std::result::Result<T, StatsCollectorError>;

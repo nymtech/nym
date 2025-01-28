@@ -1,15 +1,12 @@
 use futures_util::TryStreamExt;
-use nym_validator_client::{nym_api::SkimmedNode, nym_nodes::NodeRole};
+use nym_validator_client::nym_api::SkimmedNode;
 
 use crate::db::{
     models::{NymNodeDto, NymNodeInsertRecord},
     DbPool,
 };
 
-pub(crate) async fn get_nym_nodes_declared_as_role(
-    pool: &DbPool,
-    node_role: NodeRole,
-) -> anyhow::Result<Vec<SkimmedNode>> {
+pub(crate) async fn get_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<SkimmedNode>> {
     let mut conn = pool.acquire().await?;
 
     let items = sqlx::query_as!(
@@ -34,9 +31,13 @@ pub(crate) async fn get_nym_nodes_declared_as_role(
 
     let mut skimmed_nodes = Vec::new();
     for item in items {
-        let skimmed_node = SkimmedNode::try_from(item)?;
-        if skimmed_node.role == node_role {
-            skimmed_nodes.push(skimmed_node);
+        tracing::debug!("🔵 Data from DB:{:?}", item);
+        let node_id = item.node_id;
+        match SkimmedNode::try_from(item) {
+            Ok(node) => skimmed_nodes.push(node),
+            Err(e) => {
+                tracing::warn!("Failed to decode node_id={}: {}", node_id, e);
+            }
         }
     }
 

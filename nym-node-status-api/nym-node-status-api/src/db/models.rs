@@ -6,6 +6,7 @@ use anyhow::Context;
 use cosmwasm_std::Decimal;
 use nym_contracts_common::Percent;
 use nym_crypto::asymmetric::{ed25519, x25519};
+use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use nym_node_requests::api::v1::node::models::NodeDescription;
 use nym_validator_client::nym_api::SkimmedNode;
 use serde::{Deserialize, Serialize};
@@ -352,11 +353,31 @@ impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
 
 pub(crate) struct ScraperNodeInfo {
     pub node_id: i64,
-    pub host: String,
+    pub hosts: Vec<String>,
     pub http_api_port: i64,
 }
 
-#[derive(sqlx::Decode)]
+impl ScraperNodeInfo {
+    pub(crate) fn contact_addresses(&self) -> Vec<String> {
+        let mut urls = Vec::new();
+        for host in &self.hosts {
+            urls.append(&mut vec![
+                format!("http://{}:{}", host, DEFAULT_NYM_NODE_HTTP_PORT),
+                format!("http://{}:8000", host),
+                format!("https://{}", host),
+                format!("http://{}", host),
+            ]);
+
+            if self.http_api_port != DEFAULT_NYM_NODE_HTTP_PORT as i64 {
+                urls.insert(0, format!("http://{}:{}", host, self.http_api_port));
+            }
+        }
+
+        urls
+    }
+}
+
+#[derive(sqlx::Decode, Debug)]
 pub(crate) struct NymNodeDto {
     pub node_id: i64,
     pub ed25519_identity_pubkey: String,

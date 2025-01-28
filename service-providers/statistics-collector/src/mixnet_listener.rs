@@ -56,7 +56,7 @@ impl MixnetListener {
                     if let Some(msg) = msg {
                         match self.on_reconstructed_message(msg).await {
                             Ok(client_id) => {
-                                log::debug!("Successfully stored client reports from ID : {client_id}")
+                                log::info!("Successfully stored client reports from ID : {client_id}")
                             },
                             Err(err) => {
                                 log::error!("Error handling reconstructed mixnet message: {err}");

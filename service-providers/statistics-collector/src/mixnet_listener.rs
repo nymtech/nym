@@ -34,17 +34,16 @@ impl MixnetListener {
     async fn on_reconstructed_message(
         &mut self,
         reconstructed: ReconstructedMessage,
-    ) -> Result<()> {
-        println!("Received message");
+    ) -> Result<String> {
         log::debug!(
             "Received message with sender_tag: {:?}",
             reconstructed.sender_tag
         );
         let report = deserialize_stats_report(&reconstructed)?;
-        println!("Received report");
-        self.client_report_storage.store_report(report).await?;
-        println!("Stored report");
-        Ok(())
+        self.client_report_storage
+            .store_report(report.clone())
+            .await?;
+        Ok(report.client_id)
     }
 
     pub(crate) async fn run(mut self) -> Result<()> {
@@ -58,8 +57,8 @@ impl MixnetListener {
                 msg = self.mixnet_client.next() => {
                     if let Some(msg) = msg {
                         match self.on_reconstructed_message(msg).await {
-                            Ok(()) => {
-
+                            Ok(client_id) => {
+                                log::error!("Successfully stored client reports from ID : {client_id}")
                             },
                             Err(err) => {
                                 log::error!("Error handling reconstructed mixnet message: {err}");
@@ -80,6 +79,6 @@ impl MixnetListener {
 }
 
 fn deserialize_stats_report(reconstructed: &ReconstructedMessage) -> Result<ClientStatsReport> {
-    let tmp: &[u8] = &reconstructed.message;
-    Ok(tmp.try_into()?)
+    let report_bytes: &[u8] = &reconstructed.message;
+    Ok(report_bytes.try_into()?)
 }

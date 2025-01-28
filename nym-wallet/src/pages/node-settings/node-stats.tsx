@@ -9,7 +9,7 @@ export const NodeStats = ({ mixnodeId }: { mixnodeId?: string }) => {
     <Stack spacing={2} sx={{ p: 4 }}>
       <Typography>All your node stats are available on the link below</Typography>
       <Link
-        href={`${urls(network).networkExplorer}/network-components/mixnode/${mixnodeId}`}
+        href={`${urls(network).networkExplorer}/network-components/nodes/${mixnodeId}`}
         target="_blank"
         text="Network Explorer"
       />

@@ -194,7 +194,7 @@ export const BondedNymNode = ({
         {network && (
           <Typography sx={{ mt: 2, fontSize: 'small' }}>
             Check more stats of your node on the{' '}
-            <Link href={`${urls(network).networkExplorer}/network-components/mixnode/${nodeId}`} target="_blank">
+            <Link href={`${urls(network).networkExplorer}/network-components/nodes/${nodeId}`} target="_blank">
               explorer
             </Link>
           </Typography>

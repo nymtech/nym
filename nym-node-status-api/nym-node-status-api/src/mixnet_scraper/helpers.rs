@@ -2,7 +2,6 @@ use crate::db::models::ScraperNodeInfo;
 use ammonia::Builder;
 use anyhow::Result;
 use chrono::{DateTime, Datelike, Utc};
-use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
 use reqwest;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
@@ -106,16 +105,7 @@ pub fn sanitize_description(description: NodeDescriptionResponse) -> NodeDescrip
 
 pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeInfo) -> Result<()> {
     let client = build_client()?;
-    let mut urls = vec![
-        format!("http://{}:{DEFAULT_NYM_NODE_HTTP_PORT}", node.host),
-        format!("http://{}:8000", node.host),
-        format!("https://{}", node.host),
-        format!("http://{}", node.host),
-    ];
-
-    if node.http_api_port != DEFAULT_NYM_NODE_HTTP_PORT as i64 {
-        urls.insert(0, format!("http://{}:{}", node.host, node.http_api_port));
-    }
+    let urls = node.contact_addresses();
 
     let mut description = None;
     let mut error = None;
@@ -174,16 +164,7 @@ pub async fn scrape_and_store_packet_stats(
     node: &ScraperNodeInfo,
 ) -> Result<()> {
     let client = build_client()?;
-    let mut urls = vec![
-        format!("http://{}:{DEFAULT_NYM_NODE_HTTP_PORT}", node.host),
-        format!("http://{}:8000", node.host),
-        format!("https://{}", node.host),
-        format!("http://{}", node.host),
-    ];
-
-    if node.http_api_port != DEFAULT_NYM_NODE_HTTP_PORT as i64 {
-        urls.insert(0, format!("http://{}:{}", node.host, node.http_api_port));
-    }
+    let urls = node.contact_addresses();
 
     let mut stats = None;
     let mut error = None;
@@ -208,24 +189,26 @@ pub async fn scrape_and_store_packet_stats(
     })?;
 
     let timestamp = Utc::now();
-    let timestamp_utc = timestamp.timestamp();
-    let mut conn = pool.acquire().await?;
+    {
+        let timestamp_utc = timestamp.timestamp();
+        let mut conn = pool.acquire().await?;
 
-    // Store raw stats
-    sqlx::query!(
-        r#"
+        // Store raw stats
+        sqlx::query!(
+            r#"
         INSERT INTO mixnode_packet_stats_raw (
             mix_id, timestamp_utc, packets_received, packets_sent, packets_dropped
         ) VALUES (?, ?, ?, ?, ?)
         "#,
-        node.node_id,
-        timestamp_utc,
-        stats.packets_received,
-        stats.packets_sent,
-        stats.packets_dropped,
-    )
-    .execute(&mut *conn)
-    .await?;
+            node.node_id,
+            timestamp_utc,
+            stats.packets_received,
+            stats.packets_sent,
+            stats.packets_dropped,
+        )
+        .execute(&mut *conn)
+        .await?;
+    }
 
     // Update daily stats
     update_daily_stats(pool, node.node_id, timestamp, &stats).await?;

@@ -20,6 +20,7 @@ impl From<Run> for OverrideConfig {
             nym_apis: None,
             nyxd_urls: run_config.common_args.nyxd_urls,
             enabled_credentials_mode: run_config.common_args.enabled_credentials_mode,
+            report_database_path: None,
         }
     }
 }

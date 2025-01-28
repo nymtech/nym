@@ -101,6 +101,14 @@ impl Config {
         self.storage_paths = StatsCollectorPaths::new_base(data_directory);
         self
     }
+    #[allow(unused)]
+    pub fn with_report_database_path<P: Into<std::path::PathBuf>>(
+        mut self,
+        database_path: P,
+    ) -> Self {
+        self.storage_paths.client_reports_database = database_path.into();
+        self
+    }
 
     pub fn read_from_toml_file<P: AsRef<Path>>(path: P) -> io::Result<Self> {
         nym_config::read_config_from_toml_file(path)

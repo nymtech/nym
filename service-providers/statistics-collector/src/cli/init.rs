@@ -42,6 +42,10 @@ pub(crate) struct Init {
 
     #[clap(short, long, default_value_t = OutputFormat::default())]
     output: OutputFormat,
+
+    /// Custom path to the report storage database
+    #[clap(long)]
+    report_database_path: Option<PathBuf>,
 }
 
 impl From<Init> for OverrideConfig {
@@ -50,6 +54,7 @@ impl From<Init> for OverrideConfig {
             nym_apis: init_config.common_args.nym_apis,
             nyxd_urls: init_config.common_args.nyxd_urls,
             enabled_credentials_mode: init_config.common_args.enabled_credentials_mode,
+            report_database_path: init_config.report_database_path,
         }
     }
 }

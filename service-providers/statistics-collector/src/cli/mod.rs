@@ -7,10 +7,12 @@ use log::error;
 use nym_bin_common::bin_info;
 use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_client_core::cli_helpers::CliClient;
+use nym_config::OptionalSet;
 use nym_statistics_collector::{
     config::{helpers::try_upgrade_config, BaseClientConfig, Config},
     error::StatsCollectorError,
 };
+use std::path::PathBuf;
 use std::sync::OnceLock;
 
 mod add_gateway;
@@ -98,6 +100,7 @@ pub(crate) struct OverrideConfig {
     nym_apis: Option<Vec<url::Url>>,
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
+    report_database_path: Option<PathBuf>,
 }
 
 pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
@@ -118,6 +121,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
             BaseClientConfig::with_disabled_credentials,
             args.enabled_credentials_mode.map(|b| !b),
         )
+        .with_optional(Config::with_report_database_path, args.report_database_path)
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), StatsCollectorError> {

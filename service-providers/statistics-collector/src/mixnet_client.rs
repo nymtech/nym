@@ -3,7 +3,7 @@
 
 use nym_client_core::{
     config::{disk_persistence::CommonClientPaths, StatsReporting},
-    TopologyProvider,
+    ForgetMe, TopologyProvider,
 };
 use nym_sdk::{GatewayTransceiver, NymNetworkDetails};
 use nym_task::TaskClient;
@@ -47,8 +47,8 @@ pub async fn create_mixnet_client(
             .with_statistics_reporting(StatsReporting {
                 enabled: false,
                 ..Default::default()
-            });
-    //.with_forget_me(ForgetMe::new_all()); # TODO : Uncomment this once the bug is fixed
+            })
+            .with_forget_me(ForgetMe::new_all());
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();
     }

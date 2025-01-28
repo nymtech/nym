@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use nym_client_core::{config::disk_persistence::CommonClientPaths, ForgetMe, TopologyProvider};
+use nym_client_core::{config::disk_persistence::CommonClientPaths, TopologyProvider};
 use nym_sdk::{GatewayTransceiver, NymNetworkDetails};
 use nym_task::TaskClient;
 
@@ -40,8 +40,8 @@ pub async fn create_mixnet_client(
             .debug_config(debug_config)
             .custom_shutdown(shutdown)
             .with_user_agent(nym_bin_common::bin_info!().into())
-            .with_wait_for_gateway(wait_for_gateway)
-            .with_forget_me(ForgetMe::new_all());
+            .with_wait_for_gateway(wait_for_gateway);
+    //.with_forget_me(ForgetMe::new_all()); # TODO : Uncomment this once the bug is fixed
     if !config.get_disabled_credentials_mode() {
         client_builder = client_builder.enable_credentials_mode();
     }

@@ -104,12 +104,16 @@ impl StatisticsCollector {
         let report_storage =
             ClientStatsStorage::init(self.config.storage_paths.client_reports_database).await?;
 
-        let mixnet_listener =
-            crate::mixnet_listener::MixnetListener::new(mixnet_client, report_storage, task_handle);
+        let mixnet_listener = crate::mixnet_listener::MixnetListener::new(
+            mixnet_client,
+            report_storage,
+            task_handle.fork("mixnet_listener"),
+        );
 
+        tokio::spawn(async move { mixnet_listener.run().await });
         log::info!("The address of this client is: {self_address}");
         log::info!("All systems go. Press CTRL-C to stop the server.");
-
-        mixnet_listener.run().await
+        let _ = task_handle.wait_for_shutdown().await;
+        Ok(())
     }
 }

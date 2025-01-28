@@ -4,21 +4,10 @@
 use std::path::Path;
 
 use nym_client_core::{HardcodedTopologyProvider, TopologyProvider};
-use nym_sdk::{mixnet::Recipient, GatewayTransceiver};
+use nym_sdk::GatewayTransceiver;
 use nym_task::{TaskClient, TaskHandle};
 
 use crate::{config::Config, error::StatsCollectorError, storage::ClientStatsStorage};
-
-pub struct OnStartData {
-    // to add more fields as required
-    pub address: Recipient,
-}
-
-impl OnStartData {
-    pub fn new(address: Recipient) -> Self {
-        Self { address }
-    }
-}
 
 pub struct StatisticsCollector {
     #[allow(unused)]
@@ -44,6 +33,16 @@ impl StatisticsCollector {
     #[allow(unused)]
     pub fn with_shutdown(mut self, shutdown: TaskClient) -> Self {
         self.shutdown = Some(shutdown);
+        self
+    }
+
+    #[must_use]
+    #[allow(unused)]
+    pub fn with_report_database_path<P: Into<std::path::PathBuf>>(
+        mut self,
+        database_path: P,
+    ) -> Self {
+        self.config.storage_paths.client_reports_database = database_path.into();
         self
     }
 

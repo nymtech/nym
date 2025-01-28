@@ -755,7 +755,7 @@ where
     E: DeserializeOwned + Display,
 {
     let status = res.status();
-    tracing::debug!("Status: {} (success: {})", &status, status.is_success());
+    tracing::trace!("Status: {} (success: {})", &status, status.is_success());
 
     if !allow_empty {
         if let Some(0) = res.content_length() {

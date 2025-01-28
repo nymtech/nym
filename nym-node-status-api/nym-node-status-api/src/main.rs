@@ -35,7 +35,7 @@ async fn main() -> anyhow::Result<()> {
     tokio::spawn(async move {
         scraper.start().await;
     });
-    tracing::info!("Started node scraper task");
+
 
     // Start the monitor
     let args_clone = args.clone();

@@ -5,13 +5,15 @@ pub mod helpers;
 use anyhow::Result;
 use helpers::{scrape_and_store_description, scrape_and_store_packet_stats};
 use sqlx::SqlitePool;
-use tracing::{debug, error, warn};
+use tracing::{debug, error, instrument, warn};
 
 use crate::db::models::ScraperNodeInfo;
-use crate::db::queries::fetch_active_nodes;
+use crate::db::queries::fetch_mixing_nodes;
 
-const DESCRIPTION_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60 * 4); // 4 hours
-const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60); // 1 hour
+const DESCRIPTION_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60 * 4);
+// TODO dz restore to 1 hour
+// const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60);
+const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 1);
 const QUEUE_CHECK_INTERVAL: Duration = Duration::from_millis(250);
 const MAX_CONCURRENT_TASKS: usize = 5;
 
@@ -38,6 +40,7 @@ impl Scraper {
         self.spawn_packet_scraper().await;
     }
 
+    #[instrument(level = "debug", name = "description_scraper", skip_all)]
     async fn spawn_description_scraper(&self) {
         let pool = self.pool.clone();
         let queue = self.description_queue.clone();
@@ -47,11 +50,13 @@ impl Scraper {
                 if let Err(e) = Self::run_description_scraper(&pool, queue.clone()).await {
                     error!("Description scraper failed: {}", e);
                 }
+                debug!("Sleeping for {}s", DESCRIPTION_SCRAPE_INTERVAL.as_secs());
                 tokio::time::sleep(DESCRIPTION_SCRAPE_INTERVAL).await;
             }
         });
     }
 
+    #[instrument(level = "debug", name = "packet_scraper", skip_all)]
     async fn spawn_packet_scraper(&self) {
         let pool = self.pool.clone();
         let queue = self.packet_queue.clone();
@@ -61,6 +66,7 @@ impl Scraper {
                 if let Err(e) = Self::run_packet_scraper(&pool, queue.clone()).await {
                     error!("Packet scraper failed: {}", e);
                 }
+                debug!("Sleeping for {}s", PACKET_SCRAPE_INTERVAL.as_secs());
                 tokio::time::sleep(PACKET_SCRAPE_INTERVAL).await;
             }
         });
@@ -70,7 +76,7 @@ impl Scraper {
         pool: &SqlitePool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
     ) -> Result<()> {
-        let nodes = fetch_active_nodes(pool).await?;
+        let nodes = fetch_mixing_nodes(pool).await?;
         if let Ok(mut queue_lock) = queue.lock() {
             queue_lock.extend(nodes);
         } else {
@@ -86,8 +92,8 @@ impl Scraper {
         pool: &SqlitePool,
         queue: Arc<Mutex<Vec<ScraperNodeInfo>>>,
     ) -> Result<()> {
-        let nodes = fetch_active_nodes(pool).await?;
-        tracing::info!("Found {} active nodes", nodes.len());
+        let nodes = fetch_mixing_nodes(pool).await?;
+        tracing::info!("Querying {} mixing nodes", nodes.len());
         if let Ok(mut queue_lock) = queue.lock() {
             queue_lock.extend(nodes);
         } else {
@@ -183,6 +189,7 @@ impl Scraper {
                     TASK_COUNTER.fetch_sub(1, Ordering::Relaxed);
                 });
             } else {
+                debug!("Sleeping for {}ms", QUEUE_CHECK_INTERVAL.as_millis());
                 tokio::time::sleep(QUEUE_CHECK_INTERVAL).await;
             }
         }

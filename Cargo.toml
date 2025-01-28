@@ -129,6 +129,23 @@ members = [
     "service-providers/common",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
+    "service-providers/statistics-collector",
+    "nym-api",
+    "nym-api/nym-api-requests",
+    "nym-browser-extension/storage",
+    "nym-credential-proxy/nym-credential-proxy",
+    "nym-credential-proxy/nym-credential-proxy-requests",
+    "nym-credential-proxy/vpn-api-lib-wasm",
+    "nym-network-monitor",
+    "nyx-chain-watcher",
+    "nym-node",
+    "nym-node/nym-node-requests",
+    "nym-node/nym-node-metrics",
+    "nym-node-status-api/nym-node-status-agent",
+    "nym-node-status-api/nym-node-status-api",
+    "nym-node-status-api/nym-node-status-client",
+    "nym-outfox",
+    "nym-validator-rewarder",
     "tools/echo-server",
     "tools/echo-server",
     "tools/internal/contract-state-importer/importer-cli",
@@ -166,15 +183,11 @@ default-members = [
     "service-providers/authenticator",
     "service-providers/ip-packet-router",
     "service-providers/network-requester",
+    "service-providers/statistics-collector",
     "tools/nymvisor",
 ]
 
-exclude = [
-    "explorer",
-    "contracts",
-    "nym-wallet",
-    "cpu-cycles",
-]
+exclude = ["explorer", "contracts", "nym-wallet", "cpu-cycles"]
 
 [workspace.package]
 authors = ["Nym Technologies SA"]

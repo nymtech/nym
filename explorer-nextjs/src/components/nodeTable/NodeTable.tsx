@@ -1,9 +1,7 @@
 "use client";
-
-import { COSMOS_KIT_USE_CHAIN } from "@/config";
-import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
 import { Box, Button, Stack, Tooltip, Typography } from "@mui/material";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
@@ -12,6 +10,8 @@ import {
 } from "material-react-table";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
+import { COSMOS_KIT_USE_CHAIN } from "../../config";
+import { useNymClient } from "../../hooks/useNymClient";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite } from "../favorite/Favorite";
 import Loading from "../loading";
@@ -36,6 +36,7 @@ const ColumnHeading = ({
 const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const router = useRouter();
   const { nymClient } = useNymClient();
+  const queryClient = useQueryClient();
 
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
     open: false,
@@ -47,6 +48,10 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   }>();
   const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
+
+  const handleRefetch = useCallback(() => {
+    queryClient.invalidateQueries();
+  }, [queryClient]);
 
   const handleStakeOnNode = useCallback(
     async ({ nodeId, amount }: { nodeId: number; amount: string }) => {
@@ -71,6 +76,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
           onClose: () => setInfoModalProps({ open: false }),
         });
+        handleRefetch();
       } catch (e) {
         const errorMessage =
           e instanceof Error ? e.message : "An error occurred while staking";
@@ -85,7 +91,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setIsLoading(false);
     },
-    [nymClient],
+    [nymClient, handleRefetch],
   );
 
   const handleOnSelectStake = useCallback(

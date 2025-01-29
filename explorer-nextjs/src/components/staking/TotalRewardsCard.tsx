@@ -1,11 +1,11 @@
 "use client";
 
-import type { ObservatoryBalance } from "@/app/api/types";
-import { DATA_OBSERVATORY_BALANCES_URL } from "@/app/api/urls";
-import { useNymClient } from "@/hooks/useNymClient";
-import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import type { ObservatoryBalance } from "../../app/api/types";
+import { DATA_OBSERVATORY_BALANCES_URL } from "../../app/api/urls";
+import { useNymClient } from "../../hooks/useNymClient";
+import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 
 // Fetch function to get total staker rewards
@@ -51,7 +51,12 @@ const TotalRewardsCard = () => {
   if (isLoading) {
     return (
       <ExplorerCard label="Total Rewards">
-        <Typography variant="body2">Loading...</Typography>
+        <Typography
+          variant="h3"
+          sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
+        >
+          Loading...
+        </Typography>
       </ExplorerCard>
     );
   }
@@ -59,7 +64,7 @@ const TotalRewardsCard = () => {
   if (isError) {
     return (
       <ExplorerCard label="Total Rewards">
-        <Typography variant="body2" color="error">
+        <Typography variant="h3" color="error">
           Failed to load total rewards.
         </Typography>
       </ExplorerCard>

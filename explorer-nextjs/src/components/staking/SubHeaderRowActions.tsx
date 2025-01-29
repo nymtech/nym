@@ -1,14 +1,17 @@
 "use client";
 
-import type { NodeRewardDetails, ObservatoryBalance } from "@/app/api/types";
-import { DATA_OBSERVATORY_BALANCES_URL } from "@/app/api/urls";
-import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "@/config";
-import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
 import { Button, Stack } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
+import type {
+  NodeRewardDetails,
+  ObservatoryBalance,
+} from "../../app/api/types";
+import { DATA_OBSERVATORY_BALANCES_URL } from "../../app/api/urls";
+import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "../../config";
+import { useNymClient } from "../../hooks/useNymClient";
 import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import RedeemRewardsModal from "../redeemRewards/RedeemRewardsModal";
@@ -54,6 +57,8 @@ const SubHeaderRowActions = () => {
   const { address, nymClient } = useNymClient();
   const { getSigningCosmWasmClient } = useChain(COSMOS_KIT_USE_CHAIN);
 
+  const queryClient = useQueryClient();
+
   // Fetch delegations using React Query
   const {
     data: delegations = [],
@@ -72,6 +77,7 @@ const SubHeaderRowActions = () => {
     data: totalStakerRewards = 0,
     isLoading: isRewardsLoading,
     isError: isRewardsError,
+    refetch,
   } = useQuery({
     queryKey: ["totalRewards", address],
     queryFn: () => fetchTotalRewards(address || ""),
@@ -79,6 +85,11 @@ const SubHeaderRowActions = () => {
     refetchInterval: 60000, // Refetch every 60 seconds
     staleTime: 60000,
   });
+
+  const handleRefetch = useCallback(() => {
+    refetch();
+    queryClient.invalidateQueries(); // This will refetch ALL active queries
+  }, [queryClient, refetch]);
 
   const handleRedeemRewards = useCallback(async () => {
     setIsLoading(true);
@@ -109,7 +120,7 @@ const SubHeaderRowActions = () => {
       );
       console.log("Rewards redeemed successfully:", result);
       // Success state
-      fetchTotalRewards(address);
+      handleRefetch();
       setIsLoading(false);
       setInfoModalProps({
         open: true,
@@ -129,7 +140,13 @@ const SubHeaderRowActions = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [address, nymClient, delegations, getSigningCosmWasmClient]);
+  }, [
+    address,
+    nymClient,
+    delegations,
+    getSigningCosmWasmClient,
+    handleRefetch,
+  ]);
 
   const handleRedeemRewardsButtonClick = () => {
     setOpenRedeemRewardsModal(true);

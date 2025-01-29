@@ -1,17 +1,17 @@
-import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
-import CardSkeleton from "@/components/cards/Skeleton";
-import { ContentLayout } from "@/components/contentLayout/ContentLayout";
-import SectionHeading from "@/components/headings/SectionHeading";
-import { CurrentEpochCard } from "@/components/landingPageComponents/CurrentEpochCard";
-import { NetworkStakeCard } from "@/components/landingPageComponents/NetworkStakeCard";
-import { NoiseCard } from "@/components/landingPageComponents/NoiseCard";
-import { RewardsCard } from "@/components/landingPageComponents/RewardsCard";
-import { TokenomicsCard } from "@/components/landingPageComponents/TokenomicsCard";
-import NodeTable from "@/components/nodeTable/NodeTableWithAction";
-import NodeAndAddressSearch from "@/components/search/NodeAndAddressSearch";
 import { Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { Suspense } from "react";
+import BlogArticlesCards from "../components/blogs/BlogArticleCards";
+import CardSkeleton from "../components/cards/Skeleton";
+import { ContentLayout } from "../components/contentLayout/ContentLayout";
+import SectionHeading from "../components/headings/SectionHeading";
+import { CurrentEpochCard } from "../components/landingPageComponents/CurrentEpochCard";
+import { NetworkStakeCard } from "../components/landingPageComponents/NetworkStakeCard";
+import { NoiseCard } from "../components/landingPageComponents/NoiseCard";
+import { RewardsCard } from "../components/landingPageComponents/RewardsCard";
+import { TokenomicsCard } from "../components/landingPageComponents/TokenomicsCard";
+import NodeTable from "../components/nodeTable/NodeTableWithAction";
+import NodeAndAddressSearch from "../components/search/NodeAndAddressSearch";
 
 export default async function Home() {
   return (

@@ -1,11 +1,11 @@
 "use client";
 
-import { CURRENT_EPOCH } from "@/app/api/urls";
 import { AccessTime } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { addSeconds } from "date-fns";
 import { format } from "date-fns";
+import { CURRENT_EPOCH } from "../../app/api/urls";
 
 // Fetch function for the next epoch
 const fetchNextEpoch = async () => {

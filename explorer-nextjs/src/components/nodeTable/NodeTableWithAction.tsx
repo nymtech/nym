@@ -1,10 +1,10 @@
 "use client";
 
-import getNymNodes from "@/actions/getNymNodes";
-import type { ExplorerData } from "@/app/api";
-import type { IObservatoryNode } from "@/app/api/types";
-import { CURRENT_EPOCH_REWARDS } from "@/app/api/urls";
 import { useQuery } from "@tanstack/react-query";
+import getNymNodes from "../../actions/getNymNodes";
+import type { ExplorerData } from "../../app/api";
+import type { IObservatoryNode } from "../../app/api/types";
+import { CURRENT_EPOCH_REWARDS } from "../../app/api/urls";
 import NodeTable from "./NodeTable";
 
 // Fetch function for epoch rewards

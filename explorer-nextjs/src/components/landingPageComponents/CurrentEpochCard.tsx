@@ -1,8 +1,8 @@
 "use client";
 
-import type { CurrentEpochData } from "@/app/api";
-import { CURRENT_EPOCH } from "@/app/api/urls";
 import { useQuery } from "@tanstack/react-query";
+import type { CurrentEpochData } from "../../app/api";
+import { CURRENT_EPOCH } from "../../app/api/urls";
 import ExplorerCard from "../cards/ExplorerCard";
 import EpochProgressBar from "../progressBars/EpochProgressBar";
 

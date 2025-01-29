@@ -1,7 +1,7 @@
-import { Token } from "@/components/icons/Token";
-import useGetWalletBalance from "@/hooks/useGetWalletBalance";
 import { Stack, Typography } from "@mui/material";
 import React from "react";
+import { Token } from "../../components/icons/Token";
+import useGetWalletBalance from "../../hooks/useGetWalletBalance";
 
 export const WalletBalance = () => {
   const { formattedBalance } = useGetWalletBalance();

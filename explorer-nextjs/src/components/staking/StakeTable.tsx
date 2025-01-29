@@ -1,23 +1,23 @@
 "use client";
-
-import { useNymClient } from "@/hooks/useNymClient";
-import { formatBigNum } from "@/utils/formatBigNumbers";
 import { useChain } from "@cosmos-kit/react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { useNymClient } from "../../hooks/useNymClient";
+import { formatBigNum } from "../../utils/formatBigNumbers";
 
-import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { Box, Button, Chip, Stack, Tooltip, Typography } from "@mui/material";
-import type {
-  Delegation,
-  PendingEpochEventKind,
-} from "@nymproject/contract-clients/Mixnet.types";
+import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
   useMaterialReactTable,
 } from "material-react-table";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import usePendingEvents, {
+  type PendingEvent,
+} from "../../../src/hooks/useGetPendingEvents";
+import { COSMOS_KIT_USE_CHAIN } from "../../config";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite } from "../favorite/Favorite";
 import Loading from "../loading";
@@ -29,31 +29,10 @@ import StakeModal from "./StakeModal";
 import type { MappedNymNode, MappedNymNodes } from "./StakeTableWithAction";
 import { fee } from "./schemas";
 
-export type PendingEvent = ReturnType<typeof getEventsByAddress>;
-
 type DelegationWithNodeDetails = {
   node: MappedNymNode | undefined;
   delegation: Delegation;
   pendingEvent?: PendingEvent;
-};
-
-const getEventsByAddress = (kind: PendingEpochEventKind, address: string) => {
-  if ("delegate" in kind && kind.delegate.owner === address) {
-    return {
-      kind: "delegate" as const,
-      mixId: kind.delegate.node_id,
-      amount: kind.delegate.amount,
-    };
-  }
-
-  if ("undelegate" in kind && kind.undelegate.owner === address) {
-    return {
-      kind: "undelegate" as const,
-      mixId: kind.undelegate.node_id,
-    };
-  }
-
-  return undefined;
 };
 
 const ColumnHeading = ({
@@ -73,7 +52,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const [delegations, setDelegations] = useState<DelegationWithNodeDetails[]>(
     [],
   );
-  const [isLoading, setIsLoading] = useState(false);
+  const [isDataLoading, setIsLoading] = useState(false);
   const [infoModalProps, setInfoModalProps] = useState<InfoModalProps>({
     open: false,
   });
@@ -83,8 +62,17 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   }>();
   const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
+  const { data: pendingEvents } = usePendingEvents(nymQueryClient, address);
 
   const router = useRouter();
+
+  const queryClient = useQueryClient();
+
+  // Custom Hook for fetching pending events
+
+  const handleRefetch = useCallback(() => {
+    queryClient.invalidateQueries();
+  }, [queryClient]);
 
   useEffect(() => {
     if (!nymClient || !address || !nymQueryClient) return;
@@ -95,27 +83,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         delegator: address,
       });
       return data.delegations;
-    };
-    // Fetch pending events
-    const fetchPendingEvents = async () => {
-      if (!nymQueryClient) {
-        return undefined;
-      }
-
-      if (!address) {
-        return undefined;
-      }
-
-      const response = await nymQueryClient.getPendingEpochEvents({});
-      const pendingEvents: PendingEvent[] = [];
-      for (const e of response.events) {
-        const event = getEventsByAddress(e.event.kind, address);
-        if (event) {
-          pendingEvents.push(event);
-        }
-      }
-
-      return pendingEvents;
     };
 
     // Combine delegations with node details and pending events
@@ -178,8 +145,6 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
     // Fetch and map delegations
     const fetchAndMapDelegations = async () => {
-      const pendingEvents = await fetchPendingEvents();
-
       const delegations = await fetchDelegations();
       const delegationsWithNodeDetails =
         combineDelegationsWithNodeAndPendingEvents(
@@ -187,11 +152,12 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           nodes,
           pendingEvents,
         );
+
       setDelegations(delegationsWithNodeDetails);
     };
 
     fetchAndMapDelegations();
-  }, [address, nodes, nymClient, nymQueryClient]);
+  }, [address, nodes, nymClient, nymQueryClient, pendingEvents]);
 
   const handleStakeOnNode = useCallback(
     async ({ nodeId, amount }: { nodeId: number; amount: string }) => {
@@ -208,6 +174,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           uNymFunds,
         );
         setSelectedNodeForStaking(undefined);
+        handleRefetch();
+
         setInfoModalProps({
           open: true,
           title: "Success",
@@ -230,7 +198,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       }
       setIsLoading(false);
     },
-    [nymClient],
+    [nymClient, handleRefetch],
   );
 
   const handleOnSelectStake = useCallback(
@@ -280,6 +248,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           `Explorer V2: Unstaking node ${nodeId}`,
         );
         setIsLoading(false);
+        handleRefetch();
         setInfoModalProps({
           open: true,
           title: "Success",
@@ -301,7 +270,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         setIsLoading(false);
       }
     },
-    [address, nymClient],
+    [address, nymClient, handleRefetch],
   );
 
   const handleActionSelect = useCallback(
@@ -571,7 +540,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
 
   return (
     <div>
-      {isLoading && <Loading />}
+      {isDataLoading && <Loading />}
       <StakeModal
         nodeId={selectedNodeForStaking?.nodeId}
         identityKey={selectedNodeForStaking?.identityKey}

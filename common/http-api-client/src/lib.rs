@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use async_trait::async_trait;
+use fronted::Front;
 use reqwest::header::HeaderValue;
 use reqwest::{RequestBuilder, Response, StatusCode};
 use serde::de::DeserializeOwned;
@@ -142,6 +143,8 @@ impl ClientBuilder {
             base_url: self.url,
             reqwest_client,
 
+            front: None,
+
             #[cfg(target_arch = "wasm32")]
             request_timeout: self.timeout.unwrap_or(DEFAULT_TIMEOUT),
         })
@@ -154,6 +157,8 @@ pub struct Client {
     base_url: Url,
     reqwest_client: reqwest::Client,
 
+    front: Option<Front>,
+    
     #[cfg(target_arch = "wasm32")]
     request_timeout: Duration,
 }
@@ -225,8 +230,7 @@ impl Client {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let url = sanitize_url(&self.base_url, path, params);
-        self.reqwest_client.get(url)
+        self.create_request(reqwest::Method::GET, path, params, None::<&()>)
     }
 
     pub fn create_post_request<B, K, V>(
@@ -240,8 +244,7 @@ impl Client {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let url = sanitize_url(&self.base_url, path, params);
-        self.reqwest_client.post(url).json(json_body)
+        self.create_request(reqwest::Method::POST, path, params, Some(json_body))
     }
 
     pub fn create_delete_request<K, V>(
@@ -253,8 +256,7 @@ impl Client {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let url = sanitize_url(&self.base_url, path, params);
-        self.reqwest_client.delete(url)
+        self.create_request(reqwest::Method::DELETE, path, params, None::<&()>)
     }
 
     pub fn create_patch_request<B, K, V>(
@@ -268,8 +270,7 @@ impl Client {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let url = sanitize_url(&self.base_url, path, params);
-        self.reqwest_client.patch(url).json(json_body)
+        self.create_request(reqwest::Method::PATCH, path, params, Some(json_body))
     }
 
     async fn send_request<B, K, V, E>(
@@ -285,9 +286,21 @@ impl Client {
         V: AsRef<str>,
         E: Display,
     {
-        let url = sanitize_url(&self.base_url, path, params);
+        let url = match self.front {
+            Some(ref front) => {
+                let mut fronted_url = self.base_url.clone();
+                fronted_url.set_host(front.host_str()).unwrap();
+
+                sanitize_url(&fronted_url, path, params)
+            }
+            None => sanitize_url(&self.base_url, path, params),
+        }; 
 
         let mut request = self.reqwest_client.request(method.clone(), url);
+
+        if let Some(ref f) =  self.front {
+            request.header(reqwest::header::HOST, self.base_url.host_str().unwrap_or(""));
+        }
 
         if let Some(body) = json_body {
             request = request.json(body);

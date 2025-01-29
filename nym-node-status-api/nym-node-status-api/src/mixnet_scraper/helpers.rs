@@ -1,4 +1,7 @@
-use crate::db::models::ScraperNodeInfo;
+use crate::db::{
+    models::ScraperNodeInfo,
+    queries::{insert_node_packet_stats, insert_scraped_node_description},
+};
 use ammonia::Builder;
 use anyhow::Result;
 use chrono::{DateTime, Datelike, Utc};
@@ -130,31 +133,8 @@ pub async fn scrape_and_store_description(pool: &SqlitePool, node: &ScraperNodeI
     })?;
 
     let sanitized_description = sanitize_description(description);
-
-    let mut conn = pool.acquire().await?;
-    let timestamp = Utc::now().timestamp();
-
-    sqlx::query!(
-        r#"
-        INSERT INTO mixnode_description (
-            mix_id, moniker, website, security_contact, details, last_updated_utc
-        ) VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT (mix_id) DO UPDATE SET
-            moniker = excluded.moniker,
-            website = excluded.website,
-            security_contact = excluded.security_contact,
-            details = excluded.details,
-            last_updated_utc = excluded.last_updated_utc
-        "#,
-        node.node_id,
-        sanitized_description.moniker,
-        sanitized_description.website,
-        sanitized_description.security_contact,
-        sanitized_description.details,
-        timestamp,
-    )
-    .execute(&mut *conn)
-    .await?;
+    insert_scraped_node_description(pool, &node.node_kind, node.node_id, &sanitized_description)
+        .await?;
 
     Ok(())
 }
@@ -188,30 +168,11 @@ pub async fn scrape_and_store_packet_stats(
         anyhow::anyhow!("Failed to fetch stats from any URL: {}", err_msg)
     })?;
 
-    let timestamp = Utc::now();
-    {
-        let timestamp_utc = timestamp.timestamp();
-        let mut conn = pool.acquire().await?;
+    insert_node_packet_stats(pool, node.node_id, &node.node_kind, stats).await?;
 
-        // Store raw stats
-        sqlx::query!(
-            r#"
-        INSERT INTO mixnode_packet_stats_raw (
-            mix_id, timestamp_utc, packets_received, packets_sent, packets_dropped
-        ) VALUES (?, ?, ?, ?, ?)
-        "#,
-            node.node_id,
-            timestamp_utc,
-            stats.packets_received,
-            stats.packets_sent,
-            stats.packets_dropped,
-        )
-        .execute(&mut *conn)
-        .await?;
-    }
-
+    // TODO dz uncomment
     // Update daily stats
-    update_daily_stats(pool, node.node_id, timestamp, &stats).await?;
+    // update_daily_stats(pool, node.node_id, timestamp, &stats).await?;
 
     Ok(())
 }

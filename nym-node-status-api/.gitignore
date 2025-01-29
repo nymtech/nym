@@ -1,6 +1,7 @@
 nym-node-status-agent/nym-gateway-probe
 nym-node-status-agent/keys/
 data/
+settings.sql
 enter_db.sh
 nym-gateway-probe
 *.sqlite

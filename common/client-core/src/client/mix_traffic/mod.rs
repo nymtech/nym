@@ -123,9 +123,8 @@ impl MixTrafficController {
                                     // Disconnect from the gateway. If we should try to re-connect
                                     // is handled at a higher layer.
                                     error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
-                                    // WIP(JON): do we need to handle the embedded mixnet client
-                                    // case separately?
-                                    // WIP(JON): can't we use the CancellationToken here instead?
+                                    // Do we need to handle the embedded mixnet client case
+                                    // separately?
                                     shutdown.send_we_stopped(Box::new(ClientCoreError::GatewayFailedToForwardMessages));
                                     break;
                                 }

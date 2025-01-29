@@ -1,9 +1,10 @@
+use std::str::FromStr;
+
 use crate::{
     http::{self, models::SummaryHistory},
     monitor::NumericalCheckedCast,
 };
 use anyhow::Context;
-use cosmwasm_std::Decimal;
 use nym_contracts_common::Percent;
 use nym_crypto::asymmetric::{ed25519, x25519};
 use nym_network_defaults::DEFAULT_NYM_NODE_HTTP_PORT;
@@ -351,8 +352,14 @@ impl TryFrom<GatewaySessionsRecord> for http::models::SessionStats {
     }
 }
 
+pub(crate) enum NodeKind {
+    LegacyMixnode,
+    NymNode,
+}
+
 pub(crate) struct ScraperNodeInfo {
     pub node_id: i64,
+    pub node_kind: NodeKind,
     pub hosts: Vec<String>,
     pub http_api_port: i64,
 }
@@ -381,26 +388,28 @@ impl ScraperNodeInfo {
 pub(crate) struct NymNodeDto {
     pub node_id: i64,
     pub ed25519_identity_pubkey: String,
-    pub ip_addresses: String,
+    pub ip_addresses: serde_json::Value,
     pub mix_port: i64,
     pub x25519_sphinx_pubkey: String,
-    pub node_role: String,
-    pub supported_roles: String,
-    pub entry: Option<String>,
+    pub node_role: serde_json::Value,
+    pub supported_roles: serde_json::Value,
+    pub entry: Option<serde_json::Value>,
     pub performance: String,
 }
 
+#[derive(Debug)]
 pub(crate) struct NymNodeInsertRecord {
     #[allow(dead_code)]
     pub id: i64,
     pub node_id: i64,
     pub ed25519_identity_pubkey: String,
-    pub ip_addresses_serialized: String,
+    pub ip_addresses: serde_json::Value,
     pub mix_port: i64,
     pub x25519_sphinx_pubkey: String,
-    pub node_role: String,
-    pub supported_roles_serialized: String,
+    pub node_role: serde_json::Value,
+    pub supported_roles: serde_json::Value,
     pub performance: String,
+    pub entry: Option<serde_json::Value>,
     pub last_updated_utc: String,
 }
 
@@ -409,16 +418,21 @@ impl TryFrom<SkimmedNode> for NymNodeInsertRecord {
 
     fn try_from(other: SkimmedNode) -> Result<Self, Self::Error> {
         let now = OffsetDateTime::now_utc().to_string();
+
         let record = Self {
             id: Default::default(),
             node_id: other.node_id.into(),
             ed25519_identity_pubkey: other.ed25519_identity_pubkey.to_base58_string(),
-            ip_addresses_serialized: serde_json::to_string(&other.ip_addresses)?,
+            ip_addresses: serde_json::to_value(&other.ip_addresses)?,
             mix_port: other.mix_port as i64,
             x25519_sphinx_pubkey: other.x25519_sphinx_pubkey.to_base58_string(),
-            node_role: serde_json::to_string(&other.role)?,
-            supported_roles_serialized: serde_json::to_string(&other.supported_roles)?,
+            node_role: serde_json::to_value(&other.role)?,
+            supported_roles: serde_json::to_value(&other.supported_roles)?,
             performance: other.performance.value().to_string(),
+            entry: match other.entry {
+                Some(entry) => Some(serde_json::to_value(entry)?),
+                None => None,
+            },
             last_updated_utc: now,
         };
 
@@ -431,11 +445,12 @@ impl TryFrom<NymNodeDto> for SkimmedNode {
 
     fn try_from(other: NymNodeDto) -> Result<Self, Self::Error> {
         let node_id = u32::try_from(other.node_id).context("Invalid node_id in DB")?;
-        let supported_roles = serde_json::from_str(&other.supported_roles)?;
-        let node_role = serde_json::from_str(&other.node_role)?;
-        let ip_addresses = serde_json::from_str(&other.ip_addresses)?;
+        let supported_roles =
+            serde_json::from_value(other.supported_roles).context("supported_roles")?;
+        let node_role = serde_json::from_value(other.node_role).context("node_role")?;
+        let ip_addresses = serde_json::from_value(other.ip_addresses).context("ip_addresses")?;
         let entry = match other.entry {
-            Some(raw) => Some(serde_json::from_str(&raw)?),
+            Some(raw) => Some(serde_json::from_value(raw).context("entry")?),
             None => None,
         };
 
@@ -443,16 +458,16 @@ impl TryFrom<NymNodeDto> for SkimmedNode {
             node_id,
             ed25519_identity_pubkey: ed25519::PublicKey::from_base58_string(
                 other.ed25519_identity_pubkey,
-            )?,
+            )
+            .context("ed25519_identity_pubkey")?,
             ip_addresses,
             mix_port: other.mix_port.try_into()?,
-            x25519_sphinx_pubkey: x25519::PublicKey::from_base58_string(
-                other.x25519_sphinx_pubkey,
-            )?,
+            x25519_sphinx_pubkey: x25519::PublicKey::from_base58_string(other.x25519_sphinx_pubkey)
+                .context("x25519_sphinx_pubkey")?,
             role: node_role,
             supported_roles,
             entry,
-            performance: Percent::new(Decimal::raw(other.performance.parse::<u128>()?))?,
+            performance: Percent::from_str(&other.performance).context("can't parse Percent")?,
         };
 
         Ok(skimmed_node)

@@ -1,5 +1,6 @@
 use futures_util::TryStreamExt;
 use nym_validator_client::nym_api::SkimmedNode;
+use tracing::instrument;
 
 use crate::db::{
     models::{NymNodeDto, NymNodeInsertRecord},
@@ -14,13 +15,13 @@ pub(crate) async fn get_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<SkimmedNo
         r#"SELECT
             node_id,
             ed25519_identity_pubkey,
-            ip_addresses as "ip_addresses!",
+            ip_addresses as "ip_addresses!: serde_json::Value",
             mix_port,
             x25519_sphinx_pubkey,
-            node_role,
-            supported_roles,
-            performance,
-            entry
+            node_role as "node_role: serde_json::Value",
+            supported_roles as "supported_roles: serde_json::Value",
+            entry as "entry: serde_json::Value",
+            performance
         FROM
             nym_nodes
         "#,
@@ -31,7 +32,6 @@ pub(crate) async fn get_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<SkimmedNo
 
     let mut skimmed_nodes = Vec::new();
     for item in items {
-        tracing::debug!("🔵 Data from DB:{:?}", item);
         let node_id = item.node_id;
         match SkimmedNode::try_from(item) {
             Ok(node) => skimmed_nodes.push(node),
@@ -44,6 +44,7 @@ pub(crate) async fn get_nym_nodes(pool: &DbPool) -> anyhow::Result<Vec<SkimmedNo
     Ok(skimmed_nodes)
 }
 
+#[instrument(level = "debug", skip_all)]
 pub(crate) async fn insert_nym_nodes(
     pool: &DbPool,
     nym_nodes: Vec<SkimmedNode>,
@@ -58,10 +59,10 @@ pub(crate) async fn insert_nym_nodes(
                 (node_id, ed25519_identity_pubkey,
                     ip_addresses, mix_port,
                     x25519_sphinx_pubkey, node_role,
-                    supported_roles,
+                    supported_roles, entry,
                     performance, last_updated_utc
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(node_id) DO UPDATE SET
                 ed25519_identity_pubkey=excluded.ed25519_identity_pubkey,
                 ip_addresses=excluded.ip_addresses,
@@ -69,16 +70,18 @@ pub(crate) async fn insert_nym_nodes(
                 x25519_sphinx_pubkey=excluded.x25519_sphinx_pubkey,
                 node_role=excluded.node_role,
                 supported_roles=excluded.supported_roles,
+                entry=excluded.entry,
                 performance=excluded.performance,
                 last_updated_utc=excluded.last_updated_utc
                 ;",
             record.node_id,
             record.ed25519_identity_pubkey,
-            record.ip_addresses_serialized,
+            record.ip_addresses,
             record.mix_port,
             record.x25519_sphinx_pubkey,
             record.node_role,
-            record.supported_roles_serialized,
+            record.supported_roles,
+            record.entry,
             record.performance,
             record.last_updated_utc,
         )

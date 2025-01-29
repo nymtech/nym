@@ -31,7 +31,7 @@ pub use nym_api_requests::{
         StakeSaturationResponse, UptimeResponse,
     },
     nym_nodes::{CachedNodesResponse, SkimmedNode},
-    NymNetworkDetailsResponse
+    NymNetworkDetailsResponse,
 };
 pub use nym_coconut_dkg_common::types::EpochId;
 use nym_contracts_common::IdentityKey;
@@ -1030,15 +1030,9 @@ pub trait NymApiClientExt: ApiClient {
     }
 
     #[instrument(level = "debug", skip(self))]
-    async fn get_network_details(
-        &self,
-    ) -> Result<NymNetworkDetailsResponse, NymAPIError> {
+    async fn get_network_details(&self) -> Result<NymNetworkDetailsResponse, NymAPIError> {
         self.get_json(
-            &[
-                routes::API_VERSION,
-                routes::NETWORK,
-                routes::DETAILS,
-            ],
+            &[routes::API_VERSION, routes::NETWORK, routes::DETAILS],
             NO_PARAMS,
         )
         .await

@@ -96,6 +96,9 @@ pub enum ClientCoreError {
     #[error("timed out while trying to establish gateway connection")]
     GatewayConnectionTimeout,
 
+    #[error("failed to forward mix messages to gateway")]
+    GatewayFailedToForwardMessages,
+
     #[error("no ping measurements for the gateway ({identity}) performed")]
     NoGatewayMeasurements { identity: String },
 

@@ -2,10 +2,12 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::client::mix_traffic::transceiver::GatewayTransceiver;
+use crate::error::ClientCoreError;
 use crate::spawn_future;
 use log::*;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::forwarding::packet::MixPacket;
+use transceiver::ErasedGatewayError;
 
 pub type BatchMixMessageSender = tokio::sync::mpsc::Sender<Vec<MixPacket>>;
 pub type BatchMixMessageReceiver = tokio::sync::mpsc::Receiver<Vec<MixPacket>>;
@@ -82,7 +84,10 @@ impl MixTrafficController {
         )
     }
 
-    async fn on_messages(&mut self, mut mix_packets: Vec<MixPacket>) {
+    async fn on_messages(
+        &mut self,
+        mut mix_packets: Vec<MixPacket>,
+    ) -> Result<(), ErasedGatewayError> {
         debug_assert!(!mix_packets.is_empty());
 
         let result = if mix_packets.len() == 1 {
@@ -94,21 +99,14 @@ impl MixTrafficController {
                 .await
         };
 
-        match result {
-            Err(err) => {
-                error!("Failed to send sphinx packet(s) to the gateway: {err}");
-                self.consecutive_gateway_failure_count += 1;
-                if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
-                    // todo: in the future this should initiate a 'graceful' shutdown or try
-                    // to reconnect?
-                    panic!("failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead. Can't do anything about it yet :(")
-                }
-            }
-            Ok(_) => {
-                trace!("We *might* have managed to forward sphinx packet(s) to the gateway!");
-                self.consecutive_gateway_failure_count = 0;
-            }
+        if result.is_err() {
+            self.consecutive_gateway_failure_count += 1;
+        } else {
+            trace!("We *might* have managed to forward sphinx packet(s) to the gateway!");
+            self.consecutive_gateway_failure_count = 0;
         }
+
+        result
     }
 
     pub fn start_with_shutdown(mut self, mut shutdown: nym_task::TaskClient) {
@@ -119,7 +117,19 @@ impl MixTrafficController {
                 tokio::select! {
                     mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
-                            self.on_messages(mix_packets).await;
+                            if let Err(err) = self.on_messages(mix_packets).await {
+                                error!("Failed to send sphinx packet(s) to the gateway: {err}");
+                                if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
+                                    // Disconnect from the gateway. If we should try to re-connect
+                                    // is handled at the higher layer.
+                                    error!("failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
+                                    // WIP(JON): do we need to handle the embedded mixnet client
+                                    // case separately?
+                                    // WIP(JON): can't we use the CancellationToken here instead?
+                                    shutdown.send_we_stopped(Box::new(ClientCoreError::UnexpectedExit));
+                                    break;
+                                }
+                            }
                         },
                         None => {
                             log::trace!("MixTrafficController: Stopping since channel closed");

@@ -67,6 +67,9 @@ pub const STAKE_SATURATION: &str = "stake-saturation";
 pub const INCLUSION_CHANCE: &str = "inclusion-probability";
 pub const SUBMIT_GATEWAY: &str = "submit-gateway-monitoring-results";
 pub const SUBMIT_NODE: &str = "submit-node-monitoring-results";
-pub const PERFORMANCE: &str = "performance";
+
 
 pub const SERVICE_PROVIDERS: &str = "services";
+
+pub const DETAILS: &str = "details";
+pub const NETWORK: &str = "network";

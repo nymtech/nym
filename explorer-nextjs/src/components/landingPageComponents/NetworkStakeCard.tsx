@@ -1,5 +1,5 @@
 import { Box, Stack, Typography } from "@mui/material";
-import type { ExplorerData, IPacketsAndStakingData } from "../../app/api";
+import type { ExplorerData, IPacketsAndStakingData } from "../../app/api/types";
 import {
   CURRENT_EPOCH_REWARDS,
   HARBOURMASTER_API_MIXNODES_STATS,

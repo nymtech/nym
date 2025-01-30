@@ -71,13 +71,6 @@ export interface ExplorerData {
   };
 }
 
-export interface ExplorerCache {
-  explorerCache?: {
-    data?: ExplorerData;
-    lastUpdated?: Date;
-  };
-}
-
 export type NodeDescription = {
   last_polled: string;
   host_information: {

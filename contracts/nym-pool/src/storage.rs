@@ -128,7 +128,7 @@ impl NymPoolStorage {
 
         // the allowance should be well-formed
         let expected_denom = self.pool_denomination.load(deps.storage)?;
-        allowance.validate(env, &expected_denom)?;
+        allowance.validate_new(env, &expected_denom)?;
 
         // if allowance includes explicit limit,
         // it should not be higher than the total remaining tokens

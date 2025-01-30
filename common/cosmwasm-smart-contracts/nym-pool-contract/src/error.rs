@@ -43,4 +43,28 @@ pub enum NymPoolContractError {
         available: Coin,
         requested_grant: Coin,
     },
+
+    #[error("the period length can't be zero")]
+    ZeroAllowancePeriod,
+
+    #[error("the periodic spend limit of {periodic} was set to be higher than the total spend limit {total_limit}")]
+    PeriodicGrantOverSpendLimit { periodic: Coin, total_limit: Coin },
+
+    #[error("the accumulation spend limit of {accumulation} was set to be lower than the periodic grant amount of {periodic_grant}")]
+    AccumulationBelowGrantAmount {
+        accumulation: Coin,
+        periodic_grant: Coin,
+    },
+
+    #[error("the accumulation spend limit of {accumulation} was set to be higher than the total spend limit of {total_limit}")]
+    AccumulationOverSpendLimit {
+        accumulation: Coin,
+        total_limit: Coin,
+    },
+
+    #[error("the specified delayed allowance would never be available. it would become active at {available_timestamp} yet it expires at {expiration_timestamp}")]
+    UnattainableDelayedAllowance {
+        expiration_timestamp: u64,
+        available_timestamp: u64,
+    },
 }

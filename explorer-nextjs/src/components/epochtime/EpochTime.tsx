@@ -3,7 +3,7 @@
 import { AccessTime } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { addHours, format, isAfter } from "date-fns";
+import { addHours, format, isAfter, subSeconds } from "date-fns";
 import { useEffect, useState } from "react";
 import { fetchCurrentEpoch } from "../../app/api";
 
@@ -22,7 +22,10 @@ const NextEpochTime = () => {
   useEffect(() => {
     const checkEpochStatus = () => {
       if (data?.dateTime) {
-        const oneHourLater = addHours(new Date(data.dateTime), 1);
+        const oneHourLater = subSeconds(
+          addHours(new Date(data.dateTime), 1),
+          30,
+        );
         setHasEpochStarted(isAfter(Date.now(), oneHourLater));
       }
     };

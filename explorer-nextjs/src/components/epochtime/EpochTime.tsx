@@ -18,17 +18,21 @@ const NextEpochTime = () => {
   });
 
   const [hasEpochStarted, setHasEpochStarted] = useState(false);
+  console.log("hasEpochStarted :>> ", hasEpochStarted);
 
   useEffect(() => {
     const checkEpochStatus = () => {
       if (!data?.dateTime) return; // Ensure dateTime exists before running logic
 
-      const oneHourLater = subSeconds(
-        addHours(new Date(data.dateTime), 1),
-        60,
-      ).getTime(); // Convert to timestamp
+      const oneHourLater = subSeconds(new Date(data.dateTime), 30).getTime(); // Convert to timestamp
+
+      console.log(
+        "oneHourLater :>> ",
+        format(new Date(oneHourLater), "HH:mm:ss"),
+      );
 
       const now = Date.now(); // Current time in ms
+      console.log("now :>> ", format(new Date(now), "HH:mm:ss"));
       setHasEpochStarted(now >= oneHourLater);
     };
 

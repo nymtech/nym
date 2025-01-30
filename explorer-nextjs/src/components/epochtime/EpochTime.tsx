@@ -3,7 +3,7 @@
 import { AccessTime } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { addHours, format, subSeconds } from "date-fns";
+import { format, subSeconds } from "date-fns";
 import { useEffect, useState } from "react";
 import { fetchCurrentEpoch } from "../../app/api";
 

@@ -106,6 +106,7 @@ const SubHeaderRowActions = () => {
         title: "Success",
         message: "All rewards have been redeemed successfully!",
         onClose: () => setInfoModalProps({ open: false }),
+        tx: result?.transactionHash,
       });
     } catch (error) {
       console.error("Error redeeming rewards:", error);

@@ -632,7 +632,7 @@ impl MixnetListener {
             }
         } else {
             // If the client is not connected, just drop the packet silently
-            log::info!("dropping packet from mixnet: no registered client for packet with source: {src_addr}");
+            log::debug!("dropping packet from mixnet: no registered client for packet with source: {src_addr}");
             Ok(None)
         }
     }

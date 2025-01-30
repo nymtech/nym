@@ -1,23 +1,22 @@
 "use client";
 import { useChain } from "@cosmos-kit/react";
-import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useNymClient } from "../../hooks/useNymClient";
-import { formatBigNum } from "../../utils/formatBigNumbers";
-
 import { Box, Button, Chip, Stack, Tooltip, Typography } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocalStorage } from "@uidotdev/usehooks";
 import {
   type MRT_ColumnDef,
   MaterialReactTable,
   useMaterialReactTable,
 } from "material-react-table";
+import { useRouter } from "next/navigation";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import usePendingEvents, {
   type PendingEvent,
 } from "../../../src/hooks/useGetPendingEvents";
 import { COSMOS_KIT_USE_CHAIN } from "../../config";
+import { useNymClient } from "../../hooks/useNymClient";
+import { formatBigNum } from "../../utils/formatBigNumbers";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite } from "../favorite/Favorite";
 import Loading from "../loading";

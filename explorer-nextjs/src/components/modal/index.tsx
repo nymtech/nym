@@ -1,4 +1,3 @@
-import { TABLET_WIDTH } from "@/app/constants";
 import ArrowBackIosNewIcon from "@mui/icons-material/ArrowBackIosNew";
 import CloseIcon from "@mui/icons-material/Close";
 import ErrorOutline from "@mui/icons-material/ErrorOutline";
@@ -13,6 +12,7 @@ import {
   useMediaQuery,
 } from "@mui/material";
 import type React from "react";
+import { TABLET_WIDTH } from "../../app/constants";
 
 export const modalStyle = (width: number | string = 600) => ({
   position: "absolute",

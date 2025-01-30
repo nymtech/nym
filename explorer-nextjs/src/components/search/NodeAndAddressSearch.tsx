@@ -1,10 +1,10 @@
 "use client";
-import type NodeData from "@/app/api/types";
-import { NYM_NODE_BONDED } from "@/app/api/urls";
 import { Search } from "@mui/icons-material";
 import { Button, CircularProgress, Stack, Typography } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import type NodeData from "../../app/api/types";
+import { NYM_NODE_BONDED } from "../../app/api/urls";
 import Input from "../input/Input";
 
 const NodeAndAddressSearch = () => {

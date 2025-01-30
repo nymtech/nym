@@ -1,4 +1,3 @@
-import ArrowUpRight from "@/components/icons/ArrowUpRight";
 import {
   Card,
   CardContent,
@@ -8,6 +7,7 @@ import {
   Typography,
 } from "@mui/material";
 import Image from "next/image";
+import ArrowUpRight from "../../components/icons/ArrowUpRight";
 import { Link } from "../muiLink";
 
 const cardStyles = {

@@ -1,8 +1,8 @@
 "use client";
 
-import type { NodeRewardDetails } from "@/app/api/types";
-import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
 import { useQuery } from "@tanstack/react-query";
+import type { NodeRewardDetails } from "../../app/api/types";
+import { DATA_OBSERVATORY_NODES_URL } from "../../app/api/urls";
 import ExplorerCard from "../cards/ExplorerCard";
 import DelegationsTable from "./DelegationsTable";
 

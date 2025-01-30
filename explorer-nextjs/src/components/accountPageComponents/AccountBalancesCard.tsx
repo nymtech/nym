@@ -1,5 +1,5 @@
 "use client";
-import type { IAccountBalancesInfo, IRewardDetails } from "@/app/api/types";
+import type { IAccountBalancesInfo, IRewardDetails } from "../../app/api/types";
 import { AccountBalancesTable } from "../cards/AccountBalancesTable";
 import ExplorerCard from "../cards/ExplorerCard";
 

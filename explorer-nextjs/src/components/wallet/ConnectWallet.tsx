@@ -1,6 +1,5 @@
 "use client";
 
-import { COSMOS_KIT_USE_CHAIN } from "@/config";
 import { useChain } from "@cosmos-kit/react";
 import {
   Box,
@@ -9,6 +8,7 @@ import {
   IconButton,
   Typography,
 } from "@mui/material";
+import { COSMOS_KIT_USE_CHAIN } from "../../config";
 import Cross from "../icons/Cross";
 import { WalletAddress } from "./WalletAddress";
 import { WalletBalance } from "./WalletBalance";

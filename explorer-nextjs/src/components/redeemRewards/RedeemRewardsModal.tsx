@@ -1,6 +1,6 @@
-import SimpleModal from "@/components/modal/SimpleModal";
-import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Button, Stack, Typography } from "@mui/material";
+import SimpleModal from "../../components/modal/SimpleModal";
+import { formatBigNum } from "../../utils/formatBigNumbers";
 
 const RedeemRewardsModal = ({
   totalRewardsAmount,

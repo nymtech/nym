@@ -2,8 +2,8 @@
 
 import { useQuery } from "@tanstack/react-query";
 import getNymNodes from "../../actions/getNymNodes";
-import { type ExplorerData, fetchEpochRewards } from "../../app/api";
-import type { IObservatoryNode } from "../../app/api/types";
+import { fetchEpochRewards } from "../../app/api";
+import type { ExplorerData, IObservatoryNode } from "../../app/api/types";
 import NodeTable from "./NodeTable";
 
 // Utility function to calculate node saturation point

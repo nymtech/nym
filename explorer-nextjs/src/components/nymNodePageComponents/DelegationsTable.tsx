@@ -1,6 +1,5 @@
 "use client";
 
-import type { NodeRewardDetails } from "@/app/api/types";
 import { Stack, Typography } from "@mui/material";
 import {
   type MRT_ColumnDef,
@@ -9,6 +8,7 @@ import {
 } from "material-react-table";
 import { useRouter } from "next/navigation";
 import { useMemo } from "react";
+import type { NodeRewardDetails } from "../../app/api/types";
 
 const ColumnHeading = ({
   children,

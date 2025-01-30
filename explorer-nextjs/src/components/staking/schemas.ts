@@ -1,5 +1,5 @@
-import { validateAmount } from "@/utils/currency";
 import { z } from "zod";
+import { validateAmount } from "../../utils/currency";
 
 const MIN_AMOUNT_TO_DELEGATE = "10";
 const fee = { gas: "1000000", amount: [{ amount: "1000000", denom: "unym" }] };

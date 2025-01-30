@@ -1,7 +1,7 @@
-import type { IPacketsAndStakingData } from "@/app/api";
-import { HARBOURMASTER_API_MIXNODES_STATS } from "@/app/api/urls";
-import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Box, Stack, Typography } from "@mui/material";
+import type { IPacketsAndStakingData } from "../../app/api/types";
+import { HARBOURMASTER_API_MIXNODES_STATS } from "../../app/api/urls";
+import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";
 import { UpDownPriceIndicator } from "../price/UpDownPriceIndicator";

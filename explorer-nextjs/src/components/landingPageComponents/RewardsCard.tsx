@@ -1,5 +1,5 @@
-import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Typography } from "@mui/material";
+import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 
 export const RewardsCard = async () => {

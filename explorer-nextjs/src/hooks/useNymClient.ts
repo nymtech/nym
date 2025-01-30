@@ -1,6 +1,5 @@
 "use client";
 
-import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "@/config";
 import { useChain } from "@cosmos-kit/react";
 import { contracts } from "@nymproject/contract-clients";
 import type {
@@ -8,6 +7,7 @@ import type {
   MixnetQueryClient,
 } from "@nymproject/contract-clients/Mixnet.client";
 import { useEffect, useState } from "react";
+import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "../config";
 
 export const useNymClient = () => {
   const [nymClient, setNymClient] = useState<MixnetClient>();

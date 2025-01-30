@@ -1,6 +1,6 @@
 "use client";
-import type { IAccountBalancesInfo } from "@/app/api/types";
 import { Box, Stack, Typography } from "@mui/material";
+import type { IAccountBalancesInfo } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";

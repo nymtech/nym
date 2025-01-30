@@ -1,6 +1,6 @@
-import type { NymTokenomics } from "@/app/api/types";
-import { NYM_PRICES_API } from "@/app/api/urls";
 import { Box, Stack } from "@mui/material";
+import type { NymTokenomics } from "../../app/api/types";
+import { NYM_PRICES_API } from "../../app/api/urls";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import { TitlePrice } from "../price/TitlePrice";

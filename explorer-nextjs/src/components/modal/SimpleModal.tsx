@@ -1,4 +1,3 @@
-import Cross from "@/components/icons/Cross";
 import {
   Dialog,
   DialogActions,
@@ -7,6 +6,7 @@ import {
   Stack,
   Typography,
 } from "@mui/material";
+import Cross from "../../components/icons/Cross";
 
 type SimpleModalPropsClosed = {
   open: false;

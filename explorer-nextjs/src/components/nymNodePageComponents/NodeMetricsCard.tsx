@@ -1,8 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { ExplorerData } from "../../app/api";
 import { fetchNodeInfo } from "../../app/api";
+import type { ExplorerData } from "../../app/api/types";
 import { CURRENT_EPOCH_REWARDS } from "../../app/api/urls";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";

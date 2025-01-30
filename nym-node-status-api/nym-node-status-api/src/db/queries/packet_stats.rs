@@ -1,19 +1,16 @@
-use crate::{
-    db::{models::NodeKind, DbPool},
-    mixnet_scraper::helpers::NodeStats,
+use crate::db::{
+    models::{NodeKind, NodeStats, ScraperNodeInfo},
+    DbPool,
 };
 use anyhow::Result;
-use chrono::Utc;
 
 pub(crate) async fn insert_node_packet_stats(
     pool: &DbPool,
     node_id: i64,
     node_kind: &NodeKind,
-    stats: NodeStats,
+    stats: &NodeStats,
+    timestamp_utc: i64,
 ) -> Result<()> {
-    let timestamp = Utc::now();
-    let timestamp_utc = timestamp.timestamp();
-
     let mut conn = pool.acquire().await?;
 
     match node_kind {
@@ -45,6 +42,112 @@ pub(crate) async fn insert_node_packet_stats(
                 stats.packets_received,
                 stats.packets_sent,
                 stats.packets_dropped,
+            )
+            .execute(&mut *conn)
+            .await?;
+        }
+    }
+
+    Ok(())
+}
+
+pub(crate) async fn get_raw_node_stats(
+    pool: &DbPool,
+    node: &ScraperNodeInfo,
+) -> Result<Option<NodeStats>> {
+    let mut conn = pool.acquire().await?;
+
+    let packets = match node.node_kind {
+        // if no packets are found, it's fine to assume 0 because that's also
+        // SQL default value if none provided
+        NodeKind::LegacyMixnode => {
+            sqlx::query_as!(
+                NodeStats,
+                r#"
+                SELECT
+                    COALESCE(packets_received, 0) as packets_received,
+                    COALESCE(packets_sent, 0) as packets_sent,
+                    COALESCE(packets_dropped, 0) as packets_dropped
+                FROM mixnode_packet_stats_raw
+                WHERE mix_id = ?
+                ORDER BY timestamp_utc DESC
+                LIMIT 1 OFFSET 1
+                "#,
+                node.node_id
+            )
+            .fetch_optional(&mut *conn)
+            .await?
+        }
+        NodeKind::NymNode => {
+            sqlx::query_as!(
+                NodeStats,
+                r#"
+                SELECT
+                    COALESCE(packets_received, 0) as packets_received,
+                    COALESCE(packets_sent, 0) as packets_sent,
+                    COALESCE(packets_dropped, 0) as packets_dropped
+                FROM nym_nodes_packet_stats_raw
+                WHERE node_id = ?
+                ORDER BY timestamp_utc DESC
+                LIMIT 1 OFFSET 1
+                "#,
+                node.node_id
+            )
+            .fetch_optional(&mut *conn)
+            .await?
+        }
+    };
+
+    Ok(packets)
+}
+
+pub(crate) async fn insert_daily_node_stats(
+    pool: &DbPool,
+    node: &ScraperNodeInfo,
+    date_utc: &str,
+    packets: NodeStats,
+) -> Result<()> {
+    let mut conn = pool.acquire().await?;
+    match node.node_kind {
+        NodeKind::LegacyMixnode => {
+            sqlx::query!(
+                r#"
+                INSERT INTO mixnode_daily_stats (
+                    mix_id, date_utc, total_stake, packets_received, packets_sent, packets_dropped
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                ON CONFLICT(mix_id, date_utc) DO UPDATE SET
+                    total_stake = excluded.total_stake,
+                    packets_received = mixnode_daily_stats.packets_received + excluded.packets_received,
+                    packets_sent = mixnode_daily_stats.packets_sent + excluded.packets_sent,
+                    packets_dropped = mixnode_daily_stats.packets_dropped + excluded.packets_dropped
+                "#,
+                node.node_id,
+                date_utc,
+                // TODO is total stake relevant anymore?
+                0,
+                packets.packets_received,
+                packets.packets_sent,
+                packets.packets_dropped,
+            )
+            .execute(&mut *conn)
+            .await?;
+        }
+        NodeKind::NymNode => {
+            sqlx::query!(
+                r#"
+                INSERT INTO nym_node_daily_mixing_stats (
+                    node_id, date_utc, packets_received, packets_sent, packets_dropped
+                ) VALUES (?, ?, ?, ?, ?)
+                ON CONFLICT(node_id, date_utc) DO UPDATE SET
+                    packets_received = nym_node_daily_mixing_stats.packets_received + excluded.packets_received,
+                    packets_sent = nym_node_daily_mixing_stats.packets_sent + excluded.packets_sent,
+                    packets_dropped = nym_node_daily_mixing_stats.packets_dropped + excluded.packets_dropped
+                "#,
+                node.node_id,
+                date_utc,
+                packets.packets_received,
+                packets.packets_sent,
+                packets.packets_dropped,
             )
             .execute(&mut *conn)
             .await?;

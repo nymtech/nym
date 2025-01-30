@@ -97,7 +97,7 @@ pub struct ZkNymTicketHandlerDebug {
 impl ZkNymTicketHandlerDebug {
     pub const DEFAULT_REVOCATION_BANDWIDTH_PENALTY: f32 = 10.0;
     pub const DEFAULT_PENDING_POLLER: Duration = Duration::from_secs(300);
-    pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.8;
+    pub const DEFAULT_MINIMUM_API_QUORUM: f32 = 0.7;
     pub const DEFAULT_MINIMUM_REDEMPTION_TICKETS: usize = 100;
 
     // use min(4/5 of max validity, validity - 1), but making sure it's no greater than 1 day

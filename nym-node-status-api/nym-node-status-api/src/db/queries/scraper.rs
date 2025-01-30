@@ -46,14 +46,15 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
     tracing::debug!("Fetched {} 🦖 mixnodes", nodes_to_scrape.len());
 
     let mut duplicates = 0;
-    let mut legacy_mixnodes = 0;
+    let mut legacy_not_in_nym_node_list = 0;
+    let total_legacy_mixnodes = mixnodes.len();
     for mixnode in mixnodes {
         // TODO dz remove this, only for debugging
         if nodes_to_scrape
             .iter()
             .all(|node| node.node_id != mixnode.node_id)
         {
-            legacy_mixnodes += 1;
+            legacy_not_in_nym_node_list += 1;
         } else {
             duplicates += 1;
         }
@@ -72,8 +73,16 @@ pub(crate) async fn get_mixing_nodes_for_scraping(pool: &DbPool) -> Result<Vec<S
             })
         }
     }
-    tracing::debug!("Ignoring {} duplicates", duplicates);
-    tracing::debug!("Found {} unique legacy mixnodes", legacy_mixnodes);
+    tracing::debug!(
+        "{}/{} legacy mixnodes already included in nym_node list",
+        duplicates,
+        total_legacy_mixnodes
+    );
+    tracing::debug!(
+        "{}/{} legacy mixnodes NOT included in nym_node list",
+        legacy_not_in_nym_node_list,
+        total_legacy_mixnodes
+    );
     tracing::debug!("In total: {} 🌟+🦖 mixing nodes", nodes_to_scrape.len());
 
     Ok(nodes_to_scrape)

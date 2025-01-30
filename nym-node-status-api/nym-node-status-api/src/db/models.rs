@@ -427,7 +427,7 @@ impl TryFrom<SkimmedNode> for NymNodeInsertRecord {
             mix_port: other.mix_port as i64,
             x25519_sphinx_pubkey: other.x25519_sphinx_pubkey.to_base58_string(),
             node_role: serde_json::to_value(&other.role)?,
-            supported_roles: serde_json::to_value(&other.supported_roles)?,
+            supported_roles: serde_json::to_value(other.supported_roles)?,
             performance: other.performance.value().to_string(),
             entry: match other.entry {
                 Some(entry) => Some(serde_json::to_value(entry)?),
@@ -472,4 +472,11 @@ impl TryFrom<NymNodeDto> for SkimmedNode {
 
         Ok(skimmed_node)
     }
+}
+
+#[derive(Debug, Serialize, Deserialize, sqlx::Decode)]
+pub struct NodeStats {
+    pub packets_received: i64,
+    pub packets_sent: i64,
+    pub packets_dropped: i64,
 }

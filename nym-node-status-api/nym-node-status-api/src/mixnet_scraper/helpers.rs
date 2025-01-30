@@ -1,6 +1,9 @@
 use crate::db::{
-    models::ScraperNodeInfo,
-    queries::{insert_node_packet_stats, insert_scraped_node_description},
+    models::{NodeStats, ScraperNodeInfo},
+    queries::{
+        get_raw_node_stats, insert_daily_node_stats, insert_node_packet_stats,
+        insert_scraped_node_description,
+    },
 };
 use ammonia::Builder;
 use anyhow::Result;
@@ -9,13 +12,6 @@ use reqwest;
 use serde::{Deserialize, Serialize};
 use sqlx::SqlitePool;
 use std::time::Duration;
-
-#[derive(Debug, Serialize, Deserialize)]
-pub struct NodeStats {
-    pub packets_received: i64,
-    pub packets_sent: i64,
-    pub packets_dropped: i64,
-}
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct NodeDescriptionResponse {
@@ -168,23 +164,22 @@ pub async fn scrape_and_store_packet_stats(
         anyhow::anyhow!("Failed to fetch stats from any URL: {}", err_msg)
     })?;
 
-    insert_node_packet_stats(pool, node.node_id, &node.node_kind, stats).await?;
+    let timestamp = Utc::now();
+    let timestamp_utc = timestamp.timestamp();
+    insert_node_packet_stats(pool, node.node_id, &node.node_kind, &stats, timestamp_utc).await?;
 
-    // TODO dz uncomment
     // Update daily stats
-    // update_daily_stats(pool, node.node_id, timestamp, &stats).await?;
+    update_daily_stats(pool, node, timestamp, &stats).await?;
 
     Ok(())
 }
 
 pub async fn update_daily_stats(
     pool: &SqlitePool,
-    node_id: i64,
+    node: &ScraperNodeInfo,
     timestamp: DateTime<Utc>,
     current_stats: &NodeStats,
 ) -> Result<()> {
-    let mut conn = pool.acquire().await?;
-
     let date_utc = format!(
         "{:04}-{:02}-{:02}",
         timestamp.year(),
@@ -192,67 +187,29 @@ pub async fn update_daily_stats(
         timestamp.day()
     );
 
-    let total_stake = sqlx::query_scalar!(
-        r#"
-        SELECT
-            total_stake
-        FROM mixnodes
-        WHERE mix_id = ?
-        "#,
-        node_id
-    )
-    .fetch_one(&mut *conn)
-    .await?;
-
     // Get previous stats
-    let previous_stats = sqlx::query!(
-        r#"
-        SELECT packets_received, packets_sent, packets_dropped
-        FROM mixnode_packet_stats_raw
-        WHERE mix_id = ?
-        ORDER BY timestamp_utc DESC
-        LIMIT 1 OFFSET 1
-        "#,
-        node_id
-    )
-    .fetch_optional(&mut *conn)
-    .await?;
+    let previous_stats = get_raw_node_stats(pool, node).await?;
 
     let (diff_received, diff_sent, diff_dropped) = if let Some(prev) = previous_stats {
         (
-            calculate_packet_difference(
-                current_stats.packets_received,
-                prev.packets_received.unwrap_or(0),
-            ),
-            calculate_packet_difference(current_stats.packets_sent, prev.packets_sent.unwrap_or(0)),
-            calculate_packet_difference(
-                current_stats.packets_dropped,
-                prev.packets_dropped.unwrap_or(0),
-            ),
+            calculate_packet_difference(current_stats.packets_received, prev.packets_received),
+            calculate_packet_difference(current_stats.packets_sent, prev.packets_sent),
+            calculate_packet_difference(current_stats.packets_dropped, prev.packets_dropped),
         )
     } else {
         (0, 0, 0) // No previous stats available
     };
 
-    sqlx::query!(
-        r#"
-        INSERT INTO mixnode_daily_stats (
-            mix_id, date_utc, total_stake, packets_received, packets_sent, packets_dropped
-        ) VALUES (?, ?, ?, ?, ?, ?)
-        ON CONFLICT(mix_id, date_utc) DO UPDATE SET
-            total_stake = excluded.total_stake,
-            packets_received = mixnode_daily_stats.packets_received + excluded.packets_received,
-            packets_sent = mixnode_daily_stats.packets_sent + excluded.packets_sent,
-            packets_dropped = mixnode_daily_stats.packets_dropped + excluded.packets_dropped
-        "#,
-        node_id,
-        date_utc,
-        total_stake,
-        diff_received,
-        diff_sent,
-        diff_dropped,
+    insert_daily_node_stats(
+        pool,
+        node,
+        &date_utc,
+        NodeStats {
+            packets_received: diff_received,
+            packets_sent: diff_sent,
+            packets_dropped: diff_dropped,
+        },
     )
-    .execute(&mut *conn)
     .await?;
 
     Ok(())

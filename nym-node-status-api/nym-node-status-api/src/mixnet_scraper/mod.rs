@@ -11,9 +11,7 @@ use crate::db::models::ScraperNodeInfo;
 use crate::db::queries::get_mixing_nodes_for_scraping;
 
 const DESCRIPTION_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60 * 4);
-// TODO dz restore to 1 hour
-// const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60);
-const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 1);
+const PACKET_SCRAPE_INTERVAL: Duration = Duration::from_secs(60 * 60);
 const QUEUE_CHECK_INTERVAL: Duration = Duration::from_millis(250);
 const MAX_CONCURRENT_TASKS: usize = 5;
 

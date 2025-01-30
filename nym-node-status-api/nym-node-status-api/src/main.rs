@@ -36,7 +36,6 @@ async fn main() -> anyhow::Result<()> {
         scraper.start().await;
     });
 
-
     // Start the monitor
     let args_clone = args.clone();
 

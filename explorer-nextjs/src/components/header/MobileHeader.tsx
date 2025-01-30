@@ -149,6 +149,7 @@ const MobileMenuHeader = ({
         </Box>
       </Box>
       <ConnectWallet size="small" />
+      <Box height={40} />
     </Wrapper>
   );
 };

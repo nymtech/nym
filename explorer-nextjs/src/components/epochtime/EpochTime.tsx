@@ -3,7 +3,7 @@
 import { AccessTime } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { addHours, format, isAfter, subSeconds } from "date-fns";
+import { addHours, format, subSeconds } from "date-fns";
 import { useEffect, useState } from "react";
 import { fetchCurrentEpoch } from "../../app/api";
 
@@ -21,21 +21,23 @@ const NextEpochTime = () => {
 
   useEffect(() => {
     const checkEpochStatus = () => {
-      if (data?.dateTime) {
-        const oneHourLater = subSeconds(
-          addHours(new Date(data.dateTime), 1),
-          30,
-        );
-        setHasEpochStarted(isAfter(Date.now(), oneHourLater));
-      }
+      if (!data?.dateTime) return; // Ensure dateTime exists before running logic
+
+      const oneHourLater = subSeconds(
+        addHours(new Date(data.dateTime), 1),
+        60,
+      ).getTime(); // Convert to timestamp
+
+      const now = Date.now(); // Current time in ms
+      setHasEpochStarted(now >= oneHourLater);
     };
 
     checkEpochStatus(); // Check immediately on mount
 
-    const interval = setInterval(checkEpochStatus, 30000); // Check every 30s
+    const interval = setInterval(checkEpochStatus, 30000); // Check every 30s, regardless of data updates
 
-    return () => clearInterval(interval); // Cleanup on unmount
-  }, [data?.dateTime]);
+    return () => clearInterval(interval); // Cleanup interval on unmount
+  }); //  No dependencies → Runs every 30s even if `data` doesn’t change
 
   if (isLoading) {
     return (
@@ -68,7 +70,7 @@ const NextEpochTime = () => {
         </Typography>
       ) : (
         <Typography variant="h5" fontWeight="light">
-          Next epoch: {format(data.dateTime, "HH:mm:ss")}
+          Next epoch: {format(new Date(data.dateTime), "HH:mm:ss")}
         </Typography>
       )}
     </Stack>

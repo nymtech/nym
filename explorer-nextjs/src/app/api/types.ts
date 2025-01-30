@@ -2,6 +2,82 @@ export type API_RESPONSE<T> = {
   data: T[];
 };
 
+export type Denom = "unym" | "nym";
+
+export interface IPacketsAndStakingData {
+  date_utc: string;
+  total_packets_received: number;
+  total_packets_sent: number;
+  total_packets_dropped: number;
+  total_stake: number;
+}
+
+export interface CurrentEpochData {
+  id: number;
+  current_epoch_id: number;
+  current_epoch_start: string;
+  epoch_length: { secs: number; nanos: number };
+  epochs_in_interval: number;
+  total_elapsed_epochs: number;
+}
+export interface ExplorerData {
+  circulatingNymSupplyData: {
+    circulating_supply: { denom: Denom; amount: string };
+    mixmining_reserve: { denom: Denom; amount: string };
+    total_supply: { denom: Denom; amount: string };
+    vesting_tokens: { denom: Denom; amount: string };
+  };
+  nymNodesData: {
+    gateways: {
+      bonded: { count: number; last_updated_utc: string };
+      blacklisted: { count: number; last_updated_utc: string };
+      historical: { count: number; last_updated_utc: string };
+      explorer: { count: number; last_updated_utc: string };
+    };
+    mixnodes: {
+      bonded: {
+        count: number;
+        active: number;
+        inactive: number;
+        reserve: number;
+        last_updated_utc: string;
+      };
+      blacklisted: {
+        count: number;
+        last_updated_utc: string;
+      };
+      historical: { count: number; last_updated_utc: string };
+    };
+  };
+  packetsAndStakingData: IPacketsAndStakingData[];
+
+  currentEpochRewardsData: {
+    interval: {
+      reward_pool: string;
+      staking_supply: string;
+      staking_supply_scale_factor: string;
+      epoch_reward_budget: string;
+      stake_saturation_point: string;
+      active_set_work_factor: string;
+      interval_pool_emission: string;
+      sybil_resistance: string;
+    };
+    rewarded_set: {
+      entry_gateways: number;
+      exit_gateways: number;
+      mixnodes: number;
+      standby: number;
+    };
+  };
+}
+
+export interface ExplorerCache {
+  explorerCache?: {
+    data?: ExplorerData;
+    lastUpdated?: Date;
+  };
+}
+
 export type NodeDescription = {
   last_polled: string;
   host_information: {

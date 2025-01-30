@@ -43,16 +43,6 @@ const NextEpochTime = () => {
     );
   }
 
-  // console.log(
-  //   "React Query Data:",
-  //   queryClient.ensureQueryData({
-  //     queryKey: ["currentEpoch"],
-  //     queryFn: fetchCurrentEpoch,
-  //   })
-  // );
-
-  console.log("data in component:>> ", data);
-
   const formattedDate = format(data.dateTime, "HH:mm:ss");
 
   return (

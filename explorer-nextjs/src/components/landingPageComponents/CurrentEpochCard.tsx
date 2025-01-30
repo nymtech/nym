@@ -8,10 +8,13 @@ import EpochProgressBar from "../progressBars/EpochProgressBar";
 export const CurrentEpochCard = () => {
   // Use React Query to fetch data
   const { data, isError, isLoading } = useQuery({
-    queryKey: ["currentEpoch"], // Unique query key
-    queryFn: fetchCurrentEpoch, // Fetch function
-    refetchInterval: 30000, // Refetch every 30 seconds
-    staleTime: 30000, // Data is considered fresh for 30 seconds
+    enabled: true,
+    queryKey: ["currentEpoch"],
+    queryFn: fetchCurrentEpoch,
+    refetchInterval: 30000,
+    staleTime: 30000,
+    refetchOnMount: true, // Force UI update
+    keepPreviousData: false, // Ensure new data updates UI
   });
 
   if (isLoading) {

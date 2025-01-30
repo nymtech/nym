@@ -162,55 +162,6 @@ const getExplorerData = async () => {
   ];
 };
 
-export async function ensureCacheExists() {
-  // makes sure the cache exists in global memory
-  let doUpdate = false;
-  const now = new Date();
-  if (!(global as ExplorerCache).explorerCache) {
-    (global as any).explorerCache = {};
-    doUpdate = true;
-  }
-  if (
-    (global as ExplorerCache)?.explorerCache?.lastUpdated &&
-    now.getDate() - (global as any).explorerCache.lastUpdated.getDate() >
-      CACHE_TIME_SECONDS
-  ) {
-    doUpdate = true;
-  }
-
-  // if the cache has expired or never existed, get it from API's
-  if (doUpdate) {
-    const [
-      circulatingNymSupplyData,
-      nymNodesData,
-      packetsAndStakingData,
-      currentEpochData,
-      currentEpochRewardsData,
-    ] = await getExplorerData();
-
-    packetsAndStakingData.pop();
-
-    (global as any).explorerCache.data = {
-      circulatingNymSupplyData,
-      nymNodesData,
-      packetsAndStakingData,
-      currentEpochData,
-      currentEpochRewardsData,
-    };
-    (global as any).explorerCache.lastUpdated = now;
-  }
-}
-
-export async function getCacheExplorerData() {
-  await ensureCacheExists();
-
-  if (!(global as ExplorerCache).explorerCache?.data) {
-    return null;
-  }
-
-  return (global as ExplorerCache)?.explorerCache?.data || null;
-}
-
 // Fetch function for epoch rewards
 export const fetchEpochRewards = async (): Promise<
   ExplorerData["currentEpochRewardsData"]
@@ -220,6 +171,7 @@ export const fetchEpochRewards = async (): Promise<
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
     },
+    cache: "no-store", // Ensures fresh data on every request
   });
 
   if (!response.ok) {
@@ -237,6 +189,7 @@ export const fetchNodeInfo = async (
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
     },
+    next: { revalidate: 60 },
   });
 
   if (!response.ok) {
@@ -255,6 +208,7 @@ export const fetchNodeDelegations = async (id: number) => {
         Accept: "application/json",
         "Content-Type": "application/json; charset=utf-8",
       },
+      next: { revalidate: 60 },
     },
   );
 
@@ -271,6 +225,7 @@ export const fetchCurrentEpoch = async () => {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
     },
+    next: { revalidate: 30 },
   });
 
   if (!response.ok) {
@@ -282,6 +237,7 @@ export const fetchCurrentEpoch = async () => {
     new Date(data.current_epoch_start),
     data.epoch_length.secs,
   );
+  console.log("fetching Epoch data:>> ", data);
 
   return { data, dateTime };
 };
@@ -350,3 +306,4 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
   // Return the delegated amount
   return Number(balances.delegated.amount);
 };
+//   // makes sure the cache exists in global memory

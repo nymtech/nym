@@ -3,16 +3,22 @@
 import { AccessTime } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fetchCurrentEpoch } from "../../app/api";
 
 const NextEpochTime = () => {
   // Use React Query to fetch next epoch data
+  const queryClient = useQueryClient();
+
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["currentEpoch"], // Unique query key
-    queryFn: fetchCurrentEpoch, // Fetch function
-    refetchInterval: 30000, // Refetch every 30 seconds
-    staleTime: 30000, // Data is considered fresh for 30 seconds
+    queryKey: ["currentEpoch"],
+    queryFn: fetchCurrentEpoch,
+    refetchInterval: 30000,
+    enabled: true,
+    staleTime: 30000,
+    refetchOnMount: true, // Force UI update
+    keepPreviousData: false, // Ensure new data updates UI
   });
 
   if (isLoading) {
@@ -36,6 +42,16 @@ const NextEpochTime = () => {
       </Stack>
     );
   }
+
+  // console.log(
+  //   "React Query Data:",
+  //   queryClient.ensureQueryData({
+  //     queryKey: ["currentEpoch"],
+  //     queryFn: fetchCurrentEpoch,
+  //   })
+  // );
+
+  console.log("data in component:>> ", data);
 
   const formattedDate = format(data.dateTime, "HH:mm:ss");
 

@@ -5,9 +5,9 @@ import ThemeProvider from "./ThemeProvider";
 const Providers = ({ children }: { children: React.ReactNode }) => {
   return (
     <ThemeProvider>
-      <CosmosKitProvider>
-        <QueryProvider>{children}</QueryProvider>
-      </CosmosKitProvider>
+      <QueryProvider>
+        <CosmosKitProvider>{children}</CosmosKitProvider>
+      </QueryProvider>
     </ThemeProvider>
   );
 };

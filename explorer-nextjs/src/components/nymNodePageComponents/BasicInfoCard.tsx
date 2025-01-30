@@ -1,11 +1,10 @@
 "use client";
 
-import type { IObservatoryNode } from "@/app/api/types";
-import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
-import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
+import { fetchNodeInfo } from "../../app/api";
+import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
@@ -13,25 +12,6 @@ import ExplorerListItem from "../list/ListItem";
 interface IBasicInfoCardProps {
   id: number; // Node ID
 }
-
-// Fetch function to get the node data
-const fetchNodeInfo = async (id: number): Promise<IObservatoryNode | null> => {
-  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    next: { revalidate: 60 },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch observatory nodes");
-  }
-
-  const observatoryNymNodes: IObservatoryNode[] = await response.json();
-
-  return observatoryNymNodes.find((node) => node.node_id === id) || null;
-};
 
 export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
   // Use React Query to fetch the node info

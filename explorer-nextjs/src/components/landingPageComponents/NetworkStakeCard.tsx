@@ -1,10 +1,10 @@
-import type { ExplorerData, IPacketsAndStakingData } from "@/app/api";
+import { Box, Stack, Typography } from "@mui/material";
+import type { ExplorerData, IPacketsAndStakingData } from "../../app/api";
 import {
   CURRENT_EPOCH_REWARDS,
   HARBOURMASTER_API_MIXNODES_STATS,
-} from "@/app/api/urls";
-import { formatBigNum } from "@/utils/formatBigNumbers";
-import { Box, Stack, Typography } from "@mui/material";
+} from "../../app/api/urls";
+import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";
 

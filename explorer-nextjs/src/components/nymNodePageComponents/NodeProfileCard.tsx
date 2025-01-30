@@ -1,13 +1,13 @@
 "use client";
 
-import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
-import { COSMOS_KIT_USE_CHAIN } from "@/config";
-import { useNymClient } from "@/hooks/useNymClient";
 import { useChain } from "@cosmos-kit/react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { RandomAvatar } from "react-random-avatars";
+import { fetchNodeInfo } from "../../app/api";
+import { COSMOS_KIT_USE_CHAIN } from "../../config";
+import { useNymClient } from "../../hooks/useNymClient";
 import ExplorerCard from "../cards/ExplorerCard";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite } from "../favorite/Favorite";
@@ -20,23 +20,6 @@ import ConnectWallet from "../wallet/ConnectWallet";
 interface INodeProfileCardProps {
   id: number; // Node ID
 }
-
-// Fetch node info
-const fetchNodeInfo = async (id: number) => {
-  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch observatory nodes");
-  }
-
-  const nodes = await response.json();
-  return nodes.find((node: { node_id: number }) => node.node_id === id) || null;
-};
 
 export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);

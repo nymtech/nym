@@ -1,14 +1,18 @@
-import type { IAccountBalancesInfo, NymTokenomics } from "@/app/api/types";
-import type NodeData from "@/app/api/types";
-import { NYM_ACCOUNT_ADDRESS, NYM_NODES, NYM_PRICES_API } from "@/app/api/urls";
-import { AccountBalancesCard } from "@/components/accountPageComponents/AccountBalancesCard";
-import { AccountInfoCard } from "@/components/accountPageComponents/AccountInfoCard";
-import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
-import { ContentLayout } from "@/components/contentLayout/ContentLayout";
-import SectionHeading from "@/components/headings/SectionHeading";
-import ExplorerButtonGroup from "@/components/toggleButton/ToggleButton";
 import { Box, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
+import { AccountBalancesCard } from "../../../../components/accountPageComponents/AccountBalancesCard";
+import { AccountInfoCard } from "../../../../components/accountPageComponents/AccountInfoCard";
+import BlogArticlesCards from "../../../../components/blogs/BlogArticleCards";
+import { ContentLayout } from "../../../../components/contentLayout/ContentLayout";
+import SectionHeading from "../../../../components/headings/SectionHeading";
+import ExplorerButtonGroup from "../../../../components/toggleButton/ToggleButton";
+import type { IAccountBalancesInfo, NymTokenomics } from "../../../api/types";
+import type NodeData from "../../../api/types";
+import {
+  NYM_ACCOUNT_ADDRESS,
+  NYM_NODES,
+  NYM_PRICES_API,
+} from "../../../api/urls";
 
 export default async function Account({
   params,

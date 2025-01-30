@@ -1,52 +1,14 @@
 "use client";
 
-import type { ExplorerData } from "@/app/api";
-import type { IObservatoryNode, RewardingDetails } from "@/app/api/types";
-import {
-  CURRENT_EPOCH_REWARDS,
-  DATA_OBSERVATORY_NODES_URL,
-} from "@/app/api/urls";
 import { useQuery } from "@tanstack/react-query";
+import { fetchEpochRewards, fetchNodeInfo } from "../../app/api";
+import type { RewardingDetails } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
 interface INodeRewardsCardProps {
   id: number; // Node ID
 }
-
-// Fetch functions
-const fetchEpochRewards = async (): Promise<
-  ExplorerData["currentEpochRewardsData"]
-> => {
-  const response = await fetch(CURRENT_EPOCH_REWARDS, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch epoch rewards");
-  }
-
-  return response.json();
-};
-
-const fetchNodeInfo = async (id: number): Promise<IObservatoryNode | null> => {
-  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch observatory nodes");
-  }
-
-  const nodes: IObservatoryNode[] = await response.json();
-  return nodes.find((node) => node.node_id === id) || null;
-};
 
 export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
   // Fetch epoch rewards

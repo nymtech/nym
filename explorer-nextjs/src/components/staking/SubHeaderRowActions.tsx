@@ -5,11 +5,8 @@ import { Button, Stack } from "@mui/material";
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
-import type {
-  NodeRewardDetails,
-  ObservatoryBalance,
-} from "../../app/api/types";
-import { DATA_OBSERVATORY_BALANCES_URL } from "../../app/api/urls";
+import { fetchTotalStakerRewards } from "../../app/api";
+import type { NodeRewardDetails } from "../../app/api/types";
 import { COSMOS_KIT_USE_CHAIN, NYM_MIXNET_CONTRACT } from "../../config";
 import { useNymClient } from "../../hooks/useNymClient";
 import Loading from "../loading";
@@ -26,24 +23,6 @@ const fetchDelegations = async (
 ): Promise<Delegation[]> => {
   const data = await nymClient.getDelegatorDelegations({ delegator: address });
   return data.delegations;
-};
-
-// Fetch total staker rewards
-const fetchTotalRewards = async (address: string): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    next: { revalidate: 60 },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch balances");
-  }
-
-  const balances: ObservatoryBalance = await response.json();
-  return Number(balances.rewards.staking_rewards.amount);
 };
 
 const SubHeaderRowActions = () => {
@@ -79,8 +58,8 @@ const SubHeaderRowActions = () => {
     isError: isRewardsError,
     refetch,
   } = useQuery({
-    queryKey: ["totalRewards", address],
-    queryFn: () => fetchTotalRewards(address || ""),
+    queryKey: ["totalStakerRewards", address],
+    queryFn: () => fetchTotalStakerRewards(address || ""),
     enabled: !!address, // Only fetch if address is available
     refetchInterval: 60000, // Refetch every 60 seconds
     staleTime: 60000,

@@ -3,39 +3,16 @@
 import { AccessTime } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { addSeconds } from "date-fns";
 import { format } from "date-fns";
-import { CURRENT_EPOCH } from "../../app/api/urls";
-
-// Fetch function for the next epoch
-const fetchNextEpoch = async () => {
-  const res = await fetch(CURRENT_EPOCH, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch current epoch");
-  }
-
-  const data = await res.json();
-  const dateTime = addSeconds(
-    new Date(data.current_epoch_start),
-    data.epoch_length.secs,
-  );
-
-  return { data, dateTime };
-};
+import { fetchCurrentEpoch } from "../../app/api";
 
 const NextEpochTime = () => {
   // Use React Query to fetch next epoch data
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["nextEpoch"], // Unique key for this query
-    queryFn: fetchNextEpoch, // Fetch function
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is considered fresh for 60 seconds
+    queryKey: ["currentEpoch"], // Unique query key
+    queryFn: fetchCurrentEpoch, // Fetch function
+    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 30000, // Data is considered fresh for 30 seconds
   });
 
   if (isLoading) {

@@ -1,34 +1,17 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import type { CurrentEpochData } from "../../app/api";
-import { CURRENT_EPOCH } from "../../app/api/urls";
+import { fetchCurrentEpoch } from "../../app/api";
 import ExplorerCard from "../cards/ExplorerCard";
 import EpochProgressBar from "../progressBars/EpochProgressBar";
-
-// Fetch function
-const fetchCurrentEpoch = async (): Promise<CurrentEpochData> => {
-  const response = await fetch(CURRENT_EPOCH, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch current epoch data");
-  }
-
-  return response.json();
-};
 
 export const CurrentEpochCard = () => {
   // Use React Query to fetch data
   const { data, isError, isLoading } = useQuery({
     queryKey: ["currentEpoch"], // Unique query key
     queryFn: fetchCurrentEpoch, // Fetch function
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is considered fresh for 60 seconds
+    refetchInterval: 30000, // Refetch every 30 seconds
+    staleTime: 30000, // Data is considered fresh for 30 seconds
   });
 
   if (isLoading) {
@@ -41,7 +24,7 @@ export const CurrentEpochCard = () => {
     );
   }
 
-  const currentEpochStart = data.current_epoch_start || "";
+  const currentEpochStart = data.data.current_epoch_start || "";
 
   return (
     <ExplorerCard label="Current NGM epoch">

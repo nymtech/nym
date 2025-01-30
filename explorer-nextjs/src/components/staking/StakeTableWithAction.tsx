@@ -2,28 +2,9 @@
 
 import { useQuery } from "@tanstack/react-query";
 import getNymNodes from "../../actions/getNymNodes";
-import type { ExplorerData } from "../../app/api";
+import { type ExplorerData, fetchEpochRewards } from "../../app/api";
 import type { IObservatoryNode } from "../../app/api/types";
-import { CURRENT_EPOCH_REWARDS } from "../../app/api/urls";
 import StakeTable from "./StakeTable";
-
-// Fetch function for epoch rewards
-const fetchEpochRewards = async (): Promise<
-  ExplorerData["currentEpochRewardsData"]
-> => {
-  const response = await fetch(CURRENT_EPOCH_REWARDS, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch epoch rewards");
-  }
-
-  return response.json();
-};
 
 // Utility function to calculate node saturation point
 function getNodeSaturationPoint(

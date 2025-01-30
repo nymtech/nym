@@ -1,14 +1,13 @@
 "use client";
 
-import type {
-  GatewayStatus,
-  IObservatoryNode,
-  LastProbeResult,
-  NodeDescription,
-} from "@/app/api/types";
-import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
 import { Chip, Stack } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import { fetchNodeInfo } from "../../app/api";
+import type {
+  GatewayStatus,
+  LastProbeResult,
+  NodeDescription,
+} from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import StarRating from "../starRating/StarRating";
@@ -26,23 +25,6 @@ const roleMapping: Record<DeclaredRoleKey, RoleString> = {
   exit_ipr: "Exit IPR Node",
   exit_nr: "Exit NR Node",
   mixnode: "Mix Node",
-};
-
-// Fetch node data based on ID
-const fetchNodeInfo = async (id: number): Promise<IObservatoryNode | null> => {
-  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch observatory nodes");
-  }
-
-  const nodes: IObservatoryNode[] = await response.json();
-  return nodes.find((node) => node.node_id === id) || null;
 };
 
 // Fetch gateway status based on identity key

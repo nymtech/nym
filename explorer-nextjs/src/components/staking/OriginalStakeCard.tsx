@@ -2,31 +2,10 @@
 
 import { Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import type { ObservatoryBalance } from "../../app/api/types";
-import { DATA_OBSERVATORY_BALANCES_URL } from "../../app/api/urls";
+import { fetchOriginalStake } from "../../app/api";
 import { useNymClient } from "../../hooks/useNymClient";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
-
-// Fetch function to get the original stake
-const fetchOriginalStake = async (address: string): Promise<number> => {
-  const response = await fetch(`${DATA_OBSERVATORY_BALANCES_URL}/${address}`, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    next: { revalidate: 60 },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch balances");
-  }
-
-  const balances: ObservatoryBalance = await response.json();
-
-  // Return the delegated amount
-  return Number(balances.delegated.amount);
-};
 
 const OriginalStakeCard = () => {
   const { address } = useNymClient();

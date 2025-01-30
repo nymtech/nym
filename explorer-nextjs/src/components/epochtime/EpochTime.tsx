@@ -26,13 +26,7 @@ const NextEpochTime = () => {
 
       const oneHourLater = subSeconds(new Date(data.dateTime), 30).getTime(); // Convert to timestamp
 
-      console.log(
-        "oneHourLater :>> ",
-        format(new Date(oneHourLater), "HH:mm:ss"),
-      );
-
       const now = Date.now(); // Current time in ms
-      console.log("now :>> ", format(new Date(now), "HH:mm:ss"));
       setHasEpochStarted(now >= oneHourLater);
     };
 

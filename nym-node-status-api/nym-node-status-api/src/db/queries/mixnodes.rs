@@ -83,34 +83,40 @@ pub(crate) async fn get_all_mixnodes(pool: &DbPool) -> anyhow::Result<Vec<Mixnod
     Ok(items)
 }
 
-/// We fetch the latest 30 days of data as a subquery and then
-/// return it in ascending order, so we don't break existing UI
-pub(crate) async fn get_daily_stats(pool: &DbPool) -> anyhow::Result<Vec<DailyStats>> {
+/// `offset` = slides our fixed-day period further into the past by N days
+pub(crate) async fn get_daily_stats(pool: &DbPool, offset: i64) -> anyhow::Result<Vec<DailyStats>> {
     let mut conn = pool.acquire().await?;
     let items = sqlx::query_as!(
         DailyStats,
         r#"
         SELECT
             date_utc as "date_utc!",
-            packets_received as "total_packets_received!: i64",
-            packets_sent as "total_packets_sent!: i64",
-            packets_dropped as "total_packets_dropped!: i64",
-            total_stake as "total_stake!: i64"
+            SUM(packets_received) as "total_packets_received!: i64",
+            SUM(packets_sent) as "total_packets_sent!: i64",
+            SUM(packets_dropped) as "total_packets_dropped!: i64"
         FROM (
             SELECT
                 date_utc,
-                SUM(packets_received) as packets_received,
-                SUM(packets_sent) as packets_sent,
-                SUM(packets_dropped) as packets_dropped,
-                SUM(total_stake) as total_stake
-            FROM mixnode_daily_stats
-            GROUP BY date_utc
-            ORDER BY date_utc DESC
-            LIMIT 30
+                n.packets_received,
+                n.packets_sent,
+                n.packets_dropped
+            FROM nym_node_daily_mixing_stats n
+            UNION ALL
+            SELECT
+                m.date_utc,
+                m.packets_received,
+                m.packets_sent,
+                m.packets_dropped
+            FROM mixnode_daily_stats m
+            LEFT JOIN nym_node_daily_mixing_stats ON m.mix_id = nym_node_daily_mixing_stats.node_id
+            WHERE nym_node_daily_mixing_stats.node_id IS NULL
         )
         GROUP BY date_utc
-        ORDER BY date_utc
-        "#
+        ORDER BY date_utc DESC
+        LIMIT 30
+        OFFSET ?
+        "#,
+        offset
     )
     .fetch(&mut *conn)
     .try_collect::<Vec<DailyStats>>()

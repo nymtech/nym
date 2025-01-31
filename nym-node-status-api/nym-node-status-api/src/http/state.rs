@@ -20,15 +20,16 @@ pub(crate) struct AppState {
 }
 
 impl AppState {
-    pub(crate) fn new(
+    pub(crate) async fn new(
         db_pool: DbPool,
         cache_ttl: u64,
         agent_key_list: Vec<PublicKey>,
         agent_max_count: i64,
+        hm_url: String,
     ) -> Self {
         Self {
             db_pool,
-            cache: HttpCache::new(cache_ttl),
+            cache: HttpCache::new(cache_ttl, hm_url).await,
             agent_key_list,
             agent_max_count,
         }
@@ -51,6 +52,90 @@ impl AppState {
     }
 }
 
+#[derive(Debug, Clone)]
+struct HistoricMixingStats {
+    historic_stats: Vec<DailyStats>,
+}
+
+impl HistoricMixingStats {
+    /// Collect historic stats only on initialization. From this point onwards,
+    /// service will collect its own stats
+    async fn init(hm_url: String) -> Self {
+        tracing::info!("Fetching historic mixnode stats from {}", hm_url);
+
+        let target_url = format!("{}/v2/mixnodes/stats", hm_url);
+        if let Ok(response) = reqwest::get(&target_url)
+            .await
+            .and_then(|res| res.error_for_status())
+            .inspect_err(|err| tracing::error!("Failed to fetch cache from HM: {}", err))
+        {
+            if let Ok(mut daily_stats) = response.json::<Vec<DailyStats>>().await {
+                // sorting required for seamless comparison later (descending, newest first)
+                daily_stats.sort_by(|left, right| right.date_utc.cmp(&left.date_utc));
+
+                tracing::info!(
+                    "Successfully fetched {} historic entries from {}",
+                    daily_stats.len(),
+                    hm_url
+                );
+                return Self {
+                    historic_stats: daily_stats,
+                };
+            }
+        };
+
+        tracing::warn!("Failed to get historic daily stats from {}", hm_url);
+        Self {
+            historic_stats: Vec::new(),
+        }
+    }
+
+    /// polyfill with historical data obtained from Harbour Master
+    fn merge_with_historic_stats(&self, mut new_stats: Vec<DailyStats>) -> Vec<DailyStats> {
+        // newest first
+        new_stats.sort_by(|left, right| right.date_utc.cmp(&left.date_utc));
+
+        // historic stats are only used for dates when we don't have new data
+        let oldest_date_in_new_stats = new_stats
+            .last()
+            .map(|day| day.date_utc.to_owned())
+            .unwrap_or(String::from("1900-01-01"));
+
+        // given 2 arrays
+        // index    historic_stats      new_stats
+        //   0        30-01               31-01
+        //   1        29-01               30-01
+        //   2        28-01
+        //            ...
+        //   N        01-01
+        // cutoff point would be at historic_stats[1]
+        // (first date smaller than oldest we've already got)
+        if let Some(cutoff) = self
+            .historic_stats
+            .iter()
+            .position(|elem| elem.date_utc < oldest_date_in_new_stats)
+        {
+            // missing data = (all historic data) - (however many days we already have)
+            let missing_data = self.historic_stats.iter().skip(cutoff).cloned();
+
+            // extend new data with missing days
+            tracing::debug!(
+                "Polyfilled with {} historic records from {:?} to {:?}",
+                missing_data.len(),
+                self.historic_stats.last(),
+                self.historic_stats.get(cutoff)
+            );
+            new_stats.extend(missing_data);
+
+            // oldest first
+            new_stats.into_iter().rev().collect::<Vec<_>>()
+        } else {
+            // if all historic data is older than what we've got, don't use it
+            new_stats
+        }
+    }
+}
+
 static GATEWAYS_LIST_KEY: &str = "gateways";
 static MIXNODES_LIST_KEY: &str = "mixnodes";
 static MIXSTATS_LIST_KEY: &str = "mixstats";
@@ -64,10 +149,11 @@ pub(crate) struct HttpCache {
     mixstats: Cache<String, Arc<RwLock<Vec<DailyStats>>>>,
     history: Cache<String, Arc<RwLock<Vec<SummaryHistory>>>>,
     session_stats: Cache<String, Arc<RwLock<Vec<SessionStats>>>>,
+    mixnode_historic_daily_stats: HistoricMixingStats,
 }
 
 impl HttpCache {
-    pub fn new(ttl_seconds: u64) -> Self {
+    pub async fn new(ttl_seconds: u64, hm_url: String) -> Self {
         HttpCache {
             gateways: Cache::builder()
                 .max_capacity(2)
@@ -89,6 +175,7 @@ impl HttpCache {
                 .max_capacity(2)
                 .time_to_live(Duration::from_secs(ttl_seconds))
                 .build(),
+            mixnode_historic_daily_stats: HistoricMixingStats::init(hm_url).await,
         }
     }
 
@@ -198,16 +285,22 @@ impl HttpCache {
             .await
     }
 
-    pub async fn get_mixnode_stats(&self, db: &DbPool) -> Vec<DailyStats> {
+    pub async fn get_mixnode_stats(&self, db: &DbPool, offset: i64) -> Vec<DailyStats> {
         match self.mixstats.get(MIXSTATS_LIST_KEY).await {
             Some(guard) => {
                 let read_lock = guard.read().await;
                 read_lock.to_vec()
             }
             None => {
-                let mixnode_stats = crate::db::queries::get_daily_stats(db)
+                let new_node_stats = crate::db::queries::get_daily_stats(db, offset)
                     .await
                     .unwrap_or_default();
+                // for every day that's missing, fill it with cached historic data
+                let mut mixnode_stats = self
+                    .mixnode_historic_daily_stats
+                    .merge_with_historic_stats(new_node_stats);
+                mixnode_stats.truncate(30);
+
                 self.upsert_mixnode_stats(mixnode_stats.clone()).await;
                 mixnode_stats
             }

@@ -37,12 +37,11 @@ CREATE TABLE nym_nodes_packet_stats_raw (
     packets_sent INTEGER,
     packets_dropped INTEGER,
     FOREIGN KEY (node_id) REFERENCES nym_nodes (node_id)
-  );
+);
 
 CREATE INDEX idx_nym_nodes_packet_stats_raw_node_id_timestamp_utc ON nym_nodes_packet_stats_raw (node_id, timestamp_utc);
 
-CREATE TABLE
-  nym_node_daily_mixing_stats (
+CREATE TABLE nym_node_daily_mixing_stats (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     node_id INTEGER NOT NULL,
     date_utc VARCHAR NOT NULL,
@@ -51,4 +50,4 @@ CREATE TABLE
     packets_dropped INTEGER DEFAULT 0,
     FOREIGN KEY (node_id) REFERENCES nym_nodes (node_id),
     UNIQUE (node_id, date_utc) -- This constraint automatically creates an index
-  );
+);

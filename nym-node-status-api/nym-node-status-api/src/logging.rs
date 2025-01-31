@@ -33,6 +33,7 @@ pub(crate) fn setup_tracing_logger() -> anyhow::Result<()> {
         "tendermint_rpc",
         "tower_http",
         "axum",
+        "html5ever",
     ];
     for crate_name in warn_crates {
         filter = filter.add_directive(directive_checked(format!("{}=warn", crate_name))?);

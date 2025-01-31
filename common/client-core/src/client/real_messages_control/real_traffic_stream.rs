@@ -545,7 +545,7 @@ where
             loop {
                 tokio::select! {
                     biased;
-                    _ = shutdown.recv_with_delay() => {
+                    _ = shutdown.recv() => {
                         log::trace!("OutQueueControl: Received shutdown");
                         break;
                     }

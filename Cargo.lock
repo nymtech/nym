@@ -2453,7 +2453,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
 ]
 
@@ -2465,7 +2465,7 @@ dependencies = [
  "console_error_panic_hook",
  "js-sys",
  "serde-wasm-bindgen 0.6.5",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "wasm-bindgen",
  "wasm-bindgen-futures",
  "wasm-storage",
@@ -4406,7 +4406,7 @@ dependencies = [
  "rand",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tsify",
  "url",
@@ -4807,7 +4807,7 @@ dependencies = [
  "sha2 0.9.9",
  "sqlx",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-stream",
@@ -4848,7 +4848,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "tendermint 0.40.1",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "ts-rs",
  "utoipa",
@@ -4900,7 +4900,7 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -4923,7 +4923,7 @@ dependencies = [
  "rand",
  "serde",
  "sha2 0.10.8",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "x25519-dalek",
 ]
 
@@ -4943,7 +4943,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "rand",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "url",
  "zeroize",
 ]
@@ -4982,7 +4982,7 @@ dependencies = [
  "nym-validator-client",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -5060,7 +5060,7 @@ dependencies = [
  "serde_json",
  "tap",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "toml 0.8.19",
@@ -5097,7 +5097,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tap",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-tungstenite",
@@ -5154,7 +5154,7 @@ dependencies = [
  "si-scale",
  "tap",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-stream",
@@ -5179,7 +5179,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "url",
 ]
 
@@ -5194,7 +5194,7 @@ dependencies = [
  "nym-gateway-requests",
  "serde",
  "sqlx",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "url",
@@ -5212,7 +5212,7 @@ dependencies = [
  "nym-sphinx",
  "nym-task",
  "sqlx",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
 ]
@@ -5231,7 +5231,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tsify",
  "wasm-bindgen",
  "wasm-bindgen-futures",
@@ -5269,7 +5269,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "sha2 0.9.9",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "zeroize",
 ]
 
@@ -5316,7 +5316,7 @@ dependencies = [
  "serde",
  "sha2 0.9.9",
  "subtle 2.5.0",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "zeroize",
 ]
 
@@ -5329,7 +5329,7 @@ dependencies = [
  "log",
  "nym-network-defaults",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "toml 0.8.19",
  "url",
 ]
@@ -5345,7 +5345,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "utoipa",
  "vergen",
 ]
@@ -5406,7 +5406,7 @@ dependencies = [
  "strum 0.26.3",
  "strum_macros 0.26.4",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-util",
@@ -5454,7 +5454,7 @@ dependencies = [
  "nym-ecash-time",
  "serde",
  "sqlx",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "zeroize",
 ]
@@ -5472,7 +5472,7 @@ dependencies = [
  "nym-credentials-interface",
  "nym-ecash-time",
  "nym-validator-client",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
 ]
@@ -5496,7 +5496,7 @@ dependencies = [
  "nym-validator-client",
  "rand",
  "si-scale",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tracing",
@@ -5520,7 +5520,7 @@ dependencies = [
  "nym-validator-client",
  "rand",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "zeroize",
 ]
@@ -5536,7 +5536,7 @@ dependencies = [
  "rand",
  "serde",
  "strum 0.26.3",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "utoipa",
 ]
@@ -5564,7 +5564,7 @@ dependencies = [
  "serde",
  "serde_bytes",
  "subtle-encoding",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "x25519-dalek",
  "zeroize",
 ]
@@ -5588,7 +5588,7 @@ dependencies = [
  "serde",
  "serde_derive",
  "sha2 0.9.9",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "zeroize",
 ]
 
@@ -5603,7 +5603,7 @@ dependencies = [
  "cw-utils",
  "cw2",
  "nym-multisig-contract-common",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -5638,7 +5638,7 @@ dependencies = [
  "reqwest 0.12.4",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tracing",
  "utoipa",
 ]
@@ -5662,7 +5662,7 @@ dependencies = [
  "nym-explorer-api-requests",
  "reqwest 0.12.4",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tracing",
  "url",
@@ -5722,7 +5722,7 @@ dependencies = [
  "rand",
  "sha2 0.10.8",
  "sqlx",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-stream",
@@ -5755,7 +5755,7 @@ dependencies = [
  "rand",
  "serde",
  "si-scale",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-stream",
@@ -5788,7 +5788,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.26.3",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tracing",
  "tungstenite 0.20.1",
@@ -5806,7 +5806,7 @@ dependencies = [
  "nym-statistics-common",
  "sqlx",
  "strum 0.26.3",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tracing",
@@ -5822,7 +5822,7 @@ dependencies = [
  "nym-gateway-requests",
  "nym-sphinx",
  "sqlx",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tracing",
@@ -5838,7 +5838,7 @@ dependencies = [
  "nym-ffi-shared",
  "nym-sdk",
  "nym-sphinx-anonymous-replies",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "uniffi",
  "uniffi_build",
@@ -5867,7 +5867,7 @@ dependencies = [
  "reqwest 0.12.4",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tracing",
  "url",
@@ -5899,7 +5899,7 @@ version = "0.1.0"
 dependencies = [
  "nym-credential-storage",
  "nym-credentials",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tracing",
  "zeroize",
@@ -5925,7 +5925,7 @@ version = "0.1.0"
 dependencies = [
  "log",
  "rand",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -5939,7 +5939,7 @@ dependencies = [
  "nym-sphinx",
  "rand",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-util",
@@ -5979,7 +5979,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tap",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-tun",
@@ -5995,7 +5995,7 @@ dependencies = [
  "k256",
  "ledger-transport",
  "ledger-transport-hid",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -6040,7 +6040,7 @@ dependencies = [
  "serde",
  "serde-json-wasm",
  "serde_repr",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "ts-rs",
  "utoipa",
@@ -6066,7 +6066,7 @@ dependencies = [
  "nym-task",
  "rand",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-util",
@@ -6085,7 +6085,7 @@ dependencies = [
  "cw4",
  "schemars",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -6178,7 +6178,7 @@ dependencies = [
  "sqlx",
  "tap",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-tungstenite",
@@ -6242,7 +6242,7 @@ dependencies = [
  "serde_json",
  "si-scale",
  "sysinfo",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-util",
@@ -6288,7 +6288,7 @@ dependencies = [
  "serde",
  "serde_json",
  "strum 0.26.3",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "utoipa",
@@ -6342,7 +6342,7 @@ dependencies = [
  "sqlx",
  "strum 0.26.3",
  "strum_macros 0.26.4",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-util",
@@ -6385,7 +6385,7 @@ dependencies = [
  "rand_chacha",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "wasm-utils",
 ]
@@ -6400,7 +6400,7 @@ dependencies = [
  "rand",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tsify",
  "wasm-bindgen",
@@ -6441,7 +6441,7 @@ name = "nym-ordered-buffer"
 version = "0.1.0"
 dependencies = [
  "log",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -6459,7 +6459,7 @@ dependencies = [
  "rand",
  "rayon",
  "sphinx-packet",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "zeroize",
 ]
 
@@ -6513,7 +6513,7 @@ dependencies = [
  "reqwest 0.12.4",
  "serde",
  "tap",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-stream",
  "tokio-util",
@@ -6556,7 +6556,7 @@ dependencies = [
  "nym-sphinx-anonymous-replies",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
 ]
 
@@ -6586,7 +6586,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tap",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "url",
@@ -6620,7 +6620,7 @@ dependencies = [
  "schemars",
  "serde",
  "tap",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "url",
 ]
@@ -6652,7 +6652,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tap",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -6677,7 +6677,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "rand_distr",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
 ]
 
@@ -6695,7 +6695,7 @@ dependencies = [
  "nym-topology",
  "rand",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "zeroize",
 ]
 
@@ -6707,7 +6707,7 @@ dependencies = [
  "nym-sphinx-types",
  "rand",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -6724,7 +6724,7 @@ dependencies = [
  "rand",
  "rand_chacha",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "wasm-bindgen",
 ]
 
@@ -6741,7 +6741,7 @@ dependencies = [
  "nym-sphinx-types",
  "rand",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "utoipa",
 ]
 
@@ -6759,7 +6759,7 @@ dependencies = [
  "nym-sphinx-types",
  "nym-topology",
  "rand",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -6770,7 +6770,7 @@ dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-params",
  "nym-sphinx-types",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -6785,7 +6785,7 @@ dependencies = [
  "nym-sphinx-forwarding",
  "nym-sphinx-params",
  "nym-sphinx-types",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-util",
 ]
@@ -6797,7 +6797,7 @@ dependencies = [
  "nym-crypto",
  "nym-sphinx-types",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -6806,7 +6806,7 @@ version = "0.1.0"
 dependencies = [
  "nym-sphinx-addressing",
  "nym-sphinx-types",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -6815,7 +6815,7 @@ version = "0.2.0"
 dependencies = [
  "nym-outfox",
  "sphinx-packet",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
 ]
 
 [[package]]
@@ -6834,7 +6834,7 @@ dependencies = [
  "sha2 0.10.8",
  "si-scale",
  "sysinfo",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "wasmtimer",
@@ -6851,7 +6851,7 @@ dependencies = [
  "rand",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "zeroize",
 ]
 
@@ -6862,7 +6862,7 @@ dependencies = [
  "cfg-if",
  "futures",
  "log",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-util",
  "tracing",
@@ -6904,7 +6904,7 @@ dependencies = [
  "reqwest 0.12.4",
  "serde",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tracing",
  "tsify",
  "wasm-bindgen",
@@ -6918,7 +6918,7 @@ dependencies = [
  "etherparse",
  "log",
  "nym-wireguard-types",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tokio-tun",
 ]
@@ -6946,7 +6946,7 @@ dependencies = [
  "sha2 0.10.8",
  "strum 0.26.3",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "ts-rs",
  "url",
  "utoipa",
@@ -6993,7 +6993,7 @@ dependencies = [
  "serde_json",
  "sha2 0.9.9",
  "tendermint-rpc",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tracing",
@@ -7037,7 +7037,7 @@ dependencies = [
  "serde_with",
  "sha2 0.10.8",
  "sqlx",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tracing",
@@ -7056,7 +7056,7 @@ dependencies = [
  "nym-task",
  "nym-validator-client",
  "rand",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-util",
@@ -7074,7 +7074,7 @@ dependencies = [
  "nym-contracts-common",
  "nym-mixnet-contract-common",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "ts-rs",
 ]
 
@@ -7095,7 +7095,7 @@ dependencies = [
  "serde",
  "serde-wasm-bindgen 0.6.5",
  "serde_json",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tsify",
  "wasm-bindgen",
@@ -7142,7 +7142,7 @@ dependencies = [
  "nym-node-metrics",
  "nym-task",
  "nym-wireguard-types",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-stream",
@@ -7161,7 +7161,7 @@ dependencies = [
  "nym-network-defaults",
  "rand",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "x25519-dalek",
 ]
 
@@ -7188,7 +7188,7 @@ dependencies = [
  "serde_json",
  "sha2 0.10.8",
  "tar",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tracing",
@@ -7217,7 +7217,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlx",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-util",
@@ -7244,7 +7244,7 @@ dependencies = [
  "sqlx",
  "tendermint 0.40.1",
  "tendermint-rpc",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "tokio-stream",
@@ -10061,7 +10061,7 @@ dependencies = [
  "serde_json",
  "sqlx",
  "tempfile",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tokio",
  "toml 0.8.19",
@@ -11343,7 +11343,7 @@ dependencies = [
  "rand",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "time",
  "tsify",
  "url",
@@ -11365,7 +11365,7 @@ dependencies = [
  "nym-store-cipher",
  "serde",
  "serde-wasm-bindgen 0.6.5",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "wasm-bindgen",
  "wasm-utils",
 ]
@@ -12087,7 +12087,7 @@ dependencies = [
  "rand",
  "reqwest 0.12.4",
  "serde",
- "thiserror 1.0.69",
+ "thiserror 2.0.11",
  "tokio",
  "tsify",
  "uuid",

@@ -291,7 +291,10 @@ impl PartiallyDelegatedHandle {
         &mut self,
         msg: Message,
     ) -> Result<(), GatewayClientError> {
-        Ok(self.sink_half.send(msg).await?)
+        tokio::time::timeout(std::time::Duration::from_secs(1), self.sink_half.send(msg))
+            .await
+            .map_err(|_| GatewayClientError::TimeoutOnSink)??;
+        Ok(())
     }
 
     pub(crate) async fn batch_send_without_response(
@@ -300,7 +303,13 @@ impl PartiallyDelegatedHandle {
     ) -> Result<(), GatewayClientError> {
         let stream_messages: Vec<_> = messages.into_iter().map(Ok).collect();
         let mut send_stream = futures::stream::iter(stream_messages);
-        Ok(self.sink_half.send_all(&mut send_stream).await?)
+        tokio::time::timeout(
+            std::time::Duration::from_secs(1),
+            self.sink_half.send_all(&mut send_stream),
+        )
+        .await
+        .map_err(|_| GatewayClientError::TimeoutOnSink)??;
+        Ok(())
     }
 
     pub(crate) async fn merge(self) -> Result<WsConn, GatewayClientError> {

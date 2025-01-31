@@ -118,6 +118,9 @@ pub enum GatewayClientError {
         "this operation couldn't be completed as the program is in the process of shutting down"
     )]
     ShutdownInProgress,
+
+    #[error("Timed out on sending message(s)")]
+    TimeoutOnSink,
 }
 
 impl GatewayClientError {

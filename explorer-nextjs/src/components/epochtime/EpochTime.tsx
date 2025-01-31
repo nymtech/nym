@@ -18,7 +18,6 @@ const NextEpochTime = () => {
   });
 
   const [hasEpochStarted, setHasEpochStarted] = useState(false);
-  console.log("hasEpochStarted :>> ", hasEpochStarted);
 
   useEffect(() => {
     const checkEpochStatus = () => {

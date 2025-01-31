@@ -2,16 +2,21 @@
 import { Stack } from "@mui/material";
 import Box from "@mui/material/Box";
 import { addHours, format } from "date-fns";
-import React from "react";
+import React, { ReactElement, ReactNode } from "react";
 import ListItem from "../list/ListItem";
 import ProgressBar from "./ProgressBar";
 
 export interface IDynamicProgressBarProps {
   start: string; // Start timestamp as ISO 8601 string
   showEpoch: boolean;
+  waitingForEpoch?: React.ReactNode;
 }
 
-const EpochProgressBar = ({ start, showEpoch }: IDynamicProgressBarProps) => {
+const EpochProgressBar = ({
+  start,
+  showEpoch,
+  waitingForEpoch,
+}: IDynamicProgressBarProps) => {
   const [progress, setProgress] = React.useState(0);
 
   const startDate = new Date(start);
@@ -59,6 +64,7 @@ const EpochProgressBar = ({ start, showEpoch }: IDynamicProgressBarProps) => {
   return (
     <Box sx={{ width: "100%" }}>
       <ProgressBar value={progress} color="secondary" />
+      {waitingForEpoch}
 
       {showEpoch && (
         <Box mt={3}>

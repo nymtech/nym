@@ -2,7 +2,7 @@
 import { Stack } from "@mui/material";
 import Box from "@mui/material/Box";
 import { addHours, format } from "date-fns";
-import React, { ReactElement, ReactNode } from "react";
+import React from "react";
 import ListItem from "../list/ListItem";
 import ProgressBar from "./ProgressBar";
 

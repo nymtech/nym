@@ -103,15 +103,23 @@ impl MixTrafficController {
                 tokio::select! {
                     mix_packets = self.mix_rx.recv() => match mix_packets {
                         Some(mix_packets) => {
-                            if let Err(err) = self.on_messages(mix_packets).await {
-                                error!("Failed to send sphinx packet(s) to the gateway: {err}");
-                                if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
-                                    // Disconnect from the gateway. If we should try to re-connect
-                                    // is handled at a higher layer.
-                                    error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
-                                    // Do we need to handle the embedded mixnet client case
-                                    // separately?
-                                    shutdown.send_we_stopped(Box::new(ClientCoreError::GatewayFailedToForwardMessages));
+                            tokio::select! {
+                                ret = self.on_messages(mix_packets) => {
+                                    if let Err(err) = ret {
+                                        error!("Failed to send sphinx packet(s) to the gateway: {err}");
+                                        if self.consecutive_gateway_failure_count == MAX_FAILURE_COUNT {
+                                            // Disconnect from the gateway. If we should try to re-connect
+                                            // is handled at a higher layer.
+                                            error!("Failed to send sphinx packet to the gateway {MAX_FAILURE_COUNT} times in a row - assuming the gateway is dead");
+                                            // Do we need to handle the embedded mixnet client case
+                                            // separately?
+                                            shutdown.send_we_stopped(Box::new(ClientCoreError::GatewayFailedToForwardMessages));
+                                            break;
+                                        }
+                                    }
+                                }
+                                _ = shutdown.recv_with_delay() => {
+                                    log::trace!("MixTrafficController: Received shutdown");
                                     break;
                                 }
                             }

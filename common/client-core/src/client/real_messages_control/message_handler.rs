@@ -626,9 +626,14 @@ where
         messages: Vec<RealMessage>,
         transmission_lane: TransmissionLane,
     ) {
-        self.real_message_sender
+        if let Err(err) = self
+            .real_message_sender
             .send((messages, transmission_lane))
             .await
-            .expect("real message receiver task (OutQueueControl) has died");
+        {
+            error!(
+                "Failed to forward messages to the real message sender (OutQueueControl): {err}"
+            );
+        }
     }
 }

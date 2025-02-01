@@ -1,8 +1,6 @@
 import { Stack, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
-import { Suspense } from "react";
 import BlogArticlesCards from "../components/blogs/BlogArticleCards";
-import CardSkeleton from "../components/cards/Skeleton";
 import { ContentLayout } from "../components/contentLayout/ContentLayout";
 import SectionHeading from "../components/headings/SectionHeading";
 import { CurrentEpochCard } from "../components/landingPageComponents/CurrentEpochCard";
@@ -27,9 +25,7 @@ export default async function Home() {
           <SectionHeading title="Noise Generating Mixnet Overview" />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <Suspense fallback={<CardSkeleton />}>
-            <NoiseCard />
-          </Suspense>
+          <NoiseCard />
         </Grid>
         <Grid
           container
@@ -38,26 +34,18 @@ export default async function Home() {
           size={{ xs: 12, md: 3 }}
         >
           <Grid size={12}>
-            <Suspense fallback={<CardSkeleton sx={{ width: "100%" }} />}>
-              <RewardsCard />
-            </Suspense>
+            <RewardsCard />
           </Grid>
           <Grid size={12}>
-            <Suspense fallback={<CardSkeleton sx={{ width: "100%" }} />}>
-              <CurrentEpochCard />
-            </Suspense>
+            <CurrentEpochCard />
           </Grid>
         </Grid>
 
         <Grid size={{ xs: 12, md: 3 }}>
-          <Suspense fallback={<CardSkeleton sx={{ height: "100%" }} />}>
-            <NetworkStakeCard />
-          </Suspense>
+          <NetworkStakeCard />
         </Grid>
         <Grid size={{ xs: 12, md: 3 }}>
-          <Suspense fallback={<CardSkeleton sx={{ height: "100%" }} />}>
-            <TokenomicsCard />
-          </Suspense>
+          <TokenomicsCard />
         </Grid>
       </Grid>
       <Grid container>
@@ -65,9 +53,7 @@ export default async function Home() {
           <SectionHeading title="Nym Nodes" />
         </Grid>
         <Grid size={12}>
-          <Suspense fallback={<CardSkeleton />}>
-            <NodeTable />
-          </Suspense>
+          <NodeTable />
         </Grid>
       </Grid>
       <Grid container columnSpacing={5} rowSpacing={5}>

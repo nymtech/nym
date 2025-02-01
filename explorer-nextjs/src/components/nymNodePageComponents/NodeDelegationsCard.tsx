@@ -41,8 +41,6 @@ const NodeDelegationsCard = ({ id }: NodeDelegationsCardProps) => {
   } = useQuery({
     queryKey: ["nodeDelegations", id],
     queryFn: () => fetchNodeDelegations(id),
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is fresh for 60 seconds
   });
 
   return (

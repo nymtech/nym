@@ -19,8 +19,6 @@ const TotalRewardsCard = () => {
     queryKey: ["totalStakerRewards", address],
     queryFn: () => fetchTotalStakerRewards(address || ""),
     enabled: !!address, // Only fetch if address exists
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is fresh for 60 seconds
   });
 
   if (!address) {
@@ -34,7 +32,7 @@ const TotalRewardsCard = () => {
           variant="h3"
           sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
         >
-          Loading...
+          Loading total rewards...
         </Typography>
       </ExplorerCard>
     );

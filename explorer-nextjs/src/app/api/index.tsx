@@ -3,6 +3,7 @@ import { addSeconds } from "date-fns";
 import type {
   ExplorerData,
   IObservatoryNode,
+  IPacketsAndStakingData,
   ObservatoryBalance,
 } from "./types";
 import {
@@ -10,6 +11,7 @@ import {
   CURRENT_EPOCH_REWARDS,
   DATA_OBSERVATORY_BALANCES_URL,
   DATA_OBSERVATORY_NODES_URL,
+  HARBOURMASTER_API_MIXNODES_STATS,
 } from "./urls";
 
 // Fetch function for epoch rewards
@@ -155,4 +157,16 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
   // Return the delegated amount
   return Number(balances.delegated.amount);
 };
-//   // makes sure the cache exists in global memory
+
+export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
+  const response = await fetch(HARBOURMASTER_API_MIXNODES_STATS, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+    next: { revalidate: 60 },
+  });
+
+  const data: IPacketsAndStakingData[] = await response.json();
+  return data;
+};

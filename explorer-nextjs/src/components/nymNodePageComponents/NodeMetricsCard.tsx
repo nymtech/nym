@@ -38,8 +38,6 @@ export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
   } = useQuery({
     queryKey: ["epochRewards"],
     queryFn: fetchEpochRewards,
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is fresh for 60 seconds
   });
 
   // Fetch node information
@@ -50,8 +48,6 @@ export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
   } = useQuery({
     queryKey: ["nodeInfo", id],
     queryFn: () => fetchNodeInfo(id),
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is fresh for 60 seconds
   });
 
   if (isEpochLoading || isNodeLoading) {

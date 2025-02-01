@@ -28,8 +28,6 @@ const useGetWalletBalance = () => {
     queryKey: ["nymBalance", address],
     queryFn: () => fetchNYMBalance(address || "", getCosmWasmClient),
     enabled: !!address, // Only fetch if address exists
-    staleTime: 60000, // Cache for 60 seconds
-    refetchInterval: 60000, // Refetch every 60 seconds
   });
 
   return {

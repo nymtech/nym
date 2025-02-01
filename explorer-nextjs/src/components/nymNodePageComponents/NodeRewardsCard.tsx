@@ -19,8 +19,6 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
   } = useQuery({
     queryKey: ["epochRewards"],
     queryFn: fetchEpochRewards,
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is fresh for 60 seconds
   });
 
   // Fetch node information
@@ -31,8 +29,6 @@ export const NodeRewardsCard = ({ id }: INodeRewardsCardProps) => {
   } = useQuery({
     queryKey: ["nodeInfo", id],
     queryFn: () => fetchNodeInfo(id),
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is fresh for 60 seconds
   });
 
   if (isEpochLoading || isNodeLoading) {

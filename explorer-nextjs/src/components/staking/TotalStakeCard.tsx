@@ -19,8 +19,6 @@ const TotalStakeCard = () => {
     queryKey: ["totalStake", address],
     queryFn: () => fetchBalances(address || ""),
     enabled: !!address, // Only fetch if address exists
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is fresh for 60 seconds
   });
 
   if (!address) {
@@ -34,7 +32,7 @@ const TotalStakeCard = () => {
           variant="h3"
           sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
         >
-          Loading...
+          Loading total stake...
         </Typography>
       </ExplorerCard>
     );

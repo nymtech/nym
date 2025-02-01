@@ -2,9 +2,10 @@
 
 import { AccessTime } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
+import { useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import { format, subSeconds } from "date-fns";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchCurrentEpoch } from "../../app/api";
 
 const NextEpochTime = () => {
@@ -16,12 +17,17 @@ const NextEpochTime = () => {
     refetchOnMount: true,
     keepPreviousData: false,
   });
+  const queryClient = useQueryClient();
 
   const [hasEpochStarted, setHasEpochStarted] = useState(false);
 
+  const handleRefetch = useCallback(() => {
+    queryClient.invalidateQueries(); // This will refetch ALL active queries
+  }, [queryClient]);
+
   useEffect(() => {
     const checkEpochStatus = () => {
-      if (!data?.dateTime) return; // Ensure dateTime exists before running logic
+      if (!data?.dateTime) return;
 
       const oneHourLater = subSeconds(new Date(data.dateTime), 30).getTime(); // Convert to timestamp
 
@@ -29,12 +35,23 @@ const NextEpochTime = () => {
       setHasEpochStarted(now >= oneHourLater);
     };
 
-    checkEpochStatus(); // Check immediately on mount
+    checkEpochStatus();
 
     const interval = setInterval(checkEpochStatus, 30000); // Check every 30s, regardless of data updates
 
-    return () => clearInterval(interval); // Cleanup interval on unmount
-  }); //  No dependencies → Runs every 30s even if `data` doesn’t change
+    return () => clearInterval(interval);
+  });
+
+  // Refetch all data on epoch change
+  useEffect(() => {
+    if (!hasEpochStarted) return;
+
+    handleRefetch();
+
+    const interval = setInterval(handleRefetch, 30000); // Run every 30s
+
+    return () => clearInterval(interval);
+  }, [hasEpochStarted, handleRefetch]);
 
   if (isLoading) {
     return (

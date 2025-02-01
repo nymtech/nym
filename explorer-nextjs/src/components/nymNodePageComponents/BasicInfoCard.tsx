@@ -22,8 +22,6 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
   } = useQuery({
     queryKey: ["nodeInfo", id], // Unique query key based on the node ID
     queryFn: () => fetchNodeInfo(id), // Fetch function
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000, // Data is considered fresh for 60 seconds
   });
 
   // Loading state

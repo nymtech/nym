@@ -47,8 +47,6 @@ const usePendingEvents = (nymQueryClient: any, address: string | undefined) => {
       return pendingEvents;
     },
     enabled: !!nymQueryClient && !!address, // Prevents execution if dependencies are missing
-    staleTime: 60000, // Data is considered fresh for 60 seconds
-    refetchInterval: 60000, // Refetch every 60 seconds
   });
 };
 

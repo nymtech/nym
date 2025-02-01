@@ -1,14 +1,17 @@
 "use client";
 
-import { Box, Typography } from "@mui/material";
+import { Box, Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import { subSeconds } from "date-fns";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { fetchCurrentEpoch } from "../../app/api";
 import ExplorerCard from "../cards/ExplorerCard";
 import EpochProgressBar from "../progressBars/EpochProgressBar";
 
 export const CurrentEpochCard = () => {
+  const queryClient = useQueryClient();
+
   const [hasEpochStarted, setHasEpochStarted] = useState(false);
 
   // Use React Query to fetch data
@@ -22,25 +25,44 @@ export const CurrentEpochCard = () => {
     keepPreviousData: false, // Ensure new data updates UI
   });
 
+  const handleRefetch = useCallback(() => {
+    queryClient.invalidateQueries(); // This will refetch ALL active queries
+  }, [queryClient]);
+
   useEffect(() => {
     const checkEpochStatus = () => {
-      if (!data?.dateTime) return; // Ensure dateTime exists before running logic
+      if (!data?.dateTime) return;
 
-      const oneHourLater = subSeconds(new Date(data.dateTime), 30).getTime(); // Convert to timestamp
+      const oneHourLater = subSeconds(new Date(data.dateTime), 30).getTime();
 
-      const now = Date.now(); // Current time in ms
+      const now = Date.now();
       setHasEpochStarted(now >= oneHourLater);
     };
 
-    checkEpochStatus(); // Check immediately on mount
+    checkEpochStatus();
 
     const interval = setInterval(checkEpochStatus, 30000); // Check every 30s, regardless of data updates
 
-    return () => clearInterval(interval); // Cleanup interval on unmount
+    return () => clearInterval(interval);
   });
 
+  // Refetch all queries on epoch change
+  useEffect(() => {
+    if (!hasEpochStarted) return;
+
+    handleRefetch();
+
+    const interval = setInterval(handleRefetch, 30000);
+
+    return () => clearInterval(interval);
+  }, [hasEpochStarted, handleRefetch]);
+
   if (isLoading) {
-    return <ExplorerCard label="Current NGM epoch">Loading...</ExplorerCard>;
+    return (
+      <ExplorerCard label="Current NGM epoch">
+        <Skeleton variant="text" height={80} />
+      </ExplorerCard>
+    );
   }
 
   if (isError || !data) {

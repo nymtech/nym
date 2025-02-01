@@ -47,8 +47,6 @@ const SubHeaderRowActions = () => {
     queryKey: ["delegations", address],
     queryFn: () => fetchDelegations(address || "", nymClient),
     enabled: !!address && !!nymClient, // Only fetch if address and nymClient are available
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000,
   });
 
   // Fetch total rewards using React Query
@@ -61,8 +59,6 @@ const SubHeaderRowActions = () => {
     queryKey: ["totalStakerRewards", address],
     queryFn: () => fetchTotalStakerRewards(address || ""),
     enabled: !!address, // Only fetch if address is available
-    refetchInterval: 60000, // Refetch every 60 seconds
-    staleTime: 60000,
   });
 
   const handleRefetch = useCallback(() => {

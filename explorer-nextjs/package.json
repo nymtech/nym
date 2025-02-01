@@ -28,6 +28,7 @@
     "@nymproject/react": "1.0.0",
     "@tanstack/react-query": "^5.64.2",
     "@tanstack/react-query-devtools": "^5.64.2",
+    "@tanstack/react-query-next-experimental": "^5.66.0",
     "@tanstack/react-table": "^8.20.6",
     "@uidotdev/usehooks": "^2.4.1",
     "chain-registry": "^1.69.64",

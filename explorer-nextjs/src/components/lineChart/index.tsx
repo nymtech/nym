@@ -106,7 +106,7 @@ export const LineChart = ({
         legendOffset: 12,
         tickSize: 3,
         format: yformat,
-        tickValues: 5,
+        tickValues: 10,
       }}
       axisBottom={{
         format: "%b %d",

@@ -29,7 +29,10 @@ export const NoiseCard = () => {
   if (isError || !data) {
     return (
       <ExplorerCard label="Noise generated last 24h">
-        Failed to load data
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+          Failed to load data
+        </Typography>
+        <Skeleton variant="text" height={238} />
       </ExplorerCard>
     );
   }

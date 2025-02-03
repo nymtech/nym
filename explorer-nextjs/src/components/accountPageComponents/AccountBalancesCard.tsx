@@ -72,7 +72,7 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
   if (isLoading || isLoadingPrice) {
     return (
       <Stack direction="row" spacing={1}>
-        <Typography variant="h5" fontWeight="light">
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
           Loading account balance...
         </Typography>
       </Stack>
@@ -82,7 +82,7 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
   if (isError || priceError || !accountInfo || !nymPrice) {
     return (
       <Stack direction="row" spacing={1}>
-        <Typography variant="h5" fontWeight="light">
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
           Failed to load account balance.
         </Typography>
       </Stack>

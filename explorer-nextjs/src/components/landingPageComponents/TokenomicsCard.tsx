@@ -1,21 +1,45 @@
-import { Box, Stack } from "@mui/material";
+"use client";
+import { fetchNymPrice } from "@/app/api";
+import { Box, Skeleton, Stack, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import type { NymTokenomics } from "../../app/api/types";
-import { NYM_PRICES_API } from "../../app/api/urls";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import { TitlePrice } from "../price/TitlePrice";
 
-export const TokenomicsCard = async () => {
-  const nymPrice = await fetch(NYM_PRICES_API, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-    next: { revalidate: 60 },
-    // refresh event list cache at given interval
+export const TokenomicsCard = () => {
+  const {
+    data: nymPrice,
+    isLoading: isLoadingPrice,
+    error: priceError,
+  } = useQuery({
+    queryKey: ["nymPrice"],
+    queryFn: fetchNymPrice,
   });
 
-  const nymPriceData: NymTokenomics = await nymPrice.json();
+  if (isLoadingPrice) {
+    return (
+      <Stack direction="row" spacing={1}>
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+          Loading NYM Price...
+        </Typography>
+        <Skeleton variant="text" height={80} />
+      </Stack>
+    );
+  }
+
+  if (priceError || !nymPrice) {
+    return (
+      <Stack direction="row" spacing={1}>
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+          Failed to load account balance.
+        </Typography>
+        <Skeleton variant="text" height={80} />
+      </Stack>
+    );
+  }
+
+  const nymPriceData: NymTokenomics = nymPrice;
   const nymPriceDataFormated = Number(nymPriceData.quotes.USD.price.toFixed(2));
 
   const titlePrice = {

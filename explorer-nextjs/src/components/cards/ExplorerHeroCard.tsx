@@ -40,7 +40,7 @@ const ExplorerHeroCard = ({
   sx?: SxProps;
 }) => {
   return (
-    <Link href={link} sx={{ textDecoration: "none" }}>
+    <Link href={link} sx={{ textDecoration: "none", height: "100%" }}>
       <Card sx={{ ...cardStyles, ...sx }} elevation={0}>
         <CardHeader
           title={

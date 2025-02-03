@@ -106,6 +106,8 @@ pub(crate) struct Args {
 }
 
 async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHandles> {
+    let task_manager = TaskManager::new(TASK_MANAGER_TIMEOUT_S);
+
     let nyxd_client = nyxd::Client::new(config);
     let connected_nyxd = config.get_nyxd_url();
     let nym_network_details = NymNetworkDetails::new_from_env();
@@ -148,7 +150,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
     let comm_channel = QueryCommunicationChannel::new(nyxd_client.clone());
 
     let encoded_identity = identity_keypair.public_key().to_base58_string();
-    let ecash_state = EcashState::new(
+    let mut ecash_state = EcashState::new(
         config,
         ecash_contract,
         nyxd_client.clone(),
@@ -156,8 +158,8 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
         ecash_keypair_wrapper.clone(),
         comm_channel,
         storage.clone(),
-    )
-    .await?;
+        task_manager.subscribe_named("ecash-state-data-cleaner"),
+    );
 
     // if ecash signer is enabled, there are additional constraints on the nym-api,
     // such as having sufficient token balance
@@ -187,6 +189,7 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
         None
     };
 
+    ecash_state.spawn_background_cleaner();
     let router = router.with_state(AppState {
         forced_refresh: ForcedRefresh::new(
             config.topology_cacher.debug.node_describe_allow_illegal_ips,
@@ -201,8 +204,6 @@ async fn start_nym_api_tasks_axum(config: &Config) -> anyhow::Result<ShutdownHan
         api_status: ApiStatusState::new(signer_information),
         ecash_state: Arc::new(ecash_state),
     });
-
-    let task_manager = TaskManager::new(TASK_MANAGER_TIMEOUT_S);
 
     // start note describe cache refresher
     // we should be doing the below, but can't due to our current startup structure

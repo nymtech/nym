@@ -721,12 +721,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bit-vec"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d2c54ff287cfc0a34f38a6b832ea1bd8e448a330b3e40a50859e6488bee07f22"
-
-[[package]]
 name = "bitcoin_hashes"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -819,17 +813,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a8894febbff9f758034a5b8e12d87918f56dfc64a8e1fe757d65e29041538d93"
 dependencies = [
  "generic-array 0.14.7",
-]
-
-[[package]]
-name = "bloomfilter"
-version = "1.0.14"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc0bdbcf2078e0ba8a74e1fe0cf36f54054a04485759b61dfd60b174658e9607"
-dependencies = [
- "bit-vec",
- "getrandom",
- "siphasher 1.0.1",
 ]
 
 [[package]]
@@ -4635,7 +4618,6 @@ dependencies = [
  "axum-test",
  "bincode",
  "bip39",
- "bloomfilter",
  "bs58",
  "cfg-if",
  "clap",
@@ -4666,7 +4648,6 @@ dependencies = [
  "nym-crypto",
  "nym-dkg",
  "nym-ecash-contract-common",
- "nym-ecash-double-spending",
  "nym-ecash-time",
  "nym-gateway-client",
  "nym-http-api-common",
@@ -5377,7 +5358,6 @@ dependencies = [
  "nym-credentials",
  "nym-credentials-interface",
  "nym-ecash-contract-common",
- "nym-ecash-double-spending",
  "nym-gateway-requests",
  "nym-gateway-storage",
  "nym-task",
@@ -5492,15 +5472,6 @@ dependencies = [
  "cw2",
  "nym-multisig-contract-common",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "nym-ecash-double-spending"
-version = "0.1.0"
-dependencies = [
- "bit-vec",
- "bloomfilter",
- "nym-network-defaults",
 ]
 
 [[package]]
@@ -7549,7 +7520,7 @@ version = "0.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b6796ad771acdc0123d2a88dc428b5e38ef24456743ddb1744ed628f9815c096"
 dependencies = [
- "siphasher 0.3.11",
+ "siphasher",
 ]
 
 [[package]]
@@ -7558,7 +7529,7 @@ version = "0.11.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90fcb95eef784c2ac79119d1dd819e162b5da872ce6f3c3abe1e8ca1c082f72b"
 dependencies = [
- "siphasher 0.3.11",
+ "siphasher",
 ]
 
 [[package]]
@@ -9143,12 +9114,6 @@ name = "siphasher"
 version = "0.3.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "38b58827f4464d87d377d175e90bf58eb00fd8716ff0a62f80356b5e61555d0d"
-
-[[package]]
-name = "siphasher"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56199f7ddabf13fe5074ce809e7d3f42b42ae711800501b5b16ea82ad029c39d"
 
 [[package]]
 name = "slab"
@@ -10857,7 +10822,7 @@ checksum = "71dc8573a7b1ac4b71643d6da34888273ebfc03440c525121f1b3634ad3417a2"
 dependencies = [
  "anyhow",
  "bytes",
- "siphasher 0.3.11",
+ "siphasher",
  "uniffi_checksum_derive",
 ]
 

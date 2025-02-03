@@ -89,12 +89,6 @@ async fn verify_ticket(
         });
     }
 
-    // check the bloomfilter for obvious double-spending so that we wouldn't need to waste time on crypto verification
-    // TODO: when blacklisting is implemented, this should get removed
-    if state.check_bloomfilter(sn).await {
-        return reject_ticket(EcashTicketVerificationRejection::ReplayedTicket);
-    }
-
     // actual double spend detection with storage
     if let Some(previous_payment) = state.get_ticket_data_by_serial_number(sn).await? {
         match nym_compact_ecash::identify::identify(
@@ -127,26 +121,16 @@ async fn verify_ticket(
         return reject_ticket(EcashTicketVerificationRejection::InvalidTicket);
     }
 
-    // finally get EXCLUSIVE lock on the bloomfilter, check if for the final time and insert the SN
-    let was_present = state
-        .update_bloomfilter(sn, spend_date, today_ecash)
+    // store credential and check whether it wasn't already there (due to a parallel request)
+    let was_inserted = state
+        .store_verified_ticket(credential_data, gateway_cosmos_addr)
         .await?;
-    if was_present {
+    if !was_inserted {
         return reject_ticket(EcashTicketVerificationRejection::ReplayedTicket);
     }
 
-    //store credential
-    state
-        .store_verified_ticket(credential_data, gateway_cosmos_addr)
-        .await?;
-
     Ok(Json(EcashTicketVerificationResponse { verified: Ok(()) }))
 }
-
-// // for particular SN returns what gateway has submitted it and whether it has been verified correctly
-// async fn credential_status() -> ! {
-//     todo!()
-// }
 
 #[utoipa::path(
     tag = "Ecash",

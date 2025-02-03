@@ -40,7 +40,7 @@ serde_json = { workspace = true }
 serde_json_path = { workspace = true }
 strum = { workspace = true }
 strum_macros = { workspace = true }
-sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "time", "json"] }
+sqlx = { workspace = true, features = ["runtime-tokio-rustls", "sqlite", "time"] }
 thiserror = { workspace = true }
 time = { workspace = true }
 tokio = { workspace = true, features = ["rt-multi-thread"] }
@@ -51,10 +51,6 @@ tracing-log = { workspace = true }
 tower-http = { workspace = true, features = ["cors", "trace"] }
 utoipa = { workspace = true, features = ["axum_extras", "time"] }
 utoipa-swagger-ui = { workspace = true, features = ["axum"] }
-# TODO dz `cargo update async-trait`
-# for automatic schema detection, which was merged, but not released yet
-# https://github.com/ProbablyClem/utoipauto/pull/38
-# utoipauto = { git = "https://github.com/ProbablyClem/utoipauto", rev = "eb04cba" }
 utoipauto = { workspace = true }
 
 nym-node-metrics = { path = "../../nym-node/nym-node-metrics" }

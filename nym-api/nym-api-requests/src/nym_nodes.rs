@@ -72,9 +72,7 @@ pub enum NodeRoleQueryParam {
     ExitGateway,
 }
 
-#[derive(
-    Clone, Debug, PartialEq, Serialize, Deserialize, schemars::JsonSchema, ToSchema, Default,
-)]
+#[derive(Clone, Debug, Serialize, Deserialize, schemars::JsonSchema, ToSchema, Default)]
 pub enum NodeRole {
     // a properly active mixnode
     Mixnode {

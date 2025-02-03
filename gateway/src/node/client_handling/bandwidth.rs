@@ -7,7 +7,7 @@ use tracing::error;
 
 #[derive(Debug, Error)]
 pub enum BandwidthError {
-    #[error("Provided bandwidth credential asks for more bandwidth than it is supported to add at once (credential value: {0}, supported: {}). Try to split it before attempting again", i64::MAX)]
+    #[error("Provided bandwidth credential asks for more bandwidth than it is supported to add at once (credential value: {0}, supported: {s}). Try to split it before attempting again", s = i64::MAX)]
     UnsupportedBandwidthValue(u64),
 
     #[error("failed to parse the bandwidth voucher value: {source}")]

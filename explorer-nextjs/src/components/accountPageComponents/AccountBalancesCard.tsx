@@ -2,7 +2,7 @@
 import { fetchAccountBalance, fetchNymPrice } from "@/app/api";
 import { Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import type { IAccountBalancesInfo, IRewardDetails } from "../../app/api/types";
+import type { IRewardDetails } from "../../app/api/types";
 import { AccountBalancesTable } from "../cards/AccountBalancesTable";
 import ExplorerCard from "../cards/ExplorerCard";
 

@@ -1,6 +1,4 @@
 import { fetchNodeInfo } from "@/app/api";
-import type { IObservatoryNode } from "@/app/api/types";
-import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";

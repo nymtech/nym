@@ -1,6 +1,17 @@
 "use client";
 import { useChain } from "@cosmos-kit/react";
-import { Box, Button, Chip, Stack, Tooltip, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Chip,
+  Stack,
+  Tooltip,
+  Typography,
+  useMediaQuery,
+  useTheme,
+} from "@mui/material";
+import { useCallback, useEffect, useMemo, useState } from "react";
+
 import type { Delegation } from "@nymproject/contract-clients/Mixnet.types";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocalStorage } from "@uidotdev/usehooks";
@@ -10,7 +21,6 @@ import {
   useMaterialReactTable,
 } from "material-react-table";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useMemo, useState } from "react";
 import usePendingEvents, {
   type PendingEvent,
 } from "../../../src/hooks/useGetPendingEvents";
@@ -39,10 +49,33 @@ const ColumnHeading = ({
 }: {
   children: string | React.ReactNode;
 }) => {
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
   return (
-    <Typography sx={{ py: 2, textAlign: "center" }} variant="h5">
-      {children}
-    </Typography>
+    <Box
+      sx={{
+        width: isMobile ? "80px" : "unset",
+        display: "flex",
+        flexDirection: "column",
+        justifyContent: "flex-start",
+        alignItems: "baseline",
+        p: 0,
+      }}
+    >
+      <Typography
+        sx={{
+          py: 2,
+          textAlign: "center",
+          whiteSpace: isMobile ? "normal" : "unset", // Ensure text can wrap
+          wordWrap: isMobile ? "break-word" : "unset", // Break long words
+          overflowWrap: isMobile ? "break-word" : "unset", // Ensure text breaks inside the cell
+          textTransform: "uppercase",
+        }}
+        variant={isMobile ? "caption" : "h5"}
+      >
+        {children}
+      </Typography>
+    </Box>
   );
 };
 
@@ -62,6 +95,9 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
   const [favorites] = useLocalStorage<string[]>("nym-node-favorites", []);
   const { isWalletConnected } = useChain(COSMOS_KIT_USE_CHAIN);
   const { data: pendingEvents } = usePendingEvents(nymQueryClient, address);
+
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const router = useRouter();
 
@@ -486,7 +522,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     },
 
     initialState: {
-      columnPinning: { right: ["Action", "Favorite"] },
+      columnPinning: isMobile ? {} : { right: ["Action", "Favorite"] }, // No pinning on mobile
     },
 
     muiColumnActionsButtonProps: {
@@ -498,6 +534,11 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     muiTablePaperProps: {
       elevation: 0,
     },
+    muiTableHeadCellProps: {
+      sx: {
+        alignItems: "center",
+      },
+    },
     muiTableHeadRowProps: {
       sx: {
         bgcolor: "background.paper",
@@ -507,6 +548,8 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     muiTableBodyCellProps: {
       sx: {
         border: "none",
+        whiteSpace: "unset", // Allow text wrapping in body cells
+        wordBreak: "break-word",
       },
     },
     muiTableBodyRowProps: ({ row }) => ({

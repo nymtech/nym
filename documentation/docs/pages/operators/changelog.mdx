@@ -4,6 +4,9 @@ import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
 import { Steps } from 'nextra/components';
+import AbuseResponse from 'components/operators/templates/dmca_response.md';
+import OperatorIntroduction from 'components/operators/templates/provider_introduction.md';
+
 
 export const TestingSteps = () => (
   <div>
@@ -73,9 +76,12 @@ From `nym-node v1.3.0` operators can technically choose multiple functionalities
 
 #### Legal support
 
-We have been notified that a handful of nodes have been taken down by abuse reports. Here are some useful points on legal support:
+We have been notified that a handful of nodes have been taken down by abuse reports. We created new pages with [legal suggestions](community-counsel/legal) and email [templates](community-counsel/templates). Here are some useful points on legal support:
 
-- We are working on a response template tailored for Nym operators. For now please use the Tor template [here](https://community.torproject.org/relay/community-resources/eff-tor-legal-faq/tor-dmca-response/) for a quick response, but **modify all "tor" in the text into "proxy server" before you send it** as Nym is not Tor and it's an extra red flag.
+- Here is the first version of a response template tailored for Nym operators.
+<AccordionTemplate name="Email template: responding to DMCA take-down notices">
+<AbuseResponse />
+</AccordionTemplate>
 
 - We are starting OPERATORS LEGAL CLINIC with Alexis Roussel, every Wednesday, 14:30 UTC (60 min) in our [Operator Legal Forum channel on Matrix](https://matrix.to/#/!YfoUFsJjsXbWmijbPG:nymtech.chat?via=nymtech.chat&via=matrix.org&via=matrix.su4ka.icu). Come and share your findigs and questions with the rest of the operators.
 
@@ -121,19 +127,103 @@ nym-exit.mysquad.org
 
 - When registering a domain, check [Top Level Domain (TLD)](https://www.techopedia.com/definition/1348/top-level-domain-tld) terms and conditions. For example `.icu` is a no go. Having a wrong TLD may lead to your domain being taken away from you when facing a DMCA report.  
 
-- Write a message to your provider
-<AccordionTemplate name="Email template: Introduce yourself to your VPS provider ">
-```
+- Write a message to your provider and introduce your intention to run a Nym Node on their service
+<AccordionTemplate name="Email template: Introduce yourself to your VPS provider">
+<OperatorIntroduction />
+</AccordionTemplate>
 
+- New page with [templates for VPS provider](community-counsel/templates)
+
+#### Delegation Program
+
+**If you are interested to sign up to delegation program que, message Merve on Element for the time being as we are working on CRM upgrade. We review nodes dynamically and delegate to new ones once a month.** New operators interested to join DP must follow the rules specified [here](https://delegations.explorenym.net/), run one of two latest binary version and have [Terms & Conditions](nodes/nym-node/setup#terms--conditions) accepted.
+
+Note: Due to the token price we allow operators to have Operators cost 1000 NYM, the profit margin maximum remains 20%.
+
+**Delegation and undelegation in January**
+
+Delegated to all these nodes:
+<AccordionTemplate name="New delegated nodes">
+```
+AMnDNd1Xgw7Em9R5vehP7r12ZNWUZ3jmitDHya6gpvGR
+DLkKyYcA5feq43rqZdx6nJBNZvQsdX7kb2f1f6ED4cs2
+26ZmTxTVBKHZg8MTKwypHkXZVJhDC7QHuv3BdsyRyTuk
+5ZWdDN9pQ18vYkYYs5ZERh4P4JLtMiijscZ6FvwSfVxR
+3uBgUJR393acoCRysu6SiLsximiwAMM85QFxq9WD8puC
+5rXcNe2a44vXisK3uqLHCzpzvEwcnsijDMU7hg4fcYk8
+nuMerN7ahqsptK8zDUZhnxMyDqePza8vWDf8k171EEs
+86cNnnRxNpGdEtSX9UP1GpT6xrNvNuxFdHNkZcK7pAJg
+9ngFADaYpT54F9i8iYFZLYR7SB7hrubsPArwpqe1RXQb
+FQBbq1crAkCrjVBnEN85VqgZgGRMLJV65NJk8bPADdw
+FUH3E3dghXjC9hdt3jeAhSsxwozsw1yzBXkoaFqkL4ci
+5wF5wN7T2UuSsiUcQyL77NwdnXwAXxFttpZ1dR1nu4kR
+4pVq4QSCcq4zNCnBNCfyugPjVhVyGDCBDSW5rghg8oZS
+8XW1WWN1PuuAYz2TXQ9iWRekMFEJXjdEq4asMyE2qCCN
+CxgjcTTAnRJzDxMbqtX73vEbWwLQmVoW8zS8RZEicgfT
+7fwyXd4Cmh92d4piEPHmdFm1Wz1QCFQDf6bnDGNT3M6P
 ```
 </AccordionTemplate>
 
-- DMCA template:
-<AccordionTemplate name="Email template: responding to DMCA take-down notices">
+Undelegated from 8 nodes for not meeting the rules (being offline):
+<AccordionTemplate name="Undelegated nodes">
 ```
+# Gateways
+DLxLKsd3LTnfudSSmHanPaZACsh1x4MGEzfJS4jQibir
+DiciBkjHovXzTDE2EFJKPNj3TGw2oQjr7HPSas2YQPiQ
+ADjpymCgjFsE5m7YvnZFxLMscg85dCUUesR5g8yN3Mzz
+C9dEABjtFRMD1x4ZnbqnsELGJgutT73bPCfYzqBe7sHB
 
+# Mixnodes
+2FGgY5zWq6JP1BvpnLPbedWRYYAZELFCT9rMybNhnxpo
+4nKkwPSbkbtkw3yrRKQVAVdviNgFgcNskgcSGdT2Sucy
+DjY3T7n6VoHGcETMnmtZKmUU7NZP6AhCs8CoRsSSbViC
+FAKhiQ8nW5sAWAxks1WB8u1MAWsapToCSE3KmF9LuGRQ
 ```
 </AccordionTemplate>
+
+Undelegated due to high saturation:
+```
+5omopSZy59UyNPpx9P97vjBnN6PwPw9x5MVUx5kuNaXt
+```
+
+#### Service Grant Program v2
+
+Aside from delegating on top of nodes, Nym runs a Service Grant Program (SGP) to support Exit Gateway operators before they will be rewarded by collecting [zk-nym tickets](../network/cryptography/zk-nym) from users subscription. Operators included in SGP are long term active community members with the highest requirements on the technical setup and upgrading pace. We are about to start a second iteration of SGP very soon (SGPv2). The final slots and locations are yet to be concluded. Priority to participate in SGv2 will be given to the current operators in SGP. Based on the number of slots, we will then determine how many more operators can sign up. 
+
+##### Rules of SGPv2
+
+<Callout type="info">
+**We will share more info soon in the channels. The rules are not set in stone and could potentially be altered or updated in the future! Do *not* purchase new servers neither migrate your nodes just yet**
+</Callout>
+
+As we finalising last details of *"Project Smoosh"*, where one binary - `nym-node` - can run as an `entry-gateway`, `mixnode` or `exit-gateway` in Mixnet mode as well as `entry-gateway` or `exit-gateway` in Wireguard mode, we plan to step up the game. SGPv2 grants will be higher if operators can meet new requirements. 
+
+**Minimum Specs & Requirements**
+
+These are minimum requirements to become a part of SGPv2.
+
+| **Hardware**   | **Minimum Specification**          |
+| :---           | ---:                               |
+| Type of server | Dedicated                          |
+| CPU Cores      | 4                                  |
+| Memory         | 8-16 GB RAM                        |
+| Storage        | 50 GB (preferably 80 GB)           |
+| Connectivity   | IPv4, IPv6, TCP/IP, UDP            |
+| Bandwidth      | Unmetered if possible, or \> 20Tb  |
+| Port speed     | 1Gbps                              |
+
+- Exit Gateways only
+- [Terms & Conditions](nodes/nym-node/setup#terms--conditions) accepted
+- Nodes are [bonded](nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract) as `nym-node` not as a legacy node
+- Timely upgrades without direct message notifications: Only Latest version, and the two preceding are accepted
+- Dedicated (or bare metal) machine is to ensure that the numbers above are *dedicated* for `nym-node` operation
+- Unmetered bandwidth is to ensure smooth user experience without data allowance limitation. 20Tb is a minimum for locations where unlimited bandwidth is not an option. 
+- 1Gbps is an expected speed of Nym network in order to meet expectations of NymVPN users
+- Squads operating more than 2 nodes are expected to run larger servers and divide them for multiple nodes. We will share a how to guide soon.
+- Operators run [reverse proxy](nodes/nym-node/configuration) with landing page URL starting with `nym-exit` and [Web Secure Socket](nodes/nym-node/configuration)
+- Operators must write their providers upfront that they will run a Nym Exit Gateway on their servers, using [this template](community-counsel/templates#introduction-to-server-provider)
+
+Operators interested in joining SGPv2 can start by searching for servers that meet the above criteria, where they may eventually migrate their nodes, and then share their findings by submitting [this form]().
 
 
 ### Features

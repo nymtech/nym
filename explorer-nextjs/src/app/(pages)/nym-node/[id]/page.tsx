@@ -1,3 +1,4 @@
+import { fetchNodeInfo } from "@/app/api";
 import type { IObservatoryNode } from "@/app/api/types";
 import { DATA_OBSERVATORY_NODES_URL } from "@/app/api/urls";
 import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
@@ -22,25 +23,7 @@ export default async function NymNode({
   try {
     const id = Number((await params).id);
 
-    const observatoryResponse = await fetch(DATA_OBSERVATORY_NODES_URL, {
-      headers: {
-        Accept: "application/json",
-        "Content-Type": "application/json; charset=utf-8",
-      },
-      next: { revalidate: 60 },
-      // refresh event list cache at given interval
-    });
-
-    const observatoryNymNodes: IObservatoryNode[] =
-      await observatoryResponse.json();
-
-    if (!observatoryNymNodes) {
-      return null;
-    }
-
-    const observatoryNymNode = observatoryNymNodes.find(
-      (node) => node.node_id === id,
-    );
+    const observatoryNymNode = await fetchNodeInfo(id);
 
     if (!observatoryNymNode) {
       return null;

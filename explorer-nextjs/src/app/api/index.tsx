@@ -2,8 +2,12 @@ import { addSeconds } from "date-fns";
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import type {
   ExplorerData,
+  GatewayStatus,
+  IAccountBalancesInfo,
   IObservatoryNode,
   IPacketsAndStakingData,
+  NodeData,
+  NymTokenomics,
   ObservatoryBalance,
 } from "./types";
 import {
@@ -12,6 +16,10 @@ import {
   DATA_OBSERVATORY_BALANCES_URL,
   DATA_OBSERVATORY_NODES_URL,
   HARBOURMASTER_API_MIXNODES_STATS,
+  NYM_ACCOUNT_ADDRESS,
+  NYM_NODES,
+  NYM_PRICES_API,
+  OBSERVATORY_GATEWAYS_URL,
 } from "./urls";
 
 // Fetch function for epoch rewards
@@ -33,6 +41,19 @@ export const fetchEpochRewards = async (): Promise<
   return response.json();
 };
 
+// Fetch gateway status based on identity key
+export const fetchGatewayStatus = async (
+  identityKey: string,
+): Promise<GatewayStatus | null> => {
+  const response = await fetch(`${OBSERVATORY_GATEWAYS_URL}/${identityKey}`);
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch gateway status");
+  }
+
+  return response.json();
+};
+
 export const fetchNodeInfo = async (
   id: number,
 ): Promise<IObservatoryNode | null> => {
@@ -41,7 +62,6 @@ export const fetchNodeInfo = async (
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
     },
-    next: { revalidate: 60 },
   });
 
   if (!response.ok) {
@@ -60,7 +80,6 @@ export const fetchNodeDelegations = async (id: number) => {
         Accept: "application/json",
         "Content-Type": "application/json; charset=utf-8",
       },
-      next: { revalidate: 60 },
     },
   );
 
@@ -77,7 +96,7 @@ export const fetchCurrentEpoch = async () => {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
     },
-    next: { revalidate: 30 },
+    cache: "no-store", // Ensures fresh data on every request
   });
 
   if (!response.ok) {
@@ -100,7 +119,6 @@ export const fetchBalances = async (address: string): Promise<number> => {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
     },
-    next: { revalidate: 60 },
   });
 
   if (!response.ok) {
@@ -125,7 +143,6 @@ export const fetchTotalStakerRewards = async (
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
     },
-    next: { revalidate: 60 },
   });
 
   if (!response.ok) {
@@ -145,7 +162,6 @@ export const fetchOriginalStake = async (address: string): Promise<number> => {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
     },
-    next: { revalidate: 60 },
   });
 
   if (!response.ok) {
@@ -164,9 +180,57 @@ export const fetchNoise = async (): Promise<IPacketsAndStakingData[]> => {
       Accept: "application/json",
       "Content-Type": "application/json; charset=utf-8",
     },
-    next: { revalidate: 60 },
   });
 
   const data: IPacketsAndStakingData[] = await response.json();
+  return data;
+};
+
+// Fetch Account Balance
+export const fetchAccountBalance = async (
+  address: string,
+): Promise<IAccountBalancesInfo> => {
+  const res = await fetch(`${NYM_ACCOUNT_ADDRESS}/${address}`, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+  console.log("res :>> ", res);
+  if (!res.ok) {
+    throw new Error("Failed to fetch account balance error from api");
+  }
+
+  const data: IAccountBalancesInfo = await res.json();
+  return data;
+};
+
+// 🔹 Fetch Nodes
+export const fetchNodes = async (): Promise<NodeData[]> => {
+  const res = await fetch(NYM_NODES, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+  if (!res.ok) {
+    throw new Error("Failed to fetch nodes");
+  }
+  const data: NodeData[] = await res.json();
+  return data;
+};
+
+// 🔹 Fetch NYM Price
+export const fetchNymPrice = async (): Promise<NymTokenomics> => {
+  const res = await fetch(NYM_PRICES_API, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+  if (!res.ok) {
+    throw new Error("Failed to fetch NYM price");
+  }
+  const data: NymTokenomics = await res.json();
   return data;
 };

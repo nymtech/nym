@@ -3,28 +3,36 @@
 import { Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { fetchNodeInfo } from "../../app/api";
+import { fetchAccountBalance, fetchNodeInfo } from "../../app/api";
 import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
 
 interface IBasicInfoCardProps {
-  id: number; // Node ID
+  id: number;
 }
 
 export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
-  // Use React Query to fetch the node info
   const {
     data: nodeInfo,
     isLoading,
     isError,
   } = useQuery({
-    queryKey: ["nodeInfo", id], // Unique query key based on the node ID
-    queryFn: () => fetchNodeInfo(id), // Fetch function
+    queryKey: ["nodeInfo", id],
+    queryFn: () => fetchNodeInfo(id),
   });
 
-  // Loading state
+  const address = "n1z0msxu8c098umdhnthpr2ac3ck2n3an97dm8pn";
+
+  const { data: accountInfo } = useQuery({
+    queryKey: ["accountBalance", address],
+    queryFn: () => fetchAccountBalance(address),
+    enabled: !!address,
+  });
+
+  console.log(" accountInfo basic info card:>> ", accountInfo);
+
   if (isLoading) {
     return (
       <ExplorerCard label="Basic info">
@@ -33,7 +41,6 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
     );
   }
 
-  // Error state
   if (isError || !nodeInfo) {
     return (
       <ExplorerCard label="Basic info">
@@ -42,7 +49,6 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
     );
   }
 
-  // Derived data from nodeInfo
   const timeBonded = format(
     new Date(nodeInfo.description.build_information.build_timestamp),
     "dd/MM/yyyy",

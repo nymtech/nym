@@ -48,7 +48,7 @@ const NextEpochTime = () => {
 
     handleRefetch();
 
-    const interval = setInterval(handleRefetch, 30000); // Run every 30s
+    const interval = setInterval(handleRefetch, 10000); // Run every 10s
 
     return () => clearInterval(interval);
   }, [hasEpochStarted, handleRefetch]);

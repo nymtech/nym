@@ -1,9 +1,8 @@
 "use client";
 
 import { useQuery } from "@tanstack/react-query";
-import { fetchNodeInfo } from "../../app/api";
-import type { ExplorerData } from "../../app/api/types";
-import { CURRENT_EPOCH_REWARDS } from "../../app/api/urls";
+import { fetchEpochRewards, fetchNodeInfo } from "../../app/api";
+
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
@@ -11,26 +10,7 @@ interface INodeMetricsCardProps {
   id: number; // Node ID
 }
 
-// Fetch functions
-const fetchEpochRewards = async (): Promise<
-  ExplorerData["currentEpochRewardsData"]
-> => {
-  const response = await fetch(CURRENT_EPOCH_REWARDS, {
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json; charset=utf-8",
-    },
-  });
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch epoch rewards");
-  }
-
-  return response.json();
-};
-
 export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
-  // Fetch epoch rewards
   const {
     data: epochRewardsData,
     isLoading: isEpochLoading,

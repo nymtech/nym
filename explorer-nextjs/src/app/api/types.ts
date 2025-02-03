@@ -165,7 +165,7 @@ export type Location = {
   longitude?: number;
 };
 
-type NodeData = {
+export type NodeData = {
   node_id: number;
   contract_node_type: string;
   description: NodeDescription;
@@ -173,8 +173,6 @@ type NodeData = {
   rewarding_details: RewardingDetails;
   location: Location;
 };
-
-export default NodeData;
 
 // ACCOUNT BALANCES
 

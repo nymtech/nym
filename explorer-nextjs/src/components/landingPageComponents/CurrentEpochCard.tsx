@@ -52,7 +52,7 @@ export const CurrentEpochCard = () => {
 
     handleRefetch();
 
-    const interval = setInterval(handleRefetch, 30000);
+    const interval = setInterval(handleRefetch, 10000); // refetch every 10sec after the epoch has started
 
     return () => clearInterval(interval);
   }, [hasEpochStarted, handleRefetch]);

@@ -1,4 +1,7 @@
 "use client";
+import { fetchAccountBalance, fetchNymPrice } from "@/app/api";
+import { Stack, Typography } from "@mui/material";
+import { useQuery } from "@tanstack/react-query";
 import type { IAccountBalancesInfo, IRewardDetails } from "../../app/api/types";
 import { AccountBalancesTable } from "../cards/AccountBalancesTable";
 import ExplorerCard from "../cards/ExplorerCard";
@@ -14,8 +17,7 @@ export interface IAccontStatsRowProps {
 }
 
 interface IAccountBalancesCardProps {
-  accountInfo: IAccountBalancesInfo;
-  nymPrice: number;
+  address: string;
 }
 
 const getNymsFormated = (unyms: number) => {
@@ -46,16 +48,57 @@ const calculateStakingRewards = (
 };
 
 export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
-  const { accountInfo, nymPrice } = props;
+  const { address } = props;
+
+  const {
+    data: accountInfo,
+    isLoading,
+    isError,
+  } = useQuery({
+    queryKey: ["accountBalance", address],
+    queryFn: () => fetchAccountBalance(address),
+    enabled: !!address,
+  });
+
+  const {
+    data: nymPrice,
+    isLoading: isLoadingPrice,
+    error: priceError,
+  } = useQuery({
+    queryKey: ["nymPrice"],
+    queryFn: fetchNymPrice,
+  });
+
+  if (isLoading || isLoadingPrice) {
+    return (
+      <Stack direction="row" spacing={1}>
+        <Typography variant="h5" fontWeight="light">
+          Loading account balance...
+        </Typography>
+      </Stack>
+    );
+  }
+
+  if (isError || priceError || !accountInfo || !nymPrice) {
+    return (
+      <Stack direction="row" spacing={1}>
+        <Typography variant="h5" fontWeight="light">
+          Failed to load account balance.
+        </Typography>
+      </Stack>
+    );
+  }
+
+  const nymPriceData = nymPrice.quotes.USD.price;
 
   const totalBalanceUSD = getPriceInUSD(
     Number(accountInfo.total_value.amount),
-    nymPrice,
+    nymPriceData,
   );
   const spendableNYM = getNymsFormated(Number(accountInfo.balances[0].amount));
   const spendableUSD = getPriceInUSD(
     Number(accountInfo.balances[0].amount),
-    nymPrice,
+    nymPriceData,
   );
   const spendableAllocation = getAllocation(
     Number(accountInfo.balances[0].amount),
@@ -67,7 +110,7 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
   );
   const delegationsUSD = getPriceInUSD(
     Number(accountInfo.total_delegations.amount),
-    nymPrice,
+    nymPriceData,
   );
   const delegationsAllocation = getAllocation(
     Number(accountInfo.total_delegations.amount),
@@ -79,7 +122,7 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
   );
   const claimableUSD = getPriceInUSD(
     Number(accountInfo.claimable_rewards.amount),
-    nymPrice,
+    nymPriceData,
   );
   const claimableAllocation = getAllocation(
     Number(accountInfo.claimable_rewards.amount),

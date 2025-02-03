@@ -1,19 +1,46 @@
 "use client";
+import { fetchAccountBalance } from "@/app/api";
 import { Box, Stack, Typography } from "@mui/material";
-import type { IAccountBalancesInfo } from "../../app/api/types";
+import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
 import ExplorerListItem from "../list/ListItem";
 import { CardQRCode } from "../qrCode/QrCode";
 
 interface IAccountInfoCardProps {
-  accountInfo: IAccountBalancesInfo;
+  address: string;
 }
 
 export const AccountInfoCard = (props: IAccountInfoCardProps) => {
-  const { accountInfo } = props;
+  const { address } = props;
 
-  const balance = Number(accountInfo.balances[0].amount) / 1000000;
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["accountBalance", address],
+    queryFn: () => fetchAccountBalance(address),
+    enabled: !!address,
+  });
+
+  if (isLoading) {
+    return (
+      <Stack direction="row" spacing={1}>
+        <Typography variant="h5" fontWeight="light">
+          Loading account balance...
+        </Typography>
+      </Stack>
+    );
+  }
+
+  if (isError || !data) {
+    return (
+      <Stack direction="row" spacing={1}>
+        <Typography variant="h5" fontWeight="light">
+          Failed to load account balance.
+        </Typography>
+      </Stack>
+    );
+  }
+
+  const balance = Number(data.balances[0].amount) / 1000000;
   const balanceFormated = `${balance} NYM`;
 
   return (
@@ -24,7 +51,7 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
     >
       <Stack gap={5}>
         <Box display={"flex"} justifyContent={"flex-start"}>
-          <CardQRCode url={accountInfo.address} />
+          <CardQRCode url={data.address} />
         </Box>
 
         <ExplorerListItem
@@ -37,8 +64,8 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
               justifyContent="space-between"
               width="100%"
             >
-              <Typography variant="body4">{accountInfo.address}</Typography>
-              <CopyToClipboard text={accountInfo.address} />
+              <Typography variant="body4">{data.address}</Typography>
+              <CopyToClipboard text={data.address} />
             </Stack>
           }
         />

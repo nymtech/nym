@@ -29,6 +29,11 @@ export const TunnelManagerCommands = () => (
   </div>
 );
 
+export const LoadEndpointInfo = () => (
+  <div>
+    Developer notes behind <code>/load</code> endpoint
+  </div>
+);
 
 # Changelog
 
@@ -86,16 +91,223 @@ We have been notified that a handful of nodes have been taken down by abuse repo
     - Online S.A.S. / Scaleway (AS12876)
     - Hetzner Online GmbH (AS24940)
     - IONOS SE (AS8560)
-    - netcup GmbH (AS197540)
     - Psychz Networks (AS40676)
     - 1337 Services GmbH / RDP.sh (AS210558)
 
-
 - Backup your nodes to have access to `.nym` directory locally. Follow [node](nodes/maintenance#backup-a-node) and [proxy configuration](nodes/maintenance#backup-proxy-configuration) backup guides to be able to [restore your node](nodes/maintenance#restoring-a-node) later on on another machine, without losing your delegation.  
+
+- We would like to ask operators who use reverse proxy and a domain (required for Gateways) to start using a common convention starting with `nym-exit` for their nodes URL. The entire address should have this new format:
+```
+nym-exit.<CUSTOM>.<DOMAIN>.<TLD>
+```
+
+For example:
+
+```
+# for squads running multiple nodes a format can look like this:
+nym-exit.ch-node1.mysquad.org
+
+# or like this
+nym-exit.3-jamaica.mysquad.org
+
+# for operators having one node per location, the format can look like this:
+nym-exit.brazil.mysquad.org
+
+# or if operators decide to not have any custom, they can simply have this format:
+nym-exit.mysquad.org
+```
+
+**The `NYM-EXIT` part in the beginning is what's important.**
+
+- When registering a domain, check [Top Level Domain (TLD)](https://www.techopedia.com/definition/1348/top-level-domain-tld) terms and conditions. For example `.icu` is a no go. Having a wrong TLD may lead to your domain being taken away from you when facing a DMCA report.  
+
+- Write a message to your provider
+<AccordionTemplate name="Email template: Introduce yourself to your VPS provider ">
+```
+
+```
+</AccordionTemplate>
+
+- DMCA template:
+<AccordionTemplate name="Email template: responding to DMCA take-down notices">
+```
+
+```
+</AccordionTemplate>
+
 
 ### Features
 
+- [build(deps): bump criterion from `0.4.0` to `0.5.1`](https://github.com/nymtech/nym/pull/4911): Bumps [criterion](https://github.com/bheisler/criterion.rs) from `0.4.0` to `0.5.1`.
+
+- [NS API: add mixnet scraper](https://github.com/nymtech/nym/pull/5200) 
+
+- [build(deps): bump http from `1.1.0` to `1.2.0`](https://github.com/nymtech/nym/pull/5228): Bumps [http](https://github.com/hyperium/http) from `1.1.0` to `1.2.0`.
+
+- [`http-api-client`: deduplicate code](https://github.com/nymtech/nym/pull/5267): After adding PATCH support in [\#5260]https://github.com/nymtech/nym/pull/5260), it's now time to de-duplicate some of the code
+
+- [Add windows to CI builds](https://github.com/nymtech/nym/pull/5269)
+
+- [nym topology revamp](https://github.com/nymtech/nym/pull/5271): This PR changes the internals of the `NymTopology` to blur the lines between explicit mixnodes and gateways so that what used to be considered a "mixnode" could be a valid egress point of the network. `NymTopology` is no longer divided into `BTreeMap<MixLayer, Vec<mix::Node>>` and `Vec<gateway::Node>`. instead there's information about the current rewarded set (to support future VRF work) and a simple map of `HashMap<NodeId, RoutingNode>`. The new features are mostly controlled via 2 new flags/config values: 
+    - `use_extended_topology` that tells the client to retrieve **all** network nodes rather than the ones that got assigned "active" mixnode role (or support being a gateway)
+    - `ignore_egress_epoch_role` that tells the client it's  fine to construct egress packets to nodes that are **not** assigned entry or exit gateway role
+ 
+- [Nyx Chain Watcher](https://github.com/nymtech/nym/pull/5274)
+
+- [Include `IPINFO_API_TOKEN` in nightly CI](https://github.com/nymtech/nym/pull/5285)
+
+- [Move tun constants to network defaults](https://github.com/nymtech/nym/pull/5286): 
+<AccordionTemplate name={<TestingSteps/>}>
+1. **Regression Testing**:
+- Verified no issues arose when running tests for the affected files.  
+- Tested TUN behaviour with new nym-nodes in the hu branch.  
+ 
+**Results**:  
+
+- **No bugs detected**.  
+- Tunnels are functioning as expected, with traffic routing and IP generation working seamlessly.  
+</AccordionTemplate> 
+
+- [Add dependabot assignes for the root cargo ecosystem](https://github.com/nymtech/nym/pull/5297)
+
+- [build(deps): bump the patch-updates group across 1 directory with 35 updates](https://github.com/nymtech/nym/pull/5310): Bumps the `patch-updates` group with 33 updates
+
+- [Periodically remove stale gateway messages](https://github.com/nymtech/nym/pull/5312): This PR introduces a simple task that removes gateway messages that haven't been retrieved in (by default) 24h.  
+<AccordionTemplate name={<TestingSteps/>}>
+**Automation Script for Data Cleanup Validation**
+
+Test Objective: Validate that the stale message cleanup mechanism in the database correctly removes records older than the configured threshold (24 hours).
+ 
+Test Setup:
+1. Environment:
+    * SQLite database
+    * Bash script: used to insert data.
+ 
+Steps Performed:
+1. Ran the insert_data.sh script to populate the database with test data:
+    * Recent records inserted successfully.
+2. Verified the database content post-insertion: sqlite3 clients.sqlite "SELECT * FROM message_store;"
+3. Confirmed that all 20 records (10 recent + 10 stale) were present.
+4. Allowed the system to run for 24 hours to trigger the cleanup mechanism.
+5. Queried the database again after 24 hours: sqlite3 gateway_storage.db "SELECT * FROM message_store;"
+6. 
+ 
+ Expected Result:
+* All stale records (older than 24 hours) should be removed.
+* Recent records should remain in the database.
+Actual Result:
+* Query after 24 hours showed only the 10 recent records.
+* All 10 stale records were successfully removed.
+</AccordionTemplate>
+
+- [Use expect in geodata test to give error message on failure](https://github.com/nymtech/nym/pull/5314): Keep hitting this error on CI, from what I think is network hickup. But it's hard to tell form the log since the error is swallowed.  Explicitly unwrap the result so we get a more detailed error output.
+<AccordionTemplate name={<TestingSteps/>}>
+**Quick Code Review**  
+ 
+**Summary**  
+1. **CI Workflow**: Adjusted paths to optimise build triggers, avoiding unnecessary CI runs while ensuring coverage for key directories
+2. **Geolocation Test**: Improved error handling by replacing assertions with `.expect` for clearer debugging in API regression tests
+ 
+**Conclusion**  
+
+Regression testing confirms everything works as intended. **Approved**.
+</AccordionTemplate>
+
+- [`CancellationToken`-based shutdowns](https://github.com/nymtech/nym/pull/5325): This PR introduces scaffolding for using `CancellationToken` and `TaskTracker` for our graceful shutdowns rather than the existing `TaskClient` and `TaskManager`. 
+
+- [Introduce `/load` endpoint for self-reported quantised Nym Node load](https://github.com/nymtech/nym/pull/5326): This PR introduces a new `/load` endpoint on a `NymNode` to return its current load. It returns the following data:
+```rust
+pub struct NodeLoad {
+    pub total: Load,
+    pub machine: Load,
+    pub network: Load,
+}
+```
+Where `Load` is quantised into the following buckets / tiers:
+```rust
+pub enum Load {
+    Negligible, // 0 - 0.1
+    Low,        // 0.1 - 0.3
+    Medium,     // 0.3 - 0.6
+    High,       // 0.6 - 0.8
+    VeryHigh,   // 0.8 - 0.95
+    AtCapacity, // >= 0.95
+}
+```
+<AccordionTemplate name={<LoadEndpointInfo/>}>
+The actual values  for`NodeLoad` are determined as follows:
+- For network we approximate current rx/tx rates on all `eth` interfaces and scale them to the range of 0-1Gbps (for this initial iteration we assume the maximum network speed is 1Gbps which would be treated as fully saturated). So for example, if the node is sending at 0.5Gbps, it would get a `Load` of 0.5 and thus value of `Load::Medium`, 0.9Gbps would get `Load` of 0.9 and value of `Load::VeryHigh`, etc. we take the bigger value between rx and tx
+- For machine load there's a bit more logic in there:
+    - Firstly we determine what I call a "base load" of the machine. we do this by taking the average load from the last 5min (via `getloadavg`) and dividing it by the number of CPUs in the machine. For example if the average load of the machine in the last 5min was `1.23` and it has 2 CPUs, then it's `Load` would be `Load::High` (`1.23 / 2 = 0.615`)
+    - However, whilst CPU utilisation is one of the most important factors, it does not tell the whole story. I tried to also take memory/swap utilisation into consideration (whilst not making it the main factor)
+    - Thus we calculate two additional auxiliary `Load` values, for memory usage and swap usage, i.e.: `used_memory / total_memory` and `used_swap / total_swap` respectively.
+    - Then we check whether either of the `MemoryLoad` or `SwapLoad` is bigger than the current base `Load` of the machine we have determined, if so, it's increased by one tier / bucket. For example, say the current machine load is `Load::Low`, but the memory usage is at 90% (`Load::VeryHigh`). that would result in the reported `Load` being bumped up to `Load::Medium` instead. The same logic applies with swap load, **however, only if the total swap > 1GB**. this is to prevent weird edge cases where the machine has hardly any swap.
+    - Finally, the `.total` `Load` uses the same "tier bumping" behaviour using the `.total` and `.network` loads, i.e. `if network > machine`, then `total = machine + 1`. for example if `machine` `Load` is `Load::Low`, but `network` `Load` is `Load::Medium`, then the `total` `Load` is set to `Load::Medium` instead.
+</AccordionTemplate> 
+
+- [Bump the `patch-updates` group with 8 updates](https://github.com/nymtech/nym/pull/5336)
+
+- [Bump `tempfile` from `3.14.0` to `3.15.0`](https://github.com/nymtech/nym/pull/5337)
+
+- [Bump `ts-rs` from `10.0.0` to `10.1.0`](https://github.com/nymtech/nym/pull/5338)
+
+- [Updated `cosmrs` and `tendermint-rpc` to their most recent versions](https://github.com/nymtech/nym/pull/5339)
+
+- [Bump mikefarah/yq from `4.44.6` to `4.45.1`](https://github.com/nymtech/nym/pull/5342)
+
+- [Update `indexed_db_futures`](https://github.com/nymtech/nym/pull/5347): Updates the `indexed_db_futures` dependency to stop relying on the fork. 
+
+- [Refresh wasm sdk](https://github.com/nymtech/nym/pull/5353): This PR refreshes the wasm clients to make them usable in the current network
+
+- [Client gateway selection](https://github.com/nymtech/nym/pull/5358): Changed how gateway is selected.
+    - For init the target gateway can't support mixing
+    - For egress, unless `ignore_epoch_roles` is specified, the gateway can't be currently assigned to a mixing layer. But it can be standby or inactive
+    
+- [Exposed `NymApiClient` method for obtaining node performance history](https://github.com/nymtech/nym/pull/5360)
+
+- [Bind to `[::]` on `nym-node` for both IP versions](https://github.com/nymtech/nym/pull/5361)
+<AccordionTemplate name={<TestingSteps/>}>
+**IPv4 Configuration and Migration Testing**
+ 
+Testing Steps:
+- Initiated and ran a nym-node with version 1.3.1 on an IPv4-only machine, then updated it to the new 'hu', 1.4.0 version.
+- Initiated and ran a new nym-node with 'hu', 1.4.0 always on a machine with only IPv4.
+- Initiated and ran a new nym-node with 'hu', 1.4.0 on a machine with both IPv4 and IPv6 for regression testing.
+ 
+Results:
+- No functional issues during version updates.
+- Logged message on all versions: "no registered client for destination: ff02::2"
+ 
+Status: Pass
+</ AccordionTemplate>
+
+- [Remove empty ephemeral keys](https://github.com/nymtech/nym/pull/5376)
+
+- [Handle ecash network errors differently](https://github.com/nymtech/nym/pull/5378): For errors that could be caused by network problems, we should mark the ticket as still pending, not as bad. This won't fix the underlying problem, but should not assume anymore that the client is the culprit and penalise its bandwidth quota.
+
+- [Make client ignore dual mode nodes by default](https://github.com/nymtech/nym/pull/5388)
+
+<AccordionTemplate name={<TestingSteps/>}>
+**Testing Steps:**
+- Ensured a client is able to select a node which aside from a gateway, can also act as a mixnode
+- Verified 'ignore_epoch_roles' is the default mode
+- _note; this is most likely not going to be a permanent solution_
+ 
+**Results:**
+- Clients and topology are behaving correctly 
+  
+Status: Pass
+</ AccordionTemplate>
+
+- [Update version of chain watcher and validator rewarder](https://github.com/nymtech/nym/pull/5394)
+
 ### Bugfix
+
+- [Remove unnecessary arguments for nym-api swagger endpoints](https://github.com/nymtech/nym/pull/5272)
+- [Fixed sql migration for adding default message timestamp](https://github.com/nymtech/nym/pull/5374)
+- [Terminate mixnet socket listener on shutdown](https://github.com/nymtech/nym/pull/5389)
+- [Correctly handle ingore epoch roles flag](https://github.com/nymtech/nym/pull/5390)
+
 
 ## `v2025.1-reeses`
 

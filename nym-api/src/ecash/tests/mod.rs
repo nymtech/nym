@@ -54,6 +54,7 @@ use nym_crypto::asymmetric::identity;
 use nym_dkg::{NodeIndex, Threshold};
 use nym_ecash_contract_common::blacklist::{BlacklistedAccountResponse, Blacklisting};
 use nym_ecash_contract_common::deposit::{Deposit, DepositId, DepositResponse};
+use nym_task::TaskClient;
 use nym_validator_client::nym_api::routes::{
     API_VERSION, ECASH_BLIND_SIGN, ECASH_ISSUED_TICKETBOOKS_CHALLENGE,
     ECASH_ISSUED_TICKETBOOKS_FOR, ECASH_ROUTES,
@@ -1333,9 +1334,8 @@ impl TestFixture {
             staged_key_pair,
             comm_channel,
             storage.clone(),
-        )
-        .await
-        .unwrap();
+            TaskClient::dummy(),
+        );
 
         TestFixture {
             axum: TestServer::new(
@@ -1459,6 +1459,7 @@ mod credential_tests {
     use super::*;
     use crate::ecash::storage::EcashStorageExt;
     use axum::http::StatusCode;
+    use nym_task::TaskClient;
     use nym_ticketbooks_merkle::MerkleLeaf;
 
     #[tokio::test]
@@ -1547,9 +1548,8 @@ mod credential_tests {
             staged_key_pair,
             comm_channel,
             storage.clone(),
-        )
-        .await
-        .unwrap();
+            TaskClient::dummy(),
+        );
 
         let deposit_id = 42;
         assert!(state.already_issued(deposit_id).await.unwrap().is_none());

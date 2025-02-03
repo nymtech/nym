@@ -48,7 +48,6 @@ members = [
     "common/credentials-interface",
     "common/crypto",
     "common/dkg",
-    "common/ecash-double-spending",
     "common/ecash-time",
     "common/execute",
     "common/exit-policy",

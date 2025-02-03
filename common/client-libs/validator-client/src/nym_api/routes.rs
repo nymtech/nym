@@ -13,8 +13,6 @@ pub const DETAILED: &str = "detailed";
 pub const DETAILED_UNFILTERED: &str = "detailed-unfiltered";
 pub const ACTIVE: &str = "active";
 pub const REWARDED: &str = "rewarded";
-pub const DOUBLE_SPENDING_FILTER_V1: &str = "double-spending-filter-v1";
-
 pub const ECASH_ROUTES: &str = "ecash";
 
 pub use ecash::*;

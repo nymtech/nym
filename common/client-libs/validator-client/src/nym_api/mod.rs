@@ -849,20 +849,6 @@ pub trait NymApiClientExt: ApiClient {
         .await
     }
 
-    #[deprecated]
-    #[instrument(level = "debug", skip(self))]
-    async fn double_spending_filter_v1(&self) -> Result<SpentCredentialsResponse, NymAPIError> {
-        self.get_json(
-            &[
-                routes::API_VERSION,
-                routes::ECASH_ROUTES,
-                routes::DOUBLE_SPENDING_FILTER_V1,
-            ],
-            NO_PARAMS,
-        )
-        .await
-    }
-
     #[instrument(level = "debug", skip(self))]
     async fn partial_expiration_date_signatures(
         &self,

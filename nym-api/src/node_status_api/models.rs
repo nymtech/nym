@@ -329,6 +329,13 @@ pub(crate) struct AxumErrorResponse {
 }
 
 impl AxumErrorResponse {
+    pub(crate) fn new<S: Into<String>>(message: S, status: StatusCode) -> Self {
+        AxumErrorResponse {
+            message: RequestError::new(message),
+            status,
+        }
+    }
+
     pub(crate) fn internal_msg(msg: impl Display) -> Self {
         Self {
             message: RequestError::new(msg.to_string()),

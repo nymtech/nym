@@ -6,6 +6,7 @@ use crate::ecash::state::EcashState;
 use crate::node_status_api::models::{AxumErrorResponse, AxumResult};
 use crate::support::http::state::AppState;
 use axum::extract::State;
+use axum::http::StatusCode;
 use axum::{Json, Router};
 use nym_api_requests::constants::MIN_BATCH_REDEMPTION_DELAY;
 use nym_api_requests::ecash::models::{
@@ -224,5 +225,8 @@ async fn batch_redeem_tickets(
 )]
 #[deprecated]
 async fn double_spending_filter_v1() -> AxumResult<Json<SpentCredentialsResponse>> {
-    AxumResult::Err(AxumErrorResponse::internal_msg("permanently restricted"))
+    AxumResult::Err(AxumErrorResponse::new(
+        "permanently restricted",
+        StatusCode::GONE,
+    ))
 }

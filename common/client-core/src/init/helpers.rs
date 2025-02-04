@@ -15,6 +15,9 @@ use std::{sync::Arc, time::Duration};
 use tungstenite::Message;
 use url::Url;
 
+#[cfg(not(target_arch = "wasm32"))]
+use crate::init::websockets::connect_async;
+
 use nym_topology::NodeId;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::net::TcpStream;
@@ -22,8 +25,6 @@ use tokio::net::TcpStream;
 use tokio::time::sleep;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::Instant;
-#[cfg(not(target_arch = "wasm32"))]
-use tokio_tungstenite::connect_async;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio_tungstenite::{MaybeTlsStream, WebSocketStream};
 #[cfg(target_arch = "wasm32")]
@@ -131,7 +132,7 @@ pub async fn gateways_for_init<R: Rng>(
 async fn connect(endpoint: &str) -> Result<WsConn, ClientCoreError> {
     match tokio::time::timeout(CONN_TIMEOUT, connect_async(endpoint)).await {
         Err(_elapsed) => Err(ClientCoreError::GatewayConnectionTimeout),
-        Ok(Err(conn_failure)) => Err(conn_failure.into()),
+        Ok(Err(conn_failure)) => Err(conn_failure),
         Ok(Ok((stream, _))) => Ok(stream),
     }
 }

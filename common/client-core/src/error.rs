@@ -36,6 +36,13 @@ pub enum ClientCoreError {
     #[error("no gateway with id: {0}")]
     NoGatewayWithId(String),
 
+    #[error("Invalid URL: {0}")]
+    InvalidUrl(String),
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("resolution failed: {0}")]
+    ResolutionFailed(#[from] nym_http_api_client::HickoryDnsError),
+
     #[error("no gateways on network")]
     NoGatewaysOnNetwork,
 

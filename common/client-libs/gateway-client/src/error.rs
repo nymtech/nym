@@ -44,7 +44,11 @@ pub enum GatewayClientError {
     NetworkConnectionFailed { address: String, source: WsError },
 
     #[error("Invalid URL: {0}")]
-    InvalidURL(String),
+    InvalidUrl(String),
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("resolution failed: {0}")]
+    ResolutionFailed(#[from] nym_http_api_client::HickoryDnsError),
 
     #[error("No shared key was provided or obtained")]
     NoSharedKeyAvailable,

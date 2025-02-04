@@ -1,6 +1,6 @@
 "use client";
 
-import { Typography } from "@mui/material";
+import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { fetchBalances } from "../../app/api";
 import { useNymClient } from "../../hooks/useNymClient";
@@ -28,12 +28,7 @@ const TotalStakeCard = () => {
   if (isLoading) {
     return (
       <ExplorerCard label="Total Stake">
-        <Typography
-          variant="h3"
-          sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
-        >
-          Loading total stake...
-        </Typography>
+        <Skeleton variant="text" />
       </ExplorerCard>
     );
   }

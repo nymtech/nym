@@ -1,6 +1,6 @@
 "use client";
 
-import { Chip, Stack } from "@mui/material";
+import { Chip, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { fetchGatewayStatus, fetchNodeInfo } from "../../app/api";
 import type { LastProbeResult, NodeDescription } from "../../app/api/types";
@@ -170,7 +170,9 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
   if (isNodeLoading) {
     return (
       <ExplorerCard label="Quality indicators">
-        <div>Loading...</div>
+        <Skeleton variant="text" height={70} />
+        <Skeleton variant="text" height={70} />
+        <Skeleton variant="text" height={300} />
       </ExplorerCard>
     );
   }
@@ -178,7 +180,9 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
   if (isNodeError || !nodeInfo) {
     return (
       <ExplorerCard label="Quality indicators">
-        <div>Failed to load node data.</div>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
       </ExplorerCard>
     );
   }

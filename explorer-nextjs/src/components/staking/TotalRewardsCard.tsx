@@ -1,6 +1,6 @@
 "use client";
 
-import { Typography } from "@mui/material";
+import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { fetchTotalStakerRewards } from "../../app/api";
 import { useNymClient } from "../../hooks/useNymClient";
@@ -28,12 +28,7 @@ const TotalRewardsCard = () => {
   if (isLoading) {
     return (
       <ExplorerCard label="Total Rewards">
-        <Typography
-          variant="h3"
-          sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
-        >
-          Loading total rewards...
-        </Typography>
+        <Skeleton variant="text" />
       </ExplorerCard>
     );
   }
@@ -41,7 +36,7 @@ const TotalRewardsCard = () => {
   if (isError) {
     return (
       <ExplorerCard label="Total Rewards">
-        <Typography variant="h3" color="error">
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
           Failed to load total rewards.
         </Typography>
       </ExplorerCard>

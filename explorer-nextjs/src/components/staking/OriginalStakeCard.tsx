@@ -1,6 +1,6 @@
 "use client";
 
-import { Typography } from "@mui/material";
+import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { fetchOriginalStake } from "../../app/api";
 import { useNymClient } from "../../hooks/useNymClient";
@@ -28,12 +28,7 @@ const OriginalStakeCard = () => {
   if (isLoading) {
     return (
       <ExplorerCard label="Original Stake">
-        <Typography
-          variant="h3"
-          sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
-        >
-          Loading original stake...
-        </Typography>
+        <Skeleton variant="text" />
       </ExplorerCard>
     );
   }
@@ -41,11 +36,7 @@ const OriginalStakeCard = () => {
   if (isError) {
     return (
       <ExplorerCard label="Original Stake">
-        <Typography
-          variant="h3"
-          sx={{ wordWrap: "break-word", maxWidth: "95%" }}
-          color="error"
-        >
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
           Failed to load original stake.
         </Typography>
       </ExplorerCard>

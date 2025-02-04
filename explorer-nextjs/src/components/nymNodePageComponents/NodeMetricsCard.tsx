@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { fetchEpochRewards, fetchNodeInfo } from "../../app/api";
 
+import { Skeleton, Typography } from "@mui/material";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 
@@ -33,7 +34,10 @@ export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
   if (isEpochLoading || isNodeLoading) {
     return (
       <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
-        <div>Loading...</div>
+        <Skeleton variant="text" height={50} />
+        <Skeleton variant="text" height={50} />
+        <Skeleton variant="text" height={50} />
+        <Skeleton variant="text" height={50} />
       </ExplorerCard>
     );
   }
@@ -41,7 +45,9 @@ export const NodeMetricsCard = ({ id }: INodeMetricsCardProps) => {
   if (isEpochError || isNodeError || !nodeInfo || !epochRewardsData) {
     return (
       <ExplorerCard label="Nym node metrics" sx={{ height: "100%" }}>
-        <div>Failed to load data</div>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
       </ExplorerCard>
     );
   }

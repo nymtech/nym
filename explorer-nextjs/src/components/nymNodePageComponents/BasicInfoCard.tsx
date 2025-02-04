@@ -1,6 +1,6 @@
 "use client";
 
-import { Stack, Typography } from "@mui/material";
+import { Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { fetchAccountBalance, fetchNodeInfo } from "../../app/api";
@@ -36,7 +36,12 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
   if (isLoading) {
     return (
       <ExplorerCard label="Basic info">
-        <Typography>Loading...</Typography>
+        <Skeleton variant="text" height={90} />
+        <Skeleton variant="text" height={90} />
+        <Skeleton variant="text" height={70} />
+        <Skeleton variant="text" height={70} />
+        <Skeleton variant="text" height={70} />
+        <Skeleton variant="text" height={70} />
       </ExplorerCard>
     );
   }
@@ -44,7 +49,9 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
   if (isError || !nodeInfo) {
     return (
       <ExplorerCard label="Basic info">
-        <Typography>Failed to load node information.</Typography>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
       </ExplorerCard>
     );
   }

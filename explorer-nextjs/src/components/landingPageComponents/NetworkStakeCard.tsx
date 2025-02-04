@@ -75,7 +75,6 @@ export const NetworkStakeCard = () => {
   };
 
   const title = `${formatBigNum(currentStake)} NYM`;
-  console.log("currentStake :>> ", currentStake);
 
   return (
     <ExplorerCard label="Current network stake" sx={{ height: "100%" }}>

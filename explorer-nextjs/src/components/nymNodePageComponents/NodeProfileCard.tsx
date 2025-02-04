@@ -1,7 +1,7 @@
 "use client";
 
 import { useChain } from "@cosmos-kit/react";
-import { Box, Button, Stack, Typography } from "@mui/material";
+import { Box, Button, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 import { RandomAvatar } from "react-random-avatars";
@@ -116,7 +116,9 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
   if (isNodeLoading) {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <div>Loading...</div>
+        <Skeleton variant="rectangular" height={80} width={80} />
+        <Skeleton variant="text" />
+        <Skeleton variant="text" height={200} />
       </ExplorerCard>
     );
   }
@@ -124,7 +126,9 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
   if (isNodeError || !nodeInfo) {
     return (
       <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
-        <div>Failed to load node information.</div>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load node data.
+        </Typography>
       </ExplorerCard>
     );
   }

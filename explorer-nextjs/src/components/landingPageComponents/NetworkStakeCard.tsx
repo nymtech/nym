@@ -1,5 +1,5 @@
 "use client";
-import { fetchEpochRewards, fetchNoise } from "@/app/api";
+import { fetchNoise } from "@/app/api";
 import { Box, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import type { ExplorerData, IPacketsAndStakingData } from "../../app/api/types";

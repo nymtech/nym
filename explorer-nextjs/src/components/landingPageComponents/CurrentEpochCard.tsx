@@ -59,7 +59,7 @@ export const CurrentEpochCard = () => {
 
   if (isLoading) {
     return (
-      <ExplorerCard label="Current NGM epoch">
+      <ExplorerCard label="Current mixnet epoch">
         <Skeleton variant="text" height={80} />
       </ExplorerCard>
     );
@@ -67,14 +67,16 @@ export const CurrentEpochCard = () => {
 
   if (isError || !data) {
     return (
-      <ExplorerCard label="Current NGM epoch">Failed to load data</ExplorerCard>
+      <ExplorerCard label="Current mixnet epoch">
+        Failed to load data
+      </ExplorerCard>
     );
   }
 
   const currentEpochStart = data.data.current_epoch_start || "";
 
   return (
-    <ExplorerCard label="Current NGM epoch">
+    <ExplorerCard label="Current mixnet epoch">
       <EpochProgressBar
         start={currentEpochStart}
         showEpoch={!hasEpochStarted}

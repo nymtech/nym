@@ -7,12 +7,15 @@ use crate::storage::NYM_POOL_STORAGE;
 use crate::testing::storage::{ContractStorageWrapper, StorageWrapper};
 use cosmwasm_std::testing::{message_info, mock_env, MockApi};
 use cosmwasm_std::{
-    coins, Addr, Coin, ContractInfo, Deps, DepsMut, Empty, Env, Response, StdResult, Storage,
+    coins, Addr, Coin, ContractInfo, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdResult,
+    Storage,
 };
 use cw_multi_test::{
     App, AppBuilder, AppResponse, BankKeeper, Contract, ContractWrapper, Executor,
 };
-use nym_pool_contract_common::{ExecuteMsg, InstantiateMsg, NymPoolContractError, QueryMsg};
+use nym_pool_contract_common::{
+    Allowance, BasicAllowance, ExecuteMsg, Grant, InstantiateMsg, NymPoolContractError, QueryMsg,
+};
 use rand::{RngCore, SeedableRng};
 use rand_chacha::ChaCha20Rng;
 use serde::de::DeserializeOwned;
@@ -66,6 +69,7 @@ impl TestSetup {
                 master_address.clone(),
                 &InstantiateMsg {
                     pool_denomination: TEST_DENOM.to_string(),
+                    grants: Default::default(),
                 },
                 &[],
                 "nym-pool-contract",
@@ -171,5 +175,29 @@ impl TestSetup {
             .get(self.deps())
             .unwrap()
             .unwrap()
+    }
+
+    pub fn admin_msg(&self) -> MessageInfo {
+        message_info(&self.admin_unchecked(), &[])
+    }
+
+    pub fn add_dummy_grant(&mut self) -> Grant {
+        let grantee = self.generate_account();
+        let granter = self.admin_unchecked();
+        let env = self.env();
+        NYM_POOL_STORAGE
+            .add_grant(
+                self.deps_mut(),
+                &env,
+                &granter,
+                grantee.clone(),
+                Allowance::Basic(BasicAllowance {
+                    spend_limit: None,
+                    expiration_unix_timestamp: None,
+                }),
+            )
+            .unwrap();
+
+        NYM_POOL_STORAGE.load_grant(self.deps(), &grantee).unwrap()
     }
 }

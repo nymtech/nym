@@ -2,11 +2,13 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::types::{
-    AvailableTokensResponse, LockedTokensPagedResponse, LockedTokensResponse,
+    AvailableTokensResponse, GrantResponse, GranterResponse, GrantersPagedResponse,
+    GrantsPagedResponse, LockedTokensPagedResponse, LockedTokensResponse,
     TotalLockedTokensResponse,
 };
-use crate::Allowance;
+use crate::{Allowance, TransferRecipient};
 use cosmwasm_schema::{cw_serde, QueryResponses};
+use cosmwasm_std::Coin;
 use std::collections::HashMap;
 
 #[cw_serde]
@@ -21,6 +23,33 @@ pub struct InstantiateMsg {
 pub enum ExecuteMsg {
     /// Change the admin
     UpdateAdmin { admin: String },
+
+    /// Attempt to grant new allowance to the specified grantee
+    GrantAllowance {
+        grantee: String,
+        allowance: Box<Allowance>,
+    },
+
+    /// Attempt to revoke previously granted allowance
+    RevokeAllowance { grantee: String },
+
+    /// Attempt to use allowance
+    UseAllowance { recipients: Vec<TransferRecipient> },
+
+    /// Attempt to withdraw the specified amount into the grantee's account
+    WithdrawAllowance { amount: Coin },
+
+    /// Attempt to lock part of existing allowance for future use
+    LockAllowance { amount: Coin },
+
+    /// Attempt to unlock previously locked allowance
+    UnlockAllowance { amount: Coin },
+
+    /// Attempt to use part of the locked allowance
+    UseLockedAllowance { recipients: Vec<TransferRecipient> },
+
+    /// Attempt to withdraw the specified amount of locked tokens into the grantee's account
+    WithdrawLockedAllowance { amount: Coin },
 }
 
 #[cw_serde]
@@ -38,8 +67,32 @@ pub enum QueryMsg {
     #[returns(LockedTokensResponse)]
     GetLockedTokens { grantee: String },
 
+    #[returns(GrantResponse)]
+    GetGrant { grantee: String },
+
+    #[returns(GranterResponse)]
+    GetGranter { granter: String },
+
     #[returns(LockedTokensPagedResponse)]
     GetLockedTokensPaged {
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<String>,
+    },
+
+    #[returns(GrantersPagedResponse)]
+    GetGrantersPaged {
+        /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
+        limit: Option<u32>,
+
+        /// Pagination control for the values returned by the query. Note that the provided value itself will **not** be used for the response.
+        start_after: Option<String>,
+    },
+
+    #[returns(GrantsPagedResponse)]
+    GetGrantsPaged {
         /// Controls the maximum number of entries returned by the query. Note that too large values will be overwritten by a saner default.
         limit: Option<u32>,
 

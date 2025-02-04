@@ -34,14 +34,6 @@ impl Storage for StorageWrapper {
         self.0.borrow().get(key)
     }
 
-    fn set(&mut self, key: &[u8], value: &[u8]) {
-        self.0.borrow_mut().set(key, value);
-    }
-
-    fn remove(&mut self, key: &[u8]) {
-        self.0.borrow_mut().remove(key);
-    }
-
     fn range<'a>(
         &'a self,
         start: Option<&[u8]>,
@@ -51,6 +43,14 @@ impl Storage for StorageWrapper {
         // hehe, that's nasty
         let vals = self.0.borrow().range(start, end, order).collect::<Vec<_>>();
         Box::new(vals.into_iter())
+    }
+
+    fn set(&mut self, key: &[u8], value: &[u8]) {
+        self.0.borrow_mut().set(key, value);
+    }
+
+    fn remove(&mut self, key: &[u8]) {
+        self.0.borrow_mut().remove(key);
     }
 }
 

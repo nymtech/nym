@@ -8,16 +8,6 @@ import ExplorerCard from "../cards/ExplorerCard";
 import { LineChart } from "../lineChart";
 
 export const NetworkStakeCard = () => {
-  // Use React Query to fetch epoch rewards
-  const {
-    data: epochRewards,
-    isLoading: isEpochLoading,
-    isError: isEpochError,
-  } = useQuery({
-    queryKey: ["epochRewards"],
-    queryFn: fetchEpochRewards,
-  });
-
   const {
     data: packetsAndStaking,
     isLoading: isStakingLoading,
@@ -27,7 +17,7 @@ export const NetworkStakeCard = () => {
     queryFn: fetchNoise,
   });
 
-  if (isEpochLoading || isStakingLoading) {
+  if (isStakingLoading) {
     return (
       <ExplorerCard label="Current network stake">
         <Stack gap={1}>
@@ -38,7 +28,7 @@ export const NetworkStakeCard = () => {
     );
   }
 
-  if (isEpochError || isStakingError || !packetsAndStaking || !epochRewards) {
+  if (isStakingError || !packetsAndStaking) {
     return (
       <ExplorerCard label="Current network stake">
         <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
@@ -49,14 +39,11 @@ export const NetworkStakeCard = () => {
     );
   }
 
-  const epochRewardsData: ExplorerData["currentEpochRewardsData"] =
-    epochRewards;
   const packetsAndStakingData: ExplorerData["packetsAndStakingData"] =
     packetsAndStaking;
 
-  const currentStake =
-    Number(epochRewardsData.interval.staking_supply) / 1000000 || 0;
-
+  const lastTotalStake =
+    packetsAndStaking[packetsAndStaking.length - 1]?.total_stake / 1000000;
   const data = packetsAndStakingData.map((item: IPacketsAndStakingData) => {
     return {
       date_utc: item.date_utc,
@@ -70,7 +57,7 @@ export const NetworkStakeCard = () => {
     data,
   };
 
-  const title = `${formatBigNum(currentStake)} NYM`;
+  const title = `${formatBigNum(lastTotalStake)} NYM`;
 
   return (
     <ExplorerCard label="Current network stake" sx={{ height: "100%" }}>

@@ -3,6 +3,7 @@ import { useChain } from "@cosmos-kit/react";
 import {
   Box,
   Button,
+  Skeleton,
   Stack,
   Tooltip,
   Typography,
@@ -18,11 +19,13 @@ import {
 } from "material-react-table";
 import { useRouter } from "next/navigation";
 import { useCallback, useMemo, useState } from "react";
+
 import { COSMOS_KIT_USE_CHAIN } from "../../config";
 import { useNymClient } from "../../hooks/useNymClient";
 import CountryFlag from "../countryFlag/CountryFlag";
 import { Favorite } from "../favorite/Favorite";
 import Loading from "../loading";
+// import Loading from "../loading";
 import InfoModal, { type InfoModalProps } from "../modal/InfoModal";
 import StakeModal from "../staking/StakeModal";
 import { fee } from "../staking/schemas";
@@ -349,9 +352,11 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       },
     }),
   });
+
   return (
     <>
       {isLoading && <Loading />}
+
       <StakeModal
         nodeId={selectedNodeForStaking?.nodeId}
         identityKey={selectedNodeForStaking?.identityKey}

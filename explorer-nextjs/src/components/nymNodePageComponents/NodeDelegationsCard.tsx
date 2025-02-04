@@ -1,6 +1,7 @@
 "use client";
 
 import { fetchNodeDelegations } from "@/app/api";
+import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 import DelegationsTable from "./DelegationsTable";
@@ -19,13 +20,30 @@ const NodeDelegationsCard = ({ id }: NodeDelegationsCardProps) => {
     queryFn: () => fetchNodeDelegations(id),
   });
 
+  if (isLoading) {
+    return (
+      <ExplorerCard label="Delegations" sx={{ height: "100%" }}>
+        <Skeleton variant="text" height={50} />
+        <Skeleton variant="text" height={50} />
+        <Skeleton variant="text" height={50} />
+        <Skeleton variant="text" height={50} />
+      </ExplorerCard>
+    );
+  }
+
+  if (isError) {
+    return (
+      <ExplorerCard label="Delegations" sx={{ height: "100%" }}>
+        <Typography variant="h3" sx={{ color: "pine.950" }}>
+          Failed to load delegations. Please try again later.
+        </Typography>
+      </ExplorerCard>
+    );
+  }
+
   return (
     <ExplorerCard label="Delegations" sx={{ height: "100%" }}>
-      {isLoading && <div>Loading delegations...</div>}
-      {isError && (
-        <div>Failed to load delegations. Please try again later.</div>
-      )}
-      {!isLoading && !isError && <DelegationsTable delegations={delegations} />}
+      <DelegationsTable delegations={delegations} />
     </ExplorerCard>
   );
 };

@@ -10,32 +10,32 @@ import { TitlePrice } from "../price/TitlePrice";
 export const TokenomicsCard = () => {
   const {
     data: nymPrice,
-    isLoading: isLoadingPrice,
-    error: priceError,
+    isLoading,
+    isError,
   } = useQuery({
     queryKey: ["nymPrice"],
     queryFn: fetchNymPrice,
   });
 
-  if (isLoadingPrice) {
+  if (isLoading) {
     return (
-      <Stack direction="row" spacing={1}>
-        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
-          Loading NYM Price...
-        </Typography>
-        <Skeleton variant="text" height={80} />
-      </Stack>
+      <ExplorerCard label="Tokenomics overview">
+        <Stack gap={1}>
+          <Skeleton variant="text" />
+          <Skeleton variant="text" height={238} />
+        </Stack>
+      </ExplorerCard>
     );
   }
 
-  if (priceError || !nymPrice) {
+  if (isError || !nymPrice) {
     return (
-      <Stack direction="row" spacing={1}>
+      <ExplorerCard label="Tokenomics overview">
         <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
           Failed to load account balance.
         </Typography>
         <Skeleton variant="text" height={80} />
-      </Stack>
+      </ExplorerCard>
     );
   }
 

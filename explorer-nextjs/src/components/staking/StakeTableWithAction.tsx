@@ -1,5 +1,6 @@
 "use client";
 
+import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import getNymNodes from "../../actions/getNymNodes";
 import { fetchEpochRewards } from "../../app/api";
@@ -71,12 +72,27 @@ const StakeTableWithAction = () => {
 
   // Handle loading state
   if (isEpochLoading || isNodesLoading) {
-    return <div>Loading stake table...</div>;
+    return (
+      <Card sx={{ height: "100%", mt: 5 }}>
+        <CardContent>
+          <Skeleton variant="text" height={100} />
+          <Skeleton variant="text" height={100} />
+          <Skeleton variant="text" height={100} />
+          <Skeleton variant="text" height={100} />
+        </CardContent>
+      </Card>
+    );
   }
 
   // Handle error state
   if (isEpochError || isNodesError) {
-    return <div>Error loading stake table data. Please try again later.</div>;
+    return (
+      <Stack direction="row" spacing={1}>
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+          Error loading stake table data. Please try again later.
+        </Typography>
+      </Stack>
+    );
   }
 
   // Map nodes with rewards data

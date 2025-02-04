@@ -4,7 +4,6 @@ import { Box, Typography } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import { AccountBalancesCard } from "../../../../components/accountPageComponents/AccountBalancesCard";
 import { AccountInfoCard } from "../../../../components/accountPageComponents/AccountInfoCard";
-import BlogArticlesCards from "../../../../components/blogs/BlogArticleCards";
 import { ContentLayout } from "../../../../components/contentLayout/ContentLayout";
 import SectionHeading from "../../../../components/headings/SectionHeading";
 import ExplorerButtonGroup from "../../../../components/toggleButton/ToggleButton";
@@ -55,12 +54,6 @@ export default async function Account({
           <Grid size={8}>
             <AccountBalancesCard address={address} />
           </Grid>
-        </Grid>
-        <Grid container columnSpacing={5} rowSpacing={5}>
-          <Grid size={12}>
-            <SectionHeading title="Onboarding" />
-          </Grid>
-          <BlogArticlesCards limit={4} />
         </Grid>
       </ContentLayout>
     );

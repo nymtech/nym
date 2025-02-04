@@ -143,8 +143,8 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
   // Fetch node info
   const {
     data: nodeInfo,
-    isLoading: isNodeLoading,
-    isError: isNodeError,
+    isLoading,
+    isError,
   } = useQuery({
     queryKey: ["nodeInfo", id],
     queryFn: () => fetchNodeInfo(id),
@@ -167,7 +167,7 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
     enabled: !!nodeInfo?.identity_key && shouldFetchGatewayStatus, // ✅ Only fetch if needed
   });
 
-  if (isNodeLoading) {
+  if (isLoading) {
     return (
       <ExplorerCard label="Quality indicators">
         <Skeleton variant="text" height={70} />
@@ -177,7 +177,7 @@ export const QualityIndicatorsCard = ({ id }: IQualityIndicatorsCardProps) => {
     );
   }
 
-  if (isNodeError || !nodeInfo) {
+  if (isError || !nodeInfo) {
     return (
       <ExplorerCard label="Quality indicators">
         <Typography variant="h3" sx={{ color: "pine.950" }}>

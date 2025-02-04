@@ -1,5 +1,4 @@
 import { fetchNodeInfo } from "@/app/api";
-import BlogArticlesCards from "@/components/blogs/BlogArticleCards";
 import { ContentLayout } from "@/components/contentLayout/ContentLayout";
 import SectionHeading from "@/components/headings/SectionHeading";
 import { BasicInfoCard } from "@/components/nymNodePageComponents/BasicInfoCard";
@@ -106,12 +105,6 @@ export default async function NymNode({
           >
             <NodeChatCard />
           </Grid>
-        </Grid>
-        <Grid container columnSpacing={5} rowSpacing={5}>
-          <Grid size={12}>
-            <SectionHeading title="Onboarding" />
-          </Grid>
-          <BlogArticlesCards limit={4} />
         </Grid>
       </ContentLayout>
     );

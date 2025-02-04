@@ -3,7 +3,7 @@
 
 use crate::queries::query_admin;
 use crate::storage::NYM_POOL_STORAGE;
-use crate::transactions::try_update_contract_admin;
+use crate::transactions::{try_grant_allowance, try_revoke_grant, try_update_contract_admin};
 use cosmwasm_std::{
     entry_point, to_binary, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
@@ -39,6 +39,16 @@ pub fn execute(
 ) -> Result<Response, NymPoolContractError> {
     match msg {
         ExecuteMsg::UpdateAdmin { admin } => try_update_contract_admin(deps, info, admin),
+        ExecuteMsg::GrantAllowance { grantee, allowance } => {
+            try_grant_allowance(deps, env, info, grantee, *allowance)
+        }
+        ExecuteMsg::RevokeAllowance { grantee } => try_revoke_grant(deps, env, info, grantee),
+        ExecuteMsg::UseAllowance { recipients } => todo!(),
+        ExecuteMsg::WithdrawAllowance { amount } => todo!(),
+        ExecuteMsg::LockAllowance { amount } => todo!(),
+        ExecuteMsg::UnlockAllowance { amount } => todo!(),
+        ExecuteMsg::UseLockedAllowance { recipients } => todo!(),
+        ExecuteMsg::WithdrawLockedAllowance { amount } => todo!(),
     }
 }
 
@@ -50,6 +60,10 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NymPoolContr
         QueryMsg::GetTotalLockedTokens {} => todo!(),
         QueryMsg::GetLockedTokens { grantee } => todo!(),
         QueryMsg::GetLockedTokensPaged { limit, start_after } => todo!(),
+        QueryMsg::GetGrant { grantee } => todo!(),
+        QueryMsg::GetGranter { granter } => todo!(),
+        QueryMsg::GetGrantersPaged { limit, start_after } => todo!(),
+        QueryMsg::GetGrantsPaged { limit, start_after } => todo!(),
     }
 }
 
@@ -127,23 +141,28 @@ mod tests {
             Ok(())
         }
 
+        #[test]
+        fn adds_sender_to_set_of_initial_granters() -> anyhow::Result<()> {
+            todo!()
+        }
+
         #[cfg(test)]
         mod setting_initial_grants {
             use super::*;
 
             #[test]
             fn with_empty_map() {
-                //
+                todo!()
             }
 
             #[test]
             fn with_insufficient_tokens() {
-                //
+                todo!()
             }
 
             #[test]
             fn with_valid_request() {
-                //
+                todo!()
             }
         }
 

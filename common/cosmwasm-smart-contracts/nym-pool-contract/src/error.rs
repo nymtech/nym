@@ -1,7 +1,7 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::Coin;
+use cosmwasm_std::{Coin, Uint128};
 use cw_controllers::AdminError;
 use thiserror::Error;
 
@@ -15,6 +15,12 @@ pub enum NymPoolContractError {
 
     #[error(transparent)]
     StdErr(#[from] cosmwasm_std::StdError),
+
+    #[error("this sender is not authorised to revoke this grant. its neither the admin or the original (and still whitelisted) granter")]
+    UnauthorizedGrantRevocation,
+
+    #[error("the specified address is already a whitelisted granter")]
+    AlreadyAGranter,
 
     #[error("{addr} is not a permitted granter")]
     InvalidGranter { addr: String },
@@ -66,5 +72,12 @@ pub enum NymPoolContractError {
     UnattainableDelayedAllowance {
         expiration_timestamp: u64,
         available_timestamp: u64,
+    },
+
+    #[error("could not unlock {requested} tokens from {grantee}. it only has {locked} locked")]
+    InsufficientLockedTokens {
+        grantee: String,
+        locked: Uint128,
+        requested: Uint128,
     },
 }

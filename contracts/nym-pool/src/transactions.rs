@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::NYM_POOL_STORAGE;
-use cosmwasm_std::{DepsMut, MessageInfo, Response};
-use nym_pool_contract_common::NymPoolContractError;
+use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
+use nym_pool_contract_common::{Allowance, NymPoolContractError};
 
 pub fn try_update_contract_admin(
     mut deps: DepsMut<'_>,
@@ -19,6 +19,35 @@ pub fn try_update_contract_admin(
     )?;
 
     Ok(res)
+}
+
+pub fn try_grant_allowance(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    grantee: String,
+    allowance: Allowance,
+) -> Result<Response, NymPoolContractError> {
+    let grantee = deps.api.addr_validate(&grantee)?;
+
+    NYM_POOL_STORAGE.add_grant(deps, &env, &info.sender, grantee, allowance)?;
+
+    // TODO: emit events
+    Ok(Response::new())
+}
+
+pub fn try_revoke_grant(
+    deps: DepsMut<'_>,
+    _env: Env,
+    info: MessageInfo,
+    grantee: String,
+) -> Result<Response, NymPoolContractError> {
+    let grantee = deps.api.addr_validate(&grantee)?;
+
+    NYM_POOL_STORAGE.revoke_grant(deps, grantee, info.sender)?;
+
+    // TODO: emit events
+    Ok(Response::new())
 }
 
 #[cfg(test)]
@@ -87,6 +116,104 @@ mod tests {
             );
 
             assert!(res.is_err());
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod granting_allowance {
+        use super::*;
+        use crate::testing::TestSetup;
+        use cosmwasm_std::StdError;
+        use nym_pool_contract_common::BasicAllowance;
+
+        #[test]
+        fn requires_providing_valid_grantee_address() -> anyhow::Result<()> {
+            let mut test = TestSetup::init();
+
+            let env = test.env();
+            let admin = test.admin_msg();
+            let dummy_grant = Allowance::Basic(BasicAllowance {
+                spend_limit: None,
+                expiration_unix_timestamp: None,
+            });
+
+            assert!(matches!(
+                try_grant_allowance(
+                    test.deps_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    "not-a-valid-address".to_string(),
+                    dummy_grant.clone()
+                )
+                .unwrap_err(),
+                NymPoolContractError::StdErr(StdError::GenericErr { msg, .. }) if msg == "Error decoding bech32"
+            ));
+
+            let valid_address = test.generate_account();
+            assert!(try_grant_allowance(
+                test.deps_mut(),
+                env.clone(),
+                admin.clone(),
+                valid_address.to_string(),
+                dummy_grant
+            )
+            .is_ok());
+
+            Ok(())
+        }
+    }
+
+    #[cfg(test)]
+    mod revoking_allowance {
+        use super::*;
+        use crate::testing::TestSetup;
+        use cosmwasm_std::StdError;
+
+        #[test]
+        fn requires_providing_valid_grantee_address() -> anyhow::Result<()> {
+            let mut test = TestSetup::init();
+
+            let env = test.env();
+            let admin = test.admin_msg();
+            let grant = test.add_dummy_grant();
+
+            assert!(matches!(
+                try_revoke_grant(
+                    test.deps_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    "not-a-valid-address".to_string()
+                )
+                .unwrap_err(),
+                NymPoolContractError::StdErr(StdError::GenericErr { msg, .. }) if msg == "Error decoding bech32"
+            ));
+
+            // use a valid address
+            // note the different error
+            let valid_address = test.generate_account();
+            assert_eq!(
+                try_revoke_grant(
+                    test.deps_mut(),
+                    env.clone(),
+                    admin.clone(),
+                    valid_address.to_string()
+                )
+                .unwrap_err(),
+                NymPoolContractError::GrantNotFound {
+                    grantee: valid_address.to_string()
+                }
+            );
+
+            // for sanity’s sake check with an existing grant
+            assert!(try_revoke_grant(
+                test.deps_mut(),
+                env.clone(),
+                admin.clone(),
+                grant.grantee.to_string()
+            )
+            .is_ok());
 
             Ok(())
         }

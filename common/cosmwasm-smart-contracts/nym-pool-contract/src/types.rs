@@ -1,7 +1,8 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use cosmwasm_std::Addr;
+use cosmwasm_schema::cw_serde;
+use cosmwasm_std::{Addr, Coin};
 
 pub type GranterAddress = Addr;
 pub type GranteeAddress = Addr;
@@ -9,11 +10,26 @@ pub type GranteeAddress = Addr;
 pub use grants::*;
 pub use query_responses::*;
 
+#[cw_serde]
+pub struct TransferRecipient {
+    pub recipient: Addr,
+    pub amount: Coin,
+}
+
 pub mod grants {
     use crate::utils::ensure_unix_timestamp_not_in_the_past;
     use crate::{GranteeAddress, GranterAddress, NymPoolContractError};
     use cosmwasm_schema::cw_serde;
-    use cosmwasm_std::{Coin, Env, Timestamp};
+    use cosmwasm_std::{Addr, Coin, Env, Timestamp};
+
+    #[cw_serde]
+    pub struct GranterInformation {
+        // realistically this is always going to be the contract admin,
+        // but let's keep this metadata regardless just in case it ever changes,
+        // such as we create a granter controlled by validator multisig or governance
+        pub created_by: Addr,
+        pub created_at_height: u64,
+    }
 
     #[cw_serde]
     pub struct Grant {
@@ -278,6 +294,7 @@ pub mod grants {
 }
 
 pub mod query_responses {
+    use crate::{Grant, GranteeAddress, GranterAddress, GranterInformation};
     use cosmwasm_schema::cw_serde;
     use cosmwasm_std::{Addr, Coin};
 
@@ -293,15 +310,54 @@ pub mod query_responses {
 
     #[cw_serde]
     pub struct LockedTokensResponse {
-        pub grantee: Addr,
+        pub grantee: GranteeAddress,
 
         // a `None` value implies no grant
         pub locked: Option<Coin>,
     }
 
     #[cw_serde]
+    pub struct GrantResponse {
+        pub grantee: GranteeAddress,
+        pub grant: Option<Grant>,
+    }
+
+    #[cw_serde]
+    pub struct GranterResponse {
+        pub granter: GranterAddress,
+        pub information: Option<GranterInformation>,
+    }
+
+    #[cw_serde]
+    pub struct GrantsPagedResponse {
+        pub grants: Vec<Grant>,
+        pub start_next_after: Option<String>,
+    }
+
+    #[cw_serde]
+    pub struct GranterDetails {
+        pub granter: GranterAddress,
+        pub information: GranterInformation,
+    }
+
+    impl From<(GranterAddress, GranterInformation)> for GranterDetails {
+        fn from((granter, information): (GranterAddress, GranterInformation)) -> Self {
+            GranterDetails {
+                granter,
+                information,
+            }
+        }
+    }
+
+    #[cw_serde]
+    pub struct GrantersPagedResponse {
+        pub granters: Vec<GranterDetails>,
+        pub start_next_after: Option<String>,
+    }
+
+    #[cw_serde]
     pub struct LockedTokens {
-        pub grantee: Addr,
+        pub grantee: GranteeAddress,
         pub locked: Coin,
     }
 

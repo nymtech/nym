@@ -400,6 +400,15 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         header: "Staked amount",
         accessorKey: "delegation.amount.amount",
         Header: <ColumnHeading>Stake</ColumnHeading>,
+        sortingFn: (rowA, rowB) => {
+          const stakeA = Number.parseFloat(
+            rowA.original.delegation.amount.amount,
+          );
+          const stakeB = Number.parseFloat(
+            rowB.original.delegation.amount.amount,
+          );
+          return stakeA - stakeB;
+        },
         Cell: ({ row }) => (
           <Typography variant="body4">
             {formatBigNum(+row.original.delegation.amount.amount / 1_000_000)}{" "}
@@ -500,7 +509,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
       <Stack gap={3} sx={{ p: 5 }} justifyContent="center" alignItems="center">
         <Typography variant="body3">
           You haven&apos;t staked on any nodes yet. Stake on a node to start
-          earning rewnotards.
+          earning rewards.
         </Typography>
         <Button variant="contained" size="large">
           <Link href="/explorer" underline="none" color="inherit">

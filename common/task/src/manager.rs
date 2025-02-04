@@ -221,7 +221,7 @@ impl TaskManager {
         }
     }
 
-    pub(crate) async fn wait_for_graceful_shutdown(&mut self) {
+    pub async fn wait_for_graceful_shutdown(&mut self) {
         if let Some(notify_rx) = self.notify_rx.take() {
             drop(notify_rx);
         }

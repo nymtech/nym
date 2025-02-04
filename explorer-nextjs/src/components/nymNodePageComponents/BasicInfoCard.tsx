@@ -73,7 +73,10 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
               justifyContent="space-between"
               width="100%"
             >
-              <Typography variant="body4">
+              <Typography
+                variant="body4"
+                sx={{ wordWrap: "break-word", maxWidth: "95%" }}
+              >
                 {nodeInfo.bonding_address}
               </Typography>
               <CopyToClipboard text={nodeInfo.bonding_address} />
@@ -91,7 +94,12 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
               justifyContent="space-between"
               width="100%"
             >
-              <Typography variant="body4">{nodeInfo.identity_key}</Typography>
+              <Typography
+                variant="body4"
+                sx={{ wordWrap: "break-word", maxWidth: "95%" }}
+              >
+                {nodeInfo.identity_key}
+              </Typography>
               <CopyToClipboard text={nodeInfo.identity_key} />
             </Stack>
           }

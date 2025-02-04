@@ -4,7 +4,7 @@ import { AccessTime } from "@mui/icons-material";
 import { Stack, Typography } from "@mui/material";
 import { useQueryClient } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
-import { format, subSeconds } from "date-fns";
+import { subSeconds } from "date-fns";
 import { useCallback, useEffect, useState } from "react";
 import { fetchCurrentEpoch } from "../../app/api";
 

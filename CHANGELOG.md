@@ -4,8 +4,13 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 
 ## [Unreleased]
 
-## [2025.2-hu] (2025-01-28)
+## [2025.2-hu] (2025-02-04)
 
+- Feature/remove double spending bloomfilter ([#5417])
+- HU - Downgrade harmless log message from info to debug ([#5405])
+- lower default ticket verification quorum to 0.7 ([#5404])
+- Downgrade harmless log message from info to debug ([#5403])
+- Redirect from mixnode page to nodes page ([#5397])
 - chore :update version of chain watcher and validator rewarder ([#5394])
 - bugfix: correctly handle ingore epoch roles flag ([#5390])
 - bugfix: terminate mixnet socket listener on shutdown ([#5389])
@@ -40,6 +45,11 @@ Post 1.0.0 release, the changelog format is based on [Keep a Changelog](https://
 - NS API: add mixnet scraper ([#5200])
 - build(deps): bump criterion from 0.4.0 to 0.5.1 ([#4911])
 
+[#5417]: https://github.com/nymtech/nym/pull/5417
+[#5405]: https://github.com/nymtech/nym/pull/5405
+[#5404]: https://github.com/nymtech/nym/pull/5404
+[#5403]: https://github.com/nymtech/nym/pull/5403
+[#5397]: https://github.com/nymtech/nym/pull/5397
 [#5394]: https://github.com/nymtech/nym/pull/5394
 [#5390]: https://github.com/nymtech/nym/pull/5390
 [#5389]: https://github.com/nymtech/nym/pull/5389

@@ -1,4 +1,4 @@
-import { type SxProps, TextField, TextFieldVariants } from "@mui/material";
+import { type SxProps, TextField } from "@mui/material";
 import type { KeyboardEventHandler } from "react";
 
 const Input = ({

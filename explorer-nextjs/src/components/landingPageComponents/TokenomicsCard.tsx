@@ -1,8 +1,9 @@
 "use client";
-import { fetchNymPrice } from "@/app/api";
+import { fetchEpochRewards, fetchNoise, fetchNymPrice } from "@/app/api";
+import { formatBigNum } from "@/utils/formatBigNumbers";
 import { Box, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import type { NymTokenomics } from "../../app/api/types";
+import type { ExplorerData, NymTokenomics } from "../../app/api/types";
 import ExplorerCard from "../cards/ExplorerCard";
 import ExplorerListItem from "../list/ListItem";
 import { TitlePrice } from "../price/TitlePrice";
@@ -17,7 +18,25 @@ export const TokenomicsCard = () => {
     queryFn: fetchNymPrice,
   });
 
-  if (isLoading) {
+  const {
+    data: epochRewards,
+    isLoading: isEpochLoading,
+    isError: isEpochError,
+  } = useQuery({
+    queryKey: ["epochRewards"],
+    queryFn: fetchEpochRewards,
+  });
+
+  const {
+    data: packetsAndStaking,
+    isLoading: isStakingLoading,
+    isError: isStakingError,
+  } = useQuery({
+    queryKey: ["noise"],
+    queryFn: fetchNoise,
+  });
+
+  if (isLoading || isEpochLoading || isStakingLoading) {
     return (
       <ExplorerCard label="Tokenomics overview">
         <Stack gap={1}>
@@ -28,11 +47,18 @@ export const TokenomicsCard = () => {
     );
   }
 
-  if (isError || !nymPrice) {
+  if (
+    isStakingError ||
+    isEpochError ||
+    isError ||
+    !nymPrice ||
+    !epochRewards ||
+    !packetsAndStaking
+  ) {
     return (
       <ExplorerCard label="Tokenomics overview">
         <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
-          Failed to load account balance.
+          Failed to load tokenomics overview.
         </Typography>
         <Skeleton variant="text" height={80} />
       </ExplorerCard>
@@ -49,11 +75,35 @@ export const TokenomicsCard = () => {
     //   numberWentUp: true,
     // },
   };
-  const marketCap = nymPriceData.quotes.USD.market_cap;
-  const volume24H = nymPriceData.quotes.USD.volume_24h.toFixed(2);
+  const marketCap = formatBigNum(nymPriceData.quotes.USD.market_cap);
+  const volume24H = formatBigNum(nymPriceData.quotes.USD.volume_24h);
+
+  const epochRewardsData: ExplorerData["currentEpochRewardsData"] =
+    epochRewards;
+  const packetsAndStakingData: ExplorerData["packetsAndStakingData"] =
+    packetsAndStaking;
+
+  function calculateTVL(
+    epochRewards: ExplorerData["currentEpochRewardsData"],
+    nymPriceData: NymTokenomics,
+    packetsAndStaking: ExplorerData["packetsAndStakingData"],
+  ): number {
+    const lastTotalStake =
+      packetsAndStaking[packetsAndStaking.length - 1]?.total_stake || 0;
+    return (
+      (Number.parseFloat(epochRewards.interval.reward_pool) / 1000000 +
+        lastTotalStake / 1000000) *
+      nymPriceData.quotes.USD.price
+    );
+  }
+  const TVL = formatBigNum(
+    calculateTVL(epochRewardsData, nymPrice, packetsAndStakingData),
+  );
+
   const dataRows = [
     { key: "Market cap", value: `$ ${marketCap}` },
     { key: "24H VOL", value: `$ ${volume24H}` },
+    { key: "TVL", value: `$ ${TVL}` },
   ];
 
   return (

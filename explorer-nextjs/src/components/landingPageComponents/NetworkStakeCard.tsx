@@ -54,10 +54,6 @@ export const NetworkStakeCard = () => {
   const packetsAndStakingData: ExplorerData["packetsAndStakingData"] =
     packetsAndStaking;
 
-  if (!epochRewardsData || !packetsAndStakingData) {
-    return null;
-  }
-
   const currentStake =
     Number(epochRewardsData.interval.staking_supply) / 1000000 || 0;
 

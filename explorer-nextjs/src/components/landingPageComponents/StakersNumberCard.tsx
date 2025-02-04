@@ -3,7 +3,6 @@ import { fetchObservatoryNodes } from "@/app/api";
 import type { IObservatoryNode } from "@/app/api/types";
 import { Skeleton, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
-import { formatBigNum } from "../../utils/formatBigNumbers";
 import ExplorerCard from "../cards/ExplorerCard";
 
 export const RewardsCard = () => {

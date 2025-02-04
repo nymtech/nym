@@ -1,6 +1,6 @@
 "use client";
 import { fetchAccountBalance, fetchNymPrice } from "@/app/api";
-import { Stack, Typography } from "@mui/material";
+import { Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import type { IRewardDetails } from "../../app/api/types";
 import { AccountBalancesTable } from "../cards/AccountBalancesTable";
@@ -71,21 +71,23 @@ export const AccountBalancesCard = (props: IAccountBalancesCardProps) => {
 
   if (isLoading || isLoadingPrice) {
     return (
-      <Stack direction="row" spacing={1}>
-        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
-          Loading account balance...
-        </Typography>
-      </Stack>
+      <ExplorerCard label="Total value">
+        <Stack gap={1}>
+          <Skeleton variant="text" height={38} />
+          <Skeleton variant="text" height={380} />
+        </Stack>
+      </ExplorerCard>
     );
   }
 
   if (isError || priceError || !accountInfo || !nymPrice) {
     return (
-      <Stack direction="row" spacing={1}>
+      <ExplorerCard label="Total value">
         <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
-          Failed to load account balance.
+          Failed to account data.
         </Typography>
-      </Stack>
+        <Skeleton variant="text" height={238} />
+      </ExplorerCard>
     );
   }
 

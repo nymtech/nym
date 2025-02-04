@@ -1,6 +1,6 @@
 "use client";
 import { fetchAccountBalance } from "@/app/api";
-import { Box, Stack, Typography } from "@mui/material";
+import { Box, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import ExplorerCard from "../cards/ExplorerCard";
 import CopyToClipboard from "../copyToClipboard/CopyToClipboard";
@@ -22,21 +22,24 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
 
   if (isLoading) {
     return (
-      <Stack direction="row" spacing={1}>
-        <Typography variant="h5" fontWeight="light">
-          Loading account balance...
-        </Typography>
-      </Stack>
+      <ExplorerCard label="">
+        <Stack gap={1}>
+          <Skeleton variant="text" height={38} />
+          <Skeleton variant="rectangular" height={128} width={128} />
+          <Skeleton variant="text" height={300} />
+        </Stack>
+      </ExplorerCard>
     );
   }
 
   if (isError || !data) {
     return (
-      <Stack direction="row" spacing={1}>
-        <Typography variant="h5" fontWeight="light">
-          Failed to load account balance.
+      <ExplorerCard label="">
+        <Typography variant="h5" sx={{ color: "pine.600", letterSpacing: 0.7 }}>
+          Failed to account data.
         </Typography>
-      </Stack>
+        <Skeleton variant="text" height={238} />
+      </ExplorerCard>
     );
   }
 

@@ -3,7 +3,6 @@ import { useChain } from "@cosmos-kit/react";
 import {
   Box,
   Button,
-  Skeleton,
   Stack,
   Tooltip,
   Typography,

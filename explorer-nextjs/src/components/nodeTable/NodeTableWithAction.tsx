@@ -1,13 +1,6 @@
 "use client";
 
-import {
-  Box,
-  Card,
-  CardContent,
-  Skeleton,
-  Stack,
-  Typography,
-} from "@mui/material";
+import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import getNymNodes from "../../actions/getNymNodes";
 import { fetchEpochRewards } from "../../app/api";

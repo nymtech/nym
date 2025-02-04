@@ -68,7 +68,7 @@ const NextEpochTime = () => {
       <Stack direction="row" spacing={1}>
         <AccessTime />
         <Typography variant="h5" fontWeight="light">
-          Loading next epoch...
+          Loading next mixnet epoch...
         </Typography>
       </Stack>
     );
@@ -90,11 +90,11 @@ const NextEpochTime = () => {
       <AccessTime />
       {hasEpochStarted ? (
         <Typography variant="h5" fontWeight="light">
-          Waiting for next epoch to start...
+          Waiting for next mixnet epoch to start...
         </Typography>
       ) : (
         <Typography variant="h5" fontWeight="light">
-          Next epoch starts in: {minutesRemaining} min
+          Next mixnet epoch starts in: {minutesRemaining} min
         </Typography>
       )}
     </Stack>

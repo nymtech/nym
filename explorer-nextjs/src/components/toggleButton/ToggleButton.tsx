@@ -4,7 +4,6 @@ import { Button, ButtonGroup, CircularProgress } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { subSeconds } from "date-fns";
-import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "../muiLink";
 
@@ -25,8 +24,6 @@ const ExplorerButtonGroup = ({
 }) => {
   const [hasEpochStarted, setHasEpochStarted] = useState(false);
   const [loading, setLoading] = useState<string | null>(null);
-  const router = useRouter();
-  const pathname = usePathname();
 
   const { data } = useQuery({
     enabled: true,
@@ -64,17 +61,9 @@ const ExplorerButtonGroup = ({
     return () => clearInterval(interval);
   }, [hasEpochStarted, handleRefetch]);
 
-  useEffect(() => {
-    for (const option of options) {
-      router.prefetch(option.link);
-    }
-  }, [router, options]);
-
-  useEffect(() => {
-    if (!pathname) return;
-
-    setLoading(null);
-  }, [pathname]);
+  const handleClick = (label: string) => {
+    setLoading(label);
+  };
 
   return (
     <ButtonGroup size={size}>
@@ -83,7 +72,7 @@ const ExplorerButtonGroup = ({
           href={option.link}
           key={option.label}
           sx={{ textDecoration: "none" }}
-          onClick={() => setLoading(option.label)}
+          onClick={() => handleClick(option.label)}
         >
           <Button
             sx={{
@@ -96,7 +85,7 @@ const ExplorerButtonGroup = ({
               bgcolor: option.isSelected ? "primary.main" : "transparent",
             }}
             variant="outlined"
-            disabled={loading === option.label}
+            // disabled={loading === option.label}
           >
             {loading === option.label ? (
               <CircularProgress size={18} color="inherit" />

@@ -220,6 +220,24 @@ export const fetchNodes = async (): Promise<NodeData[]> => {
   return data;
 };
 
+export const fetchObservatoryNodes = async (): Promise<
+  IObservatoryNode[] | null
+> => {
+  const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json; charset=utf-8",
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch observatory nodes");
+  }
+
+  const nodes: IObservatoryNode[] = await response.json();
+  return nodes;
+};
+
 // 🔹 Fetch NYM Price
 export const fetchNymPrice = async (): Promise<NymTokenomics> => {
   const res = await fetch(NYM_PRICES_API, {

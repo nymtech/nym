@@ -23,16 +23,6 @@ export const BasicInfoCard = ({ id }: IBasicInfoCardProps) => {
     queryFn: () => fetchNodeInfo(id),
   });
 
-  const address = "n1z0msxu8c098umdhnthpr2ac3ck2n3an97dm8pn";
-
-  const { data: accountInfo } = useQuery({
-    queryKey: ["accountBalance", address],
-    queryFn: () => fetchAccountBalance(address),
-    enabled: !!address,
-  });
-
-  console.log(" accountInfo basic info card:>> ", accountInfo);
-
   if (isLoading) {
     return (
       <ExplorerCard label="Basic info">

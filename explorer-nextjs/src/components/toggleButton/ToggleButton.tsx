@@ -1,9 +1,10 @@
 "use client";
 import { fetchCurrentEpoch } from "@/app/api";
-import { Button, ButtonGroup } from "@mui/material";
+import { Button, ButtonGroup, CircularProgress } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import { useQueryClient } from "@tanstack/react-query";
 import { subSeconds } from "date-fns";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "../muiLink";
 
@@ -23,55 +24,58 @@ const ExplorerButtonGroup = ({
   options: Options;
 }) => {
   const [hasEpochStarted, setHasEpochStarted] = useState(false);
+  const [loading, setLoading] = useState<string | null>(null);
+  const router = useRouter();
+  const pathname = usePathname();
 
-  console.log("hasEpochStarted :>> ", hasEpochStarted);
-
-  // Use React Query to fetch data
   const { data } = useQuery({
     enabled: true,
     queryKey: ["currentEpoch"],
     queryFn: fetchCurrentEpoch,
     refetchInterval: 30000,
     staleTime: 30000,
-    refetchOnMount: true, // Force UI update
-    keepPreviousData: false, // Ensure new data updates UI
+    refetchOnMount: true,
+    keepPreviousData: false,
   });
 
   const queryClient = useQueryClient();
 
-  // check surrent epoch
   useEffect(() => {
     const checkEpochStatus = () => {
       if (!data?.dateTime) return;
-
       const oneHourLater = subSeconds(new Date(data.dateTime), 30).getTime();
-
       const now = Date.now();
       setHasEpochStarted(now >= oneHourLater);
     };
 
     checkEpochStatus();
-
-    const interval = setInterval(checkEpochStatus, 10000); // Check every 30s, regardless of data updates
-
+    const interval = setInterval(checkEpochStatus, 10000);
     return () => clearInterval(interval);
-  });
+  }, [data]);
 
   const handleRefetch = useCallback(() => {
-    queryClient.invalidateQueries(); // This will refetch ALL active queries
+    queryClient.invalidateQueries();
   }, [queryClient]);
 
-  // Refetch all queries on epoch change
   useEffect(() => {
     if (!hasEpochStarted) return;
-
     handleRefetch();
-    console.log("refetching data from toggle button :>> ");
-
-    const interval = setInterval(handleRefetch, 10000); // refetch every 10sec after the epoch has started
-
+    const interval = setInterval(handleRefetch, 10000);
     return () => clearInterval(interval);
   }, [hasEpochStarted, handleRefetch]);
+
+  useEffect(() => {
+    for (const option of options) {
+      router.prefetch(option.link);
+    }
+  }, [router, options]);
+
+  useEffect(() => {
+    if (!pathname) return;
+
+    setLoading(null);
+  }, [pathname]);
+
   return (
     <ButtonGroup size={size}>
       {options.map((option) => (
@@ -79,6 +83,7 @@ const ExplorerButtonGroup = ({
           href={option.link}
           key={option.label}
           sx={{ textDecoration: "none" }}
+          onClick={() => setLoading(option.label)}
         >
           <Button
             sx={{
@@ -91,8 +96,13 @@ const ExplorerButtonGroup = ({
               bgcolor: option.isSelected ? "primary.main" : "transparent",
             }}
             variant="outlined"
+            disabled={loading === option.label}
           >
-            {option.label}
+            {loading === option.label ? (
+              <CircularProgress size={18} color="inherit" />
+            ) : (
+              option.label
+            )}
           </Button>
         </Link>
       ))}

@@ -196,7 +196,6 @@ export const fetchAccountBalance = async (
       "Content-Type": "application/json; charset=utf-8",
     },
   });
-  console.log("res :>> ", res);
   if (!res.ok) {
     throw new Error("Failed to fetch account balance error from api");
   }

@@ -17,7 +17,7 @@ export const HARBOURMASTER_API_MIXNODES_STATS =
   "https://harbourmaster.nymtech.net/v2/mixnodes/stats";
 export const HARBOURMASTER_API_BASE = "https://harbourmaster.nymtech.net";
 export const CURRENT_EPOCH =
-  " https://validator.nymtech.net/api/v1/epoch/current";
+  "https://validator.nymtech.net/api/v1/epoch/current";
 export const CURRENT_EPOCH_REWARDS =
   "https://validator.nymtech.net/api/v1/epoch/reward_params";
 export const CIRCULATING_NYM_SUPPLY =

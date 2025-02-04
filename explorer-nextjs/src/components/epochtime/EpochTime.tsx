@@ -21,21 +21,31 @@ const NextEpochTime = () => {
 
   const [hasEpochStarted, setHasEpochStarted] = useState(false);
 
+  const [minutesRemaining, setMinutesRemaining] = useState(0);
+
   const handleRefetch = useCallback(() => {
     queryClient.invalidateQueries(); // This will refetch ALL active queries
   }, [queryClient]);
 
+  // checking if new epoch has already started & update remaining minutes
   useEffect(() => {
     const checkEpochStatus = () => {
       if (!data?.dateTime) return;
 
-      const oneHourLater = subSeconds(new Date(data.dateTime), 30).getTime(); // Convert to timestamp
+      const oneHourLater = subSeconds(new Date(data.dateTime), 30).getTime();
 
       const now = Date.now(); // Current time in ms
       setHasEpochStarted(now >= oneHourLater);
     };
 
     checkEpochStatus();
+
+    const updateMinutesRemaining = () => {
+      const epochTime = new Date(data.dateTime).getTime();
+      const now = Date.now();
+      setMinutesRemaining(Math.max(0, Math.floor((epochTime - now) / 60000)));
+    };
+    updateMinutesRemaining();
 
     const interval = setInterval(checkEpochStatus, 30000); // Check every 30s, regardless of data updates
 
@@ -84,7 +94,7 @@ const NextEpochTime = () => {
         </Typography>
       ) : (
         <Typography variant="h5" fontWeight="light">
-          Next epoch: {format(new Date(data.dateTime), "HH:mm:ss")}
+          Next epoch starts in: {minutesRemaining} min
         </Typography>
       )}
     </Stack>

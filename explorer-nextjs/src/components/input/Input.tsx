@@ -1,4 +1,5 @@
-import { type SxProps, TextField } from "@mui/material";
+import { type SxProps, TextField, TextFieldVariants } from "@mui/material";
+import type { KeyboardEventHandler } from "react";
 
 const Input = ({
   placeholder,
@@ -6,6 +7,7 @@ const Input = ({
   value,
   rounded = false,
   onChange,
+  onKeyDown,
 }: {
   placeholder?: string;
   fullWidth?: boolean;
@@ -13,6 +15,7 @@ const Input = ({
   sx?: SxProps;
   value: string;
   onChange: (event: React.ChangeEvent<HTMLInputElement>) => void;
+  onKeyDown?: KeyboardEventHandler<HTMLDivElement> | undefined;
 }) => {
   return (
     <TextField
@@ -20,6 +23,7 @@ const Input = ({
       fullWidth={fullWidth}
       value={value}
       onChange={onChange}
+      onKeyDown={onKeyDown}
       slotProps={{
         input: {
           sx: {

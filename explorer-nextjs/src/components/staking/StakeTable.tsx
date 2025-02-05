@@ -145,7 +145,9 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           if (
             e &&
             !delegationsWithNodeDetails.find(
-              (item) => item.node?.nodeId === e.mixId,
+              (item) =>
+                item.node?.nodeId === e.mixId ||
+                item.delegation.node_id === e.mixId,
             )
           ) {
             delegationsWithNodeDetails.push({

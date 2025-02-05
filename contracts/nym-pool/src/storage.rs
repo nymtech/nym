@@ -17,7 +17,8 @@ pub struct NymPoolStorage {
     pub(crate) pool_denomination: Item<String>,
     pub(crate) granters: Map<GranterAddress, GranterInformation>,
 
-    // we specifically don't allow multiple grants (from different granters) towards the same grantee
+    // unlike the feegrant module, we specifically don't allow multiple grants (from different granters)
+    // towards the same grantee
     pub(crate) grants: Map<GranteeAddress, Grant>,
     pub(crate) locked: LockedStorage,
 }
@@ -79,21 +80,28 @@ impl NymPoolStorage {
             .map_err(Into::into)
     }
 
+    pub fn try_load_granter(
+        &self,
+        deps: Deps,
+        granter: &GranterAddress,
+    ) -> Result<Option<GranterInformation>, NymPoolContractError> {
+        self.granters
+            .may_load(deps.storage, granter.clone())
+            .map_err(Into::into)
+    }
+
     fn is_whitelisted_granter(
         &self,
         deps: Deps,
-        addr: &Addr,
+        addr: &GranterAddress,
     ) -> Result<bool, NymPoolContractError> {
-        Ok(self
-            .granters
-            .may_load(deps.storage, addr.clone())?
-            .is_some())
+        Ok(self.try_load_granter(deps, addr)?.is_some())
     }
 
     fn ensure_is_whitelisted_granter(
         &self,
         deps: Deps,
-        addr: &Addr,
+        addr: &GranterAddress,
     ) -> Result<(), NymPoolContractError> {
         if !self.is_whitelisted_granter(deps, addr)? {
             return Err(NymPoolContractError::InvalidGranter {
@@ -285,15 +293,22 @@ impl LockedStorage {
         Ok(())
     }
 
-    fn grantee_locked(
+    pub fn grantee_locked(
         &self,
         storage: &dyn Storage,
         grantee: GranteeAddress,
     ) -> Result<Uint128, NymPoolContractError> {
         Ok(self
-            .grantees
-            .may_load(storage, grantee.clone())?
+            .maybe_grantee_locked(storage, grantee)?
             .unwrap_or_default())
+    }
+
+    pub fn maybe_grantee_locked(
+        &self,
+        storage: &dyn Storage,
+        grantee: GranteeAddress,
+    ) -> Result<Option<Uint128>, NymPoolContractError> {
+        Ok(self.grantees.may_load(storage, grantee.clone())?)
     }
 
     /// unconditionally attempts to load specified amount of tokens for the particular grantee
@@ -350,6 +365,17 @@ impl LockedStorage {
 
         Ok(())
     }
+}
+
+pub mod retrieval_limits {
+    pub const LOCKED_TOKENS_DEFAULT_LIMIT: u32 = 100;
+    pub const LOCKED_TOKENS_MAX_LIMIT: u32 = 200;
+
+    pub const GRANTERS_DEFAULT_LIMIT: u32 = 100;
+    pub const GRANTERS_MAX_LIMIT: u32 = 200;
+
+    pub const GRANTS_DEFAULT_LIMIT: u32 = 100;
+    pub const GRANTS_MAX_LIMIT: u32 = 200;
 }
 
 #[cfg(test)]

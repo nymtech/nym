@@ -1,5 +1,6 @@
 import { Callout } from 'nextra/components';
 import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
 import { RunTabs } from 'components/operators/nodes/node-run-command-tabs';
 import { VarInfo } from 'components/variable-info.tsx';
 import { AccordionTemplate } from 'components/accordion-template.tsx';
@@ -54,16 +55,16 @@ This page displays a full list of all the changes during our release cycle from 
 ```
 nym-node
 Binary Name:        nym-node
-Build Timestamp:    2025-01-28T09:31:45.152939137Z
+Build Timestamp:    2025-02-04T09:35:42.399220545Z
 Build Version:      1.4.0
-Commit SHA:         28997c7f97d0e359e5a6a30e8fa4b03415c96a17
-Commit Date:        2025-01-28T09:02:54.000000000+01:00
+Commit SHA:         4c2bf3642e8eec0d55c7753e14429d73ac2d0e99
+Commit Date:        2025-02-04T10:29:48.000000000+01:00
 Commit Branch:      HEAD
-rustc Version:      1.84.0
+rustc Version:      1.84.1
 rustc Channel:      stable
 cargo Profile:      release
-
 ```
+
 ### Operators Updates & Tools
 
 <Callout type="info">
@@ -72,6 +73,16 @@ From `nym-node v1.3.0` operators can technically choose multiple functionalities
 **However, the clients are yet to be developed to be able to make a proper selection for multi-mode nodes!**
 
 **WE ASK OPERATORS TO ASSIGN ONLY ONE FUNCTIONALITY TO `--mode` OPTION PER NODE. PLEASE SELECT ONE MODE ARGUMENT OUT OF: `mixnode` or `entry-gateway` or `exit-gateway`!**
+</Callout>
+
+- Updated maintenance guides to [backup](nodes/maintenance#backup-a-node), [restore](nodes/maintenance#restoring-a-node) and [move](nodes/maintenance#moving-a-node) a node, with important info about `clients.sqlite` database
+
+- [New explanation of `nym-node` functionalities](nodes/nym-node/setup#functionality-mode) describing how Gateways get selected in Mixnet mode and Wireguard mode. 
+
+<Callout type="warning">
+Wireguard nodes route data directly to the open internet. Therefore it exposes IP of operators server (VPS) to abuse complains. Before you decide to run a node with active wireguard routing, please read our [Community Counsel pages](community-counsel/exit-gateway) containing more information and some legal content.
+
+**Wireguard mode has no exit policy right now - we are working on the implementation.**
 </Callout>
 
 #### Legal support
@@ -202,28 +213,64 @@ As we finalising last details of *"Project Smoosh"*, where one binary - `nym-nod
 
 These are minimum requirements to become a part of SGPv2.
 
+<div>
+  <Tabs items={[
+    <><code>nym-node</code> - dedicated server</>,
+    <><code>nym-node</code> - VPS</>,
+    ]} defaultIndex="0">
+    <MyTab>
+#### `nym-node` - dedicated server
+If you are about to start a new Nym Node, look for a server with this specification:
+
 | **Hardware**   | **Minimum Specification**          |
 | :---           | ---:                               |
-| Type of server | Dedicated                          |
+| Type of server | Dedicated or bare metal            |
 | CPU Cores      | 4                                  |
 | Memory         | 8-16 GB RAM                        |
 | Storage        | 50 GB (preferably 80 GB)           |
 | Connectivity   | IPv4, IPv6, TCP/IP, UDP            |
-| Bandwidth      | Unmetered if possible, or \> 20Tb  |
+| Bandwidth      | Unmetered if possible, or {" >"} 20Tb  |
 | Port speed     | 1Gbps                              |
 
-- Exit Gateways only
-- [Terms & Conditions](nodes/nym-node/setup#terms--conditions) accepted
-- Nodes are [bonded](nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract) as `nym-node` not as a legacy node
-- Timely upgrades without direct message notifications: Only Latest version, and the two preceding are accepted
-- Dedicated (or bare metal) machine is to ensure that the numbers above are *dedicated* for `nym-node` operation
-- Unmetered bandwidth is to ensure smooth user experience without data allowance limitation. 20Tb is a minimum for locations where unlimited bandwidth is not an option. 
-- 1Gbps is an expected speed of Nym network in order to meet expectations of NymVPN users
-- Squads operating more than 2 nodes are expected to run larger servers and divide them for multiple nodes. We will share a how to guide soon.
-- Operators run [reverse proxy](nodes/nym-node/configuration) with landing page URL starting with `nym-exit` and [Web Secure Socket](nodes/nym-node/configuration)
-- Operators must write their providers upfront that they will run a Nym Exit Gateway on their servers, using [this template](community-counsel/templates#introduction-to-server-provider)
+          - Exit Gateways only
+          - [Terms & Conditions](nodes/nym-node/setup#terms--conditions) accepted
+          - Nodes are [bonded](nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract) as `nym-node` not as a legacy node
+          - Timely upgrades without direct message notifications: Only Latest version, and the two preceding are accepted
+          - Dedicated (or bare metal) machine is to ensure that the numbers above are *dedicated* for `nym-node` operation
+          - Unmetered bandwidth is to ensure smooth user experience without data allowance limitation. 20Tb is a minimum for locations where unlimited bandwidth is not an option. 
+          - 1Gbps is an expected speed of Nym network in order to meet expectations of NymVPN users
+          - Squads operating more than 2 nodes are expected to run larger servers and divide them for multiple nodes. We will share a how-to guide soon.
+          - Operators run [reverse proxy](nodes/nym-node/configuration) with landing page URL starting with `nym-exit` and [Web Secure Socket](nodes/nym-node/configuration)
+          - Operators must write their providers upfront that they will run a Nym Exit Gateway on their servers, using [this template](community-counsel/templates#introduction-to-server-provider)
+    </MyTab>
+    <MyTab>
+#### `nym-node` - VPS
+If you are about to start a new Nym Node, look for a server with this specification:
 
-Operators interested in joining SGPv2 can start by searching for servers that meet the above criteria, where they may eventually migrate their nodes, and then share their findings by submitting [this form]().
+| **Hardware**   | **Minimum Specification**          |
+| :---           | ---:                               |
+| Type of server | VPS           |
+| CPU Cores      | 8                                  |
+| Memory         | 16-32 GB RAM                        |
+| Storage        | 50 GB (preferably 80 GB)           |
+| Connectivity   | IPv4, IPv6, TCP/IP, UDP            |
+| Bandwidth      | Unmetered if possible, or {" >"} 40Tb  |
+| Port speed     | 10Gbps                              |
+
+          - Exit Gateways only
+          - [Terms & Conditions](nodes/nym-node/setup#terms--conditions) accepted
+          - Nodes are [bonded](nodes/nym-node/bonding#migrate-to-nym-node-in-mixnet-smart-contract) as `nym-node` not as a legacy node
+          - Timely upgrades without direct message notifications: Only Latest version, and the two preceding are accepted
+          - Stronger specs for VPS are to ensure that the `nym-node` operation will remain solid even when sharing a server with other users
+          - Unmetered bandwidth is to ensure smooth user experience without data allowance limitation. 40Tb is a minimum for locations where unlimited bandwidth is not an option. 
+          - 10Gbps is to ensure that the 1Gbps expected speed of Nym network is met even when sharing a server with other users
+          - Operators run [reverse proxy](nodes/nym-node/configuration) with landing page URL starting with `nym-exit` and [Web Secure Socket](nodes/nym-node/configuration)
+          - Operators must write their providers upfront that they will run a Nym Exit Gateway on their servers, using [this template](community-counsel/templates#introduction-to-server-provider)
+    </MyTab>
+  </Tabs>
+</div>
+
+**Operators interested in joining SGPv2 can start by searching for servers that meet the above criteria, where they may eventually migrate their nodes, and then share their findings by submitting  a form which will be shared shortly. We will be first reaching to the current participants of Service Grant Program. Everything will be announced, sending DMs to devrel will not speed up the process!**
 
 
 ### Features

@@ -123,7 +123,8 @@ impl StatisticsControl {
 
         loop {
             tokio::select! {
-                _ = task_client.recv_with_delay() => {
+                biased;
+                _ = task_client.recv() => {
                     log::trace!("StatisticsControl: Received shutdown");
                     break;
                 },

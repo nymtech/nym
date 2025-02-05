@@ -6,9 +6,9 @@ use cosmwasm_std::{Coin, Deps, Env, Order, StdResult, Uint128};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
 use nym_pool_contract_common::{
-    AvailableTokensResponse, GrantResponse, GranterDetails, GranterResponse, GrantersPagedResponse,
-    GrantsPagedResponse, LockedTokens, LockedTokensPagedResponse, LockedTokensResponse,
-    NymPoolContractError, TotalLockedTokensResponse,
+    AvailableTokensResponse, GrantInformation, GrantResponse, GranterDetails, GranterResponse,
+    GrantersPagedResponse, GrantsPagedResponse, LockedTokens, LockedTokensPagedResponse,
+    LockedTokensResponse, NymPoolContractError, TotalLockedTokensResponse,
 };
 
 pub fn query_admin(deps: Deps) -> Result<AdminResponse, NymPoolContractError> {
@@ -89,11 +89,19 @@ pub fn query_locked_tokens_paged(
     })
 }
 
-pub fn query_grant(deps: Deps, grantee: String) -> Result<GrantResponse, NymPoolContractError> {
+pub fn query_grant(
+    deps: Deps,
+    env: Env,
+    grantee: String,
+) -> Result<GrantResponse, NymPoolContractError> {
     let grantee = deps.api.addr_validate(&grantee)?;
+    let grant = NYM_POOL_STORAGE.try_load_grant(deps, &grantee)?;
 
     Ok(GrantResponse {
-        grant: NYM_POOL_STORAGE.try_load_grant(deps, &grantee)?,
+        grant: grant.map(|grant| GrantInformation {
+            expired: grant.allowance.expired(&env),
+            grant,
+        }),
         grantee,
     })
 }
@@ -109,6 +117,7 @@ pub fn query_granter(deps: Deps, granter: String) -> Result<GranterResponse, Nym
 
 pub fn query_grants_paged(
     deps: Deps,
+    env: Env,
     limit: Option<u32>,
     start_after: Option<String>,
 ) -> Result<GrantsPagedResponse, NymPoolContractError> {
@@ -125,10 +134,15 @@ pub fn query_grants_paged(
         .grants
         .range(deps.storage, start, None, Order::Ascending)
         .take(limit)
-        .map(|res| res.map(|(_, grant)| grant))
+        .map(|res| {
+            res.map(|(_, grant)| GrantInformation {
+                expired: grant.allowance.expired(&env),
+                grant,
+            })
+        })
         .collect::<StdResult<Vec<_>>>()?;
 
-    let start_next_after = grants.last().map(|grant| grant.grantee.to_string());
+    let start_next_after = grants.last().map(|info| info.grant.grantee.to_string());
 
     Ok(GrantsPagedResponse {
         grants,

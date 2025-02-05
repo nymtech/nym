@@ -12,7 +12,7 @@ use crate::transactions::{
     try_withdraw_locked_allowance,
 };
 use cosmwasm_std::{
-    entry_point, to_binary, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
+    entry_point, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
 use nym_contracts_common::set_build_information_cw22;
 use nym_pool_contract_common::{
@@ -75,13 +75,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NymPoolContr
         QueryMsg::GetLockedTokensPaged { limit, start_after } => Ok(to_json_binary(
             &query_locked_tokens_paged(deps, limit, start_after)?,
         )?),
-        QueryMsg::GetGrant { grantee } => Ok(to_json_binary(&query_grant(deps, grantee)?)?),
+        QueryMsg::GetGrant { grantee } => Ok(to_json_binary(&query_grant(deps, env, grantee)?)?),
         QueryMsg::GetGranter { granter } => Ok(to_json_binary(&query_granter(deps, granter)?)?),
         QueryMsg::GetGrantersPaged { limit, start_after } => Ok(to_json_binary(
             &query_granters_paged(deps, limit, start_after)?,
         )?),
         QueryMsg::GetGrantsPaged { limit, start_after } => Ok(to_json_binary(
-            &query_grants_paged(deps, limit, start_after)?,
+            &query_grants_paged(deps, env, limit, start_after)?,
         )?),
     }
 }

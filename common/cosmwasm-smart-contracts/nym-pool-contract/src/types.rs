@@ -12,7 +12,7 @@ pub use query_responses::*;
 
 #[cw_serde]
 pub struct TransferRecipient {
-    pub recipient: Addr,
+    pub recipient: String,
     pub amount: Coin,
 }
 
@@ -48,6 +48,14 @@ pub mod grants {
     }
 
     impl Allowance {
+        pub fn expired(&self, env: &Env) -> bool {
+            let Some(expiration) = self.basic().expiration_unix_timestamp else {
+                return false;
+            };
+            let current_unix_timestamp = env.block.time.seconds();
+            expiration < current_unix_timestamp
+        }
+
         pub fn basic(&self) -> &BasicAllowance {
             match self {
                 Allowance::Basic(allowance) => allowance,
@@ -84,6 +92,17 @@ pub mod grants {
                 Allowance::Delayed(allowance) => allowance.validate_new_inner(env),
             }
         }
+
+        /// Updates initial state of this allowance settings things such as period reset timestamps.
+        pub fn set_initial_state(&mut self, env: &Env) {
+            match self {
+                // nothing to do for the basic allowance
+                Allowance::Basic(_) => {}
+                Allowance::ClassicPeriodic(allowance) => allowance.set_initial_state(env),
+                Allowance::CumulativePeriodic(allowance) => allowance.set_initial_state(env),
+                Allowance::Delayed(allowance) => allowance.set_initial_state(env),
+            }
+        }
     }
 
     /// BasicAllowance is an allowance with a one-time grant of coins
@@ -117,6 +136,10 @@ pub mod grants {
             }
 
             Ok(())
+        }
+
+        pub(super) fn set_initial_state(&self, env: &Env) {
+            todo!()
         }
     }
 
@@ -174,6 +197,10 @@ pub mod grants {
             }
 
             Ok(())
+        }
+
+        pub(super) fn set_initial_state(&self, env: &Env) {
+            todo!()
         }
     }
 
@@ -259,6 +286,10 @@ pub mod grants {
 
             Ok(())
         }
+
+        pub(super) fn set_initial_state(&self, env: &Env) {
+            todo!()
+        }
     }
 
     /// Create a grant to allow somebody to withdraw from the pool only after the specified time.
@@ -290,6 +321,10 @@ pub mod grants {
 
             Ok(())
         }
+
+        pub(super) fn set_initial_state(&self, env: &Env) {
+            todo!()
+        }
     }
 }
 
@@ -317,9 +352,15 @@ pub mod query_responses {
     }
 
     #[cw_serde]
+    pub struct GrantInformation {
+        pub grant: Grant,
+        pub expired: bool,
+    }
+
+    #[cw_serde]
     pub struct GrantResponse {
         pub grantee: GranteeAddress,
-        pub grant: Option<Grant>,
+        pub grant: Option<GrantInformation>,
     }
 
     #[cw_serde]
@@ -330,7 +371,7 @@ pub mod query_responses {
 
     #[cw_serde]
     pub struct GrantsPagedResponse {
-        pub grants: Vec<Grant>,
+        pub grants: Vec<GrantInformation>,
         pub start_next_after: Option<String>,
     }
 
@@ -705,6 +746,31 @@ mod tests {
                 allowance.basic.expiration_unix_timestamp = None;
                 assert!(allowance.validate_new_inner(&env).is_ok());
             }
+        }
+    }
+
+    #[cfg(test)]
+    mod setting_initial_state {
+        use super::*;
+
+        #[test]
+        fn basic_allowance() {
+            todo!()
+        }
+
+        #[test]
+        fn classic_periodic_allowance() {
+            todo!()
+        }
+
+        #[test]
+        fn cumulative_periodic_allowance() {
+            todo!()
+        }
+
+        #[test]
+        fn delayed_allowance() {
+            todo!()
         }
     }
 }

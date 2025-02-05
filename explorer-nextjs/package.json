@@ -34,6 +34,7 @@
     "chain-registry": "^1.69.64",
     "cldr-compact-number": "^0.4.0",
     "date-fns": "^4.1.0",
+    "isomorphic-dompurify": "^2.21.0",
     "material-react-table": "^3.0.3",
     "next": "15.0.3",
     "qrcode.react": "^4.1.0",

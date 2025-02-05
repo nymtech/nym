@@ -2,6 +2,7 @@
 
 import { Card, CardContent, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import DOMPurify from "isomorphic-dompurify";
 import getNymNodes from "../../actions/getNymNodes";
 import { fetchEpochRewards } from "../../app/api";
 import type { ExplorerData, IObservatoryNode } from "../../app/api/types";
@@ -34,8 +35,12 @@ const mappedNymNodes = (
       epochRewardsData.interval.stake_saturation_point,
     );
 
+    const cleanMoniker = DOMPurify.sanitize(
+      node.self_description.moniker,
+    ).replace(/&amp;/g, "&");
+
     return {
-      name: node.self_description.moniker,
+      name: cleanMoniker,
       nodeId: node.node_id,
       identity_key: node.identity_key,
       countryCode: node.description.auxiliary_details.location || null,

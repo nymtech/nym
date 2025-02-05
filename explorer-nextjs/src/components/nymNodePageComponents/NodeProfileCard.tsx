@@ -3,6 +3,7 @@
 import { useChain } from "@cosmos-kit/react";
 import { Box, Button, Skeleton, Stack, Typography } from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
+import DOMPurify from "isomorphic-dompurify";
 import { useCallback, useState } from "react";
 import { RandomAvatar } from "react-random-avatars";
 import { fetchNodeInfo } from "../../app/api";
@@ -132,6 +133,13 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
       </ExplorerCard>
     );
   }
+  const cleanMoniker = DOMPurify.sanitize(
+    nodeInfo?.self_description.moniker,
+  ).replace(/&amp;/g, "&");
+
+  const cleanDescription = DOMPurify.sanitize(
+    nodeInfo?.self_description.details,
+  ).replace(/&amp;/g, "&");
 
   return (
     <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
@@ -145,7 +153,7 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
           mb={1}
           sx={{ color: "pine.950", wordWrap: "break-word", maxWidth: "95%" }}
         >
-          {nodeInfo?.self_description.moniker || "Moniker"}
+          {cleanMoniker || "Moniker"}
         </Typography>
         {nodeInfo.description.auxiliary_details.location && (
           <Box display={"flex"} gap={1}>
@@ -158,7 +166,7 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
         )}
         {nodeInfo && (
           <Typography variant="body4" sx={{ color: "pine.950" }} mt={2}>
-            {nodeInfo.self_description.details}
+            {cleanDescription}
           </Typography>
         )}
         <Box mt={3} display={"flex"} gap={1}>

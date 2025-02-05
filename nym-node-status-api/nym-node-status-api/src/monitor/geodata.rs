@@ -41,9 +41,6 @@ impl IpInfoClient {
     pub(crate) async fn check_remaining_bandwidth(
         &self,
     ) -> anyhow::Result<ipinfo::MeResponseRequests> {
-        if self.token.is_empty() {
-            panic!("IPINFO_API_TOKEN not set");
-        }
         let url = format!("https://ipinfo.io/me?token={}", &self.token);
         let response = self
             .client
@@ -154,8 +151,10 @@ pub(crate) mod ipinfo {
 #[cfg(test)]
 mod api_regression {
 
+    use tokio::time::sleep;
+
     use super::*;
-    use std::{env::var, sync::LazyLock};
+    use std::{env::var, sync::LazyLock, time::Duration};
 
     static IPINFO_TOKEN: LazyLock<Option<String>> = LazyLock::new(|| var("IPINFO_API_TOKEN").ok());
     static CI: LazyLock<Option<String>> = LazyLock::new(|| var("CI").ok());
@@ -176,6 +175,9 @@ mod api_regression {
 
             let location_result = client.locate_ip(my_ip).await;
             assert!(location_result.is_ok(), "Did ipinfo response change?");
+
+            // Artifical sleep to avoid rate limit
+            sleep(Duration::from_secs(2)).await;
 
             client
                 .check_remaining_bandwidth()

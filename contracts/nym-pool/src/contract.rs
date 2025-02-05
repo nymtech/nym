@@ -6,7 +6,11 @@ use crate::queries::{
     query_grants_paged, query_locked_tokens, query_locked_tokens_paged, query_total_locked_tokens,
 };
 use crate::storage::NYM_POOL_STORAGE;
-use crate::transactions::{try_grant_allowance, try_revoke_grant, try_update_contract_admin};
+use crate::transactions::{
+    try_grant_allowance, try_lock_allowance, try_revoke_grant, try_unlock_allowance,
+    try_update_contract_admin, try_use_allowance, try_use_locked_allowance, try_withdraw_allowance,
+    try_withdraw_locked_allowance,
+};
 use cosmwasm_std::{
     entry_point, to_binary, to_json_binary, Binary, Deps, DepsMut, Env, MessageInfo, Response,
 };
@@ -46,12 +50,16 @@ pub fn execute(
             try_grant_allowance(deps, env, info, grantee, *allowance)
         }
         ExecuteMsg::RevokeAllowance { grantee } => try_revoke_grant(deps, env, info, grantee),
-        ExecuteMsg::UseAllowance { recipients } => todo!(),
-        ExecuteMsg::WithdrawAllowance { amount } => todo!(),
-        ExecuteMsg::LockAllowance { amount } => todo!(),
-        ExecuteMsg::UnlockAllowance { amount } => todo!(),
-        ExecuteMsg::UseLockedAllowance { recipients } => todo!(),
-        ExecuteMsg::WithdrawLockedAllowance { amount } => todo!(),
+        ExecuteMsg::UseAllowance { recipients } => try_use_allowance(deps, env, info, recipients),
+        ExecuteMsg::WithdrawAllowance { amount } => try_withdraw_allowance(deps, env, info, amount),
+        ExecuteMsg::LockAllowance { amount } => try_lock_allowance(deps, env, info, amount),
+        ExecuteMsg::UnlockAllowance { amount } => try_unlock_allowance(deps, env, info, amount),
+        ExecuteMsg::UseLockedAllowance { recipients } => {
+            try_use_locked_allowance(deps, env, info, recipients)
+        }
+        ExecuteMsg::WithdrawLockedAllowance { amount } => {
+            try_withdraw_locked_allowance(deps, env, info, amount)
+        }
     }
 }
 

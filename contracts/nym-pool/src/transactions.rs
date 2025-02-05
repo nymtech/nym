@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::NYM_POOL_STORAGE;
-use cosmwasm_std::{DepsMut, Env, MessageInfo, Response};
-use nym_pool_contract_common::{Allowance, NymPoolContractError};
+use cosmwasm_std::{Coin, DepsMut, Env, MessageInfo, Response};
+use nym_pool_contract_common::{Allowance, NymPoolContractError, TransferRecipient};
 
 pub fn try_update_contract_admin(
     mut deps: DepsMut<'_>,
@@ -48,6 +48,60 @@ pub fn try_revoke_grant(
 
     // TODO: emit events
     Ok(Response::new())
+}
+
+pub fn try_use_allowance(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    recipients: Vec<TransferRecipient>,
+) -> Result<Response, NymPoolContractError> {
+    todo!()
+}
+
+pub fn try_withdraw_allowance(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    amount: Coin,
+) -> Result<Response, NymPoolContractError> {
+    todo!()
+}
+
+pub fn try_lock_allowance(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    amount: Coin,
+) -> Result<Response, NymPoolContractError> {
+    todo!()
+}
+
+pub fn try_unlock_allowance(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    amount: Coin,
+) -> Result<Response, NymPoolContractError> {
+    todo!()
+}
+
+pub fn try_use_locked_allowance(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    recipients: Vec<TransferRecipient>,
+) -> Result<Response, NymPoolContractError> {
+    todo!()
+}
+
+pub fn try_withdraw_locked_allowance(
+    deps: DepsMut<'_>,
+    env: Env,
+    info: MessageInfo,
+    amount: Coin,
+) -> Result<Response, NymPoolContractError> {
+    todo!()
 }
 
 #[cfg(test)]

@@ -1,7 +1,10 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
-use crate::queries::query_admin;
+use crate::queries::{
+    query_admin, query_available_tokens, query_grant, query_granter, query_granters_paged,
+    query_grants_paged, query_locked_tokens, query_locked_tokens_paged, query_total_locked_tokens,
+};
 use crate::storage::NYM_POOL_STORAGE;
 use crate::transactions::{try_grant_allowance, try_revoke_grant, try_update_contract_admin};
 use cosmwasm_std::{
@@ -56,14 +59,22 @@ pub fn execute(
 pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> Result<Binary, NymPoolContractError> {
     match msg {
         QueryMsg::Admin {} => Ok(to_json_binary(&query_admin(deps)?)?),
-        QueryMsg::GetAvailableTokens {} => todo!(),
-        QueryMsg::GetTotalLockedTokens {} => todo!(),
-        QueryMsg::GetLockedTokens { grantee } => todo!(),
-        QueryMsg::GetLockedTokensPaged { limit, start_after } => todo!(),
-        QueryMsg::GetGrant { grantee } => todo!(),
-        QueryMsg::GetGranter { granter } => todo!(),
-        QueryMsg::GetGrantersPaged { limit, start_after } => todo!(),
-        QueryMsg::GetGrantsPaged { limit, start_after } => todo!(),
+        QueryMsg::GetAvailableTokens {} => Ok(to_json_binary(&query_available_tokens(deps, env)?)?),
+        QueryMsg::GetTotalLockedTokens {} => Ok(to_json_binary(&query_total_locked_tokens(deps)?)?),
+        QueryMsg::GetLockedTokens { grantee } => {
+            Ok(to_json_binary(&query_locked_tokens(deps, grantee)?)?)
+        }
+        QueryMsg::GetLockedTokensPaged { limit, start_after } => Ok(to_json_binary(
+            &query_locked_tokens_paged(deps, limit, start_after)?,
+        )?),
+        QueryMsg::GetGrant { grantee } => Ok(to_json_binary(&query_grant(deps, grantee)?)?),
+        QueryMsg::GetGranter { granter } => Ok(to_json_binary(&query_granter(deps, granter)?)?),
+        QueryMsg::GetGrantersPaged { limit, start_after } => Ok(to_json_binary(
+            &query_granters_paged(deps, limit, start_after)?,
+        )?),
+        QueryMsg::GetGrantsPaged { limit, start_after } => Ok(to_json_binary(
+            &query_grants_paged(deps, limit, start_after)?,
+        )?),
     }
 }
 

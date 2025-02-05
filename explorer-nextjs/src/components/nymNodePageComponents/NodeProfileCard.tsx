@@ -1,7 +1,14 @@
 "use client";
 
 import { useChain } from "@cosmos-kit/react";
-import { Box, Button, Skeleton, Stack, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Skeleton,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import { useQuery } from "@tanstack/react-query";
 import DOMPurify from "isomorphic-dompurify";
 import { useCallback, useState } from "react";
@@ -141,6 +148,13 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
     nodeInfo?.self_description.details,
   ).replace(/&amp;/g, "&");
 
+  // get full country name
+  const countryName = (countryCode: string) => {
+    const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+    return <span>{regionNames.of(countryCode)}</span>;
+  };
+
   return (
     <ExplorerCard label="Nym Node" sx={{ height: "100%" }}>
       <Stack gap={1}>
@@ -158,10 +172,18 @@ export const NodeProfileCard = ({ id }: INodeProfileCardProps) => {
         {nodeInfo.description.auxiliary_details.location && (
           <Box display={"flex"} gap={1}>
             <Typography variant="h6">Location:</Typography>
-            <CountryFlag
-              countryCode={nodeInfo.description.auxiliary_details.location}
-              countryName={nodeInfo.description.auxiliary_details.location}
-            />
+            <Tooltip
+              title={countryName(
+                nodeInfo.description.auxiliary_details.location,
+              )}
+            >
+              <Box>
+                <CountryFlag
+                  countryCode={nodeInfo.description.auxiliary_details.location}
+                  countryName={nodeInfo.description.auxiliary_details.location}
+                />
+              </Box>
+            </Tooltip>
           </Box>
         )}
         {nodeInfo && (

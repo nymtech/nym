@@ -343,6 +343,13 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     [], // Add dependencies if necessary
   );
 
+  // get full country name
+  const countryName = useCallback((countryCode: string) => {
+    const regionNames = new Intl.DisplayNames(["en"], { type: "region" });
+
+    return <span>{regionNames.of(countryCode)}</span>;
+  }, []);
+
   const columns: MRT_ColumnDef<DelegationWithNodeDetails>[] = useMemo(
     () => [
       {
@@ -397,7 +404,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         Header: <ColumnHeading>Location</ColumnHeading>,
         Cell: ({ row }) =>
           row.original.node?.countryCode && row.original.node?.countryName ? (
-            <Tooltip title={row.original.node?.countryName}>
+            <Tooltip title={countryName(row.original.node?.countryName)}>
               <Box>
                 <CountryFlag
                   countryCode={row.original.node.countryCode}
@@ -507,7 +514,7 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         },
       },
     ],
-    [handleActionSelect, favorites, getTooltipTitle],
+    [handleActionSelect, favorites, getTooltipTitle, countryName],
   );
 
   const table = useMaterialReactTable({

@@ -22,8 +22,6 @@ export default async function NymNode({
 
     const observatoryNymNode = await fetchNodeInfo(id);
 
-    console.log("observatoryNymNode :>> ", observatoryNymNode);
-
     if (!observatoryNymNode) {
       return null;
     }

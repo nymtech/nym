@@ -56,7 +56,7 @@ export const fetchGatewayStatus = async (
 
 export const fetchNodeInfo = async (
   id: number,
-): Promise<IObservatoryNode | null> => {
+): Promise<IObservatoryNode | undefined> => {
   const response = await fetch(DATA_OBSERVATORY_NODES_URL, {
     headers: {
       Accept: "application/json",
@@ -69,7 +69,7 @@ export const fetchNodeInfo = async (
   }
 
   const nodes: IObservatoryNode[] = await response.json();
-  return nodes.find((node) => node.node_id === id) || null;
+  return nodes.find((node) => node.node_id === id);
 };
 
 export const fetchNodeDelegations = async (id: number) => {

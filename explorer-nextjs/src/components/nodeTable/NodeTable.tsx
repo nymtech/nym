@@ -41,7 +41,8 @@ const ColumnHeading = ({
   return (
     <Box
       sx={{
-        width: isMobile ? "80px" : "unset",
+        width: "fitContent",
+        maxWidth: "100px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-start",
@@ -53,9 +54,9 @@ const ColumnHeading = ({
         sx={{
           py: 2,
           textAlign: "center",
-          whiteSpace: isMobile ? "normal" : "unset", // Ensure text can wrap
-          wordWrap: isMobile ? "break-word" : "unset", // Break long words
-          overflowWrap: isMobile ? "break-word" : "unset", // Ensure text breaks inside the cell
+          whiteSpace: "normal", // Ensure text can wrap
+          wordWrap: "break-word", // Break long words
+          overflowWrap: "break-word", // Ensure text breaks inside the cell
           textTransform: "uppercase",
         }}
         variant={isMobile ? "caption" : "h5"}
@@ -172,13 +173,23 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         ),
       },
       {
-        id: "node",
+        id: "id",
         header: "",
-        Header: <ColumnHeading>Node</ColumnHeading>,
-        accessorKey: "identity_key",
+        Header: <ColumnHeading>ID</ColumnHeading>,
+        accessorKey: "nodeId",
         Cell: ({ row }) => (
           <Stack spacing={1}>
             <Typography variant="body4">{row.original.nodeId}</Typography>
+          </Stack>
+        ),
+      },
+      {
+        id: "identity_key",
+        header: "",
+        Header: <ColumnHeading>Identity Key</ColumnHeading>,
+        accessorKey: "identity_key",
+        Cell: ({ row }) => (
+          <Stack spacing={1}>
             <Typography variant="body5">{row.original.identity_key}</Typography>
           </Stack>
         ),
@@ -332,7 +343,7 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         border: "none",
         whiteSpace: "unset", // Allow text wrapping in body cells
         wordBreak: "break-word", // Ensure long text breaks correctly
-        // fontSize: isMobile ? "12px" : "14px", // Smaller text size on mobile
+        maxWidth: "100px",
       },
     },
     muiTableBodyRowProps: ({ row }) => ({

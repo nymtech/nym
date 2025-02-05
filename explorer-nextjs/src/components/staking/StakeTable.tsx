@@ -358,24 +358,36 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           ),
       },
       {
-        id: "node",
+        id: "id",
         header: "",
-        Header: <ColumnHeading>Node</ColumnHeading>,
+        Header: <ColumnHeading>ID</ColumnHeading>,
         accessorKey: "delegation.node_id",
         Cell: ({ row }) =>
           row.original.delegation?.node_id ? (
-            <Stack spacing={1}>
-              <Typography variant="body4">
-                {row.original.delegation.node_id || "-"}
-              </Typography>
-              <Typography variant="body5">
-                {row.original.node?.identity_key || "-"}
-              </Typography>
-            </Stack>
+            <Typography variant="body4">
+              {row.original.delegation.node_id || "-"}
+            </Typography>
           ) : (
             "-"
           ),
       },
+      {
+        id: "identity_key",
+        header: "",
+        Header: <ColumnHeading>Identity Key</ColumnHeading>,
+        accessorKey: "delegation.node.identity_key",
+        Cell: ({ row }) =>
+          row.original.node?.identity_key ? (
+            <Typography variant="body4">
+              <Stack spacing={1}>
+                {row.original.node?.identity_key || "-"}
+              </Stack>
+            </Typography>
+          ) : (
+            "-"
+          ),
+      },
+
       {
         id: "location",
         header: "Location",

@@ -126,13 +126,32 @@ mkdir -pv <PATH_TO_TARGET_DIRECTORY>
 # mkdir -pv $HOME/backup/my_nym_node/.nym
 ```
 
-###### 2. Copy configuration folder `.nym` from your VPS to your newly created backup directory
+###### 2. Backup `clients.sqlite` database
+
+- Install `sqlite3`
+```sh
+apt install sqlite3
+```
+- Open sqlite CLI shell inside `clients.sqlite` database
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite
+```
+- Create backup called `clients_backup.sqlite`
+```sh
+.backup .nym/nym-nodes/default-nym-node/data/clients_backup.sqlite
+```
+- Exit sqlite CLI shell
+```sh
+.exit
+```
+
+###### 3. Copy configuration folder `.nym` from your VPS to your newly created backup directory
 
 ```sh
 scp -r <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes/<ID> <PATH_TO_TARGET_DIRECTORY>
 ```
 
-###### 3. Verify the success of the backup
+###### 4. Verify the success of the backup
 
 The `scp` command should print logs, an operator can see directly whether it was successful or if it encountered any error. However, double check that all your needed configuration is in the backup target directory.
 
@@ -227,7 +246,33 @@ The `scp` command should print logs, an operator can see directly whether it was
 * Run a command `echo "$(curl -4 https://ifconfig.me)"` to see your public IPv4
 * Edit config file located at `~/.nym/nym-nodes/<ID>/config/config.toml` correct IP - it's the field under the header `[host]`, called `public_ips = [<PUBLIC_IPS>,]`
 * Add your new location field `location = <LOCATION>`, (formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided).
-* Try to run the node and see if everything works.
+
+###### 5. Restore `clients.sqlite` database
+
+- Install `sqlite3`
+```sh
+apt install sqlite3
+```
+- Open sqlite CLI shell inside `clients.sqlite` database
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite
+```
+- Restore your backup called `clients_backup.sqlite`
+```sh
+.restore .nym/nym-nodes/default-nym-node/data/clients_backup.sqlite
+```
+- Exit sqlite CLI shell
+```sh
+.exit
+```
+- Check integrity
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite "PRAGMA integrity_check;"
+```
+The result should return `ok` if the database is intact.
+
+###### 6. Test & validate your setup
+* Dry run the node and see if everything works.
 * Setup the [systemd](nym-node/configuration.mdx#systemd) automation (don't forget to add the [terms and conditions flag](nym-node/setup.mdx#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
 
 ###### 4. Change the node smart contract info via the wallet interface
@@ -313,21 +358,71 @@ mkdir ~/.nym
 #in case no `nym-node` was initialized previously
 mkdir ~/.nym/nym-nodes
 ```
+###### 2. Backup `clients.sqlite` database
 
-###### 2. Move the node data and keys to the new machine
+- Stop your node
+```sh
+service nym-node stop
+```
+- Install `sqlite3`
+```sh
+apt install sqlite3
+```
+- Open sqlite CLI shell inside `clients.sqlite` database
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite
+```
+- Create backup called `clients_backup.sqlite`
+```sh
+.backup .nym/nym-nodes/default-nym-node/data/clients_backup.sqlite
+```
+- Exit sqlite CLI shell
+```sh
+.exit
+```
+
+###### 3. Move the node data and keys to the new machine
 
 * Open your **local terminal** (as that one's ssh key is authorized in both of the VPS) and run:
 ```sh
 scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:~/.nym/nym-nodes <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:~/.nym/nym-nodes/
 ```
 
-###### 3. Open new/target VPS terminal and configure the node
+###### 4. Open new/target VPS terminal and configure the node
 
 * Edit `~/.nym/nym-nodes/<ID>/config/config.toml` config with the new listening address IP - it's the one under the header `[host]`, called `public_ips = [<PUBLIC_IPS>,]` and add your new location (field `location = <LOCATION>`, formats like: 'Jamaica', or two-letter alpha2 (e.g. 'JM'), three-letter alpha3 (e.g. 'JAM') or three-digit numeric-3 (e.g. '388') can be provided). You can see your IP by running a command `echo "$(curl -4 https://ifconfig.me)"`.
 
-* Try to run the node and see if everything works.
 
-* Setup the [systemd](nym-node/configuration.mdx#systemd) automation (don't forget to add the [terms and conditions flag](nym-node/setup.mdx#terms--conditions)) to `ExecStart` command, reload the daemon and run the service. If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic by opening your **local terminal** (as that one's ssh key is authorized in both of the VPS) and running:
+###### 5. Restore `clients.sqlite` database
+
+- Install `sqlite3`
+```sh
+apt install sqlite3
+```
+- Open sqlite CLI shell inside `clients.sqlite` database
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite
+```
+- Restore your backup called `clients_backup.sqlite`
+```sh
+.restore .nym/nym-nodes/default-nym-node/data/clients_backup.sqlite
+```
+- Exit sqlite CLI shell
+```sh
+.exit
+```
+- Check integrity
+```sh
+sqlite3 ~/.nym/nym-nodes/default-nym-node/data/clients.sqlite "PRAGMA integrity_check;"
+```
+The result should return `ok` if the database is intact.
+
+###### 6. Test & validate your setup
+* Dry run the node and see if everything works.
+* Setup the [systemd](nym-node/configuration.mdx#systemd) automation (don't forget to add the [terms and conditions flag](nym-node/setup.mdx#terms--conditions)) to `ExecStart` command, reload the daemon and run the service.
+
+
+* If you want to use the exact same service config file, you can also copy it from one VPS to another following the same logic by opening your **local terminal** (as that one's ssh key is authorized in both of the VPS) and running:
 ```sh
 scp -r -3 <SOURCE_USER_NAME>@<SOURCE_HOST_ADDRESS>:/etc/systemd/system/nym-node.service <TARGET_USER_NAME>@<TARGET_HOST_ADDRESS>:/etc/systemd/system/nym-node.service
 ```

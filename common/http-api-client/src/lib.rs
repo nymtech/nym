@@ -175,6 +175,7 @@ pub struct Client {
 }
 
 impl Client {
+    /// Create a new http `Client`
     // no timeout until https://github.com/seanmonstar/reqwest/issues/1135 is fixed
     pub fn new(base_url: Url, timeout: Option<Duration>) -> Self {
         Self::new_url::<_, String>(base_url, timeout).expect(
@@ -182,6 +183,7 @@ impl Client {
         )
     }
 
+    /// Attempt to create a new http client from a something that can be converted to a URL
     pub fn new_url<U, E>(url: U, timeout: Option<Duration>) -> Result<Self, HttpClientError<E>>
     where
         U: IntoUrl,
@@ -194,6 +196,9 @@ impl Client {
         }
     }
 
+    /// Creates a [`ClientBuilder`] to configure a [`Client`].
+    ///
+    /// This is the same as [`ClientBuilder::new()`].
     pub fn builder<U, E>(url: U) -> Result<ClientBuilder, HttpClientError<E>>
     where
         U: IntoUrl,
@@ -206,6 +211,7 @@ impl Client {
         self.base_url = new_url
     }
 
+    ///
     pub fn current_url(&self) -> &Url {
         &self.base_url
     }
@@ -227,19 +233,39 @@ pub trait ApiClientCore {
         K: AsRef<str>,
         V: AsRef<str>;
 
-    fn create_request_endpoint<B, S>(
+    fn create_request_endpoint<B, S, E>(
         &self,
         method: reqwest::Method,
         endpoint: S,
         json_body: Option<&B>,
-    ) -> RequestBuilder
+    ) -> Result<RequestBuilder, HttpClientError<E>>
     where
         B: Serialize + ?Sized,
         S: AsRef<str>,
+        E: Display,
     {
-        // let url = .join(endpoint.as_ref())?
-        let path: Vec<&str> = endpoint.as_ref().split('/').collect();
-        self.create_request(method, &path, NO_PARAMS, json_body)
+        // Use a stand-in url to extract the path and queries from the provided endpoint string
+        // which could potentially fail.
+        //
+        // This parse cannot fail
+        let mut standin_url: Url = "http://example.com".parse().unwrap();
+
+        match endpoint.as_ref().split_once("?") {
+            Some((path, query)) => {
+                standin_url.set_path(path);
+                standin_url.set_query(Some(query));
+            }
+            // There is no query in the provided endpoint
+            None => standin_url.set_path(endpoint.as_ref()),
+        }
+
+        let path: Vec<&str> = match standin_url.path_segments() {
+            Some(segments) => segments.collect(),
+            None => Vec::new(),
+        };
+        let params: Vec<(String, String)> = standin_url.query_pairs().into_owned().collect();
+
+        Ok(self.create_request(method, &path, &params, json_body))
     }
 
     async fn send<E>(&self, request: RequestBuilder) -> Result<Response, HttpClientError<E>>
@@ -279,15 +305,12 @@ impl ApiClientCore for Client {
         K: AsRef<str>,
         V: AsRef<str>,
     {
-        let url = match self.front {
-            Some(ref front) => {
-                let mut fronted_url = self.base_url.clone();
-                fronted_url.set_host(front.host_str()).unwrap();
+        let mut url = sanitize_url(&self.base_url, path, params);
 
-                sanitize_url(&fronted_url, path, params)
-            }
-            None => sanitize_url(&self.base_url, path, params),
-        };
+        if let Some(ref front) = self.front {
+            // this should never fail as we are transplanting the host from one url to another
+            url.set_host(front.host_str()).unwrap();
+        }
 
         let mut request = self.reqwest_client.request(method.clone(), url);
 
@@ -325,7 +348,9 @@ impl ApiClientCore for Client {
     }
 }
 
-// define those methods on the trait for nicer extensions (and not having to type the thing twice)
+/// Common usage functionality for the http client.
+/// 
+/// These functions allow for cleaner downstream usage free of type parameters and unneeded imports.
 #[cfg_attr(target_arch = "wasm32", async_trait(?Send))]
 #[cfg_attr(not(target_arch = "wasm32"), async_trait)]
 pub trait ApiClient: ApiClientCore {
@@ -385,6 +410,7 @@ pub trait ApiClient: ApiClientCore {
         self.create_request(reqwest::Method::PATCH, path, params, Some(json_body))
     }
 
+    /// Convenience method to send a GET request.
     #[instrument(level = "debug", skip_all, fields(path=?path))]
     async fn send_get_request<K, V, E>(
         &self,
@@ -400,6 +426,7 @@ pub trait ApiClient: ApiClientCore {
             .await
     }
 
+    /// Convenience method to send a POST request including json data.
     async fn send_post_request<B, K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -416,6 +443,7 @@ pub trait ApiClient: ApiClientCore {
             .await
     }
 
+    /// Convenience method to send a DELETE request.
     async fn send_delete_request<K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -430,6 +458,7 @@ pub trait ApiClient: ApiClientCore {
             .await
     }
 
+    /// Convenience method to send a PATCH request including json data.
     async fn send_patch_request<B, K, V, E>(
         &self,
         path: PathSegments<'_>,
@@ -534,7 +563,7 @@ pub trait ApiClient: ApiClientCore {
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send,
     {
-        let req = self.create_request_endpoint(reqwest::Method::GET, endpoint, None::<&()>);
+        let req = self.create_request_endpoint(reqwest::Method::GET, endpoint, None::<&()>)?;
         let res = self.send(req).await?;
         parse_response(res, false).await
     }
@@ -551,7 +580,7 @@ pub trait ApiClient: ApiClientCore {
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send,
     {
-        let req = self.create_request_endpoint(reqwest::Method::POST, endpoint, Some(json_body));
+        let req = self.create_request_endpoint(reqwest::Method::POST, endpoint, Some(json_body))?;
         let res = self.send(req).await?;
         parse_response(res, false).await
     }
@@ -563,7 +592,7 @@ pub trait ApiClient: ApiClientCore {
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send,
     {
-        let req = self.create_request_endpoint(reqwest::Method::DELETE, endpoint, None::<&()>);
+        let req = self.create_request_endpoint(reqwest::Method::DELETE, endpoint, None::<&()>)?;
         let res = self.send(req).await?;
         parse_response(res, false).await
     }
@@ -580,7 +609,8 @@ pub trait ApiClient: ApiClientCore {
         E: Display + DeserializeOwned,
         S: AsRef<str> + Sync + Send,
     {
-        let req = self.create_request_endpoint(reqwest::Method::PATCH, endpoint, Some(json_body));
+        let req =
+            self.create_request_endpoint(reqwest::Method::PATCH, endpoint, Some(json_body))?;
         let res = self.send(req).await?;
         parse_response(res, false).await
     }
@@ -623,7 +653,7 @@ fn sanitize_url<K: AsRef<str>, V: AsRef<str>>(
 
 /// Attempt to parse a json object from an HTTP response
 #[instrument(level = "debug", skip_all)]
-async fn parse_response<T, E>(res: Response, allow_empty: bool) -> Result<T, HttpClientError<E>>
+pub async fn parse_response<T, E>(res: Response, allow_empty: bool) -> Result<T, HttpClientError<E>>
 where
     T: DeserializeOwned,
     E: DeserializeOwned + Display,

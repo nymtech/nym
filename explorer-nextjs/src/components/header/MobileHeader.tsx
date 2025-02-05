@@ -148,7 +148,7 @@ const MobileMenuHeader = ({
           </IconButton>
         </Box>
       </Box>
-      <ConnectWallet size="small" />
+      {!drawerOpen && <ConnectWallet size="small" />}
       <Box height={40} />
     </Wrapper>
   );

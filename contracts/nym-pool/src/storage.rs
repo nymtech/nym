@@ -178,7 +178,7 @@ impl NymPoolStorage {
         env: &Env,
         granter: &GranterAddress,
         grantee: GranteeAddress,
-        allowance: Allowance,
+        mut allowance: Allowance,
     ) -> Result<(), NymPoolContractError> {
         // the granter should be permitted to add new grants
         self.ensure_is_whitelisted_granter(deps.as_ref(), granter)?;
@@ -208,6 +208,9 @@ impl NymPoolStorage {
                 });
             }
         }
+
+        // set initial state based on the env
+        allowance.set_initial_state(env);
 
         self.grants.save(
             deps.storage,

@@ -42,7 +42,7 @@ const ColumnHeading = ({
     <Box
       sx={{
         width: "fitContent",
-        maxWidth: "100px",
+        maxWidth: "110px",
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-start",

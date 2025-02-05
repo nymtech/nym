@@ -75,7 +75,7 @@ From `nym-node v1.3.0` operators can technically choose multiple functionalities
 **WE ASK OPERATORS TO ASSIGN ONLY ONE FUNCTIONALITY TO `--mode` OPTION PER NODE. PLEASE SELECT ONE MODE ARGUMENT OUT OF: `mixnode` or `entry-gateway` or `exit-gateway`!**
 </Callout>
 
-- Updated maintenance guides to [backup](nodes/maintenance#backup-a-node), [restore](nodes/maintenance#restoring-a-node) and [move](nodes/maintenance#moving-a-node) a node, with important info about `clients.sqlite` database
+- Updated maintenance guides to [backup](nodes/maintenance#backup-a-node), [restore](nodes/maintenance#restoring-a-node) and [move](nodes/maintenance#moving-a-node) a node, containing a new and important commands to backup and restore `clients.sqlite` database.
 
 - [New explanation of `nym-node` functionalities](nodes/nym-node/setup#functionality-mode) describing how Gateways get selected in Mixnet mode and Wireguard mode. 
 
@@ -184,6 +184,7 @@ DiciBkjHovXzTDE2EFJKPNj3TGw2oQjr7HPSas2YQPiQ
 ADjpymCgjFsE5m7YvnZFxLMscg85dCUUesR5g8yN3Mzz
 C9dEABjtFRMD1x4ZnbqnsELGJgutT73bPCfYzqBe7sHB
 
+
 # Mixnodes
 2FGgY5zWq6JP1BvpnLPbedWRYYAZELFCT9rMybNhnxpo
 4nKkwPSbkbtkw3yrRKQVAVdviNgFgcNskgcSGdT2Sucy
@@ -199,19 +200,19 @@ Undelegated due to high saturation:
 
 #### Service Grant Program v2
 
-Aside from delegating on top of nodes, Nym runs a Service Grant Program (SGP) to support Exit Gateway operators before they will be rewarded by collecting [zk-nym tickets](../network/cryptography/zk-nym) from users subscription. Operators included in SGP are long term active community members with the highest requirements on the technical setup and upgrading pace. We are about to start a second iteration of SGP very soon (SGPv2). The final slots and locations are yet to be concluded. Priority to participate in SGv2 will be given to the current operators in SGP. Based on the number of slots, we will then determine how many more operators can sign up. 
+Aside from delegating on top of nodes, Nym runs a Service Grant Program (SGP) to support Exit Gateway operators before they will be rewarded by collecting [zk-nym tickets](../network/cryptography/zk-nym) from users subscription. Operators included in SGP are long term active community members with the highest requirements on the technical setup and upgrading pace. We are about to start a second iteration of SGP very soon (SGPv2). The final slots and locations are yet to be concluded. Priority to participate in SGPv2 will be given to the current operators in SGP. Based on the number of slots, we will then determine how many more operators can sign up. 
 
 ##### Rules of SGPv2
 
 <Callout type="info">
-**We will share more info soon in the channels. The rules are not set in stone and could potentially be altered or updated in the future! Do *not* purchase new servers neither migrate your nodes just yet**
+**We will share more info soon in the channels. The rules are not set in stone and could potentially be altered or updated in the future! Do *not* purchase new servers neither migrate your nodes just yet.**
 </Callout>
 
 As we finalising last details of *"Project Smoosh"*, where one binary - `nym-node` - can run as an `entry-gateway`, `mixnode` or `exit-gateway` in Mixnet mode as well as `entry-gateway` or `exit-gateway` in Wireguard mode, we plan to step up the game. SGPv2 grants will be higher if operators can meet new requirements. 
 
 **Minimum Specs & Requirements**
 
-These are minimum requirements to become a part of SGPv2.
+These are minimum requirements to become a part of SGPv2. We aim to have nodes on dedicated servers, with exceptions for much stronger VPS to meet the needed criteria while sharing server with other users.
 
 <div>
   <Tabs items={[
@@ -220,7 +221,6 @@ These are minimum requirements to become a part of SGPv2.
     ]} defaultIndex="0">
     <MyTab>
 #### `nym-node` - dedicated server
-If you are about to start a new Nym Node, look for a server with this specification:
 
 | **Hardware**   | **Minimum Specification**          |
 | :---           | ---:                               |
@@ -245,7 +245,6 @@ If you are about to start a new Nym Node, look for a server with this specificat
     </MyTab>
     <MyTab>
 #### `nym-node` - VPS
-If you are about to start a new Nym Node, look for a server with this specification:
 
 | **Hardware**   | **Minimum Specification**          |
 | :---           | ---:                               |
@@ -281,7 +280,7 @@ If you are about to start a new Nym Node, look for a server with this specificat
 
 - [build(deps): bump http from `1.1.0` to `1.2.0`](https://github.com/nymtech/nym/pull/5228): Bumps [http](https://github.com/hyperium/http) from `1.1.0` to `1.2.0`.
 
-- [`http-api-client`: deduplicate code](https://github.com/nymtech/nym/pull/5267): After adding PATCH support in [\#5260]https://github.com/nymtech/nym/pull/5260), it's now time to de-duplicate some of the code
+- [`http-api-client`: deduplicate code](https://github.com/nymtech/nym/pull/5267): After adding PATCH support in [\#5260](https://github.com/nymtech/nym/pull/5260), it's now time to de-duplicate some of the code
 
 - [Add windows to CI builds](https://github.com/nymtech/nym/pull/5269)
 

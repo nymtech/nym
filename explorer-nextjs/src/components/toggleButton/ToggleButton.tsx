@@ -36,7 +36,7 @@ const ExplorerButtonGroup = ({
   });
 
   const queryClient = useQueryClient();
-
+  // check epoch update
   useEffect(() => {
     const checkEpochStatus = () => {
       if (!data?.dateTime) return;
@@ -46,9 +46,9 @@ const ExplorerButtonGroup = ({
     };
 
     checkEpochStatus();
-    const interval = setInterval(checkEpochStatus, 10000);
+    const interval = setInterval(checkEpochStatus, 60000);
     return () => clearInterval(interval);
-  }, [data]);
+  });
 
   const handleRefetch = useCallback(() => {
     queryClient.invalidateQueries();

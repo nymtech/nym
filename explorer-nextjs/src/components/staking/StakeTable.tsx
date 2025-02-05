@@ -527,8 +527,13 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
     enableHiding: false,
     paginationDisplayMode: "pages",
     renderEmptyRowsFallback: () => (
-      <Stack gap={3} sx={{ p: 5 }} justifyContent="center" alignItems="center">
-        <Typography variant="body3">
+      <Stack
+        gap={3}
+        sx={{ p: 5 }}
+        justifyContent={isMobile ? "flex-start" : "center"}
+        alignItems={isMobile ? "flex-start" : "center"}
+      >
+        <Typography variant="body3" width={isMobile ? 300 : "unset"}>
           You haven&apos;t staked on any nodes yet. Stake on a node to start
           earning rewards.
         </Typography>

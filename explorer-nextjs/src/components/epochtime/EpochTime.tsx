@@ -40,7 +40,10 @@ const NextEpochTime = () => {
 
     checkEpochStatus();
 
+    // calculate remainting minutes
     const updateMinutesRemaining = () => {
+      if (!data?.dateTime) return;
+
       const epochTime = new Date(data.dateTime).getTime();
       const now = Date.now();
       setMinutesRemaining(Math.max(0, Math.floor((epochTime - now) / 60000)));

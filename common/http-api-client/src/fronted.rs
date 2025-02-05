@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: Apache-2.0
 
 //! Utilities for and implementation of request tunneling
-#![deny(missing_docs)]
 
 use std::sync::atomic::{AtomicUsize, Ordering};
 
@@ -10,6 +9,7 @@ use crate::ClientBuilder;
 
 use url::Url;
 
+#[cfg(feature = "tunneling")]
 #[derive(Debug)]
 pub(crate) struct Front {
     pub(crate) opts: FrontOptions,
@@ -31,12 +31,14 @@ impl Clone for Front {
 }
 
 impl Front {
+    #[cfg(feature = "tunneling")]
     pub(crate) fn host_str(&self) -> Option<&str> {
         self.fronts
             .get(self.current_front_idx.load(Ordering::Relaxed))
             .and_then(|url| url.host_str())
     }
 
+    #[cfg(feature = "tunneling")]
     pub(crate) fn is_enabled(&self, is_retry: bool) -> bool {
         match self.opts.policy {
             FrontPolicy::Off => false,
@@ -46,6 +48,7 @@ impl Front {
         }
     }
 
+    #[cfg(feature = "tunneling")]
     fn update_front(&self) {
         match self.opts.strategy {
             FrontUrlStrategy::RoundRobin => {
@@ -58,6 +61,7 @@ impl Front {
     }
 }
 
+#[cfg(feature = "tunneling")]
 #[derive(Debug, PartialEq, Clone)]
 pub struct FrontOptions {
     pub policy: FrontPolicy,
@@ -76,7 +80,7 @@ impl Default for FrontOptions {
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
-
+#[cfg(feature = "tunneling")]
 pub enum FrontPolicy {
     Always,
     #[default]
@@ -86,6 +90,7 @@ pub enum FrontPolicy {
 }
 
 #[derive(Debug, Default, PartialEq, Clone)]
+#[cfg(feature = "tunneling")]
 pub enum FrontUrlStrategy {
     #[default]
     RoundRobin,
@@ -93,6 +98,7 @@ pub enum FrontUrlStrategy {
 
 impl ClientBuilder {
     /// Enable and configure request tunneling for API requests.
+    #[cfg(feature = "tunneling")]
     pub fn with_fronting(mut self, fronts: Vec<Url>, opts: FrontOptions) -> Self {
         let front = Front {
             opts,
@@ -112,7 +118,7 @@ impl ClientBuilder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{NO_PARAMS, ApiClientCore};
+    use crate::{ApiClientCore, NO_PARAMS};
 
     #[tokio::test]
     async fn vpn_api_works() {
@@ -145,7 +151,7 @@ mod tests {
     async fn nym_api_works() {
         let opts = FrontOptions::default();
         let fronts = vec!["https://www.as.com".parse().unwrap()]; // fastly
-        // let fronts = vec!["https://cdn77.com".parse().unwrap()]; // cdn77
+                                                                  // let fronts = vec!["https://cdn77.com".parse().unwrap()]; // cdn77
 
         let client = ClientBuilder::new::<&str, &str>("https://validator.nymtech.net")
             .expect("bad url")

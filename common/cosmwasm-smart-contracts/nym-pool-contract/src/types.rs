@@ -100,7 +100,8 @@ pub mod grants {
                 Allowance::Basic(_) => {}
                 Allowance::ClassicPeriodic(allowance) => allowance.set_initial_state(env),
                 Allowance::CumulativePeriodic(allowance) => allowance.set_initial_state(env),
-                Allowance::Delayed(allowance) => allowance.set_initial_state(env),
+                // nothing to do for the delayed allowance
+                Allowance::Delayed(_) => {}
             }
         }
     }
@@ -136,10 +137,6 @@ pub mod grants {
             }
 
             Ok(())
-        }
-
-        pub(super) fn set_initial_state(&self, env: &Env) {
-            todo!()
         }
     }
 
@@ -199,8 +196,32 @@ pub mod grants {
             Ok(())
         }
 
-        pub(super) fn set_initial_state(&self, env: &Env) {
-            todo!()
+        /// The value that can be spend in the period is the lesser of the basic spend limit
+        /// and the period spend limit
+        ///
+        /// ```go
+        ///    if _, isNeg := a.Basic.SpendLimit.SafeSub(a.PeriodSpendLimit...); isNeg && !a.Basic.SpendLimit.Empty() {
+        ///        a.PeriodCanSpend = a.Basic.SpendLimit
+        ///    } else {
+        ///        a.PeriodCanSpend = a.PeriodSpendLimit
+        ///    }
+        /// ```
+        fn determine_period_can_spend(&self) -> Coin {
+            let Some(ref basic_limit) = self.basic.spend_limit else {
+                // if there's no spend limit, there's nothing to compare against
+                return self.period_spend_limit.clone();
+            };
+
+            if basic_limit.amount < self.period_spend_limit.amount {
+                basic_limit.clone()
+            } else {
+                self.period_spend_limit.clone()
+            }
+        }
+
+        pub(super) fn set_initial_state(&mut self, env: &Env) {
+            self.period_reset_unix_timestamp = env.block.time.seconds() + self.period_duration_secs;
+            self.period_can_spend = Some(self.determine_period_can_spend())
         }
     }
 
@@ -287,8 +308,11 @@ pub mod grants {
             Ok(())
         }
 
-        pub(super) fn set_initial_state(&self, env: &Env) {
-            todo!()
+        pub(super) fn set_initial_state(&mut self, env: &Env) {
+            self.last_grant_applied_unix_timestamp = env.block.time.seconds();
+
+            // initially we can spend equivalent of a single grant
+            self.spendable = Some(self.period_grant.clone())
         }
     }
 
@@ -320,10 +344,6 @@ pub mod grants {
             }
 
             Ok(())
-        }
-
-        pub(super) fn set_initial_state(&self, env: &Env) {
-            todo!()
         }
     }
 }

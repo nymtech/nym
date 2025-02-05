@@ -525,7 +525,11 @@ const StakeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
           You haven&apos;t staked on any nodes yet. Stake on a node to start
           earning rewards.
         </Typography>
-        <Button variant="contained" size="large">
+        <Button
+          variant="contained"
+          size="large"
+          onClick={(e) => e.stopPropagation()}
+        >
           <Link href="/explorer" underline="none" color="inherit">
             Stake
           </Link>

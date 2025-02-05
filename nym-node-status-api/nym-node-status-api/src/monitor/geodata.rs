@@ -41,6 +41,9 @@ impl IpInfoClient {
     pub(crate) async fn check_remaining_bandwidth(
         &self,
     ) -> anyhow::Result<ipinfo::MeResponseRequests> {
+        if self.token.is_empty() {
+            panic!("IPINFO_API_TOKEN not set");
+        }
         let url = format!("https://ipinfo.io/me?token={}", &self.token);
         let response = self
             .client

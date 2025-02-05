@@ -36,7 +36,7 @@
         },
         {
           "type": "paragraph",
-          "text": "**Designed in a mobile first way, with integrated onboarding articles and live network data. The application is intentionally kept lightweight and barebones, while opening up a new social interaction layer of the mixnet. The NGM Explorer is currently in open beta release, which means that each released version of the app is live-tested by the core community of Nym node operators, where future features and updates are informed by feedback on the Node Operators forum."
+          "text": "Designed in a mobile first way, with integrated onboarding articles and live network data. The application is intentionally kept lightweight and barebones, while opening up a new social interaction layer of the mixnet. The NGM Explorer is currently in open beta release, which means that each released version of the app is live-tested by the core community of Nym node operators, where future features and updates are informed by feedback on the Node Operators forum."
         }
       ]
     },

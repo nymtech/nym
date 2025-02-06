@@ -69,5 +69,11 @@ FROM ubuntu:24.04
 
 WORKDIR /nym
 
+RUN apt update && apt install -y wget
+
 COPY --from=builder /usr/src/nym/target/release/nym-node ./
-ENTRYPOINT [ "/nym/nym-node" ]
+COPY ./nym-node/entrypoint.sh ./
+RUN wget https://builds.ci.nymte.ch/develop/nym-cli
+RUN chmod +x nym-cli
+
+ENTRYPOINT [ "./entrypoint.sh" ]

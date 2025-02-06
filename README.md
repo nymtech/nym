@@ -13,7 +13,7 @@ The platform is composed of multiple Rust crates. Top-level executable binary cr
 * `nym-client` - an executable which you can build into your own applications. Use it for interacting with Nym nodes.
 * `nym-socks5-client` - a Socks5 proxy you can run on your machine and use with existing applications.
 * `nym-explorer` - a (projected) block explorer and (existing) mixnet viewer.
-* `nym-wallet` - a desktop wallet implemented using the [Tauri](https://tauri.studio/en/docs/about/intro) framework.
+* `nym-wallet` - a desktop wallet implemented using the [Tauri](https://tauri.app)) framework.
 * `nym-cli` - a tool for interacting with the network from the CLI.
 <!-- coming soon
 * `nym-network-monitor` - sends packets through the full system to check that they are working as expected, and stores node uptime histories as the basis of a rewards system ("mixmining" or "proof-of-mixing").
@@ -66,4 +66,4 @@ As a general approach, licensing is as follows this pattern:
 - libraries and components are Apache 2.0 or MIT
 - documentation is Apache 2.0 or CC0-1.0
 
-Nym Node Operators and Validators Temrs and Conditions can be found [here](https://nym.com/terms-and-conditions/operators/v1.0.0).
+Nym Node Operators and Validators Terms and Conditions can be found [here](https://nym.com/operators-validators-terms).

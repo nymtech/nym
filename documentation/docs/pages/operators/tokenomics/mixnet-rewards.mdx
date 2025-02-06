@@ -146,7 +146,7 @@ Besides these values, the API is also looking whether the node is bonded in Mixn
 **The node score is calculated with this formula:**
 
 <Callout type="info" emoji="📌">
-> **active_set_selection_probability = total_stake \* ( config_score \* node_performance ) ^ 20 )**
+> **active_set_selection_probability = total_stake \* (( config_score \* node_performance ) ^ 20 )**
 </Callout>
 
 Note that the score helps prioritize some nodes over others. If all available nodes have the same score, then the selection is done uniformly at random. By raising the config and performance components to 20, values of these parameters that are below one incur a heavy penalization for the node’s selection chances.

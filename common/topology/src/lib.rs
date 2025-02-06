@@ -11,7 +11,7 @@ use std::borrow::Borrow;
 use std::collections::{HashMap, HashSet};
 use std::fmt::Display;
 use std::net::IpAddr;
-use tracing::{debug, warn};
+use tracing::{debug, trace, warn};
 
 pub use crate::node::{EntryDetails, RoutingNode, SupportedRoles};
 pub use error::NymTopologyError;
@@ -293,7 +293,7 @@ impl NymTopology {
         let has_exit_gateways = !self.rewarded_set.exit_gateways.is_empty();
         let has_entry_gateways = !self.rewarded_set.entry_gateways.is_empty();
 
-        debug!(
+        trace!(
             has_layer1 = %has_layer1,
             has_layer2 = %has_layer2,
             has_layer3 = %has_layer3,

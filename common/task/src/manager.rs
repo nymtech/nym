@@ -221,7 +221,7 @@ impl TaskManager {
         }
     }
 
-    pub(crate) async fn wait_for_graceful_shutdown(&mut self) {
+    pub async fn wait_for_graceful_shutdown(&mut self) {
         if let Some(notify_rx) = self.notify_rx.take() {
             drop(notify_rx);
         }
@@ -315,7 +315,7 @@ impl TaskClient {
     const MAX_NAME_LENGTH: usize = 128;
     const OVERFLOW_NAME: &'static str = "reached maximum TaskClient children name depth";
 
-    const SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT: Duration = Duration::from_secs(5);
+    const SHUTDOWN_TIMEOUT_WAITING_FOR_SIGNAL_ON_EXIT: Duration = Duration::from_secs(10);
 
     fn new(
         notify: watch::Receiver<()>,

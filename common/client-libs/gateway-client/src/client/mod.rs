@@ -40,8 +40,6 @@ use url::Url;
 use std::os::fd::RawFd;
 #[cfg(not(target_arch = "wasm32"))]
 use tokio::time::sleep;
-#[cfg(not(target_arch = "wasm32"))]
-use tokio_tungstenite::connect_async;
 
 #[cfg(not(unix))]
 use std::os::raw::c_int as RawFd;
@@ -52,6 +50,11 @@ use wasmtimer::tokio::sleep;
 use zeroize::Zeroizing;
 
 pub mod config;
+
+#[cfg(not(target_arch = "wasm32"))]
+pub(crate) mod websockets;
+#[cfg(not(target_arch = "wasm32"))]
+use websockets::connect_async;
 
 pub struct GatewayConfig {
     pub gateway_identity: identity::PublicKey,
@@ -201,15 +204,7 @@ impl<C, St> GatewayClient<C, St> {
             "Attemting to establish connection to gateway at: {}",
             self.gateway_address
         );
-        let ws_stream = match connect_async(&self.gateway_address).await {
-            Ok((ws_stream, _)) => ws_stream,
-            Err(error) => {
-                return Err(GatewayClientError::NetworkConnectionFailed {
-                    address: self.gateway_address.clone(),
-                    source: error,
-                })
-            }
-        };
+        let (ws_stream, _) = connect_async(&self.gateway_address).await?;
 
         self.connection = SocketState::Available(Box::new(ws_stream));
 
@@ -268,6 +263,19 @@ impl<C, St> GatewayClient<C, St> {
                 );
                 Err(err)
             }
+        }
+    }
+
+    pub async fn send_client_request(
+        &mut self,
+        message: ClientRequest,
+    ) -> Result<(), GatewayClientError> {
+        if let Some(shared_key) = self.shared_key() {
+            let encrypted = message.encrypt(&*shared_key)?;
+            Box::pin(self.send_websocket_message(encrypted)).await?;
+            Ok(())
+        } else {
+            Err(GatewayClientError::ConnectionInInvalidState)
         }
     }
 

@@ -123,6 +123,11 @@ impl StatisticsControl {
 
         loop {
             tokio::select! {
+                biased;
+                _ = task_client.recv() => {
+                    log::trace!("StatisticsControl: Received shutdown");
+                    break;
+                },
                 stats_event = self.stats_rx.recv() => match stats_event {
                         Some(stats_event) => self.stats.handle_event(stats_event),
                         None => {
@@ -146,13 +151,8 @@ impl StatisticsControl {
                 _ = local_report_interval.next() => {
                     self.stats.local_report(&mut task_client);
                 }
-                _ = task_client.recv_with_delay() => {
-                    log::trace!("StatisticsControl: Received shutdown");
-                    break;
-                },
             }
         }
-        task_client.recv_timeout().await;
         log::debug!("StatisticsControl: Exiting");
     }
 

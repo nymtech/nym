@@ -65,6 +65,7 @@ pub trait MixnetClientStorage {
     fn gateway_details_store(&self) -> &Self::GatewaysDetailsStore;
 }
 
+#[derive(Clone)]
 pub struct Ephemeral {
     key_store: InMemEphemeralKeys,
     reply_store: reply_storage::Empty,
@@ -120,6 +121,7 @@ impl MixnetClientStorage for Ephemeral {
     }
 }
 
+#[derive(Clone)]
 #[cfg(all(
     not(target_arch = "wasm32"),
     feature = "fs-surb-storage",

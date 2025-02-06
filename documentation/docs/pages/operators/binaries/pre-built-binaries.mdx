@@ -1,5 +1,7 @@
-import { Steps } from 'nextra/components'
+import { Steps } from 'nextra/components';
 import { VarInfo } from 'components/variable-info.tsx';
+import { Tabs } from 'nextra/components';
+import { MyTab } from 'components/generic-tabs.tsx';
 
 # Pre-built Binaries
 
@@ -18,20 +20,62 @@ If the pre-built binaries don't work or are unavailable for your system, you wil
 - Download from your terminal using `curl` or `wget` tool:
 ```sh
 # using curl
-curl -L <LINK> -o <PATH>/nym-node
+curl -L <LINK> -o <PATH>
 
 # using wget
 wget <LINK>
 ```
 In case you want to download binary to your current working directory, drop `<PATH>` from the command
 
-In case you want to download binary to your current working directory, drop `<PATH>` from the command
+###### 2. Verify the binary `sha256sum` hash
 
-###### 2. Make the binary executable
+<div>
+  <Tabs items={[
+    <strong>Manual check</strong>,
+    <strong>One-liner</strong>,
+    ]} defaultIndex="0">
+    <MyTab>
+To see your binary `sha256sum` hash, run: 
+```sh
+sha256sum <BINARY>
+``` 
+```sh
+# for example 
+# sha256sum ./nym-wallet_1.2.15_amd64.AppImage
+# or
+# sha256sum ./nym-node
+```
+- Download [`hashes.json`](https://github.com/nymtech/nym/releases) file from the same same *Assets* drop down like your binary
+- Open it with your text editor or print its content with `cat hashes.json`
+- Check it if your binary `sha256sum` output is in `hashes.json` by using the `sha256sum` and searching for it or using `grep` command:
+```
+grep -i <SHA_HASH> 
+```
+    </MyTab>
+    <MyTab>
+- Download [`hashes.json`](https://github.com/nymtech/nym/releases) file from the same same *Assets* drop down like your binary
+- Run this command, substituting `<BINARY>` with your the one you want to check:
+```sh
+sha256sum <BINARY> | awk '{print $1}' | grep -qF "$(jq -r '.assets | to_entries | .[].value.sha256' hashes.json)" && echo "Hash matches an asset in the JSON file." || echo "Hash does not match any asset in the JSON file."
+```
+```sh
+# for example
+# sha256sum ./nym-node | awk '{print $1}' | grep -qF "$(jq -r '.assets | to_entries | .[].value.sha256' hashes.json)" && echo "Hash matches an asset in the JSON file." || echo "Hash does not match any asset in the JSON file."
+```
+    </MyTab>
+  </Tabs>
+</div>
+
+- If your have to extract the binary (it would look like like `<BINARY>.tar.gz`) do it:
+```sh
+tar -xvzf <BINARY>.tar.gz
+```
+
+###### 3. Make the binary executable
 - Open terminal in the same directory and run:
 ```sh
-chmod +x <BINARY>
-# for example: chmod +x nym-mixnode
+chmod u+x <BINARY>
+# for example: chmod u+x nym-node
 ```
 
 </Steps>

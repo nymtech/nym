@@ -1,7 +1,9 @@
 import { Callout } from 'nextra/components'
 
 # Nym Smart Contract Clients
-
+<Callout type="warning">
+The Typescript SDK is currently undergoing maintenance: a network upgrade elsewhere has temporarily caused a problem. These docs are likely to change after we upgrade the SDK.
+</Callout>
 As previously mentioned, to query or execute on any of the Nym contracts, you'll need to use one of the [`Contract Clients`](https://www.npmjs.com/package/@nymproject/contract-clients), which contains read-only query and signing clients for all of Nym's smart contracts.
 
 ##### Contract Clients list
@@ -29,14 +31,14 @@ npm create vite@latest
 During the environment setup, choose React and subsequently opt for Typescript if you want your application to function smoothly following this tutorial. Next, navigate to your application directory and run the following commands:
 ```bash
 cd < YOUR_APP >
-npm i 
+npm i
 npm run dev
 ```
 
 ##### Installation
 Install the packages and their dependencies if you don't already have them:
 ```bash
-npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate 
+npm install @nymproject/contract-clients @cosmjs/cosmwasm-stargate
 ```
 
 ## Query clients
@@ -143,7 +145,7 @@ import { SigningCosmWasmClient } from "@cosmjs/cosmwasm-stargate";
 import { DirectSecp256k1HdWallet } from "@cosmjs/proto-signing";
 import { GasPrice } from "@cosmjs/stargate";
 import { settings } from "./settings";
- 
+
 export default function Exec() {
   let signer: DirectSecp256k1HdWallet;
   let signerMixnetClient: any;
@@ -153,7 +155,7 @@ export default function Exec() {
   let nodeAddress: string;
   let amountToSend: string;
   let delegations: any;
- 
+
   async function ExecuteOnNyx() {
     // Cosmos client
     signer = await DirectSecp256k1HdWallet.fromMnemonic(settings.mnemonic, {
@@ -168,7 +170,7 @@ export default function Exec() {
     );
     // Save globally
     cosmWasmSigningClient = cosmWasmClient;
- 
+
     // Nym client
     const mixnetClient = new contracts.Mixnet.MixnetClient(
       cosmWasmSigningClient,
@@ -177,9 +179,9 @@ export default function Exec() {
     );
     // Save globally
     signerMixnetClient = mixnetClient;
- 
+
   }
- 
+
   // Get delegations
   const getDelegations = async () => {
     if (!signerMixnetClient) {
@@ -190,7 +192,7 @@ export default function Exec() {
     });
     delegations = delegationsObject;
   };
- 
+
   // Make delegation
   const doDelegation = async () => {
     if (!signerMixnetClient) {
@@ -204,7 +206,7 @@ export default function Exec() {
     );
     console.log(res);
   };
- 
+
   // Undelegate all
   const doUndelegateAll = async () => {
     for (const delegation of delegations.delegations) {
@@ -214,7 +216,7 @@ export default function Exec() {
       );
     }
   };
- 
+
   // Sending tokens
   const doSendTokens = async () => {
     const memo = "test sending tokens";
@@ -227,10 +229,10 @@ export default function Exec() {
     );
     console.log(res);
   };
- 
+
   ExecuteOnNyx();
   setTimeout(() => getDelegations(), 1000);
- 
+
   return (
     <div>
       <p>Exec</p>

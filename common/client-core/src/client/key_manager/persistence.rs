@@ -5,6 +5,7 @@ use crate::client::key_manager::ClientKeys;
 use async_trait::async_trait;
 use rand::{CryptoRng, RngCore};
 use std::error::Error;
+use std::sync::Arc;
 use tokio::sync::Mutex;
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -65,6 +66,7 @@ pub enum OnDiskKeysError {
     },
 }
 
+#[derive(Clone)]
 #[cfg(not(target_arch = "wasm32"))]
 pub struct OnDiskKeys {
     paths: ClientKeysPaths,
@@ -194,8 +196,9 @@ impl KeyStore for OnDiskKeys {
     }
 }
 
+#[derive(Clone)]
 pub struct InMemEphemeralKeys {
-    keys: Mutex<ClientKeys>,
+    keys: Arc<Mutex<ClientKeys>>,
 }
 
 impl InMemEphemeralKeys {
@@ -204,7 +207,7 @@ impl InMemEphemeralKeys {
         R: RngCore + CryptoRng,
     {
         InMemEphemeralKeys {
-            keys: Mutex::new(ClientKeys::generate_new(rng)),
+            keys: Arc::new(Mutex::new(ClientKeys::generate_new(rng))),
         }
     }
 }

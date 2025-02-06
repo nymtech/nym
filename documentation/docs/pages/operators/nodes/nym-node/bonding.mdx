@@ -28,7 +28,7 @@ Do not bond your node to the API if the previous steps weren't finished. Bad con
 
 Any new bonded node will provide only the bare minimum information: host, identity key and optionally custom port of its HTTP API - we highly recommend to set that one up to `8080`. Everything else will be discovered via the self-described API for maximum flexibility. This also includes the sphinx key, meaning if the API is not exposed, the node will be unable to route any traffic.
 
-**Every operator has to make sure that their nodes [self-described endpoint works](nodes/performance-and-testing/node-api-check#basic-api-usage), otherwise the node will be un-routable and thus won't get any rewards!**
+**Every operator has to make sure that their nodes [self-described endpoint works](../performance-and-testing#functionality--performance-check), otherwise the node will be un-routable and thus won't get any rewards!**
 
 <Callout type="warning" emoji="⚠️">
 **Reveal your menominc phrase only in areas out of surveillance of other people and never share it with others. Nym team will never ask you for your mnemonic phrase - in case you were asked by someone it's a scam, do *not* reply to it!**
@@ -36,7 +36,7 @@ Any new bonded node will provide only the bare minimum information: host, identi
 
 ## Bond via the Desktop wallet (recommended)
 
-You can bond your `nym-node` via the Desktop wallet.
+You can bond your `nym-node` via the Desktop wallet. Nym wallet, just like any Nym binary can be downloaded, verified and made executable following [these simple steps](../../binaries/pre-built-binaries#setup-binaries).
 
 <Steps>
 
@@ -120,18 +120,13 @@ From `nym-wallet` version `1.2.15` onward the application allows and prompts ope
 
 <Steps>
 
-###### 1. Download the latest wallet from [the release page](https://github.com/nymtech/nym/releases)
+###### 1. Download the latest wallet from [the release page](https://github.com/nymtech/nym/releases), verify and make executable
 
-###### 2. Verify the binary and extract it if needed
+Nym wallet, just like any Nym binary can be downloaded, verified and made executable following [these simple steps](../../binaries/pre-built-binaries#setup-binaries).
 
-- Download [`hashes.json`](https://github.com/nymtech/nym/releases/download/nym-wallet-v1.2.15/hashes.json)
-- Open it with your text editor or print it's content with `cat hashes.json`
-- Run `sha256sum <WALLET_BINARY>` for example `sha256sum ./nym-wallet_1.2.15_amd64.AppImage`
-- If your have to extract it (like `.tar.gz`) do it
+###### 2. Open the wallet and sign in
 
-###### 3. Open the wallet and sign in
-
-###### 4. Migrate!
+###### 3. Migrate!
 
 - Go to Bonding and you will be prompted with such message:
 
@@ -161,9 +156,9 @@ If you want to bond your Mix Node via the CLI, then check out the [relevant sect
 This is not relevant for operators running exclusively `mixnode` functionality. For any type of gateway functionality this is a preparation requirement for the upcoming [ticket rewarding](../../tokenomics/mixnet-rewards#roadmap).
 </ Callout>
 
-Every `nym-node` client contains a mnemonic of a Nyx account, generated with node initialisation (first `run` command creating all configuration and data files). This mnemonic is located in `$HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic`. **This is *not* the same account as the one used for bondng!**
+Every `nym-node` client contains a mnemonic of a Nyx account, generated with node initialisation (first `run` command creating all configuration and data files). This mnemonic is located in `$HOME/.nym/nym-nodes/<ID>/data/cosmos_mnemonic`. **This is *not* the same account as the one used for bonding!**
 
-This client account will be used for the process of redemption of tickets collected by nodes running as `entry-gateway` and `exit-gateway` as the redemption requires gateway to create a multisig proposal on the chain for which the client (node) needs to pay transaction fee.
+This client account will be used for the process of redemption of [zk-nym tickets](../../../network/cryptography/zk-nym) collected by nodes running as `entry-gateway` and `exit-gateway` as the redemption requires gateway to create a multisig proposal on the chain for which the client (node) needs to pay transaction fee.
 
 Giving the low transaction cost on Cosmos, funding your client Nyx account with 25 NYM tokens should be more than enough. To do so, follow these steps:
 

@@ -36,6 +36,13 @@ pub enum ClientCoreError {
     #[error("no gateway with id: {0}")]
     NoGatewayWithId(String),
 
+    #[error("Invalid URL: {0}")]
+    InvalidUrl(String),
+
+    #[cfg(not(target_arch = "wasm32"))]
+    #[error("resolution failed: {0}")]
+    ResolutionFailed(#[from] nym_http_api_client::HickoryDnsError),
+
     #[error("no gateways on network")]
     NoGatewaysOnNetwork,
 
@@ -95,6 +102,9 @@ pub enum ClientCoreError {
 
     #[error("timed out while trying to establish gateway connection")]
     GatewayConnectionTimeout,
+
+    #[error("failed to forward mix messages to gateway")]
+    GatewayFailedToForwardMessages,
 
     #[error("no ping measurements for the gateway ({identity}) performed")]
     NoGatewayMeasurements { identity: String },

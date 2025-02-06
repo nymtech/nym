@@ -498,13 +498,6 @@ const config = {
         basePath: false,
       },
       {
-        source: "/operators/testing/node-api-check.html",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/node-api-check",
-        permanent: true,
-        basePath: false,
-      },
-      {
         source: "/operators/testing/prometheus-grafana.html",
         destination:
           "/docs/operators/nodes/performance-and-testing/prometheus-grafana",
@@ -660,13 +653,6 @@ const config = {
       {
         source: "/docs/operators/nodes/configuration",
         destination: "/docs/operators/nodes/nym-node/configuration",
-        permanent: true,
-        basePath: false,
-      },
-      {
-        source: "/docs/operators/testing/node-api-check",
-        destination:
-          "/docs/operators/nodes/performance-and-testing/node-api-check",
         permanent: true,
         basePath: false,
       },

@@ -86,7 +86,9 @@ impl<G: GatewayTransceiver + ?Sized + Send> GatewayTransceiver for Box<G> {
         &mut self,
         message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
-        (**self).send_client_request(message).await
+        let _ = (**self).send_client_request(message.clone()).await?;
+        log::debug!("Sent client request: {:?}", message);
+        Ok(())
     }
 }
 
@@ -143,14 +145,7 @@ where
         &mut self,
         message: ClientRequest,
     ) -> Result<(), GatewayClientError> {
-        if let Some(shared_key) = self.gateway_client.shared_key() {
-            self.gateway_client
-                .send_websocket_message(message.encrypt(&*shared_key)?)
-                .await?;
-            Ok(())
-        } else {
-            Err(GatewayClientError::ConnectionInInvalidState)
-        }
+        self.gateway_client.send_client_request(message).await
     }
 }
 

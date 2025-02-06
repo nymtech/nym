@@ -1,6 +1,7 @@
 name: ci-sdk-wasm
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'wasm/**'

@@ -83,4 +83,13 @@ pub enum NymPoolContractError {
 
     #[error("attempted to spend more tokens than permitted by the current allowance")]
     SpendingAboveAllowance,
+
+    #[error("attempted to send an empty allowance usage request")]
+    EmptyUsageRequest,
+
+    #[error("the associated grant has already expired")]
+    GrantExpired,
+
+    #[error("the associated grant hasn't expired yet")]
+    GrantNotExpired,
 }

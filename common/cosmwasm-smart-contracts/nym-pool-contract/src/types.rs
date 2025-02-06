@@ -113,7 +113,7 @@ pub mod grants {
             }
         }
 
-        fn within_spendable_limits(&self, amount: &Coin) -> bool {
+        pub fn within_spendable_limits(&self, amount: &Coin) -> bool {
             match self {
                 Allowance::Basic(allowance) => allowance.within_spendable_limits(amount),
                 Allowance::ClassicPeriodic(allowance) => allowance.within_spendable_limits(amount),
@@ -126,7 +126,7 @@ pub mod grants {
 
         // check whether given the current allowance state, the provided amount could be spent
         // note: it's responsibility of the caller to call `try_update_state` before the call.
-        fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
+        pub fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
             match self {
                 Allowance::Basic(allowance) => allowance.can_spend(env, amount),
                 Allowance::ClassicPeriodic(allowance) => allowance.can_spend(env, amount),
@@ -144,6 +144,13 @@ pub mod grants {
                 Allowance::CumulativePeriodic(allowance) => allowance.try_spend(env, amount),
                 Allowance::Delayed(allowance) => allowance.try_spend(env, amount),
             }
+        }
+
+        pub fn is_used_up(&self) -> bool {
+            let Some(ref limit) = self.basic().spend_limit else {
+                return false;
+            };
+            limit.amount.is_zero()
         }
     }
 

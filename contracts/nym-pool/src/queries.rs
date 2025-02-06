@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::storage::{retrieval_limits, NYM_POOL_STORAGE};
-use cosmwasm_std::{Coin, Deps, Env, Order, StdResult, Uint128};
+use cosmwasm_std::{Coin, Deps, Env, Order, StdResult};
 use cw_controllers::AdminResponse;
 use cw_storage_plus::Bound;
 use nym_pool_contract_common::{

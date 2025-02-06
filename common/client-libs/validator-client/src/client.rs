@@ -11,8 +11,7 @@ use crate::{
 use nym_api_requests::ecash::models::{
     AggregatedCoinIndicesSignatureResponse, AggregatedExpirationDateSignatureResponse,
     BatchRedeemTicketsBody, EcashBatchTicketRedemptionResponse, EcashTicketVerificationResponse,
-    IssuedTicketbooksChallengeResponse, IssuedTicketbooksForResponse, SpentCredentialsResponse,
-    VerifyEcashTicketBody,
+    IssuedTicketbooksChallengeResponse, IssuedTicketbooksForResponse, VerifyEcashTicketBody,
 };
 use nym_api_requests::ecash::{
     BlindSignRequestBody, BlindedSignatureResponse, PartialCoinIndicesSignatureResponse,
@@ -645,13 +644,6 @@ impl NymApiClient {
             .nym_api
             .batch_redeem_ecash_tickets(request_body)
             .await?)
-    }
-
-    #[deprecated]
-    pub async fn spent_credentials_filter(
-        &self,
-    ) -> Result<SpentCredentialsResponse, ValidatorClientError> {
-        Ok(self.nym_api.double_spending_filter_v1().await?)
     }
 
     pub async fn partial_expiration_date_signatures(

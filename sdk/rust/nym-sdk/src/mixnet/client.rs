@@ -489,7 +489,7 @@ where
         user_chosen_gateway: &str,
     ) -> Result<bool> {
         let storage = self.storage.gateway_details_store();
-        // Stricly speaking, `set_active_gateway` does this check internally as well, but since the
+        // Strictly speaking, `set_active_gateway` does this check internally as well, but since the
         // error is boxed away and we're using a generic storage, it's not so easy to match on it.
         // This function is at least less likely to fail on something unrelated to the existence of
         // the gateway in the set of registered gateways
@@ -512,15 +512,14 @@ where
 
         let user_agent = self.user_agent.clone();
 
+        let topology_cfg = &self.config.debug_config.topology;
         let mut rng = OsRng;
         let available_gateways = gateways_for_init(
             &mut rng,
             &nym_api_endpoints,
             user_agent,
-            self.config
-                .debug_config
-                .topology
-                .minimum_gateway_performance,
+            topology_cfg.minimum_gateway_performance,
+            topology_cfg.ignore_ingress_epoch_role,
         )
         .await?;
 

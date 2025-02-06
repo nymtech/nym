@@ -35,12 +35,16 @@ const NodeAndAddressSearch = () => {
             setErrorText(
               "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
             );
+            setIsLoading(false); // Stop loading
+
             return;
           }
         } else {
           setErrorText(
             "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
           );
+          setIsLoading(false); // Stop loading
+
           return;
         }
       } else {
@@ -62,13 +66,13 @@ const NodeAndAddressSearch = () => {
         setErrorText(
           "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
         );
+        setIsLoading(false); // Stop loading
       }
     } catch (error) {
       setErrorText(
         "It seems that this node or account does not exist. Please enter a complete Node ID or an existing Nym wallet address.",
       );
       console.error(error);
-    } finally {
       setIsLoading(false); // Stop loading
     }
   };

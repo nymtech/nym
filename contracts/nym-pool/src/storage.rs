@@ -17,6 +17,8 @@ pub struct NymPoolStorage {
     pub(crate) pool_denomination: Item<String>,
     pub(crate) granters: Map<GranterAddress, GranterInformation>,
 
+    // pub(crate) expired: (),
+
     // unlike the feegrant module, we specifically don't allow multiple grants (from different granters)
     // towards the same grantee
     pub(crate) grants: Map<GranteeAddress, Grant>,

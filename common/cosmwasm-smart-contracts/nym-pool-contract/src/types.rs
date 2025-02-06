@@ -20,7 +20,8 @@ pub mod grants {
     use crate::utils::ensure_unix_timestamp_not_in_the_past;
     use crate::{GranteeAddress, GranterAddress, NymPoolContractError};
     use cosmwasm_schema::cw_serde;
-    use cosmwasm_std::{Addr, Coin, Env, Timestamp};
+    use cosmwasm_std::{Addr, Coin, Env, Timestamp, Uint128};
+    use std::cmp::min;
 
     #[cw_serde]
     pub struct GranterInformation {
@@ -49,11 +50,7 @@ pub mod grants {
 
     impl Allowance {
         pub fn expired(&self, env: &Env) -> bool {
-            let Some(expiration) = self.basic().expiration_unix_timestamp else {
-                return false;
-            };
-            let current_unix_timestamp = env.block.time.seconds();
-            expiration < current_unix_timestamp
+            self.basic().expired(env)
         }
 
         pub fn basic(&self) -> &BasicAllowance {
@@ -104,6 +101,50 @@ pub mod grants {
                 Allowance::Delayed(_) => {}
             }
         }
+
+        pub fn try_update_state(&mut self, env: &Env) {
+            match self {
+                // nothing to do for the basic allowance
+                Allowance::Basic(_) => {}
+                Allowance::ClassicPeriodic(allowance) => allowance.try_update_state(env),
+                Allowance::CumulativePeriodic(allowance) => allowance.try_update_state(env),
+                // nothing to do for the delayed allowance
+                Allowance::Delayed(_) => {}
+            }
+        }
+
+        fn within_spendable_limits(&self, amount: &Coin) -> bool {
+            match self {
+                Allowance::Basic(allowance) => allowance.within_spendable_limits(amount),
+                Allowance::ClassicPeriodic(allowance) => allowance.within_spendable_limits(amount),
+                Allowance::CumulativePeriodic(allowance) => {
+                    allowance.within_spendable_limits(amount)
+                }
+                Allowance::Delayed(allowance) => allowance.within_spendable_limits(amount),
+            }
+        }
+
+        // check whether given the current allowance state, the provided amount could be spent
+        // note: it's responsibility of the caller to call `try_update_state` before the call.
+        fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
+            match self {
+                Allowance::Basic(allowance) => allowance.can_spend(env, amount),
+                Allowance::ClassicPeriodic(allowance) => allowance.can_spend(env, amount),
+                Allowance::CumulativePeriodic(allowance) => allowance.can_spend(env, amount),
+                Allowance::Delayed(allowance) => allowance.can_spend(env, amount),
+            }
+        }
+
+        pub fn try_spend(&mut self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
+            self.try_update_state(env);
+
+            match self {
+                Allowance::Basic(allowance) => allowance.try_spend(env, amount),
+                Allowance::ClassicPeriodic(allowance) => allowance.try_spend(env, amount),
+                Allowance::CumulativePeriodic(allowance) => allowance.try_spend(env, amount),
+                Allowance::Delayed(allowance) => allowance.try_spend(env, amount),
+            }
+        }
     }
 
     /// BasicAllowance is an allowance with a one-time grant of coins
@@ -136,6 +177,38 @@ pub mod grants {
                 }
             }
 
+            Ok(())
+        }
+
+        pub fn expired(&self, env: &Env) -> bool {
+            let Some(expiration) = self.expiration_unix_timestamp else {
+                return false;
+            };
+            let current_unix_timestamp = env.block.time.seconds();
+            expiration < current_unix_timestamp
+        }
+
+        fn within_spendable_limits(&self, amount: &Coin) -> bool {
+            let Some(ref spend_limit) = self.spend_limit else {
+                // if there's no spend limit then whatever the amount is, it's spendable
+                return true;
+            };
+
+            spend_limit.amount >= amount.amount
+        }
+
+        fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
+            !self.expired(env) && self.within_spendable_limits(amount)
+        }
+
+        fn try_spend(&mut self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
+            if !self.can_spend(env, amount) {
+                return Err(NymPoolContractError::SpendingAboveAllowance);
+            }
+
+            if let Some(ref mut spend_limit) = self.spend_limit {
+                spend_limit.amount -= amount.amount;
+            }
             Ok(())
         }
     }
@@ -196,7 +269,7 @@ pub mod grants {
             Ok(())
         }
 
-        /// The value that can be spend in the period is the lesser of the basic spend limit
+        /// The value that can be spent in the period is the lesser of the basic spend limit
         /// and the period spend limit
         ///
         /// ```go
@@ -220,8 +293,63 @@ pub mod grants {
         }
 
         pub(super) fn set_initial_state(&mut self, env: &Env) {
-            self.period_reset_unix_timestamp = env.block.time.seconds() + self.period_duration_secs;
-            self.period_can_spend = Some(self.determine_period_can_spend())
+            self.try_update_state(env);
+        }
+
+        /// try_update_state will check if the period_reset_unix_timestamp has been hit. If not, it is a no-op.
+        /// If we hit the reset period, it will top up the period_can_spend amount to
+        /// min(period_spend_limit, basic.spend_limit) so it is never more than the maximum allowed.
+        /// It will also update the period_reset_unix_timestamp.
+        ///
+        /// If we are within one period, it will update from the
+        /// last period_reset (eg. if you always do one tx per day, it will always reset the same time)
+        /// If we are more than one period out (eg. no activity in a week), reset is one period from the execution of this method
+        pub fn try_update_state(&mut self, env: &Env) {
+            if env.block.time.seconds() < self.period_reset_unix_timestamp {
+                // we haven't yet reached the reset time
+                return;
+            }
+            self.period_can_spend = Some(self.determine_period_can_spend());
+
+            // If we are within the period, step from expiration (eg. if you always do one tx per day,
+            // it will always reset the same time)
+            // If we are more then one period out (eg. no activity in a week),
+            // reset is one period from this time
+            self.period_reset_unix_timestamp += self.period_duration_secs;
+            if env.block.time.seconds() > self.period_duration_secs {
+                self.period_reset_unix_timestamp =
+                    env.block.time.seconds() + self.period_duration_secs;
+            }
+        }
+
+        fn within_spendable_limits(&self, amount: &Coin) -> bool {
+            let Some(ref available) = self.period_can_spend else {
+                return false;
+            };
+            available.amount >= amount.amount
+        }
+
+        fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
+            !self.basic.expired(env) && self.within_spendable_limits(amount)
+        }
+
+        fn try_spend(&mut self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
+            if !self.can_spend(env, amount) {
+                return Err(NymPoolContractError::SpendingAboveAllowance);
+            }
+
+            // deduct from both the current period and the max amount
+            if let Some(ref mut spend_limit) = self.basic.spend_limit {
+                spend_limit.amount -= amount.amount;
+            }
+
+            // SAFETY: initial `period_can_spend` value is always unconditionally set by the contract during
+            // grant creation
+            #[allow(clippy::unwrap_used)]
+            let period_can_spend = self.period_can_spend.as_mut().unwrap();
+            period_can_spend.amount -= amount.amount;
+
+            Ok(())
         }
     }
 
@@ -314,6 +442,87 @@ pub mod grants {
             // initially we can spend equivalent of a single grant
             self.spendable = Some(self.period_grant.clone())
         }
+
+        #[inline]
+        fn missed_periods(&self, env: &Env) -> u64 {
+            (env.block.time.seconds() - self.last_grant_applied_unix_timestamp)
+                % self.period_duration_secs
+        }
+
+        /// The value that can be spent is the last of the basic spend limit, the accumulation limit
+        /// and number of missed periods multiplied by the period grant
+        fn determine_spendable(&self, env: &Env) -> Coin {
+            // SAFETY: initial `spendable` value is always unconditionally set by the contract during
+            // grant creation
+            #[allow(clippy::unwrap_used)]
+            let spendable = self.spendable.as_ref().unwrap();
+
+            let missed_periods = self.missed_periods(env);
+            let mut max_spendable = spendable.clone();
+            max_spendable.amount += Uint128::new(missed_periods as u128) * self.period_grant.amount;
+
+            match (&self.basic.spend_limit, &self.accumulation_limit) {
+                (Some(spend_limit), Some(accumulation_limit)) => {
+                    let limit = min(spend_limit.amount, accumulation_limit.amount);
+                    let amount = min(limit, max_spendable.amount);
+                    Coin::new(amount, max_spendable.denom)
+                }
+                (None, Some(accumulation_limit)) => {
+                    let amount = min(accumulation_limit.amount, max_spendable.amount);
+                    Coin::new(amount, max_spendable.denom)
+                }
+                (Some(spend_limit), None) => {
+                    let amount = min(spend_limit.amount, max_spendable.amount);
+                    Coin::new(amount, max_spendable.denom)
+                }
+                (None, None) => max_spendable,
+            }
+        }
+
+        /// try_update_state will check if we've rolled over into the next grant period. If not, it is a no-op.
+        /// If we hit the next period, it will top up the spendable amount to
+        /// min(accumulation_limit, basic.spend_limit, spendable + period_grant * num_missed_periods) so it is never more than the maximum allowed.
+        /// It will also update the last_grant_applied_unix_timestamp.
+        pub fn try_update_state(&mut self, env: &Env) {
+            let missed_periods = self.missed_periods(env);
+
+            if missed_periods == 0 {
+                // we haven't yet reached the next grant time
+                return;
+            }
+
+            self.spendable = Some(self.determine_spendable(env))
+        }
+
+        fn within_spendable_limits(&self, amount: &Coin) -> bool {
+            let Some(ref available) = self.spendable else {
+                return false;
+            };
+            available.amount >= amount.amount
+        }
+
+        fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
+            !self.basic.expired(env) && self.within_spendable_limits(amount)
+        }
+
+        fn try_spend(&mut self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
+            if !self.can_spend(env, amount) {
+                return Err(NymPoolContractError::SpendingAboveAllowance);
+            }
+
+            // deduct from both the current period and the max amount
+            if let Some(ref mut spend_limit) = self.basic.spend_limit {
+                spend_limit.amount -= amount.amount;
+            }
+
+            // SAFETY: initial `spendable` value is always unconditionally set by the contract during
+            // grant creation
+            #[allow(clippy::unwrap_used)]
+            let spendable = self.spendable.as_mut().unwrap();
+            spendable.amount -= amount.amount;
+
+            Ok(())
+        }
     }
 
     /// Create a grant to allow somebody to withdraw from the pool only after the specified time.
@@ -345,13 +554,35 @@ pub mod grants {
 
             Ok(())
         }
+
+        fn within_spendable_limits(&self, amount: &Coin) -> bool {
+            self.basic.within_spendable_limits(amount)
+        }
+
+        fn can_spend(&self, env: &Env, amount: &Coin) -> bool {
+            !self.basic.expired(env)
+                && self.within_spendable_limits(amount)
+                && self.available_at_unix_timestamp >= env.block.time.seconds()
+        }
+
+        fn try_spend(&mut self, env: &Env, amount: &Coin) -> Result<(), NymPoolContractError> {
+            if !self.can_spend(env, amount) {
+                return Err(NymPoolContractError::SpendingAboveAllowance);
+            }
+
+            if let Some(ref mut spend_limit) = self.basic.spend_limit {
+                spend_limit.amount -= amount.amount;
+            }
+
+            Ok(())
+        }
     }
 }
 
 pub mod query_responses {
     use crate::{Grant, GranteeAddress, GranterAddress, GranterInformation};
     use cosmwasm_schema::cw_serde;
-    use cosmwasm_std::{Addr, Coin};
+    use cosmwasm_std::Coin;
 
     #[cw_serde]
     pub struct AvailableTokensResponse {

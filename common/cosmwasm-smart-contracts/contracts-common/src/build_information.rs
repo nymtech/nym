@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 use crate::ContractBuildInformation;
-use cosmwasm_std::{StdError, StdResult, Storage};
+use cosmwasm_std::{StdResult, Storage};
 use cw_storage_plus::Item;
 
 pub const CONTRACT_BUILD_INFO_STORAGE_KEY: &str = "contract_build_info";

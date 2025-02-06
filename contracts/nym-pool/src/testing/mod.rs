@@ -186,7 +186,7 @@ impl TestSetup {
         let granter = self.admin_unchecked();
         let env = self.env();
         NYM_POOL_STORAGE
-            .add_grant(
+            .insert_new_grant(
                 self.deps_mut(),
                 &env,
                 &granter,

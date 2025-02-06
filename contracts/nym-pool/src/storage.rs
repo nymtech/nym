@@ -48,7 +48,7 @@ impl NymPoolStorage {
         // add all initial grants
         for (grantee, allowance) in initial_grants {
             let grantee = deps.api.addr_validate(&grantee)?;
-            self.add_grant(deps.branch(), &env, &admin, grantee, allowance)?;
+            self.insert_new_grant(deps.branch(), &env, &admin, grantee, allowance)?;
         }
 
         // set the denom
@@ -174,7 +174,7 @@ impl NymPoolStorage {
             })
     }
 
-    pub fn add_grant(
+    pub fn insert_new_grant(
         &self,
         deps: DepsMut,
         env: &Env,
@@ -231,12 +231,39 @@ impl NymPoolStorage {
     pub fn update_grant(
         &self,
         deps: DepsMut,
-        env: Env,
+        grantee_address: GranteeAddress,
+        grant: Grant,
+    ) -> Result<(), NymPoolContractError> {
+        let locked = self
+            .locked
+            .grantee_locked(deps.storage, grantee_address.clone())?;
+
+        // if we used up all allowance and have no locked tokens, we can just remove the grant from storage
+        if grant.allowance.is_used_up() && locked.is_zero() {
+            self.grants.remove(deps.storage, grantee_address)
+        } else {
+            self.grants.save(deps.storage, grantee_address, &grant)?;
+        }
+
+        Ok(())
+    }
+
+    pub fn remove_grant(
+        &self,
+        deps: DepsMut,
         grantee_address: GranteeAddress,
     ) -> Result<(), NymPoolContractError> {
-        let grant = self.load_grant(deps.as_ref(), &grantee_address)?;
+        self.grants.remove(deps.storage, grantee_address.clone());
 
-        todo!()
+        // if there are any tokens still locked associated with this grantee, unlock them
+        if let Some(grantee_locked) = self
+            .locked
+            .maybe_grantee_locked(deps.storage, grantee_address.clone())?
+        {
+            self.locked.unlock(deps, grantee_address, grantee_locked)?;
+        }
+
+        Ok(())
     }
 
     pub fn revoke_grant(
@@ -264,18 +291,7 @@ impl NymPoolStorage {
             return Err(NymPoolContractError::UnauthorizedGrantRevocation);
         }
 
-        self.grants.remove(deps.storage, grantee_address.clone());
-
-        // if there are any tokens still locked associated with this grantee, unlock them
-        let grantee_locked = self
-            .locked
-            .grantee_locked(deps.storage, grantee_address.clone())?;
-        if !grantee_locked.is_zero() {
-            self.locked
-                .unlock(deps, grantee_address.clone(), grantee_locked)?;
-        }
-
-        Ok(())
+        self.remove_grant(deps, grantee_address)
     }
 }
 
@@ -318,7 +334,7 @@ impl LockedStorage {
 
     /// unconditionally attempts to load specified amount of tokens for the particular grantee
     /// it does not validate permissions nor allowances - that's up to the caller
-    fn lock(
+    pub(super) fn lock(
         &self,
         deps: DepsMut,
         grantee: GranteeAddress,
@@ -336,7 +352,7 @@ impl LockedStorage {
         Ok(())
     }
 
-    fn unlock(
+    pub(super) fn unlock(
         &self,
         deps: DepsMut,
         grantee: GranteeAddress,

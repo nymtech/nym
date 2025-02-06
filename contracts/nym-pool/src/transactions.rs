@@ -1,8 +1,9 @@
 // Copyright 2025 - Nym Technologies SA <contact@nymtech.net>
 // SPDX-License-Identifier: Apache-2.0
 
+use crate::helpers::validate_usage_coin;
 use crate::storage::NYM_POOL_STORAGE;
-use cosmwasm_std::{Coin, DepsMut, Env, MessageInfo, Response};
+use cosmwasm_std::{BankMsg, Coin, CosmosMsg, DepsMut, Env, MessageInfo, Response, Uint128};
 use nym_pool_contract_common::{Allowance, NymPoolContractError, TransferRecipient};
 
 pub fn try_update_contract_admin(
@@ -30,7 +31,7 @@ pub fn try_grant_allowance(
 ) -> Result<Response, NymPoolContractError> {
     let grantee = deps.api.addr_validate(&grantee)?;
 
-    NYM_POOL_STORAGE.add_grant(deps, &env, &info.sender, grantee, allowance)?;
+    NYM_POOL_STORAGE.insert_new_grant(deps, &env, &info.sender, grantee, allowance)?;
 
     // TODO: emit events
     Ok(Response::new())
@@ -56,7 +57,26 @@ pub fn try_use_allowance(
     info: MessageInfo,
     recipients: Vec<TransferRecipient>,
 ) -> Result<Response, NymPoolContractError> {
-    todo!()
+    let denom = NYM_POOL_STORAGE.pool_denomination.load(deps.storage)?;
+
+    let mut amount = Uint128::zero();
+    let mut messages = Vec::new();
+    for recipient in recipients {
+        validate_usage_coin(deps.storage, &recipient.amount)?;
+
+        amount += recipient.amount.amount;
+        messages.push(CosmosMsg::Bank(BankMsg::Send {
+            to_address: recipient.recipient,
+            amount: vec![recipient.amount],
+        }))
+    }
+
+    let mut grant = NYM_POOL_STORAGE.load_grant(deps.as_ref(), &info.sender)?;
+    grant.allowance.try_spend(&env, &Coin { amount, denom })?;
+    NYM_POOL_STORAGE.update_grant(deps, info.sender, grant)?;
+
+    // TODO: emit events
+    Ok(Response::new().add_messages(messages))
 }
 
 pub fn try_withdraw_allowance(
@@ -65,25 +85,55 @@ pub fn try_withdraw_allowance(
     info: MessageInfo,
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
-    todo!()
+    validate_usage_coin(deps.storage, &amount)?;
+
+    let mut grant = NYM_POOL_STORAGE.load_grant(deps.as_ref(), &info.sender)?;
+    grant.allowance.try_spend(&env, &amount)?;
+    NYM_POOL_STORAGE.update_grant(deps, info.sender.clone(), grant)?;
+
+    // TODO: emit events
+    // TODO2: after migrating common to cw2.2 use `send_tokens` from `ResponseExt` trait
+    Ok(Response::new().add_message(CosmosMsg::Bank(BankMsg::Send {
+        to_address: info.sender.to_string(),
+        amount: vec![amount],
+    })))
 }
 
 pub fn try_lock_allowance(
-    deps: DepsMut<'_>,
+    mut deps: DepsMut<'_>,
     env: Env,
     info: MessageInfo,
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
-    todo!()
+    validate_usage_coin(deps.storage, &amount)?;
+
+    let mut grant = NYM_POOL_STORAGE.load_grant(deps.as_ref(), &info.sender)?;
+    grant.allowance.try_spend(&env, &amount)?;
+
+    NYM_POOL_STORAGE
+        .locked
+        .lock(deps.branch(), info.sender.clone(), amount.amount)?;
+    NYM_POOL_STORAGE.update_grant(deps, info.sender.clone(), grant)?;
+
+    // TODO: emit events
+    Ok(Response::new())
 }
 
 pub fn try_unlock_allowance(
     deps: DepsMut<'_>,
-    env: Env,
+    _env: Env,
     info: MessageInfo,
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
-    todo!()
+    validate_usage_coin(deps.storage, &amount)?;
+
+    // unlocking tokens is always possible, even if the underlying grant has already expired
+    NYM_POOL_STORAGE
+        .locked
+        .unlock(deps, info.sender.clone(), amount.amount)?;
+
+    // TODO: emit events
+    Ok(Response::new())
 }
 
 pub fn try_use_locked_allowance(
@@ -92,7 +142,32 @@ pub fn try_use_locked_allowance(
     info: MessageInfo,
     recipients: Vec<TransferRecipient>,
 ) -> Result<Response, NymPoolContractError> {
-    todo!()
+    let mut amount = Uint128::zero();
+    let mut messages = Vec::new();
+    for recipient in recipients {
+        validate_usage_coin(deps.storage, &recipient.amount)?;
+
+        amount += recipient.amount.amount;
+        messages.push(CosmosMsg::Bank(BankMsg::Send {
+            to_address: recipient.recipient,
+            amount: vec![recipient.amount],
+        }))
+    }
+
+    // if the grant has already expired, locked coins can no longer be used,
+    // ideally, they'd be immediately unlocked here, but we need to revert the transaction
+    let grant = NYM_POOL_STORAGE.load_grant(deps.as_ref(), &info.sender)?;
+    if grant.allowance.expired(&env) {
+        return Err(NymPoolContractError::GrantExpired);
+    }
+
+    // we remove those coins from the locked pool before transferring them to the specified account
+    NYM_POOL_STORAGE
+        .locked
+        .unlock(deps, info.sender.clone(), amount)?;
+
+    // TODO: emit events
+    Ok(Response::new().add_messages(messages))
 }
 
 pub fn try_withdraw_locked_allowance(
@@ -101,7 +176,46 @@ pub fn try_withdraw_locked_allowance(
     info: MessageInfo,
     amount: Coin,
 ) -> Result<Response, NymPoolContractError> {
-    todo!()
+    validate_usage_coin(deps.storage, &amount)?;
+
+    // if the grant has already expired, locked coins can no longer be used,
+    // ideally, they'd be immediately unlocked here, but we need to revert the transaction
+    let grant = NYM_POOL_STORAGE.load_grant(deps.as_ref(), &info.sender)?;
+    if grant.allowance.expired(&env) {
+        return Err(NymPoolContractError::GrantExpired);
+    }
+
+    // we remove those coins from the locked pool before transferring them to the specified account
+    NYM_POOL_STORAGE
+        .locked
+        .unlock(deps, info.sender.clone(), amount.amount)?;
+
+    // TODO: emit events
+    // TODO2: after migrating common to cw2.2 use `send_tokens` from `ResponseExt` trait
+    Ok(Response::new().add_message(CosmosMsg::Bank(BankMsg::Send {
+        to_address: info.sender.to_string(),
+        amount: vec![amount],
+    })))
+}
+
+// can be called by anyone, because expired grants are unusable anyway
+pub fn try_remove_expired(
+    deps: DepsMut<'_>,
+    env: Env,
+    _info: MessageInfo,
+    grantee: String,
+) -> Result<Response, NymPoolContractError> {
+    let grantee = deps.api.addr_validate(&grantee)?;
+    let grant = NYM_POOL_STORAGE.load_grant(deps.as_ref(), &grantee)?;
+
+    if !grant.allowance.expired(&env) {
+        return Err(NymPoolContractError::GrantNotExpired);
+    }
+
+    NYM_POOL_STORAGE.remove_grant(deps, grantee)?;
+
+    // TODO: emit events
+    Ok(Response::new())
 }
 
 #[cfg(test)]

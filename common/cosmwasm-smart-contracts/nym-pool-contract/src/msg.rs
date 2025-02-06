@@ -50,6 +50,9 @@ pub enum ExecuteMsg {
 
     /// Attempt to withdraw the specified amount of locked tokens into the grantee's account
     WithdrawLockedAllowance { amount: Coin },
+
+    /// Attempt to remove expired grant from the storage and unlock (if any) locked tokens
+    RemoveExpiredGrant { grantee: String },
 }
 
 #[cw_serde]

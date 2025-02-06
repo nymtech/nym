@@ -48,10 +48,10 @@ export default async function Account({
               />
             </Box>
           </Grid>
-          <Grid size={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <AccountInfoCard address={address} />
           </Grid>
-          <Grid size={8}>
+          <Grid size={{ xs: 12, md: 8 }}>
             <AccountBalancesCard address={address} />
           </Grid>
         </Grid>

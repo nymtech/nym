@@ -80,4 +80,7 @@ pub enum NymPoolContractError {
         locked: Uint128,
         requested: Uint128,
     },
+
+    #[error("attempted to spend more tokens than permitted by the current allowance")]
+    SpendingAboveAllowance,
 }

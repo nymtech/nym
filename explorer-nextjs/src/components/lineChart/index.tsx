@@ -66,8 +66,8 @@ export const LineChart = ({
       enableSlices="x"
       margin={{
         bottom: 24,
-        left: 30,
-        right: 12,
+        left: 36,
+        right: 18,
         top: 20,
       }}
       theme={{

@@ -41,8 +41,7 @@ const ColumnHeading = ({
   return (
     <Box
       sx={{
-        width: "fitContent",
-        maxWidth: "110px",
+        width: isMobile ? "80px" : "unset",
         display: "flex",
         flexDirection: "column",
         justifyContent: "flex-start",
@@ -54,9 +53,9 @@ const ColumnHeading = ({
         sx={{
           py: 2,
           textAlign: "center",
-          whiteSpace: "normal", // Ensure text can wrap
-          wordWrap: "break-word", // Break long words
-          overflowWrap: "break-word", // Ensure text breaks inside the cell
+          whiteSpace: isMobile ? "normal" : "unset", // Ensure text can wrap
+          wordWrap: isMobile ? "break-word" : "unset", // Break long words
+          overflowWrap: isMobile ? "break-word" : "unset", // Ensure text breaks inside the cell
           textTransform: "uppercase",
         }}
         variant={isMobile ? "caption" : "h5"}
@@ -349,7 +348,6 @@ const NodeTable = ({ nodes }: { nodes: MappedNymNodes }) => {
         border: "none",
         whiteSpace: "unset", // Allow text wrapping in body cells
         wordBreak: "break-word", // Ensure long text breaks correctly
-        maxWidth: "100px",
       },
     },
     muiTableBodyRowProps: ({ row }) => ({

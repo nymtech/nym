@@ -16,6 +16,7 @@ use nym_bin_common::completions::{fig_generate, ArgShell};
 use nym_client::client::Recipient;
 use nym_client_core::cli_helpers::CliClient;
 use nym_client_core::client::base_client::storage::migration_helpers::v1_1_33;
+use nym_client_core::config::ForgetMe;
 use nym_config::OptionalSet;
 use std::error::Error;
 use std::net::IpAddr;
@@ -106,6 +107,7 @@ pub(crate) struct OverrideConfig {
     nyxd_urls: Option<Vec<url::Url>>,
     enabled_credentials_mode: Option<bool>,
     stats_reporting_address: Option<Recipient>,
+    forget_me: ForgetMe,
 }
 
 pub(crate) async fn execute(args: Cli) -> Result<(), Box<dyn Error + Send + Sync>> {
@@ -133,6 +135,7 @@ pub(crate) fn override_config(config: Config, args: OverrideConfig) -> Config {
             args.fastmode,
         )
         .with_base(BaseClientConfig::with_disabled_cover_traffic, args.no_cover)
+        .with_base(BaseClientConfig::with_forget_me, args.forget_me)
         .with_optional(Config::with_port, args.port)
         .with_optional(Config::with_host, args.host)
         .with_optional_custom_env_ext(

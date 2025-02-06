@@ -163,11 +163,8 @@ impl MixFetchClientBuilder {
 
         let storage = Self::initialise_storage(&self.config, client_store);
 
-        let base_builder = BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(
-            &self.config.base,
-            storage,
-            None,
-        );
+        let base_builder =
+            BaseClientBuilder::<QueryReqwestRpcNyxdClient, _>::new(self.config.base, storage, None);
 
         // if let Ok(reuse_setup) = GatewaySetup::try_reuse_connection(init_res) {
         //     base_builder = base_builder.with_gateway_setup(reuse_setup);

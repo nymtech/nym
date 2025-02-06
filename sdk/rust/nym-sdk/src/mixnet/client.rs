@@ -23,12 +23,11 @@ use nym_client_core::client::key_manager::persistence::KeyStore;
 use nym_client_core::client::{
     base_client::BaseClientBuilder, replies::reply_storage::ReplyStorageBackend,
 };
-use nym_client_core::config::{DebugConfig, StatsReporting};
+use nym_client_core::config::{DebugConfig, ForgetMe, StatsReporting};
 use nym_client_core::error::ClientCoreError;
 use nym_client_core::init::helpers::gateways_for_init;
 use nym_client_core::init::setup_gateway;
 use nym_client_core::init::types::{GatewaySelectionSpecification, GatewaySetup};
-use nym_client_core::ForgetMe;
 use nym_credentials_interface::TicketType;
 use nym_socks5_client_core::config::Socks5;
 use nym_task::{TaskClient, TaskHandle, TaskStatus};
@@ -641,7 +640,7 @@ where
             .as_base_client_config(nyxd_endpoints, nym_api_endpoints.clone());
 
         let mut base_builder: BaseClientBuilder<_, _> =
-            BaseClientBuilder::new(&base_config, self.storage, self.dkg_query_client)
+            BaseClientBuilder::new(base_config, self.storage, self.dkg_query_client)
                 .with_wait_for_gateway(self.wait_for_gateway)
                 .with_forget_me(&self.forget_me);
 

@@ -107,5 +107,8 @@ enabled = {{ debug.stats_reporting.enabled }}
 provider_address = '{{ debug.stats_reporting.provider_address }}'
 reporting_interval = '{{ debug.stats_reporting.reporting_interval }}'
 
+[debug.forget_me]
+client = {{ debug.forget_me.client }}
+stats = {{ debug.forget_me.stats }}
 
 "#;

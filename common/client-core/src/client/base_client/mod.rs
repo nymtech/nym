@@ -32,10 +32,11 @@ use crate::init::{
     setup_gateway,
     types::{GatewaySetup, InitialisationResult},
 };
-use crate::{config, spawn_future, ForgetMe};
+use crate::{config, spawn_future};
 use futures::channel::mpsc;
 use log::*;
 use nym_bandwidth_controller::BandwidthController;
+use nym_client_core_config_types::ForgetMe;
 use nym_client_core_gateways_storage::{GatewayDetails, GatewaysDetailsStore};
 use nym_credential_storage::storage::Storage as CredentialStorage;
 use nym_crypto::asymmetric::{encryption, identity};
@@ -176,8 +177,8 @@ impl From<bool> for CredentialsToggle {
     }
 }
 
-pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
-    config: &'a Config,
+pub struct BaseClientBuilder<C, S: MixnetClientStorage> {
+    config: Config,
     client_store: S,
     dkg_query_client: Option<C>,
 
@@ -191,20 +192,18 @@ pub struct BaseClientBuilder<'a, C, S: MixnetClientStorage> {
 
     #[cfg(unix)]
     connection_fd_callback: Option<Arc<dyn Fn(RawFd) + Send + Sync>>,
-
-    forget_me: ForgetMe,
 }
 
-impl<'a, C, S> BaseClientBuilder<'a, C, S>
+impl<C, S> BaseClientBuilder<C, S>
 where
     S: MixnetClientStorage + 'static,
     C: DkgQueryClient + Send + Sync + 'static,
 {
     pub fn new(
-        base_config: &'a Config,
+        base_config: Config,
         client_store: S,
         dkg_query_client: Option<C>,
-    ) -> BaseClientBuilder<'a, C, S> {
+    ) -> BaseClientBuilder<C, S> {
         BaseClientBuilder {
             config: base_config,
             client_store,
@@ -217,13 +216,12 @@ where
             setup_method: GatewaySetup::MustLoad { gateway_id: None },
             #[cfg(unix)]
             connection_fd_callback: None,
-            forget_me: Default::default(),
         }
     }
 
     #[must_use]
     pub fn with_forget_me(mut self, forget_me: &ForgetMe) -> Self {
-        self.forget_me = forget_me.clone();
+        self.config.debug.forget_me = *forget_me;
         self
     }
 
@@ -773,7 +771,7 @@ where
         );
 
         let stats_reporter = Self::start_statistics_control(
-            self.config,
+            &self.config,
             self.user_agent.clone(),
             generate_client_stats_id(*self_address.identity()),
             input_sender.clone(),
@@ -799,7 +797,7 @@ where
 
         let gateway_transceiver = Self::setup_gateway_transceiver(
             self.custom_gateway_transceiver,
-            self.config,
+            &self.config,
             init_res,
             bandwidth_controller,
             &details_store,
@@ -911,7 +909,7 @@ where
             stats_reporter,
             task_handle: shutdown,
             client_request_sender,
-            forget_me: self.forget_me,
+            forget_me: self.config.debug.forget_me,
         })
     }
 }

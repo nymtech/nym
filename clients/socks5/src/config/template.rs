@@ -113,4 +113,8 @@ enabled = {{ core.debug.stats_reporting.enabled }}
 provider_address = '{{ core.debug.stats_reporting.provider_address }}'
 reporting_interval = '{{ core.debug.stats_reporting.reporting_interval }}'
 
+[core.debug.forget_me]
+client = {{ core.debug.forget_me.client }}
+stats = {{ core.debug.forget_me.stats }}
+
 "#;

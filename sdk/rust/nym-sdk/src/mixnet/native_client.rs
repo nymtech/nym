@@ -11,7 +11,7 @@ use nym_client_core::client::{
     inbound_messages::InputMessage,
     received_buffer::ReconstructedMessagesReceiver,
 };
-use nym_client_core::ForgetMe;
+use nym_client_core::config::ForgetMe;
 use nym_crypto::asymmetric::identity;
 use nym_gateway_requests::ClientRequest;
 use nym_sphinx::addressing::clients::Recipient;

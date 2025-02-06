@@ -145,6 +145,11 @@ impl Config {
         self
     }
 
+    pub fn with_forget_me(mut self, forget_me: ForgetMe) -> Self {
+        self.debug.forget_me = forget_me;
+        self
+    }
+
     // TODO: this should be refactored properly
     // as of 12.09.23 the below is true (not sure how this comment will rot in the future)
     // medium_toggle:
@@ -719,6 +724,9 @@ pub struct DebugConfig {
 
     /// Defines all configuration options related to stats reporting.
     pub stats_reporting: StatsReporting,
+
+    /// Defines all configuration options related to the forget me flag.
+    pub forget_me: ForgetMe,
 }
 
 impl DebugConfig {
@@ -741,6 +749,69 @@ impl Default for DebugConfig {
             topology: Default::default(),
             reply_surbs: Default::default(),
             stats_reporting: Default::default(),
+            forget_me: Default::default(),
+        }
+    }
+}
+
+#[derive(Clone, Default, Debug, Deserialize, PartialEq, Serialize, Copy)]
+pub struct ForgetMe {
+    client: bool,
+    stats: bool,
+}
+
+impl From<bool> for ForgetMe {
+    fn from(value: bool) -> Self {
+        if value {
+            Self::new_all()
+        } else {
+            Self::new_none()
+        }
+    }
+}
+
+impl ForgetMe {
+    pub fn new_all() -> Self {
+        Self {
+            client: true,
+            stats: true,
+        }
+    }
+
+    pub fn new_client() -> Self {
+        Self {
+            client: true,
+            stats: false,
+        }
+    }
+
+    pub fn new_stats() -> Self {
+        Self {
+            client: false,
+            stats: true,
+        }
+    }
+
+    pub fn new(client: bool, stats: bool) -> Self {
+        Self { client, stats }
+    }
+
+    pub fn any(&self) -> bool {
+        self.client || self.stats
+    }
+
+    pub fn client(&self) -> bool {
+        self.client
+    }
+
+    pub fn stats(&self) -> bool {
+        self.stats
+    }
+
+    pub fn new_none() -> Self {
+        Self {
+            client: false,
+            stats: false,
         }
     }
 }

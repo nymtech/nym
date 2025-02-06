@@ -20,7 +20,7 @@ pub use nym_sphinx::addressing::clients::Recipient;
 
 pub mod config;
 
-type NativeClientBuilder<'a> = BaseClientBuilder<'a, QueryHttpRpcNyxdClient, OnDiskPersistent>;
+type NativeClientBuilder = BaseClientBuilder<QueryHttpRpcNyxdClient, OnDiskPersistent>;
 
 pub struct SocketClient {
     /// Client configuration options, including, among other things, packet sending rates,
@@ -32,6 +32,10 @@ pub struct SocketClient {
 }
 
 impl SocketClient {
+    pub fn config(&self) -> Config {
+        self.config.clone()
+    }
+
     pub fn new(config: Config, custom_mixnet: Option<PathBuf>) -> Self {
         SocketClient {
             config,
@@ -108,8 +112,9 @@ impl SocketClient {
         let storage = self.initialise_storage().await?;
         let user_agent = nym_bin_common::bin_info!().into();
 
-        let mut base_client = BaseClientBuilder::new(&self.config.base, storage, dkg_query_client)
-            .with_user_agent(user_agent);
+        let mut base_client =
+            BaseClientBuilder::new(self.config().base(), storage, dkg_query_client)
+                .with_user_agent(user_agent);
 
         if let Some(custom_mixnet) = &self.custom_mixnet {
             base_client = base_client.with_stored_topology(custom_mixnet)?;

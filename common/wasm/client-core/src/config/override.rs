@@ -8,8 +8,8 @@
 #![allow(clippy::empty_docs)]
 
 use super::{
-    AcknowledgementsWasm, CoverTrafficWasm, DebugWasm, GatewayConnectionWasm, ReplySurbsWasm,
-    StatsReportingWasm, TopologyWasm, TrafficWasm,
+    AcknowledgementsWasm, CoverTrafficWasm, DebugWasm, ForgetMeWasm, GatewayConnectionWasm,
+    ReplySurbsWasm, StatsReportingWasm, TopologyWasm, TrafficWasm,
 };
 use crate::config::ConfigDebug;
 use serde::{Deserialize, Serialize};
@@ -47,6 +47,9 @@ pub struct DebugWasmOverride {
     /// Defines all configuration options related to stats reporting.
     #[tsify(optional)]
     pub stats_reporting: Option<StatsReportingWasmOverride>,
+
+    #[tsify(optional)]
+    pub forget_me: Option<ForgetMeWasmOverride>,
 }
 
 impl From<DebugWasmOverride> for DebugWasm {
@@ -59,6 +62,7 @@ impl From<DebugWasmOverride> for DebugWasm {
             topology: value.topology.map(Into::into).unwrap_or_default(),
             reply_surbs: value.reply_surbs.map(Into::into).unwrap_or_default(),
             stats_reporting: value.stats_reporting.map(Into::into).unwrap_or_default(),
+            forget_me: value.forget_me.map(Into::into).unwrap_or_default(),
         }
     }
 }
@@ -404,6 +408,26 @@ impl From<ReplySurbsWasmOverride> for ReplySurbsWasm {
                 .maximum_reply_key_age_ms
                 .unwrap_or(def.maximum_reply_key_age_ms),
             surb_mix_hops: value.surb_mix_hops,
+        }
+    }
+}
+
+#[derive(Tsify, Debug, Clone, Serialize, Deserialize)]
+#[tsify(into_wasm_abi, from_wasm_abi)]
+#[serde(rename_all = "camelCase")]
+pub struct ForgetMeWasmOverride {
+    #[tsify(optional)]
+    pub client: Option<bool>,
+
+    #[tsify(optional)]
+    pub stats: Option<bool>,
+}
+
+impl From<ForgetMeWasmOverride> for ForgetMeWasm {
+    fn from(value: ForgetMeWasmOverride) -> Self {
+        ForgetMeWasm {
+            client: value.client.unwrap_or_default(),
+            stats: value.stats.unwrap_or_default(),
         }
     }
 }

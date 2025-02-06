@@ -30,6 +30,10 @@ pub struct Config {
 }
 
 impl Config {
+    pub fn base(&self) -> BaseClientConfig {
+        self.base.clone()
+    }
+
     pub fn new<S: Into<String>>(id: S, version: S, provider_mix_address: S) -> Self {
         Config {
             base: BaseClientConfig::new(id, version),

@@ -67,7 +67,12 @@ export const AccountInfoCard = (props: IAccountInfoCardProps) => {
               justifyContent="space-between"
               width="100%"
             >
-              <Typography variant="body4">{data.address}</Typography>
+              <Typography
+                variant="body4"
+                sx={{ wordWrap: "break-word", maxWidth: "95%" }}
+              >
+                {data.address}
+              </Typography>
               <CopyToClipboard text={data.address} />
             </Stack>
           }
